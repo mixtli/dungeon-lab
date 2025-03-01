@@ -7,6 +7,8 @@ import { config } from './config';
 import { configurePassport } from './config/passport';
 import authRoutes from './routes/auth.routes';
 import storageRoutes from './routes/storage.routes';
+import actorRoutes from './routes/actor.routes';
+import itemRoutes from './routes/item.routes';
 import { initializeStorage } from './services/storage.service';
 
 // Initialize Express app
@@ -59,6 +61,8 @@ initializeStorage()
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/storage', storageRoutes);
+app.use('/api/actors', actorRoutes);
+app.use('/api/items', itemRoutes);
 
 // Health check route
 app.get('/health', (req, res) => {
