@@ -1,5 +1,6 @@
 <script setup lang="ts">
 // Home view component
+import { Document, Monitor, Connection } from '@element-plus/icons-vue';
 </script>
 
 <template>

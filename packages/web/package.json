@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@dungeon-lab/shared": "^0.1.0",
+    "@element-plus/icons-vue": "^2.3.1",
     "@headlessui/vue": "^1.7.16",
     "@heroicons/vue": "^2.2.0",
     "@vueuse/core": "^10.7.0",
