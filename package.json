@@ -7,9 +7,9 @@
     "packages/*"
   ],
   "scripts": {
-    "dev:client": "npm run dev --workspace=@dungeon-lab/client",
+    "dev:web": "npm run dev --workspace=@dungeon-lab/web",
     "dev:server": "npm run dev --workspace=@dungeon-lab/server",
-    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:web\"",
     "build": "npm run build --workspaces",
     "test": "npm run test --workspaces",
     "lint": "npm run lint --workspaces"

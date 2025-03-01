@@ -1,7 +1,7 @@
 {
-  "name": "@dungeon-lab/client",
+  "name": "@dungeon-lab/web",
   "version": "0.1.0",
-  "description": "Vue.js frontend for Dungeon Lab",
+  "description": "Vue.js web frontend for Dungeon Lab",
   "type": "module",
   "scripts": {
     "dev": "vite",
