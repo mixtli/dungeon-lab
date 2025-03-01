@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import * as actorController from '../controllers/actor.controller';
-import { authenticate } from '../middleware/auth.middleware';
+import * as actorController from '../controllers/actor.controller.js';
+import { authenticate } from '../middleware/auth.middleware.js';
 
 const router = Router();
 
@@ -13,4 +13,4 @@ router.post('/', authenticate, actorController.createActor);
 router.put('/:id', authenticate, actorController.updateActor);
 router.delete('/:id', authenticate, actorController.deleteActor);
 
-export default router; 
+export const actorRoutes = router; 

@@ -13,6 +13,7 @@ const RegisterView = () => import('@/views/auth/RegisterView.vue');
 const GoogleCallbackView = () => import('@/views/auth/GoogleCallbackView.vue');
 const FileUploadDemoView = () => import('@/views/FileUploadDemo.vue');
 const NotFoundView = () => import('@/views/NotFoundView.vue');
+const PluginManagerView = () => import('@/views/plugin/PluginManagerView.vue');
 
 const routes: RouteRecordRaw[] = [
   {
@@ -53,6 +54,26 @@ const routes: RouteRecordRaw[] = [
         meta: {
           title: 'File Upload Demo',
           requiresAuth: true,
+        },
+      },
+    ],
+  },
+  {
+    path: '/admin',
+    component: DefaultLayout,
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+    },
+    children: [
+      {
+        path: 'plugins',
+        name: 'plugin-manager',
+        component: PluginManagerView,
+        meta: {
+          title: 'Plugin Manager',
+          requiresAuth: true,
+          requiresAdmin: true,
         },
       },
     ],
@@ -129,10 +150,25 @@ router.beforeEach((to, from, next) => {
   
   // Check if route requires authentication
   const requiresAuth = to.matched.some((record) => record.meta.requiresAuth);
+  const requiresAdmin = to.matched.some((record) => record.meta.requiresAdmin);
   const isAuthenticated = localStorage.getItem('token') !== null;
+  
+  // Get user data from localStorage if available
+  let isAdmin = false;
+  const userData = localStorage.getItem('user');
+  if (userData) {
+    try {
+      const user = JSON.parse(userData);
+      isAdmin = user.isAdmin || false;
+    } catch (error) {
+      console.error('Error parsing user data from localStorage:', error);
+    }
+  }
   
   if (requiresAuth && !isAuthenticated) {
     next({ name: 'login', query: { redirect: to.fullPath } });
+  } else if (requiresAdmin && !isAdmin) {
+    next({ name: 'home' });
   } else {
     next();
   }

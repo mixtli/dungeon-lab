@@ -37,26 +37,44 @@ const pluginSchema = new Schema(
     },
     type: {
       type: String,
-      enum: ['gameSystem', 'extension'],
       required: true,
+      enum: ['gameSystem', 'extension', 'theme'],
+      default: 'gameSystem',
     },
     enabled: {
       type: Boolean,
       default: true,
     },
+    entryPoint: {
+      type: String,
+      required: true,
+      trim: true,
+    },
     gameSystemId: {
       type: Schema.Types.ObjectId,
       ref: 'GameSystem',
-      required: function(this: PluginDocument) {
-        return this.type === 'gameSystem';
+      required: function(this: PluginDocument) { 
+        return this.type === 'gameSystem'; 
       },
+    },
+    config: {
+      type: Schema.Types.Mixed,
+      default: {},
+    },
+    createdBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    updatedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
     },
   },
   {
     timestamps: true,
     toJSON: {
       virtuals: true,
-      transform: (_doc, ret) => {
+      transform: (_, ret) => {
         ret.id = ret._id.toString();
         delete ret._id;
         delete ret.__v;

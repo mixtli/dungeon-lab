@@ -11,7 +11,7 @@ export interface Plugin {
   description?: string;
   author?: string;
   website?: string;
-  type: 'gameSystem' | 'extension';
+  type: 'gameSystem' | 'extension' | 'theme';
   enabled: boolean;
   createdAt: Date;
   updatedAt: Date;

@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
-import { ActorModel } from '../models/actor.model';
-import mongoose from 'mongoose';
+import { ActorModel } from '../models/actor.model.js';
+import { logger } from '../utils/logger.js';
+import { AuthenticatedRequest } from '../middleware/auth.middleware.js';
 
 /**
  * Get all actors
@@ -12,8 +13,8 @@ export async function getAllActors(req: Request, res: Response) {
     const actors = await ActorModel.find();
     res.json(actors);
   } catch (error) {
-    console.error('Error fetching actors:', error);
-    res.status(500).json({ message: 'Server error' });
+    logger.error(`Error getting actors: ${error instanceof Error ? error.message : String(error)}`);
+    res.status(500).json({ message: 'Error retrieving actors' });
   }
 }
 
@@ -32,13 +33,8 @@ export async function getActorById(req: Request, res: Response) {
     
     res.json(actor);
   } catch (error) {
-    console.error('Error fetching actor:', error);
-    
-    if (error instanceof mongoose.Error.CastError) {
-      return res.status(400).json({ message: 'Invalid actor ID' });
-    }
-    
-    res.status(500).json({ message: 'Server error' });
+    logger.error(`Error getting actor: ${error instanceof Error ? error.message : String(error)}`);
+    res.status(500).json({ message: 'Error retrieving actor' });
   }
 }
 
@@ -47,67 +43,64 @@ export async function getActorById(req: Request, res: Response) {
  * @route POST /api/actors
  * @access Private
  */
-export async function createActor(req: Request, res: Response) {
+export async function createActor(req: AuthenticatedRequest, res: Response) {
   try {
-    const newActor = new ActorModel({
-      ...req.body,
-      createdBy: req.user!.id,
-      updatedBy: req.user!.id
-    });
+    const { name, type, data, gameSystemId } = req.body;
     
-    const actor = await newActor.save();
-    res.status(201).json(actor);
-  } catch (error) {
-    console.error('Error creating actor:', error);
-    
-    if (error instanceof mongoose.Error.ValidationError) {
-      return res.status(400).json({ message: error.message });
+    if (!name || !type || !gameSystemId) {
+      return res.status(400).json({ message: 'Name, type, and gameSystemId are required' });
     }
     
-    res.status(500).json({ message: 'Server error' });
+    const actor = new ActorModel({
+      name,
+      type,
+      data,
+      gameSystemId,
+      createdBy: req.user?.id,
+      updatedBy: req.user?.id
+    });
+    
+    const savedActor = await actor.save();
+    res.status(201).json(savedActor);
+  } catch (error) {
+    logger.error(`Error creating actor: ${error instanceof Error ? error.message : String(error)}`);
+    res.status(500).json({ message: 'Error creating actor' });
   }
 }
 
 /**
- * Update an actor
+ * Update an existing actor
  * @route PUT /api/actors/:id
  * @access Private
  */
-export async function updateActor(req: Request, res: Response) {
+export async function updateActor(req: AuthenticatedRequest, res: Response) {
   try {
-    const actor = await ActorModel.findById(req.params.id);
+    const { name, type, data, gameSystemId } = req.body;
+    const actorId = req.params.id;
+    
+    const actor = await ActorModel.findById(actorId);
     
     if (!actor) {
       return res.status(404).json({ message: 'Actor not found' });
     }
     
-    // Check if user is the creator of the actor
-    if (actor.createdBy.toString() !== req.user!.id && !req.user!.isAdmin) {
+    // Check ownership
+    if (actor.createdBy && actor.createdBy.toString() !== req.user?.id) {
       return res.status(403).json({ message: 'Not authorized to update this actor' });
     }
     
-    const updatedActor = await ActorModel.findByIdAndUpdate(
-      req.params.id,
-      { 
-        ...req.body,
-        updatedBy: req.user!.id 
-      },
-      { new: true, runValidators: true }
-    );
+    // Update fields
+    if (name) actor.name = name;
+    if (type) actor.type = type;
+    if (data) actor.data = data;
+    if (gameSystemId) actor.gameSystemId = gameSystemId;
+    if (req.user?.id) actor.updatedBy = req.user.id;
     
+    const updatedActor = await actor.save();
     res.json(updatedActor);
   } catch (error) {
-    console.error('Error updating actor:', error);
-    
-    if (error instanceof mongoose.Error.CastError) {
-      return res.status(400).json({ message: 'Invalid actor ID' });
-    }
-    
-    if (error instanceof mongoose.Error.ValidationError) {
-      return res.status(400).json({ message: error.message });
-    }
-    
-    res.status(500).json({ message: 'Server error' });
+    logger.error(`Error updating actor: ${error instanceof Error ? error.message : String(error)}`);
+    res.status(500).json({ message: 'Error updating actor' });
   }
 }
 
@@ -116,29 +109,24 @@ export async function updateActor(req: Request, res: Response) {
  * @route DELETE /api/actors/:id
  * @access Private
  */
-export async function deleteActor(req: Request, res: Response) {
+export async function deleteActor(req: AuthenticatedRequest, res: Response) {
   try {
-    const actor = await ActorModel.findById(req.params.id);
+    const actorId = req.params.id;
+    const actor = await ActorModel.findById(actorId);
     
     if (!actor) {
       return res.status(404).json({ message: 'Actor not found' });
     }
     
-    // Check if user is the creator of the actor
-    if (actor.createdBy.toString() !== req.user!.id && !req.user!.isAdmin) {
+    // Check ownership
+    if (actor.createdBy && actor.createdBy.toString() !== req.user?.id) {
       return res.status(403).json({ message: 'Not authorized to delete this actor' });
     }
     
-    await ActorModel.findByIdAndDelete(req.params.id);
-    
-    res.json({ message: 'Actor removed' });
+    await ActorModel.findByIdAndDelete(actorId);
+    res.json({ message: 'Actor deleted successfully' });
   } catch (error) {
-    console.error('Error deleting actor:', error);
-    
-    if (error instanceof mongoose.Error.CastError) {
-      return res.status(400).json({ message: 'Invalid actor ID' });
-    }
-    
-    res.status(500).json({ message: 'Server error' });
+    logger.error(`Error deleting actor: ${error instanceof Error ? error.message : String(error)}`);
+    res.status(500).json({ message: 'Error deleting actor' });
   }
 }

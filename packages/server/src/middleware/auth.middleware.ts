@@ -1,86 +1,62 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { config } from '../config';
+import { logger } from '../utils/logger.js';
 
-// Extend Express Request type to include user
-declare global {
-  namespace Express {
-    interface Request {
-      user?: {
-        id: string;
-        username: string;
-        isAdmin: boolean;
-      };
-    }
-  }
+// Extend Express Request type to include user property
+export interface AuthenticatedRequest extends Request {
+  user?: {
+    id: string;
+    username: string;
+    email?: string;
+    isAdmin: boolean;
+  };
 }
 
 /**
- * Middleware to authenticate JWT tokens
+ * Middleware to authenticate requests using JWT
  */
-export function authenticate(req: Request, res: Response, next: NextFunction) {
+export const authenticate = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     // Get token from Authorization header
     const authHeader = req.headers.authorization;
-    
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({
-        success: false,
-        error: {
-          message: 'Authentication required',
-        },
-      });
+      return res.status(401).json({ message: 'Authentication required' });
     }
-    
+
     const token = authHeader.split(' ')[1];
-    
+    if (!token) {
+      return res.status(401).json({ message: 'Authentication token missing' });
+    }
+
     // Verify token
-    const decoded = jwt.verify(token, config.jwtSecret) as {
+    const secret = process.env.JWT_SECRET || 'dev-secret';
+    const decoded = jwt.verify(token, secret) as {
       id: string;
       username: string;
+      email?: string;
       isAdmin: boolean;
     };
-    
+
     // Attach user to request
-    req.user = {
-      id: decoded.id,
-      username: decoded.username,
-      isAdmin: decoded.isAdmin,
-    };
-    
+    req.user = decoded;
     next();
   } catch (error) {
-    console.error('Authentication error:', error);
-    return res.status(401).json({
-      success: false,
-      error: {
-        message: 'Invalid or expired token',
-      },
-    });
+    logger.error(`Authentication error: ${error instanceof Error ? error.message : String(error)}`);
+    return res.status(401).json({ message: 'Invalid or expired token' });
   }
-}
+};
 
 /**
  * Middleware to check if user is an admin
  */
-export function requireAdmin(req: Request, res: Response, next: NextFunction) {
+export const requireAdmin = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   if (!req.user) {
-    return res.status(401).json({
-      success: false,
-      error: {
-        message: 'Authentication required',
-      },
-    });
+    return res.status(401).json({ message: 'Authentication required' });
   }
-  
+
   if (!req.user.isAdmin) {
-    return res.status(403).json({
-      success: false,
-      error: {
-        message: 'Admin privileges required',
-      },
-    });
+    return res.status(403).json({ message: 'Admin privileges required' });
   }
-  
+
   next();
-} 
+}; 

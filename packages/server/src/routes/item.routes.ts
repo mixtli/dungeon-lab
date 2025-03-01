@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import * as itemController from '../controllers/item.controller';
-import { authenticate } from '../middleware/auth.middleware';
+import * as itemController from '../controllers/item.controller.js';
+import { authenticate } from '../middleware/auth.middleware.js';
 
 const router = Router();
 
@@ -13,4 +13,4 @@ router.post('/', authenticate, itemController.createItem);
 router.put('/:id', authenticate, itemController.updateItem);
 router.delete('/:id', authenticate, itemController.deleteItem);
 
-export default router; 
+export const itemRoutes = router; 

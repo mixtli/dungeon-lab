@@ -6,6 +6,7 @@ import App from './App.vue';
 import router from './router';
 import './assets/styles/main.css';
 import api from './plugins/axios';
+import { usePluginStore } from './stores/plugin';
 
 const app = createApp(App);
 const pinia = createPinia();
@@ -16,5 +17,11 @@ app.config.globalProperties.$axios = api;
 app.use(pinia);
 app.use(router);
 app.use(ElementPlus);
+
+// Initialize the plugin system
+const pluginStore = usePluginStore();
+pluginStore.initializePlugins().catch(error => {
+  console.error('Failed to initialize plugins:', error);
+});
 
 app.mount('#app'); 

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import passport from 'passport';
-import * as authController from '../controllers/auth.controller';
-import { authenticate } from '../middleware/auth.middleware';
+import * as authController from '../controllers/auth.controller.js';
+import { authenticate } from '../middleware/auth.middleware.js';
 
 const router = Router();
 
@@ -20,4 +20,4 @@ router.get(
 // Protected routes
 router.get('/me', authenticate, authController.getCurrentUser);
 
-export default router; 
+export const authRoutes = router; 

@@ -20,9 +20,26 @@ export interface User {
 /**
  * User document interface
  */
-export interface UserDocument extends Omit<User, 'id'>, Document {
-  id: string;
-  comparePassword: (candidatePassword: string) => Promise<boolean>;
+export interface UserDocument extends Document {
+  username: string;
+  email: string;
+  password?: string;
+  displayName?: string;
+  avatar?: string;
+  isAdmin: boolean;
+  googleId?: string;
+  roles: string[];
+  preferences: {
+    theme: 'light' | 'dark' | 'system';
+    language: string;
+    notifications: boolean;
+  };
+  lastLogin?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+  
+  // Methods
+  comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
 /**
@@ -35,9 +52,8 @@ const userSchema = new Schema(
       required: true,
       unique: true,
       trim: true,
-      lowercase: true,
       minlength: 3,
-      maxlength: 30,
+      maxlength: 50,
     },
     email: {
       type: String,
@@ -48,16 +64,10 @@ const userSchema = new Schema(
     },
     password: {
       type: String,
-      required: function(this: any): boolean {
-        // Password is required only if googleId is not provided
-        return !this.googleId;
+      required: function(this: { googleId?: string }): boolean {
+        return !this.googleId; // Password not required if using Google OAuth
       },
-      minlength: 8,
-    },
-    googleId: {
-      type: String,
-      sparse: true,
-      unique: true,
+      minlength: 6,
     },
     displayName: {
       type: String,
@@ -71,17 +81,45 @@ const userSchema = new Schema(
       type: Boolean,
       default: false,
     },
+    googleId: {
+      type: String,
+      sparse: true,
+      unique: true,
+    },
+    roles: {
+      type: [String],
+      default: ['user'],
+    },
+    preferences: {
+      theme: {
+        type: String,
+        enum: ['light', 'dark', 'system'],
+        default: 'system',
+      },
+      language: {
+        type: String,
+        default: 'en',
+      },
+      notifications: {
+        type: Boolean,
+        default: true,
+      },
+    },
+    lastLogin: {
+      type: Date,
+    },
   },
   {
     timestamps: true,
     toJSON: {
-      virtuals: true,
-      transform: (_doc, ret) => {
-        ret.id = ret._id.toString();
-        delete ret._id;
-        delete ret.__v;
-        delete ret.password;
-        return ret;
+      transform: (_, ret) => {
+        delete ret.password; // Don't include password in JSON
+        return {
+          ...ret,
+          id: ret._id,
+          _id: undefined,
+          __v: undefined,
+        };
       },
     },
   }
@@ -90,24 +128,20 @@ const userSchema = new Schema(
 /**
  * Hash password before saving
  */
-userSchema.pre('save', async function (next) {
-  // Cast to unknown first, then to UserDocument to avoid TypeScript error
-  const user = this as unknown as UserDocument;
-
-  // Only hash the password if it has been modified (or is new) and exists
+userSchema.pre('save', async function(next) {
+  const user = this;
+  
+  // Only hash the password if it has been modified or is new
   if (!user.isModified('password') || !user.password) {
     return next();
   }
-
+  
   try {
-    // Generate a salt
+    // Generate salt
     const salt = await bcrypt.genSalt(10);
-
-    // Hash the password along with the new salt
-    const hash = await bcrypt.hash(user.password, salt);
-
-    // Override the cleartext password with the hashed one
-    user.password = hash;
+    
+    // Hash password
+    user.password = await bcrypt.hash(user.password, salt);
     next();
   } catch (error) {
     next(error as Error);
@@ -117,8 +151,7 @@ userSchema.pre('save', async function (next) {
 /**
  * Compare password method
  */
-userSchema.methods.comparePassword = async function (candidatePassword: string): Promise<boolean> {
-  // If no password (Google auth user), return false
+userSchema.methods.comparePassword = async function(candidatePassword: string): Promise<boolean> {
   if (!this.password) return false;
   return bcrypt.compare(candidatePassword, this.password);
 };

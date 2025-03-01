@@ -46,6 +46,18 @@ function logout() {
             File Upload
           </RouterLink>
           
+          <!-- Admin Tools Dropdown (for admin users only) -->
+          <ElDropdown v-if="authStore.isAuthenticated && authStore.user?.isAdmin" trigger="click">
+            <div class="flex items-center cursor-pointer px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700">
+              <span>Admin Tools</span>
+            </div>
+            <template #dropdown>
+              <ElDropdownMenu>
+                <ElDropdownItem @click="router.push('/admin/plugins')">Plugin Manager</ElDropdownItem>
+              </ElDropdownMenu>
+            </template>
+          </ElDropdown>
+          
           <!-- Theme Toggle -->
           <button @click="toggleTheme" class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700">
             <MoonIcon v-if="isDarkMode" class="text-yellow-400 w-5 h-5" />
@@ -99,6 +111,14 @@ function logout() {
         <RouterLink v-if="authStore.isAuthenticated" to="/file-upload-demo" class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700">
           File Upload
         </RouterLink>
+        
+        <!-- Admin Tools Section (for admin users only) -->
+        <template v-if="authStore.isAuthenticated && authStore.user?.isAdmin">
+          <div class="px-3 py-2 font-medium text-gray-500 dark:text-gray-400">Admin Tools</div>
+          <RouterLink to="/admin/plugins" class="block pl-6 px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700">
+            Plugin Manager
+          </RouterLink>
+        </template>
         
         <!-- Theme Toggle -->
         <button @click="toggleTheme" class="flex w-full items-center px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700">

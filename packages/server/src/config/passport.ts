@@ -1,19 +1,20 @@
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
-import { UserModel, UserDocument } from '../models/user.model';
-import { config } from './index';
+import { UserModel } from '../models/user.model.js';
+import { config } from './index.js';
+import { logger } from '../utils/logger.js';
 
 // Configure Passport
 export function configurePassport(): void {
   // Debug logging for Google OAuth credentials
-  console.log('Google OAuth Configuration:');
-  console.log('Client ID:', config.google.clientId ? 'Set (length: ' + config.google.clientId.length + ')' : 'Not set');
-  console.log('Client Secret:', config.google.clientSecret ? 'Set (length: ' + config.google.clientSecret.length + ')' : 'Not set');
-  console.log('Callback URL:', config.google.callbackUrl);
+  logger.info('Google OAuth Configuration:');
+  logger.info(`Client ID: ${config.google.clientId ? 'Set (length: ' + config.google.clientId.length + ')' : 'Not set'}`);
+  logger.info(`Client Secret: ${config.google.clientSecret ? 'Set (length: ' + config.google.clientSecret.length + ')' : 'Not set'}`);
+  logger.info(`Callback URL: ${config.google.callbackUrl}`);
 
   // Validate required credentials
   if (!config.google.clientId || !config.google.clientSecret) {
-    console.error('ERROR: Google OAuth credentials are missing. Authentication with Google will not work.');
+    logger.error('ERROR: Google OAuth credentials are missing. Authentication with Google will not work.');
   }
 
   // Serialize user to session
