@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
-import jwt from 'jsonwebtoken';
-import { UserModel } from '../models/user.model';
-import { config } from '../config/index';
+import jwt, { SignOptions } from 'jsonwebtoken';
+import { UserModel } from '../models/user.model.js';
+import { config } from '../config/index.js';
 
 /**
  * Generate JWT token for a user
@@ -10,7 +10,7 @@ function generateToken(user: any): string {
   return jwt.sign(
     { id: user._id, username: user.username, isAdmin: user.isAdmin },
     config.jwtSecret,
-    { expiresIn: config.jwtExpiresIn }
+    { expiresIn: config.jwtExpiresIn } as SignOptions
   );
 }
 

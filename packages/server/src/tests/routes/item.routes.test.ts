@@ -46,7 +46,7 @@ vi.mock('../../middleware/auth.middleware.js', () => ({
 }));
 
 // Import the actual routes (this will use the mocked controllers)
-import itemRoutes from '../../routes/item.routes.js';
+import { itemRoutes } from '../../routes/item.routes.js';
 
 describe('Item Routes', () => {
   let app: express.Application;

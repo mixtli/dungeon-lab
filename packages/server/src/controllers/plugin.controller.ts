@@ -216,8 +216,8 @@ export class PluginController {
       }
       
       // If this is a game system plugin, delete the game system too
-      if (plugin.type === 'gameSystem' && plugin.gameSystemId) {
-        await GameSystemModel.findByIdAndDelete(plugin.gameSystemId);
+      if (plugin.type === 'gameSystem' && (plugin as any).gameSystemId) {
+        await GameSystemModel.findByIdAndDelete((plugin as any).gameSystemId);
       }
       
       await PluginModel.findByIdAndDelete(req.params.id);

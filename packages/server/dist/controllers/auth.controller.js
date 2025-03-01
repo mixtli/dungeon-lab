@@ -1,22 +1,33 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.register = register;
-exports.login = login;
-exports.getCurrentUser = getCurrentUser;
-const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-const user_model_1 = require("../models/user.model");
-const config_1 = require("../config");
+import jwt from 'jsonwebtoken';
+import { UserModel } from '../models/user.model.js';
+import { config } from '../config/index.js';
+/**
+ * Generate JWT token for a user
+ */
+function generateToken(user) {
+    return jwt.sign({ id: user._id, username: user.username, isAdmin: user.isAdmin }, config.jwtSecret, { expiresIn: config.jwtExpiresIn });
+}
+/**
+ * Format user data for response
+ */
+function formatUserResponse(user) {
+    return {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        displayName: user.displayName,
+        avatar: user.avatar,
+        isAdmin: user.isAdmin,
+    };
+}
 /**
  * Register a new user
  */
-async function register(req, res) {
+export async function register(req, res) {
     try {
         const { username, email, password, displayName } = req.body;
         // Check if user already exists
-        const existingUser = await user_model_1.UserModel.findOne({
+        const existingUser = await UserModel.findOne({
             $or: [{ email }, { username }],
         });
         if (existingUser) {
@@ -28,7 +39,7 @@ async function register(req, res) {
             });
         }
         // Create new user
-        const user = new user_model_1.UserModel({
+        const user = new UserModel({
             username,
             email,
             password, // Will be hashed by the pre-save hook
@@ -36,20 +47,13 @@ async function register(req, res) {
         });
         await user.save();
         // Generate JWT token
-        const token = jsonwebtoken_1.default.sign({ id: user._id, username: user.username, isAdmin: user.isAdmin }, config_1.config.jwtSecret, { expiresIn: '7d' });
+        const token = generateToken(user);
         // Return user data (without password) and token
         return res.status(201).json({
             success: true,
             data: {
                 token,
-                user: {
-                    id: user._id,
-                    username: user.username,
-                    email: user.email,
-                    displayName: user.displayName,
-                    avatar: user.avatar,
-                    isAdmin: user.isAdmin,
-                },
+                user: formatUserResponse(user),
             },
         });
     }
@@ -66,11 +70,11 @@ async function register(req, res) {
 /**
  * Login user
  */
-async function login(req, res) {
+export async function login(req, res) {
     try {
         const { email, password } = req.body;
         // Find user by email
-        const user = await user_model_1.UserModel.findOne({ email });
+        const user = await UserModel.findOne({ email });
         if (!user) {
             return res.status(401).json({
                 success: false,
@@ -90,20 +94,13 @@ async function login(req, res) {
             });
         }
         // Generate JWT token
-        const token = jsonwebtoken_1.default.sign({ id: user._id, username: user.username, isAdmin: user.isAdmin }, config_1.config.jwtSecret, { expiresIn: '7d' });
+        const token = generateToken(user);
         // Return user data (without password) and token
         return res.status(200).json({
             success: true,
             data: {
                 token,
-                user: {
-                    id: user._id,
-                    username: user.username,
-                    email: user.email,
-                    displayName: user.displayName,
-                    avatar: user.avatar,
-                    isAdmin: user.isAdmin,
-                },
+                user: formatUserResponse(user),
             },
         });
     }
@@ -118,9 +115,29 @@ async function login(req, res) {
     }
 }
 /**
+ * Google authentication callback
+ */
+export function googleCallback(req, res) {
+    try {
+        // User should be attached to request by Passport
+        const user = req.user;
+        if (!user) {
+            return res.redirect(`${config.clientUrl}/auth/login?error=Authentication failed`);
+        }
+        // Generate JWT token
+        const token = generateToken(user);
+        // Redirect to client with token
+        return res.redirect(`${config.clientUrl}/auth/google/callback?token=${token}`);
+    }
+    catch (error) {
+        console.error('Google callback error:', error);
+        return res.redirect(`${config.clientUrl}/auth/login?error=Authentication failed`);
+    }
+}
+/**
  * Get current user
  */
-async function getCurrentUser(req, res) {
+export async function getCurrentUser(req, res) {
     try {
         // User should be attached to request by auth middleware
         const userId = req.user?.id;
@@ -132,7 +149,7 @@ async function getCurrentUser(req, res) {
                 },
             });
         }
-        const user = await user_model_1.UserModel.findById(userId).select('-password');
+        const user = await UserModel.findById(userId).select('-password');
         if (!user) {
             return res.status(404).json({
                 success: false,
@@ -143,14 +160,7 @@ async function getCurrentUser(req, res) {
         }
         return res.status(200).json({
             success: true,
-            data: {
-                id: user._id,
-                username: user.username,
-                email: user.email,
-                displayName: user.displayName,
-                avatar: user.avatar,
-                isAdmin: user.isAdmin,
-            },
+            data: formatUserResponse(user),
         });
     }
     catch (error) {

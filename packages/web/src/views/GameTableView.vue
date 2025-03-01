@@ -2,10 +2,26 @@
 import { ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 
+// Define interface for game data
+interface Player {
+  id: string;
+  username: string;
+  displayName: string;
+}
+
+interface GameData {
+  id: string;
+  name: string;
+  system: string;
+  description: string;
+  dm: Player;
+  players: Player[];
+}
+
 const route = useRoute();
 const gameId = route.params.id as string;
 const isLoading = ref(true);
-const gameData = ref(null);
+const gameData = ref<GameData | null>(null);
 
 // Placeholder for game data loading
 onMounted(async () => {

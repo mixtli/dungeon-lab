@@ -3,7 +3,7 @@ import { ref, onMounted, computed } from 'vue';
 import { usePluginStore } from '../../stores/plugin';
 import { useAuthStore } from '../../stores/auth';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { Plus, Delete, Edit, Switch, Document } from '@element-plus/icons-vue';
+import { Plus, Delete, Edit, Switch } from '@element-plus/icons-vue';
 
 // Stores
 const pluginStore = usePluginStore();

@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
-import { ItemModel } from '../models/item.model';
+import { ItemModel } from '../models/item.model.js';
 
 /**
  * Get all items

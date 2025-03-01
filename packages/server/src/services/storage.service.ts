@@ -1,5 +1,6 @@
 import { Client } from 'minio';
 import { logger } from '../utils/logger.js';
+import path from 'path';
 
 // Storage provider configuration
 interface StorageConfig {
@@ -77,11 +78,22 @@ export class StorageService {
   /**
    * Upload a file to storage
    */
-  async uploadFile(buffer: Buffer, key: string, contentType: string): Promise<string> {
+  async uploadFile(buffer: Buffer, originalName: string, contentType: string, folder: string = ''): Promise<{key: string, size: number}> {
+    // Generate a unique file name
+    const fileExtension = path.extname(originalName);
+    const fileName = `${path.basename(originalName, fileExtension)}_${Date.now()}${fileExtension}`;
+    
+    // Construct key with folder
+    const key = folder ? `${folder}/${fileName}` : fileName;
+    
     await this.client.putObject(this.bucket, key, buffer, buffer.length, {
       'Content-Type': contentType,
     });
-    return key;
+    
+    return {
+      key,
+      size: buffer.length
+    };
   }
 
   /**
@@ -101,9 +113,9 @@ export class StorageService {
   /**
    * List all files in a directory
    */
-  async listFiles(prefix = ''): Promise<string[]> {
+  async listFiles(prefix = '', recursive = true): Promise<string[]> {
     const files: string[] = [];
-    const stream = this.client.listObjects(this.bucket, prefix, true);
+    const stream = this.client.listObjects(this.bucket, prefix, recursive);
     
     return new Promise((resolve, reject) => {
       stream.on('data', (obj) => {
@@ -116,4 +128,23 @@ export class StorageService {
       stream.on('end', () => resolve(files));
     });
   }
-} 
+}
+
+// Create and export a singleton instance
+const storageServiceInstance = new StorageService();
+
+// Export standalone functions that use the singleton
+export const uploadFile = (buffer: Buffer, originalName: string, contentType: string, folder: string = '') => 
+  storageServiceInstance.uploadFile(buffer, originalName, contentType, folder);
+
+export const getFileUrl = (key: string, expiryInSeconds = 3600) => 
+  storageServiceInstance.getFileUrl(key, expiryInSeconds);
+
+export const deleteFile = (key: string) => 
+  storageServiceInstance.deleteFile(key);
+
+export const listFiles = (prefix = '', recursive = true) => 
+  storageServiceInstance.listFiles(prefix, recursive);
+
+// Export the instance as default
+export default storageServiceInstance; 

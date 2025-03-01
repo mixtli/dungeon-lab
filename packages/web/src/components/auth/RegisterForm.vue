@@ -18,7 +18,7 @@ const form = reactive({
 const isSubmitting = ref(false);
 const formRef = ref();
 
-const validatePass = (rule: any, value: string, callback: any) => {
+const validatePass = (_rule: any, value: string, callback: any) => {
   if (value === '') {
     callback(new Error('Please enter your password'));
   } else if (value.length < 6) {
@@ -33,7 +33,7 @@ const validatePass = (rule: any, value: string, callback: any) => {
   }
 };
 
-const validateConfirmPass = (rule: any, value: string, callback: any) => {
+const validateConfirmPass = (_rule: any, value: string, callback: any) => {
   if (value === '') {
     callback(new Error('Please confirm your password'));
   } else if (value !== form.password) {

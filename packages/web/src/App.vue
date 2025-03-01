@@ -2,7 +2,7 @@
 import { RouterView } from 'vue-router';
 import { useTheme } from '@/composables/useTheme';
 
-const { isDarkMode, toggleTheme } = useTheme();
+const { isDarkMode } = useTheme();
 </script>
 
 <template>

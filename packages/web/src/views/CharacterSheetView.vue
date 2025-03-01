@@ -2,10 +2,64 @@
 import { ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 
+// Define the Character interface to match our data structure
+interface Character {
+  id: string;
+  name: string;
+  race: string;
+  class: string;
+  level: number;
+  background: string;
+  alignment: string;
+  experience: number;
+  attributes: {
+    strength: { score: number; modifier: number; };
+    dexterity: { score: number; modifier: number; };
+    constitution: { score: number; modifier: number; };
+    intelligence: { score: number; modifier: number; };
+    wisdom: { score: number; modifier: number; };
+    charisma: { score: number; modifier: number; };
+  };
+  hitPoints: {
+    current: number;
+    maximum: number;
+    temporary?: number;
+  };
+  armorClass: number;
+  initiative: number;
+  speed: number;
+  proficiencyBonus?: number;
+  savingThrows: {
+    strength: { proficient: boolean; value: number; };
+    dexterity: { proficient: boolean; value: number; };
+    constitution: { proficient: boolean; value: number; };
+    intelligence: { proficient: boolean; value: number; };
+    wisdom: { proficient: boolean; value: number; };
+    charisma: { proficient: boolean; value: number; };
+  };
+  skills: Array<{
+    name: string;
+    ability: string;
+    proficient: boolean;
+    value: number;
+  }>;
+  equipment: Array<{
+    name: string;
+    type: string;
+    description?: string;
+    damage?: string;
+    properties?: string[];
+  }>;
+  features: Array<{
+    name: string;
+    description: string;
+  }>;
+}
+
 const route = useRoute();
 const characterId = route.params.id as string;
 const isLoading = ref(true);
-const character = ref(null);
+const character = ref<Character | null>(null);
 
 // Placeholder for character data loading
 onMounted(async () => {
@@ -70,7 +124,7 @@ onMounted(async () => {
       ],
     };
   } catch (error) {
-    console.error('Error loading character data:', error);
+    console.error('Error loading character:', error);
   } finally {
     isLoading.value = false;
   }

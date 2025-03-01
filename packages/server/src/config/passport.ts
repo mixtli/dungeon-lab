@@ -1,8 +1,40 @@
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
-import { UserModel } from '../models/user.model.js';
+import { UserModel, UserDocument, User } from '../models/user.model.js';
 import { config } from './index.js';
 import { logger } from '../utils/logger.js';
+import mongoose from 'mongoose';
+
+/**
+ * Convert a UserDocument to a User interface
+ */
+function toUser(userDoc: UserDocument | null): User | undefined {
+  if (!userDoc) return undefined;
+  
+  // Cast the _id to ObjectId
+  const id = userDoc._id instanceof mongoose.Types.ObjectId 
+    ? userDoc._id.toString() 
+    : String(userDoc._id);
+  
+  const baseUser = {
+    id,
+    username: userDoc.username,
+    email: userDoc.email,
+    isAdmin: userDoc.isAdmin,
+    createdAt: userDoc.createdAt,
+    updatedAt: userDoc.updatedAt,
+  };
+  
+  // Add optional properties if they exist
+  const user: User = {
+    ...baseUser,
+    ...(userDoc.googleId && { googleId: userDoc.googleId }),
+    ...(userDoc.displayName && { displayName: userDoc.displayName }),
+    ...(userDoc.avatar && { avatar: userDoc.avatar }),
+  };
+  
+  return user;
+}
 
 // Configure Passport
 export function configurePassport(): void {
@@ -26,7 +58,7 @@ export function configurePassport(): void {
   passport.deserializeUser(async (id: string, done) => {
     try {
       const user = await UserModel.findById(id);
-      done(null, user || undefined);
+      done(null, toUser(user));
     } catch (error) {
       done(error, undefined);
     }
@@ -49,7 +81,7 @@ export function configurePassport(): void {
             let user = await UserModel.findOne({ googleId: profile.id });
 
             if (user) {
-              return done(null, user);
+              return done(null, toUser(user));
             }
 
             // Check if user exists with the same email
@@ -67,7 +99,7 @@ export function configurePassport(): void {
                 user.avatar = profile.photos[0].value;
               }
               await user.save();
-              return done(null, user);
+              return done(null, toUser(user));
             }
 
             // Create new user
@@ -81,7 +113,7 @@ export function configurePassport(): void {
             });
 
             await newUser.save();
-            return done(null, newUser);
+            return done(null, toUser(newUser));
           } catch (error) {
             return done(error as Error, undefined);
           }

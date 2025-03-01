@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import asyncHandler from 'express-async-handler';
-import * as storageService from '../services/storage.service';
+import * as storageService from '../services/storage.service.js';
 import multer, { FileFilterCallback } from 'multer';
 import path from 'path';
 

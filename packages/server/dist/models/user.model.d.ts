@@ -6,7 +6,8 @@ export interface User {
     id: string;
     username: string;
     email: string;
-    password: string;
+    password?: string;
+    googleId?: string;
     displayName?: string;
     avatar?: string;
     isAdmin: boolean;
@@ -16,9 +17,24 @@ export interface User {
 /**
  * User document interface
  */
-export interface UserDocument extends Omit<User, 'id'>, Document {
-    id: string;
-    comparePassword: (candidatePassword: string) => Promise<boolean>;
+export interface UserDocument extends Document {
+    username: string;
+    email: string;
+    password?: string;
+    displayName?: string;
+    avatar?: string;
+    isAdmin: boolean;
+    googleId?: string;
+    roles: string[];
+    preferences: {
+        theme: 'light' | 'dark' | 'system';
+        language: string;
+        notifications: boolean;
+    };
+    lastLogin?: Date;
+    createdAt: Date;
+    updatedAt: Date;
+    comparePassword(candidatePassword: string): Promise<boolean>;
 }
 /**
  * User model

@@ -1,22 +1,14 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.connectToDatabase = connectToDatabase;
-exports.disconnectFromDatabase = disconnectFromDatabase;
-exports.getConnection = getConnection;
-const mongoose_1 = __importDefault(require("mongoose"));
-const dotenv_1 = __importDefault(require("dotenv"));
+import mongoose from 'mongoose';
+import dotenv from 'dotenv';
 // Load environment variables
-dotenv_1.default.config();
+dotenv.config();
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/dungeon-lab';
 /**
  * Connect to MongoDB
  */
-async function connectToDatabase() {
+export async function connectToDatabase() {
     try {
-        await mongoose_1.default.connect(MONGODB_URI);
+        await mongoose.connect(MONGODB_URI);
         console.log('Connected to MongoDB');
     }
     catch (error) {
@@ -27,9 +19,9 @@ async function connectToDatabase() {
 /**
  * Disconnect from MongoDB
  */
-async function disconnectFromDatabase() {
+export async function disconnectFromDatabase() {
     try {
-        await mongoose_1.default.disconnect();
+        await mongoose.disconnect();
         console.log('Disconnected from MongoDB');
     }
     catch (error) {
@@ -39,7 +31,7 @@ async function disconnectFromDatabase() {
 /**
  * Get the MongoDB connection
  */
-function getConnection() {
-    return mongoose_1.default.connection;
+export function getConnection() {
+    return mongoose.connection;
 }
 //# sourceMappingURL=database.js.map

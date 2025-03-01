@@ -1,56 +1,16 @@
-"use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.UserModel = void 0;
-const mongoose_1 = __importStar(require("mongoose"));
-const bcrypt_1 = __importDefault(require("bcrypt"));
+import mongoose, { Schema } from 'mongoose';
+import bcrypt from 'bcrypt';
 /**
  * User schema
  */
-const userSchema = new mongoose_1.Schema({
+const userSchema = new Schema({
     username: {
         type: String,
         required: true,
         unique: true,
         trim: true,
-        lowercase: true,
         minlength: 3,
-        maxlength: 30,
+        maxlength: 50,
     },
     email: {
         type: String,
@@ -61,8 +21,10 @@ const userSchema = new mongoose_1.Schema({
     },
     password: {
         type: String,
-        required: true,
-        minlength: 8,
+        required: function () {
+            return !this.googleId; // Password not required if using Google OAuth
+        },
+        minlength: 6,
     },
     displayName: {
         type: String,
@@ -76,16 +38,44 @@ const userSchema = new mongoose_1.Schema({
         type: Boolean,
         default: false,
     },
+    googleId: {
+        type: String,
+        sparse: true,
+        unique: true,
+    },
+    roles: {
+        type: [String],
+        default: ['user'],
+    },
+    preferences: {
+        theme: {
+            type: String,
+            enum: ['light', 'dark', 'system'],
+            default: 'system',
+        },
+        language: {
+            type: String,
+            default: 'en',
+        },
+        notifications: {
+            type: Boolean,
+            default: true,
+        },
+    },
+    lastLogin: {
+        type: Date,
+    },
 }, {
     timestamps: true,
     toJSON: {
-        virtuals: true,
-        transform: (_doc, ret) => {
-            ret.id = ret._id.toString();
-            delete ret._id;
-            delete ret.__v;
-            delete ret.password;
-            return ret;
+        transform: (_, ret) => {
+            delete ret.password; // Don't include password in JSON
+            return {
+                ...ret,
+                id: ret._id,
+                _id: undefined,
+                __v: undefined,
+            };
         },
     },
 });
@@ -93,19 +83,16 @@ const userSchema = new mongoose_1.Schema({
  * Hash password before saving
  */
 userSchema.pre('save', async function (next) {
-    // Cast to unknown first, then to UserDocument to avoid TypeScript error
     const user = this;
-    // Only hash the password if it has been modified (or is new)
-    if (!user.isModified('password')) {
+    // Only hash the password if it has been modified or is new
+    if (!user.isModified('password') || !user.password) {
         return next();
     }
     try {
-        // Generate a salt
-        const salt = await bcrypt_1.default.genSalt(10);
-        // Hash the password along with the new salt
-        const hash = await bcrypt_1.default.hash(user.password, salt);
-        // Override the cleartext password with the hashed one
-        user.password = hash;
+        // Generate salt
+        const salt = await bcrypt.genSalt(10);
+        // Hash password
+        user.password = await bcrypt.hash(user.password, salt);
         next();
     }
     catch (error) {
@@ -116,10 +103,12 @@ userSchema.pre('save', async function (next) {
  * Compare password method
  */
 userSchema.methods.comparePassword = async function (candidatePassword) {
-    return bcrypt_1.default.compare(candidatePassword, this.password);
+    if (!this.password)
+        return false;
+    return bcrypt.compare(candidatePassword, this.password);
 };
 /**
  * User model
  */
-exports.UserModel = mongoose_1.default.model('User', userSchema);
+export const UserModel = mongoose.model('User', userSchema);
 //# sourceMappingURL=user.model.js.map
