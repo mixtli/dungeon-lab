@@ -146,3 +146,64 @@ If needed, you can further use the `web_scraper.py` file to scrape the web page 
 - Use 'gpt-4o' as the model name for OpenAI's GPT-4 with vision capabilities
 
 # Scratchpad
+
+## VTT System Project Plan
+
+### Project Overview
+Creating a Virtual Table Top (VTT) system for TTRPGs with:
+- Frontend: Vue.js + TypeScript SPA
+- Backend: Express + TypeScript
+- Shared code workspace
+- MongoDB for data storage
+- Plugin system for different game systems (D&D 5e, Pathfinder, etc.)
+
+### Project Structure
+- Workspace setup with npm workspaces:
+  - `packages/client` - Vue.js frontend
+  - `packages/server` - Express backend
+  - `packages/shared` - Shared code/types
+  - `packages/plugins` - Game system plugins
+
+### Tasks
+[X] 1. Project Setup
+  [X] 1.1. Initialize npm workspace structure
+  [X] 1.2. Set up frontend with Vue 3, TypeScript, Vite
+  [X] 1.3. Set up backend with Express, TypeScript
+  [X] 1.4. Set up shared package
+  [X] 1.5. Configure MongoDB connection
+
+[X] 2. Core Data Models
+  [X] 2.1. Define base Actor interface
+  [X] 2.2. Define base Item interface
+  [X] 2.3. Define Game System Plugin interface
+  [X] 2.4. Create MongoDB schemas
+
+[ ] 3. Backend API Development
+  [ ] 3.1. Create Actor CRUD endpoints
+  [ ] 3.2. Create Item CRUD endpoints
+  [ ] 3.3. Create Game System Plugin management endpoints
+  [ ] 3.4. Implement authentication system
+
+[ ] 4. Plugin System
+  [X] 4.1. Design plugin architecture
+  [ ] 4.2. Create plugin loader
+  [ ] 4.3. Implement plugin registration system
+  [ ] 4.4. Create sample D&D 5e plugin
+
+[ ] 5. Frontend Development
+  [ ] 5.1. Set up Vue Router
+  [ ] 5.2. Set up Pinia store
+  [ ] 5.3. Create base UI components
+  [ ] 5.4. Implement dynamic UI for plugins
+  [ ] 5.5. Create game table view
+  [ ] 5.6. Create character sheet components
+
+[ ] 6. Integration
+  [ ] 6.1. Connect frontend to backend API
+  [ ] 6.2. Implement plugin loading in frontend
+  [ ] 6.3. Test end-to-end functionality
+
+[ ] 7. Testing & Deployment
+  [ ] 7.1. Write unit tests
+  [ ] 7.2. Write integration tests
+  [ ] 7.3. Set up deployment pipeline

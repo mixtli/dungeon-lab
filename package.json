@@ -1,0 +1,31 @@
+{
+  "name": "dungeon-lab",
+  "version": "0.1.0",
+  "description": "A Virtual Table Top (VTT) system for Table Top Role Playing Games",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:client": "npm run dev --workspace=@dungeon-lab/client",
+    "dev:server": "npm run dev --workspace=@dungeon-lab/server",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces",
+    "lint": "npm run lint --workspaces"
+  },
+  "keywords": [
+    "vtt",
+    "ttrpg",
+    "virtual-tabletop",
+    "dungeons-and-dragons",
+    "pathfinder",
+    "role-playing-games"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "typescript": "^5.3.3"
+  }
+} 

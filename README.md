@@ -1,101 +1,61 @@
-# dungeon-lab
+# Dungeon Lab
 
+A Virtual Table Top (VTT) system for Table Top Role Playing Games (TTRPGs) with a plugin architecture to support multiple game systems.
 
-A Cursor-powered AI development environment with advanced agentic capabilities.
+## Features
 
+- **Multi-system Support**: Run games in D&D 5e, Pathfinder, or any other system with the appropriate plugin
+- **Extensible Plugin Architecture**: Create custom game system plugins with their own data models and UI components
+- **Modern Tech Stack**: Built with Vue.js, TypeScript, Express, and MongoDB
+- **Real-time Collaboration**: Play with friends in real-time with synchronized game state
 
-## Quick Start
+## Project Structure
 
-1. Activate the virtual environment:
-   ```bash
-   # On Windows
-   venv\Scripts\activate
-   
-   # On macOS/Linux
-   source venv/bin/activate
+This project uses npm workspaces to organize the codebase:
+
+- `packages/client`: Vue.js frontend application
+- `packages/server`: Express backend server
+- `packages/shared`: Shared code and types between client and server
+- `packages/plugins`: Game system plugins
+
+## Development
+
+### Prerequisites
+
+- Node.js (v18+)
+- npm (v8+)
+- MongoDB
+
+### Setup
+
+1. Clone the repository:
+   ```
+   git clone https://github.com/yourusername/dungeon-lab.git
+   cd dungeon-lab
    ```
 
-2. Configure your environment:
-   - Copy `.env.example` to `.env` if you haven't already
-   - Add your API keys in `.env` (optional)
+2. Install dependencies:
+   ```
+   npm install
+   ```
 
-## Available Tools
+3. Start the development servers:
+   ```
+   npm run dev
+   ```
 
-Your project includes several powerful tools in the `tools/` directory:
+This will start both the client and server in development mode.
 
-### LLM Integration
-```python
-from tools.llm_api import query_llm
+### Building for Production
 
-# Use LLM for assistance
-response = query_llm(
-    "Your question here",
-    provider="anthropic"  # Options: openai, anthropic, azure_openai, deepseek, gemini
-)
-print(response)
+```
+npm run build
 ```
 
-### Web Scraping
-```python
-from tools.web_scraper import scrape_urls
+## Plugin Development
 
-# Scrape web content
-results = scrape_urls(["https://example.com"], max_concurrent=3)
-```
-
-### Search Engine
-```python
-from tools.search_engine import search
-
-# Search the web
-results = search("your search keywords")
-```
-
-
-### Screenshot Verification
-```python
-from tools.screenshot_utils import take_screenshot_sync
-from tools.llm_api import query_llm
-
-# Take and analyze screenshots
-screenshot_path = take_screenshot_sync('https://example.com', 'screenshot.png')
-analysis = query_llm(
-    "Describe this webpage",
-    provider="openai",
-    image_path=screenshot_path
-)
-```
-
-Note: When you first use the screenshot verification feature, Playwright browsers will be installed automatically.
-
-
-## AI Assistant Configuration
-
-
-This project uses `.cursorrules` to configure the AI assistant. The assistant can:
-- Help with coding tasks
-- Verify screenshots
-- Perform web searches
-- Analyze images and code
-
-
-## Environment Variables
-
-Configure these in your `.env` file:
-
-- `LLM_API_KEY`: Your LLM API key (optional)
-- `AZURE_OPENAI_API_KEY`: Azure OpenAI API key (optional)
-- `AZURE_OPENAI_ENDPOINT`: Azure OpenAI endpoint (optional)
-- `AZURE_OPENAI_MODEL_DEPLOYMENT`: Azure OpenAI model deployment name (optional)
-- `SILICONFLOW_API_KEY`: Siliconflow API key (optional)
-Note: Basic functionality works without API keys. Advanced features (like multimodal analysis) require appropriate API keys.
-
-## Development Tools
-
-- `.devcontainer/`: VS Code development container configuration
-- `.vscode.example/`: Recommended VS Code settings
-- `.github/`: CI/CD workflows
+Dungeon Lab supports a plugin architecture for different game systems. See the [Plugin Development Guide](docs/plugin-development.md) for more information on creating your own game system plugin.
 
 ## License
 
-MIT License
+MIT
