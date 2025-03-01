@@ -6,6 +6,8 @@ import session from 'express-session';
 import { config } from './config';
 import { configurePassport } from './config/passport';
 import authRoutes from './routes/auth.routes';
+import storageRoutes from './routes/storage.routes';
+import { initializeStorage } from './services/storage.service';
 
 // Initialize Express app
 const app = express();
@@ -44,8 +46,19 @@ mongoose.connect(config.mongoUri)
     process.exit(1);
   });
 
+// Initialize storage service
+initializeStorage()
+  .then(() => {
+    console.log('Storage service initialized successfully');
+  })
+  .catch((error) => {
+    console.error('Failed to initialize storage service:', error);
+    // Don't exit the process, as the app can still function without storage
+  });
+
 // API routes
 app.use('/api/auth', authRoutes);
+app.use('/api/storage', storageRoutes);
 
 // Health check route
 app.get('/health', (req, res) => {

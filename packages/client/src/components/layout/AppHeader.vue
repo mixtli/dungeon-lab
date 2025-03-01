@@ -42,6 +42,9 @@ function logout() {
           <RouterLink v-if="authStore.isAuthenticated" to="/characters" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700">
             Characters
           </RouterLink>
+          <RouterLink v-if="authStore.isAuthenticated" to="/file-upload-demo" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700">
+            File Upload
+          </RouterLink>
           
           <!-- Theme Toggle -->
           <button @click="toggleTheme" class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700">
@@ -92,6 +95,9 @@ function logout() {
         </RouterLink>
         <RouterLink v-if="authStore.isAuthenticated" to="/characters" class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700">
           Characters
+        </RouterLink>
+        <RouterLink v-if="authStore.isAuthenticated" to="/file-upload-demo" class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700">
+          File Upload
         </RouterLink>
         
         <!-- Theme Toggle -->

@@ -11,6 +11,7 @@ const CharacterSheetView = () => import('@/views/CharacterSheetView.vue');
 const LoginView = () => import('@/views/auth/LoginView.vue');
 const RegisterView = () => import('@/views/auth/RegisterView.vue');
 const GoogleCallbackView = () => import('@/views/auth/GoogleCallbackView.vue');
+const FileUploadDemoView = () => import('@/views/FileUploadDemo.vue');
 const NotFoundView = () => import('@/views/NotFoundView.vue');
 
 const routes: RouteRecordRaw[] = [
@@ -42,6 +43,15 @@ const routes: RouteRecordRaw[] = [
         component: CharacterSheetView,
         meta: {
           title: 'Character Sheet',
+          requiresAuth: true,
+        },
+      },
+      {
+        path: 'file-upload-demo',
+        name: 'file-upload-demo',
+        component: FileUploadDemoView,
+        meta: {
+          title: 'File Upload Demo',
           requiresAuth: true,
         },
       },
