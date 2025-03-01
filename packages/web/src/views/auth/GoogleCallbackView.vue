@@ -3,6 +3,7 @@ import { onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { ElMessage } from 'element-plus';
+import { Loading } from '@element-plus/icons-vue';
 
 const route = useRoute();
 const router = useRouter();

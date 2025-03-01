@@ -109,7 +109,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   function loginWithGoogle() {
     // Redirect to Google OAuth endpoint
-    window.location.href = `${api.defaults.baseURL}/api/auth/google`;
+    window.location.href = `${api.defaults.baseURL}/auth/google`;
   }
 
   function handleGoogleCallback(tokenFromUrl: string) {
