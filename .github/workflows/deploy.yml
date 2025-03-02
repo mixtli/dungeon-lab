@@ -24,9 +24,9 @@ jobs:
             git pull
             
             # Build and restart containers
-            docker-compose --profile alldown
-            docker-compose --profile allbuild
-            docker-compose --profile all up -d
+            docker compose --profile all down
+            docker compose --profile all build
+            docker compose --profile all up -d
             
             # Optional: Prune old images to save space
             docker image prune -f
