@@ -26,6 +26,8 @@ jobs:
             # Build and restart containers
             docker compose --profile all down
             docker compose --profile all build
+            export VITE_API_URL=http://dungeonlab.ronmcclain.com
+
             docker compose --env-file .env.production --profile all up -d
             
             # Optional: Prune old images to save space
