@@ -3,6 +3,24 @@ import mongoose from 'mongoose';
 import cors from 'cors';
 import passport from 'passport';
 import session from 'express-session';
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Get the directory name in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load environment variables from the server's .env file
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
+
+// Debug environment variables
+console.log('Environment Variables:');
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('GOOGLE_CLIENT_ID exists:', !!process.env.GOOGLE_CLIENT_ID);
+console.log('GOOGLE_CLIENT_SECRET exists:', !!process.env.GOOGLE_CLIENT_SECRET);
+console.log('Current working directory:', process.cwd());
+
 import { config } from './config/index.js';
 import { configurePassport } from './config/passport.js';
 import { createApp } from './app.js';

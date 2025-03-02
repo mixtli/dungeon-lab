@@ -1,7 +1,4 @@
 import * as Minio from 'minio';
-import dotenv from 'dotenv';
-
-dotenv.config();
 
 // Storage provider types
 export enum StorageProvider {

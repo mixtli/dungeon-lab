@@ -26,7 +26,7 @@ jobs:
             # Build and restart containers
             docker compose --profile all down
             docker compose --profile all build
-            docker compose --profile all up -d
+            docker compose --env-file .env.production --profile all up -d
             
             # Optional: Prune old images to save space
             docker image prune -f
