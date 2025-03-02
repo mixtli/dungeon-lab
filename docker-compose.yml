@@ -17,9 +17,9 @@ services:
       - MINIO_ACCESS_KEY=minioadmin
       - MINIO_SECRET_KEY=minioadmin
       - MINIO_BUCKET=dungeon-lab
-      - CORS_ORIGIN=http://localhost:80
-      - CLIENT_URL=http://localhost:80
-      - GOOGLE_CALLBACK_URL=http://localhost:3000/api/auth/google/callback
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost}
+      - CLIENT_URL=${CLIENT_URL:-http://localhost}
+      - GOOGLE_CALLBACK_URL=${GOOGLE_CALLBACK_URL:-http://localhost:3000/api/auth/google/callback}
       - GOOGLE_CLIENT_ID
       - GOOGLE_CLIENT_SECRET
       
@@ -42,7 +42,7 @@ services:
       # Important: In the browser environment, use the host machine URL
       # not the Docker internal service name
       - VITE_DEV_PORT=80
-      - VITE_API_URL=http://dungeonlab.ronmcclain.com
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:3000}
     depends_on:
       - server
     restart: unless-stopped
