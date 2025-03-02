@@ -1,4 +1,14 @@
 import { Request, Response } from 'express';
+declare module 'express-session' {
+    interface SessionData {
+        user?: {
+            id: string;
+            username: string;
+            email?: string;
+            isAdmin: boolean;
+        };
+    }
+}
 /**
  * Register a new user
  */
@@ -11,6 +21,10 @@ export declare function login(req: Request, res: Response): Promise<Response<any
  * Google authentication callback
  */
 export declare function googleCallback(req: Request, res: Response): void;
+/**
+ * Logout - clears the session
+ */
+export declare function logout(req: Request, res: Response): void;
 /**
  * Get current user
  */

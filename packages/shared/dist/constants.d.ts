@@ -32,3 +32,4 @@ export declare const SOCKET_EVENTS: {
     ITEM_UPDATED: string;
     ITEM_DELETED: string;
 };
+//# sourceMappingURL=constants.d.ts.map

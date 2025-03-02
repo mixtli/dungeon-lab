@@ -7,18 +7,17 @@ const baseURL = 'http://localhost:3000/api';
 const api = axios.create({
   baseURL,
   timeout: 10000,
+  // Enable sending cookies with requests
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Request interceptor for adding auth token
+// Request interceptor - we no longer need token handling
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
+    // No need to set Authorization header - we'll use session cookies
     return config;
   },
   (error) => {
@@ -32,12 +31,8 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
-    // Handle 401 Unauthorized errors
-    if (error.response && error.response.status === 401) {
-      // Clear token and redirect to login
-      localStorage.removeItem('token');
-      window.location.href = '/auth/login';
-    }
+    // Do not automatically redirect on 401
+    // Let the calling code handle the error and do redirects where appropriate
     return Promise.reject(error);
   }
 );

@@ -8,9 +8,9 @@ export interface AuthenticatedRequest extends Request {
     };
 }
 /**
- * Middleware to authenticate requests using JWT
+ * Middleware to authenticate requests using session or JWT
  */
-export declare const authenticate: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Response<any, Record<string, any>> | undefined;
+export declare const authenticate: (req: AuthenticatedRequest, res: Response, next: NextFunction) => void | Response<any, Record<string, any>>;
 /**
  * Middleware to check if user is an admin
  */

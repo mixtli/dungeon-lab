@@ -124,10 +124,12 @@ export function googleCallback(req, res) {
         if (!user) {
             return res.redirect(`${config.clientUrl}/auth/login?error=Authentication failed`);
         }
-        // Generate JWT token
-        const token = generateToken(user);
-        // Redirect to client with token
-        return res.redirect(`${config.clientUrl}/auth/google/callback?token=${token}`);
+        // Set user in session
+        if (req.session) {
+            req.session.user = user;
+        }
+        // Redirect to client without token
+        return res.redirect(`${config.clientUrl}/auth/google/callback`);
     }
     catch (error) {
         console.error('Google callback error:', error);
@@ -135,11 +137,44 @@ export function googleCallback(req, res) {
     }
 }
 /**
+ * Logout - clears the session
+ */
+export function logout(req, res) {
+    req.session.destroy((err) => {
+        if (err) {
+            console.error('Error destroying session:', err);
+            return res.status(500).json({
+                success: false,
+                error: {
+                    message: 'Failed to logout',
+                },
+            });
+        }
+        return res.status(200).json({
+            success: true,
+            data: {
+                message: 'Logged out successfully',
+            },
+        });
+    });
+}
+/**
  * Get current user
  */
 export async function getCurrentUser(req, res) {
     try {
-        // User should be attached to request by auth middleware
+        // Check for user in session first
+        if (req.session && req.session.user) {
+            const userId = req.session.user.id;
+            const user = await UserModel.findById(userId).select('-password');
+            if (user) {
+                return res.status(200).json({
+                    success: true,
+                    data: formatUserResponse(user),
+                });
+            }
+        }
+        // Then try JWT token for backward compatibility
         const userId = req.user?.id;
         if (!userId) {
             return res.status(401).json({

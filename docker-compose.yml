@@ -1,21 +1,25 @@
 services:
   # Backend Express server
   server:
+    profiles: ["app", "all"]
     build:
       context: .
       dockerfile: packages/server/Dockerfile
     ports:
       - "3000:3000"
     environment:
-      - NODE_ENV=production
-      - MONGO_URI=mongodb://mongo:27017/dungeon-lab
+      - NODE_ENV=development
+      - MONGODB_URI=mongodb://mongo:27017/dungeon-lab
       - JWT_SECRET=your_jwt_secret_here
+      - SESSION_SECRET=your_session_secret_here
       - MINIO_ENDPOINT=minio
       - MINIO_PORT=9000
       - MINIO_ACCESS_KEY=minioadmin
       - MINIO_SECRET_KEY=minioadmin
       - MINIO_BUCKET=dungeon-lab
       - CORS_ORIGIN=http://localhost:8080
+      - CLIENT_URL=http://localhost:8080
+      - GOOGLE_CALLBACK_URL=http://localhost:3000/api/auth/google/callback
     depends_on:
       - mongo
       - minio
@@ -23,6 +27,7 @@ services:
 
   # Frontend Vue.js app
   web:
+    profiles: ["app", "all"]
     build:
       context: .
       dockerfile: packages/web/Dockerfile
@@ -31,7 +36,7 @@ services:
     environment:
       # Important: In the browser environment, use the host machine URL
       # not the Docker internal service name
-      - VITE_API_URL=http://localhost:3000
+      - VITE_API_URL=http://localhost:3000/api
     depends_on:
       - server
     restart: unless-stopped
@@ -39,15 +44,17 @@ services:
   # MongoDB database
   mongo:
     image: mongo:latest
-    profiles: ["db"]
+    profiles: ["infra", "all"]
     ports:
-      - "27017:27017"
+      - "27017:27017"  # Changed from 27017:27017 to avoid port conflict
+    volumes:
+      - mongo_data:/data/db
     restart: unless-stopped
 
   # MinIO object storage
   minio:
     image: minio/minio:latest
-    profiles: ["db"]
+    profiles: ["infra", "all"]
     ports:
       - "9000:9000"  # API port
       - "9001:9001"  # Console port
@@ -68,7 +75,7 @@ services:
   # Service to create the bucket and set policies
   createbuckets:
     image: minio/mc
-    profiles: ["db"]
+    profiles: ["infra", "all"]
     depends_on:
       - minio
     entrypoint: >
@@ -78,4 +85,8 @@ services:
       /usr/bin/mc mb myminio/dungeon-lab --ignore-existing;
       /usr/bin/mc anonymous set download myminio/dungeon-lab;
       exit 0;
-      " 
+      "
+
+volumes:
+  mongo_data:
+  minio_data: 

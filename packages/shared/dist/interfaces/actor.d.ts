@@ -39,3 +39,4 @@ export interface ActorUpdateData {
     description?: string;
     data?: Record<string, unknown>;
 }
+//# sourceMappingURL=actor.d.ts.map

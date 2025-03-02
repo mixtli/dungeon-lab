@@ -11,6 +11,7 @@ COPY . .
 
 # Install dependencies
 RUN npm ci
+RUN npm run build
 
 # Copy source code
 # Build shared package

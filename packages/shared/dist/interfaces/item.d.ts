@@ -39,3 +39,4 @@ export interface ItemUpdateData {
     description?: string;
     data?: Record<string, unknown>;
 }
+//# sourceMappingURL=item.d.ts.map

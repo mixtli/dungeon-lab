@@ -1,0 +1,22 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Copy package files
+#COPY package*.json ./
+#COPY packages/shared/package*.json ./packages/shared/
+#COPY packages/server/package*.json ./packages/server/
+
+COPY . /app
+# Install dependencies
+#RUN npm ci
+#RUN npm install --workspaces
+
+# Install dependencies
+#RUN npm ci
+
+# Add debugging tools
+RUN apk add --no-cache bash curl nano
+
+# Keep container running for debugging
+CMD ["tail", "-f", "/dev/null"] 

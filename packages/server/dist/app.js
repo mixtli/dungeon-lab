@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import session from 'express-session';
 import passport from 'passport';
+import MongoStore from 'connect-mongo';
 // Route handlers and middleware
 let actorRoutes;
 let itemRoutes;
@@ -67,18 +68,34 @@ export async function createApp() {
     await initializeRoutes();
     // Initialize Express app
     const app = express();
-    // Configure middleware
-    app.use(cors());
+    // Import configuration
+    const { config } = await import('./config/index.js');
+    // Configure middleware with proper CORS settings for credentials
+    app.use(cors({
+        origin: config.corsOrigin, // Use the configured CORS_ORIGIN
+        credentials: true, // Allow credentials
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization']
+    }));
     app.use(express.json());
     app.use(express.urlencoded({ extended: true }));
-    // Configure session
+    // Configure session with MongoDB store
     app.use(session({
         secret: process.env.SESSION_SECRET || 'dev-secret',
         resave: false,
         saveUninitialized: false,
+        store: MongoStore.create({
+            mongoUrl: config.mongoUri,
+            collectionName: 'sessions',
+            ttl: 24 * 60 * 60, // 1 day in seconds
+            autoRemove: 'native', // Use MongoDB's TTL index
+            touchAfter: 24 * 3600 // time period in seconds to update the session
+        }),
         cookie: {
             secure: process.env.NODE_ENV === 'production',
             maxAge: 24 * 60 * 60 * 1000, // 24 hours
+            httpOnly: true,
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
         },
     }));
     // Initialize Passport

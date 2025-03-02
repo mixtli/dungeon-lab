@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  server-debug:
+    build:
+      context: .
+      dockerfile: Dockerfile.debug
+    container_name: dungeon-lab-server-debug
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - MONGODB_URI=mongodb://mongo:27017/dungeon-lab
+      - CORS_ORIGIN=http://localhost:5173
+      - CLIENT_URL=http://localhost:5173
+      - SESSION_SECRET=debugging-session-secret
+    networks:
+      - dungeon-lab-network
+
+  mongo:
+    image: mongo:latest
+    container_name: mongo-debug
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - dungeon-lab-network
+
+networks:
+  dungeon-lab-network:
+    driver: bridge
+
+volumes:
+  mongo-data: 

@@ -42,3 +42,4 @@ export interface PluginManager {
     getAllPlugins: () => Promise<Plugin[]>;
     getAllGameSystemPlugins: () => Promise<GameSystemPlugin[]>;
 }
+//# sourceMappingURL=plugin.d.ts.map

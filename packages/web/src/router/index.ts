@@ -144,26 +144,33 @@ const router = createRouter({
 });
 
 // Navigation guard
-router.beforeEach((to, _from, next) => {
+router.beforeEach(async (to, _from, next) => {
+  // Import auth store
+  const { useAuthStore } = await import('@/stores/auth');
+  const authStore = useAuthStore();
+  
   // Set document title
   document.title = `${to.meta.title} | Dungeon Lab`;
   
   // Check if route requires authentication
   const requiresAuth = to.matched.some((record) => record.meta.requiresAuth);
   const requiresAdmin = to.matched.some((record) => record.meta.requiresAdmin);
-  const isAuthenticated = localStorage.getItem('token') !== null;
   
-  // Get user data from localStorage if available
-  let isAdmin = false;
-  const userData = localStorage.getItem('user');
-  if (userData) {
+  // Skip authentication check for login, register and callback routes
+  const isAuthRoute = to.path.startsWith('/auth/');
+  
+  // If user is not loaded yet and we're not on an auth route, try to fetch user data
+  if (!authStore.user && !isAuthRoute) {
     try {
-      const user = JSON.parse(userData);
-      isAdmin = user.isAdmin || false;
+      await authStore.fetchUser();
     } catch (error) {
-      console.error('Error parsing user data from localStorage:', error);
+      // Silent catch - we'll handle authentication check below
+      console.log('Failed to fetch user data:', error);
     }
   }
+  
+  const isAuthenticated = authStore.isAuthenticated;
+  const isAdmin = authStore.user?.isAdmin || false;
   
   if (requiresAuth && !isAuthenticated) {
     next({ name: 'login', query: { redirect: to.fullPath } });

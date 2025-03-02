@@ -2,6 +2,19 @@ import { Request, Response } from 'express';
 import jwt, { SignOptions } from 'jsonwebtoken';
 import { UserModel } from '../models/user.model.js';
 import { config } from '../config/index.js';
+import { SessionData } from 'express-session';
+
+// Extend express-session with our custom properties
+declare module 'express-session' {
+  interface SessionData {
+    user?: {
+      id: string;
+      username: string;
+      email?: string;
+      isAdmin: boolean;
+    };
+  }
+}
 
 /**
  * Generate JWT token for a user
@@ -146,11 +159,13 @@ export function googleCallback(req: Request, res: Response) {
       return res.redirect(`${config.clientUrl}/auth/login?error=Authentication failed`);
     }
     
-    // Generate JWT token
-    const token = generateToken(user);
+    // Set user in session
+    if (req.session) {
+      req.session.user = user;
+    }
     
-    // Redirect to client with token
-    return res.redirect(`${config.clientUrl}/auth/google/callback?token=${token}`);
+    // Redirect to client without token
+    return res.redirect(`${config.clientUrl}/auth/google/callback`);
   } catch (error) {
     console.error('Google callback error:', error);
     return res.redirect(`${config.clientUrl}/auth/login?error=Authentication failed`);
@@ -158,11 +173,49 @@ export function googleCallback(req: Request, res: Response) {
 }
 
 /**
+ * Logout - clears the session
+ */
+export function logout(req: Request, res: Response) {
+  req.session.destroy((err) => {
+    if (err) {
+      console.error('Error destroying session:', err);
+      return res.status(500).json({
+        success: false,
+        error: {
+          message: 'Failed to logout',
+        },
+      });
+    }
+    
+    return res.status(200).json({
+      success: true,
+      data: {
+        message: 'Logged out successfully',
+      },
+    });
+  });
+}
+
+/**
  * Get current user
  */
 export async function getCurrentUser(req: Request, res: Response) {
   try {
-    // User should be attached to request by auth middleware
+    // Check for user in session first
+    if (req.session && req.session.user) {
+      const userId = req.session.user.id;
+      
+      const user = await UserModel.findById(userId).select('-password');
+      
+      if (user) {
+        return res.status(200).json({
+          success: true,
+          data: formatUserResponse(user),
+        });
+      }
+    }
+    
+    // Then try JWT token for backward compatibility
     const userId = req.user?.id;
 
     if (!userId) {

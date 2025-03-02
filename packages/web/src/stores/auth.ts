@@ -25,20 +25,11 @@ interface RegisterData {
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null);
-  const token = ref<string | null>(null);
   const loading = ref(false);
   const error = ref<string | null>(null);
 
-  // Load token from localStorage on initialization
-  const storedToken = localStorage.getItem('token');
-  if (storedToken) {
-    token.value = storedToken;
-    // Set axios default header
-    api.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
-  }
-
   // Computed properties
-  const isAuthenticated = computed(() => !!token.value);
+  const isAuthenticated = computed(() => !!user.value);
 
   // Actions
   async function login(credentials: LoginCredentials) {
@@ -49,18 +40,8 @@ export const useAuthStore = defineStore('auth', () => {
       const response = await api.post('/auth/login', credentials);
       
       if (response.data.success) {
-        const { token: newToken, user: userData } = response.data.data;
-        
-        // Save token and user data
-        token.value = newToken;
-        user.value = userData;
-        
-        // Save token to localStorage
-        localStorage.setItem('token', newToken);
-        
-        // Set axios default header
-        api.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
-        
+        // Save user data
+        user.value = response.data.data.user;
         return true;
       } else {
         error.value = response.data.error?.message || 'Login failed';
@@ -82,18 +63,8 @@ export const useAuthStore = defineStore('auth', () => {
       const response = await api.post('/auth/register', data);
       
       if (response.data.success) {
-        const { token: newToken, user: userData } = response.data.data;
-        
-        // Save token and user data
-        token.value = newToken;
-        user.value = userData;
-        
-        // Save token to localStorage
-        localStorage.setItem('token', newToken);
-        
-        // Set axios default header
-        api.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
-        
+        // Save user data
+        user.value = response.data.data.user;
         return true;
       } else {
         error.value = response.data.error?.message || 'Registration failed';
@@ -112,40 +83,24 @@ export const useAuthStore = defineStore('auth', () => {
     window.location.href = `${api.defaults.baseURL}/auth/google`;
   }
 
-  function handleGoogleCallback(tokenFromUrl: string) {
-    if (!tokenFromUrl) {
-      error.value = 'Authentication failed';
-      return false;
-    }
-
-    // Save token
-    token.value = tokenFromUrl;
-    localStorage.setItem('token', tokenFromUrl);
-    
-    // Set axios default header
-    api.defaults.headers.common['Authorization'] = `Bearer ${tokenFromUrl}`;
-    
-    // Fetch user data
-    fetchUser();
-    
-    return true;
+  function handleGoogleCallback() {
+    // No token to handle, just fetch the user data from session
+    return fetchUser();
   }
 
   async function logout() {
-    // Clear token and user data
-    token.value = null;
-    user.value = null;
-    
-    // Remove token from localStorage
-    localStorage.removeItem('token');
-    
-    // Remove axios default header
-    delete api.defaults.headers.common['Authorization'];
+    try {
+      // Call the logout endpoint to clear server-side session
+      await api.post('/auth/logout');
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      // Clear user data on client
+      user.value = null;
+    }
   }
 
   async function fetchUser() {
-    if (!token.value) return null;
-    
     loading.value = true;
     error.value = null;
     
@@ -154,20 +109,22 @@ export const useAuthStore = defineStore('auth', () => {
       
       if (response.data.success) {
         user.value = response.data.data;
-        return user.value;
+        return true;
       } else {
         error.value = response.data.error?.message || 'Failed to fetch user data';
-        return null;
+        return false;
       }
     } catch (err: any) {
-      error.value = err.response?.data?.error?.message || err.message || 'Failed to fetch user data';
-      
-      // If unauthorized, logout
+      // Check if this is a 401 error, which is expected when not logged in
       if (err.response?.status === 401) {
-        logout();
+        // Clear user data silently without an error message
+        user.value = null;
+        return false;
       }
       
-      return null;
+      // For other errors, set the error message
+      error.value = err.response?.data?.error?.message || err.message || 'Failed to fetch user data';
+      return false;
     } finally {
       loading.value = false;
     }
@@ -175,7 +132,6 @@ export const useAuthStore = defineStore('auth', () => {
 
   return {
     user,
-    token,
     loading,
     error,
     isAuthenticated,

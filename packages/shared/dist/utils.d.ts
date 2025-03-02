@@ -28,3 +28,4 @@ export declare function formatDate(date: Date): string;
  * @returns The parsed date
  */
 export declare function parseDate(dateString: string): Date;
+//# sourceMappingURL=utils.d.ts.map

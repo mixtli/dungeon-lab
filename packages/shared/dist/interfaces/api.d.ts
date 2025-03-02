@@ -33,3 +33,4 @@ export interface Pagination {
 export interface PaginatedApiResponse<T> extends ApiResponse<T[]> {
     pagination?: Pagination;
 }
+//# sourceMappingURL=api.d.ts.map

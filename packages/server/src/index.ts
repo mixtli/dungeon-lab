@@ -9,6 +9,14 @@ import { createApp } from './app.js';
 
 async function startServer() {
   try {
+    // Debug environment variables
+    console.log('=== Server Configuration ===');
+    console.log('PORT:', config.port);
+    console.log('CORS_ORIGIN:', config.corsOrigin);
+    console.log('CLIENT_URL:', config.clientUrl);
+    console.log('NODE_ENV:', process.env.NODE_ENV);
+    console.log('==========================');
+    
     // Connect to MongoDB
     await mongoose.connect(config.mongoUri);
     console.log('Connected to MongoDB');

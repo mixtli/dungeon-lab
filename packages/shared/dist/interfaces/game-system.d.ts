@@ -49,3 +49,4 @@ export interface GameSystemRegistration {
     actorTypes: Omit<GameSystemActorType, 'id'>[];
     itemTypes: Omit<GameSystemItemType, 'id'>[];
 }
+//# sourceMappingURL=game-system.d.ts.map

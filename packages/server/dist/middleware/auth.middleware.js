@@ -1,11 +1,16 @@
 import jwt from 'jsonwebtoken';
 import { logger } from '../utils/logger.js';
 /**
- * Middleware to authenticate requests using JWT
+ * Middleware to authenticate requests using session or JWT
  */
 export const authenticate = (req, res, next) => {
     try {
-        // Get token from Authorization header
+        // First, check if the user is in the session
+        if (req.session && req.session.user) {
+            req.user = req.session.user;
+            return next();
+        }
+        // If not in session, try JWT token (for backward compatibility)
         const authHeader = req.headers.authorization;
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
             return res.status(401).json({ message: 'Authentication required' });
