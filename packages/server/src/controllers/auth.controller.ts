@@ -1,5 +1,4 @@
 import { Request, Response } from 'express';
-import jwt, { SignOptions } from 'jsonwebtoken';
 import { UserModel } from '../models/user.model.js';
 import { config } from '../config/index.js';
 import { SessionData } from 'express-session';
@@ -14,17 +13,6 @@ declare module 'express-session' {
       isAdmin: boolean;
     };
   }
-}
-
-/**
- * Generate JWT token for a user
- */
-function generateToken(user: any): string {
-  return jwt.sign(
-    { id: user._id, username: user.username, isAdmin: user.isAdmin },
-    config.jwtSecret,
-    { expiresIn: config.jwtExpiresIn } as SignOptions
-  );
 }
 
 /**
@@ -72,14 +60,20 @@ export async function register(req: Request, res: Response) {
 
     await user.save();
 
-    // Generate JWT token
-    const token = generateToken(user);
+    // Set user in session
+    if (req.session) {
+      req.session.user = {
+        id: user._id?.toString() || '',
+        username: user.username || '',
+        email: user.email,
+        isAdmin: !!user.isAdmin,
+      };
+    }
 
-    // Return user data (without password) and token
+    // Return user data (without password)
     return res.status(201).json({
       success: true,
       data: {
-        token,
         user: formatUserResponse(user),
       },
     });
@@ -125,14 +119,20 @@ export async function login(req: Request, res: Response) {
       });
     }
 
-    // Generate JWT token
-    const token = generateToken(user);
+    // Set user in session
+    if (req.session) {
+      req.session.user = {
+        id: user._id?.toString() || '',
+        username: user.username || '',
+        email: user.email,
+        isAdmin: !!user.isAdmin,
+      };
+    }
 
-    // Return user data (without password) and token
+    // Return user data (without password)
     return res.status(200).json({
       success: true,
       data: {
-        token,
         user: formatUserResponse(user),
       },
     });
@@ -164,7 +164,7 @@ export function googleCallback(req: Request, res: Response) {
       req.session.user = user;
     }
     
-    // Redirect to client without token
+    // Redirect to client
     return res.redirect(`${config.clientUrl}/auth/google/callback`);
   } catch (error) {
     console.error('Google callback error:', error);
@@ -201,7 +201,7 @@ export function logout(req: Request, res: Response) {
  */
 export async function getCurrentUser(req: Request, res: Response) {
   try {
-    // Check for user in session first
+    // Check for user in session
     if (req.session && req.session.user) {
       const userId = req.session.user.id;
       
@@ -215,32 +215,12 @@ export async function getCurrentUser(req: Request, res: Response) {
       }
     }
     
-    // Then try JWT token for backward compatibility
-    const userId = req.user?.id;
-
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        error: {
-          message: 'Not authenticated',
-        },
-      });
-    }
-
-    const user = await UserModel.findById(userId).select('-password');
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        error: {
-          message: 'User not found',
-        },
-      });
-    }
-
-    return res.status(200).json({
-      success: true,
-      data: formatUserResponse(user),
+    // No user in session
+    return res.status(401).json({
+      success: false,
+      error: {
+        message: 'Not authenticated',
+      },
     });
   } catch (error) {
     console.error('Get current user error:', error);

@@ -1,11 +1,19 @@
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Get the directory name in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load environment variables from the server's .env file
+console.log('Loading environment variables from:', path.resolve(__dirname, '../../.env'));
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 export const config = {
   port: process.env.PORT || 3000,
   mongoUri: process.env.MONGODB_URI || 'mongodb://localhost:27017/dungeon-lab',
-  jwtSecret: process.env.JWT_SECRET || 'your-secret-key',
-  jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
   environment: process.env.NODE_ENV || 'development',
-  corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:5173',
   clientUrl: process.env.CLIENT_URL || 'http://localhost:8080',
   google: {
     clientId: process.env.GOOGLE_CLIENT_ID || '',

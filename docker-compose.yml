@@ -8,17 +8,15 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=${NODE_ENV:-development}
       - MONGODB_URI=mongodb://mongo:27017/dungeon-lab
-      - JWT_SECRET=your_jwt_secret_here
       - SESSION_SECRET=your_session_secret_here
       - MINIO_ENDPOINT=minio
       - MINIO_PORT=9000
       - MINIO_ACCESS_KEY=minioadmin
       - MINIO_SECRET_KEY=minioadmin
       - MINIO_BUCKET=dungeon-lab
-      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost}
-      - CLIENT_URL=${CLIENT_URL:-http://localhost}
+      - CLIENT_URL=${CLIENT_URL:-http://localhost:8080}
       - GOOGLE_CALLBACK_URL=${GOOGLE_CALLBACK_URL:-http://localhost:3000/api/auth/google/callback}
       - GOOGLE_CLIENT_ID
       - GOOGLE_CLIENT_SECRET

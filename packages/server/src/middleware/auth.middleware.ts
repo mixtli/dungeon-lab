@@ -1,5 +1,4 @@
 import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
 import { logger } from '../utils/logger.js';
 
 // Extend Express Request type to include user property
@@ -13,42 +12,21 @@ export interface AuthenticatedRequest extends Request {
 }
 
 /**
- * Middleware to authenticate requests using session or JWT
+ * Middleware to authenticate requests using session
  */
 export const authenticate = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
-    // First, check if the user is in the session
+    // Check if the user is in the session
     if (req.session && req.session.user) {
       req.user = req.session.user;
       return next();
     }
     
-    // If not in session, try JWT token (for backward compatibility)
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ message: 'Authentication required' });
-    }
-
-    const token = authHeader.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ message: 'Authentication token missing' });
-    }
-
-    // Verify token
-    const secret = process.env.JWT_SECRET || 'dev-secret';
-    const decoded = jwt.verify(token, secret) as {
-      id: string;
-      username: string;
-      email?: string;
-      isAdmin: boolean;
-    };
-
-    // Attach user to request
-    req.user = decoded;
-    next();
+    // No session, return unauthorized
+    return res.status(401).json({ message: 'Authentication required' });
   } catch (error) {
     logger.error(`Authentication error: ${error instanceof Error ? error.message : String(error)}`);
-    return res.status(401).json({ message: 'Invalid or expired token' });
+    return res.status(401).json({ message: 'Authentication failed' });
   }
 };
 

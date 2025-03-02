@@ -94,8 +94,8 @@ export async function createApp() {
   
   // Configure middleware with proper CORS settings for credentials
   app.use(cors({
-    origin: config.corsOrigin,  // Use the configured CORS_ORIGIN
-    credentials: true,  // Allow credentials
+    origin: config.clientUrl, 
+    credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
   }));
