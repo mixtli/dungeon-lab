@@ -25,7 +25,7 @@ jobs:
             
             # Build and restart containers
             docker compose --profile all down
-            export VITE_API_URL=http://dungeonlab.ronmcclain.com
+            export VITE_API_URL=http://dungeonlab.ronmcclain.com:3000
             docker compose --profile all build
 
             docker compose --env-file .env.production --profile all up -d
