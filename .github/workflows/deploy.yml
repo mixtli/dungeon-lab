@@ -1,0 +1,31 @@
+name: Deploy to Digital Ocean
+
+on:
+  push:
+    branches: [ main ]  # Or whatever your main branch is named
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to Digital Ocean Droplet
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          port: ${{ secrets.PORT }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            # Navigate to your app directory (adjust the path as needed)
+            cd /apps/dungeon-lab
+            
+            # Pull the latest code
+            git pull
+            
+            # Build and restart containers
+            docker-compose --profile alldown
+            docker-compose --profile allbuild
+            docker-compose --profile all up -d
+            
+            # Optional: Prune old images to save space
+            docker image prune -f
