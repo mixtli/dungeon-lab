@@ -56,6 +56,66 @@ npm run build
 
 Dungeon Lab supports a plugin architecture for different game systems. See the [Plugin Development Guide](docs/plugin-development.md) for more information on creating your own game system plugin.
 
+## Plugin System
+
+Dungeon Lab supports a plugin system that allows extending the application with new game systems, extensions, and themes.
+
+### Plugin Configuration
+
+Plugins are configured using a `config.json` file in the root of each plugin's directory. The file should have the following structure:
+
+```json
+{
+  "id": "plugin-id",
+  "name": "Plugin Name",
+  "version": "0.1.0",
+  "description": "Plugin description",
+  "author": "Plugin Author",
+  "website": "https://example.com/plugin",
+  "type": "gameSystem",
+  "enabled": true,
+  "serverEntryPoint": "src/index.js",
+  "clientEntryPoint": "src/web/index.js"
+}
+```
+
+- `id`: Unique identifier for the plugin
+- `name`: Display name of the plugin
+- `version`: Semantic version of the plugin
+- `description`: Brief description of the plugin
+- `author`: Plugin author's name
+- `website`: Plugin's website (optional)
+- `type`: Plugin type, one of `gameSystem`, `extension`, or `theme`
+- `enabled`: Whether the plugin is enabled by default
+- `serverEntryPoint`: Path to the server-side entry point, relative to the plugin directory
+- `clientEntryPoint`: Path to the client-side entry point, relative to the plugin directory
+
+### Creating a Plugin
+
+To create a new plugin:
+
+1. Create a new directory in the `packages/plugins` directory
+2. Create a `config.json` file in the plugin directory
+3. Implement the plugin code in the `src` directory
+4. Export a default object that implements the appropriate plugin interface
+
+Example structure for a game system plugin:
+
+```
+packages/plugins/my-game-system/
+├── config.json
+├── package.json
+├── tsconfig.json
+└── src/
+    ├── index.ts       # Server-side entry point
+    ├── server/        # Server-side code
+    │   └── ...
+    ├── web/           # Client-side code
+    │   ├── index.ts   # Client-side entry point
+    │   └── ...
+    └── ...
+```
+
 ## License
 
 MIT

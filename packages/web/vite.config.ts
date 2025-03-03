@@ -17,6 +17,7 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),
+        '@dungeon-lab/shared': path.resolve(__dirname, '../shared/src'),
       },
     },
     server: {
@@ -38,6 +39,7 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: 'dist',
       sourcemap: true,
+      target: 'esnext',
       rollupOptions: {
         output: {
           manualChunks: {
@@ -47,5 +49,8 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
+    css: {
+      devSourcemap: true
+    }
   };
 }); 

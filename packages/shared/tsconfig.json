@@ -3,11 +3,9 @@
     "compilerOptions": {
         "outDir": "./dist",
         "rootDir": "./src",
-        "declaration": true,
-        "declarationMap": true,
-        "sourceMap": true,
-        "resolveJsonModule": true,
-        "emitDeclarationOnly": false
+        "composite": true,
+        "module": "NodeNext",
+        "moduleResolution": "NodeNext"
     },
     "include": [
         "src/**/*"

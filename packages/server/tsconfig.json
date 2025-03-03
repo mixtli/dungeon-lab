@@ -3,11 +3,17 @@
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": "./src",
+    "composite": true,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "paths": {
-      "@dungeon-lab/shared": ["../shared/src"]
+      "@dungeon-lab/shared": ["../shared/src"],
+      "@dungeon-lab/shared/*": ["../shared/src/*"]
     }
-
   },
+  "references": [
+    { "path": "../shared" }
+  ],
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "**/*.test.ts"]
 } 

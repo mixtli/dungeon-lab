@@ -15,6 +15,12 @@ const FileUploadDemoView = () => import('@/views/FileUploadDemo.vue');
 const NotFoundView = () => import('@/views/NotFoundView.vue');
 const PluginManagerView = () => import('@/views/plugin/PluginManagerView.vue');
 
+// Campaign views
+const CampaignsView = () => import('@/views/CampaignsView.vue');
+const CampaignDetailView = () => import('@/views/CampaignDetailView.vue');
+const CampaignCreateView = () => import('@/views/CampaignCreateView.vue');
+const CampaignEditView = () => import('@/views/CampaignEditView.vue');
+
 const routes: RouteRecordRaw[] = [
   {
     path: '/',
@@ -53,6 +59,43 @@ const routes: RouteRecordRaw[] = [
         component: FileUploadDemoView,
         meta: {
           title: 'File Upload Demo',
+          requiresAuth: true,
+        },
+      },
+      // Campaign routes
+      {
+        path: 'campaigns',
+        name: 'campaigns',
+        component: CampaignsView,
+        meta: {
+          title: 'My Campaigns',
+          requiresAuth: true,
+        },
+      },
+      {
+        path: 'campaigns/create',
+        name: 'campaign-create',
+        component: CampaignCreateView,
+        meta: {
+          title: 'Create Campaign',
+          requiresAuth: true,
+        },
+      },
+      {
+        path: 'campaigns/:id',
+        name: 'campaign-detail',
+        component: CampaignDetailView,
+        meta: {
+          title: 'Campaign Details',
+          requiresAuth: true,
+        },
+      },
+      {
+        path: 'campaigns/:id/edit',
+        name: 'campaign-edit',
+        component: CampaignEditView,
+        meta: {
+          title: 'Edit Campaign',
           requiresAuth: true,
         },
       },

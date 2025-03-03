@@ -1,4 +1,21 @@
-import { GameSystemRegistration } from './game-system';
+import { GameSystemRegistration } from './game-system.js';
+
+/**
+ * Plugin Config interface
+ * This defines the structure of a plugin's config.json file
+ */
+export interface PluginConfig {
+  id: string;
+  name: string;
+  version: string;
+  description?: string;
+  author?: string;
+  website?: string;
+  type: 'gameSystem' | 'extension' | 'theme';
+  enabled?: boolean;
+  serverEntryPoint?: string;
+  clientEntryPoint?: string;
+}
 
 /**
  * Plugin interface
@@ -44,4 +61,17 @@ export interface PluginManager {
   getGameSystemPlugin: (pluginId: string) => Promise<GameSystemPlugin | undefined>;
   getAllPlugins: () => Promise<Plugin[]>;
   getAllGameSystemPlugins: () => Promise<GameSystemPlugin[]>;
+}
+
+/**
+ * Plugin Registry interface
+ * This interface defines methods for managing plugins via file-based configuration
+ */
+export interface PluginRegistry {
+  initialize: () => Promise<void>;
+  getPlugin: (pluginId: string) => Plugin | undefined;
+  getGameSystemPlugin: (pluginId: string) => GameSystemPlugin | undefined;
+  getAllPlugins: () => Plugin[];
+  getAllGameSystemPlugins: () => GameSystemPlugin[];
+  getEnabledPlugins: () => Plugin[];
 } 

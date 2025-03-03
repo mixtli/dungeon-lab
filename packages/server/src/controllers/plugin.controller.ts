@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import { PluginModel, PluginDocument } from '../models/plugin.model.js';
 import { GameSystemModel } from '../models/game-system.model.js';
 import { logger } from '../utils/logger.js';
+import { pluginRegistry } from '../services/plugin-registry.service.js';
+import { Plugin } from '@dungeon-lab/shared';
 
 /**
  * Interface extending the Express Request with a custom user property
@@ -23,10 +25,8 @@ export class PluginController {
    */
   async getAllPlugins(req: Request, res: Response): Promise<void> {
     try {
-      const plugins = await PluginModel.find()
-        .populate('gameSystemId')
-        .sort({ name: 1 });
-      
+      // Get plugins from the registry instead of the database
+      const plugins = pluginRegistry.getAllPlugins();
       res.json(plugins);
     } catch (error) {
       logger.error('Error getting plugins:', error);
@@ -36,14 +36,13 @@ export class PluginController {
       });
     }
   }
-
+  
   /**
-   * Get plugin by ID
+   * Get a single plugin by ID
    */
   async getPlugin(req: Request, res: Response): Promise<void> {
     try {
-      const plugin = await PluginModel.findById(req.params.id)
-        .populate('gameSystemId');
+      const plugin = pluginRegistry.getPlugin(req.params.id);
       
       if (!plugin) {
         res.status(404).json({ message: 'Plugin not found' });
@@ -59,174 +58,84 @@ export class PluginController {
       });
     }
   }
-
+  
+  // The following methods are deprecated and will be removed once the file-based config is fully implemented
+  
   /**
    * Register a new plugin
+   * @deprecated Use file-based configuration instead
    */
   async registerPlugin(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
-      const pluginData = req.body;
-      
-      // If the plugin is a game system plugin, create a game system
-      if (pluginData.type === 'gameSystem' && pluginData.gameSystem) {
-        // Create the game system first
-        const gameSystem = await GameSystemModel.create({
-          name: pluginData.gameSystem.name,
-          version: pluginData.gameSystem.version,
-          description: pluginData.gameSystem.description,
-          author: pluginData.author,
-          actorTypes: pluginData.gameSystem.actorTypes || [],
-          itemTypes: pluginData.gameSystem.itemTypes || [],
-          createdBy: req.user?.id,
-          updatedBy: req.user?.id,
-        });
-        
-        // Add the game system ID to the plugin data
-        pluginData.gameSystemId = gameSystem.id;
-      }
-      
-      // Add user info
-      if (req.user) {
-        pluginData.createdBy = req.user.id;
-        pluginData.updatedBy = req.user.id;
-      }
-      
-      // Create the plugin
-      const plugin = await PluginModel.create(pluginData);
-      
-      // Return the new plugin with populated game system
-      const populatedPlugin = await PluginModel.findById(plugin.id)
-        .populate('gameSystemId');
-      
-      res.status(201).json(populatedPlugin);
+      res.status(400).json({ message: 'Manual plugin registration is deprecated. Please use file-based configuration instead.' });
     } catch (error) {
-      logger.error('Error registering plugin:', error);
+      logger.error('Error with plugin action:', error);
       res.status(500).json({ 
-        message: 'Error registering plugin',
+        message: 'Error with plugin action',
         error: error instanceof Error ? error.message : String(error)
       });
     }
   }
-
+  
   /**
-   * Update plugin
+   * Update a plugin
+   * @deprecated Use file-based configuration instead
    */
   async updatePlugin(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
-      const pluginData = req.body;
-      
-      // Add user info
-      if (req.user) {
-        pluginData.updatedBy = req.user.id;
-      }
-      
-      const plugin = await PluginModel.findByIdAndUpdate(
-        req.params.id,
-        { $set: pluginData },
-        { new: true, runValidators: true }
-      ).populate('gameSystemId');
-      
-      if (!plugin) {
-        res.status(404).json({ message: 'Plugin not found' });
-        return;
-      }
-      
-      res.json(plugin);
+      res.status(400).json({ message: 'Manual plugin updates are deprecated. Please use file-based configuration instead.' });
     } catch (error) {
-      logger.error(`Error updating plugin ${req.params.id}:`, error);
+      logger.error(`Error with plugin action:`, error);
       res.status(500).json({ 
-        message: 'Error updating plugin',
+        message: 'Error with plugin action',
         error: error instanceof Error ? error.message : String(error)
       });
     }
   }
-
+  
   /**
-   * Enable plugin
+   * Enable a plugin
+   * @deprecated Use file-based configuration instead
    */
-  async enablePlugin(req: AuthenticatedRequest, res: Response): Promise<void> {
+  async enablePlugin(req: Request, res: Response): Promise<void> {
     try {
-      const plugin = await PluginModel.findByIdAndUpdate(
-        req.params.id,
-        { 
-          $set: { 
-            enabled: true,
-            updatedBy: req.user?.id
-          } 
-        },
-        { new: true }
-      ).populate('gameSystemId');
-      
-      if (!plugin) {
-        res.status(404).json({ message: 'Plugin not found' });
-        return;
-      }
-      
-      res.json(plugin);
+      res.status(400).json({ message: 'Manual plugin enabling is deprecated. Please use file-based configuration instead.' });
     } catch (error) {
-      logger.error(`Error enabling plugin ${req.params.id}:`, error);
+      logger.error(`Error with plugin action:`, error);
       res.status(500).json({ 
-        message: 'Error enabling plugin',
+        message: 'Error with plugin action',
         error: error instanceof Error ? error.message : String(error)
       });
     }
   }
-
+  
   /**
-   * Disable plugin
+   * Disable a plugin
+   * @deprecated Use file-based configuration instead
    */
-  async disablePlugin(req: AuthenticatedRequest, res: Response): Promise<void> {
+  async disablePlugin(req: Request, res: Response): Promise<void> {
     try {
-      const plugin = await PluginModel.findByIdAndUpdate(
-        req.params.id,
-        { 
-          $set: { 
-            enabled: false,
-            updatedBy: req.user?.id
-          } 
-        },
-        { new: true }
-      ).populate('gameSystemId');
-      
-      if (!plugin) {
-        res.status(404).json({ message: 'Plugin not found' });
-        return;
-      }
-      
-      res.json(plugin);
+      res.status(400).json({ message: 'Manual plugin disabling is deprecated. Please use file-based configuration instead.' });
     } catch (error) {
-      logger.error(`Error disabling plugin ${req.params.id}:`, error);
+      logger.error(`Error with plugin action:`, error);
       res.status(500).json({ 
-        message: 'Error disabling plugin',
+        message: 'Error with plugin action',
         error: error instanceof Error ? error.message : String(error)
       });
     }
   }
-
+  
   /**
    * Unregister (delete) plugin
+   * @deprecated Use file-based configuration instead
    */
   async unregisterPlugin(req: Request, res: Response): Promise<void> {
     try {
-      const plugin = await PluginModel.findById(req.params.id);
-      
-      if (!plugin) {
-        res.status(404).json({ message: 'Plugin not found' });
-        return;
-      }
-      
-      // If this is a game system plugin, delete the game system too
-      if (plugin.type === 'gameSystem' && (plugin as any).gameSystemId) {
-        await GameSystemModel.findByIdAndDelete((plugin as any).gameSystemId);
-      }
-      
-      await PluginModel.findByIdAndDelete(req.params.id);
-      
-      res.status(204).send();
+      res.status(400).json({ message: 'Manual plugin unregistration is deprecated. Please use file-based configuration instead.' });
     } catch (error) {
-      logger.error(`Error unregistering plugin ${req.params.id}:`, error);
+      logger.error(`Error with plugin action:`, error);
       res.status(500).json({ 
-        message: 'Error unregistering plugin',
+        message: 'Error with plugin action',
         error: error instanceof Error ? error.message : String(error)
       });
     }

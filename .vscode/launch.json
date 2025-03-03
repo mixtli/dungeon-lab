@@ -1,0 +1,62 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Launch Chrome",
+            "request": "launch",
+            "type": "chrome",
+            "url": "http://localhost:8080",
+            "webRoot": "${workspaceFolder}/packages/web",
+            "runtimeArgs": [
+                "--allow-insecure-localhost",
+                "--user-data-dir=${workspaceFolder}/.vscode/chrome-debug-profile",
+                "--no-first-run",
+                "--enable-logging",
+                "--v=1"
+            ],
+            "port": 9222,
+            "sourceMaps": true,
+            "sourceMapPathOverrides": {
+                "webpack:///src/*": "${webRoot}/src/*",
+                "/@fs/*": "*",
+                "/@vite/*": "${webRoot}/src/*"
+            },
+            "trace": true
+        },
+        {
+            "name": "Debug Server",
+            "type": "node",
+            "request": "launch",
+            "runtimeExecutable": "npm",
+            "runtimeArgs": ["run", "dev", "-w", "@dungeon-lab/server"],
+            "skipFiles": ["<node_internals>/**"],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "restart": true,
+            "autoAttachChildProcesses": true
+        },
+        {
+            "name": "Debug Web",
+            "type": "node",
+            "request": "launch",
+            "runtimeExecutable": "npm",
+            "runtimeArgs": ["run", "dev", "-w", "@dungeon-lab/web"],
+            "skipFiles": ["<node_internals>/**"],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "restart": true,
+            "autoAttachChildProcesses": true
+        },
+        {
+            "name": "Attach to Server",
+            "type": "node",
+            "request": "attach",
+            "port": 9229,
+            "restart": true,
+            "skipFiles": ["<node_internals>/**"]
+        }
+    ]
+}

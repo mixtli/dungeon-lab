@@ -36,6 +36,9 @@ function logout() {
           <RouterLink to="/" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700">
             Home
           </RouterLink>
+          <RouterLink v-if="authStore.isAuthenticated" to="/campaigns" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700">
+            Campaigns
+          </RouterLink>
           <RouterLink v-if="authStore.isAuthenticated" to="/games" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700">
             Games
           </RouterLink>
@@ -101,6 +104,9 @@ function logout() {
       <div v-if="isMenuOpen" class="md:hidden py-3 space-y-1">
         <RouterLink to="/" class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700">
           Home
+        </RouterLink>
+        <RouterLink v-if="authStore.isAuthenticated" to="/campaigns" class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700">
+          Campaigns
         </RouterLink>
         <RouterLink v-if="authStore.isAuthenticated" to="/games" class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700">
           Games

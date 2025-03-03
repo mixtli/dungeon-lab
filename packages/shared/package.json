@@ -2,6 +2,7 @@
   "name": "@dungeon-lab/shared",
   "version": "0.1.0",
   "description": "Shared code and types for Dungeon Lab",
+  "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": ["dist"],

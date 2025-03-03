@@ -6,8 +6,8 @@ import App from './App.vue';
 import router from './router';
 import './assets/styles/main.css';
 import api from './plugins/axios';
-import { usePluginStore } from './stores/plugin';
 import { useAuthStore } from './stores/auth';
+import { pluginRegistry } from './services/plugin-registry.service';
 
 const app = createApp(App);
 const pinia = createPinia();
@@ -26,9 +26,11 @@ authStore.fetchUser().catch(error => {
 });
 
 // Initialize the plugin system
-const pluginStore = usePluginStore();
-pluginStore.initializePlugins().catch(error => {
+try {
+  await pluginRegistry.initialize();
+  console.info('Plugin registry initialized successfully');
+} catch (error) {
   console.error('Failed to initialize plugins:', error);
-});
+}
 
 app.mount('#app'); 

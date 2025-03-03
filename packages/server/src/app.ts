@@ -5,6 +5,8 @@ import session from 'express-session';
 import passport from 'passport';
 import { Router } from 'express';
 import MongoStore from 'connect-mongo';
+import { pluginRegistry } from './services/plugin-registry.service.js';
+import { logger } from './utils/logger.js';
 
 // Define type interfaces for our routes and middleware
 type ErrorHandlerMiddleware = (
@@ -24,6 +26,7 @@ let itemRoutes: Router;
 let authRoutes: Router;
 let storageRoutes: Router;
 let pluginRoutes: Router;
+let campaignRoutes: Router;
 let errorHandler: ErrorHandlerMiddleware;
 let StorageService: StorageServiceClass | null = null;
 
@@ -38,6 +41,7 @@ async function initializeRoutes() {
     const authRoutesModule = await import('./routes/auth.routes.js');
     const storageRoutesModule = await import('./routes/storage.routes.js');
     const pluginRoutesModule = await import('./routes/plugin.routes.js');
+    const campaignRoutesModule = await import('./routes/campaign.routes.js');
     const errorMiddlewareModule = await import('./middleware/error.middleware.js');
     const storageServiceModule = await import('./services/storage.service.js');
     
@@ -47,6 +51,7 @@ async function initializeRoutes() {
     authRoutes = authRoutesModule.authRoutes || express.Router();
     storageRoutes = storageRoutesModule.storageRoutes || express.Router();
     pluginRoutes = pluginRoutesModule.default || express.Router();
+    campaignRoutes = campaignRoutesModule.campaignRoutes || express.Router();
     errorHandler = errorMiddlewareModule.errorHandler || defaultErrorHandler;
     StorageService = storageServiceModule.StorageService || null;
   } catch (error) {
@@ -58,6 +63,7 @@ async function initializeRoutes() {
     authRoutes = express.Router();
     storageRoutes = express.Router();
     pluginRoutes = express.Router();
+    campaignRoutes = express.Router();
     errorHandler = defaultErrorHandler;
     StorageService = class MockStorageService {
       constructor() {}
@@ -85,6 +91,14 @@ const defaultErrorHandler: ErrorHandlerMiddleware = (err, req, res, next) => {
 export async function createApp() {
   // Initialize routes before creating the app
   await initializeRoutes();
+  
+  // Initialize plugin registry
+  try {
+    await pluginRegistry.initialize();
+    logger.info('Plugin registry initialized successfully');
+  } catch (error) {
+    logger.error('Failed to initialize plugin registry:', error);
+  }
   
   // Initialize Express app
   const app = express();
@@ -133,6 +147,7 @@ export async function createApp() {
   
   // Health check route
   app.get('/api/health', (req, res) => {
+    console.log("Health check route");
     res.json({ status: 'ok' });
   });
 
@@ -142,6 +157,7 @@ export async function createApp() {
   app.use('/api/actors', actorRoutes);
   app.use('/api/items', itemRoutes);
   app.use('/api/plugins', pluginRoutes);
+  app.use('/api/campaigns', campaignRoutes);
 
   // Register error handling middleware
   app.use(errorHandler);
