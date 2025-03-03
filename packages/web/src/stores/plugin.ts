@@ -84,100 +84,6 @@ export const usePluginStore = defineStore('plugin', () => {
     }
   }
 
-  async function registerPlugin(pluginData: Partial<Plugin>) {
-    loading.value = true;
-    error.value = null;
-
-    try {
-      const response = await api.post('/plugins', pluginData);
-      plugins.value.push(response.data);
-      return response.data;
-    } catch (err: any) {
-      error.value = err.response?.data?.message || err.message || 'Failed to register plugin';
-      console.error('Error registering plugin:', err);
-      throw err;
-    } finally {
-      loading.value = false;
-    }
-  }
-
-  async function updatePlugin(id: string, pluginData: Partial<Plugin>) {
-    loading.value = true;
-    error.value = null;
-
-    try {
-      const response = await api.put(`/plugins/${id}`, pluginData);
-      const index = plugins.value.findIndex(p => p.id === id);
-      if (index !== -1) {
-        plugins.value[index] = response.data;
-      }
-      return response.data;
-    } catch (err: any) {
-      error.value = err.response?.data?.message || err.message || `Failed to update plugin ${id}`;
-      console.error(`Error updating plugin ${id}:`, err);
-      throw err;
-    } finally {
-      loading.value = false;
-    }
-  }
-
-  async function enablePlugin(id: string) {
-    loading.value = true;
-    error.value = null;
-
-    try {
-      const response = await api.put(`/plugins/${id}/enable`);
-      const index = plugins.value.findIndex(p => p.id === id);
-      if (index !== -1) {
-        plugins.value[index] = response.data;
-      }
-      return response.data;
-    } catch (err: any) {
-      error.value = err.response?.data?.message || err.message || `Failed to enable plugin ${id}`;
-      console.error(`Error enabling plugin ${id}:`, err);
-      throw err;
-    } finally {
-      loading.value = false;
-    }
-  }
-
-  async function disablePlugin(id: string) {
-    loading.value = true;
-    error.value = null;
-
-    try {
-      const response = await api.put(`/plugins/${id}/disable`);
-      const index = plugins.value.findIndex(p => p.id === id);
-      if (index !== -1) {
-        plugins.value[index] = response.data;
-      }
-      return response.data;
-    } catch (err: any) {
-      error.value = err.response?.data?.message || err.message || `Failed to disable plugin ${id}`;
-      console.error(`Error disabling plugin ${id}:`, err);
-      throw err;
-    } finally {
-      loading.value = false;
-    }
-  }
-
-  async function unregisterPlugin(id: string) {
-    loading.value = true;
-    error.value = null;
-
-    try {
-      await api.delete(`/plugins/${id}`);
-      plugins.value = plugins.value.filter(p => p.id !== id);
-      return true;
-    } catch (err: any) {
-      error.value = err.response?.data?.message || err.message || `Failed to unregister plugin ${id}`;
-      console.error(`Error unregistering plugin ${id}:`, err);
-      throw err;
-    } finally {
-      loading.value = false;
-    }
-  }
-
   // Load plugin components
   function registerComponent(name: string, component: any) {
     loadedComponents.value.set(name, component);
@@ -233,11 +139,6 @@ export const usePluginStore = defineStore('plugin', () => {
     // Actions
     fetchPlugins,
     getPlugin,
-    registerPlugin,
-    updatePlugin,
-    enablePlugin,
-    disablePlugin,
-    unregisterPlugin,
     registerComponent,
     loadPlugin,
     initializePlugins,

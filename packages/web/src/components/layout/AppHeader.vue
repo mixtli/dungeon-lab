@@ -39,6 +39,9 @@ function logout() {
           <RouterLink v-if="authStore.isAuthenticated" to="/campaigns" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700">
             Campaigns
           </RouterLink>
+          <RouterLink v-if="authStore.isAuthenticated" to="/maps" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700">
+            Maps
+          </RouterLink>
           <RouterLink v-if="authStore.isAuthenticated" to="/games" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700">
             Games
           </RouterLink>
@@ -107,6 +110,9 @@ function logout() {
         </RouterLink>
         <RouterLink v-if="authStore.isAuthenticated" to="/campaigns" class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700">
           Campaigns
+        </RouterLink>
+        <RouterLink v-if="authStore.isAuthenticated" to="/maps" class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700">
+          Maps
         </RouterLink>
         <RouterLink v-if="authStore.isAuthenticated" to="/games" class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700">
           Games

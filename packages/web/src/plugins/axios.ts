@@ -1,12 +1,12 @@
 import axios from 'axios';
 
 // Get the base URL or use a default
-const baseURL = import.meta.env.VITE_API_URL + "/api" || 'http://localhost:3000/api';
+const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 
 // Create axios instance with base URL
 const api = axios.create({
-  baseURL,
+  baseURL: `${baseURL}/api`,
   timeout: 10000,
   // Enable sending cookies with requests
   withCredentials: true,

@@ -185,4 +185,12 @@ async function deleteCampaign() {
   border-radius: 8px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
+
+.info-card p {
+  color: #374151;  /* Dark gray text for better contrast */
+}
+
+.info-card h3 {
+  color: #6B7280;  /* Medium gray for labels */
+}
 </style> 

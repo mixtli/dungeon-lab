@@ -28,7 +28,15 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
+    "@types/sharp": "^0.31.1",
+    "@types/uuid": "^10.0.0",
     "concurrently": "^8.2.2",
     "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "@types/minio": "^7.1.0",
+    "minio": "^8.0.4",
+    "sharp": "^0.33.5",
+    "uuid": "^11.1.0"
   }
 }

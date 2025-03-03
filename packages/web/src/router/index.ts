@@ -21,6 +21,11 @@ const CampaignDetailView = () => import('@/views/CampaignDetailView.vue');
 const CampaignCreateView = () => import('@/views/CampaignCreateView.vue');
 const CampaignEditView = () => import('@/views/CampaignEditView.vue');
 
+// Map views
+const MapListView = () => import('@/views/map/MapListView.vue');
+const MapCreateView = () => import('@/views/map/MapCreateView.vue');
+const MapDetailView = () => import('@/views/map/MapDetailView.vue');
+
 const routes: RouteRecordRaw[] = [
   {
     path: '/',
@@ -96,6 +101,34 @@ const routes: RouteRecordRaw[] = [
         component: CampaignEditView,
         meta: {
           title: 'Edit Campaign',
+          requiresAuth: true,
+        },
+      },
+      // Map routes
+      {
+        path: 'maps',
+        name: 'maps',
+        component: MapListView,
+        meta: {
+          title: 'My Maps',
+          requiresAuth: true,
+        },
+      },
+      {
+        path: 'maps/create',
+        name: 'map-create',
+        component: MapCreateView,
+        meta: {
+          title: 'Create Map',
+          requiresAuth: true,
+        },
+      },
+      {
+        path: 'maps/:id',
+        name: 'map-detail',
+        component: MapDetailView,
+        meta: {
+          title: 'Map Details',
           requiresAuth: true,
         },
       },

@@ -8,6 +8,9 @@ export * from './interfaces/api.js';
 // Export campaign types
 export * from './interfaces/campaign.js';
 
+// Export map types
+export * from './models/map.js';
+
 // Export constants
 export * from './constants.js';
 

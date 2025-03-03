@@ -21,4 +21,4 @@ router.get(
 // Protected routes
 router.get('/me', authenticate, authController.getCurrentUser);
 
-export const authRoutes = router; 
+export default router; 

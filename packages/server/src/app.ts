@@ -7,6 +7,7 @@ import { Router } from 'express';
 import MongoStore from 'connect-mongo';
 import { pluginRegistry } from './services/plugin-registry.service.js';
 import { logger } from './utils/logger.js';
+import { requestLogger } from './middleware/request-logger.middleware.js';
 
 // Define type interfaces for our routes and middleware
 type ErrorHandlerMiddleware = (
@@ -27,6 +28,7 @@ let authRoutes: Router;
 let storageRoutes: Router;
 let pluginRoutes: Router;
 let campaignRoutes: Router;
+let mapRoutes: Router;
 let errorHandler: ErrorHandlerMiddleware;
 let StorageService: StorageServiceClass | null = null;
 
@@ -42,16 +44,18 @@ async function initializeRoutes() {
     const storageRoutesModule = await import('./routes/storage.routes.js');
     const pluginRoutesModule = await import('./routes/plugin.routes.js');
     const campaignRoutesModule = await import('./routes/campaign.routes.js');
+    const mapRoutesModule = await import('./routes/map.routes.js');
     const errorMiddlewareModule = await import('./middleware/error.middleware.js');
     const storageServiceModule = await import('./services/storage.service.js');
     
     // Assign routes and middleware
     actorRoutes = actorRoutesModule.actorRoutes || express.Router();
     itemRoutes = itemRoutesModule.itemRoutes || express.Router();
-    authRoutes = authRoutesModule.authRoutes || express.Router();
+    authRoutes = authRoutesModule.default || express.Router();
     storageRoutes = storageRoutesModule.storageRoutes || express.Router();
     pluginRoutes = pluginRoutesModule.default || express.Router();
     campaignRoutes = campaignRoutesModule.campaignRoutes || express.Router();
+    mapRoutes = mapRoutesModule.default || express.Router();
     errorHandler = errorMiddlewareModule.errorHandler || defaultErrorHandler;
     StorageService = storageServiceModule.StorageService || null;
   } catch (error) {
@@ -64,6 +68,7 @@ async function initializeRoutes() {
     storageRoutes = express.Router();
     pluginRoutes = express.Router();
     campaignRoutes = express.Router();
+    mapRoutes = express.Router();
     errorHandler = defaultErrorHandler;
     StorageService = class MockStorageService {
       constructor() {}
@@ -89,7 +94,14 @@ const defaultErrorHandler: ErrorHandlerMiddleware = (err, req, res, next) => {
  * allowing it to be used in both the main application and tests.
  */
 export async function createApp() {
-  // Initialize routes before creating the app
+  // Import configuration
+  const { config } = await import('./config/index.js');
+  
+  // Configure Passport before initializing routes
+  const { configurePassport } = await import('./config/passport.js');
+  configurePassport();
+  
+  // Initialize routes
   await initializeRoutes();
   
   // Initialize plugin registry
@@ -102,9 +114,9 @@ export async function createApp() {
   
   // Initialize Express app
   const app = express();
-
-  // Import configuration
-  const { config } = await import('./config/index.js');
+  
+  // Add request logger middleware before other middleware
+  app.use(requestLogger);
   
   // Configure middleware with proper CORS settings for credentials
   app.use(cors({
@@ -158,6 +170,7 @@ export async function createApp() {
   app.use('/api/items', itemRoutes);
   app.use('/api/plugins', pluginRoutes);
   app.use('/api/campaigns', campaignRoutes);
+  app.use('/api/maps', mapRoutes);
 
   // Register error handling middleware
   app.use(errorHandler);

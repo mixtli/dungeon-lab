@@ -1,6 +1,5 @@
 <script setup lang="ts">
 // Home view component
-import { Document, Monitor, Connection } from '@element-plus/icons-vue';
 </script>
 
 <template>
@@ -30,27 +29,48 @@ import { Document, Monitor, Connection } from '@element-plus/icons-vue';
         
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div class="feature-card">
-            <div class="icon-wrapper mb-4">
-              <el-icon :size="48"><Document /></el-icon>
+            <h2 class="text-2xl font-bold mb-4 text-[#3B82F6]">Create Your Hero</h2>
+            <div class="feature-image mb-4">
+              <img src="/images/features/character-sheet.png" alt="Character Sheet" class="rounded-lg shadow-lg w-full h-48 object-cover">
             </div>
-            <h3 class="text-xl font-semibold mb-2">Character Management</h3>
-            <p>Create and manage characters for various game systems. Track stats, inventory, and abilities with ease.</p>
+            <h3 class="text-xl font-semibold mb-2 text-gray-900">Character Creation</h3>
+            <p class="mb-2 text-gray-900">Create and customize characters with our intuitive character builder. Track stats, inventory, and abilities with beautiful digital character sheets.</p>
+            <ul class="text-left list-disc list-inside space-y-1 text-gray-900">
+              <li>Support for multiple game systems and rulesets</li>
+              <li>Automated stat calculations and modifiers</li>
+              <li>Digital dice rolling and skill checks</li>
+              <li>Equipment and inventory management</li>
+            </ul>
           </div>
           
           <div class="feature-card">
-            <div class="icon-wrapper mb-4">
-              <el-icon :size="48"><Monitor /></el-icon>
+            <h2 class="text-2xl font-bold mb-4 text-[#3B82F6]">Design Your World</h2>
+            <div class="feature-image mb-4">
+              <img src="/images/features/map-builder.png" alt="Map Builder" class="rounded-lg shadow-lg w-full h-48 object-cover">
             </div>
-            <h3 class="text-xl font-semibold mb-2">Virtual Game Table</h3>
-            <p>Play with friends using our interactive game table. Move tokens, roll dice, and share maps in real-time.</p>
+            <h3 class="text-xl font-semibold mb-2 text-gray-900">Map Builder</h3>
+            <p class="mb-2 text-gray-900">Design intricate dungeons and detailed terrain for your campaigns. Create immersive battle maps with our powerful and easy-to-use map editor.</p>
+            <ul class="text-left list-disc list-inside space-y-1 text-gray-900">
+              <li>Drag-and-drop terrain and object placement</li>
+              <li>Extensive library of assets and props</li>
+              <li>Dynamic lighting and fog of war</li>
+              <li>Grid and measurement tools</li>
+            </ul>
           </div>
           
           <div class="feature-card">
-            <div class="icon-wrapper mb-4">
-              <el-icon :size="48"><Connection /></el-icon>
+            <h2 class="text-2xl font-bold mb-4 text-[#3B82F6]">Master the Battle</h2>
+            <div class="feature-image mb-4">
+              <img src="/images/features/encounter.png" alt="Encounter Runner" class="rounded-lg shadow-lg w-full h-48 object-cover">
             </div>
-            <h3 class="text-xl font-semibold mb-2">Plugin System</h3>
-            <p>Support for multiple game systems through our flexible plugin architecture. Play D&D, Pathfinder, and more!</p>
+            <h3 class="text-xl font-semibold mb-2 text-gray-900">Encounter Runner</h3>
+            <p class="mb-2 text-gray-900">Run dynamic combat encounters with integrated initiative tracking, token movement, and automated calculations. Keep the action flowing smoothly.</p>
+            <ul class="text-left list-disc list-inside space-y-1 text-gray-900">
+              <li>Initiative tracker with turn management</li>
+              <li>Automated damage and healing calculations</li>
+              <li>Status effect tracking and timers</li>
+              <li>Integrated monster stats and abilities</li>
+            </ul>
           </div>
         </div>
       </div>
@@ -80,11 +100,11 @@ import { Document, Monitor, Connection } from '@element-plus/icons-vue';
   transform: translateY(-5px);
 }
 
-.icon-wrapper {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 80px;
-  color: var(--el-color-primary);
+.feature-image img {
+  transition: transform 0.3s ease;
+}
+
+.feature-card:hover .feature-image img {
+  transform: scale(1.05);
 }
 </style> 
