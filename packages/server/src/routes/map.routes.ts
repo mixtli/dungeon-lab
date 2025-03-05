@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { createMap, getMaps, getMap, updateMap, deleteMap, getMapImageUrl } from '../controllers/map.controller.js';
-import { authenticate } from '../middleware/auth.js';
+import { authenticate } from '../middleware/auth.middleware.js';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
