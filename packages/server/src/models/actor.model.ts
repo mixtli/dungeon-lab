@@ -1,72 +1,36 @@
-import mongoose, { Document, Schema } from 'mongoose';
-import { Actor } from '@dungeon-lab/shared';
+import mongoose from 'mongoose';
+import { zodSchemaRaw } from '@zodyac/zod-mongoose';
+import { Actor, actorSchema } from '@dungeon-lab/shared';
 
 /**
- * Actor document interface
+ * Actor document interface extending the base Actor interface
  */
-export interface ActorDocument extends Omit<Actor, 'id'>, Document {
+export interface ActorDocument extends Omit<Actor, 'id'>, mongoose.Document {
   id: string;
 }
 
 /**
- * Actor schema
+ * Convert Zod schema to raw Mongoose schema definition
  */
-const actorSchema = new Schema(
-  {
-    name: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    type: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    img: {
-      type: String,
-      trim: true,
-    },
-    description: {
-      type: String,
-      trim: true,
-    },
-    gameSystemId: {
-      type: Schema.Types.ObjectId,
-      ref: 'GameSystem',
-      required: true,
-    },
-    data: {
-      type: Schema.Types.Mixed,
-      required: true,
-      default: {},
-    },
-    createdBy: {
-      type: Schema.Types.ObjectId,
-      ref: 'User',
-      required: true,
-    },
-    updatedBy: {
-      type: Schema.Types.ObjectId,
-      ref: 'User',
-      required: true,
+const schemaDefinition = zodSchemaRaw(actorSchema);
+
+/**
+ * Create Mongoose schema with the raw definition
+ */
+const mongooseSchema = new mongoose.Schema(schemaDefinition, {
+  timestamps: true,
+  toJSON: {
+    virtuals: true,
+    transform: (_, ret) => {
+      ret.id = ret._id.toString();
+      delete ret._id;
+      delete ret.__v;
+      return ret;
     },
   },
-  {
-    timestamps: true,
-    toJSON: {
-      virtuals: true,
-      transform: (_, ret) => {
-        ret.id = ret._id.toString();
-        delete ret._id;
-        delete ret.__v;
-        return ret;
-      },
-    },
-  }
-);
+});
 
 /**
  * Actor model
  */
-export const ActorModel = mongoose.model<ActorDocument>('Actor', actorSchema); 
+export const ActorModel = mongoose.model<ActorDocument>('Actor', mongooseSchema); 

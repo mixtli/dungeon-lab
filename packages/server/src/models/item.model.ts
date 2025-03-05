@@ -1,72 +1,36 @@
-import mongoose, { Document, Schema } from 'mongoose';
-import { Item } from '@dungeon-lab/shared';
+import mongoose from 'mongoose';
+import { zodSchemaRaw } from '@zodyac/zod-mongoose';
+import { Item, itemSchema } from '@dungeon-lab/shared';
 
 /**
- * Item document interface
+ * Item document interface extending the base Item interface
  */
-export interface ItemDocument extends Omit<Item, 'id'>, Document {
+export interface ItemDocument extends Omit<Item, 'id'>, mongoose.Document {
   id: string;
 }
 
 /**
- * Item schema
+ * Convert Zod schema to raw Mongoose schema definition
  */
-const itemSchema = new Schema(
-  {
-    name: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    type: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    img: {
-      type: String,
-      trim: true,
-    },
-    description: {
-      type: String,
-      trim: true,
-    },
-    gameSystemId: {
-      type: Schema.Types.ObjectId,
-      ref: 'GameSystem',
-      required: true,
-    },
-    data: {
-      type: Schema.Types.Mixed,
-      required: true,
-      default: {},
-    },
-    createdBy: {
-      type: Schema.Types.ObjectId,
-      ref: 'User',
-      required: true,
-    },
-    updatedBy: {
-      type: Schema.Types.ObjectId,
-      ref: 'User',
-      required: true,
+const schemaDefinition = zodSchemaRaw(itemSchema);
+
+/**
+ * Create Mongoose schema with the raw definition
+ */
+const mongooseSchema = new mongoose.Schema(schemaDefinition, {
+  timestamps: true,
+  toJSON: {
+    virtuals: true,
+    transform: (_doc, ret) => {
+      ret.id = ret._id.toString();
+      delete ret._id;
+      delete ret.__v;
+      return ret;
     },
   },
-  {
-    timestamps: true,
-    toJSON: {
-      virtuals: true,
-      transform: (_doc, ret) => {
-        ret.id = ret._id.toString();
-        delete ret._id;
-        delete ret.__v;
-        return ret;
-      },
-    },
-  }
-);
+});
 
 /**
  * Item model
  */
-export const ItemModel = mongoose.model<ItemDocument>('Item', itemSchema); 
+export const ItemModel = mongoose.model<ItemDocument>('Item', mongooseSchema); 

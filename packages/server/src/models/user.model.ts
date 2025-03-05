@@ -1,135 +1,42 @@
-import mongoose, { Document, Schema } from 'mongoose';
+import mongoose, { CallbackWithoutResultAndOptionalError } from 'mongoose';
 import bcrypt from 'bcrypt';
+import { zodSchemaRaw } from '@zodyac/zod-mongoose';
+import { User, userSchema } from '@dungeon-lab/shared';
 
 /**
- * User interface
+ * User document interface extending the base User interface
  */
-export interface User {
-  id: string;
-  username: string;
-  email: string;
-  password?: string;
-  googleId?: string;
-  displayName?: string;
-  avatar?: string;
-  isAdmin: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-/**
- * User document interface
- */
-export interface UserDocument extends Document {
-  username: string;
-  email: string;
-  password?: string;
-  displayName?: string;
-  avatar?: string;
-  isAdmin: boolean;
-  googleId?: string;
-  roles: string[];
-  preferences: {
-    theme: 'light' | 'dark' | 'system';
-    language: string;
-    notifications: boolean;
-  };
-  lastLogin?: Date;
-  createdAt: Date;
-  updatedAt: Date;
-  
-  // Methods
+export interface UserDocument extends Omit<User, 'id'>, mongoose.Document {
   comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
 /**
- * User schema
+ * Convert Zod schema to raw Mongoose schema definition
  */
-const userSchema = new Schema(
-  {
-    username: {
-      type: String,
-      required: true,
-      unique: true,
-      trim: true,
-      minlength: 3,
-      maxlength: 50,
-    },
-    email: {
-      type: String,
-      required: true,
-      unique: true,
-      trim: true,
-      lowercase: true,
-    },
-    password: {
-      type: String,
-      required: function(this: { googleId?: string }): boolean {
-        return !this.googleId; // Password not required if using Google OAuth
-      },
-      minlength: 6,
-    },
-    displayName: {
-      type: String,
-      trim: true,
-    },
-    avatar: {
-      type: String,
-      trim: true,
-    },
-    isAdmin: {
-      type: Boolean,
-      default: false,
-    },
-    googleId: {
-      type: String,
-      sparse: true,
-      unique: true,
-    },
-    roles: {
-      type: [String],
-      default: ['user'],
-    },
-    preferences: {
-      theme: {
-        type: String,
-        enum: ['light', 'dark', 'system'],
-        default: 'system',
-      },
-      language: {
-        type: String,
-        default: 'en',
-      },
-      notifications: {
-        type: Boolean,
-        default: true,
-      },
-    },
-    lastLogin: {
-      type: Date,
+const schemaDefinition = zodSchemaRaw(userSchema);
+
+/**
+ * Create Mongoose schema with the raw definition
+ */
+const mongooseSchema = new mongoose.Schema(schemaDefinition, {
+  timestamps: true,
+  toJSON: {
+    virtuals: true,
+    transform: (_doc: unknown, ret: Record<string, unknown>) => {
+      delete ret.password; // Don't include password in JSON
+      ret.id = (ret._id as mongoose.Types.ObjectId).toString();
+      delete ret._id;
+      delete ret.__v;
+      return ret;
     },
   },
-  {
-    timestamps: true,
-    toJSON: {
-      transform: (_, ret) => {
-        delete ret.password; // Don't include password in JSON
-        return {
-          ...ret,
-          id: ret._id,
-          _id: undefined,
-          __v: undefined,
-        };
-      },
-    },
-  }
-);
+});
 
 /**
  * Hash password before saving
  */
-userSchema.pre('save', async function(next) {
-  const user = this;
+mongooseSchema.pre('save', async function(next: CallbackWithoutResultAndOptionalError) {
+  const user = this as UserDocument;
   
   // Only hash the password if it has been modified or is new
   if (!user.isModified('password') || !user.password) {
@@ -151,7 +58,7 @@ userSchema.pre('save', async function(next) {
 /**
  * Compare password method
  */
-userSchema.methods.comparePassword = async function(candidatePassword: string): Promise<boolean> {
+mongooseSchema.methods.comparePassword = async function(candidatePassword: string): Promise<boolean> {
   if (!this.password) return false;
   return bcrypt.compare(candidatePassword, this.password);
 };
@@ -159,4 +66,4 @@ userSchema.methods.comparePassword = async function(candidatePassword: string): 
 /**
  * User model
  */
-export const UserModel = mongoose.model<UserDocument>('User', userSchema); 
+export const UserModel = mongoose.model<UserDocument>('User', mongooseSchema); 

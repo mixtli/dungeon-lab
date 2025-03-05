@@ -1,62 +1,36 @@
-import mongoose, { Document, Schema } from 'mongoose';
-import { Campaign, CampaignStatus } from '@dungeon-lab/shared';
+import mongoose from 'mongoose';
+import { zodSchemaRaw } from '@zodyac/zod-mongoose';
+import { Campaign, campaignSchema } from '@dungeon-lab/shared';
 
 /**
- * Campaign document interface
+ * Campaign document interface extending the base Campaign interface
  */
-export interface CampaignDocument extends Omit<Campaign, 'id'>, Document {
-  id: string; // For virtual property
+export interface CampaignDocument extends Omit<Campaign, 'id'>, mongoose.Document {
+  id: string;
 }
 
 /**
- * Campaign schema
+ * Convert Zod schema to raw Mongoose schema definition
  */
-const campaignSchema = new Schema(
-  {
-    name: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    description: {
-      type: String,
-      trim: true,
-    },
-    gameSystemId: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    status: {
-      type: String,
-      enum: ['planning', 'active', 'completed', 'archived'],
-      default: 'planning',
-    },
-    createdBy: {
-      type: Schema.Types.ObjectId,
-      ref: 'User',
-      required: true,
-    },
-    settings: {
-      type: Schema.Types.Mixed,
-      default: {},
+const schemaDefinition = zodSchemaRaw(campaignSchema);
+
+/**
+ * Create Mongoose schema with the raw definition
+ */
+const mongooseSchema = new mongoose.Schema(schemaDefinition, {
+  timestamps: true,
+  toJSON: {
+    virtuals: true,
+    transform: (_, ret) => {
+      ret.id = ret._id.toString();
+      delete ret._id;
+      delete ret.__v;
+      return ret;
     },
   },
-  {
-    timestamps: true,
-    toJSON: {
-      virtuals: true,
-      transform: (_, ret) => {
-        ret.id = ret._id.toString();
-        delete ret._id;
-        delete ret.__v;
-        return ret;
-      },
-    },
-  }
-);
+});
 
 /**
  * Campaign model
  */
-export const CampaignModel = mongoose.model<CampaignDocument>('Campaign', campaignSchema); 
+export const CampaignModel = mongoose.model<CampaignDocument>('Campaign', mongooseSchema); 
