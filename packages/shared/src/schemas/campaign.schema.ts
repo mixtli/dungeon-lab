@@ -9,31 +9,34 @@ export const campaignSchema = z.object({
   name: z.string().min(1).max(255),
   description: z.string().optional(),
   gameSystemId: zId('GameSystem'),
+  members: z.array(zId('User')),
+  gameMasterId: zId('User'),
   status: CampaignStatus.default('planning'),
   createdBy: zId('User'),
+  updatedBy: zId('User'),
   settings: z.record(z.string(), z.unknown()).optional(),
-  createdAt: z.date(),
-  updatedAt: z.date(),
 });
 
 // Create data schema (omits auto-generated fields)
 export const campaignCreateSchema = campaignSchema.omit({
-  createdAt: true,
-  updatedAt: true,
   createdBy: true,
+  updatedBy: true,
+  members: true,
+}).extend({
+  members: z.array(zId('User')).default([]),
 });
 
-// Update data schema (makes all fields optional except id)
+// Update data schema (makes all fields optional except updatedBy)
 export const campaignUpdateSchema = campaignSchema
   .omit({
-    createdAt: true,
-    updatedAt: true,
     createdBy: true,
-    gameSystemId: true,
   })
-  .partial();
+  .partial()
+  .extend({
+    updatedBy: zId('User'),
+  });
 
 // Export types generated from the schemas
-export type Campaign = z.infer<typeof campaignSchema>;
-export type CampaignCreateData = z.infer<typeof campaignCreateSchema>;
-export type CampaignUpdateData = z.infer<typeof campaignUpdateSchema>; 
+export type ICampaign = z.infer<typeof campaignSchema>;
+export type ICampaignCreateData = z.infer<typeof campaignCreateSchema>;
+export type ICampaignUpdateData = z.infer<typeof campaignUpdateSchema>; 

@@ -2,17 +2,17 @@
  * API Response interface
  * This interface defines the structure of an API response
  */
-export interface ApiResponse<T> {
+export interface IApiResponse<T> {
   success: boolean;
   data?: T;
-  error?: ApiError;
+  error?: IApiError;
 }
 
 /**
  * API Error interface
  * This interface defines the structure of an API error
  */
-export interface ApiError {
+export interface IApiError {
   code: string;
   message: string;
   details?: unknown;
@@ -22,7 +22,7 @@ export interface ApiError {
  * Pagination interface
  * This interface defines the structure of pagination data
  */
-export interface Pagination {
+export interface IPagination {
   page: number;
   limit: number;
   total: number;
@@ -31,8 +31,8 @@ export interface Pagination {
 
 /**
  * Paginated API Response interface
- * This interface defines the structure of a paginated API response
+ * This interface extends the API Response interface with pagination data
  */
-export interface PaginatedApiResponse<T> extends ApiResponse<T[]> {
-  pagination?: Pagination;
+export interface IPaginatedApiResponse<T> extends IApiResponse<T[]> {
+  pagination?: IPagination;
 } 

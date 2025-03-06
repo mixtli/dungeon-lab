@@ -1,34 +1,16 @@
 import mongoose from 'mongoose';
-import { zodSchemaRaw } from '@zodyac/zod-mongoose';
-import { GameSystem, gameSystemSchema } from '@dungeon-lab/shared';
+import { IGameSystem, gameSystemSchema } from '@dungeon-lab/shared';
+import { BaseDocument, createBaseSchema } from './utils/base-schema.js';
 
 /**
  * GameSystem document interface extending the base GameSystem interface
  */
-export interface GameSystemDocument extends Omit<GameSystem, 'id'>, mongoose.Document {
-  id: string;
-}
+export interface GameSystemDocument extends Omit<IGameSystem, 'id'>, BaseDocument {}
 
 /**
- * Convert Zod schema to raw Mongoose schema definition
+ * Create Mongoose schema with base configuration
  */
-const schemaDefinition = zodSchemaRaw(gameSystemSchema);
-
-/**
- * Create Mongoose schema with the raw definition
- */
-const mongooseSchema = new mongoose.Schema(schemaDefinition, {
-  timestamps: true,
-  toJSON: {
-    virtuals: true,
-    transform: (_, ret) => {
-      ret.id = ret._id.toString();
-      delete ret._id;
-      delete ret.__v;
-      return ret;
-    },
-  },
-});
+const mongooseSchema = createBaseSchema(gameSystemSchema);
 
 /**
  * GameSystem model

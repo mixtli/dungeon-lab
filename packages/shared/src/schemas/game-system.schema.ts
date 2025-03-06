@@ -20,39 +20,55 @@ export const gameSystemItemTypeSchema = z.object({
 // Base Game System schema
 export const gameSystemSchema = z.object({
   name: z.string().min(1).max(255),
-  version: z.string().min(1).max(50),
   description: z.string().optional(),
-  author: z.string().optional(),
-  website: z.string().url().optional(),
+  version: z.string(),
   actorTypes: z.array(gameSystemActorTypeSchema),
   itemTypes: z.array(gameSystemItemTypeSchema),
   createdBy: zId('User'),
   updatedBy: zId('User'),
-  createdAt: z.date(),
-  updatedAt: z.date(),
 });
 
 // Create data schema (omits auto-generated fields)
 export const gameSystemCreateSchema = gameSystemSchema.omit({
-  createdAt: true,
-  updatedAt: true,
   createdBy: true,
   updatedBy: true,
 });
 
-// Update data schema (makes all fields optional)
+// Update data schema (makes all fields optional except updatedBy)
 export const gameSystemUpdateSchema = gameSystemSchema
   .omit({
-    createdAt: true,
-    updatedAt: true,
     createdBy: true,
-    updatedBy: true,
   })
-  .partial();
+  .partial()
+  .extend({
+    updatedBy: zId('User'),
+  });
 
 // Export types generated from the schemas
-export type GameSystem = z.infer<typeof gameSystemSchema>;
+export type IGameSystem = z.infer<typeof gameSystemSchema>;
+export type IGameSystemCreateData = z.infer<typeof gameSystemCreateSchema>;
+export type IGameSystemUpdateData = z.infer<typeof gameSystemUpdateSchema>;
+
+// Export registration interface
+export interface IGameSystemRegistration {
+  id: string;
+  name: string;
+  version: string;
+  description?: string;
+  actorTypes: Array<{
+    name: string;
+    description?: string;
+    dataSchema: Record<string, unknown>;
+    uiComponent?: string;
+  }>;
+  itemTypes: Array<{
+    name: string;
+    description?: string;
+    dataSchema: Record<string, unknown>;
+    uiComponent?: string;
+  }>;
+}
+
+// Export inferred types
 export type GameSystemActorType = z.infer<typeof gameSystemActorTypeSchema>;
-export type GameSystemItemType = z.infer<typeof gameSystemItemTypeSchema>;
-export type GameSystemCreateData = z.infer<typeof gameSystemCreateSchema>;
-export type GameSystemUpdateData = z.infer<typeof gameSystemUpdateSchema>; 
+export type GameSystemItemType = z.infer<typeof gameSystemItemTypeSchema>; 

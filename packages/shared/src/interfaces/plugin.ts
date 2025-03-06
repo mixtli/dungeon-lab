@@ -1,10 +1,10 @@
-import { GameSystemRegistration } from './game-system.js';
+import { IGameSystemRegistration } from '../schemas/game-system.schema.js';
 
 /**
  * Plugin Config interface
  * This defines the structure of a plugin's config.json file
  */
-export interface PluginConfig {
+export interface IPluginConfig {
   id: string;
   name: string;
   version: string;
@@ -19,9 +19,9 @@ export interface PluginConfig {
 
 /**
  * Plugin interface
- * This interface defines the structure of a plugin
+ * This defines the base structure of a plugin
  */
-export interface Plugin {
+export interface IPlugin {
   id: string;
   name: string;
   version: string;
@@ -36,11 +36,11 @@ export interface Plugin {
 
 /**
  * Game System Plugin interface
- * This interface defines the structure of a game system plugin
+ * This extends the base Plugin interface with game system specific functionality
  */
-export interface GameSystemPlugin extends Plugin {
+export interface IGameSystemPlugin extends IPlugin {
   type: 'gameSystem';
-  gameSystem: GameSystemRegistration;
+  gameSystem: IGameSystemRegistration;
   initialize: () => Promise<void>;
   getActorSheet: (actorType: string) => string | undefined;
   getItemSheet: (itemType: string) => string | undefined;
@@ -50,28 +50,28 @@ export interface GameSystemPlugin extends Plugin {
 
 /**
  * Plugin Manager interface
- * This interface defines the methods for managing plugins
+ * This defines the functionality for managing plugins
  */
-export interface PluginManager {
-  registerPlugin: (plugin: GameSystemPlugin) => Promise<string>;
+export interface IPluginManager {
+  registerPlugin: (plugin: IGameSystemPlugin) => Promise<string>;
   unregisterPlugin: (pluginId: string) => Promise<void>;
   enablePlugin: (pluginId: string) => Promise<void>;
   disablePlugin: (pluginId: string) => Promise<void>;
-  getPlugin: (pluginId: string) => Promise<Plugin | undefined>;
-  getGameSystemPlugin: (pluginId: string) => Promise<GameSystemPlugin | undefined>;
-  getAllPlugins: () => Promise<Plugin[]>;
-  getAllGameSystemPlugins: () => Promise<GameSystemPlugin[]>;
+  getPlugin: (pluginId: string) => Promise<IPlugin | undefined>;
+  getGameSystemPlugin: (pluginId: string) => Promise<IGameSystemPlugin | undefined>;
+  getAllPlugins: () => Promise<IPlugin[]>;
+  getAllGameSystemPlugins: () => Promise<IGameSystemPlugin[]>;
 }
 
 /**
  * Plugin Registry interface
- * This interface defines methods for managing plugins via file-based configuration
+ * This defines the functionality for a plugin registry
  */
-export interface PluginRegistry {
+export interface IPluginRegistry {
   initialize: () => Promise<void>;
-  getPlugin: (pluginId: string) => Plugin | undefined;
-  getGameSystemPlugin: (pluginId: string) => GameSystemPlugin | undefined;
-  getAllPlugins: () => Plugin[];
-  getAllGameSystemPlugins: () => GameSystemPlugin[];
-  getEnabledPlugins: () => Plugin[];
+  getPlugin: (pluginId: string) => IPlugin | undefined;
+  getGameSystemPlugin: (pluginId: string) => IGameSystemPlugin | undefined;
+  getAllPlugins: () => IPlugin[];
+  getAllGameSystemPlugins: () => IGameSystemPlugin[];
+  getEnabledPlugins: () => IPlugin[];
 } 

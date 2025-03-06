@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
 import { UserModel } from '../models/user.model.js';
 import { config } from '../config/index.js';
-import { SessionData } from 'express-session';
 
 // Extend express-session with our custom properties
 declare module 'express-session' {

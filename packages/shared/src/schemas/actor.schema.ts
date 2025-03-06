@@ -11,30 +11,25 @@ export const actorSchema = z.object({
   data: z.record(z.string(), z.unknown()),
   createdBy: zId('User'),
   updatedBy: zId('User'),
-  createdAt: z.date(),
-  updatedAt: z.date(),
 });
 
 // Create data schema (omits auto-generated fields)
 export const actorCreateSchema = actorSchema.omit({
-  createdAt: true,
-  updatedAt: true,
   createdBy: true,
   updatedBy: true,
 });
 
-// Update data schema (makes all fields optional except id)
+// Update data schema (makes all fields optional except updatedBy)
 export const actorUpdateSchema = actorSchema
   .omit({
-    createdAt: true,
-    updatedAt: true,
     createdBy: true,
-    updatedBy: true,
-    gameSystemId: true,
   })
-  .partial();
+  .partial()
+  .extend({
+    updatedBy: zId('User'),
+  });
 
 // Export types generated from the schemas
-export type Actor = z.infer<typeof actorSchema>;
-export type ActorCreateData = z.infer<typeof actorCreateSchema>;
-export type ActorUpdateData = z.infer<typeof actorUpdateSchema>; 
+export type IActor = z.infer<typeof actorSchema>;
+export type IActorCreateData = z.infer<typeof actorCreateSchema>;
+export type IActorUpdateData = z.infer<typeof actorUpdateSchema>; 

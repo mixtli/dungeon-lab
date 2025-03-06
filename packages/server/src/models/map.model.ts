@@ -1,20 +1,18 @@
-import { Schema, model } from 'mongoose';
-import { Map } from '@dungeon-lab/shared';
+import mongoose from 'mongoose';
+import { IMap, mapSchema } from '@dungeon-lab/shared';
+import { BaseDocument, createBaseSchema } from './utils/base-schema.js';
 
-const mapSchema = new Schema<Map>(
-  {
-    name: { type: String, required: true },
-    description: { type: String },
-    imageUrl: { type: String, required: true },
-    thumbnailUrl: { type: String, required: true },
-    gridColumns: { type: Number, required: true },
-    gridRows: { type: Number, required: true },
-    aspectRatio: { type: Number, required: true },
-    createdBy: { type: String, required: true },
-  },
-  {
-    timestamps: true,
-  }
-);
+/**
+ * Map document interface extending the base Map interface
+ */
+export interface MapDocument extends Omit<IMap, 'id'>, BaseDocument {}
 
-export const MapModel = model<Map>('Map', mapSchema); 
+/**
+ * Create Mongoose schema with base configuration
+ */
+const mongooseSchema = createBaseSchema(mapSchema);
+
+/**
+ * Map model
+ */
+export const MapModel = mongoose.model<MapDocument>('Map', mongooseSchema); 

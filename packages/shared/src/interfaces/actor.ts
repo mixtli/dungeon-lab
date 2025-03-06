@@ -1,1 +1,0 @@
-export { Actor, ActorCreateData, ActorUpdateData } from '../schemas/actor.schema.js'; 
