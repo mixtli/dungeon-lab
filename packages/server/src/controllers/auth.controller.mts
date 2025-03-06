@@ -119,7 +119,7 @@ export async function googleCallback(req: Request, res: Response): Promise<void>
     };
 
     // Redirect to frontend
-    res.redirect(process.env.FRONTEND_URL || 'http://localhost:5173');
+    res.redirect(process.env.CLIENT_URL || 'http://localhost:5173');
   } catch (error) {
     logger.error('Error in Google callback:', error);
     res.status(500).json({ message: 'Error during Google authentication' });

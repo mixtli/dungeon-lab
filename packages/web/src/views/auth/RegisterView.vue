@@ -19,7 +19,7 @@ import RegisterForm from '@/components/auth/RegisterForm.vue';
   align-items: center;
   justify-content: center;
   padding: 2rem 1rem;
-  background-color: var(--el-fill-color-light);
+  background-color: rgb(243 244 246); /* bg-gray-100 */
 }
 
 .auth-container {
@@ -28,7 +28,7 @@ import RegisterForm from '@/components/auth/RegisterForm.vue';
 }
 
 .auth-card {
-  background-color: var(--el-bg-color);
+  background-color: rgb(255 255 255); /* bg-white */
   border-radius: 0.5rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   overflow: hidden;

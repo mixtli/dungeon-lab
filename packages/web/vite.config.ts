@@ -1,6 +1,8 @@
 import { defineConfig, loadEnv } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import path from 'path';
+import tailwindcss from 'tailwindcss';
+import autoprefixer from 'autoprefixer';
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
@@ -13,7 +15,15 @@ export default defineConfig(({ mode }) => {
   const port = parseInt(env.VITE_DEV_PORT || '8080', 10);
   
   return {
-    plugins: [vue()],
+    plugins: [
+      vue({
+        template: {
+          compilerOptions: {
+            isCustomElement: (tag) => tag.startsWith('el-')
+          }
+        }
+      })
+    ],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),
@@ -26,8 +36,6 @@ export default defineConfig(({ mode }) => {
         '/api': {
           target: apiUrl,
           changeOrigin: true,
-          // Uncomment if your API is not under /api path
-          // rewrite: (path) => path.replace(/^\/api/, '')
         },
         '/socket.io': {
           target: apiUrl,
@@ -44,13 +52,19 @@ export default defineConfig(({ mode }) => {
         output: {
           manualChunks: {
             'vue-vendor': ['vue', 'vue-router', 'pinia'],
-            'ui-vendor': ['element-plus', '@headlessui/vue'],
+            'ui-vendor': ['@headlessui/vue'],
           },
         },
       },
     },
     css: {
-      devSourcemap: true
+      devSourcemap: true,
+      postcss: {
+        plugins: [
+          tailwindcss,
+          autoprefixer,
+        ],
+      }
     }
   };
 }); 

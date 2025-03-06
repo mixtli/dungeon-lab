@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue';
 import { useRouter } from 'vue-router';
-import { ElMessage } from 'element-plus';
 import { useAuthStore } from '@/stores/auth.mjs';
 
 const authStore = useAuthStore();
@@ -12,132 +11,168 @@ const form = reactive({
   password: '',
 });
 
+const errors = reactive({
+  email: '',
+  password: '',
+});
+
 const isSubmitting = ref(false);
-const formRef = ref();
+const rememberMe = ref(false);
 
-const rules = {
-  email: [
-    { required: true, message: 'Please enter your email', trigger: 'blur' },
-    { type: 'email', message: 'Please enter a valid email address', trigger: 'blur' },
-  ],
-  password: [
-    { required: true, message: 'Please enter your password', trigger: 'blur' },
-    { min: 6, message: 'Password must be at least 6 characters', trigger: 'blur' },
-  ],
-};
+function validateForm() {
+  let isValid = true;
+  errors.email = '';
+  errors.password = '';
 
-async function handleSubmit() {
-  if (!formRef.value) return;
+  // Email validation
+  if (!form.email) {
+    errors.email = 'Please enter your email';
+    isValid = false;
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+    errors.email = 'Please enter a valid email address';
+    isValid = false;
+  }
+
+  // Password validation
+  if (!form.password) {
+    errors.password = 'Please enter your password';
+    isValid = false;
+  } else if (form.password.length < 6) {
+    errors.password = 'Password must be at least 6 characters';
+    isValid = false;
+  }
+
+  return isValid;
+}
+
+async function handleSubmit(event: Event) {
+  event.preventDefault();
   
-  await formRef.value.validate(async (valid: boolean) => {
-    if (!valid) return;
+  if (!validateForm()) return;
+  
+  isSubmitting.value = true;
+  
+  try {
+    const success = await authStore.login(form);
     
-    isSubmitting.value = true;
-    
-    try {
-      const success = await authStore.login(form);
-      
-      if (success) {
-        ElMessage.success('Login successful!');
-        router.push({ name: 'home' });
-      } else {
-        ElMessage.error(authStore.error || 'Login failed. Please try again.');
-      }
-    } catch (error) {
-      ElMessage.error('An unexpected error occurred. Please try again.');
-      console.error('Login error:', error);
-    } finally {
-      isSubmitting.value = false;
+    if (success) {
+      showNotification('Login successful!');
+      router.push({ name: 'home' });
+    } else {
+      showNotification(authStore.error || 'Login failed. Please try again.');
     }
-  });
+  } catch (error) {
+    showNotification('An unexpected error occurred. Please try again.');
+    console.error('Login error:', error);
+  } finally {
+    isSubmitting.value = false;
+  }
+}
+
+// Simple notification function (we can replace this with a proper notification system later)
+function showNotification(message: string) {
+  alert(message);
 }
 </script>
 
 <template>
-  <div class="login-form">
-    <h2 class="text-2xl font-bold mb-6">Login to Your Account</h2>
+  <div class="max-w-md mx-auto p-8 bg-white rounded-lg shadow-md">
+    <h2 class="text-2xl font-bold mb-6 text-gray-900">Login to Your Account</h2>
     
-    <el-form
-      ref="formRef"
-      :model="form"
-      :rules="rules"
-      label-position="top"
-      @submit.prevent="handleSubmit"
-    >
-      <el-form-item label="Email" prop="email">
-        <el-input 
-          v-model="form.email" 
-          placeholder="Enter your email"
+    <form @submit="handleSubmit" class="space-y-6">
+      <div>
+        <label for="email" class="block text-sm font-medium text-gray-700 mb-1">
+          Email
+        </label>
+        <input
+          id="email"
+          v-model="form.email"
           type="email"
           autocomplete="email"
+          required
+          placeholder="Enter your email"
+          class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          :class="{ 'border-red-500': errors.email }"
         />
-      </el-form-item>
+        <p v-if="errors.email" class="mt-1 text-sm text-red-600">{{ errors.email }}</p>
+      </div>
       
-      <el-form-item label="Password" prop="password">
-        <el-input 
-          v-model="form.password" 
-          placeholder="Enter your password"
+      <div>
+        <label for="password" class="block text-sm font-medium text-gray-700 mb-1">
+          Password
+        </label>
+        <input
+          id="password"
+          v-model="form.password"
           type="password"
           autocomplete="current-password"
-          show-password
+          required
+          placeholder="Enter your password"
+          class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          :class="{ 'border-red-500': errors.password }"
         />
-      </el-form-item>
+        <p v-if="errors.password" class="mt-1 text-sm text-red-600">{{ errors.password }}</p>
+      </div>
       
-      <div class="flex justify-between items-center mb-4">
-        <el-checkbox>Remember me</el-checkbox>
+      <div class="flex justify-between items-center">
+        <label class="flex items-center">
+          <input
+            type="checkbox"
+            v-model="rememberMe"
+            class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+          />
+          <span class="ml-2 text-sm text-gray-600">Remember me</span>
+        </label>
         <router-link 
           to="/auth/forgot-password" 
-          class="text-blue-600 hover:text-blue-800 text-sm"
+          class="text-sm text-blue-600 hover:text-blue-800"
         >
           Forgot Password?
         </router-link>
       </div>
       
-      <el-button 
-        type="primary" 
-        native-type="submit"
-        :loading="isSubmitting"
-        class="w-full"
+      <button 
+        type="submit"
+        :disabled="isSubmitting"
+        class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        Login
-      </el-button>
+        <svg v-if="isSubmitting" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        {{ isSubmitting ? 'Logging in...' : 'Login' }}
+      </button>
       
       <div class="relative my-6">
         <div class="absolute inset-0 flex items-center">
-          <div class="w-full border-t border-gray-300 dark:border-gray-700"></div>
+          <div class="w-full border-t border-gray-300"></div>
         </div>
         <div class="relative flex justify-center text-sm">
-          <span class="px-2 bg-white dark:bg-gray-800 text-gray-500">Or continue with</span>
+          <span class="px-2 bg-white text-gray-500">Or continue with</span>
         </div>
       </div>
       
-      <el-button 
+      <button 
+        type="button"
         @click="authStore.loginWithGoogle()"
-        class="w-full flex justify-center items-center"
+        class="w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
       >
         <svg class="w-5 h-5 mr-2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
           <path d="M12.24 10.285V14.4h6.806c-.275 1.765-2.056 5.174-6.806 5.174-4.095 0-7.439-3.389-7.439-7.574s3.345-7.574 7.439-7.574c2.33 0 3.891.989 4.785 1.849l3.254-3.138C18.189 1.186 15.479 0 12.24 0c-6.635 0-12 5.365-12 12s5.365 12 12 12c6.926 0 11.52-4.869 11.52-11.726 0-.788-.085-1.39-.189-1.989H12.24z" fill="#4285F4"/>
-          <path d="M12.24 10.285V14.4h6.806c-.275 1.765-2.056 5.174-6.806 5.174-4.095 0-7.439-3.389-7.439-7.574s3.345-7.574 7.439-7.574c2.33 0 3.891.989 4.785 1.849l3.254-3.138C18.189 1.186 15.479 0 12.24 0c-6.635 0-12 5.365-12 12s5.365 12 12 12c6.926 0 11.52-4.869 11.52-11.726 0-.788-.085-1.39-.189-1.989H12.24z" fill="#4285F4"/>
-          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-          <path d="M1 12c0-1.34.25-2.61.67-3.77L2.17 7.1c-.43 1.16-.67 2.43-.67 3.77 0 1.34.25 2.61.67 3.77l3.66-2.84c-.43-1.16-.67-2.43-.67-3.77z" fill="#FBBC05"/>
-          <path d="M12 18.46c-2.86 0-5.29-1.93-6.16-4.53l-3.66 2.84c1.81 3.6 5.52 6.07 9.82 6.07 2.97 0 5.45-1.09 7.36-2.87l-3.15-3.15c-1.15 1.08-2.59 1.64-4.21 1.64z" fill="#34A853"/>
-          <path d="M22.54 12c0-.68-.06-1.34-.17-1.97h-9.87v3.95h5.53c-.24 1.28-.97 2.36-2.07 3.08l3.15 3.15c1.84-1.72 2.9-4.26 2.9-7.21z" fill="#4285F4"/>
         </svg>
         Sign in with Google
-      </el-button>
+      </button>
       
-      <div class="mt-4 text-center">
-        <p>
-          Don't have an account?
-          <router-link 
-            to="/auth/register" 
-            class="text-blue-600 hover:text-blue-800 ml-1"
-          >
-            Register
-          </router-link>
-        </p>
+      <div class="mt-4 text-center text-sm">
+        <span class="text-gray-600">Don't have an account?</span>
+        <router-link 
+          to="/auth/register" 
+          class="ml-1 text-blue-600 hover:text-blue-800 font-medium"
+        >
+          Register
+        </router-link>
       </div>
-    </el-form>
+    </form>
   </div>
 </template>
 
@@ -148,6 +183,10 @@ async function handleSubmit() {
   padding: 2rem;
   border-radius: 0.5rem;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  background-color: var(--el-bg-color);
+  background-color: rgb(255 255 255); /* bg-white */
+}
+
+.auth-form {
+  background-color: rgb(255 255 255); /* bg-white */
 }
 </style> 

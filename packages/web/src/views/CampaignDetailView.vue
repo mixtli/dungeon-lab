@@ -2,7 +2,6 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useCampaignStore } from '../stores/campaign.mjs';
-import { ElButton, ElMessage, ElMessageBox } from 'element-plus';
 import { pluginRegistry } from '../services/plugin-registry.service.mjs';
 import { formatDate } from '../utils/date-utils.mjs';
 import type { ICampaign } from '@dungeon-lab/shared/index.mjs';
@@ -12,6 +11,7 @@ const router = useRouter();
 const campaignStore = useCampaignStore();
 const loading = ref(false);
 const error = ref<string | null>(null);
+const showDeleteModal = ref(false);
 
 const campaignId = route.params.id as string;
 
@@ -65,138 +65,185 @@ function editCampaign() {
 
 async function deleteCampaign() {
   try {
-    await ElMessageBox.confirm(
-      'Are you sure you want to delete this campaign? This action cannot be undone.',
-      'Delete Campaign',
-      {
-        confirmButtonText: 'Delete',
-        cancelButtonText: 'Cancel',
-        type: 'warning',
-      }
-    );
-    
     await campaignStore.deleteCampaign(campaignId);
-    ElMessage.success('Campaign deleted successfully');
+    showNotification('Campaign deleted successfully');
     router.push({ name: 'campaigns' });
   } catch (err) {
-    if (err !== 'cancel') {
-      ElMessage.error('Failed to delete campaign');
-      console.error('Error deleting campaign:', err);
-    }
+    showNotification('Failed to delete campaign');
+    console.error('Error deleting campaign:', err);
   }
+}
+
+// Simple notification function (we can replace this with a proper notification system later)
+function showNotification(message: string) {
+  alert(message);
 }
 </script>
 
 <template>
-  <div class="campaign-detail-view" v-loading="loading">
-    <div v-if="error" class="error-message">
-      <p>{{ error }}</p>
-      <el-button @click="router.push({ name: 'campaigns' })">
+  <div class="campaign-detail-view max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Loading Spinner -->
+    <div v-if="loading" class="flex justify-center items-center min-h-[400px]">
+      <div class="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+    </div>
+    
+    <!-- Error State -->
+    <div v-else-if="error" class="text-center py-10">
+      <p class="text-red-600 mb-4">{{ error }}</p>
+      <button 
+        @click="router.push({ name: 'campaigns' })"
+        class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+      >
         Return to Campaigns
-      </el-button>
+      </button>
     </div>
     
     <template v-else-if="campaign">
       <!-- Header -->
-      <div class="header mb-8">
+      <div class="mb-8">
         <div class="flex justify-between items-start">
           <div>
-            <h1 class="text-3xl font-semibold">{{ campaign.name }}</h1>
-            <p class="text-gray-500 mt-2" v-if="campaign.description">
+            <h1 class="text-3xl font-semibold text-gray-900">{{ campaign.name }}</h1>
+            <p v-if="campaign.description" class="mt-2 text-gray-500">
               {{ campaign.description }}
             </p>
           </div>
           
           <div class="flex space-x-3">
-            <el-button @click="editCampaign">
+            <button 
+              @click="editCampaign"
+              class="px-4 py-2 bg-white border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            >
               Edit
-            </el-button>
-            <el-button type="danger" @click="deleteCampaign">
+            </button>
+            <button 
+              @click="showDeleteModal = true"
+              class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+            >
               Delete
-            </el-button>
+            </button>
           </div>
         </div>
         
         <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div class="info-card">
+          <div class="bg-gray-50 p-4 rounded-lg shadow-sm">
             <h3 class="text-sm uppercase text-gray-500 font-medium">Game System</h3>
-            <p>{{ gameSystem?.name || 'Unknown' }}</p>
+            <p class="mt-1 text-gray-900">{{ gameSystem?.name || 'Unknown' }}</p>
           </div>
           
-          <div class="info-card">
+          <div class="bg-gray-50 p-4 rounded-lg shadow-sm">
             <h3 class="text-sm uppercase text-gray-500 font-medium">Status</h3>
-            <p :class="statusClass">{{ campaign.status.charAt(0).toUpperCase() + campaign.status.slice(1) }}</p>
+            <p class="mt-1" :class="statusClass">
+              {{ campaign.status.charAt(0).toUpperCase() + campaign.status.slice(1) }}
+            </p>
           </div>
           
-          <div class="info-card">
+          <div class="bg-gray-50 p-4 rounded-lg shadow-sm">
             <h3 class="text-sm uppercase text-gray-500 font-medium">Created</h3>
-            <p>{{ (campaign as any).createdAt ? formatDate((campaign as any).createdAt) : '' }}</p>
+            <p class="mt-1 text-gray-900">
+              {{ (campaign as any).createdAt ? formatDate((campaign as any).createdAt) : '' }}
+            </p>
           </div>
         </div>
       </div>
       
       <!-- Campaign Content -->
-      <div class="campaign-content">
-        <div class="mb-8">
-          <h2 class="text-xl font-semibold mb-4">Getting Started</h2>
+      <div class="space-y-8">
+        <div>
+          <h2 class="text-xl font-semibold text-gray-900 mb-4">Getting Started</h2>
           
-          <el-card class="mb-4">
-            <template #header>
-              <div class="flex justify-between items-center">
-                <span>Invite Players</span>
-                <el-button type="primary" size="small">
+          <div class="space-y-4">
+            <!-- Invite Players Card -->
+            <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+              <div class="px-4 py-3 border-b border-gray-200 flex justify-between items-center">
+                <h3 class="text-lg font-medium text-gray-900">Invite Players</h3>
+                <button 
+                  class="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                >
                   Send Invites
-                </el-button>
+                </button>
               </div>
-            </template>
-            <p class="text-gray-600">
-              Invite players to join your campaign. They will receive an email with a link to join.
-            </p>
-          </el-card>
-          
-          <el-card>
-            <template #header>
-              <div class="flex justify-between items-center">
-                <span>Create Game Session</span>
-                <el-button type="primary" size="small">
+              <div class="px-4 py-3">
+                <p class="text-gray-600">
+                  Invite players to join your campaign. They will receive an email with a link to join.
+                </p>
+              </div>
+            </div>
+            
+            <!-- Schedule Session Card -->
+            <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+              <div class="px-4 py-3 border-b border-gray-200 flex justify-between items-center">
+                <h3 class="text-lg font-medium text-gray-900">Create Game Session</h3>
+                <button 
+                  class="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                >
                   Schedule Session
-                </el-button>
+                </button>
               </div>
-            </template>
-            <p class="text-gray-600">
-              Schedule your first game session. Players will be notified and can RSVP.
-            </p>
-          </el-card>
+              <div class="px-4 py-3">
+                <p class="text-gray-600">
+                  Schedule your first game session. Players will be notified and can RSVP.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </template>
+    
+    <!-- Delete Confirmation Modal -->
+    <div v-if="showDeleteModal" class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+      <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <!-- Background overlay -->
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
+
+        <!-- Modal panel -->
+        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+          <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+            <div class="sm:flex sm:items-start">
+              <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                <!-- Warning icon -->
+                <svg class="h-6 w-6 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+                  Delete Campaign
+                </h3>
+                <div class="mt-2">
+                  <p class="text-sm text-gray-500">
+                    Are you sure you want to delete this campaign? This action cannot be undone.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+            <button 
+              type="button" 
+              class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm"
+              @click="deleteCampaign(); showDeleteModal = false"
+            >
+              Delete
+            </button>
+            <button 
+              type="button" 
+              class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+              @click="showDeleteModal = false"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .campaign-detail-view {
-  padding: 20px;
   max-width: 1200px;
   margin: 0 auto;
-}
-
-.error-message {
-  text-align: center;
-  padding: 40px 0;
-}
-
-.info-card {
-  background-color: #f9fafb;
-  padding: 16px;
-  border-radius: 8px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-}
-
-.info-card p {
-  color: #374151;  /* Dark gray text for better contrast */
-}
-
-.info-card h3 {
-  color: #6B7280;  /* Medium gray for labels */
 }
 </style> 

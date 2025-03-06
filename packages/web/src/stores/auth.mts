@@ -37,11 +37,12 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null;
     
     try {
-      const response = await api.post('/auth/login', credentials);
+      const response = await api.post('/api/auth/login', credentials);
       
       if (response.data.success) {
         // Save user data
         user.value = response.data.data.user;
+        localStorage.setItem('isAuthenticated', 'true');
         return true;
       } else {
         error.value = response.data.error?.message || 'Login failed';
@@ -60,11 +61,12 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null;
     
     try {
-      const response = await api.post('/auth/register', data);
+      const response = await api.post('/api/auth/register', data);
       
       if (response.data.success) {
         // Save user data
         user.value = response.data.data.user;
+        localStorage.setItem('isAuthenticated', 'true');
         return true;
       } else {
         error.value = response.data.error?.message || 'Registration failed';
@@ -80,7 +82,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   function loginWithGoogle() {
     // Redirect to Google OAuth endpoint
-    window.location.href = `${api.defaults.baseURL}/auth/google`;
+    window.location.href = `${api.defaults.baseURL}/api/auth/google`;
   }
 
   function handleGoogleCallback() {
@@ -91,12 +93,13 @@ export const useAuthStore = defineStore('auth', () => {
   async function logout() {
     try {
       // Call the logout endpoint to clear server-side session
-      await api.post('/auth/logout');
+      await api.post('/api/auth/logout');
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
       // Clear user data on client
       user.value = null;
+      localStorage.removeItem('isAuthenticated');
     }
   }
 
@@ -105,13 +108,15 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null;
     
     try {
-      const response = await api.get('/auth/me');
+      const response = await api.get('/api/auth/me');
       
       if (response.data.success) {
         user.value = response.data.data;
+        localStorage.setItem('isAuthenticated', 'true');
         return true;
       } else {
         error.value = response.data.error?.message || 'Failed to fetch user data';
+        localStorage.removeItem('isAuthenticated');
         return false;
       }
     } catch (err: any) {
@@ -119,11 +124,13 @@ export const useAuthStore = defineStore('auth', () => {
       if (err.response?.status === 401) {
         // Clear user data silently without an error message
         user.value = null;
+        localStorage.removeItem('isAuthenticated');
         return false;
       }
       
       // For other errors, set the error message
       error.value = err.response?.data?.error?.message || err.message || 'Failed to fetch user data';
+      localStorage.removeItem('isAuthenticated');
       return false;
     } finally {
       loading.value = false;

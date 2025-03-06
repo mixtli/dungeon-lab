@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { ElMessage } from 'element-plus';
-import type { UploadFile } from 'element-plus';
 import axios from '../../plugins/axios.mjs';
 import { ArrowLeftIcon, ArrowUpTrayIcon } from '@heroicons/vue/24/outline';
 
@@ -14,22 +12,31 @@ const formData = ref({
   gridColumns: 20,
 });
 const imageFile = ref<File | null>(null);
+const fileInputRef = ref<HTMLInputElement | null>(null);
 
-const uploadProps = {
-  accept: 'image/*',
-  autoUpload: false,
-  limit: 1,
-  onChange: (file: UploadFile) => {
-    imageFile.value = file.raw!;
-  },
-  onExceed: () => {
-    ElMessage.warning('Only one image can be uploaded');
-  },
-} as const;
+function handleFileChange(event: Event) {
+  const input = event.target as HTMLInputElement;
+  if (input.files && input.files.length > 0) {
+    imageFile.value = input.files[0];
+  }
+}
 
-async function handleSubmit() {
+function handleDrop(event: DragEvent) {
+  event.preventDefault();
+  if (event.dataTransfer?.files && event.dataTransfer.files.length > 0) {
+    imageFile.value = event.dataTransfer.files[0];
+  }
+}
+
+function handleDragOver(event: DragEvent) {
+  event.preventDefault();
+}
+
+async function handleSubmit(event: Event) {
+  event.preventDefault();
+  
   if (!imageFile.value) {
-    ElMessage.warning('Please upload a map image');
+    alert('Please upload a map image');
     return;
   }
 
@@ -41,16 +48,16 @@ async function handleSubmit() {
     form.append('gridColumns', formData.value.gridColumns.toString());
     form.append('image', imageFile.value);
 
-    await axios.post('/maps', form, {
+    await axios.post('/api/maps', form, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
     });
 
-    ElMessage.success('Map created successfully');
+    alert('Map created successfully');
     router.push({ name: 'maps' });
   } catch (error) {
-    ElMessage.error('Failed to create map');
+    alert('Failed to create map');
     console.error('Error creating map:', error);
   } finally {
     loading.value = false;
@@ -61,77 +68,104 @@ async function handleSubmit() {
 <template>
   <div class="p-6">
     <div class="flex items-center mb-6">
-      <el-button @click="router.back()" class="mr-4">
-        <el-icon><ArrowLeftIcon /></el-icon>
+      <button 
+        @click="router.back()" 
+        class="flex items-center px-4 py-2 mr-4 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+      >
+        <ArrowLeftIcon class="h-5 w-5 mr-1" />
         Back
-      </el-button>
+      </button>
       <h1 class="text-2xl font-bold">Create New Map</h1>
     </div>
 
-    <el-card v-loading="loading" class="max-w-2xl mx-auto">
-      <el-form @submit.prevent="handleSubmit">
-        <el-form-item label="Name" required>
-          <el-input v-model="formData.name" placeholder="Enter map name" />
-        </el-form-item>
-
-        <el-form-item label="Description">
-          <el-input
-            v-model="formData.description"
-            type="textarea"
-            placeholder="Enter map description"
+    <div class="bg-white rounded-lg shadow-md max-w-2xl mx-auto p-6">
+      <form @submit="handleSubmit" class="space-y-6">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">
+            Name <span class="text-red-500">*</span>
+          </label>
+          <input
+            v-model="formData.name"
+            type="text"
+            required
+            placeholder="Enter map name"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
-        </el-form-item>
-
-        <el-form-item label="Grid Columns" required>
-          <el-input-number
-            v-model="formData.gridColumns"
-            :min="1"
-            :max="100"
-            class="w-full"
-          />
-          <div class="text-gray-500 text-sm mt-1">
-            Number of columns in the grid. Rows will be calculated based on the image aspect ratio.
-          </div>
-        </el-form-item>
-
-        <el-form-item label="Map Image" required>
-          <el-upload
-            v-bind="uploadProps"
-            class="upload-container"
-            drag
-          >
-            <el-icon class="el-icon--upload"><ArrowUpTrayIcon /></el-icon>
-            <div class="el-upload__text">
-              Drop file here or <em>click to upload</em>
-            </div>
-            <template #tip>
-              <div class="el-upload__tip text-gray-500">
-                Upload a JPG/PNG image of your map
-              </div>
-            </template>
-          </el-upload>
-        </el-form-item>
-
-        <div class="flex justify-end mt-6">
-          <el-button
-            type="primary"
-            native-type="submit"
-            :disabled="!formData.name || !imageFile"
-          >
-            Create Map
-          </el-button>
         </div>
-      </el-form>
-    </el-card>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">
+            Description
+          </label>
+          <textarea
+            v-model="formData.description"
+            rows="3"
+            placeholder="Enter map description"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          ></textarea>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">
+            Grid Columns <span class="text-red-500">*</span>
+          </label>
+          <input
+            v-model="formData.gridColumns"
+            type="number"
+            required
+            min="1"
+            max="100"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <p class="text-gray-500 text-sm mt-1">
+            Number of columns in the grid. Rows will be calculated based on the image aspect ratio.
+          </p>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">
+            Map Image <span class="text-red-500">*</span>
+          </label>
+          <div
+            @drop="handleDrop"
+            @dragover="handleDragOver"
+            class="w-full border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-gray-400"
+            @click="fileInputRef?.click()"
+          >
+            <input
+              ref="fileInputRef"
+              type="file"
+              accept="image/*"
+              class="hidden"
+              @change="handleFileChange"
+            />
+            <ArrowUpTrayIcon class="h-8 w-8 mx-auto mb-2 text-gray-400" />
+            <p class="text-gray-600">
+              Drop file here or <span class="text-blue-500">click to upload</span>
+            </p>
+            <p v-if="imageFile" class="mt-2 text-sm text-gray-500">
+              Selected: {{ imageFile.name }}
+            </p>
+          </div>
+          <p class="text-gray-500 text-sm mt-2">
+            Upload a JPG/PNG image of your map
+          </p>
+        </div>
+
+        <div class="flex justify-end">
+          <button
+            type="submit"
+            :disabled="!formData.name || !imageFile || loading"
+            class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {{ loading ? 'Creating...' : 'Create Map' }}
+          </button>
+        </div>
+      </form>
+    </div>
   </div>
 </template>
 
 <style scoped>
-.upload-container {
-  width: 100%;
-}
-
-:deep(.el-upload-dragger) {
-  width: 100%;
-}
+/* Add any additional custom styles here if needed */
 </style> 

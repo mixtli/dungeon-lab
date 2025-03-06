@@ -1,7 +1,7 @@
 <!-- Create a new component for handling map images with presigned URLs -->
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { ElMessage } from 'element-plus';
+import { ArrowPathIcon, XCircleIcon } from '@heroicons/vue/24/outline';
 import axios from '../plugins/axios.mjs';
 
 const props = defineProps<{
@@ -14,21 +14,28 @@ const props = defineProps<{
 const imageError = ref(false);
 const loading = ref(true);
 const currentUrl = ref(props.imageUrl);
+const showPlaceholder = ref(true);
+
+// Simple notification function (we can replace this with a proper notification system later)
+function showNotification(message: string) {
+  alert(message);
+}
 
 async function refreshPresignedUrl() {
   try {
-    const response = await axios.get(`/maps/${props.mapId}/image-url`);
+    const response = await axios.get(`/api/maps/${props.mapId}/image-url`);
     currentUrl.value = response.data.imageUrl;
     imageError.value = false;
   } catch (error) {
     console.error('Error refreshing image URL:', error);
-    ElMessage.error('Failed to refresh image URL');
+    showNotification('Failed to refresh image URL');
   }
 }
 
 async function handleImageError() {
   if (!imageError.value) {
     imageError.value = true;
+    showPlaceholder.value = false;
     await refreshPresignedUrl();
   }
 }
@@ -36,6 +43,7 @@ async function handleImageError() {
 function handleImageLoad() {
   loading.value = false;
   imageError.value = false;
+  showPlaceholder.value = false;
 }
 
 onMounted(() => {
@@ -45,57 +53,35 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="map-image-container" :class="className">
-    <el-image
+  <div class="relative w-full h-full" :class="className">
+    <img
       :src="currentUrl"
       :alt="alt"
-      fit="cover"
-      :loading="loading"
+      class="w-full h-full object-cover"
       @error="handleImageError"
       @load="handleImageLoad"
+    />
+    
+    <!-- Loading placeholder -->
+    <div 
+      v-if="showPlaceholder" 
+      class="absolute inset-0 flex flex-col items-center justify-center bg-gray-100 text-gray-500 text-sm"
     >
-      <template #placeholder>
-        <div class="image-placeholder">
-          <el-icon class="is-loading"><Loading /></el-icon>
-          <span>Loading image...</span>
-        </div>
-      </template>
-      <template #error>
-        <div class="image-error">
-          <el-icon><Warning /></el-icon>
-          <span>Failed to load image</span>
-        </div>
-      </template>
-    </el-image>
+      <ArrowPathIcon class="w-6 h-6 mb-2 animate-spin" />
+      <span>Loading image...</span>
+    </div>
+    
+    <!-- Error state -->
+    <div 
+      v-if="imageError" 
+      class="absolute inset-0 flex flex-col items-center justify-center bg-gray-100 text-red-500 text-sm"
+    >
+      <XCircleIcon class="w-6 h-6 mb-2" />
+      <span>Failed to load image</span>
+    </div>
   </div>
 </template>
 
 <style scoped>
-.map-image-container {
-  position: relative;
-  width: 100%;
-  height: 100%;
-}
-
-.image-placeholder,
-.image-error {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  background-color: var(--el-fill-color-light);
-  color: var(--el-text-color-secondary);
-  font-size: 14px;
-}
-
-.image-placeholder .el-icon,
-.image-error .el-icon {
-  font-size: 24px;
-  margin-bottom: 8px;
-}
-
-.image-error {
-  color: var(--el-color-danger);
-}
+/* All styles have been converted to Tailwind classes */
 </style> 

@@ -2,7 +2,6 @@
 import { ref } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 import { useTheme } from '../../composables/useTheme.mjs';
-import { ElDropdown, ElDropdownMenu, ElDropdownItem } from 'element-plus';
 import { useAuthStore } from '../../stores/auth.mjs';
 import { SunIcon, MoonIcon, Bars3Icon, XMarkIcon } from '@heroicons/vue/24/solid';
 
@@ -22,12 +21,12 @@ function logout() {
 </script>
 
 <template>
-  <header class="bg-white dark:bg-gray-800 shadow-sm">
+  <header class="fixed top-0 left-0 right-0 z-50 bg-white dark:bg-gray-800 shadow-sm">
     <div class="container mx-auto px-4">
       <div class="flex justify-between items-center h-16">
         <!-- Logo -->
         <RouterLink to="/" class="flex items-center">
-          <img src="@/assets/images/logo.svg" alt="Dungeon Lab Logo" class="h-8 w-auto" />
+          <img src="@/assets/images/logo.svg" alt="Dungeon Lab Logo" class="h-8 w-8 object-contain" />
           <span class="ml-2 text-xl font-bold text-primary-600 dark:text-primary-400">Dungeon Lab</span>
         </RouterLink>
 
@@ -53,16 +52,16 @@ function logout() {
           </RouterLink>
           
           <!-- Admin Tools Dropdown (for admin users only) -->
-          <ElDropdown v-if="authStore.isAuthenticated && authStore.user?.isAdmin" trigger="click">
-            <div class="flex items-center cursor-pointer px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700">
+          <div v-if="authStore.isAuthenticated && authStore.user?.isAdmin" class="relative group">
+            <button class="flex items-center cursor-pointer px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700">
               <span>Admin Tools</span>
+            </button>
+            <div class="absolute right-0 w-48 mt-2 py-1 bg-white dark:bg-gray-700 rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+              <RouterLink to="/admin/plugins" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
+                Plugin Manager
+              </RouterLink>
             </div>
-            <template #dropdown>
-              <ElDropdownMenu>
-                <ElDropdownItem @click="router.push('/admin/plugins')">Plugin Manager</ElDropdownItem>
-              </ElDropdownMenu>
-            </template>
-          </ElDropdown>
+          </div>
           
           <!-- Theme Toggle -->
           <button @click="toggleTheme" class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700">
@@ -71,19 +70,25 @@ function logout() {
           </button>
           
           <!-- User Menu -->
-          <ElDropdown v-if="authStore.isAuthenticated" trigger="click">
-            <div class="flex items-center cursor-pointer">
-              <img :src="authStore.user?.avatar || 'https://ui-avatars.com/api/?name=' + authStore.user?.username" alt="User Avatar" class="h-8 w-8 rounded-full" />
-              <span class="ml-2">{{ authStore.user?.username }}</span>
+          <div v-if="authStore.isAuthenticated" class="relative group">
+            <button class="flex items-center space-x-2 focus:outline-none">
+              <img :src="authStore.user?.avatar || 'https://ui-avatars.com/api/?name=' + authStore.user?.username" 
+                   alt="User Avatar" 
+                   class="h-8 w-8 rounded-full object-cover" />
+              <span class="text-sm font-medium">{{ authStore.user?.username }}</span>
+            </button>
+            <div class="absolute right-0 w-48 mt-2 py-1 bg-white dark:bg-gray-700 rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+              <RouterLink to="/profile" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
+                Profile
+              </RouterLink>
+              <RouterLink to="/settings" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
+                Settings
+              </RouterLink>
+              <button @click="logout" class="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 dark:hover:bg-gray-600">
+                Logout
+              </button>
             </div>
-            <template #dropdown>
-              <ElDropdownMenu>
-                <ElDropdownItem @click="router.push('/profile')">Profile</ElDropdownItem>
-                <ElDropdownItem @click="router.push('/settings')">Settings</ElDropdownItem>
-                <ElDropdownItem divided @click="logout">Logout</ElDropdownItem>
-              </ElDropdownMenu>
-            </template>
-          </ElDropdown>
+          </div>
           
           <!-- Login/Register -->
           <template v-else>
@@ -139,21 +144,8 @@ function logout() {
           {{ isDarkMode ? 'Light Mode' : 'Dark Mode' }}
         </button>
         
-        <!-- User Menu -->
-        <template v-if="authStore.isAuthenticated">
-          <RouterLink to="/profile" class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700">
-            Profile
-          </RouterLink>
-          <RouterLink to="/settings" class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700">
-            Settings
-          </RouterLink>
-          <button @click="logout" class="flex w-full items-center px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700 text-red-600">
-            Logout
-          </button>
-        </template>
-        
         <!-- Login/Register -->
-        <template v-else>
+        <template v-if="!authStore.isAuthenticated">
           <RouterLink to="/login" class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700">
             Login
           </RouterLink>

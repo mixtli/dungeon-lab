@@ -1,9 +1,10 @@
 /// <reference types="vite" />
 import vue from '@vitejs/plugin-vue';
 import path from 'path';
+import { defineConfig } from 'vite';
 
 // https://vitejs.dev/config/
-export default {
+export default defineConfig({
   plugins: [vue()],
   resolve: {
     alias: {
@@ -34,7 +35,7 @@ export default {
       output: {
         manualChunks: {
           'vue-vendor': ['vue', 'vue-router', 'pinia'],
-          'ui-vendor': ['element-plus', '@headlessui/vue'],
+          'ui-vendor': ['@headlessui/vue'],
         },
       },
     },
@@ -42,4 +43,4 @@ export default {
   css: {
     devSourcemap: true
   }
-}; 
+}); 

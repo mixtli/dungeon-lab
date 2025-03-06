@@ -20,7 +20,7 @@ export const useCampaignStore = defineStore('campaign', () => {
     error.value = null;
 
     try {
-      const response = await api.get('/campaigns');
+      const response = await api.get('/api/campaigns');
       campaigns.value = response.data;
       return campaigns.value;
     } catch (err: any) {
@@ -37,7 +37,7 @@ export const useCampaignStore = defineStore('campaign', () => {
     error.value = null;
 
     try {
-      const response = await api.get(`/campaigns/${id}`);
+      const response = await api.get(`/api/campaigns/${id}`);
       currentCampaign.value = response.data;
       
       // Also update in the campaigns list if it exists
@@ -61,7 +61,7 @@ export const useCampaignStore = defineStore('campaign', () => {
     error.value = null;
 
     try {
-      const response = await api.post('/campaigns', campaignData);
+      const response = await api.post('/api/campaigns', campaignData);
       const newCampaign = response.data as ICampaign;
       campaigns.value.push(newCampaign);
       currentCampaign.value = newCampaign;
@@ -80,7 +80,7 @@ export const useCampaignStore = defineStore('campaign', () => {
     error.value = null;
 
     try {
-      const response = await api.put(`/campaigns/${id}`, campaignData);
+      const response = await api.put(`/api/campaigns/${id}`, campaignData);
       const updatedCampaign = response.data as ICampaign;
       
       // Update in campaigns list
@@ -109,7 +109,7 @@ export const useCampaignStore = defineStore('campaign', () => {
     error.value = null;
 
     try {
-      await api.delete(`/campaigns/${id}`);
+      await api.delete(`/api/campaigns/${id}`);
       
       // Remove from campaigns list
       campaigns.value = campaigns.value.filter(c => c.id !== id);

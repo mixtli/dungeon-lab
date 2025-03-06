@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { RouterLink } from 'vue-router';
 // Home view component
 </script>
 
@@ -12,12 +13,12 @@
             The ultimate virtual tabletop for your tabletop role-playing games. Create characters, join games, and embark on epic adventures with friends.
           </p>
           <div class="flex flex-wrap justify-center gap-4">
-            <el-button type="primary" size="large" @click="$router.push('/auth/register')">
+            <RouterLink to="/register" class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700">
               Get Started
-            </el-button>
-            <el-button size="large" @click="$router.push('/auth/login')">
+            </RouterLink>
+            <RouterLink to="/login" class="inline-flex items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50">
               Sign In
-            </el-button>
+            </RouterLink>
           </div>
         </div>
       </div>
@@ -27,50 +28,83 @@
       <div class="container mx-auto px-4">
         <h2 class="text-3xl font-bold text-center mb-12">Features</h2>
         
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div class="feature-card">
-            <h2 class="text-2xl font-bold mb-4 text-[#3B82F6]">Create Your Hero</h2>
-            <div class="feature-image mb-4">
-              <img src="/images/features/character-sheet.png" alt="Character Sheet" class="rounded-lg shadow-lg w-full h-48 object-cover">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <!-- Feature Card 1 -->
+          <div class="feature-card bg-white dark:bg-gray-700 rounded-lg shadow-lg p-6 flex flex-col">
+            <h3 class="text-2xl font-bold mb-4 text-primary-600">Create Your Hero</h3>
+            <div class="mb-4 relative aspect-video">
+              <img src="/images/features/character-sheet.png" alt="Character Sheet" class="rounded-lg shadow w-full h-full object-cover">
             </div>
-            <h3 class="text-xl font-semibold mb-2 text-gray-900">Character Creation</h3>
-            <p class="mb-2 text-gray-900">Create and customize characters with our intuitive character builder. Track stats, inventory, and abilities with beautiful digital character sheets.</p>
-            <ul class="text-left list-disc list-inside space-y-1 text-gray-900">
-              <li>Support for multiple game systems and rulesets</li>
-              <li>Automated stat calculations and modifiers</li>
-              <li>Digital dice rolling and skill checks</li>
-              <li>Equipment and inventory management</li>
-            </ul>
+            <div class="flex-grow">
+              <h4 class="text-xl font-semibold mb-2">Character Creation</h4>
+              <p class="mb-4 text-gray-600 dark:text-gray-300">Create and customize characters with our intuitive character builder. Track stats, inventory, and abilities with beautiful digital character sheets.</p>
+              <ul class="space-y-2 text-gray-600 dark:text-gray-300">
+                <li class="flex items-center">
+                  <span class="mr-2">•</span>
+                  Support for multiple game systems
+                </li>
+                <li class="flex items-center">
+                  <span class="mr-2">•</span>
+                  Automated calculations
+                </li>
+                <li class="flex items-center">
+                  <span class="mr-2">•</span>
+                  Digital dice rolling
+                </li>
+              </ul>
+            </div>
           </div>
-          
-          <div class="feature-card">
-            <h2 class="text-2xl font-bold mb-4 text-[#3B82F6]">Design Your World</h2>
-            <div class="feature-image mb-4">
-              <img src="/images/features/map-builder.png" alt="Map Builder" class="rounded-lg shadow-lg w-full h-48 object-cover">
+
+          <!-- Feature Card 2 -->
+          <div class="feature-card bg-white dark:bg-gray-700 rounded-lg shadow-lg p-6 flex flex-col">
+            <h3 class="text-2xl font-bold mb-4 text-primary-600">Design Your World</h3>
+            <div class="mb-4 relative aspect-video">
+              <img src="/images/features/map-builder.png" alt="Map Builder" class="rounded-lg shadow w-full h-full object-cover">
             </div>
-            <h3 class="text-xl font-semibold mb-2 text-gray-900">Map Builder</h3>
-            <p class="mb-2 text-gray-900">Design intricate dungeons and detailed terrain for your campaigns. Create immersive battle maps with our powerful and easy-to-use map editor.</p>
-            <ul class="text-left list-disc list-inside space-y-1 text-gray-900">
-              <li>Drag-and-drop terrain and object placement</li>
-              <li>Extensive library of assets and props</li>
-              <li>Dynamic lighting and fog of war</li>
-              <li>Grid and measurement tools</li>
-            </ul>
+            <div class="flex-grow">
+              <h4 class="text-xl font-semibold mb-2">Map Builder</h4>
+              <p class="mb-4 text-gray-600 dark:text-gray-300">Design intricate dungeons and detailed terrain for your campaigns. Create immersive battle maps with our powerful map editor.</p>
+              <ul class="space-y-2 text-gray-600 dark:text-gray-300">
+                <li class="flex items-center">
+                  <span class="mr-2">•</span>
+                  Drag-and-drop placement
+                </li>
+                <li class="flex items-center">
+                  <span class="mr-2">•</span>
+                  Dynamic lighting
+                </li>
+                <li class="flex items-center">
+                  <span class="mr-2">•</span>
+                  Asset library
+                </li>
+              </ul>
+            </div>
           </div>
-          
-          <div class="feature-card">
-            <h2 class="text-2xl font-bold mb-4 text-[#3B82F6]">Master the Battle</h2>
-            <div class="feature-image mb-4">
-              <img src="/images/features/encounter.png" alt="Encounter Runner" class="rounded-lg shadow-lg w-full h-48 object-cover">
+
+          <!-- Feature Card 3 -->
+          <div class="feature-card bg-white dark:bg-gray-700 rounded-lg shadow-lg p-6 flex flex-col">
+            <h3 class="text-2xl font-bold mb-4 text-primary-600">Master the Battle</h3>
+            <div class="mb-4 relative aspect-video">
+              <img src="/images/features/encounter.png" alt="Encounter Runner" class="rounded-lg shadow w-full h-full object-cover">
             </div>
-            <h3 class="text-xl font-semibold mb-2 text-gray-900">Encounter Runner</h3>
-            <p class="mb-2 text-gray-900">Run dynamic combat encounters with integrated initiative tracking, token movement, and automated calculations. Keep the action flowing smoothly.</p>
-            <ul class="text-left list-disc list-inside space-y-1 text-gray-900">
-              <li>Initiative tracker with turn management</li>
-              <li>Automated damage and healing calculations</li>
-              <li>Status effect tracking and timers</li>
-              <li>Integrated monster stats and abilities</li>
-            </ul>
+            <div class="flex-grow">
+              <h4 class="text-xl font-semibold mb-2">Encounter Runner</h4>
+              <p class="mb-4 text-gray-600 dark:text-gray-300">Run dynamic combat encounters with integrated initiative tracking, token movement, and automated calculations.</p>
+              <ul class="space-y-2 text-gray-600 dark:text-gray-300">
+                <li class="flex items-center">
+                  <span class="mr-2">•</span>
+                  Initiative tracking
+                </li>
+                <li class="flex items-center">
+                  <span class="mr-2">•</span>
+                  Status effects
+                </li>
+                <li class="flex items-center">
+                  <span class="mr-2">•</span>
+                  Monster integration
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
       </div>
@@ -84,27 +118,21 @@
   background-size: cover;
   background-position: center;
   color: white;
-  padding: 4rem 0;
 }
 
 .feature-card {
-  background-color: var(--el-bg-color);
-  border-radius: 0.5rem;
-  padding: 2rem;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  text-align: center;
-  transition: transform 0.3s ease;
+  transition: transform 0.2s ease-in-out;
 }
 
 .feature-card:hover {
-  transform: translateY(-5px);
+  transform: translateY(-4px);
 }
 
-.feature-image img {
-  transition: transform 0.3s ease;
+.feature-card img {
+  transition: transform 0.2s ease-in-out;
 }
 
-.feature-card:hover .feature-image img {
+.feature-card:hover img {
   transform: scale(1.05);
 }
 </style> 

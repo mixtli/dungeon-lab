@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { ElMessage } from 'element-plus';
 import type { IMap, IMapUpdateData } from '@dungeon-lab/shared/index.mjs';
 import axios from '../../plugins/axios.mjs';
 import { ArrowLeftIcon } from '@heroicons/vue/24/outline';
@@ -21,10 +20,15 @@ const formData = ref<IMapUpdateData>({
   updatedBy: ''
 });
 
+// Simple notification function (we can replace this with a proper notification system later)
+function showNotification(message: string) {
+  alert(message);
+}
+
 async function fetchMap() {
   try {
     loading.value = true;
-    const response = await axios.get(`/maps/${route.params.id}`);
+    const response = await axios.get(`/api/maps/${route.params.id}`);
     map.value = response.data;
     if (map.value) {
       formData.value = {
@@ -35,7 +39,7 @@ async function fetchMap() {
       };
     }
   } catch (error) {
-    ElMessage.error('Failed to fetch map');
+    showNotification('Failed to fetch map');
     console.error('Error fetching map:', error);
   } finally {
     loading.value = false;
@@ -45,12 +49,12 @@ async function fetchMap() {
 async function handleUpdate() {
   try {
     loading.value = true;
-    await axios.patch(`/maps/${route.params.id}`, formData.value);
-    ElMessage.success('Map updated successfully');
+    await axios.patch(`/api/maps/${route.params.id}`, formData.value);
+    showNotification('Map updated successfully');
     editing.value = false;
     await fetchMap();
   } catch (error) {
-    ElMessage.error('Failed to update map');
+    showNotification('Failed to update map');
     console.error('Error updating map:', error);
   } finally {
     loading.value = false;
@@ -65,15 +69,23 @@ onMounted(() => {
 <template>
   <div class="p-6">
     <div class="flex items-center mb-6">
-      <el-button @click="router.back()" class="mr-4">
-        <el-icon><ArrowLeftIcon /></el-icon>
+      <button 
+        @click="router.back()" 
+        class="flex items-center px-4 py-2 mr-4 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+      >
+        <ArrowLeftIcon class="w-5 h-5 mr-2" />
         Back
-      </el-button>
+      </button>
       <h1 class="text-2xl font-bold">Map Details</h1>
     </div>
 
-    <el-card v-loading="loading" class="max-w-4xl mx-auto">
-      <template v-if="map">
+    <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-md overflow-hidden">
+      <!-- Loading State -->
+      <div v-if="loading" class="flex justify-center items-center min-h-[400px]">
+        <div class="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+      </div>
+
+      <div v-else-if="map" class="p-6">
         <div class="mb-6">
           <MapImage
             :map-id="map.id || ''"
@@ -101,47 +113,75 @@ onMounted(() => {
           </div>
 
           <div class="flex justify-end">
-            <el-button type="primary" @click="editing = true">
+            <button 
+              @click="editing = true"
+              class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            >
               Edit Map
-            </el-button>
+            </button>
           </div>
         </div>
 
-        <el-form v-else @submit.prevent="handleUpdate">
-          <el-form-item label="Name" required>
-            <el-input v-model="formData.name" placeholder="Enter map name" />
-          </el-form-item>
-
-          <el-form-item label="Description">
-            <el-input
-              v-model="formData.description"
-              type="textarea"
-              placeholder="Enter map description"
+        <form v-else @submit.prevent="handleUpdate" class="space-y-6">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              Name <span class="text-red-500">*</span>
+            </label>
+            <input
+              v-model="formData.name"
+              type="text"
+              required
+              placeholder="Enter map name"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
-          </el-form-item>
+          </div>
 
-          <el-form-item label="Grid Columns" required>
-            <el-input-number
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              Description
+            </label>
+            <textarea
+              v-model="formData.description"
+              rows="4"
+              placeholder="Enter map description"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            ></textarea>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              Grid Columns <span class="text-red-500">*</span>
+            </label>
+            <input
               v-model="formData.gridColumns"
-              :min="1"
-              :max="100"
-              class="w-full"
+              type="number"
+              required
+              min="1"
+              max="100"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
             <div class="text-gray-500 text-sm mt-1">
               Number of columns in the grid. Rows will be calculated based on the image aspect ratio.
             </div>
-          </el-form-item>
+          </div>
 
           <div class="flex justify-end space-x-2">
-            <el-button @click="editing = false">
+            <button 
+              type="button"
+              @click="editing = false"
+              class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            >
               Cancel
-            </el-button>
-            <el-button type="primary" native-type="submit">
+            </button>
+            <button 
+              type="submit"
+              class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            >
               Save Changes
-            </el-button>
+            </button>
           </div>
-        </el-form>
-      </template>
-    </el-card>
+        </form>
+      </div>
+    </div>
   </div>
 </template> 
