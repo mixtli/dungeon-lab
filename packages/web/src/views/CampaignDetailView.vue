@@ -1,18 +1,19 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useCampaignStore } from '../stores/campaign';
-import { pluginRegistry } from '../services/plugin-registry.service';
+import { useCampaignStore } from '../stores/campaign.mjs';
 import { ElButton, ElMessage, ElMessageBox } from 'element-plus';
-import { formatDate } from '../utils/date-utils';
+import { pluginRegistry } from '../services/plugin-registry.service.mjs';
+import { formatDate } from '../utils/date-utils.mjs';
+import type { ICampaign } from '@dungeon-lab/shared/index.mjs';
 
 const route = useRoute();
 const router = useRouter();
 const campaignStore = useCampaignStore();
+const loading = ref(false);
+const error = ref<string | null>(null);
 
 const campaignId = route.params.id as string;
-const loading = ref(true);
-const error = ref<string | null>(null);
 
 // Fetch campaign data
 onMounted(async () => {
@@ -32,12 +33,17 @@ onMounted(async () => {
   }
 });
 
-// Computed properties
-const campaign = computed(() => campaignStore.currentCampaign);
+const campaign = computed(() => campaignStore.currentCampaign as ICampaign | null);
 
+// Get the campaign's game system
 const gameSystem = computed(() => {
-  if (!campaign.value?.gameSystemId) return null;
-  return pluginRegistry.getPlugin(campaign.value.gameSystemId);
+  if (!campaign.value) return null;
+  
+  const plugin = pluginRegistry.getPlugin(String(campaign.value.gameSystemId));
+  return plugin ? {
+    name: plugin.config.name,
+    description: plugin.config.description
+  } : null;
 });
 
 const statusClass = computed(() => {
@@ -124,7 +130,7 @@ async function deleteCampaign() {
           
           <div class="info-card">
             <h3 class="text-sm uppercase text-gray-500 font-medium">Created</h3>
-            <p>{{ formatDate(campaign.createdAt) }}</p>
+            <p>{{ (campaign as any).createdAt ? formatDate((campaign as any).createdAt) : '' }}</p>
           </div>
         </div>
       </div>

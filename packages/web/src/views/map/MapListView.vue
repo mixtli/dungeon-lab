@@ -2,12 +2,12 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import type { Map } from '@dungeon-lab/shared';
-import axios from '@/plugins/axios';
-import MapImage from '@/components/MapImage.vue';
+import type { IMap } from '@dungeon-lab/shared/index.mjs';
+import axios from '../../plugins/axios.mjs';
+import MapImage from '../../components/MapImage.vue';
 
 const router = useRouter();
-const maps = ref<Map[]>([]);
+const maps = ref<IMap[]>([]);
 const loading = ref(false);
 
 async function fetchMaps() {
@@ -68,13 +68,13 @@ onMounted(() => {
       <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <el-card
           v-for="map in maps"
-          :key="map._id"
+          :key="map.id || ''"
           class="map-card"
           shadow="hover"
         >
           <div class="aspect-w-16 aspect-h-9 mb-4">
             <MapImage
-              :map-id="map._id.toString()"
+              :map-id="map.id || ''"
               :image-url="map.thumbnailUrl"
               :alt="map.name"
               class="object-cover rounded"
@@ -84,16 +84,18 @@ onMounted(() => {
           <p class="text-gray-600 text-sm mb-4">{{ map.description }}</p>
           <div class="flex justify-end space-x-2">
             <el-button
+              v-if="map.id"
               type="primary"
               plain
-              @click="router.push({ name: 'map-detail', params: { id: map._id.toString() } })"
+              @click="router.push({ name: 'map-detail', params: { id: map.id } })"
             >
               View
             </el-button>
             <el-button
+              v-if="map.id"
               type="danger"
               plain
-              @click="deleteMap(map._id.toString())"
+              @click="deleteMap(map.id)"
             >
               Delete
             </el-button>

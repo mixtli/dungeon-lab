@@ -2,20 +2,23 @@
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
-import type { Map, UpdateMapDto } from '@dungeon-lab/shared';
-import axios from '@/plugins/axios';
-import { ArrowLeft } from '@element-plus/icons-vue';
-import MapImage from '@/components/MapImage.vue';
+import type { IMap, IMapUpdateData } from '@dungeon-lab/shared/index.mjs';
+import axios from '../../plugins/axios.mjs';
+import { ArrowLeftIcon } from '@heroicons/vue/24/outline';
+import MapImage from '../../components/MapImage.vue';
+import { useAuthStore } from '../../stores/auth.mjs';
 
 const route = useRoute();
 const router = useRouter();
+const authStore = useAuthStore();
 const loading = ref(false);
 const editing = ref(false);
-const map = ref<Map | null>(null);
-const formData = ref<UpdateMapDto>({
+const map = ref<IMap | null>(null);
+const formData = ref<IMapUpdateData>({
   name: '',
   description: '',
   gridColumns: 20,
+  updatedBy: ''
 });
 
 async function fetchMap() {
@@ -28,6 +31,7 @@ async function fetchMap() {
         name: map.value.name,
         description: map.value.description || '',
         gridColumns: map.value.gridColumns,
+        updatedBy: authStore.user?.id || ''
       };
     }
   } catch (error) {
@@ -62,7 +66,7 @@ onMounted(() => {
   <div class="p-6">
     <div class="flex items-center mb-6">
       <el-button @click="router.back()" class="mr-4">
-        <el-icon><ArrowLeft /></el-icon>
+        <el-icon><ArrowLeftIcon /></el-icon>
         Back
       </el-button>
       <h1 class="text-2xl font-bold">Map Details</h1>
@@ -72,7 +76,7 @@ onMounted(() => {
       <template v-if="map">
         <div class="mb-6">
           <MapImage
-            :map-id="map._id.toString()"
+            :map-id="map.id || ''"
             :image-url="map.imageUrl"
             :alt="map.name"
             class="w-full rounded shadow-lg"

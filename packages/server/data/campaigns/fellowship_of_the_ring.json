@@ -1,0 +1,18 @@
+{
+	"id": "6EE103EE-E433-4DB0-BD9D-00BC0F16018A",
+	"name": "Fellowship of the Ring",
+	"setting": "Middle Earth",
+	"description": "Cast the one ring into the fires of Mordor",
+	"characters": [
+		"4C8D1F07-4DB0-4008-A48B-AF974DB0CE73",
+		"74CFAF61-BA5A-4954-8B1D-D452F1B6905E",
+		"E9C69F44-4BFF-4F93-801A-894337C06B94",
+		"13032F4D-231C-4028-A037-B6F241F106A2",
+		"FF085E57-47D2-4D48-9755-20B4A5A20080",
+		"B513D743-555B-42CD-A7CA-E995A356A658",
+		"7FA76F73-2395-46CF-9708-7B50B00BB674",
+		"A12F6D8D-988B-42B4-A134-F3F0BBF48437"
+	],
+	"encounters": {},
+	"start_date": "T.A. 3018"
+}

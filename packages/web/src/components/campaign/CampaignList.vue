@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
-import { useCampaignStore } from '../../stores/campaign';
+import { useCampaignStore } from '../../stores/campaign.mjs';
 import { useRouter } from 'vue-router';
-import { ElMessage, ElMessageBox } from 'element-plus';
-import { Plus, Delete, Edit, View } from '@element-plus/icons-vue';
-import { pluginRegistry } from '../../services/plugin-registry.service';
-import { Campaign } from '@dungeon-lab/shared';
+import { PlusIcon, PencilIcon, TrashIcon, EyeIcon } from '@heroicons/vue/24/outline';
+import { pluginRegistry } from '../../services/plugin-registry.service.mjs';
+import type { ICampaign } from '@dungeon-lab/shared/index.mjs';
 
 // Stores
 const campaignStore = useCampaignStore();
@@ -20,15 +19,16 @@ onMounted(async () => {
   try {
     await campaignStore.fetchCampaigns();
   } catch (error) {
-    ElMessage.error('Failed to load campaigns');
-    console.error('Error loading campaigns:', error);
+    if (error instanceof Error) {
+      console.error('Error loading campaigns:', error);
+    }
   } finally {
     loading.value = false;
   }
 });
 
 // Computed
-const myCampaigns = computed(() => campaignStore.myCampaigns);
+const myCampaigns = computed(() => campaignStore.myCampaigns as ICampaign[]);
 
 // Format date
 function formatDate(date: Date | string) {
@@ -36,35 +36,32 @@ function formatDate(date: Date | string) {
 }
 
 // Get game system name
-function getGameSystemName(gameSystemId: string) {
-  const gameSystem = pluginRegistry.getPlugin(gameSystemId);
-  return gameSystem?.name || 'Unknown Game System';
+function getGameSystemName(gameSystemId: string | any) {
+  const systemId = typeof gameSystemId === 'object' ? String(gameSystemId) : gameSystemId;
+  const plugin = pluginRegistry.getPlugin(systemId);
+  return plugin?.config?.name || 'Unknown Game System';
 }
 
 // View campaign
-function viewCampaign(campaign: Campaign) {
-  router.push({ name: 'campaign-detail', params: { id: campaign.id } });
+function viewCampaign(campaign: ICampaign) {
+  if (campaign.id) {
+    router.push({ name: 'campaign-detail', params: { id: campaign.id } });
+  }
 }
 
 // Delete campaign
-async function confirmDeleteCampaign(campaign: Campaign) {
+async function confirmDeleteCampaign(campaign: ICampaign) {
+  if (!campaign.name || !campaign.id) return;
+  
+  if (!confirm(`Are you sure you want to delete the campaign "${campaign.name}"?`)) {
+    return;
+  }
+  
+  loading.value = true;
   try {
-    await ElMessageBox.confirm(
-      `Are you sure you want to delete the campaign "${campaign.name}"?`,
-      'Delete Campaign',
-      {
-        confirmButtonText: 'Delete',
-        cancelButtonText: 'Cancel',
-        type: 'warning',
-      }
-    );
-    
-    loading.value = true;
     await campaignStore.deleteCampaign(campaign.id);
-    ElMessage.success('Campaign deleted successfully');
   } catch (error) {
-    if (error !== 'cancel') {
-      ElMessage.error('Failed to delete campaign');
+    if (error instanceof Error) {
       console.error('Error deleting campaign:', error);
     }
   } finally {
@@ -77,99 +74,94 @@ async function confirmDeleteCampaign(campaign: Campaign) {
   <div class="campaign-list">
     <div class="flex justify-between items-center mb-6">
       <h1 class="text-2xl font-semibold">My Campaigns</h1>
-      <el-button 
-        type="primary" 
+      <button 
+        class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
         @click="router.push({ name: 'campaign-create' })"
-        :icon="Plus"
       >
+        <PlusIcon class="w-5 h-5 mr-2" />
         Create Campaign
-      </el-button>
+      </button>
     </div>
 
-    <el-card v-if="myCampaigns.length === 0 && !loading" class="empty-state">
-      <div class="text-center py-8">
-        <div class="text-gray-500 mb-4">You don't have any campaigns yet</div>
-        <el-button 
-          type="primary" 
-          @click="router.push({ name: 'campaign-create' })"
-        >
-          Create Your First Campaign
-        </el-button>
-      </div>
-    </el-card>
+    <div v-if="myCampaigns.length === 0 && !loading" 
+      class="mt-4 p-8 bg-white rounded-lg shadow text-center">
+      <div class="text-gray-500 mb-4">You don't have any campaigns yet</div>
+      <button 
+        class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+        @click="router.push({ name: 'campaign-create' })"
+      >
+        Create Your First Campaign
+      </button>
+    </div>
 
-    <el-table
-      v-else
-      :data="myCampaigns"
-      v-loading="loading"
-      style="width: 100%"
-    >
-      <el-table-column label="Name" prop="name" min-width="120">
-        <template #default="{ row }">
-          <div class="font-semibold">{{ row.name }}</div>
-          <div class="text-xs text-gray-500 truncate" v-if="row.description">
-            {{ row.description }}
-          </div>
-        </template>
-      </el-table-column>
-      
-      <el-table-column label="Game System" min-width="120">
-        <template #default="{ row }">
-          {{ getGameSystemName(row.gameSystemId) }}
-        </template>
-      </el-table-column>
-      
-      <el-table-column label="Status" prop="status" width="100">
-        <template #default="{ row }">
-          <el-tag :type="row.status === 'active' ? 'success' : row.status === 'planning' ? 'info' : 'default'">
-            {{ row.status }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      
-      <el-table-column label="Created" width="110">
-        <template #default="{ row }">
-          {{ formatDate(row.createdAt) }}
-        </template>
-      </el-table-column>
-      
-      <el-table-column label="Actions" width="140" fixed="right">
-        <template #default="{ row }">
-          <div class="flex space-x-2">
-            <el-button
-              type="primary"
-              size="small"
-              circle
-              @click="viewCampaign(row)"
-              :icon="View"
-            />
-            <el-button
-              type="info"
-              size="small"
-              circle
-              @click="router.push({ name: 'campaign-edit', params: { id: row.id } })"
-              :icon="Edit"
-            />
-            <el-button
-              type="danger"
-              size="small"
-              circle
-              @click="confirmDeleteCampaign(row)"
-              :icon="Delete"
-            />
-          </div>
-        </template>
-      </el-table-column>
-    </el-table>
+    <div v-else class="bg-white shadow rounded-lg overflow-hidden">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Game System</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+          <tr v-for="campaign in myCampaigns" :key="campaign.id || ''" class="hover:bg-gray-50">
+            <td class="px-6 py-4">
+              <div class="font-medium text-gray-900">{{ campaign.name }}</div>
+              <div class="text-sm text-gray-500" v-if="campaign.description">{{ campaign.description }}</div>
+            </td>
+            <td class="px-6 py-4 text-sm text-gray-500">
+              {{ getGameSystemName(campaign.gameSystemId) }}
+            </td>
+            <td class="px-6 py-4">
+              <span :class="{
+                'px-2 py-1 text-xs font-medium rounded-full': true,
+                'bg-green-100 text-green-800': campaign.status === 'active',
+                'bg-blue-100 text-blue-800': campaign.status === 'planning',
+                'bg-gray-100 text-gray-800': campaign.status === 'completed' || campaign.status === 'archived'
+              }">
+                {{ campaign.status }}
+              </span>
+            </td>
+            <td class="px-6 py-4 text-sm text-gray-500">
+              {{ (campaign as any).createdAt ? formatDate((campaign as any).createdAt) : '' }}
+            </td>
+            <td class="px-6 py-4 text-right space-x-2">
+              <button
+                v-if="campaign.id"
+                class="inline-flex items-center p-2 text-blue-600 hover:text-blue-900 focus:outline-none"
+                @click="viewCampaign(campaign)"
+                title="View Campaign"
+              >
+                <EyeIcon class="w-5 h-5" />
+              </button>
+              <button
+                v-if="campaign.id"
+                class="inline-flex items-center p-2 text-gray-600 hover:text-gray-900 focus:outline-none"
+                @click="router.push({ name: 'campaign-edit', params: { id: campaign.id } })"
+                title="Edit Campaign"
+              >
+                <PencilIcon class="w-5 h-5" />
+              </button>
+              <button
+                v-if="campaign.id"
+                class="inline-flex items-center p-2 text-red-600 hover:text-red-900 focus:outline-none"
+                @click="confirmDeleteCampaign(campaign)"
+                title="Delete Campaign"
+              >
+                <TrashIcon class="w-5 h-5" />
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .campaign-list {
   padding: 20px;
-}
-
-.empty-state {
-  margin-top: 20px;
 }
 </style> 

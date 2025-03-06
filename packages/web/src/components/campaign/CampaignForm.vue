@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { useCampaignStore } from '../../stores/campaign';
+import { useCampaignStore } from '../../stores/campaign.mjs';
 import { useRouter } from 'vue-router';
-import { ElMessage } from 'element-plus';
-import { pluginRegistry } from '../../services/plugin-registry.service';
-import { CreateCampaignDto, UpdateCampaignDto } from '@dungeon-lab/shared';
+import { useAuthStore } from '../../stores/auth.mjs';
+import { pluginRegistry } from '../../services/plugin-registry.service.mjs';
+import { type ICampaignCreateData, type ICampaignUpdateData } from '@dungeon-lab/shared/index.mjs';
 
 const props = defineProps<{
   campaignId?: string;
@@ -13,20 +13,28 @@ const props = defineProps<{
 
 // Stores and router
 const campaignStore = useCampaignStore();
+const authStore = useAuthStore();
 const router = useRouter();
 
 // State
 const loading = ref(false);
+const error = ref<string | null>(null);
 
 // Computed
 const isEditMode = computed(() => props.isEdit || false);
 const formTitle = computed(() => isEditMode.value ? 'Edit Campaign' : 'Create New Campaign');
 const submitButtonText = computed(() => isEditMode.value ? 'Save Changes' : 'Create Campaign');
 
-const formData = ref<UpdateCampaignDto>({
+const formData = ref<{
+  name: string;
+  description: string;
+  status: 'planning' | 'active' | 'completed' | 'archived';
+  settings: Record<string, unknown>;
+}>({
   name: '',
   description: '',
-  status: 'planning' as const
+  status: 'planning',
+  settings: {}
 });
 
 const gameSystemId = ref('');
@@ -36,11 +44,11 @@ const isCreateForm = computed(() => !isEditMode.value);
 // Get game systems
 const gameSystems = computed(() => {
   return pluginRegistry.getAllPlugins()
-    .filter(plugin => plugin.type === 'gameSystem' && plugin.enabled)
+    .filter(plugin => plugin.config.type === 'gameSystem' && !!plugin.config.enabled)
     .map(plugin => ({
-      id: plugin.id,
-      name: plugin.name,
-      description: plugin.description || '',
+      id: plugin.config.id,
+      name: plugin.config.name,
+      description: plugin.config.description || '',
     }));
 });
 
@@ -55,16 +63,16 @@ onMounted(async () => {
           name: campaign.name,
           description: campaign.description || '',
           status: campaign.status,
-          settings: campaign.settings
+          settings: campaign.settings || {}
         };
-        gameSystemId.value = campaign.gameSystemId;
+        gameSystemId.value = String(campaign.gameSystemId);
       } else {
-        ElMessage.error('Campaign not found');
+        error.value = 'Campaign not found';
         router.push({ name: 'campaigns' });
       }
-    } catch (error) {
-      ElMessage.error('Failed to load campaign data');
-      console.error('Error loading campaign:', error);
+    } catch (err) {
+      error.value = 'Failed to load campaign data';
+      console.error('Error loading campaign:', err);
     } finally {
       loading.value = false;
     }
@@ -73,37 +81,51 @@ onMounted(async () => {
 
 // Submit form
 async function submitForm() {
+  error.value = null;
   loading.value = true;
 
   try {
     if (isEditMode.value && props.campaignId) {
       // Update existing campaign
-      await campaignStore.updateCampaign(props.campaignId, formData.value);
-      ElMessage.success('Campaign updated successfully');
+      const updateData: ICampaignUpdateData = {
+        ...formData.value,
+        updatedBy: authStore.user?.id || ''
+      };
+      await campaignStore.updateCampaign(props.campaignId, updateData);
       router.push({ name: 'campaign-detail', params: { id: props.campaignId } });
     } else {
       // Create new campaign
-      const createData: CreateCampaignDto = {
-        name: formData.value.name || '',
-        description: formData.value.description,
+      if (!formData.value.name) {
+        error.value = 'Name is required';
+        return;
+      }
+
+      if (!authStore.user?.id) {
+        error.value = 'You must be logged in to create a campaign';
+        return;
+      }
+
+      const createData: ICampaignCreateData = {
+        name: formData.value.name,
+        description: formData.value.description || '',
         status: formData.value.status,
         settings: formData.value.settings,
-        gameSystemId: gameSystemId.value
+        gameSystemId: gameSystemId.value,
+        gameMasterId: authStore.user.id,
+        members: [authStore.user.id]
       };
       
       if (!createData.gameSystemId) {
-        ElMessage.error('Please select a game system');
-        loading.value = false;
+        error.value = 'Please select a game system';
         return;
       }
       
       const newCampaign = await campaignStore.createCampaign(createData);
-      ElMessage.success('Campaign created successfully');
       router.push({ name: 'campaign-detail', params: { id: newCampaign.id } });
     }
-  } catch (error) {
-    ElMessage.error(campaignStore.error || 'An error occurred');
-    console.error('Form submission error:', error);
+  } catch (err) {
+    error.value = campaignStore.error || 'An error occurred';
+    console.error('Form submission error:', err);
   } finally {
     loading.value = false;
   }
@@ -123,73 +145,88 @@ function cancelForm() {
   <div class="campaign-form">
     <h1 class="text-2xl font-semibold mb-6">{{ formTitle }}</h1>
 
-    <el-form 
-      :model="formData" 
-      label-position="top"
-      v-loading="loading"
-    >
-      <el-form-item label="Name" required>
-        <el-input v-model="formData.name" placeholder="Enter campaign name" />
-      </el-form-item>
+    <form @submit.prevent="submitForm" class="space-y-6">
+      <div v-if="error" class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative" role="alert">
+        {{ error }}
+      </div>
 
-      <el-form-item label="Description">
-        <el-input 
-          v-model="formData.description" 
-          type="textarea"
-          :rows="3"
-          placeholder="Enter campaign description"
+      <div>
+        <label for="name" class="block text-sm font-medium text-gray-700">Name</label>
+        <input
+          id="name"
+          v-model="formData.name"
+          type="text"
+          required
+          class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+          placeholder="Enter campaign name"
         />
-      </el-form-item>
+      </div>
 
-      <el-form-item label="Game System" required v-if="isCreateForm">
-        <el-select 
-          v-model="gameSystemId" 
-          placeholder="Select game system"
-          style="width: 100%"
+      <div>
+        <label for="description" class="block text-sm font-medium text-gray-700">Description</label>
+        <textarea
+          id="description"
+          v-model="formData.description"
+          rows="3"
+          class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+          placeholder="Enter campaign description"
+        ></textarea>
+      </div>
+
+      <div v-if="isCreateForm">
+        <label for="gameSystem" class="block text-sm font-medium text-gray-700">Game System</label>
+        <select
+          id="gameSystem"
+          v-model="gameSystemId"
+          required
+          class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
         >
-          <el-option
-            v-for="system in gameSystems"
-            :key="system.id"
-            :label="system.name"
-            :value="system.id"
-          >
-            <div class="flex flex-col">
-              <span>{{ system.name }}</span>
-              <small class="text-gray-500" v-if="system.description">{{ system.description }}</small>
-            </div>
-          </el-option>
-        </el-select>
-        <div class="text-sm text-gray-500 mt-1" v-if="!gameSystems.length">
+          <option value="" disabled>Select game system</option>
+          <option v-for="system in gameSystems" :key="system.id" :value="system.id">
+            {{ system.name }}
+            <span v-if="system.description" class="text-gray-500"> - {{ system.description }}</span>
+          </option>
+        </select>
+        <p v-if="!gameSystems.length" class="mt-2 text-sm text-gray-500">
           No game system plugins are available. Please install a game system plugin.
-        </div>
-      </el-form-item>
+        </p>
+      </div>
 
-      <el-form-item label="Status">
-        <el-select 
-          v-model="formData.status" 
-          placeholder="Select status"
-          style="width: 100%"
+      <div>
+        <label for="status" class="block text-sm font-medium text-gray-700">Status</label>
+        <select
+          id="status"
+          v-model="formData.status"
+          class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
         >
-          <el-option label="Planning" value="planning" />
-          <el-option label="Active" value="active" />
-          <el-option label="Completed" value="completed" />
-          <el-option label="Archived" value="archived" />
-        </el-select>
-      </el-form-item>
+          <option value="planning">Planning</option>
+          <option value="active">Active</option>
+          <option value="completed">Completed</option>
+          <option value="archived">Archived</option>
+        </select>
+      </div>
 
-      <el-form-item>
-        <div class="flex justify-end space-x-3">
-          <el-button @click="cancelForm">Cancel</el-button>
-          <el-button 
-            type="primary" 
-            @click="submitForm"
-            :disabled="!formData.name || (!gameSystemId && isCreateForm) || loading"
-          >
-            {{ submitButtonText }}
-          </el-button>
-        </div>
-      </el-form-item>
-    </el-form>
+      <div class="flex justify-end space-x-3">
+        <button
+          type="button"
+          @click="cancelForm"
+          class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          :disabled="!formData.name || (!gameSystemId && isCreateForm) || loading"
+          class="inline-flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <svg v-if="loading" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          {{ submitButtonText }}
+        </button>
+      </div>
+    </form>
   </div>
 </template>
 

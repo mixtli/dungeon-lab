@@ -7,13 +7,13 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "paths": {
-      "@dungeon-lab/shared": ["../shared/src"],
-      "@dungeon-lab/shared/*": ["../shared/src/*"]
+      "@dungeon-lab/shared": ["../shared/dist"],
+      "@dungeon-lab/shared/*": ["../shared/dist/*"]
     }
   },
   "references": [
     { "path": "../shared" }
   ],
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts"]
+  "include": ["src/**/*.ts", "src/**/*.mts", "src/**/*.d.ts"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.test.mts"]
 } 

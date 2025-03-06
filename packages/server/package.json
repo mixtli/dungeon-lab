@@ -6,15 +6,17 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
-    "dev": "tsx --inspect=9229 --watch src/index.ts",
-    "start": "node --experimental-specifier-resolution=node dist/index.js",
+    "dev": "tsx --inspect=9229 --watch src/index.mts",
+    "start": "node --experimental-specifier-resolution=node dist/index.mjs",
     "lint": "eslint src --ext .ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "import-data": "tsx src/scripts/import-sample-data.ts"
   },
   "dependencies": {
-    "@dungeon-lab/shared": "^0.1.0",
+    "@dungeon-lab/shared": "file:../shared",
+    "@dungeon-lab/plugin-dnd-5e-2024": "file:../plugins/dnd-5e-2024",
     "@types/multer": "^1.4.12",
     "bcrypt": "^5.1.1",
     "connect-mongo": "^5.1.0",

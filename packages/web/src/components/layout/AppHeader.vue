@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
-import { useTheme } from '@/composables/useTheme';
+import { useTheme } from '../../composables/useTheme.mjs';
 import { ElDropdown, ElDropdownMenu, ElDropdownItem } from 'element-plus';
-import { useAuthStore } from '@/stores/auth';
+import { useAuthStore } from '../../stores/auth.mjs';
 import { SunIcon, MoonIcon, Bars3Icon, XMarkIcon } from '@heroicons/vue/24/solid';
 
 const router = useRouter();

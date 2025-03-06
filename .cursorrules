@@ -12,6 +12,12 @@
     - Favor iteration and modularization to adhere to DRY principles and avoid code duplication.
     - Use descriptive variable names with auxiliary verbs (e.g., isLoading, hasError).
     - Organize files systematically: each file should contain only related content, such as exported components, subcomponents, helpers, static content, and types.
+
+    Authentication:
+    - We always want to use session based authorization.  Auth checks should check req.session.user.
+
+    WebSockets:
+    - We ONLY want to use socket.io on both client and server.  We do not want to use ws or WebSocket in the client or any other websocket library.
   
     Naming Conventions
     - Use lowercase with dashes for directories (e.g., components/auth-wizard).

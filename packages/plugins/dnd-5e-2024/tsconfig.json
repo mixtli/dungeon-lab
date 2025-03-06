@@ -1,12 +1,22 @@
 {
-  "extends": "../../tsconfig.json",
+  "extends": "../../../tsconfig.json",
   "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "outDir": "./dist",
     "rootDir": "./src",
-    "composite": true
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "paths": {
+      "@dungeon-lab/shared": ["../../../packages/shared/dist"],
+      "@dungeon-lab/shared/*": ["../../../packages/shared/dist/*"]
+    }
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*.mts", "src/**/*.ts"],
   "references": [
-    { "path": "../../shared" }
+    { "path": "../../../packages/shared" }
   ]
 } 

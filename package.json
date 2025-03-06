@@ -4,7 +4,8 @@
   "description": "A Virtual Table Top (VTT) system for Table Top Role Playing Games",
   "private": true,
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "packages/plugins/*"
   ],
   "scripts": {
     "dev:web": "npm run dev --workspace=@dungeon-lab/web",
@@ -28,12 +29,16 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
+    "@tailwindcss/forms": "^0.5.10",
     "@types/sharp": "^0.31.1",
     "@types/uuid": "^10.0.0",
     "concurrently": "^8.2.2",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vue-tsc": "^2.2.8"
   },
   "dependencies": {
+    "@element-plus/icons-vue": "^2.3.1",
+    "@heroicons/vue": "^2.2.0",
     "@types/minio": "^7.1.0",
     "@zodyac/zod-mongoose": "^3.2.0",
     "minio": "^8.0.4",

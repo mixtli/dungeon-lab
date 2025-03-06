@@ -1,0 +1,20 @@
+{
+	"id": "1fd2d80b-5802-4c93-86da-2f09ec7d9f3b",
+	"name": "War of the Lance",
+	"setting": "Dragonlance",
+	"description": "Defeat the Dragonarmies of Queen Takhisis",
+	"characters": [
+		"09BAD692-ED71-4C37-BB2F-877798817920",
+		"76880B57-BE96-4585-A3F4-EB0DB7A89C6F",
+		"9CD32D25-DC4A-405F-B134-9DE30C41403D",
+		"E3507DCB-BE25-4753-BEC0-E44E0FC9DE87",
+		"3D3AB7F2-6804-4DC2-AAF4-2369F723FC56",
+		"DE267BBE-D691-42F5-9D7B-47EED9DD837E",
+		"f20a0abc-36d4-4b90-897d-a0c68b5541fd",
+		"9002C447-75DB-4F1B-B77A-48FE5F768E8C",
+		"A2D6BA73-92AA-4F14-8E49-3B44EA99E393",
+		"93ED43DF-8168-41B0-8E0C-A6A822B11CBF"
+	],
+	"encounters": {},
+	"start_date": "348 AC"
+}

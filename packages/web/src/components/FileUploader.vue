@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import axios from '../plugins/axios';
+import axios from '../plugins/axios.mjs';
 
 const props = defineProps<{
   folder?: string;

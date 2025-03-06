@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { useAuthStore } from '@/stores/auth';
+import { useAuthStore } from '../../stores/auth.mjs';
 import { ElMessage } from 'element-plus';
-import { Loading } from '@element-plus/icons-vue';
+// Replace Element Plus loading icon with a simple SVG spinner
 
 const router = useRouter();
 const authStore = useAuthStore();

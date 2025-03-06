@@ -1,0 +1,14 @@
+{
+	"id": "44129e42-6bdb-49e7-b534-3ae84b589420",
+	"name": "Pax Tharkas",
+	"columns": 95,
+	"rows": 26,
+	"cell_size": 5,
+	"image": {
+		"url": "images/maps/pax_tharkas.webp",
+		"data": null,
+		"name": "pax_tharkas.webp",
+		"size": 0,
+		"type": "image/webp"
+	}
+}

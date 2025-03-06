@@ -1,0 +1,86 @@
+{
+	"id": "E9C69F44-4BFF-4F93-801A-894337C06B94",
+	"name": "Frodo",
+	"species": "Hobbit",
+	"avatar": {
+		"url": "images/character_tokens/middle_earth/frodo.png",
+		"type": "image/png",
+		"size": 0,
+		"name": "frodo.png",
+		"data": null
+	},
+	"token": {
+		"url": "images/character_tokens/middle_earth/frodo.png",
+		"type": "image/png",
+		"size": 0,
+		"name": "frodo.png",
+		"data": null
+	},
+	"classes": [
+		{
+			"name": "Rogue",
+			"level": 1,
+			"hit_die": 1
+		}
+	],
+	"xp": 0,
+	"alignment": "",
+	"speed": {
+		"Walk": 30
+	},
+	"hit_points": {
+		"max": 10,
+		"current": 10
+	},
+	"ability_scores": {
+		"str": 10,
+		"dex": 10,
+		"con": 10,
+		"int": 10,
+		"wis": 10,
+		"cha": 10
+	},
+	"skills": {},
+	"armor_class": {
+		"value": 5,
+		"description": ""
+	},
+	"saving_throws": {
+		"dex": true
+	},
+	"languages": [
+		"Common"
+	],
+	"background": {
+		"name": ""
+	},
+	"details": {
+		"personality": "",
+		"ideal": "",
+		"bond": "",
+		"flaw": ""
+	},
+	"weapons": [
+		{
+			"name": "Dagger",
+			"damage": {
+				"dice": {
+					"sides": 4,
+					"count": 1,
+					"mod": 1
+				},
+				"type": "Piercing"
+			},
+			"throw_range": {
+				"short": 20,
+				"long": 60
+			},
+			"properties": {
+				"Finesse": true,
+				"Light": true,
+				"Thrown": true
+			}
+		}
+	],
+	"spells": []
+}

@@ -2,7 +2,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
-import axios from '@/plugins/axios';
+import axios from '../plugins/axios.mjs';
 
 const props = defineProps<{
   mapId: string;

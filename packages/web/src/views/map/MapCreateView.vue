@@ -3,8 +3,8 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import type { UploadFile } from 'element-plus';
-import axios from '@/plugins/axios';
-import { ArrowLeft, Upload } from '@element-plus/icons-vue';
+import axios from '../../plugins/axios.mjs';
+import { ArrowLeftIcon, ArrowUpTrayIcon } from '@heroicons/vue/24/outline';
 
 const router = useRouter();
 const loading = ref(false);
@@ -62,7 +62,7 @@ async function handleSubmit() {
   <div class="p-6">
     <div class="flex items-center mb-6">
       <el-button @click="router.back()" class="mr-4">
-        <el-icon><ArrowLeft /></el-icon>
+        <el-icon><ArrowLeftIcon /></el-icon>
         Back
       </el-button>
       <h1 class="text-2xl font-bold">Create New Map</h1>
@@ -100,7 +100,7 @@ async function handleSubmit() {
             class="upload-container"
             drag
           >
-            <el-icon class="el-icon--upload"><Upload /></el-icon>
+            <el-icon class="el-icon--upload"><ArrowUpTrayIcon /></el-icon>
             <div class="el-upload__text">
               Drop file here or <em>click to upload</em>
             </div>

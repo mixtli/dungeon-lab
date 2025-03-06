@@ -1,0 +1,86 @@
+{
+	"id": "76880B57-BE96-4585-A3F4-EB0DB7A89C6F",
+	"name": "Flint Fireforge",
+	"species": "Dwarf",
+	"avatar": {
+		"url": "images/character_tokens/dragonlance/flint.png",
+		"type": "image/png",
+		"size": 0,
+		"name": "flint.png",
+		"data": null
+	},
+	"token": {
+		"url": "images/character_tokens/dragonlance/flint.png",
+		"type": "image/png",
+		"size": 0,
+		"name": "flint.png",
+		"data": null
+	},
+	"classes": [
+		{
+			"name": "Fighter",
+			"level": 1,
+			"hit_die": 1
+		}
+	],
+	"xp": 0,
+	"alignment": "",
+	"speed": {
+		"Walk": 30
+	},
+	"hit_points": {
+		"max": 10,
+		"current": 10
+	},
+	"ability_scores": {
+		"str": 10,
+		"dex": 10,
+		"con": 10,
+		"int": 10,
+		"wis": 10,
+		"cha": 10
+	},
+	"skills": {},
+	"armor_class": {
+		"value": 5,
+		"description": ""
+	},
+	"saving_throws": {
+		"dex": true
+	},
+	"languages": [
+		"Common"
+	],
+	"background": {
+		"name": ""
+	},
+	"details": {
+		"personality": "",
+		"ideal": "",
+		"bond": "",
+		"flaw": ""
+	},
+	"weapons": [
+		{
+			"name": "Dagger",
+			"damage": {
+				"dice": {
+					"sides": 4,
+					"count": 1,
+					"mod": 1
+				},
+				"type": "Piercing"
+			},
+			"throw_range": {
+				"short": 20,
+				"long": 60
+			},
+			"properties": {
+				"Finesse": true,
+				"Light": true,
+				"Thrown": true
+			}
+		}
+	],
+	"spells": []
+}

@@ -3,10 +3,10 @@
   "compilerOptions": {
     "target": "ES2020",
     "useDefineForClassFields": true,
-    "module": "ESNext",
+    "module": "NodeNext",
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "skipLibCheck": true,
-    "moduleResolution": "bundler",
+    "moduleResolution": "NodeNext",
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
@@ -16,13 +16,15 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
+    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@dungeon-lab/shared": ["../shared/src"],
-      "@dungeon-lab/shared/*": ["../shared/src/*"]
+      "@dungeon-lab/shared": ["../shared/dist"],
+      "@dungeon-lab/shared/*": ["../shared/dist/*"],
+      "*": ["../../node_modules/*"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"],
+  "include": ["src/**/*.ts", "src/**/*.mts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"],
   "references": [
     { "path": "./tsconfig.node.json" }
   ]

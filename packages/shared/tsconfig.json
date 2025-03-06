@@ -1,19 +1,24 @@
 {
     "extends": "../../tsconfig.json",
     "compilerOptions": {
+        "target": "ES2022",
+        "module": "NodeNext",
+        "moduleResolution": "NodeNext",
         "outDir": "./dist",
         "rootDir": "./src",
         "composite": true,
         "declaration": true,
-        "module": "NodeNext",
-        "moduleResolution": "NodeNext"
+        "declarationMap": true,
+        "sourceMap": true
     },
     "include": [
-        "src/**/*"
+        "src/**/*.mts",
+        "src/**/*.ts"
     ],
     "exclude": [
         "node_modules",
         "dist",
-        "**/*.test.ts"
+        "**/*.test.ts",
+        "**/*.test.mts"
     ]
 }

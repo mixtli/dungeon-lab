@@ -7,6 +7,6 @@
   "website": "https://example.com/dnd5e2024",
   "type": "gameSystem",
   "enabled": true,
-  "serverEntryPoint": "src/index.js",
-  "clientEntryPoint": "src/web/index.js"
+  "serverEntryPoint": "src/server/index.mjs",
+  "clientEntryPoint": "src/web/index.mjs"
 } 
