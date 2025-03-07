@@ -9,13 +9,13 @@ export const CampaignStatus = z.enum(['planning', 'active', 'completed', 'archiv
 export const campaignSchema = z.object({
   name: z.string().min(1).max(255),
   description: z.string().optional(),
-  gameSystemId: zId('GameSystem'),
-  members: z.array(zId('User')),
-  gameMasterId: zId('User'),
-  status: CampaignStatus.default('planning'),
+  gameSystemId: z.string().min(1),
+  members: z.array(zId('Actor')),
+  gameMasterId: zId('User').optional(),
+  status: z.enum(['active', 'paused', 'completed', 'archived']).default('active'),
+  settings: z.record(z.string(), z.unknown()).optional(),
   createdBy: zId('User'),
   updatedBy: zId('User'),
-  settings: z.record(z.string(), z.unknown()).optional(),
 });
 
 // Create data schema (omits auto-generated fields)
@@ -24,7 +24,7 @@ export const campaignCreateSchema = campaignSchema.omit({
   updatedBy: true,
   members: true,
 }).extend({
-  members: z.array(zId('User')).default([]),
+  members: z.array(z.string()).default([]),
 });
 
 // Update data schema (makes all fields optional except updatedBy)
@@ -34,7 +34,7 @@ export const campaignUpdateSchema = campaignSchema
   })
   .partial()
   .extend({
-    updatedBy: zId('User'),
+    updatedBy: z.string(),
   });
 
 // Export types generated from the schemas

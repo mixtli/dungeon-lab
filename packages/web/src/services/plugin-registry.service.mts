@@ -48,15 +48,15 @@ export class PluginRegistryService implements IPluginRegistry {
       // Create the plugin object
       const plugin: IPlugin = {
         config: {
-          id: pluginData.id,
-          name: pluginData.name,
-          version: pluginData.version,
-          description: pluginData.description,
-          author: pluginData.author,
-          website: pluginData.website,
-          type: pluginData.type,
-          enabled: pluginData.enabled,
-          clientEntryPoint: pluginData.clientEntryPoint
+          id: pluginData.config.id,
+          name: pluginData.config.name,
+          version: pluginData.config.version,
+          description: pluginData.config.description,
+          author: pluginData.config.author,
+          website: pluginData.config.website,
+          type: pluginData.config.type,
+          enabled: pluginData.config.enabled,
+          clientEntryPoint: pluginData.config.clientEntryPoint
         },
         onLoad: async () => {}, // Empty implementation for client-side
         onUnload: async () => {}, // Empty implementation for client-side
@@ -65,6 +65,28 @@ export class PluginRegistryService implements IPluginRegistry {
       
       // Store the plugin
       this.plugins.set(plugin.config.id, plugin);
+      
+      // If this is a game system plugin, store it in the game system plugins map
+      if (pluginData.type === 'gameSystem') {
+        const gameSystemPlugin = {
+          ...plugin,
+          type: 'gameSystem' as const,
+          gameSystem: pluginData.gameSystem,
+          getActorSheet: (actorType: string) => {
+            const actorTypes = pluginData.gameSystem.actorTypes || [];
+            const actorTypeConfig = actorTypes.find((t: { name: string; uiComponent?: string }) => t.name === actorType);
+            return actorTypeConfig?.uiComponent;
+          },
+          getItemSheet: (itemType: string) => {
+            const itemTypes = pluginData.gameSystem.itemTypes || [];
+            const itemTypeConfig = itemTypes.find((t: { name: string; uiComponent?: string }) => t.name === itemType);
+            return itemTypeConfig?.uiComponent;
+          },
+          validateActorData: () => true, // Client-side validation not implemented
+          validateItemData: () => true // Client-side validation not implemented
+        };
+        this.gameSystemPlugins.set(plugin.config.id, gameSystemPlugin);
+      }
       
       // If this is a game system plugin with a client entry point, process it
       if (pluginData.type === 'gameSystem' && pluginData.clientEntryPoint) {

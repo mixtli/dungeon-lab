@@ -12,13 +12,6 @@ export type {
 } from './schemas/item.schema.mjs';
 
 export type {
-  IGameSystem,
-  IGameSystemCreateData,
-  IGameSystemUpdateData,
-  IGameSystemRegistration,
-} from './schemas/game-system.schema.mjs';
-
-export type {
   IUser,
   IUserCreateData,
   IUserUpdateData,
@@ -85,7 +78,6 @@ export type {
 // Schemas (for MongoDB models)
 export { actorSchema } from './schemas/actor.schema.mjs';
 export { itemSchema } from './schemas/item.schema.mjs';
-export { gameSystemSchema } from './schemas/game-system.schema.mjs';
 export { userSchema } from './schemas/user.schema.mjs';
 export { campaignSchema } from './schemas/campaign.schema.mjs';
 export { mapSchema } from './schemas/map.schema.mjs';

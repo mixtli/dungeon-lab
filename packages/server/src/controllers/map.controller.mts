@@ -172,10 +172,7 @@ export async function getMapImageUrl(req: Request, res: Response): Promise<Respo
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    const map = await MapModel.findOne({
-      _id: req.params.id,
-      createdBy: new Types.ObjectId(req.session.user.id)
-    });
+    const map = await MapModel.findById(req.params.id);
 
     if (!map) {
       return res.status(404).json({ message: 'Map not found' });

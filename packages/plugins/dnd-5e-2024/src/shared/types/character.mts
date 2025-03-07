@@ -18,13 +18,20 @@ const skillSchema = z.object({
   bonus: z.number()
 });
 
+// Class schema
+const classSchema = z.object({
+  name: z.string(),
+  level: z.number().min(1).max(20),
+  subclass: z.string().optional(),
+  hitDiceType: z.enum(['d6', 'd8', 'd10', 'd12'])
+});
+
 // Character schema
 export const characterSchema = z.object({
   // Basic info
   name: z.string(),
-  level: z.number().min(1).max(20),
-  race: z.string(),
-  class: z.string(),
+  species: z.string(),
+  classes: z.array(classSchema),
   background: z.string(),
   alignment: z.enum([
     'lawful good', 'neutral good', 'chaotic good',

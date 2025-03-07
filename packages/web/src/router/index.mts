@@ -8,6 +8,8 @@ import DefaultLayout from '@/layouts/DefaultLayout.vue';
 const HomeView = () => import('@/views/HomeView.vue');
 const GameTableView = () => import('@/views/GameTableView.vue');
 const CharacterSheetView = () => import('@/views/CharacterSheetView.vue');
+const CharacterListView = () => import('@/views/CharacterListView.vue');
+const CharacterCreateView = () => import('@/views/CharacterCreateView.vue');
 const LoginView = () => import('@/views/auth/LoginView.vue');
 const RegisterView = () => import('@/views/auth/RegisterView.vue');
 const GoogleCallbackView = () => import('@/views/auth/GoogleCallbackView.vue');
@@ -46,6 +48,24 @@ const routes: RouteRecordRaw[] = [
         component: GameTableView,
         meta: {
           title: 'Game Table',
+          requiresAuth: true,
+        },
+      },
+      {
+        path: 'characters',
+        name: 'character-list',
+        component: CharacterListView,
+        meta: {
+          title: 'My Characters',
+          requiresAuth: true,
+        },
+      },
+      {
+        path: 'character/create',
+        name: 'character-create',
+        component: CharacterCreateView,
+        meta: {
+          title: 'Create Character',
           requiresAuth: true,
         },
       },

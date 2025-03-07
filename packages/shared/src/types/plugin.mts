@@ -1,5 +1,19 @@
-import { IGameSystemRegistration } from '../schemas/game-system.schema.mjs';
 import { Router } from 'express';
+
+/**
+ * Game System Registration interface
+ * This defines the metadata for a game system plugin
+ */
+export interface IGameSystemRegistration {
+  id: string;
+  name: string;
+  version: string;
+  description?: string;
+  author?: string;
+  website?: string;
+  actorTypes: string[];
+  itemTypes: string[];
+}
 
 /**
  * Plugin Configuration interface

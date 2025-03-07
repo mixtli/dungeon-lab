@@ -39,7 +39,7 @@ const campaign = computed(() => campaignStore.currentCampaign as ICampaign | nul
 const gameSystem = computed(() => {
   if (!campaign.value) return null;
   
-  const plugin = pluginRegistry.getPlugin(String(campaign.value.gameSystemId));
+  const plugin = pluginRegistry.getGameSystemPlugin(String(campaign.value.gameSystemId));
   return plugin ? {
     name: plugin.config.name,
     description: plugin.config.description
@@ -50,8 +50,8 @@ const statusClass = computed(() => {
   if (!campaign.value) return '';
   
   switch (campaign.value.status) {
-    case 'planning': return 'text-blue-500';
     case 'active': return 'text-green-500';
+    case 'paused': return 'text-yellow-500';
     case 'completed': return 'text-purple-500';
     case 'archived': return 'text-gray-500';
     default: return '';

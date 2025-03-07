@@ -38,7 +38,7 @@ function formatDate(date: Date | string) {
 // Get game system name
 function getGameSystemName(gameSystemId: string | any) {
   const systemId = typeof gameSystemId === 'object' ? String(gameSystemId) : gameSystemId;
-  const plugin = pluginRegistry.getPlugin(systemId);
+  const plugin = pluginRegistry.getGameSystemPlugin(systemId);
   return plugin?.config?.name || 'Unknown Game System';
 }
 
@@ -72,26 +72,9 @@ async function confirmDeleteCampaign(campaign: ICampaign) {
 
 <template>
   <div class="campaign-list">
-    <div class="flex justify-between items-center mb-6">
-      <h1 class="text-2xl font-semibold">My Campaigns</h1>
-      <button 
-        class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-        @click="router.push({ name: 'campaign-create' })"
-      >
-        <PlusIcon class="w-5 h-5 mr-2" />
-        Create Campaign
-      </button>
-    </div>
-
     <div v-if="myCampaigns.length === 0 && !loading" 
       class="mt-4 p-8 bg-white rounded-lg shadow text-center">
       <div class="text-gray-500 mb-4">You don't have any campaigns yet</div>
-      <button 
-        class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-        @click="router.push({ name: 'campaign-create' })"
-      >
-        Create Your First Campaign
-      </button>
     </div>
 
     <div v-else class="bg-white shadow rounded-lg overflow-hidden">
@@ -118,7 +101,7 @@ async function confirmDeleteCampaign(campaign: ICampaign) {
               <span :class="{
                 'px-2 py-1 text-xs font-medium rounded-full': true,
                 'bg-green-100 text-green-800': campaign.status === 'active',
-                'bg-blue-100 text-blue-800': campaign.status === 'planning',
+                'bg-yellow-100 text-yellow-800': campaign.status === 'paused',
                 'bg-gray-100 text-gray-800': campaign.status === 'completed' || campaign.status === 'archived'
               }">
                 {{ campaign.status }}

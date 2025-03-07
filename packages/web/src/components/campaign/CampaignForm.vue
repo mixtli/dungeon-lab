@@ -28,12 +28,12 @@ const submitButtonText = computed(() => isEditMode.value ? 'Save Changes' : 'Cre
 const formData = ref<{
   name: string;
   description: string;
-  status: 'planning' | 'active' | 'completed' | 'archived';
+  status: 'active' | 'paused' | 'completed' | 'archived';
   settings: Record<string, unknown>;
 }>({
   name: '',
   description: '',
-  status: 'planning',
+  status: 'active',
   settings: {}
 });
 
@@ -199,8 +199,8 @@ function cancelForm() {
           v-model="formData.status"
           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
         >
-          <option value="planning">Planning</option>
           <option value="active">Active</option>
+          <option value="paused">Paused</option>
           <option value="completed">Completed</option>
           <option value="archived">Archived</option>
         </select>

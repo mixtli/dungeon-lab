@@ -20,67 +20,143 @@
 		{
 			"name": "Fighter",
 			"level": 1,
-			"hit_die": 1
+			"hitDiceType": "d10"
 		}
 	],
-	"xp": 0,
-	"alignment": "",
+	"background": "Soldier",
+	"alignment": "lawful good",
+	"experiencePoints": 0,
+	"proficiencyBonus": 2,
+	"armorClass": 16,
+	"initiative": 0,
 	"speed": {
-		"Walk": 30
+		"walk": 25
 	},
-	"hit_points": {
-		"max": 10,
-		"current": 10
+	"hitPoints": {
+		"maximum": 12,
+		"current": 12,
+		"temporary": 0
 	},
-	"ability_scores": {
-		"str": 10,
-		"dex": 10,
-		"con": 10,
-		"int": 10,
-		"wis": 10,
-		"cha": 10
+	"abilities": {
+		"strength": {
+			"score": 16,
+			"modifier": 3
+		},
+		"dexterity": {
+			"score": 11,
+			"modifier": 0
+		},
+		"constitution": {
+			"score": 14,
+			"modifier": 2
+		},
+		"intelligence": {
+			"score": 12,
+			"modifier": 1
+		},
+		"wisdom": {
+			"score": 10,
+			"modifier": 0
+		},
+		"charisma": {
+			"score": 13,
+			"modifier": 1
+		}
 	},
-	"skills": {},
-	"armor_class": {
-		"value": 5,
-		"description": ""
+	"savingThrows": {
+		"strength": true,
+		"constitution": true
 	},
-	"saving_throws": {
-		"dex": true
+	"skills": {
+		"athletics": {
+			"proficient": true,
+			"expertise": false,
+			"modifier": 5
+		},
+		"intimidation": {
+			"proficient": true,
+			"expertise": false,
+			"modifier": 3
+		},
+		"perception": {
+			"proficient": true,
+			"expertise": false,
+			"modifier": 2
+		}
+	},
+	"equipment": {
+		"weapons": [
+			{
+				"name": "Battleaxe",
+				"damage": {
+					"diceCount": 1,
+					"diceType": 8,
+					"type": "slashing",
+					"modifier": 3
+				},
+				"properties": ["versatile"],
+				"versatileDamage": {
+					"diceCount": 1,
+					"diceType": 10,
+					"type": "slashing",
+					"modifier": 3
+				}
+			},
+			{
+				"name": "Handaxe",
+				"damage": {
+					"diceCount": 1,
+					"diceType": 6,
+					"type": "slashing",
+					"modifier": 3
+				},
+				"properties": ["light", "thrown"],
+				"range": {
+					"normal": 20,
+					"long": 60
+				}
+			}
+		],
+		"armor": [
+			{
+				"name": "Chain Mail",
+				"type": "heavy",
+				"baseAC": 16,
+				"stealthDisadvantage": true
+			}
+		],
+		"other": [
+			"Explorer's Pack",
+			"Shield",
+			"10 throwing axes",
+			"50 feet of rope"
+		]
+	},
+	"features": [
+		{
+			"name": "Darkvision",
+			"source": "Dwarf",
+			"description": "You can see in dim light within 60 feet of you as if it were bright light, and in darkness as if it were dim light."
+		},
+		{
+			"name": "Dwarven Resilience",
+			"source": "Dwarf",
+			"description": "You have advantage on saving throws against poison, and you have resistance against poison damage."
+		},
+		{
+			"name": "Second Wind",
+			"source": "Fighter",
+			"description": "You have a limited well of stamina that you can draw on to protect yourself from harm. On your turn, you can use a bonus action to regain hit points equal to 1d10 + your fighter level."
+		}
+	],
+	"biography": {
+		"appearance": "Stout and sturdy dwarf with a long, braided beard. Known for his impressive axe-wielding skills.",
+		"personality": "Proud, loyal, and fierce in battle. Has a friendly rivalry with Legolas.",
+		"background": "Son of Glóin, member of the Fellowship of the Ring, and skilled warrior of the Dwarven kingdoms.",
+		"alignment": "Lawful Good - Follows a strict code of honor and loyalty to his friends and people."
 	},
 	"languages": [
-		"Common"
-	],
-	"background": {
-		"name": ""
-	},
-	"details": {
-		"personality": "",
-		"ideal": "",
-		"bond": "",
-		"flaw": ""
-	},
-	"weapons": [
-		{
-			"name": "Dagger",
-			"damage": {
-				"dice": {
-					"sides": 4,
-					"count": 1,
-					"mod": 1
-				},
-				"type": "Piercing"
-			},
-			"throw_range": {
-				"short": 20,
-				"long": 60
-			},
-			"properties": {
-				"Finesse": true,
-				"Light": true,
-				"Thrown": true
-			}
-		}
-	],
-	"spells": []
+		"Common",
+		"Dwarvish"
+	]
 }

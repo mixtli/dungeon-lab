@@ -1,7 +1,7 @@
 {
 	"id": "13032F4D-231C-4028-A037-B6F241F106A2",
 	"name": "Gandalf",
-	"species": "Maiar",
+	"species": "Celestial",
 	"avatar": {
 		"url": "images/character_tokens/middle_earth/gandalf.png",
 		"type": "image/png",
@@ -19,69 +19,206 @@
 	"classes": [
 		{
 			"name": "Wizard",
-			"subtype": "Magic",
 			"level": 20,
-			"hit_die": 20
+			"hitDiceType": "d6"
 		}
 	],
-	"xp": 0,
+	"background": "Sage",
 	"alignment": "lawful good",
-	"speed": {
-		"Walk": 30
+	"experiencePoints": 355000,
+	"proficiencyBonus": 6,
+	"armorClass": 15,
+	"initiative": 2,
+	"speed": 30,
+	"hitPoints": {
+		"maximum": 162,
+		"current": 162,
+		"temporary": 0
 	},
-	"hit_points": {
-		"max": 200,
-		"current": 200
+	"hitDice": {
+		"total": 20,
+		"current": 20,
+		"type": "d6"
 	},
-	"ability_scores": {
-		"str": 10,
-		"dex": 10,
-		"con": 10,
-		"int": 10,
-		"wis": 10,
-		"cha": 10
-	},
-	"skills": {},
-	"armor_class": {
-		"value": 5,
-		"description": ""
-	},
-	"saving_throws": {
-		"dex": true
-	},
-	"languages": [
-		"Common"
-	],
-	"background": {
-		"name": ""
-	},
-	"details": {
-		"personality": "",
-		"ideal": "",
-		"bond": "",
-		"flaw": ""
-	},
-	"weapons": [
-		{
-			"name": "Dagger",
-			"damage": {
-				"dice": {
-					"sides": 4,
-					"count": 1,
-					"mod": 1
-				},
-				"type": "Piercing"
-			},
-			"throw_range": {
-				"short": 20,
-				"long": 60
-			},
-			"properties": {
-				"Finesse": true,
-				"Light": true,
-				"Thrown": true
+	"abilities": {
+		"strength": {
+			"score": 14,
+			"modifier": 2,
+			"savingThrow": {
+				"proficient": false,
+				"bonus": 2
+			}
+		},
+		"dexterity": {
+			"score": 14,
+			"modifier": 2,
+			"savingThrow": {
+				"proficient": false,
+				"bonus": 2
+			}
+		},
+		"constitution": {
+			"score": 16,
+			"modifier": 3,
+			"savingThrow": {
+				"proficient": false,
+				"bonus": 3
+			}
+		},
+		"intelligence": {
+			"score": 20,
+			"modifier": 5,
+			"savingThrow": {
+				"proficient": true,
+				"bonus": 11
+			}
+		},
+		"wisdom": {
+			"score": 18,
+			"modifier": 4,
+			"savingThrow": {
+				"proficient": true,
+				"bonus": 10
+			}
+		},
+		"charisma": {
+			"score": 18,
+			"modifier": 4,
+			"savingThrow": {
+				"proficient": false,
+				"bonus": 4
 			}
 		}
+	},
+	"skills": {
+		"acrobatics": {
+			"ability": "dexterity",
+			"proficient": false,
+			"bonus": 2
+		},
+		"animalHandling": {
+			"ability": "wisdom",
+			"proficient": false,
+			"bonus": 4
+		},
+		"arcana": {
+			"ability": "intelligence",
+			"proficient": true,
+			"bonus": 11
+		},
+		"athletics": {
+			"ability": "strength",
+			"proficient": false,
+			"bonus": 2
+		},
+		"deception": {
+			"ability": "charisma",
+			"proficient": false,
+			"bonus": 4
+		},
+		"history": {
+			"ability": "intelligence",
+			"proficient": true,
+			"bonus": 11
+		},
+		"insight": {
+			"ability": "wisdom",
+			"proficient": true,
+			"bonus": 10
+		},
+		"intimidation": {
+			"ability": "charisma",
+			"proficient": true,
+			"bonus": 10
+		},
+		"investigation": {
+			"ability": "intelligence",
+			"proficient": true,
+			"bonus": 11
+		},
+		"medicine": {
+			"ability": "wisdom",
+			"proficient": false,
+			"bonus": 4
+		},
+		"nature": {
+			"ability": "intelligence",
+			"proficient": true,
+			"bonus": 11
+		},
+		"perception": {
+			"ability": "wisdom",
+			"proficient": true,
+			"bonus": 10
+		},
+		"performance": {
+			"ability": "charisma",
+			"proficient": false,
+			"bonus": 4
+		},
+		"persuasion": {
+			"ability": "charisma",
+			"proficient": true,
+			"bonus": 10
+		},
+		"religion": {
+			"ability": "intelligence",
+			"proficient": true,
+			"bonus": 11
+		},
+		"sleightOfHand": {
+			"ability": "dexterity",
+			"proficient": false,
+			"bonus": 2
+		},
+		"stealth": {
+			"ability": "dexterity",
+			"proficient": false,
+			"bonus": 2
+		},
+		"survival": {
+			"ability": "wisdom",
+			"proficient": false,
+			"bonus": 4
+		}
+	},
+	"equipment": [
+		{
+			"id": "staff",
+			"quantity": 1
+		},
+		{
+			"id": "glamdring",
+			"quantity": 1
+		},
+		{
+			"id": "narya",
+			"quantity": 1
+		}
 	],
-	"spells": []
+	"features": [
+		{
+			"name": "Arcane Recovery",
+			"source": "Wizard",
+			"description": "Once per day when you finish a short rest, you can choose expended spell slots to recover."
+		},
+		{
+			"name": "Spell Mastery",
+			"source": "Wizard",
+			"description": "You can cast certain 1st and 2nd level spells at will."
+		},
+		{
+			"name": "Signature Spells",
+			"source": "Wizard",
+			"description": "You gain mastery over two powerful spells and can cast them with very little effort."
+		}
+	],
+	"biography": {
+		"appearance": "A tall elderly man with a long grey beard and bushy eyebrows, wearing grey robes and a pointed hat",
+		"backstory": "One of the Istari, sent to Middle-earth to aid in the fight against Sauron",
+		"personalityTraits": "Wise and powerful, yet often appears humble and cheerful",
+		"ideals": "To guide and protect the free peoples of Middle-earth",
+		"bonds": "Devoted to the mission of defeating Sauron and preserving freedom",
+		"flaws": "Sometimes keeps vital information to himself, believing others aren't ready for it"
+	}
 }

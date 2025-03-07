@@ -6,126 +6,77 @@ import { useRoute } from 'vue-router';
 interface Character {
   id: string;
   name: string;
-  race: string;
-  class: string;
-  level: number;
-  background: string;
-  alignment: string;
-  experience: number;
-  attributes: {
-    strength: { score: number; modifier: number; };
-    dexterity: { score: number; modifier: number; };
-    constitution: { score: number; modifier: number; };
-    intelligence: { score: number; modifier: number; };
-    wisdom: { score: number; modifier: number; };
-    charisma: { score: number; modifier: number; };
+  type: string;
+  avatar?: string;
+  data: {
+    race: string;
+    class: string;
+    level: number;
+    background: string;
+    alignment: string;
+    experience: number;
+    attributes: {
+      strength: { score: number; modifier: number; };
+      dexterity: { score: number; modifier: number; };
+      constitution: { score: number; modifier: number; };
+      intelligence: { score: number; modifier: number; };
+      wisdom: { score: number; modifier: number; };
+      charisma: { score: number; modifier: number; };
+    };
+    hitPoints: {
+      current: number;
+      maximum: number;
+      temporary?: number;
+    };
+    armorClass: number;
+    initiative: number;
+    speed: number;
+    proficiencyBonus?: number;
+    savingThrows: {
+      strength: { proficient: boolean; value: number; };
+      dexterity: { proficient: boolean; value: number; };
+      constitution: { proficient: boolean; value: number; };
+      intelligence: { proficient: boolean; value: number; };
+      wisdom: { proficient: boolean; value: number; };
+      charisma: { proficient: boolean; value: number; };
+    };
+    skills: Array<{
+      name: string;
+      ability: string;
+      proficient: boolean;
+      value: number;
+    }>;
+    equipment: Array<{
+      name: string;
+      type: string;
+      description?: string;
+      damage?: string;
+      properties?: string[];
+    }>;
+    features: Array<{
+      name: string;
+      description: string;
+    }>;
   };
-  hitPoints: {
-    current: number;
-    maximum: number;
-    temporary?: number;
-  };
-  armorClass: number;
-  initiative: number;
-  speed: number;
-  proficiencyBonus?: number;
-  savingThrows: {
-    strength: { proficient: boolean; value: number; };
-    dexterity: { proficient: boolean; value: number; };
-    constitution: { proficient: boolean; value: number; };
-    intelligence: { proficient: boolean; value: number; };
-    wisdom: { proficient: boolean; value: number; };
-    charisma: { proficient: boolean; value: number; };
-  };
-  skills: Array<{
-    name: string;
-    ability: string;
-    proficient: boolean;
-    value: number;
-  }>;
-  equipment: Array<{
-    name: string;
-    type: string;
-    description?: string;
-    damage?: string;
-    properties?: string[];
-  }>;
-  features: Array<{
-    name: string;
-    description: string;
-  }>;
 }
 
 const route = useRoute();
 const characterId = route.params.id as string;
 const isLoading = ref(true);
 const character = ref<Character | null>(null);
+const error = ref<string | null>(null);
 const activeTab = ref('weapons'); // For equipment tabs
 
-// Placeholder for character data loading
 onMounted(async () => {
   try {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Mock data for a D&D 5e character
-    character.value = {
-      id: characterId,
-      name: 'Tordek Fireforge',
-      race: 'Dwarf',
-      class: 'Fighter',
-      level: 5,
-      background: 'Soldier',
-      alignment: 'Lawful Good',
-      experience: 6500,
-      attributes: {
-        strength: { score: 16, modifier: 3 },
-        dexterity: { score: 12, modifier: 1 },
-        constitution: { score: 16, modifier: 3 },
-        intelligence: { score: 10, modifier: 0 },
-        wisdom: { score: 13, modifier: 1 },
-        charisma: { score: 8, modifier: -1 },
-      },
-      savingThrows: {
-        strength: { proficient: true, value: 6 },
-        dexterity: { proficient: false, value: 1 },
-        constitution: { proficient: true, value: 6 },
-        intelligence: { proficient: false, value: 0 },
-        wisdom: { proficient: false, value: 1 },
-        charisma: { proficient: false, value: -1 },
-      },
-      skills: [
-        { name: 'Athletics', ability: 'strength', proficient: true, value: 6 },
-        { name: 'Intimidation', ability: 'charisma', proficient: true, value: 2 },
-        { name: 'Perception', ability: 'wisdom', proficient: true, value: 4 },
-        { name: 'Survival', ability: 'wisdom', proficient: true, value: 4 },
-      ],
-      hitPoints: {
-        maximum: 45,
-        current: 38,
-        temporary: 0,
-      },
-      armorClass: 18,
-      initiative: 1,
-      speed: 25,
-      proficiencyBonus: 3,
-      equipment: [
-        { name: 'Plate Armor', type: 'armor', description: 'Heavy armor' },
-        { name: 'Battleaxe', type: 'weapon', damage: '1d8 slashing', properties: ['Versatile (1d10)'] },
-        { name: 'Shield', type: 'armor', description: '+2 AC' },
-        { name: 'Handaxe', type: 'weapon', damage: '1d6 slashing', properties: ['Light', 'Thrown (20/60)'] },
-        { name: 'Explorer\'s Pack', type: 'gear', description: 'Includes backpack, bedroll, mess kit, tinderbox, 10 torches, 10 days of rations, waterskin, 50 feet of hempen rope' },
-      ],
-      features: [
-        { name: 'Second Wind', description: 'Once per short rest, regain 1d10 + fighter level hit points as a bonus action' },
-        { name: 'Action Surge', description: 'Once per short rest, take an additional action on your turn' },
-        { name: 'Improved Critical', description: 'Weapon attacks score a critical hit on a roll of 19 or 20' },
-        { name: 'Darkvision', description: 'Can see in dim light within 60 feet as if it were bright light, and in darkness as if it were dim light' },
-        { name: 'Dwarven Resilience', description: 'Advantage on saving throws against poison, and resistance against poison damage' },
-      ],
-    };
-  } catch (error) {
-    console.error('Error loading character:', error);
+    const response = await fetch(`/api/actors/${characterId}`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch character');
+    }
+    character.value = await response.json();
+  } catch (err) {
+    console.error('Error loading character:', err);
+    error.value = 'Failed to load character. Please try again later.';
   } finally {
     isLoading.value = false;
   }
@@ -148,29 +99,29 @@ onMounted(async () => {
               <div>
                 <h1 class="text-3xl font-bold text-gray-900">{{ character?.name }}</h1>
                 <div class="text-gray-600 mt-1">
-                  Level {{ character?.level }} {{ character?.race }} {{ character?.class }} | {{ character?.background }} | {{ character?.alignment }}
+                  Level {{ character?.data.level }} {{ character?.data.race }} {{ character?.data.class }} | {{ character?.data.background }} | {{ character?.data.alignment }}
                 </div>
               </div>
               
               <div class="flex gap-6 mt-4 md:mt-0">
                 <div class="text-center">
                   <div class="text-sm font-medium text-gray-500">HP</div>
-                  <div class="text-lg font-semibold text-gray-900">{{ character?.hitPoints.current }}/{{ character?.hitPoints.maximum }}</div>
+                  <div class="text-lg font-semibold text-gray-900">{{ character?.data.hitPoints.current }}/{{ character?.data.hitPoints.maximum }}</div>
                 </div>
                 
                 <div class="text-center">
                   <div class="text-sm font-medium text-gray-500">AC</div>
-                  <div class="text-lg font-semibold text-gray-900">{{ character?.armorClass }}</div>
+                  <div class="text-lg font-semibold text-gray-900">{{ character?.data.armorClass }}</div>
                 </div>
                 
                 <div class="text-center">
                   <div class="text-sm font-medium text-gray-500">Initiative</div>
-                  <div class="text-lg font-semibold text-gray-900">+{{ character?.initiative }}</div>
+                  <div class="text-lg font-semibold text-gray-900">+{{ character?.data.initiative }}</div>
                 </div>
                 
                 <div class="text-center">
                   <div class="text-sm font-medium text-gray-500">Speed</div>
-                  <div class="text-lg font-semibold text-gray-900">{{ character?.speed }}ft</div>
+                  <div class="text-lg font-semibold text-gray-900">{{ character?.data.speed }}ft</div>
                 </div>
               </div>
             </div>
@@ -187,7 +138,7 @@ onMounted(async () => {
               </div>
               
               <div class="p-6 grid grid-cols-2 gap-4">
-                <div v-for="(attr, key) in character?.attributes" :key="key" 
+                <div v-for="(attr, key) in character?.data.attributes" :key="key" 
                   class="bg-gray-50 rounded-lg p-4 text-center"
                 >
                   <div class="text-sm font-medium text-gray-500">{{ key.charAt(0).toUpperCase() + key.slice(1) }}</div>
@@ -204,7 +155,7 @@ onMounted(async () => {
               </div>
               
               <ul class="divide-y divide-gray-200">
-                <li v-for="(save, key) in character?.savingThrows" :key="key" 
+                <li v-for="(save, key) in character?.data.savingThrows" :key="key" 
                   class="px-6 py-3 flex items-center"
                 >
                   <div class="w-5 h-5 mr-3 flex items-center justify-center">
@@ -229,7 +180,7 @@ onMounted(async () => {
               </div>
               
               <ul class="divide-y divide-gray-200">
-                <li v-for="skill in character?.skills" :key="skill.name" 
+                <li v-for="skill in character?.data.skills" :key="skill.name" 
                   class="px-6 py-3 flex items-center"
                 >
                   <div class="w-5 h-5 mr-3 flex items-center justify-center">
@@ -292,7 +243,7 @@ onMounted(async () => {
               <div class="p-6">
                 <!-- Weapons -->
                 <div v-if="activeTab === 'weapons'" class="space-y-4">
-                  <div v-for="item in character?.equipment.filter(i => i.type === 'weapon')" 
+                  <div v-for="item in character?.data.equipment.filter(i => i.type === 'weapon')" 
                     :key="item.name"
                     class="bg-gray-50 rounded-lg p-4"
                   >
@@ -308,7 +259,7 @@ onMounted(async () => {
 
                 <!-- Armor -->
                 <div v-if="activeTab === 'armor'" class="space-y-4">
-                  <div v-for="item in character?.equipment.filter(i => i.type === 'armor')" 
+                  <div v-for="item in character?.data.equipment.filter(i => i.type === 'armor')" 
                     :key="item.name"
                     class="bg-gray-50 rounded-lg p-4"
                   >
@@ -319,7 +270,7 @@ onMounted(async () => {
 
                 <!-- Gear -->
                 <div v-if="activeTab === 'gear'" class="space-y-4">
-                  <div v-for="item in character?.equipment.filter(i => i.type === 'gear')" 
+                  <div v-for="item in character?.data.equipment.filter(i => i.type === 'gear')" 
                     :key="item.name"
                     class="bg-gray-50 rounded-lg p-4"
                   >
@@ -337,7 +288,7 @@ onMounted(async () => {
               </div>
               
               <div class="divide-y divide-gray-200">
-                <div v-for="feature in character?.features" :key="feature.name" class="p-6">
+                <div v-for="feature in character?.data.features" :key="feature.name" class="p-6">
                   <h3 class="font-semibold text-gray-900">{{ feature.name }}</h3>
                   <p class="mt-2 text-gray-600">{{ feature.description }}</p>
                 </div>

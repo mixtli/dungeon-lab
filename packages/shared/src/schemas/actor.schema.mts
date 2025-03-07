@@ -9,8 +9,8 @@ export const actorSchema = z.object({
   avatar: z.string().url().optional(),
   token: z.string().url().optional(),
   description: z.string().optional(),
-  gameSystemId: zId('GameSystem'),
-  data: z.record(z.string(), z.unknown()),
+  gameSystemId: z.string().min(1),
+  data: z.any(),
   createdBy: zId('User'),
   updatedBy: zId('User'),
 });

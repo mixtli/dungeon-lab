@@ -8,7 +8,7 @@ export const itemSchema = z.object({
   type: z.string().min(1).max(255),
   img: z.string().url().optional(),
   description: z.string().optional(),
-  gameSystemId: zId('GameSystem'),
+  gameSystemId: z.string().min(1),
   data: z.record(z.string(), z.unknown()),
   createdBy: zId('User'),
   updatedBy: zId('User'),

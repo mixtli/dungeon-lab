@@ -12,6 +12,9 @@ export interface ActorDocument extends Omit<IActor, 'id'>, BaseDocument {}
  */
 const mongooseSchema = createBaseSchema(actorSchema);
 
+// Override the data field to use Mixed type
+mongooseSchema.path('data', mongoose.Schema.Types.Mixed);
+
 /**
  * Actor model
  */
