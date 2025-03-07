@@ -5,6 +5,8 @@ import { useCampaignStore } from '../stores/campaign.mjs';
 import { pluginRegistry } from '../services/plugin-registry.service.mjs';
 import { formatDate } from '../utils/date-utils.mjs';
 import type { ICampaign } from '@dungeon-lab/shared/index.mjs';
+import CampaignCharacterList from '../components/campaign/CampaignCharacterList.vue';
+import CampaignEncounterList from '../components/campaign/CampaignEncounterList.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -149,6 +151,17 @@ function showNotification(message: string) {
       
       <!-- Campaign Content -->
       <div class="space-y-8">
+        <!-- Characters Section -->
+        <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+          <CampaignCharacterList :campaignId="campaignId" />
+        </div>
+
+        <!-- Encounters Section -->
+        <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+          <CampaignEncounterList :campaignId="campaignId" />
+        </div>
+
+        <!-- Getting Started Section -->
         <div>
           <h2 class="text-xl font-semibold text-gray-900 mb-4">Getting Started</h2>
           

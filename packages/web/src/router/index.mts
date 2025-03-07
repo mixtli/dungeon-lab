@@ -28,6 +28,12 @@ const MapListView = () => import('@/views/map/MapListView.vue');
 const MapCreateView = () => import('@/views/map/MapCreateView.vue');
 const MapDetailView = () => import('@/views/map/MapDetailView.vue');
 
+// Encounter views
+const EncounterCreateView = () => import('@/views/encounter/EncounterCreateView.vue');
+const EncounterDetailView = () => import('@/views/encounter/EncounterDetailView.vue');
+// Not actively used in navigation, but kept for potential programmatic access
+// const EncountersView = () => import('@/views/encounter/EncountersView.vue'); 
+
 const routes: RouteRecordRaw[] = [
   {
     path: '/',
@@ -121,6 +127,34 @@ const routes: RouteRecordRaw[] = [
         component: CampaignEditView,
         meta: {
           title: 'Edit Campaign',
+          requiresAuth: true,
+        },
+      },
+      // Encounter routes - not exposed in main navigation
+      {
+        path: 'encounters',
+        name: 'encounters',
+        component: NotFoundView, // Redirect to not found for now
+        meta: {
+          title: 'Page Not Found',
+          requiresAuth: true,
+        },
+      },
+      {
+        path: 'campaigns/:campaignId/encounters/create',
+        name: 'encounter-create',
+        component: EncounterCreateView,
+        meta: {
+          title: 'Create Encounter',
+          requiresAuth: true,
+        },
+      },
+      {
+        path: 'encounter/:id',
+        name: 'encounter-detail',
+        component: EncounterDetailView,
+        meta: {
+          title: 'Encounter Details',
           requiresAuth: true,
         },
       },

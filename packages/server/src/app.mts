@@ -29,6 +29,7 @@ let storageRoutes: Router;
 let pluginRoutes: Router;
 let campaignRoutes: Router;
 let mapRoutes: Router;
+let encounterRoutes: Router;
 let errorHandler: ErrorHandlerMiddleware;
 let StorageService: StorageServiceClass | null = null;
 
@@ -45,6 +46,7 @@ async function initializeRoutes() {
     const pluginRoutesModule = await import('./routes/plugin.routes.mjs');
     const campaignRoutesModule = await import('./routes/campaign.routes.mjs');
     const mapRoutesModule = await import('./routes/map.routes.mjs');
+    const encounterRoutesModule = await import('./routes/encounter.routes.mjs');
     const errorMiddlewareModule = await import('./middleware/error.middleware.mjs');
     const storageServiceModule = await import('./services/storage.service.mjs');
     
@@ -56,6 +58,7 @@ async function initializeRoutes() {
     pluginRoutes = pluginRoutesModule.default || express.Router();
     campaignRoutes = campaignRoutesModule.default || express.Router();
     mapRoutes = mapRoutesModule.default || express.Router();
+    encounterRoutes = encounterRoutesModule.default || express.Router();
     errorHandler = errorMiddlewareModule.errorHandler || defaultErrorHandler;
     StorageService = storageServiceModule.StorageService || null;
   } catch (error) {
@@ -69,6 +72,7 @@ async function initializeRoutes() {
     pluginRoutes = express.Router();
     campaignRoutes = express.Router();
     mapRoutes = express.Router();
+    encounterRoutes = express.Router();
     errorHandler = defaultErrorHandler;
     StorageService = class MockStorageService {
       constructor() {}
@@ -171,6 +175,7 @@ export async function createApp() {
   app.use('/api/plugins', pluginRoutes);
   app.use('/api/campaigns', campaignRoutes);
   app.use('/api/maps', mapRoutes);
+  app.use('/api', encounterRoutes); // Note: encounter routes include /campaigns/:campaignId/encounters
 
   // Register error handling middleware
   app.use(errorHandler);
