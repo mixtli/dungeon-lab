@@ -1,0 +1,17 @@
+---
+description: Basic rules that apply to the entirety of the web client
+globs: packages/web/*
+alwaysApply: false
+---
+
+- Use Vue 3 script setup style components always
+- Use typescript for all code.
+- All typescript files should use esm syntax
+- All typescript files should have a .mts extension if possible.
+- Never install a component library without asking.
+- Never receive or send _id fields for models.  On the web client we should always send and receive id.  Mongoose in the server should handle any translation to _id.
+- Do not use element-plus
+
+
+- You can @ files here
+- You can use markdown but dont have to

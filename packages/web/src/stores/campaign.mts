@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import api from '../plugins/axios.mjs';
-import { ICampaign, ICampaignCreateData, ICampaignUpdateData } from '@dungeon-lab/shared/index.mjs';
+import { ICampaign, ICampaignCreateData, ICampaignUpdateData, IInviteCreateData } from '@dungeon-lab/shared/dist/index.mjs';
 
 export const useCampaignStore = defineStore('campaign', () => {
   // State
@@ -129,6 +129,22 @@ export const useCampaignStore = defineStore('campaign', () => {
     }
   }
 
+  async function sendInvite(inviteData: IInviteCreateData) {
+    loading.value = true;
+    error.value = null;
+
+    try {
+      const response = await api.post('/api/campaign-invites', inviteData);
+      return response.data;
+    } catch (err: any) {
+      error.value = err.response?.data?.message || err.message || 'Failed to send invite';
+      console.error('Error sending invite:', err);
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
   return {
     // State
     campaigns,
@@ -145,6 +161,7 @@ export const useCampaignStore = defineStore('campaign', () => {
     fetchCampaign,
     createCampaign,
     updateCampaign,
-    deleteCampaign
+    deleteCampaign,
+    sendInvite
   };
 }); 

@@ -22,11 +22,13 @@ const CampaignsView = () => import('@/views/CampaignsView.vue');
 const CampaignDetailView = () => import('@/views/CampaignDetailView.vue');
 const CampaignCreateView = () => import('@/views/CampaignCreateView.vue');
 const CampaignEditView = () => import('@/views/CampaignEditView.vue');
+const GameSessionView = () => import('@/views/GameSessionView.vue');
 
 // Map views
 const MapListView = () => import('@/views/map/MapListView.vue');
 const MapCreateView = () => import('@/views/map/MapCreateView.vue');
 const MapDetailView = () => import('@/views/map/MapDetailView.vue');
+const InvitesPage = () => import('../pages/InvitesPage.vue');
 
 // Encounter views
 const EncounterCreateView = () => import('@/views/encounter/EncounterCreateView.vue');
@@ -130,6 +132,15 @@ const routes: RouteRecordRaw[] = [
           requiresAuth: true,
         },
       },
+      {
+        path: '/game-sessions/:id',
+        name: 'game-session',
+        component: GameSessionView,
+        meta: {
+          title: 'Game Session',
+          requiresAuth: true,
+        },
+      },
       // Encounter routes - not exposed in main navigation
       {
         path: 'encounters',
@@ -183,6 +194,16 @@ const routes: RouteRecordRaw[] = [
         component: MapDetailView,
         meta: {
           title: 'Map Details',
+          requiresAuth: true,
+        },
+      },
+      // Invites route
+      {
+        path: 'invites',
+        name: 'invites',
+        component: InvitesPage,
+        meta: {
+          title: 'Campaign Invites',
           requiresAuth: true,
         },
       },

@@ -1,0 +1,18 @@
+---
+description: Basic rules that apply to the entire server
+globs: packages/server/*
+alwaysApply: false
+---
+
+The server is a nodejs app using the express framework.
+
+All code should be written in typescript.   Always use the extension .mts if possible.  When importing, we must always import the file with an ".mjs" extension.
+
+
+We use session authentication.  Sessions are stored in mongodb.   The server creates a session cookie and passes it to the client.  The User object is added to the session object.   
+
+Do NOT modify any authentication related code without asking me first.   Ever.  We already have auth middleware in [auth.middleware.mts](mdc:packages/server/src/middleware/auth.middleware.mts).   
+
+
+Restarting the Server:
+When I'm developing, the server is running with tsx --watch.   We should not need to restart the server manually for changes to take effect in most cases.

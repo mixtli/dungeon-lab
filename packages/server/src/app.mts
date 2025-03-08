@@ -8,6 +8,8 @@ import MongoStore from 'connect-mongo';
 import { pluginRegistry } from './services/plugin-registry.service.mjs';
 import { logger } from './utils/logger.mjs';
 import { requestLogger } from './middleware/request-logger.middleware.mjs';
+import inviteRoutes from './routes/campaign-invites.mjs';
+import gameSessionRoutes from './routes/game-session.routes.mjs';
 
 // Define type interfaces for our routes and middleware
 type ErrorHandlerMiddleware = (
@@ -30,6 +32,7 @@ let pluginRoutes: Router;
 let campaignRoutes: Router;
 let mapRoutes: Router;
 let encounterRoutes: Router;
+let campaignInvitesRoutes: Router;
 let errorHandler: ErrorHandlerMiddleware;
 let StorageService: StorageServiceClass | null = null;
 
@@ -47,6 +50,7 @@ async function initializeRoutes() {
     const campaignRoutesModule = await import('./routes/campaign.routes.mjs');
     const mapRoutesModule = await import('./routes/map.routes.mjs');
     const encounterRoutesModule = await import('./routes/encounter.routes.mjs');
+    const campaignInvitesRoutesModule = await import('./routes/campaign-invites.mjs');
     const errorMiddlewareModule = await import('./middleware/error.middleware.mjs');
     const storageServiceModule = await import('./services/storage.service.mjs');
     
@@ -59,6 +63,7 @@ async function initializeRoutes() {
     campaignRoutes = campaignRoutesModule.default || express.Router();
     mapRoutes = mapRoutesModule.default || express.Router();
     encounterRoutes = encounterRoutesModule.default || express.Router();
+    campaignInvitesRoutes = campaignInvitesRoutesModule.default || express.Router();
     errorHandler = errorMiddlewareModule.errorHandler || defaultErrorHandler;
     StorageService = storageServiceModule.StorageService || null;
   } catch (error) {
@@ -73,6 +78,7 @@ async function initializeRoutes() {
     campaignRoutes = express.Router();
     mapRoutes = express.Router();
     encounterRoutes = express.Router();
+    campaignInvitesRoutes = express.Router();
     errorHandler = defaultErrorHandler;
     StorageService = class MockStorageService {
       constructor() {}
@@ -175,6 +181,8 @@ export async function createApp() {
   app.use('/api/plugins', pluginRoutes);
   app.use('/api/campaigns', campaignRoutes);
   app.use('/api/maps', mapRoutes);
+  app.use('/api/campaign-invites', campaignInvitesRoutes);
+  app.use('/api/game-sessions', gameSessionRoutes);
   app.use('/api', encounterRoutes); // Note: encounter routes include /campaigns/:campaignId/encounters
 
   // Register error handling middleware

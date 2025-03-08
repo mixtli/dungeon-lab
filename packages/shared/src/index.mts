@@ -81,7 +81,7 @@ export { itemSchema } from './schemas/item.schema.mjs';
 export { userSchema } from './schemas/user.schema.mjs';
 export { campaignSchema } from './schemas/campaign.schema.mjs';
 export { mapSchema } from './schemas/map.schema.mjs';
-export { gameSessionSchema } from './schemas/game-session.schema.mjs';
+export { gameSessionSchema, gameSessionCreateSchema } from './schemas/game-session.schema.mjs';
 
 // Enums and constants
 export { CampaignStatus } from './schemas/campaign.schema.mjs';
@@ -89,4 +89,12 @@ export { GameSessionStatus } from './schemas/game-session.schema.mjs';
 export { UserTheme } from './schemas/user.schema.mjs';
 
 // Utilities
-export { zId } from '@zodyac/zod-mongoose'; 
+export { zId } from '@zodyac/zod-mongoose';
+
+export type {
+  IInvite,
+  IInviteCreateData,
+  IInviteUpdateData,
+} from './schemas/invite.schema.mjs';
+
+export { inviteSchema, inviteCreateSchema, InviteStatus } from './schemas/invite.schema.mjs'; 

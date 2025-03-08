@@ -5,17 +5,25 @@ import { AuthenticatedRequest } from '../middleware/auth.middleware.mjs';
 import { ICampaignCreateData, ICampaignUpdateData } from '@dungeon-lab/shared/index.mjs';
 import { logger } from '../utils/logger.mjs';
 import { pluginRegistry } from '../services/plugin-registry.service.mjs';
+import { ActorModel } from '../models/actor.model.mjs';
 
 // Get campaigns for the current user
 export async function getMyCampaigns(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
   try {
     const userId = new Types.ObjectId(req.session.user.id);
+
+    // First get all actors belonging to the user
+    const userActors = await ActorModel.find({ createdBy: userId });
+    const actorIds = userActors.map(actor => actor._id);
+
+    // Find campaigns where user is either the GM or has a character as a member
     const campaigns = await CampaignModel.find({
       $or: [
         { gameMasterId: userId },
-        { members: userId }
+        { members: { $in: actorIds } }
       ]
     }).exec();
+
     return res.json(campaigns);
   } catch (error) {
     logger.error('Error getting campaigns:', error);
@@ -33,7 +41,18 @@ export async function getCampaign(req: AuthenticatedRequest, res: Response): Pro
 
     // Check if user has access to this campaign
     const userId = new Types.ObjectId(req.session.user.id);
-    if (campaign.gameMasterId.toString() !== userId.toString() && !campaign.members.some(m => m.toString() === userId.toString())) {
+    
+    // Get user's actors
+    const userActors = await ActorModel.find({ createdBy: userId });
+    const actorIds = userActors.map(actor => actor._id);
+
+    // Check if user is GM or has a character in the campaign
+    const isGM = campaign.gameMasterId?.toString() === userId.toString();
+    const hasCharacter = campaign.members.some(memberId => 
+      actorIds.some(actorId => actorId instanceof Types.ObjectId && actorId.toString() === memberId.toString())
+    );
+
+    if (!isGM && !hasCharacter && !req.session.user.isAdmin) {
       return res.status(403).json({ message: 'Access denied' });
     }
 
@@ -80,7 +99,7 @@ export async function updateCampaign(req: AuthenticatedRequest, res: Response): 
 
     // Check if user has permission to update
     const userId = new Types.ObjectId(req.session.user.id);
-    if (campaign.gameMasterId.toString() !== userId.toString() && !req.session.user.isAdmin) {
+    if (campaign.gameMasterId?.toString() !== userId.toString() && !req.session.user.isAdmin) {
       return res.status(403).json({ message: 'Access denied' });
     }
 
@@ -112,7 +131,7 @@ export async function deleteCampaign(req: AuthenticatedRequest, res: Response): 
 
     // Check if user has permission to delete
     const userId = new Types.ObjectId(req.session.user.id);
-    if (campaign.gameMasterId.toString() !== userId.toString() && !req.session.user.isAdmin) {
+    if (campaign.gameMasterId?.toString() !== userId.toString() && !req.session.user.isAdmin) {
       return res.status(403).json({ message: 'Access denied' });
     }
 

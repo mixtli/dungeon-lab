@@ -7,6 +7,8 @@ import { formatDate } from '../utils/date-utils.mjs';
 import type { ICampaign } from '@dungeon-lab/shared/index.mjs';
 import CampaignCharacterList from '../components/campaign/CampaignCharacterList.vue';
 import CampaignEncounterList from '../components/campaign/CampaignEncounterList.vue';
+import CampaignInviteModal from '../components/campaign/CampaignInviteModal.vue';
+import GameSessionScheduleModal from '../components/campaign/GameSessionScheduleModal.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -14,6 +16,8 @@ const campaignStore = useCampaignStore();
 const loading = ref(false);
 const error = ref<string | null>(null);
 const showDeleteModal = ref(false);
+const showInviteModal = ref(false);
+const showScheduleModal = ref(false);
 
 const campaignId = route.params.id as string;
 
@@ -80,6 +84,11 @@ async function deleteCampaign() {
 function showNotification(message: string) {
   alert(message);
 }
+
+function handleSessionCreated(sessionId: string) {
+  showNotification('Game session scheduled successfully');
+  // Optionally, you could refresh the campaign data here
+}
 </script>
 
 <template>
@@ -112,6 +121,12 @@ function showNotification(message: string) {
           </div>
           
           <div class="flex space-x-3">
+            <button 
+              @click="showScheduleModal = true"
+              class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+            >
+              Schedule Session
+            </button>
             <button 
               @click="editCampaign"
               class="px-4 py-2 bg-white border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
@@ -171,6 +186,7 @@ function showNotification(message: string) {
               <div class="px-4 py-3 border-b border-gray-200 flex justify-between items-center">
                 <h3 class="text-lg font-medium text-gray-900">Invite Players</h3>
                 <button 
+                  @click="showInviteModal = true"
                   class="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                 >
                   Send Invites
@@ -179,23 +195,6 @@ function showNotification(message: string) {
               <div class="px-4 py-3">
                 <p class="text-gray-600">
                   Invite players to join your campaign. They will receive an email with a link to join.
-                </p>
-              </div>
-            </div>
-            
-            <!-- Schedule Session Card -->
-            <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-              <div class="px-4 py-3 border-b border-gray-200 flex justify-between items-center">
-                <h3 class="text-lg font-medium text-gray-900">Create Game Session</h3>
-                <button 
-                  class="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                >
-                  Schedule Session
-                </button>
-              </div>
-              <div class="px-4 py-3">
-                <p class="text-gray-600">
-                  Schedule your first game session. Players will be notified and can RSVP.
                 </p>
               </div>
             </div>
@@ -251,6 +250,24 @@ function showNotification(message: string) {
         </div>
       </div>
     </div>
+
+    <!-- Invite Modal -->
+    <CampaignInviteModal
+      v-if="campaign?.id"
+      :campaign-id="campaign.id"
+      :show="showInviteModal"
+      @close="showInviteModal = false"
+      @invited="showNotification('Invite sent successfully')"
+    />
+
+    <!-- Schedule Session Modal -->
+    <GameSessionScheduleModal
+      v-if="campaign?.id"
+      :campaign-id="campaign.id"
+      :show="showScheduleModal"
+      @close="showScheduleModal = false"
+      @created="handleSessionCreated"
+    />
   </div>
 </template>
 
