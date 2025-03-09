@@ -5,6 +5,7 @@ import router from './router/index.mjs';
 import './assets/styles/main.css';
 import api from './plugins/axios.mjs';
 import { useAuthStore } from './stores/auth.mjs';
+import { useSocketStore } from './stores/socket.mjs';
 import { pluginRegistry } from './services/plugin-registry.service.mjs';
 
 const app = createApp(App);
@@ -16,7 +17,11 @@ app.config.globalProperties.$axios = api;
 app.use(pinia);
 app.use(router);
 
-// Initialize the auth store and fetch the current user
+// Initialize socket connection after pinia is installed
+const socketStore = useSocketStore();
+socketStore.initSocket();
+
+// Initialize auth store
 const authStore = useAuthStore();
 authStore.fetchUser().catch(error => {
   console.error('Failed to fetch user:', error);

@@ -16,6 +16,7 @@ const GoogleCallbackView = () => import('@/views/auth/GoogleCallbackView.vue');
 const FileUploadDemoView = () => import('@/views/FileUploadDemo.vue');
 const NotFoundView = () => import('@/views/NotFoundView.vue');
 const PluginManagerView = () => import('@/views/plugin/PluginManagerView.vue');
+const ChatView = () => import('@/views/ChatView.vue');
 
 // Campaign views
 const CampaignsView = () => import('@/views/CampaignsView.vue');
@@ -204,6 +205,16 @@ const routes: RouteRecordRaw[] = [
         component: InvitesPage,
         meta: {
           title: 'Campaign Invites',
+          requiresAuth: true,
+        },
+      },
+      // Chat route
+      {
+        path: 'game-sessions/:id/chat',
+        name: 'game-session-chat',
+        component: ChatView,
+        meta: {
+          title: 'Game Chat',
           requiresAuth: true,
         },
       },

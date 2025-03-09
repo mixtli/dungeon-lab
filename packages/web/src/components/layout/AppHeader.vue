@@ -3,12 +3,14 @@ import { ref } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 import { useTheme } from '../../composables/useTheme.mjs';
 import { useAuthStore } from '../../stores/auth.mjs';
+import { useGameSessionStore } from '../../stores/game-session.mjs';
 import { SunIcon, MoonIcon, Bars3Icon, XMarkIcon } from '@heroicons/vue/24/solid';
 
 const router = useRouter();
 const authStore = useAuthStore();
 const { isDarkMode, toggleTheme } = useTheme();
 const isMenuOpen = ref(false);
+const gameSessionStore = useGameSessionStore();
 
 function toggleMenu() {
   isMenuOpen.value = !isMenuOpen.value;
@@ -17,6 +19,17 @@ function toggleMenu() {
 function logout() {
   authStore.logout();
   router.push({ name: 'login' });
+}
+
+function goToChat() {
+  if (gameSessionStore.currentSession) {
+    router.push({ 
+      name: 'game-session-chat', 
+      params: { id: gameSessionStore.currentSession.id }
+    });
+  } else {
+    router.push({ name: 'game-sessions' });
+  }
 }
 </script>
 
@@ -47,6 +60,16 @@ function logout() {
           <RouterLink v-if="authStore.isAuthenticated" to="/characters" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700">
             Characters
           </RouterLink>
+          <button
+            v-if="authStore.isAuthenticated"
+            @click="goToChat"
+            class="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clip-rule="evenodd" />
+            </svg>
+            Chat
+          </button>
           <RouterLink v-if="authStore.isAuthenticated" to="/file-upload-demo" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700">
             File Upload
           </RouterLink>
@@ -125,6 +148,16 @@ function logout() {
         <RouterLink v-if="authStore.isAuthenticated" to="/characters" class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700">
           Characters
         </RouterLink>
+        <button
+          v-if="authStore.isAuthenticated"
+          @click="goToChat"
+          class="w-full text-left px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clip-rule="evenodd" />
+          </svg>
+          Chat
+        </button>
         <RouterLink v-if="authStore.isAuthenticated" to="/file-upload-demo" class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700">
           File Upload
         </RouterLink>

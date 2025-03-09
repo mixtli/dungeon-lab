@@ -3,19 +3,19 @@ import mongoose from 'mongoose';
 import cors from 'cors';
 import passport from 'passport';
 import session from 'express-session';
-
-// Debug environment variables
-console.log('Environment Variables:');
-console.log('NODE_ENV:', process.env.NODE_ENV);
-console.log('CLIENT_URL:', process.env.CLIENT_URL);
-console.log('GOOGLE_CLIENT_ID exists:', !!process.env.GOOGLE_CLIENT_ID);
-console.log('GOOGLE_CLIENT_SECRET exists:', !!process.env.GOOGLE_CLIENT_SECRET);
-console.log('Current working directory:', process.cwd());
-
+import { createServer } from 'http';
 import { config } from './config/index.mjs';
 import { configurePassport } from './config/passport.mjs';
 import { createApp } from './app.mjs';
-console.log(config)
+import { createSocketServer } from './websocket/socket-server.mjs';
+import { PluginManager } from './services/plugin-manager.mjs';
+import { pluginRegistry } from './services/plugin-registry.service.mjs';
+
+// Debug environment variables
+console.log('Environment Variables:');
+console.log('PORT:', process.env.PORT);
+console.log('CLIENT_URL:', process.env.CLIENT_URL);
+console.log('NODE_ENV:', process.env.NODE_ENV);
 
 async function startServer() {
   try {
@@ -37,9 +37,23 @@ async function startServer() {
     // Create and configure Express app
     const app = await createApp();
 
+    // Create HTTP server
+    const httpServer = createServer(app);
+
+    // Initialize plugin registry
+    await pluginRegistry.initialize();
+    console.log('Plugin registry initialized');
+
+    // Create plugin manager
+    const pluginManager = new PluginManager();
+
+    // Create and attach Socket.IO server
+    const io = createSocketServer(httpServer, pluginManager);
+    console.log('Socket.IO server initialized');
+
     // Start server
     const PORT = config.port;
-    app.listen(PORT, () => {
+    httpServer.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });
   } catch (error) {
@@ -48,8 +62,4 @@ async function startServer() {
   }
 }
 
-// Start the server
-startServer().catch(error => {
-  console.error('Unhandled server startup error:', error);
-  process.exit(1);
-}); 
+startServer(); 
