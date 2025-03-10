@@ -2,6 +2,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { useEncounterStore } from '../../stores/encounter.mjs';
 import type { IEncounter } from '@dungeon-lab/shared/src/schemas/encounter.schema.mjs';
 import { formatDate } from '../../utils/date-utils.mjs';
 
@@ -10,6 +11,7 @@ const props = defineProps<{
 }>();
 
 const router = useRouter();
+const encounterStore = useEncounterStore();
 const encounters = ref<IEncounter[]>([]);
 const loading = ref(false);
 const error = ref<string | null>(null);
@@ -37,6 +39,21 @@ function createEncounter() {
     name: 'encounter-create',
     params: { campaignId: props.campaignId }
   });
+}
+
+// Delete encounter
+async function deleteEncounter(encounterId: string, encounterName: string) {
+  if (!confirm(`Are you sure you want to delete the encounter "${encounterName}"?`)) {
+    return;
+  }
+
+  try {
+    await encounterStore.deleteEncounter(encounterId);
+    await fetchEncounters(); // Refresh the list
+  } catch (err) {
+    console.error('Error deleting encounter:', err);
+    error.value = 'Failed to delete encounter';
+  }
 }
 
 onMounted(() => {
@@ -131,9 +148,20 @@ const statusColors = {
             <button
               @click="router.push({ name: 'encounter-detail', params: { id: encounter.id } })"
               class="inline-flex items-center p-2 border border-transparent rounded-full shadow-sm text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              title="View encounter"
             >
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+              </svg>
+            </button>
+            <button
+              v-if="encounter.id"
+              @click="deleteEncounter(encounter.id, encounter.name || 'Untitled Encounter')"
+              class="inline-flex items-center p-2 border border-transparent rounded-full shadow-sm text-red-500 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+              title="Delete encounter"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
               </svg>
             </button>
           </div>

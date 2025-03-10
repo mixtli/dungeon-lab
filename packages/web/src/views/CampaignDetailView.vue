@@ -9,6 +9,7 @@ import CampaignCharacterList from '../components/campaign/CampaignCharacterList.
 import CampaignEncounterList from '../components/campaign/CampaignEncounterList.vue';
 import CampaignInviteModal from '../components/campaign/CampaignInviteModal.vue';
 import GameSessionScheduleModal from '../components/campaign/GameSessionScheduleModal.vue';
+import CampaignSessionList from '../components/campaign/CampaignSessionList.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -166,6 +167,11 @@ function handleSessionCreated(sessionId: string) {
       
       <!-- Campaign Content -->
       <div class="space-y-8">
+        <!-- Game Sessions Section -->
+        <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+          <CampaignSessionList :campaignId="campaignId" />
+        </div>
+
         <!-- Characters Section -->
         <div class="bg-white rounded-lg shadow-sm overflow-hidden">
           <CampaignCharacterList :campaignId="campaignId" />

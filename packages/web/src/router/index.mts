@@ -24,12 +24,14 @@ const CampaignDetailView = () => import('@/views/CampaignDetailView.vue');
 const CampaignCreateView = () => import('@/views/CampaignCreateView.vue');
 const CampaignEditView = () => import('@/views/CampaignEditView.vue');
 const GameSessionView = () => import('@/views/GameSessionView.vue');
+const GameSessionListView = () => import('@/views/GameSessionListView.vue');
 
 // Map views
 const MapListView = () => import('@/views/map/MapListView.vue');
 const MapCreateView = () => import('@/views/map/MapCreateView.vue');
 const MapDetailView = () => import('@/views/map/MapDetailView.vue');
-const InvitesPage = () => import('../pages/InvitesPage.vue');
+
+const InvitesView = () => import('@/views/InvitesView.vue');
 
 // Encounter views
 const EncounterCreateView = () => import('@/views/encounter/EncounterCreateView.vue');
@@ -134,6 +136,15 @@ const routes: RouteRecordRaw[] = [
         },
       },
       {
+        path: '/game-sessions',
+        name: 'game-sessions',
+        component: GameSessionListView,
+        meta: {
+          title: 'Game Sessions',
+          requiresAuth: true,
+        },
+      },
+      {
         path: '/game-sessions/:id',
         name: 'game-session',
         component: GameSessionView,
@@ -202,7 +213,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'invites',
         name: 'invites',
-        component: InvitesPage,
+        component: InvitesView,
         meta: {
           title: 'Campaign Invites',
           requiresAuth: true,
@@ -306,42 +317,53 @@ const router = createRouter({
 });
 
 // Navigation guard
-router.beforeEach(async (to, _from, next) => {
+router.beforeEach(async (to, from, next) => {
+  console.log('Route navigation:', { from: from.path, to: to.path });
+  
   // Set document title
   document.title = `${to.meta.title} | Dungeon Lab`;
   
+  // Dynamically import the auth store to avoid circular dependencies
+  const { useAuthStore } = await import('../stores/auth.mjs');
+  const authStore = useAuthStore();
+  
   // Convenience variables
   const isAuthRoute = to.path.startsWith('/auth') || to.path === '/';
-  const isAuthenticated = Boolean(localStorage.getItem('isAuthenticated'));
+  
+  // If localStorage has isAuthenticated but user is not loaded, try to fetch user data
+  if (localStorage.getItem('isAuthenticated') && !authStore.user) {
+    try {
+      const success = await authStore.fetchUser();
+      if (!success) {
+        // If fetching user fails, clear localStorage
+        localStorage.removeItem('isAuthenticated');
+      }
+    } catch (error) {
+      console.error('Failed to fetch user data:', error);
+      localStorage.removeItem('isAuthenticated');
+    }
+  }
+  
+  // Check authentication status from store
+  const isAuthenticated = authStore.isAuthenticated;
+  
+  console.log('Auth status:', { isAuthRoute, isAuthenticated });
   
   // Check if the user is authenticated
   if (to.meta.requiresAuth && !isAuthenticated) {
+    console.log('Redirecting to login - auth required');
     next({ name: 'login', query: { redirect: to.fullPath } });
     return;
   }
   
   // Handle auth routes when already authenticated
   if (isAuthenticated && isAuthRoute && to.name !== 'home') {
+    console.log('Redirecting to home - already authenticated');
     next({ name: 'home' });
     return;
   }
   
-  // Check for user data only when needed
-  if (!isAuthRoute) {
-    try {
-      // Dynamically import the auth store to avoid circular dependencies
-      const { useAuthStore } = await import('../stores/auth.mjs');
-      const authStore = useAuthStore();
-      
-      // Attempt to fetch user data if not already loaded
-      if (!authStore.user) {
-        await authStore.fetchUser();
-      }
-    } catch (error) {
-      console.error('Failed to fetch user data:', error);
-    }
-  }
-  
+  console.log('Proceeding with navigation to:', to.path);
   next();
 });
 

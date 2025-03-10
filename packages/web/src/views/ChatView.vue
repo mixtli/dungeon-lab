@@ -3,9 +3,10 @@ import { ref, onMounted, onUnmounted, nextTick } from 'vue';
 import { useRoute, RouterLink } from 'vue-router';
 import { useGameSessionStore } from '../stores/game-session.mjs';
 import { useSocketStore } from '../stores/socket.mjs';
-import { IChatMessage } from '@dungeon-lab/shared/index.mjs';
+import { IChatMessage } from '@dungeon-lab/shared/src/schemas/websocket-messages.schema.mjs';
 import { Combobox, ComboboxInput, ComboboxOptions, ComboboxOption } from '@headlessui/vue';
 import { useAuthStore } from '../stores/auth.mjs';
+import api from '../plugins/axios.mjs';
 
 const route = useRoute();
 const gameSessionStore = useGameSessionStore();
@@ -26,6 +27,10 @@ const participantQuery = ref('');
 function handleMessage(message: IChatMessage) {
   if (message.type === 'chat') {
     messages.value.push(message);
+    // If we don't have character info yet, try to load it
+    if (!gameSessionStore.currentCharacter) {
+      gameSessionStore.getGameSession(route.params.id as string);
+    }
     // Scroll to bottom
     nextTick(() => {
       const chatContainer = document.querySelector('.chat-messages');
@@ -40,6 +45,12 @@ function handleMessage(message: IChatMessage) {
 function sendMessage() {
   if (!messageInput.value.trim()) return;
 
+  // If we don't have character info yet, try to load it
+  if (!gameSessionStore.currentCharacter && !gameSessionStore.isGameMaster) {
+    console.log('Reloading game session to get character info...');
+    gameSessionStore.getGameSession(route.params.id as string);
+  }
+
   const recipient = selectedParticipant.value?.id || 'all';
   const message: IChatMessage = {
     id: crypto.randomUUID(),
@@ -52,6 +63,9 @@ function sendMessage() {
       content: messageInput.value,
       isEmote: false,
       isWhisper: isDirectMessage.value,
+      displayName: gameSessionStore.isGameMaster 
+        ? 'Game Master' 
+        : (gameSessionStore.currentCharacter?.name || 'Loading character...'),
     },
   };
 
@@ -82,15 +96,39 @@ function selectParticipant(participant: { id: string; name: string }) {
 }
 
 // Update participants list from game session
-function updateParticipants() {
-  if (gameSessionStore.currentSession?.participants) {
-    const participantList = gameSessionStore.currentSession.participants.map(p => {
+async function updateParticipants() {
+  if (gameSessionStore.currentSession?.participants && gameSessionStore.currentCampaign) {
+    const participantList = await Promise.all(gameSessionStore.currentSession.participants.map(async p => {
       const userId = typeof p === 'string' ? p : p.toString();
+      
+      // For game master, use "Game Master" as the name
+      if (userId === gameSessionStore.currentSession?.gameMasterId) {
+        return {
+          id: userId,
+          name: 'Game Master'
+        };
+      }
+
+      // Find the member's character in the campaign
+      const member = gameSessionStore.currentCampaign?.members.find(m => m.userId === userId);
+      if (member) {
+        try {
+          const response = await api.get(`/api/actors/${member.actorId}`);
+          return {
+            id: userId,
+            name: response.data.name
+          };
+        } catch (err) {
+          console.error(`Error fetching actor for user ${userId}:`, err);
+        }
+      }
+
+      // Fallback to user ID if no character found
       return {
         id: userId,
-        name: userId // For now, just use the ID as the name
+        name: userId
       };
-    });
+    }));
     participants.value = participantList;
   }
 }
@@ -172,7 +210,7 @@ onUnmounted(() => {
               <div class="flex-1">
                 <div class="flex items-center gap-2">
                   <span class="font-medium text-gray-900">
-                    {{ message.sender === socketStore.userId ? 'You' : message.sender }}
+                    {{ message.sender === socketStore.userId ? 'You' : (message.data.displayName || message.sender) }}
                   </span>
                   <span class="text-xs text-gray-500">
                     {{ new Date(message.timestamp).toLocaleTimeString() }}

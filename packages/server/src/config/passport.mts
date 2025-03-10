@@ -47,6 +47,7 @@ export function configurePassport(): void {
   logger.info(`Client Secret: ${config.google.clientSecret ? 'Set (length: ' + config.google.clientSecret.length + ')' : 'Not set'}`);
   logger.info(`Callback URL: ${config.google.callbackUrl}`);
 
+    console.log(config.google.clientId, config.google.clientSecret, config.google.callbackUrl);
   // Validate required credentials
   if (!config.google.clientId || !config.google.clientSecret) {
     logger.error('ERROR: Google OAuth credentials are missing. Authentication with Google will not work.');

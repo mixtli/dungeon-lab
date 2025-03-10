@@ -1,5 +1,4 @@
 import { z } from '../lib/zod.mjs';
-import { zId } from '@zodyac/zod-mongoose';
 import type { ApiFields } from '../types/api-fields.mjs';
 
 // Campaign Status enum
@@ -10,12 +9,12 @@ export const campaignSchema = z.object({
   name: z.string().min(1).max(255),
   description: z.string().optional(),
   gameSystemId: z.string().min(1),
-  members: z.array(zId('Actor')),
-  gameMasterId: zId('User').optional(),
+  members: z.array(z.string()),  // Actor IDs
+  gameMasterId: z.string().optional(),
   status: z.enum(['active', 'paused', 'completed', 'archived']).default('active'),
   settings: z.record(z.string(), z.unknown()).optional(),
-  createdBy: zId('User'),
-  updatedBy: zId('User'),
+  createdBy: z.string(),
+  updatedBy: z.string(),
 });
 
 // Create data schema (omits auto-generated fields)

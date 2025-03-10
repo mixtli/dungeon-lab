@@ -2,7 +2,7 @@ import { z } from '../lib/zod.mjs';
 import { zId } from '@zodyac/zod-mongoose';
 
 // Game Session Status enum
-export const GameSessionStatus = z.enum(['active', 'paused', 'ended']);
+export const GameSessionStatus = z.enum(['active', 'paused', 'ended', 'scheduled']);
 
 
 // Base GameSession schema
@@ -10,7 +10,7 @@ export const gameSessionSchema = z.object({
   name: z.string().min(1).max(255),
   campaignId: zId('Campaign'),
   description: z.string().optional(),
-  status: GameSessionStatus.default('active'),
+  status: GameSessionStatus.default('scheduled'),
   participants: z.array(zId('User')),
   gameMasterId: zId('User'),
   settings: z.record(z.string(), z.unknown()).optional(),

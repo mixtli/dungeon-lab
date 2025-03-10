@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import api from '../plugins/axios.mjs';
+import axios from '@/plugins/axios.mjs';
 
 interface User {
   id: string;
@@ -25,64 +25,70 @@ interface RegisterData {
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null);
-  const loading = ref(false);
   const error = ref<string | null>(null);
+  const isLoading = ref(false);
 
   // Computed properties
   const isAuthenticated = computed(() => !!user.value);
 
   // Actions
   async function login(credentials: LoginCredentials) {
-    loading.value = true;
+    isLoading.value = true;
     error.value = null;
     
     try {
-      const response = await api.post('/api/auth/login', credentials);
+      const response = await axios.post('/api/auth/login', credentials);
       
       if (response.data.success) {
-        // Save user data
         user.value = response.data.data.user;
         localStorage.setItem('isAuthenticated', 'true');
         return true;
       } else {
         error.value = response.data.error?.message || 'Login failed';
+        localStorage.removeItem('isAuthenticated');
+        user.value = null;
         return false;
       }
     } catch (err: any) {
-      error.value = err.response?.data?.error?.message || err.message || 'Login failed';
+      error.value = err.response?.data?.error?.message || 'An error occurred during login';
+      localStorage.removeItem('isAuthenticated');
+      user.value = null;
       return false;
     } finally {
-      loading.value = false;
+      isLoading.value = false;
     }
   }
 
   async function register(data: RegisterData) {
-    loading.value = true;
+    isLoading.value = true;
     error.value = null;
     
     try {
-      const response = await api.post('/api/auth/register', data);
+      const response = await axios.post('/api/auth/register', data);
       
       if (response.data.success) {
-        // Save user data
         user.value = response.data.data.user;
         localStorage.setItem('isAuthenticated', 'true');
         return true;
       } else {
         error.value = response.data.error?.message || 'Registration failed';
+        localStorage.removeItem('isAuthenticated');
+        user.value = null;
         return false;
       }
     } catch (err: any) {
-      error.value = err.response?.data?.error?.message || err.message || 'Registration failed';
+      error.value = err.response?.data?.error?.message || 'An error occurred during registration';
+      localStorage.removeItem('isAuthenticated');
+      user.value = null;
       return false;
     } finally {
-      loading.value = false;
+      isLoading.value = false;
     }
   }
 
   function loginWithGoogle() {
     // Redirect to Google OAuth endpoint
-    window.location.href = `${api.defaults.baseURL}/api/auth/google`;
+    window.location.href = `${axios.defaults.baseURL}/api/auth/google`;
   }
 
   function handleGoogleCallback() {
@@ -92,55 +98,39 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function logout() {
     try {
-      // Call the logout endpoint to clear server-side session
-      await api.post('/api/auth/logout');
-    } catch (error) {
-      console.error('Logout error:', error);
+      await axios.post('/api/auth/logout');
+    } catch (err) {
+      console.error('Logout error:', err);
     } finally {
-      // Clear user data on client
       user.value = null;
       localStorage.removeItem('isAuthenticated');
     }
   }
 
   async function fetchUser() {
-    loading.value = true;
-    error.value = null;
-    
     try {
-      const response = await api.get('/api/auth/me');
+      const response = await axios.get('/api/auth/me');
       
       if (response.data.success) {
         user.value = response.data.data;
         localStorage.setItem('isAuthenticated', 'true');
         return true;
       } else {
-        error.value = response.data.error?.message || 'Failed to fetch user data';
-        localStorage.removeItem('isAuthenticated');
-        return false;
-      }
-    } catch (err: any) {
-      // Check if this is a 401 error, which is expected when not logged in
-      if (err.response?.status === 401) {
-        // Clear user data silently without an error message
         user.value = null;
         localStorage.removeItem('isAuthenticated');
         return false;
       }
-      
-      // For other errors, set the error message
-      error.value = err.response?.data?.error?.message || err.message || 'Failed to fetch user data';
+    } catch (err) {
+      user.value = null;
       localStorage.removeItem('isAuthenticated');
       return false;
-    } finally {
-      loading.value = false;
     }
   }
 
   return {
     user,
-    loading,
     error,
+    isLoading,
     isAuthenticated,
     login,
     register,

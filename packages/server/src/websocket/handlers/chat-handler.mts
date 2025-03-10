@@ -1,6 +1,10 @@
 import { Server } from 'socket.io';
 import { IChatMessage } from '@dungeon-lab/shared/index.mjs';
 import { AuthenticatedSocket, RemoteAuthenticatedSocket } from '../types.mjs';
+import { GameSessionModel } from '../../models/game-session.model.mjs';
+import { CampaignModel } from '../../models/campaign.model.mjs';
+import { ActorModel } from '../../models/actor.model.mjs';
+import { Types } from 'mongoose';
 
 export async function handleChatMessage(
   io: Server,
@@ -16,6 +20,20 @@ export async function handleChatMessage(
     // Validate sender matches socket user
     if (message.sender.toString() !== socket.userId) {
       socket.emit('error', { message: 'Invalid message sender' });
+      return;
+    }
+
+    // Get the game session to find the campaign and game master
+    const gameSession = await GameSessionModel.findById(message.gameSessionId).exec();
+    if (!gameSession) {
+      socket.emit('error', { message: 'Game session not found' });
+      return;
+    }
+
+    // Get the campaign to find the player's character
+    const campaign = await CampaignModel.findById(gameSession.campaignId).exec();
+    if (!campaign) {
+      socket.emit('error', { message: 'Campaign not found' });
       return;
     }
 

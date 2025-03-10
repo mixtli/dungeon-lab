@@ -1,17 +1,42 @@
-import { Router, RequestHandler } from 'express';
+import { Router } from 'express';
 import { authenticate } from '../middleware/auth.middleware.mjs';
-import * as campaignController from '../controllers/campaign.controller.mjs';
+import { validateRequest } from '../middleware/validation.middleware.mjs';
+import { campaignSchema } from '@dungeon-lab/shared/index.mjs';
+import { 
+  createCampaign, 
+  getCampaign, 
+  getMyCampaigns, 
+  updateCampaign, 
+  deleteCampaign 
+} from '../controllers/campaign.controller.mjs';
+import { getCampaignSessions } from '../controllers/game-session.controller.mjs';
 
-const campaignRouter = Router();
+const router = Router();
 
-// Apply authentication middleware to all routes
-campaignRouter.use(authenticate as RequestHandler);
+// Get all campaigns for current user
+router.get('/', authenticate, getMyCampaigns);
 
-// Campaign routes
-campaignRouter.get('/', campaignController.getMyCampaigns as RequestHandler);
-campaignRouter.get('/:id', campaignController.getCampaign as RequestHandler);
-campaignRouter.post('/', campaignController.createCampaign as RequestHandler);
-campaignRouter.put('/:id', campaignController.updateCampaign as RequestHandler);
-campaignRouter.delete('/:id', campaignController.deleteCampaign as RequestHandler);
+// Get a specific campaign
+router.get('/:id', authenticate, getCampaign);
 
-export default campaignRouter; 
+// Get all sessions for a campaign
+router.get('/:campaignId/sessions', authenticate, getCampaignSessions);
+
+// Create a new campaign
+router.post('/',
+  authenticate,
+  validateRequest(campaignSchema),
+  createCampaign
+);
+
+// Update a campaign
+router.put('/:id',
+  authenticate,
+  validateRequest(campaignSchema.partial()),
+  updateCampaign
+);
+
+// Delete a campaign
+router.delete('/:id', authenticate, deleteCampaign);
+
+export default router; 

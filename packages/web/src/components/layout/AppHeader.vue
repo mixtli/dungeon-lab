@@ -16,9 +16,14 @@ function toggleMenu() {
   isMenuOpen.value = !isMenuOpen.value;
 }
 
+function handleLoginClick() {
+  console.log('Login clicked');
+  router.push('/auth/login');
+}
+
 function logout() {
   authStore.logout();
-  router.push({ name: 'login' });
+  router.push('/auth/login');
 }
 
 function goToChat() {
@@ -45,21 +50,63 @@ function goToChat() {
 
         <!-- Desktop Navigation -->
         <nav class="hidden md:flex items-center space-x-4">
-          <RouterLink to="/" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700">
-            Home
-          </RouterLink>
-          <RouterLink v-if="authStore.isAuthenticated" to="/campaigns" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700">
-            Campaigns
-          </RouterLink>
-          <RouterLink v-if="authStore.isAuthenticated" to="/maps" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700">
-            Maps
-          </RouterLink>
-          <RouterLink v-if="authStore.isAuthenticated" to="/games" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700">
-            Games
-          </RouterLink>
-          <RouterLink v-if="authStore.isAuthenticated" to="/characters" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700">
-            Characters
-          </RouterLink>
+          <!-- Menu Dropdown -->
+          <div class="relative group">
+            <button class="flex items-center px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700">
+              <span>Menu</span>
+              <svg class="ml-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+              </svg>
+            </button>
+            <div class="absolute left-0 w-48 mt-2 py-1 bg-white dark:bg-gray-700 rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+              <RouterLink to="/" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
+                Home
+              </RouterLink>
+              <RouterLink v-if="authStore.isAuthenticated" to="/campaigns" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
+                Campaigns
+              </RouterLink>
+              <RouterLink v-if="authStore.isAuthenticated" to="/maps" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
+                Maps
+              </RouterLink>
+              <RouterLink v-if="authStore.isAuthenticated" to="/games" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
+                Games
+              </RouterLink>
+              <RouterLink v-if="authStore.isAuthenticated" to="/characters" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
+                Characters
+              </RouterLink>
+              <RouterLink v-if="authStore.isAuthenticated" to="/file-upload-demo" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
+                File Upload
+              </RouterLink>
+              <template v-if="authStore.isAuthenticated && authStore.user?.isAdmin">
+                <div class="border-t border-gray-200 dark:border-gray-600 my-1"></div>
+                <RouterLink to="/admin/plugins" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
+                  Plugin Manager
+                </RouterLink>
+              </template>
+            </div>
+          </div>
+
+          <!-- Session Info -->
+          <div v-if="gameSessionStore.currentSession" class="px-3 py-2 rounded-md text-sm font-medium bg-gray-50 dark:bg-gray-700 flex items-center space-x-2">
+            <div class="flex flex-col">
+              <span class="text-xs text-gray-500 dark:text-gray-400">
+                {{ gameSessionStore.currentSession.name }}
+              </span>
+              <div class="flex items-center space-x-1">
+                <span class="text-sm text-gray-700 dark:text-gray-200">
+                  {{ gameSessionStore.currentCampaign?.name }}
+                </span>
+                <span v-if="!gameSessionStore.isGameMaster && gameSessionStore.currentCharacter" class="text-xs text-gray-500 dark:text-gray-400">
+                  ({{ gameSessionStore.currentCharacter.name }})
+                </span>
+                <span v-else-if="gameSessionStore.isGameMaster" class="text-xs text-primary-500">
+                  (GM)
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Chat Button -->
           <button
             v-if="authStore.isAuthenticated"
             @click="goToChat"
@@ -70,22 +117,7 @@ function goToChat() {
             </svg>
             Chat
           </button>
-          <RouterLink v-if="authStore.isAuthenticated" to="/file-upload-demo" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700">
-            File Upload
-          </RouterLink>
-          
-          <!-- Admin Tools Dropdown (for admin users only) -->
-          <div v-if="authStore.isAuthenticated && authStore.user?.isAdmin" class="relative group">
-            <button class="flex items-center cursor-pointer px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700">
-              <span>Admin Tools</span>
-            </button>
-            <div class="absolute right-0 w-48 mt-2 py-1 bg-white dark:bg-gray-700 rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
-              <RouterLink to="/admin/plugins" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
-                Plugin Manager
-              </RouterLink>
-            </div>
-          </div>
-          
+
           <!-- Theme Toggle -->
           <button @click="toggleTheme" class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700">
             <MoonIcon v-if="isDarkMode" class="text-yellow-400 w-5 h-5" />
@@ -115,10 +147,10 @@ function goToChat() {
           
           <!-- Login/Register -->
           <template v-else>
-            <RouterLink to="/login" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700">
+            <button @click="handleLoginClick" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700">
               Login
-            </RouterLink>
-            <RouterLink to="/register" class="px-3 py-2 rounded-md text-sm font-medium bg-primary-600 text-white hover:bg-primary-700">
+            </button>
+            <RouterLink to="/auth/register" class="px-3 py-2 rounded-md text-sm font-medium bg-primary-600 text-white hover:bg-primary-700">
               Register
             </RouterLink>
           </template>
@@ -179,10 +211,10 @@ function goToChat() {
         
         <!-- Login/Register -->
         <template v-if="!authStore.isAuthenticated">
-          <RouterLink to="/login" class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700">
+          <button @click="handleLoginClick" class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700">
             Login
-          </RouterLink>
-          <RouterLink to="/register" class="block px-3 py-2 rounded-md text-base font-medium bg-primary-600 text-white hover:bg-primary-700">
+          </button>
+          <RouterLink to="/auth/register" class="block px-3 py-2 rounded-md text-base font-medium bg-primary-600 text-white hover:bg-primary-700">
             Register
           </RouterLink>
         </template>

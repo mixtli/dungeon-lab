@@ -66,19 +66,29 @@ export async function register(req: Request, res: Response): Promise<void> {
  */
 export async function login(req: Request, res: Response): Promise<void> {
   try {
-    const { username, password } = req.body;
+    const { email, password } = req.body;
 
-    // Find user
-    const user = await UserModel.findOne({ username });
+    // Find user by email
+    const user = await UserModel.findOne({ email });
     if (!user) {
-      res.status(401).json({ message: 'Invalid credentials' });
+      res.status(401).json({
+        success: false,
+        error: {
+          message: 'Invalid credentials'
+        }
+      });
       return;
     }
 
     // Check password
     const isValid = await user.comparePassword(password);
     if (!isValid) {
-      res.status(401).json({ message: 'Invalid credentials' });
+      res.status(401).json({
+        success: false,
+        error: {
+          message: 'Invalid credentials'
+        }
+      });
       return;
     }
 
@@ -91,10 +101,20 @@ export async function login(req: Request, res: Response): Promise<void> {
       preferences: user.preferences
     };
 
-    res.json({ message: 'Login successful' });
+    res.json({
+      success: true,
+      data: {
+        user: formatUserResponse(user)
+      }
+    });
   } catch (error) {
     logger.error('Error logging in:', error);
-    res.status(500).json({ message: 'Error during login' });
+    res.status(500).json({
+      success: false,
+      error: {
+        message: 'Error during login'
+      }
+    });
   }
 }
 
@@ -105,7 +125,12 @@ export async function googleCallback(req: Request, res: Response): Promise<void>
   try {
     const user = req.user as IUser;
     if (!user) {
-      res.status(401).json({ message: 'Authentication failed' });
+      res.status(401).json({
+        success: false,
+        error: {
+          message: 'Authentication failed'
+        }
+      });
       return;
     }
 
@@ -118,11 +143,23 @@ export async function googleCallback(req: Request, res: Response): Promise<void>
       preferences: user.preferences
     };
 
-    // Redirect to frontend
-    res.redirect(process.env.CLIENT_URL || 'http://localhost:5173');
+    // Get the full user from the database to include all fields
+    const dbUser = await UserModel.findById(user.id).select('-password');
+    if (!dbUser) {
+      res.status(401).json({
+        success: false,
+        error: {
+          message: 'User not found'
+        }
+      });
+      return;
+    }
+
+    // Redirect to frontend with success flag in query params
+    res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}/auth/google/callback?success=true`);
   } catch (error) {
     logger.error('Error in Google callback:', error);
-    res.status(500).json({ message: 'Error during Google authentication' });
+    res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}/auth/google/callback?success=false`);
   }
 }
 

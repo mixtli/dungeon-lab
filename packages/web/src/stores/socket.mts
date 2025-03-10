@@ -1,11 +1,11 @@
 import { defineStore } from 'pinia';
-import { io, Socket } from 'socket.io-client';
+import { io } from 'socket.io-client';
 import { ref, watch } from 'vue';
 import { useAuthStore } from './auth.mjs';
 
 // Define a type for the socket store
 interface SocketStore {
-  socket: Socket | null;
+  socket: any | null;  // TODO: Replace with proper type when TS issues are resolved
   userId: string | null;
   isConnected: boolean;
   initSocket: () => void;
@@ -14,7 +14,7 @@ interface SocketStore {
 }
 
 export const useSocketStore = defineStore('socket', () => {
-  const socket = ref<Socket | null>(null);
+  const socket = ref<any | null>(null);
   const userId = ref<string | null>(null);
   const isConnected = ref(false);
   const authStore = useAuthStore();
@@ -23,6 +23,8 @@ export const useSocketStore = defineStore('socket', () => {
   watch(() => authStore.user, (newUser) => {
     if (newUser) {
       userId.value = newUser.id;
+      // Initialize socket when user is authenticated
+      initSocket();
     } else {
       userId.value = null;
       disconnect();
@@ -59,7 +61,7 @@ export const useSocketStore = defineStore('socket', () => {
       console.error('Socket error:', error.message);
     });
 
-    socket.value.on('connect_error', (error) => {
+    socket.value.on('connect_error', (error: Error) => {
       console.error('Socket connection error:', error);
     });
   }

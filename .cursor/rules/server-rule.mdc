@@ -1,6 +1,6 @@
 ---
 description: Basic rules that apply to the entire server
-globs: packages/server/*
+globs: packages/server/**
 alwaysApply: false
 ---
 

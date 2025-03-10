@@ -1,14 +1,38 @@
 import { Server as HttpServer } from 'http';
 import { Server, Socket } from 'socket.io';
 import type { IMessage } from '@dungeon-lab/shared/index.mjs';
-import { Request } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { handleChatMessage } from './handlers/chat-handler.mjs';
 import { handleDiceRoll } from './handlers/dice-handler.mjs';
 import { handlePluginAction } from './handlers/plugin-handler.mjs';
 import { handleGameStateUpdate } from './handlers/game-state-handler.mjs';
+import { handleEncounterStart } from './handlers/encounter-handler.mjs';
 import { GameSessionModel } from '../models/game-session.model.mjs';
 import { PluginManager } from '../services/plugin-manager.mjs';
 import { AuthenticatedSocket } from './types.mjs';
+import session from 'express-session';
+import MongoStore from 'connect-mongo';
+import { config } from '../config/index.mjs';
+
+// Create session middleware
+const sessionMiddleware = session({
+  secret: process.env.SESSION_SECRET || 'dev-secret',
+  resave: false,
+  saveUninitialized: false,
+  store: MongoStore.create({
+    mongoUrl: config.mongoUri,
+    collectionName: 'sessions',
+    ttl: 24 * 60 * 60, // 1 day in seconds
+    autoRemove: 'native',
+    touchAfter: 24 * 3600
+  }),
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    httpOnly: true,
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+  },
+});
 
 export function createSocketServer(httpServer: HttpServer, pluginManager: PluginManager): Server {
   const io = new Server(httpServer, {
@@ -17,6 +41,11 @@ export function createSocketServer(httpServer: HttpServer, pluginManager: Plugin
       methods: ['GET', 'POST'],
       credentials: true,
     },
+  });
+
+  // Use session middleware for Socket.IO
+  io.engine.use((req: Request, res: Response, next: NextFunction) => {
+    sessionMiddleware(req, res, next);
   });
 
   // Authentication middleware
@@ -121,6 +150,11 @@ export function createSocketServer(httpServer: HttpServer, pluginManager: Plugin
         console.error('Error handling message:', error);
         socket.emit('error', { message: 'Failed to process message' });
       }
+    });
+
+    // Encounter start handler
+    socket.on('encounter:start', async (message: { sessionId: string; encounterId: string }) => {
+      await handleEncounterStart(io, socket, message);
     });
 
     // Disconnect handler

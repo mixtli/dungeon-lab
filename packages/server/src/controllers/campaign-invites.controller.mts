@@ -105,20 +105,39 @@ export async function respondToInvite(req: AuthenticatedRequest, res: Response):
         });
       }
 
-      // Add user and their actor to campaign
-      await CampaignModel.findByIdAndUpdate(invite.campaignId._id, {
-        $push: {
-          members: actorId
-        }
+      // Check if user already has a character in this campaign
+      const existingActor = await ActorModel.findOne({
+        _id: { $in: invite.campaignId.members },
+        createdBy: req.session.user.id
       });
+
+      if (existingActor) {
+        return res.status(400).json({ 
+          message: 'You already have a character in this campaign',
+          existingCharacter: existingActor.name
+        });
+      }
+
+      // Add actor to campaign members
+      await CampaignModel.updateOne(
+        { _id: invite.campaignId._id },
+        { $push: { members: actorId } }
+      );
+
+      // Update invite status
+      invite.status = status;
+      invite.updatedBy = req.session.user.id;
+      await invite.save();
+
+      return res.json(invite);
+    } else if (status === 'declined') {
+      // Update invite status
+      invite.status = status;
+      invite.updatedBy = req.session.user.id;
+      await invite.save();
+
+      return res.json(invite);
     }
-
-    // Update invite status
-    invite.status = status;
-    invite.updatedBy = req.session.user.id;
-    await invite.save();
-
-    return res.json(invite);
   } catch (error) {
     logger.error('Error responding to invite:', error);
     return res.status(500).json({ message: 'Failed to respond to invite' });

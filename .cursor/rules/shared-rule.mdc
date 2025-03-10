@@ -1,0 +1,18 @@
+---
+description: Rules for the shared package
+globs: packages/shared/**
+alwaysApply: false
+---
+The shared package is for code that is shared between the client and server.
+
+This package should have as few dependencies as possible.
+
+Code in this package will also export interfaces and types that are shared between client and server.  When creating mongo schemas using zod, we may use mongo specific types, but when exporting general interfaces, we should never use mongo specific types.   In particular, IDs should be represented as strings in interfaces that are shared between the server and clients such as the web client.
+
+
+
+
+# Your rule content
+
+- You can @ files here
+- You can use markdown but dont have to

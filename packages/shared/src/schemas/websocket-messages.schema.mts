@@ -24,6 +24,7 @@ export const chatMessageSchema = baseMessageSchema.extend({
     content: z.string(),
     isEmote: z.boolean().default(false),
     isWhisper: z.boolean().default(false),
+    displayName: z.string().optional(),
   }),
 });
 
