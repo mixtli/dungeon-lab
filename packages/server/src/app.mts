@@ -8,8 +8,10 @@ import MongoStore from 'connect-mongo';
 import { pluginRegistry } from './services/plugin-registry.service.mjs';
 import { logger } from './utils/logger.mjs';
 import { requestLogger } from './middleware/request-logger.middleware.mjs';
-import inviteRoutes from './routes/campaign-invites.mjs';
-import gameSessionRoutes from './routes/game-session.routes.mjs';
+import { mapRoutes } from './features/maps/index.mjs';
+import { itemRoutes } from './features/items/index.mjs';
+import { actorRoutes } from './features/actors/index.mjs';
+import { campaignRoutes, gameSessionRoutes, encounterRoutes, inviteRoutes } from './features/campaigns/index.mjs';
 
 // Define type interfaces for our routes and middleware
 type ErrorHandlerMiddleware = (
@@ -20,19 +22,13 @@ type ErrorHandlerMiddleware = (
 ) => void;
 
 type StorageServiceClass = {
-  new (): any;
+  new (config: any): any;
 };
 
 // Route handlers and middleware
-let actorRoutes: Router;
-let itemRoutes: Router;
 let authRoutes: Router;
 let storageRoutes: Router;
 let pluginRoutes: Router;
-let campaignRoutes: Router;
-let mapRoutes: Router;
-let encounterRoutes: Router;
-let campaignInvitesRoutes: Router;
 let errorHandler: ErrorHandlerMiddleware;
 let StorageService: StorageServiceClass | null = null;
 
@@ -42,150 +38,73 @@ let StorageService: StorageServiceClass | null = null;
 async function initializeRoutes() {
   try {
     // Dynamic imports for ES modules
-    const actorRoutesModule = await import('./routes/actor.routes.mjs');
-    const itemRoutesModule = await import('./routes/item.routes.mjs');
     const authRoutesModule = await import('./routes/auth.routes.mjs');
     const storageRoutesModule = await import('./routes/storage.routes.mjs');
     const pluginRoutesModule = await import('./routes/plugin.routes.mjs');
-    const campaignRoutesModule = await import('./routes/campaign.routes.mjs');
-    const mapRoutesModule = await import('./routes/map.routes.mjs');
-    const encounterRoutesModule = await import('./routes/encounter.routes.mjs');
-    const campaignInvitesRoutesModule = await import('./routes/campaign-invites.mjs');
-    const errorMiddlewareModule = await import('./middleware/error.middleware.mjs');
-    const storageServiceModule = await import('./services/storage.service.mjs');
-    
-    // Assign routes and middleware
-    actorRoutes = actorRoutesModule.actorRoutes || express.Router();
-    itemRoutes = itemRoutesModule.itemRoutes || express.Router();
-    authRoutes = authRoutesModule.default || express.Router();
-    storageRoutes = storageRoutesModule.storageRoutes || express.Router();
-    pluginRoutes = pluginRoutesModule.default || express.Router();
-    campaignRoutes = campaignRoutesModule.default || express.Router();
-    mapRoutes = mapRoutesModule.default || express.Router();
-    encounterRoutes = encounterRoutesModule.default || express.Router();
-    campaignInvitesRoutes = campaignInvitesRoutesModule.default || express.Router();
-    errorHandler = errorMiddlewareModule.errorHandler || defaultErrorHandler;
-    StorageService = storageServiceModule.StorageService || null;
+    const { errorHandler: errorHandlerImport } = await import('./middleware/error.middleware.mjs');
+    const { StorageService: StorageServiceImport } = await import('./services/storage.service.mjs');
+
+    // Get the router instances from each module
+    authRoutes = authRoutesModule.default;
+    storageRoutes = storageRoutesModule.storageRoutes;
+    pluginRoutes = pluginRoutesModule.default;
+    errorHandler = errorHandlerImport;
+    StorageService = StorageServiceImport;
   } catch (error) {
-    console.error('Error initializing routes:', error);
-    
-    // Provide mock routes for testing
-    actorRoutes = express.Router();
-    itemRoutes = express.Router();
-    authRoutes = express.Router();
-    storageRoutes = express.Router();
-    pluginRoutes = express.Router();
-    campaignRoutes = express.Router();
-    mapRoutes = express.Router();
-    encounterRoutes = express.Router();
-    campaignInvitesRoutes = express.Router();
-    errorHandler = defaultErrorHandler;
-    StorageService = class MockStorageService {
-      constructor() {}
-    } as any;
+    logger.error('Error initializing routes:', error);
+    throw error;
   }
 }
 
 /**
- * Default error handler if the real one cannot be loaded
+ * Creates and configures an Express application
  */
-const defaultErrorHandler: ErrorHandlerMiddleware = (err, req, res, next) => {
-  console.error('Unhandled error:', err);
-  res.status(500).json({ 
-    message: 'Internal server error',
-    error: process.env.NODE_ENV === 'production' ? undefined : (err instanceof Error ? err.message : String(err))
-  });
-};
-
-/**
- * Creates and configures an Express application.
- * 
- * This function extracts the Express app creation logic from index.ts,
- * allowing it to be used in both the main application and tests.
- */
-export async function createApp() {
-  // Import configuration
-  const { config } = await import('./config/index.mjs');
-  
-  // Configure Passport before initializing routes
-  const { configurePassport } = await import('./config/passport.mjs');
-  configurePassport();
-  
-  // Initialize routes
-  await initializeRoutes();
-  
-  // Initialize plugin registry
-  try {
-    await pluginRegistry.initialize();
-    logger.info('Plugin registry initialized successfully');
-  } catch (error) {
-    logger.error('Failed to initialize plugin registry:', error);
-  }
-  
-  // Initialize Express app
+export async function createApp(): Promise<express.Application> {
   const app = express();
-  
-  // Add request logger middleware before other middleware
-  app.use(requestLogger);
-  
-  // Configure middleware with proper CORS settings for credentials
+
+  // Basic middleware
   app.use(cors({
-    origin: config.clientUrl, 
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    credentials: true
   }));
   app.use(express.json());
-  app.use(express.urlencoded({ extended: true }));
-  
-  // Configure session with MongoDB store
-  app.use(
-    session({
-      secret: process.env.SESSION_SECRET || 'dev-secret',
-      resave: false,
-      saveUninitialized: false,
-      store: MongoStore.create({
-        mongoUrl: config.mongoUri,
-        collectionName: 'sessions',
-        ttl: 24 * 60 * 60, // 1 day in seconds
-        autoRemove: 'native', // Use MongoDB's TTL index
-        touchAfter: 24 * 3600 // time period in seconds to update the session
-      }),
-      cookie: {
-        secure: process.env.NODE_ENV === 'production',
-        maxAge: 24 * 60 * 60 * 1000, // 24 hours
-        httpOnly: true,
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      },
-    })
-  );
+  app.use(requestLogger);
 
-  // Initialize Passport
+  // Session configuration
+  app.use(session({
+    secret: process.env.SESSION_SECRET || 'your-secret-key',
+    resave: false,
+    saveUninitialized: false,
+    store: MongoStore.create({
+      mongoUrl: process.env.MONGODB_URI || 'mongodb://localhost:27017/dungeon-lab',
+      ttl: 14 * 24 * 60 * 60 // 14 days
+    }),
+    cookie: {
+      secure: process.env.NODE_ENV === 'production',
+      httpOnly: true,
+      maxAge: 14 * 24 * 60 * 60 * 1000 // 14 days
+    }
+  }));
+
+  // Initialize passport
   app.use(passport.initialize());
   app.use(passport.session());
 
-  // Initialize storage service
-  const storageService = StorageService ? new StorageService() : null;
-  
-  // Health check route
-  app.get('/api/health', (req, res) => {
-    console.log("Health check route");
-    res.json({ status: 'ok' });
-  });
+  // Initialize routes
+  await initializeRoutes();
 
-  // Register API routes
-  app.use('/api/auth', authRoutes);
-  app.use('/api/storage', storageRoutes);
+  // Mount routes
   app.use('/api/actors', actorRoutes);
   app.use('/api/items', itemRoutes);
+  app.use('/api/auth', authRoutes);
+  app.use('/api/storage', storageRoutes);
   app.use('/api/plugins', pluginRoutes);
   app.use('/api/campaigns', campaignRoutes);
+  app.use('/api', inviteRoutes);
+  app.use('/api/sessions', gameSessionRoutes);
   app.use('/api/maps', mapRoutes);
-  app.use('/api/campaign-invites', campaignInvitesRoutes);
-  app.use('/api/game-sessions', gameSessionRoutes);
-  app.use('/api', encounterRoutes); // Note: encounter routes include /campaigns/:campaignId/encounters
 
-  // Register error handling middleware
+  // Error handling
   app.use(errorHandler);
 
   return app;

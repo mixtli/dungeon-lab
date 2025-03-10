@@ -1,15 +1,19 @@
 import { Server } from 'socket.io';
-import { IChatMessage } from '@dungeon-lab/shared/index.mjs';
-import { AuthenticatedSocket, RemoteAuthenticatedSocket } from '../types.mjs';
-import { GameSessionModel } from '../../models/game-session.model.mjs';
-import { CampaignModel } from '../../models/campaign.model.mjs';
-import { ActorModel } from '../../models/actor.model.mjs';
+import type { IMessage } from '@dungeon-lab/shared/index.mjs';
+import { GameSessionModel } from '../../features/campaigns/models/game-session.model.mjs';
+import { AuthenticatedSocket } from '../types.mjs';
+import { logger } from '../../utils/logger.mjs';
+import { ActorModel } from '../../features/actors/models/actor.model.mjs';
+import { CampaignModel } from '../../features/campaigns/models/campaign.model.mjs';
+import { UserModel } from '../../models/user.model.mjs';
+import { z } from 'zod';
+import { RemoteAuthenticatedSocket } from '../types.mjs';
 import { Types } from 'mongoose';
 
 export async function handleChatMessage(
   io: Server,
   socket: AuthenticatedSocket,
-  message: IChatMessage
+  message: IMessage
 ): Promise<void> {
   try {
     if (!socket.sessionId) {

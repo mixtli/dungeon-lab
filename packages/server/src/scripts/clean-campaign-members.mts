@@ -1,8 +1,9 @@
 import mongoose from 'mongoose';
 import { connectToDatabase } from '../config/database.mjs';
-import { CampaignModel } from '../models/campaign.model.mjs';
-import { ActorModel, type ActorDocument } from '../models/actor.model.mjs';
+import { CampaignModel } from '../features/campaigns/models/campaign.model.mjs';
+import { ActorModel, type ActorDocument } from '../features/actors/models/actor.model.mjs';
 import { logger } from '../utils/logger.mjs';
+import { config } from '../config/index.mjs';
 
 async function cleanCampaignMembers() {
   try {

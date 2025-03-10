@@ -62,7 +62,13 @@ const pausedSessions = computed(() =>
 );
 
 function joinSession(sessionId: string) {
-  router.push({ name: 'game-session', params: { id: sessionId } });
+  router.push({ 
+    name: 'game-session', 
+    params: { 
+      campaignId: props.campaignId,
+      id: sessionId 
+    }
+  });
 }
 
 function formatTime(isoString: string) {

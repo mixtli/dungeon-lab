@@ -7,7 +7,8 @@ import type { IActor } from '@dungeon-lab/shared/src/schemas/actor.schema.mjs';
 import type { ICampaign } from '@dungeon-lab/shared/src/schemas/campaign.schema.mjs';
 import type { z } from 'zod';
 import { useAuthStore } from './auth.mjs';
-import { ActorModel } from '../models/actor.model.mjs';
+import { ActorModel } from '@dungeon-lab/server/src/features/actors/models/actor.model.mjs';
+import { useRouter } from 'vue-router';
 
 // Extend IGameSession to include id for frontend use
 interface GameSessionWithId extends IGameSession {
@@ -16,6 +17,7 @@ interface GameSessionWithId extends IGameSession {
 
 export const useGameSessionStore = defineStore('gameSession', () => {
   const authStore = useAuthStore();
+  const router = useRouter();
 
   // State
   const currentSession = ref<GameSessionWithId | null>(null);
@@ -57,32 +59,35 @@ export const useGameSessionStore = defineStore('gameSession', () => {
     error.value = null;
 
     try {
-      const response = await api.get(`/api/game-sessions/${id}`);
-      currentSession.value = response.data;
-
-      if (!currentSession.value?.campaignId) {
-        throw new Error('Game session has no campaign ID');
+      // Get campaignId from route params
+      const route = router.currentRoute.value;
+      const campaignId = route.params.campaignId as string;
+      
+      if (!campaignId) {
+        throw new Error('No campaign ID available in route');
       }
 
-      // Get the campaign and character information
-      const campaignResponse = await api.get(`/api/campaigns/${currentSession.value.campaignId}`);
+      // Fetch campaign data first
+      const campaignResponse = await api.get(`/api/campaigns/${campaignId}`);
       currentCampaign.value = campaignResponse.data;
 
-      if (!currentCampaign.value) {
-        throw new Error('Failed to fetch campaign data');
-      }
+      // Now fetch the session
+      const response = await api.get(`/api/campaigns/${campaignId}/sessions/${id}`);
+      currentSession.value = response.data;
 
       // Find the current user's character in the campaign by checking each actor
       let foundCharacter = null;
-      for (const actorId of currentCampaign.value.members) {
-        try {
-          const actorResponse = await api.get(`/api/actors/${actorId}`);
-          if (actorResponse.data.createdBy === authStore.user?.id) {
-            foundCharacter = actorResponse.data;
-            break;
+      if (currentCampaign.value) {
+        for (const actorId of currentCampaign.value.members) {
+          try {
+            const actorResponse = await api.get(`/api/actors/${actorId}`);
+            if (actorResponse.data.createdBy === authStore.user?.id) {
+              foundCharacter = actorResponse.data;
+              break;
+            }
+          } catch (err) {
+            console.warn(`Failed to fetch actor ${actorId}:`, err);
           }
-        } catch (err) {
-          console.warn(`Failed to fetch actor ${actorId}:`, err);
         }
       }
 
@@ -108,7 +113,7 @@ export const useGameSessionStore = defineStore('gameSession', () => {
     error.value = null;
 
     try {
-      const response = await api.get(`/api/game-sessions/campaign/${campaignId}`);
+      const response = await api.get(`/api/campaigns/${campaignId}/sessions`);
       campaignSessions.value = response.data;
       return campaignSessions.value;
     } catch (err: any) {

@@ -7,7 +7,7 @@ import { handleDiceRoll } from './handlers/dice-handler.mjs';
 import { handlePluginAction } from './handlers/plugin-handler.mjs';
 import { handleGameStateUpdate } from './handlers/game-state-handler.mjs';
 import { handleEncounterStart } from './handlers/encounter-handler.mjs';
-import { GameSessionModel } from '../models/game-session.model.mjs';
+import { GameSessionModel } from '../features/campaigns/models/game-session.model.mjs';
 import { PluginManager } from '../services/plugin-manager.mjs';
 import { AuthenticatedSocket } from './types.mjs';
 import session from 'express-session';

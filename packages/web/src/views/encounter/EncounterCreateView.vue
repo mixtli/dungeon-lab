@@ -2,12 +2,13 @@
 import { ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useEncounterStore } from '../../stores/encounter.mts';
+import { useApi } from '../../composables/useApi.js';
 import type { IMap } from '@dungeon-lab/shared/src/schemas/map.schema.mjs';
-import type { IEncounterCreateData } from '@dungeon-lab/shared/src/schemas/encounter.schema.mjs';
 
 const route = useRoute();
 const router = useRouter();
 const encounterStore = useEncounterStore();
+const api = useApi();
 
 const loading = ref(false);
 const maps = ref<IMap[]>([]);
@@ -24,16 +25,15 @@ const error = ref<string | null>(null);
 // Fetch available maps
 async function fetchMaps() {
   loading.value = true;
+  error.value = null;
   try {
-    const response = await fetch('/api/maps');
-    if (!response.ok) throw new Error('Failed to fetch maps');
-    const data = await response.json();
-    maps.value = data.map((map: any) => ({
-      ...map,
-      id: String(map.id),
-    }));
-  } catch (error) {
-    console.error('Error fetching maps:', error);
+    const response = await api.get<IMap[]>('/maps');
+    console.log('Raw map data from API:', JSON.stringify(response, null, 2));
+    maps.value = response;
+    console.log('Maps:', JSON.stringify(maps.value, null, 2));
+  } catch (err) {
+    console.error('Error fetching maps:', err);
+    error.value = 'Failed to load maps';
   } finally {
     loading.value = false;
   }
@@ -43,12 +43,24 @@ async function fetchMaps() {
 async function handleSubmit(event: Event) {
   event.preventDefault();
   
+  console.log('Form data at submission:', JSON.stringify(formData.value, null, 2));
+  console.log('Selected mapId:', formData.value.mapId, typeof formData.value.mapId);
+  
+  if (!formData.value.mapId) {
+    error.value = 'Please select a map';
+    return;
+  }
+
   loading.value = true;
   error.value = null;
 
   try {
-    console.log('Creating encounter with data:', formData.value);
-    const encounterId = await encounterStore.createEncounter(formData.value, route.params.campaignId as string);
+    const submitData = {
+      ...formData.value,
+      mapId: formData.value.mapId
+    };
+    console.log('Creating encounter with data:', JSON.stringify(submitData, null, 2));
+    const encounterId = await encounterStore.createEncounter(submitData, route.params.campaignId as string);
     
     console.log('Successfully created encounter with ID:', encounterId);
     
@@ -57,7 +69,6 @@ async function handleSubmit(event: Event) {
     }
     
     console.log('Preparing to redirect to:', `/encounter/${encounterId}`);
-    // Use immediate redirection instead of setTimeout
     router.push({
       name: 'encounter-detail',
       params: { id: encounterId }
@@ -78,6 +89,22 @@ fetchMaps();
   <div class="p-4">
     <div class="max-w-2xl mx-auto">
       <h1 class="text-2xl font-bold mb-6">Create New Encounter</h1>
+      
+      <!-- Error display -->
+      <div v-if="error" class="mb-4 p-4 bg-red-50 border border-red-200 rounded-md text-red-700">
+        {{ error }}
+      </div>
+      
+      <!-- Debug info -->
+      <div class="mb-4 p-4 bg-gray-50 border border-gray-200 rounded-md">
+        <p>Selected Map ID: "{{ formData.mapId }}"</p>
+        <p>Available Maps:</p>
+        <ul>
+          <li v-for="map in maps" :key="map.id">
+            {{ map.name }} (ID: {{ map.id }})
+          </li>
+        </ul>
+      </div>
       
       <form @submit.prevent="handleSubmit" class="space-y-6">
         <div>
@@ -104,14 +131,16 @@ fetchMaps();
         </div>
         
         <div>
-          <label for="map" class="block text-sm font-medium text-gray-700">Map</label>
+          <label for="map" class="block text-sm font-medium text-gray-700">Map <span class="text-red-500">*</span></label>
           <select
             id="map"
+            name="map"
             v-model="formData.mapId"
             required
+            @change="() => console.log('Map selected:', formData.mapId)"
             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
           >
-            <option value="">Select a map</option>
+            <option value="" disabled>Select a map</option>
             <option
               v-for="map in maps"
               :key="map.id"

@@ -9,7 +9,9 @@ const loadError = ref<string | null>(null);
 
 onMounted(async () => {
   try {
-    await encounterStore.fetchEncounter(route.params.id as string);
+    const encounterId = route.params.id as string;
+    const campaignId = route.params.campaignId as string;
+    await encounterStore.fetchEncounter(encounterId, campaignId);
   } catch (error) {
     console.error('Failed to load encounter:', error);
     loadError.value = 'Failed to load encounter data';

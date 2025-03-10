@@ -145,11 +145,20 @@ const routes: RouteRecordRaw[] = [
         },
       },
       {
-        path: '/game-sessions/:id',
+        path: '/campaigns/:campaignId/sessions/:id',
         name: 'game-session',
         component: GameSessionView,
         meta: {
           title: 'Game Session',
+          requiresAuth: true,
+        },
+      },
+      {
+        path: '/campaigns/:campaignId/sessions/:id/chat',
+        name: 'game-session-chat',
+        component: ChatView,
+        meta: {
+          title: 'Game Chat',
           requiresAuth: true,
         },
       },
@@ -173,7 +182,7 @@ const routes: RouteRecordRaw[] = [
         },
       },
       {
-        path: 'encounter/:id',
+        path: 'campaigns/:campaignId/encounters/:id',
         name: 'encounter-detail',
         component: EncounterDetailView,
         meta: {
@@ -216,16 +225,6 @@ const routes: RouteRecordRaw[] = [
         component: InvitesView,
         meta: {
           title: 'Campaign Invites',
-          requiresAuth: true,
-        },
-      },
-      // Chat route
-      {
-        path: 'game-sessions/:id/chat',
-        name: 'game-session-chat',
-        component: ChatView,
-        meta: {
-          title: 'Game Chat',
           requiresAuth: true,
         },
       },

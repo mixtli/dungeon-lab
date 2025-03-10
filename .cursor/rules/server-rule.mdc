@@ -14,5 +14,12 @@ We use session authentication.  Sessions are stored in mongodb.   The server cre
 Do NOT modify any authentication related code without asking me first.   Ever.  We already have auth middleware in [auth.middleware.mts](mdc:packages/server/src/middleware/auth.middleware.mts).   
 
 
+# Routes
+All api routes should start with /api
+
+# Code structure
+- Major features should be organized together in src/features.  For example, all code related to campaigns should go in src/features/campaigns.   
+
+
 Restarting the Server:
 When I'm developing, the server is running with tsx --watch.   We should not need to restart the server manually for changes to take effect in most cases.

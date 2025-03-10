@@ -7,7 +7,6 @@ export const EncounterStatus = z.enum(['draft', 'ready', 'in_progress', 'complet
 
 // Base Encounter schema
 export const encounterSchema = z.object({
-  _id: zId('Encounter').optional(),
   name: z.string().min(1).max(255),
   description: z.string().optional(),
   campaignId: zId('Campaign'),
@@ -21,7 +20,6 @@ export const encounterSchema = z.object({
 
 // Create data schema (omits auto-generated fields)
 export const encounterCreateSchema = encounterSchema.omit({
-  _id: true,
   createdBy: true,
   updatedBy: true,
   participants: true,
@@ -33,7 +31,6 @@ export const encounterCreateSchema = encounterSchema.omit({
 // Update data schema (makes all fields optional except updatedBy)
 export const encounterUpdateSchema = encounterSchema
   .omit({
-    _id: true,
     createdBy: true,
   })
   .partial()

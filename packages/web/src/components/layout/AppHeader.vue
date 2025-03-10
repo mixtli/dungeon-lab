@@ -27,10 +27,13 @@ function logout() {
 }
 
 function goToChat() {
-  if (gameSessionStore.currentSession) {
+  if (gameSessionStore.currentSession && gameSessionStore.currentCampaign) {
     router.push({ 
       name: 'game-session-chat', 
-      params: { id: gameSessionStore.currentSession.id }
+      params: { 
+        campaignId: gameSessionStore.currentCampaign.id,
+        id: gameSessionStore.currentSession.id 
+      }
     });
   } else {
     router.push({ name: 'game-sessions' });

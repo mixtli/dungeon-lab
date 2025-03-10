@@ -14,12 +14,12 @@ export const useEncounterStore = defineStore('encounter', () => {
   const error = ref<string | null>(null);
   const api = useApi();
 
-  async function fetchEncounter(encounterId: string) {
+  async function fetchEncounter(encounterId: string, campaignId: string) {
     loading.value = true;
     error.value = null;
     
     try {
-      const encounter = await api.get<IEncounter>(`/encounters/${encounterId}`);
+      const encounter = await api.get<IEncounter>(`/campaigns/${campaignId}/encounters/${encounterId}`);
       
       // Initialize with empty participants array in case participants don't exist
       let participants: IActor[] = [];
@@ -67,16 +67,11 @@ export const useEncounterStore = defineStore('encounter', () => {
       // Log the full response to inspect its structure
       console.log('Server response:', encounter);
       
-      // Check all possible ID properties
-      const encounterId = encounter.id || encounter._id || (encounter as any)._doc?.id || (encounter as any)._doc?._id;
-      
-      console.log('Extracted encounter ID:', encounterId);
-      
-      if (!encounterId) {
+      if (!encounter.id) {
         throw new Error('Server response missing encounter ID');
       }
       
-      return encounterId;
+      return encounter.id;
     } catch (err: unknown) {
       console.error('Failed to create encounter:', err);
       error.value = 'Failed to create encounter';
@@ -86,30 +81,30 @@ export const useEncounterStore = defineStore('encounter', () => {
     }
   }
 
-  async function getEncounter(id: string): Promise<IEncounter> {
-    return api.get<IEncounter>(`/encounters/${id}`);
+  async function getEncounter(encounterId: string, campaignId: string): Promise<IEncounter> {
+    return api.get<IEncounter>(`/campaigns/${campaignId}/encounters/${encounterId}`);
   }
 
-  async function updateEncounter(id: string, data: Partial<IEncounter>): Promise<IEncounter> {
-    return api.patch<IEncounter>(`/encounters/${id}`, data);
+  async function updateEncounter(encounterId: string, campaignId: string, data: Partial<IEncounter>): Promise<IEncounter> {
+    return api.patch<IEncounter>(`/campaigns/${campaignId}/encounters/${encounterId}`, data);
   }
 
-  async function deleteEncounter(id: string): Promise<void> {
-    await api.delete(`/encounters/${id}`);
+  async function deleteEncounter(encounterId: string, campaignId: string): Promise<void> {
+    await api.delete(`/campaigns/${campaignId}/encounters/${encounterId}`);
   }
 
-  async function addParticipant(encounterId: string, actorId: string) {
+  async function addParticipant(encounterId: string, campaignId: string, actorId: string) {
     if (!currentEncounter.value) return;
     
     // Ensure we have a valid participants array
     const currentParticipants = currentEncounter.value.participants || [];
     const participants = [...currentParticipants.map(p => p?.id || ''), actorId];
     
-    await updateEncounter(encounterId, { participants });
-    await fetchEncounter(encounterId);
+    await updateEncounter(encounterId, campaignId, { participants });
+    await fetchEncounter(encounterId, campaignId);
   }
 
-  async function removeParticipant(encounterId: string, actorId: string) {
+  async function removeParticipant(encounterId: string, campaignId: string, actorId: string) {
     if (!currentEncounter.value) return;
     
     // Ensure we have a valid participants array
@@ -118,8 +113,8 @@ export const useEncounterStore = defineStore('encounter', () => {
       .filter(p => p && (p.id || '') !== actorId)
       .map(p => p?.id || '');
     
-    await updateEncounter(encounterId, { participants });
-    await fetchEncounter(encounterId);
+    await updateEncounter(encounterId, campaignId, { participants });
+    await fetchEncounter(encounterId, campaignId);
   }
 
   return {

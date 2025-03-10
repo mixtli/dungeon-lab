@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router';
 import { useEncounterStore } from '../../stores/encounter.mjs';
 import type { IEncounter } from '@dungeon-lab/shared/src/schemas/encounter.schema.mjs';
 import { formatDate } from '../../utils/date-utils.mjs';
+import { useApi } from '../../composables/useApi.js';
 
 const props = defineProps<{
   campaignId: string;
@@ -15,6 +16,7 @@ const encounterStore = useEncounterStore();
 const encounters = ref<IEncounter[]>([]);
 const loading = ref(false);
 const error = ref<string | null>(null);
+const api = useApi();
 
 // Fetch encounters for the campaign
 async function fetchEncounters() {
@@ -22,9 +24,9 @@ async function fetchEncounters() {
   error.value = null;
   
   try {
-    const response = await fetch(`/api/campaigns/${props.campaignId}/encounters`);
-    if (!response.ok) throw new Error('Failed to fetch encounters');
-    encounters.value = await response.json();
+    const response = await api.get<IEncounter[]>(`/campaigns/${props.campaignId}/encounters`);
+    console.log('Fetched encounters:', response);
+    encounters.value = response;
   } catch (err) {
     console.error('Error fetching encounters:', err);
     error.value = 'Failed to load encounters';
@@ -48,7 +50,7 @@ async function deleteEncounter(encounterId: string, encounterName: string) {
   }
 
   try {
-    await encounterStore.deleteEncounter(encounterId);
+    await encounterStore.deleteEncounter(encounterId, props.campaignId);
     await fetchEncounters(); // Refresh the list
   } catch (err) {
     console.error('Error deleting encounter:', err);
@@ -146,7 +148,13 @@ const statusColors = {
           </div>
           <div class="ml-6 flex items-center space-x-4">
             <button
-              @click="router.push({ name: 'encounter-detail', params: { id: encounter.id } })"
+              @click="router.push({ 
+                name: 'encounter-detail', 
+                params: { 
+                  id: encounter.id,
+                  campaignId: props.campaignId 
+                } 
+              })"
               class="inline-flex items-center p-2 border border-transparent rounded-full shadow-sm text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               title="View encounter"
             >

@@ -12,3 +12,6 @@ alwaysApply: false
 - Never receive or send _id fields for models.  On the web client we should always send and receive id as a string.  Mongoose in the server should handle any translation to _id.
 - Do not use element-plus
 
+# Server communication
+- The client can call APIs on the server.  All api routes should start with /api
+- The client can also communicate with the server via websocket.  The client should always use socket.io for websocket communication.
