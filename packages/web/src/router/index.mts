@@ -36,6 +36,7 @@ const InvitesView = () => import('@/views/InvitesView.vue');
 // Encounter views
 const EncounterCreateView = () => import('@/views/encounter/EncounterCreateView.vue');
 const EncounterDetailView = () => import('@/views/encounter/EncounterDetailView.vue');
+const EncounterRunView = () => import('@/views/encounter/EncounterRunView.vue');
 // Not actively used in navigation, but kept for potential programmatic access
 // const EncountersView = () => import('@/views/encounter/EncountersView.vue'); 
 
@@ -187,6 +188,15 @@ const routes: RouteRecordRaw[] = [
         component: EncounterDetailView,
         meta: {
           title: 'Encounter Details',
+          requiresAuth: true,
+        },
+      },
+      {
+        path: 'campaigns/:campaignId/encounters/:id/run',
+        name: 'encounter-run',
+        component: EncounterRunView,
+        meta: {
+          title: 'Run Encounter',
           requiresAuth: true,
         },
       },

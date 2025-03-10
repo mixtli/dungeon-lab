@@ -6,13 +6,14 @@ import { handleChatMessage } from './handlers/chat-handler.mjs';
 import { handleDiceRoll } from './handlers/dice-handler.mjs';
 import { handlePluginAction } from './handlers/plugin-handler.mjs';
 import { handleGameStateUpdate } from './handlers/game-state-handler.mjs';
-import { handleEncounterStart } from './handlers/encounter-handler.mjs';
+import { handleEncounterStart, handleEncounterStop } from './handlers/encounter-handler.mjs';
 import { GameSessionModel } from '../features/campaigns/models/game-session.model.mjs';
 import { PluginManager } from '../services/plugin-manager.mjs';
 import { AuthenticatedSocket } from './types.mjs';
 import session from 'express-session';
 import MongoStore from 'connect-mongo';
 import { config } from '../config/index.mjs';
+import { logger } from '../utils/logger.mjs';
 
 // Create session middleware
 const sessionMiddleware = session({
@@ -74,11 +75,16 @@ export function createSocketServer(httpServer: HttpServer, pluginManager: Plugin
       try {
         const session = await GameSessionModel.findById(sessionId);
         if (!session) {
+          logger.warn('[Socket] Session not found:', sessionId);
           socket.emit('error', { message: 'Game session not found' });
           return;
         }
 
         if (!session.participants.includes(socket.userId)) {
+          logger.warn('[Socket] User not authorized for session:', {
+            userId: socket.userId,
+            sessionId
+          });
           socket.emit('error', { message: 'Not authorized to join this session' });
           return;
         }
@@ -86,8 +92,22 @@ export function createSocketServer(httpServer: HttpServer, pluginManager: Plugin
         socket.sessionId = sessionId;
         await socket.join(sessionId);
         
+        // Log session membership after joining
+        const sockets = await io.in(sessionId).fetchSockets();
+        logger.info('[Socket] Session members after join:', {
+          sessionId,
+          memberCount: sockets.length,
+          members: sockets.map(s => ((s as unknown) as AuthenticatedSocket).userId)
+        });
+        
         // Notify others in the session
         socket.to(sessionId).emit('user-joined', {
+          userId: socket.userId,
+          timestamp: new Date(),
+        });
+
+        // Also emit to the joining user to confirm join
+        socket.emit('user-joined', {
           userId: socket.userId,
           timestamp: new Date(),
         });
@@ -95,6 +115,7 @@ export function createSocketServer(httpServer: HttpServer, pluginManager: Plugin
         // Send initial game state
         // TODO: Implement game state retrieval and sending
       } catch (error) {
+        logger.error('[Socket] Failed to join session:', error);
         socket.emit('error', { message: 'Failed to join session' });
       }
     });
@@ -103,6 +124,15 @@ export function createSocketServer(httpServer: HttpServer, pluginManager: Plugin
     socket.on('leave-session', async () => {
       if (socket.sessionId) {
         await socket.leave(socket.sessionId);
+        
+        // Log session membership after leaving
+        const sockets = await io.in(socket.sessionId).fetchSockets();
+        logger.info('[Socket] Session members after leave:', {
+          sessionId: socket.sessionId,
+          memberCount: sockets.length,
+          members: sockets.map(s => ((s as unknown) as AuthenticatedSocket).userId)
+        });
+        
         socket.to(socket.sessionId).emit('user-left', {
           userId: socket.userId,
           timestamp: new Date(),
@@ -153,8 +183,15 @@ export function createSocketServer(httpServer: HttpServer, pluginManager: Plugin
     });
 
     // Encounter start handler
-    socket.on('encounter:start', async (message: { sessionId: string; encounterId: string }) => {
+    socket.on('encounter:start', async (message: { sessionId: string; encounterId: string; campaignId: string }) => {
+      console.log('[Socket] Received encounter:start event:', message);
       await handleEncounterStart(io, socket, message);
+    });
+
+    // Encounter stop handler
+    socket.on('encounter:stop', async (message: { sessionId: string; encounterId: string; campaignId: string }) => {
+      console.log('[Socket] Received encounter:stop event:', message);
+      await handleEncounterStop(io, socket, message);
     });
 
     // Disconnect handler

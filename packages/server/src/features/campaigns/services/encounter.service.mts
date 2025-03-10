@@ -3,6 +3,7 @@ import { IEncounter, IEncounterCreateData, IEncounterUpdateData } from '@dungeon
 import { EncounterModel, type EncounterDocument } from '../models/encounter.model.mjs';
 import { CampaignModel } from '../models/campaign.model.mjs';
 import { GameSessionModel } from '../models/game-session.model.mjs';
+import { ActorModel, type ActorDocument } from '../../actors/models/actor.model.mjs';
 import { logger } from '../../../utils/logger.mjs';
 
 // Transform MongoDB document to API response
@@ -105,30 +106,33 @@ export class EncounterService {
     }
   }
 
-  async updateEncounter(id: string, data: IEncounterUpdateData, userId: string): Promise<IEncounter> {
+  async updateEncounter(encounterId: string, data: Partial<IEncounter>, userId: string): Promise<IEncounter> {
     try {
-      const userObjectId = new Types.ObjectId(userId);
-      const updateData = {
-        ...data,
-        updatedBy: userObjectId
-      };
-
-      const updatedEncounter = await EncounterModel.findByIdAndUpdate(
-        id,
-        updateData,
-        { new: true }
-      )
-        .lean()
-        .exec();
-
-      if (!updatedEncounter) {
+      const encounter = await EncounterModel.findById(encounterId);
+      if (!encounter) {
         throw new Error('Encounter not found');
       }
 
-      return transformEncounter(updatedEncounter);
+      // Add updatedBy to the data
+      const updateData = {
+        ...data,
+        updatedBy: new Types.ObjectId(userId)
+      };
+
+      const updatedEncounter = await EncounterModel.findByIdAndUpdate(
+        encounterId,
+        updateData,
+        { new: true }
+      );
+
+      if (!updatedEncounter) {
+        throw new Error('Failed to update encounter');
+      }
+
+      return transformEncounter(updatedEncounter.toObject());
     } catch (error) {
       logger.error('Error updating encounter:', error);
-      throw new Error('Failed to update encounter');
+      throw error;
     }
   }
 
@@ -157,11 +161,19 @@ export class EncounterService {
         throw new Error('Campaign not found');
       }
 
-      // Check if user is GM or participant
+      // Get user's actors
+      const userObjectId = new Types.ObjectId(userId);
+      const userActors = await ActorModel.find({ createdBy: userObjectId });
+      const actorIds = userActors.map((actor: ActorDocument) => actor._id) as Types.ObjectId[];
+
+      // Check if user is GM, participant, has a character in the campaign, or is admin
       const isGM = campaign.gameMasterId?.toString() === userId;
       const isParticipant = encounter.participants.some(p => p.toString() === userId);
+      const hasCharacter = campaign.members.some(memberId => 
+        actorIds.some(actorId => actorId.toString() === memberId.toString())
+      );
 
-      return isGM || isParticipant || isAdmin;
+      return isGM || isParticipant || hasCharacter || isAdmin;
     } catch (error) {
       logger.error('Error checking encounter permission:', error);
       throw new Error('Failed to check encounter permission');

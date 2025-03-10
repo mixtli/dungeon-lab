@@ -2,6 +2,8 @@ import { defineStore } from 'pinia';
 import { io } from 'socket.io-client';
 import { ref, watch } from 'vue';
 import { useAuthStore } from './auth.mjs';
+import { useRouter } from 'vue-router';
+import { useEncounterStore } from './encounter.mjs';
 
 // Define a type for the socket store
 interface SocketStore {
@@ -18,6 +20,7 @@ export const useSocketStore = defineStore('socket', () => {
   const userId = ref<string | null>(null);
   const isConnected = ref(false);
   const authStore = useAuthStore();
+  const router = useRouter();
 
   // Watch for auth store changes
   watch(() => authStore.user, (newUser) => {
@@ -47,22 +50,55 @@ export const useSocketStore = defineStore('socket', () => {
       transports: ['websocket', 'polling']
     });
 
+    // Add logging for all socket events
+    socket.value.onAny((event: string, ...args: any[]) => {
+      console.log('[Socket Event Received]', event, args);
+    });
+
+    // Add logging for all outgoing events
+    const originalEmit = socket.value.emit;
+    socket.value.emit = function(event: string, ...args: any[]) {
+      console.log('[Socket Event Sent]', event, args);
+      return originalEmit.apply(this, [event, ...args]);
+    };
+
     socket.value.on('connect', () => {
       isConnected.value = true;
-      console.log('Socket connected');
+      console.log('[Socket] Connected');
     });
 
     socket.value.on('disconnect', () => {
       isConnected.value = false;
-      console.log('Socket disconnected');
+      console.log('[Socket] Disconnected');
     });
 
     socket.value.on('error', (error: { message: string }) => {
-      console.error('Socket error:', error.message);
+      console.error('[Socket Error]', error.message);
     });
 
     socket.value.on('connect_error', (error: Error) => {
-      console.error('Socket connection error:', error);
+      console.error('[Socket Connection Error]', error);
+    });
+
+    // Global encounter:start handler
+    socket.value.on('encounter:start', (data: { campaignId: string, encounterId: string }) => {
+      console.log('[Socket] Received encounter:start event:', data);
+      // Navigate to the encounter page
+      router.push(`/campaigns/${data.campaignId}/encounters/${data.encounterId}`);
+    });
+
+    // Global encounter:stop handler
+    socket.value.on('encounter:stop', (data: { campaignId: string, encounterId: string }) => {
+      console.log('[Socket] Received encounter:stop event:', data);
+      // Update the encounter status in the store if we're on the encounter page
+      const currentRoute = router.currentRoute.value;
+      if (currentRoute.name === 'encounter-detail' && 
+          currentRoute.params.id === data.encounterId &&
+          currentRoute.params.campaignId === data.campaignId) {
+        // Import and use the encounter store
+        const encounterStore = useEncounterStore();
+        encounterStore.updateEncounterStatus(data.encounterId, data.campaignId, 'ready');
+      }
     });
   }
 

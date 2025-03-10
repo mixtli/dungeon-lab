@@ -59,12 +59,12 @@ export const useGameSessionStore = defineStore('gameSession', () => {
     error.value = null;
 
     try {
-      // Get campaignId from route params
+      // Get campaignId from route params or stored value
       const route = router.currentRoute.value;
-      const campaignId = route.params.campaignId as string;
+      const campaignId = route.params.campaignId as string || localStorage.getItem('lastActiveCampaignId');
       
       if (!campaignId) {
-        throw new Error('No campaign ID available in route');
+        throw new Error('No campaign ID available');
       }
 
       // Fetch campaign data first
@@ -75,7 +75,7 @@ export const useGameSessionStore = defineStore('gameSession', () => {
       const response = await api.get(`/api/campaigns/${campaignId}/sessions/${id}`);
       currentSession.value = response.data;
 
-      // Find the current user's character in the campaign by checking each actor
+      // Find the current user's character in the campaign
       let foundCharacter = null;
       if (currentCampaign.value) {
         for (const actorId of currentCampaign.value.members) {
@@ -94,8 +94,7 @@ export const useGameSessionStore = defineStore('gameSession', () => {
       if (foundCharacter) {
         currentCharacter.value = foundCharacter;
       } else if (!isGameMaster.value) {
-        error.value = 'No character found in this campaign';
-        throw new Error('No character found in this campaign');
+        console.warn('No character found in this campaign');
       }
 
       return currentSession.value;
@@ -200,6 +199,8 @@ export const useGameSessionStore = defineStore('gameSession', () => {
     currentSession.value = null;
     currentCampaign.value = null;
     currentCharacter.value = null;
+    campaignSessions.value = [];
+    allSessions.value = [];
     error.value = null;
   }
 

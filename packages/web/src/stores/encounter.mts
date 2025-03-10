@@ -14,12 +14,30 @@ export const useEncounterStore = defineStore('encounter', () => {
   const error = ref<string | null>(null);
   const api = useApi();
 
+  async function updateEncounterStatus(encounterId: string, campaignId: string, status: 'draft' | 'ready' | 'in_progress' | 'completed') {
+    loading.value = true;
+    error.value = null;
+    
+    try {
+      const updatedEncounter = await updateEncounter(encounterId, campaignId, { status });
+      if (currentEncounter.value && currentEncounter.value.id === encounterId) {
+        currentEncounter.value = { ...currentEncounter.value, status: updatedEncounter.status };
+      }
+    } catch (err) {
+      console.error('Failed to update encounter status:', err);
+      error.value = 'Failed to update encounter status';
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
   async function fetchEncounter(encounterId: string, campaignId: string) {
     loading.value = true;
     error.value = null;
     
     try {
-      const encounter = await api.get<IEncounter>(`/campaigns/${campaignId}/encounters/${encounterId}`);
+      const encounter = await getEncounter(encounterId, campaignId);
       
       // Initialize with empty participants array in case participants don't exist
       let participants: IActor[] = [];
@@ -43,14 +61,14 @@ export const useEncounterStore = defineStore('encounter', () => {
         participants = participantResults.filter((p): p is IActor => p !== null);
       }
       
-      // Set current encounter with participants, ensuring it's never undefined
+      // Set current encounter with participants
       currentEncounter.value = {
         ...encounter,
         participants,
       };
-    } catch (err: unknown) {
-      console.error('Error fetching encounter:', err);
-      error.value = err instanceof Error ? err.message : 'Failed to load encounter';
+    } catch (err) {
+      console.error('Failed to fetch encounter:', err);
+      error.value = 'Failed to fetch encounter';
       throw err;
     } finally {
       loading.value = false;
@@ -104,29 +122,16 @@ export const useEncounterStore = defineStore('encounter', () => {
     await fetchEncounter(encounterId, campaignId);
   }
 
-  async function removeParticipant(encounterId: string, campaignId: string, actorId: string) {
-    if (!currentEncounter.value) return;
-    
-    // Ensure we have a valid participants array
-    const currentParticipants = currentEncounter.value.participants || [];
-    const participants = currentParticipants
-      .filter(p => p && (p.id || '') !== actorId)
-      .map(p => p?.id || '');
-    
-    await updateEncounter(encounterId, campaignId, { participants });
-    await fetchEncounter(encounterId, campaignId);
-  }
-
   return {
     currentEncounter,
     loading,
     error,
-    fetchEncounter,
     createEncounter,
     getEncounter,
     updateEncounter,
     deleteEncounter,
     addParticipant,
-    removeParticipant,
+    fetchEncounter,
+    updateEncounterStatus,
   };
 }); 

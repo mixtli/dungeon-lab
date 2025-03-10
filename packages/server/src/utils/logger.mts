@@ -27,8 +27,6 @@ export const logger = {
    * Log a debug message
    */
   debug: (message: string, ...args: any[]): void => {
-    if (process.env.NODE_ENV !== 'production') {
-      console.debug(`[DEBUG] ${message}`, ...args);
-    }
+    console.debug(`[DEBUG] ${message}`, ...args);
   }
 }; 

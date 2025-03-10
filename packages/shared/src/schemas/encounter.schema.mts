@@ -28,15 +28,13 @@ export const encounterCreateSchema = encounterSchema.omit({
   participants: z.array(z.string()).default([]),
 });
 
-// Update data schema (makes all fields optional except updatedBy)
+// Update data schema (all fields optional, updatedBy handled by server)
 export const encounterUpdateSchema = encounterSchema
   .omit({
     createdBy: true,
+    updatedBy: true,
   })
-  .partial()
-  .extend({
-    updatedBy: z.string(),
-  });
+  .partial();
 
 // Export types generated from the schemas
 export type IEncounter = z.infer<typeof encounterSchema> & ApiFields;
