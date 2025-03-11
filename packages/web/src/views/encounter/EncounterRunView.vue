@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useEncounterStore } from '../../stores/encounter.mjs';
 import { useGameSessionStore } from '../../stores/game-session.mjs';
 import { useSocketStore } from '../../stores/socket.mjs';
+import MapGrid from '../../components/encounter/MapGrid.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -90,43 +91,10 @@ onMounted(async () => {
         </div>
       </div>
       
-      <!-- Status Badge -->
-      <div class="mb-4">
-        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize" 
-              :class="{
-                'bg-gray-100 text-gray-800': encounterStore.currentEncounter.status === 'draft',
-                'bg-blue-100 text-blue-800': encounterStore.currentEncounter.status === 'ready',
-                'bg-green-100 text-green-800': encounterStore.currentEncounter.status === 'in_progress',
-                'bg-purple-100 text-purple-800': encounterStore.currentEncounter.status === 'completed'
-              }">
-          {{ encounterStore.currentEncounter.status.replace('_', ' ') }}
-        </span>
-      </div>
-      
       <!-- Main Content Area -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- Map Area -->
-        <div class="lg:col-span-2 bg-white rounded-lg shadow-sm p-4">
-          <h2 class="text-lg font-medium mb-4">Map</h2>
-          <div class="aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
-            Map will be displayed here
-          </div>
-        </div>
-        
-        <!-- Participants Area -->
-        <div class="bg-white rounded-lg shadow-sm p-4">
-          <h2 class="text-lg font-medium mb-4">Participants</h2>
-          <div v-if="!encounterStore.currentEncounter.participants?.length" class="text-gray-500">
-            No participants added yet
-          </div>
-          <ul v-else class="space-y-2">
-            <li v-for="participant in encounterStore.currentEncounter.participants" 
-                :key="participant?.id || Math.random()" 
-                class="p-2 bg-gray-50 rounded flex items-center justify-between">
-              <span>{{ participant?.name || 'Unknown Actor' }}</span>
-              <span class="text-sm text-gray-500">Initiative: -</span>
-            </li>
-          </ul>
+      <div class="bg-white rounded-lg shadow-sm p-4">
+        <div class="aspect-video bg-gray-100 rounded-lg">
+          <MapGrid :encounter-id="route.params.id as string" />
         </div>
       </div>
     </div>

@@ -48,6 +48,11 @@ export type {
   IGameStateUpdateMessage,
   IPluginStateUpdateMessage,
   IMessage,
+  // Dice roll types
+  IDieRollResult,
+  IRollResult,
+  IRollCommandMessage,
+  IRollResultMessage,
 } from './schemas/websocket-messages.schema.mjs';
 
 // Plugin system interfaces and base classes
@@ -97,4 +102,19 @@ export type {
   IInviteUpdateData,
 } from './schemas/invite.schema.mjs';
 
-export { inviteSchema, inviteCreateSchema, InviteStatus } from './schemas/invite.schema.mjs'; 
+export { inviteSchema, inviteCreateSchema, InviteStatus } from './schemas/invite.schema.mjs';
+
+// Token types
+export type {
+  IToken,
+  ITokenCreateData,
+  ITokenUpdateData,
+  TokenSize
+} from './schemas/token.schema.mjs';
+
+// Token schema and enums
+export { 
+  tokenSchema, 
+  tokenCreateSchema, 
+  TokenSizeEnum 
+} from './schemas/token.schema.mjs'; 

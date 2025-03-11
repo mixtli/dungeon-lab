@@ -3,7 +3,7 @@ import { ref, onMounted, onUnmounted, nextTick } from 'vue';
 import { useRoute, RouterLink } from 'vue-router';
 import { useGameSessionStore } from '../stores/game-session.mjs';
 import { useSocketStore } from '../stores/socket.mjs';
-import { IChatMessage } from '@dungeon-lab/shared/src/schemas/websocket-messages.schema.mjs';
+import { IChatMessage, IRollCommandMessage, IRollResultMessage } from '@dungeon-lab/shared/src/schemas/websocket-messages.schema.mjs';
 import { Combobox, ComboboxInput, ComboboxOptions, ComboboxOption } from '@headlessui/vue';
 import { useAuthStore } from '../stores/auth.mjs';
 import api from '../plugins/axios.mjs';
@@ -41,9 +41,71 @@ function handleMessage(message: IChatMessage) {
   }
 }
 
+// Handle roll command
+function handleRollCommand(formula: string) {
+  const message: IRollCommandMessage = {
+    type: 'roll-command',
+    formula,
+    gameSessionId: route.params.id as string
+  };
+
+  socketStore.socket?.emit('roll-command', message, (response: { success: boolean; error?: string }) => {
+    if (!response.success) {
+      // Show error in chat
+      const errorMessage: IChatMessage = {
+        id: crypto.randomUUID(),
+        type: 'chat',
+        timestamp: new Date(),
+        sender: socketStore.userId!,
+        gameSessionId: route.params.id as string,
+        recipient: 'all',
+        data: {
+          content: `Error rolling dice: ${response.error}`,
+          isEmote: false,
+          isWhisper: false,
+          displayName: 'System',
+        },
+      };
+      messages.value.push(errorMessage);
+    }
+  });
+}
+
+// Handle roll results
+function handleRollResult(result: IRollResultMessage) {
+  // Create a chat message to display the roll result
+  const message: IChatMessage = {
+    id: crypto.randomUUID(),
+    type: 'chat',
+    timestamp: new Date(),
+    sender: result.result.userId,
+    gameSessionId: result.gameSessionId,
+    recipient: 'all',
+    data: {
+      content: `🎲 Rolled ${result.result.formula}: [${result.result.rolls.map(r => r.result).join(', ')}]${result.result.modifier ? ` + ${result.result.modifier}` : ''} = ${result.result.total}`,
+      isEmote: false,
+      isWhisper: false,
+      displayName: gameSessionStore.isGameMaster 
+        ? 'Game Master' 
+        : (gameSessionStore.currentCharacter?.name || 'Loading character...'),
+    },
+  };
+  messages.value.push(message);
+}
+
 // Send a message
 function sendMessage() {
   if (!messageInput.value.trim()) return;
+
+  // Check for roll command
+  if (messageInput.value.startsWith('/roll ')) {
+    const formula = messageInput.value.slice(6).trim();
+    handleRollCommand(formula);
+    messageInput.value = '';
+    selectedParticipant.value = null;
+    isDirectMessage.value = false;
+    return;
+  }
 
   // If we don't have character info yet, try to load it
   if (!gameSessionStore.currentCharacter && !gameSessionStore.isGameMaster) {
@@ -102,18 +164,19 @@ async function updateParticipants() {
       const userId = typeof p === 'string' ? p : p.toString();
       
       // For game master, use "Game Master" as the name
-      if (userId === gameSessionStore.currentSession?.gameMasterId) {
+      if (userId === gameSessionStore.currentSession?.gameMasterId?.toString()) {
         return {
           id: userId,
           name: 'Game Master'
         };
       }
 
-      // Find the member's character in the campaign
-      const member = gameSessionStore.currentCampaign?.members.find(m => m.userId === userId);
-      if (member) {
+      // Find the member's actor ID in the campaign
+      const actorId = gameSessionStore.currentCampaign?.members.find(m => m === userId);
+      
+      if (actorId) {
         try {
-          const response = await api.get(`/api/actors/${member.actorId}`);
+          const response = await api.get(`/api/actors/${actorId}`);
           return {
             id: userId,
             name: response.data.name
@@ -141,6 +204,9 @@ onMounted(async () => {
 
   // Listen for messages
   socketStore.socket?.on('message', handleMessage);
+  
+  // Listen for roll results
+  socketStore.socket?.on('roll-result', handleRollResult);
 
   // Get participants
   await gameSessionStore.getGameSession(route.params.id as string);
@@ -149,6 +215,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   socketStore.socket?.off('message', handleMessage);
+  socketStore.socket?.off('roll-result', handleRollResult);
   if (route.params.id) {
     socketStore.socket?.emit('leave-session', route.params.id);
   }

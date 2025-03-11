@@ -118,6 +118,36 @@ export const pluginStateUpdateMessageSchema = baseMessageSchema.extend({
   data: z.record(z.string(), z.unknown()),
 });
 
+// Roll result for a single die
+export const DieRollResult = z.object({
+  die: z.number(), // The type of die (e.g., 8 for d8)
+  result: z.number() // The actual roll result
+});
+
+// Complete roll result including all dice and modifiers
+export const RollResult = z.object({
+  formula: z.string(), // The original formula (e.g., "3d8+2")
+  rolls: z.array(DieRollResult), // Individual die results
+  modifier: z.number(), // The static modifier (e.g., +2)
+  total: z.number(), // The final total
+  userId: zId('User'), // Who made the roll
+  timestamp: z.date()
+});
+
+// Command message for rolling dice
+export const RollCommandMessage = z.object({
+  type: z.literal('roll-command'),
+  formula: z.string(), // The dice formula to roll
+  gameSessionId: zId('GameSession')
+});
+
+// Chat message for displaying roll results
+export const RollResultMessage = z.object({
+  type: z.literal('roll-result'),
+  result: RollResult,
+  gameSessionId: zId('GameSession')
+});
+
 // Union of all message types
 export const messageSchema = z.discriminatedUnion('type', [
   chatMessageSchema,
@@ -129,6 +159,8 @@ export const messageSchema = z.discriminatedUnion('type', [
   gameStateUpdateMessageSchema,
   pluginStateUpdateMessageSchema,
   pluginMessageSchema,
+  RollCommandMessage,
+  RollResultMessage,
 ]);
 
 // Export inferred types
@@ -142,4 +174,8 @@ export type IPluginActionMessage = z.infer<typeof pluginActionMessageSchema>;
 export type IGameStateUpdateMessage = z.infer<typeof gameStateUpdateMessageSchema>;
 export type IPluginStateUpdateMessage = z.infer<typeof pluginStateUpdateMessageSchema>;
 export type IPluginMessage = z.infer<typeof pluginMessageSchema>;
-export type IMessage = z.infer<typeof messageSchema>; 
+export type IMessage = z.infer<typeof messageSchema>;
+export type IDieRollResult = z.infer<typeof DieRollResult>;
+export type IRollResult = z.infer<typeof RollResult>;
+export type IRollCommandMessage = z.infer<typeof RollCommandMessage>;
+export type IRollResultMessage = z.infer<typeof RollResultMessage>; 

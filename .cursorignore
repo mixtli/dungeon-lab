@@ -1,0 +1,13 @@
+submodules
+node_modules
+dist
+.git
+.gitignore
+.cursorignore
+.DS_Store
+.vscode
+.env.local
+.env.development
+.env.test
+
+

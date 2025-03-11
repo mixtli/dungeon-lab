@@ -16,6 +16,8 @@
     "@dungeon-lab/shared": "^0.1.0",
     "@headlessui/vue": "^1.7.16",
     "@heroicons/vue": "^2.2.0",
+    "@svgdotjs/svg.js": "^3.2.4",
+    "@svgdotjs/svg.panzoom.js": "^2.1.2",
     "@vueuse/core": "^10.7.0",
     "axios": "^1.8.1",
     "computeds": "latest",

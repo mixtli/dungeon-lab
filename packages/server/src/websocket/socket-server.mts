@@ -7,6 +7,7 @@ import { handleDiceRoll } from './handlers/dice-handler.mjs';
 import { handlePluginAction } from './handlers/plugin-handler.mjs';
 import { handleGameStateUpdate } from './handlers/game-state-handler.mjs';
 import { handleEncounterStart, handleEncounterStop } from './handlers/encounter-handler.mjs';
+import { handleRollCommand } from './handlers/roll-command.handler.mjs';
 import { GameSessionModel } from '../features/campaigns/models/game-session.model.mjs';
 import { PluginManager } from '../services/plugin-manager.mjs';
 import { AuthenticatedSocket } from './types.mjs';
@@ -181,6 +182,9 @@ export function createSocketServer(httpServer: HttpServer, pluginManager: Plugin
         socket.emit('error', { message: 'Failed to process message' });
       }
     });
+
+    // Register roll command handler
+    handleRollCommand(socket);
 
     // Encounter start handler
     socket.on('encounter:start', async (message: { sessionId: string; encounterId: string; campaignId: string }) => {
