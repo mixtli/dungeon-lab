@@ -61,16 +61,19 @@ export type {
   IPluginConfiguration,
   IPluginRegistry,
   IGameSystemPlugin,
+  IGameSystemPluginWeb,
   IPluginManager,
-  IWebPlugin,
   IServerPlugin,
+  IGameSystemRegistration,
+  IActorTypeDefinition,
+  IItemTypeDefinition,
+  PluginActionResult,
 } from './types/plugin.mjs';
 
-export {
-  BasePlugin,
-  ServerPlugin,
-  WebPlugin,
-} from './types/plugin-base.mjs';
+// Export only browser-compatible plugin classes
+export { BasePlugin } from './types/plugin-base.mjs';
+export { WebPlugin } from './types/plugin-web.mjs';
+// Do NOT export ServerPlugin here!
 
 // API interfaces
 export type {
@@ -80,29 +83,10 @@ export type {
   IPaginatedApiResponse,
 } from './types/api.mjs';
 
-// Schemas (for MongoDB models)
-export { actorSchema } from './schemas/actor.schema.mjs';
-export { itemSchema } from './schemas/item.schema.mjs';
-export { userSchema } from './schemas/user.schema.mjs';
-export { campaignSchema } from './schemas/campaign.schema.mjs';
-export { mapSchema } from './schemas/map.schema.mjs';
-export { gameSessionSchema, gameSessionCreateSchema } from './schemas/game-session.schema.mjs';
-
 // Enums and constants
 export { CampaignStatus } from './schemas/campaign.schema.mjs';
 export { GameSessionStatus } from './schemas/game-session.schema.mjs';
 export { UserTheme } from './schemas/user.schema.mjs';
-
-// Utilities
-export { zId } from '@zodyac/zod-mongoose';
-
-export type {
-  IInvite,
-  IInviteCreateData,
-  IInviteUpdateData,
-} from './schemas/invite.schema.mjs';
-
-export { inviteSchema, inviteCreateSchema, InviteStatus } from './schemas/invite.schema.mjs';
 
 // Token types
 export type {
@@ -113,8 +97,4 @@ export type {
 } from './schemas/token.schema.mjs';
 
 // Token schema and enums
-export { 
-  tokenSchema, 
-  tokenCreateSchema, 
-  TokenSizeEnum 
-} from './schemas/token.schema.mjs'; 
+export { TokenSizeEnum } from './schemas/token.schema.mjs';

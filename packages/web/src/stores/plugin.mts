@@ -26,11 +26,8 @@ export const usePluginStore = defineStore('plugin', () => {
   const getPluginById = (id: string) => 
     plugins.value.find(p => p.config.id === id);
 
-  const getGameSystemById = (gameSystemId: string) => {
-    return gameSystemPlugins.value.find(p => {
-      // Assuming gameSystemId property exists on the plugin object after backend processing
-      return 'gameSystemId' in p && p.gameSystemId === gameSystemId;
-    });
+  const getGameSystemById = (id: string) => {
+    return gameSystemPlugins.value.find(p => p.config.id === id);
   };
 
   const getComponentForActorType = (gameSystemId: string, actorType: string): any => {
@@ -49,7 +46,7 @@ export const usePluginStore = defineStore('plugin', () => {
     error.value = null;
 
     try {
-      const response = await api.get('/plugins');
+      const response = await api.get('/api/plugins');
       plugins.value = response.data;
       return plugins.value;
     } catch (err: any) {
@@ -66,7 +63,7 @@ export const usePluginStore = defineStore('plugin', () => {
     error.value = null;
 
     try {
-      const response = await api.get(`/plugins/${id}`);
+      const response = await api.get(`/api/plugins/${id}`);
       // Update the plugin in the list if it exists
       const index = plugins.value.findIndex(p => p.config.id === id);
       if (index !== -1) {

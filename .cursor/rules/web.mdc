@@ -9,6 +9,7 @@ alwaysApply: false
 - All typescript files should use esm syntax
 - All typescript files should have a .mts extension if possible.
 - Never install a component library without asking.
+- Pages connected to the router are in the src/views directory.
 - Never receive or send _id fields for models.  On the web client we should always send and receive id as a string.  Mongoose in the server should handle any translation to _id.
 - Do not use element-plus
 

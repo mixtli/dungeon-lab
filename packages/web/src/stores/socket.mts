@@ -23,9 +23,11 @@ export const useSocketStore = defineStore('socket', () => {
   const router = useRouter();
 
   // Watch for auth store changes
-  watch(() => authStore.user, (newUser) => {
+  watch(() => authStore.user, async (newUser) => {
     if (newUser) {
       userId.value = newUser.id;
+      // Wait a bit for the session to be established
+      await new Promise(resolve => setTimeout(resolve, 100));
       // Initialize socket when user is authenticated
       initSocket();
     } else {

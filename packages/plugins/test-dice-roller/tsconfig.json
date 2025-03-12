@@ -1,0 +1,23 @@
+{
+  "extends": "../../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": ".",
+    "baseUrl": ".",
+    "paths": {
+      "@dungeon-lab/shared/*": ["../../shared/src/*"]
+    },
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "types": ["vue"]
+  },
+  "include": [
+    "client/**/*.mts",
+    "server/**/*.mts"
+  ],
+  "references": [
+    {
+      "path": "../../shared"
+    }
+  ]
+} 

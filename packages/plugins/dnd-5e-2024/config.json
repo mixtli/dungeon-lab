@@ -1,5 +1,5 @@
 {
-  "id": "dnd5e2024",
+  "id": "dnd-5e-2024",
   "name": "D&D 5e 2024 Edition",
   "version": "0.1.0",
   "description": "Implementation of the Dungeons & Dragons 5e 2024 Edition game system",
@@ -7,6 +7,6 @@
   "website": "https://example.com/dnd5e2024",
   "type": "gameSystem",
   "enabled": true,
-  "serverEntryPoint": "src/server/index.mjs",
-  "clientEntryPoint": "src/web/index.mjs"
+  "serverEntryPoint": "src/server/index.mts",
+  "clientEntryPoint": "src/web/index.mts"
 } 

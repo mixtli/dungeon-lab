@@ -1,9 +1,23 @@
 import { z } from 'zod';
 export declare const characterSchema: z.ZodObject<{
     name: z.ZodString;
-    level: z.ZodNumber;
-    race: z.ZodString;
-    class: z.ZodString;
+    species: z.ZodString;
+    classes: z.ZodArray<z.ZodObject<{
+        name: z.ZodString;
+        level: z.ZodNumber;
+        subclass: z.ZodOptional<z.ZodString>;
+        hitDiceType: z.ZodEnum<["d6", "d8", "d10", "d12"]>;
+    }, "strip", z.ZodTypeAny, {
+        name: string;
+        level: number;
+        hitDiceType: "d6" | "d8" | "d10" | "d12";
+        subclass?: string | undefined;
+    }, {
+        name: string;
+        level: number;
+        hitDiceType: "d6" | "d8" | "d10" | "d12";
+        subclass?: string | undefined;
+    }>, "many">;
     background: z.ZodString;
     alignment: z.ZodEnum<["lawful good", "neutral good", "chaotic good", "lawful neutral", "true neutral", "chaotic neutral", "lawful evil", "neutral evil", "chaotic evil"]>;
     experiencePoints: z.ZodNumber;
@@ -914,9 +928,13 @@ export declare const characterSchema: z.ZodObject<{
     }>;
 }, "strip", z.ZodTypeAny, {
     name: string;
-    level: number;
-    race: string;
-    class: string;
+    species: string;
+    classes: {
+        name: string;
+        level: number;
+        hitDiceType: "d6" | "d8" | "d10" | "d12";
+        subclass?: string | undefined;
+    }[];
     background: string;
     alignment: "lawful good" | "neutral good" | "chaotic good" | "lawful neutral" | "true neutral" | "chaotic neutral" | "lawful evil" | "neutral evil" | "chaotic evil";
     experiencePoints: number;
@@ -1127,9 +1145,13 @@ export declare const characterSchema: z.ZodObject<{
     } | undefined;
 }, {
     name: string;
-    level: number;
-    race: string;
-    class: string;
+    species: string;
+    classes: {
+        name: string;
+        level: number;
+        hitDiceType: "d6" | "d8" | "d10" | "d12";
+        subclass?: string | undefined;
+    }[];
     background: string;
     alignment: "lawful good" | "neutral good" | "chaotic good" | "lawful neutral" | "true neutral" | "chaotic neutral" | "lawful evil" | "neutral evil" | "chaotic evil";
     experiencePoints: number;
@@ -1342,9 +1364,23 @@ export declare const characterSchema: z.ZodObject<{
 export type ICharacter = z.infer<typeof characterSchema>;
 export declare const characterJsonSchema: z.ZodObject<{
     name: z.ZodString;
-    level: z.ZodNumber;
-    race: z.ZodString;
-    class: z.ZodString;
+    species: z.ZodString;
+    classes: z.ZodArray<z.ZodObject<{
+        name: z.ZodString;
+        level: z.ZodNumber;
+        subclass: z.ZodOptional<z.ZodString>;
+        hitDiceType: z.ZodEnum<["d6", "d8", "d10", "d12"]>;
+    }, "strip", z.ZodTypeAny, {
+        name: string;
+        level: number;
+        hitDiceType: "d6" | "d8" | "d10" | "d12";
+        subclass?: string | undefined;
+    }, {
+        name: string;
+        level: number;
+        hitDiceType: "d6" | "d8" | "d10" | "d12";
+        subclass?: string | undefined;
+    }>, "many">;
     background: z.ZodString;
     alignment: z.ZodEnum<["lawful good", "neutral good", "chaotic good", "lawful neutral", "true neutral", "chaotic neutral", "lawful evil", "neutral evil", "chaotic evil"]>;
     experiencePoints: z.ZodNumber;
@@ -2255,9 +2291,13 @@ export declare const characterJsonSchema: z.ZodObject<{
     }>;
 }, "strip", z.ZodTypeAny, {
     name: string;
-    level: number;
-    race: string;
-    class: string;
+    species: string;
+    classes: {
+        name: string;
+        level: number;
+        hitDiceType: "d6" | "d8" | "d10" | "d12";
+        subclass?: string | undefined;
+    }[];
     background: string;
     alignment: "lawful good" | "neutral good" | "chaotic good" | "lawful neutral" | "true neutral" | "chaotic neutral" | "lawful evil" | "neutral evil" | "chaotic evil";
     experiencePoints: number;
@@ -2468,9 +2508,13 @@ export declare const characterJsonSchema: z.ZodObject<{
     } | undefined;
 }, {
     name: string;
-    level: number;
-    race: string;
-    class: string;
+    species: string;
+    classes: {
+        name: string;
+        level: number;
+        hitDiceType: "d6" | "d8" | "d10" | "d12";
+        subclass?: string | undefined;
+    }[];
     background: string;
     alignment: "lawful good" | "neutral good" | "chaotic good" | "lawful neutral" | "true neutral" | "chaotic neutral" | "lawful evil" | "neutral evil" | "chaotic evil";
     experiencePoints: number;

@@ -1,54 +1,30 @@
-import { WebPlugin, IGameSystemPlugin, IGameSystemRegistration } from '@dungeon-lab/shared/index.mjs';
-import { fileURLToPath } from 'url';
-import path from 'path';
-import { characterSchema } from '../shared/types/character.mjs';
-import { weaponSchema } from '../shared/types/weapon.mjs';
-import { spellSchema } from '../shared/types/spell.mjs';
+import { WebPlugin, IGameSystemPluginWeb } from '@dungeon-lab/shared/index.mjs';
+import { validateActorData, validateItemData } from '../shared/validation.mjs';
+import { dnd5e2024GameSystem } from '../shared/game-system.mjs';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const pluginDir = path.resolve(__dirname, '../..');
-
-const dnd5e2024GameSystem: IGameSystemRegistration = {
-  actorTypes: [
-    {
-      name: 'character',
-      description: 'Player character',
-      dataSchema: characterSchema,
-      uiComponent: 'dnd5e2024-character-sheet'
-    },
-    {
-      name: 'npc',
-      description: 'Non-player character',
-      dataSchema: characterSchema,
-      uiComponent: 'dnd5e2024-npc-sheet'
-    }
-  ],
-  itemTypes: [
-    {
-      name: 'weapon',
-      description: 'Weapon item',
-      dataSchema: weaponSchema,
-      uiComponent: 'dnd5e2024-weapon-sheet'
-    },
-    {
-      name: 'spell',
-      description: 'Spell',
-      dataSchema: spellSchema,
-      uiComponent: 'dnd5e2024-spell-sheet'
-    }
-  ]
+// Hardcoded config to avoid JSON import issue with 'import with' syntax
+const config = {
+  id: 'dnd-5e-2024',
+  name: 'D&D 5e 2024 Edition',
+  version: '0.1.0',
+  description: 'Implementation of the Dungeons & Dragons 5e 2024 Edition game system',
+  author: 'Dungeon Lab Team',
+  website: 'https://example.com/dnd5e2024'
 };
 
 /**
  * D&D 5e 2024 Web Plugin
  */
-class DnD5e2024WebPlugin extends WebPlugin implements IGameSystemPlugin {
+class DnD5e2024WebPlugin extends WebPlugin implements IGameSystemPluginWeb {
   public type = 'gameSystem' as const;
-  public gameSystem: IGameSystemRegistration;
+  public gameSystem = dnd5e2024GameSystem;
 
   constructor() {
-    super(pluginDir);
-    this.gameSystem = dnd5e2024GameSystem;
+    super({
+      ...config,
+      type: 'gameSystem',
+      enabled: true
+    });
   }
 
   getActorSheet(actorType: string): string | undefined {
@@ -69,28 +45,8 @@ class DnD5e2024WebPlugin extends WebPlugin implements IGameSystemPlugin {
     return undefined;
   }
 
-  validateActorData(actorType: string, data: Record<string, unknown>): boolean {
-    if (actorType === 'character' || actorType === 'npc') {
-      const result = characterSchema.safeParse(data);
-      return result.success;
-    }
-    return false;
-  }
-
-  validateItemData(itemType: string, data: Record<string, unknown>): boolean {
-    switch (itemType) {
-      case 'weapon': {
-        const result = weaponSchema.safeParse(data);
-        return result.success;
-      }
-      case 'spell': {
-        const result = spellSchema.safeParse(data);
-        return result.success;
-      }
-      default:
-        return false;
-    }
-  }
+  validateActorData = validateActorData;
+  validateItemData = validateItemData;
 }
 
 // Export an instance of the plugin

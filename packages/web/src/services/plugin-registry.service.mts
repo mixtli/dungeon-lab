@@ -103,10 +103,14 @@ export class PluginRegistryService implements IPluginRegistry {
    */
   private async initializeEnabledPlugins(): Promise<void> {
     const enabledPlugins = this.getEnabledPlugins();
+    console.log('Enabled plugins:', enabledPlugins);
     
     for (const plugin of enabledPlugins) {
-      if ((plugin as any).clientEntryPoint) {
-        await this.loadPlugin(plugin.config.id, (plugin as any).clientEntryPoint);
+      console.log('Plugin:', plugin.config.name);
+
+      if (plugin.config.clientEntryPoint) {
+        console.log('Loading plugin:', plugin.config.id, plugin.config.clientEntryPoint);
+        await this.loadPlugin(plugin.config.id, plugin.config.clientEntryPoint)
       }
     }
   }
@@ -120,33 +124,53 @@ export class PluginRegistryService implements IPluginRegistry {
     try {
       console.info(`Loading plugin ${pluginId} from ${clientEntryPoint}`);
       
+      // Use the bare specifier for the plugin
+      const pluginPath = `@plugins/${pluginId}`;
+      console.info(`Full plugin path: ${pluginPath}`);
+      
       // Import the plugin module
-      const pluginModule = await import(/* @vite-ignore */ clientEntryPoint);
-      
-      // Get the default export as the game system plugin
-      const gameSystemPlugin = pluginModule.default as IGameSystemPlugin;
-      
-      if (!gameSystemPlugin) {
-        console.warn(`Plugin ${pluginId} does not export a default game system plugin`);
+      try {
+        console.log(`Attempting to import plugin: ${pluginPath}`);
+        const pluginModule = await import(/* @vite-ignore */ pluginPath);
+        console.info(`Successfully imported plugin module: ${pluginId}`);
+        
+        // Get the default export as the game system plugin
+        const gameSystemPlugin = pluginModule.default as IGameSystemPlugin;
+        
+        if (!gameSystemPlugin) {
+          console.warn(`Plugin ${pluginId} does not export a default game system plugin`);
+          return false;
+        }
+        
+        // Call onLoad if present
+        if (typeof gameSystemPlugin.onLoad === 'function') {
+          try {
+            await gameSystemPlugin.onLoad();
+          } catch (error) {
+            console.error(`Error calling onLoad for plugin ${pluginId}:`, error);
+          }
+        }
+        
+        // Store the game system plugin
+        this.gameSystemPlugins.set(pluginId, gameSystemPlugin);
+        
+        // Register components if they exist
+        if ('components' in pluginModule) {
+          for (const [name, component] of Object.entries(pluginModule.components)) {
+            this.registerComponent(name, component);
+          }
+        }
+        
+        console.info(`Successfully loaded plugin: ${pluginId}`);
+        return true;
+      } catch (error) {
+        console.error(`Error importing plugin module ${pluginId}:`, error);
+        console.error(`Plugin path was: ${pluginPath}`);
+        console.error(`Check that the import map contains a valid mapping for this plugin`);
         return false;
       }
-      
-      // Store the game system plugin
-      this.gameSystemPlugins.set(pluginId, gameSystemPlugin);
-      
-      // Register components if they exist
-      if ('components' in pluginModule) {
-        for (const [name, component] of Object.entries(pluginModule.components)) {
-          this.registerComponent(name, component);
-        }
-      }
-      
-      // Initialize the plugin
-      await gameSystemPlugin.onLoad();
-      
-      return true;
     } catch (error) {
-      console.error(`Error loading plugin ${pluginId}:`, error);
+      console.error(`Unexpected error loading plugin ${pluginId}:`, error);
       return false;
     }
   }
@@ -245,4 +269,5 @@ export class PluginRegistryService implements IPluginRegistry {
 }
 
 // Export a singleton instance of the PluginRegistryService
-export const pluginRegistry = new PluginRegistryService(); 
+const pluginRegistry = new PluginRegistryService();
+export { pluginRegistry };

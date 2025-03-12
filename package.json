@@ -9,14 +9,19 @@
   ],
   "scripts": {
     "dev:web": "npm run dev --workspace=@dungeon-lab/web",
-    "dev:server": "npm run dev --workspace=@dungeon-lab/server",
+    "dev:server": "npm run plugins:build && npm run dev --workspace=@dungeon-lab/server",
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:web\"",
     "build": "npm run build:shared && npm run build:server && npm run build:web",
     "build:shared": "cd packages/shared && npm run build",
     "build:server": "cd packages/server && npm run build",
     "build:web": "cd packages/web && npm run build",
     "test": "npm run test --workspaces",
-    "lint": "npm run lint --workspaces"
+    "lint": "npm run lint --workspaces",
+    "plugins:build": "for dir in packages/plugins/dnd-5e-2024 packages/plugins/test-dice-roller; do if [ -d \"$dir\" ]; then cd \"$dir\" && npm run build && cd ../../..; fi done",
+    "plugins:dev": "for dir in packages/plugins/dnd-5e-2024 packages/plugins/test-dice-roller; do if [ -d \"$dir\" ]; then cd \"$dir\" && npm run dev & fi done",
+    "plugins:clean": "for dir in packages/plugins/dnd-5e-2024 packages/plugins/test-dice-roller; do if [ -d \"$dir\" ]; then cd \"$dir\" && npm run clean && cd ../../..; fi done",
+    "plugins:test": "npm run test:plugin-build --workspace=@dungeon-lab/web",
+    "plugins:test:clean": "npm run clean:test --workspace=@dungeon-lab/web"
   },
   "keywords": [
     "vtt",

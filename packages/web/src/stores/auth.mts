@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import axios from '@/plugins/axios.mjs';
+import { usePluginStore } from './plugin.mjs';
+import { pluginRegistry } from '../services/plugin-registry.service.mjs';
 
 interface User {
   id: string;
@@ -42,6 +44,10 @@ export const useAuthStore = defineStore('auth', () => {
       if (response.data.success) {
         user.value = response.data.data.user;
         localStorage.setItem('isAuthenticated', 'true');
+        // Initialize plugins after successful login
+        await pluginRegistry.initialize();
+        const pluginStore = usePluginStore();
+        await pluginStore.initializePlugins();
         return true;
       } else {
         error.value = response.data.error?.message || 'Login failed';

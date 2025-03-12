@@ -8,7 +8,7 @@ import { config } from './config/index.mjs';
 import { configurePassport } from './config/passport.mjs';
 import { createApp } from './app.mjs';
 import { createSocketServer } from './websocket/socket-server.mjs';
-import { PluginManager } from './services/plugin-manager.mjs';
+import { logger } from './utils/logger.mjs';
 import { pluginRegistry } from './services/plugin-registry.service.mjs';
 
 // Debug environment variables
@@ -16,6 +16,8 @@ console.log('Environment Variables:');
 console.log('PORT:', process.env.PORT);
 console.log('CLIENT_URL:', process.env.CLIENT_URL);
 console.log('NODE_ENV:', process.env.NODE_ENV);
+
+const PORT = process.env.PORT || 3000;
 
 async function startServer() {
   try {
@@ -37,27 +39,31 @@ async function startServer() {
     // Create and configure Express app
     const app = await createApp();
 
+    // Initialize plugins
+    await pluginRegistry.initialize();
+
     // Create HTTP server
     const httpServer = createServer(app);
 
-    // Initialize plugin registry
-    await pluginRegistry.initialize();
-    console.log('Plugin registry initialized');
+    // Create WebSocket server
+    const io = createSocketServer(httpServer);
 
-    // Create plugin manager
-    const pluginManager = new PluginManager();
-
-    // Create and attach Socket.IO server
-    const io = createSocketServer(httpServer, pluginManager);
-    console.log('Socket.IO server initialized');
-
-    // Start server
-    const PORT = config.port;
+    // Start listening
     httpServer.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
+      logger.info(`Server is running on port ${PORT}`);
+    });
+
+    // Handle shutdown
+    process.on('SIGTERM', async () => {
+      logger.info('SIGTERM received. Shutting down...');
+      await pluginRegistry.cleanupAll();
+      httpServer.close(() => {
+        logger.info('Server closed');
+        process.exit(0);
+      });
     });
   } catch (error) {
-    console.error('Failed to start server:', error);
+    logger.error('Failed to start server:', error);
     process.exit(1);
   }
 }

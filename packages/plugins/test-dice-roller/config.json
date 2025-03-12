@@ -1,0 +1,10 @@
+{
+  "id": "test-dice-roller",
+  "name": "Test Dice Roller",
+  "version": "1.0.0",
+  "description": "A test plugin for verifying the build process",
+  "author": "DungeonLab",
+  "clientEntryPoint": "src/web/index.mts",
+  "serverEntryPoint": "src/server/index.mts",
+  "license": "MIT"
+} 

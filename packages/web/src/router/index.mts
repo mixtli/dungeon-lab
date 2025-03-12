@@ -17,6 +17,7 @@ const FileUploadDemoView = () => import('@/views/FileUploadDemo.vue');
 const NotFoundView = () => import('@/views/NotFoundView.vue');
 const PluginManagerView = () => import('@/views/plugin/PluginManagerView.vue');
 const ChatView = () => import('@/views/ChatView.vue');
+const SettingsView = () => import('@/views/SettingsView.vue');
 
 // Campaign views
 const CampaignsView = () => import('@/views/CampaignsView.vue');
@@ -235,6 +236,15 @@ const routes: RouteRecordRaw[] = [
         component: InvitesView,
         meta: {
           title: 'Campaign Invites',
+          requiresAuth: true,
+        },
+      },
+      {
+        path: 'settings',
+        name: 'settings',
+        component: SettingsView,
+        meta: {
+          title: 'Settings',
           requiresAuth: true,
         },
       },
