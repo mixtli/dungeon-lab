@@ -1,17 +1,15 @@
 import express from 'express';
 import cors from 'cors';
-import mongoose from 'mongoose';
 import session from 'express-session';
 import passport from 'passport';
 import { Router } from 'express';
 import MongoStore from 'connect-mongo';
-import { pluginRegistry } from './services/plugin-registry.service.mjs';
 import { logger } from './utils/logger.mjs';
 import { requestLogger } from './middleware/request-logger.middleware.mjs';
 import { mapRoutes } from './features/maps/index.mjs';
 import { itemRoutes } from './features/items/index.mjs';
 import { actorRoutes } from './features/actors/index.mjs';
-import { campaignRoutes, gameSessionRoutes, encounterRoutes, inviteRoutes } from './features/campaigns/index.mjs';
+import { campaignRoutes, gameSessionRoutes, inviteRoutes } from './features/campaigns/index.mjs';
 
 // Define type interfaces for our routes and middleware
 type ErrorHandlerMiddleware = (
@@ -21,16 +19,28 @@ type ErrorHandlerMiddleware = (
   next: express.NextFunction
 ) => void;
 
-type StorageServiceClass = {
-  new (config: any): any;
-};
 
 // Route handlers and middleware
 let authRoutes: Router;
 let storageRoutes: Router;
 let pluginRoutes: Router;
 let errorHandler: ErrorHandlerMiddleware;
-let StorageService: StorageServiceClass | null = null;
+
+// Create and export the session middleware for reuse
+export const sessionMiddleware = session({
+  secret: process.env.SESSION_SECRET || 'your-secret-key',
+  resave: false,
+  saveUninitialized: false,
+  store: MongoStore.create({
+    mongoUrl: process.env.MONGODB_URI || 'mongodb://localhost:27017/dungeon-lab',
+    ttl: 14 * 24 * 60 * 60 // 14 days
+  }),
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    maxAge: 14 * 24 * 60 * 60 * 1000 // 14 days
+  }
+});
 
 /**
  * Initialize all routes and middleware
@@ -42,14 +52,12 @@ async function initializeRoutes() {
     const storageRoutesModule = await import('./routes/storage.routes.mjs');
     const pluginRoutesModule = await import('./routes/plugin.routes.mjs');
     const { errorHandler: errorHandlerImport } = await import('./middleware/error.middleware.mjs');
-    const { StorageService: StorageServiceImport } = await import('./services/storage.service.mjs');
 
     // Get the router instances from each module
     authRoutes = authRoutesModule.default;
     storageRoutes = storageRoutesModule.storageRoutes;
     pluginRoutes = pluginRoutesModule.default;
     errorHandler = errorHandlerImport;
-    StorageService = StorageServiceImport;
   } catch (error) {
     logger.error('Error initializing routes:', error);
     throw error;
@@ -71,20 +79,7 @@ export async function createApp(): Promise<express.Application> {
   app.use(requestLogger);
 
   // Session configuration
-  app.use(session({
-    secret: process.env.SESSION_SECRET || 'your-secret-key',
-    resave: false,
-    saveUninitialized: false,
-    store: MongoStore.create({
-      mongoUrl: process.env.MONGODB_URI || 'mongodb://localhost:27017/dungeon-lab',
-      ttl: 14 * 24 * 60 * 60 // 14 days
-    }),
-    cookie: {
-      secure: process.env.NODE_ENV === 'production',
-      httpOnly: true,
-      maxAge: 14 * 24 * 60 * 60 * 1000 // 14 days
-    }
-  }));
+  app.use(sessionMiddleware);
 
   // Initialize passport
   app.use(passport.initialize());

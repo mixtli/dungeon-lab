@@ -10,6 +10,7 @@ import { handleEncounterStart, handleEncounterStop } from './handlers/encounter-
 import { AuthenticatedSocket } from './types.mjs';
 import { logger } from '../utils/logger.mjs';
 import { Socket } from 'socket.io';
+import { sessionMiddleware } from '../app.mjs';
 
 export function createSocketServer(httpServer: HttpServer): Server {
   const io = new Server(httpServer, {
@@ -20,13 +21,20 @@ export function createSocketServer(httpServer: HttpServer): Server {
     }
   });
 
+  // Apply Express session middleware directly to Socket.IO engine
+  // as shown in the documentation: https://socket.io/docs/v4/middlewares/
+  io.engine.use(sessionMiddleware);
+
   // Middleware to handle authentication
   io.use((socket: Socket, next) => {
+    // Now socket.request.session is available, properly typed as 'any' to avoid TS errors
     const session = (socket.request as any).session;
     if (session?.user?.id) {
       (socket as AuthenticatedSocket).userId = session.user.id;
+      logger.debug(`Socket authenticated for user: ${session.user.id}`);
       next();
     } else {
+      logger.debug('Socket authentication failed: No user in session');
       next(new Error('Authentication required'));
     }
   });
@@ -39,7 +47,7 @@ export function createSocketServer(httpServer: HttpServer): Server {
     socket.on('dice:roll', (message) => handleDiceRoll(io, socket, message));
     socket.on('plugin:action', (message) => handlePluginAction(io, socket, message));
     socket.on('game:stateUpdate', (message) => handleGameStateUpdate(io, socket, message));
-    socket.on('roll:command', (message) => handleRollCommand(socket));
+    socket.on('roll:command', (_) => handleRollCommand(socket));
     socket.on('combat:action', (message) => handleCombatAction(io, socket, message));
     socket.on('encounter:start', (message) => handleEncounterStart(io, socket, message));
     socket.on('encounter:stop', (message) => handleEncounterStop(io, socket, message));

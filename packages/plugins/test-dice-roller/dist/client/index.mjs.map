@@ -1,1 +1,0 @@
-{"version":3,"file":"index.mjs","sourceRoot":"","sources":["../../client/index.mts"],"names":[],"mappings":"AAAA,OAAO,CAAC,GAAG,CAAC,6CAA6C,CAAC,CAAC;AAE3D,+BAA+B;AAC/B,eAAe;IACb,IAAI,EAAE,kBAAkB;IACxB,OAAO,EAAE,OAAO;IAChB,MAAM,EAAE,KAAK,IAAI,EAAE;QACjB,OAAO,CAAC,GAAG,CAAC,iCAAiC,CAAC,CAAC;IACjD,CAAC;CACF,CAAC"}
