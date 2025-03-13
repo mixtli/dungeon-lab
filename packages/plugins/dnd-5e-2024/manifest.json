@@ -8,5 +8,13 @@
   "type": "gameSystem",
   "enabled": true,
   "serverEntryPoint": "src/server/index.mts",
-  "clientEntryPoint": "src/web/index.mts"
+  "clientEntryPoint": "src/web/index.mts",
+  "uiComponents": {
+    "characterCreation": {
+      "template": "src/web/ui/characterCreation/template.hbs",
+      "styles": "src/web/ui/characterCreation/styles.css",
+      "script": "src/web/ui/characterCreation/index.js",
+      "partials": {}
+    }
+  }
 } 

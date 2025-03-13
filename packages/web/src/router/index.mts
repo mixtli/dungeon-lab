@@ -10,6 +10,7 @@ const GameTableView = () => import('@/views/GameTableView.vue');
 const CharacterSheetView = () => import('@/views/CharacterSheetView.vue');
 const CharacterListView = () => import('@/views/CharacterListView.vue');
 const CharacterCreateView = () => import('@/views/CharacterCreateView.vue');
+const ActorCreateView = () => import('@/views/ActorCreateView.vue');
 const LoginView = () => import('@/views/auth/LoginView.vue');
 const RegisterView = () => import('@/views/auth/RegisterView.vue');
 const GoogleCallbackView = () => import('@/views/auth/GoogleCallbackView.vue');
@@ -79,6 +80,15 @@ const routes: RouteRecordRaw[] = [
         component: CharacterCreateView,
         meta: {
           title: 'Create Character',
+          requiresAuth: true,
+        },
+      },
+      {
+        path: 'actor/create',
+        name: 'actor-create',
+        component: ActorCreateView,
+        meta: {
+          title: 'Create Character (Plugin)',
           requiresAuth: true,
         },
       },

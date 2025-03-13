@@ -1,0 +1,145 @@
+<div class="dnd5e-character-creation">
+  <h2>Create D&D 5e Character</h2>
+  
+  <form id="character-form">
+    <div class="form-group">
+      <label for="character-name">Character Name</label>
+      <input type="text" id="character-name" name="name" value="{{name}}" required>
+    </div>
+    
+    <div class="form-section">
+      <h3>Character Basics</h3>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label for="character-race">Race</label>
+          <select id="character-race" name="race" required>
+            <option value="">Select Race</option>
+            <option value="dragonborn" {{#if (eq race "dragonborn")}}selected{{/if}}>Dragonborn</option>
+            <option value="dwarf" {{#if (eq race "dwarf")}}selected{{/if}}>Dwarf</option>
+            <option value="elf" {{#if (eq race "elf")}}selected{{/if}}>Elf</option>
+            <option value="gnome" {{#if (eq race "gnome")}}selected{{/if}}>Gnome</option>
+            <option value="half-elf" {{#if (eq race "half-elf")}}selected{{/if}}>Half-Elf</option>
+            <option value="half-orc" {{#if (eq race "half-orc")}}selected{{/if}}>Half-Orc</option>
+            <option value="halfling" {{#if (eq race "halfling")}}selected{{/if}}>Halfling</option>
+            <option value="human" {{#if (eq race "human")}}selected{{/if}}>Human</option>
+            <option value="tiefling" {{#if (eq race "tiefling")}}selected{{/if}}>Tiefling</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="character-class">Class</label>
+          <select id="character-class" name="class" required>
+            <option value="">Select Class</option>
+            <option value="barbarian" {{#if (eq class "barbarian")}}selected{{/if}}>Barbarian</option>
+            <option value="bard" {{#if (eq class "bard")}}selected{{/if}}>Bard</option>
+            <option value="cleric" {{#if (eq class "cleric")}}selected{{/if}}>Cleric</option>
+            <option value="druid" {{#if (eq class "druid")}}selected{{/if}}>Druid</option>
+            <option value="fighter" {{#if (eq class "fighter")}}selected{{/if}}>Fighter</option>
+            <option value="monk" {{#if (eq class "monk")}}selected{{/if}}>Monk</option>
+            <option value="paladin" {{#if (eq class "paladin")}}selected{{/if}}>Paladin</option>
+            <option value="ranger" {{#if (eq class "ranger")}}selected{{/if}}>Ranger</option>
+            <option value="rogue" {{#if (eq class "rogue")}}selected{{/if}}>Rogue</option>
+            <option value="sorcerer" {{#if (eq class "sorcerer")}}selected{{/if}}>Sorcerer</option>
+            <option value="warlock" {{#if (eq class "warlock")}}selected{{/if}}>Warlock</option>
+            <option value="wizard" {{#if (eq class "wizard")}}selected{{/if}}>Wizard</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label for="character-level">Level</label>
+          <input type="number" id="character-level" name="level" value="{{level}}" min="1" max="20" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="character-alignment">Alignment</label>
+          <select id="character-alignment" name="alignment">
+            <option value="">Select Alignment</option>
+            <option value="lawful-good" {{#if (eq alignment "lawful-good")}}selected{{/if}}>Lawful Good</option>
+            <option value="neutral-good" {{#if (eq alignment "neutral-good")}}selected{{/if}}>Neutral Good</option>
+            <option value="chaotic-good" {{#if (eq alignment "chaotic-good")}}selected{{/if}}>Chaotic Good</option>
+            <option value="lawful-neutral" {{#if (eq alignment "lawful-neutral")}}selected{{/if}}>Lawful Neutral</option>
+            <option value="true-neutral" {{#if (eq alignment "true-neutral")}}selected{{/if}}>True Neutral</option>
+            <option value="chaotic-neutral" {{#if (eq alignment "chaotic-neutral")}}selected{{/if}}>Chaotic Neutral</option>
+            <option value="lawful-evil" {{#if (eq alignment "lawful-evil")}}selected{{/if}}>Lawful Evil</option>
+            <option value="neutral-evil" {{#if (eq alignment "neutral-evil")}}selected{{/if}}>Neutral Evil</option>
+            <option value="chaotic-evil" {{#if (eq alignment "chaotic-evil")}}selected{{/if}}>Chaotic Evil</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="character-background">Background</label>
+          <select id="character-background" name="background">
+            <option value="">Select Background</option>
+            <option value="acolyte" {{#if (eq background "acolyte")}}selected{{/if}}>Acolyte</option>
+            <option value="charlatan" {{#if (eq background "charlatan")}}selected{{/if}}>Charlatan</option>
+            <option value="criminal" {{#if (eq background "criminal")}}selected{{/if}}>Criminal</option>
+            <option value="entertainer" {{#if (eq background "entertainer")}}selected{{/if}}>Entertainer</option>
+            <option value="folk-hero" {{#if (eq background "folk-hero")}}selected{{/if}}>Folk Hero</option>
+            <option value="guild-artisan" {{#if (eq background "guild-artisan")}}selected{{/if}}>Guild Artisan</option>
+            <option value="hermit" {{#if (eq background "hermit")}}selected{{/if}}>Hermit</option>
+            <option value="noble" {{#if (eq background "noble")}}selected{{/if}}>Noble</option>
+            <option value="outlander" {{#if (eq background "outlander")}}selected{{/if}}>Outlander</option>
+            <option value="sage" {{#if (eq background "sage")}}selected{{/if}}>Sage</option>
+            <option value="sailor" {{#if (eq background "sailor")}}selected{{/if}}>Sailor</option>
+            <option value="soldier" {{#if (eq background "soldier")}}selected{{/if}}>Soldier</option>
+            <option value="urchin" {{#if (eq background "urchin")}}selected{{/if}}>Urchin</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    
+    <div class="form-section">
+      <h3>Ability Scores</h3>
+      <div class="abilities-grid">
+        <div class="ability-score">
+          <label for="ability-str">Strength</label>
+          <input type="number" id="ability-str" name="abilities.strength" value="{{abilities.strength}}" min="3" max="20" required>
+          <span class="ability-mod" id="mod-str">{{abilityMod abilities.strength}}</span>
+        </div>
+        <div class="ability-score">
+          <label for="ability-dex">Dexterity</label>
+          <input type="number" id="ability-dex" name="abilities.dexterity" value="{{abilities.dexterity}}" min="3" max="20" required>
+          <span class="ability-mod" id="mod-dex">{{abilityMod abilities.dexterity}}</span>
+        </div>
+        <div class="ability-score">
+          <label for="ability-con">Constitution</label>
+          <input type="number" id="ability-con" name="abilities.constitution" value="{{abilities.constitution}}" min="3" max="20" required>
+          <span class="ability-mod" id="mod-con">{{abilityMod abilities.constitution}}</span>
+        </div>
+        <div class="ability-score">
+          <label for="ability-int">Intelligence</label>
+          <input type="number" id="ability-int" name="abilities.intelligence" value="{{abilities.intelligence}}" min="3" max="20" required>
+          <span class="ability-mod" id="mod-int">{{abilityMod abilities.intelligence}}</span>
+        </div>
+        <div class="ability-score">
+          <label for="ability-wis">Wisdom</label>
+          <input type="number" id="ability-wis" name="abilities.wisdom" value="{{abilities.wisdom}}" min="3" max="20" required>
+          <span class="ability-mod" id="mod-wis">{{abilityMod abilities.wisdom}}</span>
+        </div>
+        <div class="ability-score">
+          <label for="ability-cha">Charisma</label>
+          <input type="number" id="ability-cha" name="abilities.charisma" value="{{abilities.charisma}}" min="3" max="20" required>
+          <span class="ability-mod" id="mod-cha">{{abilityMod abilities.charisma}}</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="form-section">
+      <h3>Hit Points</h3>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="hp-max">Maximum Hit Points</label>
+          <input type="number" id="hp-max" name="hitPoints.maximum" value="{{hitPoints.maximum}}" min="1" required>
+        </div>
+      </div>
+    </div>
+    
+    <div class="form-actions">
+      <button type="button" id="cancel-button" class="btn btn-secondary">Cancel</button>
+      <button type="submit" id="save-button" class="btn btn-primary">Create Character</button>
+    </div>
+  </form>
+</div> 

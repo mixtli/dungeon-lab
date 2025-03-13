@@ -19,13 +19,23 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@dungeon-lab/shared": ["../shared/dist"],
-      "@dungeon-lab/shared/*": ["../shared/dist/*"],
+      "@dungeon-lab/shared": ["../shared/src"],
+      "@dungeon-lab/shared/*": ["../shared/src/*"],
+      "@plugins/dnd-5e-2024/*": ["../plugins/dnd-5e-2024/src/*"],
       "*": ["../../node_modules/*"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.mts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"],
+  "include": [
+    "src/**/*.ts", 
+    "src/**/*.mts", 
+    "src/**/*.d.ts", 
+    "src/**/*.tsx", 
+    "src/**/*.vue",
+    "../plugins/dnd-5e-2024/src/web/**/*.mts"
+  ],
   "references": [
-    { "path": "./tsconfig.node.json" }
+    { "path": "./tsconfig.node.json" },
+    { "path": "../shared" },
+    { "path": "../plugins/dnd-5e-2024" }
   ]
 } 

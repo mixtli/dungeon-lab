@@ -2,4 +2,4 @@
 export * from './index.mjs';
 
 // Then add server-specific exports
-export { ServerPlugin } from './types/plugin-server.mjs'; 
+export { ServerPlugin } from './base/server.mjs'; 

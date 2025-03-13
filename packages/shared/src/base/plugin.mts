@@ -1,4 +1,5 @@
-import { IPlugin, IPluginConfiguration } from './plugin.mjs';
+import { IPlugin, IPluginConfiguration } from '../types/plugin.mjs';
+import { IPluginMessage } from '../schemas/websocket-messages.schema.mjs';
 
 /**
  * Base Plugin class that implements IPlugin interface
@@ -22,5 +23,9 @@ export abstract class BasePlugin implements IPlugin {
 
   async onRegister(): Promise<void> {
     console.log(`[${this.config.name}] Plugin registered`);
+  }
+
+  async handlePluginMessage(message: IPluginMessage): Promise<void> {
+    console.log(`[${this.config.name}] Plugin message received: ${JSON.stringify(message)}`);
   }
 } 

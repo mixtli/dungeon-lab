@@ -1,14 +1,13 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import api from '../plugins/axios.mjs';
 import { IGameSystemPlugin, IPlugin } from '@dungeon-lab/shared/index.mjs';
+import { pluginRegistry } from '../services/plugin-registry.service.mjs';
 
 export const usePluginStore = defineStore('plugin', () => {
   // State
   const plugins = ref<IPlugin[]>([]);
   const loading = ref(false);
   const error = ref<string | null>(null);
-  const loadedComponents = ref<Map<string, any>>(new Map());
 
   // Getters
   const gameSystemPlugins = computed(() => 
@@ -23,21 +22,24 @@ export const usePluginStore = defineStore('plugin', () => {
     plugins.value.filter(p => p.config.enabled)
   );
 
-  const getPluginById = (id: string) => 
-    plugins.value.find(p => p.config.id === id);
+  const getPluginById = (id: string) => {
+    // Try from local state first, then fallback to registry
+    const localPlugin = plugins.value.find(p => p.config.id === id);
+    if (localPlugin) return localPlugin;
+    
+    return pluginRegistry.getPlugin(id);
+  };
 
   const getGameSystemById = (id: string) => {
-    return gameSystemPlugins.value.find(p => p.config.id === id);
+    // Try from local state first, then fallback to registry
+    const localGameSystem = gameSystemPlugins.value.find(p => p.config.id === id);
+    if (localGameSystem) return localGameSystem;
+    
+    return pluginRegistry.getGameSystemPlugin(id);
   };
 
   const getComponentForActorType = (gameSystemId: string, actorType: string): any => {
-    const gameSystem = getGameSystemById(gameSystemId);
-    if (!gameSystem) return null;
-
-    const componentName = gameSystem.getActorSheet(actorType);
-    if (!componentName) return null;
-
-    return loadedComponents.value.get(componentName);
+    return pluginRegistry.getActorComponent(gameSystemId, actorType);
   };
 
   // Actions
@@ -46,11 +48,11 @@ export const usePluginStore = defineStore('plugin', () => {
     error.value = null;
 
     try {
-      const response = await api.get('/api/plugins');
-      plugins.value = response.data;
+      // Get plugins directly from the registry instead of making an API call
+      plugins.value = pluginRegistry.getAllPlugins();
       return plugins.value;
     } catch (err: any) {
-      error.value = err.response?.data?.message || err.message || 'Failed to fetch plugins';
+      error.value = err.message || 'Failed to fetch plugins';
       console.error('Error fetching plugins:', err);
       return [];
     } finally {
@@ -63,17 +65,24 @@ export const usePluginStore = defineStore('plugin', () => {
     error.value = null;
 
     try {
-      const response = await api.get(`/api/plugins/${id}`);
-      // Update the plugin in the list if it exists
+      // Get plugin directly from registry instead of making an API call
+      const plugin = pluginRegistry.getPlugin(id);
+      
+      if (!plugin) {
+        throw new Error(`Plugin ${id} not found`);
+      }
+
+      // Update the plugin in the local state
       const index = plugins.value.findIndex(p => p.config.id === id);
       if (index !== -1) {
-        plugins.value[index] = response.data;
+        plugins.value[index] = plugin;
       } else {
-        plugins.value.push(response.data);
+        plugins.value.push(plugin);
       }
-      return response.data;
+      
+      return plugin;
     } catch (err: any) {
-      error.value = err.response?.data?.message || err.message || `Failed to fetch plugin ${id}`;
+      error.value = err.message || `Failed to fetch plugin ${id}`;
       console.error(`Error fetching plugin ${id}:`, err);
       return null;
     } finally {
@@ -83,7 +92,7 @@ export const usePluginStore = defineStore('plugin', () => {
 
   // Load plugin components
   function registerComponent(name: string, component: any) {
-    loadedComponents.value.set(name, component);
+    pluginRegistry.registerComponent(name, component);
   }
 
   // Dynamic plugin loading
@@ -109,13 +118,20 @@ export const usePluginStore = defineStore('plugin', () => {
 
   // Initialize all plugins when app starts
   async function initializePlugins() {
-    await fetchPlugins();
+    loading.value = true;
+    error.value = null;
     
-    // Load all enabled plugins
-    for (const plugin of enabledPlugins.value) {
-      if ('entryPoint' in plugin.config && plugin.config.clientEntryPoint) {
-        await loadPlugin(plugin.config.clientEntryPoint);
-      }
+    try {
+      // Initialize the plugin registry
+      await pluginRegistry.initialize();
+      
+      // Update local state with all plugins from registry
+      await fetchPlugins();
+    } catch (err: any) {
+      console.error('Error initializing plugin registry:', err);
+      error.value = 'Failed to initialize plugin registry: ' + err.message;
+    } finally {
+      loading.value = false;
     }
   }
 

@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { IServerPlugin, IPluginConfiguration } from './plugin.mjs';
-import { BasePlugin } from './plugin-base.mjs';
+import { IServerPlugin, IPluginConfiguration } from '../types/plugin.mjs';
+import { BasePlugin } from './plugin.mjs';
 
 /**
  * Base class for server-side plugins

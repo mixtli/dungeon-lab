@@ -27,7 +27,7 @@
     "clean": "rimraf dist"
   },
   "dependencies": {
-    "@dungeon-lab/shared": "^0.1.0",
+    "@dungeon-lab/shared": "file:../../shared",
     "express": "^4.18.2",
     "zod": "^3.22.4"
   },

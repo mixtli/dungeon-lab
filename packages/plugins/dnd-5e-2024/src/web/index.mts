@@ -1,19 +1,14 @@
-import { WebPlugin, IGameSystemPluginWeb } from '@dungeon-lab/shared/index.mjs';
+import { IGameSystemPluginWeb } from '@dungeon-lab/shared/types/plugin.mjs';
+import { WebPlugin } from '@dungeon-lab/shared/base/web.mjs';
 import { validateActorData, validateItemData } from '../shared/validation.mjs';
 import { dnd5e2024GameSystem } from '../shared/game-system.mjs';
-
-// Hardcoded config to avoid JSON import issue with 'import with' syntax
-const config = {
-  id: 'dnd-5e-2024',
-  name: 'D&D 5e 2024 Edition',
-  version: '0.1.0',
-  description: 'Implementation of the Dungeons & Dragons 5e 2024 Edition game system',
-  author: 'Dungeon Lab Team',
-  website: 'https://example.com/dnd5e2024'
-};
+import manifest from '../../manifest.json' with { type: 'json' };
 
 /**
  * D&D 5e 2024 Web Plugin
+ * 
+ * This plugin implements the D&D 5e 2024 Edition game system for the web client.
+ * It provides character sheets, item sheets, and validation functions.
  */
 class DnD5e2024WebPlugin extends WebPlugin implements IGameSystemPluginWeb {
   public type = 'gameSystem' as const;
@@ -21,12 +16,19 @@ class DnD5e2024WebPlugin extends WebPlugin implements IGameSystemPluginWeb {
 
   constructor() {
     super({
-      ...config,
+      ...manifest,
       type: 'gameSystem',
       enabled: true
     });
+    
+    console.log('D&D 5e 2024 Web Plugin initialized');
   }
 
+  /**
+   * Get the appropriate actor sheet component for a given actor type
+   * @param actorType The actor type
+   * @returns The component name, or undefined if not found
+   */
   getActorSheet(actorType: string): string | undefined {
     if (actorType === 'character') {
       return 'dnd5e2024-character-sheet';
@@ -36,6 +38,11 @@ class DnD5e2024WebPlugin extends WebPlugin implements IGameSystemPluginWeb {
     return undefined;
   }
 
+  /**
+   * Get the appropriate item sheet component for a given item type
+   * @param itemType The item type
+   * @returns The component name, or undefined if not found
+   */
   getItemSheet(itemType: string): string | undefined {
     if (itemType === 'weapon') {
       return 'dnd5e2024-weapon-sheet';
@@ -45,6 +52,7 @@ class DnD5e2024WebPlugin extends WebPlugin implements IGameSystemPluginWeb {
     return undefined;
   }
 
+  // Use actor and item data validation from shared code
   validateActorData = validateActorData;
   validateItemData = validateItemData;
 }

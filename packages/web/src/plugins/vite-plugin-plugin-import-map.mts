@@ -30,12 +30,15 @@ interface PluginConfig {
   id: string;
   name: string;
   enabled?: boolean;
-  clientEntryPoint: string;
+  clientEntryPoint?: string;
+  // For manifest.json compatibility
+  serverEntryPoint?: string;
+  type?: string;
 }
 
 /**
- * Reads and parses all plugin configuration files from the plugins directory.
- * Each plugin should have a config.json file containing metadata about the plugin.
+ * Reads and parses all plugin manifest files from the plugins directory.
+ * Each plugin should have a manifest.json file containing metadata about the plugin.
  * 
  * @returns Array of plugin configurations
  */
@@ -46,9 +49,9 @@ async function readPluginConfigs(): Promise<PluginConfig[]> {
 
     for (const entry of entries) {
       try {
-        const configPath = join(PLUGINS_DIR, entry, 'config.json');
-        const configContent = await readFile(configPath, 'utf-8');
-        const config = JSON.parse(configContent);
+        const manifestPath = join(PLUGINS_DIR, entry, 'manifest.json');
+        const manifestContent = await readFile(manifestPath, 'utf-8');
+        const config = JSON.parse(manifestContent);
         
         // Add the ID to the config if not present
         if (!config.id) {
@@ -63,7 +66,7 @@ async function readPluginConfigs(): Promise<PluginConfig[]> {
         
         configs.push(config);
       } catch (error) {
-        console.warn(`[Plugin Import Map] Failed to read plugin config for ${entry}:`, error);
+        console.warn(`[Plugin Import Map] Failed to read manifest.json for ${entry}:`, error);
       }
     }
 
@@ -86,16 +89,18 @@ async function generateDevImportMap(): Promise<object> {
   const imports: Record<string, string> = {};
 
   for (const config of configs) {
-    if (config.enabled !== false) {  // treat undefined as enabled
-      // Map directly to the source TypeScript file
-      // The paths are relative to where the plugins directory is
-      // This relies on Vite's fs.allow configuration to serve these files
-      const pluginPath = `/@fs${PLUGINS_DIR}/${config.id}/${config.clientEntryPoint}`;
+    if (config.enabled !== false && config.clientEntryPoint) {  // Must have client entry point
+      // Map directly to the client entry point
+      const relativePluginPath = `/${config.id}/${config.clientEntryPoint}`;
+      const pluginPath = `/plugins${relativePluginPath}`;
       
-      // Map the base plugin name to the entry point
-      imports[`@plugins/${config.id}`] = pluginPath;
+      // Map the plugin ID to its entry point
+      imports[`@plugins/${config.id}/${config.clientEntryPoint}`] = pluginPath;
       
-      console.log(`[Import Map] 🔗 Mapping @plugins/${config.id} -> ${pluginPath}`);
+      // Also log the actual file path for debugging
+      const actualFilePath = join(PLUGINS_DIR, config.id, config.clientEntryPoint);
+      console.log(`[Import Map] 🔗 Mapping @plugins/${config.id}/${config.clientEntryPoint} -> ${pluginPath}`);
+      console.log(`[Import Map] 📁 Actual file path: ${actualFilePath}`);
     }
   }
 

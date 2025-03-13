@@ -68,11 +68,12 @@ export type {
   IActorTypeDefinition,
   IItemTypeDefinition,
   PluginActionResult,
+  IWebPlugin
 } from './types/plugin.mjs';
 
 // Export only browser-compatible plugin classes
-export { BasePlugin } from './types/plugin-base.mjs';
-export { WebPlugin } from './types/plugin-web.mjs';
+export { BasePlugin } from './base/plugin.mjs';
+export { WebPlugin } from './base/web.mjs';
 // Do NOT export ServerPlugin here!
 
 // API interfaces

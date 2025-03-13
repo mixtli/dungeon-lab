@@ -1,4 +1,6 @@
-import { IPlugin, IPluginRegistry, IGameSystemPlugin } from '@dungeon-lab/shared/index.mjs';
+import { IPlugin, IPluginRegistry, IGameSystemPlugin, IGameSystemPluginWeb } from '@dungeon-lab/shared/index.mjs';
+import { IWebPlugin, IPluginUIAssets } from '@dungeon-lab/shared/types/plugin.mjs';
+import { loadPluginUIAssets } from './plugin-asset-loader.service.mjs';
 
 /**
  * Client-side Plugin Registry Service
@@ -6,8 +8,12 @@ import { IPlugin, IPluginRegistry, IGameSystemPlugin } from '@dungeon-lab/shared
  */
 export class PluginRegistryService implements IPluginRegistry {
   private plugins: Map<string, IPlugin> = new Map();
-  private gameSystemPlugins: Map<string, IGameSystemPlugin> = new Map();
+  private gameSystemPlugins: Map<string, IGameSystemPluginWeb> = new Map();
   private loadedComponents: Map<string, any> = new Map();
+  
+  constructor() {
+    // Register the plugins directly
+  }
   
   /**
    * Initialize the plugin registry
@@ -16,21 +22,11 @@ export class PluginRegistryService implements IPluginRegistry {
     console.info('Initializing client-side plugin registry...');
     
     try {
-      // Fetch all plugins from the server
-      const response = await fetch('/api/plugins');
-      if (!response.ok) {
-        throw new Error(`Error fetching plugins: ${response.statusText}`);
-      }
-      
-      const pluginsData = await response.json();
-      
-      // Process each plugin
-      for (const pluginData of pluginsData) {
-        this.registerPlugin(pluginData);
-      }
-      
       // Initialize all enabled plugins
       await this.initializeEnabledPlugins();
+      
+      // Load essential UI assets for enabled plugins
+      await this.loadEssentialUIAssets();
       
       console.info(`Loaded ${this.plugins.size} plugins (${this.gameSystemPlugins.size} game systems)`);
     } catch (error) {
@@ -40,61 +36,22 @@ export class PluginRegistryService implements IPluginRegistry {
   }
   
   /**
-   * Register a plugin in the registry
-   * @param pluginData The plugin data
+   * Register a plugin directly
+   * @param plugin The plugin instance
    */
-  private registerPlugin(pluginData: any): void {
+  public registerPlugin(plugin: IPlugin): void {
     try {
-      // Create the plugin object
-      const plugin: IPlugin = {
-        config: {
-          id: pluginData.config.id,
-          name: pluginData.config.name,
-          version: pluginData.config.version,
-          description: pluginData.config.description,
-          author: pluginData.config.author,
-          website: pluginData.config.website,
-          type: pluginData.config.type,
-          enabled: pluginData.config.enabled,
-          clientEntryPoint: pluginData.config.clientEntryPoint
-        },
-        onLoad: async () => {}, // Empty implementation for client-side
-        onUnload: async () => {}, // Empty implementation for client-side
-        onRegister: async () => {} // Empty implementation for client-side
-      };
-      
       // Store the plugin
       this.plugins.set(plugin.config.id, plugin);
       
-      // If this is a game system plugin, store it in the game system plugins map
-      if (pluginData.type === 'gameSystem') {
-        const gameSystemPlugin = {
-          ...plugin,
-          type: 'gameSystem' as const,
-          gameSystem: pluginData.gameSystem,
-          getActorSheet: (actorType: string) => {
-            const actorTypes = pluginData.gameSystem.actorTypes || [];
-            const actorTypeConfig = actorTypes.find((t: { name: string; uiComponent?: string }) => t.name === actorType);
-            return actorTypeConfig?.uiComponent;
-          },
-          getItemSheet: (itemType: string) => {
-            const itemTypes = pluginData.gameSystem.itemTypes || [];
-            const itemTypeConfig = itemTypes.find((t: { name: string; uiComponent?: string }) => t.name === itemType);
-            return itemTypeConfig?.uiComponent;
-          },
-          validateActorData: () => true, // Client-side validation not implemented
-          validateItemData: () => true // Client-side validation not implemented
-        };
-        this.gameSystemPlugins.set(plugin.config.id, gameSystemPlugin);
+      // If it's a game system plugin, store it in the game system plugins map
+      if (plugin.config.type === 'gameSystem') {
+        this.gameSystemPlugins.set(plugin.config.id, plugin as IGameSystemPluginWeb);
       }
       
-      // If this is a game system plugin with a client entry point, process it
-      if (pluginData.type === 'gameSystem' && pluginData.clientEntryPoint) {
-        // Store a reference to make it easier to load later
-        (plugin as any).clientEntryPoint = pluginData.clientEntryPoint;
-      }
+      console.log(`Registered plugin: ${plugin.config.id} (${plugin.config.name})`);
     } catch (error) {
-      console.error(`Error registering plugin ${pluginData.id}:`, error);
+      console.error(`Error registering plugin ${plugin.config.id}:`, error);
     }
   }
   
@@ -103,76 +60,69 @@ export class PluginRegistryService implements IPluginRegistry {
    */
   private async initializeEnabledPlugins(): Promise<void> {
     const enabledPlugins = this.getEnabledPlugins();
-    console.log('Enabled plugins:', enabledPlugins);
+    console.log('Enabled plugins:', enabledPlugins.map(p => p.config.id));
     
     for (const plugin of enabledPlugins) {
-      console.log('Plugin:', plugin.config.name);
-
-      if (plugin.config.clientEntryPoint) {
-        console.log('Loading plugin:', plugin.config.id, plugin.config.clientEntryPoint);
-        await this.loadPlugin(plugin.config.id, plugin.config.clientEntryPoint)
+      try {
+        // Call onLoad if present
+        await plugin.onLoad();
+        console.log(`Initialized plugin: ${plugin.config.id}`);
+      } catch (error) {
+        console.error(`Error initializing plugin ${plugin.config.id}:`, error);
       }
     }
   }
   
   /**
-   * Load a plugin
-   * @param pluginId The plugin ID
-   * @param clientEntryPoint The plugin's client entry point
+   * Load essential UI assets for all enabled plugins
+   * This pre-loads assets that are likely to be needed immediately
    */
-  private async loadPlugin(pluginId: string, clientEntryPoint: string): Promise<boolean> {
-    try {
-      console.info(`Loading plugin ${pluginId} from ${clientEntryPoint}`);
-      
-      // Use the bare specifier for the plugin
-      const pluginPath = `@plugins/${pluginId}`;
-      console.info(`Full plugin path: ${pluginPath}`);
-      
-      // Import the plugin module
-      try {
-        console.log(`Attempting to import plugin: ${pluginPath}`);
-        const pluginModule = await import(/* @vite-ignore */ pluginPath);
-        console.info(`Successfully imported plugin module: ${pluginId}`);
-        
-        // Get the default export as the game system plugin
-        const gameSystemPlugin = pluginModule.default as IGameSystemPlugin;
-        
-        if (!gameSystemPlugin) {
-          console.warn(`Plugin ${pluginId} does not export a default game system plugin`);
-          return false;
-        }
-        
-        // Call onLoad if present
-        if (typeof gameSystemPlugin.onLoad === 'function') {
+  private async loadEssentialUIAssets(): Promise<void> {
+    const enabledWebPlugins = this.getEnabledPlugins()
+      .filter(plugin => 'getUIAssetPaths' in plugin) as IWebPlugin[];
+    
+    // Define essential contexts that should be pre-loaded
+    const essentialContexts = ['characterSheet', 'characterCreation'];
+    
+    for (const plugin of enabledWebPlugins) {
+      for (const context of essentialContexts) {
+        // Check if the plugin has assets for this context
+        if (plugin.getUIAssetPaths(context)) {
           try {
-            await gameSystemPlugin.onLoad();
+            console.log(`Pre-loading essential UI assets for ${plugin.config.id}, context: ${context}`);
+            await loadPluginUIAssets(plugin, context);
           } catch (error) {
-            console.error(`Error calling onLoad for plugin ${pluginId}:`, error);
+            console.warn(`Failed to pre-load UI assets for ${plugin.config.id}, context: ${context}`, error);
+            // Non-critical error, continue with other assets
           }
         }
-        
-        // Store the game system plugin
-        this.gameSystemPlugins.set(pluginId, gameSystemPlugin);
-        
-        // Register components if they exist
-        if ('components' in pluginModule) {
-          for (const [name, component] of Object.entries(pluginModule.components)) {
-            this.registerComponent(name, component);
-          }
-        }
-        
-        console.info(`Successfully loaded plugin: ${pluginId}`);
-        return true;
-      } catch (error) {
-        console.error(`Error importing plugin module ${pluginId}:`, error);
-        console.error(`Plugin path was: ${pluginPath}`);
-        console.error(`Check that the import map contains a valid mapping for this plugin`);
-        return false;
       }
-    } catch (error) {
-      console.error(`Unexpected error loading plugin ${pluginId}:`, error);
-      return false;
     }
+  }
+  
+  /**
+   * Get UI assets for a plugin context, loading them if necessary
+   * @param pluginId The plugin ID
+   * @param context The UI context
+   * @returns The UI assets, or undefined if not available
+   */
+  async getPluginUIAssets(pluginId: string, context: string): Promise<IPluginUIAssets | undefined> {
+    const plugin = this.getPlugin(pluginId) as IWebPlugin | undefined;
+    if (!plugin || !('getUIAssets' in plugin)) {
+      return undefined;
+    }
+    
+    // Check if assets are already loaded
+    let assets = plugin.getUIAssets(context);
+    if (!assets) {
+      // Try to load them
+      const success = await loadPluginUIAssets(plugin, context);
+      if (success) {
+        assets = plugin.getUIAssets(context);
+      }
+    }
+    
+    return assets;
   }
   
   /**
@@ -207,7 +157,7 @@ export class PluginRegistryService implements IPluginRegistry {
    * @param pluginId The plugin ID
    * @returns The game system plugin, or undefined if not found
    */
-  getGameSystemPlugin(pluginId: string): IGameSystemPlugin | undefined {
+  getGameSystemPlugin(pluginId: string): IGameSystemPluginWeb | undefined {
     return this.gameSystemPlugins.get(pluginId);
   }
   
@@ -224,7 +174,7 @@ export class PluginRegistryService implements IPluginRegistry {
    * @returns Array of all game system plugins
    */
   getAllGameSystemPlugins(): IGameSystemPlugin[] {
-    return Array.from(this.gameSystemPlugins.values());
+    return Array.from(this.gameSystemPlugins.values()) as IGameSystemPlugin[];
   }
   
   /**
@@ -250,24 +200,7 @@ export class PluginRegistryService implements IPluginRegistry {
     
     return this.getComponent(componentName);
   }
-  
-  /**
-   * Get a component for an item type from a game system
-   * @param gameSystemId The game system ID
-   * @param itemType The item type
-   * @returns The component, or undefined if not found
-   */
-  getItemComponent(gameSystemId: string, itemType: string): any {
-    const gameSystem = this.getGameSystemPlugin(gameSystemId);
-    if (!gameSystem) return undefined;
-    
-    const componentName = gameSystem.getItemSheet(itemType);
-    if (!componentName) return undefined;
-    
-    return this.getComponent(componentName);
-  }
 }
 
-// Export a singleton instance of the PluginRegistryService
-const pluginRegistry = new PluginRegistryService();
-export { pluginRegistry };
+// Export a singleton instance of the plugin registry
+export const pluginRegistry = new PluginRegistryService();

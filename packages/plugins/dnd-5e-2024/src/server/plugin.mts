@@ -1,7 +1,8 @@
-import { IGameSystemRegistration, ServerPlugin, IGameSystemPlugin } from '@dungeon-lab/shared/index.mjs';
+import { IGameSystemRegistration, IGameSystemPlugin } from '@dungeon-lab/shared/index.mjs';
+import { ServerPlugin } from '@dungeon-lab/shared/base/server.mjs';
 import { characterSchema, weaponSchema, spellSchema } from '../shared/types/index.mjs';
 import { validateActorData, validateItemData } from '../shared/validation.mjs';
-import config from '../../config.json' with { type: 'json' };
+import config from '../../manifest.json' with { type: 'json' };
 
 export const dnd5eGameSystem: IGameSystemRegistration = {
   actorTypes: [

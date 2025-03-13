@@ -1,6 +1,44 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { IPluginActionMessage } from '../schemas/websocket-messages.schema.mjs';
+import { IPluginMessage } from '../schemas/websocket-messages.schema.mjs';
+
+/**
+ * Interface for plugin script API
+ * Defines the structure of the script module exports
+ */
+export interface IPluginScript {
+  // Initialize the UI component and return a cleanup function if needed
+  init: (container: HTMLElement, api: any, data?: any) => (() => void) | void;
+  // Any additional exported functions from the script
+  [key: string]: any;
+}
+
+/**
+ * Interface for plugin UI asset paths
+ * Defines the paths to UI assets for a context (e.g., characterCreation)
+ */
+export interface IPluginUIAssetPaths {
+  template: string;  // Path to Handlebars template file
+  styles: string;    // Path to CSS file
+  script: string;    // Path to JavaScript/TypeScript module file
+  partials?: Record<string, string>; // Map of partial name to path
+  assets?: {
+    baseDir: string; // Base directory for assets
+    files: string[]; // Array of file paths or glob patterns
+  };
+}
+
+/**
+ * Interface for loaded plugin UI assets
+ * Defines the structure of loaded UI assets for a context
+ */
+export interface IPluginUIAssets {
+  template: string;  // Handlebars template string
+  styles: string;    // CSS string
+  script: IPluginScript; // JavaScript module with exported functions
+  partials?: Record<string, string>; // Map of partial name to template string
+  assetUrls?: Record<string, string>; // Map of asset path to resolved URL
+}
 
 export interface IActorTypeDefinition {
   name: string;
@@ -40,6 +78,10 @@ export interface IPluginConfiguration {
   enabled?: boolean;
   serverEntryPoint?: string;
   clientEntryPoint?: string;
+  // Legacy UI assets configuration - relative paths within the web/ui directory
+  uiAssets?: Record<string, string>;
+  // New UI components configuration with more detailed structure
+  uiComponents?: Record<string, IPluginUIAssetPaths>;
 }
 
 export interface PluginActionResult {
@@ -62,9 +104,7 @@ export interface IPlugin {
   onLoad(): Promise<void>;     // Called when the plugin is loaded
   onUnload(): Promise<void>;   // Called when the plugin is unloaded
   onRegister(): Promise<void>; // Called when the plugin is registered with the system
-
-  // Action handling
-  handleAction?(message: IPluginActionMessage): Promise<PluginActionResult | void>;
+  handlePluginMessage(message: IPluginMessage): Promise<void>;
 }
 
 /**
@@ -82,7 +122,7 @@ export interface IGameSystemPlugin extends IPlugin {
  * Web Game System Plugin interface
  * This extends the base Game System Plugin interface with web-specific functionality
  */
-export interface IGameSystemPluginWeb extends IGameSystemPlugin {
+export interface IGameSystemPluginWeb extends IGameSystemPlugin, IWebPlugin {
   getActorSheet: (actorType: string) => string | undefined;
   getItemSheet: (itemType: string) => string | undefined;
 }
@@ -108,7 +148,10 @@ export interface IServerPlugin extends IPlugin {
  * Extends the base Plugin interface with web-specific functionality
  */
 export interface IWebPlugin extends IPlugin {
-  // Currently just a marker interface, but can be extended with web-specific functionality
+  // UI asset methods
+  getUIAssetPaths(context: string): IPluginUIAssetPaths | undefined; // Get paths to UI assets
+  getUIAssets(context: string): IPluginUIAssets | undefined; // Get loaded UI assets
+  registerUIAssets(context: string, assets: IPluginUIAssets): void; // Register loaded UI assets
 }
 
 /**
