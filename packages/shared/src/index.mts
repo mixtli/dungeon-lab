@@ -5,10 +5,24 @@ export type {
   IActorUpdateData,
 } from './schemas/actor.schema.mjs';
 
+// Export schemas for server-side validation
+export {
+  actorSchema,
+  actorCreateSchema,
+  actorUpdateSchema,
+} from './schemas/actor.schema.mjs';
+
 export type {
   IItem,
   IItemCreateData,
   IItemUpdateData,
+} from './schemas/item.schema.mjs';
+
+// Export schemas for server-side validation
+export {
+  itemSchema,
+  itemCreateSchema,
+  itemUpdateSchema,
 } from './schemas/item.schema.mjs';
 
 export type {
@@ -17,10 +31,40 @@ export type {
   IUserUpdateData,
 } from './schemas/user.schema.mjs';
 
+// Export schemas for server-side validation
+export {
+  userSchema,
+  userCreateSchema,
+  userUpdateSchema,
+  userPreferencesSchema,
+} from './schemas/user.schema.mjs';
+
+// Invite types and schemas
+export type {
+  IInvite,
+  IInviteCreateData,
+  IInviteUpdateData,
+} from './schemas/invite.schema.mjs';
+
+// Export invite schemas for server-side validation
+export {
+  inviteSchema,
+  inviteCreateSchema,
+  inviteUpdateSchema,
+  InviteStatus,
+} from './schemas/invite.schema.mjs';
+
 export type {
   ICampaign,
   ICampaignCreateData,
   ICampaignUpdateData,
+} from './schemas/campaign.schema.mjs';
+
+// Export schemas for server-side validation
+export {
+  campaignSchema,
+  campaignCreateSchema,
+  campaignUpdateSchema,
 } from './schemas/campaign.schema.mjs';
 
 export type {
@@ -29,10 +73,24 @@ export type {
   IMapUpdateData,
 } from './schemas/map.schema.mjs';
 
+// Export schemas for server-side validation
+export {
+  mapSchema,
+  mapCreateSchema,
+  mapUpdateSchema,
+} from './schemas/map.schema.mjs';
+
 export type {
   IGameSession,
   IGameSessionCreateData,
   IGameSessionUpdateData,
+} from './schemas/game-session.schema.mjs';
+
+// Export schemas for server-side validation
+export {
+  gameSessionSchema,
+  gameSessionCreateSchema,
+  gameSessionUpdateSchema,
 } from './schemas/game-session.schema.mjs';
 
 // Common types
@@ -98,4 +156,9 @@ export type {
 } from './schemas/token.schema.mjs';
 
 // Token schema and enums
-export { TokenSizeEnum } from './schemas/token.schema.mjs';
+export { 
+  TokenSizeEnum,
+  tokenSchema,
+  tokenCreateSchema,
+  tokenUpdateSchema,
+} from './schemas/token.schema.mjs';

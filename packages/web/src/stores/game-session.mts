@@ -7,7 +7,6 @@ import type { IActor } from '@dungeon-lab/shared/src/schemas/actor.schema.mjs';
 import type { ICampaign } from '@dungeon-lab/shared/src/schemas/campaign.schema.mjs';
 import type { z } from 'zod';
 import { useAuthStore } from './auth.mjs';
-import { ActorModel } from '@dungeon-lab/server/src/features/actors/models/actor.model.mjs';
 import { useRouter } from 'vue-router';
 
 // Extend IGameSession to include id for frontend use

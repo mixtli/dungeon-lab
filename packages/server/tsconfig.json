@@ -7,8 +7,8 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "paths": {
-      "@dungeon-lab/shared": ["../shared/dist"],
-      "@dungeon-lab/shared/*": ["../shared/dist/*"]
+      "@dungeon-lab/shared": ["../shared/src"],
+      "@dungeon-lab/shared/*": ["../shared/src/*"]
     }
   },
   "references": [

@@ -83,6 +83,18 @@ export function initForm(container, initialData = {}, onSubmit, onCancel) {
         onSubmit(characterData);
       }
     });
+    
+    // Initialize ability modifiers
+    updateAbilityModifiers();
+  
+    // Calculate initial hit points based on default values
+    if (defaultData.class) {
+      calculateHitPoints(
+        defaultData.class,
+        defaultData.level,
+        defaultData.abilities.constitution
+      );
+    }
   }
   
   // Handle cancel button
@@ -94,21 +106,11 @@ export function initForm(container, initialData = {}, onSubmit, onCancel) {
     });
   }
   
-  // Initialize ability modifiers
-  updateAbilityModifiers();
-  
-  // Calculate initial hit points based on default values
-  if (defaultData.class) {
-    calculateHitPoints(
-      defaultData.class,
-      defaultData.level,
-      defaultData.abilities.constitution
-    );
-  }
-  
   // Return methods to interact with the form
   return {
     getFormData: () => {
+      if (!form) return defaultData;
+      
       const formData = new FormData(form);
       return {
         name: formData.get('name'),
@@ -131,6 +133,8 @@ export function initForm(container, initialData = {}, onSubmit, onCancel) {
       };
     },
     setFormData: (data) => {
+      if (!form) return;
+      
       Object.entries(data).forEach(([key, value]) => {
         const input = form.querySelector(`[name="${key}"]`);
         if (input) {
@@ -156,13 +160,20 @@ export function initForm(container, initialData = {}, onSubmit, onCancel) {
       }
     },
     reset: () => {
-      form.reset();
-      updateAbilityModifiers();
+      if (form) {
+        form.reset();
+        updateAbilityModifiers();
+      }
+    },
+    cleanup: () => {
+      // Clean up any event listeners if needed
     }
   };
   
   // Helper function to update ability modifiers
   function updateAbilityModifiers() {
+    if (!form) return;
+    
     const abilityInputs = form.querySelectorAll('input[name^="abilities."]');
     abilityInputs.forEach(input => {
       const abilityScore = parseInt(input.value, 10) || 10;
@@ -180,7 +191,7 @@ export function initForm(container, initialData = {}, onSubmit, onCancel) {
   
   // Calculate hit points based on class and level
   function calculateHitPoints(characterClass, level, constitution) {
-    if (!characterClass || !level) return;
+    if (!characterClass || !level || !form) return;
     
     const constitutionModifier = Math.floor((constitution - 10) / 2);
     const hpInput = form.querySelector('#hp-max');

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import axios from '@/plugins/axios.mjs';
+import axios from '../plugins/axios.mjs';
 import { usePluginStore } from './plugin.mjs';
 import { pluginRegistry } from '../services/plugin-registry.service.mjs';
 

@@ -5,13 +5,11 @@ import { useGameSessionStore } from '../stores/game-session.mjs';
 import { useSocketStore } from '../stores/socket.mjs';
 import { IChatMessage, IRollCommandMessage, IRollResultMessage } from '@dungeon-lab/shared/src/schemas/websocket-messages.schema.mjs';
 import { Combobox, ComboboxInput, ComboboxOptions, ComboboxOption } from '@headlessui/vue';
-import { useAuthStore } from '../stores/auth.mjs';
 import api from '../plugins/axios.mjs';
 
 const route = useRoute();
 const gameSessionStore = useGameSessionStore();
 const socketStore = useSocketStore();
-const authStore = useAuthStore();
 
 const messages = ref<IChatMessage[]>([]);
 const messageInput = ref('');
@@ -48,27 +46,7 @@ function handleRollCommand(formula: string) {
     formula,
     gameSessionId: route.params.id as string
   };
-
-  socketStore.socket?.emit('roll-command', message, (response: { success: boolean; error?: string }) => {
-    if (!response.success) {
-      // Show error in chat
-      const errorMessage: IChatMessage = {
-        id: crypto.randomUUID(),
-        type: 'chat',
-        timestamp: new Date(),
-        sender: socketStore.userId!,
-        gameSessionId: route.params.id as string,
-        recipient: 'all',
-        data: {
-          content: `Error rolling dice: ${response.error}`,
-          isEmote: false,
-          isWhisper: false,
-          displayName: 'System',
-        },
-      };
-      messages.value.push(errorMessage);
-    }
-  });
+  socketStore.socket?.emit('message', message);
 }
 
 // Handle roll results
@@ -150,13 +128,6 @@ function handleInput(event: Event) {
   }
 }
 
-// Select a participant for direct message
-function selectParticipant(participant: { id: string; name: string }) {
-  selectedParticipant.value = participant;
-  messageInput.value = `@${participant.name} `;
-  showParticipantList.value = false;
-}
-
 // Update participants list from game session
 async function updateParticipants() {
   if (gameSessionStore.currentSession?.participants && gameSessionStore.currentCampaign) {
@@ -181,17 +152,20 @@ async function updateParticipants() {
             id: userId,
             name: response.data.name
           };
-        } catch (err) {
-          console.error(`Error fetching actor for user ${userId}:`, err);
+        } catch (error) {
+          console.error('Error fetching actor:', error);
+          return {
+            id: userId,
+            name: 'Unknown'
+          };
         }
       }
-
-      // Fallback to user ID if no character found
       return {
         id: userId,
-        name: userId
+        name: 'Unknown'
       };
     }));
+
     participants.value = participantList;
   }
 }

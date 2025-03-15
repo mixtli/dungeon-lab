@@ -4,9 +4,11 @@ import App from './App.vue';
 import router from './router/index.mjs';
 import './assets/styles/main.css';
 import api from './plugins/axios.mjs';
+import { pluginRegistry } from './services/plugin-registry.service.mjs';
 import { useAuthStore } from './stores/auth.mjs';
 import { usePluginStore } from './stores/plugin.mjs';
-import { pluginRegistry } from './services/plugin-registry.service.mjs';
+
+await pluginRegistry.initialize();
 
 const app = createApp(App);
 const pinia = createPinia();

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import { IGameSystemPlugin, IPlugin } from '@dungeon-lab/shared/index.mjs';
+import { IPlugin } from '@dungeon-lab/shared/index.mjs';
+import { IGameSystemPluginWeb } from '@dungeon-lab/shared/types/plugin.mjs';
 import { pluginRegistry } from '../services/plugin-registry.service.mjs';
 
 export const usePluginStore = defineStore('plugin', () => {
@@ -11,7 +12,7 @@ export const usePluginStore = defineStore('plugin', () => {
 
   // Getters
   const gameSystemPlugins = computed(() => 
-    plugins.value.filter(p => p.config.type === 'gameSystem') as IGameSystemPlugin[]
+    plugins.value.filter(p => p.config.type === 'gameSystem') as IGameSystemPluginWeb[]
   );
 
   const extensionPlugins = computed(() => 
@@ -39,7 +40,12 @@ export const usePluginStore = defineStore('plugin', () => {
   };
 
   const getComponentForActorType = (gameSystemId: string, actorType: string): any => {
-    return pluginRegistry.getActorComponent(gameSystemId, actorType);
+    // Get the game system plugin
+    const gameSystem = getGameSystemById(gameSystemId);
+    if (!gameSystem) return undefined;
+    
+    // Return the actor sheet component name from the game system
+    return gameSystem.getActorSheet(actorType);
   };
 
   // Actions
@@ -48,8 +54,8 @@ export const usePluginStore = defineStore('plugin', () => {
     error.value = null;
 
     try {
-      // Get plugins directly from the registry instead of making an API call
-      plugins.value = pluginRegistry.getAllPlugins();
+      // Get plugins from the registry's reactive plugins getter
+      plugins.value = pluginRegistry.plugins.value;
       return plugins.value;
     } catch (err: any) {
       error.value = err.message || 'Failed to fetch plugins';
@@ -92,7 +98,9 @@ export const usePluginStore = defineStore('plugin', () => {
 
   // Load plugin components
   function registerComponent(name: string, component: any) {
-    pluginRegistry.registerComponent(name, component);
+    // Component registration is now handled by the Vue app instance
+    // This method is kept for backward compatibility
+    console.warn('registerComponent is deprecated - use app.component() directly');
   }
 
   // Dynamic plugin loading

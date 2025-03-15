@@ -7,13 +7,13 @@
   "website": "https://example.com/dnd5e2024",
   "type": "gameSystem",
   "enabled": true,
-  "serverEntryPoint": "src/server/index.mts",
-  "clientEntryPoint": "src/web/index.mts",
+  "serverEntryPoint": "server/index.mjs",
+  "clientEntryPoint": "web/index.mjs",
   "uiComponents": {
     "characterCreation": {
-      "template": "src/web/ui/characterCreation/template.hbs",
-      "styles": "src/web/ui/characterCreation/styles.css",
-      "script": "src/web/ui/characterCreation/index.js",
+      "template": "web/ui/characterCreation/template.hbs",
+      "styles": "web/ui/characterCreation/styles.css",
+      "script": "web/ui/characterCreation/index.mts",
       "partials": {}
     }
   }

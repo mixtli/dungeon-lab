@@ -94,7 +94,7 @@ onMounted(async () => {
       <!-- Main Content Area -->
       <div class="bg-white rounded-lg shadow-sm p-4">
         <div class="aspect-video bg-gray-100 rounded-lg">
-          <MapGrid :encounter-id="route.params.id as string" />
+          <MapGrid :width="800" :height="600" />
         </div>
       </div>
     </div>

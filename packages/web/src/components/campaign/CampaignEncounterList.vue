@@ -4,7 +4,6 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useEncounterStore } from '../../stores/encounter.mjs';
 import type { IEncounter } from '@dungeon-lab/shared/src/schemas/encounter.schema.mjs';
-import { formatDate } from '../../utils/date-utils.mjs';
 import { useApi } from '../../composables/useApi.js';
 
 const props = defineProps<{

@@ -3,6 +3,8 @@ import vue from '@vitejs/plugin-vue';
 import path from 'path';
 import tailwindcss from 'tailwindcss';
 import autoprefixer from 'autoprefixer';
+import dynamicImport from 'vite-plugin-dynamic-import'
+
 // @ts-ignore - Vite will handle the .mts extension during build
 // import { pluginImportMap } from './src/plugins/vite-plugin-plugin-import-map.mts';
 
@@ -22,24 +24,27 @@ export default defineConfig(({ mode, command }) => {
   return {
     plugins: [
       // Vue plugin
+      // dynamicImport({ loose: true }),
       vue()
     ],
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, './src'),
         '@dungeon-lab/shared': path.resolve(__dirname, '../shared/src'),
-        // Set up more specific aliases for plugin imports
-        '@plugins/dnd-5e-2024': path.resolve(__dirname, '../plugins/dnd-5e-2024/src'),
+        '#plugins': path.resolve(__dirname, '../plugins'),
+        '@': path.resolve(__dirname, './src')
       },
-      // Add support for .mjs and .mts files
+      // Add support for TypeScript files
       extensions: ['.mts', '.mjs', '.ts', '.js', '.jsx', '.tsx', '.json']
     },
     optimizeDeps: {
       include: [
         '@dungeon-lab/shared',
       ],
-      // Mark plugin files as external to prevent optimization in dev
-      exclude: ['@plugins/dnd-5e-2024'],
+      // This helps with dynamic imports in dev mode
+      esbuildOptions: {
+        resolveExtensions: ['.mts', '.mjs', '.ts', '.js'],
+        plugins: []
+      }
     },
     server: {
       port: port,
@@ -53,6 +58,12 @@ export default defineConfig(({ mode, command }) => {
           changeOrigin: true,
           ws: true,
         }
+      },
+      fs: {
+        // Allow serving files from one level up, where our plugins are
+        allow: ['..', '../..', '../../..', '../../../plugins'],
+        // Explicitly allow files in the web directory
+        strict: false
       }
     },
     build: {

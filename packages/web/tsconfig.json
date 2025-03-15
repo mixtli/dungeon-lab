@@ -1,6 +1,7 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
+    "composite": true,
     "target": "ES2020",
     "useDefineForClassFields": true,
     "module": "NodeNext",
@@ -11,17 +12,18 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
+    "allowJs": true,
     "jsx": "preserve",
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
       "@dungeon-lab/shared": ["../shared/src"],
       "@dungeon-lab/shared/*": ["../shared/src/*"],
-      "@plugins/dnd-5e-2024/*": ["../plugins/dnd-5e-2024/src/*"],
+      "#plugins/dnd-5e-2024": ["../plugins/dnd-5e-2024/src"],
+      "#plugins/dnd-5e-2024/*": ["../plugins/dnd-5e-2024/src/*"],
       "*": ["../../node_modules/*"]
     }
   },

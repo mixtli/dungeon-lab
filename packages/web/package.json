@@ -4,7 +4,7 @@
   "description": "Vue.js web frontend for Dungeon Lab",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite -d",
     "build": "vue-tsc && vite build",
     "build:check": "vue-tsc && vite build",
     "preview": "vite preview",
@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@dungeon-lab/shared": "file:../shared",
+    "@dungeon-lab/plugins": "file:../plugins",
     "@headlessui/vue": "^1.7.16",
     "@heroicons/vue": "^2.2.0",
     "@svgdotjs/svg.js": "^3.2.4",

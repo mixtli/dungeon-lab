@@ -74,9 +74,9 @@ const isSubmitting = ref(false);
 
 // Get all available game systems that support character creation UI
 const availableGameSystems = computed(() => {
-  return pluginRegistry.getAllGameSystemPlugins().filter(plugin => {
+  return pluginRegistry.gameSystemPlugins.value.filter(plugin => {
     // Check if this plugin has UI assets for character creation
-    return (plugin as any).getUIAssets?.('characterCreation');
+    return plugin.getUIAssets?.('characterCreation');
   });
 });
 

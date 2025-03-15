@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
-import { useApi } from '../../composables/useApi';
+import { useApi } from '../../composables/useApi.ts';
 
 interface Encounter {
   id: string;
@@ -13,7 +12,6 @@ interface Encounter {
   [key: string]: any;
 }
 
-const router = useRouter();
 const api = useApi();
 
 const encounters = ref<Encounter[]>([]);

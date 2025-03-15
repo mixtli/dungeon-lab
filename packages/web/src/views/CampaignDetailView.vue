@@ -86,9 +86,10 @@ function showNotification(message: string) {
   alert(message);
 }
 
-function handleSessionCreated(sessionId: string) {
+function handleSessionCreated() {
+  // Refresh campaign data
+  campaignStore.fetchCampaign(campaignId);
   showNotification('Game session scheduled successfully');
-  // Optionally, you could refresh the campaign data here
 }
 </script>
 

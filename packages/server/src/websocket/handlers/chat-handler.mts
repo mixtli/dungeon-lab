@@ -1,5 +1,5 @@
 import { Server } from 'socket.io';
-import type { IMessage } from '@dungeon-lab/shared/index.mjs';
+import type { IMessage, IChatMessage } from '@dungeon-lab/shared/index.mjs';
 import { GameSessionModel } from '../../features/campaigns/models/game-session.model.mjs';
 import { AuthenticatedSocket } from '../types.mjs';
 import { logger } from '../../utils/logger.mjs';
@@ -10,6 +10,11 @@ import { z } from 'zod';
 import { RemoteAuthenticatedSocket } from '../types.mjs';
 import { Types } from 'mongoose';
 
+// Type guard to check if a message is a chat message
+function isChatMessage(message: IMessage): message is IChatMessage {
+  return message.type === 'chat';
+}
+
 export async function handleChatMessage(
   io: Server,
   socket: AuthenticatedSocket,
@@ -18,6 +23,12 @@ export async function handleChatMessage(
   try {
     if (!socket.sessionId) {
       socket.emit('error', { message: 'Not in a game session' });
+      return;
+    }
+
+    // Verify this is a chat message
+    if (!isChatMessage(message)) {
+      socket.emit('error', { message: 'Invalid message type' });
       return;
     }
 
@@ -50,10 +61,14 @@ export async function handleChatMessage(
 
       case 'gm':
         // Find GM socket and send message
+        if (!campaign.gameMasterId) {
+          socket.emit('error', { message: 'Game master not found' });
+          return;
+        }
         const sockets = await io.in(socket.sessionId).fetchSockets();
         const gmSocket = sockets.find(s => {
           const authSocket = s as unknown as RemoteAuthenticatedSocket;
-          return authSocket.data.userId === message.recipient;
+          return campaign.gameMasterId && authSocket.data.userId === campaign.gameMasterId.toString();
         });
         if (gmSocket) {
           (gmSocket as unknown as RemoteAuthenticatedSocket).emit('message', message);

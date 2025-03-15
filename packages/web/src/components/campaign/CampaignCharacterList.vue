@@ -11,57 +11,60 @@ interface Character {
 }
 
 const props = defineProps<{
-  campaignId: string;
+  characters?: Character[];
+  campaignId?: string;
 }>();
 
+const localCharacters = ref<Character[]>(props.characters || []);
 const router = useRouter();
 const campaignStore = useCampaignStore();
-const characters = ref<Character[]>([]);
-const isLoading = ref(true);
+const isLoading = ref(!props.characters);
 const error = ref<string | null>(null);
 
 const campaign = computed(() => campaignStore.currentCampaign);
 
 onMounted(async () => {
-  try {
-    // Get member IDs from the campaign
-    if (!campaign.value?.members || !campaign.value?.id) {
-      throw new Error('No members found in campaign');
-    }
-
-    // Fetch each character individually and track non-existent members
-    const nonExistentMembers = new Set<string>();
-    const characterPromises = campaign.value.members.map(async (memberId) => {
-      const response = await fetch(`/api/actors/${memberId}`);
-      if (response.status === 404) {
-        nonExistentMembers.add(memberId);
-        return null;
+  if (!props.characters && props.campaignId) {
+    try {
+      // Get member IDs from the campaign
+      if (!campaign.value?.members || !campaign.value?.id) {
+        throw new Error('No members found in campaign');
       }
-      if (!response.ok) {
-        console.warn(`Failed to fetch character ${memberId}`);
-        return null;
-      }
-      return response.json();
-    });
 
-    const results = await Promise.all(characterPromises);
-    characters.value = results
-      .filter((char): char is Character => char !== null && char.type === 'character');
-
-    // If we found any non-existent members, clean them up from the campaign
-    if (nonExistentMembers.size > 0) {
-      const updatedMembers = campaign.value.members.filter(id => !nonExistentMembers.has(id));
-      await campaignStore.updateCampaign(String(campaign.value.id), {
-        members: updatedMembers,
-        updatedBy: String(campaign.value.updatedBy)
+      // Fetch each character individually and track non-existent members
+      const nonExistentMembers = new Set<string>();
+      const characterPromises = campaign.value.members.map(async (memberId) => {
+        const response = await fetch(`/api/actors/${memberId}`);
+        if (response.status === 404) {
+          nonExistentMembers.add(memberId);
+          return null;
+        }
+        if (!response.ok) {
+          console.warn(`Failed to fetch character ${memberId}`);
+          return null;
+        }
+        return response.json();
       });
-      console.info(`Removed ${nonExistentMembers.size} non-existent members from campaign`);
+
+      const results = await Promise.all(characterPromises);
+      localCharacters.value = results
+        .filter((char): char is Character => char !== null && char.type === 'character');
+
+      // If we found any non-existent members, clean them up from the campaign
+      if (nonExistentMembers.size > 0) {
+        const updatedMembers = campaign.value.members.filter(id => !nonExistentMembers.has(id));
+        await campaignStore.updateCampaign(String(campaign.value.id), {
+          members: updatedMembers,
+          updatedBy: String(campaign.value.updatedBy)
+        });
+        console.info(`Removed ${nonExistentMembers.size} non-existent members from campaign`);
+      }
+    } catch (err) {
+      console.error('Error loading characters:', err);
+      error.value = 'Failed to load characters. Please try again later.';
+    } finally {
+      isLoading.value = false;
     }
-  } catch (err) {
-    console.error('Error loading characters:', err);
-    error.value = 'Failed to load characters. Please try again later.';
-  } finally {
-    isLoading.value = false;
   }
 });
 
@@ -77,7 +80,7 @@ async function handleRemove(characterId: string) {
     });
     
     // Update local list
-    characters.value = characters.value.filter(char => char.id !== characterId);
+    localCharacters.value = localCharacters.value.filter(char => char.id !== characterId);
   } catch (err) {
     console.error('Error removing character:', err);
     error.value = 'Failed to remove character. Please try again later.';
@@ -113,7 +116,7 @@ function handleCreate() {
     </div>
 
     <!-- Empty State -->
-    <div v-else-if="characters.length === 0" class="text-center py-8 bg-gray-50 rounded-lg">
+    <div v-else-if="localCharacters.length === 0" class="text-center py-8 bg-gray-50 rounded-lg">
       <h3 class="text-lg font-medium text-gray-900 mb-2">No Characters Yet</h3>
       <p class="text-gray-500 mb-4">Add your first character to get started</p>
       <button
@@ -128,7 +131,7 @@ function handleCreate() {
     <!-- Character List -->
     <div v-else class="bg-white rounded-lg border border-gray-200 divide-y divide-gray-200">
       <div
-        v-for="character in characters"
+        v-for="character in localCharacters"
         :key="character.id"
         class="flex items-center justify-between px-4 py-3 hover:bg-gray-50"
       >

@@ -4,11 +4,10 @@ import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '../../stores/auth.mjs';
 import { ArrowPathIcon } from '@heroicons/vue/24/outline';
 
+const isLoading = ref(true);
 const router = useRouter();
 const route = useRoute();
 const authStore = useAuthStore();
-const isLoading = ref(true);
-const errorMessage = ref('');
 
 onMounted(async () => {
   try {

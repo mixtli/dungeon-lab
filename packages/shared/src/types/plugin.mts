@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { IPluginMessage } from '../schemas/websocket-messages.schema.mjs';
+import { IPluginActionMessage } from '../schemas/websocket-messages.schema.mjs';
 
 /**
  * Interface for plugin script API
@@ -133,6 +134,7 @@ export interface IGameSystemPluginWeb extends IGameSystemPlugin, IWebPlugin {
  */
 export interface IGameSystemPluginServer extends IGameSystemPlugin {
   router?: Router; // Optional Express router for plugin-specific routes
+  handleAction?: (message: IPluginMessage | IPluginActionMessage) => Promise<PluginActionResult | void>;
 }
 
 /**

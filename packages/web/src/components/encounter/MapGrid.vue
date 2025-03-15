@@ -6,8 +6,9 @@ import { useMapStore } from '../../stores/map.mjs';
 import { useEncounterStore } from '../../stores/encounter.mjs';
 import { storeToRefs } from 'pinia';
 
-const props = defineProps<{
-  encounterId: string;
+const { width, height } = defineProps<{
+  width: number;
+  height: number;
 }>();
 
 const mapStore = useMapStore();
@@ -18,6 +19,10 @@ const svgContainer = ref<HTMLDivElement | null>(null);
 const draw = ref<Svg | null>(null);
 const gridCells = ref<any[]>([]);
 const isExpanded = ref(false);
+const containerWidth = ref(800);
+const aspectRatio = width / height;
+const svgWidth = round(containerWidth.value);
+const svgHeight = round(containerWidth.value / aspectRatio);
 
 // Watch for changes in the encounter's map
 watch(() => currentEncounter.value?.mapId, async (newMapId) => {
@@ -32,6 +37,13 @@ async function loadMap(mapId: string) {
     await mapStore.fetchMap(mapId);
     if (mapStore.currentMap && svgContainer.value) {
       renderMap();
+      // Update grid cells if available
+      if (currentEncounter.value && 'map' in currentEncounter.value) {
+        const encounter = currentEncounter.value as { map?: { cells?: any[] } };
+        if (encounter.map?.cells) {
+          gridCells.value = encounter.map.cells;
+        }
+      }
     }
   } catch (error) {
     console.error('Failed to load map:', error);
@@ -47,7 +59,7 @@ function round(num: number): number {
 function renderMap() {
   if (!mapStore.currentMap || !svgContainer.value) return;
 
-  const { gridColumns, gridRows, imageUrl, aspectRatio } = mapStore.currentMap;
+  const { gridColumns, gridRows, imageUrl } = mapStore.currentMap;
   console.log('Map data:', mapStore.currentMap); // Debug log
 
   // Clear previous SVG if it exists
@@ -62,7 +74,6 @@ function renderMap() {
   // Set the SVG dimensions based on container width and aspect ratio
   const containerWidth = svgContainer.value.clientWidth;
   const svgWidth = round(containerWidth);
-  const svgHeight = round(containerWidth / aspectRatio);
 
   // Calculate cell size based on grid dimensions
   const cellSize = round(svgWidth / gridColumns);
@@ -83,16 +94,8 @@ function renderMap() {
   // Add the map image as background
   if (imageUrl) {
     console.log('Loading map image:', imageUrl); // Debug log
-    const image = mapGroup.image(imageUrl)
+    mapGroup.image(imageUrl)
       .size(totalGridWidth, totalGridHeight);
-
-    // Handle image load errors
-    const imgElement = image.node as SVGImageElement;
-    imgElement.addEventListener('error', (error) => {
-      console.error('Failed to load map image:', error);
-    });
-  } else {
-    console.error('No image URL provided for map');
   }
 
   // Create grid cells
@@ -179,23 +182,39 @@ function toggleExpanded() {
 </script>
 
 <template>
-  <div 
-    v-if="!isExpanded"
-    ref="svgContainer" 
-    class="relative w-full h-full bg-gray-800 overflow-hidden"
-  >
-    <!-- Expand button -->
-    <div class="absolute top-2 right-2 z-10">
-      <button
-        @click="toggleExpanded"
-        class="p-2 rounded-lg bg-black/30 hover:bg-black/50 transition-colors"
-        title="Expand map"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white/70" viewBox="0 0 20 20" fill="currentColor">
-          <path d="M3 4a1 1 0 011-1h4a1 1 0 010 2H6.414l2.293 2.293a1 1 0 11-1.414 1.414L5 6.414V8a1 1 0 01-2 0V4zm9 1a1 1 0 010-2h4a1 1 0 011 1v4a1 1 0 01-2 0V6.414l-2.293 2.293a1 1 0 11-1.414-1.414L13.586 5H12zm-9 7a1 1 0 012 0v1.586l2.293-2.293a1 1 0 111.414 1.414L6.414 15H8a1 1 0 010 2H4a1 1 0 01-1-1v-4zm13-1a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 010-2h1.586l-2.293-2.293a1 1 0 111.414-1.414L15 13.586V12a1 1 0 011-1z" />
-        </svg>
-      </button>
-    </div>
+  <div class="map-grid" ref="gridContainer">
+    <svg
+      :width="svgWidth"
+      :height="svgHeight"
+      viewBox="0 0 100 100"
+      class="border border-gray-300"
+    >
+      <!-- Grid lines -->
+      <g>
+        <!-- Vertical lines -->
+        <line
+          v-for="x in 10"
+          :key="`v-${x}`"
+          :x1="x * 10"
+          :y1="0"
+          :x2="x * 10"
+          :y2="100"
+          stroke="#ddd"
+          stroke-width="0.5"
+        />
+        <!-- Horizontal lines -->
+        <line
+          v-for="y in 10"
+          :key="`h-${y}`"
+          :x1="0"
+          :y1="y * 10"
+          :x2="100"
+          :y2="y * 10"
+          stroke="#ddd"
+          stroke-width="0.5"
+        />
+      </g>
+    </svg>
   </div>
 
   <!-- Teleport expanded view to body -->

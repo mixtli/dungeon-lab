@@ -1,4 +1,5 @@
-import { IGameSystemRegistration, ServerPlugin, IGameSystemPlugin } from '@dungeon-lab/shared/index.mjs';
+import { IGameSystemRegistration, IGameSystemPlugin } from '@dungeon-lab/shared/index.mjs';
+import { ServerPlugin } from '@dungeon-lab/shared/base/server.mjs';
 import { validateActorData, validateItemData } from '../shared/validation.mjs';
 export declare const dnd5eGameSystem: IGameSystemRegistration;
 export declare class DnD5e2024ServerPlugin extends ServerPlugin implements IGameSystemPlugin {

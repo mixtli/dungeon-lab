@@ -48,16 +48,16 @@ let cleanup: (() => void) | null = null;
 // Watch for plugin or context changes
 watch(
   () => [props.pluginId, props.context],
-  () => {
+  async () => {
     if (pluginMountPoint.value) {
-      loadPluginUI();
+      await loadPluginUI();
     }
   }
 );
 
-onMounted(() => {
+onMounted(async () => {
   if (props.pluginId && props.context) {
-    loadPluginUI();
+    await loadPluginUI();
   }
 });
 
@@ -104,14 +104,29 @@ async function loadPluginUI() {
     // Create plugin API
     const pluginAPI = createPluginAPI(uiAssets);
     
+    // Explicitly call registerHelpers if available, right before template compilation
+    if (uiAssets.script.registerHelpers && typeof uiAssets.script.registerHelpers === 'function') {
+      try {
+        console.log(`Explicitly registering helpers for ${props.pluginId} before template compilation`);
+        uiAssets.script.registerHelpers(window.Handlebars);
+      } catch (error) {
+        console.error(`Error registering helpers for ${props.pluginId}:`, error);
+      }
+    }
+    
     // Compile and render template
-    const template = window.Handlebars.compile(uiAssets.template);
-    pluginMountPoint.value.innerHTML = template({
-      ...props.initialData,
-      pluginId: props.pluginId,
-      pluginName: plugin.config.name,
-      assetUrls: uiAssets.assetUrls || {}
-    });
+    try {
+      const template = window.Handlebars.compile(uiAssets.template);
+      pluginMountPoint.value.innerHTML = template({
+        ...props.initialData,
+        pluginId: props.pluginId,
+        pluginName: plugin.config.name,
+        assetUrls: uiAssets.assetUrls || {}
+      });
+    } catch (templateError) {
+      console.error('Error compiling or rendering template:', templateError);
+      throw new Error(`Failed to compile template: ${templateError instanceof Error ? templateError.message : String(templateError)}`);
+    }
     
     // Execute script using the module's init function
     let pluginCleanup: (() => void) | void;
