@@ -1,6 +1,8 @@
 import { Router } from 'express';
+import multer from 'multer';
 import { ActorController } from '../controllers/actor.controller.mjs';
 import { ActorService } from '../services/actor.service.mjs';
+import { uploadActorImage } from '../controllers/actor-image.controller.mjs';
 import { authenticate } from '../../../middleware/auth.middleware.mjs';
 import { validateRequest } from '../../../middleware/validation.middleware.mjs';
 import { actorCreateSchema, actorUpdateSchema } from '@dungeon-lab/shared/src/schemas/actor.schema.mjs';
@@ -8,6 +10,14 @@ import { actorCreateSchema, actorUpdateSchema } from '@dungeon-lab/shared/src/sc
 // Initialize services and controllers
 const actorService = new ActorService();
 const actorController = new ActorController(actorService);
+
+// Set up multer for memory storage (not disk)
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  }
+});
 
 // Create router
 const router = Router();
@@ -31,5 +41,13 @@ router.delete('/:id', authenticate, boundDeleteActor);
 
 // Campaign-specific routes
 router.get('/campaigns/:campaignId/actors', authenticate, boundGetActors);
+
+// Image upload route
+router.post(
+  '/images/:type', 
+  authenticate, 
+  upload.single('image'),
+  uploadActorImage
+);
 
 export { router as actorRoutes }; 

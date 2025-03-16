@@ -6,6 +6,7 @@
     "moduleResolution": "NodeNext",
     "outDir": "./dist",
     "rootDir": "./src",
+    "allowJs": true,
     "composite": true,
     "declaration": true,
     "declarationMap": true,
@@ -15,7 +16,7 @@
       "@dungeon-lab/shared/*": ["../../shared/src/*"]
     }
   },
-  "include": ["src/**/*.mts", "src/**/*.ts"],
+  "include": ["src/**/*.mts", "src/**/*.ts", "src/**/*.js", "src/**/*.mjs"],
   "references": [
     { "path": "../../shared" }
   ]

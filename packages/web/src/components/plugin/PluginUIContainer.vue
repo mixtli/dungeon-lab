@@ -23,8 +23,6 @@ import { ref, onMounted, onBeforeUnmount, watch } from 'vue';
 import { pluginRegistry } from '@/services/plugin-registry.service.mjs';
 import { IGameSystemPluginWeb } from '@dungeon-lab/shared/index.mjs';
 import { IPluginUIAssets } from '@dungeon-lab/shared/types/plugin.mjs';
-// Fix: We need to install handlebars
-// @ts-ignore - Handlebars doesn't have TypeScript types available
 import Handlebars from 'handlebars';
 
 const props = defineProps<{

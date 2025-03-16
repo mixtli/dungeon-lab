@@ -11,9 +11,6 @@ declare global {
   }
 }
 
-// Import UI assets directly using traditional fetch-based approach
-// for better compatibility with Vite's limitations
-
 /**
  * D&D 5e 2024 Web Plugin
  * 

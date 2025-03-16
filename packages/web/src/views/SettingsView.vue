@@ -1,13 +1,12 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import { usePluginStore } from '@/stores/plugin.mts';
+import { ref, computed, onMounted } from 'vue';
+import { pluginRegistry } from '@/services/plugin-registry.service.mjs';
 
-const pluginStore = usePluginStore();
 const selectedGameSystem = ref<string>(localStorage.getItem('activeGameSystem') || '');
 const previousGameSystem = ref<string>('');
+const gameSystemPlugins = computed(() => pluginRegistry.getGameSystemPlugins());
 
-onMounted(async () => {
-  await pluginStore.fetchPlugins();
+onMounted(() => {
   previousGameSystem.value = selectedGameSystem.value;
 });
 
@@ -17,14 +16,14 @@ async function handleGameSystemChange(event: Event) {
 
   // If there was a previous game system, call its onUnload handler
   if (previousGameSystem.value) {
-    const oldPlugin = pluginStore.getGameSystemById(previousGameSystem.value);
+    const oldPlugin = pluginRegistry.getGameSystemPlugin(previousGameSystem.value);
     if (oldPlugin?.onUnload) {
       await oldPlugin.onUnload();
     }
   }
 
   // Call onLoad handler for the new game system
-  const newPlugin = pluginStore.getGameSystemById(newGameSystemId);
+  const newPlugin = pluginRegistry.getGameSystemPlugin(newGameSystemId);
   if (newPlugin?.onLoad) {
     await newPlugin.onLoad();
   }
@@ -59,7 +58,7 @@ async function handleGameSystemChange(event: Event) {
         >
           <option value="" disabled>Select a game system</option>
           <option
-            v-for="plugin in pluginStore.gameSystemPlugins"
+            v-for="plugin in gameSystemPlugins"
             :key="plugin.config.id"
             :value="plugin.config.id"
           >

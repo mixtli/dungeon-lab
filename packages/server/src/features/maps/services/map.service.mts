@@ -1,6 +1,6 @@
 import { IMap, IMapCreateData, IMapUpdateData } from '@dungeon-lab/shared/index.mjs';
 import { MapModel } from '../models/map.model.mjs';
-import { MinioService } from '../../../services/minio.service.mjs';
+import storageService from '../../../services/storage.service.mjs';
 import { v4 as uuidv4 } from 'uuid';
 import sharp from 'sharp';
 import { logger } from '../../../utils/logger.mjs';
@@ -21,7 +21,7 @@ function isMulterFile(file: File | MulterFile): file is MulterFile {
 }
 
 export class MapService {
-  constructor(private minioService: MinioService) {}
+  constructor() {}
 
   async getMaps(campaignId: string): Promise<IMap[]> {
     try {
@@ -74,10 +74,10 @@ export class MapService {
         ? data.image.mimetype 
         : data.image.type;
 
-      // Upload files to storage
+      // Upload files to storage using the consolidated service
       await Promise.all([
-        this.minioService.uploadBuffer(imageBuffer, imageKey, contentType),
-        this.minioService.uploadBuffer(thumbnailBuffer, thumbnailKey, contentType)
+        storageService.uploadFile(imageBuffer, `original.${imageMetadata.format}`, contentType, `maps/${mapId}`),
+        storageService.uploadFile(thumbnailBuffer, `thumbnail.${imageMetadata.format}`, contentType, `maps/${mapId}`)
       ]);
 
       // Calculate grid dimensions and aspect ratio
@@ -130,8 +130,8 @@ export class MapService {
 
       // Delete files from storage
       await Promise.all([
-        this.minioService.deleteObject(map.imageUrl),
-        this.minioService.deleteObject(map.thumbnailUrl)
+        storageService.deleteFile(map.imageUrl),
+        storageService.deleteFile(map.thumbnailUrl)
       ]);
 
       await map.deleteOne();
@@ -153,8 +153,8 @@ export class MapService {
 
   private async addPresignedUrls(map: any): Promise<IMap> {
     const [imageUrl, thumbnailUrl] = await Promise.all([
-      this.minioService.getPresignedUrl(map.imageUrl),
-      this.minioService.getPresignedUrl(map.thumbnailUrl)
+      storageService.getFileUrl(map.imageUrl),
+      storageService.getFileUrl(map.thumbnailUrl)
     ]);
 
     const mapObj = map.toObject();

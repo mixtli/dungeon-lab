@@ -1,14 +1,12 @@
 import { Router } from 'express';
 import { MapController } from '../controllers/map.controller.mjs';
 import { MapService } from '../services/map.service.mjs';
-import { MinioService } from '../../../services/minio.service.mjs';
 import { authenticate } from '../../../middleware/auth.middleware.mjs';
 import { validateRequest, validateMultipartRequest } from '../../../middleware/validation.middleware.mjs';
 import { mapCreateSchema, mapUpdateSchema } from '@dungeon-lab/shared/src/schemas/map.schema.mjs';
 
 const router = Router();
-const minioService = new MinioService();
-const mapService = new MapService(minioService);
+const mapService = new MapService();
 const mapController = new MapController(mapService);
 
 // Bind controller methods to maintain 'this' context
