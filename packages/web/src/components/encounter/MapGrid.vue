@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, watch, Teleport } from 'vue';
+import { onMounted, onUnmounted, ref, watch } from 'vue';
 import { SVG, Svg } from '@svgdotjs/svg.js';
 import '@svgdotjs/svg.panzoom.js';
 import { useMapStore } from '../../stores/map.mjs';

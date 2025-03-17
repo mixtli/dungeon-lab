@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import { IMap, mapSchema } from '@dungeon-lab/shared/index.mjs';
-import { BaseDocument, createBaseSchema } from '../../../models/utils/base-schema.mjs';
+import { BaseDocument, createBaseSchema } from '../../../models/base-schema.mjs';
 
 /**
  * Map document interface extending the base Map interface

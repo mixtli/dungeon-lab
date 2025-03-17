@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import type { IMap, IMapUpdateData } from '@dungeon-lab/shared/index.mjs';
-import axios from '../../plugins/axios.mjs';
+import axios from '../../network/axios.mjs';
 import { ArrowLeftIcon } from '@heroicons/vue/24/outline';
 import MapImage from '../../components/MapImage.vue';
 import { useAuthStore } from '../../stores/auth.mjs';

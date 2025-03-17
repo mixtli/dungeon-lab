@@ -5,10 +5,10 @@
     "skipLibCheck": true,
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "allowSyntheticDefaultImports": true
+    "allowSyntheticDefaultImports": true,
+    "outDir": "./dist"
   },
   "include": [
-    "vite.config.ts",
-    "src/plugins/vite-plugin-plugin-import-map.mts"
+    "vite.config.ts"
   ]
 } 

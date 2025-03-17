@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import { IEncounter, encounterSchema } from '@dungeon-lab/shared/src/schemas/encounter.schema.mjs';
-import { BaseDocument, createBaseSchema } from '../../../models/utils/base-schema.mjs';
+import { BaseDocument, createBaseSchema } from '../../../models/base-schema.mjs';
 import { logger } from '../../../utils/logger.mjs';
 
 /**

@@ -11,13 +11,13 @@
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "noEmit": true,
     "allowJs": true,
     "jsx": "preserve",
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
+    "noEmit": true,
     "paths": {
       "@/*": ["./src/*"],
       "@dungeon-lab/shared": ["../shared/src"],
@@ -32,12 +32,11 @@
     "src/**/*.mts", 
     "src/**/*.d.ts", 
     "src/**/*.tsx", 
-    "src/**/*.vue",
-    "../plugins/dnd-5e-2024/src/web/**/*.mts"
+    "src/**/*.vue"
   ],
   "references": [
-    { "path": "./tsconfig.node.json" },
-    { "path": "../shared" },
-    { "path": "../plugins/dnd-5e-2024" }
+    { "path": "./tsconfig.node.json"},
+    { "path": "../shared"},
+    { "path": "../plugins/dnd-5e-2024"}
   ]
 } 

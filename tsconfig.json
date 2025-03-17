@@ -11,8 +11,6 @@
     "sourceMap": true,
     "resolveJsonModule": true,
     "noErrorTruncation": true,
-    "outDir": "./dist",  // All compiled files will go here
-    "noEmit": true       // Or use this if you're using Vite/webpack/etc and don't need tsc to emit files
-
+    "outDir": "./dist"
   }
 } 

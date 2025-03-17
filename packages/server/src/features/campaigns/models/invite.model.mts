@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import { IInvite, inviteSchema } from '@dungeon-lab/shared/index.mjs';
-import { BaseDocument, createBaseSchema } from '../../../models/utils/base-schema.mjs';
+import { BaseDocument, createBaseSchema } from '../../../models/base-schema.mjs';
 
 /**
  * Invite document interface extending the base Invite interface

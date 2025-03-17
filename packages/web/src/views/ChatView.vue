@@ -5,7 +5,7 @@ import { useGameSessionStore } from '../stores/game-session.mjs';
 import { useSocketStore } from '../stores/socket.mjs';
 import { IChatMessage, IRollCommandMessage, IRollResultMessage } from '@dungeon-lab/shared/src/schemas/websocket-messages.schema.mjs';
 import { Combobox, ComboboxInput, ComboboxOptions, ComboboxOption } from '@headlessui/vue';
-import api from '../plugins/axios.mjs';
+import api from '../network/axios.mjs';
 
 const route = useRoute();
 const gameSessionStore = useGameSessionStore();

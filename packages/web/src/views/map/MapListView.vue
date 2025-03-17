@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import type { IMap } from '@dungeon-lab/shared/index.mjs';
-import axios from '../../plugins/axios.mjs';
+import axios from '../../network/axios.mjs';
 import MapImage from '../../components/MapImage.vue';
 
 const router = useRouter();

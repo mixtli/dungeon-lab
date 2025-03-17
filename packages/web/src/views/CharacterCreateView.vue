@@ -50,10 +50,6 @@ const combinedInitialData = computed(() => {
   };
 });
 
-// Get the game system plugin
-const gameSystemPlugin = computed(() => {
-  return activeGameSystemId.value ? pluginRegistry.getGameSystemPlugin(activeGameSystemId.value) : undefined;
-});
 
 onMounted(async () => {
   // Check if we have an active game system

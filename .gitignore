@@ -5,6 +5,8 @@ node_modules
 
 
 packages/*/dist
+packages/**/dist */
+dist
 
 # VSCode
 .vscode/*

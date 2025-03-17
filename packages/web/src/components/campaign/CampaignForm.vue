@@ -43,7 +43,7 @@ const isCreateForm = computed(() => !isEditMode.value);
 
 // Get game systems
 const gameSystems = computed(() => {
-  return pluginRegistry.plugins.value
+  return pluginRegistry.getPlugins()
     .filter(plugin => plugin.config.type === 'gameSystem' && !!plugin.config.enabled)
     .map(plugin => ({
       id: plugin.config.id,

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import api from '../plugins/axios.mjs';
+import api from '../network/axios.mjs';
 import type { IGameSession, IGameSessionCreateData } from '@dungeon-lab/shared/index.mjs';
 import { GameSessionStatus } from '@dungeon-lab/shared/src/schemas/game-session.schema.mjs';
 import type { IActor } from '@dungeon-lab/shared/src/schemas/actor.schema.mjs';

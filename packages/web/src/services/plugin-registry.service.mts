@@ -78,10 +78,7 @@ export class PluginRegistryService {
     try {
       this.loadingPlugins.add(pluginId);
 
-      const importPath = `../../../plugins/${pluginId}/src/web/index.mts`;
-      console.log(`Loading plugin from ${importPath}`);
-      
-      const pluginModule = await import(importPath);
+      const pluginModule = await import(`../../../plugins/${pluginId}/src/web/index.mts`);
       console.log("PLUGIN MODULE", pluginModule);
       
       const PluginClass = pluginModule.default;

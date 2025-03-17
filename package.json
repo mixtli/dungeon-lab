@@ -21,7 +21,9 @@
     "plugins:dev": "for dir in packages/plugins/dnd-5e-2024 packages/plugins/test-dice-roller; do if [ -d \"$dir\" ]; then cd \"$dir\" && npm run dev & fi done",
     "plugins:clean": "for dir in packages/plugins/dnd-5e-2024 packages/plugins/test-dice-roller; do if [ -d \"$dir\" ]; then cd \"$dir\" && npm run clean && cd ../../..; fi done",
     "plugins:test": "npm run test:plugin-build --workspace=@dungeon-lab/web",
-    "plugins:test:clean": "npm run clean:test --workspace=@dungeon-lab/web"
+    "plugins:test:clean": "npm run clean:test --workspace=@dungeon-lab/web",
+    "typecheck": "tsc -b tsconfig.workspace.json --verbose",
+    "typecheck:watch": "tsc -b tsconfig.workspace.json --watch"
   },
   "keywords": [
     "vtt",
@@ -38,7 +40,7 @@
     "@types/sharp": "^0.31.1",
     "@types/uuid": "^10.0.0",
     "concurrently": "^8.2.2",
-    "typescript": "^5.3.3",
+    "typescript": "^5.8.2",
     "vite-plugin-dynamic-import": "^1.6.0",
     "vue-tsc": "^2.2.8"
   },

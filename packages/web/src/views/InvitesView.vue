@@ -97,7 +97,7 @@ import { useRouter } from 'vue-router';
 import { useActorStore } from '../stores/actor.mjs';
 import { useAuthStore } from '../stores/auth.mjs';
 import type { IActor } from '@dungeon-lab/shared/dist/index.mjs';
-import api from '../plugins/axios.mjs';
+import api from '../network/axios.mjs';
 
 const router = useRouter();
 const actorStore = useActorStore();

@@ -3,7 +3,7 @@ import { createPinia } from 'pinia';
 import App from './App.vue';
 import router from './router/index.mjs';
 import './assets/styles/main.css';
-import api from './plugins/axios.mjs';
+import api from './network/axios.mjs';
 import { pluginRegistry } from './services/plugin-registry.service.mjs';
 import { useAuthStore } from './stores/auth.mjs';
 

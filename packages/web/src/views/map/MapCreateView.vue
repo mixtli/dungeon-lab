@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import axios from '../../plugins/axios.mjs';
+import axios from '../../network/axios.mjs';
 import { ArrowLeftIcon, ArrowUpTrayIcon } from '@heroicons/vue/24/outline';
 
 const router = useRouter();

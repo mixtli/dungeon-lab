@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcrypt';
 import { IUser, userSchema } from '@dungeon-lab/shared/index.mjs';
-import { BaseDocument, createBaseSchema } from './utils/base-schema.mjs';
+import { BaseDocument, createBaseSchema } from './base-schema.mjs';
 
 /**
  * User document interface extending the base User interface

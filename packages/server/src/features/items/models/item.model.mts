@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import { IItem, itemSchema } from '@dungeon-lab/shared/index.mjs';
-import { BaseDocument, createBaseSchema } from '../../../models/utils/base-schema.mjs';
+import { BaseDocument, createBaseSchema } from '../../../models/base-schema.mjs';
 
 /**
  * Item document interface extending the base Item interface

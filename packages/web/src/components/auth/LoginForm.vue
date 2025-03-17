@@ -53,9 +53,9 @@ async function handleSubmit(event: Event) {
   isSubmitting.value = true;
   
   try {
-    const success = await authStore.login(form);
+    await authStore.login(form);
     
-    if (success) {
+    if (authStore.isAuthenticated) {
       showNotification('Login successful!');
       router.push({ name: 'home' });
     } else {

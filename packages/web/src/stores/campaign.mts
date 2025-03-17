@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import api from '../plugins/axios.mjs';
+import api from '../network/axios.mjs';
 import { ICampaign, ICampaignCreateData, ICampaignUpdateData, IInviteCreateData } from '@dungeon-lab/shared/dist/index.mjs';
 
 export const useCampaignStore = defineStore('campaign', () => {

@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import { IToken, tokenSchema } from '@dungeon-lab/shared/index.mjs';
-import { BaseDocument, createBaseSchema } from '../../../models/utils/base-schema.mjs';
+import { BaseDocument, createBaseSchema } from '../../../models/base-schema.mjs';
 
 /**
  * Token document interface extending the base Token interface

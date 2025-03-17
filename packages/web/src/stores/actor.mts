@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import api from '../plugins/axios.mjs';
+import api from '../network/axios.mjs';
 import { IActor, IActorCreateData, IActorUpdateData } from '@dungeon-lab/shared/dist/index.mjs';
 
 export const useActorStore = defineStore('actor', () => {
