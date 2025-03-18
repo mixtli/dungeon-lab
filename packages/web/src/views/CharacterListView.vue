@@ -151,7 +151,7 @@ function handleCreate() {
             <div class="mt-4 flex items-center justify-between">
               <div class="text-sm font-medium text-gray-500">HP</div>
               <div class="text-sm font-semibold text-gray-900">
-                {{ character.data.hitPoints.current }}/{{ character.data.hitPoints.maximum }}
+                {{ character.data.hitPoints?.current }}/{{ character.data.hitPoints?.maximum }}
               </div>
             </div>
           </div>

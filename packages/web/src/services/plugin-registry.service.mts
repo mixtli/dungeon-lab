@@ -1,4 +1,5 @@
-import { IWebPlugin, IGameSystemPluginWeb, IPluginUIAssets } from '@dungeon-lab/shared/types/plugin.mjs';
+import { IWebPlugin, IGameSystemPluginWeb } from '@dungeon-lab/shared/types/plugin.mjs';
+import { createPluginAPI } from '@/services/plugin-api.service.mjs';
 
 /**
  * Plugin Registry Service
@@ -79,14 +80,17 @@ export class PluginRegistryService {
       this.loadingPlugins.add(pluginId);
 
       const pluginModule = await import(`../../../plugins/${pluginId}/src/web/index.mts`);
-      console.log("PLUGIN MODULE", pluginModule);
       
       const PluginClass = pluginModule.default;
       if (!PluginClass) {
         throw new Error(`Plugin ${pluginId} has no default export`);
       }
       
-      const plugin = new PluginClass();
+      // Create plugin API for this plugin
+      const api = createPluginAPI(pluginId);
+      
+      // Initialize plugin with API
+      const plugin = new PluginClass(api);
       await this.registerPlugin(plugin);
       
       this.loadingPlugins.delete(pluginId);
@@ -166,27 +170,6 @@ export class PluginRegistryService {
    */
   public getGameSystemPlugin(pluginId: string): IGameSystemPluginWeb | undefined {
     return this.gameSystemPlugins.get(pluginId);
-  }
-
-  /**
-   * Get UI assets for a context from a plugin
-   */
-  public getPluginUIAssets(
-    pluginId: string, 
-    context: string
-  ): IPluginUIAssets | undefined {
-    const plugin = this.plugins.get(pluginId);
-    if (!plugin) {
-      console.error(`Plugin ${pluginId} not found`);
-      return undefined;
-    }
-    
-    const assets = plugin.getUIAssets(context);
-    if (!assets) {
-      console.warn(`Plugin ${pluginId} has no UI assets for context: ${context}`);
-    }
-    
-    return assets;
   }
 
   /**

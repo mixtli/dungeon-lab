@@ -7,8 +7,6 @@ import api from './network/axios.mjs';
 import { pluginRegistry } from './services/plugin-registry.service.mjs';
 import { useAuthStore } from './stores/auth.mjs';
 
-await pluginRegistry.initialize();
-
 const app = createApp(App);
 const pinia = createPinia();
 
@@ -17,6 +15,9 @@ app.config.globalProperties.$axios = api;
 
 app.use(pinia);
 app.use(router);
+
+// Initialize plugins after Pinia setup
+await pluginRegistry.initialize();
 
 // Initialize auth state
 const authStore = useAuthStore();

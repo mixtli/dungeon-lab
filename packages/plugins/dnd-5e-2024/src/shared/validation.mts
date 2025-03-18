@@ -1,16 +1,14 @@
 import { z } from 'zod';
 import { dnd5e2024GameSystem } from './game-system.mjs';
+import { characterSchema } from './types/character.mjs';
 
 export function validateActorData(actorType: string, data: unknown): z.SafeParseReturnType<unknown, unknown> {
-  const actorTypeDefinition = dnd5e2024GameSystem.actorTypes.find(type => type.name === actorType);
-  if (actorTypeDefinition) {
-    return actorTypeDefinition.dataSchema.safeParse(data);
+  if (actorType === 'character') {
+    // Use the simpler schema with defaults for character creation
+    return characterSchema.safeParse(data);
+  } else {
+    throw new Error(`Unknown actor type: ${actorType}`);
   }
-  return { success: false, error: new z.ZodError([{ 
-    code: z.ZodIssueCode.custom,
-    path: [],
-    message: `Unknown actor type: ${actorType}` 
-  }]) };
 }
 
 export function validateItemData(itemType: string, data: unknown): z.SafeParseReturnType<unknown, unknown> {

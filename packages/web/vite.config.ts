@@ -24,7 +24,6 @@ export default defineConfig(({ mode, command }) => {
   return {
     plugins: [
       // Vue plugin
-      // dynamicImport({ loose: true }),
       vue()
     ],
     resolve: {

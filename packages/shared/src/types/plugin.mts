@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { IPluginMessage } from '../schemas/websocket-messages.schema.mjs';
 import { IPluginActionMessage } from '../schemas/websocket-messages.schema.mjs';
+import { IPluginComponent } from './plugin-component.mjs';
+import { IPluginAPI } from './plugin-api.mjs';
 
 /**
  * Interface for plugin script API
@@ -79,10 +81,6 @@ export interface IPluginConfiguration {
   enabled?: boolean;
   serverEntryPoint?: string;
   clientEntryPoint?: string;
-  // Legacy UI assets configuration - relative paths within the web/ui directory
-  uiAssets?: Record<string, string>;
-  // New UI components configuration with more detailed structure
-  uiComponents?: Record<string, IPluginUIAssetPaths>;
 }
 
 export interface PluginActionResult {
@@ -124,8 +122,7 @@ export interface IGameSystemPlugin extends IPlugin {
  * This extends the base Game System Plugin interface with web-specific functionality
  */
 export interface IGameSystemPluginWeb extends IGameSystemPlugin, IWebPlugin {
-  getActorSheet: (actorType: string) => string | undefined;
-  getItemSheet: (itemType: string) => string | undefined;
+  loadComponent: (componentId: string) => IPluginComponent | undefined;
 }
 
 /**
@@ -150,10 +147,7 @@ export interface IServerPlugin extends IPlugin {
  * Extends the base Plugin interface with web-specific functionality
  */
 export interface IWebPlugin extends IPlugin {
-  // UI asset methods
-  getUIAssetPaths(context: string): IPluginUIAssetPaths | undefined; // Get paths to UI assets
-  getUIAssets(context: string): IPluginUIAssets | undefined; // Get loaded UI assets
-  registerUIAssets(context: string, assets: IPluginUIAssets): void; // Register loaded UI assets
+  // No additional methods required
 }
 
 /**
@@ -182,4 +176,7 @@ export interface IPluginManager {
   getGameSystemPlugin(pluginId: string): Promise<IGameSystemPlugin | undefined>;
   getAllPlugins(): Promise<IPlugin[]>;
   getAllGameSystemPlugins(): Promise<IGameSystemPlugin[]>;
-} 
+}
+
+// Export types
+export type { IPluginComponent, IPluginAPI }; 

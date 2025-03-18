@@ -46,7 +46,7 @@
         
         <PluginUIContainer
           :plugin-id="selectedGameSystemId"
-          context="characterCreation"
+          component-id="characterCreation"
           :initial-data="initialActorData"
           @update:data="updateActorData"
           @submit="handleSubmit"
@@ -63,6 +63,7 @@ import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { pluginRegistry } from '@/services/plugin-registry.service.mjs';
 import PluginUIContainer from '@/components/plugin/PluginUIContainer.vue';
+import type { IGameSystemPluginWeb } from '@dungeon-lab/shared/types/plugin.mjs';
 
 const router = useRouter();
 
@@ -72,11 +73,12 @@ const actorData = ref<Record<string, any>>({});
 const errorMessage = ref<string | null>(null);
 const isSubmitting = ref(false);
 
-// Get all available game systems that support character creation UI
+// Get all available game systems that support character creation
 const availableGameSystems = computed(() => {
   return pluginRegistry.getGameSystemPlugins().filter(plugin => {
-    // Check if this plugin has UI assets for character creation
-    return plugin.getUIAssets?.('characterCreation');
+    const gameSystemPlugin = plugin as IGameSystemPluginWeb;
+    // Check if this plugin has a character creation component
+    return gameSystemPlugin.loadComponent?.('characterCreation') !== undefined;
   });
 });
 

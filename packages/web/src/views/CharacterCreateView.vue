@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { useActorStore } from '../stores/actor.mts';
 import PluginUIContainer from '@/components/plugin/PluginUIContainer.vue';
-import ImageUpload from '@/components/common/ImageUpload.vue';
 import { pluginRegistry } from '@/services/plugin-registry.service.mjs';
+import ImageUpload from '../components/common/ImageUpload.vue';
+import { IGameSystemPluginWeb } from '@dungeon-lab/shared/types/plugin.mjs';
+import { IActorCreateData } from '@dungeon-lab/shared/schemas/actor.schema.mts';
 
 interface UploadedImage {
   url: string;
@@ -11,32 +14,23 @@ interface UploadedImage {
   size?: number;
 }
 
-// Define the type for the formatted character data
-interface CharacterFormData {
-  name: string;
-  type: string;
-  gameSystem: string;
-  avatarUrl?: string;
-  tokenUrl?: string;
-  data: {
-    name: string;
-    avatarUrl?: string;
-    tokenUrl?: string;
-    [key: string]: any;
-  };
-}
 
 const router = useRouter();
+const actorStore = useActorStore();
 const activeGameSystemId = ref<string>(localStorage.getItem('activeGameSystem') || '');
 const isLoading = ref(true);
 const error = ref<string | null>(null);
 
+const plugin = pluginRegistry.getGameSystemPlugin(activeGameSystemId.value) as IGameSystemPluginWeb;
 // Step management
 const currentStep = ref(1);
+const totalSteps = 2;
+const isSubmitting = ref(false);
 
 // Basic info form data
 const basicInfo = ref({
   name: '',
+  description: '',
   avatarImage: null as UploadedImage | null,
   tokenImage: null as UploadedImage | null
 });
@@ -51,98 +45,108 @@ const combinedInitialData = computed(() => {
 });
 
 
+const canProceed = computed(() => {
+  if (currentStep.value === 1) {
+    return basicInfo.value.name.trim() !== '';
+  }
+  return true;
+});
+
 onMounted(async () => {
+  // Debug information
+  console.log('Character Create View mounted');
+  console.log('Active game system ID:', activeGameSystemId.value);
+  
   // Check if we have an active game system
   if (!activeGameSystemId.value) {
     error.value = 'No active game system selected. Please select a game system in the Settings page.';
     isLoading.value = false;
     return;
   }
-  
-  // Make sure the plugin is loaded
-  try {
-    await pluginRegistry.loadGameSystemPlugin(activeGameSystemId.value);
-    isLoading.value = false;
-  } catch (err) {
-    console.error('Error loading active game system:', err);
-    error.value = 'Failed to load the active game system. Please try again.';
-    isLoading.value = false;
-  }
+  isLoading.value = false;
 });
 
-// Proceed to step 2 after validating basic info
-function proceedToStep2() {
-  if (!basicInfo.value.name.trim()) {
-    error.value = 'Character name is required';
-    return;
-  }
-  
-  currentStep.value = 2;
-  error.value = null;
-}
 
-// Handle plugin form submission 
-async function handlePluginSubmit(characterData: Record<string, any>) {
-  // Combine basic info with plugin data
-  const formattedData: CharacterFormData = {
-    name: basicInfo.value.name,
-    type: 'character',
-    gameSystem: activeGameSystemId.value,
-    data: {
-      ...characterData,
-      // Include character core data in the plugin data
-      name: basicInfo.value.name
+// Handle form submission
+async function handleSubmit(event: Event) {
+  try {
+    isSubmitting.value = true;
+    
+    // Check if plugin is available
+    if (!plugin || !actorStore) return;
+
+    // Get the form data
+    const form = event.target as HTMLFormElement;
+    const formData = new FormData(form);
+
+    // Extract plugin data fields (those prefixed with data.)
+    const extractedData: Record<string, any> = {};
+    for (const [key, value] of formData.entries()) {
+      if (key.startsWith('data.')) {
+        // Remove the data. prefix and set in pluginData
+        const path = key.substring(5).split('.');
+        let current = extractedData;
+        for (let i = 0; i < path.length - 1; i++) {
+          if (!(path[i] in current)) {
+            current[path[i]] = {};
+          }
+          current = current[path[i]];
+        }
+        // Convert numeric values
+        const finalValue = /^\d+$/.test(value as string) ? parseInt(value as string) : value;
+        current[path[path.length - 1]] = finalValue;
+      }
     }
-  };
-  
-  // Add image information if available
-  if (basicInfo.value.avatarImage) {
-    formattedData.avatarUrl = basicInfo.value.avatarImage.url;
-    formattedData.data.avatarUrl = basicInfo.value.avatarImage.url;
-  }
-  
-  if (basicInfo.value.tokenImage) {
-    formattedData.tokenUrl = basicInfo.value.tokenImage.url;
-    formattedData.data.tokenUrl = basicInfo.value.tokenImage.url;
-  }
-  
-  // Create the character
-  createCharacter(formattedData);
-}
 
-function handleCancel() {
-  router.push('/characters');
+    // Get the plugin component instance
+    const pluginComponent = plugin.loadComponent('characterCreation');
+    if (!pluginComponent) {
+      console.error('Plugin component not found');
+      return;
+    }
+
+    // Validate form data
+    const validation = pluginComponent.validateForm(extractedData);
+    if (!validation.success) {
+      console.error('Form validation failed:', validation.error);
+      error.value = `Validation error: ${validation.error.message}`;
+      return;
+    }
+
+    // Translate form data to character schema format
+    const pluginData = pluginComponent.translateFormData(validation.data);
+
+    // Create actor data
+    const actorData: IActorCreateData = {
+      name: basicInfo.value.name,
+      type: 'character',
+      description: basicInfo.value.description,
+      gameSystemId: plugin.config.id,
+      avatar: basicInfo.value.avatarImage?.url,
+      token: basicInfo.value.tokenImage?.url,
+      data: pluginData
+    };
+
+    // Create the actor
+    const actor = await actorStore.createActor(actorData);
+    
+    // Navigate to the character sheet
+    router.push({ name: 'character-sheet', params: { id: actor.id } });
+  } catch (err) {
+    console.error('Failed to create character:', err);
+    if (err instanceof Error) {
+      error.value = `Error creating character: ${err.message}`;
+    } else {
+      error.value = 'An unknown error occurred while creating the character';
+    }
+  } finally {
+    isSubmitting.value = false;
+    isLoading.value = false;
+  }
 }
 
 function handleError(errorMessage: string) {
   error.value = errorMessage;
-}
-
-async function createCharacter(characterData: CharacterFormData) {
-  isLoading.value = true;
-  error.value = null;
-  
-  try {
-    const response = await fetch('/api/actors', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(characterData),
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to create character');
-    }
-
-    const character = await response.json();
-    router.push(`/character/${character.id}`);
-  } catch (err) {
-    console.error('Error creating character:', err);
-    error.value = 'Failed to create character. Please try again.';
-  } finally {
-    isLoading.value = false;
-  }
 }
 </script>
 
@@ -201,100 +205,186 @@ async function createCharacter(characterData: CharacterFormData) {
           </div>
         </div>
         
-        <!-- Step 1: Basic Info -->
-        <div v-if="currentStep === 1">
-          <form @submit.prevent="proceedToStep2">
-            <!-- Name Field -->
-            <div class="mb-4">
-              <label class="block text-gray-700 text-sm font-bold mb-2" for="name">
-                Character Name *
-              </label>
+        <!-- Single Form -->
+        <form @submit.prevent="handleSubmit" class="character-create-form">
+          <!-- Step 1: Basic Info -->
+          <div v-show="currentStep === 1" class="form-step">
+            <h2>Basic Information</h2>
+            <div class="form-group">
+              <label for="name">Character Name</label>
               <input 
+                type="text" 
                 id="name" 
                 v-model="basicInfo.name" 
-                class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" 
-                type="text" 
                 required
+                class="form-input"
               >
             </div>
-            
-            <!-- Avatar Upload -->
-            <div class="mb-4">
-              <label class="block text-gray-700 text-sm font-bold mb-2">
-                Avatar Image
-              </label>
-              <ImageUpload 
-                v-model="basicInfo.avatarImage" 
-                type="avatar"
-              />
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 my-6">
+              <div class="form-group">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Avatar</label>
+                <ImageUpload
+                  v-model="basicInfo.avatarImage"
+                  type="avatar"
+                />
+              </div>
+              
+              <div class="form-group">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Token</label>
+                <ImageUpload
+                  v-model="basicInfo.tokenImage"
+                  type="token"
+                />
+              </div>
             </div>
             
-            <!-- Token Upload -->
-            <div class="mb-4">
-              <label class="block text-gray-700 text-sm font-bold mb-2">
-                Token Image
-              </label>
-              <ImageUpload 
-                v-model="basicInfo.tokenImage" 
-                type="token"
-              />
+            <div class="form-group">
+              <label for="description">Description</label>
+              <textarea 
+                id="description" 
+                v-model="basicInfo.description" 
+                class="form-textarea"
+              ></textarea>
             </div>
-            
-            <!-- Navigation Buttons -->
-            <div class="flex justify-end space-x-4 mt-6">
-              <button
-                type="button"
-                @click="handleCancel"
-                class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-              >
-                Next
-              </button>
-            </div>
-          </form>
-        </div>
-        
-        <!-- Step 2: Plugin Character Creation -->
-        <div v-else-if="currentStep === 2">
-          <div class="mb-4">
+          </div>
+          
+          <!-- Step 2: Plugin Content -->
+          <div v-show="currentStep === 2" class="form-step">
+            <h2>Character Details</h2>
+            <PluginUIContainer
+              :plugin-id="activeGameSystemId"
+              :component-id="'characterCreation'"
+              :initial-data="combinedInitialData"
+              @error="handleError"
+            />
+          </div>
+
+          <!-- Navigation -->
+          <div class="form-navigation">
             <button 
-              @click="currentStep = 1"
-              class="text-blue-600 hover:text-blue-800 flex items-center"
-              type="button"
+              v-if="currentStep > 1" 
+              type="button" 
+              @click="currentStep--"
+              class="btn btn-secondary"
             >
-              <span>← Back to Basic Info</span>
+              Back
+            </button>
+            
+            <button 
+              v-if="currentStep < totalSteps" 
+              type="button" 
+              @click="currentStep++"
+              class="btn btn-primary"
+              :disabled="!canProceed"
+            >
+              Next
+            </button>
+            
+            <button 
+              v-if="currentStep === totalSteps"
+              type="submit"
+              class="btn btn-success"
+              :disabled="isSubmitting"
+            >
+              {{ isSubmitting ? 'Creating...' : 'Create Character' }}
             </button>
           </div>
-          
-          <div class="mb-4 p-4 bg-gray-50 rounded-md">
-            <h3 class="font-medium text-gray-900">Character Summary</h3>
-            <p class="text-gray-700">Name: {{ basicInfo.name }}</p>
-            
-            <div class="mt-2 flex space-x-4">
-              <div v-if="basicInfo.avatarImage" class="flex-shrink-0">
-                <img :src="basicInfo.avatarImage.url" class="h-16 w-16 object-cover rounded-md" alt="Avatar" />
-              </div>
-              <div v-if="basicInfo.tokenImage" class="flex-shrink-0">
-                <img :src="basicInfo.tokenImage.url" class="h-16 w-16 object-cover rounded-md" alt="Token" />
-              </div>
-            </div>
-          </div>
-          
-          <PluginUIContainer
-            :plugin-id="activeGameSystemId"
-            context="characterCreation"
-            :initial-data="combinedInitialData"
-            @submit="handlePluginSubmit"
-            @cancel="handleCancel"
-            @error="handleError"
-          />
-        </div>
+        </form>
       </div>
     </div>
   </div>
-</template> 
+</template>
+
+<style scoped>
+.character-create-view {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.character-create-form {
+  background: white;
+  padding: 2rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.form-step {
+  margin-bottom: 2rem;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+
+.form-input,
+.form-textarea {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 0.25rem;
+}
+
+.form-textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.form-navigation {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eee;
+}
+
+.btn {
+  padding: 0.5rem 1rem;
+  border-radius: 0.25rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: #4f46e5;
+  color: white;
+  border: none;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #4338ca;
+}
+
+.btn-secondary {
+  background: #9ca3af;
+  color: white;
+  border: none;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #6b7280;
+}
+
+.btn-success {
+  background: #10b981;
+  color: white;
+  border: none;
+}
+
+.btn-success:hover:not(:disabled) {
+  background: #059669;
+}
+</style> 

@@ -1,37 +1,16 @@
 import { z } from 'zod';
 
-// Ability scores schema
-const abilityScoreSchema = z.object({
-  score: z.number().min(1).max(30),
-  modifier: z.number().min(-5).max(10),
-  savingThrow: z.object({
-    proficient: z.boolean(),
-    bonus: z.number()
-  })
-});
-
-// Skill schema
-const skillSchema = z.object({
-  ability: z.enum(['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma']),
-  proficient: z.boolean(),
-  expertise: z.boolean().optional(),
-  bonus: z.number()
-});
-
-// Class schema
-const classSchema = z.object({
-  name: z.string(),
-  level: z.number().min(1).max(20),
-  subclass: z.string().optional(),
-  hitDiceType: z.enum(['d6', 'd8', 'd10', 'd12'])
-});
-
-// Character schema
+// Full character schema for the complete character sheet
 export const characterSchema = z.object({
   // Basic info
   name: z.string(),
   species: z.string(),
-  classes: z.array(classSchema),
+  classes: z.array(z.object({
+    name: z.string(),
+    level: z.number().min(1).max(20),
+    subclass: z.string().optional(),
+    hitDiceType: z.enum(['d6', 'd8', 'd10', 'd12'])
+  })),
   background: z.string(),
   alignment: z.enum([
     'lawful good', 'neutral good', 'chaotic good',
@@ -40,11 +19,11 @@ export const characterSchema = z.object({
   ]),
 
   // Core stats
-  experiencePoints: z.number().min(0),
-  proficiencyBonus: z.number(),
-  armorClass: z.number(),
-  initiative: z.number(),
-  speed: z.number(),
+  experiencePoints: z.number().min(0).default(0),
+  proficiencyBonus: z.number().default(2),
+  armorClass: z.number().default(10),
+  initiative: z.number().default(0),
+  speed: z.number().default(30),
   hitPoints: z.object({
     maximum: z.number(),
     current: z.number(),
@@ -58,48 +37,68 @@ export const characterSchema = z.object({
 
   // Abilities
   abilities: z.object({
-    strength: abilityScoreSchema,
-    dexterity: abilityScoreSchema,
-    constitution: abilityScoreSchema,
-    intelligence: abilityScoreSchema,
-    wisdom: abilityScoreSchema,
-    charisma: abilityScoreSchema
-  }),
-
-  // Skills
-  skills: z.object({
-    acrobatics: skillSchema,
-    animalHandling: skillSchema,
-    arcana: skillSchema,
-    athletics: skillSchema,
-    deception: skillSchema,
-    history: skillSchema,
-    insight: skillSchema,
-    intimidation: skillSchema,
-    investigation: skillSchema,
-    medicine: skillSchema,
-    nature: skillSchema,
-    perception: skillSchema,
-    performance: skillSchema,
-    persuasion: skillSchema,
-    religion: skillSchema,
-    sleightOfHand: skillSchema,
-    stealth: skillSchema,
-    survival: skillSchema
+    strength: z.object({
+      score: z.number().min(1).max(30),
+      modifier: z.number().min(-5).max(10),
+      savingThrow: z.object({
+        proficient: z.boolean().default(false),
+        bonus: z.number().default(0)
+      })
+    }),
+    dexterity: z.object({
+      score: z.number().min(1).max(30),
+      modifier: z.number().min(-5).max(10),
+      savingThrow: z.object({
+        proficient: z.boolean().default(false),
+        bonus: z.number().default(0)
+      })
+    }),
+    constitution: z.object({
+      score: z.number().min(1).max(30),
+      modifier: z.number().min(-5).max(10),
+      savingThrow: z.object({
+        proficient: z.boolean().default(false),
+        bonus: z.number().default(0)
+      })
+    }),
+    intelligence: z.object({
+      score: z.number().min(1).max(30),
+      modifier: z.number().min(-5).max(10),
+      savingThrow: z.object({
+        proficient: z.boolean().default(false),
+        bonus: z.number().default(0)
+      })
+    }),
+    wisdom: z.object({
+      score: z.number().min(1).max(30),
+      modifier: z.number().min(-5).max(10),
+      savingThrow: z.object({
+        proficient: z.boolean().default(false),
+        bonus: z.number().default(0)
+      })
+    }),
+    charisma: z.object({
+      score: z.number().min(1).max(30),
+      modifier: z.number().min(-5).max(10),
+      savingThrow: z.object({
+        proficient: z.boolean().default(false),
+        bonus: z.number().default(0)
+      })
+    })
   }),
 
   // Equipment and inventory
   equipment: z.array(z.object({
     id: z.string(),
     quantity: z.number().min(0)
-  })),
+  })).default([]),
 
   // Features and traits
   features: z.array(z.object({
     name: z.string(),
     source: z.string(),
     description: z.string()
-  })),
+  })).default([]),
 
   // Spellcasting
   spellcasting: z.object({
@@ -125,7 +124,7 @@ export const characterSchema = z.object({
     ideals: z.string().optional(),
     bonds: z.string().optional(),
     flaws: z.string().optional()
-  })
+  }).default({})
 });
 
 export type ICharacter = z.infer<typeof characterSchema>;

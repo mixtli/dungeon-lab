@@ -12,8 +12,6 @@
     <div 
       ref="pluginMountPoint" 
       class="plugin-mount-point"
-      :data-plugin-id="pluginId"
-      :data-context="context"
     ></div>
   </div>
 </template>
@@ -21,13 +19,11 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue';
 import { pluginRegistry } from '@/services/plugin-registry.service.mjs';
-import { IGameSystemPluginWeb } from '@dungeon-lab/shared/index.mjs';
-import { IPluginUIAssets } from '@dungeon-lab/shared/types/plugin.mjs';
-import Handlebars from 'handlebars';
+import { IGameSystemPluginWeb, IPluginComponent } from '@dungeon-lab/shared/types/plugin.mjs';
 
 const props = defineProps<{
   pluginId: string;
-  context: string;
+  componentId: string;
   initialData?: Record<string, any>;
 }>();
 
@@ -41,37 +37,37 @@ const emit = defineEmits<{
 const pluginMountPoint = ref<HTMLElement | null>(null);
 const loading = ref(true);
 const error = ref<string | null>(null);
-let cleanup: (() => void) | null = null;
+let component: IPluginComponent | null = null;
 
-// Watch for plugin or context changes
+// Watch for plugin or component changes
 watch(
-  () => [props.pluginId, props.context],
+  () => [props.pluginId, props.componentId],
   async () => {
     if (pluginMountPoint.value) {
-      await loadPluginUI();
+      await loadComponent();
     }
   }
 );
 
 onMounted(async () => {
-  if (props.pluginId && props.context) {
-    await loadPluginUI();
+  if (props.pluginId && props.componentId) {
+    await loadComponent();
   }
 });
 
 onBeforeUnmount(() => {
-  cleanupPluginUI();
+  cleanupComponent();
 });
 
-async function loadPluginUI() {
-  // Clean up previous plugin if exists
-  cleanupPluginUI();
+async function loadComponent() {
+  // Clean up previous component if exists
+  cleanupComponent();
   
   // Reset state
   loading.value = true;
   error.value = null;
   
-  if (!pluginMountPoint.value || !props.pluginId || !props.context) {
+  if (!pluginMountPoint.value || !props.pluginId || !props.componentId) {
     loading.value = false;
     return;
   }
@@ -84,91 +80,24 @@ async function loadPluginUI() {
       throw new Error(`Plugin ${props.pluginId} not found`);
     }
     
-    // Get or load UI assets for this context
-    const uiAssets = await pluginRegistry.getPluginUIAssets(props.pluginId, props.context);
+    // Load the component
+    const loadedComponent = plugin.loadComponent(props.componentId);
     
-    if (!uiAssets) {
-      throw new Error(`Failed to load UI assets for plugin ${props.pluginId}, context ${props.context}`);
+    if (!loadedComponent) {
+      console.error(`Component ${props.componentId} not found in plugin ${props.pluginId}`);
+      throw new Error(`Component ${props.componentId} not found in plugin ${props.pluginId}`);
     }
+
+    component = loadedComponent;
+
     
-    // Initialize Handlebars
-    await initializeHandlebars(uiAssets);
+    // Mount the component
+    await component.onMount(pluginMountPoint.value);
     
-    // Add styles to document
-    const styleElement = document.createElement('style');
-    styleElement.textContent = uiAssets.styles;
-    document.head.appendChild(styleElement);
-    
-    // Create plugin API
-    const pluginAPI = createPluginAPI(uiAssets);
-    
-    // Explicitly call registerHelpers if available, right before template compilation
-    if (uiAssets.script.registerHelpers && typeof uiAssets.script.registerHelpers === 'function') {
-      try {
-        console.log(`Explicitly registering helpers for ${props.pluginId} before template compilation`);
-        uiAssets.script.registerHelpers(window.Handlebars);
-      } catch (error) {
-        console.error(`Error registering helpers for ${props.pluginId}:`, error);
-      }
+    // Update with initial data if provided
+    if (props.initialData) {
+      await component.onUpdate(props.initialData);
     }
-    
-    // Compile and render template
-    try {
-      const template = window.Handlebars.compile(uiAssets.template);
-      pluginMountPoint.value.innerHTML = template({
-        ...props.initialData,
-        pluginId: props.pluginId,
-        pluginName: plugin.config.name,
-        assetUrls: uiAssets.assetUrls || {}
-      });
-    } catch (templateError) {
-      console.error('Error compiling or rendering template:', templateError);
-      throw new Error(`Failed to compile template: ${templateError instanceof Error ? templateError.message : String(templateError)}`);
-    }
-    
-    // Execute script using the module's init function
-    let pluginCleanup: (() => void) | void;
-    try {
-      // Call the init function from the script module
-      pluginCleanup = uiAssets.script.init(
-        pluginMountPoint.value, 
-        pluginAPI,
-        props.initialData
-      );
-    } catch (scriptError) {
-      console.error(`Error initializing plugin script:`, scriptError);
-      throw new Error(`Failed to initialize plugin script: ${scriptError instanceof Error ? scriptError.message : String(scriptError)}`);
-    }
-    
-    // Store cleanup function
-    cleanup = () => {
-      // Remove style element
-      if (styleElement.parentNode) {
-        styleElement.parentNode.removeChild(styleElement);
-      }
-      
-      // Run plugin-provided cleanup if available
-      if (typeof pluginCleanup === 'function') {
-        try {
-          pluginCleanup();
-        } catch (error) {
-          console.error('Error during plugin cleanup:', error);
-        }
-      }
-      
-      // Clear container
-      if (pluginMountPoint.value) {
-        pluginMountPoint.value.innerHTML = '';
-      }
-      
-      // Unregister any Handlebars partials for this plugin
-      if (window.Handlebars && uiAssets.partials) {
-        for (const partialName of Object.keys(uiAssets.partials)) {
-          const fullPartialName = `${props.pluginId}:${partialName}`;
-          window.Handlebars.unregisterPartial(fullPartialName);
-        }
-      }
-    };
     
     loading.value = false;
   } catch (err) {
@@ -179,105 +108,10 @@ async function loadPluginUI() {
   }
 }
 
-/**
- * Initialize Handlebars and register partials and helpers
- */
-async function initializeHandlebars(uiAssets: IPluginUIAssets) {
-  // Set up Handlebars if not already on window
-  if (!window.Handlebars) {
-    window.Handlebars = Handlebars;
-  }
-  
-  // Register common helpers if they don't exist
-  if (!window.Handlebars.helpers.eq) {
-    // Compare two values for equality
-    window.Handlebars.registerHelper('eq', function(a: any, b: any) {
-      return a === b;
-    });
-  }
-  
-  // Register assetUrl helper if it doesn't exist
-  if (!window.Handlebars.helpers.assetUrl) {
-    // Get URL for an asset
-    window.Handlebars.registerHelper('assetUrl', function(path: string) {
-      const assetUrls = uiAssets.assetUrls || {};
-      return assetUrls[path] || '';
-    });
-  }
-  
-  // Register partials if available
-  if (uiAssets.partials) {
-    for (const [name, content] of Object.entries(uiAssets.partials)) {
-      // Register with namespaced name to avoid conflicts between plugins
-      const fullPartialName = `${props.pluginId}:${name}`;
-      window.Handlebars.registerPartial(fullPartialName, content);
-    }
-  }
-}
-
-function createPluginAPI(uiAssets: IPluginUIAssets) {
-  // The current data state
-  const data = { ...props.initialData };
-  
-  return {
-    // Data access
-    getData: () => ({ ...data }),
-    updateData: (newData: Record<string, any>) => {
-      Object.assign(data, newData);
-      emit('update:data', data);
-    },
-    
-    // Actions
-    submit: (formData: Record<string, any> = {}) => {
-      const finalData = { ...data, ...formData };
-      emit('submit', finalData);
-      return finalData;
-    },
-    
-    cancel: () => {
-      emit('cancel');
-    },
-    
-    // Helper for rendering templates
-    renderTemplate: (templateString: string, context: Record<string, any> = {}) => {
-      if (!window.Handlebars) return '';
-      
-      try {
-        const template = window.Handlebars.compile(templateString);
-        return template({ 
-          ...data, 
-          ...context,
-          assetUrls: uiAssets.assetUrls || {},
-          pluginId: props.pluginId
-        });
-      } catch (error) {
-        console.error('Error rendering template:', error);
-        return '';
-      }
-    },
-    
-    // Helper for accessing other script functions
-    getScriptFunction: (name: string) => {
-      if (!uiAssets.script[name]) {
-        console.warn(`Script function '${name}' not found in plugin ${props.pluginId}, context ${props.context}`);
-        return undefined;
-      }
-      return uiAssets.script[name];
-    }
-  };
-}
-
-function cleanupPluginUI() {
-  if (cleanup) {
-    cleanup();
-    cleanup = null;
-  }
-}
-
-// Define global Handlebars type
-declare global {
-  interface Window {
-    Handlebars: any;
+function cleanupComponent() {
+  if (component) {
+    component.onUnmount();
+    component = null;
   }
 }
 </script>

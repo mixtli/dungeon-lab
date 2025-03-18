@@ -41,22 +41,6 @@ export class DnD5e2024ServerPlugin extends ServerPlugin implements IGameSystemPl
     });
   }
 
-  getActorSheet(actorType: string): string | undefined {
-    if (actorType === 'character') {
-      return 'DndCharacterSheet';
-    }
-    return undefined;
-  }
-
-  getItemSheet(itemType: string): string | undefined {
-    if (itemType === 'weapon') {
-      return 'DndWeaponCard';
-    } else if (itemType === 'spell') {
-      return 'DndSpellCard';
-    }
-    return undefined;
-  }
-
   validateActorData = validateActorData;
   validateItemData = validateItemData;
 }

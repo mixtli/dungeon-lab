@@ -129,10 +129,14 @@ export type {
   IWebPlugin
 } from './types/plugin.mjs';
 
-// Export only browser-compatible plugin classes
+// Plugin component system
+export type { IPluginComponent } from './types/plugin-component.mjs';
+export type { IPluginAPI } from './types/plugin-api.mjs';
+export { PluginComponent } from './base/plugin-component.mjs';
+
+// Base plugin implementations
 export { BasePlugin } from './base/plugin.mjs';
 export { WebPlugin } from './base/web.mjs';
-// Do NOT export ServerPlugin here!
 
 // API interfaces
 export type {
