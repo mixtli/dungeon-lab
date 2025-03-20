@@ -1,6 +1,6 @@
 ---
-description: Basic rules that apply to the entirety of the web client
-globs: packages/web/**
+description: 
+globs: 
 alwaysApply: false
 ---
 

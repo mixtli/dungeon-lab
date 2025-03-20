@@ -1,7 +1,7 @@
 ---
-description: Using sequential reasoning
+description: 
 globs: 
-alwaysApply: false
+alwaysApply: true
 ---
 ## MANDATORY TOOL USAGE
 - Sequential Thinking must be used for all multi-step problems or research tasks
