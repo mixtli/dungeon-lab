@@ -18,7 +18,7 @@ interface StorageConfig {
  * Service for handling file storage operations
  * Currently supports MinIO and S3-compatible storage
  */
-export class StorageService {
+class StorageService {
   private client: Client;
   private bucket: string;
   private config: StorageConfig;

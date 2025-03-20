@@ -17,6 +17,7 @@
     "build:web": "cd packages/web && npm run build",
     "test": "npm run test --workspaces",
     "lint": "npm run lint --workspaces",
+     "find-deadcode": "ts-prune",
     "plugins:build": "for dir in packages/plugins/dnd-5e-2024; do if [ -d \"$dir\" ]; then cd \"$dir\" && npm run build && cd ../../..; fi done",
     "plugins:dev": "for dir in packages/plugins/dnd-5e-2024; do if [ -d \"$dir\" ]; then cd \"$dir\" && npm run dev & fi done",
     "plugins:clean": "for dir in packages/plugins/dnd-5e-2024; do if [ -d \"$dir\" ]; then cd \"$dir\" && npm run clean && cd ../../..; fi done",
@@ -40,6 +41,7 @@
     "@types/sharp": "^0.31.1",
     "@types/uuid": "^10.0.0",
     "concurrently": "^8.2.2",
+    "ts-prune": "^0.10.3",
     "typescript": "^5.8.2",
     "vite-plugin-dynamic-import": "^1.6.0",
     "vue-tsc": "^2.2.8"

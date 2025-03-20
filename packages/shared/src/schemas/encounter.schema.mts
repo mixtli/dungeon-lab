@@ -3,7 +3,7 @@ import { zId } from '@zodyac/zod-mongoose';
 import type { ApiFields } from '../types/api-fields.mjs';
 
 // Encounter Status enum
-export const EncounterStatus = z.enum(['draft', 'ready', 'in_progress', 'completed']);
+const EncounterStatus = z.enum(['draft', 'ready', 'in_progress', 'completed']);
 
 // Base Encounter schema
 export const encounterSchema = z.object({

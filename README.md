@@ -73,9 +73,7 @@ Plugins are configured using a `config.json` file in the root of each plugin's d
   "author": "Plugin Author",
   "website": "https://example.com/plugin",
   "type": "gameSystem",
-  "enabled": true,
-  "serverEntryPoint": "src/index.js",
-  "clientEntryPoint": "src/web/index.js"
+  "enabled": true
 }
 ```
 
@@ -87,8 +85,6 @@ Plugins are configured using a `config.json` file in the root of each plugin's d
 - `website`: Plugin's website (optional)
 - `type`: Plugin type, one of `gameSystem`, `extension`, or `theme`
 - `enabled`: Whether the plugin is enabled by default
-- `serverEntryPoint`: Path to the server-side entry point, relative to the plugin directory
-- `clientEntryPoint`: Path to the client-side entry point, relative to the plugin directory
 
 ### Creating a Plugin
 
@@ -103,15 +99,19 @@ Example structure for a game system plugin:
 
 ```
 packages/plugins/my-game-system/
-├── config.json
+├── manifest.json
 ├── package.json
 ├── tsconfig.json
 └── src/
     ├── index.ts       # Server-side entry point
     ├── server/        # Server-side code
+    │   ├── index.mts   # server-side entry point
     │   └── ...
     ├── web/           # Client-side code
-    │   ├── index.ts   # Client-side entry point
+    │   ├── index.mts   # Client-side entry point
+    │   └── ...
+    ├── shared/           # Plugin shared code
+    │   ├── index.mts   
     │   └── ...
     └── ...
 ```

@@ -5,7 +5,7 @@ import { z } from 'zod';
 /**
  * Options for creating a base schema
  */
-export interface BaseSchemaOptions {
+interface BaseSchemaOptions {
   /**
    * Whether to add timestamps (createdAt, updatedAt)
    * @default true

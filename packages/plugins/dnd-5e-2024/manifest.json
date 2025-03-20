@@ -6,15 +6,5 @@
   "author": "Dungeon Lab Team",
   "website": "https://example.com/dnd5e2024",
   "type": "gameSystem",
-  "enabled": true,
-  "serverEntryPoint": "server/index.mjs",
-  "clientEntryPoint": "web/index.mjs",
-  "uiComponents": {
-    "characterCreation": {
-      "template": "web/ui/characterCreation/template.hbs",
-      "styles": "web/ui/characterCreation/styles.css",
-      "script": "web/ui/characterCreation/index.mts",
-      "partials": {}
-    }
-  }
+  "enabled": true
 } 

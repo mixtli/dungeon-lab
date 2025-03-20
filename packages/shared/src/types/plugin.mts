@@ -79,8 +79,6 @@ export interface IPluginConfiguration {
   website?: string;
   type: 'gameSystem' | 'extension' | 'theme';
   enabled?: boolean;
-  serverEntryPoint?: string;
-  clientEntryPoint?: string;
 }
 
 export interface PluginActionResult {

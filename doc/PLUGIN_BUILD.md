@@ -94,9 +94,7 @@ plugins/my-plugin/
 {
   "id": "my-plugin",
   "name": "My Plugin",
-  "version": "1.0.0",
-  "clientEntryPoint": "client/index.mts",
-  "serverEntryPoint": "server/index.mts"
+  "version": "1.0.0"
 }
 ```
 
@@ -157,9 +155,8 @@ The test build process verifies:
 Common issues:
 
 1. Missing import maps:
-   - Check that plugins have valid config.json files
-   - Verify clientEntryPoint paths are correct
-   - Ensure plugin package name follows the `@dungeon-lab/plugin-*` pattern
+   - Check that plugins have valid manifest.json files
+   - Ensure plugin package name follows the `@dungeon-lab/plugins/*` pattern
 
 2. Build failures:
    - Run `npm install` from the project root
@@ -175,24 +172,13 @@ Common issues:
 4. Workspace issues:
    - Always run `npm install` from the project root
    - Use `peerDependencies` for shared package dependencies
-   - Follow the `@dungeon-lab/plugin-*` naming convention
+   - Follow the `@dungeon-lab/plugin/*` naming convention
 
 ## Adding New Plugins
 
 1. Create a new plugin directory in `packages/plugins/`
 2. Set up package.json with correct name and dependencies
-3. Add config.json with required fields
-4. Create client/server entry points
-5. Run `npm install` from project root
-6. Test with `npm run plugins:test`
-7. Build with `npm run plugins:build`
-
-## Build Configuration
-
-The build is configured through the Vite plugin in `src/plugins/vite-plugin-plugin-import-map.mts`. Key features:
-
-- Automatic plugin discovery
-- TypeScript compilation
-- Chunk optimization
-- Development/production path mapping
-- Workspace-aware dependency resolution 
+3. Add manifest.json with required fields
+4. Run `npm install` from project root
+5. Test with `npm run plugins:test`
+6. Build with `npm run plugins:build`

@@ -15,7 +15,7 @@ const PLUGINS_DIR = join(__dirname, '../../../plugins');
 // Directories to ignore when scanning for plugins
 const IGNORED_DIRS = ['node_modules'];
 
-export interface IPluginRegistry {
+interface IPluginRegistry {
   initialize(): Promise<void>;
   getPlugin(pluginId: string): IGameSystemPluginServer | undefined;
   getPlugins(): IGameSystemPluginServer[];

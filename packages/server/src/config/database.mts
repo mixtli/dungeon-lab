@@ -14,22 +14,3 @@ export async function connectToDatabase(): Promise<void> {
     process.exit(1);
   }
 }
-
-/**
- * Disconnect from MongoDB
- */
-export async function disconnectFromDatabase(): Promise<void> {
-  try {
-    await mongoose.disconnect();
-    console.log('Disconnected from MongoDB');
-  } catch (error) {
-    console.error('Failed to disconnect from MongoDB', error);
-  }
-}
-
-/**
- * Get the MongoDB connection
- */
-export function getConnection(): mongoose.Connection {
-  return mongoose.connection;
-} 

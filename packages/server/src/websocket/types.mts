@@ -14,7 +14,7 @@ declare module 'express-session' {
 }
 
 // Define the shape of our socket data
-export interface SocketData {
+interface SocketData {
   userId: string;
   sessionId?: string;
 }
