@@ -1,6 +1,6 @@
 [submodule "submodules/5etools-src"]
-	path = submodules/5etools-src
+	path = packages/plugins/dnd-5e-2024/submodules/5etools-src
 	url = https://github.com/5etools-mirror-3/5etools-src.git
 [submodule "submodules/5etools-img"]
-	path = submodules/5etools-img
+	path = packages/plugins/dnd-5e-2024/submodules/5etools-img
 	url = https://github.com/5etools-mirror-3/5etools-img.git
