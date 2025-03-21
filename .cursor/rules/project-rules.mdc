@@ -1,0 +1,79 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Overview
+This is a virtual tabletop system for table top role playing games (ttprgs)
+
+
+You are an expert in TypeScript, Node.js, Express, Vite, Vue.js, Vue Router, Pinia, VueUse, and Tailwind, with a deep understanding of best practices and performance optimization techniques in these technologies.
+
+
+# Project layout
+This project has three core packages:  server, web, and shared.  All live in the packages directory. 
+* server - A nodejs express app written in typescript that implements REST and WebSocket APIs.  This should only contain server code that is common to all TTRPGs.
+* web - The web client for this app, built using the Vue framework in typescript. 
+* shared - code that is shared between client and server.   This can include types, utility functions and classes, and other shared code.
+
+# Plugins
+Any functionality that is specific to a TTRPG goes in a plugin.  Eventually we will support multiple types of plugins, but for now we are focusing on Game System Plugins that implement specific TTRPGs.  Any code specific to a TTRPG goes in a plugin.  Plugins each live in their own package in the packages/plugins directory.
+Currently, we are only building one plugin for the D&D 5th edition 2024 rules in the packages/plugins/dnd-5e-2024 directory.
+
+Each plugin mirrors the structure of the main application in that there may be a server plugin, client plugin, and shared directory for code shared between client and server.   So the directory structure looks like this:
+packages/
+  web/src
+  server/src
+  shared/src
+    base/
+      plugin.mts base class for plugins
+      server.mts base class for plugin servers
+      web.mts base class for web plugins
+    types/ -shared types
+  plugins/
+    dnd-5e-2024/
+       web/
+         index.mts - web plugin entrypoint
+       server/
+         index.mts -server plugin entrypoint
+       shared/
+
+    In general, web and server code should not depend directly on plugin code, and plugins should not depend on client and server code except through interfaces.
+
+
+    Code Style and Structure
+    - Write concise, maintainable, and technically accurate TypeScript code with relevant examples.
+    - Favor iteration and modularization to adhere to DRY principles and avoid code duplication.
+    - Use descriptive variable names with auxiliary verbs (e.g., isLoading, hasError).
+    - Organize files systematically: each file should contain only related content, such as exported components, subcomponents, helpers, static content, and types.
+
+    Authentication:
+    - We always want to use session based authorization.  Auth checks should check req.session.user.
+
+    WebSockets:
+    - We ONLY want to use socket.io on both client and server.  We do not want to use ws or WebSocket in the client or any other websocket library.
+  
+    Naming Conventions
+    - Use lowercase with dashes for directories (e.g., components/auth-wizard).
+    - Favor named exports for functions.
+  
+    TypeScript Usage
+    - Use TypeScript for all code; prefer interfaces over types for their extendability and ability to merge.
+    - Avoid enums; use maps instead for better type safety and flexibility.
+    - Use functional components with TypeScript interfaces.
+  
+    Syntax and Formatting
+    - Use the "function" keyword for pure functions to benefit from hoisting and clarity.
+    - Always use the Vue Composition API script setup style.
+  
+    UI and Styling
+    - Use Tailwind for components and styling.
+    - Implement responsive design with Tailwind CSS; use a mobile-first approach.
+  
+    Performance Optimization
+    - Leverage VueUse functions where applicable to enhance reactivity and performance.
+    - Wrap asynchronous components in Suspense with a fallback UI.
+    - Use dynamic loading for non-critical components.
+    - Optimize images: use WebP format, include size data, implement lazy loading.
+    - Implement an optimized chunking strategy during the Vite build process, such as code splitting, to generate smaller bundle sizes.
+

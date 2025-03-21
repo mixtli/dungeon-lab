@@ -1,5 +1,6 @@
 import { IGameSystemRegistration } from '@dungeon-lab/shared/index.mjs';
 import { characterSchema, weaponSchema, spellSchema } from './types/index.mjs';
+import { characterClassSchema } from './schemas/character-class.schema.mjs';
 
 export const dnd5e2024GameSystem: IGameSystemRegistration = {
   actorTypes: [
@@ -28,6 +29,14 @@ export const dnd5e2024GameSystem: IGameSystemRegistration = {
       description: 'Spell',
       dataSchema: spellSchema,
       uiComponent: 'dnd5e2024-spell-sheet'
+    },
+  ],
+  documentTypes: [
+    {
+      name: 'characterClass',
+      description: 'Character Class',
+      dataSchema: characterClassSchema,
     }
   ]
+  
 }; 

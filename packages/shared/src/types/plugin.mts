@@ -57,6 +57,12 @@ export interface IItemTypeDefinition {
   uiComponent: string;
 }
 
+export interface IDocumentTypeDefinition {
+  name: string;
+  description: string;
+  dataSchema: z.ZodSchema;
+}
+
 /**
  * Game System Registration interface
  * This defines the metadata for a game system plugin
@@ -64,6 +70,7 @@ export interface IItemTypeDefinition {
 export interface IGameSystemRegistration {
   actorTypes: IActorTypeDefinition[];
   itemTypes: IItemTypeDefinition[];
+  documentTypes: IDocumentTypeDefinition[];
 }
 
 /**
@@ -113,6 +120,7 @@ export interface IGameSystemPlugin extends IPlugin {
   gameSystem: IGameSystemRegistration;
   validateActorData: (actorType: string, data: unknown) => z.SafeParseReturnType<unknown, unknown>;
   validateItemData: (itemType: string, data: unknown) => z.SafeParseReturnType<unknown, unknown>;
+  validateDocumentData: (documentType: string, data: unknown) => z.SafeParseReturnType<unknown, unknown>;
 }
 
 /**

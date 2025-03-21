@@ -13,7 +13,9 @@
     "sourceMap": true,
     "paths": {
       "@dungeon-lab/shared": ["../../shared/src"],
-      "@dungeon-lab/shared/*": ["../../shared/src/*"]
+      "@dungeon-lab/shared/*": ["../../shared/src/*"],
+      "@dungeon-lab/server": ["../../server/src"],
+      "@dungeon-lab/server/*": ["../../server/src/*"]
     }
   },
   "include": [
@@ -24,6 +26,7 @@
     "src/**/*.d.ts"
   ],
   "references": [
-    { "path": "../../shared" }
+    { "path": "../../shared" },
+    { "path": "../../server" }
   ]
 } 
