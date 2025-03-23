@@ -1,6 +1,6 @@
 // convert-5e-tools-class.mts
 import type {
-  IClassData,
+  ICharacterClass,
   ISkillChoice,
   IEquipmentData,
   IEquipmentChoice,
@@ -10,7 +10,7 @@ import type {
   ISpellEntry,
   ISpellChoice,
   ISubclassData
-} from '../shared/schemas/character-class.schema.mjs';
+} from '../shared/types/character-class.mjs';
 
 // Map of spell school abbreviations to full names
 const SCHOOL_MAP: Record<string, string> = {
@@ -63,7 +63,7 @@ export interface RawSubclassData {
 }
 
 // Output data interface
-export interface NormalizedData extends IClassData {}
+export interface NormalizedData extends ICharacterClass {}
 
 function toLowercase(value: any): string {
     if (value === null || value === undefined) {
@@ -361,18 +361,68 @@ function extractSubclassFeatures(
     return featuresByLevel;
 }
 
-function normalizeSpellString(spellString: string, defaultTag?: string): ISpellData {
+function normalizeSpellString(spellString: string | any, defaultTag?: string): ISpellData | ISpellChoice {
+    // Handle choice objects
+    if (typeof spellString === 'object' && spellString !== null) {
+        if (spellString.choose) {
+            const choice: ISpellChoice = {
+                type: 'choice',
+                count: spellString.choose.count || 1
+            };
+            
+            // Handle various choice parameters
+            if (spellString.choose.from) {
+                choice.options = Array.isArray(spellString.choose.from) 
+                    ? spellString.choose.from.map((s: string) => toLowercase(s))
+                    : [toLowercase(spellString.choose.from)];
+            }
+            
+            if (spellString.choose.level) {
+                choice.levels = Array.isArray(spellString.choose.level)
+                    ? spellString.choose.level
+                    : [spellString.choose.level];
+            }
+            
+            if (spellString.choose.fromClassList) {
+                choice.classes = spellString.choose.fromClassList
+                    .map((cls: any) => toLowercase(cls.name));
+            }
+            
+            if (spellString.choose.fromSchool) {
+                choice.schools = Array.isArray(spellString.choose.fromSchool)
+                    ? spellString.choose.fromSchool.map((s: string) => toLowercase(s))
+                    : [toLowercase(spellString.choose.fromSchool)];
+            }
+            
+            return choice;
+        }
+        
+        // It's not a choice object but some other object (possibly null)
+        return {
+            name: "unknown",
+            source: "xphb"
+        };
+    }
+    
+    // Handle null or undefined 
+    if (!spellString) {
+        return {
+            name: "unknown",
+            source: "xphb"
+        };
+    }
+
     const spellObj: ISpellData = {
         name: "",
         source: "xphb"
     };
     
-    if (spellString.includes('|')) {
+    if (typeof spellString === 'string' && spellString.includes('|')) {
         const parts = spellString.split('|');
         spellObj.name = toLowercase(parts[0] || '');
         spellObj.source = toLowercase(parts[1] || 'xphb');
     } else {
-        spellObj.name = toLowercase(spellString);
+        spellObj.name = toLowercase(String(spellString));
     }
     
     if (defaultTag) {
@@ -396,43 +446,97 @@ function normalizeAdditionalSpells(additionalSpells: any[]): ISpellEntry[] {
     return additionalSpells.map(spellEntry => {
         const result: ISpellEntry = {};
         
+        // Handle resource name if present
+        if (spellEntry.resourceName) {
+            result.resourceName = spellEntry.resourceName;
+        }
+        
+        // Process prepared spells
         if ('prepared' in spellEntry) {
             result.prepared = {};
             Object.entries(spellEntry.prepared).forEach(([level, spells]) => {
-                result.prepared![level] = (spells as string[]).map(
+                if (!Array.isArray(spells)) {
+                    // Skip non-array entries
+                    return;
+                }
+                result.prepared![level] = spells.map(
                     spell => normalizeSpellString(spell)
                 );
             });
         }
         
+        // Process known spells
         if ('known' in spellEntry) {
             result.known = {};
             Object.entries(spellEntry.known).forEach(([level, spellChoices]) => {
-                result.known![level] = (spellChoices as any[]).map(choice => {
-                    if (typeof choice === 'object' && choice?.choose) {
-                        return {
-                            type: "choice",
-                            ...Object.entries(choice.choose).reduce((acc, [k, v]) => ({
-                                ...acc,
-                                [toKey(k)]: v
-                            }), {})
-                        } as ISpellChoice;
-                    }
-                    return normalizeSpellString(choice as string);
+                if (!Array.isArray(spellChoices)) {
+                    // Skip non-array entries
+                    return;
+                }
+                result.known![level] = spellChoices.map(choice => {
+                    return normalizeSpellString(choice);
                 });
             });
         }
         
+        // Process innate spells with resource handling
         if ('innate' in spellEntry) {
             result.innate = {};
             Object.entries(spellEntry.innate).forEach(([level, spellsData]) => {
-                if (typeof spellsData === 'object' && !Array.isArray(spellsData)) {
-                    result.innate![level] = Object.entries(spellsData as Record<string, string[]>)
-                        .flatMap(([tag, spellList]) => 
-                            spellList.map(spell => 
-                                normalizeSpellString(spell, toLowercase(tag))
-                            )
-                        );
+                if (Array.isArray(spellsData)) {
+                    // Simple array of spells
+                    result.innate![level] = spellsData.map(spell => 
+                        normalizeSpellString(spell)
+                    );
+                } else if (typeof spellsData === 'object' && spellsData !== null) {
+                    const spells: (ISpellData | ISpellChoice)[] = [];
+                    
+                    // Handle nested structure with resources
+                    if ('resource' in spellsData) {
+                        const resourceObj = spellsData.resource as Record<string, unknown>;
+                        Object.entries(resourceObj).forEach(([resourceAmount, resourceSpells]) => {
+                            if (Array.isArray(resourceSpells)) {
+                                resourceSpells.forEach(spell => {
+                                    const normalizedSpell = normalizeSpellString(spell);
+                                    if ('name' in normalizedSpell) {
+                                        normalizedSpell.resourceAmount = parseInt(resourceAmount, 10);
+                                        if (spellEntry.resourceName) {
+                                            normalizedSpell.resourceName = spellEntry.resourceName;
+                                        }
+                                    }
+                                    spells.push(normalizedSpell);
+                                });
+                            }
+                        });
+                    } else {
+                        // Handle other object formats (tag-based spells)
+                        Object.entries(spellsData as Record<string, any>).forEach(([tag, tagSpells]) => {
+                            if (Array.isArray(tagSpells)) {
+                                tagSpells.forEach(spell => {
+                                    const normalizedSpell = normalizeSpellString(spell, toLowercase(tag));
+                                    spells.push(normalizedSpell);
+                                });
+                            } else if (typeof tagSpells === 'object' && tagSpells !== null && 'resource' in tagSpells) {
+                                // For deeply nested resource objects
+                                Object.entries(tagSpells.resource).forEach(([resourceAmount, resourceSpells]) => {
+                                    if (Array.isArray(resourceSpells)) {
+                                        resourceSpells.forEach(spell => {
+                                            const normalizedSpell = normalizeSpellString(spell, toLowercase(tag));
+                                            if ('name' in normalizedSpell) {
+                                                normalizedSpell.resourceAmount = parseInt(resourceAmount, 10);
+                                                if (spellEntry.resourceName) {
+                                                    normalizedSpell.resourceName = spellEntry.resourceName;
+                                                }
+                                            }
+                                            spells.push(normalizedSpell);
+                                        });
+                                    }
+                                });
+                            }
+                        });
+                    }
+                    
+                    result.innate![level] = spells;
                 }
             });
         }

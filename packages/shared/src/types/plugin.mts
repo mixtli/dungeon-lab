@@ -43,35 +43,6 @@ export interface IPluginUIAssets {
   assetUrls?: Record<string, string>; // Map of asset path to resolved URL
 }
 
-export interface IActorTypeDefinition {
-  name: string;
-  description: string;
-  dataSchema: z.ZodSchema;
-  uiComponent: string;
-}
-
-export interface IItemTypeDefinition {
-  name: string;
-  description: string;
-  dataSchema: z.ZodSchema;
-  uiComponent: string;
-}
-
-export interface IDocumentTypeDefinition {
-  name: string;
-  description: string;
-  dataSchema: z.ZodSchema;
-}
-
-/**
- * Game System Registration interface
- * This defines the metadata for a game system plugin
- */
-export interface IGameSystemRegistration {
-  actorTypes: IActorTypeDefinition[];
-  itemTypes: IItemTypeDefinition[];
-  documentTypes: IDocumentTypeDefinition[];
-}
 
 /**
  * Plugin Configuration interface
@@ -103,6 +74,7 @@ export interface PluginActionResult {
 export interface IPlugin {
   // Plugin configuration
   config: IPluginConfiguration;
+  type: 'gameSystem' | 'extension' | 'theme' | undefined;
   
   // Lifecycle hooks
   onLoad(): Promise<void>;     // Called when the plugin is loaded
@@ -117,10 +89,9 @@ export interface IPlugin {
  */
 export interface IGameSystemPlugin extends IPlugin {
   type: 'gameSystem';
-  gameSystem: IGameSystemRegistration;
   validateActorData: (actorType: string, data: unknown) => z.SafeParseReturnType<unknown, unknown>;
   validateItemData: (itemType: string, data: unknown) => z.SafeParseReturnType<unknown, unknown>;
-  validateDocumentData: (documentType: string, data: unknown) => z.SafeParseReturnType<unknown, unknown>;
+  validateVTTDocumentData: (documentType: string, data: unknown) => z.SafeParseReturnType<unknown, unknown>;
 }
 
 /**
@@ -128,6 +99,7 @@ export interface IGameSystemPlugin extends IPlugin {
  * This extends the base Game System Plugin interface with web-specific functionality
  */
 export interface IGameSystemPluginWeb extends IGameSystemPlugin, IWebPlugin {
+  type: 'gameSystem'
   loadComponent: (componentId: string) => IPluginComponent | undefined;
 }
 
@@ -153,7 +125,6 @@ export interface IServerPlugin extends IPlugin {
  * Extends the base Plugin interface with web-specific functionality
  */
 export interface IWebPlugin extends IPlugin {
-  // No additional methods required
 }
 
 /**

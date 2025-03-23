@@ -1,10 +1,17 @@
 import { readFile, readdir } from 'fs/promises';
-import { join } from 'path';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import mongoose from 'mongoose';
-import { VTTDocument } from '@dungeon-lab/server/models/vtt-document.model.mjs';
+import { VTTDocument } from '@dungeon-lab/server/src/models/vtt-document.model.mjs';
 import { convert5eToolsClass } from './convert-5etools-class.mjs';
-import { type ICharacterClass } from '../shared/schemas/character-class.schema.mjs';
+import { type ICharacterClass } from '../shared/types/character-class.mjs';
+import { pluginRegistry } from '@dungeon-lab/server/src/services/plugin-registry.service.mjs';
+pluginRegistry.initialize();
 import config from '../../manifest.json' with { type: 'json' };
+
+// Get the current file's directory in ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 async function importCharacterClasses() {
   try {
@@ -12,12 +19,19 @@ async function importCharacterClasses() {
     await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/dungeon-lab');
     console.log('Connected to MongoDB');
 
+    // Find the first user in the system to use as creator/updater
+    const User = mongoose.connection.collection('users');
+    const firstUser = await User.findOne({});
+    const userId = firstUser ? firstUser._id.toString() : 'system';
+    console.log(`Using user ID: ${userId} for import operations`);
+
     // Get all class files from the directory
     const classDir = join(__dirname, '../../submodules/5etools-src/data/class');
     const files = await readdir(classDir);
-    const classFiles = files.filter(f => f.endsWith('.json'));
+    const classFiles = files.filter(f => f.endsWith('.json') && f.startsWith('class-'));
 
     for (const file of classFiles) {
+      console.log(`Importing class: ${file}`);
       try {
         // Read the class data file
         const classFilePath = join(classDir, file);
@@ -42,7 +56,7 @@ async function importCharacterClasses() {
         if (existingDoc) {
           // Update existing document
           existingDoc.data = normalizedClass;
-          existingDoc.updatedBy = 'system';
+          existingDoc.updatedBy = userId;
           await existingDoc.save();
           console.log(`Updated character class: ${normalizedClass.name}`);
         } else {
@@ -52,8 +66,8 @@ async function importCharacterClasses() {
             pluginId: config.id,
             documentType: 'characterClass',
             data: normalizedClass,
-            createdBy: 'system',
-            updatedBy: 'system'
+            createdBy: userId,
+            updatedBy: userId
           });
 
           // Save to database
@@ -75,6 +89,6 @@ async function importCharacterClasses() {
 }
 
 // Run the import if this script is run directly
-if (process.argv[1] === __filename) {
+if (import.meta.url === (typeof document === 'undefined' ? new URL('file:' + process.argv[1]).href : undefined)) {
   importCharacterClasses().catch(console.error);
 } 

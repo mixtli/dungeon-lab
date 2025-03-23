@@ -40,16 +40,23 @@ const spellDataSchema = z.object({
   name: z.string(),
   source: z.string(),
   tag: z.string().optional(),
+  resourceName: z.string().optional(),
+  resourceAmount: z.number().optional(),
 });
 
 const spellChoiceSchema = z.object({
   type: z.literal('choice'),
+  levels: z.array(z.number()).optional(),
+  count: z.number().optional(),
+  classes: z.array(z.string()).optional(),
+  schools: z.array(z.string()).optional(),
 }).catchall(z.any());
 
 const spellEntrySchema = z.object({
-  prepared: z.record(z.string(), z.array(spellDataSchema)).optional(),
+  prepared: z.record(z.string(), z.array(z.union([spellDataSchema, spellChoiceSchema]))).optional(),
   known: z.record(z.string(), z.array(z.union([spellDataSchema, spellChoiceSchema]))).optional(),
-  innate: z.record(z.string(), z.array(spellDataSchema)).optional(),
+  innate: z.record(z.string(), z.array(z.union([spellDataSchema, spellChoiceSchema]))).optional(),
+  resourceName: z.string().optional(),
 });
 
 const subclassDataSchema = z.object({

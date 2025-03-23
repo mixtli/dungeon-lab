@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@dungeon-lab/shared/*": ["./packages/shared/src/*"],
+      "@dungeon-lab/server/*": ["./packages/server/src/*"],
+      "@dungeon-lab/web/*": ["./packages/web/src/*"],
+      "@dungeon-lab/plugin-dnd-5e-2024/*": ["./packages/plugins/dnd-5e-2024/src/*"]
+    }
+  },
+  "exclude": ["node_modules", "dist"],
+  "include": ["packages/**/*"]
+} 

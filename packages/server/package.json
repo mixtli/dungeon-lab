@@ -12,10 +12,11 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "import-data": "tsx src/scripts/import-sample-data.mts"
+    "import:dnd-5e-2024:classes": "tsx ../plugins/dnd-5e-2024/src/scripts/import-character-classes.mts",
+    "import:dnd-5e-2024:backgrounds": "tsx ../plugins/dnd-5e-2024/src/scripts/import-backgrounds.mts",
+    "import:dnd-5e-2024:species": "tsx ../plugins/dnd-5e-2024/src/scripts/import-species.mts"
   },
   "dependencies": {
-    "@dungeon-lab/plugin-dnd-5e-2024": "file:../plugins/dnd-5e-2024",
     "@dungeon-lab/shared": "file:../shared",
     "@types/morgan": "^1.9.9",
     "@types/multer": "^1.4.12",

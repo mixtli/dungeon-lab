@@ -13,7 +13,7 @@ export interface IPluginSchemas {
  */
 export abstract class BasePlugin implements IPlugin {
   public config: IPluginConfiguration;
-  
+  public type: 'gameSystem' | 'extension' | 'theme' | undefined;
   // Child classes will populate this with their schemas
   protected schemas: IPluginSchemas = {};
 

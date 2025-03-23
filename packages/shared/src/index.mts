@@ -122,9 +122,6 @@ export type {
   IGameSystemPluginWeb,
   IPluginManager,
   IServerPlugin,
-  IGameSystemRegistration,
-  IActorTypeDefinition,
-  IItemTypeDefinition,
   PluginActionResult,
   IWebPlugin
 } from './types/plugin.mjs';

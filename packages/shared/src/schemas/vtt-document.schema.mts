@@ -8,14 +8,12 @@ export const vttDocumentSchema = z.object({
   pluginId: z.string().min(1),
   documentType: z.string().min(1),
   data: z.any(), // This will be validated against plugin-specific schema
-  version: z.number().int().positive(),
   createdBy: zId('User'),
   updatedBy: zId('User'),
 });
 
 // Create schema (omits auto-generated fields)
 export const vttDocumentCreateSchema = vttDocumentSchema.omit({
-  version: true,
   createdBy: true,
   updatedBy: true,
 }).extend({
@@ -25,7 +23,6 @@ export const vttDocumentCreateSchema = vttDocumentSchema.omit({
 // Update schema (makes all fields optional except updatedBy)
 export const vttDocumentUpdateSchema = vttDocumentSchema
   .omit({
-    version: true,
     createdBy: true,
   })
   .partial()

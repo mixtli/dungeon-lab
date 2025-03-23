@@ -1,10 +1,13 @@
 import mongoose from 'mongoose';
 import toMongooseSchema from '@zodyac/zod-mongoose';
-import { vttDocumentSchema, type IVTTDocument } from '@dungeon-lab/shared/schemas/vtt-document.schema.mjs';
+import { vttDocumentSchema, type IVTTDocument } from '@dungeon-lab/shared/src/schemas/vtt-document.schema.mjs';
 import { pluginRegistry } from '../services/plugin-registry.service.mjs';
 
-// Create mongoose schema from zod schema
-const mongooseSchema = toMongooseSchema(vttDocumentSchema);
+import { extendZod, zodSchema } from '@zodyac/zod-mongoose';
+import { z } from 'zod';
+// extendZod(z);
+
+const mongooseSchema = zodSchema(vttDocumentSchema);
 
 // Add validation middleware
 mongooseSchema.pre('save', async function(this: mongoose.Document & IVTTDocument, next: mongoose.CallbackWithoutResultAndOptionalError) {
@@ -16,7 +19,7 @@ mongooseSchema.pre('save', async function(this: mongoose.Document & IVTTDocument
         throw new Error(`Plugin ${this.pluginId} not found`);
       }
 
-      const isValid = plugin.validateDocumentData(this.documentType, this.data);
+      const isValid = plugin.validateVTTDocumentData(this.documentType, this.data);
       if (!isValid) {
         throw new Error(`Invalid document data for plugin ${this.pluginId} and type ${this.documentType}`);
       }

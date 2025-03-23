@@ -110,7 +110,7 @@ export class PluginRegistryService {
   private async registerPlugin(plugin: IWebPlugin): Promise<void> {
     this.plugins.set(plugin.config.id, plugin);
     
-    if ('gameSystem' in plugin) {
+    if (plugin.type === 'gameSystem') {
       this.gameSystemPlugins.set(plugin.config.id, plugin as IGameSystemPluginWeb);
     }
     

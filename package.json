@@ -24,7 +24,8 @@
     "plugins:test": "npm run test:plugin-build --workspace=@dungeon-lab/web",
     "plugins:test:clean": "npm run clean:test --workspace=@dungeon-lab/web",
     "typecheck": "tsc -b tsconfig.workspace.json --verbose",
-    "typecheck:watch": "tsc -b tsconfig.workspace.json --watch"
+    "typecheck:watch": "tsc -b tsconfig.workspace.json --watch",
+    "import:dnd-5e-2024": "tsx packages/plugins/dnd-5e-2024/src/scripts/import-character-classes.mts"
   },
   "keywords": [
     "vtt",

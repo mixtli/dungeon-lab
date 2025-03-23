@@ -13,7 +13,7 @@ export const userPreferencesSchema = z.object({
 
 // Base User schema
 export const userSchema = z.object({
-  id: z.string(),
+  id: z.string().optional(),
   username: z.string().min(3).max(50),
   email: z.string().email(),
   password: z.string().min(8).optional(),
@@ -28,7 +28,7 @@ export const userSchema = z.object({
 // Create data schema (for manual registration)
 export const userCreateSchema = userSchema.extend({
   password: z.string().min(8),
-});
+}).omit({ id: true });
 
 // Update data schema (makes all fields optional except id)
 export const userUpdateSchema = userSchema

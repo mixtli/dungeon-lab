@@ -22,8 +22,7 @@ export class PluginController {
       // Map plugins to a safe format for client consumption
       const clientPlugins = plugins.map(plugin => ({
         config: plugin.config,
-        type: plugin.type,
-        gameSystem: plugin.gameSystem,
+        type: plugin.type
       }));
       res.json(clientPlugins);
     } catch (error) {
@@ -47,8 +46,7 @@ export class PluginController {
       // Map plugin to a safe format for client consumption
       const clientPlugin = {
         config: plugin.config,
-        type: plugin.type,
-        gameSystem: plugin.gameSystem,
+        type: plugin.type
       };
       
       res.json(clientPlugin);
