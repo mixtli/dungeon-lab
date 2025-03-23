@@ -1,4 +1,12 @@
 import type { ISpecies } from '../shared/types/vttdocument.mjs';
+import {
+  toLowercase,
+  cleanRuleText,
+  extractTextFromEntries,
+  normalizeSize,
+  extractSpells,
+  processSpellList
+} from './converter-utils.mjs';
 
 // Input data interface
 export interface RawSpeciesData {
@@ -62,93 +70,6 @@ export interface RawSpeciesData {
   }>;
 }
 
-// Helper functions
-function toLowercase(value: any): string {
-  if (value === null || value === undefined) {
-    return '';
-  }
-  if (typeof value === 'string') {
-    return value.toLowerCase();
-  }
-  return String(value).toLowerCase();
-}
-
-function cleanRuleText(text: string): string {
-  // Handle {@variantrule text|source} pattern
-  text = text.replace(/{@variantrule ([^}|]+)\|[^}]+}/g, '$1');
-  
-  // Handle {@condition text|source} pattern
-  text = text.replace(/{@condition ([^}|]+)\|[^}]+}/g, '$1');
-  
-  // Handle {@sense text|source} pattern
-  text = text.replace(/{@sense ([^}|]+)\|[^}]+}/g, '$1');
-  
-  // Handle {@spell text|source} pattern
-  text = text.replace(/{@spell ([^}|]+)\|[^}]+}/g, '$1');
-  
-  // Handle {@action text|source} pattern
-  text = text.replace(/{@action ([^}|]+)\|[^}]+}/g, '$1');
-  
-  // Handle {@dc num} pattern
-  text = text.replace(/{@dc (\d+)}/g, 'DC $1');
-  
-  // Handle any other {@something text|source} pattern
-  text = text.replace(/{@\w+ ([^}|]+)\|[^}]+}/g, '$1');
-  
-  // Handle simple {@something text} pattern (no source)
-  text = text.replace(/{@\w+ ([^}]+)}/g, '$1');
-  
-  return text;
-}
-
-function extractTextFromEntries(entries: any[]): string {
-  if (!entries || !Array.isArray(entries)) {
-    return '';
-  }
-  
-  return entries
-    .filter(entry => typeof entry === 'string' || (entry && entry.entries) || (entry && entry.items))
-    .map(entry => {
-      if (typeof entry === 'string') {
-        return cleanRuleText(entry);
-      } else if (entry.entries) {
-        // Handle nested entries
-        return extractTextFromEntries(entry.entries);
-      } else if (entry.items) {
-        // Handle lists
-        return extractTextFromEntries(entry.items.map((item: any) => 
-          typeof item === 'string' ? item : 
-          (item.entries ? item.entries : (item.entry ? item.entry : ''))
-        ));
-      }
-      return '';
-    })
-    .join(' ');
-}
-
-function getSize(data: RawSpeciesData): 'tiny' | 'small' | 'medium' | 'large' | 'huge' {
-  if (!data.size || !Array.isArray(data.size)) {
-    return 'medium';
-  }
-  
-  // Convert to lowercase and map to our schema's size enum
-  const sizes = data.size.map(size => toLowercase(size));
-  
-  if (sizes.includes('m')) {
-    return 'medium';
-  } else if (sizes.includes('s')) {
-    return 'small';
-  } else if (sizes.includes('l')) {
-    return 'large';
-  } else if (sizes.includes('t')) {
-    return 'tiny';
-  } else if (sizes.includes('h')) {
-    return 'huge';
-  }
-  
-  return 'medium'; // Default
-}
-
 function getSpeed(data: RawSpeciesData): number {
   if (typeof data.speed === 'number') {
     return data.speed;
@@ -175,107 +96,6 @@ function extractTraits(data: RawSpeciesData): Array<{ name: string; description:
       name: toLowercase(entry.name || ''),
       description: extractTextFromEntries(entry.entries || [])
     }));
-}
-
-// Helper function for processing spell lists
-function processSpellList(spellList: any): string[] {
-  if (!spellList) return [];
-  
-  const spells: string[] = [];
-  
-  if (Array.isArray(spellList)) {
-    // Direct array of spells
-    spellList.forEach(spell => {
-      if (typeof spell === 'string') {
-        // Extract just the spell name, removing source and other annotations
-        const spellName = spell.split('|')[0].split('#')[0].trim();
-        spells.push(toLowercase(spellName));
-      } else if (spell && spell.choose) {
-        // For entries with 'choose', we can't determine exact spells,
-        // so add a note about choosing from a list
-        spells.push(`choose a spell from ${spell.choose}`);
-      }
-    });
-  } else if (typeof spellList === 'object') {
-    // Nested structure with levels
-    Object.keys(spellList).forEach(level => {
-      const levelSpells = spellList[level];
-      if (Array.isArray(levelSpells)) {
-        levelSpells.forEach(spell => {
-          if (typeof spell === 'string') {
-            const spellName = spell.split('|')[0].split('#')[0].trim();
-            spells.push(toLowercase(spellName));
-          }
-        });
-      } else if (typeof levelSpells === 'object' && levelSpells._) {
-        // Handle complex structures like {"_": [{"choose": "level=0|class=Wizard"}]}
-        levelSpells._.forEach((item: any) => {
-          if (item && item.choose) {
-            spells.push(`choose a spell from ${item.choose}`);
-          }
-        });
-      }
-    });
-  }
-  
-  return spells;
-}
-
-function extractSpells(spellData: any[]): Array<{
-  name?: string;
-  cantrips: string[];
-  spells: Array<{ level: number; spells: string[] }>;
-}> {
-  if (!spellData || !Array.isArray(spellData)) {
-    return [];
-  }
-  
-  return spellData.map(spellEntry => {
-    const result: {
-      name?: string;
-      cantrips: string[];
-      spells: Array<{ level: number; spells: string[] }>;
-    } = {
-      name: spellEntry.name ? toLowercase(spellEntry.name) : undefined,
-      cantrips: [],
-      spells: []
-    };
-    
-    // Process known spells (usually cantrips)
-    if (spellEntry.known) {
-      const knownSpells = processSpellList(spellEntry.known['1']);
-      result.cantrips = knownSpells;
-    }
-    
-    // Process innate spells by level
-    if (spellEntry.innate) {
-      Object.keys(spellEntry.innate).forEach(level => {
-        const levelNum = parseInt(level);
-        if (!isNaN(levelNum)) {
-          const levelSpells: string[] = [];
-          const levelData = spellEntry.innate[level];
-          
-          // Process spells that can be cast daily
-          if (levelData.daily) {
-            Object.keys(levelData.daily).forEach(times => {
-              levelSpells.push(...processSpellList(levelData.daily[times]));
-            });
-          }
-          
-          // Add other spell types as needed (e.g., ritual, etc.)
-          
-          if (levelSpells.length > 0) {
-            result.spells.push({
-              level: levelNum,
-              spells: levelSpells
-            });
-          }
-        }
-      });
-    }
-    
-    return result;
-  });
 }
 
 function extractSubspeciesFromVersions(data: RawSpeciesData): Array<{
@@ -388,7 +208,7 @@ export function convert5eToolsSpecies(data: RawSpeciesData): ISpecies {
   return {
     name: toLowercase(data.name || ''),
     description: getDescription(data),
-    size: getSize(data),
+    size: normalizeSize(data.size || []),
     speed: getSpeed(data),
     traits: extractTraits(data),
     subspecies: subspecies.length > 0 ? subspecies : undefined

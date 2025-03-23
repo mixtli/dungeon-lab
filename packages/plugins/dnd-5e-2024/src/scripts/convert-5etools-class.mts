@@ -11,6 +11,12 @@ import type {
   ISpellChoice,
   ISubclassData
 } from '../shared/types/character-class.mjs';
+import {
+  toLowercase,
+  cleanRuleText,
+  extractTextFromEntries,
+  normalizeSkillProficiencies
+} from './converter-utils.mjs';
 
 // Map of spell school abbreviations to full names
 const SCHOOL_MAP: Record<string, string> = {
@@ -65,31 +71,8 @@ export interface RawSubclassData {
 // Output data interface
 export interface NormalizedData extends ICharacterClass {}
 
-function toLowercase(value: any): string {
-    if (value === null || value === undefined) {
-        return '';
-    }
-    if (typeof value === 'string') {
-        return value.toLowerCase();
-    }
-    return String(value).toLowerCase();
-}
-
 function toKey(value: any): string {
     return toLowercase(value);
-}
-
-function cleanRuleText(text: string): string {
-    // Handle {@variantrule text|source} pattern
-    text = text.replace(/{@variantrule ([^}|]+)\|[^}]+}/g, '$1');
-    
-    // Handle any other {@something text|source} pattern
-    text = text.replace(/{@\w+ ([^}|]+)\|[^}]+}/g, '$1');
-    
-    // Handle simple {@something text} pattern (no source)
-    text = text.replace(/{@\w+ ([^}]+)}/g, '$1');
-    
-    return text;
 }
 
 function normalizeSubclassFeatureEntries(entries: any[]): Partial<IFeatureData> {
@@ -248,9 +231,7 @@ function normalizeEquipmentItem(item: any): IEquipmentChoice {
     }
 
     return {
-        type: "choice",
-        item: toLowercase(String(item)),
-        source: 'xphb'
+        type: "choice"
     };
 }
 
@@ -270,7 +251,7 @@ function extractFeatures(classData: RawClassData, allFeatures: any[]): Record<st
                 const feature = allFeatures.find(f => 
                     toLowercase(f.name || '') === featureName &&
                     toLowercase(f.className || '') === className &&
-                    f.classSource === 'XPHB' &&
+                    f.classSource === 'PHB' &&
                     f.level === level
                 );
                 
@@ -319,14 +300,14 @@ function extractSubclassFeatures(
     const featuresByLevel: Record<string, IFeatureData[]> = {};
     const subclassName = toLowercase(subclass.shortName || '');
     
-    if (subclass.source !== 'XPHB' || subclass.classSource !== 'XPHB') {
+    if (subclass.source !== 'PHB' || subclass.classSource !== 'PHB') {
         return featuresByLevel;
     }
     
     for (const feature of allFeatures) {
         if (toLowercase(feature.className || '') !== className ||
             toLowercase(feature.subclassShortName || '') !== subclassName ||
-            feature.subclassSource !== 'XPHB') {
+            feature.subclassSource !== 'PHB') {
             continue;
         }
         
@@ -561,25 +542,44 @@ function findSubclassLevel(features: any[]): number {
 }
 
 export function convert5eToolsClass(data: any): NormalizedData {
-    // Extract only XPHB classes
-    const xphbClasses = (data.class || []).filter((cls: RawClassData) => cls.source === 'XPHB');
-    if (xphbClasses.length === 0) {
-        console.log(`No XPHB classes found in data`);
+    // Check if we're dealing with a direct class object or a container with class arrays
+    let classData: RawClassData;
+    let subclasses: any[] = [];
+    let classFeatures: any[] = [];
+    let subclassFeatures: any[] = [];
+    
+    // Handle case where data is a container with arrays
+    if (data.class && Array.isArray(data.class)) {
+        // Extract only PHB classes
+        const phbClasses = data.class.filter((cls: RawClassData) => cls.source === 'PHB');
+        if (phbClasses.length === 0) {
+            console.log(`No PHB classes found in data`);
+            return {} as NormalizedData;
+        }
+        
+        classData = phbClasses[0];
+        subclasses = (data.subclass || []).filter(
+            (sc: RawSubclassData) => sc.source === 'PHB' && sc.classSource === 'PHB'
+        );
+        classFeatures = data.classFeature || [];
+        subclassFeatures = data.subclassFeature || [];
+    } 
+    // Handle case where data is a direct class object
+    else if (data.source === 'PHB') {
+        classData = data;
+        // In this case, we need to return an empty object for subclasses and features
+        // as they'll be processed separately
+    } else {
+        console.log(`No PHB class found in data: ${data.name} (${data.source})`);
         return {} as NormalizedData;
     }
     
-    const classData = xphbClasses[0];
     const className = toLowercase(classData.name || '');
     
-    // Extract subclasses
-    const xphbSubclasses = (data.subclass || []).filter(
-        (sc: RawSubclassData) => sc.source === 'XPHB' && sc.classSource === 'XPHB'
-    );
-    
-    const subclasses = xphbSubclasses.map((subclass: RawSubclassData) => {
-        const subclassFeatures = extractSubclassFeatures(
+    const processedSubclasses = subclasses.map((subclass: RawSubclassData) => {
+        const subclassFeaturesByLevel = extractSubclassFeatures(
             subclass,
-            data.subclassFeature || [],
+            subclassFeatures,
             className
         );
         
@@ -588,7 +588,7 @@ export function convert5eToolsClass(data: any): NormalizedData {
             shortname: toLowercase(subclass.shortName || ''),
             source: "xphb",
             classname: className,
-            features: subclassFeatures,
+            features: subclassFeaturesByLevel,
             additionalspells: normalizeAdditionalSpells(subclass.additionalSpells || [])
         };
     });
@@ -607,9 +607,9 @@ export function convert5eToolsClass(data: any): NormalizedData {
             skills: normalizeSkillChoices(classData.startingProficiencies?.skills || [])
         },
         equipment: normalizeStartingEquipment(classData.startingEquipment || {}),
-        features: extractFeatures(classData, data.classFeature || []),
+        features: extractFeatures(classData, classFeatures),
         subclasslevel: findSubclassLevel(classData.classFeatures || []),
         subclassTitle: toLowercase(classData.subclassTitle || ''),
-        subclasses: subclasses
+        subclasses: processedSubclasses
     };
 }

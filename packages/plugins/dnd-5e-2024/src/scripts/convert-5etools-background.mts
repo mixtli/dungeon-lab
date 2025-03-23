@@ -1,4 +1,12 @@
 import type { IBackground } from '../shared/types/vttdocument.mjs';
+import {
+  toLowercase,
+  cleanRuleText,
+  extractTextFromEntries,
+  normalizeSkillProficiencies,
+  normalizeToolProficiencies,
+  normalizeAbilities
+} from './converter-utils.mjs';
 
 // Input data interface
 export interface RawBackgroundData {
@@ -40,117 +48,6 @@ export interface RawBackgroundData {
     bond?: any[];
     flaw?: any[];
   };
-}
-
-// Helper functions
-function toLowercase(value: any): string {
-  if (value === null || value === undefined) {
-    return '';
-  }
-  if (typeof value === 'string') {
-    return value.toLowerCase();
-  }
-  return String(value).toLowerCase();
-}
-
-function cleanRuleText(text: string): string {
-  // Handle {@variantrule text|source} pattern
-  text = text.replace(/{@variantrule ([^}|]+)\|[^}]+}/g, '$1');
-  
-  // Handle any other {@something text|source} pattern
-  text = text.replace(/{@\w+ ([^}|]+)\|[^}]+}/g, '$1');
-  
-  // Handle simple {@something text} pattern (no source)
-  text = text.replace(/{@\w+ ([^}]+)}/g, '$1');
-  
-  return text;
-}
-
-function extractTextFromEntries(entries: any[]): string {
-  if (!entries || !Array.isArray(entries)) {
-    return '';
-  }
-  
-  return entries
-    .filter(entry => typeof entry === 'string' || (entry && entry.entries))
-    .map(entry => {
-      if (typeof entry === 'string') {
-        return toLowercase(cleanRuleText(entry));
-      } else if (entry.entries) {
-        // Handle nested entries
-        return extractTextFromEntries(entry.entries);
-      }
-      return '';
-    })
-    .join(' ');
-}
-
-function normalizeSkillProficiencies(skillsData: any[]): string[] {
-  if (!skillsData || !Array.isArray(skillsData)) {
-    return [];
-  }
-  
-  const skills: string[] = [];
-  
-  for (const skillItem of skillsData) {
-    if (typeof skillItem === 'object' && skillItem !== null) {
-      // Skills are objects where keys are skill names and values are true
-      Object.keys(skillItem).forEach(skill => {
-        if (skillItem[skill] === true) {
-          skills.push(toLowercase(skill));
-        }
-      });
-    }
-  }
-  
-  return skills;
-}
-
-function normalizeToolProficiencies(toolsData: any[]): string[] {
-  if (!toolsData || !Array.isArray(toolsData)) {
-    return [];
-  }
-  
-  const tools: string[] = [];
-  
-  for (const toolItem of toolsData) {
-    if (typeof toolItem === 'object' && toolItem !== null) {
-      // Tools are objects where keys are tool names and values are true
-      Object.keys(toolItem).forEach(tool => {
-        if (toolItem[tool] === true) {
-          tools.push(toLowercase(tool));
-        }
-      });
-    }
-  }
-  
-  return tools;
-}
-
-function normalizeAbilities(abilityData: any[]): string[] {
-  if (!abilityData || !Array.isArray(abilityData)) {
-    return [];
-  }
-  
-  const abilities: string[] = [];
-  
-  for (const abilityItem of abilityData) {
-    if (typeof abilityItem === 'object' && abilityItem !== null) {
-      if (abilityItem.choose && abilityItem.choose.weighted && Array.isArray(abilityItem.choose.weighted.from)) {
-        // Add all abilities from weighted choices
-        abilityItem.choose.weighted.from.forEach((ability: string) => {
-          abilities.push(toLowercase(ability));
-        });
-      } else if (abilityItem.choose && Array.isArray(abilityItem.choose.from)) {
-        // Add abilities from simple choices
-        abilityItem.choose.from.forEach((ability: string) => {
-          abilities.push(toLowercase(ability));
-        });
-      }
-    }
-  }
-  
-  return [...new Set(abilities)]; // Remove duplicates
 }
 
 function normalizeFeats(featsData: any[]): string[] {
@@ -254,97 +151,84 @@ function normalizeEquipment(equipmentData: any[]): {
   return result;
 }
 
-function normalizeCharacteristics(characteristics: any): { 
-  personalityTraits?: string[], 
-  ideals?: string[], 
-  bonds?: string[], 
-  flaws?: string[] 
-} {
-  const result: { 
-    personalityTraits?: string[], 
-    ideals?: string[], 
-    bonds?: string[], 
-    flaws?: string[] 
-  } = {};
-  
-  if (!characteristics) {
-    return result;
-  }
-  
-  // Process personality traits
-  if (characteristics.personalityTrait && Array.isArray(characteristics.personalityTrait)) {
-    result.personalityTraits = characteristics.personalityTrait
-      .filter((trait: any) => typeof trait === 'object' && trait.table)
-      .flatMap((trait: any) => 
-        trait.table.map((t: any) => 
-          typeof t === 'string' ? toLowercase(t) : 
-          (t.entry ? toLowercase(t.entry) : '')
-        )
-      )
-      .filter(Boolean);
-  }
-  
-  // Process ideals
-  if (characteristics.ideal && Array.isArray(characteristics.ideal)) {
-    result.ideals = characteristics.ideal
-      .filter((ideal: any) => typeof ideal === 'object' && ideal.table)
-      .flatMap((ideal: any) => 
-        ideal.table.map((i: any) => 
-          typeof i === 'string' ? toLowercase(i) : 
-          (i.entry ? toLowercase(i.entry) : '')
-        )
-      )
-      .filter(Boolean);
-  }
-  
-  // Process bonds
-  if (characteristics.bond && Array.isArray(characteristics.bond)) {
-    result.bonds = characteristics.bond
-      .filter((bond: any) => typeof bond === 'object' && bond.table)
-      .flatMap((bond: any) => 
-        bond.table.map((b: any) => 
-          typeof b === 'string' ? toLowercase(b) : 
-          (b.entry ? toLowercase(b.entry) : '')
-        )
-      )
-      .filter(Boolean);
-  }
-  
-  // Process flaws
-  if (characteristics.flaw && Array.isArray(characteristics.flaw)) {
-    result.flaws = characteristics.flaw
-      .filter((flaw: any) => typeof flaw === 'object' && flaw.table)
-      .flatMap((flaw: any) => 
-        flaw.table.map((f: any) => 
-          typeof f === 'string' ? toLowercase(f) : 
-          (f.entry ? toLowercase(f.entry) : '')
-        )
-      )
-      .filter(Boolean);
-  }
-  
-  return result;
-}
-
 export function convert5eToolsBackground(data: RawBackgroundData): IBackground {
-  // Skip non-XPHB backgrounds
-  if (data.source !== 'XPHB') {
+  // Return empty object if no source or not XPHB
+  if (!data || !data.source || data.source !== 'XPHB') {
     return {} as IBackground;
   }
-  
-  // Convert characteristics
-  const characteristics = normalizeCharacteristics(data.suggestedCharacteristics);
-  
+
+  // Extract description from entries
+  let description = '';
+  if (data.entries && Array.isArray(data.entries)) {
+    description = extractTextFromEntries(data.entries);
+  }
+
+  // Extract personality traits, ideals, bonds, and flaws
+  const personality: string[] = [];
+  const ideals: string[] = [];
+  const bonds: string[] = [];
+  const flaws: string[] = [];
+
+  if (data.suggestedCharacteristics) {
+    // Process personality traits
+    if (data.suggestedCharacteristics.personalityTrait && Array.isArray(data.suggestedCharacteristics.personalityTrait)) {
+      data.suggestedCharacteristics.personalityTrait.forEach(trait => {
+        if (typeof trait === 'object' && trait !== null && trait.entry) {
+          personality.push(cleanRuleText(trait.entry));
+        } else if (typeof trait === 'string') {
+          personality.push(cleanRuleText(trait));
+        }
+      });
+    }
+
+    // Process ideals
+    if (data.suggestedCharacteristics.ideal && Array.isArray(data.suggestedCharacteristics.ideal)) {
+      data.suggestedCharacteristics.ideal.forEach(ideal => {
+        if (typeof ideal === 'object' && ideal !== null && ideal.entry) {
+          ideals.push(cleanRuleText(ideal.entry));
+        } else if (typeof ideal === 'string') {
+          ideals.push(cleanRuleText(ideal));
+        }
+      });
+    }
+
+    // Process bonds
+    if (data.suggestedCharacteristics.bond && Array.isArray(data.suggestedCharacteristics.bond)) {
+      data.suggestedCharacteristics.bond.forEach(bond => {
+        if (typeof bond === 'object' && bond !== null && bond.entry) {
+          bonds.push(cleanRuleText(bond.entry));
+        } else if (typeof bond === 'string') {
+          bonds.push(cleanRuleText(bond));
+        }
+      });
+    }
+
+    // Process flaws
+    if (data.suggestedCharacteristics.flaw && Array.isArray(data.suggestedCharacteristics.flaw)) {
+      data.suggestedCharacteristics.flaw.forEach(flaw => {
+        if (typeof flaw === 'object' && flaw !== null && flaw.entry) {
+          flaws.push(cleanRuleText(flaw.entry));
+        } else if (typeof flaw === 'string') {
+          flaws.push(cleanRuleText(flaw));
+        }
+      });
+    }
+  }
+
+  // Build and return the normalized background
   return {
     name: toLowercase(data.name || ''),
-    description: data.entries ? extractTextFromEntries(data.entries.filter(entry => 
-      !entry.name || (typeof entry.name === 'string' && !entry.name.toLowerCase().includes('feature'))
-    )) : '',
+    description,
     abilities: normalizeAbilities(data.ability || []),
     skillProficiencies: normalizeSkillProficiencies(data.skillProficiencies || []),
     toolProficiencies: normalizeToolProficiencies(data.toolProficiencies || []),
-    equipment: normalizeEquipment(data.startingEquipment || []),
     feats: normalizeFeats(data.feats || []),
-    suggestedCharacteristics: Object.keys(characteristics).length > 0 ? characteristics : undefined
+    equipment: normalizeEquipment(data.startingEquipment || []),
+    suggestedCharacteristics: {
+      personalityTraits: personality.length > 0 ? personality : undefined,
+      ideals: ideals.length > 0 ? ideals : undefined,
+      bonds: bonds.length > 0 ? bonds : undefined,
+      flaws: flaws.length > 0 ? flaws : undefined
+    }
   };
 } 
