@@ -197,25 +197,45 @@ export async function createDocument(documentType: string, name: string, data: a
   });
 }
 
-/**
- * Generic import function that helps reduce boilerplate
- * @param options Import options
- * @returns Promise that resolves when import is complete
- */
+interface ActorData {
+  name: string;
+  type: string;
+  pluginId: string;
+  gameSystemId: string;
+  data: any;
+  token?: string;
+}
+
+interface ItemData {
+  name: string;
+  type: string;
+  image?: string;
+  description?: string;
+  weight?: number;
+  cost?: number;
+  data: any;
+  pluginId: string;
+  gameSystemId: string;
+}
+
 export async function runImport<T>({
   documentType,
   dataFile,
   dataKey,
   converter,
-  sourceFilter = 'XPHB',
+  sourceFilter,
   dirPath,
+  isActor = false,
+  isItem = false
 }: {
   documentType: string;
   dataFile: string;
   dataKey: string;
-  converter: (data: any) => T;
+  converter: (data: any) => Promise<T | ActorData | ItemData> | (T | ActorData | ItemData);
   sourceFilter?: string | ((source: string) => boolean);
   dirPath: string;
+  isActor?: boolean;
+  isItem?: boolean;
 }): Promise<void> {
   try {
     // Connect to database
@@ -231,19 +251,23 @@ export async function runImport<T>({
     const items = data[dataKey] || [];
     console.log(`Found ${items.length} ${documentType} entries in source file`);
     
-    // Filter items by source
-    const filteredItems = items.filter((item: any) => {
-      if (typeof sourceFilter === 'function') {
-        return sourceFilter(item.source);
-      }
-      return item.source === sourceFilter;
-    });
+    // Filter items by source if a filter is provided
+    const filteredItems = sourceFilter 
+      ? items.filter((item: any) => {
+          if (typeof sourceFilter === 'function') {
+            return sourceFilter(item.source);
+          }
+          return item.source === sourceFilter;
+        })
+      : items;
     
-    const sourceDescription = typeof sourceFilter === 'function' ? 'filtered' : sourceFilter;
+    const sourceDescription = sourceFilter 
+      ? (typeof sourceFilter === 'function' ? 'filtered' : sourceFilter) 
+      : 'all';
     console.log(`Found ${filteredItems.length} ${sourceDescription} ${documentType} entries to import`);
     
     // Stats for reporting
-    let imported = 0;
+    let created = 0;
     let updated = 0;
     let skipped = 0;
     let errors = 0;
@@ -251,50 +275,106 @@ export async function runImport<T>({
     // Process each item
     for (const item of filteredItems) {
       try {
-        // Convert data
-        const normalizedData = converter(item) as T;
+        // Convert the item
+        const convertedData = await Promise.resolve(converter(item));
         
-        // Skip if no valid data
-        if (!normalizedData || Object.keys(normalizedData).length === 0) {
-          console.log(`No valid data for ${documentType}: ${item.name || 'unknown'}`);
+        if (!convertedData) {
+          console.log(`No valid data for ${documentType}: ${item.name}`);
           skipped++;
           continue;
         }
-        
-        const name = (normalizedData as any).name;
-        console.log(`Processing ${documentType}: ${name}`);
-        
-        // Check if document already exists
-        const existingDoc = await findExistingDocument(documentType, name);
-        
-        if (existingDoc) {
-          // Update existing document
-          await updateDocument(existingDoc, normalizedData, userId);
-          updated++;
-          console.log(`Updated ${documentType}: ${name}`);
+
+        if (isItem) {
+          // Handle item import
+          const { ItemModel } = await import('@dungeon-lab/server/src/features/items/models/item.model.mjs');
+          const itemData = convertedData as ItemData;
+          const existingItem = await ItemModel.findOne({
+            name: itemData.name,
+            type: itemData.type,
+            pluginId: itemData.pluginId
+          });
+
+          if (existingItem) {
+            await ItemModel.updateOne(
+              { _id: existingItem._id },
+              { 
+                $set: { 
+                  ...itemData,
+                  updatedBy: userId
+                }
+              }
+            );
+            console.log(`Updated ${documentType}: ${item.name}`);
+            updated++;
+          } else {
+            await ItemModel.create({
+              ...itemData,
+              createdBy: userId,
+              updatedBy: userId
+            });
+            console.log(`Created ${documentType}: ${item.name}`);
+            created++;
+          }
+        } else if (isActor) {
+          // Handle actor import
+          const { ActorModel } = await import('@dungeon-lab/server/src/features/actors/models/actor.model.mjs');
+          const actorData = convertedData as ActorData;
+          const existingActor = await ActorModel.findOne({
+            name: actorData.name,
+            type: actorData.type,
+            pluginId: actorData.pluginId
+          });
+
+          if (existingActor) {
+            await ActorModel.updateOne(
+              { _id: existingActor._id },
+              { 
+                $set: { 
+                  ...actorData,
+                  updatedBy: userId
+                }
+              }
+            );
+            console.log(`Updated ${documentType}: ${item.name}`);
+            updated++;
+          } else {
+            await ActorModel.create({
+              ...actorData,
+              createdBy: userId,
+              updatedBy: userId
+            });
+            console.log(`Created ${documentType}: ${item.name}`);
+            created++;
+          }
         } else {
-          // Create new document
-          await createDocument(documentType, name, normalizedData, userId);
-          imported++;
-          console.log(`Imported ${documentType}: ${name}`);
+          // Handle VTTDocument import (existing behavior)
+          const existingDoc = await findExistingDocument(documentType, item.name);
+          
+          if (existingDoc) {
+            await updateDocument(existingDoc, convertedData as T, userId);
+            console.log(`Updated ${documentType}: ${item.name}`);
+            updated++;
+          } else {
+            await createDocument(documentType, item.name, convertedData as T, userId);
+            console.log(`Created ${documentType}: ${item.name}`);
+            created++;
+          }
         }
-      } catch (err) {
-        console.error(`Error processing ${documentType} ${item.name}:`, err);
+      } catch (error) {
+        console.error(`Error processing ${documentType} ${item.name}:`, error);
         errors++;
       }
     }
     
-    // Report results
+    // Print import summary
     console.log('\nImport Summary:');
-    console.log(`- Imported: ${imported} new ${documentType} entries`);
+    console.log(`- Created: ${created} new ${documentType} entries`);
     console.log(`- Updated: ${updated} existing ${documentType} entries`);
     console.log(`- Skipped: ${skipped} ${documentType} entries`);
     console.log(`- Errors: ${errors} ${documentType} entries`);
     
-  } catch (err) {
-    console.error(`Error importing ${documentType}:`, err);
   } finally {
-    // Close database connection
+    // Always disconnect from database
     await disconnectFromDatabase();
   }
 } 

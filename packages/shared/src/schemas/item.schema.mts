@@ -6,10 +6,13 @@ import type { ApiFields } from '../types/api-fields.mjs';
 export const itemSchema = z.object({
   name: z.string().min(1).max(255),
   type: z.string().min(1).max(255),
-  img: z.string().url().optional(),
+  image: z.string().url().optional(),
   description: z.string().optional(),
   gameSystemId: z.string().min(1),
-  data: z.record(z.string(), z.unknown()),
+  pluginId: z.string().min(1),
+  weight: z.number().optional(),
+  cost: z.number().optional(),
+  data: z.any(),
   createdBy: zId('User'),
   updatedBy: zId('User'),
 });

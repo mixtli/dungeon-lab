@@ -1,22 +1,27 @@
 import { z } from 'zod';
 
+// Define damage types as a union instead of an enum for more flexibility
+export const damageTypes = [
+  'slashing',
+  'piercing',
+  'bludgeoning',
+  'acid',
+  'cold',
+  'fire',
+  'force',
+  'lightning',
+  'necrotic',
+  'poison',
+  'psychic',
+  'radiant',
+  'thunder'
+] as const;
+
+export type DamageType = typeof damageTypes[number];
+
 export const weaponSchema = z.object({
   damage: z.string(),
-  damageType: z.enum([
-    'slashing',
-    'piercing',
-    'bludgeoning',
-    'acid',
-    'cold',
-    'fire',
-    'force',
-    'lightning',
-    'necrotic',
-    'poison',
-    'psychic',
-    'radiant',
-    'thunder'
-  ]),
+  damageType: z.string(), // Changed from enum to string to be more flexible
   range: z.union([
     z.literal('melee'),
     z.object({
@@ -24,64 +29,11 @@ export const weaponSchema = z.object({
       long: z.number().optional()
     })
   ]),
-  properties: z.array(z.enum([
-    'ammunition',
-    'finesse',
-    'heavy',
-    'light',
-    'loading',
-    'reach',
-    'special',
-    'thrown',
-    'two-handed',
-    'versatile'
-  ]))
+  masteryProperty: z.string().optional(),
+  properties: z.array(z.string()) // Changed to use strings instead of enum for more flexibility
 });
 
 export type IWeapon = z.infer<typeof weaponSchema>;
 
 // Convert Zod schema to JSON Schema for plugin registration
 const zodJsonSchema = weaponSchema.describe('D&D 5E Weapon');
-
-// Convert to plain object for plugin registration
-export const weaponJsonSchema = {
-  type: 'object',
-  required: ['damage', 'damageType', 'range', 'properties'],
-  properties: {
-    damage: { type: 'string' },
-    damageType: {
-      type: 'string',
-      enum: [
-        'slashing', 'piercing', 'bludgeoning',
-        'acid', 'cold', 'fire', 'force',
-        'lightning', 'necrotic', 'poison',
-        'psychic', 'radiant', 'thunder'
-      ]
-    },
-    range: {
-      oneOf: [
-        { type: 'string', enum: ['melee'] },
-        {
-          type: 'object',
-          required: ['normal'],
-          properties: {
-            normal: { type: 'number' },
-            long: { type: 'number' }
-          }
-        }
-      ]
-    },
-    properties: {
-      type: 'array',
-      items: {
-        type: 'string',
-        enum: [
-          'ammunition', 'finesse', 'heavy',
-          'light', 'loading', 'reach',
-          'special', 'thrown', 'two-handed',
-          'versatile'
-        ]
-      }
-    }
-  }
-}; 

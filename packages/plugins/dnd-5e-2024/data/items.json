@@ -58801,7 +58801,7 @@
 			]
 		},
 		{
-			"name": "Staff of Dunamancy",
+			"same": "Staff of Dunamancy",
 			"source": "EGW",
 			"page": 270,
 			"rarity": "very rare",

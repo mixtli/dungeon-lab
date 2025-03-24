@@ -25,6 +25,8 @@ const __dirname = dirname(__filename);
 const args = process.argv.slice(2);
 const shouldClean = args.includes('--clean');
 
+await pluginRegistry.initialize();
+
 // MinIO client setup
 const minioClient = new Client({
   endPoint: process.env.MINIO_ENDPOINT || 'localhost',
@@ -383,7 +385,7 @@ async function importCharacters() {
   const characterFiles = readdirSync(charactersDir).filter(f => f.endsWith('.json'));
 
   // Get the D&D 5E plugin
-  const dnd5e2024Plugin = pluginRegistry.getGameSystemPlugin('dnd5e2024');
+  const dnd5e2024Plugin = pluginRegistry.getGameSystemPlugin('dnd-5e-2024');
   if (!dnd5e2024Plugin) {
     throw new Error('D&D 5E 2024 plugin not found');
   }
@@ -448,7 +450,7 @@ async function importCampaigns() {
   const campaignFiles = readdirSync(campaignsDir).filter(f => f.endsWith('.json'));
 
   // Get the D&D 5E plugin
-  const dnd5e2024Plugin = pluginRegistry.getGameSystemPlugin('dnd5e2024');
+  const dnd5e2024Plugin = pluginRegistry.getGameSystemPlugin('dnd-5e-2024');
   if (!dnd5e2024Plugin) {
     throw new Error('D&D 5E 2024 plugin not found');
   }

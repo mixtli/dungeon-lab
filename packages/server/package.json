@@ -14,7 +14,11 @@
     "test:coverage": "vitest run --coverage",
     "import:dnd-5e-2024:classes": "tsx ../plugins/dnd-5e-2024/src/scripts/import-character-classes.mts",
     "import:dnd-5e-2024:backgrounds": "tsx ../plugins/dnd-5e-2024/src/scripts/import-backgrounds.mts",
-    "import:dnd-5e-2024:species": "tsx ../plugins/dnd-5e-2024/src/scripts/import-species.mts"
+    "import:dnd-5e-2024:species": "tsx ../plugins/dnd-5e-2024/src/scripts/import-species.mts",
+    "import:dnd-5e-2024:monsters": "tsx ../plugins/dnd-5e-2024/src/scripts/import-monsters.mts",
+    "import:dnd-5e-2024:items": "tsx ../plugins/dnd-5e-2024/src/scripts/import-items.mts",
+    "import:dnd-5e-2024:spells": "tsx ../plugins/dnd-5e-2024/src/scripts/import-spells.mts",
+    "import:dnd-5e-2024:sample-data": "tsx src/scripts/import-sample-data.mts"
   },
   "dependencies": {
     "@dungeon-lab/shared": "file:../shared",
@@ -28,6 +32,7 @@
     "express-async-handler": "^1.2.0",
     "express-session": "^1.18.1",
     "helmet": "^7.1.0",
+    "mime-types": "^2.1.35",
     "minio": "^8.0.4",
     "mongoose": "^8.11.0",
     "morgan": "^1.10.0",

@@ -2,27 +2,9 @@ import { z } from 'zod';
 
 export const spellSchema = z.object({
   level: z.number().min(0).max(9),
-  school: z.enum([
-    'abjuration',
-    'conjuration',
-    'divination',
-    'enchantment',
-    'evocation',
-    'illusion',
-    'necromancy',
-    'transmutation'
-  ]),
-  castingTime: z.enum([
-    'action',
-    'bonus action',
-    'reaction',
-    '1 minute',
-    '10 minutes',
-    '1 hour',
-    '8 hours',
-    '24 hours',
-    'ritual'
-  ]),
+  classes: z.array(z.string()),
+  school: z.string(),
+  castingTime: z.string(),
   range: z.union([
     z.literal('self'),
     z.literal('touch'),
@@ -47,10 +29,11 @@ export const spellSchema = z.object({
       })
     ])
   }),
+  savingThrow: z.array(z.string()),
+  damageType: z.array(z.string()),
+  damage: z.record(z.string(), z.string()),
   duration: z.union([
-    z.literal('instantaneous'),
-    z.literal('until dispelled'),
-    z.literal('concentration'),
+    z.string(),
     z.object({
       type: z.enum(['rounds', 'minutes', 'hours', 'days']),
       amount: z.number()

@@ -24,10 +24,7 @@
   },
   "scripts": {
     "build": "tsc -b --force",
-    "clean": "rimraf dist",
-    "import:character-classes": "ts-node --esm src/scripts/import-character-classes.mts",
-    "import:backgrounds": "ts-node --esm src/scripts/import-backgrounds.mts",
-    "import:species": "ts-node --esm src/scripts/import-species.mts"
+    "clean": "rimraf dist"
   },
   "dependencies": {
     "@dungeon-lab/server": "file:../../server",
@@ -37,6 +34,7 @@
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
+    "@types/mime-types": "^2.1.4",
     "@types/node": "^22.13.11",
     "ts-node": "^10.9.2",
     "tslib": "^2.8.1",

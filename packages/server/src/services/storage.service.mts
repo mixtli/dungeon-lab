@@ -22,6 +22,7 @@ class StorageService {
   private client: Client;
   private bucket: string;
   private config: StorageConfig;
+  private publicUrl: string;
 
   constructor() {
     // Load configuration from environment variables
@@ -37,6 +38,7 @@ class StorageService {
     };
 
     this.bucket = this.config.bucket;
+    this.publicUrl = process.env.MINIO_PUBLIC_URL || `http://${this.config.endpoint}:${this.config.port}`;
 
     // Log storage configuration (without credentials)
     logger.info('Storage Configuration:');
@@ -45,6 +47,7 @@ class StorageService {
     logger.info(`Port: ${this.config.port}`);
     logger.info(`Use SSL: ${this.config.useSSL}`);
     logger.info(`Bucket: ${this.config.bucket}`);
+    logger.info(`Public URL: ${this.publicUrl}`);
 
     // Initialize MinIO client
     this.client = new Client({
@@ -128,6 +131,13 @@ class StorageService {
       stream.on('end', () => resolve(files));
     });
   }
+
+  /**
+   * Get a public URL for a file
+   */
+  getPublicUrl(key: string): string {
+    return `${this.publicUrl}/${this.bucket}/${encodeURIComponent(key)}`;
+  }
 }
 
 // Create and export a singleton instance
@@ -145,6 +155,9 @@ export const deleteFile = (key: string) =>
 
 export const listFiles = (prefix = '', recursive = true) => 
   storageServiceInstance.listFiles(prefix, recursive);
+
+export const getPublicUrl = (key: string) => 
+  storageServiceInstance.getPublicUrl(key);
 
 // Export the instance as default
 export default storageServiceInstance; 
