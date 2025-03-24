@@ -1,0 +1,13 @@
+{
+    "vitest.enable": true,
+    "vitest.commandLine": "npm run test",
+    "testing.automaticallyOpenPeekView": "never",
+    "vitest.include": [
+      "**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"
+    ],
+    "vitest.exclude": [
+      "**/node_modules/**",
+      "**/dist/**",
+      "**/.{idea,git,cache,output,temp}/**"
+    ]
+  } 

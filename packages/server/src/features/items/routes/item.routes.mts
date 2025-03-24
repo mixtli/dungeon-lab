@@ -3,7 +3,7 @@ import { ItemController } from '../controllers/item.controller.mjs';
 import { ItemService } from '../services/item.service.mjs';
 import { authenticate } from '../../../middleware/auth.middleware.mjs';
 import { validateRequest } from '../../../middleware/validation.middleware.mjs';
-import { itemCreateSchema, itemUpdateSchema } from '@dungeon-lab/shared/src/schemas/item.schema.mjs';
+import { itemCreateSchema, itemUpdateSchema } from '@dungeon-lab/shared/schemas/item.schema.mjs';
 
 // Initialize services and controllers
 const itemService = new ItemService();

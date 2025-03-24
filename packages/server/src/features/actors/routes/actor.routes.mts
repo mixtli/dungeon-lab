@@ -5,7 +5,7 @@ import { ActorService } from '../services/actor.service.mjs';
 import { uploadActorImage } from '../controllers/actor-image.controller.mjs';
 import { authenticate } from '../../../middleware/auth.middleware.mjs';
 import { validateRequest } from '../../../middleware/validation.middleware.mjs';
-import { actorCreateSchema, actorUpdateSchema } from '@dungeon-lab/shared/src/schemas/actor.schema.mjs';
+import { actorCreateSchema, actorUpdateSchema } from '@dungeon-lab/shared/schemas/actor.schema.mjs';
 
 // Initialize services and controllers
 const actorService = new ActorService();

@@ -13,7 +13,7 @@ export const userPreferencesSchema = z.object({
 
 // Base User schema
 export const userSchema = z.object({
-  id: z.string().optional(),
+  id: z.string(),
   username: z.string().min(3).max(50),
   email: z.string().email(),
   password: z.string().min(8).optional(),

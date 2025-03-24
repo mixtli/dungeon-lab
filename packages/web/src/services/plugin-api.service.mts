@@ -129,6 +129,7 @@ export class PluginAPI implements IPluginAPI {
       name,
       type,
       gameSystemId: this.pluginId,
+      pluginId: this.pluginId,
       data: validatedData
     };
 
