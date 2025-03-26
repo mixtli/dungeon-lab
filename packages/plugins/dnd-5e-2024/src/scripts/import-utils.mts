@@ -1,7 +1,7 @@
 import { readFile, readdir } from 'fs/promises';
 import { join, basename } from 'path';
 import mongoose from 'mongoose';
-import { VTTDocument } from '@dungeon-lab/server/src/models/vtt-document.model.mjs';
+import { VTTDocument } from '@dungeon-lab/server/src/features/documents/models/vtt-document.model.mjs';
 import { pluginRegistry } from '@dungeon-lab/server/src/services/plugin-registry.service.mjs';
 import config from '../../manifest.json' with { type: 'json' };
 

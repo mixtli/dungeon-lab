@@ -67,14 +67,27 @@ export const speciesSchema = z.object({
 export const featSchema = z.object({
   name: z.string(),
   description: z.string(),
+  category: z.string().optional(),
+  ability: z.array(
+    z.object({
+      choice: z.object({
+        from: z.array(z.string()),
+        count: z.number().optional()
+      })
+    })
+  ).optional(),
   prerequisites: z.object({
     ability: z.record(z.string(), z.number()).optional(),
     race: z.array(z.string()).optional(),
     class: z.array(z.string()).optional(),
     level: z.number().optional(),
+    spellcasting: z.boolean().optional(),
     other: z.string().optional()
   }).optional(),
-  benefits: z.array(z.string())
+  benefits: z.array(z.object({
+    name: z.string(),
+    description: z.string()
+  }))
 });
 
 export type IBackground = z.infer<typeof backgroundSchema>;
