@@ -1,14 +1,8 @@
+import type { IChatMessage, IMessage } from '@dungeon-lab/shared/index.mjs';
 import { Server } from 'socket.io';
-import type { IMessage, IChatMessage } from '@dungeon-lab/shared/index.mjs';
-import { GameSessionModel } from '../../features/campaigns/models/game-session.model.mjs';
-import { AuthenticatedSocket } from '../types.mjs';
-import { logger } from '../../utils/logger.mjs';
-import { ActorModel } from '../../features/actors/models/actor.model.mjs';
 import { CampaignModel } from '../../features/campaigns/models/campaign.model.mjs';
-import { UserModel } from '../../models/user.model.mjs';
-import { z } from 'zod';
-import { RemoteAuthenticatedSocket } from '../types.mjs';
-import { Types } from 'mongoose';
+import { GameSessionModel } from '../../features/campaigns/models/game-session.model.mjs';
+import { AuthenticatedSocket, RemoteAuthenticatedSocket } from '../types.mjs';
 
 // Type guard to check if a message is a chat message
 function isChatMessage(message: IMessage): message is IChatMessage {

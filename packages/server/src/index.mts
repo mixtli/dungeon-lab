@@ -1,15 +1,11 @@
-import express from 'express';
-import mongoose from 'mongoose';
-import cors from 'cors';
-import passport from 'passport';
-import session from 'express-session';
 import { createServer } from 'http';
+import mongoose from 'mongoose';
+import { createApp } from './app.mjs';
 import { config } from './config/index.mjs';
 import { configurePassport } from './config/passport.mjs';
-import { createApp } from './app.mjs';
-import { createSocketServer } from './websocket/socket-server.mjs';
-import { logger } from './utils/logger.mjs';
 import { pluginRegistry } from './services/plugin-registry.service.mjs';
+import { logger } from './utils/logger.mjs';
+import { createSocketServer } from './websocket/socket-server.mjs';
 
 // Debug environment variables
 console.log('Environment Variables:');
@@ -44,9 +40,10 @@ async function startServer() {
 
     // Create HTTP server
     const httpServer = createServer(app);
-
-    // Create WebSocket server
-    const io = createSocketServer(httpServer);
+    
+    // Initialize Socket.IO server
+    createSocketServer(httpServer);
+    console.log('Socket.IO server initialized');
 
     // Start listening
     httpServer.listen(PORT, () => {

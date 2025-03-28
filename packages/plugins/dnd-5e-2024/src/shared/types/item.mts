@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { weaponSchema, IWeapon } from './weapon.mjs';
-import { spellSchema, ISpell } from './spell.mjs';
+import { weaponSchema} from './weapon.mjs';
+import { spellSchema} from './spell.mjs';
 
 // Common types for damage and properties
 export const damageTypeSchema = z.enum([
@@ -68,13 +68,11 @@ export const magicItemSchema = z.object({
 });
 
 // Update weaponSchema to include the type discriminator
-import { z as weaponZ } from 'zod';
 const extendedWeaponSchema = weaponSchema.extend({
   type: z.literal('weapon')
 });
 
 // Update spellSchema to include the type discriminator
-import { z as spellZ } from 'zod';
 const extendedSpellSchema = spellSchema.extend({
   type: z.literal('spell')
 });

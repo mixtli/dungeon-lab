@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import * as fs from 'fs';
 import * as path from 'path';
-import { convert5eToolsClass, NormalizedData } from './convert-5etools-class.mjs';
+import { convert5eToolsClass } from './convert-5etools-class.mjs';
 
 function main(): void {
     if (process.argv.length < 3) {

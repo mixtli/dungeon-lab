@@ -178,9 +178,7 @@ function testSingleFeat(sampleFeat: Feat5eTools) {
   }
   
   // Check benefit handling
-  let hasFirstEntryCheck = false;
   if (sampleFeat.entries && sampleFeat.entries.length > 0 && typeof sampleFeat.entries[0] === 'string') {
-    hasFirstEntryCheck = true;
     const firstEntry = sampleFeat.entries[0];
     console.log('- First entry not in benefits:', 
       !convertedFeat.benefits.some(b => b.description === firstEntry) ? '✓' : '✗');

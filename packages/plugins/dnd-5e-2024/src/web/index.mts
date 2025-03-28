@@ -1,8 +1,7 @@
-import { IGameSystemPluginWeb, IPluginComponent, IPluginAPI } from '@dungeon-lab/shared/types/plugin.mjs';
+import { IGameSystemPluginWeb, IPluginAPI } from '@dungeon-lab/shared/types/plugin.mjs';
 import { WebPlugin } from '@dungeon-lab/shared/base/web.mjs';
 import { validateActorData, validateItemData, validateVTTDocumentData } from '../shared/validation.mjs';
 import manifest from '../../manifest.json' with { type: 'json' };
-import { z } from 'zod';
 
 // Import document cache
 import { initDocumentCache, preloadAllDocuments } from './document-cache.mjs';
@@ -16,7 +15,7 @@ import CharacterCreationComponent from './ui/characterCreation/index.mjs';
  * This plugin implements the D&D 5e 2024 Edition game system for the web client.
  * It provides character sheets, item sheets, and validation functions.
  */
-export class DnD5e2024WebPlugin extends WebPlugin implements IGameSystemPluginWeb {
+class DnD5e2024WebPlugin extends WebPlugin implements IGameSystemPluginWeb {
   public type = 'gameSystem' as const;
 
   constructor(private readonly api: IPluginAPI) {

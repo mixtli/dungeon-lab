@@ -1,10 +1,8 @@
-import { Socket } from 'socket.io';
-import { Types } from 'mongoose';
 import { IRollCommandMessage, IRollResultMessage } from '@dungeon-lab/shared/index.mjs';
+import { GameSessionModel } from '../../features/campaigns/models/game-session.model.mjs';
 import { DiceService } from '../../services/dice.service.mjs';
 import { logger } from '../../utils/logger.mjs';
 import { AuthenticatedSocket } from '../types.mjs';
-import { GameSessionModel } from '../../features/campaigns/models/game-session.model.mjs';
 
 const diceService = new DiceService();
 

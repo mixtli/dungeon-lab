@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { characterSchema, ICharacter } from './character.mjs';
+import { characterSchema } from './character.mjs';
 
 // Monster schema
 export const monsterSchema = z.object({

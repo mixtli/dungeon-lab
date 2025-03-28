@@ -66,7 +66,6 @@ export class CampaignController {
 
   async updateCampaign(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
     try {
-      const campaign = await this.campaignService.getCampaign(req.params.id);
       
       // Check if user has permission to update
       const hasAccess = await this.campaignService.checkUserPermission(

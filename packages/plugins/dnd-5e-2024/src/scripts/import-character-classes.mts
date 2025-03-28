@@ -3,7 +3,6 @@ import { convert5eToolsClass } from './convert-5etools-class.mjs';
 import config from '../../manifest.json' with { type: 'json' };
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import mongoose from 'mongoose';
 import { VTTDocument } from '@dungeon-lab/server/src/features/documents/models/vtt-document.model.mjs';
 import { connectToDatabase, disconnectFromDatabase } from './import-utils.mjs';
 

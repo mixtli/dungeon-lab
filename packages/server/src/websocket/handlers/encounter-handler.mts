@@ -1,7 +1,7 @@
-import { Server, Socket } from 'socket.io';
+import { Server } from 'socket.io';
 import { GameSessionModel } from '../../features/campaigns/models/game-session.model.mjs';
-import { AuthenticatedSocket } from '../types.mjs';
 import { logger } from '../../utils/logger.mjs';
+import { AuthenticatedSocket } from '../types.mjs';
 
 interface EncounterStartMessage {
   sessionId: string;

@@ -21,5 +21,3 @@ mongooseSchema.index({ status: 1 });
  * Invite model
  */
 export const InviteModel = mongoose.model<InviteDocument>('Invite', mongooseSchema);
-
-export default InviteModel; 

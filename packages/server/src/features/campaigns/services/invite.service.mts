@@ -1,8 +1,8 @@
+import { IInvite, IInviteCreateData } from '@dungeon-lab/shared/index.mjs';
 import { Types } from 'mongoose';
-import { IInvite, IInviteCreateData, IInviteUpdateData } from '@dungeon-lab/shared/index.mjs';
-import { InviteModel, InviteDocument } from '../models/invite.model.mjs';
-import { CampaignService } from './campaign.service.mjs';
 import { UserModel } from '../../../models/user.model.mjs';
+import { InviteModel } from '../models/invite.model.mjs';
+import { CampaignService } from './campaign.service.mjs';
 
 export class InviteService {
   constructor(private campaignService: CampaignService) {}

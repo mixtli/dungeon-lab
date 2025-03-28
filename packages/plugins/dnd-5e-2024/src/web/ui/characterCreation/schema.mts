@@ -6,17 +6,6 @@ import { z } from 'zod';
  * to the full character schema before storage
  */
 
-// Schema for ability scores
-const abilityScoreSchema = z.number()
-  .int()
-  .min(3)
-  .max(20)
-  .default(10);
-
-// Schema for hit points
-const hitPointsSchema = z.object({
-  maximum: z.number().int().min(1).default(10)
-});
 
 // Schema for class features
 const classFeatureSchema = z.object({

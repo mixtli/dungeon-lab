@@ -1,7 +1,15 @@
 import { z } from 'zod';
-import { abilitySchema } from './common.mjs';
 
-// Full character schema for the complete character sheet
+const abilitySchema = z.object({
+      score: z.number().min(1).max(30),
+      modifier: z.number().min(-5).max(10),
+      savingThrow: z.object({
+        proficient: z.boolean().default(false),
+        bonus: z.number().default(0)
+      })
+    })
+
+// Full character schema for the complete character heet
 export const characterSchema = z.object({
   // Basic info
   name: z.string(),
@@ -38,54 +46,12 @@ export const characterSchema = z.object({
 
   // Abilities
   abilities: z.object({
-    strength: z.object({
-      score: z.number().min(1).max(30),
-      modifier: z.number().min(-5).max(10),
-      savingThrow: z.object({
-        proficient: z.boolean().default(false),
-        bonus: z.number().default(0)
-      })
-    }),
-    dexterity: z.object({
-      score: z.number().min(1).max(30),
-      modifier: z.number().min(-5).max(10),
-      savingThrow: z.object({
-        proficient: z.boolean().default(false),
-        bonus: z.number().default(0)
-      })
-    }),
-    constitution: z.object({
-      score: z.number().min(1).max(30),
-      modifier: z.number().min(-5).max(10),
-      savingThrow: z.object({
-        proficient: z.boolean().default(false),
-        bonus: z.number().default(0)
-      })
-    }),
-    intelligence: z.object({
-      score: z.number().min(1).max(30),
-      modifier: z.number().min(-5).max(10),
-      savingThrow: z.object({
-        proficient: z.boolean().default(false),
-        bonus: z.number().default(0)
-      })
-    }),
-    wisdom: z.object({
-      score: z.number().min(1).max(30),
-      modifier: z.number().min(-5).max(10),
-      savingThrow: z.object({
-        proficient: z.boolean().default(false),
-        bonus: z.number().default(0)
-      })
-    }),
-    charisma: z.object({
-      score: z.number().min(1).max(30),
-      modifier: z.number().min(-5).max(10),
-      savingThrow: z.object({
-        proficient: z.boolean().default(false),
-        bonus: z.number().default(0)
-      })
-    })
+    strength: abilitySchema,
+    dexterity: abilitySchema,
+    constitution: abilitySchema,
+    intelligence: abilitySchema,
+    wisdom: abilitySchema,
+    charisma: abilitySchema
   }),
 
   // Equipment and inventory

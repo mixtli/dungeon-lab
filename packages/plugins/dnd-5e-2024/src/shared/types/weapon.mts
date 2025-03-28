@@ -34,6 +34,3 @@ export const weaponSchema = z.object({
 });
 
 export type IWeapon = z.infer<typeof weaponSchema>;
-
-// Convert Zod schema to JSON Schema for plugin registration
-const zodJsonSchema = weaponSchema.describe('D&D 5E Weapon');

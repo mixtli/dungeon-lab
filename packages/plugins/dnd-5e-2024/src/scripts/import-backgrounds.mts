@@ -1,6 +1,5 @@
 import { runImport } from './import-utils.mjs';
 import { convert5eToolsBackground } from './convert-5etools-background.mjs';
-import config from '../../manifest.json' with { type: 'json' };
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 

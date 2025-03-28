@@ -10,7 +10,7 @@ import {
   getSpeciesByName,
   getClasses,
   getBackgrounds,
-  getSpecies,
+  getAllSpecies,
   isLoaded,
   extractDocumentData
 } from '../document-cache.mjs';
@@ -167,7 +167,7 @@ export const documentHelpers = {
    */
   getAllSpecies: () => {
     try {
-      return getSpecies();
+      return getAllSpecies();
     } catch (error) {
       console.error('Error getting all species:', error);
       return [];

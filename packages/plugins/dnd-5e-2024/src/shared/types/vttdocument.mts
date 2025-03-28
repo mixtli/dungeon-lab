@@ -1,6 +1,7 @@
 import { z } from 'zod';
-import { characterClassSchema, ICharacterClass } from './character-class.mjs';
+import { characterClassSchema } from './character-class.mjs';
 
+// These schemas represent the data field of the documents in the mongoose model VTTDocument which is returned by the API
 // Background schema
 export const backgroundSchema = z.object({
   name: z.string(),

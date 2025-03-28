@@ -1,10 +1,8 @@
-import mongoose from 'mongoose';
-import toMongooseSchema from '@zodyac/zod-mongoose';
 import { vttDocumentSchema, type IVTTDocument } from '@dungeon-lab/shared/schemas/vtt-document.schema.mjs';
+import mongoose from 'mongoose';
 import { pluginRegistry } from '../../../services/plugin-registry.service.mjs';
 
-import { extendZod, zodSchema } from '@zodyac/zod-mongoose';
-import { z } from 'zod';
+import { zodSchema } from '@zodyac/zod-mongoose';
 // extendZod(z);
 
 const mongooseSchema = zodSchema(vttDocumentSchema);

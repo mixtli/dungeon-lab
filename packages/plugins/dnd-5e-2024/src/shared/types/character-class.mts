@@ -68,7 +68,7 @@ const subclassDataSchema = z.object({
   additionalspells: z.array(spellEntrySchema),
 });
 
-// Main ClassData schema
+// Main Class Data schema of "data" field in class document in the mongoose model which is returned by the API
 const characterClassSchema = z.object({
   name: z.string(),
   source: z.string(),

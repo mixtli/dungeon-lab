@@ -11,6 +11,7 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
+    "noUnusedLocals": true,
     "paths": {
       "@dungeon-lab/shared": ["../../shared/src"],
       "@dungeon-lab/shared/*": ["../../shared/src/*"],
@@ -27,7 +28,6 @@
   ],
   "references": [
     { "path": "../../shared" },
-    { "path": "../../server" }
   ],
   "ts-node": {
     "esm": true

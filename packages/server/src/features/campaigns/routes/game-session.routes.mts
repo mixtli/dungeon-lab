@@ -3,7 +3,7 @@ import { GameSessionController } from '../controllers/game-session.controller.mj
 import { GameSessionService } from '../services/game-session.service.mjs';
 import { authenticate } from '../../../middleware/auth.middleware.mjs';
 import { validateRequest } from '../../../middleware/validation.middleware.mjs';
-import { gameSessionCreateSchema, gameSessionUpdateSchema } from '@dungeon-lab/shared/src/schemas/game-session.schema.mjs';
+import { gameSessionUpdateSchema } from '@dungeon-lab/shared/src/schemas/game-session.schema.mjs';
 
 // Initialize services and controllers
 const gameSessionService = new GameSessionService();

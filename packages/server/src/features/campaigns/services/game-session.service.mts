@@ -1,6 +1,6 @@
 import { Types } from 'mongoose';
 import { IGameSession, IGameSessionCreateData, IGameSessionUpdateData } from '@dungeon-lab/shared/index.mjs';
-import { GameSessionModel, type GameSessionDocument } from '../models/game-session.model.mjs';
+import { GameSessionModel } from '../models/game-session.model.mjs';
 import { CampaignModel } from '../models/campaign.model.mjs';
 import { logger } from '../../../utils/logger.mjs';
 

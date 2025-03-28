@@ -2,33 +2,18 @@
 import type {
   ICharacterClass,
   ISkillChoice,
-  IEquipmentData,
-  IEquipmentChoice,
   IFeatureData,
   IBenefit,
   ISpellData,
   ISpellEntry,
   ISpellChoice,
-  ISubclassData
 } from '../shared/types/character-class.mjs';
 import {
   toLowercase,
   cleanRuleText,
-  extractTextFromEntries,
-  normalizeSkillProficiencies
 } from './converter-utils.mjs';
+import type { Ability } from '../shared/types/common.mjs';
 
-// Map of spell school abbreviations to full names
-const SCHOOL_MAP: Record<string, string> = {
-    "a": "abjuration",
-    "c": "conjuration",
-    "d": "divination",
-    "e": "enchantment",
-    "v": "evocation",
-    "i": "illusion",
-    "n": "necromancy",
-    "t": "transmutation"
-};
 
 // Add this near the top with other constants
 const ABILITY_MAP: Record<string, string> = {
@@ -38,7 +23,7 @@ const ABILITY_MAP: Record<string, string> = {
     "int": "intelligence",
     "wis": "wisdom",
     "cha": "charisma"
-};
+} as const;
 
 // Input data interfaces
 export interface RawClassData {
@@ -70,10 +55,6 @@ export interface RawSubclassData {
 
 // Output data interface
 export interface NormalizedData extends ICharacterClass {}
-
-function toKey(value: any): string {
-    return toLowercase(value);
-}
 
 function normalizeSubclassFeatureEntries(entries: any[]): Partial<IFeatureData> {
     const result: Partial<IFeatureData> = {
@@ -114,13 +95,13 @@ function normalizeSubclassFeatureEntries(entries: any[]): Partial<IFeatureData> 
     return result;
 }
 
-function normalizeAbilityName(ability: string): string {
+function normalizeAbilityName(ability: string): Ability{
     const normalized = toLowercase(ability);
-    return ABILITY_MAP[normalized] || normalized;
+    return (ABILITY_MAP[normalized] as Ability) || normalized;
 }
 
-function normalizePrimaryAbility(primaryAbility: any[]): string[] {
-    const result: string[] = [];
+function normalizePrimaryAbility(primaryAbility: any[]): Ability[] {
+    const result: Ability[] = [];
     for (const abilityDict of primaryAbility) {
         for (const [ability, isPrimary] of Object.entries(abilityDict)) {
             if (isPrimary) {

@@ -1,8 +1,7 @@
 import { Types } from 'mongoose';
-import { IEncounter, IEncounterCreateData, IEncounterUpdateData } from '@dungeon-lab/shared/src/schemas/encounter.schema.mjs';
-import { EncounterModel, type EncounterDocument } from '../models/encounter.model.mjs';
+import { IEncounter, IEncounterCreateData } from '@dungeon-lab/shared/src/schemas/encounter.schema.mjs';
+import { EncounterModel} from '../models/encounter.model.mjs';
 import { CampaignModel } from '../models/campaign.model.mjs';
-import { GameSessionModel } from '../models/game-session.model.mjs';
 import { ActorModel, type ActorDocument } from '../../actors/models/actor.model.mjs';
 import { logger } from '../../../utils/logger.mjs';
 

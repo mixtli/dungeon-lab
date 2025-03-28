@@ -1,6 +1,5 @@
 import { runImport } from './import-utils.mjs';
 import { convert5eToolsFeat } from './convert-5etools-feat.mjs';
-import config from '../../manifest.json' with { type: 'json' };
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 

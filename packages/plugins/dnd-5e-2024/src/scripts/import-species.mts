@@ -1,6 +1,5 @@
 import { convert5eToolsSpecies } from './convert-5etools-species.mjs';
 import { runImport } from './import-utils.mjs';
-import config from '../../manifest.json' with { type: 'json' };
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 

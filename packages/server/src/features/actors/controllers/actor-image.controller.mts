@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import storageService from '../../../services/storage.service.mjs';
-import { randomUUID } from 'crypto';
 import { logger } from '../../../utils/logger.mjs';
 
 /**
@@ -23,8 +22,6 @@ export async function uploadActorImage(req: Request, res: Response) {
     }
     
     // Generate unique filename
-    const fileExt = file.originalname.split('.').pop() || 'png';
-    const fileName = `${randomUUID()}.${fileExt}`;
     const folder = `actors/${imageType}`;
     
     // Upload to storage using the consolidated service

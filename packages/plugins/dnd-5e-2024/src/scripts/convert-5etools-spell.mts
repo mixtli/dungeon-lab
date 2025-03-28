@@ -1,5 +1,3 @@
-import { cleanRuleText, toLowercase } from './converter-utils.mjs';
-import config from '../../manifest.json' with { type: 'json' };
 import { uploadFile, getPublicUrl } from '@dungeon-lab/server/src/services/storage.service.mjs';
 import { join } from 'path';
 import { readFile } from 'fs/promises';

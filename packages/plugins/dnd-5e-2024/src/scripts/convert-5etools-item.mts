@@ -27,11 +27,6 @@ const damageTypeMap: Record<string, string> = {
   'T': 'thunder'
 };
 
-// Interface for the image data from fluff 
-interface ImageData {
-  path: string;
-  credit?: string;
-}
 
 /**
  * Initialize the converter by loading reference data from items-base.json
@@ -263,12 +258,6 @@ export function convert5eToolsItem(sourceItemData: any, fluffData?: any): {
   }; 
   imagePath?: string;
 } {
-  // Check if this item extends a base item
-  let baseItem: any = null;
-  if (sourceItemData.baseItem) {
-    const baseItemKey = sourceItemData.baseItem.toLowerCase();
-    baseItem = baseItemMap.get(baseItemKey);
-  }
   
   // Extract image path from fluff data if available
   let imagePath: string | undefined;
@@ -282,11 +271,9 @@ export function convert5eToolsItem(sourceItemData: any, fluffData?: any): {
   
   // Parse cost
   let costAmount = 0;
-  let costUnit = 'cp';
   if (sourceItemData.value) {
     const parsed = parseCost(sourceItemData.value);
     costAmount = convertToCp(parsed.amount, parsed.unit);
-    costUnit = parsed.unit;
   }
   
   // Extract text entries
@@ -307,7 +294,7 @@ export function convert5eToolsItem(sourceItemData: any, fluffData?: any): {
   let fullType = '';
   
   if (type.includes('|')) {
-    const [abbr, source] = type.split('|');
+    const [abbr, _] = type.split('|');
     fullType = itemTypeMap[abbr] || abbr;
   } else {
     fullType = itemTypeMap[type] || type;

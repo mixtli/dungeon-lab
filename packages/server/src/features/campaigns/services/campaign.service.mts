@@ -1,6 +1,6 @@
 import { Types } from 'mongoose';
 import { ICampaign, ICampaignCreateData, ICampaignUpdateData } from '@dungeon-lab/shared/index.mjs';
-import { CampaignModel, type CampaignDocument } from '../models/campaign.model.mjs';
+import { CampaignModel } from '../models/campaign.model.mjs';
 import { ActorModel } from '../../actors/models/actor.model.mjs';
 import { logger } from '../../../utils/logger.mjs';
 import { pluginRegistry } from '../../../services/plugin-registry.service.mjs';

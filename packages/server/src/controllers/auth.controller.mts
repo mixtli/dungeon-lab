@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import { UserModel, UserDocument } from '../models/user.model.mjs';
-import { config } from '../config/index.mjs';
 import { logger } from '../utils/logger.mjs';
 import { IUser } from '@dungeon-lab/shared/index.mjs';
 

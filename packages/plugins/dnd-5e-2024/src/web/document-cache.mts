@@ -7,6 +7,12 @@
 
 import { IPluginAPI } from '@dungeon-lab/shared/types/plugin-api.mjs';
 
+// Import schemas for API data validation
+// These schemas represent the structure of document data returned by the API
+import { 
+  vttDocumentTypes,
+} from '../shared/types/vttdocument.mjs';
+
 // Document types that we cache
 export type DocumentType = 'class' | 'background' | 'species' | 'subclass';
 
@@ -25,6 +31,52 @@ const cache: Record<DocumentType, Record<string, unknown>[]> = {
 // Loading state tracking
 const loaded: Record<string, boolean> = {};
 const loadingPromises: Partial<Record<DocumentType, Promise<Record<string, unknown>[]>>> = {};
+
+// Initialize with null API but allow auto-initialization on first use
+let initializationPromise: Promise<void> | null = null;
+
+/**
+ * Auto-initialize the document cache if needed
+ * @param pluginApi Optional API to use for initialization
+ */
+async function ensureInitialized(pluginApi?: IPluginAPI): Promise<void> {
+  // If already initialized, return immediately
+  if (api !== null) {
+    return;
+  }
+  
+  // If no API provided but already auto-initializing, wait for that to finish
+  if (!pluginApi && initializationPromise) {
+    await initializationPromise;
+    return;
+  }
+  
+  // If no API provided and not initializing, we can't proceed
+  if (!pluginApi) {
+    throw new Error('Document cache not initialized and no API provided for auto-initialization');
+  }
+  
+  // Start initialization
+  console.log('Auto-initializing document cache with API');
+  
+  const promise = (async () => {
+    // Initialize the cache with the API
+    initDocumentCache(pluginApi);
+    
+    // Preload documents
+    try {
+      await preloadAllDocuments();
+    } catch (error) {
+      console.error('Error during auto-initialization of document cache:', error);
+      // Don't throw, we've logged the error and the cache is still usable for direct fetches
+    } finally {
+    }
+  })();
+  
+  initializationPromise = promise;
+  await promise;
+  initializationPromise = null;
+}
 
 /**
  * Initialize the document cache with the plugin API
@@ -226,7 +278,7 @@ export function getBackgrounds(): Record<string, unknown>[] {
   return getDocuments('background');
 }
 
-export function getSpecies(): Record<string, unknown>[] {
+export function getAllSpecies(): Record<string, unknown>[] {
   return getDocuments('species');
 }
 
@@ -277,34 +329,54 @@ export function getSubclassByName(name: string): Record<string, unknown> | undef
   return getDocumentByName('subclass', name);
 }
 
+/**
+ * Check if the document cache is initialized
+ */
+function isDocumentCacheInitialized(): boolean {
+  return api !== null;
+}
+
+/**
+ * Preload all documents into the cache from the API
+ */
 export async function preloadDocuments(pluginApi: IPluginAPI, resetCache: boolean = false): Promise<void> {
   console.log(`Preloading documents for plugin (reset: ${resetCache})`);
+  
+  // Initialize the cache if not already initialized
+  if (!isDocumentCacheInitialized()) {
+    initDocumentCache(pluginApi);
+  }
   
   // Reset the cache if requested
   if (resetCache) {
     console.log('Resetting document cache');
-    cache = {
-      class: [],
-      background: [],
-      species: []
-    };
-    loaded = {
-      class: false,
-      background: false,
-      species: false
-    };
+    // Create new objects instead of modifying constants
+    Object.keys(cache).forEach(key => {
+      cache[key as DocumentType] = [];
+    });
+    
+    Object.keys(loaded).forEach(key => {
+      loaded[key as string] = false;
+    });
   }
   
-  // Create promises for each document type
-  const promises = [
-    loadClasses(pluginApi),
-    loadBackgrounds(pluginApi),
-    loadSpecies(pluginApi)
-  ];
-  
+  // Load each document type
   try {
-    // Wait for all document types to load
-    await Promise.all(promises);
+    // Load classes
+    if (!isLoaded('class')) {
+      await loadDocuments('class');
+    }
+    
+    // Load backgrounds
+    if (!isLoaded('background')) {
+      await loadDocuments('background');
+    }
+    
+    // Load species
+    if (!isLoaded('species')) {
+      await loadDocuments('species');
+    }
+    
     console.log('All documents preloaded successfully');
     
     // Log document counts in cache
@@ -313,37 +385,6 @@ export async function preloadDocuments(pluginApi: IPluginAPI, resetCache: boolea
       backgrounds: cache.background.length,
       species: cache.species.length
     });
-    
-    // Log the structure of a sample class document for debugging
-    if (cache.class.length > 0) {
-      console.log('Sample class document structure:');
-      const sampleClass = cache.class[0];
-      
-      // Log the properties and their types 
-      const props = Object.keys(sampleClass).map(key => {
-        const value = (sampleClass as any)[key];
-        const type = Array.isArray(value) ? `array[${value.length}]` : typeof value;
-        const sample = Array.isArray(value) && value.length > 0 
-          ? (typeof value[0] === 'object' ? '(complex)' : value[0]) 
-          : (typeof value === 'object' ? '(complex)' : value);
-        
-        return { key, type, sample };
-      });
-      
-      console.table(props);
-      
-      // If the data has a 'data' property, also check that
-      if ((sampleClass as any).data && typeof (sampleClass as any).data === 'object') {
-        console.log('Class data property structure:');
-        const dataProps = Object.keys((sampleClass as any).data).map(key => {
-          const value = (sampleClass as any).data[key];
-          const type = Array.isArray(value) ? `array[${value.length}]` : typeof value;
-          return { key, type };
-        });
-        
-        console.table(dataProps);
-      }
-    }
   } catch (error) {
     console.error('Error preloading documents:', error);
     throw error;
@@ -376,4 +417,254 @@ export function extractDocumentData(document: Record<string, unknown>): Record<s
   // If there's no data property, just return the document as is
   console.log('Document does not have data property, using as is');
   return document;
+}
+
+/**
+ * Enhanced version of getClassByName that will fetch from API if not in cache
+ * Also handles validation of the document structure against the API schema
+ * @param name The class name to get
+ * @param api Optional API instance for fetching if needed
+ * @returns The class document, with proper validation
+ */
+export async function getClass(name: string, api?: IPluginAPI): Promise<Record<string, unknown>> {
+  console.log(`Enhanced getClass called for "${name}"`);
+  
+  if (!name) {
+    console.warn('No class name provided');
+    throw new Error('No class name provided');
+  }
+  
+  // Ensure the cache is initialized
+  await ensureInitialized(api);
+  
+  // First check if we have it in cache
+  const cachedDoc = getClassByName(name);
+  if (cachedDoc) {
+    console.log(`Found class "${name}" in cache`);
+    
+    // Validate the document against the API schema
+    // We validate the "data" field against the characterClassSchema
+    const dataField = cachedDoc.data || cachedDoc;
+    const validation = vttDocumentTypes.characterClass.safeParse(dataField);
+    if (!validation.success) {
+      console.error(`Validation failed for cached class ${name}:`, validation.error);
+      throw new Error(`Invalid class document format: ${validation.error.message}`);
+    }
+    
+    return extractDocumentData(cachedDoc);
+  }
+  
+  // If not in cache and API provided, try to fetch it
+  if (api) {
+    console.log(`Class "${name}" not in cache, fetching from API`);
+    try {
+      // Try to load the class documents
+      await loadDocuments('class');
+      
+      // Check cache again after loading
+      const reloadedDoc = getClassByName(name);
+      if (reloadedDoc) {
+        // Validate the document against the API schema
+        const dataField = reloadedDoc.data || reloadedDoc;
+        const validation = vttDocumentTypes.characterClass.safeParse(dataField);
+        if (!validation.success) {
+          console.error(`Validation failed for reloaded class ${name}:`, validation.error);
+          throw new Error(`Invalid class document format: ${validation.error.message}`);
+        }
+        
+        return extractDocumentData(reloadedDoc);
+      }
+      
+      // If still not found, make a direct API call for this specific class
+      const response = await api.getDocument('dnd-5e-2024', 'class', name);
+      if (!response) {
+        throw new Error(`Class ${name} not found`);
+      }
+      
+      console.log(`Successfully fetched class "${name}" from API directly`);
+      
+      // Validate the API response against the schema
+      const dataField = (response as any).data || response;
+      const validation = vttDocumentTypes.characterClass.safeParse(dataField);
+      if (!validation.success) {
+        console.error(`Validation failed for API class ${name}:`, validation.error);
+        throw new Error(`Invalid class document format: ${validation.error.message}`);
+      }
+      
+      return extractDocumentData(response as Record<string, unknown>);
+    } catch (error) {
+      console.error(`Error fetching class "${name}" from API:`, error);
+      throw error;
+    }
+  }
+  
+  // If we get here, we couldn't find it in cache and no API was provided
+  console.error(`Class "${name}" not found in cache and no API provided for fetching`);
+  throw new Error(`Class ${name} not found and no API provided for fetching`);
+}
+
+/**
+ * Enhanced version of getSpeciesByName that will fetch from API if not in cache
+ * Also handles validation of the document structure against the API schema
+ * @param name The species name to get
+ * @param api Optional API instance for fetching if needed
+ * @returns The species document, with proper validation
+ */
+export async function getSpecies(name: string, api?: IPluginAPI): Promise<Record<string, unknown>> {
+  console.log(`Enhanced getSpecies called for "${name}"`);
+  
+  if (!name) {
+    console.warn('No species name provided');
+    throw new Error('No species name provided');
+  }
+  
+  // Ensure the cache is initialized
+  await ensureInitialized(api);
+  
+  // First check if we have it in cache
+  const cachedDoc = getSpeciesByName(name);
+  if (cachedDoc) {
+    console.log(`Found species "${name}" in cache`);
+    
+    // Validate the document against the API schema
+    const dataField = cachedDoc.data || cachedDoc;
+    const validation = vttDocumentTypes.species.safeParse(dataField);
+    if (!validation.success) {
+      console.error(`Validation failed for cached species ${name}:`, validation.error);
+      throw new Error(`Invalid species document format: ${validation.error.message}`);
+    }
+    
+    return extractDocumentData(cachedDoc);
+  }
+  
+  // If not in cache and API provided, try to fetch it
+  if (api) {
+    console.log(`Species "${name}" not in cache, fetching from API`);
+    try {
+      // Try to load the species documents
+      await loadDocuments('species');
+      
+      // Check cache again after loading
+      const reloadedDoc = getSpeciesByName(name);
+      if (reloadedDoc) {
+        // Validate the document against the API schema
+        const dataField = reloadedDoc.data || reloadedDoc;
+        const validation = vttDocumentTypes.species.safeParse(dataField);
+        if (!validation.success) {
+          console.error(`Validation failed for reloaded species ${name}:`, validation.error);
+          throw new Error(`Invalid species document format: ${validation.error.message}`);
+        }
+        
+        return extractDocumentData(reloadedDoc);
+      }
+      
+      // If still not found, make a direct API call for this specific species
+      const response = await api.getDocument('dnd-5e-2024', 'species', name);
+      if (!response) {
+        throw new Error(`Species ${name} not found`);
+      }
+      
+      console.log(`Successfully fetched species "${name}" from API directly`);
+      
+      // Validate the API response against the schema
+      const dataField = (response as any).data || response;
+      const validation = vttDocumentTypes.species.safeParse(dataField);
+      if (!validation.success) {
+        console.error(`Validation failed for API species ${name}:`, validation.error);
+        throw new Error(`Invalid species document format: ${validation.error.message}`);
+      }
+      
+      return extractDocumentData(response as Record<string, unknown>);
+    } catch (error) {
+      console.error(`Error fetching species "${name}" from API:`, error);
+      throw error;
+    }
+  }
+  
+  // If we get here, we couldn't find it in cache and no API was provided
+  console.error(`Species "${name}" not found in cache and no API provided for fetching`);
+  throw new Error(`Species ${name} not found and no API provided for fetching`);
+}
+
+/**
+ * Enhanced version of getBackgroundByName that will fetch from API if not in cache
+ * Also handles validation of the document structure against the API schema
+ * @param name The background name to get
+ * @param api Optional API instance for fetching if needed
+ * @returns The background document, with proper validation
+ */
+export async function getBackground(name: string, api?: IPluginAPI): Promise<Record<string, unknown>> {
+  console.log(`Enhanced getBackground called for "${name}"`);
+  
+  if (!name) {
+    console.warn('No background name provided');
+    throw new Error('No background name provided');
+  }
+  
+  // Ensure the cache is initialized
+  await ensureInitialized(api);
+  
+  // First check if we have it in cache
+  const cachedDoc = getBackgroundByName(name);
+  if (cachedDoc) {
+    console.log(`Found background "${name}" in cache`);
+    
+    // Validate the document against the API schema
+    const dataField = cachedDoc.data || cachedDoc;
+    const validation = vttDocumentTypes.background.safeParse(dataField);
+    if (!validation.success) {
+      console.error(`Validation failed for cached background ${name}:`, validation.error);
+      throw new Error(`Invalid background document format: ${validation.error.message}`);
+    }
+    
+    return extractDocumentData(cachedDoc);
+  }
+  
+  // If not in cache and API provided, try to fetch it
+  if (api) {
+    console.log(`Background "${name}" not in cache, fetching from API`);
+    try {
+      // Try to load the background documents
+      await loadDocuments('background');
+      
+      // Check cache again after loading
+      const reloadedDoc = getBackgroundByName(name);
+      if (reloadedDoc) {
+        // Validate the document against the API schema
+        const dataField = reloadedDoc.data || reloadedDoc;
+        const validation = vttDocumentTypes.background.safeParse(dataField);
+        if (!validation.success) {
+          console.error(`Validation failed for reloaded background ${name}:`, validation.error);
+          throw new Error(`Invalid background document format: ${validation.error.message}`);
+        }
+        
+        return extractDocumentData(reloadedDoc);
+      }
+      
+      // If still not found, make a direct API call for this specific background
+      const response = await api.getDocument('dnd-5e-2024', 'background', name);
+      if (!response) {
+        throw new Error(`Background ${name} not found`);
+      }
+      
+      console.log(`Successfully fetched background "${name}" from API directly`);
+      
+      // Validate the API response against the schema
+      const dataField = (response as any).data || response;
+      const validation = vttDocumentTypes.background.safeParse(dataField);
+      if (!validation.success) {
+        console.error(`Validation failed for API background ${name}:`, validation.error);
+        throw new Error(`Invalid background document format: ${validation.error.message}`);
+      }
+      
+      return extractDocumentData(response as Record<string, unknown>);
+    } catch (error) {
+      console.error(`Error fetching background "${name}" from API:`, error);
+      throw error;
+    }
+  }
+  
+  // If we get here, we couldn't find it in cache and no API was provided
+  console.error(`Background "${name}" not found in cache and no API provided for fetching`);
+  throw new Error(`Background ${name} not found and no API provided for fetching`);
 } 

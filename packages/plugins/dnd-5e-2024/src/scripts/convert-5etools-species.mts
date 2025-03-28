@@ -5,7 +5,6 @@ import {
   extractTextFromEntries,
   normalizeSize,
   extractSpells,
-  processSpellList
 } from './converter-utils.mjs';
 
 // Input data interface
