@@ -242,6 +242,43 @@ export class PluginAPI implements IPluginAPI {
     // Add the handler
     this.messageHandlers.get(type)?.add(handler);
   }
+
+  /**
+   * Fetches a document from the server
+   * @param pluginId The ID of the plugin that owns the document
+   * @param documentType The type of document to fetch (e.g., 'class', 'race', 'background')
+   * @param documentId The ID or name of the document to fetch
+   * @returns The document data
+   */
+  async getDocument(pluginId: string, documentType: string, documentId: string): Promise<unknown> {
+    const response = await fetch(`/api/documents/${pluginId}/${documentType}/${documentId}`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch document: ${response.statusText}`);
+    }
+    return response.json();
+  }
+
+  /**
+   * Searches for documents using the provided query parameters
+   * @param params An object containing key-value pairs to search for (e.g., { pluginId: 'dnd-5e-2024', documentType: 'class' })
+   * @returns An array of matching documents
+   */
+  async searchDocuments(params: Record<string, string>): Promise<unknown[]> {
+    try {
+      // Import the axios instance dynamically to avoid circular dependencies
+      const { default: api } = await import('../network/axios.mjs');
+      
+      const response = await api.get('/api/documents', { params });
+      
+      if (!Array.isArray(response.data)) {
+        throw new Error('Invalid response format: expected an array');
+      }
+      
+      return response.data;
+    } catch (error: any) {
+      throw new Error(`Failed to search documents: ${error.message}`);
+    }
+  }
 }
 
 /**

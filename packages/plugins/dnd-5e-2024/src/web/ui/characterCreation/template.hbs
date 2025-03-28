@@ -1,130 +1,1384 @@
-<!-- Character Details -->
-<div class="form-section">
-  <h3>Character Basics</h3>
-  
-  <div class="form-row">
-    <div class="form-group">
-      <label for="character-race">Race</label>
-      <select id="character-race" name="data.race" class="form-select">
-        <option value="">Select Race</option>
-        <option value="dragonborn" {{#if (eq race "dragonborn")}}selected{{/if}}>Dragonborn</option>
-        <option value="dwarf" {{#if (eq race "dwarf")}}selected{{/if}}>Dwarf</option>
-        <option value="elf" {{#if (eq race "elf")}}selected{{/if}}>Elf</option>
-        <option value="gnome" {{#if (eq race "gnome")}}selected{{/if}}>Gnome</option>
-        <option value="half-elf" {{#if (eq race "half-elf")}}selected{{/if}}>Half-Elf</option>
-        <option value="half-orc" {{#if (eq race "half-orc")}}selected{{/if}}>Half-Orc</option>
-        <option value="halfling" {{#if (eq race "halfling")}}selected{{/if}}>Halfling</option>
-        <option value="human" {{#if (eq race "human")}}selected{{/if}}>Human</option>
-        <option value="tiefling" {{#if (eq race "tiefling")}}selected{{/if}}>Tiefling</option>
-      </select>
-    </div>
-    
-    <div class="form-group">
-      <label for="character-class">Class</label>
-      <select id="character-class" name="data.class" class="form-select">
-        <option value="">Select Class</option>
-        <option value="barbarian" {{#if (eq class "barbarian")}}selected{{/if}}>Barbarian</option>
-        <option value="bard" {{#if (eq class "bard")}}selected{{/if}}>Bard</option>
-        <option value="cleric" {{#if (eq class "cleric")}}selected{{/if}}>Cleric</option>
-        <option value="druid" {{#if (eq class "druid")}}selected{{/if}}>Druid</option>
-        <option value="fighter" {{#if (eq class "fighter")}}selected{{/if}}>Fighter</option>
-        <option value="monk" {{#if (eq class "monk")}}selected{{/if}}>Monk</option>
-        <option value="paladin" {{#if (eq class "paladin")}}selected{{/if}}>Paladin</option>
-        <option value="ranger" {{#if (eq class "ranger")}}selected{{/if}}>Ranger</option>
-        <option value="rogue" {{#if (eq class "rogue")}}selected{{/if}}>Rogue</option>
-        <option value="sorcerer" {{#if (eq class "sorcerer")}}selected{{/if}}>Sorcerer</option>
-        <option value="warlock" {{#if (eq class "warlock")}}selected{{/if}}>Warlock</option>
-        <option value="wizard" {{#if (eq class "wizard")}}selected{{/if}}>Wizard</option>
-      </select>
-    </div>
+<!-- Character Creation Multi-Page Form -->
+<div class="character-creation-form">
+  <!-- Form Page Navigation -->
+  <div class="form-navigation">
+    <ol class="form-steps">
+      <li class="step active">Choose a Class</li>
+      <li class="step">Choose Origin</li>
+      <li class="step">Ability Scores</li>
+      <li class="step">Equipment</li>
+      <li class="step">Details</li>
+    </ol>
   </div>
-  
-  <div class="form-row">
-    <div class="form-group">
-      <label for="character-level">Level</label>
-      <input type="number" id="character-level" name="data.level" value="{{level}}" min="1" max="20" required>
-    </div>
-    
-    <div class="form-group">
-      <label for="character-alignment">Alignment</label>
-      <select id="character-alignment" name="data.alignment">
-        <option value="">Select Alignment</option>
-        <option value="lawful-good" {{#if (eq alignment "lawful-good")}}selected{{/if}}>Lawful Good</option>
-        <option value="neutral-good" {{#if (eq alignment "neutral-good")}}selected{{/if}}>Neutral Good</option>
-        <option value="chaotic-good" {{#if (eq alignment "chaotic-good")}}selected{{/if}}>Chaotic Good</option>
-        <option value="lawful-neutral" {{#if (eq alignment "lawful-neutral")}}selected{{/if}}>Lawful Neutral</option>
-        <option value="true-neutral" {{#if (eq alignment "true-neutral")}}selected{{/if}}>True Neutral</option>
-        <option value="chaotic-neutral" {{#if (eq alignment "chaotic-neutral")}}selected{{/if}}>Chaotic Neutral</option>
-        <option value="lawful-evil" {{#if (eq alignment "lawful-evil")}}selected{{/if}}>Lawful Evil</option>
-        <option value="neutral-evil" {{#if (eq alignment "neutral-evil")}}selected{{/if}}>Neutral Evil</option>
-        <option value="chaotic-evil" {{#if (eq alignment "chaotic-evil")}}selected{{/if}}>Chaotic Evil</option>
-      </select>
-    </div>
-    
-    <div class="form-group">
-      <label for="character-background">Background</label>
-      <select id="character-background" name="data.background">
-        <option value="">Select Background</option>
-        <option value="acolyte" {{#if (eq background "acolyte")}}selected{{/if}}>Acolyte</option>
-        <option value="charlatan" {{#if (eq background "charlatan")}}selected{{/if}}>Charlatan</option>
-        <option value="criminal" {{#if (eq background "criminal")}}selected{{/if}}>Criminal</option>
-        <option value="entertainer" {{#if (eq background "entertainer")}}selected{{/if}}>Entertainer</option>
-        <option value="folk-hero" {{#if (eq background "folk-hero")}}selected{{/if}}>Folk Hero</option>
-        <option value="guild-artisan" {{#if (eq background "guild-artisan")}}selected{{/if}}>Guild Artisan</option>
-        <option value="hermit" {{#if (eq background "hermit")}}selected{{/if}}>Hermit</option>
-        <option value="noble" {{#if (eq background "noble")}}selected{{/if}}>Noble</option>
-        <option value="outlander" {{#if (eq background "outlander")}}selected{{/if}}>Outlander</option>
-        <option value="sage" {{#if (eq background "sage")}}selected{{/if}}>Sage</option>
-        <option value="sailor" {{#if (eq background "sailor")}}selected{{/if}}>Sailor</option>
-        <option value="soldier" {{#if (eq background "soldier")}}selected{{/if}}>Soldier</option>
-        <option value="urchin" {{#if (eq background "urchin")}}selected{{/if}}>Urchin</option>
-      </select>
-    </div>
-  </div>
-</div>
 
-<div class="form-section">
-  <h3>Ability Scores</h3>
-  <div class="abilities-grid">
-    <div class="ability-score">
-      <label for="ability-str">Strength</label>
-      <input type="number" id="ability-str" name="data.abilities.strength" value="{{abilities.strength}}" min="3" max="20" required>
-      <span class="ability-mod" id="mod-str">{{abilityMod abilities.strength}}</span>
+  <!-- Character Name (from initialData) -->
+  {{#if name}}
+  <div class="character-name-header">
+    <h1>{{name}}</h1>
+    <!-- This hidden input preserves the name value -->
+    <input type="hidden" name="data.name" value="{{name}}">
+  </div>
+  {{/if}}
+
+  <!-- Class Selection Page (currently active) -->
+  <div class="form-page active" id="class-page">
+    <div class="form-section">
+      <h2>Choose Your Class</h2>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label for="character-class">Class</label>
+          <select id="character-class" name="class.name" class="form-select" required>
+            <option value="">Select Class</option>
+            <option value="barbarian" {{#if (eq class.name "barbarian")}}selected{{/if}}>Barbarian</option>
+            <option value="bard" {{#if (eq class.name "bard")}}selected{{/if}}>Bard</option>
+            <option value="cleric" {{#if (eq class.name "cleric")}}selected{{/if}}>Cleric</option>
+            <option value="druid" {{#if (eq class.name "druid")}}selected{{/if}}>Druid</option>
+            <option value="fighter" {{#if (eq class.name "fighter")}}selected{{/if}}>Fighter</option>
+            <option value="monk" {{#if (eq class.name "monk")}}selected{{/if}}>Monk</option>
+            <option value="paladin" {{#if (eq class.name "paladin")}}selected{{/if}}>Paladin</option>
+            <option value="ranger" {{#if (eq class.name "ranger")}}selected{{/if}}>Ranger</option>
+            <option value="rogue" {{#if (eq class.name "rogue")}}selected{{/if}}>Rogue</option>
+            <option value="sorcerer" {{#if (eq class.name "sorcerer")}}selected{{/if}}>Sorcerer</option>
+            <option value="warlock" {{#if (eq class.name "warlock")}}selected{{/if}}>Warlock</option>
+            <option value="wizard" {{#if (eq class.name "wizard")}}selected{{/if}}>Wizard</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Debug Info -->
+      <div class="debug-info" style="margin-top: 10px; padding: 10px; border: 1px solid #ccc; background-color: #f9f9f9; font-family: monospace; font-size: 12px;">
+        <p>Class name: {{class.name}}</p>
+        <p>Class document loaded: {{#if class.document}}Yes{{else}}No{{/if}}</p>
+        <p>Document helpers loaded: {{#if (areDocumentsLoaded "class")}}Yes{{else}}No{{/if}}</p>
+        <p>Available classes from cache: {{#if (getAllClasses)}}Available{{else}}Not available{{/if}}</p>
+        <p>Direct class lookup: {{#if (getClass class.name)}}Found{{else}}Not found{{/if}}</p>
+        
+        <!-- Debug class document keys -->
+        {{#with (getClass class.name) as |classDoc|}}
+        <p>Class debug:</p>
+        <ul>
+          {{#each classDoc as |value key|}}
+            <li>{{key}}: {{#if (eq (typeof value) "object")}}(object){{else}}{{value}}{{/if}}</li>
+          {{/each}}
+        </ul>
+        {{/with}}
+      </div>
+
+      {{#if class.name}}
+      {{#with (getClass class.name) as |classDoc|}}
+      <div class="class-traits">
+        <h3>{{titleCase classDoc.name}} Class Traits</h3>
+        <p class="class-description">{{classDoc.description}}</p>
+        
+        <table class="traits-table">
+          <tbody>
+            <tr>
+              <th>Hit Die</th>
+              <td>{{default classDoc.hitDie classDoc.hitdie "d8"}}</td>
+            </tr>
+            <tr>
+              <th>Primary Ability</th>
+              <td>
+                {{#if classDoc.primaryAbility}}
+                  {{#each classDoc.primaryAbility}}
+                    {{#if @index}}, {{/if}}{{titleCase this}}
+                  {{/each}}
+                {{else if classDoc.primaryability}}
+                  {{#each classDoc.primaryability}}
+                    {{#if @index}}, {{/if}}{{titleCase this}}
+                  {{/each}}
+                {{else}}
+                  Not specified
+                {{/if}}
+              </td>
+            </tr>
+            <tr>
+              <th>Saving Throw Proficiencies</th>
+              <td>
+                {{#if classDoc.savingThrowProficiencies}}
+                  {{#each classDoc.savingThrowProficiencies}}
+                    {{#if @index}}, {{/if}}{{titleCase this}}
+                  {{/each}}
+                {{else if classDoc.savingthrows}}
+                  {{#each classDoc.savingthrows}}
+                    {{#if @index}}, {{/if}}{{titleCase this}}
+                  {{/each}}
+                {{else}}
+                  Not specified
+                {{/if}}
+              </td>
+            </tr>
+            {{#if (or classDoc.armorProficiencies classDoc.proficiencies.armor)}}
+            <tr>
+              <th>Armor Proficiencies</th>
+              <td>
+                {{#if classDoc.armorProficiencies}}
+                  {{#each classDoc.armorProficiencies}}
+                    {{#if @index}}, {{/if}}{{this}}
+                  {{/each}}
+                {{else if classDoc.proficiencies.armor}}
+                  {{#each classDoc.proficiencies.armor}}
+                    {{#if @index}}, {{/if}}{{this}}
+                  {{/each}}
+                {{/if}}
+              </td>
+            </tr>
+            {{/if}}
+            {{#if (or classDoc.weaponProficiencies classDoc.proficiencies.weapons)}}
+            <tr>
+              <th>Weapon Proficiencies</th>
+              <td>
+                {{#if classDoc.weaponProficiencies}}
+                  {{#each classDoc.weaponProficiencies}}
+                    {{#if @index}}, {{/if}}{{this}}
+                  {{/each}}
+                {{else if classDoc.proficiencies.weapons}}
+                  {{#each classDoc.proficiencies.weapons}}
+                    {{#if @index}}, {{/if}}{{this}}
+                  {{/each}}
+                {{/if}}
+              </td>
+            </tr>
+            {{/if}}
+            {{#if (or classDoc.toolProficiencies classDoc.proficiencies.tools)}}
+            <tr>
+              <th>Tool Proficiencies</th>
+              <td>
+                {{#if classDoc.toolProficiencies}}
+                  {{#each classDoc.toolProficiencies}}
+                    {{#if @index}}, {{/if}}{{this}}
+                  {{/each}}
+                {{else if classDoc.proficiencies.tools}}
+                  {{#each classDoc.proficiencies.tools}}
+                    {{#if @index}}, {{/if}}{{this}}
+                  {{/each}}
+                {{/if}}
+              </td>
+            </tr>
+            {{/if}}
+          </tbody>
+        </table>
+
+        {{#if (or classDoc.skillOptions classDoc.proficiencies.skills)}}
+        <div class="skill-section">
+          <h4>Skills</h4>
+          
+          {{#if classDoc.skillOptions}}
+            <p>Choose {{default classDoc.skillChoices 2}} from:</p>
+            <div class="skill-options">
+              {{#each classDoc.skillOptions}}
+                <div class="skill-option">
+                  <label>
+                    <input type="checkbox" name="class.selectedSkills" value="{{this}}"
+                      {{#if (includes ../../class.selectedSkills this)}}checked{{/if}}
+                      {{#if (isSkillDisabled ../../class.selectedSkills classDoc.skillChoices)}}disabled{{/if}}>
+                    {{titleCase this}}
+                  </label>
+                </div>
+              {{/each}}
+            </div>
+          {{else if classDoc.proficiencies.skills}}
+            <!-- Handle the skills proficiency data structure -->
+            {{#each classDoc.proficiencies.skills as |skillEntry|}}
+              {{#if (eq skillEntry.type "choice")}}
+                <p>Choose {{default skillEntry.count 2}} from:</p>
+                <div class="skill-options">
+                  {{#each skillEntry.options}}
+                    <div class="skill-option">
+                      <label>
+                        <input type="checkbox" name="class.selectedSkills" value="{{this}}"
+                          {{#if (includes ../../../class.selectedSkills this)}}checked{{/if}}
+                          {{#if (isSkillDisabled ../../../class.selectedSkills skillEntry.count)}}disabled{{/if}}>
+                        {{titleCase this}}
+                      </label>
+                    </div>
+                  {{/each}}
+                </div>
+              {{/if}}
+            {{/each}}
+          {{/if}}
+        </div>
+        {{/if}}
+
+        {{#if (or classDoc.features classDoc.features.[1])}}
+        <div class="features-section">
+          <h4>1st Level Features</h4>
+          
+          {{#if classDoc.features}}
+            {{#each classDoc.features.[1] as |feature|}}
+              <div class="feature-box">
+                <h6>{{titleCase feature.name}}</h6>
+                <p>{{feature.description}}</p>
+              </div>
+            {{/each}}
+          {{else if classDoc.features.[1]}}
+            <!-- Handle features organized by level -->
+            {{#each classDoc.features.[1] as |feature|}}
+              <div class="feature-box">
+                <h6>{{titleCase feature.name}}</h6>
+                <p>{{feature.description}}</p>
+              </div>
+            {{/each}}
+          {{/if}}
+        </div>
+        {{/if}}
+
+        {{#if (or classDoc.equipmentChoices classDoc.equipment.options)}}
+        <div class="equipment-section">
+          <h4>Starting Equipment</h4>
+          <p>Choose one of the following starting equipment options:</p>
+          
+          {{#if classDoc.equipmentChoices}}
+            {{#each classDoc.equipmentChoices}}
+              <div class="equipment-choice">
+                <div class="choice-row">
+                  <div class="choice-option">
+                    <input type="radio" name="class.selectedEquipment" id="option-equipment-{{@index}}" value="A" {{#if (eq ../class.selectedEquipment "A")}}checked{{/if}}>
+                    <label for="option-equipment-{{@index}}" class="equipment-label">
+                      <strong>Option A:</strong>
+                      <ul class="equipment-list">
+                        {{#each optionA}}
+                          <li>
+                            {{#if this.item}}
+                              {{titleCase this.item}}
+                              {{#if this.quantity}} (×{{this.quantity}}){{/if}}
+                            {{else if this.equipmenttype}}
+                              Any {{titleCase this.equipmenttype}}
+                            {{else if this.gold}}
+                              {{this.gold}} gold pieces
+                            {{else}}
+                              {{this.type}}
+                            {{/if}}
+                          </li>
+                        {{/each}}
+                      </ul>
+                    </label>
+                  </div>
+                  
+                  <div class="choice-option">
+                    <input type="radio" name="class.selectedEquipment" id="option-gold-{{@index}}" value="B" {{#if (eq ../class.selectedEquipment "B")}}checked{{/if}}>
+                    <label for="option-gold-{{@index}}" class="equipment-label">
+                      <strong>Option B:</strong>
+                      <ul class="equipment-list">
+                        {{#each optionB}}
+                          <li>
+                            {{#if this.item}}
+                              {{titleCase this.item}}
+                              {{#if this.quantity}} (×{{this.quantity}}){{/if}}
+                            {{else if this.equipmenttype}}
+                              Any {{titleCase this.equipmenttype}}
+                            {{else if this.gold}}
+                              {{this.gold}} gold pieces
+                            {{else if this.value}}
+                              {{#if (eq this.type "gold")}}
+                                {{this.value}} gold pieces
+                              {{else}}
+                                {{this.value}} {{this.type}}
+                              {{/if}}
+                            {{else}}
+                              {{this.type}}
+                            {{/if}}
+                          </li>
+                        {{/each}}
+                      </ul>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            {{/each}}
+          {{else if classDoc.equipment.options}}
+            <!-- Handle equipment data in options format -->
+            <div class="equipment-choice">
+              <div class="choice-row">
+                <div class="choice-option">
+                  <input type="radio" name="class.selectedEquipment" id="option-equipment-1" value="A" {{#if (eq class.selectedEquipment "A")}}checked{{/if}}>
+                  <label for="option-equipment-1" class="equipment-label">
+                    <strong>Option A:</strong>
+                    <ul class="equipment-list">
+                      {{#each classDoc.equipment.options.A}}
+                        <li>
+                          {{#if this.item}}
+                            {{titleCase this.item}}
+                            {{#if this.quantity}} (×{{this.quantity}}){{/if}}
+                          {{else if this.type}}
+                            {{#if (eq this.type "gold")}}
+                              {{this.value}} gold pieces
+                            {{else}}
+                              {{this.value}} {{this.type}}
+                            {{/if}}
+                          {{else}}
+                            {{this}}
+                          {{/if}}
+                        </li>
+                      {{/each}}
+                    </ul>
+                  </label>
+                </div>
+                
+                <div class="choice-option">
+                  <input type="radio" name="class.selectedEquipment" id="option-gold-1" value="B" {{#if (eq class.selectedEquipment "B")}}checked{{/if}}>
+                  <label for="option-gold-1" class="equipment-label">
+                    <strong>Option B:</strong>
+                    <ul class="equipment-list">
+                      {{#each classDoc.equipment.options.B}}
+                        <li>
+                          {{#if this.item}}
+                            {{titleCase this.item}}
+                            {{#if this.quantity}} (×{{this.quantity}}){{/if}}
+                          {{else if this.type}}
+                            {{#if (eq this.type "gold")}}
+                              {{this.value}} gold pieces
+                            {{else}}
+                              {{this.value}} {{this.type}}
+                            {{/if}}
+                          {{else if this.gold}}
+                            {{this.gold}} gold pieces
+                          {{else}}
+                            {{this}}
+                          {{/if}}
+                        </li>
+                      {{/each}}
+                    </ul>
+                  </label>
+                </div>
+              </div>
+            </div>
+          {{/if}}
+        </div>
+        {{/if}}
+      </div>
+      {{/with}}
+      {{else}}
+        <p>Please select a class to view its traits.</p>
+      {{/if}}
     </div>
-    <div class="ability-score">
-      <label for="ability-dex">Dexterity</label>
-      <input type="number" id="ability-dex" name="data.abilities.dexterity" value="{{abilities.dexterity}}" min="3" max="20" required>
-      <span class="ability-mod" id="mod-dex">{{abilityMod abilities.dexterity}}</span>
-    </div>
-    <div class="ability-score">
-      <label for="ability-con">Constitution</label>
-      <input type="number" id="ability-con" name="data.abilities.constitution" value="{{abilities.constitution}}" min="3" max="20" required>
-      <span class="ability-mod" id="mod-con">{{abilityMod abilities.constitution}}</span>
-    </div>
-    <div class="ability-score">
-      <label for="ability-int">Intelligence</label>
-      <input type="number" id="ability-int" name="data.abilities.intelligence" value="{{abilities.intelligence}}" min="3" max="20" required>
-      <span class="ability-mod" id="mod-int">{{abilityMod abilities.intelligence}}</span>
-    </div>
-    <div class="ability-score">
-      <label for="ability-wis">Wisdom</label>
-      <input type="number" id="ability-wis" name="data.abilities.wisdom" value="{{abilities.wisdom}}" min="3" max="20" required>
-      <span class="ability-mod" id="mod-wis">{{abilityMod abilities.wisdom}}</span>
-    </div>
-    <div class="ability-score">
-      <label for="ability-cha">Charisma</label>
-      <input type="number" id="ability-cha" name="data.abilities.charisma" value="{{abilities.charisma}}" min="3" max="20" required>
-      <span class="ability-mod" id="mod-cha">{{abilityMod abilities.charisma}}</span>
+
+    <div class="form-navigation-buttons">
+      <button type="button" class="btn btn-primary next-button" id="class-next">Next: Choose Origin</button>
     </div>
   </div>
-</div>
 
-<div class="form-section">
-  <h3>Hit Points</h3>
-  <div class="form-row">
-    <div class="form-group">
-      <label for="hp-max">Maximum Hit Points</label>
-      <input type="number" id="hp-max" name="data.hitPoints.maximum" value="{{hitPoints.maximum}}" min="1" required>
+  <!-- Placeholder for future pages (hidden for now) -->
+  <div class="form-page" id="origin-page">
+    <div class="form-section">
+      <h2>Choose Your Origin</h2>
+      
+      <!-- Species Selection -->
+      <div class="form-group">
+        <label for="character-species">Species</label>
+        <select id="character-species" name="origin.species" class="form-select" required>
+          <option value="">Select Species</option>
+          <option value="dragonborn" {{#if (eq origin.species "dragonborn")}}selected{{/if}}>Dragonborn</option>
+          <option value="dwarf" {{#if (eq origin.species "dwarf")}}selected{{/if}}>Dwarf</option>
+          <option value="elf" {{#if (eq origin.species "elf")}}selected{{/if}}>Elf</option>
+          <option value="gnome" {{#if (eq origin.species "gnome")}}selected{{/if}}>Gnome</option>
+          <option value="half-elf" {{#if (eq origin.species "half-elf")}}selected{{/if}}>Half-Elf</option>
+          <option value="half-orc" {{#if (eq origin.species "half-orc")}}selected{{/if}}>Half-Orc</option>
+          <option value="halfling" {{#if (eq origin.species "halfling")}}selected{{/if}}>Halfling</option>
+          <option value="human" {{#if (eq origin.species "human")}}selected{{/if}}>Human</option>
+          <option value="tiefling" {{#if (eq origin.species "tiefling")}}selected{{/if}}>Tiefling</option>
+        </select>
+      </div>
+
+      {{#if origin.speciesDocument}}
+      <div class="species-traits">
+        <h3>{{titleCase origin.speciesDocument.name}} Traits</h3>
+        <p>{{origin.speciesDocument.description}}</p>
+        
+        <table class="traits-table">
+          <tbody>
+            <tr>
+              <th>Ability Score Improvements</th>
+              <td>{{origin.speciesDocument.abilityScoreIncrease}}</td>
+            </tr>
+            <tr>
+              <th>Size</th>
+              <td>{{origin.speciesDocument.size}}</td>
+            </tr>
+            <tr>
+              <th>Speed</th>
+              <td>{{origin.speciesDocument.speed}} ft.</td>
+            </tr>
+          </tbody>
+        </table>
+        
+        {{#if origin.speciesDocument.traits.length}}
+        <h4>Species Traits</h4>
+        {{#each origin.speciesDocument.traits}}
+          <div class="feature-box">
+            <h6>{{titleCase name}}</h6>
+            <p>{{description}}</p>
+          </div>
+        {{/each}}
+        {{/if}}
+      </div>
+      {{/if}}
+      
+      <!-- Background Selection -->
+      <div class="form-group mt-4">
+        <label for="character-background">Background</label>
+        <select id="character-background" name="origin.background" class="form-select" required>
+          <option value="">Select Background</option>
+          <option value="acolyte" {{#if (eq origin.background "acolyte")}}selected{{/if}}>Acolyte</option>
+          <option value="artisan" {{#if (eq origin.background "artisan")}}selected{{/if}}>Artisan</option>
+          <option value="charlatan" {{#if (eq origin.background "charlatan")}}selected{{/if}}>Charlatan</option>
+          <option value="criminal" {{#if (eq origin.background "criminal")}}selected{{/if}}>Criminal</option>
+          <option value="entertainer" {{#if (eq origin.background "entertainer")}}selected{{/if}}>Entertainer</option>
+          <option value="farmer" {{#if (eq origin.background "farmer")}}selected{{/if}}>Farmer</option>
+          <option value="guard" {{#if (eq origin.background "guard")}}selected{{/if}}>Guard</option>
+          <option value="laborer" {{#if (eq origin.background "laborer")}}selected{{/if}}>Laborer</option>
+          <option value="noble" {{#if (eq origin.background "noble")}}selected{{/if}}>Noble</option>
+          <option value="pilgrim" {{#if (eq origin.background "pilgrim")}}selected{{/if}}>Pilgrim</option>
+          <option value="sailor" {{#if (eq origin.background "sailor")}}selected{{/if}}>Sailor</option>
+          <option value="scholar" {{#if (eq origin.background "scholar")}}selected{{/if}}>Scholar</option>
+          <option value="soldier" {{#if (eq origin.background "soldier")}}selected{{/if}}>Soldier</option>
+        </select>
+      </div>
+
+      {{#if origin.backgroundDocument}}
+      <div class="background-traits">
+        <h3>{{titleCase origin.backgroundDocument.name}} Background</h3>
+        <p>{{origin.backgroundDocument.description}}</p>
+        
+        {{#if origin.backgroundDocument.abilityBoosts}}
+        <div class="ability-boosts-section">
+          <h4>Ability Score Boosts</h4>
+          <p>Your {{titleCase origin.backgroundDocument.name}} background allows you to increase three ability scores by 1 each, or increase one by 2 and another by 1.</p>
+          <div class="ability-boost-options">
+            <div class="boost-option">
+              <h5>Option 1: Increase three abilities by 1</h5>
+              <div class="ability-checkboxes">
+                {{#each origin.backgroundDocument.abilityBoosts}}
+                  <div class="ability-checkbox">
+                    <label>
+                      <input type="checkbox" name="origin.selectedAbilityBoosts" value="{{this}}" 
+                        {{#if (includes ../origin.selectedAbilityBoosts this)}}checked{{/if}}
+                        {{#if (isBoostDisabled ../origin.selectedAbilityBoosts 3)}}disabled{{/if}}>
+                      {{titleCase this}}
+                    </label>
+                  </div>
+                {{/each}}
+              </div>
+            </div>
+            
+            <div class="boost-option">
+              <h5>Option 2: Increase one ability by 2 and another by 1</h5>
+              <div class="ability-selects">
+                <div class="form-group">
+                  <label>+2 Bonus To:</label>
+                  <select name="origin.bonusPlusTwo" class="form-select">
+                    <option value="">Select Ability</option>
+                    {{#each origin.backgroundDocument.abilityBoosts}}
+                      <option value="{{this}}" {{#if (eq ../origin.bonusPlusTwo this)}}selected{{/if}}>{{titleCase this}}</option>
+                    {{/each}}
+                  </select>
+                </div>
+                
+                <div class="form-group">
+                  <label>+1 Bonus To:</label>
+                  <select name="origin.bonusPlusOne" class="form-select">
+                    <option value="">Select Ability</option>
+                    {{#each origin.backgroundDocument.abilityBoosts}}
+                      <option value="{{this}}" {{#if (eq ../origin.bonusPlusOne this)}}selected{{/if}}
+                        {{#if (eq ../origin.bonusPlusTwo this)}}disabled{{/if}}>{{titleCase this}}</option>
+                    {{/each}}
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        {{/if}}
+        
+        <!-- Skill Proficiencies -->
+        {{#if origin.backgroundDocument.skillProficiencies}}
+        <div class="skill-section">
+          <h4>Skill Proficiencies</h4>
+          {{#if origin.backgroundDocument.skillChoices}}
+            <p>Choose {{origin.backgroundDocument.skillChoiceCount}} from:</p>
+            <div class="skill-options">
+              {{#each origin.backgroundDocument.skillChoices}}
+                <div class="skill-option">
+                  <label>
+                    <input type="checkbox" name="origin.selectedSkills" value="{{this}}"
+                      {{#if (includes ../origin.selectedSkills this)}}checked{{/if}}
+                      {{#if (isSkillDisabled ../origin.selectedSkills ../origin.backgroundDocument.skillChoiceCount)}}disabled{{/if}}>
+                    {{titleCase this}}
+                  </label>
+                </div>
+              {{/each}}
+            </div>
+          {{else}}
+            <ul class="skill-list">
+              {{#each origin.backgroundDocument.skillProficiencies}}
+                <li>{{titleCase this}}</li>
+              {{/each}}
+            </ul>
+          {{/if}}
+        </div>
+        {{/if}}
+        
+        <!-- Tool Proficiencies -->
+        {{#if origin.backgroundDocument.toolProficiencies}}
+        <div class="tool-section">
+          <h4>Tool Proficiencies</h4>
+          {{#if origin.backgroundDocument.toolChoices}}
+            <p>Choose {{origin.backgroundDocument.toolChoiceCount}} from:</p>
+            <div class="tool-options">
+              {{#each origin.backgroundDocument.toolChoices}}
+                <div class="tool-option">
+                  <label>
+                    <input type="checkbox" name="origin.selectedTools" value="{{this}}"
+                      {{#if (includes ../origin.selectedTools this)}}checked{{/if}}
+                      {{#if (isToolDisabled ../origin.selectedTools ../origin.backgroundDocument.toolChoiceCount)}}disabled{{/if}}>
+                    {{titleCase this}}
+                  </label>
+                </div>
+              {{/each}}
+            </div>
+          {{else}}
+            <ul class="tool-list">
+              {{#each origin.backgroundDocument.toolProficiencies}}
+                <li>{{titleCase this}}</li>
+              {{/each}}
+            </ul>
+          {{/if}}
+        </div>
+        {{/if}}
+        
+        <!-- Equipment Choice -->
+        {{#if origin.backgroundDocument.equipment}}
+        <div class="equipment-section">
+          <h4>Starting Equipment</h4>
+          <p>Choose one of the following starting equipment options:</p>
+          <div class="equipment-choice">
+            <div class="choice-row">
+              <div class="choice-option">
+                <input type="radio" name="origin.selectedEquipment" id="bg-option-equipment" value="equipment" 
+                  {{#if (eq origin.selectedEquipment "equipment")}}checked{{/if}}>
+                <label for="bg-option-equipment">
+                  <strong>Standard Equipment:</strong>
+                  <ul class="equipment-list">
+                    {{#each origin.backgroundDocument.equipment.items}}
+                      <li>
+                        {{#if this.item}}
+                          {{titleCase this.item}}
+                          {{#if this.quantity}} (×{{this.quantity}}){{/if}}
+                        {{else}}
+                          {{this}}
+                        {{/if}}
+                      </li>
+                    {{/each}}
+                  </ul>
+                </label>
+              </div>
+              
+              <div class="choice-option">
+                <input type="radio" name="origin.selectedEquipment" id="bg-option-gold" value="gold" 
+                  {{#if (eq origin.selectedEquipment "gold")}}checked{{/if}}>
+                <label for="bg-option-gold">
+                  <strong>Gold Option:</strong>
+                  <p>{{origin.backgroundDocument.equipment.gold}} gold pieces</p>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+        {{/if}}
+        
+        <!-- Languages -->
+        <div class="languages-section">
+          <h4>Languages</h4>
+          <p>You can speak, read, and write Common. Choose up to two additional languages from the list below:</p>
+          <div class="language-options">
+            {{#each languages}}
+              <div class="language-option">
+                <label>
+                  <input type="checkbox" name="origin.selectedLanguages" value="{{this}}"
+                    {{#if (includes ../origin.selectedLanguages this)}}checked{{/if}}
+                    {{#if (isLanguageDisabled ../origin.selectedLanguages 2)}}disabled{{/if}}>
+                  {{titleCase this}}
+                </label>
+              </div>
+            {{/each}}
+          </div>
+        </div>
+        
+        <!-- Feat Selection -->
+        {{#if origin.backgroundDocument.feat}}
+        <div class="feat-section">
+          <h4>Background Feat</h4>
+          <p>Your background grants you the following feat:</p>
+          <div class="feature-box">
+            <h6>{{titleCase origin.backgroundDocument.feat.name}}</h6>
+            <p>{{origin.backgroundDocument.feat.description}}</p>
+          </div>
+        </div>
+        {{/if}}
+      </div>
+      {{/if}}
+    </div>
+    
+    <div class="form-navigation-buttons">
+      <button type="button" class="btn btn-secondary back-button">Back: Choose Class</button>
+      <button type="button" class="btn btn-primary next-button" id="origin-next">Next: Ability Scores</button>
+    </div>
+  </div>
+
+  <div class="form-page" id="abilities-page">
+    <div class="form-section">
+      <h2>Determine Ability Scores</h2>
+      
+      <div class="ability-method-selection">
+        <h4>Choose Your Method</h4>
+        <div class="method-options">
+          <div class="method-option">
+            <input type="radio" id="method-standard" name="abilities.method" value="standard" 
+              {{#if (eq abilities.method "standard")}}checked{{/if}}
+              {{#unless abilities.method}}checked{{/unless}}>
+            <label for="method-standard">
+              <strong>Standard Array</strong>
+              <p>Use the standard scores: 15, 14, 13, 12, 10, 8</p>
+            </label>
+          </div>
+          
+          <div class="method-option">
+            <input type="radio" id="method-pointbuy" name="abilities.method" value="pointbuy" 
+              {{#if (eq abilities.method "pointbuy")}}checked{{/if}}>
+            <label for="method-pointbuy">
+              <strong>Point Buy</strong>
+              <p>Customize your abilities using a point-buy system (27 points)</p>
+            </label>
+          </div>
+          
+          <div class="method-option">
+            <input type="radio" id="method-roll" name="abilities.method" value="roll" 
+              {{#if (eq abilities.method "roll")}}checked{{/if}}>
+            <label for="method-roll">
+              <strong>Roll</strong>
+              <p>Roll 4d6, drop the lowest die for each ability score</p>
+            </label>
+          </div>
+        </div>
+      </div>
+      
+      <div class="ability-scores-section {{#if (eq abilities.method 'standard')}}active{{/if}}{{#unless abilities.method}}active{{/unless}}" id="standard-array-section">
+        <h4>Standard Array</h4>
+        <p>Assign these values to your abilities: 15, 14, 13, 12, 10, 8</p>
+        
+        <div class="abilities-grid">
+          <div class="ability-box">
+            <h5>Strength</h5>
+            <select name="abilities.standard.strength" class="ability-select">
+              <option value="">Select Value</option>
+              <option value="15" {{#if (eq abilities.standard.strength "15")}}selected{{/if}}>15</option>
+              <option value="14" {{#if (eq abilities.standard.strength "14")}}selected{{/if}}>14</option>
+              <option value="13" {{#if (eq abilities.standard.strength "13")}}selected{{/if}}>13</option>
+              <option value="12" {{#if (eq abilities.standard.strength "12")}}selected{{/if}}>12</option>
+              <option value="10" {{#if (eq abilities.standard.strength "10")}}selected{{/if}}>10</option>
+              <option value="8" {{#if (eq abilities.standard.strength "8")}}selected{{/if}}>8</option>
+            </select>
+            <div class="ability-modifier">
+              {{#if abilities.standard.strength}}
+                Modifier: {{getAbilityModifier abilities.standard.strength}}
+              {{else}}
+                Modifier: -
+              {{/if}}
+            </div>
+          </div>
+          
+          <div class="ability-box">
+            <h5>Dexterity</h5>
+            <select name="abilities.standard.dexterity" class="ability-select">
+              <option value="">Select Value</option>
+              <option value="15" {{#if (eq abilities.standard.dexterity "15")}}selected{{/if}}>15</option>
+              <option value="14" {{#if (eq abilities.standard.dexterity "14")}}selected{{/if}}>14</option>
+              <option value="13" {{#if (eq abilities.standard.dexterity "13")}}selected{{/if}}>13</option>
+              <option value="12" {{#if (eq abilities.standard.dexterity "12")}}selected{{/if}}>12</option>
+              <option value="10" {{#if (eq abilities.standard.dexterity "10")}}selected{{/if}}>10</option>
+              <option value="8" {{#if (eq abilities.standard.dexterity "8")}}selected{{/if}}>8</option>
+            </select>
+            <div class="ability-modifier">
+              {{#if abilities.standard.dexterity}}
+                Modifier: {{getAbilityModifier abilities.standard.dexterity}}
+              {{else}}
+                Modifier: -
+              {{/if}}
+            </div>
+          </div>
+          
+          <div class="ability-box">
+            <h5>Constitution</h5>
+            <select name="abilities.standard.constitution" class="ability-select">
+              <option value="">Select Value</option>
+              <option value="15" {{#if (eq abilities.standard.constitution "15")}}selected{{/if}}>15</option>
+              <option value="14" {{#if (eq abilities.standard.constitution "14")}}selected{{/if}}>14</option>
+              <option value="13" {{#if (eq abilities.standard.constitution "13")}}selected{{/if}}>13</option>
+              <option value="12" {{#if (eq abilities.standard.constitution "12")}}selected{{/if}}>12</option>
+              <option value="10" {{#if (eq abilities.standard.constitution "10")}}selected{{/if}}>10</option>
+              <option value="8" {{#if (eq abilities.standard.constitution "8")}}selected{{/if}}>8</option>
+            </select>
+            <div class="ability-modifier">
+              {{#if abilities.standard.constitution}}
+                Modifier: {{getAbilityModifier abilities.standard.constitution}}
+              {{else}}
+                Modifier: -
+              {{/if}}
+            </div>
+          </div>
+          
+          <div class="ability-box">
+            <h5>Intelligence</h5>
+            <select name="abilities.standard.intelligence" class="ability-select">
+              <option value="">Select Value</option>
+              <option value="15" {{#if (eq abilities.standard.intelligence "15")}}selected{{/if}}>15</option>
+              <option value="14" {{#if (eq abilities.standard.intelligence "14")}}selected{{/if}}>14</option>
+              <option value="13" {{#if (eq abilities.standard.intelligence "13")}}selected{{/if}}>13</option>
+              <option value="12" {{#if (eq abilities.standard.intelligence "12")}}selected{{/if}}>12</option>
+              <option value="10" {{#if (eq abilities.standard.intelligence "10")}}selected{{/if}}>10</option>
+              <option value="8" {{#if (eq abilities.standard.intelligence "8")}}selected{{/if}}>8</option>
+            </select>
+            <div class="ability-modifier">
+              {{#if abilities.standard.intelligence}}
+                Modifier: {{getAbilityModifier abilities.standard.intelligence}}
+              {{else}}
+                Modifier: -
+              {{/if}}
+            </div>
+          </div>
+          
+          <div class="ability-box">
+            <h5>Wisdom</h5>
+            <select name="abilities.standard.wisdom" class="ability-select">
+              <option value="">Select Value</option>
+              <option value="15" {{#if (eq abilities.standard.wisdom "15")}}selected{{/if}}>15</option>
+              <option value="14" {{#if (eq abilities.standard.wisdom "14")}}selected{{/if}}>14</option>
+              <option value="13" {{#if (eq abilities.standard.wisdom "13")}}selected{{/if}}>13</option>
+              <option value="12" {{#if (eq abilities.standard.wisdom "12")}}selected{{/if}}>12</option>
+              <option value="10" {{#if (eq abilities.standard.wisdom "10")}}selected{{/if}}>10</option>
+              <option value="8" {{#if (eq abilities.standard.wisdom "8")}}selected{{/if}}>8</option>
+            </select>
+            <div class="ability-modifier">
+              {{#if abilities.standard.wisdom}}
+                Modifier: {{getAbilityModifier abilities.standard.wisdom}}
+              {{else}}
+                Modifier: -
+              {{/if}}
+            </div>
+          </div>
+          
+          <div class="ability-box">
+            <h5>Charisma</h5>
+            <select name="abilities.standard.charisma" class="ability-select">
+              <option value="">Select Value</option>
+              <option value="15" {{#if (eq abilities.standard.charisma "15")}}selected{{/if}}>15</option>
+              <option value="14" {{#if (eq abilities.standard.charisma "14")}}selected{{/if}}>14</option>
+              <option value="13" {{#if (eq abilities.standard.charisma "13")}}selected{{/if}}>13</option>
+              <option value="12" {{#if (eq abilities.standard.charisma "12")}}selected{{/if}}>12</option>
+              <option value="10" {{#if (eq abilities.standard.charisma "10")}}selected{{/if}}>10</option>
+              <option value="8" {{#if (eq abilities.standard.charisma "8")}}selected{{/if}}>8</option>
+            </select>
+            <div class="ability-modifier">
+              {{#if abilities.standard.charisma}}
+                Modifier: {{getAbilityModifier abilities.standard.charisma}}
+              {{else}}
+                Modifier: -
+              {{/if}}
+            </div>
+          </div>
+        </div>
+        
+        <div class="used-values-container">
+          <h5>Used Values:</h5>
+          <div class="used-values">
+            {{#if abilities.standard.strength}}
+              <span class="used-value">{{abilities.standard.strength}}</span>
+            {{/if}}
+            {{#if abilities.standard.dexterity}}
+              <span class="used-value">{{abilities.standard.dexterity}}</span>
+            {{/if}}
+            {{#if abilities.standard.constitution}}
+              <span class="used-value">{{abilities.standard.constitution}}</span>
+            {{/if}}
+            {{#if abilities.standard.intelligence}}
+              <span class="used-value">{{abilities.standard.intelligence}}</span>
+            {{/if}}
+            {{#if abilities.standard.wisdom}}
+              <span class="used-value">{{abilities.standard.wisdom}}</span>
+            {{/if}}
+            {{#if abilities.standard.charisma}}
+              <span class="used-value">{{abilities.standard.charisma}}</span>
+            {{/if}}
+          </div>
+        </div>
+      </div>
+      
+      <div class="ability-scores-section {{#if (eq abilities.method 'pointbuy')}}active{{/if}}" id="point-buy-section">
+        <h4>Point Buy</h4>
+        <p>Customize your ability scores using 27 points. The minimum score is 8, and the maximum is 15.</p>
+        
+        <div class="point-buy-info">
+          <div class="points-remaining">Points Remaining: <span id="points-remaining">{{#if abilities.pointsRemaining}}{{abilities.pointsRemaining}}{{else}}27{{/if}}</span></div>
+          <div class="cost-table">
+            <h5>Cost Table</h5>
+            <table>
+              <tr>
+                <th>Score</th>
+                <td>8</td>
+                <td>9</td>
+                <td>10</td>
+                <td>11</td>
+                <td>12</td>
+                <td>13</td>
+                <td>14</td>
+                <td>15</td>
+              </tr>
+              <tr>
+                <th>Cost</th>
+                <td>0</td>
+                <td>1</td>
+                <td>2</td>
+                <td>3</td>
+                <td>4</td>
+                <td>5</td>
+                <td>7</td>
+                <td>9</td>
+              </tr>
+            </table>
+          </div>
+        </div>
+        
+        <div class="abilities-grid">
+          <div class="ability-box">
+            <h5>Strength</h5>
+            <div class="point-buy-controls">
+              <button type="button" class="btn-minus" data-ability="strength">-</button>
+              <input type="number" name="abilities.pointbuy.strength" min="8" max="15" value="{{#if abilities.pointbuy.strength}}{{abilities.pointbuy.strength}}{{else}}8{{/if}}" readonly>
+              <button type="button" class="btn-plus" data-ability="strength">+</button>
+            </div>
+            <div class="ability-modifier">
+              Modifier: {{getAbilityModifier (default abilities.pointbuy.strength 8)}}
+            </div>
+          </div>
+          
+          <div class="ability-box">
+            <h5>Dexterity</h5>
+            <div class="point-buy-controls">
+              <button type="button" class="btn-minus" data-ability="dexterity">-</button>
+              <input type="number" name="abilities.pointbuy.dexterity" min="8" max="15" value="{{#if abilities.pointbuy.dexterity}}{{abilities.pointbuy.dexterity}}{{else}}8{{/if}}" readonly>
+              <button type="button" class="btn-plus" data-ability="dexterity">+</button>
+            </div>
+            <div class="ability-modifier">
+              Modifier: {{getAbilityModifier (default abilities.pointbuy.dexterity 8)}}
+            </div>
+          </div>
+          
+          <div class="ability-box">
+            <h5>Constitution</h5>
+            <div class="point-buy-controls">
+              <button type="button" class="btn-minus" data-ability="constitution">-</button>
+              <input type="number" name="abilities.pointbuy.constitution" min="8" max="15" value="{{#if abilities.pointbuy.constitution}}{{abilities.pointbuy.constitution}}{{else}}8{{/if}}" readonly>
+              <button type="button" class="btn-plus" data-ability="constitution">+</button>
+            </div>
+            <div class="ability-modifier">
+              Modifier: {{getAbilityModifier (default abilities.pointbuy.constitution 8)}}
+            </div>
+          </div>
+          
+          <div class="ability-box">
+            <h5>Intelligence</h5>
+            <div class="point-buy-controls">
+              <button type="button" class="btn-minus" data-ability="intelligence">-</button>
+              <input type="number" name="abilities.pointbuy.intelligence" min="8" max="15" value="{{#if abilities.pointbuy.intelligence}}{{abilities.pointbuy.intelligence}}{{else}}8{{/if}}" readonly>
+              <button type="button" class="btn-plus" data-ability="intelligence">+</button>
+            </div>
+            <div class="ability-modifier">
+              Modifier: {{getAbilityModifier (default abilities.pointbuy.intelligence 8)}}
+            </div>
+          </div>
+          
+          <div class="ability-box">
+            <h5>Wisdom</h5>
+            <div class="point-buy-controls">
+              <button type="button" class="btn-minus" data-ability="wisdom">-</button>
+              <input type="number" name="abilities.pointbuy.wisdom" min="8" max="15" value="{{#if abilities.pointbuy.wisdom}}{{abilities.pointbuy.wisdom}}{{else}}8{{/if}}" readonly>
+              <button type="button" class="btn-plus" data-ability="wisdom">+</button>
+            </div>
+            <div class="ability-modifier">
+              Modifier: {{getAbilityModifier (default abilities.pointbuy.wisdom 8)}}
+            </div>
+          </div>
+          
+          <div class="ability-box">
+            <h5>Charisma</h5>
+            <div class="point-buy-controls">
+              <button type="button" class="btn-minus" data-ability="charisma">-</button>
+              <input type="number" name="abilities.pointbuy.charisma" min="8" max="15" value="{{#if abilities.pointbuy.charisma}}{{abilities.pointbuy.charisma}}{{else}}8{{/if}}" readonly>
+              <button type="button" class="btn-plus" data-ability="charisma">+</button>
+            </div>
+            <div class="ability-modifier">
+              Modifier: {{getAbilityModifier (default abilities.pointbuy.charisma 8)}}
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="ability-scores-section {{#if (eq abilities.method 'roll')}}active{{/if}}" id="roll-section">
+        <h4>Roll for Ability Scores</h4>
+        <p>Roll 4d6, drop the lowest die for each ability score.</p>
+        
+        <button type="button" id="roll-abilities-btn" class="btn btn-primary">Roll Ability Scores</button>
+        
+        <div class="abilities-grid">
+          <div class="ability-box">
+            <h5>Strength</h5>
+            <input type="number" name="abilities.roll.strength" min="3" max="18" value="{{abilities.roll.strength}}" class="ability-input">
+            <div class="ability-modifier">
+              {{#if abilities.roll.strength}}
+                Modifier: {{getAbilityModifier abilities.roll.strength}}
+              {{else}}
+                Modifier: -
+              {{/if}}
+            </div>
+          </div>
+          
+          <div class="ability-box">
+            <h5>Dexterity</h5>
+            <input type="number" name="abilities.roll.dexterity" min="3" max="18" value="{{abilities.roll.dexterity}}" class="ability-input">
+            <div class="ability-modifier">
+              {{#if abilities.roll.dexterity}}
+                Modifier: {{getAbilityModifier abilities.roll.dexterity}}
+              {{else}}
+                Modifier: -
+              {{/if}}
+            </div>
+          </div>
+          
+          <div class="ability-box">
+            <h5>Constitution</h5>
+            <input type="number" name="abilities.roll.constitution" min="3" max="18" value="{{abilities.roll.constitution}}" class="ability-input">
+            <div class="ability-modifier">
+              {{#if abilities.roll.constitution}}
+                Modifier: {{getAbilityModifier abilities.roll.constitution}}
+              {{else}}
+                Modifier: -
+              {{/if}}
+            </div>
+          </div>
+          
+          <div class="ability-box">
+            <h5>Intelligence</h5>
+            <input type="number" name="abilities.roll.intelligence" min="3" max="18" value="{{abilities.roll.intelligence}}" class="ability-input">
+            <div class="ability-modifier">
+              {{#if abilities.roll.intelligence}}
+                Modifier: {{getAbilityModifier abilities.roll.intelligence}}
+              {{else}}
+                Modifier: -
+              {{/if}}
+            </div>
+          </div>
+          
+          <div class="ability-box">
+            <h5>Wisdom</h5>
+            <input type="number" name="abilities.roll.wisdom" min="3" max="18" value="{{abilities.roll.wisdom}}" class="ability-input">
+            <div class="ability-modifier">
+              {{#if abilities.roll.wisdom}}
+                Modifier: {{getAbilityModifier abilities.roll.wisdom}}
+              {{else}}
+                Modifier: -
+              {{/if}}
+            </div>
+          </div>
+          
+          <div class="ability-box">
+            <h5>Charisma</h5>
+            <input type="number" name="abilities.roll.charisma" min="3" max="18" value="{{abilities.roll.charisma}}" class="ability-input">
+            <div class="ability-modifier">
+              {{#if abilities.roll.charisma}}
+                Modifier: {{getAbilityModifier abilities.roll.charisma}}
+              {{else}}
+                Modifier: -
+              {{/if}}
+            </div>
+          </div>
+        </div>
+        
+        <div class="roll-results" id="roll-results">
+          <h5>Roll Results:</h5>
+          <div id="roll-history"></div>
+        </div>
+      </div>
+      
+      <div class="ability-summary">
+        <h4>Final Ability Scores</h4>
+        <p>Your final ability scores include adjustments from your species and background.</p>
+        
+        <div class="abilities-grid">
+          <div class="ability-box final">
+            <h5>Strength</h5>
+            <div class="final-score">{{getFinalAbilityScore "strength" abilities}}</div>
+            <div class="ability-modifier final">
+              Modifier: {{getAbilityModifier (getFinalAbilityScore "strength" abilities)}}
+            </div>
+          </div>
+          
+          <div class="ability-box final">
+            <h5>Dexterity</h5>
+            <div class="final-score">{{getFinalAbilityScore "dexterity" abilities}}</div>
+            <div class="ability-modifier final">
+              Modifier: {{getAbilityModifier (getFinalAbilityScore "dexterity" abilities)}}
+            </div>
+          </div>
+          
+          <div class="ability-box final">
+            <h5>Constitution</h5>
+            <div class="final-score">{{getFinalAbilityScore "constitution" abilities}}</div>
+            <div class="ability-modifier final">
+              Modifier: {{getAbilityModifier (getFinalAbilityScore "constitution" abilities)}}
+            </div>
+          </div>
+          
+          <div class="ability-box final">
+            <h5>Intelligence</h5>
+            <div class="final-score">{{getFinalAbilityScore "intelligence" abilities}}</div>
+            <div class="ability-modifier final">
+              Modifier: {{getAbilityModifier (getFinalAbilityScore "intelligence" abilities)}}
+            </div>
+          </div>
+          
+          <div class="ability-box final">
+            <h5>Wisdom</h5>
+            <div class="final-score">{{getFinalAbilityScore "wisdom" abilities}}</div>
+            <div class="ability-modifier final">
+              Modifier: {{getAbilityModifier (getFinalAbilityScore "wisdom" abilities)}}
+            </div>
+          </div>
+          
+          <div class="ability-box final">
+            <h5>Charisma</h5>
+            <div class="final-score">{{getFinalAbilityScore "charisma" abilities}}</div>
+            <div class="ability-modifier final">
+              Modifier: {{getAbilityModifier (getFinalAbilityScore "charisma" abilities)}}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="form-navigation-buttons">
+      <button type="button" class="btn btn-secondary back-button">Back: Choose Origin</button>
+      <button type="button" class="btn btn-primary next-button" id="abilities-next">Next: Equipment</button>
+    </div>
+  </div>
+
+  <!-- Equipment Page -->
+  <div class="form-page" id="equipment-page">
+    <div class="form-section">
+      <h2>Starting Equipment</h2>
+      
+      <!-- Class Equipment -->
+      <div class="class-equipment">
+        <h4>Class Equipment</h4>
+        {{#if class.document.equipmentChoices.length}}
+          <p>Choose one of the following starting equipment options:</p>
+          
+          {{#each class.document.equipmentChoices}}
+            <div class="equipment-choice">
+              <div class="choice-row">
+                <div class="choice-option">
+                  <input type="radio" name="class.selectedEquipment" id="option-equipment-{{@index}}" value="A" {{#if (eq ../class.selectedEquipment "A")}}checked{{/if}}>
+                  <label for="option-equipment-{{@index}}" class="equipment-label">
+                    <strong>Option A:</strong>
+                    <ul class="equipment-list">
+                      {{#each optionA}}
+                        <li>
+                          {{#if this.item}}
+                            {{titleCase this.item}}
+                            {{#if this.quantity}} (×{{this.quantity}}){{/if}}
+                          {{else if this.equipmenttype}}
+                            Any {{titleCase this.equipmenttype}}
+                          {{else if this.gold}}
+                            {{this.gold}} gold pieces
+                          {{else}}
+                            {{this.type}}
+                          {{/if}}
+                        </li>
+                      {{/each}}
+                    </ul>
+                  </label>
+                </div>
+                
+                <div class="choice-option">
+                  <input type="radio" name="class.selectedEquipment" id="option-gold-{{@index}}" value="B" {{#if (eq ../class.selectedEquipment "B")}}checked{{/if}}>
+                  <label for="option-gold-{{@index}}" class="equipment-label">
+                    <strong>Option B:</strong>
+                    <ul class="equipment-list">
+                      {{#each optionB}}
+                        <li>
+                          {{#if this.item}}
+                            {{titleCase this.item}}
+                            {{#if this.quantity}} (×{{this.quantity}}){{/if}}
+                          {{else if this.equipmenttype}}
+                            Any {{titleCase this.equipmenttype}}
+                          {{else if this.gold}}
+                            {{this.gold}} gold pieces
+                          {{else if this.value}}
+                            {{#if (eq this.type "gold")}}
+                              {{this.value}} gold pieces
+                            {{else}}
+                              {{this.value}} {{this.type}}
+                            {{/if}}
+                          {{else}}
+                            {{this.type}}
+                          {{/if}}
+                        </li>
+                      {{/each}}
+                    </ul>
+                  </label>
+                </div>
+              </div>
+            </div>
+          {{/each}}
+        {{else}}
+          <p>No class equipment options available.</p>
+        {{/if}}
+      </div>
+
+      <!-- Background Equipment -->
+      <div class="background-equipment">
+        <h4>Background Equipment</h4>
+        {{#if origin.backgroundDocument}}
+          <div class="equipment-section">
+            {{#with origin.backgroundDocument}}
+              {{#if equipment}}
+                <div class="background-equipment-list">
+                  {{#if (eq ../origin.selectedEquipment "standard")}}
+                    <h6>Standard Equipment</h6>
+                    <ul class="equipment-list">
+                      {{#each equipment.standard}}
+                        <li>
+                          {{#if this.item}}
+                            {{titleCase this.item}}
+                            {{#if this.quantity}} (×{{this.quantity}}){{/if}}
+                          {{else}}
+                            {{this}}
+                          {{/if}}
+                        </li>
+                      {{/each}}
+                    </ul>
+                  {{else if (eq ../origin.selectedEquipment "gold")}}
+                    <h6>Gold Option</h6>
+                    <p>{{equipment.gold}} gold pieces</p>
+                  {{/if}}
+                </div>
+              {{/if}}
+            {{/with}}
+          </div>
+        {{else}}
+          <p>No background equipment selected. You can return to the origin selection page to choose your background equipment.</p>
+        {{/if}}
+      </div>
+      
+      <!-- Total Starting Gold -->
+      <div class="equipment-totals">
+        <h4>Total Starting Gold</h4>
+        <div class="gold-value">
+          <span class="gold-icon">🪙</span>
+          <span class="gold-amount">{{calculateTotalGold class origin}} gold pieces</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="form-navigation-buttons">
+      <button type="button" class="btn btn-secondary back-button">Back: Ability Scores</button>
+      <button type="button" class="btn btn-primary next-button" id="equipment-next">Next: Character Details</button>
+    </div>
+  </div>
+
+  <div class="form-page" id="details-page">
+    <div class="form-section">
+      <h2>Character Details</h2>
+      
+      <div class="details-grid">
+        <div class="detail-box alignment-selection">
+          <h4>Alignment</h4>
+          <p>Choose your character's moral and ethical outlook.</p>
+          
+          <div class="alignment-grid">
+            <div class="alignment-option">
+              <input type="radio" id="lawful-good" name="details.alignment" value="lawful-good" 
+                {{#if (eq details.alignment "lawful-good")}}checked{{/if}}>
+              <label for="lawful-good">
+                <span class="alignment-name">Lawful Good</span>
+                <span class="alignment-desc">I follow rules and protect the innocent.</span>
+              </label>
+            </div>
+            
+            <div class="alignment-option">
+              <input type="radio" id="neutral-good" name="details.alignment" value="neutral-good" 
+                {{#if (eq details.alignment "neutral-good")}}checked{{/if}}>
+              <label for="neutral-good">
+                <span class="alignment-name">Neutral Good</span>
+                <span class="alignment-desc">I do what's right without bias for law or chaos.</span>
+              </label>
+            </div>
+            
+            <div class="alignment-option">
+              <input type="radio" id="chaotic-good" name="details.alignment" value="chaotic-good" 
+                {{#if (eq details.alignment "chaotic-good")}}checked{{/if}}>
+              <label for="chaotic-good">
+                <span class="alignment-name">Chaotic Good</span>
+                <span class="alignment-desc">I follow my conscience and help others.</span>
+              </label>
+            </div>
+            
+            <div class="alignment-option">
+              <input type="radio" id="lawful-neutral" name="details.alignment" value="lawful-neutral" 
+                {{#if (eq details.alignment "lawful-neutral")}}checked{{/if}}>
+              <label for="lawful-neutral">
+                <span class="alignment-name">Lawful Neutral</span>
+                <span class="alignment-desc">I follow rules and tradition above all.</span>
+              </label>
+            </div>
+            
+            <div class="alignment-option">
+              <input type="radio" id="true-neutral" name="details.alignment" value="true-neutral" 
+                {{#if (eq details.alignment "true-neutral")}}checked{{/if}}>
+              <label for="true-neutral">
+                <span class="alignment-name">True Neutral</span>
+                <span class="alignment-desc">I act naturally without prejudice or compulsion.</span>
+              </label>
+            </div>
+            
+            <div class="alignment-option">
+              <input type="radio" id="chaotic-neutral" name="details.alignment" value="chaotic-neutral" 
+                {{#if (eq details.alignment "chaotic-neutral")}}checked{{/if}}>
+              <label for="chaotic-neutral">
+                <span class="alignment-name">Chaotic Neutral</span>
+                <span class="alignment-desc">I follow my whims and value personal freedom.</span>
+              </label>
+            </div>
+            
+            <div class="alignment-option">
+              <input type="radio" id="lawful-evil" name="details.alignment" value="lawful-evil" 
+                {{#if (eq details.alignment "lawful-evil")}}checked{{/if}}>
+              <label for="lawful-evil">
+                <span class="alignment-name">Lawful Evil</span>
+                <span class="alignment-desc">I methodically take what I want within the limits of a code.</span>
+              </label>
+            </div>
+            
+            <div class="alignment-option">
+              <input type="radio" id="neutral-evil" name="details.alignment" value="neutral-evil" 
+                {{#if (eq details.alignment "neutral-evil")}}checked{{/if}}>
+              <label for="neutral-evil">
+                <span class="alignment-name">Neutral Evil</span>
+                <span class="alignment-desc">I do whatever I can get away with to get what I want.</span>
+              </label>
+            </div>
+            
+            <div class="alignment-option">
+              <input type="radio" id="chaotic-evil" name="details.alignment" value="chaotic-evil" 
+                {{#if (eq details.alignment "chaotic-evil")}}checked{{/if}}>
+              <label for="chaotic-evil">
+                <span class="alignment-name">Chaotic Evil</span>
+                <span class="alignment-desc">I act with arbitrary violence and seek to destroy.</span>
+              </label>
+            </div>
+          </div>
+        </div>
+        
+        <div class="detail-box character-appearance">
+          <h4>Appearance</h4>
+          <div class="appearance-fields">
+            <div class="form-group">
+              <label for="character-age">Age</label>
+              <input type="number" id="character-age" name="details.age" value="{{details.age}}" min="1" max="1000" class="form-input">
+            </div>
+            
+            <div class="form-group">
+              <label for="character-height">Height</label>
+              <input type="text" id="character-height" name="details.height" value="{{details.height}}" placeholder="e.g. 5'10\"" class="form-input">
+            </div>
+            
+            <div class="form-group">
+              <label for="character-weight">Weight</label>
+              <input type="text" id="character-weight" name="details.weight" value="{{details.weight}}" placeholder="e.g. 180 lbs" class="form-input">
+            </div>
+            
+            <div class="form-group">
+              <label for="character-eyes">Eye Color</label>
+              <input type="text" id="character-eyes" name="details.eyes" value="{{details.eyes}}" class="form-input">
+            </div>
+            
+            <div class="form-group">
+              <label for="character-hair">Hair</label>
+              <input type="text" id="character-hair" name="details.hair" value="{{details.hair}}" class="form-input">
+            </div>
+            
+            <div class="form-group">
+              <label for="character-skin">Skin</label>
+              <input type="text" id="character-skin" name="details.skin" value="{{details.skin}}" class="form-input">
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="personality-traits">
+        <h4>Personality</h4>
+        
+        <div class="form-group">
+          <label for="character-traits">Personality Traits</label>
+          <p class="field-hint">How does your character behave? What makes them unique?</p>
+          <textarea id="character-traits" name="details.personalityTraits" class="form-textarea">{{details.personalityTraits}}</textarea>
+        </div>
+        
+        <div class="form-group">
+          <label for="character-ideals">Ideals</label>
+          <p class="field-hint">What principles does your character believe in?</p>
+          <textarea id="character-ideals" name="details.ideals" class="form-textarea">{{details.ideals}}</textarea>
+        </div>
+        
+        <div class="form-group">
+          <label for="character-bonds">Bonds</label>
+          <p class="field-hint">What connections tie your character to people, places, or events?</p>
+          <textarea id="character-bonds" name="details.bonds" class="form-textarea">{{details.bonds}}</textarea>
+        </div>
+        
+        <div class="form-group">
+          <label for="character-flaws">Flaws</label>
+          <p class="field-hint">What vices or weaknesses does your character struggle with?</p>
+          <textarea id="character-flaws" name="details.flaws" class="form-textarea">{{details.flaws}}</textarea>
+        </div>
+      </div>
+      
+      <div class="background-details">
+        <h4>Background Story</h4>
+        
+        <div class="form-group">
+          <label for="character-backstory">Backstory</label>
+          <p class="field-hint">What's your character's history? How did they become an adventurer?</p>
+          <textarea id="character-backstory" name="details.backstory" class="form-textarea backstory">{{details.backstory}}</textarea>
+        </div>
+        
+        <div class="form-group">
+          <label for="character-allies">Allies & Organizations</label>
+          <p class="field-hint">Who are your character's allies? What organizations are they affiliated with?</p>
+          <textarea id="character-allies" name="details.allies" class="form-textarea">{{details.allies}}</textarea>
+        </div>
+      </div>
+      
+      <div class="additional-features">
+        <h4>Additional Features & Traits</h4>
+        <p class="field-hint">Note any other features, traits, or special abilities not covered elsewhere.</p>
+        <textarea id="character-additional-features" name="details.additionalFeatures" class="form-textarea">{{details.additionalFeatures}}</textarea>
+      </div>
+    </div>
+    
+    <div class="form-navigation-buttons">
+      <button type="button" class="btn btn-secondary back-button">Back: Equipment</button>
+      <button type="submit" class="btn btn-success" id="create-character">Create Character</button>
     </div>
   </div>
 </div> 

@@ -8,4 +8,4 @@ dist
 .env.local
 .env.development
 .env.test
-#plugins/dnd-5e-2024/submodules
+packages/plugins/dnd-5e-2024/submodules

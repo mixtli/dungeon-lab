@@ -10,6 +10,7 @@ import { mapRoutes } from './features/maps/index.mjs';
 import { itemRoutes } from './features/items/index.mjs';
 import { actorRoutes } from './features/actors/index.mjs';
 import { campaignRoutes, gameSessionRoutes, inviteRoutes } from './features/campaigns/index.mjs';
+import documentRoutes from './features/documents/routes/document.routes.mjs';
 
 // Define type interfaces for our routes and middleware
 type ErrorHandlerMiddleware = (
@@ -98,6 +99,7 @@ export async function createApp(): Promise<express.Application> {
   app.use('/api', inviteRoutes);
   app.use('/api/sessions', gameSessionRoutes);
   app.use('/api/maps', mapRoutes);
+  app.use('/api/documents', documentRoutes);
 
   // Error handling
   app.use(errorHandler);

@@ -133,7 +133,22 @@ function normalizePrimaryAbility(primaryAbility: any[]): string[] {
 
 function normalizeSkillChoices(skillsData: any[]): ISkillChoice[] {
     const result: ISkillChoice[] = [];
+    
+    // List of all possible D&D 5e skills
+    const ALL_SKILLS = [
+        'acrobatics', 'animal handling', 'arcana', 'athletics', 
+        'deception', 'history', 'insight', 'intimidation', 
+        'investigation', 'medicine', 'nature', 'perception',
+        'performance', 'persuasion', 'religion', 'sleight of hand', 
+        'stealth', 'survival'
+    ];
+    
+    if (!skillsData || !Array.isArray(skillsData) || skillsData.length === 0) {
+        return result;
+    }
+    
     for (const skillItem of skillsData) {
+        // Handle standard choice format
         if ('choose' in skillItem) {
             const chooseData = skillItem.choose;
             result.push({
@@ -142,96 +157,153 @@ function normalizeSkillChoices(skillsData: any[]): ISkillChoice[] {
                 options: (chooseData.from || []).map((skill: string) => toLowercase(skill))
             });
         }
+        // Handle 'any' format (e.g., { any: 3 })
+        else if ('any' in skillItem && typeof skillItem.any === 'number') {
+            result.push({
+                type: "choice",
+                count: skillItem.any,
+                options: [...ALL_SKILLS] // Use all available skills
+            });
+            console.log(`Converted skill choice with 'any: ${skillItem.any}' to choice with all skills`);
+        }
+        // Handle direct array of skills (no choice)
+        else if (Array.isArray(skillItem)) {
+            // For direct arrays of skills, still use choice but with count = 0 (meaning all are selected)
+            result.push({
+                type: "choice",
+                count: 0, // Fixed skills, no choices to make
+                options: skillItem.map((skill: string) => toLowercase(skill))
+            });
+        }
     }
+    
     return result;
 }
 
-function normalizeStartingEquipment(equipmentData: any): IEquipmentData {
-    const choices: IEquipmentChoice[] = [];
-    
-    for (const choiceSet of equipmentData.defaultData || []) {
-        const choiceObj: Record<string, any> = {};
-        for (const [optionKey, optionValue] of Object.entries(choiceSet)) {
-            if (optionKey !== '_') {
-                choiceObj[toKey(optionKey)] = normalizeEquipmentOption(optionValue);
-            }
-        }
-        if (Object.keys(choiceObj).length > 0) {
-            choices.push(choiceObj as IEquipmentChoice);
-        }
-    }
-    
-    return {
-        choices,
-        description: (equipmentData.entries || []).map((entry: any) => 
+function normalizeStartingEquipment(equipmentData: any): any {
+    // For description, keep the entries as they are
+    const description = Array.isArray(equipmentData?.entries) 
+        ? equipmentData.entries.map((entry: any) => 
             typeof entry === 'string' ? toLowercase(entry) : entry
         )
+        : [];
+    
+    // Handle the defaultData array which contains equipment choices
+    if (equipmentData?.defaultData && Array.isArray(equipmentData.defaultData)) {
+        // Create a direct equipment choice object
+        const equipmentItem = {
+            type: "choice" as const,
+            options: {} as Record<string, any>,
+            description: description
+        };
+        
+        for (const choiceSet of equipmentData.defaultData) {
+            // Process option A
+            if (choiceSet.A && Array.isArray(choiceSet.A)) {
+                equipmentItem.options['A'] = choiceSet.A.map((item: any) => normalizeEquipmentItem(item));
+            }
+            
+            // Process option B
+            if (choiceSet.B && Array.isArray(choiceSet.B)) {
+                // B is often just gold, check if it's a single item
+                if (choiceSet.B.length === 1 && choiceSet.B[0].value) {
+                    equipmentItem.options['B'] = { gold: choiceSet.B[0].value };
+                } else {
+                    equipmentItem.options['B'] = choiceSet.B.map((item: any) => normalizeEquipmentItem(item));
+                }
+            }
+            
+            // Add any other options (C, D, etc.) if they exist
+            for (const [key, value] of Object.entries(choiceSet)) {
+                if (key !== '_' && key !== 'A' && key !== 'B' && Array.isArray(value)) {
+                    const mappedItems = (value as any[]).map((item: any) => normalizeEquipmentItem(item));
+                    // Check if it's a single gold value
+                    if (mappedItems.length === 1 && 'gold' in mappedItems[0]) {
+                        equipmentItem.options[key] = { gold: mappedItems[0].gold };
+                    } else {
+                        equipmentItem.options[key] = mappedItems;
+                    }
+                }
+            }
+        }
+        
+        // Return the equipment item directly instead of wrapped in a choices array
+        return equipmentItem;
+    }
+    
+    // If there are no default data, return a minimal object with just the description
+    return {
+        type: "choice" as const,
+        options: {},
+        description: description
     };
 }
 
-function normalizeEquipmentOption(option: any): any {
-    if (Array.isArray(option)) {
-        return option.map(item => normalizeEquipmentItem(item));
-    }
-    return option;
-}
-
-function normalizeEquipmentItem(item: any): IEquipmentChoice {
-    if (typeof item === 'object' && item !== null) {
-        if ('item' in item) {
-            const itemChoice: IEquipmentChoice = {
-                type: "choice",
-                item: '',
-                source: 'xphb'
-            };
-
-            // Handle item strings with source (e.g., "chain shirt|xphb")
-            if (typeof item.item === 'string' && item.item.includes('|')) {
-                const [itemName, source] = item.item.split('|');
-                itemChoice.item = toLowercase(itemName);
-                itemChoice.source = toLowercase(source);
-            } else {
-                itemChoice.item = toLowercase(item.item || '');
-            }
-
-            if (item.quantity) {
-                itemChoice.quantity = item.quantity;
-            }
-            
-            return itemChoice;
-        } else if ('equipmentType' in item) {
+function normalizeEquipmentItem(item: any): any {
+    // Handle direct value items (usually gold amounts)
+    if (typeof item === 'object' && item !== null && 'value' in item) {
+        // Check if it's a gold value (number)
+        if (typeof item.value === 'number') {
             return {
-                type: "choice",
-                equipmenttype: toLowercase(item.equipmentType || '')
-            };
-        } else if ('value' in item) {
-            return {
-                type: "choice",
-                value: item.value
+                gold: item.value
             };
         }
+        return {
+            item: toLowercase(String(item.value)),
+            source: 'xphb'
+        };
     }
-
-    // Handle string items directly (e.g., "chain shirt|xphb")
+    
+    // Handle equipment items
+    if (typeof item === 'object' && item !== null && 'item' in item) {
+        const result: Record<string, any> = {};
+        
+        // Parse the item string which may have format "item|source"
+        if (typeof item.item === 'string') {
+            if (item.item.includes('|')) {
+                const [itemName, source] = item.item.split('|');
+                result.item = toLowercase(itemName);
+                result.source = toLowercase(source);
+            } else {
+                result.item = toLowercase(item.item);
+                result.source = 'xphb'; // Default source
+            }
+        }
+        
+        // Add quantity if specified
+        if (typeof item.quantity === 'number') {
+            result.quantity = item.quantity;
+        }
+        
+        return result;
+    }
+    
+    // Handle equipment type choices
+    if (typeof item === 'object' && item !== null && 'equipmentType' in item) {
+        return {
+            equipmenttype: toLowercase(item.equipmentType || '')
+        };
+    }
+    
+    // Handle string items (direct item references without additional properties)
     if (typeof item === 'string') {
         if (item.includes('|')) {
             const [itemName, source] = item.split('|');
             return {
-                type: "choice",
                 item: toLowercase(itemName),
                 source: toLowercase(source)
             };
         } else {
             return {
-                type: "choice",
                 item: toLowercase(item),
-                source: 'xphb'
+                source: 'xphb' // Default source
             };
         }
     }
-
+    
+    // Return a default structure for unhandled cases
     return {
-        type: "choice"
+        item: "unknown"
     };
 }
 
@@ -239,53 +311,78 @@ function extractFeatures(classData: RawClassData, allFeatures: any[]): Record<st
     const className = toLowercase(classData.name || '');
     const featuresByLevel: Record<string, IFeatureData[]> = {};
     
-    for (const featureRef of classData.classFeatures || []) {
+    if (!classData.classFeatures || !Array.isArray(classData.classFeatures)) {
+        return featuresByLevel;
+    }
+    
+    for (const featureRef of classData.classFeatures) {
+        let featureName = '';
+        let level = 0;
+        let gainSubclassFeature = false;
+        
+        // Handle string reference format: "Unarmored Defense|Barbarian|XPHB|1"
         if (typeof featureRef === 'string') {
             const parts = featureRef.split('|');
-            const featureName = toLowercase(parts[0] || '');
-            const levelStr = parts[parts.length - 1];
+            if (parts.length < 4) continue; // Skip invalid format
             
-            try {
-                const level = parseInt(levelStr, 10);
-                
-                const feature = allFeatures.find(f => 
-                    toLowercase(f.name || '') === featureName &&
-                    toLowercase(f.className || '') === className &&
-                    f.classSource === 'PHB' &&
-                    f.level === level
-                );
-                
-                if (feature) {
-                    if (!featuresByLevel[level]) {
-                        featuresByLevel[level] = [];
-                    }
-                    
-                    const normalizedFeature = normalizeSubclassFeatureEntries(feature.entries || []);
-                    featuresByLevel[level].push({
-                        name: featureName,
-                        source: "xphb",
-                        ...normalizedFeature
-                    });
-                }
-            } catch (e) {
-                continue;
-            }
-        } else if (typeof featureRef === 'object' && featureRef?.gainSubclassFeature) {
-            const subclassFeatureRef = featureRef.classFeature || '';
-            const parts = subclassFeatureRef.split('|');
-            if (parts.length >= 3) {
-                const level = parseInt(parts[parts.length - 1], 10);
-                if (!isNaN(level)) {
-                    if (!featuresByLevel[level]) {
-                        featuresByLevel[level] = [];
-                    }
-                    featuresByLevel[level].push({
-                        name: toLowercase(parts[0] || ''),
-                        source: "xphb",
-                        gainsubclassfeature: true
-                    });
-                }
-            }
+            featureName = parts[0] || '';
+            // Level is the last part
+            const levelStr = parts[parts.length - 1];
+            level = parseInt(levelStr, 10);
+            
+            if (isNaN(level)) continue; // Skip if level isn't a number
+        } 
+        // Handle object format: {classFeature: "Barbarian Subclass|Barbarian|XPHB|3", gainSubclassFeature: true}
+        else if (typeof featureRef === 'object' && featureRef !== null) {
+            const featureString = featureRef.classFeature;
+            if (!featureString || typeof featureString !== 'string') continue;
+            
+            const parts = featureString.split('|');
+            if (parts.length < 4) continue; // Skip invalid format
+            
+            featureName = parts[0] || '';
+            // Level is the last part
+            const levelStr = parts[parts.length - 1];
+            level = parseInt(levelStr, 10);
+            
+            if (isNaN(level)) continue; // Skip if level isn't a number
+            
+            // Check for gainSubclassFeature flag
+            gainSubclassFeature = !!featureRef.gainSubclassFeature;
+        } else {
+            continue; // Skip unknown format
+        }
+        
+        // Create array for this level if it doesn't exist
+        if (!featuresByLevel[level]) {
+            featuresByLevel[level] = [];
+        }
+        
+        // First, try to find the feature details in allFeatures
+        const feature = allFeatures.find(f => 
+            toLowercase(f.name || '') === toLowercase(featureName) &&
+            toLowercase(f.className || '') === className &&
+            f.classSource === 'XPHB' &&
+            f.level === level
+        );
+        
+        if (feature) {
+            // Feature details found, normalize and add it
+            const normalizedFeature = normalizeSubclassFeatureEntries(feature.entries || []);
+            featuresByLevel[level].push({
+                name: toLowercase(featureName),
+                source: "xphb",
+                gainsubclassfeature: gainSubclassFeature,
+                ...normalizedFeature
+            });
+        } else {
+            // Feature details not found, add basic info
+            featuresByLevel[level].push({
+                name: toLowercase(featureName),
+                source: "xphb",
+                gainsubclassfeature: gainSubclassFeature,
+                description: `${featureName} feature`
+            });
         }
     }
     
@@ -300,14 +397,14 @@ function extractSubclassFeatures(
     const featuresByLevel: Record<string, IFeatureData[]> = {};
     const subclassName = toLowercase(subclass.shortName || '');
     
-    if (subclass.source !== 'PHB' || subclass.classSource !== 'PHB') {
+    if (subclass.source !== 'XPHB' || subclass.classSource !== 'XPHB') {
         return featuresByLevel;
     }
     
     for (const feature of allFeatures) {
         if (toLowercase(feature.className || '') !== className ||
             toLowercase(feature.subclassShortName || '') !== subclassName ||
-            feature.subclassSource !== 'PHB') {
+            feature.subclassSource !== 'XPHB') {
             continue;
         }
         
@@ -550,27 +647,27 @@ export function convert5eToolsClass(data: any): NormalizedData {
     
     // Handle case where data is a container with arrays
     if (data.class && Array.isArray(data.class)) {
-        // Extract only PHB classes
-        const phbClasses = data.class.filter((cls: RawClassData) => cls.source === 'PHB');
-        if (phbClasses.length === 0) {
-            console.log(`No PHB classes found in data`);
+        // Extract only XPHB classes
+        const xphbClasses = data.class.filter((cls: RawClassData) => cls.source === 'XPHB');
+        if (xphbClasses.length === 0) {
+            console.log(`No XPHB classes found in data`);
             return {} as NormalizedData;
         }
         
-        classData = phbClasses[0];
+        classData = xphbClasses[0];
         subclasses = (data.subclass || []).filter(
-            (sc: RawSubclassData) => sc.source === 'PHB' && sc.classSource === 'PHB'
+            (sc: RawSubclassData) => sc.source === 'XPHB' && sc.classSource === 'XPHB'
         );
         classFeatures = data.classFeature || [];
         subclassFeatures = data.subclassFeature || [];
     } 
     // Handle case where data is a direct class object
-    else if (data.source === 'PHB') {
+    else if (data.source === 'XPHB') {
         classData = data;
         // In this case, we need to return an empty object for subclasses and features
         // as they'll be processed separately
     } else {
-        console.log(`No PHB class found in data: ${data.name} (${data.source})`);
+        console.log(`No XPHB class found in data: ${data.name} (${data.source})`);
         return {} as NormalizedData;
     }
     

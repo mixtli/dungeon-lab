@@ -129,25 +129,27 @@ async function processClassFiles(directory: string, filePattern: string): Promis
   
   console.log(`Found ${matchingFiles.length} class files to process`);
   
-  // For class files, we'll return each file's data individually
-  // instead of combining them
-  const individualFiles = [];
+  // For class files, we'll collect all classes with source = XPHB
+  const xphbClasses = [];
   
   for (const file of matchingFiles) {
     const filePath = join(directory, file);
     const fileData = JSON.parse(await readFile(filePath, 'utf-8'));
     
     // For class files, we expect the data to be in a "class" array property
-    if (fileData.class && Array.isArray(fileData.class) && fileData.class.length > 0) {
-      // Take the first class from each file
-      individualFiles.push(fileData.class[0]);
-      console.log(`Read class data from ${file}`);
+    if (fileData.class && Array.isArray(fileData.class)) {
+      // Find all classes with source = XPHB
+      const xphbClassesInFile = fileData.class.filter((cls: any) => cls.source === 'XPHB');
+      if (xphbClassesInFile.length > 0) {
+        xphbClasses.push(...xphbClassesInFile);
+        console.log(`Read class data from ${file}`);
+      }
     }
   }
   
-  // Return the classes directly
+  // Return the XPHB classes directly
   return {
-    class: individualFiles
+    class: xphbClasses
   };
 }
 
@@ -173,9 +175,17 @@ export async function findExistingDocument(documentType: string, name: string): 
  * @returns Promise that resolves when the document is saved
  */
 export async function updateDocument(document: any, data: any, userId: string): Promise<void> {
-  document.data = data;
-  document.updatedBy = userId;
-  await document.save();
+  // Use findOneAndUpdate to ensure we're updating the right document
+  await VTTDocument.findOneAndUpdate(
+    { _id: document._id },
+    { 
+      $set: { 
+        data,
+        updatedBy: userId 
+      }
+    },
+    { new: true }
+  );
 }
 
 /**
@@ -347,15 +357,39 @@ export async function runImport<T>({
             created++;
           }
         } else {
-          // Handle VTTDocument import (existing behavior)
-          const existingDoc = await findExistingDocument(documentType, item.name);
+          // Handle VTTDocument import with findOneAndUpdate + upsert
+          const existingDoc = await VTTDocument.findOne({
+            pluginId: config.id,
+            documentType,
+            'data.name': item.name
+          });
+          
+          await VTTDocument.findOneAndUpdate(
+            {
+              pluginId: config.id,
+              documentType,
+              'data.name': item.name
+            },
+            {
+              $set: {
+                name: item.name,
+                data: convertedData as T,
+                updatedBy: userId
+              },
+              $setOnInsert: {
+                createdBy: userId
+              }
+            },
+            {
+              upsert: true,
+              new: true
+            }
+          );
           
           if (existingDoc) {
-            await updateDocument(existingDoc, convertedData as T, userId);
             console.log(`Updated ${documentType}: ${item.name}`);
             updated++;
           } else {
-            await createDocument(documentType, item.name, convertedData as T, userId);
             console.log(`Created ${documentType}: ${item.name}`);
             created++;
           }

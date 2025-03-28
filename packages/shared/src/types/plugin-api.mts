@@ -17,6 +17,10 @@ export interface IPluginAPI {
   updateItem(id: string, data: unknown): Promise<void>;
   deleteItem(id: string): Promise<void>;
 
+  // Document management
+  getDocument(pluginId: string, documentType: string, documentId: string): Promise<unknown>;
+  searchDocuments(params: Record<string, string>): Promise<unknown[]>;
+
   // Data validation
   validateActorData(type: string, data: unknown): z.SafeParseReturnType<unknown, unknown>;
   validateItemData(type: string, data: unknown): z.SafeParseReturnType<unknown, unknown>;

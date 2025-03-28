@@ -216,6 +216,7 @@ function handleError(errorMessage: string) {
                 type="text" 
                 id="name" 
                 v-model="basicInfo.name" 
+                name="name"
                 required
                 class="form-input"
               >

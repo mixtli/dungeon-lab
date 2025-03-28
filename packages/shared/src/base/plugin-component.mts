@@ -165,6 +165,10 @@ export abstract class PluginComponent implements IPluginComponent {
    * @param data Data to use for rendering
    */
   public async render(data: Record<string, any> = {}): Promise<void> {
+    console.log('Rendering component', {
+      id: this.id,
+      data
+    });
     if (!this.container) {
       throw new Error('Cannot render: component not mounted');
     }

@@ -1,5 +1,5 @@
 import { z } from '@dungeon-lab/shared/lib/zod.mjs';
-
+import { abilitySchema } from './common.mjs';
 
 
 // Basic schemas
@@ -74,8 +74,8 @@ const characterClassSchema = z.object({
   source: z.string(),
   edition: z.string(),
   hitdie: z.string(),
-  primaryability: z.array(z.string()),
-  savingthrows: z.array(z.string()),
+  primaryability: z.array(abilitySchema),
+  savingthrows: z.array(abilitySchema),
   proficiencies: z.object({
     armor: z.array(z.string()),
     weapons: z.array(z.string()),

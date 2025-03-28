@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { abilitySchema } from './common.mjs';
 
 // Full character schema for the complete character sheet
 export const characterSchema = z.object({
