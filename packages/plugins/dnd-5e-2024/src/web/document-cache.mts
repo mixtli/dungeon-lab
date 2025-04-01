@@ -210,7 +210,7 @@ export function getDocumentByName(type: DocumentType, name: string): Record<stri
   
   if (document) {
     // Log the full document structure
-    console.log(`Full document for ${type} "${name}":`, JSON.stringify(document, null, 2));
+    // console.log(`Full document for ${type} "${name}":`, JSON.stringify(document, null, 2));
   }
   
   return document;

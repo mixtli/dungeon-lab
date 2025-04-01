@@ -76,8 +76,11 @@ export class CharacterCreationComponent extends PluginComponent {
       console.log('Container exists, setting up form handlers');
       this.form = this.container.closest('form');
       
-      // Set up initial event handlers
-      this.setupEventHandlers();
+      // Set up one-time form event handlers
+      this.setupFormHandlers();
+      
+      // Set up initial template-specific handlers
+      this.setupTemplateHandlers();
       
       console.log('Form handlers set up');
       
@@ -93,43 +96,53 @@ export class CharacterCreationComponent extends PluginComponent {
   }
 
   /**
-   * Set up all event handlers for the form
-   * This method needs to be called after each render to ensure handlers are attached
+   * Set up form-level event handlers that only need to be attached once
+   * These handlers are for elements that exist outside our component template
    */
-  private setupEventHandlers(): void {
-    if (!this.form || !this.container) {
-      console.error('Form or container not available for event handlers');
+  private setupFormHandlers(): void {
+    if (!this.form) {
+      console.error('Form not available for event handlers');
       return;
     }
     
-    console.log('Setting up event handlers');
+    console.log('Setting up form-level handlers');
     
-    // Remove any existing listeners (not actually needed with our approach, but good practice)
-    this.form.removeEventListener('change', this.handleFormChange);
-    this.form.removeEventListener('click', this.handleFormClick);
-    
-    // Add our consolidated listeners
+    // Add our consolidated form listeners
     this.form.addEventListener('change', this.handleFormChange.bind(this));
     this.form.addEventListener('click', this.handleFormClick.bind(this));
+  }
+
+  /**
+   * Set up handlers for elements within our template
+   * These need to be reattached after each render
+   */
+  private setupTemplateHandlers(): void {
+    if (!this.container) {
+      console.error('Container not available for template handlers');
+      return;
+    }
+    
+    console.log('Setting up template-specific handlers');
     
     // Set up ability score controls (these have special handling)
     this.setupAbilityScoreControls();
   }
-  
+
   /**
    * Set up special controls for ability scores
+   * These are within our template and need to be reattached after each render
    */
   private setupAbilityScoreControls(): void {
-    if (!this.form) return;
+    if (!this.container) return;
     
     // Set up point buy buttons
-    const pointBuyButtons = this.form.querySelectorAll('.point-buy-controls button');
+    const pointBuyButtons = this.container.querySelectorAll('.point-buy-controls button');
     pointBuyButtons.forEach(button => {
       button.addEventListener('click', this.handlePointBuyClick.bind(this));
     });
     
     // Set up roll button
-    const rollButton = this.form.querySelector('#roll-abilities-btn');
+    const rollButton = this.container.querySelector('#roll-abilities-btn');
     if (rollButton) {
       rollButton.addEventListener('click', this.handleRollAbilities.bind(this));
     }
@@ -172,6 +185,7 @@ export class CharacterCreationComponent extends PluginComponent {
         flatData[key] = value as string;
       }
     }
+    console.log('Flattened form data:', flatData);
     
     // Unflatten the data
     const data = unflatten(flatData, { object: true }) as Partial<CharacterCreationFormData>;
@@ -189,7 +203,7 @@ export class CharacterCreationComponent extends PluginComponent {
     this.render(this.getState());
     
     // Re-attach event handlers after render
-    this.setupEventHandlers();
+    this.setupTemplateHandlers();
   }
   
   /**
@@ -277,7 +291,7 @@ export class CharacterCreationComponent extends PluginComponent {
       this.render(this.getState());
       
       // Re-attach event handlers
-      this.setupEventHandlers();
+      this.setupTemplateHandlers();
       
       // Prevent default only if not clicking directly on the radio
       if (target !== radioButton) {
@@ -340,7 +354,7 @@ export class CharacterCreationComponent extends PluginComponent {
         this.render(this.getState());
         
         // Re-attach event handlers
-        this.setupEventHandlers();
+        this.setupTemplateHandlers();
       }
     } else if (!isPlus && currentValue > 8) {
       // Calculate points refunded
@@ -377,7 +391,7 @@ export class CharacterCreationComponent extends PluginComponent {
       this.render(this.getState());
       
       // Re-attach event handlers
-      this.setupEventHandlers();
+      this.setupTemplateHandlers();
     }
   }
   
@@ -440,7 +454,7 @@ export class CharacterCreationComponent extends PluginComponent {
     this.render(this.getState());
     
     // Re-attach event handlers
-    this.setupEventHandlers();
+    this.setupTemplateHandlers();
   }
   
   /**
@@ -637,8 +651,8 @@ export class CharacterCreationComponent extends PluginComponent {
    * Called after component is rendered
    */
   afterRender(): void {
-    // Reattach event handlers after each render
-    this.setupEventHandlers();
+    // Only reattach handlers for elements within our template
+    this.setupTemplateHandlers();
   }
   
   /**

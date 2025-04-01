@@ -3,6 +3,7 @@ Character Creation Form Template for D&D 5th Edition 2024
 This is used by the CharacterCreationComponent
 -->
 
+<div>{{ json formData }}</div>
 
 <div class="character-creation-container">
   <div class="form-steps">
@@ -22,7 +23,6 @@ This is used by the CharacterCreationComponent
       <p>Class name: {{#if formData.class}}{{formData.class.name}}{{else}}none selected{{/if}}</p>
       <p>Class document: {{#if classDocument}}Found{{else}}Not found{{/if}}</p>
     </div>
-   <pre>CLASSES:  {{json (getAllClasses)}}</pre>
     <div class="form-group">
       <label for="character-class">Class:</label>
       <select id="character-class" name="class.name" required>
