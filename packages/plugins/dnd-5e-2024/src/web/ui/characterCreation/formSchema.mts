@@ -1,0 +1,96 @@
+import { z } from 'zod';
+
+/**
+ * Schema for validating character creation form data
+ * This only contains fields that are directly used in the form
+ * and doesn't duplicate document schemas from the shared types
+ */
+
+// Schema for purchased equipment item in the shop
+const purchasedItemSchema = z.object({
+  name: z.string(),
+  cost: z.number(),
+  quantity: z.number().default(1)
+});
+
+// Form data schema - matches the structure of form data after unflatten() is called
+export const characterCreationFormSchema = z.object({
+  // Class Selection
+  class: z.object({
+    name: z.string(),
+    selectedSkills: z.array(z.string()).optional(),
+    selectedEquipment: z.enum(['A', 'B']).optional()
+  }),
+  
+  // Origin Selection
+  origin: z.object({
+    species: z.string().optional(),
+    background: z.string().optional(),
+    selectedAbilityBoosts: z.array(z.string()).optional(),
+    bonusPlusTwo: z.string().optional(),
+    bonusPlusOne: z.string().optional(),
+    selectedLanguages: z.array(z.string()).optional()
+  }).optional(),
+  
+  // Ability Scores
+  abilities: z.object({
+    method: z.enum(['standard', 'pointbuy', 'roll']),
+    pointsRemaining: z.number().int().min(0).max(27).default(27),
+    standard: z.object({
+      strength: z.string().optional(),
+      dexterity: z.string().optional(),
+      constitution: z.string().optional(),
+      intelligence: z.string().optional(),
+      wisdom: z.string().optional(),
+      charisma: z.string().optional()
+    }).optional(),
+    pointbuy: z.object({
+      strength: z.number().int().min(8).max(15).default(8),
+      dexterity: z.number().int().min(8).max(15).default(8),
+      constitution: z.number().int().min(8).max(15).default(8),
+      intelligence: z.number().int().min(8).max(15).default(8),
+      wisdom: z.number().int().min(8).max(15).default(8),
+      charisma: z.number().int().min(8).max(15).default(8)
+    }).optional(),
+    roll: z.object({
+      strength: z.number().int().min(3).max(18).optional(),
+      dexterity: z.number().int().min(3).max(18).optional(),
+      constitution: z.number().int().min(3).max(18).optional(),
+      intelligence: z.number().int().min(3).max(18).optional(),
+      wisdom: z.number().int().min(3).max(18).optional(),
+      charisma: z.number().int().min(3).max(18).optional()
+    }).optional(),
+  }).optional(),
+  
+  // Equipment
+  equipment: z.object({
+    remainingGold: z.number().min(0).default(0),
+    purchasedItems: z.array(purchasedItemSchema).optional()
+  }).optional(),
+  
+  // Character Details
+  details: z.object({
+    alignment: z.enum([
+      'lawful-good', 'neutral-good', 'chaotic-good', 
+      'lawful-neutral', 'true-neutral', 'chaotic-neutral',
+      'lawful-evil', 'neutral-evil', 'chaotic-evil'
+    ]).optional(),
+    age: z.number().int().positive().optional(),
+    height: z.string().optional(),
+    weight: z.string().optional(),
+    eyes: z.string().optional(),
+    hair: z.string().optional(),
+    skin: z.string().optional(),
+    personalityTraits: z.string().optional(),
+    ideals: z.string().optional(),
+    bonds: z.string().optional(),
+    flaws: z.string().optional(),
+    backstory: z.string().optional(),
+    allies: z.string().optional(),
+    additionalFeatures: z.string().optional()
+  }).optional(),
+});
+
+// Export types
+export type CharacterCreationFormData = z.infer<typeof characterCreationFormSchema>;
+export type PurchasedItem = z.infer<typeof purchasedItemSchema>;

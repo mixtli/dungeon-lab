@@ -22,7 +22,8 @@
             "sourceMapPathOverrides": {
                 "webpack:///src/*": "${webRoot}/src/*",
                 "/@fs/*": "*",
-                "/@vite/*": "${webRoot}/src/*"
+                "/@vite/*": "${webRoot}/src/*",
+                "/@fs/*/packages/plugins/*": "${workspaceFolder}/packages/plugins/*"
             },
             "trace": true
         },

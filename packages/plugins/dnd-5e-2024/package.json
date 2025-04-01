@@ -30,6 +30,8 @@
   "dependencies": {
     "@dungeon-lab/server": "file:../../server",
     "@dungeon-lab/shared": "file:../../shared",
+    "flat": "^6.0.1",
+    "handlebars-helpers": "^0.10.0",
     "zod": "^3.22.4"
   },
   "devDependencies": {

@@ -5,7 +5,7 @@ import { z } from 'zod';
 import H from 'just-handlebars-helpers';
 
 // Import Handlebars types from the actual package
-import type { TemplateDelegate, RuntimeOptions } from 'handlebars';
+import type { TemplateDelegate } from 'handlebars';
 
 /**
  * Base class for plugin components
@@ -162,7 +162,7 @@ export abstract class PluginComponent implements IPluginComponent {
       styleElement.textContent = styles;
 
       // Render template with data
-      const rendered = this.compiledTemplate(data);
+      const rendered = this.compiledTemplate!(data);
       this.container.innerHTML = rendered;
 
       if (this.isDebugMode) {
@@ -206,13 +206,5 @@ export abstract class PluginComponent implements IPluginComponent {
     
     // Return empty object for non-record inputs
     return {};
-  }
-
-  /**
-   * Register common Handlebars helpers
-   * Can be extended by derived classes to register additional helpers
-   */
-  protected registerCommonHelpers(): void {
-    // Using just-handlebars-helpers
   }
 } 

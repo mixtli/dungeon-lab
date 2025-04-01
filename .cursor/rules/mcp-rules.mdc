@@ -10,3 +10,6 @@ alwaysApply: true
 - REPL/Analysis must be used for any data processing or calculations
 - Knowledge Graph should store important findings that might be relevant across conversations
 - Artifacts must be created for all substantial code, visualizations, or long-form content
+
+## Site login
+Most features require the user to be logged in.  You can log in as "admin@dungeonlab.com" using password "password".

@@ -407,7 +407,17 @@ export function extractDocumentData(document: Record<string, unknown>): Record<s
       id: document.id,
       name: document.name || (document.data as Record<string, unknown>).name,
       // Spread all properties from the data object
-      ...(document.data as Record<string, unknown>)
+      ...(document.data as Record<string, unknown>),
+      // Ensure we preserve case-sensitive property names
+      hitDie: (document.data as Record<string, unknown>).hitdie || (document.data as Record<string, unknown>).hitDie,
+      primaryAbility: (document.data as Record<string, unknown>).primaryability || (document.data as Record<string, unknown>).primaryAbility,
+      savingThrows: (document.data as Record<string, unknown>).savingthrows || (document.data as Record<string, unknown>).savingThrows,
+      proficiencies: {
+        armor: ((document.data as Record<string, unknown>).proficiencies as Record<string, unknown>)?.armor || [],
+        weapons: ((document.data as Record<string, unknown>).proficiencies as Record<string, unknown>)?.weapons || [],
+        tools: ((document.data as Record<string, unknown>).proficiencies as Record<string, unknown>)?.tools || [],
+        skills: ((document.data as Record<string, unknown>).proficiencies as Record<string, unknown>)?.skills || []
+      }
     };
     
     console.log('Extracted data:', extractedData);

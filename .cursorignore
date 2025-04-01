@@ -4,7 +4,6 @@ dist
 .gitignore
 .cursorignore
 .DS_Store
-.vscode
 .env.local
 .env.development
 .env.test

@@ -2,8 +2,10 @@
 import { ref, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth.mjs';
+import { useNotificationStore } from '@/stores/notification.mjs';
 
 const authStore = useAuthStore();
+const notificationStore = useNotificationStore();
 const router = useRouter();
 
 const form = reactive({
@@ -56,22 +58,26 @@ async function handleSubmit(event: Event) {
     await authStore.login(form);
     
     if (authStore.isAuthenticated) {
-      showNotification('Login successful!');
+      notificationStore.addNotification({
+        message: 'Login successful!',
+        type: 'success'
+      });
       router.push({ name: 'home' });
     } else {
-      showNotification(authStore.error || 'Login failed. Please try again.');
+      notificationStore.addNotification({
+        message: authStore.error || 'Login failed. Please try again.',
+        type: 'error'
+      });
     }
   } catch (error) {
-    showNotification('An unexpected error occurred. Please try again.');
+    notificationStore.addNotification({
+      message: 'An unexpected error occurred. Please try again.',
+      type: 'error'
+    });
     console.error('Login error:', error);
   } finally {
     isSubmitting.value = false;
   }
-}
-
-// Simple notification function (we can replace this with a proper notification system later)
-function showNotification(message: string) {
-  alert(message);
 }
 </script>
 

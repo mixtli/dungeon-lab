@@ -15,16 +15,16 @@ const skillChoiceSchema = z.object({
 });
 
 const equipmentChoiceSchema = z.object({
-  type: z.literal('choice'),
-  equipmenttype: z.string().optional(),
   item: z.string().optional(),
+  equipmenttype: z.string().optional(),
   source: z.string().optional(),
   quantity: z.number().int().positive().optional(),
   value: z.number().optional(),
 });
 
 const equipmentDataSchema = z.object({
-  choices: z.array(equipmentChoiceSchema),
+  type: z.literal('choice'),
+  options: z.record(z.string(), z.array(equipmentChoiceSchema)),
   description: z.array(z.string()),
 });
 

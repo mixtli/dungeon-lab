@@ -1,11 +1,17 @@
 <script setup lang="ts">
 import { RouterView } from 'vue-router';
-import SocketManager from './components/socket/SocketManager.vue';
+import NotificationToast from './components/common/NotificationToast.vue';
+import AppHeader from './components/layout/AppHeader.vue';
 </script>
 
 <template>
-  <SocketManager />
-  <RouterView />
+  <div class="app min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+    <AppHeader />
+    <NotificationToast />
+    <main class="container mx-auto px-4 py-8">
+      <RouterView />
+    </main>
+  </div>
 </template>
 
 <style>

@@ -16,6 +16,12 @@ export function registerHelpers(Handlebars) {
   // Usage: {{#if (eq value1 value2)}}...{{/if}}
   Handlebars.registerHelper('eq', function (value1, value2) {
     //console.log(`Comparing ${value1} and ${value2}: ${value1 === value2}`);
+    
+    // Handle undefined and null cases
+    if (value1 === undefined || value1 === null) {
+      return value2 === undefined || value2 === null;
+    }
+    
     return value1 === value2;
   });
   
@@ -225,8 +231,9 @@ export function registerHelpers(Handlebars) {
   });
   
   // Helper to convert an object to JSON string
-  Handlebars.registerHelper('json', function(context) {
-    return JSON.stringify(context || {});
+  Handlebars.registerHelper('json', function(obj) {
+    console.log('json helper called with:', obj);
+    return JSON.stringify(obj || {});
   });
   
   // Helper to provide a default value if the primary value is undefined
@@ -284,5 +291,18 @@ export function registerHelpers(Handlebars) {
   Handlebars.registerHelper('or', function() {
     const args = Array.prototype.slice.call(arguments, 0, -1);
     return args.some(Boolean);
+  });
+
+  // Helper to create an array from arguments
+  // Usage: {{#each (array "item1" "item2" "item3")}}...{{/each}}
+  Handlebars.registerHelper('array', function() {
+    return Array.prototype.slice.call(arguments, 0, -1);
+  });
+
+  // Helper to join array elements with a separator
+  // Usage: {{join array ", "}}
+  Handlebars.registerHelper('join', function(array, separator) {
+    if (!array || !Array.isArray(array)) return '';
+    return array.join(separator);
   });
 } 

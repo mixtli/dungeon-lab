@@ -141,7 +141,8 @@ export const documentHelpers = {
    */
   getAllClasses: () => {
     try {
-      return getClasses();
+      const classes = getClasses();
+      return classes;
     } catch (error) {
       console.error('Error getting all classes:', error);
       return [];

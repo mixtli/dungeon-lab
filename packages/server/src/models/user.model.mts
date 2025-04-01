@@ -14,7 +14,7 @@ export interface UserDocument extends Omit<IUser, 'id'>, BaseDocument {
 /**
  * Create Mongoose schema with base configuration
  */
-const mongooseSchema = createBaseSchema(userSchema, {
+const mongooseSchema = createBaseSchema(userSchema.omit({ id: true }), {
   transform: (_doc, ret) => {
     delete ret.password; // Don't include password in JSON
     return ret;

@@ -1,12 +1,11 @@
 import mongoose from 'mongoose';
-import { connectToDatabase } from '../config/database.mjs';
 import { ActorModel } from '../features/actors/models/actor.model.mjs';
 import { CampaignModel } from '../features/campaigns/models/campaign.model.mjs';
 import { logger } from '../utils/logger.mjs';
 
 async function cleanCampaignMembers() {
   try {
-    await connectToDatabase();
+    await mongoose.connect(process.env.MONGO_URI as string);
     logger.info('Connected to database');
 
     const campaigns = await CampaignModel.find();

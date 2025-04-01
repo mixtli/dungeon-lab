@@ -188,7 +188,7 @@ function normalizeStartingEquipment(equipmentData: any): any {
             if (choiceSet.B && Array.isArray(choiceSet.B)) {
                 // B is often just gold, check if it's a single item
                 if (choiceSet.B.length === 1 && choiceSet.B[0].value) {
-                    equipmentItem.options['B'] = { gold: choiceSet.B[0].value };
+                    equipmentItem.options['B'] = [ { gold: choiceSet.B[0].value } ];
                 } else {
                     equipmentItem.options['B'] = choiceSet.B.map((item: any) => normalizeEquipmentItem(item));
                 }
