@@ -1,5 +1,6 @@
 import { z } from '@dungeon-lab/shared/lib/zod.mjs';
 import { abilitySchema } from './common.mjs';
+import { vttDocumentSchema } from '@dungeon-lab/shared/schemas/vtt-document.schema.mjs';
 
 
 // Basic schemas
@@ -89,6 +90,11 @@ const characterClassSchema = z.object({
   subclasses: z.array(subclassDataSchema),
 });
 
+export const characterClassDocumentSchema = vttDocumentSchema.extend({
+  documentType: z.literal('characterClass'),
+  data: characterClassSchema
+});
+
 // Export all types
 export type IBenefit = z.infer<typeof benefitSchema>;
 export type ISkillChoice = z.infer<typeof skillChoiceSchema>;
@@ -99,5 +105,6 @@ export type ISpellData = z.infer<typeof spellDataSchema>;
 export type ISpellChoice = z.infer<typeof spellChoiceSchema>;
 export type ISpellEntry = z.infer<typeof spellEntrySchema>;
 export type ISubclassData = z.infer<typeof subclassDataSchema>;
-export type ICharacterClass = z.infer<typeof characterClassSchema>;
+export type ICharacterClassData = z.infer<typeof characterClassSchema>;
+export type ICharacterClassDocument = z.infer<typeof characterClassDocumentSchema>;
 export { characterClassSchema };

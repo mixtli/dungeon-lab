@@ -1,4 +1,4 @@
-import type { ISpecies } from '../shared/types/vttdocument.mjs';
+import type { ISpeciesData } from '../shared/types/vttdocument.mjs';
 import {
   toLowercase,
   cleanRuleText,
@@ -178,10 +178,10 @@ function getDescription(data: RawSpeciesData): string {
   return description;
 }
 
-export function convert5eToolsSpecies(data: RawSpeciesData): ISpecies {
+export function convert5eToolsSpecies(data: RawSpeciesData): ISpeciesData {
   // Skip non-XPHB species
   if (data.source !== 'XPHB') {
-    return {} as ISpecies;
+    return {} as ISpeciesData;
   }
   
   // First extract subspecies from _versions

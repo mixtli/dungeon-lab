@@ -28,7 +28,7 @@ This is used by the CharacterCreationComponent
       <select id="character-class" name="class.name" required>
         <option value="">-- Select Class --</option>
         {{#each (getAllClasses)}}
-          <option value="{{this.name}}" {{#if (eq formData.class.name this.name)}}selected{{/if}}>{{this.name}}</option>
+          <option value="{{this.id}}" {{#if (eq formData.class.name this.name)}}selected{{/if}}>{{this.name}}</option>
         {{/each}}
       </select>
     </div>

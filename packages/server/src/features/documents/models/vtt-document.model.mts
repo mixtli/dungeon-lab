@@ -1,11 +1,10 @@
 import { vttDocumentSchema, type IVTTDocument } from '@dungeon-lab/shared/schemas/vtt-document.schema.mjs';
 import mongoose from 'mongoose';
 import { pluginRegistry } from '../../../services/plugin-registry.service.mjs';
+import { BaseDocument, createBaseSchema } from '../../../models/base-schema.mjs';
 
-import { zodSchema } from '@zodyac/zod-mongoose';
-// extendZod(z);
-
-const mongooseSchema = zodSchema(vttDocumentSchema);
+// Create mongoose schema using the base schema creator to handle _id to id transformation
+const mongooseSchema = createBaseSchema(vttDocumentSchema);
 
 // Add validation middleware
 mongooseSchema.pre('save', async function(this: mongoose.Document & IVTTDocument, next: mongoose.CallbackWithoutResultAndOptionalError) {
@@ -28,5 +27,10 @@ mongooseSchema.pre('save', async function(this: mongoose.Document & IVTTDocument
   }
 });
 
+/**
+ * VTT Document interface extending the base IVTTDocument
+ */
+export interface VTTDocumentDocument extends Omit<IVTTDocument, 'id'>, BaseDocument {}
+
 // Create and export model
-export const VTTDocument = mongoose.model<IVTTDocument>('VTTDocument', mongooseSchema); 
+export const VTTDocument = mongoose.model<VTTDocumentDocument>('VTTDocument', mongooseSchema); 

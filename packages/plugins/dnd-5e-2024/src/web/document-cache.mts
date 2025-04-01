@@ -1,680 +1,281 @@
 /**
  * Document Cache
  * 
- * A caching service for D&D 5e 2024 game documents like classes, backgrounds, and species.
+ * A caching service for D&D 5e 2024 game documents like classes, backgrounds, species, and feats.
  * This improves performance by loading documents once and providing synchronous access.
  */
 
 import { IPluginAPI } from '@dungeon-lab/shared/types/plugin-api.mjs';
 
-// Import schemas for API data validation
-// These schemas represent the structure of document data returned by the API
+// Import schemas and types for API data validation
 import { 
-  vttDocumentTypes,
+  IBackgroundDocument,
+  ISpeciesDocument,
+  IFeatDocument
 } from '../shared/types/vttdocument.mjs';
+import { ICharacterClassDocument } from '../shared/types/character-class.mjs';
 
-// Document types that we cache
-export type DocumentType = 'class' | 'background' | 'species' | 'subclass';
+// Define document types 
+export type DocumentType = 'class' | 'background' | 'species' | 'feat';
+
+// Map cache types to their document interfaces
+interface DocumentTypeMap {
+  'class': ICharacterClassDocument;
+  'background': IBackgroundDocument;
+  'species': ISpeciesDocument;
+  'feat': IFeatDocument;
+}
 
 // Singleton cache instance
 let api: IPluginAPI | null = null;
 const PLUGIN_ID = 'dnd-5e-2024';
 
-// Document cache storage
-const cache: Record<DocumentType, Record<string, unknown>[]> = {
-  class: [],
-  background: [],
-  species: [],
-  subclass: []
+// Simplified cache structure
+const cache = {
+  'class': [] as ICharacterClassDocument[],
+  'background': [] as IBackgroundDocument[],
+  'species': [] as ISpeciesDocument[],
+  'feat': [] as IFeatDocument[]
 };
 
 // Loading state tracking
-const loaded: Record<string, boolean> = {};
-const loadingPromises: Partial<Record<DocumentType, Promise<Record<string, unknown>[]>>> = {};
+const loaded = {
+  'class': false,
+  'background': false,
+  'species': false,
+  'feat': false
+};
 
-// Initialize with null API but allow auto-initialization on first use
-let initializationPromise: Promise<void> | null = null;
+// API type mapping
+const API_TYPE_MAP = {
+  'class': 'characterClass',
+  'background': 'background',
+  'species': 'species',
+  'feat': 'feat'
+} as const;
 
 /**
- * Auto-initialize the document cache if needed
- * @param pluginApi Optional API to use for initialization
+ * Initialize the document cache with an API instance
  */
-async function ensureInitialized(pluginApi?: IPluginAPI): Promise<void> {
-  // If already initialized, return immediately
-  if (api !== null) {
-    return;
-  }
-  
-  // If no API provided but already auto-initializing, wait for that to finish
-  if (!pluginApi && initializationPromise) {
-    await initializationPromise;
-    return;
-  }
-  
-  // If no API provided and not initializing, we can't proceed
-  if (!pluginApi) {
-    throw new Error('Document cache not initialized and no API provided for auto-initialization');
-  }
-  
-  // Start initialization
-  console.log('Auto-initializing document cache with API');
-  
-  const promise = (async () => {
-    // Initialize the cache with the API
-    initDocumentCache(pluginApi);
-    
-    // Preload documents
-    try {
-      await preloadAllDocuments();
-    } catch (error) {
-      console.error('Error during auto-initialization of document cache:', error);
-      // Don't throw, we've logged the error and the cache is still usable for direct fetches
-    } finally {
-    }
-  })();
-  
-  initializationPromise = promise;
-  await promise;
-  initializationPromise = null;
+export function initializeCache(apiInstance: IPluginAPI) {
+  api = apiInstance;
+  // We don't clear the cache here - let it maintain its state
+}
+
+// Type guard for checking document type
+function hasDocumentType(obj: unknown): obj is { documentType: string } {
+  return typeof obj === 'object' && obj !== null && 'documentType' in obj;
 }
 
 /**
- * Initialize the document cache with the plugin API
+ * Fetch documents from the API with proper filtering by type
+ * This is only used internally by preloadDocuments
  */
-export function initDocumentCache(pluginApi: IPluginAPI): void {
-  console.log('Document cache initialization called with API:', pluginApi);
-  api = pluginApi;
-  console.log('Document cache initialized for DnD 5e 2024 plugin');
-  
-  // Set up cache for each document type
-  ['class', 'background', 'species', 'subclass'].forEach(type => {
-    cache[type as DocumentType] = [];
-    loaded[type] = false;
-  });
-  
-  console.log('Document cache structure initialized:', { 
-    cache, 
-    loaded, 
-    loadingPromises 
-  });
-}
-
-/**
- * Preload all document types
- */
-export async function preloadAllDocuments(): Promise<void> {
-  console.log('Preload all documents called');
-  
+async function fetchDocuments(type: DocumentType): Promise<unknown[]> {
   if (!api) {
-    console.error('Document cache not initialized. Call initDocumentCache() first.');
-    throw new Error('Document cache not initialized. Call initDocumentCache() first.');
-  }
-  
-  console.log('Preloading all game documents for DnD 5e 2024...');
-  const documentTypes: DocumentType[] = ['class', 'background', 'species', 'subclass'];
-  
-  try {
-    console.log('Starting document preload for types:', documentTypes);
-    await Promise.all(
-      documentTypes.map(type => 
-        loadDocuments(type)
-          .then(docs => {
-            console.log(`Loaded ${docs.length} ${type} documents. First document:`, docs[0]);
-            return docs;
-          })
-          .catch(err => {
-            console.error(`Error loading ${type} documents:`, err);
-            throw err;
-          })
-      )
-    );
-    console.log('All documents preloaded successfully. Cache state:', {
-      cache,
-      loaded
-    });
-  } catch (error) {
-    console.error('Error preloading documents:', error);
-    throw error;
-  }
-}
-
-/**
- * Load all documents of a specified type
- */
-export async function loadDocuments(type: DocumentType): Promise<Record<string, unknown>[]> {
-  if (!api) {
-    throw new Error('Document cache not initialized. Call initDocumentCache() first.');
-  }
-  
-  // If already loading, return existing promise
-  if (loadingPromises[type]) {
-    return loadingPromises[type]!;
-  }
-  
-  // If already loaded, return from cache
-  if (loaded[type]) {
-    return cache[type];
-  }
-  
-  // Start loading
-  console.log(`Loading ${type} documents`);
-  const loadPromise = fetchDocuments(type);
-  loadingPromises[type] = loadPromise;
-  
-  try {
-    const documents = await loadPromise;
-    cache[type] = documents;
-    loaded[type] = true;
-    return documents;
-  } catch (error) {
-    console.error(`Error loading ${type} documents:`, error);
-    delete loadingPromises[type];
-    throw error;
-  }
-}
-
-/**
- * Get all documents of a specific type (must be loaded first)
- */
-export function getDocuments(type: DocumentType): Record<string, unknown>[] {
-  if (!isLoaded(type)) {
-    console.warn(`Documents of type ${type} are not loaded yet`);
+    console.error('Document cache not initialized');
     return [];
   }
-  return cache[type];
+  
+  try {
+    console.log(`Fetching ${type} documents from API`);
+    const apiType = API_TYPE_MAP[type];
+    
+    console.log(`Making searchDocuments API call for ${apiType}`);
+    const documents = await api.searchDocuments({
+      pluginId: PLUGIN_ID,
+      documentType: apiType
+    });
+    
+    // Filter documents by their specific type using type guard
+    const filteredDocuments = documents.filter(doc => 
+      hasDocumentType(doc) && doc.documentType === apiType
+    );
+    
+    // Store in cache
+    if (type === 'class') {
+      cache.class = filteredDocuments as ICharacterClassDocument[];
+    } else if (type === 'background') {
+      cache.background = filteredDocuments as IBackgroundDocument[];
+    } else if (type === 'species') {
+      cache.species = filteredDocuments as ISpeciesDocument[];
+    } else if (type === 'feat') {
+      cache.feat = filteredDocuments as IFeatDocument[];
+    }
+    
+    loaded[type] = true;
+    return filteredDocuments;
+  } catch (error) {
+    console.error(`Error fetching ${type} documents:`, error);
+    return [];
+  }
 }
 
 /**
- * Get a specific document by name
+ * Preload all document types in the background
+ * This improves application performance by loading documents ahead of time
  */
-export function getDocumentByName(type: DocumentType, name: string): Record<string, unknown> | undefined {
-  console.log(`getDocumentByName called for ${type} "${name}"`);
-  
-  // Check if loaded
-  if (!isLoaded(type)) {
-    console.warn(`Documents of type ${type} are not loaded yet`);
-    return undefined;
+export async function preloadAllDocuments(): Promise<void> {
+  if (!api) {
+    console.error('Document cache not initialized, cannot preload documents');
+    return;
   }
   
-  // Get all documents of the requested type
-  const documents = cache[type];
+  console.log('Preloading all document types...');
   
-  // Find the document by name (case-insensitive)
-  const normalizedName = name.toLowerCase();
-  const document = documents.find((doc: Record<string, unknown>) => {
-    const docName = (doc.name as string || '').toLowerCase();
-    return docName === normalizedName;
-  });
-  
-  console.log(`Document found for ${type} "${name}": ${document ? 'Yes' : 'No'}`);
-  
-  if (document) {
-    // Log the full document structure
-    // console.log(`Full document for ${type} "${name}":`, JSON.stringify(document, null, 2));
+  try {
+    // Start loading all document types in parallel
+    const loadPromises = [
+      fetchDocuments('class'),
+      fetchDocuments('background'), 
+      fetchDocuments('species'),
+      fetchDocuments('feat')
+    ];
+    
+    // Wait for all documents to load
+    await Promise.all(loadPromises);
+    
+    console.log('All documents preloaded successfully');
+  } catch (error) {
+    console.error('Error preloading documents:', error);
   }
-  
-  return document;
 }
 
 /**
  * Check if documents of a specific type are loaded
  */
 export function isLoaded(type: DocumentType): boolean {
-  const loadedStatus = !!loaded[type];
-  console.log(`isLoaded check for ${type}: ${loadedStatus}`);
-  return loadedStatus;
+  return loaded[type];
 }
 
 /**
- * Clear the cache (useful for testing or forced refresh)
+ * Synchronously get all documents of a specific type
+ * Returns empty array if not loaded
  */
-export function clearCache(): void {
-  for (const type of Object.keys(cache) as DocumentType[]) {
-    cache[type] = [];
-  }
-  for (const key in loaded) {
-    loaded[key] = false;
+export function getDocuments<T extends DocumentType>(type: T): DocumentTypeMap[T][] {
+  if (!loaded[type]) {
+    return [] as unknown as DocumentTypeMap[T][];
   }
   
-  // Clear all loading promises
-  Object.keys(loadingPromises).forEach(key => {
-    delete loadingPromises[key as DocumentType];
-  });
-}
-
-/**
- * Fetch documents from the API
- */
-async function fetchDocuments(type: DocumentType): Promise<Record<string, unknown>[]> {
-  if (!api) {
-    console.error('Document cache not initialized');
-    throw new Error('Document cache not initialized');
-  }
-  
-  try {
-    console.log(`Fetching ${type} documents from API`);
-    const documentType = type === 'class' ? 'characterClass' : type;
-    
-    console.log(`Making searchDocuments API call for ${documentType}`);
-    const documents = await api.searchDocuments({
-      pluginId: PLUGIN_ID,
-      documentType
-    }) as Record<string, unknown>[];
-    
-    console.log(`Fetched ${documents.length} ${type} documents. Result:`, documents);
-    return documents;
-  } catch (error) {
-    console.error(`Error fetching ${type} documents:`, error);
-    throw error;
-  }
-}
-
-// Helper functions for getting specific document types
-export function getClasses(): Record<string, unknown>[] {
-  return getDocuments('class');
-}
-
-export function getBackgrounds(): Record<string, unknown>[] {
-  return getDocuments('background');
-}
-
-export function getAllSpecies(): Record<string, unknown>[] {
-  return getDocuments('species');
-}
-
-export function getSubclasses(): Record<string, unknown>[] {
-  return getDocuments('subclass');
-}
-
-export function getClassByName(name: string): Record<string, unknown> | undefined {
-  console.log(`getClassByName called for "${name}"`);
-  
-  if (!name) {
-    console.log('No class name provided');
-    return undefined;
-  }
-  
-  // For debugging, let's log the cache state
-  console.log(`Cache state for classes:`, {
-    numClasses: cache.class.length,
-    isLoaded: isLoaded('class'),
-    classNames: cache.class.map(c => (c as any).name)
-  });
-  
-  const result = getDocumentByName('class', name);
-  console.log(`getClassByName result for "${name}":`, result ? 'Found' : 'Not found');
-  
-  if (result) {
-    console.log(`Class document for "${name}" found:`, { 
-      name: (result as any).name,
-      hitDie: (result as any).hitDie,
-      description: (result as any).description?.substring(0, 50) + '...'
-    });
+  if (type === 'class') {
+    return cache.class as DocumentTypeMap[T][];
+  } else if (type === 'background') {
+    return cache.background as DocumentTypeMap[T][];
+  } else if (type === 'species') {
+    return cache.species as DocumentTypeMap[T][];
   } else {
-    console.warn(`Class document for "${name}" not found!`);
+    return cache.feat as DocumentTypeMap[T][];
   }
-  
-  return result;
 }
 
-export function getBackgroundByName(name: string): Record<string, unknown> | undefined {
-  return getDocumentByName('background', name);
+/**
+ * Synchronously get a specific document by name
+ * Returns null if not found or not loaded
+ */
+export function getDocumentByName<T extends DocumentType>(
+  type: T, 
+  name: string
+): DocumentTypeMap[T] | null {
+  const documents = getDocuments(type);
+  return documents.find(doc => doc.name === name) || null;
 }
 
-export function getSpeciesByName(name: string): Record<string, unknown> | undefined {
+/**
+ * Synchronously get a specific document by ID
+ * Returns null if not found or not loaded
+ */
+export function getDocumentById<T extends DocumentType>(
+  type: T,
+  id: string
+): DocumentTypeMap[T] | null {
+  const documents = getDocuments(type);
+
+  return documents.find(doc => 
+    // Check both id and _id since the server might use either
+    (doc as any).id === id || (doc as any)._id === id
+  ) || null;
+}
+
+/**
+ * Synchronously get a class document by ID
+ */
+export function getClass(id: string): ICharacterClassDocument | null {
+  return getDocumentById('class', id);
+}
+
+/**
+ * Synchronously get a species document by ID
+ */
+export function getSpecies(id: string): ISpeciesDocument | null {
+  return getDocumentById('species', id);
+}
+
+/**
+ * Synchronously get a background document by ID
+ */
+export function getBackground(id: string): IBackgroundDocument | null {
+  return getDocumentById('background', id);
+}
+
+/**
+ * Synchronously get a feat document by ID
+ */
+export function getFeat(id: string): IFeatDocument | null {
+  return getDocumentById('feat', id);
+}
+
+/**
+ * Maintain backward compatibility - get document by name
+ */
+export function getClassByName(name: string): ICharacterClassDocument | null {
+  return getDocumentByName('class', name);
+}
+
+/**
+ * Maintain backward compatibility - get document by name
+ */
+export function getSpeciesByName(name: string): ISpeciesDocument | null {
   return getDocumentByName('species', name);
 }
 
-export function getSubclassByName(name: string): Record<string, unknown> | undefined {
-  return getDocumentByName('subclass', name);
+/**
+ * Maintain backward compatibility - get document by name
+ */
+export function getBackgroundByName(name: string): IBackgroundDocument | null {
+  return getDocumentByName('background', name);
 }
 
 /**
- * Check if the document cache is initialized
+ * Maintain backward compatibility - get document by name
  */
-function isDocumentCacheInitialized(): boolean {
-  return api !== null;
+export function getFeatByName(name: string): IFeatDocument | null {
+  return getDocumentByName('feat', name);
 }
 
 /**
- * Preload all documents into the cache from the API
+ * Synchronously get all class documents
  */
-export async function preloadDocuments(pluginApi: IPluginAPI, resetCache: boolean = false): Promise<void> {
-  console.log(`Preloading documents for plugin (reset: ${resetCache})`);
-  
-  // Initialize the cache if not already initialized
-  if (!isDocumentCacheInitialized()) {
-    initDocumentCache(pluginApi);
-  }
-  
-  // Reset the cache if requested
-  if (resetCache) {
-    console.log('Resetting document cache');
-    // Create new objects instead of modifying constants
-    Object.keys(cache).forEach(key => {
-      cache[key as DocumentType] = [];
-    });
-    
-    Object.keys(loaded).forEach(key => {
-      loaded[key as string] = false;
-    });
-  }
-  
-  // Load each document type
-  try {
-    // Load classes
-    if (!isLoaded('class')) {
-      await loadDocuments('class');
-    }
-    
-    // Load backgrounds
-    if (!isLoaded('background')) {
-      await loadDocuments('background');
-    }
-    
-    // Load species
-    if (!isLoaded('species')) {
-      await loadDocuments('species');
-    }
-    
-    console.log('All documents preloaded successfully');
-    
-    // Log document counts in cache
-    console.log('Document counts:', {
-      classes: cache.class.length,
-      backgrounds: cache.background.length,
-      species: cache.species.length
-    });
-  } catch (error) {
-    console.error('Error preloading documents:', error);
-    throw error;
-  }
+export function getAllClasses(): ICharacterClassDocument[] {
+  return getDocuments('class');
 }
 
 /**
- * Extract class data from API response document
+ * Synchronously get all background documents
  */
-export function extractDocumentData(document: Record<string, unknown>): Record<string, unknown> {
-  console.log('Extracting data from document:', document);
-  
-  // If there's a data property that's an object, that contains the actual data
-  if (document.data && typeof document.data === 'object') {
-    console.log('Document has data property, extracting data from it');
-    
-    // Create a merged object with both top-level properties and data properties
-    const extractedData = {
-      // Include id and name from the top level
-      id: document.id,
-      name: document.name || (document.data as Record<string, unknown>).name,
-      // Spread all properties from the data object
-      ...(document.data as Record<string, unknown>),
-      // Ensure we preserve case-sensitive property names
-      hitDie: (document.data as Record<string, unknown>).hitdie || (document.data as Record<string, unknown>).hitDie,
-      primaryAbility: (document.data as Record<string, unknown>).primaryability || (document.data as Record<string, unknown>).primaryAbility,
-      savingThrows: (document.data as Record<string, unknown>).savingthrows || (document.data as Record<string, unknown>).savingThrows,
-      proficiencies: {
-        armor: ((document.data as Record<string, unknown>).proficiencies as Record<string, unknown>)?.armor || [],
-        weapons: ((document.data as Record<string, unknown>).proficiencies as Record<string, unknown>)?.weapons || [],
-        tools: ((document.data as Record<string, unknown>).proficiencies as Record<string, unknown>)?.tools || [],
-        skills: ((document.data as Record<string, unknown>).proficiencies as Record<string, unknown>)?.skills || []
-      }
-    };
-    
-    console.log('Extracted data:', extractedData);
-    return extractedData;
-  }
-  
-  // If there's no data property, just return the document as is
-  console.log('Document does not have data property, using as is');
-  return document;
+export function getAllBackgrounds(): IBackgroundDocument[] {
+  return getDocuments('background');
 }
 
 /**
- * Enhanced version of getClassByName that will fetch from API if not in cache
- * Also handles validation of the document structure against the API schema
- * @param name The class name to get
- * @param api Optional API instance for fetching if needed
- * @returns The class document, with proper validation
+ * Synchronously get all species documents
  */
-export async function getClass(name: string, api?: IPluginAPI): Promise<Record<string, unknown>> {
-  console.log(`Enhanced getClass called for "${name}"`);
-  
-  if (!name) {
-    console.warn('No class name provided');
-    throw new Error('No class name provided');
-  }
-  
-  // Ensure the cache is initialized
-  await ensureInitialized(api);
-  
-  // First check if we have it in cache
-  const cachedDoc = getClassByName(name);
-  if (cachedDoc) {
-    console.log(`Found class "${name}" in cache`);
-    
-    // Validate the document against the API schema
-    // We validate the "data" field against the characterClassSchema
-    const dataField = cachedDoc.data || cachedDoc;
-    const validation = vttDocumentTypes.characterClass.safeParse(dataField);
-    if (!validation.success) {
-      console.error(`Validation failed for cached class ${name}:`, validation.error);
-      throw new Error(`Invalid class document format: ${validation.error.message}`);
-    }
-    
-    return extractDocumentData(cachedDoc);
-  }
-  
-  // If not in cache and API provided, try to fetch it
-  if (api) {
-    console.log(`Class "${name}" not in cache, fetching from API`);
-    try {
-      // Try to load the class documents
-      await loadDocuments('class');
-      
-      // Check cache again after loading
-      const reloadedDoc = getClassByName(name);
-      if (reloadedDoc) {
-        // Validate the document against the API schema
-        const dataField = reloadedDoc.data || reloadedDoc;
-        const validation = vttDocumentTypes.characterClass.safeParse(dataField);
-        if (!validation.success) {
-          console.error(`Validation failed for reloaded class ${name}:`, validation.error);
-          throw new Error(`Invalid class document format: ${validation.error.message}`);
-        }
-        
-        return extractDocumentData(reloadedDoc);
-      }
-      
-      // If still not found, make a direct API call for this specific class
-      const response = await api.getDocument('dnd-5e-2024', 'class', name);
-      if (!response) {
-        throw new Error(`Class ${name} not found`);
-      }
-      
-      console.log(`Successfully fetched class "${name}" from API directly`);
-      
-      // Validate the API response against the schema
-      const dataField = (response as any).data || response;
-      const validation = vttDocumentTypes.characterClass.safeParse(dataField);
-      if (!validation.success) {
-        console.error(`Validation failed for API class ${name}:`, validation.error);
-        throw new Error(`Invalid class document format: ${validation.error.message}`);
-      }
-      
-      return extractDocumentData(response as Record<string, unknown>);
-    } catch (error) {
-      console.error(`Error fetching class "${name}" from API:`, error);
-      throw error;
-    }
-  }
-  
-  // If we get here, we couldn't find it in cache and no API was provided
-  console.error(`Class "${name}" not found in cache and no API provided for fetching`);
-  throw new Error(`Class ${name} not found and no API provided for fetching`);
+export function getAllSpecies(): ISpeciesDocument[] {
+  return getDocuments('species');
 }
 
 /**
- * Enhanced version of getSpeciesByName that will fetch from API if not in cache
- * Also handles validation of the document structure against the API schema
- * @param name The species name to get
- * @param api Optional API instance for fetching if needed
- * @returns The species document, with proper validation
+ * Synchronously get all feat documents
  */
-export async function getSpecies(name: string, api?: IPluginAPI): Promise<Record<string, unknown>> {
-  console.log(`Enhanced getSpecies called for "${name}"`);
-  
-  if (!name) {
-    console.warn('No species name provided');
-    throw new Error('No species name provided');
-  }
-  
-  // Ensure the cache is initialized
-  await ensureInitialized(api);
-  
-  // First check if we have it in cache
-  const cachedDoc = getSpeciesByName(name);
-  if (cachedDoc) {
-    console.log(`Found species "${name}" in cache`);
-    
-    // Validate the document against the API schema
-    const dataField = cachedDoc.data || cachedDoc;
-    const validation = vttDocumentTypes.species.safeParse(dataField);
-    if (!validation.success) {
-      console.error(`Validation failed for cached species ${name}:`, validation.error);
-      throw new Error(`Invalid species document format: ${validation.error.message}`);
-    }
-    
-    return extractDocumentData(cachedDoc);
-  }
-  
-  // If not in cache and API provided, try to fetch it
-  if (api) {
-    console.log(`Species "${name}" not in cache, fetching from API`);
-    try {
-      // Try to load the species documents
-      await loadDocuments('species');
-      
-      // Check cache again after loading
-      const reloadedDoc = getSpeciesByName(name);
-      if (reloadedDoc) {
-        // Validate the document against the API schema
-        const dataField = reloadedDoc.data || reloadedDoc;
-        const validation = vttDocumentTypes.species.safeParse(dataField);
-        if (!validation.success) {
-          console.error(`Validation failed for reloaded species ${name}:`, validation.error);
-          throw new Error(`Invalid species document format: ${validation.error.message}`);
-        }
-        
-        return extractDocumentData(reloadedDoc);
-      }
-      
-      // If still not found, make a direct API call for this specific species
-      const response = await api.getDocument('dnd-5e-2024', 'species', name);
-      if (!response) {
-        throw new Error(`Species ${name} not found`);
-      }
-      
-      console.log(`Successfully fetched species "${name}" from API directly`);
-      
-      // Validate the API response against the schema
-      const dataField = (response as any).data || response;
-      const validation = vttDocumentTypes.species.safeParse(dataField);
-      if (!validation.success) {
-        console.error(`Validation failed for API species ${name}:`, validation.error);
-        throw new Error(`Invalid species document format: ${validation.error.message}`);
-      }
-      
-      return extractDocumentData(response as Record<string, unknown>);
-    } catch (error) {
-      console.error(`Error fetching species "${name}" from API:`, error);
-      throw error;
-    }
-  }
-  
-  // If we get here, we couldn't find it in cache and no API was provided
-  console.error(`Species "${name}" not found in cache and no API provided for fetching`);
-  throw new Error(`Species ${name} not found and no API provided for fetching`);
-}
-
-/**
- * Enhanced version of getBackgroundByName that will fetch from API if not in cache
- * Also handles validation of the document structure against the API schema
- * @param name The background name to get
- * @param api Optional API instance for fetching if needed
- * @returns The background document, with proper validation
- */
-export async function getBackground(name: string, api?: IPluginAPI): Promise<Record<string, unknown>> {
-  console.log(`Enhanced getBackground called for "${name}"`);
-  
-  if (!name) {
-    console.warn('No background name provided');
-    throw new Error('No background name provided');
-  }
-  
-  // Ensure the cache is initialized
-  await ensureInitialized(api);
-  
-  // First check if we have it in cache
-  const cachedDoc = getBackgroundByName(name);
-  if (cachedDoc) {
-    console.log(`Found background "${name}" in cache`);
-    
-    // Validate the document against the API schema
-    const dataField = cachedDoc.data || cachedDoc;
-    const validation = vttDocumentTypes.background.safeParse(dataField);
-    if (!validation.success) {
-      console.error(`Validation failed for cached background ${name}:`, validation.error);
-      throw new Error(`Invalid background document format: ${validation.error.message}`);
-    }
-    
-    return extractDocumentData(cachedDoc);
-  }
-  
-  // If not in cache and API provided, try to fetch it
-  if (api) {
-    console.log(`Background "${name}" not in cache, fetching from API`);
-    try {
-      // Try to load the background documents
-      await loadDocuments('background');
-      
-      // Check cache again after loading
-      const reloadedDoc = getBackgroundByName(name);
-      if (reloadedDoc) {
-        // Validate the document against the API schema
-        const dataField = reloadedDoc.data || reloadedDoc;
-        const validation = vttDocumentTypes.background.safeParse(dataField);
-        if (!validation.success) {
-          console.error(`Validation failed for reloaded background ${name}:`, validation.error);
-          throw new Error(`Invalid background document format: ${validation.error.message}`);
-        }
-        
-        return extractDocumentData(reloadedDoc);
-      }
-      
-      // If still not found, make a direct API call for this specific background
-      const response = await api.getDocument('dnd-5e-2024', 'background', name);
-      if (!response) {
-        throw new Error(`Background ${name} not found`);
-      }
-      
-      console.log(`Successfully fetched background "${name}" from API directly`);
-      
-      // Validate the API response against the schema
-      const dataField = (response as any).data || response;
-      const validation = vttDocumentTypes.background.safeParse(dataField);
-      if (!validation.success) {
-        console.error(`Validation failed for API background ${name}:`, validation.error);
-        throw new Error(`Invalid background document format: ${validation.error.message}`);
-      }
-      
-      return extractDocumentData(response as Record<string, unknown>);
-    } catch (error) {
-      console.error(`Error fetching background "${name}" from API:`, error);
-      throw error;
-    }
-  }
-  
-  // If we get here, we couldn't find it in cache and no API was provided
-  console.error(`Background "${name}" not found in cache and no API provided for fetching`);
-  throw new Error(`Background ${name} not found and no API provided for fetching`);
+export function getAllFeats(): IFeatDocument[] {
+  return getDocuments('feat');
 } 

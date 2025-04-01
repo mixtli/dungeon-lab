@@ -5,14 +5,19 @@
  */
 
 import { 
-  getClassByName, 
-  getBackgroundByName, 
+  getClass, 
+  getBackground, 
+  getSpecies,
+  getFeat,
+  getClassByName,
+  getBackgroundByName,
   getSpeciesByName,
-  getClasses,
-  getBackgrounds,
+  getFeatByName,
+  getAllClasses,
+  getAllBackgrounds,
   getAllSpecies,
-  isLoaded,
-  extractDocumentData
+  getAllFeats,
+  isLoaded
 } from '../document-cache.mjs';
 
 /**
@@ -20,104 +25,172 @@ import {
  */
 export const documentHelpers = {
   /**
-   * Get a class document by name
-   * Usage: {{getClass "Fighter"}}
+   * Get a class document by ID
+   * Usage: {{getClass "class-id"}}
    */
-  getClass: (name: string) => {
-    console.log(`getClass helper called with name: "${name}"`);
+  getClass: (id: string) => {
+    console.log(`getClass helper called with id: "${id}"`);
     
-    if (!name) {
-      console.warn('getClass helper called with empty name');
+    if (!id) {
+      console.warn('getClass helper called with empty id');
       return undefined;
     }
     
     try {
-      console.log(`Looking up class "${name}" in cache`);
-      const rawDocument = getClassByName(name);
-      
-      if (rawDocument) {
-        console.log(`Class "${name}" found in cache, extracting data`);
-        // Extract and process the document data
-        const vttDocument = extractDocumentData(rawDocument);
-        console.log(`Class data extracted for "${name}":`, { 
-          keys: Object.keys(vttDocument),
-          name: vttDocument.name,
-          description: vttDocument.description?.toString().substring(0, 50) + '...',
-          hitDie: vttDocument.hitDie || vttDocument.hitdie
-        });
-        return vttDocument;
-      } else {
-        console.warn(`Class "${name}" not found in cache`);
-        return undefined;
-      }
+      console.log(`Looking up class with id "${id}" in cache`);
+      // Simply delegate to the cache method
+      return getClass(id);
     } catch (error) {
-      console.error(`Error in getClass helper for '${name}':`, error);
+      console.error(`Error in getClass helper for id '${id}':`, error);
       return undefined;
     }
   },
 
   /**
-   * Get a background document by name
-   * Usage: {{getBackground "Acolyte"}}
+   * Get a background document by ID
+   * Usage: {{getBackground "background-id"}}
    */
-  getBackground: (name: string) => {
+  getBackground: (id: string) => {
+    if (!id) return undefined;
+    try {
+      return getBackground(id);
+    } catch (error) {
+      console.error(`Error getting background with id '${id}':`, error);
+      return undefined;
+    }
+  },
+
+  /**
+   * Get a species document by ID
+   * Usage: {{getSpecies "species-id"}}
+   */
+  getSpecies: (id: string) => {
+    if (!id) return undefined;
+    try {
+      return getSpecies(id);
+    } catch (error) {
+      console.error(`Error getting species with id '${id}':`, error);
+      return undefined;
+    }
+  },
+
+  /**
+   * Get a feat document by ID
+   * Usage: {{getFeat "feat-id"}}
+   */
+  getFeat: (id: string) => {
+    if (!id) return undefined;
+    try {
+      return getFeat(id);
+    } catch (error) {
+      console.error(`Error getting feat with id '${id}':`, error);
+      return undefined;
+    }
+  },
+
+  /**
+   * Get a class document by name (backward compatibility)
+   * Usage: {{getClassByName "Fighter"}}
+   */
+  getClassByName: (name: string) => {
+    if (!name) return undefined;
+    try {
+      return getClassByName(name);
+    } catch (error) {
+      console.error(`Error getting class by name '${name}':`, error);
+      return undefined;
+    }
+  },
+
+  /**
+   * Get a background document by name (backward compatibility)
+   * Usage: {{getBackgroundByName "Acolyte"}}
+   */
+  getBackgroundByName: (name: string) => {
     if (!name) return undefined;
     try {
       return getBackgroundByName(name);
     } catch (error) {
-      console.error(`Error getting background '${name}':`, error);
+      console.error(`Error getting background by name '${name}':`, error);
       return undefined;
     }
   },
 
   /**
-   * Get a species document by name
-   * Usage: {{getSpecies "Human"}}
+   * Get a species document by name (backward compatibility)
+   * Usage: {{getSpeciesByName "Human"}}
    */
-  getSpecies: (name: string) => {
+  getSpeciesByName: (name: string) => {
     if (!name) return undefined;
     try {
       return getSpeciesByName(name);
     } catch (error) {
-      console.error(`Error getting species '${name}':`, error);
+      console.error(`Error getting species by name '${name}':`, error);
       return undefined;
     }
   },
 
   /**
-   * Check if a class is loaded by name
-   * Usage: {{#if (isClassLoaded "Fighter")}}...{{/if}}
+   * Get a feat document by name (backward compatibility)
+   * Usage: {{getFeatByName "Alert"}}
    */
-  isClassLoaded: (name: string) => {
-    if (!name) return false;
+  getFeatByName: (name: string) => {
+    if (!name) return undefined;
     try {
-      return !!getClassByName(name);
+      return getFeatByName(name);
+    } catch (error) {
+      console.error(`Error getting feat by name '${name}':`, error);
+      return undefined;
+    }
+  },
+
+  /**
+   * Check if a class is loaded by ID
+   * Usage: {{#if (isClassLoaded "class-id")}}...{{/if}}
+   */
+  isClassLoaded: (id: string) => {
+    if (!id) return false;
+    try {
+      return !!getClass(id);
     } catch (error) {
       return false;
     }
   },
 
   /**
-   * Check if a background is loaded by name
-   * Usage: {{#if (isBackgroundLoaded "Acolyte")}}...{{/if}}
+   * Check if a background is loaded by ID
+   * Usage: {{#if (isBackgroundLoaded "background-id")}}...{{/if}}
    */
-  isBackgroundLoaded: (name: string) => {
-    if (!name) return false;
+  isBackgroundLoaded: (id: string) => {
+    if (!id) return false;
     try {
-      return !!getBackgroundByName(name);
+      return !!getBackground(id);
     } catch (error) {
       return false;
     }
   },
 
   /**
-   * Check if a species is loaded by name
-   * Usage: {{#if (isSpeciesLoaded "Human")}}...{{/if}}
+   * Check if a species is loaded by ID
+   * Usage: {{#if (isSpeciesLoaded "species-id")}}...{{/if}}
    */
-  isSpeciesLoaded: (name: string) => {
-    if (!name) return false;
+  isSpeciesLoaded: (id: string) => {
+    if (!id) return false;
     try {
-      return !!getSpeciesByName(name);
+      return !!getSpecies(id);
+    } catch (error) {
+      return false;
+    }
+  },
+
+  /**
+   * Check if a feat is loaded by ID
+   * Usage: {{#if (isFeatLoaded "feat-id")}}...{{/if}}
+   */
+  isFeatLoaded: (id: string) => {
+    if (!id) return false;
+    try {
+      return !!getFeat(id);
     } catch (error) {
       return false;
     }
@@ -141,7 +214,8 @@ export const documentHelpers = {
    */
   getAllClasses: () => {
     try {
-      const classes = getClasses();
+      const classes = getAllClasses();
+      console.log('getAllClasses result:', classes);
       return classes;
     } catch (error) {
       console.error('Error getting all classes:', error);
@@ -155,7 +229,7 @@ export const documentHelpers = {
    */
   getAllBackgrounds: () => {
     try {
-      return getBackgrounds();
+      return getAllBackgrounds();
     } catch (error) {
       console.error('Error getting all backgrounds:', error);
       return [];
@@ -176,58 +250,110 @@ export const documentHelpers = {
   },
 
   /**
-   * Get a trait from a class document by trait name
-   * Usage: {{getClassTrait "Fighter" "Fighting Style"}}
+   * Get all feats
+   * Usage: {{#each (getAllFeats)}}...{{/each}}
    */
-  getClassTrait: (className: string, traitName: string) => {
-    if (!className || !traitName) return undefined;
+  getAllFeats: () => {
+    try {
+      return getAllFeats();
+    } catch (error) {
+      console.error('Error getting all feats:', error);
+      return [];
+    }
+  },
+
+  /**
+   * Get a trait from a class document by trait name
+   * Usage: {{getClassTrait "class-id" "Fighting Style"}}
+   */
+  getClassTrait: (classId: string, traitName: string) => {
+    if (!classId || !traitName) return undefined;
     
     try {
-      const classDoc = getClassByName(className);
+      const classDoc = getClass(classId);
       if (!classDoc) return undefined;
       
-      const traits = (classDoc as any).traits || [];
-      return traits.find((trait: any) => trait.name === traitName);
+      // Access class features from the appropriate structure
+      const features = classDoc.data?.features || {};
+      // Look through all feature levels
+      for (const level in features) {
+        const levelFeatures = features[level] || [];
+        const found = levelFeatures.find(f => f.name === traitName);
+        if (found) return found;
+      }
+      
+      return undefined;
     } catch (error) {
-      console.error(`Error getting trait '${traitName}' for class '${className}':`, error);
+      console.error(`Error getting trait '${traitName}' for class with id '${classId}':`, error);
       return undefined;
     }
   },
   
   /**
    * Get a feature from a background document by feature name
-   * Usage: {{getBackgroundFeature "Acolyte" "Shelter of the Faithful"}}
+   * Usage: {{getBackgroundFeature "background-id" "Shelter of the Faithful"}}
    */
-  getBackgroundFeature: (backgroundName: string, featureName: string) => {
-    if (!backgroundName || !featureName) return undefined;
+  getBackgroundFeature: (backgroundId: string, featureName: string) => {
+    if (!backgroundId || !featureName) return undefined;
     
     try {
-      const backgroundDoc = getBackgroundByName(backgroundName);
-      if (!backgroundDoc) return undefined;
+      const backgroundDoc = getBackground(backgroundId);
+      if (!backgroundDoc || !backgroundDoc.data) return undefined;
       
-      const features = (backgroundDoc as any).features || [];
-      return features.find((feature: any) => feature.name === featureName);
+      // Background documents have different structure
+      // Look for the feature in the appropriate fields
+      if (backgroundDoc.data.abilities && backgroundDoc.data.abilities.includes(featureName)) {
+        return { name: featureName, description: `Ability from background with id ${backgroundId}` };
+      }
+      
+      // Check feats if available
+      if (backgroundDoc.data.feats && backgroundDoc.data.feats.includes(featureName)) {
+        return { name: featureName, description: `Feat from background with id ${backgroundId}` };
+      }
+      
+      return undefined;
     } catch (error) {
-      console.error(`Error getting feature '${featureName}' for background '${backgroundName}':`, error);
+      console.error(`Error getting feature '${featureName}' for background with id '${backgroundId}':`, error);
       return undefined;
     }
   },
   
   /**
    * Get a trait from a species document by trait name
-   * Usage: {{getSpeciesTrait "Human" "Versatile"}}
+   * Usage: {{getSpeciesTrait "species-id" "Versatile"}}
    */
-  getSpeciesTrait: (speciesName: string, traitName: string) => {
-    if (!speciesName || !traitName) return undefined;
+  getSpeciesTrait: (speciesId: string, traitName: string) => {
+    if (!speciesId || !traitName) return undefined;
     
     try {
-      const speciesDoc = getSpeciesByName(speciesName);
+      const speciesDoc = getSpecies(speciesId);
       if (!speciesDoc) return undefined;
       
-      const traits = (speciesDoc as any).traits || [];
+      // Access species traits from the appropriate structure
+      const traits = speciesDoc.data?.traits || [];
       return traits.find((trait: any) => trait.name === traitName);
     } catch (error) {
-      console.error(`Error getting trait '${traitName}' for species '${speciesName}':`, error);
+      console.error(`Error getting trait '${traitName}' for species with id '${speciesId}':`, error);
+      return undefined;
+    }
+  },
+  
+  /**
+   * Get a trait from a feat document by trait name
+   * Usage: {{getFeatTrait "feat-id" "Always Ready"}}
+   */
+  getFeatTrait: (featId: string, traitName: string) => {
+    if (!featId || !traitName) return undefined;
+    
+    try {
+      const featDoc = getFeat(featId);
+      if (!featDoc) return undefined;
+      
+      // Access feat benefits from the appropriate structure
+      const benefits = featDoc.data?.benefits || [];
+      return benefits.find((benefit: any) => benefit.name === traitName);
+    } catch (error) {
+      console.error(`Error getting trait '${traitName}' for feat with id '${featId}':`, error);
       return undefined;
     }
   }
@@ -237,6 +363,7 @@ export const documentHelpers = {
  * Register all document helpers with a handlebars instance
  */
 export function registerDocumentHelpers(handlebars: any): void {
+  // Register each helper with handlebars
   Object.entries(documentHelpers).forEach(([name, helper]) => {
     handlebars.registerHelper(name, helper);
   });

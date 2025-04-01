@@ -1,6 +1,6 @@
 // convert-5e-tools-class.mts
 import type {
-  ICharacterClass,
+  ICharacterClassData,
   ISkillChoice,
   IFeatureData,
   IBenefit,
@@ -54,7 +54,7 @@ export interface RawSubclassData {
 }
 
 // Output data interface
-export interface NormalizedData extends ICharacterClass {}
+export interface NormalizedData extends ICharacterClassData {}
 
 function normalizeSubclassFeatureEntries(entries: any[]): Partial<IFeatureData> {
     const result: Partial<IFeatureData> = {

@@ -1,4 +1,4 @@
-import type { IBackground } from '../shared/types/vttdocument.mjs';
+import type { IBackgroundData } from '../shared/types/vttdocument.mjs';
 import {
   toLowercase,
   cleanRuleText,
@@ -151,10 +151,10 @@ function normalizeEquipment(equipmentData: any[]): {
   return result;
 }
 
-export function convert5eToolsBackground(data: RawBackgroundData): IBackground {
+export function convert5eToolsBackground(data: RawBackgroundData): IBackgroundData {
   // Return empty object if no source or not XPHB
   if (!data || !data.source || data.source !== 'XPHB') {
-    return {} as IBackground;
+    return {} as IBackgroundData;
   }
 
   // Extract description from entries

@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { characterClassSchema } from './character-class.mjs';
-
+import { characterClassDocumentSchema } from './character-class.mjs';
+import { vttDocumentSchema } from '@dungeon-lab/shared/schemas/vtt-document.schema.mjs';
 // These schemas represent the data field of the documents in the mongoose model VTTDocument which is returned by the API
 // Background schema
-export const backgroundSchema = z.object({
+export const backgroundDataSchema = z.object({
   name: z.string(),
   description: z.string(),
   skillProficiencies: z.array(z.string()),
@@ -35,7 +35,7 @@ export const backgroundSchema = z.object({
 });
 
 // Species schema
-export const speciesSchema = z.object({
+export const speciesDataSchema = z.object({
   name: z.string(),
   description: z.string(),
   size: z.enum(['tiny', 'small', 'medium', 'large', 'huge']),
@@ -65,7 +65,7 @@ export const speciesSchema = z.object({
 });
 
 // Feat schema
-export const featSchema = z.object({
+export const featDataSchema = z.object({
   name: z.string(),
   description: z.string(),
   category: z.string().optional(),
@@ -91,29 +91,50 @@ export const featSchema = z.object({
   }))
 });
 
-export type IBackground = z.infer<typeof backgroundSchema>;
-export type ISpecies = z.infer<typeof speciesSchema>;
-export type IFeat = z.infer<typeof featSchema>;
+export type IBackgroundData = z.infer<typeof backgroundDataSchema>;
+export type ISpeciesData = z.infer<typeof speciesDataSchema>;
+export type IFeatData = z.infer<typeof featDataSchema>;
+
+export const backgroundDocumentSchema = vttDocumentSchema.extend({
+  documentType: z.literal('background'),
+  data: backgroundDataSchema
+});
+
+export const speciesDocumentSchema = vttDocumentSchema.extend({
+  documentType: z.literal('species'),
+  data: speciesDataSchema
+});
+
+export const featDocumentSchema = vttDocumentSchema.extend({
+  documentType: z.literal('feat'),
+  data: featDataSchema
+});
+
+export type IBackgroundDocument = z.infer<typeof backgroundDocumentSchema>;
+export type ISpeciesDocument = z.infer<typeof speciesDocumentSchema>;
+export type IFeatDocument = z.infer<typeof featDocumentSchema>;
+
+
 
 // Create the discriminated union for VTTDocumentData
-export const vttDocumentDataSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('characterClass'), data: characterClassSchema }),
-  z.object({ type: z.literal('background'), data: backgroundSchema }),
-  z.object({ type: z.literal('species'), data: speciesSchema }),
-  z.object({ type: z.literal('feat'), data: featSchema })
+export const vttDocumentDataSchema = z.discriminatedUnion('documentType', [
+  characterClassDocumentSchema,
+  backgroundDocumentSchema,
+  speciesDocumentSchema,
+  featDocumentSchema
 ]);
 
 export type IVTTDocumentData = z.infer<typeof vttDocumentDataSchema>;
 
 // Export const for each document type for validation functions
 export const vttDocumentTypes = {
-  characterClass: characterClassSchema,
-  background: backgroundSchema,
-  species: speciesSchema,
-  feat: featSchema
+  characterClass: characterClassDocumentSchema,
+  background: backgroundDocumentSchema,
+  species: speciesDocumentSchema,
+  feat: featDocumentSchema
 };
 
 // Convert schemas to JSON Schema for plugin registration
-export const backgroundJsonSchema = backgroundSchema.describe('D&D 5E Background');
-export const speciesJsonSchema = speciesSchema.describe('D&D 5E Species');
-export const featJsonSchema = featSchema.describe('D&D 5E Feat'); 
+export const backgroundJsonSchema = backgroundDataSchema.describe('D&D 5E Background');
+export const speciesJsonSchema = speciesDocumentSchema.describe('D&D 5E Species');
+export const featJsonSchema = featDocumentSchema.describe('D&D 5E Feat'); 

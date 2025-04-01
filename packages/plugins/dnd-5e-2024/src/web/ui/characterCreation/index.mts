@@ -11,8 +11,8 @@ import { CharacterCreationFormData } from './formSchema.mjs';
 import { registerDocumentHelpers } from '../../helpers/document-helpers.mjs';
 
 // Import shared types from the plugin
-import { ICharacterClass } from '../../../shared/types/character-class.mjs';
-import { IBackground, ISpecies } from '../../../shared/types/vttdocument.mjs';
+import { ICharacterClassDocument } from '../../../shared/types/character-class.mjs';
+import { IBackgroundDocument, ISpeciesDocument } from '../../../shared/types/vttdocument.mjs';
 
 // Import the document cache service
 import { getClass } from '../../document-cache.mjs';
@@ -32,9 +32,9 @@ interface CharacterCreationState {
   // Additional fields for data that doesn't belong in the form schema
   name?: string;
   // Document cache fields
-  classDocument: ICharacterClass | null;
-  speciesDocument: ISpecies | null;
-  backgroundDocument: IBackground | null;
+  classDocument: ICharacterClassDocument | null;
+  speciesDocument: ISpeciesDocument | null;
+  backgroundDocument: IBackgroundDocument | null;
 }
 
 /**
@@ -161,8 +161,8 @@ export class CharacterCreationComponent extends PluginComponent {
     if (target.name === 'class.name' && target.value) {
       try {
         // Fetch the class document using the document cache
-        const classDoc = await getClass(target.value, this.api);
-        this.state.classDocument = classDoc as ICharacterClass;
+        const classDoc = getClass(target.value);
+        this.state.classDocument = classDoc as ICharacterClassDocument;
         console.log('Class document updated:', this.state.classDocument);
       } catch (error) {
         console.error('Error fetching class document:', error);
@@ -641,7 +641,7 @@ export class CharacterCreationComponent extends PluginComponent {
       classes: [{
         name: formData.class.name,
         level: 1,
-        hitDiceType: this.state.classDocument?.hitdie || 'd8'
+        hitDiceType: this.state.classDocument?.data?.hitdie || 'd8'
       }],
       // Other fields will be added in subsequent steps
     };

@@ -1,4 +1,3 @@
-import type { IPluginAPI } from '../types/plugin-api.mjs';
 import { z } from 'zod';
 
 /**

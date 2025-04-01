@@ -5,7 +5,7 @@ import { pluginRegistry } from './plugin-registry.service.mjs';
 import { useAuthStore } from '../stores/auth.mjs';
 import { useItemStore } from '../stores/item.mjs';
 import type { IActorCreateData, IActorUpdateData, IItemCreateData, IItemUpdateData } from '@dungeon-lab/shared/dist/index.mjs';
-
+import api from '../network/axios.mjs';
 /**
  * Implementation of the Plugin API for the web client
  */
@@ -265,9 +265,6 @@ export class PluginAPI implements IPluginAPI {
    */
   async searchDocuments(params: Record<string, string>): Promise<unknown[]> {
     try {
-      // Import the axios instance dynamically to avoid circular dependencies
-      const { default: api } = await import('../network/axios.mjs');
-      
       const response = await api.get('/api/documents', { params });
       
       if (!Array.isArray(response.data)) {

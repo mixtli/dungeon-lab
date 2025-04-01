@@ -4,7 +4,7 @@ import { validateActorData, validateItemData, validateVTTDocumentData } from '..
 import manifest from '../../manifest.json' with { type: 'json' };
 
 // Import document cache
-import { initDocumentCache, preloadAllDocuments } from './document-cache.mjs';
+import { initializeCache, preloadAllDocuments } from './document-cache.mjs';
 
 // Import components
 import CharacterCreationComponent from './ui/characterCreation/index.mjs';
@@ -34,8 +34,7 @@ class DnD5e2024WebPlugin extends WebPlugin implements IGameSystemPluginWeb {
   private async initializePlugin(): Promise<void> {
     try {
       // Initialize the document cache with the plugin API
-      initDocumentCache(this.api);
-      
+      initializeCache(this.api);
       // Register components
       this.registerComponents();
       
@@ -54,7 +53,7 @@ class DnD5e2024WebPlugin extends WebPlugin implements IGameSystemPluginWeb {
   private preloadDocuments(): void {
     preloadAllDocuments()
       .then(() => console.log('D&D 5e 2024 documents preloaded successfully'))
-      .catch(error => console.error('Error preloading D&D 5e 2024 documents:', error));
+      .catch((error: Error) => console.error('Error preloading D&D 5e 2024 documents:', error));
   }
 
   /**

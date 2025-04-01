@@ -34,10 +34,3 @@ export const vttDocumentUpdateSchema = vttDocumentSchema
 export type IVTTDocument = z.infer<typeof vttDocumentSchema> & ApiFields;
 export type IVTTDocumentCreateData = z.infer<typeof vttDocumentCreateSchema>;
 export type IVTTDocumentUpdateData = z.infer<typeof vttDocumentUpdateSchema>;
-
-// Plugin schema registry interface
-export interface IPluginSchemaRegistry {
-  registerSchema(pluginId: string, documentType: string, schema: z.ZodType<any>): void;
-  getSchema(pluginId: string, documentType: string): z.ZodType<any> | undefined;
-  validateData(pluginId: string, documentType: string, data: any): Promise<boolean>;
-} 
