@@ -30,7 +30,7 @@ mongooseSchema.pre('save', async function(this: mongoose.Document & IVTTDocument
 /**
  * VTT Document interface extending the base IVTTDocument
  */
-export interface VTTDocumentDocument extends Omit<IVTTDocument, 'id'>, BaseDocument {}
+export interface VTTDocument extends Omit<IVTTDocument, 'id'>, BaseDocument {}
 
 // Create and export model
-export const VTTDocument = mongoose.model<VTTDocumentDocument>('VTTDocument', mongooseSchema); 
+export const VTTDocument = mongoose.model<VTTDocument>('VTTDocument', mongooseSchema); 
