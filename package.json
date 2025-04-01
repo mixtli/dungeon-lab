@@ -17,7 +17,7 @@
     "build:web": "cd packages/web && npm run build",
     "test": "npm run test --workspaces",
     "lint": "npm run lint --workspaces",
-     "find-deadcode": "ts-prune",
+    "find-deadcode": "ts-prune",
     "plugins:build": "for dir in packages/plugins/dnd-5e-2024; do if [ -d \"$dir\" ]; then cd \"$dir\" && npm run build && cd ../../..; fi done",
     "plugins:dev": "for dir in packages/plugins/dnd-5e-2024; do if [ -d \"$dir\" ]; then cd \"$dir\" && npm run dev & fi done",
     "plugins:clean": "for dir in packages/plugins/dnd-5e-2024; do if [ -d \"$dir\" ]; then cd \"$dir\" && npm run clean && cd ../../..; fi done",
@@ -51,6 +51,7 @@
     "@heroicons/vue": "^2.2.0",
     "@types/minio": "^7.1.0",
     "@zodyac/zod-mongoose": "^3.2.0",
+    "just-handlebars-helpers": "^1.0.19",
     "minio": "^8.0.4",
     "sharp": "^0.33.5",
     "uuid": "^11.1.0"

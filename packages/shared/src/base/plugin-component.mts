@@ -2,6 +2,7 @@ import { IPluginComponent } from '../types/plugin-component.mjs';
 import type { IPluginAPI } from '../types/plugin-api.mjs';
 import Handlebars from 'handlebars';
 import { z } from 'zod';
+import H from 'just-handlebars-helpers';
 
 // Import Handlebars types from the actual package
 import type { TemplateDelegate, RuntimeOptions } from 'handlebars';
@@ -27,8 +28,8 @@ export abstract class PluginComponent implements IPluginComponent {
     // Create a new instance of Handlebars for this component
     this.handlebars = Handlebars.create();
     
-    // Register common helpers
-    this.registerCommonHelpers();
+    // Register just-handlebars-helpers
+    H.registerHelpers(this.handlebars);
   }
 
   get isDebugMode(): boolean {
@@ -121,43 +122,17 @@ export abstract class PluginComponent implements IPluginComponent {
    */
   protected abstract getStyles(): string;
 
-  /**
-   * Register common Handlebars helpers
-   * Can be extended by derived classes to register additional helpers
-   */
-  protected registerCommonHelpers(): void {
-    // Compare two values for equality
-    this.handlebars.registerHelper('eq', function(a: any, b: any) {
-      return a === b;
-    });
-
-    // Logical not
-    this.handlebars.registerHelper('not', function(value: any) {
-      return !value;
-    });
-
-    // Logical and
-    this.handlebars.registerHelper('and', function(...args: any[]) {
-      // Remove the options hash from the args
-      const values = args.slice(0, -1);
-      return values.every(Boolean);
-    });
-
-    // Logical or
-    this.handlebars.registerHelper('or', function(...args: any[]) {
-      // Remove the options hash from the args
-      const values = args.slice(0, -1);
-      return values.some(Boolean);
-    });
-  }
-
-  /**
-   * Register component-specific Handlebars helpers
-   * Should be implemented by derived classes that need custom helpers
-   */
-  protected registerHelpers(): void {
-    // By default, just register common helpers
-    this.registerCommonHelpers();
+  private compileTemplate() {
+      if (!this.compiledTemplate) {
+        const template = this.getTemplate();
+        if (this.isDebugMode) {
+          console.log(`[${this.name}] Compiling template`, {
+            id: this.id,
+            template: template.substring(0, 100) + '...' // Log first 100 chars
+          });
+        }
+        this.compiledTemplate = this.handlebars.compile(template);
+      }
   }
 
   /**
@@ -174,20 +149,7 @@ export abstract class PluginComponent implements IPluginComponent {
     }
 
     try {
-      // Register helpers
-      this.registerHelpers();
-
-      // Compile template if not already compiled
-      if (!this.compiledTemplate) {
-        const template = this.getTemplate();
-        if (this.isDebugMode) {
-          console.log(`[${this.name}] Compiling template`, {
-            id: this.id,
-            template: template.substring(0, 100) + '...' // Log first 100 chars
-          });
-        }
-        this.compiledTemplate = this.handlebars.compile(template);
-      }
+      this.compileTemplate();
 
       // Add or update styles
       const styles = this.getStyles();
@@ -244,5 +206,13 @@ export abstract class PluginComponent implements IPluginComponent {
     
     // Return empty object for non-record inputs
     return {};
+  }
+
+  /**
+   * Register common Handlebars helpers
+   * Can be extended by derived classes to register additional helpers
+   */
+  protected registerCommonHelpers(): void {
+    // Using just-handlebars-helpers
   }
 } 
