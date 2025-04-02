@@ -360,13 +360,31 @@ export const documentHelpers = {
 };
 
 /**
- * Register all document helpers with a handlebars instance
+ * Register all document helpers with Handlebars
+ * @param handlebars The Handlebars instance
  */
-export function registerDocumentHelpers(handlebars: any): void {
-  // Register each helper with handlebars
-  Object.entries(documentHelpers).forEach(([name, helper]) => {
-    handlebars.registerHelper(name, helper);
-  });
-  
-  console.log('Document helpers registered with handlebars');
+export function registerDocumentHelpers(handlebars: typeof Handlebars): void {
+  // Register individual document getters
+  handlebars.registerHelper('getClass', documentHelpers.getClass);
+  handlebars.registerHelper('getBackground', documentHelpers.getBackground);
+  handlebars.registerHelper('getSpecies', documentHelpers.getSpecies);
+  handlebars.registerHelper('getFeat', documentHelpers.getFeat);
+
+  // Register name-based getters
+  handlebars.registerHelper('getClassByName', documentHelpers.getClassByName);
+  handlebars.registerHelper('getBackgroundByName', documentHelpers.getBackgroundByName);
+  handlebars.registerHelper('getSpeciesByName', documentHelpers.getSpeciesByName);
+  handlebars.registerHelper('getFeatByName', documentHelpers.getFeatByName);
+
+  // Register collection getters
+  handlebars.registerHelper('getAllClasses', () => getAllClasses());
+  handlebars.registerHelper('getAllBackgrounds', () => getAllBackgrounds());
+  handlebars.registerHelper('getAllSpecies', () => getAllSpecies());
+  handlebars.registerHelper('getAllFeats', () => getAllFeats());
+
+  // Register loaded checkers
+  handlebars.registerHelper('isClassLoaded', documentHelpers.isClassLoaded);
+  handlebars.registerHelper('isBackgroundLoaded', documentHelpers.isBackgroundLoaded);
+  handlebars.registerHelper('isSpeciesLoaded', documentHelpers.isSpeciesLoaded);
+  handlebars.registerHelper('isFeatLoaded', documentHelpers.isFeatLoaded);
 } 

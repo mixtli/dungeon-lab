@@ -3,7 +3,7 @@ Character Creation Form Template for D&D 5th Edition 2024
 This is used by the CharacterCreationComponent
 -->
 
-{{!-- <div><textarea rows="10" cols="50">{{ json this}}</textarea></div> --}}
+<div><textarea rows="10" cols="50">{{ json this}}</textarea></div>
 <div class="character-creation-container">
   <div class="form-steps">
     <div class="step {{#if (eq currentPage 'class-page')}}active{{/if}} {{#if (eq currentPage 'origin-page')}}completed{{/if}} {{#if (eq currentPage 'abilities-page')}}completed{{/if}} {{#if (eq currentPage 'details-page')}}completed{{/if}}">1. Class</div>
@@ -132,33 +132,61 @@ This is used by the CharacterCreationComponent
       <label for="character-species">Species:</label>
       <select id="character-species" name="origin.species" required>
         <option value="">-- Select Species --</option>
-        <option value="human" {{#if (eq formData.origin.species "human")}}selected{{/if}}>Human</option>
-        <option value="elf" {{#if (eq formData.origin.species "elf")}}selected{{/if}}>Elf</option>
-        <option value="dwarf" {{#if (eq formData.origin.species "dwarf")}}selected{{/if}}>Dwarf</option>
-        <option value="halfling" {{#if (eq formData.origin.species "halfling")}}selected{{/if}}>Halfling</option>
-        <option value="dragonborn" {{#if (eq formData.origin.species "dragonborn")}}selected{{/if}}>Dragonborn</option>
-        <option value="gnome" {{#if (eq formData.origin.species "gnome")}}selected{{/if}}>Gnome</option>
-        <option value="half-elf" {{#if (eq formData.origin.species "half-elf")}}selected{{/if}}>Half-Elf</option>
-        <option value="half-orc" {{#if (eq formData.origin.species "half-orc")}}selected{{/if}}>Half-Orc</option>
-        <option value="tiefling" {{#if (eq formData.origin.species "tiefling")}}selected{{/if}}>Tiefling</option>
+        {{#each (getAllSpecies)}}
+          <option value="{{this.id}}" {{#if (eq @root.formData.origin.species this.id)}}selected{{/if}}>{{this.name}}</option>
+        {{/each}}
       </select>
     </div>
     
     {{#if speciesDocument}}
     <div class="species-details">
       <h3>{{speciesDocument.name}}</h3>
-      <p>{{speciesDocument.description}}</p>
+      <p>{{speciesDocument.data.description}}</p>
       
       <div class="species-traits">
         <h4>Species Traits</h4>
         <ul>
-          <li><strong>Size:</strong> {{speciesDocument.size}}</li>
-          <li><strong>Speed:</strong> {{speciesDocument.speed}} feet</li>
-          {{#each speciesDocument.traits}}
+          <li><strong>Size:</strong> {{speciesDocument.data.size}}</li>
+          <li><strong>Speed:</strong> {{speciesDocument.data.speed}} feet</li>
+          {{#each speciesDocument.data.traits}}
             <li><strong>{{this.name}}:</strong> {{this.description}}</li>
           {{/each}}
         </ul>
       </div>
+
+      {{#if speciesDocument.data.subspecies}}
+        <div class="subspecies-section mt-4">
+          <h4 class="font-medium mb-2">Subspecies</h4>
+          <select name="origin.subspecies" id="subspecies" class="w-full p-2 border rounded">
+            <option value="">Select a Subspecies</option>
+            {{#each speciesDocument.data.subspecies}}
+              <option value="{{this.name}}" {{#if (eq @root.formData.origin.subspecies this.name)}}selected{{/if}}>
+                {{this.name}}
+              </option>
+            {{/each}}
+          </select>
+
+          {{#if ../formData.origin.subspecies}}
+            {{#with (find speciesDocument.data.subspecies "id" ../formData.origin.subspecies)}}
+              <div class="mt-3">
+                <p class="text-gray-700">{{this.description}}</p>
+                {{#if this.traits}}
+                  <div class="mt-2">
+                    <h5 class="font-medium mb-1">Subspecies Traits</h5>
+                    <ul class="list-disc pl-5">
+                      {{#each this.traits}}
+                        <li class="mb-2">
+                          <span class="font-medium">{{name}}:</span> {{description}}
+                        </li>
+                      {{/each}}
+                    </ul>
+                  </div>
+                {{/if}}
+              </div>
+            {{/with}}
+          {{/if}}
+        </div>
+      {{/if}}
     </div>
     {{/if}}
     
@@ -166,19 +194,11 @@ This is used by the CharacterCreationComponent
       <label for="character-background">Background:</label>
       <select id="character-background" name="origin.background" required>
         <option value="">-- Select Background --</option>
-        <option value="acolyte" {{#if (eq formData.origin.background "acolyte")}}selected{{/if}}>Acolyte</option>
-        <option value="charlatan" {{#if (eq formData.origin.background "charlatan")}}selected{{/if}}>Charlatan</option>
-        <option value="criminal" {{#if (eq formData.origin.background "criminal")}}selected{{/if}}>Criminal</option>
-        <option value="entertainer" {{#if (eq formData.origin.background "entertainer")}}selected{{/if}}>Entertainer</option>
-        <option value="folk-hero" {{#if (eq formData.origin.background "folk-hero")}}selected{{/if}}>Folk Hero</option>
-        <option value="guild-artisan" {{#if (eq formData.origin.background "guild-artisan")}}selected{{/if}}>Guild Artisan</option>
-        <option value="hermit" {{#if (eq formData.origin.background "hermit")}}selected{{/if}}>Hermit</option>
-        <option value="noble" {{#if (eq formData.origin.background "noble")}}selected{{/if}}>Noble</option>
-        <option value="outlander" {{#if (eq formData.origin.background "outlander")}}selected{{/if}}>Outlander</option>
-        <option value="sage" {{#if (eq formData.origin.background "sage")}}selected{{/if}}>Sage</option>
-        <option value="sailor" {{#if (eq formData.origin.background "sailor")}}selected{{/if}}>Sailor</option>
-        <option value="soldier" {{#if (eq formData.origin.background "soldier")}}selected{{/if}}>Soldier</option>
-        <option value="urchin" {{#if (eq formData.origin.background "urchin")}}selected{{/if}}>Urchin</option>
+        {{#each (getAllBackgrounds)}}
+          <option value="{{this.id}}" {{#if (eq @root.formData.origin.background this.id)}}selected{{/if}}>
+            {{this.name}}
+          </option>
+        {{/each}}
       </select>
     </div>
     

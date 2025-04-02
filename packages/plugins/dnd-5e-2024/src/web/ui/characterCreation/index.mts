@@ -7,7 +7,7 @@ import { z } from 'zod';
  */
 import template from './template.hbs?raw';
 import styles from './styles.css?raw';
-import { registerHelpers } from './helpers.js';
+import { registerHelpers } from './helpers.mjs';
 import { CharacterCreationFormData } from './formSchema.mjs';
 
 // Import document helpers
@@ -18,7 +18,7 @@ import { ICharacterClassDocument } from '../../../shared/types/character-class.m
 import { IBackgroundDocument, ISpeciesDocument } from '../../../shared/types/vttdocument.mjs';
 
 // Import the document cache service
-import { getClass } from '../../document-cache.mjs';
+import { getClass, getDocumentById } from '../../document-cache.mjs';
 import {merge} from 'ts-deepmerge'
 
 
@@ -155,23 +155,29 @@ export class CharacterCreationComponent extends PluginComponent {
     if (!target || !target.name) return;
     
     console.log('handleFormChange', target.name, target.value);
-
-    // Handle class selection change
-    if (target.name === 'class.id' && target.value) {
-      this.handleClassChange(target);
-    }
     
     // Process the form data
     const data = this.readFormData();
     
     // Simply replace the entire formData state with the new data
-    this.updateState({formData: data});
-    
-    console.log('Form data updated:', this.state.formData);
-    console.log('this.state', this.state);
-    console.log('Form state:', this.getState());
-    
-    // Trigger a re-render 
+    this.updateState({ formData: data });
+
+    // Handle class selection change after state is updated
+    if (target.name === 'class.id' && target.value) {
+      this.handleClassChange();
+    }
+
+    // Handle species selection change after state is updated
+    if (target.name === 'origin.species' && target.value) {
+      this.handleSpeciesChange();
+    }
+
+    // Handle background selection change after state is updated
+    if (target.name === 'origin.background' && target.value) {
+      await this.handleBackgroundChange();
+    }
+
+    // Re-render the template with updated data
     this.render(this.getState());
   }
 
@@ -203,23 +209,50 @@ export class CharacterCreationComponent extends PluginComponent {
     return data;
   }
 
-  private handleClassChange(target: HTMLInputElement | HTMLSelectElement) {
-    try {
-      const classDoc = getClass(target.value);
-
-      // Update the hidden class name input field
-      const classNameInput = this.form?.querySelector('input[name="class.name"]') as HTMLInputElement;
-      if (classNameInput && classDoc) {
-        classNameInput.value = classDoc.name;
-      }
-
+  private handleClassChange() {
+    const classId = this.state.formData.class?.id;
+    if (!classId) {
       this.state.classDocument = null;
-      this.updateState({ classDocument: classDoc as ICharacterClassDocument });
-      console.log('Class document updated:', this.state.classDocument);
-    } catch (error) {
-      console.error('Error fetching class document:', error);
-      this.updateState({ classDocument: null });
+      return;
     }
+
+    const classDoc = getClass(classId);
+    this.state.classDocument = null;
+    this.updateState({ 
+      classDocument: classDoc as ICharacterClassDocument,
+      formData: { class: { name: classDoc?.name } }
+    });
+    console.log('Class document updated:', this.state.classDocument);
+  }
+
+  private handleSpeciesChange() {
+    const speciesId = this.state.formData.origin?.species;
+    if (!speciesId) {
+      this.state.speciesDocument = null;
+      return;
+    }
+
+    const speciesDoc = getDocumentById('species', speciesId);
+    this.state.speciesDocument = null;
+    this.updateState({ 
+      speciesDocument: speciesDoc as ISpeciesDocument
+    });
+    console.log('Species document updated:', this.state.speciesDocument);
+  }
+
+  private handleBackgroundChange(): void {
+    const backgroundId = this.state.formData.origin?.background;
+    if (!backgroundId) {
+      this.state.backgroundDocument = null;
+      return;
+    }
+
+    const backgroundDoc = getDocumentById('background', backgroundId);
+    this.state.backgroundDocument = null;
+    this.updateState({ 
+      backgroundDocument: backgroundDoc as IBackgroundDocument
+    });
+    console.log('Background document updated:', this.state.backgroundDocument);
   }
 
   private handleNavigation(event: Event): void {
