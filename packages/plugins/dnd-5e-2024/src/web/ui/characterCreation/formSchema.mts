@@ -32,7 +32,7 @@ export const characterCreationFormSchema = z.object({
     bonusPlusTwo: z.string().optional(),
     bonusPlusOne: z.string().optional(),
     selectedLanguages: z.array(z.string()).optional()
-  }).optional(),
+  }),
   
   // Ability Scores
   abilities: z.object({
@@ -62,7 +62,7 @@ export const characterCreationFormSchema = z.object({
       wisdom: z.number().int().min(3).max(18).optional(),
       charisma: z.number().int().min(3).max(18).optional()
     }).optional(),
-  }).optional(),
+  }),
   
   // Equipment
   equipment: z.object({
@@ -90,7 +90,7 @@ export const characterCreationFormSchema = z.object({
     backstory: z.string().optional(),
     allies: z.string().optional(),
     additionalFeatures: z.string().optional()
-  }).optional(),
+  })
 });
 
 // Export types

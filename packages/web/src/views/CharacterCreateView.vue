@@ -24,7 +24,6 @@ const error = ref<string | null>(null);
 const plugin = pluginRegistry.getGameSystemPlugin(activeGameSystemId.value) as IGameSystemPluginWeb;
 // Step management
 const currentStep = ref(1);
-const totalSteps = 2;
 const isSubmitting = ref(false);
 
 // Basic info form data
