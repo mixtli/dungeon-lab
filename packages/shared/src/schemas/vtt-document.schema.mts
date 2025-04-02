@@ -7,6 +7,7 @@ export const vttDocumentSchema = z.object({
   name: z.string().min(1).max(255),
   pluginId: z.string().min(1),
   documentType: z.string().min(1),
+  description: z.string().min(1).max(1024),
   data: z.any(), // This will be validated against plugin-specific schema
   createdBy: zId('User'),
   updatedBy: zId('User'),

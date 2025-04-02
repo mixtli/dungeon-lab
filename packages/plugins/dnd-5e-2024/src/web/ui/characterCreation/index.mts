@@ -2,6 +2,9 @@
 import { PluginComponent } from '@dungeon-lab/shared/base/plugin-component.mjs';
 import { IPluginAPI } from '@dungeon-lab/shared/types/plugin-api.mjs';
 import { z } from 'zod';
+/**
+ * @param { CharacterCreationState } context
+ */
 import template from './template.hbs?raw';
 import styles from './styles.css?raw';
 import { registerHelpers } from './helpers.js';
@@ -16,21 +19,15 @@ import { IBackgroundDocument, ISpeciesDocument } from '../../../shared/types/vtt
 
 // Import the document cache service
 import { getClass } from '../../document-cache.mjs';
+import {merge} from 'ts-deepmerge'
+
 
 // Define component state interface
 interface CharacterCreationState {
-  formData: {
-    class?: Partial<CharacterCreationFormData['class']>;
-    origin?: Partial<CharacterCreationFormData['origin']>;
-    abilities?: Partial<CharacterCreationFormData['abilities']>;
-    details?: Partial<CharacterCreationFormData['details']>;
-    equipment?: Partial<CharacterCreationFormData['equipment']>;
-  };
+  formData: Partial<CharacterCreationFormData>;
   currentPage: string;
   validationErrors: Record<string, string[]>;
   isValid: boolean;
-  // Additional fields for data that doesn't belong in the form schema
-  name?: string;
   // Document cache fields
   classDocument: ICharacterClassDocument | null;
   speciesDocument: ISpeciesDocument | null;
@@ -78,10 +75,6 @@ export class CharacterCreationComponent extends PluginComponent {
       
       // Set up one-time form event handlers
       this.setupFormHandlers();
-      
-      // Set up initial template-specific handlers
-      this.setupTemplateHandlers();
-      
       console.log('Form handlers set up');
       
       // Render the initial state
@@ -116,7 +109,7 @@ export class CharacterCreationComponent extends PluginComponent {
    * Set up handlers for elements within our template
    * These need to be reattached after each render
    */
-  private setupTemplateHandlers(): void {
+  protected setupTemplateHandlers(): void {
     if (!this.container) {
       console.error('Container not available for template handlers');
       return;
@@ -126,6 +119,12 @@ export class CharacterCreationComponent extends PluginComponent {
     
     // Set up ability score controls (these have special handling)
     this.setupAbilityScoreControls();
+
+    // Set up skill proficiency handlers
+    const skillCheckboxes = this.container.querySelectorAll('.skill-checkbox');
+    skillCheckboxes.forEach(checkbox => {
+      checkbox.addEventListener('change', this.handleSkillProficiencyChange.bind(this));
+    });
   }
 
   /**
@@ -155,45 +154,18 @@ export class CharacterCreationComponent extends PluginComponent {
     const target = event.target as HTMLInputElement | HTMLSelectElement;
     if (!target || !target.name) return;
     
-    console.log('Form change:', target.name, target.value);
+    console.log('handleFormChange', target.name, target.value);
 
     // Handle class selection change
-    if (target.name === 'class.name' && target.value) {
-      try {
-        // Fetch the class document using the document cache
-        const classDoc = getClass(target.value);
-        this.state.classDocument = classDoc as ICharacterClassDocument;
-        console.log('Class document updated:', this.state.classDocument);
-      } catch (error) {
-        console.error('Error fetching class document:', error);
-        this.state.classDocument = null;
-      }
+    if (target.name === 'class.id' && target.value) {
+      this.handleClassChange(target);
     }
     
     // Process the form data
-    const formData = new FormData(this.form!);
-    const flatData: Record<string, string | string[]> = {};
-    
-    // Process form data, handling arrays correctly
-    for (const [key, value] of formData.entries()) {
-      if (key.endsWith('selectedSkills') || key.endsWith('selectedTools') || key.endsWith('selectedAbilityBoosts')) {
-        if (!flatData[key]) {
-          flatData[key] = [];
-        }
-        (flatData[key] as string[]).push(value as string);
-      } else {
-        flatData[key] = value as string;
-      }
-    }
-    console.log('Flattened form data:', flatData);
-    
-    // Unflatten the data
-    const data = unflatten(flatData, { object: true }) as Partial<CharacterCreationFormData>;
-    
-    console.log('Unflattened form data:', data);
+    const data = this.readFormData();
     
     // Simply replace the entire formData state with the new data
-    this.state.formData = data;
+    this.updateState({formData: data});
     
     console.log('Form data updated:', this.state.formData);
     console.log('this.state', this.state);
@@ -201,15 +173,56 @@ export class CharacterCreationComponent extends PluginComponent {
     
     // Trigger a re-render 
     this.render(this.getState());
-    
-    // Re-attach event handlers after render
-    this.setupTemplateHandlers();
   }
-  
-  /**
-   * Handle form click events in a consolidated way
-   */
-  private handleFormClick(event: Event): void {
+
+  private readFormData() {
+    const formData = new FormData(this.form!);
+    const flatData: Record<string, string | string[]> = {};
+
+    // Process form data, handling arrays correctly
+    for (const [key, value] of formData.entries()) {
+      flatData[key] = value as string;
+    }
+    console.log('Flattened form data:', flatData);
+
+    // Unflatten the data
+    const data = unflatten(flatData) as Partial<CharacterCreationFormData>;
+
+    // Clean up arrays by removing null values
+    if (data.class?.selectedSkills) {
+      data.class.selectedSkills = data.class.selectedSkills.filter(Boolean);
+    }
+    if (data.origin?.selectedAbilityBoosts) {
+      data.origin.selectedAbilityBoosts = data.origin.selectedAbilityBoosts.filter(Boolean);
+    }
+    if (data.origin?.selectedLanguages) {
+      data.origin.selectedLanguages = data.origin.selectedLanguages.filter(Boolean);
+    }
+
+    console.log('Unflattened and cleaned form data:', data);
+    return data;
+  }
+
+  private handleClassChange(target: HTMLInputElement | HTMLSelectElement) {
+    try {
+      const classDoc = getClass(target.value);
+
+      // Update the hidden class name input field
+      const classNameInput = this.form?.querySelector('input[name="class.name"]') as HTMLInputElement;
+      if (classNameInput && classDoc) {
+        classNameInput.value = classDoc.name;
+      }
+
+      this.state.classDocument = null;
+      this.updateState({ classDocument: classDoc as ICharacterClassDocument });
+      console.log('Class document updated:', this.state.classDocument);
+    } catch (error) {
+      console.error('Error fetching class document:', error);
+      this.updateState({ classDocument: null });
+    }
+  }
+
+  private handleNavigation(event: Event): void {
     const target = event.target as HTMLElement;
     if (!target) return;
     
@@ -264,40 +277,14 @@ export class CharacterCreationComponent extends PluginComponent {
         window.scrollTo(0, 0);
       }
     }
-    
-    // Handle equipment selection
-    const radioInput = target.closest('input[type="radio"]') as HTMLInputElement | null;
-    const label = target.closest('label') as HTMLLabelElement | null;
-    let radioButton: HTMLInputElement | null = null;
-    
-    if (radioInput && radioInput.name === 'class.selectedEquipment') {
-      radioButton = radioInput;
-    } else if (label && label.control instanceof HTMLInputElement && 
-               label.control.type === 'radio' && 
-               label.control.name === 'class.selectedEquipment') {
-      radioButton = label.control;
-    }
-    
-    if (radioButton) {
-      const formData = this.getFormData();
-      if (!formData.class) {
-        formData.class = { name: '' };
-      }
-      
-      formData.class.selectedEquipment = radioButton.value as 'A' | 'B';
-      this.updateFormData(formData);
-      
-      // Render with updated state
-      this.render(this.getState());
-      
-      // Re-attach event handlers
-      this.setupTemplateHandlers();
-      
-      // Prevent default only if not clicking directly on the radio
-      if (target !== radioButton) {
-        event.preventDefault();
-      }
-    }
+  }
+  
+  /**
+   * Handle form click events in a consolidated way
+   */
+  private handleFormClick(event: Event): void {
+    console.log('handleFormClick', event.target);
+    this.handleNavigation(event);
   }
   
   /**
@@ -353,8 +340,6 @@ export class CharacterCreationComponent extends PluginComponent {
         // Render with updated state
         this.render(this.getState());
         
-        // Re-attach event handlers
-        this.setupTemplateHandlers();
       }
     } else if (!isPlus && currentValue > 8) {
       // Calculate points refunded
@@ -390,8 +375,6 @@ export class CharacterCreationComponent extends PluginComponent {
       // Render with updated state
       this.render(this.getState());
       
-      // Re-attach event handlers
-      this.setupTemplateHandlers();
     }
   }
   
@@ -453,8 +436,6 @@ export class CharacterCreationComponent extends PluginComponent {
     // Render with updated state
     this.render(this.getState());
     
-    // Re-attach event handlers
-    this.setupTemplateHandlers();
   }
   
   /**
@@ -496,109 +477,54 @@ export class CharacterCreationComponent extends PluginComponent {
     
     switch (pageId) {
       case 'class-page':
-        // Check if class is selected
-        const classSelect = this.form.querySelector('select[name="class.name"]') as HTMLSelectElement;
-        if (!classSelect || !classSelect.value) {
-          alert('Please select a class before continuing.');
+        // Validate class page data using zod schema
+        const classSchema = characterCreationFormSchema.shape.class.required()
+        const classResult = classSchema.safeParse(this.state.formData.class);
+        
+        if (!classResult.success) {
+          // Get first error message
+          const error = classResult.error.errors[0];
+          alert(error.message);
           return false;
         }
-        
-        // If class has skill choices, check if enough skills are selected
-        const skillCheckboxes = this.form.querySelectorAll('input[name="class.selectedSkills"]:checked');
-        const skillChoicesText = this.form.querySelector('.skill-section p');
-        
-        if (skillChoicesText) {
-          const match = skillChoicesText.textContent?.match(/Choose (\d+) from/);
-          if (match) {
-            const requiredSkills = parseInt(match[1], 10);
-            if (skillCheckboxes.length !== requiredSkills) {
-              alert(`Please select exactly ${requiredSkills} skills.`);
-              return false;
-            }
-          }
-        }
-        
-        // If class has equipment choices, check if an option is selected
-        const equipmentRadios = this.form.querySelectorAll('input[name="class.selectedEquipment"]:checked');
-        if (this.form.querySelector('.equipment-choice') && equipmentRadios.length === 0) {
-          alert('Please select an equipment option.');
-          return false;
-        }
-        
         return true;
-        
+
       case 'origin-page':
-        // Check if species and background are selected
-        const speciesSelect = this.form.querySelector('#character-species') as HTMLSelectElement;
-        const backgroundSelect = this.form.querySelector('#character-background') as HTMLSelectElement;
+        // Validate origin page data using zod schema
+        const originSchema = characterCreationFormSchema.shape.origin.required();
+        const originResult = originSchema.safeParse(this.state.formData.origin);
         
-        if (!speciesSelect || !speciesSelect.value) {
-          alert('Please select a species before continuing.');
+        if (!originResult.success) {
+          const error = originResult.error.errors[0];
+          alert(error.message);
           return false;
         }
-        
-        if (!backgroundSelect || !backgroundSelect.value) {
-          alert('Please select a background before continuing.');
-          return false;
-        }
-        
-        // Check if ability boosts are selected
-        const abilityBoostCheckboxes = this.form.querySelectorAll('input[name="origin.selectedAbilityBoosts"]:checked');
-        const boostPlusTwo = this.form.querySelector('select[name="origin.bonusPlusTwo"]') as HTMLSelectElement;
-        const boostPlusOne = this.form.querySelector('select[name="origin.bonusPlusOne"]') as HTMLSelectElement;
-        
-        const hasTripleBoosts = abilityBoostCheckboxes.length === 3;
-        const hasPlusTwoPlusOne = boostPlusTwo && boostPlusTwo.value && boostPlusOne && boostPlusOne.value;
-        
-        if (!hasTripleBoosts && !hasPlusTwoPlusOne) {
-          alert('Please select your ability score boosts.');
-          return false;
-        }
-        
         return true;
-        
+
       case 'abilities-page':
-        // Check if ability scores are set based on selected method
-        const methodRadios = this.form.querySelectorAll('input[name="abilities.method"]:checked');
-        if (!methodRadios.length) {
-          alert('Please select an ability score method.');
+        // Validate abilities page data using zod schema
+        const abilitiesSchema = characterCreationFormSchema.shape.abilities.required();
+        const abilitiesResult = abilitiesSchema.safeParse(this.state.formData.abilities);
+        
+        if (!abilitiesResult.success) {
+          const error = abilitiesResult.error.errors[0];
+          alert(error.message);
           return false;
         }
-        
-        const method = (methodRadios[0] as HTMLInputElement).value;
-        
-        if (method === 'standard') {
-          // Check if all standard array values are assigned
-          const standardSelects = this.form.querySelectorAll('select[name^="abilities.standard."]');
-          const selectedValues = Array.from(standardSelects)
-            .map(select => (select as HTMLSelectElement).value)
-            .filter(Boolean);
-          
-          if (selectedValues.length !== 6) {
-            alert('Please assign all six ability scores.');
-            return false;
-          }
-          
-          // Check for duplicates
-          const uniqueValues = new Set(selectedValues);
-          if (uniqueValues.size !== 6) {
-            alert('Each value in the standard array should be used exactly once.');
-            return false;
-          }
-        }
-        
         return true;
-        
+
       case 'details-page':
-        // Check if alignment is selected
-        const alignmentRadios = this.form.querySelectorAll('input[name="details.alignment"]:checked');
-        if (!alignmentRadios.length) {
-          alert('Please select an alignment.');
+        // Validate details page data using zod schema
+        const detailsSchema = characterCreationFormSchema.shape.details.required();
+        const detailsResult = detailsSchema.safeParse(this.state.formData.details);
+        
+        if (!detailsResult.success) {
+          const error = detailsResult.error.errors[0];
+          alert(error.message);
           return false;
         }
-        
         return true;
-        
+
       default:
         return true;
     }
@@ -639,7 +565,7 @@ export class CharacterCreationComponent extends PluginComponent {
   translateFormData(formData: CharacterCreationFormData): Record<string, unknown> {
     return {
       classes: [{
-        name: formData.class.name,
+        name: formData.class!.name,
         level: 1,
         hitDiceType: this.state.classDocument?.data?.hitdie || 'd8'
       }],
@@ -739,14 +665,61 @@ export class CharacterCreationComponent extends PluginComponent {
    * Set the current page
    */
   setCurrentPage(page: string): void {
-    this.state.currentPage = page;
+    this.updateState({currentPage: page});
   }
   
   /**
    * Get the current state
    */
   getState(): CharacterCreationState {
+    const state = sessionStorage.getItem('characterCreationState');
+    if (state) {
+      this.state = JSON.parse(state) as CharacterCreationState;
+    }
     return this.state;
+  }
+  updateState(state: Partial<CharacterCreationState>): void {
+    this.state = merge.withOptions({mergeArrays: false }, this.state, state) as CharacterCreationState;
+    sessionStorage.setItem('characterCreationState', JSON.stringify(this.state));
+  }
+
+  /**
+   * Handle skill proficiency selection changes
+   * Enforces the maximum number of selections based on class proficiency choices
+   */
+  private handleSkillProficiencyChange(event: Event): void {
+    console.log('handleSkillProficiencyChange called');
+    const checkbox = event.target as HTMLInputElement;
+    if (!checkbox || !this.state.classDocument) return;
+
+    const skillChoices = this.state.classDocument.data.proficiencies?.skills || [];
+    const choiceRule = skillChoices.find(choice => choice.type === 'choice');
+    
+    if (!choiceRule) return;
+
+    // Get currently selected skills
+    const selectedSkills = this.state.formData.class?.selectedSkills || [];
+    
+    if (checkbox.checked) {
+      // If trying to select more than allowed, prevent the selection
+      if (selectedSkills.length >= choiceRule.count) {
+        event.preventDefault();
+        checkbox.checked = false;
+        return;
+      }
+      
+      // Check if the skill is in the allowed options
+      if (!choiceRule.options.includes(checkbox.value)) {
+        event.preventDefault();
+        checkbox.checked = false;
+        return;
+      }
+    }
+
+    // Update the form data through the existing change handler
+    // This will trigger handleFormChange which will update the state
+    //const changeEvent = new Event('change', { bubbles: true });
+    //checkbox.dispatchEvent(changeEvent);
   }
 }
 

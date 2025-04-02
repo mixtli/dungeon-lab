@@ -16,8 +16,10 @@ const purchasedItemSchema = z.object({
 // Form data schema - matches the structure of form data after unflatten() is called
 export const characterCreationFormSchema = z.object({
   // Class Selection
+  name: z.string(),
   class: z.object({
-    name: z.string(),
+    id: z.string().optional(),
+    name: z.string().optional(),
     selectedSkills: z.array(z.string()).optional(),
     selectedEquipment: z.enum(['A', 'B']).optional()
   }),

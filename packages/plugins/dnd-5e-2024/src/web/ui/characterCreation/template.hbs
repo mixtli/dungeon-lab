@@ -3,8 +3,7 @@ Character Creation Form Template for D&D 5th Edition 2024
 This is used by the CharacterCreationComponent
 -->
 
-<div>{{ json formData }}</div>
-
+{{!-- <div><textarea rows="10" cols="50">{{ json this}}</textarea></div> --}}
 <div class="character-creation-container">
   <div class="form-steps">
     <div class="step {{#if (eq currentPage 'class-page')}}active{{/if}} {{#if (eq currentPage 'origin-page')}}completed{{/if}} {{#if (eq currentPage 'abilities-page')}}completed{{/if}} {{#if (eq currentPage 'details-page')}}completed{{/if}}">1. Class</div>
@@ -16,50 +15,46 @@ This is used by the CharacterCreationComponent
   <!-- Form page: Class selection -->
   <div id="class-page" class="form-page {{#if (eq currentPage 'class-page')}}active{{/if}}">
     <h2>Choose a Class</h2>
-    <p>Your character's class represents their primary adventuring profession and specialization.</p>
+    <p class="page-description">Your character's class represents their primary adventuring profession and specialization.</p>
 
-    <!-- Debug class data -->
-    <div style="background-color: #f7f7f7; padding: 10px; margin: 10px 0; font-family: monospace; font-size: 12px;">
-      <p>Class name: {{#if formData.class}}{{formData.class.name}}{{else}}none selected{{/if}}</p>
-      <p>Class document: {{#if classDocument}}Found{{else}}Not found{{/if}}</p>
-    </div>
-    <div class="form-group">
+    <div class="form-group class-select-group">
       <label for="character-class">Class:</label>
-      <select id="character-class" name="class.name" required>
+      <select id="character-class" name="class.id" class="class-select" required>
         <option value="">-- Select Class --</option>
         {{#each (getAllClasses)}}
-          <option value="{{this.id}}" {{#if (eq formData.class.name this.name)}}selected{{/if}}>{{this.name}}</option>
+          <option value="{{this.id}}" {{#if (eq @root.formData.class.id this.id)}}selected{{/if}}>{{this.name}}</option>
         {{/each}}
       </select>
     </div>
 
     {{#if classDocument}}
+    <input type="hidden" name="class.name" value="{{classDocument.name}}">
     <div class="class-details">
-      <h3>{{formData.class.name}}</h3>
-      <p class="class-description">{{classDocument.description}}</p>
+      <h3>Core {{classDocument.name}} Traits</h3>
       
       <div class="class-traits">
-        <h4>Class Features</h4>
-        <ul>
-          <li><strong>Hit Die:</strong> {{classDocument.hitDie}}</li>
-          <li><strong>Primary Ability:</strong> {{join classDocument.primaryAbility ", "}}</li>
-          <li><strong>Saving Throws:</strong> {{join classDocument.savingThrows ", "}}</li>
-          <li><strong>Armor Proficiencies:</strong> {{join classDocument.proficiencies.armor ", "}}</li>
-          <li><strong>Weapon Proficiencies:</strong> {{join classDocument.proficiencies.weapons ", "}}</li>
-          <li><strong>Tool Proficiencies:</strong> {{join classDocument.proficiencies.tools ", "}}</li>
-        </ul>
+        <table class="traits-table">
+          <tbody>
+            <tr><th>Hit Die</th><td>{{classDocument.data.hitdie}}</td></tr>
+            <tr><th>Primary Ability</th><td>{{join classDocument.data.primaryability ", "}}</td></tr>
+            <tr><th>Saving Throws</th><td>{{join classDocument.data.savingthrows ", "}}</td></tr>
+            <tr><th>Armor Proficiencies</th><td>{{join classDocument.data.proficiencies.armor ", "}}</td></tr>
+            <tr><th>Weapon Proficiencies</th><td>{{join classDocument.data.proficiencies.weapons ", "}}</td></tr>
+            <tr><th>Tool Proficiencies</th><td>{{join classDocument.data.proficiencies.tools ", "}}</td></tr>
+          </tbody>
+        </table>
       </div>
       
-      {{#each classDocument.proficiencies.skills}}
+      {{#each classDocument.data.proficiencies.skills}}
         <div class="skill-section">
           <h4>Skill Proficiencies</h4>
           <p>Choose {{this.count}} from the following skills:</p>
           <div class="skill-options">
             {{#each this.options}}
               <div class="skill-checkbox">
-                <input type="checkbox" id="skill-{{this}}" name="class.selectedSkills" 
-                       value="{{this}}" 
-                       {{#if (includes ../../../formData.class.selectedSkills this)}}checked{{/if}}>
+                <input type="checkbox" id="skill-{{this}}" name="class.selectedSkills.{{@index}}" 
+                       value="{{this}}" class="skill-checkbox" 
+                       {{#if (includes ../../formData.class.selectedSkills this)}}checked{{/if}}>
                 <label for="skill-{{this}}">{{capitalize this}}</label>
               </div>
             {{/each}}
@@ -67,37 +62,32 @@ This is used by the CharacterCreationComponent
         </div>
       {{/each}}
       
-      {{#if classDocument.equipment}}
-        <div class="equipment-choice">
+      {{#if classDocument.data.equipment}}
+        <div class="equipment-section">
           <h4>Starting Equipment</h4>
           <p>Choose one of the following equipment options:</p>
           
-          <div class="equipment-options">
-            <div class="equipment-option">
-              <input type="radio" id="equipment-A" name="class.selectedEquipment" 
-                     value="A" {{#if (eq formData.class.selectedEquipment "A")}}checked{{/if}}>
-              <label for="equipment-A">
-                <strong>Option A:</strong>
-                <ul>
-                  {{#each classDocument.equipment.choices}}
-                    <li>{{this.item}} {{#if this.quantity}}({{this.quantity}}){{/if}}</li>
-                  {{/each}}
-                </ul>
-              </label>
-            </div>
-            
-            <div class="equipment-option">
-              <input type="radio" id="equipment-B" name="class.selectedEquipment" 
-                     value="B" {{#if (eq formData.class.selectedEquipment "B")}}checked{{/if}}>
-              <label for="equipment-B">
-                <strong>Option B:</strong>
-                <ul>
-                  {{#each classDocument.equipment.choices}}
-                    <li>{{this.item}} {{#if this.quantity}}({{this.quantity}}){{/if}}</li>
-                  {{/each}}
-                </ul>
-              </label>
-            </div>
+          <div class="equipment-options choice-row">
+            {{#each classDocument.data.equipment.options as |optionList optionKey|}}
+              <div class="choice-option">
+                <input type="radio" id="equipment-{{optionKey}}" name="class.selectedEquipment" 
+                       value="{{optionKey}}" {{#if (eq ../formData.class.selectedEquipment optionKey)}}checked{{/if}}>
+                <label for="equipment-{{optionKey}}">
+                  <strong>Option {{optionKey}}</strong>
+                  <ul class="equipment-list">
+                    {{#each optionList}}
+                      <li>
+                        {{#if this.item}}
+                          {{this.item}} {{#if this.quantity}}({{this.quantity}}){{/if}}
+                        {{else if this.gold}}
+                          {{this.gold}} gold pieces
+                        {{/if}}
+                      </li>
+                    {{/each}}
+                  </ul>
+                </label>
+              </div>
+            {{/each}}
           </div>
         </div>
       {{/if}}
@@ -128,10 +118,10 @@ This is used by the CharacterCreationComponent
   <!-- Form page: Origin selection -->
   <div id="origin-page" class="form-page {{#if (eq currentPage 'origin-page')}}active{{/if}}">
     <h2>Choose Your Origin</h2>
-    <p>Your origin defines your character's species and background.</p>
+    <p class="page-description">Your origin defines your character's species and background.</p>
     
     <!-- Debug origin data -->
-    <div style="background-color: #f7f7f7; padding: 10px; margin: 10px 0; font-family: monospace; font-size: 12px;">
+    <div class="debug-section">
       <p>Species name: {{#if formData.origin}}{{formData.origin.species}}{{else}}none selected{{/if}}</p>
       <p>Species document: {{#if speciesDocument}}Found{{else}}Not found{{/if}}</p>
       <p>Background name: {{#if formData.origin}}{{formData.origin.background}}{{else}}none selected{{/if}}</p>

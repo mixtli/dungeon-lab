@@ -52,7 +52,7 @@ services:
     ports:
       - "27017:27017"  # Changed from 27017:27017 to avoid port conflict
     volumes:
-      - mongo_data:/data/db
+      - ./mongo_data:/data/db
     restart: unless-stopped
 
   # MinIO object storage
@@ -67,7 +67,7 @@ services:
       MINIO_ROOT_PASSWORD: minioadmin
       MINIO_BROWSER_REDIRECT_URL: http://localhost:9001
     volumes:
-      - minio_data:/data
+      - ./minio_data:/data
     command: server --console-address ":9001" /data
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]

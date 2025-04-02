@@ -1,0 +1,6 @@
+{
+  "context": {
+    "type": "CharacterCreationState",
+    "path": "./packages/plugins/dnd-5e-2024/src/web/ui/characterCreation/index.mts"
+  }
+} 

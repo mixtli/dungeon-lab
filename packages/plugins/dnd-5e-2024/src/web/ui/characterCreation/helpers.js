@@ -233,7 +233,7 @@ export function registerHelpers(Handlebars) {
   // Helper to convert an object to JSON string
   Handlebars.registerHelper('json', function(obj) {
     console.log('json helper called with:', obj);
-    return JSON.stringify(obj || {});
+    return JSON.stringify(obj || {}, null, 2);
   });
   
   // Helper to provide a default value if the primary value is undefined

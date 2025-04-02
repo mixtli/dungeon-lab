@@ -16,3 +16,5 @@ dist
 !.vscode/extensions.json
 .vscode/chrome-debug-profile/
 backup
+mongo_data
+minio_data

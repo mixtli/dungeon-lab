@@ -248,6 +248,19 @@ function handleError(errorMessage: string) {
                 class="form-textarea"
               ></textarea>
             </div>
+
+            <!-- Navigation for Step 1 only -->
+            <div class="form-navigation">
+              <div></div> <!-- Empty div for flex spacing -->
+              <button 
+                type="button" 
+                @click="currentStep++"
+                class="btn btn-primary"
+                :disabled="!canProceed"
+              >
+                Next: Character Details
+              </button>
+            </div>
           </div>
           
           <!-- Step 2: Plugin Content -->
@@ -259,37 +272,6 @@ function handleError(errorMessage: string) {
               :initial-data="combinedInitialData"
               @error="handleError"
             />
-          </div>
-
-          <!-- Navigation -->
-          <div class="form-navigation">
-            <button 
-              v-if="currentStep > 1" 
-              type="button" 
-              @click="currentStep--"
-              class="btn btn-secondary"
-            >
-              Back
-            </button>
-            
-            <button 
-              v-if="currentStep < totalSteps" 
-              type="button" 
-              @click="currentStep++"
-              class="btn btn-primary"
-              :disabled="!canProceed"
-            >
-              Next
-            </button>
-            
-            <button 
-              v-if="currentStep === totalSteps"
-              type="submit"
-              class="btn btn-success"
-              :disabled="isSubmitting"
-            >
-              {{ isSubmitting ? 'Creating...' : 'Create Character' }}
-            </button>
           </div>
         </form>
       </div>
@@ -347,9 +329,9 @@ function handleError(errorMessage: string) {
 }
 
 .btn {
-  padding: 0.5rem 1rem;
-  border-radius: 0.25rem;
-  font-weight: 500;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -360,32 +342,12 @@ function handleError(errorMessage: string) {
 }
 
 .btn-primary {
-  background: #4f46e5;
+  background-color: #4299e1;
   color: white;
   border: none;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #4338ca;
-}
-
-.btn-secondary {
-  background: #9ca3af;
-  color: white;
-  border: none;
-}
-
-.btn-secondary:hover:not(:disabled) {
-  background: #6b7280;
-}
-
-.btn-success {
-  background: #10b981;
-  color: white;
-  border: none;
-}
-
-.btn-success:hover:not(:disabled) {
-  background: #059669;
+  background-color: #3182ce;
 }
 </style> 

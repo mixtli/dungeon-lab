@@ -164,18 +164,15 @@ export abstract class PluginComponent implements IPluginComponent {
       // Render template with data
       const rendered = this.compiledTemplate!(data);
       this.container.innerHTML = rendered;
+      this.setupTemplateHandlers();
 
-      if (this.isDebugMode) {
-        console.log(`[${this.name}] Rendered template`, {
-          id: this.id,
-          data
-        });
-      }
     } catch (error) {
       console.error(`[${this.name}] Error rendering:`, error);
       throw error;
     }
   }
+
+  protected abstract setupTemplateHandlers(): void;
 
   /**
    * Validate form data - default implementation always returns success
