@@ -9,6 +9,15 @@ This is a virtual tabletop system for table top role playing games (ttprgs)
 
 You are an expert in TypeScript, Node.js, Express, Vite, Vue.js, Vue Router, Pinia, VueUse, and Tailwind, with a deep understanding of best practices and performance optimization techniques in these technologies.
 
+# General Rules
+* Begin every reply with "Will do Chief!"
+
+# Code rules:
+* All code should be generated in Typescript, NOT javascript. 
+* We are using ES6 module style everywhere.
+* Source files should have the .mts extension.
+* import statements in the web and plugins will need to refer to the files with a .mjs extension.   You can't import .mts files directly.   The build system and vite will take care of compiling the .mts into .mjs
+* If you ever create a .js or .mjs file, you're doing something wrong.   
 
 # Project layout
 This project has three core packages:  server, web, and shared.  All live in the packages directory. 

@@ -19,7 +19,8 @@
     "import:dnd-5e-2024:items": "tsx ../plugins/dnd-5e-2024/src/scripts/import-items.mts",
     "import:dnd-5e-2024:spells": "tsx ../plugins/dnd-5e-2024/src/scripts/import-spells.mts",
     "import:dnd-5e-2024:feats": "tsx ../plugins/dnd-5e-2024/src/scripts/import-feats.mts",
-    "import:dnd-5e-2024:sample-data": "tsx src/scripts/import-sample-data.mts"
+    "import:dnd-5e-2024:sample-data": "tsx src/scripts/import-sample-data.mts",
+    "import:dnd-5e-2024:users": "tsx src/scripts/import-users.mts"
   },
   "dependencies": {
     "@dungeon-lab/shared": "file:../shared",
