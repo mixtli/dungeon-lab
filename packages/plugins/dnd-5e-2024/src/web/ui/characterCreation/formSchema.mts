@@ -54,7 +54,7 @@ export const characterCreationFormSchema = z.object({
     background: z.object({
       id: z.string().optional(),
       name: z.string().optional(),
-      selectedEquipment: z.number().optional(),
+      selectedEquipment: z.string().optional(),
     }).default({}),
     selectedLanguages: z.array(z.string()).optional()
   }),

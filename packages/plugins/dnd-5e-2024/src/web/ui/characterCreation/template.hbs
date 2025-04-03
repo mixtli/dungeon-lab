@@ -120,12 +120,6 @@ This is used by the CharacterCreationComponent
     <h2>Choose Your Origin</h2>
     <p class="page-description">Your origin defines your character's species and background.</p>
     
-    <!-- Debug origin data -->
-    <div class="debug-section">
-      <p>Species name: {{#if formData.origin}}{{formData.origin.species.name}}{{else}}none selected{{/if}}</p>
-      <p>Background name: {{#if formData.origin}}{{formData.origin.background}}{{else}}none selected{{/if}}</p>
-    </div>
-    
     <div class="form-group">
       <label for="character-species">Species:</label>
       <select id="character-species" name="origin.species.id" required>

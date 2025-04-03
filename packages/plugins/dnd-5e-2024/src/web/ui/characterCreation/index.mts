@@ -152,6 +152,7 @@ export class CharacterCreationComponent extends PluginComponent {
     if (!target || !target.name) return;
     
     console.log('handleFormChange', target.name, target.value);
+    // Handle class selection change after state is updated
     
     // Process the form data
     const data = this.readFormData();
@@ -184,7 +185,20 @@ export class CharacterCreationComponent extends PluginComponent {
 
     // Process form data, handling arrays correctly
     for (const [key, value] of formData.entries()) {
-      flatData[key] = value as string;
+      if(key == 'origin.selectedLanguages') {
+        console.log('origin.selectedLanguages', value)
+        // if not already an array, make it one
+        if(!Array.isArray(flatData[key])) {
+          flatData[key] = [flatData[key] as string];
+        }
+        // if the value is not already in the array, add it
+        if(!(flatData[key] as string[]).includes(value as string)) {
+          (flatData[key] as string[]).push(value as string);
+        }
+      } else {
+        flatData[key] = value as (string | string[]);
+      }
+
     }
     console.log('Flattened form data:', flatData);
 
@@ -526,7 +540,7 @@ export class CharacterCreationComponent extends PluginComponent {
         
         if (!originResult.success) {
           const error = originResult.error.errors[0];
-          alert(error.message);
+          alert(error.message + ' ' + error.path);
           return false;
         }
         return true;
@@ -702,15 +716,15 @@ export class CharacterCreationComponent extends PluginComponent {
    * Get the current state
    */
   getState(): CharacterCreationState {
-    // const state = sessionStorage.getItem('characterCreationState');
-    // if (state) {
-    //   this.state = JSON.parse(state) as CharacterCreationState;
-    // }
+    const state = sessionStorage.getItem('characterCreationState');
+    if (state) {
+      this.state = JSON.parse(state) as CharacterCreationState;
+    }
     return this.state;
   }
   updateState(state: Partial<CharacterCreationState>): void {
     this.state = merge.withOptions({mergeArrays: false }, this.state, state) as CharacterCreationState;
-    // sessionStorage.setItem('characterCreationState', JSON.stringify(this.state));
+    sessionStorage.setItem('characterCreationState', JSON.stringify(this.state));
   }
 
   /**
