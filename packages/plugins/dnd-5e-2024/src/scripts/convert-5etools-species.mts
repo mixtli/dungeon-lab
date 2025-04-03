@@ -1,4 +1,5 @@
 import type { ISpeciesData } from '../shared/types/vttdocument.mjs';
+import type { IVTTDocument } from '@dungeon-lab/shared/schemas/vtt-document.schema.mjs';
 import {
   toLowercase,
   cleanRuleText,
@@ -178,10 +179,10 @@ function getDescription(data: RawSpeciesData): string {
   return description;
 }
 
-export function convert5eToolsSpecies(data: RawSpeciesData): ISpeciesData {
+export function convert5eToolsSpecies(data: RawSpeciesData): ISpeciesData & Pick<IVTTDocument, 'name' | 'description'> {
   // Skip non-XPHB species
   if (data.source !== 'XPHB') {
-    return {} as ISpeciesData;
+    return {} as ISpeciesData & Pick<IVTTDocument, 'name' | 'description'>;
   }
   
   // First extract subspecies from _versions
@@ -203,10 +204,13 @@ export function convert5eToolsSpecies(data: RawSpeciesData): ISpeciesData {
       };
     });
   }
+
+  const name = toLowercase(data.name || '');
+  const description = getDescription(data);
   
   return {
-    name: toLowercase(data.name || ''),
-    description: getDescription(data),
+    name,
+    description,
     size: normalizeSize(data.size || []),
     speed: getSpeed(data),
     traits: extractTraits(data),

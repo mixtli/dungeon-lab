@@ -282,4 +282,16 @@ export function registerHelpers(handlebars: typeof Handlebars): void {
     if (!array || !Array.isArray(array)) return null;
     return array.find(item => item[property] === value);
   });
+
+  // Helper to check if a value is an array
+  // Usage: {{#if (isArray value)}}...{{/if}}
+  handlebars.registerHelper('isArray', function(value: any): boolean {
+    return Array.isArray(value);
+  });
+
+  // Helper to add numbers
+  // Usage: {{add value1 value2}}
+  handlebars.registerHelper('add', function(value1: number, value2: number): number {
+    return value1 + value2;
+  });
 } 

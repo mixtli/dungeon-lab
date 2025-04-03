@@ -4,9 +4,18 @@ import {
   cleanRuleText,
   extractTextFromEntries,
   normalizeSkillProficiencies,
-  normalizeToolProficiencies,
-  normalizeAbilities
+  normalizeToolProficiencies
 } from './converter-utils.mjs';
+
+// Map short ability names to full names
+const ABILITY_MAP: Record<string, string> = {
+  "str": "strength",
+  "dex": "dexterity",
+  "con": "constitution",
+  "int": "intelligence",
+  "wis": "wisdom",
+  "cha": "charisma"
+} as const;
 
 // Input data interface
 export interface RawBackgroundData {
@@ -151,15 +160,58 @@ function normalizeEquipment(equipmentData: any[]): {
   return result;
 }
 
-export function convert5eToolsBackground(data: RawBackgroundData): IBackgroundData {
+// Normalize ability scores using ABILITY_MAP
+function normalizeAbilities(abilityData: any[]): string[] {
+  if (!abilityData || !Array.isArray(abilityData) || abilityData.length === 0) {
+    return [];
+  }
+  
+  const abilities: string[] = [];
+
+  // Get the weighted.from array from the first ability entry
+  if (abilityData[0]?.choose?.weighted?.from && Array.isArray(abilityData[0].choose.weighted.from)) {
+    // Convert each abbreviated ability to its full name using ABILITY_MAP
+    abilityData[0].choose.weighted.from.forEach((abilShort: string) => {
+      const normalizedAbility = ABILITY_MAP[abilShort.toLowerCase()] || abilShort.toLowerCase();
+      abilities.push(normalizedAbility);
+    });
+  }
+  
+  return abilities;
+}
+
+export function convert5eToolsBackground(data: RawBackgroundData, fluffData?: any): IBackgroundData {
   // Return empty object if no source or not XPHB
   if (!data || !data.source || data.source !== 'XPHB') {
     return {} as IBackgroundData;
   }
 
-  // Extract description from entries
+  // Normalize the name properly for document matching
+  const name = data.name ? toLowercase(data.name) : '';
+
+  // Get description from fluff data
   let description = '';
-  if (data.entries && Array.isArray(data.entries)) {
+  if (fluffData && fluffData.backgroundFluff) {
+    // Find matching fluff entry with same name and source
+    const fluffEntry = fluffData.backgroundFluff.find((entry: any) => 
+      entry.name === data.name && entry.source === data.source
+    );
+    
+    if (fluffEntry && fluffEntry.entries && Array.isArray(fluffEntry.entries)) {
+      // Join all entries into a single description string
+      description = fluffEntry.entries.map((entry: any) => {
+        if (typeof entry === 'string') {
+          return cleanRuleText(entry);
+        } else if (typeof entry === 'object' && entry.entries) {
+          return extractTextFromEntries([entry]);
+        }
+        return '';
+      }).join('\n\n');
+    }
+  }
+  
+  // If no fluff description found, try to extract from main data entries
+  if (!description && data.entries && Array.isArray(data.entries)) {
     description = extractTextFromEntries(data.entries);
   }
 
@@ -217,7 +269,7 @@ export function convert5eToolsBackground(data: RawBackgroundData): IBackgroundDa
 
   // Build and return the normalized background
   return {
-    name: toLowercase(data.name || ''),
+    name,
     description,
     abilities: normalizeAbilities(data.ability || []),
     skillProficiencies: normalizeSkillProficiencies(data.skillProficiencies || []),

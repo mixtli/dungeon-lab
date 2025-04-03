@@ -54,10 +54,8 @@ export const characterCreationFormSchema = z.object({
     background: z.object({
       id: z.string().optional(),
       name: z.string().optional(),
+      selectedEquipment: z.number().optional(),
     }).default({}),
-    selectedAbilityBoosts: z.array(z.string()).optional(),
-    bonusPlusTwo: z.string().optional(),
-    bonusPlusOne: z.string().optional(),
     selectedLanguages: z.array(z.string()).optional()
   }),
   

@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import { VTTDocument } from '@dungeon-lab/server/src/features/documents/models/vtt-document.model.mjs';
 import { pluginRegistry } from '@dungeon-lab/server/src/services/plugin-registry.service.mjs';
 import config from '../../manifest.json' with { type: 'json' };
+import type { IVTTDocument } from '@dungeon-lab/shared/schemas/vtt-document.schema.mjs';
 
 /**
  * Connect to MongoDB
@@ -241,7 +242,7 @@ export async function runImport<T>({
   documentType: string;
   dataFile: string;
   dataKey: string;
-  converter: (data: any) => Promise<T | ActorData | ItemData> | (T | ActorData | ItemData);
+  converter: (data: any) => Promise<T | ActorData | ItemData | IVTTDocument> | (T | ActorData | ItemData | IVTTDocument);
   sourceFilter?: string | ((source: string) => boolean);
   dirPath: string;
   isActor?: boolean;
@@ -361,19 +362,25 @@ export async function runImport<T>({
           const existingDoc = await VTTDocument.findOne({
             pluginId: config.id,
             documentType,
-            'data.name': item.name
+            name: item.name
           });
+
+          console.log(`Checking for existing ${documentType}: ${item.name}`);
+          if (existingDoc) {
+            console.log(`Found existing document with id: ${existingDoc._id}`);
+          }
           
           await VTTDocument.findOneAndUpdate(
             {
               pluginId: config.id,
               documentType,
-              'data.name': item.name
+              name: item.name
             },
             {
               $set: {
                 name: item.name,
-                data: convertedData as T,
+                data: convertedData,
+                description: (convertedData as IVTTDocument).description || '',
                 updatedBy: userId
               },
               $setOnInsert: {

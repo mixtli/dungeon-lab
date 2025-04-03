@@ -195,9 +195,6 @@ export class CharacterCreationComponent extends PluginComponent {
     if (data.class?.selectedSkills) {
       data.class.selectedSkills = data.class.selectedSkills.filter(Boolean);
     }
-    if (data.origin?.selectedAbilityBoosts) {
-      data.origin.selectedAbilityBoosts = data.origin.selectedAbilityBoosts.filter(Boolean);
-    }
     if (data.origin?.selectedLanguages) {
       data.origin.selectedLanguages = data.origin.selectedLanguages.filter(Boolean);
     }
@@ -209,7 +206,9 @@ export class CharacterCreationComponent extends PluginComponent {
   private handleClassChange() {
     const classId = this.state.formData.class?.id;
     if (!classId) {
-      this.state.classDocument = null;
+      this.updateState({
+        classDocument: null
+      })
       return;
     }
 
@@ -233,7 +232,7 @@ export class CharacterCreationComponent extends PluginComponent {
     this.state.speciesDocument = null;
     this.updateState({ 
       speciesDocument: speciesDoc as ISpeciesDocument,
-      formData: { origin: { species: { name: speciesDoc?.name } } }
+      formData: { origin: { species: { name: speciesDoc?.name, id: speciesId } } }
     });
     console.log('Species document updated:', this.state.speciesDocument);
   }
@@ -703,15 +702,15 @@ export class CharacterCreationComponent extends PluginComponent {
    * Get the current state
    */
   getState(): CharacterCreationState {
-    const state = sessionStorage.getItem('characterCreationState');
-    if (state) {
-      this.state = JSON.parse(state) as CharacterCreationState;
-    }
+    // const state = sessionStorage.getItem('characterCreationState');
+    // if (state) {
+    //   this.state = JSON.parse(state) as CharacterCreationState;
+    // }
     return this.state;
   }
   updateState(state: Partial<CharacterCreationState>): void {
     this.state = merge.withOptions({mergeArrays: false }, this.state, state) as CharacterCreationState;
-    sessionStorage.setItem('characterCreationState', JSON.stringify(this.state));
+    // sessionStorage.setItem('characterCreationState', JSON.stringify(this.state));
   }
 
   /**

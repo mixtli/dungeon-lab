@@ -819,4 +819,143 @@ input[type="radio"][name="class.selectedEquipment"] {
 
 .debug-section p {
   margin: 0.5rem 0;
+}
+
+/* Keep the help-text style which is used elsewhere */
+.help-text {
+  font-size: 0.875rem;
+  color: var(--color-text-light);
+  margin-top: 0.5rem;
+}
+
+/* Language Section Styling */
+.language-section {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background-color: #f7fafc;
+  border-radius: 0.5rem;
+  border: 1px solid #e2e8f0;
+}
+
+.language-section h4 {
+  color: #2d3748;
+  margin-top: 0;
+  margin-bottom: 1rem;
+  font-size: 1.25rem;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 0.5rem;
+}
+
+.language-options {
+  margin-top: 1rem;
+}
+
+.language-select {
+  width: 100%;
+  height: 150px;
+  padding: 0.75rem;
+  border: 2px solid #e2e8f0;
+  border-radius: 0.5rem;
+  background-color: white;
+  color: #2d3748;
+  font-size: 1rem;
+  transition: all 0.2s;
+}
+
+.language-select:focus {
+  border-color: #4299e1;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.2);
+}
+
+.language-select option {
+  padding: 0.5rem;
+  background-color: white;
+}
+
+.language-select option:checked {
+  background-color: #ebf8ff;
+  color: #2b6cb0;
+  font-weight: 500;
+}
+
+/* Background Equipment Options */
+.equipment-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.equipment-option {
+  margin-bottom: 0.5rem;
+}
+
+.equipment-option strong {
+  color: #2d3748;
+  font-size: 0.9rem;
+}
+
+.equipment-list {
+  margin: 0.25rem 0 0 1rem;
+  padding: 0;
+  list-style-type: disc;
+}
+
+.equipment-list li {
+  margin: 0.25rem 0;
+  font-size: 0.9rem;
+}
+
+/* Equipment Selection Styles */
+.equipment-selection {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.equipment-selection label {
+  display: block;
+  font-weight: 600;
+  color: #2d3748;
+  margin-bottom: 0.5rem;
+}
+
+.equipment-select {
+  width: 100%;
+  padding: 0.75rem;
+  border: 2px solid #e2e8f0;
+  border-radius: 0.5rem;
+  background-color: white;
+  color: #2d3748;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.equipment-select:hover {
+  border-color: #4299e1;
+}
+
+.equipment-select:focus {
+  outline: none;
+  border-color: #4299e1;
+  box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.2);
+}
+
+/* Background Equipment Selection */
+.background-equipment-selection {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background-color: #f7fafc;
+  border-radius: 0.5rem;
+  border: 1px solid #e2e8f0;
+}
+
+.background-equipment-selection h4 {
+  color: #2d3748;
+  margin-top: 0;
+  margin-bottom: 1rem;
+  font-size: 1.25rem;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 0.5rem;
 } 

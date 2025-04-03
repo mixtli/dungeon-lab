@@ -209,16 +209,62 @@ This is used by the CharacterCreationComponent
         <h4>Background Features</h4>
         <table class="traits-table">
           <tbody>
-            <tr><th>Skill Proficiencies</th><td>{{join backgroundDocument.data.skillProficiencies ", "}}</td></tr>
-            {{#if backgroundDocument.data.toolProficiencies}}
-              <tr><th>Tool Proficiencies</th><td>{{join backgroundDocument.data.toolProficiencies ", "}}</td></tr>
+            {{#if backgroundDocument.data.feats}}
+            <tr>
+              <td class="feature-label">Starting Feats</td>
+              <td>
+                <ul class="feature-list">
+                  {{#each backgroundDocument.data.feats}}
+                    <li>{{this}}</li>
+                  {{/each}}
+                </ul>
+              </td>
+            </tr>
             {{/if}}
-            <tr><th>Ability Boosts</th><td>{{join backgroundDocument.data.abilities ", "}}</td></tr>
-            {{#if backgroundDocument.data.languages}}
-              <tr><th>Languages</th><td>{{join backgroundDocument.data.languages ", "}}</td></tr>
+            {{#if backgroundDocument.data.skillProficiencies}}
+            <tr>
+              <td class="feature-label">Skill Proficiencies</td>
+              <td>{{join backgroundDocument.data.skillProficiencies ", "}}</td>
+            </tr>
+            {{/if}}
+            {{#if backgroundDocument.data.toolProficiencies}}
+            <tr>
+              <td class="feature-label">Tool Proficiencies</td>
+              <td>{{join backgroundDocument.data.toolProficiencies ", "}}</td>
+            </tr>
+            {{/if}}
+            {{#if backgroundDocument.data.abilities}}
+            <tr>
+              <td class="feature-label">Ability Score Increases</td>
+              <td>{{join backgroundDocument.data.abilities ", "}}</td>
+            </tr>
             {{/if}}
             {{#if backgroundDocument.data.equipment}}
-              <tr><th>Equipment</th><td>{{join backgroundDocument.data.equipment ", "}}</td></tr>
+            <tr>
+              <td class="feature-label">Equipment Options</td>
+              <td>
+                {{#each backgroundDocument.data.equipment.options}}
+                  <div class="equipment-option">
+                    <strong>Option {{add @index 1}}:</strong>
+                    <ul>
+                      {{#each this}}
+                        <li>
+                          {{#if this.item}}
+                            {{#if this.quantity}}
+                              {{this.quantity}}x {{this.item}}
+                            {{else}}
+                              {{this.item}}
+                            {{/if}}
+                          {{else if this.value}}
+                            {{this.value}} gp
+                          {{/if}}
+                        </li>
+                      {{/each}}
+                    </ul>
+                  </div>
+                {{/each}}
+              </td>
+            </tr>
             {{/if}}
             {{#if backgroundDocument.data.feature}}
               <tr><th>Feature</th><td>{{backgroundDocument.data.feature.name}}: {{backgroundDocument.data.feature.description}}</td></tr>
@@ -227,56 +273,27 @@ This is used by the CharacterCreationComponent
         </table>
       </div>
       
-      <div class="ability-boost-section">
-        <h4>Ability Score Improvements</h4>
-        <p>Choose how to distribute your ability score improvements:</p>
-        
-        <div class="ability-boost-options">
-          <div class="boost-option">
-            <h5>Option 1: Three +1 Boosts</h5>
-            <div class="ability-checkboxes">
-              {{#each backgroundDocument.data.abilities}}
-                <div class="ability-checkbox">
-                  <input type="checkbox" id="boost-{{this}}" name="origin.selectedAbilityBoosts" 
-                         value="{{this}}" 
-                         {{#if (includes ../formData.origin.selectedAbilityBoosts this)}}checked{{/if}}>
-                  <label for="boost-{{this}}">{{capitalize this}}</label>
-                </div>
-              {{/each}}
-            </div>
-          </div>
-          
-          <div class="boost-option">
-            <h5>Option 2: One +2 and One +1 Boost</h5>
-            <div class="plus-two-select">
-              <label for="plus-two-ability">+2 to:</label>
-              <select id="plus-two-ability" name="origin.bonusPlusTwo">
-                <option value="">-- Select Ability --</option>
-                {{#each backgroundDocument.data.abilities}}
-                  <option value="{{this}}" {{#if (eq ../../formData.origin.bonusPlusTwo this)}}selected{{/if}}>{{capitalize this}}</option>
-                {{/each}}
-              </select>
-            </div>
-            
-            <div class="plus-one-select">
-              <label for="plus-one-ability">+1 to:</label>
-              <select id="plus-one-ability" name="origin.bonusPlusOne">
-                <option value="">-- Select Ability --</option>
-                {{#each backgroundDocument.data.abilities}}
-                  <option value="{{this}}" {{#if (eq ../../formData.origin.bonusPlusOne this)}}selected{{/if}}>{{capitalize this}}</option>
-                {{/each}}
-              </select>
-            </div>
-          </div>
-        </div>
+      {{#if backgroundDocument.data.equipment.options}}
+      <div class="background-equipment-selection">
+        <h4>Choose Starting Equipment</h4>
+        <label for="background-equipment">Select one equipment option:</label>
+        <select id="background-equipment" name="origin.background.selectedEquipment" class="equipment-select">
+          <option value="">Choose an equipment option...</option>
+          {{#each backgroundDocument.data.equipment.options}}
+            <option value="{{@index}}" {{#if (eq (concat "" ../formData.origin.background.selectedEquipment) (concat "" @index))}}selected{{/if}}>
+              Option {{add @index 1}}
+            </option>
+          {{/each}}
+        </select>
       </div>
+      {{/if}}
       
       <div class="language-section">
         <h4>Languages</h4>
         <p>You can speak, read, and write Common and two additional languages of your choice.</p>
         
         <div class="language-options">
-          <select name="origin.selectedLanguages" multiple>
+          <select name="origin.selectedLanguages" multiple class="language-select">
             <option value="dwarvish" {{#if (includes formData.origin.selectedLanguages "dwarvish")}}selected{{/if}}>Dwarvish</option>
             <option value="elvish" {{#if (includes formData.origin.selectedLanguages "elvish")}}selected{{/if}}>Elvish</option>
             <option value="giant" {{#if (includes formData.origin.selectedLanguages "giant")}}selected{{/if}}>Giant</option>
