@@ -6,7 +6,7 @@ import { z } from 'zod';
  * and doesn't duplicate document schemas from the shared types
  */
 
-function deepPartial<T extends z.ZodTypeAny>(schema: T): z.ZodType<any> {
+export function deepPartial<T extends z.ZodTypeAny>(schema: T): z.ZodType<any> {
   if (schema instanceof z.ZodObject) {
     const newShape = Object.fromEntries(
       Object.entries(schema.shape).map(([key, value]) => [
@@ -63,30 +63,13 @@ export const characterCreationFormSchema = z.object({
   abilities: z.object({
     method: z.enum(['standard', 'pointbuy', 'roll']),
     pointsRemaining: z.number().int().min(0).max(27).default(27),
-    standard: z.object({
-      strength: z.string().optional(),
-      dexterity: z.string().optional(),
-      constitution: z.string().optional(),
-      intelligence: z.string().optional(),
-      wisdom: z.string().optional(),
-      charisma: z.string().optional()
-    }).optional(),
-    pointbuy: z.object({
-      strength: z.number().int().min(8).max(15).default(8),
-      dexterity: z.number().int().min(8).max(15).default(8),
-      constitution: z.number().int().min(8).max(15).default(8),
-      intelligence: z.number().int().min(8).max(15).default(8),
-      wisdom: z.number().int().min(8).max(15).default(8),
-      charisma: z.number().int().min(8).max(15).default(8)
-    }).optional(),
-    roll: z.object({
-      strength: z.number().int().min(3).max(18).optional(),
-      dexterity: z.number().int().min(3).max(18).optional(),
-      constitution: z.number().int().min(3).max(18).optional(),
-      intelligence: z.number().int().min(3).max(18).optional(),
-      wisdom: z.number().int().min(3).max(18).optional(),
-      charisma: z.number().int().min(3).max(18).optional()
-    }).optional(),
+    availableScores: z.array(z.number().int()).default([]),
+    strength: z.number().int().min(3).max(18).optional(),
+    dexterity: z.number().int().min(3).max(18).optional(),
+    constitution: z.number().int().min(3).max(18).optional(),
+    intelligence: z.number().int().min(3).max(18).optional(),
+    wisdom: z.number().int().min(3).max(18).optional(),
+    charisma: z.number().int().min(3).max(18).optional()
   }),
   
   // Equipment

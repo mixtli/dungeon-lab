@@ -151,3 +151,49 @@ Creating a Virtual Table Top (VTT) system for TTRPGs with:
 - For search results, ensure proper handling of different character encodings (UTF-8) for international queries
 - Add debug information to stderr while keeping the main output clean in stdout for better pipeline integration
 - Use 'gpt-4o' as the model name for OpenAI's GPT-4 with vision capabilities
+
+# D&D Character Creation: Ability Scores Implementation
+
+## Task
+Redesign the ability scores page in the character creation wizard to:
+1. [X] Change method selection from radio buttons to a select input
+2. [X] Generate six scores based on the selected method and display them
+3. [X] Create select boxes for assigning scores to abilities
+4. [X] Add/remove scores from the available pool when assigned/unassigned
+5. [X] Display the ability modifier in a small circle/bubble
+6. [X] Update formSchema to have a simpler structure with availableScores array
+
+## Changes Made
+1. Modified formSchema.mts to use a flat structure for abilities with a single availableScores array
+2. Updated template.hbs to use a select for method choice and display abilities as select boxes
+3. Added CSS styling for the new UI elements (score bubbles, modifier bubbles)
+4. Updated index.mts to handle the new ability score functionality:
+   - Added generateAbilityScores method to generate scores based on selected method
+   - Added handleAbilityScoreChange to manage the assignment of scores to abilities
+   - Fixed updateFormData to work with the new flat structure
+
+## Issues to Fix Later
+1. Choosing a roll method currently doesn't generate any scores in the available scores div
+2. Ability dropdowns don't have any options
+3. Need to debug why the event handlers aren't firing or why the state isn't updating properly
+
+## Progress
+[X] Modify formSchema.mts
+[X] Update template.hbs for the new UI
+[X] Add CSS styles
+[X] Implement new ability score handling methods
+[X] Fix setupComponentDefaults and validatePage methods
+[X] Fix updateFormData method to remove references to old schema properties
+[ ] Debug and fix event handling for ability score generation
+
+## Lessons
+- When making changes to data structures, be systematic and thorough in finding all references
+- Use search tools to find all occurrences of properties that are being changed
+- Type assertions in TypeScript should be used carefully but are sometimes necessary
+- Update validation logic when changing data schemas
+- Ensure event handlers are properly bound and registered when using custom components
+
+## Next Steps
+- Test the UI to ensure all functionality works as expected
+- Debug why the ability score generation isn't working
+- Consider implementing Point Buy in the future

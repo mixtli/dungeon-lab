@@ -16,3 +16,8 @@ declare module './template.hbs' {
   const content: (context: CharacterCreationState) => string;
   export default content;
 }
+
+// declare module "*.hbs" {
+//   const template: string;
+//   export default template;
+// }

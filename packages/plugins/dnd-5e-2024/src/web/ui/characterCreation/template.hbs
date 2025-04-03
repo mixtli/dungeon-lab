@@ -322,117 +322,47 @@ This is used by the CharacterCreationComponent
     <p>Choose a method to determine your character's ability scores.</p>
     
     <div class="ability-method-selection">
-      <div class="method-option">
-        <input type="radio" id="method-standard" name="abilities.method" value="standard" 
-               {{#if (eq formData.abilities.method "standard")}}checked{{/if}}>
-        <label for="method-standard">Standard Array</label>
-      </div>
-      
-      <div class="method-option">
-        <input type="radio" id="method-pointbuy" name="abilities.method" value="pointbuy" 
-               {{#if (eq formData.abilities.method "pointbuy")}}checked{{/if}}>
-        <label for="method-pointbuy">Point Buy</label>
-      </div>
-      
-      <div class="method-option">
-        <input type="radio" id="method-roll" name="abilities.method" value="roll" 
-               {{#if (eq formData.abilities.method "roll")}}checked{{/if}}>
-        <label for="method-roll">Roll for Scores</label>
+      <label for="ability-method">Choose Method:</label>
+      <select id="ability-method" name="abilities.method" class="ability-method-select">
+        <option value="standard" {{#if (eq formData.abilities.method "standard")}}selected{{/if}}>Standard Array</option>
+        <option value="roll" {{#if (eq formData.abilities.method "roll")}}selected{{/if}}>Roll for Scores</option>
+        <option value="pointbuy" {{#if (eq formData.abilities.method "pointbuy")}}selected{{/if}} disabled>Point Buy (Coming Soon)</option>
+      </select>
+    </div>
+    
+    <!-- Available Scores Display -->
+    <div class="available-scores">
+      <h3>Available Scores</h3>
+      <div class="score-bubbles">
+        {{#each formData.abilities.availableScores}}
+          <span class="score-bubble">{{this}} <span class="score-modifier">({{abilityMod this}})</span></span>
+        {{/each}}
       </div>
     </div>
     
-    <!-- Standard Array Method -->
-    <div class="ability-method standard-array-method {{#if (eq formData.abilities.method "standard")}}active{{/if}}">
-      <h3>Standard Array</h3>
-      <p>Assign the following scores to your abilities: 15, 14, 13, 12, 10, 8</p>
-      
-      <div class="used-values">
-        {{#each formData.abilities.standard}}
-          {{#if this}}
-            <span class="used-value">{{this}}</span>
-          {{/if}}
-        {{/each}}
-      </div>
-      
+    <!-- Ability Score Assignment -->
+    <div class="ability-scores-container">
+      <h3>Assign Ability Scores</h3>
       <div class="ability-scores">
         {{#each (array "strength" "dexterity" "constitution" "intelligence" "wisdom" "charisma")}}
           <div class="ability-box">
-            <label for="standard-{{this}}">{{capitalize this}}</label>
-            <select id="standard-{{this}}" name="abilities.standard.{{this}}">
+            <label for="ability-{{this}}">{{capitalize this}}</label>
+            <select id="ability-{{this}}" name="abilities.{{this}}" class="ability-select">
               <option value="">--</option>
-              <option value="15" {{#if (eq (lookup ../formData.abilities.standard this) "15")}}selected{{/if}}>15</option>
-              <option value="14" {{#if (eq (lookup ../formData.abilities.standard this) "14")}}selected{{/if}}>14</option>
-              <option value="13" {{#if (eq (lookup ../formData.abilities.standard this) "13")}}selected{{/if}}>13</option>
-              <option value="12" {{#if (eq (lookup ../formData.abilities.standard this) "12")}}selected{{/if}}>12</option>
-              <option value="10" {{#if (eq (lookup ../formData.abilities.standard this) "10")}}selected{{/if}}>10</option>
-              <option value="8" {{#if (eq (lookup ../formData.abilities.standard this) "8")}}selected{{/if}}>8</option>
+              {{#each ../formData.abilities.availableScores}}
+                <option value="{{this}}" {{#if (eq (lookup ../../formData.abilities ../this) this)}}selected{{/if}}>{{this}}</option>
+              {{/each}}
+              {{#if (lookup ../formData.abilities this)}}
+                {{#unless (includes ../formData.abilities.availableScores (lookup ../formData.abilities this))}}
+                  <option value="{{lookup ../formData.abilities this}}" selected>{{lookup ../formData.abilities this}}</option>
+                {{/unless}}
+              {{/if}}
             </select>
             <div class="ability-modifier">
-              Modifier: {{#with (lookup ../formData.abilities.standard this)}}
-                {{abilityMod this}}
+              {{#with (lookup ../formData.abilities this)}}
+                <span class="modifier-bubble">{{abilityMod this}}</span>
               {{else}}
-                +0
-              {{/with}}
-            </div>
-          </div>
-        {{/each}}
-      </div>
-    </div>
-    
-    <!-- Point Buy Method -->
-    <div class="ability-method point-buy-method {{#if (eq formData.abilities.method "pointbuy")}}active{{/if}}">
-      <h3>Point Buy</h3>
-      <p>You have 27 points to spend on your ability scores.</p>
-      <p>The costs are: 9 for 15, 7 for 14, 5 for 13, 3 for 12, 2 for 11, 1 for 10, 0 for 9 and 8.</p>
-      
-      <div id="points-remaining">{{formData.abilities.pointsRemaining}}</div>
-      
-      <div class="ability-scores">
-        {{#each (array "strength" "dexterity" "constitution" "intelligence" "wisdom" "charisma")}}
-          <div class="ability-box">
-            <label>{{capitalize this}}</label>
-            <div class="point-buy-controls">
-              <button type="button" class="btn-minus" data-ability="{{this}}">-</button>
-              <input type="number" name="abilities.pointbuy.{{this}}" min="8" max="15" value="{{default (lookup ../formData.abilities.pointbuy this) 8}}" readonly>
-              <button type="button" class="btn-plus" data-ability="{{this}}">+</button>
-            </div>
-            <div class="ability-modifier">
-              Modifier: {{#with (lookup ../formData.abilities.pointbuy this)}}
-                {{abilityMod this}}
-              {{else}}
-                -1
-              {{/with}}
-            </div>
-          </div>
-        {{/each}}
-      </div>
-    </div>
-    
-    <!-- Roll Method -->
-    <div class="ability-method roll-method {{#if (eq formData.abilities.method "roll")}}active{{/if}}">
-      <h3>Roll for Scores</h3>
-      <p>Roll 4d6, drop the lowest die, and assign the total to your abilities.</p>
-      
-      <button type="button" id="roll-abilities-btn">Roll Abilities</button>
-      
-      <div id="roll-history">
-        {{#if formData.abilities.roll}}
-          {{#each (array "strength" "dexterity" "constitution" "intelligence" "wisdom" "charisma")}}
-            <div>{{capitalize this}}: {{lookup ../formData.abilities.roll this}}</div>
-          {{/each}}
-        {{/if}}
-      </div>
-      
-      <div class="ability-scores">
-        {{#each (array "strength" "dexterity" "constitution" "intelligence" "wisdom" "charisma")}}
-          <div class="ability-box">
-            <label>{{capitalize this}}</label>
-            <input type="number" name="abilities.roll.{{this}}" value="{{default (lookup ../formData.abilities.roll this) 10}}" readonly>
-            <div class="ability-modifier">
-              Modifier: {{#with (lookup ../formData.abilities.roll this)}}
-                {{abilityMod this}}
-              {{else}}
-                +0
+                <span class="modifier-bubble">+0</span>
               {{/with}}
             </div>
           </div>

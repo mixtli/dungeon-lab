@@ -21,6 +21,22 @@ import { IBackgroundDocument, ISpeciesDocument } from '../../../shared/types/vtt
 import { getClass, getDocumentById } from '../../document-cache.mjs';
 import {merge} from 'ts-deepmerge'
 
+import { deepPartial } from './formSchema.mjs'
+
+const fooSchema = z.object({
+  a: z.object({
+    b: z.number(),
+    c: z.number()
+  }),
+  d: z.object({e: z.number(), f: z.number()})
+})
+const partialFooSchema = deepPartial(fooSchema)
+type PartialFoo = z.infer<typeof partialFooSchema>
+const foo: PartialFoo = { 'a': { 'b': 1, 'c': 2 }, 'd': { 'e': 3 } }
+const bar: PartialFoo = { 'd': undefined }
+const result = merge(foo, bar)
+console.log(result)
+
 
 // Define component state interface
 interface CharacterCreationState {
@@ -103,48 +119,6 @@ export class CharacterCreationComponent extends PluginComponent {
   }
 
   /**
-   * Set up handlers for elements within our template
-   * These need to be reattached after each render
-   */
-  protected setupTemplateHandlers(): void {
-    if (!this.container) {
-      console.error('Container not available for template handlers');
-      return;
-    }
-    
-    console.log('Setting up template-specific handlers');
-    
-    // Set up ability score controls (these have special handling)
-    this.setupAbilityScoreControls();
-
-    // Set up skill proficiency handlers
-    const skillCheckboxes = this.container.querySelectorAll('.skill-checkbox');
-    skillCheckboxes.forEach(checkbox => {
-      checkbox.addEventListener('change', this.handleSkillProficiencyChange.bind(this));
-    });
-  }
-
-  /**
-   * Set up special controls for ability scores
-   * These are within our template and need to be reattached after each render
-   */
-  private setupAbilityScoreControls(): void {
-    if (!this.container) return;
-    
-    // Set up point buy buttons
-    const pointBuyButtons = this.container.querySelectorAll('.point-buy-controls button');
-    pointBuyButtons.forEach(button => {
-      button.addEventListener('click', this.handlePointBuyClick.bind(this));
-    });
-    
-    // Set up roll button
-    const rollButton = this.container.querySelector('#roll-abilities-btn');
-    if (rollButton) {
-      rollButton.addEventListener('click', this.handleRollAbilities.bind(this));
-    }
-  }
-  
-  /**
    * Handle form change events in a consolidated way
    */
   private async handleFormChange(event: Event): Promise<void> {
@@ -152,7 +126,6 @@ export class CharacterCreationComponent extends PluginComponent {
     if (!target || !target.name) return;
     
     console.log('handleFormChange', target.name, target.value);
-    // Handle class selection change after state is updated
     
     // Process the form data
     const data = this.readFormData();
@@ -198,7 +171,6 @@ export class CharacterCreationComponent extends PluginComponent {
       } else {
         flatData[key] = value as (string | string[]);
       }
-
     }
     console.log('Flattened form data:', flatData);
 
@@ -266,6 +238,14 @@ export class CharacterCreationComponent extends PluginComponent {
     console.log('Background document updated:', this.state.backgroundDocument);
   }
 
+  /**
+   * Handle form click events in a consolidated way
+   */
+  private handleFormClick(event: Event): void {
+    console.log('handleFormClick', event.target);
+    this.handleNavigation(event);
+  }
+
   private handleNavigation(event: Event): void {
     const target = event.target as HTMLElement;
     if (!target) return;
@@ -322,164 +302,175 @@ export class CharacterCreationComponent extends PluginComponent {
       }
     }
   }
-  
+
   /**
-   * Handle form click events in a consolidated way
+   * Set up handlers for elements within our template
+   * These need to be reattached after each render
    */
-  private handleFormClick(event: Event): void {
-    console.log('handleFormClick', event.target);
-    this.handleNavigation(event);
-  }
-  
-  /**
-   * Handle point buy button clicks
-   */
-  private handlePointBuyClick(event: Event): void {
-    const button = event.currentTarget as HTMLElement;
-    const ability = button.dataset.ability;
-    const isPlus = button.classList.contains('btn-plus');
-    
-    if (!ability || !this.form) return;
-    
-    const input = this.form.querySelector(`input[name="abilities.pointbuy.${ability}"]`) as HTMLInputElement;
-    const pointsRemainingElem = this.form.querySelector('#points-remaining');
-    
-    if (!input || !pointsRemainingElem) return;
-    
-    const currentValue = parseInt(input.value, 10) || 8;
-    const currentPoints = parseInt(pointsRemainingElem.textContent || '27', 10);
-    
-    if (isPlus && currentValue < 15) {
-      // Calculate cost to increase
-      const costToIncrease = this.getPointBuyCost(currentValue + 1) - this.getPointBuyCost(currentValue);
-      
-      if (currentPoints >= costToIncrease) {
-        input.value = (currentValue + 1).toString();
-        pointsRemainingElem.textContent = (currentPoints - costToIncrease).toString();
-        
-        // Update ability modifier
-        this.updateAbilityModifier(ability, currentValue + 1);
-        
-        // Update form data
-        const formData = this.getFormData();
-        if (!formData.abilities) {
-          formData.abilities = {
-            method: 'pointbuy',
-            pointsRemaining: currentPoints - costToIncrease,
-            pointbuy: {} as any
-          };
-        }
-        
-        // Ensure abilities.pointbuy exists
-        if (!formData.abilities.pointbuy) {
-          formData.abilities.pointbuy = {} as any;
-        }
-        
-        // Update the specific ability score
-        (formData.abilities.pointbuy as any)[ability] = currentValue + 1;
-        
-        // Update component state
-        this.updateFormData(formData);
-        
-        // Render with updated state
-        this.render(this.getState());
-        
-      }
-    } else if (!isPlus && currentValue > 8) {
-      // Calculate points refunded
-      const pointsRefunded = this.getPointBuyCost(currentValue) - this.getPointBuyCost(currentValue - 1);
-      
-      input.value = (currentValue - 1).toString();
-      pointsRemainingElem.textContent = (currentPoints + pointsRefunded).toString();
-      
-      // Update ability modifier
-      this.updateAbilityModifier(ability, currentValue - 1);
-      
-      // Update form data
-      const formData = this.getFormData();
-      if (!formData.abilities) {
-        formData.abilities = {
-          method: 'pointbuy',
-          pointsRemaining: currentPoints + pointsRefunded,
-          pointbuy: {} as any
-        };
-      }
-      
-      // Ensure abilities.pointbuy exists
-      if (!formData.abilities.pointbuy) {
-        formData.abilities.pointbuy = {} as any;
-      }
-      
-      // Update the specific ability score
-      (formData.abilities.pointbuy as any)[ability] = currentValue - 1;
-      
-      // Update component state
-      this.updateFormData(formData);
-      
-      // Render with updated state
-      this.render(this.getState());
-      
+  protected setupTemplateHandlers(): void {
+    if (!this.container) {
+      console.error('Container not available for template handlers');
+      return;
     }
-  }
-  
-  /**
-   * Handle rolling ability scores
-   */
-  private handleRollAbilities(): void {
-    const abilities = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'];
-    const rollHistory: string[] = [];
-    const rollData: Record<string, number> = {};
     
-    abilities.forEach(ability => {
-      // Roll 4d6, drop lowest
-      const rolls = Array(4).fill(0).map(() => Math.floor(Math.random() * 6) + 1);
-      rolls.sort((a, b) => b - a);
-      
-      // Sum top 3 dice
-      const sum = rolls.slice(0, 3).reduce((total, val) => total + val, 0);
-      
-      // Store for form data
-      rollData[ability] = sum;
-      
-      // Update input if it exists
-      const input = this.form?.querySelector(`input[name="abilities.roll.${ability}"]`) as HTMLInputElement | undefined;
-      if (input) {
-        input.value = sum.toString();
-      }
-      
-      // Update ability modifier
-      this.updateAbilityModifier(ability, sum);
-      
-      // Add to roll history
-      rollHistory.push(`${ability}: [${rolls.join(', ')}] => ${sum}`);
+    console.log('Setting up template-specific handlers');
+    
+    // Set up ability score controls (these have special handling)
+    this.setupAbilityScoreControls();
+
+    // Set up skill proficiency handlers
+    const skillCheckboxes = this.container.querySelectorAll('.skill-checkbox');
+    skillCheckboxes.forEach(checkbox => {
+      checkbox.addEventListener('change', this.handleSkillProficiencyChange.bind(this));
+    });
+  }
+
+  /**
+   * Set up special controls for ability scores
+   * These are within our template and need to be reattached after each render
+   */
+  private setupAbilityScoreControls(): void {
+    if (!this.container) return;
+    
+    // Set up point buy buttons
+    const pointBuyButtons = this.container.querySelectorAll('.point-buy-controls button');
+    pointBuyButtons.forEach(button => {
+      button.addEventListener('click', this.handlePointBuyClick.bind(this));
     });
     
-    // Update roll history display
-    const rollHistoryElem = this.form?.querySelector('#roll-history');
-    if (rollHistoryElem) {
-      rollHistoryElem.innerHTML = rollHistory.map(roll => `<div>${roll}</div>`).join('');
+    // Set up roll button
+    const rollButton = this.container.querySelector('#roll-abilities-btn');
+    if (rollButton) {
+      rollButton.addEventListener('click', this.handleRollAbilities.bind(this));
+    }
+    
+    // Set up method select change handling
+    const methodSelect = this.container.querySelector('#ability-method');
+    if (methodSelect) {
+      methodSelect.addEventListener('change', this.handleAbilityMethodChange.bind(this));
+    }
+    
+    // Set up ability score selects
+    const abilitySelects = this.container.querySelectorAll('.ability-select');
+    abilitySelects.forEach(select => {
+      select.addEventListener('change', this.handleAbilityScoreChange.bind(this));
+    });
+  }
+
+  /**
+   * Handle ability method change
+   */
+  private handleAbilityMethodChange(event: Event): void {
+    const select = event.target as HTMLSelectElement;
+    const method = select.value as 'standard' | 'pointbuy' | 'roll';
+    
+    console.log('Ability method changed to:', method);
+    
+    // Generate ability scores based on selected method
+    this.generateAbilityScores(method);
+  }
+  
+  /**
+   * Generate ability scores based on the selected method
+   */
+  private generateAbilityScores(method: 'standard' | 'pointbuy' | 'roll'): void {
+    let availableScores: number[] = [];
+    
+    if (method === 'standard') {
+      // Standard array: 15, 14, 13, 12, 10, 8
+      availableScores = [15, 14, 13, 12, 10, 8];
+    } else if (method === 'roll') {
+      // Roll 4d6, drop lowest for each score
+      availableScores = Array(6).fill(0).map(() => {
+        const rolls = Array(4).fill(0).map(() => Math.floor(Math.random() * 6) + 1);
+        rolls.sort((a, b) => b - a);
+        return rolls.slice(0, 3).reduce((sum, roll) => sum + roll, 0);
+      });
+      // Sort in descending order
+      availableScores.sort((a, b) => b - a);
     }
     
     // Update form data
     const formData = this.getFormData();
-    if (!formData.abilities) {
-      formData.abilities = {
-        method: 'roll',
-        pointsRemaining: 0,
-        roll: rollData as any
-      };
-    } else {
-      // Update existing abilities object
-      formData.abilities.method = 'roll';
-      formData.abilities.roll = rollData as any;
-    }
+    
+    // Reset scores - clear any existing ability scores
+    formData.abilities = {
+      method,
+      availableScores,
+      pointsRemaining: 27
+    };
     
     // Update component state
     this.updateFormData(formData);
     
     // Render with updated state
     this.render(this.getState());
+  }
+  
+  /**
+   * Handle ability score selection change
+   */
+  private handleAbilityScoreChange(event: Event): void {
+    const select = event.target as HTMLSelectElement;
+    const ability = select.name.split('.').pop() || '';
+    const newValue = select.value ? parseInt(select.value, 10) : null;
     
+    // Get the current form data and abilities
+    const formData = this.getFormData();
+    if (!formData.abilities) return;
+    
+    // Make a copy of the abilities to work with
+    const abilities = { ...formData.abilities };
+    
+    // Get the old value if it exists
+    const oldValue = (abilities as any)[ability] as number | undefined;
+    
+    console.log('Ability score changed:', ability, 'from', oldValue, 'to', newValue);
+    
+    // If there was a previous value, add it back to available scores
+    if (oldValue && typeof oldValue === 'number') {
+      if (!abilities.availableScores.includes(oldValue)) {
+        abilities.availableScores.push(oldValue);
+        // Keep scores sorted in descending order
+        abilities.availableScores.sort((a, b) => b - a);
+      }
+    }
+    
+    // If a new value was selected, remove it from available scores
+    if (newValue) {
+      abilities.availableScores = abilities.availableScores.filter(score => score !== newValue);
+    }
+    
+    // Update the ability score
+    if (newValue) {
+      (abilities as any)[ability] = newValue;
+    } else {
+      delete (abilities as any)[ability];
+    }
+    
+    formData.abilities = abilities;
+    
+    // Update component state
+    this.updateFormData(formData);
+    
+    // Render with updated state
+    this.render(this.getState());
+  }
+  
+  /**
+   * Handle point buy button clicks
+   */
+  private handlePointBuyClick(event: Event): void {
+    // This method is being replaced with new ability score handling
+    console.log('Point buy will be implemented later');
+  }
+  
+  /**
+   * Handle rolling ability scores
+   */
+  private handleRollAbilities(): void {
+    // Generate ability scores using the roll method
+    this.generateAbilityScores('roll');
   }
   
   /**
@@ -488,7 +479,7 @@ export class CharacterCreationComponent extends PluginComponent {
   private updateAbilityModifier(ability: string, score: number): void {
     if (!this.form) return;
     
-    const modifierElem = this.form.querySelector(`select[name="abilities.standard.${ability}"]`)
+    const modifierElem = this.form.querySelector(`select[name="abilities.${ability}"]`)
       ?.closest('.ability-box')
       ?.querySelector('.ability-modifier');
       
@@ -497,81 +488,61 @@ export class CharacterCreationComponent extends PluginComponent {
     const modifier = Math.floor((score - 10) / 2);
     const formattedModifier = modifier >= 0 ? `+${modifier}` : modifier.toString();
     
-    modifierElem.textContent = `Modifier: ${formattedModifier}`;
+    modifierElem.innerHTML = `<span class="modifier-bubble">${formattedModifier}</span>`;
   }
   
-  /**
-   * Get the point buy cost for a specific ability score
-   */
-  private getPointBuyCost(score: number): number {
-    if (score <= 8) return 0;
-    if (score <= 13) return score - 8;
-    if (score === 14) return 7;
-    if (score === 15) return 9;
-    return 0;
-  }
   
-
   /**
-   * Validate the current page
+   * Validate a specific page of the form
    */
   private validatePage(pageId: string): boolean {
-    console.log(`Validating page: ${pageId}`);
-    if (!this.form) return true;
+    let isValid = true;
+    const errors: Record<string, string[]> = {};
     
-    switch (pageId) {
-      case 'class-page':
-        // Validate class page data using zod schema
-        const classSchema = characterCreationFormSchema.shape.class.required()
-        const classResult = classSchema.safeParse(this.state.formData.class);
-        
-        if (!classResult.success) {
-          // Get first error message
-          const error = classResult.error.errors[0];
-          alert(error.message);
-          return false;
-        }
-        return true;
-
-      case 'origin-page':
-        // Validate origin page data using zod schema
-        const originSchema = characterCreationFormSchema.shape.origin.required();
-        const originResult = originSchema.safeParse(this.state.formData.origin);
-        
-        if (!originResult.success) {
-          const error = originResult.error.errors[0];
-          alert(error.message + ' ' + error.path);
-          return false;
-        }
-        return true;
-
-      case 'abilities-page':
-        // Validate abilities page data using zod schema
-        const abilitiesSchema = characterCreationFormSchema.shape.abilities.required();
-        const abilitiesResult = abilitiesSchema.safeParse(this.state.formData.abilities);
-        
-        if (!abilitiesResult.success) {
-          const error = abilitiesResult.error.errors[0];
-          alert(error.message);
-          return false;
-        }
-        return true;
-
-      case 'details-page':
-        // Validate details page data using zod schema
-        const detailsSchema = characterCreationFormSchema.shape.details.required();
-        const detailsResult = detailsSchema.safeParse(this.state.formData.details);
-        
-        if (!detailsResult.success) {
-          const error = detailsResult.error.errors[0];
-          alert(error.message);
-          return false;
-        }
-        return true;
-
-      default:
-        return true;
+    // Validation logic specific to each page
+    if (pageId === 'class-page') {
+      if (!this.state.formData.class?.id) {
+        errors['class.id'] = ['Please select a class.'];
+        isValid = false;
+      }
+    } 
+    else if (pageId === 'origin-page') {
+      if (!this.state.formData.origin?.species?.id) {
+        errors['origin.species.id'] = ['Please select a species.'];
+        isValid = false;
+      }
+      
+      if (!this.state.formData.origin?.background?.id) {
+        errors['origin.background.id'] = ['Please select a background.'];
+        isValid = false;
+      }
     }
+    else if (pageId === 'abilities-page') {
+      const abilities = this.state.formData.abilities;
+      
+      if (!abilities) {
+        errors['abilities.method'] = ['Please select an ability score method.'];
+        isValid = false;
+      } else {
+        const abilityNames = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'];
+        const missingAbilities = abilityNames.filter(ability => 
+          !(abilities as any)[ability]
+        );
+        
+        if (missingAbilities.length > 0) {
+          errors['abilities'] = [`Please assign scores to all abilities: ${missingAbilities.join(', ')}.`];
+          isValid = false;
+        }
+      }
+    }
+    
+    // Store validation results in state
+    this.updateState({
+      validationErrors: errors,
+      isValid: isValid
+    });
+    
+    return isValid;
   }
 
   protected registerHelpers(): void {
@@ -626,18 +597,15 @@ export class CharacterCreationComponent extends PluginComponent {
   }
   
   /**
-   * Update the form data with new data
-   * Only used for direct programmatic updates to form data
+   * Update form data programmatically
    */
-  updateFormData(data: Partial<CharacterCreationFormData>): void {
-    // For programmatic updates, we'll still need to handle partial updates
-    // but we'll use a simpler approach
-    this.state.formData = {
-      ...this.state.formData,
-      ...data
-    };
+  private updateFormData(data: Partial<CharacterCreationFormData>): void {
+    // Initialize formData if it doesn't exist
+    if (!this.state.formData) {
+      this.state.formData = {};
+    }
     
-    // For nested objects like class, origin, etc., manually merge them
+    // Handle the class data
     if (data.class && this.state.formData.class) {
       this.state.formData.class = {
         ...this.state.formData.class,
@@ -645,6 +613,7 @@ export class CharacterCreationComponent extends PluginComponent {
       };
     }
     
+    // Handle origin data
     if (data.origin && this.state.formData.origin) {
       this.state.formData.origin = {
         ...this.state.formData.origin,
@@ -652,35 +621,15 @@ export class CharacterCreationComponent extends PluginComponent {
       };
     }
     
+    // Handle abilities data with the new flat structure
     if (data.abilities && this.state.formData.abilities) {
       this.state.formData.abilities = {
         ...this.state.formData.abilities,
         ...data.abilities
       };
-      
-      // Handle sub-objects within abilities
-      if (data.abilities.pointbuy && this.state.formData.abilities.pointbuy) {
-        this.state.formData.abilities.pointbuy = {
-          ...this.state.formData.abilities.pointbuy,
-          ...data.abilities.pointbuy
-        };
-      }
-      
-      if (data.abilities.standard && this.state.formData.abilities.standard) {
-        this.state.formData.abilities.standard = {
-          ...this.state.formData.abilities.standard,
-          ...data.abilities.standard
-        };
-      }
-      
-      if (data.abilities.roll && this.state.formData.abilities.roll) {
-        this.state.formData.abilities.roll = {
-          ...this.state.formData.abilities.roll,
-          ...data.abilities.roll
-        };
-      }
     }
     
+    // Handle details data
     if (data.details && this.state.formData.details) {
       this.state.formData.details = {
         ...this.state.formData.details,
@@ -688,6 +637,7 @@ export class CharacterCreationComponent extends PluginComponent {
       };
     }
     
+    // Handle equipment data
     if (data.equipment && this.state.formData.equipment) {
       this.state.formData.equipment = {
         ...this.state.formData.equipment,
@@ -726,6 +676,7 @@ export class CharacterCreationComponent extends PluginComponent {
     this.state = merge.withOptions({mergeArrays: false }, this.state, state) as CharacterCreationState;
     sessionStorage.setItem('characterCreationState', JSON.stringify(this.state));
   }
+
 
   /**
    * Handle skill proficiency selection changes

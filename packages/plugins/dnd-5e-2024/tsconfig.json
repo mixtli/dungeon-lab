@@ -20,11 +20,11 @@
     }
   },
   "include": [
+    "src/**/*.d.ts",
     "src/**/*.mts",
     "src/**/*.ts",
     "src/**/*.js",
-    "src/**/*.mjs",
-    "src/**/*.d.ts"
+    "src/**/*.mjs"
   ],
   "references": [
     { "path": "../../shared" },
