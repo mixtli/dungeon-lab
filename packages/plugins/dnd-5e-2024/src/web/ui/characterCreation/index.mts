@@ -8,7 +8,7 @@ import { z } from 'zod';
 import template from './template.hbs?raw';
 import styles from './styles.css?raw';
 import { registerHelpers } from './helpers.mjs';
-import { CharacterCreationFormData } from './formSchema.mjs';
+import { CharacterCreationFormData, PartialCharacterCreationFormData } from './formSchema.mjs';
 
 // Import document helpers
 import { registerDocumentHelpers } from '../../helpers/document-helpers.mjs';
@@ -24,7 +24,7 @@ import {merge} from 'ts-deepmerge'
 
 // Define component state interface
 interface CharacterCreationState {
-  formData: Partial<CharacterCreationFormData>;
+  formData: PartialCharacterCreationFormData;
   currentPage: string;
   validationErrors: Record<string, string[]>;
   isValid: boolean;
@@ -40,10 +40,7 @@ interface CharacterCreationState {
  */
 export class CharacterCreationComponent extends PluginComponent {
   private state: CharacterCreationState = {
-    formData: { 
-      class: { },
-      origin: { }
-    },
+    formData: {},
     currentPage: 'class-page',
     validationErrors: {},
     isValid: false,
@@ -168,13 +165,13 @@ export class CharacterCreationComponent extends PluginComponent {
     }
 
     // Handle species selection change after state is updated
-    if (target.name === 'origin.species' && target.value) {
+    if (target.name === 'origin.species.id' && target.value) {
       this.handleSpeciesChange();
     }
 
     // Handle background selection change after state is updated
-    if (target.name === 'origin.background' && target.value) {
-      await this.handleBackgroundChange();
+    if (target.name === 'origin.background.id' && target.value) {
+      this.handleBackgroundChange();
     }
 
     // Re-render the template with updated data
@@ -226,7 +223,7 @@ export class CharacterCreationComponent extends PluginComponent {
   }
 
   private handleSpeciesChange() {
-    const speciesId = this.state.formData.origin?.species;
+    const speciesId = this.state.formData.origin?.species.id;
     if (!speciesId) {
       this.state.speciesDocument = null;
       return;
@@ -235,13 +232,14 @@ export class CharacterCreationComponent extends PluginComponent {
     const speciesDoc = getDocumentById('species', speciesId);
     this.state.speciesDocument = null;
     this.updateState({ 
-      speciesDocument: speciesDoc as ISpeciesDocument
+      speciesDocument: speciesDoc as ISpeciesDocument,
+      formData: { origin: { species: { name: speciesDoc?.name } } }
     });
     console.log('Species document updated:', this.state.speciesDocument);
   }
 
   private handleBackgroundChange(): void {
-    const backgroundId = this.state.formData.origin?.background;
+    const backgroundId = this.state.formData.origin?.background.id;
     if (!backgroundId) {
       this.state.backgroundDocument = null;
       return;

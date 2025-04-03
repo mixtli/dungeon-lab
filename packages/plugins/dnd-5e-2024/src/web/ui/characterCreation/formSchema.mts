@@ -6,6 +6,27 @@ import { z } from 'zod';
  * and doesn't duplicate document schemas from the shared types
  */
 
+function deepPartial<T extends z.ZodTypeAny>(schema: T): z.ZodType<any> {
+  if (schema instanceof z.ZodObject) {
+    const newShape = Object.fromEntries(
+      Object.entries(schema.shape).map(([key, value]) => [
+        key,
+        deepPartial(value as z.ZodTypeAny).optional()
+      ])
+    );
+    return z.object(newShape);
+  } else if (schema instanceof z.ZodArray) {
+    return z.array(deepPartial(schema.element as z.ZodTypeAny)).optional() as any;
+  } else if (schema instanceof z.ZodEnum) {
+    return schema.optional();
+  } else if (schema instanceof z.ZodUnion || schema instanceof z.ZodDiscriminatedUnion) {
+    return schema.optional();
+  } else if (schema instanceof z.ZodDefault) {
+    return deepPartial(schema._def.innerType as z.ZodTypeAny);
+  }
+  return schema.optional();
+}
+
 // Schema for purchased equipment item in the shop
 const purchasedItemSchema = z.object({
   name: z.string(),
@@ -26,8 +47,14 @@ export const characterCreationFormSchema = z.object({
   
   // Origin Selection
   origin: z.object({
-    species: z.string().optional(),
-    background: z.string().optional(),
+    species: z.object({
+      id: z.string().optional(),
+      name: z.string().optional(),
+    }),
+    background: z.object({
+      id: z.string().optional(),
+      name: z.string().optional(),
+    }).default({}),
     selectedAbilityBoosts: z.array(z.string()).optional(),
     bonusPlusTwo: z.string().optional(),
     bonusPlusOne: z.string().optional(),
@@ -93,6 +120,9 @@ export const characterCreationFormSchema = z.object({
   })
 });
 
+export const partialCharacterCreationFormSchema = deepPartial(characterCreationFormSchema);
+
 // Export types
 export type CharacterCreationFormData = z.infer<typeof characterCreationFormSchema>;
+export type PartialCharacterCreationFormData = z.infer<typeof partialCharacterCreationFormSchema>;
 export type PurchasedItem = z.infer<typeof purchasedItemSchema>;

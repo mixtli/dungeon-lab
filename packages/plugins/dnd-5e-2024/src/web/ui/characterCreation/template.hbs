@@ -122,18 +122,16 @@ This is used by the CharacterCreationComponent
     
     <!-- Debug origin data -->
     <div class="debug-section">
-      <p>Species name: {{#if formData.origin}}{{formData.origin.species}}{{else}}none selected{{/if}}</p>
-      <p>Species document: {{#if speciesDocument}}Found{{else}}Not found{{/if}}</p>
+      <p>Species name: {{#if formData.origin}}{{formData.origin.species.name}}{{else}}none selected{{/if}}</p>
       <p>Background name: {{#if formData.origin}}{{formData.origin.background}}{{else}}none selected{{/if}}</p>
-      <p>Background document: {{#if backgroundDocument}}Found{{else}}Not found{{/if}}</p>
     </div>
     
     <div class="form-group">
       <label for="character-species">Species:</label>
-      <select id="character-species" name="origin.species" required>
+      <select id="character-species" name="origin.species.id" required>
         <option value="">-- Select Species --</option>
         {{#each (getAllSpecies)}}
-          <option value="{{this.id}}" {{#if (eq @root.formData.origin.species this.id)}}selected{{/if}}>{{this.name}}</option>
+          <option value="{{this.id}}" {{#if (eq @root.formData.origin.species.id this.id)}}selected{{/if}}>{{this.name}}</option>
         {{/each}}
       </select>
     </div>
@@ -192,10 +190,10 @@ This is used by the CharacterCreationComponent
     
     <div class="form-group">
       <label for="character-background">Background:</label>
-      <select id="character-background" name="origin.background" required>
+      <select id="character-background" name="origin.background.id" required>
         <option value="">-- Select Background --</option>
         {{#each (getAllBackgrounds)}}
-          <option value="{{this.id}}" {{#if (eq @root.formData.origin.background this.id)}}selected{{/if}}>
+          <option value="{{this.id}}" {{#if (eq @root.formData.origin.background.id this.id)}}selected{{/if}}>
             {{this.name}}
           </option>
         {{/each}}
@@ -205,17 +203,28 @@ This is used by the CharacterCreationComponent
     {{#if backgroundDocument}}
     <div class="background-details">
       <h3>{{backgroundDocument.name}}</h3>
-      <p>{{backgroundDocument.description}}</p>
+      <p>{{backgroundDocument.data.description}}</p>
       
       <div class="background-features">
         <h4>Background Features</h4>
-        <ul>
-          <li><strong>Skill Proficiencies:</strong> {{join backgroundDocument.skillProficiencies ", "}}</li>
-          {{#if backgroundDocument.toolProficiencies}}
-            <li><strong>Tool Proficiencies:</strong> {{join backgroundDocument.toolProficiencies ", "}}</li>
-          {{/if}}
-          <li><strong>Ability Boosts:</strong> {{join backgroundDocument.abilities ", "}}</li>
-        </ul>
+        <table class="traits-table">
+          <tbody>
+            <tr><th>Skill Proficiencies</th><td>{{join backgroundDocument.data.skillProficiencies ", "}}</td></tr>
+            {{#if backgroundDocument.data.toolProficiencies}}
+              <tr><th>Tool Proficiencies</th><td>{{join backgroundDocument.data.toolProficiencies ", "}}</td></tr>
+            {{/if}}
+            <tr><th>Ability Boosts</th><td>{{join backgroundDocument.data.abilities ", "}}</td></tr>
+            {{#if backgroundDocument.data.languages}}
+              <tr><th>Languages</th><td>{{join backgroundDocument.data.languages ", "}}</td></tr>
+            {{/if}}
+            {{#if backgroundDocument.data.equipment}}
+              <tr><th>Equipment</th><td>{{join backgroundDocument.data.equipment ", "}}</td></tr>
+            {{/if}}
+            {{#if backgroundDocument.data.feature}}
+              <tr><th>Feature</th><td>{{backgroundDocument.data.feature.name}}: {{backgroundDocument.data.feature.description}}</td></tr>
+            {{/if}}
+          </tbody>
+        </table>
       </div>
       
       <div class="ability-boost-section">
@@ -226,7 +235,7 @@ This is used by the CharacterCreationComponent
           <div class="boost-option">
             <h5>Option 1: Three +1 Boosts</h5>
             <div class="ability-checkboxes">
-              {{#each backgroundDocument.abilities}}
+              {{#each backgroundDocument.data.abilities}}
                 <div class="ability-checkbox">
                   <input type="checkbox" id="boost-{{this}}" name="origin.selectedAbilityBoosts" 
                          value="{{this}}" 
@@ -243,7 +252,7 @@ This is used by the CharacterCreationComponent
               <label for="plus-two-ability">+2 to:</label>
               <select id="plus-two-ability" name="origin.bonusPlusTwo">
                 <option value="">-- Select Ability --</option>
-                {{#each backgroundDocument.abilities}}
+                {{#each backgroundDocument.data.abilities}}
                   <option value="{{this}}" {{#if (eq ../../formData.origin.bonusPlusTwo this)}}selected{{/if}}>{{capitalize this}}</option>
                 {{/each}}
               </select>
@@ -253,7 +262,7 @@ This is used by the CharacterCreationComponent
               <label for="plus-one-ability">+1 to:</label>
               <select id="plus-one-ability" name="origin.bonusPlusOne">
                 <option value="">-- Select Ability --</option>
-                {{#each backgroundDocument.abilities}}
+                {{#each backgroundDocument.data.abilities}}
                   <option value="{{this}}" {{#if (eq ../../formData.origin.bonusPlusOne this)}}selected{{/if}}>{{capitalize this}}</option>
                 {{/each}}
               </select>
