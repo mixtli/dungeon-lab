@@ -1183,4 +1183,53 @@ input[type="radio"][name="class.selectedEquipment"] {
   border-color: #7b2d26;
   box-shadow: 0 0 0 3px rgba(123, 45, 38, 0.1);
   outline: none;
+}
+
+/* Validation Error Styles */
+.validation-error {
+  color: #dc3545;
+  margin-top: 5px;
+}
+
+.error-summary {
+  background-color: #fff0f0;
+  border: 1px solid #dc3545;
+  border-radius: 4px;
+  padding: 10px 15px;
+  margin-bottom: 20px;
+}
+
+.error-summary h4 {
+  color: #dc3545;
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+.error-summary ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.error-summary li {
+  margin-bottom: 5px;
+}
+
+.field-error {
+  font-size: 0.875rem;
+}
+
+.has-error input,
+.has-error select,
+.has-error textarea {
+  border-color: #dc3545;
+}
+
+/* Animation for error messages */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.validation-error {
+  animation: fadeIn 0.3s ease-in-out;
 } 

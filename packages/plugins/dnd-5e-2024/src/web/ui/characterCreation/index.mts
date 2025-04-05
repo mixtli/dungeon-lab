@@ -179,42 +179,6 @@ export class CharacterCreationComponent extends PluginComponent {
     this.render(this.getState());
   }
 
-  private readFormData() {
-    const formData = new FormData(this.form!);
-    const flatData: Record<string, string | string[]> = {};
-
-    // Process form data, handling arrays correctly
-    for (const [key, value] of formData.entries()) {
-      if(key == 'origin.selectedLanguages') {
-        console.log('origin.selectedLanguages', value)
-        // if not already an array, make it one
-        if(!Array.isArray(flatData[key])) {
-          flatData[key] = [flatData[key] as string];
-        }
-        // if the value is not already in the array, add it
-        if(!(flatData[key] as string[]).includes(value as string)) {
-          (flatData[key] as string[]).push(value as string);
-        }
-      } else {
-        flatData[key] = value as (string | string[]);
-      }
-    }
-    console.log('Flattened form data:', flatData);
-
-    // Unflatten the data
-    const data = unflatten(flatData) as Partial<CharacterCreationFormData>;
-
-    // Clean up arrays by removing null values
-    if (data.class?.selectedSkills) {
-      data.class.selectedSkills = data.class.selectedSkills.filter(Boolean);
-    }
-    if (data.origin?.selectedLanguages) {
-      data.origin.selectedLanguages = data.origin.selectedLanguages.filter(Boolean);
-    }
-
-    console.log('Unflattened and cleaned form data:', data);
-    return data;
-  }
 
   private handleClassChange() {
     const classId = this.state.formData.class?.id;
@@ -237,7 +201,9 @@ export class CharacterCreationComponent extends PluginComponent {
   private handleSpeciesChange() {
     const speciesId = this.state.formData.origin?.species.id;
     if (!speciesId) {
-      this.state.speciesDocument = null;
+      this.updateState({
+        speciesDocument: null
+      });
       return;
     }
 
@@ -253,14 +219,17 @@ export class CharacterCreationComponent extends PluginComponent {
   private handleBackgroundChange(): void {
     const backgroundId = this.state.formData.origin?.background.id;
     if (!backgroundId) {
-      this.state.backgroundDocument = null;
+      this.updateState({
+        backgroundDocument: null
+      });
       return;
     }
 
     const backgroundDoc = getDocumentById('background', backgroundId);
     this.state.backgroundDocument = null;
     this.updateState({ 
-      backgroundDocument: backgroundDoc as IBackgroundDocument
+      backgroundDocument: backgroundDoc as IBackgroundDocument,
+      formData: { origin: { background: { name: backgroundDoc?.name, id: backgroundId } } }
     });
     console.log('Background document updated:', this.state.backgroundDocument);
   }
@@ -420,12 +389,19 @@ export class CharacterCreationComponent extends PluginComponent {
     // Update form data
     const formData = this.getFormData();
     
-    // Reset scores - clear any existing ability scores
+    // Reset scores with default values for all abilities
     formData.abilities = {
       method,
       availableScores,
-      pointsRemaining: 27
+      pointsRemaining: 27,
+      strength: 0,
+      dexterity: 0,
+      constitution: 0,
+      intelligence: 0,
+      wisdom: 0,
+      charisma: 0
     };
+    
     console.log('generateAbilityScores: Form data updated:', formData);
     // Update component state
     this.updateState({formData: formData});
@@ -501,24 +477,6 @@ export class CharacterCreationComponent extends PluginComponent {
     this.generateAbilityScores('roll');
   }
   
-  /**
-   * Update the ability modifier display
-   */
-  private updateAbilityModifier(ability: string, score: number): void {
-    if (!this.form) return;
-    
-    const modifierElem = this.form.querySelector(`select[name="abilities.${ability}"]`)
-      ?.closest('.ability-box')
-      ?.querySelector('.ability-modifier');
-      
-    if (!modifierElem) return;
-    
-    const modifier = Math.floor((score - 10) / 2);
-    const formattedModifier = modifier >= 0 ? `+${modifier}` : modifier.toString();
-    
-    modifierElem.innerHTML = `<span class="modifier-bubble">${formattedModifier}</span>`;
-  }
-  
   
   /**
    * Validate a specific page of the form
@@ -589,7 +547,90 @@ export class CharacterCreationComponent extends PluginComponent {
       isValid: isValid
     });
     
+    // Display validation errors to the user
+    this.displayValidationErrors(errors);
+    
     return isValid;
+  }
+  
+  /**
+   * Display validation errors to the user
+   */
+  private displayValidationErrors(errors: Record<string, string[]>): void {
+    // First, clear any existing error messages
+    if (this.container) {
+      const existingErrorMessages = this.container.querySelectorAll('.validation-error');
+      existingErrorMessages.forEach(elem => elem.remove());
+    }
+    
+    // If there are no errors, nothing more to do
+    if (Object.keys(errors).length === 0) return;
+    
+    // Create and show an error summary at the top of the current page
+    const currentPage = this.container?.querySelector('.form-page.active');
+    if (!currentPage) return;
+    
+    // Create a summary error message
+    const errorSummary = document.createElement('div');
+    errorSummary.className = 'validation-error error-summary';
+    errorSummary.innerHTML = '<h4>Please fix the following errors:</h4><ul></ul>';
+    
+    const errorList = errorSummary.querySelector('ul');
+    if (!errorList) return;
+    
+    // Add styles to the error summary
+    errorSummary.style.backgroundColor = '#fff0f0';
+    errorSummary.style.border = '1px solid #dc3545';
+    errorSummary.style.borderRadius = '4px';
+    errorSummary.style.padding = '10px 15px';
+    errorSummary.style.marginBottom = '20px';
+    errorSummary.style.color = '#dc3545';
+    
+    // Add specific error messages
+    let errorCount = 0;
+    for (const [field, messages] of Object.entries(errors)) {
+      for (const message of messages) {
+        errorCount++;
+        const listItem = document.createElement('li');
+        listItem.textContent = `${field}: ${message}`;
+        errorList.appendChild(listItem);
+        
+        // Also add inline error message near the field if possible
+        const fieldName = field.split('.').pop() || field;
+        const fieldElement = this.container?.querySelector(`[name="${field}"]`) || 
+                             this.container?.querySelector(`[name$=".${fieldName}"]`);
+        
+        if (fieldElement) {
+          const fieldParent = fieldElement.closest('.form-group') || fieldElement.parentElement;
+          
+          if (fieldParent) {
+            const inlineError = document.createElement('div');
+            inlineError.className = 'validation-error field-error';
+            inlineError.textContent = `${field}: ${message}`;
+            inlineError.style.color = '#dc3545';
+            inlineError.style.fontSize = '0.875rem';
+            inlineError.style.marginTop = '5px';
+            
+            // Add error styling to the field
+            (fieldElement as HTMLElement).style.borderColor = '#dc3545';
+            
+            // Add the error message after the field
+            fieldParent.appendChild(inlineError);
+          }
+        }
+      }
+    }
+    
+    // If there are errors, insert the summary at the top of the page
+    if (errorCount > 0) {
+      currentPage.insertBefore(errorSummary, currentPage.firstChild);
+      
+      // Scroll to the top of the page to show the error summary
+      window.scrollTo({
+        top: currentPage.getBoundingClientRect().top + window.scrollY - 20,
+        behavior: 'smooth'
+      });
+    }
   }
 
   protected registerHelpers(): void {
