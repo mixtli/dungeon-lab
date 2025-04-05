@@ -21,6 +21,11 @@ import { IBackgroundDocument, ISpeciesDocument } from '../../../shared/types/vtt
 import { getClass, getDocumentById } from '../../document-cache.mjs';
 import {merge} from 'ts-deepmerge'
 
+// Import the flat package for unflattening form data
+import { unflatten } from 'flat';
+// Import our form schema
+import { characterCreationFormSchema } from './formSchema.mjs';
+
 import { deepPartial } from './formSchema.mjs'
 
 const fooSchema = z.object({
@@ -125,13 +130,35 @@ export class CharacterCreationComponent extends PluginComponent {
     const target = event.target as HTMLInputElement | HTMLSelectElement;
     if (!target || !target.name) return;
     
+    const formData = new FormData(this.form!);
+
     console.log('handleFormChange', target.name, target.value);
     
-    // Process the form data
-    const data = this.readFormData();
+    // Create a partial update with just the changed field
+    const flatData: Record<string, string | string[]> = {};
     
-    // Simply replace the entire formData state with the new data
-    this.updateState({ formData: data });
+    if (target.type === 'select-multiple')  {
+      const selectedValues= formData.getAll(target.name);
+      flatData[target.name] = selectedValues as string[];
+    } else if (target.type === 'checkbox') {
+      // We need to check if the target has a parent with the class 'checkbox-group'
+      const parent = target.closest('.checkbox-group');
+      if (parent) {
+        const selectedValues= formData.getAll(target.name);
+        flatData[target.name] = selectedValues as string[];
+      } else {
+        flatData[target.name] = target.value;
+      }
+    } else {
+      flatData[target.name] = target.value;
+    }
+    
+    // Unflatten to get a nested structure with only the changed field
+    const partialUpdate = unflatten(flatData);
+    console.log('Partial update:', partialUpdate);
+    
+    // Update state with just the changed field
+    this.updateState({ formData: partialUpdate });
 
     // Handle class selection change after state is updated
     if (target.name === 'class.id' && target.value) {
@@ -399,9 +426,9 @@ export class CharacterCreationComponent extends PluginComponent {
       availableScores,
       pointsRemaining: 27
     };
-    
+    console.log('generateAbilityScores: Form data updated:', formData);
     // Update component state
-    this.updateFormData(formData);
+    this.updateState({formData: formData});
     
     // Render with updated state
     this.render(this.getState());
@@ -451,7 +478,7 @@ export class CharacterCreationComponent extends PluginComponent {
     formData.abilities = abilities;
     
     // Update component state
-    this.updateFormData(formData);
+    this.updateState({formData: formData});
     
     // Render with updated state
     this.render(this.getState());
@@ -597,58 +624,6 @@ export class CharacterCreationComponent extends PluginComponent {
   }
   
   /**
-   * Update form data programmatically
-   */
-  private updateFormData(data: Partial<CharacterCreationFormData>): void {
-    // Initialize formData if it doesn't exist
-    if (!this.state.formData) {
-      this.state.formData = {};
-    }
-    
-    // Handle the class data
-    if (data.class && this.state.formData.class) {
-      this.state.formData.class = {
-        ...this.state.formData.class,
-        ...data.class
-      };
-    }
-    
-    // Handle origin data
-    if (data.origin && this.state.formData.origin) {
-      this.state.formData.origin = {
-        ...this.state.formData.origin,
-        ...data.origin
-      };
-    }
-    
-    // Handle abilities data with the new flat structure
-    if (data.abilities && this.state.formData.abilities) {
-      this.state.formData.abilities = {
-        ...this.state.formData.abilities,
-        ...data.abilities
-      };
-    }
-    
-    // Handle details data
-    if (data.details && this.state.formData.details) {
-      this.state.formData.details = {
-        ...this.state.formData.details,
-        ...data.details
-      };
-    }
-    
-    // Handle equipment data
-    if (data.equipment && this.state.formData.equipment) {
-      this.state.formData.equipment = {
-        ...this.state.formData.equipment,
-        ...data.equipment
-      };
-    }
-    
-    console.log('Form data updated programmatically:', this.state.formData);
-  }
-
-  /**
    * Get the current form data
    */
   getFormData(): Partial<CharacterCreationFormData> {
@@ -673,7 +648,11 @@ export class CharacterCreationComponent extends PluginComponent {
     return this.state;
   }
   updateState(state: Partial<CharacterCreationState>): void {
+    console.log('before merge', this.state);
+    console.log('state to merge', state);
+    console.trace();
     this.state = merge.withOptions({mergeArrays: false }, this.state, state) as CharacterCreationState;
+    console.log('after merge', this.state);
     sessionStorage.setItem('characterCreationState', JSON.stringify(this.state));
   }
 
@@ -718,11 +697,5 @@ export class CharacterCreationComponent extends PluginComponent {
   }
 }
 
-// Import the flat package for unflattening form data
-import { unflatten } from 'flat';
-// Import our form schema
-import { characterCreationFormSchema } from './formSchema.mjs';
-
 // Export the component class
 export default CharacterCreationComponent;
-

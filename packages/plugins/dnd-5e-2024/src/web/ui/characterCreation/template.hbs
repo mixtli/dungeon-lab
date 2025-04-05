@@ -49,10 +49,10 @@ This is used by the CharacterCreationComponent
         <div class="skill-section">
           <h4>Skill Proficiencies</h4>
           <p>Choose {{this.count}} from the following skills:</p>
-          <div class="skill-options">
+          <div class="skill-options checkbox-group">
             {{#each this.options}}
               <div class="skill-checkbox">
-                <input type="checkbox" id="skill-{{this}}" name="class.selectedSkills.{{@index}}" 
+                <input type="checkbox" id="skill-{{this}}" name="class.selectedSkills" 
                        value="{{this}}" class="skill-checkbox" 
                        {{#if (includes ../../formData.class.selectedSkills this)}}checked{{/if}}>
                 <label for="skill-{{this}}">{{capitalize this}}</label>
@@ -324,6 +324,7 @@ This is used by the CharacterCreationComponent
     <div class="ability-method-selection">
       <label for="ability-method">Choose Method:</label>
       <select id="ability-method" name="abilities.method" class="ability-method-select">
+        <option value="">Choose a method...</option>
         <option value="standard" {{#if (eq formData.abilities.method "standard")}}selected{{/if}}>Standard Array</option>
         <option value="roll" {{#if (eq formData.abilities.method "roll")}}selected{{/if}}>Roll for Scores</option>
         <option value="pointbuy" {{#if (eq formData.abilities.method "pointbuy")}}selected{{/if}} disabled>Point Buy (Coming Soon)</option>

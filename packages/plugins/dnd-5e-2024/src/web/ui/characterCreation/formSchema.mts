@@ -39,8 +39,8 @@ export const characterCreationFormSchema = z.object({
   // Class Selection
   name: z.string(),
   class: z.object({
-    id: z.string().optional(),
-    name: z.string().optional(),
+    id: z.string().min(1),
+    name: z.string().min(1),
     selectedSkills: z.array(z.string()).optional(),
     selectedEquipment: z.enum(['A', 'B']).optional()
   }),
