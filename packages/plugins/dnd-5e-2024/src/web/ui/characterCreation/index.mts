@@ -527,41 +527,60 @@ export class CharacterCreationComponent extends PluginComponent {
     let isValid = true;
     const errors: Record<string, string[]> = {};
     
-    // Validation logic specific to each page
+    // Get the current form data
+    const formData = this.getFormData();
+    
+    // Create a validation schema based on the page
+    let pageSchema: z.ZodType<any>;
+    let dataToValidate: any = {};
+    
     if (pageId === 'class-page') {
-      if (!this.state.formData.class?.id) {
-        errors['class.id'] = ['Please select a class.'];
-        isValid = false;
-      }
+      // For the class page, validate the class object
+      pageSchema = z.object({ class: characterCreationFormSchema.shape.class });
+      dataToValidate = { class: formData.class };
     } 
     else if (pageId === 'origin-page') {
-      if (!this.state.formData.origin?.species?.id) {
-        errors['origin.species.id'] = ['Please select a species.'];
-        isValid = false;
-      }
-      
-      if (!this.state.formData.origin?.background?.id) {
-        errors['origin.background.id'] = ['Please select a background.'];
-        isValid = false;
-      }
+      // For the origin page, validate the origin object
+      pageSchema = z.object({ origin: characterCreationFormSchema.shape.origin });
+      dataToValidate = { origin: formData.origin };
     }
     else if (pageId === 'abilities-page') {
-      const abilities = this.state.formData.abilities;
+      // For the abilities page, validate the abilities object and ensure all ability scores are set
+      pageSchema = z.object({ abilities: characterCreationFormSchema.shape.abilities });
+      dataToValidate = { abilities: formData.abilities };
+    }
+    else if (pageId === 'details-page') {
+      // For the details page, validate the details object
+      pageSchema = z.object({ details: characterCreationFormSchema.shape.details });
+      dataToValidate = { details: formData.details };
+    }
+    else {
+      // Unknown page, return true
+      this.updateState({
+        validationErrors: {},
+        isValid: true
+      });
+      return true;
+    }
+    
+    // Validate the data against the schema
+    const result = pageSchema.safeParse(dataToValidate);
+    
+    if (!result.success) {
+      // Convert Zod errors to our format
+      const formattedErrors: Record<string, string[]> = {};
       
-      if (!abilities) {
-        errors['abilities.method'] = ['Please select an ability score method.'];
-        isValid = false;
-      } else {
-        const abilityNames = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'];
-        const missingAbilities = abilityNames.filter(ability => 
-          !(abilities as any)[ability]
-        );
-        
-        if (missingAbilities.length > 0) {
-          errors['abilities'] = [`Please assign scores to all abilities: ${missingAbilities.join(', ')}.`];
-          isValid = false;
+      result.error.errors.forEach(err => {
+        const path = err.path.join('.');
+        if (!formattedErrors[path]) {
+          formattedErrors[path] = [];
         }
-      }
+        formattedErrors[path].push(err.message);
+      });
+      
+      // Merge with any existing errors
+      Object.assign(errors, formattedErrors);
+      isValid = false;
     }
     
     // Store validation results in state

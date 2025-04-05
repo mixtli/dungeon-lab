@@ -41,22 +41,22 @@ export const characterCreationFormSchema = z.object({
   class: z.object({
     id: z.string().min(1),
     name: z.string().min(1),
-    selectedSkills: z.array(z.string()).optional(),
-    selectedEquipment: z.enum(['A', 'B']).optional()
+    selectedSkills: z.array(z.string()),
+    selectedEquipment: z.enum(['A', 'B'])
   }),
   
   // Origin Selection
   origin: z.object({
     species: z.object({
-      id: z.string().optional(),
-      name: z.string().optional(),
+      id: z.string(),
+      name: z.string(),
     }),
     background: z.object({
-      id: z.string().optional(),
-      name: z.string().optional(),
-      selectedEquipment: z.string().optional(),
-    }).default({}),
-    selectedLanguages: z.array(z.string()).optional()
+      id: z.string(),
+      name: z.string(),
+      selectedEquipment: z.string(),
+    }),
+    selectedLanguages: z.array(z.string())
   }),
   
   // Ability Scores
@@ -64,12 +64,12 @@ export const characterCreationFormSchema = z.object({
     method: z.enum(['standard', 'pointbuy', 'roll']),
     pointsRemaining: z.number().int().min(0).max(27).default(27),
     availableScores: z.array(z.number().int()).default([]),
-    strength: z.number().int().min(3).max(18).optional(),
-    dexterity: z.number().int().min(3).max(18).optional(),
-    constitution: z.number().int().min(3).max(18).optional(),
-    intelligence: z.number().int().min(3).max(18).optional(),
-    wisdom: z.number().int().min(3).max(18).optional(),
-    charisma: z.number().int().min(3).max(18).optional()
+    strength: z.number().int().min(3).max(18),
+    dexterity: z.number().int().min(3).max(18),
+    constitution: z.number().int().min(3).max(18),
+    intelligence: z.number().int().min(3).max(18),
+    wisdom: z.number().int().min(3).max(18),
+    charisma: z.number().int().min(3).max(18)
   }),
   
   // Equipment
@@ -84,7 +84,7 @@ export const characterCreationFormSchema = z.object({
       'lawful-good', 'neutral-good', 'chaotic-good', 
       'lawful-neutral', 'true-neutral', 'chaotic-neutral',
       'lawful-evil', 'neutral-evil', 'chaotic-evil'
-    ]).optional(),
+    ]),
     age: z.number().int().positive().optional(),
     height: z.string().optional(),
     weight: z.string().optional(),
