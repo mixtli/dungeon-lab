@@ -449,23 +449,24 @@ export class CharacterCreationComponent extends PluginComponent {
     // Make a copy of the abilities to work with
     const abilities = { ...formData.abilities };
     
-    // Get the old value if it exists
-    const oldValue = (abilities as any)[ability] as number | undefined;
+    // Get the old value if it exists from the state (not formData, which might not have the current value)
+    const oldValue = this.state.formData.abilities?.[ability as keyof typeof this.state.formData.abilities] as number | undefined;
     
     console.log('Ability score changed:', ability, 'from', oldValue, 'to', newValue);
     
     // If there was a previous value, add it back to available scores
-    if (oldValue && typeof oldValue === 'number') {
-      if (!abilities.availableScores.includes(oldValue)) {
+    if (oldValue) {
+      // Check if it's already in the available scores
         abilities.availableScores.push(oldValue);
         // Keep scores sorted in descending order
         abilities.availableScores.sort((a, b) => b - a);
-      }
+        console.log(`Added ${oldValue} back to available scores:`, abilities.availableScores);
     }
     
     // If a new value was selected, remove it from available scores
     if (newValue) {
       abilities.availableScores = abilities.availableScores.filter(score => score !== newValue);
+      console.log(`Removed ${newValue} from available scores:`, abilities.availableScores);
     }
     
     // Update the ability score

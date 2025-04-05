@@ -380,146 +380,111 @@ This is used by the CharacterCreationComponent
   <!-- Form page: Character Details -->
   <div id="details-page" class="form-page {{#if (eq currentPage 'details-page')}}active{{/if}}">
     <h2>Character Details</h2>
-    <p>Finalize the details of your character.</p>
+    <p class="page-description">Finalize the details of your character.</p>
     
-    
-    <div class="alignment-section">
+    <div class="details-section">
       <h3>Alignment</h3>
       <p>Choose an alignment that describes your character's moral and ethical outlook.</p>
       
-      <div class="alignment-grid">
-        <div class="alignment-cell">
-          <input type="radio" id="lawful-good" name="details.alignment" value="lawful-good" 
-                 {{#if (eq formData.details.alignment "lawful-good")}}checked{{/if}}>
-          <label for="lawful-good">Lawful Good</label>
-        </div>
-        <div class="alignment-cell">
-          <input type="radio" id="neutral-good" name="details.alignment" value="neutral-good" 
-                 {{#if (eq formData.details.alignment "neutral-good")}}checked{{/if}}>
-          <label for="neutral-good">Neutral Good</label>
-        </div>
-        <div class="alignment-cell">
-          <input type="radio" id="chaotic-good" name="details.alignment" value="chaotic-good" 
-                 {{#if (eq formData.details.alignment "chaotic-good")}}checked{{/if}}>
-          <label for="chaotic-good">Chaotic Good</label>
-        </div>
-        <div class="alignment-cell">
-          <input type="radio" id="lawful-neutral" name="details.alignment" value="lawful-neutral" 
-                 {{#if (eq formData.details.alignment "lawful-neutral")}}checked{{/if}}>
-          <label for="lawful-neutral">Lawful Neutral</label>
-        </div>
-        <div class="alignment-cell">
-          <input type="radio" id="true-neutral" name="details.alignment" value="true-neutral" 
-                 {{#if (eq formData.details.alignment "true-neutral")}}checked{{/if}}>
-          <label for="true-neutral">True Neutral</label>
-        </div>
-        <div class="alignment-cell">
-          <input type="radio" id="chaotic-neutral" name="details.alignment" value="chaotic-neutral" 
-                 {{#if (eq formData.details.alignment "chaotic-neutral")}}checked{{/if}}>
-          <label for="chaotic-neutral">Chaotic Neutral</label>
-        </div>
-        <div class="alignment-cell">
-          <input type="radio" id="lawful-evil" name="details.alignment" value="lawful-evil" 
-                 {{#if (eq formData.details.alignment "lawful-evil")}}checked{{/if}}>
-          <label for="lawful-evil">Lawful Evil</label>
-        </div>
-        <div class="alignment-cell">
-          <input type="radio" id="neutral-evil" name="details.alignment" value="neutral-evil" 
-                 {{#if (eq formData.details.alignment "neutral-evil")}}checked{{/if}}>
-          <label for="neutral-evil">Neutral Evil</label>
-        </div>
-        <div class="alignment-cell">
-          <input type="radio" id="chaotic-evil" name="details.alignment" value="chaotic-evil" 
-                 {{#if (eq formData.details.alignment "chaotic-evil")}}checked{{/if}}>
-          <label for="chaotic-evil">Chaotic Evil</label>
-        </div>
+      <div class="form-group">
+        <label for="character-alignment">Alignment:</label>
+        <select id="character-alignment" name="details.alignment" class="form-select">
+          <option value="">Choose an alignment...</option>
+          <option value="lawful-good" {{#if (eq formData.details.alignment "lawful-good")}}selected{{/if}}>Lawful Good</option>
+          <option value="neutral-good" {{#if (eq formData.details.alignment "neutral-good")}}selected{{/if}}>Neutral Good</option>
+          <option value="chaotic-good" {{#if (eq formData.details.alignment "chaotic-good")}}selected{{/if}}>Chaotic Good</option>
+          <option value="lawful-neutral" {{#if (eq formData.details.alignment "lawful-neutral")}}selected{{/if}}>Lawful Neutral</option>
+          <option value="true-neutral" {{#if (eq formData.details.alignment "true-neutral")}}selected{{/if}}>True Neutral</option>
+          <option value="chaotic-neutral" {{#if (eq formData.details.alignment "chaotic-neutral")}}selected{{/if}}>Chaotic Neutral</option>
+          <option value="lawful-evil" {{#if (eq formData.details.alignment "lawful-evil")}}selected{{/if}}>Lawful Evil</option>
+          <option value="neutral-evil" {{#if (eq formData.details.alignment "neutral-evil")}}selected{{/if}}>Neutral Evil</option>
+          <option value="chaotic-evil" {{#if (eq formData.details.alignment "chaotic-evil")}}selected{{/if}}>Chaotic Evil</option>
+        </select>
       </div>
     </div>
     
-    <div class="physical-traits">
+    <div class="details-section physical-traits">
       <h3>Physical Traits</h3>
       
-      <div class="form-row">
+      <div class="form-grid">
         <div class="form-group">
           <label for="character-age">Age:</label>
-          <input type="number" id="character-age" name="details.age" value="{{formData.details.age}}">
+          <input type="number" id="character-age" name="details.age" value="{{formData.details.age}}" class="form-control">
         </div>
         
         <div class="form-group">
           <label for="character-height">Height:</label>
-          <input type="text" id="character-height" name="details.height" value="{{formData.details.height}}">
+          <input type="text" id="character-height" name="details.height" value="{{formData.details.height}}" class="form-control" placeholder="5'10&quot;">
         </div>
         
         <div class="form-group">
           <label for="character-weight">Weight:</label>
-          <input type="text" id="character-weight" name="details.weight" value="{{formData.details.weight}}">
+          <input type="text" id="character-weight" name="details.weight" value="{{formData.details.weight}}" class="form-control" placeholder="180 lbs">
         </div>
-      </div>
-      
-      <div class="form-row">
+
         <div class="form-group">
           <label for="character-eyes">Eyes:</label>
-          <input type="text" id="character-eyes" name="details.eyes" value="{{formData.details.eyes}}">
+          <input type="text" id="character-eyes" name="details.eyes" value="{{formData.details.eyes}}" class="form-control" placeholder="Brown">
         </div>
         
         <div class="form-group">
           <label for="character-hair">Hair:</label>
-          <input type="text" id="character-hair" name="details.hair" value="{{formData.details.hair}}">
+          <input type="text" id="character-hair" name="details.hair" value="{{formData.details.hair}}" class="form-control" placeholder="Black">
         </div>
         
         <div class="form-group">
           <label for="character-skin">Skin:</label>
-          <input type="text" id="character-skin" name="details.skin" value="{{formData.details.skin}}">
+          <input type="text" id="character-skin" name="details.skin" value="{{formData.details.skin}}" class="form-control" placeholder="Tan">
         </div>
       </div>
     </div>
     
-    <div class="personality-section">
+    <div class="details-section personality-section">
       <h3>Personality</h3>
       
       <div class="form-group">
         <label for="character-traits">Personality Traits:</label>
-        <textarea id="character-traits" name="details.personalityTraits">{{formData.details.personalityTraits}}</textarea>
+        <textarea id="character-traits" name="details.personalityTraits" class="form-textarea" placeholder="What traits define your character's personality?">{{formData.details.personalityTraits}}</textarea>
       </div>
       
       <div class="form-group">
         <label for="character-ideals">Ideals:</label>
-        <textarea id="character-ideals" name="details.ideals">{{formData.details.ideals}}</textarea>
+        <textarea id="character-ideals" name="details.ideals" class="form-textarea" placeholder="What principles does your character believe in?">{{formData.details.ideals}}</textarea>
       </div>
       
       <div class="form-group">
         <label for="character-bonds">Bonds:</label>
-        <textarea id="character-bonds" name="details.bonds">{{formData.details.bonds}}</textarea>
+        <textarea id="character-bonds" name="details.bonds" class="form-textarea" placeholder="What connections tie your character to people, places, or events?">{{formData.details.bonds}}</textarea>
       </div>
       
       <div class="form-group">
         <label for="character-flaws">Flaws:</label>
-        <textarea id="character-flaws" name="details.flaws">{{formData.details.flaws}}</textarea>
+        <textarea id="character-flaws" name="details.flaws" class="form-textarea" placeholder="What weaknesses or shortcomings does your character have?">{{formData.details.flaws}}</textarea>
       </div>
     </div>
     
-    <div class="backstory-section">
+    <div class="details-section backstory-section">
       <h3>Backstory</h3>
       
       <div class="form-group">
         <label for="character-backstory">Character Backstory:</label>
-        <textarea id="character-backstory" name="details.backstory">{{formData.details.backstory}}</textarea>
+        <textarea id="character-backstory" name="details.backstory" class="form-textarea" placeholder="Tell the story of your character's background and how they became an adventurer.">{{formData.details.backstory}}</textarea>
       </div>
       
       <div class="form-group">
         <label for="character-allies">Allies & Organizations:</label>
-        <textarea id="character-allies" name="details.allies">{{formData.details.allies}}</textarea>
+        <textarea id="character-allies" name="details.allies" class="form-textarea" placeholder="Who are your character's allies or which organizations are they affiliated with?">{{formData.details.allies}}</textarea>
       </div>
       
       <div class="form-group">
         <label for="character-features">Additional Features & Traits:</label>
-        <textarea id="character-features" name="details.additionalFeatures">{{formData.details.additionalFeatures}}</textarea>
+        <textarea id="character-features" name="details.additionalFeatures" class="form-textarea" placeholder="Any other notable features or traits your character has?">{{formData.details.additionalFeatures}}</textarea>
       </div>
     </div>
     
     <div class="form-nav">
       <button type="button" class="back-button">Back: Abilities</button>
-      <button type="submit" class="submit-button">Create Character</button>
+      <button type="submit" class="submit-button create-character-btn">Create Character</button>
     </div>
   </div>
 </div> 
