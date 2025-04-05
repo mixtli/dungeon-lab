@@ -20,8 +20,8 @@ export interface IPluginComponent {
   render(data?: Record<string, any>): Promise<void>;
 
   // Form validation and data transformation
-  validateForm(data: unknown): z.SafeParseReturnType<unknown, unknown>;
-  translateFormData(data: unknown): Record<string, unknown>;
+  validateForm(form: HTMLFormElement): z.SafeParseReturnType<unknown, unknown>;
+  translateFormData(data: unknown): any;
 
   // Optional debug methods
   enableDebugMode?(): void;

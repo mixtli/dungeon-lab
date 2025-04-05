@@ -76,27 +76,6 @@ async function handleSubmit(event: Event) {
 
     // Get the form data
     const form = event.target as HTMLFormElement;
-    const formData = new FormData(form);
-
-    // Extract plugin data fields (those prefixed with data.)
-    const extractedData: Record<string, any> = {};
-    for (const [key, value] of formData.entries()) {
-      if (key.startsWith('data.')) {
-        // Remove the data. prefix and set in pluginData
-        const path = key.substring(5).split('.');
-        let current = extractedData;
-        for (let i = 0; i < path.length - 1; i++) {
-          if (!(path[i] in current)) {
-            current[path[i]] = {};
-          }
-          current = current[path[i]];
-        }
-        // Convert numeric values
-        const finalValue = /^\d+$/.test(value as string) ? parseInt(value as string) : value;
-        current[path[path.length - 1]] = finalValue;
-      }
-    }
-
     // Get the plugin component instance
     const pluginComponent = plugin.loadComponent('characterCreation');
     if (!pluginComponent) {
@@ -105,7 +84,7 @@ async function handleSubmit(event: Event) {
     }
 
     // Validate form data
-    const validation = pluginComponent.validateForm(extractedData);
+    const validation = pluginComponent.validateForm(form);
     if (!validation.success) {
       console.error('Form validation failed:', validation.error);
       error.value = `Validation error: ${validation.error.message}`;

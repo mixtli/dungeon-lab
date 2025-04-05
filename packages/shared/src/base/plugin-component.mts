@@ -194,13 +194,12 @@ export abstract class PluginComponent implements IPluginComponent {
    * @param data The form data to transform
    * @returns Transformed data as a record
    */
-  translateFormData(data: unknown): Record<string, unknown> {
+  translateFormData(data: unknown) {
     // Default implementation returns data as is (if it's a record)
     // or an empty object if it's not a record
     if (data && typeof data === 'object' && !Array.isArray(data)) {
-      return data as Record<string, unknown>;
+      return data
     }
-    
     // Return empty object for non-record inputs
     return {};
   }

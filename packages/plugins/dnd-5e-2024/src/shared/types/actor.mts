@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { characterSchema } from './character.mjs';
+import { characterDataSchema } from './character.mjs';
 
 // Monster schema
 export const monsterSchema = z.object({
@@ -107,7 +107,7 @@ export type INPC = z.infer<typeof npcSchema>;
 
 // Create the discriminated union for ActorData
 export const actorDataSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('character'), data: characterSchema }),
+  z.object({ type: z.literal('character'), data: characterDataSchema }),
   z.object({ type: z.literal('monster'), data: monsterSchema }),
   z.object({ type: z.literal('npc'), data: npcSchema })
 ]);
@@ -116,7 +116,7 @@ export type IActorData = z.infer<typeof actorDataSchema>;
 
 // Export const for each actor type for validation functions
 export const actorTypes = {
-  character: characterSchema,
+  character: characterDataSchema,
   monster: monsterSchema,
   npc: npcSchema
 };

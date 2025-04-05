@@ -27,6 +27,7 @@ import { unflatten } from 'flat';
 import { characterCreationFormSchema } from './formSchema.mjs';
 
 import { deepPartial } from './formSchema.mjs'
+import { ICharacter } from '../../../shared/types/character.mjs';
 
 const fooSchema = z.object({
   a: z.object({
@@ -394,12 +395,12 @@ export class CharacterCreationComponent extends PluginComponent {
       method,
       availableScores,
       pointsRemaining: 27,
-      strength: 0,
-      dexterity: 0,
-      constitution: 0,
-      intelligence: 0,
-      wisdom: 0,
-      charisma: 0
+      strength: '',
+      dexterity: '',
+      constitution: '',
+      intelligence: '',
+      wisdom: '',
+      charisma: ''
     };
     
     console.log('generateAbilityScores: Form data updated:', formData);
@@ -426,14 +427,14 @@ export class CharacterCreationComponent extends PluginComponent {
     const abilities = { ...formData.abilities };
     
     // Get the old value if it exists from the state (not formData, which might not have the current value)
-    const oldValue = this.state.formData.abilities?.[ability as keyof typeof this.state.formData.abilities] as number | undefined;
+    const oldValue = this.state.formData.abilities?.[ability as keyof typeof this.state.formData.abilities] as string || undefined;
     
     console.log('Ability score changed:', ability, 'from', oldValue, 'to', newValue);
     
     // If there was a previous value, add it back to available scores
     if (oldValue) {
       // Check if it's already in the available scores
-        abilities.availableScores.push(oldValue);
+        abilities.availableScores.push(parseInt(oldValue, 10));
         // Keep scores sorted in descending order
         abilities.availableScores.sort((a, b) => b - a);
         console.log(`Added ${oldValue} back to available scores:`, abilities.availableScores);
@@ -655,25 +656,247 @@ export class CharacterCreationComponent extends PluginComponent {
     });
   }
 
+  serializeForm(form: HTMLFormElement): CharacterCreationFormData {
+    const formData = new FormData(form);
+    const flatData: Record<string, any> = {};
+    for (const key of formData.keys()) {
+      const target = form.querySelector(`[name="${key}"]`) as HTMLInputElement;
+      if (target) {
+        if (target.type === 'select-multiple')  {
+          const selectedValues= formData.getAll(target.name);
+          flatData[target.name] = selectedValues as string[];
+        } else if (target.type === 'checkbox') {
+        // We need to check if the target has a parent with the class 'checkbox-group'
+          const parent = target.closest('.checkbox-group');
+          if (parent) {
+            const selectedValues= formData.getAll(target.name);
+            flatData[target.name] = selectedValues as string[];
+          } else {
+            flatData[target.name] = formData.get(key);
+          }
+        } else {
+          flatData[target.name] = formData.get(key);
+        }
+      }
+    }
+    
+    const res = unflatten(flatData);
+    console.log(res)
+    return res as CharacterCreationFormData
+  }
+
   /**
    * Validates form data against the character creation schema
    */
-  validateForm(data: unknown): z.SafeParseReturnType<unknown, unknown> {
-    return characterCreationFormSchema.safeParse(data);
+  validateForm(form: HTMLFormElement): z.SafeParseReturnType<unknown, unknown> {
+    return characterCreationFormSchema.safeParse(this.serializeForm(form));
   }
 
   /**
    * Translates form data into the full character schema format
    */
-  translateFormData(formData: CharacterCreationFormData): Record<string, unknown> {
-    return {
-      classes: [{
-        name: formData.class!.name,
-        level: 1,
-        hitDiceType: this.state.classDocument?.data?.hitdie || 'd8'
-      }],
-      // Other fields will be added in subsequent steps
+  translateFormData(formData: CharacterCreationFormData): ICharacter {
+    // Calculate ability modifiers
+    const abilities = {
+      strength: {
+        score: parseInt(formData.abilities.strength, 10),
+        modifier: Math.floor((parseInt(formData.abilities.strength, 10) - 10) / 2),
+        savingThrow: {
+          proficient: this.state.classDocument?.data?.savingthrows?.includes('strength') || false,
+          bonus: 0 // Will be calculated below
+        }
+      },
+      dexterity: {
+        score: parseInt(formData.abilities.dexterity, 10),
+        modifier: Math.floor((parseInt(formData.abilities.dexterity, 10) - 10) / 2),
+        savingThrow: {
+          proficient: this.state.classDocument?.data?.savingthrows?.includes('dexterity') || false,
+          bonus: 0
+        }
+      },
+      constitution: {
+        score: parseInt(formData.abilities.constitution, 10),
+        modifier: Math.floor((parseInt(formData.abilities.constitution, 10) - 10) / 2),
+        savingThrow: {
+          proficient: this.state.classDocument?.data?.savingthrows?.includes('constitution') || false,
+          bonus: 0
+        }
+      },
+      intelligence: {
+        score: parseInt(formData.abilities.intelligence, 10),
+        modifier: Math.floor((parseInt(formData.abilities.intelligence, 10) - 10) / 2),
+        savingThrow: {
+          proficient: this.state.classDocument?.data?.savingthrows?.includes('intelligence') || false,
+          bonus: 0
+        }
+      },
+      wisdom: {
+        score: parseInt(formData.abilities.wisdom, 10),
+        modifier: Math.floor((parseInt(formData.abilities.wisdom, 10) - 10) / 2),
+        savingThrow: {
+          proficient: this.state.classDocument?.data?.savingthrows?.includes('wisdom') || false,
+          bonus: 0
+        }
+      },
+      charisma: {
+        score: parseInt(formData.abilities.charisma, 10),
+        modifier: Math.floor((parseInt(formData.abilities.charisma, 10) - 10) / 2),
+        savingThrow: {
+          proficient: this.state.classDocument?.data?.savingthrows?.includes('charisma') || false,
+          bonus: 0
+        }
+      }
     };
+
+    // Standard proficiency bonus for level 1
+    const proficiencyBonus = 2;
+
+    // Calculate saving throw bonuses
+    for (const ability of Object.keys(abilities) as Array<keyof typeof abilities>) {
+      abilities[ability].savingThrow.bonus = abilities[ability].modifier + 
+        (abilities[ability].savingThrow.proficient ? proficiencyBonus : 0);
+    }
+
+    // Get class data
+    const classData = {
+      name: formData.class.name,
+      level: 1,
+      hitDiceType: (this.state.classDocument?.data?.hitdie || 'd8') as 'd6' | 'd8' | 'd10' | 'd12'
+    };
+
+    // Calculate hit points
+    const constitutionModifier = abilities.constitution.modifier;
+    const hitDiceValue = parseInt(classData.hitDiceType.substring(1), 10);
+    const maxHitPoints = hitDiceValue + constitutionModifier;
+
+    // Get alignment (convert from form format with hyphens to character format with spaces)
+    const alignment = formData.details.alignment.replace('-', ' ') as
+      'lawful good' | 'neutral good' | 'chaotic good' |
+      'lawful neutral' | 'true neutral' | 'chaotic neutral' |
+      'lawful evil' | 'neutral evil' | 'chaotic evil';
+
+    // Get features based on class, species, and background
+    const features: Array<{name: string, description: string, source: string}> = [];
+    
+    // Add class features
+    if (this.state.classDocument?.data?.features) {
+      // Handle features - iterate over each level
+      Object.entries(this.state.classDocument.data.features).forEach(([level, levelFeatures]) => {
+        // Only include level 1 features
+        if (parseInt(level, 10) <= 1) {
+          // Process each feature in this level
+          levelFeatures.forEach((feature: any) => {
+            features.push({
+              name: feature.name,
+              description: feature.description || '',
+              source: `${formData.class.name} Class`
+            });
+          });
+        }
+      });
+    }
+
+    // Add species features
+    if (this.state.speciesDocument?.data?.traits) {
+      this.state.speciesDocument.data.traits.forEach((t: any) => {
+        features.push({
+          name: t.name,
+          description: t.description || '',
+          source: `${formData.origin.species.name} Species`
+        });
+      });
+    }
+
+    // Add background features
+    const backgroundDoc = this.state.backgroundDocument?.data;
+    if (backgroundDoc) {
+      // Add general background description as a feature
+      features.push({
+        name: `${formData.origin.background.name} Background`,
+        description: backgroundDoc.description || '',
+        source: formData.origin.background.name
+      });
+    }
+
+    // Compile equipment items
+    const equipment: Array<{id: string, quantity: number}> = [];
+    
+    // Add class equipment
+    // TODO: Add code to process class equipment selections when available
+    
+    // Add background equipment
+    // TODO: Add code to process background equipment
+    
+    // Add purchased items
+    if (formData.equipment?.purchasedItems) {
+      formData.equipment.purchasedItems.forEach(item => {
+        // This is a simplification - in reality, you'd need to map purchased items to actual item IDs
+        equipment.push({
+          id: item.name, // Using name as ID for now
+          quantity: item.quantity
+        });
+      });
+    }
+
+    // Character data object according to the schema
+    const characterData = {
+      name: formData.name || 'New Character',
+      species: formData.origin.species.name,
+      background: formData.origin.background.name,
+      classes: [classData],
+      alignment,
+      
+      // Core stats
+      experiencePoints: 0,
+      proficiencyBonus,
+      armorClass: 10 + abilities.dexterity.modifier, // Base AC calculation
+      initiative: abilities.dexterity.modifier,
+      speed: this.state.speciesDocument?.data?.speed || 30,
+      
+      hitPoints: {
+        maximum: maxHitPoints,
+        current: maxHitPoints
+      },
+      
+      hitDice: {
+        total: 1,
+        current: 1,
+        type: classData.hitDiceType
+      },
+      
+      abilities,
+      equipment,
+      features,
+      
+      // Biography
+      biography: {
+        personalityTraits: formData.details.personalityTraits || '',
+        ideals: formData.details.ideals || '',
+        bonds: formData.details.bonds || '',
+        flaws: formData.details.flaws || '',
+        backstory: formData.details.backstory || '',
+        appearance: [
+          formData.details.age ? `Age: ${formData.details.age}` : '',
+          formData.details.height ? `Height: ${formData.details.height}` : '',
+          formData.details.weight ? `Weight: ${formData.details.weight}` : '',
+          formData.details.eyes ? `Eyes: ${formData.details.eyes}` : '',
+          formData.details.hair ? `Hair: ${formData.details.hair}` : '',
+          formData.details.skin ? `Skin: ${formData.details.skin}` : ''
+        ].filter(Boolean).join(', ')
+      }
+    };
+
+    // Build the final ICharacter object (IActor & { data: ICharacterData })
+    return {
+      name: formData.name || 'New Character',
+      type: 'character',
+      gameSystemId: 'dnd-5e-2024',
+      description: formData.details.backstory?.substring(0, 100) || '',
+      data: characterData,
+      // These fields are required by IActor but will be filled in by the server
+      createdBy: '',
+      updatedBy: ''
+    } as ICharacter; // Use type assertion since we know the server will set these fields
   }
   
   /**

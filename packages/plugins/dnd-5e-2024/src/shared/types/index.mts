@@ -1,5 +1,5 @@
 // Export basic types
-export { characterSchema, type ICharacter } from './character.mjs';
+export { characterDataSchema as characterSchema, type ICharacterData as ICharacter } from './character.mjs';
 export { weaponSchema, type IWeapon } from './weapon.mjs';
 export { spellSchema, type ISpell } from './spell.mjs'; 
 export { characterClassSchema, type ICharacterClassData as ICharacterClass } from './character-class.mjs';

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { IActor } from '@dungeon-lab/shared/index.mjs';
 
 const abilitySchema = z.object({
       score: z.number().min(1).max(30),
@@ -10,7 +11,7 @@ const abilitySchema = z.object({
     })
 
 // Full character schema for the complete character heet
-export const characterSchema = z.object({
+export const characterDataSchema = z.object({
   // Basic info
   name: z.string(),
   species: z.string(),
@@ -94,7 +95,9 @@ export const characterSchema = z.object({
   }).default({})
 });
 
-export type ICharacter = z.infer<typeof characterSchema>;
+export type ICharacterData = z.infer<typeof characterDataSchema>;
+
+export type ICharacter = IActor & { data: ICharacterData };
 
 // Convert schema to JSON Schema for plugin registration
-export const characterJsonSchema = characterSchema.describe('D&D 5E Character'); 
+export const characterJsonSchema = characterDataSchema.describe('D&D 5E Character'); 

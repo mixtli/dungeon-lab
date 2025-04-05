@@ -64,12 +64,36 @@ export const characterCreationFormSchema = z.object({
     method: z.enum(['standard', 'pointbuy', 'roll']),
     pointsRemaining: z.number().int().min(0).max(27).default(27),
     availableScores: z.array(z.number().int()).default([]),
-    strength: z.number().int().min(3).max(18),
-    dexterity: z.number().int().min(3).max(18),
-    constitution: z.number().int().min(3).max(18),
-    intelligence: z.number().int().min(3).max(18),
-    wisdom: z.number().int().min(3).max(18),
-    charisma: z.number().int().min(3).max(18)
+    strength: z.string()
+      .refine(
+        (val) => !isNaN(Number(val)) && Number(val) >= 3 && Number(val) <= 18,
+        { message: "Must be a number between 3 and 18" }
+      ),
+    dexterity: z.string()
+      .refine(
+        (val) => !isNaN(Number(val)) && Number(val) >= 3 && Number(val) <= 18,
+        { message: "Must be a number between 3 and 18" }
+      ),
+    constitution: z.string()
+      .refine(
+        (val) => !isNaN(Number(val)) && Number(val) >= 3 && Number(val) <= 18,
+        { message: "Must be a number between 3 and 18" }
+      ),
+    intelligence: z.string()
+      .refine(
+        (val) => !isNaN(Number(val)) && Number(val) >= 3 && Number(val) <= 18,
+        { message: "Must be a number between 3 and 18" }
+      ),
+    wisdom: z.string()
+      .refine(
+        (val) => !isNaN(Number(val)) && Number(val) >= 3 && Number(val) <= 18,
+        { message: "Must be a number between 3 and 18" }
+      ),
+    charisma: z.string()
+      .refine(
+        (val) => !isNaN(Number(val)) && Number(val) >= 3 && Number(val) <= 18,
+        { message: "Must be a number between 3 and 18" }
+      ),
   }),
   
   // Equipment
@@ -85,7 +109,7 @@ export const characterCreationFormSchema = z.object({
       'lawful-neutral', 'true-neutral', 'chaotic-neutral',
       'lawful-evil', 'neutral-evil', 'chaotic-evil'
     ]),
-    age: z.number().int().positive().optional(),
+    age: z.string().transform((val) => parseInt(val, 10)), // .pipe(z.number().int().positive().optional()),
     height: z.string().optional(),
     weight: z.string().optional(),
     eyes: z.string().optional(),

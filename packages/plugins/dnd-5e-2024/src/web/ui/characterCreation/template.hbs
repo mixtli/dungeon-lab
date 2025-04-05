@@ -122,6 +122,7 @@ This is used by the CharacterCreationComponent
     
     <div class="form-group">
       <label for="character-species">Species:</label>
+    <input type="hidden" name="origin.species.name" value="{{originDocument.name}}">
       <select id="character-species" name="origin.species.id" required>
         <option value="">-- Select Species --</option>
         {{#each (getAllSpecies)}}
@@ -184,6 +185,7 @@ This is used by the CharacterCreationComponent
     
     <div class="form-group">
       <label for="character-background">Background:</label>
+    <input type="hidden" name="origin.background.name" value="{{backgroundDocument.name}}">
       <select id="character-background" name="origin.background.id" required>
         <option value="">-- Select Background --</option>
         {{#each (getAllBackgrounds)}}
