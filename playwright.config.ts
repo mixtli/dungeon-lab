@@ -1,13 +1,14 @@
+import path from 'path';
 import { defineConfig, devices } from '@playwright/test';
-const STORAGE_STATE = './auth/storage-state.json';
+export const STORAGE_STATE = path.join(__dirname, 'playwright/.auth/storage-state.json');
 
 export default defineConfig({
   testDir: './playwright/tests',
-  fullyParallel: true,
+  //fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
-  reporter: 'html',
+  //reporter: 'html',
   // Global setup that runs before all tests
   //globalSetup: './playwright/global-setup',
   use: {

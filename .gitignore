@@ -21,3 +21,4 @@ minio_data
 
 playwright/.auth/*
 playwright-report/
+test-results/
