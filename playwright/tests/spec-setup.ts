@@ -15,7 +15,6 @@ setup('setup', async ({ page }) => {
   await page.getByRole('textbox', { name: 'Password' }).fill('password');
   await page.getByRole('textbox', { name: 'Password' }).press('Enter');
   console.log('Login successful');
-  await page.screenshot({ path: 'screenshot.png' });
   //await page.locator('form').getByRole('button', { name: 'Login' }).click();
   
   // Set the activeGameSystem in localStorage
