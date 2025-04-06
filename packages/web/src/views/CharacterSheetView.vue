@@ -1,82 +1,63 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
-
-// Define the Character interface to match our data structure
-interface Character {
-  id: string;
-  name: string;
-  type: string;
-  avatar?: string;
-  data: {
-    race: string;
-    class: string;
-    level: number;
-    background: string;
-    alignment: string;
-    experience: number;
-    attributes: {
-      strength: { score: number; modifier: number; };
-      dexterity: { score: number; modifier: number; };
-      constitution: { score: number; modifier: number; };
-      intelligence: { score: number; modifier: number; };
-      wisdom: { score: number; modifier: number; };
-      charisma: { score: number; modifier: number; };
-    };
-    hitPoints: {
-      current: number;
-      maximum: number;
-      temporary?: number;
-    };
-    armorClass: number;
-    initiative: number;
-    speed: number;
-    proficiencyBonus?: number;
-    savingThrows: {
-      strength: { proficient: boolean; value: number; };
-      dexterity: { proficient: boolean; value: number; };
-      constitution: { proficient: boolean; value: number; };
-      intelligence: { proficient: boolean; value: number; };
-      wisdom: { proficient: boolean; value: number; };
-      charisma: { proficient: boolean; value: number; };
-    };
-    skills: Array<{
-      name: string;
-      ability: string;
-      proficient: boolean;
-      value: number;
-    }>;
-    equipment: Array<{
-      name: string;
-      type: string;
-      description?: string;
-      damage?: string;
-      properties?: string[];
-    }>;
-    features: Array<{
-      name: string;
-      description: string;
-    }>;
-  };
-}
+import { useActorStore } from '../stores/actor.mts';
+import PluginUIContainer from '@/components/plugin/PluginUIContainer.vue';
+import { pluginRegistry } from '@/services/plugin-registry.service.mts';
+import type { IActor } from '@dungeon-lab/shared/dist/index.mjs';
 
 const route = useRoute();
+const actorStore = useActorStore();
 const characterId = route.params.id as string;
 const isLoading = ref(true);
-const character = ref<Character | null>(null);
+const character = ref<IActor | null>(null);
 const error = ref<string | null>(null);
-const activeTab = ref('weapons'); // For equipment tabs
+
+// Get the plugin ID from the character's gameSystemId
+const pluginId = ref('');
+const isPluginLoaded = ref(false);
+
+// Function to handle errors from the plugin component
+const handleError = (errorMessage: string) => {
+  error.value = errorMessage;
+};
 
 onMounted(async () => {
   try {
-    const response = await fetch(`/api/actors/${characterId}`);
-    if (!response.ok) {
-      throw new Error('Failed to fetch character');
+    // Fetch the character data
+    const fetchedCharacter = await actorStore.fetchActor(characterId);
+    
+    if (fetchedCharacter) {
+      character.value = fetchedCharacter;
+      console.log('character', character.value);
+      
+      // Get the plugin ID from the character's gameSystemId
+      pluginId.value = fetchedCharacter.gameSystemId || '';
+      
+      // Check if plugin is loaded or available
+      if (pluginId.value) {
+        const plugin = pluginRegistry.getGameSystemPlugin(pluginId.value);
+        if (plugin) {
+          isPluginLoaded.value = true;
+        } else {
+          // Try to load the plugin
+          try {
+            await pluginRegistry.loadPlugin(pluginId.value);
+            isPluginLoaded.value = true;
+          } catch (e) {
+            console.error('Failed to load plugin:', e);
+            error.value = `Failed to load game system plugin: ${pluginId.value}`;
+          }
+        }
+      } else {
+        error.value = 'Character has no game system ID';
+      }
+    } else {
+      error.value = 'Character not found';
     }
-    character.value = await response.json();
-  } catch (err) {
-    console.error('Error loading character:', err);
-    error.value = 'Failed to load character. Please try again later.';
+  } catch (e) {
+    console.error('Error fetching character:', e);
+    error.value = 'Error loading character data';
   } finally {
     isLoading.value = false;
   }
@@ -84,329 +65,72 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="p-6">
-    <!-- Loading State -->
-    <div v-if="isLoading" class="flex justify-center items-center min-h-[400px]">
-      <div class="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+  <div class="character-sheet-view">
+    <div v-if="isLoading" class="loading">
+      <div class="spinner"></div>
+      <p>Loading character...</p>
     </div>
     
-    <div v-else class="max-w-7xl mx-auto">
-      <div class="grid gap-6">
-        <!-- Character Header -->
-        <div class="col-span-full">
-          <div class="bg-white rounded-lg shadow p-6">
-            <div class="flex flex-col md:flex-row justify-between items-center">
-              <div>
-                <h1 class="text-3xl font-bold text-gray-900">{{ character?.name }}</h1>
-                <div class="text-gray-600 mt-1">
-                  Level {{ character?.data.level }} {{ character?.data.race }} {{ character?.data.class }} | {{ character?.data.background }} | {{ character?.data.alignment }}
-                </div>
-              </div>
-              
-              <div class="flex gap-6 mt-4 md:mt-0">
-                <div class="text-center">
-                  <div class="text-sm font-medium text-gray-500">HP</div>
-                  <div class="text-lg font-semibold text-gray-900">{{ character?.data.hitPoints.current }}/{{ character?.data.hitPoints.maximum }}</div>
-                </div>
-                
-                <div class="text-center">
-                  <div class="text-sm font-medium text-gray-500">AC</div>
-                  <div class="text-lg font-semibold text-gray-900">{{ character?.data.armorClass }}</div>
-                </div>
-                
-                <div class="text-center">
-                  <div class="text-sm font-medium text-gray-500">Initiative</div>
-                  <div class="text-lg font-semibold text-gray-900">+{{ character?.data.initiative }}</div>
-                </div>
-                
-                <div class="text-center">
-                  <div class="text-sm font-medium text-gray-500">Speed</div>
-                  <div class="text-lg font-semibold text-gray-900">{{ character?.data.speed }}ft</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <!-- Attributes and Skills -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div class="space-y-6">
-            <!-- Attributes -->
-            <div class="bg-white rounded-lg shadow">
-              <div class="border-b border-gray-200 px-6 py-4">
-                <h2 class="text-xl font-bold text-gray-900">Attributes</h2>
-              </div>
-              
-              <div class="p-6 grid grid-cols-2 gap-4">
-                <div v-for="(attr, key) in character?.data.attributes" :key="key" 
-                  class="bg-gray-50 rounded-lg p-4 text-center"
-                >
-                  <div class="text-sm font-medium text-gray-500">{{ key.charAt(0).toUpperCase() + key.slice(1) }}</div>
-                  <div class="text-2xl font-bold text-gray-900">{{ attr.score }}</div>
-                  <div class="text-sm font-medium text-gray-700">{{ attr.modifier >= 0 ? '+' + attr.modifier : attr.modifier }}</div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Saving Throws -->
-            <div class="bg-white rounded-lg shadow">
-              <div class="border-b border-gray-200 px-6 py-4">
-                <h2 class="text-xl font-bold text-gray-900">Saving Throws</h2>
-              </div>
-              
-              <ul class="divide-y divide-gray-200">
-                <li v-for="(save, key) in character?.data.savingThrows" :key="key" 
-                  class="px-6 py-3 flex items-center"
-                >
-                  <div class="w-5 h-5 mr-3 flex items-center justify-center">
-                    <div class="w-4 h-4 border-2 rounded"
-                      :class="save.proficient ? 'bg-blue-500 border-blue-500' : 'border-gray-300'"
-                    >
-                      <svg v-if="save.proficient" class="w-3 h-3 text-white" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-                      </svg>
-                    </div>
-                  </div>
-                  <span class="flex-1 text-gray-900">{{ key.charAt(0).toUpperCase() + key.slice(1) }}</span>
-                  <span class="font-medium text-gray-900">{{ save.value >= 0 ? '+' + save.value : save.value }}</span>
-                </li>
-              </ul>
-            </div>
-
-            <!-- Skills -->
-            <div class="bg-white rounded-lg shadow">
-              <div class="border-b border-gray-200 px-6 py-4">
-                <h2 class="text-xl font-bold text-gray-900">Skills</h2>
-              </div>
-              
-              <ul class="divide-y divide-gray-200">
-                <li v-for="skill in character?.data.skills" :key="skill.name" 
-                  class="px-6 py-3 flex items-center"
-                >
-                  <div class="w-5 h-5 mr-3 flex items-center justify-center">
-                    <div class="w-4 h-4 border-2 rounded"
-                      :class="skill.proficient ? 'bg-blue-500 border-blue-500' : 'border-gray-300'"
-                    >
-                      <svg v-if="skill.proficient" class="w-3 h-3 text-white" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-                      </svg>
-                    </div>
-                  </div>
-                  <span class="flex-1 text-gray-900">{{ skill.name }} ({{ skill.ability.charAt(0).toUpperCase() }})</span>
-                  <span class="font-medium text-gray-900">{{ skill.value >= 0 ? '+' + skill.value : skill.value }}</span>
-                </li>
-              </ul>
-            </div>
-          </div>
-          
-          <!-- Equipment -->
-          <div class="md:col-span-2">
-            <div class="bg-white rounded-lg shadow">
-              <div class="border-b border-gray-200 px-6 py-4">
-                <h2 class="text-xl font-bold text-gray-900">Equipment</h2>
-              </div>
-              
-              <!-- Tabs -->
-              <div class="border-b border-gray-200">
-                <nav class="flex -mb-px">
-                  <button 
-                    @click="activeTab = 'weapons'"
-                    class="px-6 py-3 font-medium text-sm border-b-2 whitespace-nowrap"
-                    :class="activeTab === 'weapons' ? 
-                      'border-blue-500 text-blue-600' : 
-                      'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
-                  >
-                    Weapons
-                  </button>
-                  <button 
-                    @click="activeTab = 'armor'"
-                    class="px-6 py-3 font-medium text-sm border-b-2 whitespace-nowrap"
-                    :class="activeTab === 'armor' ? 
-                      'border-blue-500 text-blue-600' : 
-                      'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
-                  >
-                    Armor
-                  </button>
-                  <button 
-                    @click="activeTab = 'gear'"
-                    class="px-6 py-3 font-medium text-sm border-b-2 whitespace-nowrap"
-                    :class="activeTab === 'gear' ? 
-                      'border-blue-500 text-blue-600' : 
-                      'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
-                  >
-                    Gear
-                  </button>
-                </nav>
-              </div>
-
-              <!-- Tab Content -->
-              <div class="p-6">
-                <!-- Weapons -->
-                <div v-if="activeTab === 'weapons'" class="space-y-4">
-                  <div v-for="item in character?.data.equipment.filter(i => i.type === 'weapon')" 
-                    :key="item.name"
-                    class="bg-gray-50 rounded-lg p-4"
-                  >
-                    <div class="font-semibold text-gray-900">{{ item.name }}</div>
-                    <div class="mt-2 text-sm text-gray-600">
-                      <div>Damage: {{ item.damage }}</div>
-                      <div v-if="item.properties && item.properties.length">
-                        Properties: {{ item.properties.join(', ') }}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Armor -->
-                <div v-if="activeTab === 'armor'" class="space-y-4">
-                  <div v-for="item in character?.data.equipment.filter(i => i.type === 'armor')" 
-                    :key="item.name"
-                    class="bg-gray-50 rounded-lg p-4"
-                  >
-                    <div class="font-semibold text-gray-900">{{ item.name }}</div>
-                    <div class="mt-2 text-sm text-gray-600">{{ item.description }}</div>
-                  </div>
-                </div>
-
-                <!-- Gear -->
-                <div v-if="activeTab === 'gear'" class="space-y-4">
-                  <div v-for="item in character?.data.equipment.filter(i => i.type === 'gear')" 
-                    :key="item.name"
-                    class="bg-gray-50 rounded-lg p-4"
-                  >
-                    <div class="font-semibold text-gray-900">{{ item.name }}</div>
-                    <div class="mt-2 text-sm text-gray-600">{{ item.description }}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Features -->
-            <div class="bg-white rounded-lg shadow mt-6">
-              <div class="border-b border-gray-200 px-6 py-4">
-                <h2 class="text-xl font-bold text-gray-900">Features & Traits</h2>
-              </div>
-              
-              <div class="divide-y divide-gray-200">
-                <div v-for="feature in character?.data.features" :key="feature.name" class="p-6">
-                  <h3 class="font-semibold text-gray-900">{{ feature.name }}</h3>
-                  <p class="mt-2 text-gray-600">{{ feature.description }}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+    <div v-else-if="error" class="error">
+      <h2>Error</h2>
+      <p>{{ error }}</p>
+    </div>
+    
+    <div v-else-if="!character" class="not-found">
+      <h2>Character Not Found</h2>
+      <p>The character you're looking for doesn't exist or has been deleted.</p>
+    </div>
+    
+    <div v-else-if="!isPluginLoaded" class="plugin-error">
+      <h2>Game System Not Available</h2>
+      <p>The game system plugin required for this character is not available.</p>
+    </div>
+    
+    <div v-else class="character-container">
+      <PluginUIContainer
+        :plugin-id="pluginId"
+        component-id="characterSheet"
+        :initial-data="{ character }"
+        @error="handleError"
+      />
     </div>
   </div>
 </template>
 
 <style scoped>
 .character-sheet-view {
-  padding: 1rem;
+  padding: 20px;
+  height: 100%;
 }
 
-.loading-container {
+.loading, .error, .not-found, .plugin-error {
   display: flex;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
-  align-items: center;
   height: 400px;
-}
-
-.character-subtitle {
-  color: rgb(107 114 128); /* text-gray-500 */
-}
-
-.vital-stat {
-  text-align: center;
-  padding: 0.5rem 1rem;
-  border: 1px solid rgb(229 231 235); /* border-gray-200 */
-  border-radius: 0.25rem;
-  min-width: 80px;
-}
-
-.stat-label {
-  font-size: 0.9rem;
-  color: rgb(107 114 128); /* text-gray-500 */
-  margin-bottom: 0.25rem;
-}
-
-.stat-value {
-  font-size: 1.25rem;
-  font-weight: bold;
-}
-
-.attributes-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
-}
-
-.attribute-box {
-  border: 1px solid rgb(229 231 235); /* border-gray-200 */
-  border-radius: 0.25rem;
-  padding: 0.5rem;
   text-align: center;
 }
 
-.attribute-name {
-  font-size: 0.9rem;
-  color: rgb(107 114 128); /* text-gray-500 */
+.spinner {
+  border: 4px solid rgba(0, 0, 0, 0.1);
+  border-left-color: #7b1fa2;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+  margin-bottom: 20px;
 }
 
-.attribute-score {
-  font-size: 1.5rem;
-  font-weight: bold;
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
-.attribute-modifier {
-  font-size: 1.1rem;
+.character-container {
+  height: 100%;
 }
 
-.saving-throws-list,
-.skills-list,
-.equipment-list,
-.features-list {
-  list-style: none;
-  padding: 0;
-}
-
-.saving-throw-item,
-.skill-item {
-  display: flex;
-  align-items: center;
-  margin-bottom: 0.5rem;
-}
-
-.save-name,
-.skill-name {
-  flex: 1;
-  margin-left: 0.5rem;
-}
-
-.save-value,
-.skill-value {
-  font-weight: bold;
-}
-
-.equipment-item,
-.feature-item {
-  margin-bottom: 1rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid rgb(243 244 246); /* border-gray-100 */
-}
-
-.equipment-item:last-child,
-.feature-item:last-child {
-  margin-bottom: 0;
-  padding-bottom: 0;
-  border-bottom: none;
-}
-
-.item-details,
-.feature-description {
-  color: rgb(107 114 128); /* text-gray-500 */
-  font-size: 0.9rem;
-  margin-top: 0.25rem;
+.error, .not-found, .plugin-error {
+  color: #d32f2f;
 }
 </style> 

@@ -7,7 +7,7 @@ import { z } from 'zod';
  */
 import template from './template.hbs?raw';
 import styles from './styles.css?raw';
-import { registerHelpers } from './helpers.mjs';
+import { registerHelpers } from '../../../web/helpers/handlebars.mjs';
 import { CharacterCreationFormData, PartialCharacterCreationFormData } from './formSchema.mjs';
 
 // Import document helpers
@@ -27,7 +27,7 @@ import { unflatten } from 'flat';
 import { characterCreationFormSchema } from './formSchema.mjs';
 
 import { deepPartial } from './formSchema.mjs'
-import { ICharacter } from '../../../shared/types/character.mjs';
+import { ICharacterData } from '../../../shared/types/character.mjs';
 
 const fooSchema = z.object({
   a: z.object({
@@ -695,7 +695,7 @@ export class CharacterCreationComponent extends PluginComponent {
   /**
    * Translates form data into the full character schema format
    */
-  translateFormData(formData: CharacterCreationFormData): ICharacter {
+  translateFormData(formData: CharacterCreationFormData): ICharacterData {
     // Calculate ability modifiers
     const abilities = {
       strength: {
@@ -885,18 +885,19 @@ export class CharacterCreationComponent extends PluginComponent {
         ].filter(Boolean).join(', ')
       }
     };
+    return characterData
 
     // Build the final ICharacter object (IActor & { data: ICharacterData })
-    return {
-      name: formData.name || 'New Character',
-      type: 'character',
-      gameSystemId: 'dnd-5e-2024',
-      description: formData.details.backstory?.substring(0, 100) || '',
-      data: characterData,
-      // These fields are required by IActor but will be filled in by the server
-      createdBy: '',
-      updatedBy: ''
-    } as ICharacter; // Use type assertion since we know the server will set these fields
+    // return {
+    //   name: formData.name || 'New Character',
+    //   type: 'character',
+    //   gameSystemId: 'dnd-5e-2024',
+    //   description: formData.details.backstory?.substring(0, 100) || '',
+    //   data: characterData,
+    //   // These fields are required by IActor but will be filled in by the server
+    //   createdBy: '',
+    //   updatedBy: ''
+    // } as ICharacter; // Use type assertion since we know the server will set these fields
   }
   
   /**
