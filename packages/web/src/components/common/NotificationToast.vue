@@ -38,7 +38,7 @@ function getIconClasses(type: string) {
 </script>
 
 <template>
-  <div class="fixed top-4 right-4 z-50 w-96 space-y-4">
+  <div class="notification-container fixed top-20 right-4 w-96 space-y-4">
     <TransitionGroup name="notification">
       <div
         v-for="notification in notifications"
@@ -58,6 +58,10 @@ function getIconClasses(type: string) {
 </template>
 
 <style scoped>
+.notification-container {
+  z-index: 100; /* Higher than the header's z-50 */
+}
+
 .notification-enter-active,
 .notification-leave-active {
   transition: all 0.3s ease;
