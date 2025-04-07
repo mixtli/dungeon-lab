@@ -54,16 +54,16 @@ async function handleSubmit() {
       <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
 
       <!-- Modal panel -->
-      <div class="inline-block align-bottom bg-white dark:bg-gray-100 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+      <div class="inline-block align-bottom modal-bg rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
         <form @submit.prevent="handleSubmit">
-          <div class="bg-white dark:bg-gray-100 px-4 pt-5 pb-4 sm:p-6">
+          <div class="modal-bg px-4 pt-5 pb-4 sm:p-6">
             <div class="sm:flex sm:items-start">
               <div class="mt-3 text-center sm:mt-0 sm:text-left w-full">
-                <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-gray-800" id="modal-title">
+                <h3 class="modal-header" id="modal-title">
                   Invite to Campaign
                 </h3>
                 <div class="mt-4">
-                  <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-800">Email Address</label>
+                  <label for="email" class="modal-label">Email Address</label>
                   <input
                     type="email"
                     name="email"
@@ -78,7 +78,7 @@ async function handleSubmit() {
               </div>
             </div>
           </div>
-          <div class="bg-gray-50 dark:bg-gray-200 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+          <div class="modal-footer px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
             <button
               type="submit"
               :disabled="loading"
@@ -89,7 +89,7 @@ async function handleSubmit() {
             </button>
             <button
               type="button"
-              class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 dark:text-gray-800 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+              class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white modal-button-secondary hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
               @click="emit('close')"
             >
               Cancel

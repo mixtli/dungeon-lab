@@ -109,19 +109,19 @@ function handleClose() {
       <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
 
       <!-- Modal panel -->
-      <div class="inline-block align-bottom bg-white dark:bg-gray-100 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+      <div class="inline-block align-bottom modal-bg rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
         <form @submit.prevent="handleSubmit">
-          <div class="bg-white dark:bg-gray-100 px-4 pt-5 pb-4 sm:p-6">
+          <div class="modal-bg px-4 pt-5 pb-4 sm:p-6">
             <div class="sm:flex sm:items-start">
               <div class="mt-3 text-center sm:mt-0 sm:text-left w-full">
-                <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-gray-800" id="modal-title">
+                <h3 class="modal-header" id="modal-title">
                   Schedule Game Session
                 </h3>
                 
                 <div class="mt-4 space-y-4">
                   <!-- Session Type Selection -->
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-800">Session Type</label>
+                    <label class="modal-label">Session Type</label>
                     <div class="mt-2 space-x-4">
                       <label class="inline-flex items-center">
                         <input
@@ -130,7 +130,7 @@ function handleClose() {
                           value="now"
                           class="form-radio text-blue-600"
                         >
-                        <span class="ml-2 text-gray-700 dark:text-gray-800">Start Now</span>
+                        <span class="ml-2 modal-text">Start Now</span>
                       </label>
                       <label class="inline-flex items-center">
                         <input
@@ -139,14 +139,14 @@ function handleClose() {
                           value="later"
                           class="form-radio text-blue-600"
                         >
-                        <span class="ml-2 text-gray-700 dark:text-gray-800">Schedule for Later</span>
+                        <span class="ml-2 modal-text">Schedule for Later</span>
                       </label>
                     </div>
                   </div>
 
                   <!-- Session Name -->
                   <div>
-                    <label for="sessionName" class="block text-sm font-medium text-gray-700 dark:text-gray-800">Session Name</label>
+                    <label for="sessionName" class="modal-label">Session Name</label>
                     <input
                       type="text"
                       id="sessionName"
@@ -159,7 +159,7 @@ function handleClose() {
 
                   <!-- Session Description -->
                   <div>
-                    <label for="sessionDescription" class="block text-sm font-medium text-gray-700 dark:text-gray-800">Description (Optional)</label>
+                    <label for="sessionDescription" class="modal-label">Description (Optional)</label>
                     <textarea
                       id="sessionDescription"
                       v-model="sessionDescription"
@@ -172,7 +172,7 @@ function handleClose() {
                   <!-- Date and Time Selection (for scheduled sessions) -->
                   <div v-if="scheduleType === 'later'" class="space-y-4">
                     <div>
-                      <label for="sessionDate" class="block text-sm font-medium text-gray-700 dark:text-gray-800">Date</label>
+                      <label for="sessionDate" class="modal-label">Date</label>
                       <input
                         type="date"
                         id="sessionDate"
@@ -182,7 +182,7 @@ function handleClose() {
                       />
                     </div>
                     <div>
-                      <label for="sessionTime" class="block text-sm font-medium text-gray-700 dark:text-gray-800">Time</label>
+                      <label for="sessionTime" class="modal-label">Time</label>
                       <input
                         type="time"
                         id="sessionTime"
@@ -207,7 +207,7 @@ function handleClose() {
             </div>
           </div>
 
-          <div class="bg-gray-50 dark:bg-gray-200 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+          <div class="modal-footer px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
             <button
               type="submit"
               :disabled="loading"
@@ -221,7 +221,7 @@ function handleClose() {
             </button>
             <button
               type="button"
-              class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 dark:text-gray-800 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+              class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white modal-button-secondary hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
               @click="handleClose"
             >
               Cancel

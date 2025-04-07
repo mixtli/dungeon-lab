@@ -36,31 +36,38 @@
   }
 
   /* Fix text contrast in modals with white backgrounds in dark mode */
-  .dark .bg-white {
+  .dark .modal-bg {
     /* Keep the white background but add a very subtle gray tint for better contrast */
     background-color: #f9fafb !important; /* bg-gray-50 */
   }
 
-  /* Force dark text for all text elements in modals in dark mode to ensure readability */
-  .dark .fixed.inset-0 .bg-white label,
-  .dark .fixed.inset-0 .bg-white span,
-  .dark .fixed.inset-0 .bg-white h3,
-  .dark .fixed.inset-0 .bg-white p:not([class*="text-"]),
-  .dark .fixed.inset-0 .bg-white div:not([class*="text-"]) > span:not([class*="text-"]) {
+  /* Force dark text for all text elements in modals in dark mode to ensure readability, excluding header */
+  .dark .fixed.inset-0 .bg-white label:not(header *),
+  .dark .fixed.inset-0 .bg-white span:not(header *),
+  .dark .fixed.inset-0 .bg-white h3:not(header *),
+  .dark .fixed.inset-0 .bg-white p:not([class*="text-"]):not(header *),
+  .dark .fixed.inset-0 .bg-white div:not([class*="text-"]):not(header *) > span:not([class*="text-"]):not(header *) {
     color: #1f2937 !important; /* text-gray-800 - dark text */
   }
 
   /* Fix for headings in modals specifically */
-  .dark .fixed.inset-0 [id="modal-title"],
-  .dark .fixed.inset-0 .text-gray-900 {
+  .dark .fixed.inset-0 [id="modal-title"]:not(header *),
+  .dark .fixed.inset-0 .text-gray-900:not(header *) {
     color: #1f2937 !important; /* text-gray-800 - dark text */
   }
 
   /* Fix for gray text labels in modals */
-  .dark .fixed.inset-0 .text-gray-700,
-  .dark .fixed.inset-0 .text-gray-600,
-  .dark .fixed.inset-0 .text-gray-500 {
+  .dark .fixed.inset-0 .text-gray-700:not(header *),
+  .dark .fixed.inset-0 .text-gray-600:not(header *),
+  .dark .fixed.inset-0 .text-gray-500:not(header *) {
     color: #374151 !important; /* text-gray-700 - darker than default */
+  }
+
+  /* Restore navbar colors in dark mode */
+  .dark header .text-gray-200,
+  .dark header .text-gray-300,
+  .dark header .text-gray-400 {
+    color: var(--tw-text-opacity) !important;
   }
 }
 
@@ -83,5 +90,43 @@
   
   .card {
     @apply bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden;
+  }
+
+  /* Modal specific classes */
+  .modal-bg {
+    @apply bg-white dark:bg-gray-100;
+  }
+
+  .modal-header {
+    @apply text-lg font-medium text-gray-900 dark:text-gray-800;
+  }
+
+  .modal-label {
+    @apply block text-sm font-medium text-gray-700 dark:text-gray-800;
+  }
+
+  .modal-text {
+    @apply text-gray-500 dark:text-gray-700;
+  }
+
+  .modal-footer {
+    @apply bg-gray-50 dark:bg-gray-200;
+  }
+
+  .modal-button-secondary {
+    @apply text-gray-700 dark:text-gray-800;
+  }
+
+  /* Navbar text classes */
+  .nav-text {
+    @apply text-gray-700 dark:text-gray-200;
+  }
+
+  .nav-text-light {
+    @apply text-gray-500 dark:text-gray-400;
+  }
+
+  .nav-text-primary {
+    @apply text-primary-600 dark:text-primary-400;
   }
 } 
