@@ -97,7 +97,7 @@ export async function createApp(): Promise<express.Application> {
   app.use('/api/plugins', pluginRoutes);
   app.use('/api/campaigns', campaignRoutes);
   app.use('/api', inviteRoutes);
-  app.use('/api/sessions', gameSessionRoutes);
+  app.use('/api/game-sessions', gameSessionRoutes);
   app.use('/api/maps', mapRoutes);
   app.use('/api/documents', documentRoutes);
 

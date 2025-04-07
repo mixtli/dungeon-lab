@@ -91,8 +91,13 @@ async function confirmDeleteCampaign(campaign: ICampaign) {
         <tbody class="bg-white divide-y divide-gray-200">
           <tr v-for="campaign in myCampaigns" :key="campaign.id || ''" class="hover:bg-gray-50">
             <td class="px-6 py-4">
-              <div class="font-medium text-gray-900">{{ campaign.name }}</div>
-              <div class="text-sm text-gray-500" v-if="campaign.description">{{ campaign.description }}</div>
+              <div 
+                class="cursor-pointer hover:text-blue-600 transition-colors"
+                @click="viewCampaign(campaign)"
+              >
+                <div class="font-medium text-gray-900 hover:text-blue-600">{{ campaign.name }}</div>
+                <div class="text-sm text-gray-500 hover:text-blue-400" v-if="campaign.description">{{ campaign.description }}</div>
+              </div>
             </td>
             <td class="px-6 py-4 text-sm text-gray-500">
               {{ getGameSystemName(campaign.gameSystemId) }}

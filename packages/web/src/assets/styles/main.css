@@ -11,6 +11,57 @@
   html {
     font-family: 'Inter', system-ui, sans-serif;
   }
+
+  /* Improve form element contrast in dark mode */
+  .dark input[type="text"],
+  .dark input[type="email"],
+  .dark input[type="password"],
+  .dark input[type="number"],
+  .dark input[type="tel"],
+  .dark input[type="url"],
+  .dark input[type="search"],
+  .dark input[type="date"],
+  .dark textarea,
+  .dark select {
+    color: #1f2937 !important; /* text-gray-800 - dark text */
+    background-color: #e5e7eb !important; /* bg-gray-200 - light bg */
+  }
+
+  /* For white background inputs that might be using custom classes */
+  .dark input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not(.bg-transparent),
+  .dark textarea:not(.bg-transparent),
+  .dark select:not(.bg-transparent) {
+    color: #1f2937 !important; /* text-gray-800 - dark text */
+    background-color: #e5e7eb !important; /* bg-gray-200 - light bg */
+  }
+
+  /* Fix text contrast in modals with white backgrounds in dark mode */
+  .dark .bg-white {
+    /* Keep the white background but add a very subtle gray tint for better contrast */
+    background-color: #f9fafb !important; /* bg-gray-50 */
+  }
+
+  /* Force dark text for all text elements in modals in dark mode to ensure readability */
+  .dark .fixed.inset-0 .bg-white label,
+  .dark .fixed.inset-0 .bg-white span,
+  .dark .fixed.inset-0 .bg-white h3,
+  .dark .fixed.inset-0 .bg-white p:not([class*="text-"]),
+  .dark .fixed.inset-0 .bg-white div:not([class*="text-"]) > span:not([class*="text-"]) {
+    color: #1f2937 !important; /* text-gray-800 - dark text */
+  }
+
+  /* Fix for headings in modals specifically */
+  .dark .fixed.inset-0 [id="modal-title"],
+  .dark .fixed.inset-0 .text-gray-900 {
+    color: #1f2937 !important; /* text-gray-800 - dark text */
+  }
+
+  /* Fix for gray text labels in modals */
+  .dark .fixed.inset-0 .text-gray-700,
+  .dark .fixed.inset-0 .text-gray-600,
+  .dark .fixed.inset-0 .text-gray-500 {
+    color: #374151 !important; /* text-gray-700 - darker than default */
+  }
 }
 
 @layer components {
