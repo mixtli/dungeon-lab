@@ -1,22 +1,22 @@
 import { z } from '../lib/zod.mjs';
-import { zId } from '@zodyac/zod-mongoose';
-import type { ApiFields } from '../types/api-fields.mjs';
 
 // Invite Status enum
 export const InviteStatus = z.enum(['pending', 'accepted', 'declined', 'expired']);
 
 // Base Invite schema
 export const inviteSchema = z.object({
-  campaignId: zId('Campaign'),
+  id: z.string().optional(),
+  campaignId: z.string(),
   email: z.string().email(),
   status: InviteStatus.default('pending'),
   expiresAt: z.date().optional(),
-  createdBy: zId('User'),
-  updatedBy: zId('User'),
+  createdBy: z.string(),
+  updatedBy: z.string(),
 });
 
 // Create data schema (omits auto-generated fields)
 export const inviteCreateSchema = inviteSchema.omit({
+  id: true,
   createdBy: true,
   updatedBy: true,
   status: true,
@@ -26,6 +26,7 @@ export const inviteCreateSchema = inviteSchema.omit({
 // Update data schema (makes all fields optional except updatedBy)
 export const inviteUpdateSchema = inviteSchema
   .omit({
+    id: true,
     createdBy: true,
     campaignId: true,
   })
@@ -35,6 +36,6 @@ export const inviteUpdateSchema = inviteSchema
   });
 
 // Export types generated from the schemas
-export type IInvite = z.infer<typeof inviteSchema> & ApiFields;
+export type IInvite = z.infer<typeof inviteSchema>;
 export type IInviteCreateData = z.infer<typeof inviteCreateSchema>;
 export type IInviteUpdateData = z.infer<typeof inviteUpdateSchema>; 

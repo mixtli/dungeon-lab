@@ -1,9 +1,8 @@
 import { z } from '../lib/zod.mjs';
-import { zId } from '@zodyac/zod-mongoose';
-import type { ApiFields } from '../types/api-fields.mjs';
 
 // Base Item schema
 export const itemSchema = z.object({
+  id: z.string().optional(),
   name: z.string().min(1).max(255),
   type: z.string().min(1).max(255),
   image: z.string().url().optional(),
@@ -13,12 +12,13 @@ export const itemSchema = z.object({
   weight: z.number().optional(),
   cost: z.number().optional(),
   data: z.any(),
-  createdBy: zId('User'),
-  updatedBy: zId('User'),
+  createdBy: z.string(),
+  updatedBy: z.string(),
 });
 
 // Create data schema (omits auto-generated fields)
 export const itemCreateSchema = itemSchema.omit({
+  id: true,
   createdBy: true,
   updatedBy: true,
 });
@@ -26,14 +26,15 @@ export const itemCreateSchema = itemSchema.omit({
 // Update data schema (makes all fields optional except updatedBy)
 export const itemUpdateSchema = itemSchema
   .omit({
+    id: true,
     createdBy: true,
   })
   .partial()
   .extend({
-    updatedBy: zId('User'),
+    updatedBy: z.string(),
   });
 
 // Export types generated from the schemas
-export type IItem = z.infer<typeof itemSchema> & ApiFields;
+export type IItem = z.infer<typeof itemSchema>;
 export type IItemCreateData = z.infer<typeof itemCreateSchema>;
 export type IItemUpdateData = z.infer<typeof itemUpdateSchema>; 

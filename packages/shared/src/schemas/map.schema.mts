@@ -1,9 +1,8 @@
 import { z } from '../lib/zod.mjs';
-import { zId } from '@zodyac/zod-mongoose';
-import type { ApiFields } from '../types/api-fields.mjs';
 
 // Base Map schema
 export const mapSchema = z.object({
+  id: z.string().optional(),
   name: z.string().min(1).max(255),
   description: z.string().optional(),
   imageUrl: z.string().url(),
@@ -11,12 +10,13 @@ export const mapSchema = z.object({
   gridColumns: z.number().int().positive(),
   gridRows: z.number().int().positive(),
   aspectRatio: z.number().positive(),
-  createdBy: zId('User'),
-  updatedBy: zId('User'),
+  createdBy: z.string(),
+  updatedBy: z.string()
 });
 
 // Create data schema (omits auto-generated fields)
 export const mapCreateSchema = mapSchema.omit({
+  id: true,
   imageUrl: true,
   thumbnailUrl: true,
   gridRows: true,
@@ -31,13 +31,11 @@ export const mapCreateSchema = mapSchema.omit({
 export const mapUpdateSchema = mapSchema
   .omit({
     createdBy: true,
+    updatedBy: true,
   })
   .partial()
-  .extend({
-    updatedBy: zId('User'),
-  });
 
 // Export types generated from the schemas
-export type IMap = z.infer<typeof mapSchema> & ApiFields;
+export type IMap = z.infer<typeof mapSchema>;
 export type IMapCreateData = z.infer<typeof mapCreateSchema>;
 export type IMapUpdateData = z.infer<typeof mapUpdateSchema>; 

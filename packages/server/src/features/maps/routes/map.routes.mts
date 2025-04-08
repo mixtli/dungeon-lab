@@ -3,7 +3,8 @@ import { MapController } from '../controllers/map.controller.mjs';
 import { MapService } from '../services/map.service.mjs';
 import { authenticate } from '../../../middleware/auth.middleware.mjs';
 import { validateRequest, validateMultipartRequest } from '../../../middleware/validation.middleware.mjs';
-import { mapCreateSchema, mapUpdateSchema } from '@dungeon-lab/shared/src/schemas/map.schema.mjs';
+import { mapCreateSchema, mapSchema, mapUpdateSchema } from '@dungeon-lab/shared/src/schemas/map.schema.mjs';
+import { openApiGet, openApiGetOne, openApiPost, openApiDelete, openApiPatch } from '../../../oapi.mjs';
 
 const router = Router();
 const mapService = new MapService();
@@ -22,11 +23,28 @@ const boundController = {
 // Routes
 router.use(authenticate);
 
-router.get('/', boundController.getAllMaps);
-router.get('/campaigns/:campaignId', boundController.getMaps);
-router.get('/:id', boundController.getMap);
-router.post('/', validateMultipartRequest(mapCreateSchema), boundController.createMap);
-router.patch('/:id', validateRequest(mapUpdateSchema), boundController.updateMap);
-router.delete('/:id', boundController.deleteMap);
+router.get('/', openApiGet(mapSchema, {
+  description: 'Get all maps'
+}), boundController.getAllMaps);
+
+router.get('/campaigns/:campaignId', openApiGet(mapSchema, {
+  description: 'Get maps for a campaign'
+}), boundController.getMaps);
+
+router.get('/:id', openApiGetOne(mapSchema, {
+  description: 'Get map by ID'
+}), boundController.getMap);
+
+router.post('/', openApiPost(mapCreateSchema, {
+  description: 'Create new map'
+}), validateMultipartRequest(mapCreateSchema), boundController.createMap);
+
+router.patch('/:id', openApiPatch(mapUpdateSchema, {
+  description: 'Update map'
+}), validateRequest(mapUpdateSchema), boundController.updateMap);
+
+router.delete('/:id', openApiDelete(mapSchema, {
+  description: 'Delete map'
+}), boundController.deleteMap);
 
 export const mapRoutes = router; 

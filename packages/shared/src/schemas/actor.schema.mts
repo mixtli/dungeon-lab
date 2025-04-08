@@ -1,9 +1,8 @@
 import { z } from '../lib/zod.mjs';
-import { zId } from '@zodyac/zod-mongoose';
-import type { ApiFields } from '../types/api-fields.mjs';
 
 // Base Actor schema
 export const actorSchema = z.object({
+  id: z.string().optional(),
   name: z.string().min(1).max(255),
   type: z.string().min(1).max(255),
   avatar: z.string().url().optional(),
@@ -11,12 +10,13 @@ export const actorSchema = z.object({
   description: z.string().optional(),
   gameSystemId: z.string().min(1),
   data: z.any(),
-  createdBy: zId('User'),
-  updatedBy: zId('User'),
+  createdBy: z.string(),
+  updatedBy: z.string(),
 });
 
 // Create data schema (omits auto-generated fields)
 export const actorCreateSchema = actorSchema.omit({
+  id: true,
   createdBy: true,
   updatedBy: true,
 });
@@ -24,14 +24,15 @@ export const actorCreateSchema = actorSchema.omit({
 // Update data schema (makes all fields optional except updatedBy)
 export const actorUpdateSchema = actorSchema
   .omit({
+    id: true,
     createdBy: true,
   })
   .partial()
   .extend({
-    updatedBy: zId('User'),
+    updatedBy: z.string(),
   });
 
 // Export types generated from the schemas
-export type IActor = z.infer<typeof actorSchema> & ApiFields;
+export type IActor = z.infer<typeof actorSchema>;
 export type IActorCreateData = z.infer<typeof actorCreateSchema>;
 export type IActorUpdateData = z.infer<typeof actorUpdateSchema>; 

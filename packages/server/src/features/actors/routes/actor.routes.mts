@@ -5,7 +5,9 @@ import { ActorService } from '../services/actor.service.mjs';
 import { uploadActorImage } from '../controllers/actor-image.controller.mjs';
 import { authenticate } from '../../../middleware/auth.middleware.mjs';
 import { validateRequest } from '../../../middleware/validation.middleware.mjs';
-import { actorCreateSchema, actorUpdateSchema } from '@dungeon-lab/shared/schemas/actor.schema.mjs';
+import { actorCreateSchema, actorUpdateSchema, actorSchema } from '@dungeon-lab/shared/schemas/actor.schema.mjs';
+import { openApiGet, openApiGetOne, openApiPost, openApiPut, openApiDelete } from '../../../oapi.mjs';
+import { z } from '@dungeon-lab/shared/src/lib/zod.mjs';
 
 // Initialize services and controllers
 const actorService = new ActorService();
@@ -31,21 +33,54 @@ const boundUpdateActor = actorController.updateActor.bind(actorController);
 const boundDeleteActor = actorController.deleteActor.bind(actorController);
 
 // Public routes
-router.get('/', boundGetAllActors);
-router.get('/:id', boundGetActorById);
+router.get('/', openApiGet(actorSchema, {
+  description: 'Get all actors'
+}), boundGetAllActors);
+
+router.get('/:id', openApiGetOne(actorSchema, {
+  description: 'Get actor by ID'
+}), boundGetActorById);
 
 // Protected routes
-router.post('/', authenticate, validateRequest(actorCreateSchema), boundCreateActor);
-router.put('/:id', authenticate, validateRequest(actorUpdateSchema), boundUpdateActor);
-router.delete('/:id', authenticate, boundDeleteActor);
+router.post('/', authenticate, openApiPost(actorCreateSchema, {
+  description: 'Create new actor'
+}), validateRequest(actorCreateSchema), boundCreateActor);
+
+router.put('/:id', authenticate, openApiPut(actorUpdateSchema, {
+  description: 'Update actor by ID'
+}), validateRequest(actorUpdateSchema), boundUpdateActor);
+
+router.delete('/:id', authenticate, openApiDelete(actorSchema, {
+  description: 'Delete actor by ID'
+}), boundDeleteActor);
 
 // Campaign-specific routes
-router.get('/campaigns/:campaignId/actors', authenticate, boundGetActors);
+router.get('/campaigns/:campaignId/actors', authenticate, openApiGet(actorSchema, {
+  description: 'Get actors for a specific campaign'
+}), boundGetActors);
 
 // Image upload route
 router.post(
   '/images/:type', 
   authenticate, 
+  openApiPost(z.object({ image: z.instanceof(File) }), {
+    description: 'Upload actor image',
+    responses: {
+      201: {
+        description: 'Image uploaded successfully',
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              properties: {
+                url: { type: 'string', format: 'uri' }
+              }
+            }
+          }
+        }
+      }
+    }
+  }),
   upload.single('image'),
   uploadActorImage
 );

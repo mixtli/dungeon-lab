@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { zodSchemaRaw } from '@zodyac/zod-mongoose';
 import { z } from 'zod';
+import { zId } from '@zodyac/zod-mongoose';
 
 /**
  * Options for creating a base schema
@@ -41,7 +42,12 @@ export function createBaseSchema(
     transform,
   } = options;
 
-  const schemaDefinition = zodSchemaRaw(zodSchema);
+  const newSchema = zodSchema.extend({
+    createdBy: zId('User'),
+    updatedBy: zId('User'),
+  })
+
+  const schemaDefinition = zodSchemaRaw(newSchema);
   
   return new mongoose.Schema(schemaDefinition, {
     timestamps,
@@ -71,4 +77,5 @@ export interface BaseDocument extends mongoose.Document {
   id: string;
   createdAt: Date;
   updatedAt: Date;
+
 } 

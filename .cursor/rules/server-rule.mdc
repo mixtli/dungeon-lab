@@ -17,6 +17,10 @@ Do NOT modify any authentication related code without asking me first.   Ever.  
 # Routes
 All api routes should start with /api
 
+
+# OpenAPI
+We run swagger at http://localhost:3000/swaggerui.  The OpenAPI Schema is hosted at http://localhost:3000/openapi.json.  If you are writing code to connect to the api and are unsure of the structure of the REST API, look there.  You should add openapi documentation to any routes you create by using the methods openApiGet, openApiPost, etc from oapi.mts
+
 # Code structure
 - Major features should be organized together in src/features.  For example, all code related to campaigns should go in src/features/campaigns.   
 

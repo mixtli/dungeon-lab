@@ -9,7 +9,11 @@ export class MapController {
   async getMaps(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
     try {
       const maps = await this.mapService.getMaps(req.params.campaignId);
-      return res.json(maps);
+      const result = res.json(maps);
+      console.log("got here")
+      console.log(result);
+      debugger
+      await result
     } catch (error) {
       logger.error('Error in getMaps controller:', error);
       return res.status(500).json({ message: 'Failed to get maps' });
@@ -68,7 +72,8 @@ export class MapController {
   async getAllMaps(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
     try {
       const maps = await this.mapService.getAllMaps(req.session.user.id);
-      return res.json(maps);
+      const result = res.json(maps);
+      return result
     } catch (error) {
       logger.error('Error in getAllMaps controller:', error);
       return res.status(500).json({ message: 'Failed to get maps' });

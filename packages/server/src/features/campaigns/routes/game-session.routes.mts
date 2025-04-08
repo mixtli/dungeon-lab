@@ -3,7 +3,8 @@ import { GameSessionController } from '../controllers/game-session.controller.mj
 import { GameSessionService } from '../services/game-session.service.mjs';
 import { authenticate } from '../../../middleware/auth.middleware.mjs';
 import { validateRequest } from '../../../middleware/validation.middleware.mjs';
-import { gameSessionUpdateSchema, gameSessionCreateSchema } from '@dungeon-lab/shared/src/schemas/game-session.schema.mjs';
+import { gameSessionUpdateSchema, gameSessionCreateSchema, gameSessionSchema } from '@dungeon-lab/shared/src/schemas/game-session.schema.mjs';
+import { openApiGet, openApiGetOne, openApiPost, openApiPut, openApiDelete } from '../../../oapi.mjs';
 
 // Initialize services and controllers
 const gameSessionService = new GameSessionService();
@@ -20,10 +21,24 @@ const boundUpdateGameSession = gameSessionController.updateGameSession.bind(game
 const boundDeleteGameSession = gameSessionController.deleteGameSession.bind(gameSessionController);
 
 // Routes
-router.get('/', authenticate, boundGetGameSessions);
-router.get('/:id', authenticate, boundGetGameSession);
-router.post('/', authenticate, validateRequest(gameSessionCreateSchema), boundCreateGameSession);
-router.put('/:id', authenticate, validateRequest(gameSessionUpdateSchema), boundUpdateGameSession);
-router.delete('/:id', authenticate, boundDeleteGameSession);
+router.get('/', authenticate, openApiGet(gameSessionSchema, {
+  description: 'Get all game sessions'
+}), boundGetGameSessions);
+
+router.get('/:id', authenticate, openApiGetOne(gameSessionSchema, {
+  description: 'Get game session by ID'
+}), boundGetGameSession);
+
+router.post('/', authenticate, openApiPost(gameSessionCreateSchema, {
+  description: 'Create a new game session'
+}), validateRequest(gameSessionCreateSchema), boundCreateGameSession);
+
+router.put('/:id', authenticate, openApiPut(gameSessionUpdateSchema, {
+  description: 'Update a game session by ID'
+}), validateRequest(gameSessionUpdateSchema), boundUpdateGameSession);
+
+router.delete('/:id', authenticate, openApiDelete(gameSessionSchema, {
+  description: 'Delete a game session by ID'
+}), boundDeleteGameSession);
 
 export { router as gameSessionRoutes }; 

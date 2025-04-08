@@ -1,40 +1,41 @@
 import { z } from '../lib/zod.mjs';
-import { zId } from '@zodyac/zod-mongoose';
 
 // Game Session Status enum
 export const GameSessionStatus = z.enum(['active', 'paused', 'ended', 'scheduled']);
 
-
 // Base GameSession schema
 export const gameSessionSchema = z.object({
+  id: z.string().optional(),
   name: z.string().min(1).max(255),
-  campaignId: zId('Campaign'),
+  campaignId: z.string(),
   description: z.string().optional(),
   status: GameSessionStatus.default('scheduled'),
-  participants: z.array(zId('User')),
-  gameMasterId: zId('User'),
+  participants: z.array(z.string()),
+  gameMasterId: z.string(),
   settings: z.record(z.string(), z.unknown()).optional(),
-  createdBy: zId('User'),
-  updatedBy: zId('User'),
+  createdBy: z.string(),
+  updatedBy: z.string(),
 });
 
 // Create data schema (omits auto-generated fields)
 export const gameSessionCreateSchema = gameSessionSchema.omit({
+  id: true,
   createdBy: true,
   updatedBy: true,
   participants: true,
 }).extend({
-  participants: z.array(zId('User')).default([]),
+  participants: z.array(z.string()).default([]),
 });
 
 // Update data schema (makes all fields optional except updatedBy)
 export const gameSessionUpdateSchema = gameSessionSchema
   .omit({
+    id: true,
     createdBy: true,
   })
   .partial()
   .extend({
-    updatedBy: zId('User'),
+    updatedBy: z.string(),
   });
 
 // Export types generated from the schemas

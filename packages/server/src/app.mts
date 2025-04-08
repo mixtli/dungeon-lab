@@ -11,6 +11,7 @@ import { itemRoutes } from './features/items/index.mjs';
 import { actorRoutes } from './features/actors/index.mjs';
 import { campaignRoutes, gameSessionRoutes, inviteRoutes } from './features/campaigns/index.mjs';
 import documentRoutes from './features/documents/routes/document.routes.mjs';
+import { oapi } from './oapi.mjs';
 
 // Define type interfaces for our routes and middleware
 type ErrorHandlerMiddleware = (
@@ -19,7 +20,6 @@ type ErrorHandlerMiddleware = (
   res: express.Response, 
   next: express.NextFunction
 ) => void;
-
 
 // Route handlers and middleware
 let authRoutes: Router;
@@ -81,6 +81,7 @@ export async function createApp(): Promise<express.Application> {
 
   // Session configuration
   app.use(sessionMiddleware);
+  app.use(oapi);
 
   // Initialize passport
   app.use(passport.initialize());
@@ -101,6 +102,7 @@ export async function createApp(): Promise<express.Application> {
   app.use('/api/maps', mapRoutes);
   app.use('/api/documents', documentRoutes);
 
+  app.use('/swaggerui', oapi.swaggerui())
   // Error handling
   app.use(errorHandler);
 

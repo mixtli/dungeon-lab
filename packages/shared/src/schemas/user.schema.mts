@@ -1,5 +1,4 @@
 import { z } from '../lib/zod.mjs';
-import type { ApiFields } from '../types/api-fields.mjs';
 
 // Theme type
 export const UserTheme = z.enum(['light', 'dark', 'system']);
@@ -38,6 +37,6 @@ export const userUpdateSchema = userSchema
   .partial();
 
 // Export types generated from the schemas
-export type IUser = z.infer<typeof userSchema> & ApiFields;
+export type IUser = z.infer<typeof userSchema>;
 export type IUserCreateData = z.infer<typeof userCreateSchema>;
 export type IUserUpdateData = z.infer<typeof userUpdateSchema>; 
