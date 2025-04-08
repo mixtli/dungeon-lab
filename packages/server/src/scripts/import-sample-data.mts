@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from 'fs';
+import { readFileSync, readdirSync, statSync } from 'fs';
 import { Client } from 'minio';
 import mongoose, { Types } from 'mongoose';
 import { dirname, join } from 'path';
@@ -98,13 +98,18 @@ async function ensureBucket() {
 
 // Upload file to MinIO
 async function uploadToMinio(filePath: string, objectName: string, contentType: string): Promise<{ url: string, path: string, size: number, type: string }> {
-  let fileSize = 0;
+  // Get accurate file size using Node's fs.statSync
+  const fileSize = statSync(filePath).size;
   
+  // We'll still use sharp for format detection if possible
+  let format = contentType.split('/')[1] || 'jpeg';
   try {
-    const fileStats = await sharp(filePath).metadata();
-    fileSize = fileStats.size || 0;
+    const metadata = await sharp(filePath).metadata();
+    if (metadata.format) {
+      format = metadata.format;
+    }
   } catch (error) {
-    console.error(`Could not extract metadata for ${filePath}:`, error);
+    console.warn(`Could not extract format metadata for ${filePath}:`, error);
   }
   
   await minioClient.fPutObject(BUCKET_NAME, objectName, filePath, {
@@ -147,16 +152,17 @@ async function importMaps() {
     console.log(`${existingMap ? 'Updating' : 'Creating'} map: ${mapData.name}`);
 
     // Read and process the image
-    const imageBuffer = readFileSync(join(mapsImagesDir, mapData.image.name));
-    let format = 'jpeg';
-    let size = 0;
+    const imagePath = join(mapsImagesDir, mapData.image.name);
+    const imageBuffer = readFileSync(imagePath);
+    // Get accurate file size using fs.statSync
+    const size = statSync(imagePath).size;
     
+    let format = 'jpeg';
     try {
       const imageMetadata = await sharp(imageBuffer).metadata();
       format = imageMetadata.format || 'jpeg';
-      size = imageMetadata.size || 0;
     } catch (error) {
-      console.warn(`Could not extract metadata for ${mapData.image.name}:`, error);
+      console.warn(`Could not extract format metadata for ${mapData.image.name}:`, error);
     }
     
     const contentType = `image/${format}`;
@@ -170,8 +176,8 @@ async function importMaps() {
         .resize(300, 300, { fit: 'inside' })
         .toBuffer();
       
-      const thumbnailMetadata = await sharp(thumbnail).metadata();
-      thumbnailSize = thumbnailMetadata.size || 0;
+      // For thumbnails, we'll use the buffer length since we don't have a file on disk
+      thumbnailSize = thumbnail.length;
     } catch (error) {
       console.warn(`Could not create thumbnail for ${mapData.image.name}:`, error);
       thumbnail = imageBuffer;
@@ -470,15 +476,19 @@ async function importCharacters() {
       const avatarPath = `actors/${objectId}/images/avatar.${avatarExt}`;
       const tokenPath = `actors/${objectId}/images/token.${tokenExt}`;
 
+      // Get full paths to the source files
+      const avatarFilePath = join(__dirname, '../../data', charData.avatar.url);
+      const tokenFilePath = join(__dirname, '../../data', charData.token.url);
+
       // Upload avatar and token images to MinIO with proper content type
       const avatarAsset = await uploadToMinio(
-        join(__dirname, '../../data', charData.avatar.url),
+        avatarFilePath,
         avatarPath,
         `image/${avatarExt}`
       );
 
       const tokenAsset = await uploadToMinio(
-        join(__dirname, '../../data', charData.token.url),
+        tokenFilePath,
         tokenPath,
         `image/${tokenExt}`
       );
