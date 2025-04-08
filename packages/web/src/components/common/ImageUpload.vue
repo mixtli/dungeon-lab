@@ -1,15 +1,24 @@
 <script setup lang="ts">
-import { ref, watch,  onBeforeUnmount } from 'vue';
+import { ref, watch, onBeforeUnmount } from 'vue';
+
+// Define the interface for uploaded assets
+interface UploadedImage {
+  url: string;
+  objectKey?: string;
+  path?: string;
+  size?: number;
+  type?: string;
+}
 
 // Define the new props - can accept either a File object or the uploaded image data
 const props = defineProps<{
-  modelValue: File | null;
+  modelValue: File | UploadedImage | null;
   type?: 'avatar' | 'token'; // Make type optional since we're not using it for direct uploads
   showPreview?: boolean; // Whether to show image preview (default true)
 }>();
 
 const emit = defineEmits<{
-  (e: 'update:modelValue', value: File | null): void;
+  (e: 'update:modelValue', value: File | UploadedImage | null): void;
 }>();
 
 const fileInput = ref<HTMLInputElement | null>(null);
@@ -17,20 +26,31 @@ const previewUrl = ref<string | null>(null);
 
 // Watch for external changes to modelValue
 watch(() => props.modelValue, (newValue) => {
-  if (newValue instanceof File) {
-    // If we get a new File object, update the preview
-    if (previewUrl.value) {
-      URL.revokeObjectURL(previewUrl.value);
-    }
-    previewUrl.value = URL.createObjectURL(newValue);
-  } else {
+  console.log('Model value changed in ImageUpload:', newValue);
+  
+  // Clear previous preview URL if it exists
+  if (previewUrl.value && previewUrl.value.startsWith('blob:')) {
+    URL.revokeObjectURL(previewUrl.value);
     previewUrl.value = null;
   }
-});
+  
+  if (!newValue) return;
+  
+  // Handle File objects
+  if (newValue instanceof File || (typeof newValue === 'object' && 'lastModified' in newValue)) {
+    previewUrl.value = URL.createObjectURL(newValue as File);
+    console.log('Created preview from File:', previewUrl.value);
+  } 
+  // Handle UploadedImage objects
+  else if (typeof newValue === 'object' && 'url' in newValue) {
+    previewUrl.value = newValue.url;
+    console.log('Using UploadedImage URL for preview:', previewUrl.value);
+  }
+}, { immediate: true });
 
 // Clean up local resources when component unmounts
 onBeforeUnmount(() => {
-  if (previewUrl.value) {
+  if (previewUrl.value && previewUrl.value.startsWith('blob:')) {
     URL.revokeObjectURL(previewUrl.value);
   }
 });
@@ -43,9 +63,10 @@ function onFileChange(event: Event) {
   const target = event.target as HTMLInputElement;
   if (target.files && target.files.length > 0) {
     const file = target.files[0];
+    console.log('File selected:', file.name);
     
-    // Clean up previous preview URL if it exists
-    if (previewUrl.value) {
+    // Clean up previous preview URL if it's a blob URL
+    if (previewUrl.value && previewUrl.value.startsWith('blob:')) {
       URL.revokeObjectURL(previewUrl.value);
     }
     
@@ -64,7 +85,7 @@ function onFileChange(event: Event) {
 
 function clearImage() {
   // Revoke local preview URL
-  if (previewUrl.value) {
+  if (previewUrl.value && previewUrl.value.startsWith('blob:')) {
     URL.revokeObjectURL(previewUrl.value);
   }
   
@@ -82,7 +103,7 @@ function clearImage() {
 
 <template>
   <div>
-    <div v-if="previewUrl && (showPreview !== false)" class="mb-2">
+    <div v-if="previewUrl" class="mb-2">
       <img :src="previewUrl" class="h-32 w-32 object-cover rounded-md" alt="Image preview" />
       <button 
         @click="clearImage" 

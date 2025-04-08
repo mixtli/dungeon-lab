@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useActorStore } from '../stores/actor.mts';
 import PluginUIContainer from '@/components/plugin/PluginUIContainer.vue';
@@ -10,10 +10,11 @@ import { IActorCreateData } from '@dungeon-lab/shared/schemas/actor.schema.mts';
 
 interface UploadedImage {
   url: string;
-  objectKey: string;
+  objectKey?: string;
+  path?: string;
   size?: number;
+  type?: string;
 }
-
 
 const router = useRouter();
 const actorStore = useActorStore();
@@ -26,23 +27,56 @@ const plugin = pluginRegistry.getGameSystemPlugin(activeGameSystemId.value) as I
 const currentStep = ref(1);
 const isSubmitting = ref(false);
 
-// Basic info form data
+// Basic info form data - can now handle both File objects and UploadedImage objects
 const basicInfo = ref({
   name: '',
   description: '',
-  avatarImage: null as UploadedImage | null,
-  tokenImage: null as UploadedImage | null
+  avatarImage: null as File | UploadedImage | null,
+  tokenImage: null as File | UploadedImage | null
 });
+
+// Watch for changes to avatar and token images
+watch(() => basicInfo.value.avatarImage, (newValue) => {
+  console.log('Avatar image changed:', newValue);
+  if (newValue instanceof File) {
+    console.log('Avatar is a File object');
+  } else if (newValue && typeof newValue === 'object' && 'url' in newValue) {
+    console.log('Avatar is an UploadedImage object with URL:', newValue.url);
+  }
+}, { deep: true });
+
+watch(() => basicInfo.value.tokenImage, (newValue) => {
+  console.log('Token image changed:', newValue);
+  if (newValue instanceof File) {
+    console.log('Token is a File object');
+  } else if (newValue && typeof newValue === 'object' && 'url' in newValue) {
+    console.log('Token is an UploadedImage object with URL:', newValue.url);
+  }
+}, { deep: true });
+
+// Get a url from either a File or UploadedImage
+function getUrlFromImageObject(imageObj: File | UploadedImage | null): string | null {
+  if (!imageObj) return null;
+  
+  if (imageObj instanceof File) {
+    // No need to return a URL - when we submit we'll upload the file
+    return null;
+  } else if ('url' in imageObj) {
+    // It's an UploadedImage - use its URL
+    return imageObj.url;
+  }
+  
+  return null;
+}
 
 // Combined data to pass to plugin
 const combinedInitialData = computed(() => {
   return {
     name: basicInfo.value.name,
-    avatarUrl: basicInfo.value.avatarImage?.url || null,
-    tokenUrl: basicInfo.value.tokenImage?.url || null,
+    avatarUrl: getUrlFromImageObject(basicInfo.value.avatarImage),
+    tokenUrl: getUrlFromImageObject(basicInfo.value.tokenImage),
   };
 });
-
 
 const canProceed = computed(() => {
   if (currentStep.value === 1) {
@@ -94,18 +128,74 @@ async function handleSubmit(event: Event) {
     // Translate form data to character schema format
     const pluginData = pluginComponent.translateFormData(validation.data);
 
+    // Extract image URLs (if any already uploaded images)
+    let avatarUrl: string | undefined = undefined;
+    let tokenUrl: string | undefined = undefined;
+
+    // If image is an UploadedImage object with a URL, use that
+    if (basicInfo.value.avatarImage && typeof basicInfo.value.avatarImage === 'object' && 'url' in basicInfo.value.avatarImage) {
+      avatarUrl = basicInfo.value.avatarImage.url;
+    }
+
+    if (basicInfo.value.tokenImage && typeof basicInfo.value.tokenImage === 'object' && 'url' in basicInfo.value.tokenImage) {
+      tokenUrl = basicInfo.value.tokenImage.url;
+    }
+
+    // Only handle File objects here - we'll need to upload them first
+    const avatarFile = basicInfo.value.avatarImage instanceof File ? basicInfo.value.avatarImage : null;
+    const tokenFile = basicInfo.value.tokenImage instanceof File ? basicInfo.value.tokenImage : null;
+
     // Create actor data
     const actorData: IActorCreateData = {
       name: basicInfo.value.name,
       type: 'character',
-      description: basicInfo.value.description,
+      description: basicInfo.value.description || undefined,
       gameSystemId: plugin.config.id,
-      avatar: basicInfo.value.avatarImage?.url,
-      token: basicInfo.value.tokenImage?.url,
+      avatar: avatarUrl,
+      token: tokenUrl,
       data: pluginData
     };
 
-    // Create the actor
+    // First upload any images if they exist as Files
+    if (avatarFile) {
+      const formData = new FormData();
+      formData.append('image', avatarFile);
+      
+      try {
+        const response = await fetch('/api/actors/images/avatar', {
+          method: 'POST',
+          body: formData,
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          actorData.avatar = data.url;
+        }
+      } catch (err) {
+        console.error('Failed to upload avatar:', err);
+      }
+    }
+
+    if (tokenFile) {
+      const formData = new FormData();
+      formData.append('image', tokenFile);
+      
+      try {
+        const response = await fetch('/api/actors/images/token', {
+          method: 'POST',
+          body: formData,
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          actorData.token = data.url;
+        }
+      } catch (err) {
+        console.error('Failed to upload token:', err);
+      }
+    }
+
+    // Now create the actor with the URLs
     const actor = await actorStore.createActor(actorData);
     
     // Navigate to the character sheet
@@ -207,6 +297,9 @@ function handleError(errorMessage: string) {
                   v-model="basicInfo.avatarImage"
                   type="avatar"
                 />
+                <div v-if="basicInfo.avatarImage" class="mt-1 text-xs text-gray-500">
+                  {{ typeof basicInfo.avatarImage === 'object' && 'lastModified' in basicInfo.avatarImage ? 'File selected' : 'Image uploaded' }}
+                </div>
               </div>
               
               <div class="form-group">
@@ -215,6 +308,9 @@ function handleError(errorMessage: string) {
                   v-model="basicInfo.tokenImage"
                   type="token"
                 />
+                <div v-if="basicInfo.tokenImage" class="mt-1 text-xs text-gray-500">
+                  {{ typeof basicInfo.tokenImage === 'object' && 'lastModified' in basicInfo.tokenImage ? 'File selected' : 'Image uploaded' }}
+                </div>
               </div>
             </div>
             

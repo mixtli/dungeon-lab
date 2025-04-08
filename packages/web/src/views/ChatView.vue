@@ -132,10 +132,19 @@ function handleInput(event: Event) {
 async function updateParticipants() {
   if (gameSessionStore.currentSession?.participants && gameSessionStore.currentCampaign) {
     const participantList = await Promise.all(gameSessionStore.currentSession.participants.map(async p => {
-      const userId = typeof p === 'string' ? p : p.toString();
+      // Make sure we have a string ID by checking the type properly
+      let userId: string;
+      if (typeof p === 'string') {
+        userId = p;
+      } else {
+        // Use a safer conversion to string
+        userId = String(p);
+      }
       
       // For game master, use "Game Master" as the name
-      if (userId === gameSessionStore.currentSession?.gameMasterId?.toString()) {
+      const gameMasterId = gameSessionStore.currentSession?.gameMasterId;
+      const gameMasterIdStr = gameMasterId ? String(gameMasterId) : '';
+      if (userId === gameMasterIdStr) {
         return {
           id: userId,
           name: 'Game Master'
