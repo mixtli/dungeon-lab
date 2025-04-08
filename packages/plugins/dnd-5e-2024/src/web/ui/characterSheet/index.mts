@@ -12,6 +12,7 @@ interface CharacterSheetState {
   isEditing: boolean;
   isDirty: boolean;
   activeTab: string;
+  pendingChanges: Record<string, any>;
 }
 
 /**
@@ -23,7 +24,8 @@ export class CharacterSheetComponent extends PluginComponent {
     character: null,
     isEditing: false,
     isDirty: false,
-    activeTab: 'abilities'
+    activeTab: 'abilities',
+    pendingChanges: {}
   };
 
   constructor(api: IPluginAPI) {
@@ -51,7 +53,8 @@ export class CharacterSheetComponent extends PluginComponent {
     // Update our component state with the character data
     if (data.character) {
       this.updateState({
-        character: data.character
+        character: data.character,
+        pendingChanges: {} // Reset pending changes when character data is updated
       });
     }
     
@@ -117,10 +120,100 @@ export class CharacterSheetComponent extends PluginComponent {
     const target = event.target as HTMLInputElement;
     if (!target || !target.name) return;
     
-    this.updateState({ isDirty: true });
+    // Get the field name and value
+    const fieldName = target.name;
+    const fieldValue = this.getFieldValue(target);
     
-    // TODO: Update the character data based on field changes
-    console.log('Field changed:', target.name, target.value);
+    // Store the change in the pending changes
+    const pendingChanges = { ...this.state.pendingChanges };
+    this.setNestedValue(pendingChanges, fieldName, fieldValue);
+    
+    this.updateState({ 
+      isDirty: true,
+      pendingChanges
+    });
+    
+    console.log('Field changed:', fieldName, fieldValue);
+    console.log('Pending changes:', pendingChanges);
+  }
+
+  /**
+   * Get field value based on input type
+   */
+  private getFieldValue(field: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement): any {
+    if (field.type === 'checkbox') {
+      return (field as HTMLInputElement).checked;
+    } else if (field.type === 'number') {
+      return field.value ? parseInt(field.value, 10) : 0;
+    } else {
+      return field.value;
+    }
+  }
+
+  /**
+   * Set a nested value in an object using dot notation path
+   */
+  private setNestedValue(obj: Record<string, any>, path: string, value: any): void {
+    const keys = path.split('.');
+    let current = obj;
+    
+    // Traverse the path to the second-to-last key
+    for (let i = 0; i < keys.length - 1; i++) {
+      const key = keys[i];
+      // Create nested objects if they don't exist
+      if (!current[key] || typeof current[key] !== 'object') {
+        current[key] = {};
+      }
+      current = current[key];
+    }
+    
+    // Set the value at the final key
+    const finalKey = keys[keys.length - 1];
+    current[finalKey] = value;
+  }
+
+  /**
+   * Merge pending changes into character data
+   */
+  private applyPendingChanges(): ICharacter {
+    if (!this.state.character) {
+      throw new Error('No character data to update');
+    }
+    
+    // Create a deep copy of the character to avoid mutating the original
+    const updatedCharacter = JSON.parse(JSON.stringify(this.state.character)) as ICharacter;
+    
+    // Apply each pending change to the character copy
+    Object.entries(this.state.pendingChanges).forEach(([key, value]) => {
+      if (typeof value === 'object' && value !== null) {
+        this.deepMerge(updatedCharacter, { [key]: value });
+      } else {
+        // For top-level properties
+        (updatedCharacter as any)[key] = value;
+      }
+    });
+    
+    return updatedCharacter;
+  }
+  
+  /**
+   * Deep merge two objects
+   */
+  private deepMerge(target: Record<string, any>, source: Record<string, any>): Record<string, any> {
+    Object.keys(source).forEach(key => {
+      if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+        // If property doesn't exist on target, create it
+        if (!target[key] || typeof target[key] !== 'object') {
+          target[key] = {};
+        }
+        this.deepMerge(target[key], source[key]);
+      } else {
+        // Simple property or array, just override
+        target[key] = source[key];
+      }
+    });
+    
+    return target;
   }
 
   /**
@@ -130,15 +223,35 @@ export class CharacterSheetComponent extends PluginComponent {
     if (!this.state.character || !this.state.isDirty) return;
     
     try {
-      // TODO: Implement saving logic via the API
-      // await this.api.updateActor(this.state.character.id, this.state.character);
+      // Apply pending changes to create the updated character data
+      const updatedCharacter = this.applyPendingChanges();
       
-      this.updateState({ isDirty: false, isEditing: false });
+      // Make sure we have a character ID
+      if (!this.state.character.id) {
+        throw new Error('Character ID is missing');
+      }
+      
+      // Send the update to the server via the plugin API
+      await this.api.updateActor(this.state.character.id, updatedCharacter.data);
+      
+      // Update our local state with the saved changes
+      this.updateState({ 
+        character: updatedCharacter,
+        isDirty: false, 
+        isEditing: false,
+        pendingChanges: {}
+      });
+      
+      // Re-render with updated state
       this.render(this.getState());
       
-      console.log('Changes saved');
+      console.log('Changes saved successfully');
     } catch (error) {
-      console.error('Failed to save changes:', error);
+      console.error('error', error);
+      console.error('stack', (error as Error).stack);
+      console.log('message', (error as Error).message);
+
+      alert('Failed to save changes. Please try again.');
     }
   }
 

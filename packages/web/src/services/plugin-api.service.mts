@@ -4,7 +4,7 @@ import { useSocketStore } from '../stores/socket.mjs';
 import { pluginRegistry } from './plugin-registry.service.mjs';
 import { useAuthStore } from '../stores/auth.mjs';
 import { useItemStore } from '../stores/item.mjs';
-import type { IActorCreateData, IActorUpdateData, IItemCreateData, IItemUpdateData } from '@dungeon-lab/shared/dist/index.mjs';
+import type { IActor, IActorCreateData, IActorUpdateData, IItemCreateData, IItemUpdateData } from '@dungeon-lab/shared/index.mjs';
 import api from '../network/axios.mjs';
 /**
  * Implementation of the Plugin API for the web client
@@ -82,7 +82,7 @@ export class PluginAPI implements IPluginAPI {
   }
 
   async updateActor(id: string, data: unknown): Promise<void> {
-    const actor = await this.actorStore.fetchActor(id);
+    const actor: IActor | null = await this.actorStore.fetchActor(id);
     if (!actor) {
       throw new Error('Actor not found');
     }
@@ -181,6 +181,7 @@ export class PluginAPI implements IPluginAPI {
     if (!plugin) {
       throw new Error('Plugin not found');
     }
+    console.log('validateActorData', type, data);
     return plugin.validateActorData(type, data);
   }
 

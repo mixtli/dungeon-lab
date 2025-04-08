@@ -401,7 +401,7 @@ function transformCharacterData(charData: any): any {
     classes: charData.classes.map((c: any) => ({
       name: c.name,
       level: c.level,
-      hitDiceType: `d${c.hit_die || 8}`
+      hitDiceType: `d8`
     })),
     background: charData.background || 'Custom',
     alignment: charData.alignment || 'true neutral',
@@ -418,7 +418,7 @@ function transformCharacterData(charData: any): any {
     hitDice: {
       total: level,
       current: level,
-      type: `d${charData.classes[0]?.hit_die || 8}`
+      type: `d8`
     },
     abilities,
     skills,
