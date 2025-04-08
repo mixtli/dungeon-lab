@@ -59,7 +59,7 @@ function round(num: number): number {
 function renderMap() {
   if (!mapStore.currentMap || !svgContainer.value) return;
 
-  const { gridColumns, gridRows, imageUrl } = mapStore.currentMap;
+  const { gridColumns, gridRows, image } = mapStore.currentMap;
   console.log('Map data:', mapStore.currentMap); // Debug log
 
   // Clear previous SVG if it exists
@@ -92,9 +92,9 @@ function renderMap() {
   const mapGroup = draw.value.group();
 
   // Add the map image as background
-  if (imageUrl) {
-    console.log('Loading map image:', imageUrl); // Debug log
-    mapGroup.image(imageUrl)
+  if (image.url) {
+    console.log('Loading map image:', image.url); // Debug log
+    mapGroup.image(image.url)
       .size(totalGridWidth, totalGridHeight);
   }
 

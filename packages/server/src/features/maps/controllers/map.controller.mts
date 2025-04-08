@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { AuthenticatedRequest } from '../../../middleware/auth.middleware.mjs';
 import { MapService } from '../services/map.service.mjs';
 import { logger } from '../../../utils/logger.mjs';
+import { uploadAssets } from '../../../utils/asset-upload.utils.mjs';
 
 export class MapController {
   constructor(private mapService: MapService) {}
@@ -35,7 +36,31 @@ export class MapController {
 
   async createMap(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
     try {
-      const map = await this.mapService.createMap(req.body, req.session.user.id);
+      // First create the map in database without images
+      const initialMapData = {
+        ...req.body,
+        gridRows: 0, // Placeholder, will be calculated after image processing
+        aspectRatio: 1, // Placeholder, will be calculated after image processing
+      };
+      
+      // Create initial map record to get an ID
+      const initialMap = await this.mapService.createMapInitial(initialMapData, req.session.user.id);
+      
+      // Prepare files for upload
+      const files = req.files as Record<string, Express.Multer.File[]> | undefined;
+      const file = req.file;
+      
+      // Upload the assets to storage
+      const assets = await uploadAssets(files || file, 'maps', initialMap.id!);
+      
+      // Process the image and update the map with final data
+      const map = await this.mapService.processThumbnail(
+        initialMap.id!,
+        assets.image,
+        Number(req.body.gridColumns),
+        req.session.user.id
+      );
+      
       return res.status(201).json(map);
     } catch (error: any) {
       logger.error('Error in createMap controller:', error);
@@ -45,7 +70,20 @@ export class MapController {
 
   async updateMap(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
     try {
-      const map = await this.mapService.updateMap(req.params.id, req.body, req.session.user.id);
+      // Prepare files for upload
+      const files = req.files as Record<string, Express.Multer.File[]> | undefined;
+      const file = req.file;
+      
+      // Upload any new assets
+      const assets = await uploadAssets(files || file, 'maps', req.params.id);
+      
+      // Add file data to request body
+      const mapData = {
+        ...req.body,
+        assets
+      };
+      
+      const map = await this.mapService.updateMap(req.params.id, mapData, req.session.user.id);
       return res.json(map);
     } catch (error: any) {
       if (error.message === 'Map not found') {

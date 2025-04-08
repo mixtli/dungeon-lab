@@ -1,23 +1,15 @@
 import { IMap, IMapCreateData, IMapUpdateData } from '@dungeon-lab/shared/index.mjs';
 import { MapModel } from '../models/map.model.mjs';
 import storageService from '../../../services/storage.service.mjs';
-import { v4 as uuidv4 } from 'uuid';
 import sharp from 'sharp';
 import { logger } from '../../../utils/logger.mjs';
+import { UploadedAsset } from '../../../utils/asset-upload.utils.mjs';
 
-// Extend the File type to include multer properties
-type MulterFile = {
-  buffer: Buffer;
-  mimetype: string;
-  originalname: string;
-  size: number;
-  fieldname: string;
-  encoding: string;
-};
 
-// Type guard to check if we have a multer file
-function isMulterFile(file: File | MulterFile): file is MulterFile {
-  return 'buffer' in file && 'mimetype' in file;
+
+// Add an interface for update data with assets
+interface MapUpdateDataWithAssets extends IMapUpdateData {
+  assets?: Record<string, UploadedAsset>;
 }
 
 export class MapService {
@@ -26,7 +18,7 @@ export class MapService {
   async getMaps(campaignId: string): Promise<IMap[]> {
     try {
       const maps = await MapModel.find({ campaignId });
-      return Promise.all(maps.map(map => this.addPresignedUrls(map)));
+      return maps.map(map => this.transformMapResponse(map));
     } catch (error) {
       logger.error('Error getting maps:', error);
       throw new Error('Failed to get maps');
@@ -39,74 +31,217 @@ export class MapService {
       if (!map) {
         throw new Error('Map not found');
       }
-      return this.addPresignedUrls(map);
+      return this.transformMapResponse(map);
     } catch (error) {
       logger.error('Error getting map:', error);
       throw new Error('Failed to get map');
     }
   }
 
-  async createMap(data: IMapCreateData & { image: File | MulterFile }, userId: string): Promise<IMap> {
+  /**
+   * Create a map in the database initially without processing images
+   */
+  async createMapInitial(data: IMapCreateData, userId: string): Promise<IMap> {
     try {
-      // Get the image buffer depending on the file type
-      const imageBuffer = isMulterFile(data.image) 
-        ? data.image.buffer 
-        : Buffer.from(await data.image.arrayBuffer());
 
+      const mapData = { ...data, gridRows: 0, aspectRatio: 1, createdBy: userId, updatedBy: userId };
+      // Create initial map in database
+      const map = await MapModel.create(mapData);
+      
+      return this.transformMapResponse(map);
+    } catch (error) {
+      logger.error('Error creating initial map:', error);
+      throw new Error('Failed to create initial map');
+    }
+  }
+
+  /**
+   * Generate and upload a map thumbnail
+   */
+  async generateAndUploadThumbnail(mapId: string, imageBuffer: Buffer, mimeType: string): Promise<{
+    path: string;
+    url: string;
+    size: number;
+    type: string;
+  }> {
+    try {
       const imageMetadata = await sharp(imageBuffer).metadata();
       
       if (!imageMetadata.width || !imageMetadata.height || !imageMetadata.format) {
         throw new Error('Invalid image metadata');
       }
-
-      // Generate unique ID and storage keys
-      const mapId = uuidv4();
-      const imageKey = `maps/${mapId}/original.${imageMetadata.format}`;
-      const thumbnailKey = `maps/${mapId}/thumbnail.${imageMetadata.format}`;
-
-      // Create and upload thumbnail
+      
+      // Generate filename with a timestamp
+      const timestamp = Date.now();
+      const thumbnailFilename = `thumbnail_${timestamp}.${imageMetadata.format}`;
+      
+      // Create thumbnail
       const thumbnailBuffer = await sharp(imageBuffer)
         .resize(300, 300, { fit: 'inside' })
         .toBuffer();
-
-      // Get the content type
-      const contentType = isMulterFile(data.image) 
-        ? data.image.mimetype 
-        : data.image.type;
-
-      // Upload files to storage using the consolidated service
-      await Promise.all([
-        storageService.uploadFile(imageBuffer, `original.${imageMetadata.format}`, contentType, `maps/${mapId}`),
-        storageService.uploadFile(thumbnailBuffer, `thumbnail.${imageMetadata.format}`, contentType, `maps/${mapId}`)
-      ]);
-
-      // Calculate grid dimensions and aspect ratio
-      const aspectRatio = imageMetadata.width / imageMetadata.height;
-      const gridRows = Math.floor(data.gridColumns / aspectRatio);
-
-      // Create map in database
-      const map = await MapModel.create({
-        ...data,
-        imageUrl: imageKey,
-        thumbnailUrl: thumbnailKey,
-        gridRows,
-        aspectRatio,
-        createdBy: userId,
-        updatedBy: userId
-      });
-
-      return this.addPresignedUrls(map);
+      
+      // Upload thumbnail
+      const imageFolder = `maps/${mapId}`;
+      const uploadResult = await storageService.uploadFile(
+        thumbnailBuffer,
+        thumbnailFilename,
+        mimeType,
+        imageFolder
+      );
+      
+      const thumbnailKey = uploadResult.key;
+      const thumbnailUrl = storageService.getPublicUrl(thumbnailKey);
+      
+      return {
+        path: thumbnailKey,
+        url: thumbnailUrl,
+        size: thumbnailBuffer.length,
+        type: mimeType
+      };
     } catch (error) {
-      logger.error('Error creating map:', error);
-      throw new Error('Failed to create map');
+      logger.error('Error generating thumbnail:', error);
+      throw new Error('Failed to generate thumbnail');
     }
   }
 
-  async updateMap(id: string, data: IMapUpdateData, userId: string): Promise<IMap> {
+  /**
+   * Process map images and update the map with finalized data
+   */
+  async processThumbnail(id: string, imageAsset: UploadedAsset, gridColumns: number, userId: string): Promise<IMap> {
     try {
+      // Get the existing map
+      const map = await MapModel.findById(id);
+      if (!map) {
+        throw new Error('Map not found');
+      }
+      
+      try {
+        // Since we already have the uploaded image, we just need to generate dimensions and thumbnail
+        // Fetch the image to process it (we might want to modify this approach later for efficiency)
+        const imageResponse = await fetch(imageAsset.url);
+        
+        if (!imageResponse.ok) {
+          throw new Error(`Failed to fetch image from ${imageAsset.url}`);
+        }
+        
+        const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+        
+        // Get image metadata
+        const imageMetadata = await sharp(imageBuffer).metadata();
+        if (!imageMetadata.width || !imageMetadata.height) {
+          throw new Error('Invalid image metadata');
+        }
+        
+        // Generate and upload thumbnail
+        const thumbnail = await this.generateAndUploadThumbnail(id, imageBuffer, imageAsset.type);
+        
+        // Calculate grid dimensions and aspect ratio
+        const aspectRatio = imageMetadata.width / imageMetadata.height;
+        const gridRows = Math.floor(gridColumns / aspectRatio);
+        
+        // Update the map with final data
+        const updatedMap = await MapModel.findByIdAndUpdate(
+          id,
+          {
+            gridRows,
+            aspectRatio,
+            image: imageAsset,
+            thumbnail,
+            updatedBy: userId
+          },
+          { new: true }
+        );
+        
+        if (!updatedMap) {
+          throw new Error('Map not found after update');
+        }
+        
+        return this.transformMapResponse(updatedMap);
+      } catch (error) {
+        logger.error('Error processing image:', error);
+        throw new Error(`Failed to process image: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    } catch (error) {
+      // If there's an error, clean up by deleting the map
+      try {
+        await MapModel.findByIdAndDelete(id);
+      } catch (deleteError) {
+        logger.error('Error deleting map after failed image processing:', deleteError);
+      }
+      
+      logger.error('Error processing map images:', error);
+      throw error; // Propagate the original error
+    }
+  }
+
+  async updateMap(id: string, data: MapUpdateDataWithAssets, userId: string): Promise<IMap> {
+    try {
+      // Get existing map
+      const existingMap = await MapModel.findById(id);
+      if (!existingMap) {
+        throw new Error('Map not found');
+      }
+      
+      // Handle image updates if a new image was uploaded
+      let updateData: any = { ...data, updatedBy: userId };
+      
+      // If we have new assets, handle them
+      if (data.assets) {
+        // If a new image was uploaded
+        if (data.assets.image) {
+          try {
+            // Fetch the image to process it
+            const imageAsset = data.assets.image;
+            const imageResponse = await fetch(imageAsset.url);
+            
+            if (!imageResponse.ok) {
+              throw new Error(`Failed to fetch image from ${imageAsset.url}`);
+            }
+            
+            const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+            
+            // Get image metadata
+            const imageMetadata = await sharp(imageBuffer).metadata();
+            if (!imageMetadata.width || !imageMetadata.height) {
+              throw new Error('Invalid image metadata');
+            }
+            
+            // Generate and upload thumbnail
+            const thumbnail = await this.generateAndUploadThumbnail(id, imageBuffer, imageAsset.type);
+            
+            // Calculate grid dimensions and aspect ratio
+            const aspectRatio = imageMetadata.width / imageMetadata.height;
+            const gridRows = Math.floor(data.gridColumns || existingMap.gridColumns / aspectRatio);
+            
+            // Add image and thumbnail to update data
+            updateData = {
+              ...updateData,
+              gridRows,
+              aspectRatio,
+              image: imageAsset,
+              thumbnail
+            };
+          } catch (error) {
+            logger.error('Error processing update image:', error);
+            throw new Error(`Failed to process update image: ${error instanceof Error ? error.message : String(error)}`);
+          }
+        }
+        
+        // Handle other assets by directly assigning them
+        Object.entries(data.assets).forEach(([key, asset]) => {
+          if (key !== 'image') { // Image was handled separately above
+            updateData[key] = asset;
+          }
+        });
+        
+        // Remove assets property since we've processed it
+        delete updateData.assets;
+      }
+      
+      // Update the map
       const map = await MapModel.findByIdAndUpdate(
         id,
-        { ...data, updatedBy: userId },
+        updateData,
         { new: true }
       );
       
@@ -114,10 +249,10 @@ export class MapService {
         throw new Error('Map not found');
       }
 
-      return this.addPresignedUrls(map);
+      return this.transformMapResponse(map);
     } catch (error) {
       logger.error('Error updating map:', error);
-      throw new Error('Failed to update map');
+      throw error;
     }
   }
 
@@ -128,11 +263,8 @@ export class MapService {
         throw new Error('Map not found');
       }
 
-      // Delete files from storage
-      await Promise.all([
-        storageService.deleteFile(map.imageUrl),
-        storageService.deleteFile(map.thumbnailUrl)
-      ]);
+      // Delete all asset files for this map
+      await storageService.deleteDirectory(`maps/${id}`);
 
       await map.deleteOne();
     } catch (error) {
@@ -144,26 +276,20 @@ export class MapService {
   async getAllMaps(userId: string): Promise<IMap[]> {
     try {
       const maps = await MapModel.find({ createdBy: userId });
-      return Promise.all(maps.map(map => this.addPresignedUrls(map)));
+      return maps.map(map => this.transformMapResponse(map));
     } catch (error) {
       logger.error('Error getting all maps:', error);
       throw new Error('Failed to get maps');
     }
   }
 
-  private async addPresignedUrls(map: any): Promise<IMap> {
-    const [imageUrl, thumbnailUrl] = await Promise.all([
-      storageService.getFileUrl(map.imageUrl),
-      storageService.getFileUrl(map.thumbnailUrl)
-    ]);
-
+  private transformMapResponse(map: any): IMap {
     const mapObj = map.toObject();
-    const { _id, ...rest } = mapObj;
+    const { _id, __v, ...rest } = mapObj;
+    
     return {
       id: _id.toString(),
-      ...rest,
-      imageUrl,
-      thumbnailUrl
+      ...rest
     };
   }
 } 

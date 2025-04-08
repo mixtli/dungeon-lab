@@ -2,7 +2,8 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from '../../network/axios.mjs';
-import { ArrowLeftIcon, ArrowUpTrayIcon } from '@heroicons/vue/24/outline';
+import { ArrowLeftIcon } from '@heroicons/vue/24/outline';
+import ImageUpload from '../../components/common/ImageUpload.vue';
 
 const router = useRouter();
 const loading = ref(false);
@@ -11,34 +12,15 @@ const formData = ref({
   description: '',
   gridColumns: 20,
 });
-const imageFile = ref<File | null>(null);
-const fileInputRef = ref<HTMLInputElement | null>(null);
-
-function handleFileChange(event: Event) {
-  const input = event.target as HTMLInputElement;
-  if (input.files && input.files.length > 0) {
-    imageFile.value = input.files[0];
-  }
-}
-
-function handleDrop(event: DragEvent) {
-  event.preventDefault();
-  if (event.dataTransfer?.files && event.dataTransfer.files.length > 0) {
-    imageFile.value = event.dataTransfer.files[0];
-  }
-}
-
-function handleDragOver(event: DragEvent) {
-  event.preventDefault();
-}
+const mapImageFile = ref<File | null>(null);
 
 async function handleSubmit(event: Event) {
   event.preventDefault();
   
-  if (!imageFile.value) {
-    alert('Please upload a map image');
-    return;
-  }
+  // if (!mapImageFile.value) {
+  //   alert('Please upload a map image');
+  //   return;
+  // }
 
   try {
     loading.value = true;
@@ -46,7 +28,12 @@ async function handleSubmit(event: Event) {
     form.append('name', formData.value.name);
     form.append('description', formData.value.description || '');
     form.append('gridColumns', formData.value.gridColumns.toString());
-    form.append('image', imageFile.value);
+    
+
+    // Add the file directly to the form
+    if (mapImageFile.value) {
+      form.append('image', mapImageFile.value);
+    }
 
     await axios.post('/api/maps', form, {
       headers: {
@@ -126,27 +113,9 @@ async function handleSubmit(event: Event) {
           <label class="block text-sm font-medium text-gray-700 mb-1">
             Map Image <span class="text-red-500">*</span>
           </label>
-          <div
-            @drop="handleDrop"
-            @dragover="handleDragOver"
-            class="w-full border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-gray-400"
-            @click="fileInputRef?.click()"
-          >
-            <input
-              ref="fileInputRef"
-              type="file"
-              accept="image/*"
-              class="hidden"
-              @change="handleFileChange"
-            />
-            <ArrowUpTrayIcon class="h-8 w-8 mx-auto mb-2 text-gray-400" />
-            <p class="text-gray-600">
-              Drop file here or <span class="text-blue-500">click to upload</span>
-            </p>
-            <p v-if="imageFile" class="mt-2 text-sm text-gray-500">
-              Selected: {{ imageFile.name }}
-            </p>
-          </div>
+          <ImageUpload
+            v-model="mapImageFile"
+          />
           <p class="text-gray-500 text-sm mt-2">
             Upload a JPG/PNG image of your map
           </p>
@@ -155,7 +124,7 @@ async function handleSubmit(event: Event) {
         <div class="flex justify-end">
           <button
             type="submit"
-            :disabled="!formData.name || !imageFile || loading"
+            :disabled="!formData.name ||  loading"
             class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {{ loading ? 'Creating...' : 'Create Map' }}

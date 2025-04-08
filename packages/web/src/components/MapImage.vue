@@ -6,14 +6,14 @@ import axios from '../network/axios.mjs';
 
 const props = defineProps<{
   mapId: string;
-  imageUrl: string;
+  imageUrl?: string;
   alt: string;
   className?: string;
 }>();
 
 const imageError = ref(false);
 const loading = ref(true);
-const currentUrl = ref(props.imageUrl);
+const currentUrl = ref(props.imageUrl || '');
 const showPlaceholder = ref(true);
 
 // Simple notification function (we can replace this with a proper notification system later)
@@ -48,7 +48,7 @@ function handleImageLoad() {
 
 onMounted(() => {
   // Start with the provided URL
-  currentUrl.value = props.imageUrl;
+  currentUrl.value = props.imageUrl || '';
 });
 </script>
 

@@ -11,8 +11,8 @@ const mapSchema = z.object({
 
 
 
-type IMap = z.infer<typeof mapSchema>;
-type IMapOutput = z.output<typeof mapSchema>;
+// type IMap = z.infer<typeof mapSchema>;
+//type IMapOutput = z.output<typeof mapSchema>;
 type IMapInput = z.input<typeof mapSchema>;
 
 

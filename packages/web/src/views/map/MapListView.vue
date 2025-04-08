@@ -85,7 +85,7 @@ onMounted(() => {
           <div class="aspect-w-16 aspect-h-9">
             <MapImage
               :map-id="map.id || ''"
-              :image-url="map.thumbnailUrl"
+              :image-url="map.thumbnail && map.thumbnail.url"
               :alt="map.name"
               class="object-cover rounded-t-lg"
             />

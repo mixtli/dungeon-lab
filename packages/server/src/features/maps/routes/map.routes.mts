@@ -37,7 +37,7 @@ router.get('/:id', openApiGetOne(mapSchema, {
 
 router.post('/', openApiPost(mapCreateSchema, {
   description: 'Create new map'
-}), validateMultipartRequest(mapCreateSchema), boundController.createMap);
+}), validateMultipartRequest(mapCreateSchema, 'image'), boundController.createMap);
 
 router.patch('/:id', openApiPatch(mapUpdateSchema, {
   description: 'Update map'

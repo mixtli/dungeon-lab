@@ -114,6 +114,33 @@ class StorageService {
   }
 
   /**
+   * Delete all files in a directory
+   * @param prefix Directory path prefix to delete all files from
+   */
+  async deleteDirectory(prefix: string): Promise<void> {
+    try {
+      // List all objects in the directory
+      const fileList = await this.listFiles(prefix);
+      
+      if (fileList.length === 0) {
+        logger.info(`No files found in directory: ${prefix}`);
+        return;
+      }
+      
+      // Create an array of objects to delete
+      const objectsToDelete = fileList.map(name => ({ name }));
+      
+      // Delete all objects in batch
+      await this.client.removeObjects(this.bucket, objectsToDelete);
+      
+      logger.info(`Deleted ${fileList.length} files from directory: ${prefix}`);
+    } catch (error) {
+      logger.error(`Error deleting directory: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(`Failed to delete directory: ${prefix}`);
+    }
+  }
+
+  /**
    * List all files in a directory
    */
   async listFiles(prefix = '', recursive = true): Promise<string[]> {
@@ -152,6 +179,9 @@ export const getFileUrl = (key: string, expiryInSeconds = 3600) =>
 
 export const deleteFile = (key: string) => 
   storageServiceInstance.deleteFile(key);
+
+export const deleteDirectory = (prefix: string) => 
+  storageServiceInstance.deleteDirectory(prefix);
 
 export const listFiles = (prefix = '', recursive = true) => 
   storageServiceInstance.listFiles(prefix, recursive);

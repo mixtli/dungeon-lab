@@ -21,8 +21,19 @@ export async function uploadActorImage(req: Request, res: Response) {
       return res.status(400).json({ message: 'Invalid image type. Must be "avatar" or "token"' });
     }
     
-    // Generate unique filename
-    const folder = `actors/${imageType}`;
+    // Check if we have an actor ID in the body or query parameters
+    const actorId = req.body.actorId || req.query.actorId as string;
+    
+    // Generate folder path based on available information
+    let folder: string;
+    
+    if (actorId) {
+      // If we have an actor ID, use it in the path
+      folder = `actors/${actorId}/${imageType}`;
+    } else {
+      // Otherwise use the generic folder structure
+      folder = `actors/${imageType}`;
+    }
     
     // Upload to storage using the consolidated service
     const uploadResult = await storageService.uploadFile(
@@ -32,8 +43,8 @@ export async function uploadActorImage(req: Request, res: Response) {
       folder
     );
     
-    // Generate public URL for the uploaded image
-    const imageUrl = await storageService.getFileUrl(uploadResult.key);
+    // Generate public URL for the uploaded image (use non-expiring public URL)
+    const imageUrl = storageService.getPublicUrl(uploadResult.key);
     
     return res.status(200).json({
       url: imageUrl,

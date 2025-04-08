@@ -1,5 +1,4 @@
 import { Router } from 'express';
-import multer from 'multer';
 import { ActorController } from '../controllers/actor.controller.mjs';
 import { ActorService } from '../services/actor.service.mjs';
 import { uploadActorImage } from '../controllers/actor-image.controller.mjs';
@@ -8,18 +7,11 @@ import { validateRequest } from '../../../middleware/validation.middleware.mjs';
 import { actorCreateSchema, actorUpdateSchema, actorSchema } from '@dungeon-lab/shared/schemas/actor.schema.mjs';
 import { openApiGet, openApiGetOne, openApiPost, openApiPut, openApiDelete } from '../../../oapi.mjs';
 import { z } from '@dungeon-lab/shared/src/lib/zod.mjs';
+import { validateMultipartRequest } from '../../../middleware/validation.middleware.mjs';
 
 // Initialize services and controllers
 const actorService = new ActorService();
 const actorController = new ActorController(actorService);
-
-// Set up multer for memory storage (not disk)
-const upload = multer({ 
-  storage: multer.memoryStorage(),
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
-  }
-});
 
 // Create router
 const router = Router();
@@ -63,17 +55,22 @@ router.get('/campaigns/:campaignId/actors', authenticate, openApiGet(actorSchema
 router.post(
   '/images/:type', 
   authenticate, 
-  openApiPost(z.object({ image: z.instanceof(File) }), {
-    description: 'Upload actor image',
+  openApiPost(z.object({ 
+    image: z.custom((val) => true), // Just a placeholder for OpenAPI docs
+    actorId: z.string().optional()
+  }), {
+    description: 'Upload actor image (avatar or token)',
     responses: {
-      201: {
+      200: {
         description: 'Image uploaded successfully',
         content: {
           'application/json': {
             schema: {
               type: 'object',
               properties: {
-                url: { type: 'string', format: 'uri' }
+                url: { type: 'string', format: 'uri' },
+                objectKey: { type: 'string' },
+                size: { type: 'number' }
               }
             }
           }
@@ -81,7 +78,7 @@ router.post(
       }
     }
   }),
-  upload.single('image'),
+  validateMultipartRequest(z.object({}), 'image'), // Use empty schema since we're validating in the controller
   uploadActorImage
 );
 

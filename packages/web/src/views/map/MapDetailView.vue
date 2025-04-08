@@ -5,19 +5,16 @@ import type { IMap, IMapUpdateData } from '@dungeon-lab/shared/index.mjs';
 import axios from '../../network/axios.mjs';
 import { ArrowLeftIcon } from '@heroicons/vue/24/outline';
 import MapImage from '../../components/MapImage.vue';
-import { useAuthStore } from '../../stores/auth.mjs';
 
 const route = useRoute();
 const router = useRouter();
-const authStore = useAuthStore();
 const loading = ref(false);
 const editing = ref(false);
 const map = ref<IMap | null>(null);
 const formData = ref<IMapUpdateData>({
   name: '',
   description: '',
-  gridColumns: 20,
-  updatedBy: ''
+  gridColumns: 20
 });
 
 // Simple notification function (we can replace this with a proper notification system later)
@@ -34,8 +31,7 @@ async function fetchMap() {
       formData.value = {
         name: map.value.name,
         description: map.value.description || '',
-        gridColumns: map.value.gridColumns,
-        updatedBy: authStore.user?.id || ''
+        gridColumns: map.value.gridColumns
       };
     }
   } catch (error) {
@@ -89,7 +85,7 @@ onMounted(() => {
         <div class="mb-6">
           <MapImage
             :map-id="map.id || ''"
-            :image-url="map.imageUrl"
+            :image-url="map.image && map.image.url"
             :alt="map.name"
             class="w-full rounded shadow-lg"
           />
