@@ -143,6 +143,20 @@
   border: 1px solid #ddd;
 }
 
+.skill-section h4 {
+  color: #2d3748;
+  font-size: 1.25rem;
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.skill-section p {
+  color: #1a202c;
+  font-size: 1rem;
+  margin-bottom: 1rem;
+}
+
 .skill-options {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -167,6 +181,17 @@
 
 .skill-option input[type="checkbox"]:disabled + span {
   color: #999;
+}
+
+.skill-checkbox {
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+}
+
+.skill-checkbox label {
+  margin-left: 0.5rem;
+  color: #2d3748;
 }
 
 /* Features Section */

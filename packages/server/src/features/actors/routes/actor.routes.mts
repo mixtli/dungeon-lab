@@ -1,13 +1,11 @@
 import { Router } from 'express';
 import { ActorController } from '../controllers/actor.controller.mjs';
 import { ActorService } from '../services/actor.service.mjs';
-import { uploadActorImage } from '../controllers/actor-image.controller.mjs';
 import { authenticate } from '../../../middleware/auth.middleware.mjs';
-import { validateRequest } from '../../../middleware/validation.middleware.mjs';
+import { validateMultipartRequest } from '../../../middleware/validation.middleware.mjs';
 import { actorCreateSchema, actorUpdateSchema, actorSchema } from '@dungeon-lab/shared/schemas/actor.schema.mjs';
 import { openApiGet, openApiGetOne, openApiPost, openApiPut, openApiDelete } from '../../../oapi.mjs';
 import { z } from '@dungeon-lab/shared/src/lib/zod.mjs';
-import { validateMultipartRequest } from '../../../middleware/validation.middleware.mjs';
 
 // Initialize services and controllers
 const actorService = new ActorService();
@@ -34,15 +32,19 @@ router.get('/:id', openApiGetOne(actorSchema, {
 }), boundGetActorById);
 
 // Protected routes
+router.get('/campaign/:campaignId', authenticate, boundGetActors);
+
+// For file uploads, use validateMultipartRequest with field names
+
 router.post('/', authenticate, openApiPost(actorCreateSchema, {
   description: 'Create new actor'
-}), validateRequest(actorCreateSchema), boundCreateActor);
+}), validateMultipartRequest(actorCreateSchema, ['avatar', 'token']), boundCreateActor);
 
 router.put('/:id', authenticate, openApiPut(actorUpdateSchema, {
   description: 'Update actor by ID'
-}), validateRequest(actorUpdateSchema), boundUpdateActor);
+}), validateMultipartRequest(actorUpdateSchema, ['avatar', 'token']), boundUpdateActor);
 
-router.delete('/:id', authenticate, openApiDelete(actorSchema, {
+router.delete('/:id', authenticate, openApiDelete(z.object({}), {
   description: 'Delete actor by ID'
 }), boundDeleteActor);
 
@@ -51,35 +53,5 @@ router.get('/campaigns/:campaignId/actors', authenticate, openApiGet(actorSchema
   description: 'Get actors for a specific campaign'
 }), boundGetActors);
 
-// Image upload route
-router.post(
-  '/images/:type', 
-  authenticate, 
-  openApiPost(z.object({ 
-    image: z.custom((val) => true), // Just a placeholder for OpenAPI docs
-    actorId: z.string().optional()
-  }), {
-    description: 'Upload actor image (avatar or token)',
-    responses: {
-      200: {
-        description: 'Image uploaded successfully',
-        content: {
-          'application/json': {
-            schema: {
-              type: 'object',
-              properties: {
-                url: { type: 'string', format: 'uri' },
-                objectKey: { type: 'string' },
-                size: { type: 'number' }
-              }
-            }
-          }
-        }
-      }
-    }
-  }),
-  validateMultipartRequest(z.object({}), 'image'), // Use empty schema since we're validating in the controller
-  uploadActorImage
-);
 
 export { router as actorRoutes }; 

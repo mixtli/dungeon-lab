@@ -51,6 +51,20 @@ export function createBaseSchema(
   
   return new mongoose.Schema(schemaDefinition, {
     timestamps,
+    toObject: {
+      virtuals,
+      transform: (_doc, ret) => {
+        ret.id = ret._id.toString();
+        //delete ret._id;
+        //delete ret.__v;
+
+        // Apply custom transform if provided
+        if (transform) {
+          return transform(_doc, ret);
+        }
+
+      },
+    },
     toJSON: {
       virtuals,
       transform: (_doc, ret) => {

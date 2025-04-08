@@ -62,7 +62,7 @@
               @click="selectCharacter(character)"
             >
               <div class="flex items-center gap-4">
-                <img v-if="character.avatar" :src="character.avatar" 
+                <img v-if="character.avatar && character.avatar.url" :src="character.avatar.url" 
                   class="w-12 h-12 rounded-full object-cover"
                   :alt="character.name"
                 />

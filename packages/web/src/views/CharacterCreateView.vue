@@ -7,6 +7,7 @@ import { pluginRegistry } from '@/services/plugin-registry.service.mjs';
 import ImageUpload from '../components/common/ImageUpload.vue';
 import { IGameSystemPluginWeb } from '@dungeon-lab/shared/types/plugin.mjs';
 import { IActorCreateData } from '@dungeon-lab/shared/schemas/actor.schema.mts';
+import axios from '../network/axios.mjs';
 
 interface UploadedImage {
   url: string;
@@ -128,78 +129,39 @@ async function handleSubmit(event: Event) {
     // Translate form data to character schema format
     const pluginData = pluginComponent.translateFormData(validation.data);
 
-    // Extract image URLs (if any already uploaded images)
-    let avatarUrl: string | undefined = undefined;
-    let tokenUrl: string | undefined = undefined;
-
-    // If image is an UploadedImage object with a URL, use that
-    if (basicInfo.value.avatarImage && typeof basicInfo.value.avatarImage === 'object' && 'url' in basicInfo.value.avatarImage) {
-      avatarUrl = basicInfo.value.avatarImage.url;
+    // Prepare a FormData object for submission
+    const formData = new FormData();
+    
+    // Add basic character data
+    formData.append('name', basicInfo.value.name);
+    formData.append('type', 'character');
+    formData.append('gameSystemId', plugin.config.id);
+    
+    if (basicInfo.value.description) {
+      formData.append('description', basicInfo.value.description);
     }
-
-    if (basicInfo.value.tokenImage && typeof basicInfo.value.tokenImage === 'object' && 'url' in basicInfo.value.tokenImage) {
-      tokenUrl = basicInfo.value.tokenImage.url;
+    
+    // Add plugin data as JSON
+    formData.append('data', JSON.stringify(pluginData));
+    
+    // Add avatar and token files if they exist
+    if (basicInfo.value.avatarImage instanceof File) {
+      formData.append('avatar', basicInfo.value.avatarImage);
     }
-
-    // Only handle File objects here - we'll need to upload them first
-    const avatarFile = basicInfo.value.avatarImage instanceof File ? basicInfo.value.avatarImage : null;
-    const tokenFile = basicInfo.value.tokenImage instanceof File ? basicInfo.value.tokenImage : null;
-
-    // Create actor data
-    const actorData: IActorCreateData = {
-      name: basicInfo.value.name,
-      type: 'character',
-      description: basicInfo.value.description || undefined,
-      gameSystemId: plugin.config.id,
-      avatar: avatarUrl,
-      token: tokenUrl,
-      data: pluginData
-    };
-
-    // First upload any images if they exist as Files
-    if (avatarFile) {
-      const formData = new FormData();
-      formData.append('image', avatarFile);
-      
-      try {
-        const response = await fetch('/api/actors/images/avatar', {
-          method: 'POST',
-          body: formData,
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          actorData.avatar = data.url;
-        }
-      } catch (err) {
-        console.error('Failed to upload avatar:', err);
+    
+    if (basicInfo.value.tokenImage instanceof File) {
+      formData.append('token', basicInfo.value.tokenImage);
+    }
+    
+    // Send the request
+    const response = await axios.post('/api/actors', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
       }
-    }
-
-    if (tokenFile) {
-      const formData = new FormData();
-      formData.append('image', tokenFile);
-      
-      try {
-        const response = await fetch('/api/actors/images/token', {
-          method: 'POST',
-          body: formData,
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          actorData.token = data.url;
-        }
-      } catch (err) {
-        console.error('Failed to upload token:', err);
-      }
-    }
-
-    // Now create the actor with the URLs
-    const actor = await actorStore.createActor(actorData);
+    });
     
     // Navigate to the character sheet
-    router.push({ name: 'character-sheet', params: { id: actor.id } });
+    router.push({ name: 'character-sheet', params: { id: response.data.id } });
   } catch (err) {
     console.error('Failed to create character:', err);
     if (err instanceof Error) {
@@ -274,7 +236,7 @@ function handleError(errorMessage: string) {
         </div>
         
         <!-- Single Form -->
-        <form @submit.prevent="handleSubmit" class="character-create-form">
+        <form @submit.prevent="handleSubmit" class="character-create-form" enctype="multipart/form-data">
           <!-- Step 1: Basic Info -->
           <div v-show="currentStep === 1" class="form-step">
             <h2>Basic Information</h2>

@@ -7,7 +7,12 @@ interface Character {
   id: string;
   name: string;
   type: string;
-  avatar?: string;
+  avatar?: {
+    url?: string;
+    path?: string;
+    size?: number;
+    type?: string;
+  };
   data: {
     race: string;
     class: string;
@@ -114,8 +119,8 @@ function handleCreate() {
         >
           <div class="aspect-[4/3] bg-gray-200 relative">
             <img
-              v-if="character.avatar"
-              :src="character.avatar"
+              v-if="character.avatar && character.avatar.url"
+              :src="character.avatar.url"
               :alt="character.name"
               class="w-full h-full object-cover"
             >

@@ -47,7 +47,7 @@ export class ActorService {
       };
 
       const actor = await ActorModel.create(actorData);
-      return actor;
+      return actor.toObject();
     } catch (error) {
       logger.error('Error creating actor:', error);
       throw new Error('Failed to create actor');

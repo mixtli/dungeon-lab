@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { AuthenticatedRequest } from '../../../middleware/auth.middleware.mjs';
 import { ActorService } from '../services/actor.service.mjs';
 import { logger } from '../../../utils/logger.mjs';
+import { uploadAssets } from '../../../utils/asset-upload.utils.mjs';
 
 export class ActorController {
   constructor(private actorService: ActorService) {}
@@ -11,13 +12,13 @@ export class ActorController {
    * @route GET /api/actors
    * @access Public
    */
-  async getAllActors(_: Request, res: Response): Promise<Response | void> {
+  async getAllActors(req: Request, res: Response): Promise<Response | void> {
     try {
       const actors = await this.actorService.getAllActors();
       return res.json(actors);
     } catch (error) {
       if (error instanceof Error) {
-        logger.error('Error fetching actors:', error);
+        logger.error('Error fetching all actors:', error);
       }
       return res.status(500).json({ message: 'Server error' });
     }
@@ -67,8 +68,33 @@ export class ActorController {
    */
   async createActor(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
     try {
-      const actor = await this.actorService.createActor(req.body, req.session.user.id);
-      return res.status(201).json(actor);
+      // First create the actor in database without images
+      const initialActorData = {
+        ...req.body
+      };
+      
+      // Create initial actor record to get an ID
+      const initialActor = await this.actorService.createActor(initialActorData, req.session.user.id);
+      
+      // Prepare files for upload
+      const files = req.files as Record<string, Express.Multer.File[]> | undefined;
+      const file = req.file;
+      
+      // Upload the assets to storage
+      const assets = await uploadAssets(files || file, 'actors', initialActor.id!);
+      
+      // Update the actor with the uploaded assets
+      if (Object.keys(assets).length > 0) {
+        const updateData = {
+          ...assets,
+          updatedBy: req.session.user.id
+        };
+        
+        const actor = await this.actorService.updateActor(initialActor.id!, updateData, req.session.user.id);
+        return res.status(201).json(actor);
+      }
+      
+      return res.status(201).json(initialActor);
     } catch (error) {
       if (error instanceof Error) {
         logger.error('Error creating actor:', error);
@@ -94,9 +120,22 @@ export class ActorController {
         return res.status(403).json({ message: 'Access denied' });
       }
 
+      // Prepare files for upload
+      const files = req.files as Record<string, Express.Multer.File[]> | undefined;
+      const file = req.file;
+      
+      // Upload any new assets
+      const assets = await uploadAssets(files || file, 'actors', req.params.id);
+      
+      // Add file data to request body
+      const actorData = {
+        ...req.body,
+        ...assets
+      };
+
       const actor = await this.actorService.updateActor(
         req.params.id,
-        req.body,
+        actorData,
         req.session.user.id
       );
       return res.json(actor);

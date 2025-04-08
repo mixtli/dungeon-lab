@@ -1,12 +1,13 @@
 import { z } from '../lib/zod.mjs';
+import { assetSchema } from './asset.schema.mjs';
 
 // Base Actor schema
 export const actorSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(1).max(255),
   type: z.string().min(1).max(255),
-  avatar: z.string().url().optional(),
-  token: z.string().url().optional(),
+  avatar: assetSchema.optional(),
+  token: assetSchema.optional(),
   description: z.string().optional(),
   gameSystemId: z.string().min(1),
   data: z.any(),
@@ -14,12 +15,18 @@ export const actorSchema = z.object({
   updatedBy: z.string(),
 });
 
-// Create data schema (omits auto-generated fields)
-export const actorCreateSchema = actorSchema.omit({
-  id: true,
-  createdBy: true,
-  updatedBy: true,
-});
+// Schema for actor data used in creation
+export type IActor = z.infer<typeof actorSchema>;
+
+// Create data schema (makes id, createdBy, and updatedBy optional)
+export const actorCreateSchema = actorSchema
+  .omit({
+    id: true,
+    createdBy: true,
+    updatedBy: true,
+  });
+
+export type IActorCreateData = z.infer<typeof actorCreateSchema>;
 
 // Update data schema (makes all fields optional except updatedBy)
 export const actorUpdateSchema = actorSchema
@@ -32,7 +39,4 @@ export const actorUpdateSchema = actorSchema
     updatedBy: z.string(),
   });
 
-// Export types generated from the schemas
-export type IActor = z.infer<typeof actorSchema>;
-export type IActorCreateData = z.infer<typeof actorCreateSchema>;
 export type IActorUpdateData = z.infer<typeof actorUpdateSchema>; 
