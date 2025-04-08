@@ -102,7 +102,6 @@ async function uploadToMinio(filePath: string, objectName: string, contentType: 
   const fileSize = statSync(filePath).size;
   
   // We'll still use sharp for format detection if possible
-  let format = contentType.split('/')[1] || 'jpeg';
   try {
     const metadata = await sharp(filePath).metadata();
     if (metadata.format) {
