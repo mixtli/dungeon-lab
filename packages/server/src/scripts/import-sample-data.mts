@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from 'fs';
+import { readFileSync, readdirSync, statSync } from 'fs';
 import { Client } from 'minio';
 import mongoose, { Types } from 'mongoose';
 import { dirname, join } from 'path';
@@ -97,11 +97,31 @@ async function ensureBucket() {
 }
 
 // Upload file to MinIO
-async function uploadToMinio(filePath: string, objectName: string, contentType: string): Promise<string> {
+async function uploadToMinio(filePath: string, objectName: string, contentType: string): Promise<{ url: string, path: string, size: number, type: string }> {
+  // Get accurate file size using Node's fs.statSync
+  const fileSize = statSync(filePath).size;
+  
+  // We'll still use sharp for format detection if possible
+  let format = contentType.split('/')[1] || 'jpeg';
+  try {
+    const metadata = await sharp(filePath).metadata();
+    if (metadata.format) {
+      format = metadata.format;
+    }
+  } catch (error) {
+    console.warn(`Could not extract format metadata for ${filePath}:`, error);
+  }
+  
   await minioClient.fPutObject(BUCKET_NAME, objectName, filePath, {
     'Content-Type': contentType
   });
-  return `${process.env.MINIO_PUBLIC_URL}/${BUCKET_NAME}/${objectName}`;
+  
+  return {
+    url: `${process.env.MINIO_PUBLIC_URL}/${BUCKET_NAME}/${objectName}`,
+    path: objectName,
+    size: fileSize,
+    type: contentType
+  };
 }
 
 // Convert UUID to ObjectId and maintain mapping
@@ -120,18 +140,49 @@ async function importMaps() {
 
   for (const mapFile of mapFiles) {
     const mapData = JSON.parse(readFileSync(join(mapsDir, mapFile), 'utf-8'));
-    const objectId = getObjectId(mapData.id);
-    const mapId = uuidv4();
+    const userId = getNextUserId();
+    
+    // Check if map already exists by name
+    let existingMap = await MapModel.findOne({ name: mapData.name }).lean();
+    const objectId = existingMap ? existingMap._id : getObjectId(mapData.id);
+    
+    // Generate a consistent mapId either from existing record or create new one
+    const mapId = existingMap ? objectId.toString() : uuidv4();
+    
+    console.log(`${existingMap ? 'Updating' : 'Creating'} map: ${mapData.name}`);
 
     // Read and process the image
-    const imageBuffer = readFileSync(join(mapsImagesDir, mapData.image.name));
-    const imageMetadata = await sharp(imageBuffer).metadata();
-    const format = imageMetadata.format || 'jpeg';
+    const imagePath = join(mapsImagesDir, mapData.image.name);
+    const imageBuffer = readFileSync(imagePath);
+    // Get accurate file size using fs.statSync
+    const size = statSync(imagePath).size;
+    
+    let format = 'jpeg';
+    try {
+      const imageMetadata = await sharp(imageBuffer).metadata();
+      format = imageMetadata.format || 'jpeg';
+    } catch (error) {
+      console.warn(`Could not extract format metadata for ${mapData.image.name}:`, error);
+    }
+    
+    const contentType = `image/${format}`;
 
     // Create thumbnail
-    const thumbnail = await sharp(imageBuffer)
-      .resize(300, 300, { fit: 'inside' })
-      .toBuffer();
+    let thumbnail;
+    let thumbnailSize = 0;
+    
+    try {
+      thumbnail = await sharp(imageBuffer)
+        .resize(300, 300, { fit: 'inside' })
+        .toBuffer();
+      
+      // For thumbnails, we'll use the buffer length since we don't have a file on disk
+      thumbnailSize = thumbnail.length;
+    } catch (error) {
+      console.warn(`Could not create thumbnail for ${mapData.image.name}:`, error);
+      thumbnail = imageBuffer;
+      thumbnailSize = size;
+    }
 
     // Upload original and thumbnail to MinIO
     const imageKey = `maps/${mapId}/original.${format}`;
@@ -142,7 +193,7 @@ async function importMaps() {
       imageKey,
       imageBuffer,
       imageBuffer.length,
-      { 'Content-Type': `image/${format}` }
+      { 'Content-Type': contentType }
     );
 
     await minioClient.putObject(
@@ -150,7 +201,7 @@ async function importMaps() {
       thumbnailKey,
       thumbnail,
       thumbnail.length,
-      { 'Content-Type': `image/${format}` }
+      { 'Content-Type': contentType }
     );
 
     await MapModel.findOneAndUpdate(
@@ -161,11 +212,22 @@ async function importMaps() {
         gridColumns: mapData.columns,
         gridRows: mapData.rows,
         aspectRatio: mapData.rows / mapData.columns,
-        imageUrl: imageKey,
-        thumbnailUrl: thumbnailKey,
-        createdBy: getNextUserId()
+        image: {
+          url: `${process.env.MINIO_PUBLIC_URL}/${BUCKET_NAME}/${imageKey}`,
+          path: imageKey,
+          size: size,
+          type: contentType
+        },
+        thumbnail: {
+          url: `${process.env.MINIO_PUBLIC_URL}/${BUCKET_NAME}/${thumbnailKey}`,
+          path: thumbnailKey,
+          size: thumbnailSize,
+          type: contentType
+        },
+        createdBy: userId,
+        updatedBy: userId
       },
-      { upsert: true }
+      { upsert: true, new: true }
     );
   }
 }
@@ -386,54 +448,68 @@ async function importCharacters() {
 
   for (const charFile of characterFiles) {
     const charData = JSON.parse(readFileSync(join(charactersDir, charFile), 'utf-8'));
-    const objectId = getObjectId(charData.id);
+    const userId = getNextUserId();
+    
+    // Check if character already exists by name
+    let existingCharacter = await ActorModel.findOne({ 
+      name: charData.name,
+      type: 'character'
+    }).lean();
+    
+    const objectId = existingCharacter ? existingCharacter._id : getObjectId(charData.id);
+    console.log(`${existingCharacter ? 'Updating' : 'Creating'} character: ${charData.name}`);
 
     // Transform and validate character data
     const characterData = transformCharacterData(charData);
 
     try {
-      console.log(`Validating character data for ${charFile}:`, JSON.stringify(characterData, null, 2));
       if (!dnd5e2024Plugin.validateActorData('character', characterData)) {
         console.warn(`Invalid character data in ${charFile}, skipping`);
-      } else {
-        // Get file extensions from original paths
-        const avatarExt = charData.avatar.url.split('.').pop() || 'jpg';
-        const tokenExt = charData.token.url.split('.').pop() || 'jpg';
-
-        // Create new paths following the pattern actors/<actorId>/images/<filename>
-        const avatarPath = `actors/${objectId}/images/avatar.${avatarExt}`;
-        const tokenPath = `actors/${objectId}/images/token.${tokenExt}`;
-
-        // Upload avatar and token images to MinIO with proper content type
-        const avatarUrl = await uploadToMinio(
-          join(__dirname, '../../data', charData.avatar.url),
-          avatarPath,
-          `image/${avatarExt}`
-        );
-
-        const tokenUrl = await uploadToMinio(
-          join(__dirname, '../../data', charData.token.url),
-          tokenPath,
-          `image/${tokenExt}`
-        );
-
-        await ActorModel.findOneAndUpdate(
-          { _id: objectId },
-          {
-            _id: objectId,
-            name: charData.name,
-            type: 'character',
-            gameSystemId: dnd5e2024Plugin.config.id,
-            avatar: avatarUrl,
-            token: tokenUrl,
-            data: characterData,
-            createdBy: getNextUserId()
-          },
-          { upsert: true }
-        );
+        continue;
       }
+      
+      // Get file extensions from original paths
+      const avatarExt = charData.avatar.url.split('.').pop() || 'jpg';
+      const tokenExt = charData.token.url.split('.').pop() || 'jpg';
+
+      // Create new paths following the pattern actors/<actorId>/images/<filename>
+      const avatarPath = `actors/${objectId}/images/avatar.${avatarExt}`;
+      const tokenPath = `actors/${objectId}/images/token.${tokenExt}`;
+
+      // Get full paths to the source files
+      const avatarFilePath = join(__dirname, '../../data', charData.avatar.url);
+      const tokenFilePath = join(__dirname, '../../data', charData.token.url);
+
+      // Upload avatar and token images to MinIO with proper content type
+      const avatarAsset = await uploadToMinio(
+        avatarFilePath,
+        avatarPath,
+        `image/${avatarExt}`
+      );
+
+      const tokenAsset = await uploadToMinio(
+        tokenFilePath,
+        tokenPath,
+        `image/${tokenExt}`
+      );
+
+      await ActorModel.findOneAndUpdate(
+        { _id: objectId },
+        {
+          _id: objectId,
+          name: charData.name,
+          type: 'character',
+          gameSystemId: dnd5e2024Plugin.config.id,
+          avatar: avatarAsset,
+          token: tokenAsset,
+          data: characterData,
+          createdBy: userId,
+          updatedBy: userId
+        },
+        { upsert: true, new: true }
+      );
     } catch (error) {
-      console.error(`Error validating character data for ${charFile}:`, error);
+      console.error(`Error processing character data for ${charFile}:`, error);
     }
   }
 }
@@ -451,8 +527,13 @@ async function importCampaigns() {
 
   for (const campaignFile of campaignFiles) {
     const campaignData = JSON.parse(readFileSync(join(campaignsDir, campaignFile), 'utf-8'));
-    const objectId = getObjectId(campaignData.id);
     const userId = getNextUserId();
+    
+    // Check if campaign already exists by name
+    let existingCampaign = await CampaignModel.findOne({ name: campaignData.name }).lean();
+    const objectId = existingCampaign ? existingCampaign._id : getObjectId(campaignData.id);
+    
+    console.log(`${existingCampaign ? 'Updating' : 'Creating'} campaign: ${campaignData.name}`);
 
     await CampaignModel.findOneAndUpdate(
       { _id: objectId },
@@ -461,16 +542,21 @@ async function importCampaigns() {
         name: campaignData.name,
         description: campaignData.description,
         gameSystemId: dnd5e2024Plugin.config.id,
-        members: campaignData.characters.map(getObjectId),
+        members: campaignData.characters.map((id: string) => {
+          // Find existing character by ID in the JSON
+          const existingId = uuidToObjectId.get(id);
+          return existingId || new Types.ObjectId();
+        }),
         status: 'active',
         settings: {
           setting: campaignData.setting,
           startDate: campaignData.start_date
         },
         createdBy: userId,
+        updatedBy: userId,
         gameMasterId: userId
       },
-      { upsert: true }
+      { upsert: true, new: true }
     );
   }
 }
