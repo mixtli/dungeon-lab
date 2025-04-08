@@ -6,7 +6,6 @@ import PluginUIContainer from '@/components/plugin/PluginUIContainer.vue';
 import { pluginRegistry } from '@/services/plugin-registry.service.mjs';
 import ImageUpload from '../components/common/ImageUpload.vue';
 import { IGameSystemPluginWeb } from '@dungeon-lab/shared/types/plugin.mjs';
-import { IActorCreateData } from '@dungeon-lab/shared/schemas/actor.schema.mts';
 import axios from '../network/axios.mjs';
 
 interface UploadedImage {
