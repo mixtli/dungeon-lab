@@ -101,16 +101,6 @@ async function uploadToMinio(filePath: string, objectName: string, contentType: 
   // Get accurate file size using Node's fs.statSync
   const fileSize = statSync(filePath).size;
   
-  // We'll still use sharp for format detection if possible
-  let format = contentType.split('/')[1] || 'jpeg';
-  try {
-    const metadata = await sharp(filePath).metadata();
-    if (metadata.format) {
-      format = metadata.format;
-    }
-  } catch (error) {
-    console.warn(`Could not extract format metadata for ${filePath}:`, error);
-  }
   
   await minioClient.fPutObject(BUCKET_NAME, objectName, filePath, {
     'Content-Type': contentType
