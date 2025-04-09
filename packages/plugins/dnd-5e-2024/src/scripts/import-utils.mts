@@ -176,17 +176,12 @@ export async function findExistingDocument(documentType: string, name: string): 
  * @returns Promise that resolves when the document is saved
  */
 export async function updateDocument(document: any, data: any, userId: string): Promise<void> {
-  // Use findOneAndUpdate to ensure we're updating the right document
-  await VTTDocument.findOneAndUpdate(
-    { _id: document._id },
-    { 
-      $set: { 
-        data,
-        updatedBy: userId 
-      }
-    },
-    { new: true }
-  );
+  // Update document fields
+  document.data = data;
+  document.updatedBy = userId;
+  
+  // Save to trigger validators
+  await document.save();
 }
 
 /**
@@ -198,7 +193,7 @@ export async function updateDocument(document: any, data: any, userId: string): 
  * @returns Promise that resolves when the document is created
  */
 export async function createDocument(documentType: string, name: string, data: any, userId: string): Promise<void> {
-  await VTTDocument.create({
+  const document = new VTTDocument({
     documentType,
     pluginId: config.id,
     name,
@@ -206,6 +201,9 @@ export async function createDocument(documentType: string, name: string, data: a
     createdBy: userId,
     updatedBy: userId
   });
+  
+  // Save to trigger validators
+  await document.save();
 }
 
 interface ActorData {
@@ -306,23 +304,22 @@ export async function runImport<T>({
           });
 
           if (existingItem) {
-            await ItemModel.updateOne(
-              { _id: existingItem._id },
-              { 
-                $set: { 
-                  ...itemData,
-                  updatedBy: userId
-                }
-              }
-            );
+            // Update fields and save to trigger validation
+            Object.assign(existingItem, {
+              ...itemData,
+              updatedBy: userId
+            });
+            await existingItem.save();
             console.log(`Updated ${documentType}: ${item.name}`);
             updated++;
           } else {
-            await ItemModel.create({
+            // Create new item and save to trigger validation
+            const newItem = new ItemModel({
               ...itemData,
               createdBy: userId,
               updatedBy: userId
             });
+            await newItem.save();
             console.log(`Created ${documentType}: ${item.name}`);
             created++;
           }
@@ -337,28 +334,27 @@ export async function runImport<T>({
           });
 
           if (existingActor) {
-            await ActorModel.updateOne(
-              { _id: existingActor._id },
-              { 
-                $set: { 
-                  ...actorData,
-                  updatedBy: userId
-                }
-              }
-            );
+            // Update fields and save to trigger validation
+            Object.assign(existingActor, {
+              ...actorData,
+              updatedBy: userId
+            });
+            await existingActor.save();
             console.log(`Updated ${documentType}: ${item.name}`);
             updated++;
           } else {
-            await ActorModel.create({
+            // Create new actor and save to trigger validation
+            const newActor = new ActorModel({
               ...actorData,
               createdBy: userId,
               updatedBy: userId
             });
+            await newActor.save();
             console.log(`Created ${documentType}: ${item.name}`);
             created++;
           }
         } else {
-          // Handle VTTDocument import with findOneAndUpdate + upsert
+          // Handle VTTDocument import with save() to trigger validation
           const existingDoc = await VTTDocument.findOne({
             pluginId: config.id,
             documentType,
@@ -366,37 +362,45 @@ export async function runImport<T>({
           });
 
           console.log(`Checking for existing ${documentType}: ${item.name}`);
-          if (existingDoc) {
-            console.log(`Found existing document with id: ${existingDoc._id}`);
+          
+          // Check if convertedData has a structure with both data and description properties
+          interface DataWithDescription {
+            data: any;
+            description?: string;
           }
           
-          await VTTDocument.findOneAndUpdate(
-            {
-              pluginId: config.id,
-              documentType,
-              name: item.name
-            },
-            {
-              $set: {
-                name: item.name,
-                data: convertedData,
-                description: (convertedData as IVTTDocument).description || '',
-                updatedBy: userId
-              },
-              $setOnInsert: {
-                createdBy: userId
-              }
-            },
-            {
-              upsert: true,
-              new: true
-            }
-          );
+          const hasDataStructure = convertedData && 
+            typeof convertedData === 'object' && 
+            'data' in convertedData && 
+            typeof (convertedData as DataWithDescription).data !== 'undefined';
+            
+          const documentData = hasDataStructure ? (convertedData as DataWithDescription).data : convertedData;
+          const documentDescription = hasDataStructure 
+            ? (convertedData as DataWithDescription).description || ''
+            : (convertedData as IVTTDocument).description || '';
           
           if (existingDoc) {
+            console.log(`Found existing document with id: ${existingDoc._id}`);
+            // Update existing document and save
+            existingDoc.name = item.name;
+            existingDoc.data = documentData;
+            existingDoc.description = documentDescription;
+            existingDoc.updatedBy = userId;
+            await existingDoc.save();
             console.log(`Updated ${documentType}: ${item.name}`);
             updated++;
           } else {
+            // Create new document and save
+            const newDoc = new VTTDocument({
+              pluginId: config.id,
+              documentType,
+              name: item.name,
+              data: documentData,
+              description: documentDescription,
+              createdBy: userId,
+              updatedBy: userId
+            });
+            await newDoc.save();
             console.log(`Created ${documentType}: ${item.name}`);
             created++;
           }

@@ -691,3 +691,42 @@ export function convert5eToolsClass(data: any): NormalizedData {
         subclasses: processedSubclasses
     };
 }
+
+/**
+ * Extract a class description from the class fluff data
+ * @param className The name of the class to find the description for
+ * @param source The source of the class (e.g., 'XPHB')
+ * @param classFluffData The class fluff data containing descriptions
+ * @returns The concatenated description strings or empty string if not found
+ */
+export function getClassDescription(className: string, source: string, classFluffData: any): string {
+  if (!classFluffData || !classFluffData.classFluff || !Array.isArray(classFluffData.classFluff)) {
+    return '';
+  }
+  
+  // Find the matching class fluff entry - source must match exactly
+  const classFluff = classFluffData.classFluff.find((fluff: any) => 
+    fluff.name === className && 
+    fluff.source === source
+  );
+  
+  if (!classFluff || !classFluff.entries || !Array.isArray(classFluff.entries)) {
+    return '';
+  }
+  
+  // Extract entries object that contains the description
+  const entriesContainer = classFluff.entries.find((entry: any) => 
+    typeof entry === 'object' && entry.type === 'section' && Array.isArray(entry.entries)
+  );
+  
+  if (!entriesContainer || !Array.isArray(entriesContainer.entries)) {
+    return '';
+  }
+  
+  // Extract string entries and concatenate them
+  const descriptionParts = entriesContainer.entries
+    .filter((entry: any) => typeof entry === 'string')
+    .map((entry: string) => toLowercase(cleanRuleText(entry)));
+  
+  return descriptionParts.join(' ');
+}

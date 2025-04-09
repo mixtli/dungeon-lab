@@ -10,7 +10,7 @@ export const vttDocumentSchema = z.object({
     .regex(/^[a-z0-9-]+$/, 'Slug must be lowercase with no spaces, only hyphens and numbers allowed'),
   pluginId: z.string().min(1),
   documentType: z.string().min(1),
-  description: z.string().min(1).max(1024),
+  description: z.string().min(1).max(5000),
   data: z.any(), // This will be validated against plugin-specific schema
   createdBy: z.string(),
   updatedBy: z.string(),
