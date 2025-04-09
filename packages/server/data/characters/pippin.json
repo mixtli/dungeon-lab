@@ -1,7 +1,7 @@
 {
 	"id": "7FA76F73-2395-46CF-9708-7B50B00BB674",
 	"name": "Pippin",
-	"species": "Halfling",
+	"species": "halfling",
 	"classes": [
 		{
 			"name": "Fighter",
@@ -9,7 +9,7 @@
 			"hitDiceType": "d10"
 		}
 	],
-	"alignment": "chaotic good",
+	"alignment": "chaotic-good",
 	"avatar": {
 		"url": "images/character_tokens/middle_earth/pippin.png",
 		"type": "image/png",
@@ -188,7 +188,7 @@
 		}
 	],
 	"features": [],
-	"background": "Noble",
+	"background": "noble",
 	"biography": {
 		"appearance": "A cheerful halfling with curly hair",
 		"backstory": "A young Took from a noble family in the Shire",

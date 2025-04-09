@@ -1,7 +1,7 @@
 {
 	"id": "A2D6BA73-92AA-4F14-8E49-3B44EA99E393",
 	"name": "Tasselhoff Burrfoot",
-	"species": "Halfling",
+	"species": "halfling",
 	"classes": [
 		{
 			"name": "Rogue",
@@ -9,7 +9,7 @@
 			"hitDiceType": "d8"
 		}
 	],
-	"alignment": "chaotic good",
+	"alignment": "chaotic-good",
 	"avatar": {
 		"url": "images/character_tokens/dragonlance/tasselhoff.png",
 		"type": "image/png",
@@ -188,7 +188,7 @@
 		}
 	],
 	"features": [],
-	"background": "Wanderer",
+	"background": "wanderer",
 	"biography": {
 		"appearance": "A small, cheerful halfling with a topknot",
 		"backstory": "A curious wanderer from Kendermore",

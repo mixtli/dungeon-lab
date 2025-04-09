@@ -1,7 +1,7 @@
 {
 	"id": "A12F6D8D-988B-42B4-A134-F3F0BBF48437",
 	"name": "Samwise Gamgee",
-	"species": "Halfling",
+	"species": "halfling",
 	"classes": [
 		{
 			"name": "Fighter",
@@ -9,7 +9,7 @@
 			"hitDiceType": "d10"
 		}
 	],
-	"alignment": "lawful good",
+	"alignment": "lawful-good",
 	"avatar": {
 		"url": "images/character_tokens/middle_earth/samwise.png",
 		"type": "image/png",
@@ -188,7 +188,7 @@
 		}
 	],
 	"features": [],
-	"background": "Gardener",
+	"background": "folk-hero",
 	"biography": {
 		"appearance": "A stout halfling with curly brown hair",
 		"backstory": "A loyal gardener from the Shire",

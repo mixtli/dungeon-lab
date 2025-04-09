@@ -1,7 +1,7 @@
 {
 	"id": "09BAD692-ED71-4C37-BB2F-877798817920",
 	"name": "Caramon Majere",
-	"species": "Human",
+	"species": "human",
 	"avatar": {
 		"url": "images/character_tokens/dragonlance/caramon.png",
 		"type": "image/png",
@@ -24,7 +24,7 @@
 		}
 	],
 	"xp": 0,
-	"alignment": "",
+	"alignment": "neutral-good",
 	"speed": {
 		"Walk": 30
 	},
@@ -51,9 +51,7 @@
 	"languages": [
 		"Common"
 	],
-	"background": {
-		"name": ""
-	},
+	"background": "soldier",
 	"details": {
 		"personality": "",
 		"ideal": "",

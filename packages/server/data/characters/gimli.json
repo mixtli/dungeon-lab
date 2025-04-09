@@ -1,7 +1,7 @@
 {
 	"id": "FF085E57-47D2-4D48-9755-20B4A5A20080",
 	"name": "Gimli",
-	"species": "Dwarf",
+	"species": "dwarf",
 	"avatar": {
 		"url": "images/character_tokens/middle_earth/gimli.png",
 		"type": "image/png",
@@ -23,8 +23,8 @@
 			"hitDiceType": "d10"
 		}
 	],
-	"background": "Soldier",
-	"alignment": "lawful good",
+	"background": "soldier",
+	"alignment": "lawful-good",
 	"experiencePoints": 0,
 	"proficiencyBonus": 2,
 	"armorClass": 16,

@@ -15,7 +15,7 @@
 		"name": "raistlin.png",
 		"data": null
 	},
-	"species": "Human",
+	"species": "human",
 	"xp": 0,
 	"classes": [
 		{
@@ -26,7 +26,7 @@
 			"spellcasting": "int"
 		}
 	],
-	"alignment": "true neutral",
+	"alignment": "true-neutral",
 	"speed": {
 		"Walk": 30
 	},
@@ -58,9 +58,7 @@
 		"Silvanesti",
 		"Sylvan"
 	],
-	"background": {
-		"name": "Outlander"
-	},
+	"background": "outlander",
 	"details": {
 		"personality": "",
 		"ideal": "",

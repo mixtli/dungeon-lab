@@ -1,7 +1,7 @@
 {
 	"id": "0921B45C-B705-40AF-A86D-931B48B0D02B",
 	"name": "Merry",
-	"species": "Halfling",
+	"species": "halfling",
 	"classes": [
 		{
 			"name": "Fighter",
@@ -9,7 +9,7 @@
 			"hitDiceType": "d10"
 		}
 	],
-	"alignment": "neutral good",
+	"alignment": "neutral-good",
 	"avatar": {
 		"url": "images/character_tokens/middle_earth/merry.png",
 		"type": "image/png",
@@ -188,7 +188,7 @@
 		}
 	],
 	"features": [],
-	"background": "Noble",
+	"background": "noble",
 	"biography": {
 		"appearance": "A clever-looking halfling with bright eyes",
 		"backstory": "A Brandybuck from Buckland, more adventurous than most hobbits",

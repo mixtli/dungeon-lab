@@ -1,7 +1,7 @@
 {
 	"id": "E9C69F44-4BFF-4F93-801A-894337C06B94",
 	"name": "Frodo",
-	"species": "Halfling",
+	"species": "halfling",
 	"classes": [
 		{
 			"name": "Rogue",
@@ -9,7 +9,7 @@
 			"hitDiceType": "d8"
 		}
 	],
-	"alignment": "neutral good",
+	"alignment": "neutral-good",
 	"avatar": {
 		"url": "images/character_tokens/middle_earth/frodo.png",
 		"type": "image/png",
@@ -188,7 +188,7 @@
 		}
 	],
 	"features": [],
-	"background": "Noble",
+	"background": "noble",
 	"biography": {
 		"appearance": "A small halfling with dark curly hair and bright eyes",
 		"backstory": "A well-to-do hobbit from Bag End who inherited a mysterious ring",

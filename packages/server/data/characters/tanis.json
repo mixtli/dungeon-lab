@@ -1,7 +1,7 @@
 {
 	"id": "9002C447-75DB-4F1B-B77A-48FE5F768E8C",
 	"name": "Tanis",
-	"species": "Half-Elf",
+	"species": "half-elf",
 	"avatar": {
 		"url": "images/character_tokens/dragonlance/tanis.png",
 		"type": "image/png",
@@ -24,7 +24,7 @@
 		}
 	],
 	"xp": 0,
-	"alignment": "neutral good",
+	"alignment": "neutral-good",
 	"speed": 30,
 	"hit_points": {
 		"max": 11,
@@ -183,7 +183,7 @@
 	"languages": [
 		"Common"
 	],
-	"background": "Wanderer",
+	"background": "wanderer",
 	"details": {
 		"personality": "",
 		"ideal": "",

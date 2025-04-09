@@ -1,7 +1,7 @@
 {
 	"id": "74CFAF61-BA5A-4954-8B1D-D452F1B6905E",
 	"name": "Boromir",
-	"species": "Human",
+	"species": "human",
 	"avatar": {
 		"url": "images/character_tokens/middle_earth/boromir.png",
 		"type": "image/png",
@@ -25,7 +25,7 @@
 		}
 	],
 	"xp": 0,
-	"alignment": "",
+	"alignment": "lawful-neutral",
 	"speed": {
 		"Walk": 30
 	},
@@ -52,9 +52,7 @@
 	"languages": [
 		"Common"
 	],
-	"background": {
-		"name": ""
-	},
+	"background": "soldier",
 	"details": {
 		"personality": "",
 		"ideal": "",

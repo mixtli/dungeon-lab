@@ -1,7 +1,7 @@
 {
 	"id": "13032F4D-231C-4028-A037-B6F241F106A2",
 	"name": "Gandalf",
-	"species": "Celestial",
+	"species": "celestial",
 	"avatar": {
 		"url": "images/character_tokens/middle_earth/gandalf.png",
 		"type": "image/png",
@@ -23,8 +23,8 @@
 			"hitDiceType": "d6"
 		}
 	],
-	"background": "Sage",
-	"alignment": "lawful good",
+	"background": "sage",
+	"alignment": "lawful-good",
 	"experiencePoints": 355000,
 	"proficiencyBonus": 6,
 	"armorClass": 15,
