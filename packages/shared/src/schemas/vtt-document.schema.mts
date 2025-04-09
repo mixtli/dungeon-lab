@@ -4,6 +4,10 @@ import { z } from '../lib/zod.mjs';
 export const vttDocumentSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(1).max(255),
+  slug: z.string()
+    .min(1)
+    .max(255)
+    .regex(/^[a-z0-9-]+$/, 'Slug must be lowercase with no spaces, only hyphens and numbers allowed'),
   pluginId: z.string().min(1),
   documentType: z.string().min(1),
   description: z.string().min(1).max(1024),
