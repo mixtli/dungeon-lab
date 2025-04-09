@@ -70,7 +70,7 @@ const subclassDataSchema = z.object({
 });
 
 // Main Class Data schema of "data" field in class document in the mongoose model which is returned by the API
-const characterClassSchema = z.object({
+export const characterClassDataSchema = z.object({
   name: z.string(),
   source: z.string(),
   edition: z.string(),
@@ -92,7 +92,7 @@ const characterClassSchema = z.object({
 
 export const characterClassDocumentSchema = vttDocumentSchema.extend({
   documentType: z.literal('characterClass'),
-  data: characterClassSchema
+  data: characterClassDataSchema
 });
 
 // Export all types
@@ -105,6 +105,5 @@ export type ISpellData = z.infer<typeof spellDataSchema>;
 export type ISpellChoice = z.infer<typeof spellChoiceSchema>;
 export type ISpellEntry = z.infer<typeof spellEntrySchema>;
 export type ISubclassData = z.infer<typeof subclassDataSchema>;
-export type ICharacterClassData = z.infer<typeof characterClassSchema>;
+export type ICharacterClassData = z.infer<typeof characterClassDataSchema>;
 export type ICharacterClassDocument = z.infer<typeof characterClassDocumentSchema>;
-export { characterClassSchema };

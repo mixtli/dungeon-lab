@@ -206,7 +206,7 @@ function normalizeStartingEquipment(equipmentData: any): any {
                     const mappedItems = (value as any[]).map((item: any) => normalizeEquipmentItem(item));
                     // Check if it's a single gold value
                     if (mappedItems.length === 1 && 'gold' in mappedItems[0]) {
-                        equipmentItem.options[key] = { gold: mappedItems[0].gold };
+                        equipmentItem.options[key] = [ { gold: mappedItems[0].gold } ];
                     } else {
                         equipmentItem.options[key] = mappedItems;
                     }
@@ -640,7 +640,7 @@ export async function getSubclassesForClass(className: string, source: string): 
     const data = await read5eToolsData(dataPath, 'class/class-*.json');
     
     // Debug log the data structure
-    console.log(`Data keys: ${Object.keys(data).join(', ')}`);
+    //console.log(`Data keys: ${Object.keys(data).join(', ')}`);
     
     // Filter subclasses that match the specified class
     if (data.subclass && Array.isArray(data.subclass)) {
@@ -648,7 +648,7 @@ export async function getSubclassesForClass(className: string, source: string): 
       
       // Log the first few subclasses to see their structure
       if (data.subclass.length > 0) {
-        console.log(`Sample subclass structure: ${JSON.stringify(data.subclass[0], null, 2).substring(0, 200)}...`);
+        //console.log(`Sample subclass structure: ${JSON.stringify(data.subclass[0], null, 2).substring(0, 200)}...`);
       }
       
       // Try different field names for matching
@@ -660,26 +660,26 @@ export async function getSubclassesForClass(className: string, source: string): 
         sc.className === className && sc.classSource === source && sc.source === source
       );
       
-      console.log(`Subclasses matching class field '${className}': ${matchingByClassField.length}`);
-      console.log(`Subclasses matching className field '${className}': ${matchingByClassName.length}`);
+      //console.log(`Subclasses matching class field '${className}': ${matchingByClassField.length}`);
+      //console.log(`Subclasses matching className field '${className}': ${matchingByClassName.length}`);
       
       // If no matches, log all subclass class/className fields to see what we should be matching
-      if (matchingByClassField.length === 0 && matchingByClassName.length === 0) {
-        console.log("Examining all subclasses to find the right field to match:");
-        for (let i = 0; i < Math.min(5, data.subclass.length); i++) {
-          const sc = data.subclass[i];
-          console.log(`Subclass ${i + 1}: class=${sc.class}, className=${sc.className}, name=${sc.name}, classSource=${sc.classSource}, source=${sc.source}`);
-        }
-      }
+    //   if (matchingByClassField.length === 0 && matchingByClassName.length === 0) {
+    //     //console.log("Examining all subclasses to find the right field to match:");
+    //     for (let i = 0; i < Math.min(5, data.subclass.length); i++) {
+    //       const sc = data.subclass[i];
+    //       //console.log(`Subclass ${i + 1}: class=${sc.class}, className=${sc.className}, name=${sc.name}, classSource=${sc.classSource}, source=${sc.source}`);
+    //     }
+    //   }
       
       // Use whichever matching method worked
       const matchingSubclasses = matchingByClassField.length > 0 ? matchingByClassField : matchingByClassName;
       
       if (matchingSubclasses.length > 0) {
-        console.log(`Found ${matchingSubclasses.length} subclasses for ${className} (${source})`);
+        //console.log(`Found ${matchingSubclasses.length} subclasses for ${className} (${source})`);
         return matchingSubclasses;
       } else {
-        console.log(`No matching subclasses found for ${className} (${source})`);
+        //console.log(`No matching subclasses found for ${className} (${source})`);
       }
     } else {
       console.log("No subclasses array found in data");

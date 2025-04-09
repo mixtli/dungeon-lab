@@ -2,7 +2,7 @@
 export { characterDataSchema as characterSchema, type ICharacterData as ICharacter } from './character.mjs';
 export { weaponSchema, type IWeapon } from './weapon.mjs';
 export { spellSchema, type ISpell } from './spell.mjs'; 
-export { characterClassSchema, type ICharacterClassData as ICharacterClass } from './character-class.mjs';
+export { type ICharacterClassData as ICharacterClass } from './character-class.mjs';
 
 // Export actor types and discriminated union
 export {
@@ -35,10 +35,8 @@ export {
   backgroundDataSchema as backgroundSchema,
   speciesDocumentSchema as speciesSchema,
   featDocumentSchema as featSchema,
-  vttDocumentDataSchema,
-  vttDocumentTypes,
+  vttDocumentDataTypes,
   type IBackgroundData as IBackground,
   type ISpeciesData as ISpecies,
   type IFeatData as IFeat,
-  type IVTTDocumentData
 } from './vttdocument.mjs';

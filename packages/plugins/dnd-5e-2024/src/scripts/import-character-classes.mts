@@ -79,7 +79,7 @@ async function convertClassWithDescription(classData: any) {
         const className = toLowercase((convertedClass as any)._originalName);
         
         const processedSubclasses = subclasses.map((subclass: any) => {
-          console.log(`Processing subclass: ${subclass.name}`);
+          //console.log(`Processing subclass: ${subclass.name}`);
           
           // Extract subclass features for this subclass
           // Similar to extractSubclassFeatures in convert-5etools-class.mts
@@ -128,7 +128,7 @@ async function convertClassWithDescription(classData: any) {
                 }
                 
                 subclassFeaturesByLevel[level].push(normalizedFeature);
-                console.log(`Added feature ${feature.name} at level ${level} for subclass ${subclass.name}`);
+                //console.log(`Added feature ${feature.name} at level ${level} for subclass ${subclass.name}`);
               }
             }
           }
@@ -137,7 +137,7 @@ async function convertClassWithDescription(classData: any) {
           let additionalSpells: any[] = [];
           if (subclass.additionalSpells && Array.isArray(subclass.additionalSpells)) {
             // Create simple placeholder for now
-            console.log(`Subclass ${subclass.name} has ${subclass.additionalSpells.length} additional spell entries`);
+            //console.log(`Subclass ${subclass.name} has ${subclass.additionalSpells.length} additional spell entries`);
             additionalSpells = []; // We'll implement proper spell handling later if needed
           }
           
@@ -154,7 +154,7 @@ async function convertClassWithDescription(classData: any) {
         // Add processed subclasses to the result
         convertedClass.subclasses = processedSubclasses;
         
-        console.log(`Added ${processedSubclasses.length} subclasses to ${(convertedClass as any)._originalName}`);
+        //console.log(`Added ${processedSubclasses.length} subclasses to ${(convertedClass as any)._originalName}`);
       }
       
       // Remove the lookup flags as they're no longer needed
@@ -179,7 +179,7 @@ async function convertClassWithDescription(classData: any) {
         const description = getClassDescription(className, 'XPHB', fluffData);
         
         if (description) {
-          console.log(`Found description for ${className}`);
+          // console.log(`Found description for ${className}`);
           // Add description to the result object at the top level
           result.description = description;
         }

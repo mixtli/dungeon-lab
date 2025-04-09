@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { characterClassDocumentSchema } from './character-class.mjs';
+import { characterClassDataSchema } from './character-class.mjs';
 import { vttDocumentSchema } from '@dungeon-lab/shared/schemas/vtt-document.schema.mjs';
 // These schemas represent the data field of the documents in the mongoose model VTTDocument which is returned by the API
 // Background schema
@@ -117,21 +117,21 @@ export type IFeatDocument = z.infer<typeof featDocumentSchema>;
 
 
 // Create the discriminated union for VTTDocumentData
-export const vttDocumentDataSchema = z.discriminatedUnion('documentType', [
-  characterClassDocumentSchema,
-  backgroundDocumentSchema,
-  speciesDocumentSchema,
-  featDocumentSchema
-]);
+// export const vttDocumentDataSchema = z.discriminatedUnion('documentType', [
+//   characterClassDocumentSchema,
+//   backgroundDocumentSchema,
+//   speciesDocumentSchema,
+//   featDocumentSchema
+// ]);
 
-export type IVTTDocumentData = z.infer<typeof vttDocumentDataSchema>;
+// export type IVTTDocumentData = z.infer<typeof vttDocumentDataSchema>;
 
 // Export const for each document type for validation functions
-export const vttDocumentTypes = {
-  characterClass: characterClassDocumentSchema,
-  background: backgroundDocumentSchema,
-  species: speciesDocumentSchema,
-  feat: featDocumentSchema
+export const vttDocumentDataTypes = {
+  characterClass: characterClassDataSchema,
+  background: backgroundDataSchema,
+  species: speciesDataSchema,
+  feat: featDataSchema
 };
 
 // Convert schemas to JSON Schema for plugin registration

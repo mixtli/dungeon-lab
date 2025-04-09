@@ -148,7 +148,7 @@ async function processClassFiles(directory: string, filePattern: string): Promis
       const xphbClassesInFile = fileData.class.filter((cls: any) => cls.source === 'XPHB');
       if (xphbClassesInFile.length > 0) {
         xphbClasses.push(...xphbClassesInFile);
-        console.log(`Read class data from ${file}`);
+        //console.log(`Read class data from ${file}`);
       }
     }
     
@@ -158,7 +158,7 @@ async function processClassFiles(directory: string, filePattern: string): Promis
       const xphbSubclassesInFile = fileData.subclass.filter((sc: any) => sc.source === 'XPHB');
       if (xphbSubclassesInFile.length > 0) {
         xphbSubclasses.push(...xphbSubclassesInFile);
-        console.log(`Read ${xphbSubclassesInFile.length} subclass(es) from ${file}`);
+        //console.log(`Read ${xphbSubclassesInFile.length} subclass(es) from ${file}`);
       }
     }
     
@@ -167,7 +167,7 @@ async function processClassFiles(directory: string, filePattern: string): Promis
       const xphbClassFeaturesInFile = fileData.classFeature.filter((f: any) => f.classSource === 'XPHB');
       if (xphbClassFeaturesInFile.length > 0) {
         xphbClassFeatures.push(...xphbClassFeaturesInFile);
-        console.log(`Read ${xphbClassFeaturesInFile.length} class feature(s) from ${file}`);
+        //console.log(`Read ${xphbClassFeaturesInFile.length} class feature(s) from ${file}`);
       }
     }
     
@@ -176,7 +176,7 @@ async function processClassFiles(directory: string, filePattern: string): Promis
       const xphbSubclassFeaturesInFile = fileData.subclassFeature.filter((f: any) => f.classSource === 'XPHB');
       if (xphbSubclassFeaturesInFile.length > 0) {
         xphbSubclassFeatures.push(...xphbSubclassFeaturesInFile);
-        console.log(`Read ${xphbSubclassFeaturesInFile.length} subclass feature(s) from ${file}`);
+        //console.log(`Read ${xphbSubclassFeaturesInFile.length} subclass feature(s) from ${file}`);
       }
     }
   }
@@ -294,7 +294,7 @@ export async function runImport<T>({
     
     // Extract items array
     const items = data[dataKey] || [];
-    console.log(`Found ${items.length} ${documentType} entries in source file`);
+    //console.log(`Found ${items.length} ${documentType} entries in source file`);
     
     // Filter items by source if a filter is provided
     const filteredItems = sourceFilter 

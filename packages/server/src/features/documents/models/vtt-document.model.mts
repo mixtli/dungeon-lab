@@ -31,16 +31,18 @@ mongooseSchema.pre('validate', function(this: mongoose.Document & IVTTDocument, 
 // Add validation middleware
 mongooseSchema.pre('save', async function(this: mongoose.Document & IVTTDocument, next: mongoose.CallbackWithoutResultAndOptionalError) {
   try {
+    console.log("saving document", this.name, this.documentType)
     // Only validate data field if it's modified
     if (this.isModified('data')) {
+      console.log("validating document data", this.documentType)
       const plugin = pluginRegistry.getPlugin(this.pluginId);
       if (!plugin) {
         throw new Error(`Plugin ${this.pluginId} not found`);
       }
-
       const isValid = plugin.validateVTTDocumentData(this.documentType, this.data);
-      if (!isValid) {
-        throw new Error(`Invalid document data for plugin ${this.pluginId} and type ${this.documentType}`);
+      if (!isValid.success) {
+        console.log(isValid.error.message)
+        throw new Error(`Invalid document data for plugin ${this.pluginId} and type ${this.documentType}`, isValid.error);
       }
     }
 

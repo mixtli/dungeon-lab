@@ -2,8 +2,8 @@ import { z } from 'zod';
 import { 
   actorTypes, 
   itemTypes,
-  vttDocumentTypes
 } from './types/index.mjs';
+import { vttDocumentDataTypes } from './types/vttdocument.mjs';
 
 /**
  * Validates actor data for a specific actor type
@@ -61,7 +61,8 @@ export function validateItemData(itemType: string, data: unknown): z.SafeParseRe
  * @returns A SafeParseReturn object with the validation result
  */
 export function validateVTTDocumentData(documentType: string, data: unknown): z.SafeParseReturnType<unknown, unknown> {
-  const schema = vttDocumentTypes[documentType as keyof typeof vttDocumentTypes];
+  console.log('validateVTTDocumentData', documentType)
+  const schema = vttDocumentDataTypes[documentType as keyof typeof vttDocumentDataTypes];
   
   if (schema) {
     return schema.safeParse(data);
