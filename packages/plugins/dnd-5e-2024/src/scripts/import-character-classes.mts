@@ -1,5 +1,11 @@
 import { runImport } from './import-utils.mjs';
-import { convert5eToolsClass, getClassDescription, NormalizedData } from './convert-5etools-class.mjs';
+import { 
+  convert5eToolsClass, 
+  getClassDescription, 
+  NormalizedData, 
+  getSubclassesForClass 
+} from './convert-5etools-class.mjs';
+import { toLowercase } from './converter-utils.mjs';
 import config from '../../manifest.json' with { type: 'json' };
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -46,6 +52,117 @@ async function convertClassWithDescription(classData: any) {
   };
   
   try {
+    // Check if we need to fetch subclasses
+    if ((convertedClass as any)._needsSubclassLookup) {
+      console.log(`Fetching subclasses for ${(convertedClass as any)._originalName}`);
+      
+      // Fetch subclasses for this class
+      const subclasses = await getSubclassesForClass(
+        (convertedClass as any)._originalName,
+        (convertedClass as any)._originalSource
+      );
+      
+      // Process and add subclasses to the class data
+      if (subclasses.length > 0) {
+        // We need to get the class features and subclass features data to process properly
+        // Get the complete data again with features
+        const dataPath = join(__dirname, '../../submodules/5etools-src/data');
+        const allClassData = await read5eToolsData(dataPath, 'class/class-*.json');
+        
+        // Get any available class features and subclass features
+        const classFeatures = allClassData.classFeature || [];
+        const subclassFeatures = allClassData.subclassFeature || [];
+        
+        console.log(`Found ${classFeatures.length} class features and ${subclassFeatures.length} subclass features`);
+        
+        // Process subclasses properly
+        const className = toLowercase((convertedClass as any)._originalName);
+        
+        const processedSubclasses = subclasses.map((subclass: any) => {
+          console.log(`Processing subclass: ${subclass.name}`);
+          
+          // Extract subclass features for this subclass
+          // Similar to extractSubclassFeatures in convert-5etools-class.mts
+          const subclassFeaturesByLevel: Record<string, any[]> = {};
+          const subclassShortName = toLowercase(subclass.shortName || '');
+          
+          // Filter and process subclass features
+          for (const feature of subclassFeatures) {
+            // Match by class name and subclass name
+            const featureClassName = toLowercase(feature.className || '');
+            const featureSubclassName = toLowercase(feature.subclassShortName || '');
+            
+            if (featureClassName === className && 
+                featureSubclassName === subclassShortName &&
+                feature.subclassSource === subclass.source) {
+              
+              // Skip the main subclass entry
+              if (feature.name === subclass.name) {
+                continue;
+              }
+              
+              const level = feature.level;
+              if (level) {
+                if (!subclassFeaturesByLevel[level]) {
+                  subclassFeaturesByLevel[level] = [];
+                }
+                
+                // Normalize feature entries similar to normalizeSubclassFeatureEntries
+                const normalizedFeature = {
+                  name: toLowercase(feature.name || ''),
+                  source: "xphb",
+                  description: '', // Will populate from entries
+                  benefits: []
+                };
+                
+                // Process feature entries if they exist
+                if (feature.entries && Array.isArray(feature.entries)) {
+                  // Extract text entries as description
+                  const descriptionParts = feature.entries
+                    .filter((entry: any) => typeof entry === 'string')
+                    .map((entry: string) => toLowercase(entry));
+                  
+                  if (descriptionParts.length > 0) {
+                    normalizedFeature.description = descriptionParts.join(' ');
+                  }
+                }
+                
+                subclassFeaturesByLevel[level].push(normalizedFeature);
+                console.log(`Added feature ${feature.name} at level ${level} for subclass ${subclass.name}`);
+              }
+            }
+          }
+          
+          // Process additional spells if present
+          let additionalSpells: any[] = [];
+          if (subclass.additionalSpells && Array.isArray(subclass.additionalSpells)) {
+            // Create simple placeholder for now
+            console.log(`Subclass ${subclass.name} has ${subclass.additionalSpells.length} additional spell entries`);
+            additionalSpells = []; // We'll implement proper spell handling later if needed
+          }
+          
+          return {
+            name: toLowercase(subclass.name || ''),
+            shortname: toLowercase(subclass.shortName || ''),
+            source: "xphb",
+            classname: className,
+            features: subclassFeaturesByLevel,
+            additionalspells: additionalSpells
+          };
+        });
+        
+        // Add processed subclasses to the result
+        convertedClass.subclasses = processedSubclasses;
+        
+        console.log(`Added ${processedSubclasses.length} subclasses to ${(convertedClass as any)._originalName}`);
+      }
+      
+      // Remove the lookup flags as they're no longer needed
+      delete (convertedClass as any)._needsSubclassLookup;
+      delete (convertedClass as any)._originalName;
+      delete (convertedClass as any)._originalSource;
+    }
+    
     // Determine which fluff file to load based on the class name
     const dataPath = join(__dirname, '../../data');
     const classNames = Array.isArray(classData.class) 
@@ -72,7 +189,7 @@ async function convertClassWithDescription(classData: any) {
       }
     }
   } catch (error) {
-    console.error("Error loading class fluff:", error);
+    console.error("Error processing class:", error);
   }
   
   return result;

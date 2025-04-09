@@ -115,6 +115,7 @@ export async function read5eToolsData(dirPath: string, fileName: string): Promis
  */
 async function processClassFiles(directory: string, filePattern: string): Promise<any> {
   // Create a RegExp from the file pattern
+  console.log("processing class files");
   const patternParts = filePattern.split('*').map(part => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
   const pattern = new RegExp(`^${patternParts.join('.*')}$`);
   
@@ -132,12 +133,16 @@ async function processClassFiles(directory: string, filePattern: string): Promis
   
   // For class files, we'll collect all classes with source = XPHB
   const xphbClasses = [];
+  // Also collect subclasses, classFeatures, and subclassFeatures
+  const xphbSubclasses = [];
+  const xphbClassFeatures = [];
+  const xphbSubclassFeatures = [];
   
   for (const file of matchingFiles) {
     const filePath = join(directory, file);
     const fileData = JSON.parse(await readFile(filePath, 'utf-8'));
     
-    // For class files, we expect the data to be in a "class" array property
+    // Process classes
     if (fileData.class && Array.isArray(fileData.class)) {
       // Find all classes with source = XPHB
       const xphbClassesInFile = fileData.class.filter((cls: any) => cls.source === 'XPHB');
@@ -146,11 +151,42 @@ async function processClassFiles(directory: string, filePattern: string): Promis
         console.log(`Read class data from ${file}`);
       }
     }
+    
+    // Process subclasses if present
+    if (fileData.subclass && Array.isArray(fileData.subclass)) {
+      // Find all subclasses with source = XPHB
+      const xphbSubclassesInFile = fileData.subclass.filter((sc: any) => sc.source === 'XPHB');
+      if (xphbSubclassesInFile.length > 0) {
+        xphbSubclasses.push(...xphbSubclassesInFile);
+        console.log(`Read ${xphbSubclassesInFile.length} subclass(es) from ${file}`);
+      }
+    }
+    
+    // Process class features if present
+    if (fileData.classFeature && Array.isArray(fileData.classFeature)) {
+      const xphbClassFeaturesInFile = fileData.classFeature.filter((f: any) => f.classSource === 'XPHB');
+      if (xphbClassFeaturesInFile.length > 0) {
+        xphbClassFeatures.push(...xphbClassFeaturesInFile);
+        console.log(`Read ${xphbClassFeaturesInFile.length} class feature(s) from ${file}`);
+      }
+    }
+    
+    // Process subclass features if present
+    if (fileData.subclassFeature && Array.isArray(fileData.subclassFeature)) {
+      const xphbSubclassFeaturesInFile = fileData.subclassFeature.filter((f: any) => f.classSource === 'XPHB');
+      if (xphbSubclassFeaturesInFile.length > 0) {
+        xphbSubclassFeatures.push(...xphbSubclassFeaturesInFile);
+        console.log(`Read ${xphbSubclassFeaturesInFile.length} subclass feature(s) from ${file}`);
+      }
+    }
   }
   
-  // Return the XPHB classes directly
+  // Return all collected data
   return {
-    class: xphbClasses
+    class: xphbClasses,
+    subclass: xphbSubclasses,
+    classFeature: xphbClassFeatures,
+    subclassFeature: xphbSubclassFeatures
   };
 }
 

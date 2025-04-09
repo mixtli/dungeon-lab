@@ -13,7 +13,13 @@ import {
   cleanRuleText,
 } from './converter-utils.mjs';
 import type { Ability } from '../shared/types/common.mjs';
+import { read5eToolsData } from './import-utils.mjs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 
+// Get the current file's directory
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // Add this near the top with other constants
 const ABILITY_MAP: Record<string, string> = {
@@ -619,6 +625,73 @@ function findSubclassLevel(features: any[]): number {
     return 3;
 }
 
+/**
+ * Fetch subclasses for a specific class from the source JSON files
+ * @param className The name of the class to find subclasses for
+ * @param source The source of the class (e.g., 'XPHB')
+ * @returns Array of matching subclasses
+ */
+export async function getSubclassesForClass(className: string, source: string): Promise<any[]> {
+  try {
+    // Path to the 5etools data files
+    const dataPath = join(__dirname, '../../submodules/5etools-src/data');
+    
+    // Load all class files to find subclasses
+    const data = await read5eToolsData(dataPath, 'class/class-*.json');
+    
+    // Debug log the data structure
+    console.log(`Data keys: ${Object.keys(data).join(', ')}`);
+    
+    // Filter subclasses that match the specified class
+    if (data.subclass && Array.isArray(data.subclass)) {
+      console.log(`Total subclasses found: ${data.subclass.length}`);
+      
+      // Log the first few subclasses to see their structure
+      if (data.subclass.length > 0) {
+        console.log(`Sample subclass structure: ${JSON.stringify(data.subclass[0], null, 2).substring(0, 200)}...`);
+      }
+      
+      // Try different field names for matching
+      const matchingByClassField = data.subclass.filter((sc: any) => 
+        sc.class === className && sc.classSource === source && sc.source === source
+      );
+      
+      const matchingByClassName = data.subclass.filter((sc: any) => 
+        sc.className === className && sc.classSource === source && sc.source === source
+      );
+      
+      console.log(`Subclasses matching class field '${className}': ${matchingByClassField.length}`);
+      console.log(`Subclasses matching className field '${className}': ${matchingByClassName.length}`);
+      
+      // If no matches, log all subclass class/className fields to see what we should be matching
+      if (matchingByClassField.length === 0 && matchingByClassName.length === 0) {
+        console.log("Examining all subclasses to find the right field to match:");
+        for (let i = 0; i < Math.min(5, data.subclass.length); i++) {
+          const sc = data.subclass[i];
+          console.log(`Subclass ${i + 1}: class=${sc.class}, className=${sc.className}, name=${sc.name}, classSource=${sc.classSource}, source=${sc.source}`);
+        }
+      }
+      
+      // Use whichever matching method worked
+      const matchingSubclasses = matchingByClassField.length > 0 ? matchingByClassField : matchingByClassName;
+      
+      if (matchingSubclasses.length > 0) {
+        console.log(`Found ${matchingSubclasses.length} subclasses for ${className} (${source})`);
+        return matchingSubclasses;
+      } else {
+        console.log(`No matching subclasses found for ${className} (${source})`);
+      }
+    } else {
+      console.log("No subclasses array found in data");
+    }
+    
+    return [];
+  } catch (error) {
+    console.error(`Error fetching subclasses for class ${className}:`, error);
+    return [];
+  }
+}
+
 export function convert5eToolsClass(data: any): NormalizedData {
     // Check if we're dealing with a direct class object or a container with class arrays
     let classData: RawClassData;
@@ -628,6 +701,7 @@ export function convert5eToolsClass(data: any): NormalizedData {
     
     // Handle case where data is a container with arrays
     if (data.class && Array.isArray(data.class)) {
+        console.log("data is a container with arrays")
         // Extract only XPHB classes
         const xphbClasses = data.class.filter((cls: RawClassData) => cls.source === 'XPHB');
         if (xphbClasses.length === 0) {
@@ -644,9 +718,15 @@ export function convert5eToolsClass(data: any): NormalizedData {
     } 
     // Handle case where data is a direct class object
     else if (data.source === 'XPHB') {
+        console.log("data is a direct class object")
         classData = data;
-        // In this case, we need to return an empty object for subclasses and features
-        // as they'll be processed separately
+        
+        // For direct class objects, we need to fetch subclasses asynchronously
+        // But since this function is synchronous, we'll create a placeholder for subclasses
+        // that will be filled in by the converter wrapper function
+        subclasses = [];
+        // We'll also set a flag that this needs subclass lookup
+        (classData as any)._needsSubclassLookup = true;
     } else {
         console.log(`No XPHB class found in data: ${data.name} (${data.source})`);
         return {} as NormalizedData;
@@ -671,7 +751,7 @@ export function convert5eToolsClass(data: any): NormalizedData {
         };
     });
 
-    return {
+    const result = {
         name: className,
         source: "xphb",
         edition: toLowercase(classData.edition || ''),
@@ -690,6 +770,15 @@ export function convert5eToolsClass(data: any): NormalizedData {
         subclassTitle: toLowercase(classData.subclassTitle || ''),
         subclasses: processedSubclasses
     };
+    
+    // Add a flag to indicate if we need to look up subclasses
+    if ((classData as any)._needsSubclassLookup) {
+        (result as any)._needsSubclassLookup = true;
+        (result as any)._originalName = classData.name;
+        (result as any)._originalSource = classData.source;
+    }
+    
+    return result;
 }
 
 /**
