@@ -35,9 +35,14 @@ router.get('/:id', openApiGetOne(mapSchema, {
   description: 'Get map by ID'
 }), boundController.getMap);
 
-router.post('/', openApiPost(mapCreateSchema, {
-  description: 'Create new map'
-}), validateMultipartRequest(mapCreateSchema, 'image'), boundController.createMap);
+// Set a longer timeout for map creation due to AI image generation
+router.post('/',
+  openApiPost(mapCreateSchema, {
+    description: 'Create new map'
+  }), 
+  validateMultipartRequest(mapCreateSchema, 'image'), 
+  boundController.createMap
+);
 
 router.patch('/:id', openApiPatch(mapUpdateSchema, {
   description: 'Update map'

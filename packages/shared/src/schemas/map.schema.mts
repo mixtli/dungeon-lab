@@ -22,6 +22,8 @@ export const mapCreateSchema = mapSchema.omit({
   aspectRatio: true,
   createdBy: true,
   updatedBy: true,
+}).extend({
+  image: assetSchema.optional()
 });
 
 // Update data schema (makes all fields optional except updatedBy)

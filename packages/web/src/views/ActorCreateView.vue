@@ -64,6 +64,7 @@ import { useRouter } from 'vue-router';
 import { pluginRegistry } from '@/services/plugin-registry.service.mjs';
 import PluginUIContainer from '@/components/plugin/PluginUIContainer.vue';
 import type { IGameSystemPluginWeb } from '@dungeon-lab/shared/types/plugin.mjs';
+import axios from '../network/axios.mjs';
 
 const router = useRouter();
 
@@ -116,23 +117,16 @@ async function handleSubmit(data: Record<string, any>) {
       gameSystemId: selectedGameSystemId.value
     };
     
-    // Call API to create actor
-    const response = await fetch('/api/actors', {
-      method: 'POST',
+    // Call API to create actor with a longer timeout for AI image generation
+    const response = await axios.post('/api/actors', finalActorData, {
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(finalActorData)
+      timeout: 120000 // 2 minutes timeout for AI image generation
     });
     
-    if (!response.ok) {
-      throw new Error(`Failed to create actor: ${response.statusText}`);
-    }
-    
-    const newActor = await response.json();
-    
     // Navigate to the character sheet
-    router.push(`/character/${newActor.id}`);
+    router.push(`/character/${response.data.id}`);
   } catch (error) {
     console.error('Failed to create actor:', error);
     errorMessage.value = error instanceof Error ? error.message : String(error);

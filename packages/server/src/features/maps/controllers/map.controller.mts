@@ -3,6 +3,7 @@ import { AuthenticatedRequest } from '../../../middleware/auth.middleware.mjs';
 import { MapService } from '../services/map.service.mjs';
 import { logger } from '../../../utils/logger.mjs';
 import { uploadAssets } from '../../../utils/asset-upload.utils.mjs';
+import { generateMapImage } from '../utils/map-image-generator.mjs';
 
 export class MapController {
   constructor(private mapService: MapService) {}
@@ -46,12 +47,28 @@ export class MapController {
       // Create initial map record to get an ID
       const initialMap = await this.mapService.createMapInitial(initialMapData, req.session.user.id);
       
-      // Prepare files for upload
+      let assets;
+      
+      // Check if files were provided
       const files = req.files as Record<string, Express.Multer.File[]> | undefined;
       const file = req.file;
+
+      // Check if we have actual files to process
+      const hasFiles = files && Object.keys(files).length > 0 && Object.values(files).some(f => f && f.length > 0);
+      const hasFile = file && Object.keys(file).length > 0;
       
-      // Upload the assets to storage
-      const assets = await uploadAssets(files || file, 'maps', initialMap.id!);
+      if (hasFiles || hasFile) {
+        // If files were provided, upload them
+        logger.info('Uploading provided map image');
+        assets = await uploadAssets(files || file, 'maps', initialMap.id!);
+      } else {
+        // If no files were provided, generate an image using AI
+        logger.info('No image provided, generating map image with AI');
+        const generatedImage = await generateMapImage(initialMap);
+        assets = {
+          image: generatedImage
+        };
+      }
       
       // Process the image and update the map with final data
       const map = await this.mapService.processThumbnail(

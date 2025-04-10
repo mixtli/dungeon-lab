@@ -3,6 +3,7 @@ import { AuthenticatedRequest } from '../../../middleware/auth.middleware.mjs';
 import { ActorService } from '../services/actor.service.mjs';
 import { logger } from '../../../utils/logger.mjs';
 import { uploadAssets } from '../../../utils/asset-upload.utils.mjs';
+import { generateCharacterAvatar, generateCharacterToken } from '../utils/actor-image-generator.mjs';
 
 export class ActorController {
   constructor(private actorService: ActorService) {}
@@ -76,14 +77,34 @@ export class ActorController {
       // Create initial actor record to get an ID
       const initialActor = await this.actorService.createActor(initialActorData, req.session.user.id);
       
+      let assets = {};
+      
       // Prepare files for upload
       const files = req.files as Record<string, Express.Multer.File[]> | undefined;
       const file = req.file;
       
-      // Upload the assets to storage
-      const assets = await uploadAssets(files || file, 'actors', initialActor.id!);
+      // Check if we have actual files to process
+      const hasFiles = files && Object.keys(files).length > 0 && Object.values(files).some(f => f && f.length > 0);
+      const hasFile = file && Object.keys(file).length > 0;
       
-      // Update the actor with the uploaded assets
+      if (hasFiles || hasFile) {
+        // If files were provided, upload them
+        logger.info('Uploading provided actor images');
+        assets = await uploadAssets(files || file, 'actors', initialActor.id!);
+      } else {
+        // If no files were provided, generate images using AI
+        logger.info('No images provided, generating actor images with AI');
+        const [avatar, token] = await Promise.all([
+          generateCharacterAvatar(initialActor),
+          generateCharacterToken(initialActor)
+        ]);
+        assets = {
+          avatar,
+          token
+        };
+      }
+      
+      // Update the actor with the uploaded/generated assets
       if (Object.keys(assets).length > 0) {
         const updateData = {
           ...assets,

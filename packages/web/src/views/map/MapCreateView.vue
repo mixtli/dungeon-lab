@@ -39,6 +39,7 @@ async function handleSubmit(event: Event) {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
+      timeout: 120000, // 2 minutes timeout for AI image generation
     });
 
     alert('Map created successfully');
