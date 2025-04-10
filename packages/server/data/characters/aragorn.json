@@ -1,6 +1,7 @@
 {
 	"id": "4C8D1F07-4DB0-4008-A48B-AF974DB0CE73",
 	"name": "Aragorn",
+	"description": "Known first as Strider, a mysterious Ranger of the North, Aragorn is the heir to the throne of Gondor who has lived in exile, protecting the free peoples from the shadows. His noble lineage is matched by his exceptional skills as a warrior, healer, and leader. Though burdened by the weight of his destiny, he embodies the best qualities of both his Númenórean heritage and his Elvish upbringing - wisdom, courage, and compassion. His journey from ranger to king mirrors the restoration of hope to Middle-earth.",
 	"species": "Human",
 	"avatar": {
 		"url": "images/character_tokens/middle_earth/aragorn.png",

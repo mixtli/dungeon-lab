@@ -1,6 +1,7 @@
 {
 	"id": "f20a0abc-36d4-4b90-897d-a0c68b5541fd",
 	"name": "Sturm Brightblade",
+	"description": "A noble warrior who embodies the ancient traditions of the Knights of Solamnia, Sturm carries himself with unwavering honor and dignity. Despite the order's fall from grace, he maintains their code with fierce dedication, his handlebar mustache and ancient armor serving as symbols of his commitment to chivalric ideals. His steadfast loyalty and sacrifice for his principles make him both admirable and tragic.",
 	"species": "human",
 	"avatar": {
 		"url": "images/character_tokens/dragonlance/sturm.png",

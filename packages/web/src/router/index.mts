@@ -11,6 +11,7 @@ const CharacterSheetView = () => import('@/views/CharacterSheetView.vue');
 const CharacterListView = () => import('@/views/CharacterListView.vue');
 const CharacterCreateView = () => import('@/views/CharacterCreateView.vue');
 const ActorCreateView = () => import('@/views/ActorCreateView.vue');
+const ActorEditView = () => import('@/views/ActorEditView.vue');
 const LoginView = () => import('@/views/auth/LoginView.vue');
 const RegisterView = () => import('@/views/auth/RegisterView.vue');
 const GoogleCallbackView = () => import('@/views/auth/GoogleCallbackView.vue');
@@ -255,6 +256,15 @@ const routes: RouteRecordRaw[] = [
         component: SettingsView,
         meta: {
           title: 'Settings',
+          requiresAuth: true,
+        },
+      },
+      {
+        path: 'actor/:id/edit',
+        name: 'actor-edit',
+        component: ActorEditView,
+        meta: {
+          title: 'Edit Actor',
           requiresAuth: true,
         },
       },

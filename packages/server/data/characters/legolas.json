@@ -1,6 +1,7 @@
 {
 	"id": "B513D743-555B-42CD-A7CA-E995A356A658",
 	"name": "Legolas",
+	"description": "A Woodland elf prince whose extraordinary archery skills and agile grace make him a deadly warrior. His keen elven senses and light-hearted nature provide both tactical advantage and moments of levity to the Fellowship. Through his deep friendship with Gimli, he helps bridge the ancient divide between elves and dwarves, while his connection to nature and incredible combat abilities make him an invaluable member of the quest.",
 	"species": "elf",
 	"avatar": {
 		"url": "images/character_tokens/middle_earth/legolas.png",

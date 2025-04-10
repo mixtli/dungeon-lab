@@ -1,6 +1,7 @@
 {
 	"id": "74CFAF61-BA5A-4954-8B1D-D452F1B6905E",
 	"name": "Boromir",
+	"description": "The proud warrior son of Gondor's Steward, whose desire to protect his people leads him down a tragic path. His martial prowess and leadership are matched by his deep love for his city and its people, though his noble intentions become twisted by the Ring's corrupting influence. Despite his momentary fall, he redeems himself through a heroic last stand defending his companions.",
 	"species": "human",
 	"avatar": {
 		"url": "images/character_tokens/middle_earth/boromir.png",

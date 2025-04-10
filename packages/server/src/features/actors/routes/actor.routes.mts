@@ -6,6 +6,9 @@ import { validateMultipartRequest } from '../../../middleware/validation.middlew
 import { actorCreateSchema, actorUpdateSchema, actorSchema } from '@dungeon-lab/shared/schemas/actor.schema.mjs';
 import { openApiGet, openApiGetOne, openApiPost, openApiPut, openApiDelete } from '../../../oapi.mjs';
 import { z } from '@dungeon-lab/shared/src/lib/zod.mjs';
+import { generateCharacterImages } from '../../../utils/character-image-generator.mjs';
+import { ActorModel } from '../models/actor.model.mjs';
+import asyncHandler from 'express-async-handler';
 
 // Initialize services and controllers
 const actorService = new ActorService();
@@ -53,5 +56,36 @@ router.get('/campaigns/:campaignId/actors', authenticate, openApiGet(actorSchema
   description: 'Get actors for a specific campaign'
 }), boundGetActors);
 
+// Generate new images for an actor using AI
+router.post('/:id/generate-images/:type', asyncHandler(async (req, res) => {
+  const actorId = req.params.id;
+  const imageType = req.params.type;
+  
+  // Find the actor
+  const actor = await ActorModel.findById(actorId);
+  if (!actor) {
+    res.status(404).json({ message: 'Actor not found' });
+    return;
+  }
+
+  // Generate new image
+  const { avatar, token } = await generateCharacterImages(actor);
+
+  // Return only the requested image
+  const result = imageType === 'avatar' ? avatar : token;
+
+  // Update the actor with new image
+  const update = imageType === 'avatar' 
+    ? { avatar: result }
+    : { token: result };
+
+  await ActorModel.findByIdAndUpdate(actorId, {
+    ...update,
+    updatedBy: req.session.user.id
+  });
+
+  // Return the new image data
+  res.json(result);
+}));
 
 export { router as actorRoutes }; 

@@ -1,6 +1,7 @@
 {
 	"id": "13032F4D-231C-4028-A037-B6F241F106A2",
 	"name": "Gandalf",
+	"description": "One of the Istari, a powerful wizard whose true nature as a Maia is hidden beneath the guise of a wise old man. Known as Mithrandir to the elves, his seemingly endless wisdom and formidable magical powers are tempered by genuine compassion for all free peoples. Though capable of terrible wrath against evil, he prefers to guide and inspire others to find their own courage, serving as both counselor and catalyst in the fight against darkness.",
 	"species": "celestial",
 	"avatar": {
 		"url": "images/character_tokens/middle_earth/gandalf.png",

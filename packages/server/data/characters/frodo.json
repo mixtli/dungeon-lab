@@ -1,6 +1,7 @@
 {
 	"id": "E9C69F44-4BFF-4F93-801A-894337C06B94",
 	"name": "Frodo",
+	"description": "The Ring-bearer chosen to carry the burden of the One Ring, Frodo Baggins embodies the strength found in gentleness and wisdom. Though he appears to be a simple hobbit from the Shire, his extraordinary resilience and moral courage in the face of overwhelming darkness make him the perfect choice for this impossible task. His journey from innocent hobbit to wounded hero shows both the cost of evil and the power of mercy.",
 	"species": "halfling",
 	"classes": [
 		{
