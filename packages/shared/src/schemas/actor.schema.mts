@@ -10,7 +10,7 @@ export const actorSchema = z.object({
   token: assetSchema.optional(),
   description: z.string().optional(),
   gameSystemId: z.string().min(1),
-  data: z.any(),
+  data: z.record(z.any()).optional(),
   createdBy: z.string(),
   updatedBy: z.string(),
 });
@@ -32,11 +32,8 @@ export type IActorCreateData = z.infer<typeof actorCreateSchema>;
 export const actorUpdateSchema = actorSchema
   .omit({
     id: true,
-    createdBy: true,
+    createdBy: true
   })
   .partial()
-  .extend({
-    updatedBy: z.string(),
-  });
 
 export type IActorUpdateData = z.infer<typeof actorUpdateSchema>; 

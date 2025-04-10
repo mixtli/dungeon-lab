@@ -126,7 +126,9 @@ async function handleSubmit(event: Event) {
     }
 
     // Translate form data to character schema format
+    console.log('Validation data:', validation.data);
     const pluginData = pluginComponent.translateFormData(validation.data);
+    console.log('Plugin data:', pluginData);
 
     // Prepare a FormData object for submission
     const formData = new FormData();
@@ -156,7 +158,8 @@ async function handleSubmit(event: Event) {
     const response = await axios.post('/api/actors', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
-      }
+      },
+      timeout: 30000 // 30 seconds timeout
     });
     sessionStorage.removeItem('actorCreationState');
     

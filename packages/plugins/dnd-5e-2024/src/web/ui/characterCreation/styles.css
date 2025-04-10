@@ -7,6 +7,7 @@
   border-radius: 8px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   font-family: 'Roboto', sans-serif;
+  color: #1a1a1a;
 }
 
 .dnd5e-character-creation h2 {
@@ -30,6 +31,7 @@
   padding: 24px;
   margin-bottom: 24px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  color: #1a1a1a;
 }
 
 .form-section h2 {
@@ -48,6 +50,12 @@
   margin: 20px 0 12px;
   color: #3a3a3a;
   font-size: 1.2em;
+}
+
+.form-section p {
+  color: #1a1a1a;
+  line-height: 1.6;
+  font-size: 1.1rem;
 }
 
 .form-row {
@@ -92,7 +100,7 @@
 .class-description {
   margin: 16px 0;
   line-height: 1.6;
-  color: #4a4a4a;
+  color: #1a1a1a;
 }
 
 .traits-table {
@@ -125,7 +133,7 @@
 
 .traits-table td {
   padding: 1rem;
-  color: #4a5568;
+  color: #1a1a1a;
   border-bottom: 1px solid #e2e8f0;
 }
 
@@ -244,7 +252,7 @@
 
 .feature-box p {
   margin: 0;
-  color: #4a5568;
+  color: #1a1a1a;
   line-height: 1.5;
 }
 
@@ -308,7 +316,7 @@
 
 .equipment-list li {
   padding: 0.5rem 0;
-  color: #4a5568;
+  color: #1a1a1a;
   border-bottom: 1px solid #f0f0f0;
 }
 
@@ -534,7 +542,7 @@
 }
 
 .alignment-desc {
-  color: #4a5568;
+  color: #1a1a1a;
   font-size: 0.875rem;
   line-height: 1.4;
 }
@@ -563,7 +571,7 @@
 
 .field-hint {
   font-size: 0.875rem;
-  color: #718096;
+  color: #4a5568;
   margin-top: 0.25rem;
   font-style: italic;
 }
@@ -627,9 +635,10 @@ input[type="radio"][name="class.selectedEquipment"] {
 
 .page-description {
   font-size: 1.1rem;
-  color: #4a5568;
+  color: #1a1a1a;
   margin-bottom: 2rem;
   text-align: center;
+  line-height: 1.6;
 }
 
 .class-select-group {
@@ -757,7 +766,7 @@ input[type="radio"][name="class.selectedEquipment"] {
 
 #origin-page .page-description {
   font-size: 1.1rem;
-  color: #4a5568;
+  color: #1a1a1a;
   text-align: center;
   margin-bottom: 2rem;
 }
@@ -777,6 +786,7 @@ input[type="radio"][name="class.selectedEquipment"] {
   padding: 2rem;
   margin-top: 2rem;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  color: #1a1a1a;
 }
 
 .species-details h3,
@@ -787,6 +797,14 @@ input[type="radio"][name="class.selectedEquipment"] {
   text-align: center;
   border-bottom: 2px solid #e2e8f0;
   padding-bottom: 0.75rem;
+}
+
+.species-details p,
+.background-details p {
+  color: #1a1a1a;
+  line-height: 1.6;
+  font-size: 1.1rem;
+  margin-bottom: 1.5rem;
 }
 
 .species-traits,
@@ -800,7 +818,7 @@ input[type="radio"][name="class.selectedEquipment"] {
 
 .species-traits h4,
 .background-features h4 {
-  color: #2d3748;
+  color: #1a1a1a;
   font-size: 1.25rem;
   margin-bottom: 1rem;
 }
@@ -816,6 +834,9 @@ input[type="radio"][name="class.selectedEquipment"] {
 .background-features li {
   padding: 0.75rem 0;
   border-bottom: 1px solid #e2e8f0;
+  color: #1a1a1a;
+  font-size: 1.1rem;
+  line-height: 1.6;
 }
 
 .species-traits li:last-child,
@@ -825,7 +846,7 @@ input[type="radio"][name="class.selectedEquipment"] {
 
 .species-traits strong,
 .background-features strong {
-  color: #2d3748;
+  color: #1a1a1a;
   font-weight: 600;
   margin-right: 0.5rem;
 }

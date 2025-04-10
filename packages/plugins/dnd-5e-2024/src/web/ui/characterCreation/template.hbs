@@ -3,7 +3,7 @@ Character Creation Form Template for D&D 5th Edition 2024
 This is used by the CharacterCreationComponent
 -->
 
-<div><textarea rows="10" cols="50">{{ json this}}</textarea></div>
+{{!-- <div><textarea rows="10" cols="50">{{ json this}}</textarea></div> --}}
 <div class="character-creation-container">
   <div class="form-steps">
     <div class="step {{#if (eq currentPage 'class-page')}}active{{/if}} {{#if (eq currentPage 'origin-page')}}completed{{/if}} {{#if (eq currentPage 'abilities-page')}}completed{{/if}} {{#if (eq currentPage 'details-page')}}completed{{/if}}">1. Class</div>
@@ -122,7 +122,7 @@ This is used by the CharacterCreationComponent
     
     <div class="form-group">
       <label for="character-species">Species:</label>
-    <input type="hidden" name="origin.species.name" value="{{originDocument.name}}">
+    <input type="hidden" name="origin.species.name" value="{{speciesDocument.name}}">
       <select id="character-species" name="origin.species.id" required>
         <option value="">-- Select Species --</option>
         {{#each (getAllSpecies)}}

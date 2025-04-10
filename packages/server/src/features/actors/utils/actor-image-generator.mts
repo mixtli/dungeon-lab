@@ -26,15 +26,27 @@ async function processAvatarImage(buffer: Buffer): Promise<Buffer> {
 
 // Generate a character token
 export async function generateCharacterToken(character: IActor): Promise<{ url: string; path: string; size: number; type: string }> {
+    console.log(JSON.stringify(character))
+    console.log(character.id)
+  if (!character.id) {
+    throw new Error('Cannot generate token image: Actor ID is required');
+  }
+  console.log("Generating token image for character:", character.id);
+
   return generateAIImage(
-    `A round token portrait showing just the head and shoulders of a character. The background should be transparent. Digital art style suitable for a fantasy RPG. The image should be centered and well-lit. 
-    Please pay attention to the character's species.`,
+    `A round token portrait showing just the head and shoulders of a character. 
+    The background should be transparent. Digital art style suitable for a fantasy RPG. 
+    The image should only be the character's head and shoulders.  No additional background, character stats, or anything else.
+    I repeat, the image should not contain anything except the border and the character's head and shoulders.
+    That includes the area inside the border.  It should just have the character's head and shoulders.
+    The image should be centered and well-lit. 
+    Please pay attention to the character's species and other physical attributes in the data below.`,
     character,
-    '256x256',
+    '1024x1024',
     {
-      entityId: character.id!,
+      entityId: character.id,
       fileName: 'token.png',
-      folder: `actors/${character.id!}/images`,
+      folder: `actors/${character.id}/images`,
       processImage: processTokenImage,
       contentType: 'image/png'
     }
@@ -43,14 +55,19 @@ export async function generateCharacterToken(character: IActor): Promise<{ url: 
 
 // Generate a character avatar
 export async function generateCharacterAvatar(character: IActor): Promise<{ url: string; path: string; size: number; type: string }> {
+  if (!character.id) {
+    throw new Error('Cannot generate avatar image: Actor ID is required');
+  }
+
   return generateAIImage(
-    'A full portrait of a character. Fantasy RPG digital art style with dramatic lighting and a subtle background that complements the character.',
+    `A full portrait of a character. Fantasy RPG digital art style with dramatic lighting and a subtle background that complements the character.
+    Please pay attention to the character's species and other physical attributes in the data below.`,
     character,
     '1024x1024',
     {
-      entityId: character.id!,
+      entityId: character.id,
       fileName: 'avatar.jpg',
-      folder: `actors/${character.id!}/images`,
+      folder: `actors/${character.id}/images`,
       processImage: processAvatarImage,
       contentType: 'image/jpeg'
     }

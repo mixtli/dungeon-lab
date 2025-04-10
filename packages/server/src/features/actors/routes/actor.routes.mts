@@ -68,10 +68,11 @@ router.post('/:id/generate-images/:type', asyncHandler(async (req, res) => {
     return;
   }
 
+
   // Generate the requested image type
   const result = imageType === 'avatar' 
-    ? await generateCharacterAvatar(actor)
-    : await generateCharacterToken(actor);
+    ? await generateCharacterAvatar(actor.toObject())
+    : await generateCharacterToken(actor.toObject());
 
   // Update the actor with new image
   const update = imageType === 'avatar' 

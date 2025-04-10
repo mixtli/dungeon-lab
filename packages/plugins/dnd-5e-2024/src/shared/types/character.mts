@@ -13,8 +13,8 @@ const abilitySchema = z.object({
 // Full character schema for the complete character heet
 export const characterDataSchema = z.object({
   // Basic info
-  name: z.string(),
-  species: z.string(),
+  name: z.string().min(1),
+  species: z.string().min(1),
   classes: z.array(z.object({
     name: z.string(),
     level: z.number().min(1).max(20),

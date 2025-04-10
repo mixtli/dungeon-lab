@@ -130,7 +130,7 @@ async function handleSubmit(event: Event) {
     }
     
     // Send the request
-    await axios.patch(`/api/actors/${actorId}`, formData, {
+    await axios.put(`/api/actors/${actorId}`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }

@@ -17,7 +17,7 @@ export async function generateAIImage(
   }
 ): Promise<{ url: string; path: string; size: number; type: string }> {
   try {
-    logger.info(`Generating image with prompt: ${prompt}`);
+    logger.info(`Generating image with prompt: ${prompt} with data ${JSON.stringify(data)}`);
     
     const { image } = await generateImage({
       model: openai.image('dall-e-3'),

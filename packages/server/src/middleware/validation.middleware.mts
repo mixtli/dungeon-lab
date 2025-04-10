@@ -27,9 +27,9 @@ export function validateRequest(schema: z.ZodSchema) {
     } catch (err) {
       if (err instanceof z.ZodError) {
         res.locals.validationErrors = err.errors;
-        console.log("Validation errors", err.errors);
+        console.log("Validation errors", err.errors, err.message);
         res.status(400).json({
-          message: 'Validation error',
+          message: 'Validation error' + err.message,
           errors: err.errors,
         });
       } else {
@@ -122,10 +122,22 @@ export function validateMultipartRequest(schema: z.ZodSchema, fileFields: string
         // Build validated data object - start with parsed body form fields
         let bodyData: Record<string, any> = { ...req.body };
         
-        // Parse numeric fields
-        if (bodyData.gridColumns) {
-          bodyData.gridColumns = parseInt(bodyData.gridColumns, 10);
-        }
+        // Parse numeric fields and JSON strings
+        Object.entries(bodyData).forEach(([key, value]) => {
+          if (typeof value === 'string') {
+            // Try to parse JSON strings
+            try {
+              const parsed = JSON.parse(value);
+              bodyData[key] = parsed;
+            } catch (e) {
+              // If it's not valid JSON, keep the original string
+              // Only parse numeric fields if not JSON
+              if (key === 'gridColumns') {
+                bodyData[key] = parseInt(value, 10);
+              }
+            }
+          }
+        });
         
         // Add all files from our normalized map
         normalizedFiles.forEach((file, fieldName) => {
@@ -138,9 +150,9 @@ export function validateMultipartRequest(schema: z.ZodSchema, fileFields: string
       } catch (err) {
         if (err instanceof z.ZodError) {
           res.locals.validationErrors = err.errors;
-          console.log("Validation errors", err.errors);
+          console.log("Validation errors", err.errors, err.message);
           res.status(400).json({
-            message: 'Validation error',
+            message: 'Validation error' + err.message,
             errors: err.errors,
           });
         } else {
