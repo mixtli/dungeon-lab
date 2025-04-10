@@ -158,6 +158,7 @@ async function handleSubmit(event: Event) {
         'Content-Type': 'multipart/form-data'
       }
     });
+    sessionStorage.removeItem('actorCreationState');
     
     // Navigate to the character sheet
     router.push({ name: 'character-sheet', params: { id: response.data.id } });

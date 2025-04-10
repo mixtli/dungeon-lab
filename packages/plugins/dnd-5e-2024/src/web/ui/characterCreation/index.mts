@@ -926,7 +926,7 @@ export class CharacterCreationComponent extends PluginComponent {
    * Get the current state
    */
   getState(): CharacterCreationState {
-    const state = sessionStorage.getItem('characterCreationState');
+    const state = sessionStorage.getItem('actorCreationState');
     if (state) {
       this.state = JSON.parse(state) as CharacterCreationState;
     }
@@ -938,7 +938,7 @@ export class CharacterCreationComponent extends PluginComponent {
     console.trace();
     this.state = merge.withOptions({mergeArrays: false }, this.state, state) as CharacterCreationState;
     console.log('after merge', this.state);
-    sessionStorage.setItem('characterCreationState', JSON.stringify(this.state));
+    sessionStorage.setItem('actorCreationState', JSON.stringify(this.state));
   }
 
 

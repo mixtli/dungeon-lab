@@ -27,9 +27,10 @@ async function processAvatarImage(buffer: Buffer): Promise<Buffer> {
 // Generate a character token
 export async function generateCharacterToken(character: IActor): Promise<{ url: string; path: string; size: number; type: string }> {
   return generateAIImage(
-    'A round token portrait showing just the head and shoulders of a character. The background should be transparent. Digital art style suitable for a fantasy RPG. The image should be centered and well-lit.',
+    `A round token portrait showing just the head and shoulders of a character. The background should be transparent. Digital art style suitable for a fantasy RPG. The image should be centered and well-lit. 
+    Please pay attention to the character's species.`,
     character,
-    '1024x1024',
+    '256x256',
     {
       entityId: character.id!,
       fileName: 'token.png',

@@ -2,7 +2,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { useActorStore } from '../stores/actor.mts';
 import ImageUpload from '../components/common/ImageUpload.vue';
 import axios from '../network/axios.mjs';
 
@@ -16,7 +15,6 @@ interface UploadedImage {
 
 const router = useRouter();
 const route = useRoute();
-const actorStore = useActorStore();
 const isLoading = ref(true);
 const error = ref<string | null>(null);
 const isSubmitting = ref(false);
@@ -31,18 +29,6 @@ const basicInfo = ref({
   tokenImage: null as File | UploadedImage | null
 });
 
-// Get a url from either a File or UploadedImage
-function getUrlFromImageObject(imageObj: File | UploadedImage | null): string | null {
-  if (!imageObj) return null;
-  
-  if (imageObj instanceof File) {
-    return null;
-  } else if ('url' in imageObj) {
-    return imageObj.url;
-  }
-  
-  return null;
-}
 
 onMounted(async () => {
   try {
