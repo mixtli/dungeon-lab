@@ -489,6 +489,7 @@ async function importCharacters() {
           _id: objectId,
           name: charData.name,
           type: 'character',
+          description: charData.description,
           gameSystemId: dnd5e2024Plugin.config.id,
           avatar: avatarAsset,
           token: tokenAsset,
