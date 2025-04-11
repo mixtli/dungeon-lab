@@ -45,10 +45,12 @@ export class CampaignService {
   async createCampaign(data: ICampaignCreateData, userId: string): Promise<ICampaign> {
     try {
       const userObjectId = new Types.ObjectId(userId);
+      
+      // Initialize with empty members array - members will be added later as actors
       const campaignData = {
         ...data,
         gameMasterId: userObjectId,
-        members: [userObjectId],
+        members: [], // Starting with empty members array
         createdBy: userObjectId,
         updatedBy: userObjectId
       };
@@ -114,17 +116,47 @@ export class CampaignService {
       // Check if user is GM or has a character in the campaign
       const userObjectId = new Types.ObjectId(userId);
       const userActors = await ActorModel.find({ createdBy: userObjectId });
-      const actorIds = userActors.map(actor => actor._id);
+      const actorIds = userActors.map(actor => (actor as any)._id.toString());
 
       const isGM = campaign.gameMasterId?.toString() === userId;
       const hasCharacter = campaign.members.some(memberId => 
-        actorIds.some(actorId => actorId instanceof Types.ObjectId && actorId.toString() === memberId.toString())
+        actorIds.some(actorId => actorId === memberId.toString())
       );
 
       return isGM || hasCharacter || isAdmin;
     } catch (error) {
       logger.error('Error checking campaign permission:', error);
       throw new Error('Failed to check campaign permission');
+    }
+  }
+
+  async isUserCampaignMember(campaignId: string, userId: string): Promise<boolean> {
+    try {
+      const campaign = await CampaignModel.findById(campaignId).exec();
+      if (!campaign) {
+        throw new Error('Campaign not found');
+      }
+
+      // Check if user is the Game Master
+      const isGM = campaign.gameMasterId?.toString() === userId;
+      if (isGM) {
+        return true;
+      }
+
+      // Get all actors belonging to the user
+      const userObjectId = new Types.ObjectId(userId);
+      const userActors = await ActorModel.find({ createdBy: userObjectId });
+      const actorIds = userActors.map(actor => (actor as any)._id.toString());
+
+      // Check if any of the user's actors are members of the campaign
+      const isMember = campaign.members.some(memberId => 
+        actorIds.includes(memberId.toString())
+      );
+
+      return isMember;
+    } catch (error) {
+      logger.error('Error checking if user is campaign member:', error);
+      throw new Error('Failed to check campaign membership');
     }
   }
 } 

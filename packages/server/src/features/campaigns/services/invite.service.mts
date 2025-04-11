@@ -25,7 +25,16 @@ export class InviteService {
     if (!user) {
       throw new Error('User not found');
     }
-    const invites = await InviteModel.find({ email: user.email }).lean();
+    const invites = await InviteModel.find({ email: user.email, status: 'pending' })
+      .populate({
+        path: 'campaignId',
+        select: 'name gameSystemId'
+      })
+      .populate({
+        path: 'createdBy',
+        select: 'email'
+      })
+    console.log("got invites", invites)
     return invites as IInvite[];
   }
 
@@ -47,9 +56,9 @@ export class InviteService {
       throw new Error('Invited user not found');
     }
 
-    // Check if user is already a member
-    const campaign = await this.campaignService.getCampaign(campaignId);
-    if (campaign.members.includes(invitedUser.id)) {
+    // Check if user is already a member of the campaign
+    const isAlreadyMember = await this.campaignService.isUserCampaignMember(campaignId, invitedUser.id);
+    if (isAlreadyMember) {
       throw new Error('User is already a member of this campaign');
     }
 
@@ -95,16 +104,20 @@ export class InviteService {
         throw new Error('Actor ID is required when accepting an invite');
       }
 
-      // Add user to campaign members
+      // Add actor to campaign members (not the user)
       const campaign = await this.campaignService.getCampaign(invite.campaignId.toString());
-      await this.campaignService.updateCampaign(
-        invite.campaignId.toString(),
-        {
-          members: [...campaign.members, userId],
-          updatedBy: userId
-        },
-        userId
-      );
+      
+      // Check if the actor already exists in members
+      if (!campaign.members.includes(actorId)) {
+        await this.campaignService.updateCampaign(
+          invite.campaignId.toString(),
+          {
+            members: [...campaign.members, actorId], // Add actor, not user
+            updatedBy: userId
+          },
+          userId
+        );
+      }
     }
 
     invite.status = status;

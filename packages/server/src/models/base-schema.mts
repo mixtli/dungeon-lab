@@ -55,6 +55,9 @@ export function createBaseSchema(
       virtuals,
       transform: (_doc, ret) => {
         ret.id = ret._id.toString();
+        // ret.createdBy = ret.createdBy.toString();
+        // ret.updatedBy = ret.createdBy.toString();
+
         //delete ret._id;
         //delete ret.__v;
 
@@ -70,6 +73,8 @@ export function createBaseSchema(
       transform: (_doc, ret) => {
         // Default transform
         ret.id = ret._id.toString();
+        // ret.createdBy = ret.createdBy.toString(),
+        // ret.updatedBy = ret.createdBy.toString(),
         delete ret._id;
         delete ret.__v;
 

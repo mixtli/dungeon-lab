@@ -6,10 +6,11 @@ export const CampaignStatus = z.enum(['planning', 'active', 'completed', 'archiv
 
 // Base Campaign schema
 export const campaignSchema = z.object({
+  id: z.string().optional(),
   name: z.string().min(1).max(255),
   description: z.string().optional(),
   gameSystemId: z.string().min(1),
-  members: z.array(z.string()),  // Actor IDs
+  members: z.array(z.string()),  // Actor IDs of the characters in the campaign.  NOT User IDs.
   gameMasterId: z.string().optional(),
   status: z.enum(['active', 'paused', 'completed', 'archived']).default('active'),
   settings: z.record(z.string(), z.unknown()).optional(),
@@ -37,6 +38,6 @@ export const campaignUpdateSchema = campaignSchema
   });
 
 // Export types generated from the schemas
-export type ICampaign = z.infer<typeof campaignSchema> & ApiFields;
+export type ICampaign = z.infer<typeof campaignSchema>;
 export type ICampaignCreateData = z.infer<typeof campaignCreateSchema>;
 export type ICampaignUpdateData = z.infer<typeof campaignUpdateSchema>; 

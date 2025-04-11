@@ -442,7 +442,7 @@ export async function runImport<T>({
           }
         }
       } catch (error) {
-        console.error(`Error processing ${documentType} ${item.name}:`, error);
+        console.error(`Error processing ${documentType} ${item.name}:`, (error as Error).stack);
         errors++;
       }
     }

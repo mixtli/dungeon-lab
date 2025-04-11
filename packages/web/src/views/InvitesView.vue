@@ -17,7 +17,7 @@
     <div v-else class="grid gap-6">
       <div v-for="invite in invites" :key="invite.id" class="bg-white rounded-lg shadow p-6">
         <h2 class="text-xl font-semibold mb-2">{{ invite.campaignId.name }}</h2>
-        <p class="text-gray-600 mb-4">{{ invite.campaignId.description }}</p>
+        <p class="text-sm text-gray-500 mb-4">Invited by {{ invite.createdBy.email }}</p>
         
         <div class="flex gap-4">
           <button 
@@ -116,7 +116,7 @@ async function fetchInvites() {
   error.value = null;
   
   try {
-    const response = await api.get('/api/campaign-invites/my-invites');
+    const response = await api.get('/api/my-invites');
     invites.value = response.data;
   } catch (err: any) {
     error.value = err.response?.data?.message || err.message || 'Failed to fetch invites';
@@ -148,7 +148,7 @@ async function handleAccept(invite: any) {
 
 async function handleDecline(invite: any) {
   try {
-    await api.put(`/api/campaign-invites/${invite.id}/respond`, {
+    await api.post(`/api/invites/${invite.id}/respond`, {
       status: 'declined'
     });
     
@@ -163,7 +163,7 @@ async function selectCharacter(character: IActor) {
   if (!selectedInvite.value) return;
   
   try {
-    await api.put(`/api/campaign-invites/${selectedInvite.value.id}/respond`, {
+    await api.post(`/api/invites/${selectedInvite.value.id}/respond`, {
       status: 'accepted',
       actorId: character.id
     });

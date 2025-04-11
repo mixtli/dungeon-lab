@@ -134,7 +134,7 @@ export const useCampaignStore = defineStore('campaign', () => {
     error.value = null;
 
     try {
-      const response = await api.post('/api/campaign-invites', inviteData);
+      const response = await api.post(`/api/campaign/${inviteData.campaignId}/invites`, inviteData);
       return response.data;
     } catch (err: any) {
       error.value = err.response?.data?.message || err.message || 'Failed to send invite';

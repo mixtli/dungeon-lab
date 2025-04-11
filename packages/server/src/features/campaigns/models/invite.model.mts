@@ -12,6 +12,10 @@ export interface InviteDocument extends Omit<IInvite, 'id'>, BaseDocument {}
  */
 const mongooseSchema = createBaseSchema(inviteSchema);
 
+// Override campaignId field to be a reference to Campaign model
+mongooseSchema.path('campaignId', mongoose.Schema.Types.ObjectId);
+mongooseSchema.path('campaignId').ref('Campaign');
+
 // Add indexes for common queries
 mongooseSchema.index({ campaignId: 1 });
 mongooseSchema.index({ userId: 1 });

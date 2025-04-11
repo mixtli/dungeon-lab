@@ -14,10 +14,10 @@ export function convert5eToolsFeat(feat) {
 
   // Map ability abbreviations to full names
   const abilityMap = {
-    'str': 'Strength',
-    'dex': 'Dexterity',
-    'con': 'Constitution',
-    'int': 'Intelligence',
+    'str': 'strength',
+    'dex': 'dexterity',
+    'con': 'constitution',
+    'int': 'intelligence',
     'wis': 'Wisdom',
     'cha': 'Charisma'
   };
@@ -197,6 +197,7 @@ export function convert5eToolsFeat(feat) {
   if (Array.isArray(abilityData)) {
     result.ability = abilityData;
   }
+  console.log(result)
   
   return result;
 } 
