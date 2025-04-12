@@ -1,35 +1,15 @@
 // Core types from schemas
-export type {
-  IActor,
-  IActorCreateData,
-  IActorUpdateData,
-} from './schemas/actor.schema.mjs';
+export type { IActor } from './schemas/actor.schema.mjs';
 
 // Export schemas for server-side validation
-export {
-  actorSchema,
-  actorCreateSchema,
-  actorUpdateSchema,
-} from './schemas/actor.schema.mjs';
+export { actorSchema } from './schemas/actor.schema.mjs';
 
-export type {
-  IItem,
-  IItemCreateData,
-  IItemUpdateData,
-} from './schemas/item.schema.mjs';
+export type { IItem } from './schemas/item.schema.mjs';
 
 // Export schemas for server-side validation
-export {
-  itemSchema,
-  itemCreateSchema,
-  itemUpdateSchema,
-} from './schemas/item.schema.mjs';
+export { itemSchema } from './schemas/item.schema.mjs';
 
-export type {
-  IUser,
-  IUserCreateData,
-  IUserUpdateData,
-} from './schemas/user.schema.mjs';
+export type { IUser } from './schemas/user.schema.mjs';
 
 // Export schemas for server-side validation
 export {
@@ -42,59 +22,29 @@ export {
 // Invite types and schemas
 export type {
   IInvite,
-  IInviteCreateData,
-  IInviteUpdateData,
 } from './schemas/invite.schema.mjs';
 
 // Export invite schemas for server-side validation
 export {
   inviteSchema,
-  inviteCreateSchema,
-  inviteUpdateSchema,
   InviteStatus,
 } from './schemas/invite.schema.mjs';
 
-export type {
-  ICampaign,
-  ICampaignCreateData,
-  ICampaignUpdateData,
-} from './schemas/campaign.schema.mjs';
+export type { ICampaign } from './schemas/campaign.schema.mjs';
 
 // Export schemas for server-side validation
-export {
-  campaignSchema,
-  campaignCreateSchema,
-  campaignUpdateSchema,
-} from './schemas/campaign.schema.mjs';
+export { campaignSchema } from './schemas/campaign.schema.mjs';
 
-export type {
-  IMap,
-  IMapCreateData,
-  IMapUpdateData,
-} from './schemas/map.schema.mjs';
+export type { IMap } from './schemas/map.schema.mjs';
 
 // Export schemas for server-side validation
-export {
-  mapSchema,
-  mapCreateSchema,
-  mapUpdateSchema,
-} from './schemas/map.schema.mjs';
+export { mapSchema } from './schemas/map.schema.mjs';
 
-export type {
-  IGameSession,
-  IGameSessionCreateData,
-  IGameSessionUpdateData,
-} from './schemas/game-session.schema.mjs';
+export type { IGameSession } from './schemas/game-session.schema.mjs';
 
 // Export schemas for server-side validation
-export {
-  gameSessionSchema,
-  gameSessionCreateSchema,
-  gameSessionUpdateSchema,
-} from './schemas/game-session.schema.mjs';
+export { gameSessionSchema } from './schemas/game-session.schema.mjs';
 
-// Common types
-export type { ApiFields } from './types/api-fields.mjs';
 
 // WebSocket message types
 export type {
@@ -151,8 +101,6 @@ export { UserTheme } from './schemas/user.schema.mjs';
 // Token types
 export type {
   IToken,
-  ITokenCreateData,
-  ITokenUpdateData,
   TokenSize
 } from './schemas/token.schema.mjs';
 
@@ -160,6 +108,4 @@ export type {
 export { 
   TokenSizeEnum,
   tokenSchema,
-  tokenCreateSchema,
-  tokenUpdateSchema,
 } from './schemas/token.schema.mjs';

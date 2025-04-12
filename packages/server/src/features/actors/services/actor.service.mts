@@ -1,5 +1,5 @@
 import { Types } from 'mongoose';
-import { IActor, IActorCreateData, IActorUpdateData } from '@dungeon-lab/shared/index.mjs';
+import { IActor } from '@dungeon-lab/shared/index.mjs';
 import { ActorModel } from '../models/actor.model.mjs';
 import { logger } from '../../../utils/logger.mjs';
 
@@ -37,7 +37,7 @@ export class ActorService {
     }
   }
 
-  async createActor(data: IActorCreateData, userId: string): Promise<IActor> {
+  async createActor(data: IActor, userId: string): Promise<IActor> {
     try {
       const userObjectId = new Types.ObjectId(userId);
       const actorData = {
@@ -54,7 +54,7 @@ export class ActorService {
     }
   }
 
-  async updateActor(id: string, data: IActorUpdateData, userId: string): Promise<IActor> {
+  async updateActor(id: string, data: Partial<IActor>, userId: string): Promise<IActor> {
     try {
       const actor = await ActorModel.findById(id);
       if (!actor) {
@@ -103,7 +103,7 @@ export class ActorService {
         throw new Error('Actor not found');
       }
 
-      return actor.createdBy.toString() === userId || isAdmin;
+      return actor.createdBy?.toString() === userId || isAdmin;
     } catch (error) {
       logger.error('Error checking user permission:', error);
       throw new Error('Failed to check user permission');

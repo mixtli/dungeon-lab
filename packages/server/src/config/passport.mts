@@ -1,43 +1,41 @@
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
-import { UserModel, UserDocument } from '../models/user.model.mjs';
-import { IUser } from '@dungeon-lab/shared/index.mjs';
+import { UserModel} from '../models/user.model.mjs';
 import { config } from './index.mjs';
 import { logger } from '../utils/logger.mjs';
-import { Types } from 'mongoose';
 
 /**
  * Convert a UserDocument to a User interface
  */
-function toUser(userDoc: UserDocument | null): IUser | undefined {
-  if (!userDoc) return undefined;
+// function toUser(userDoc: UserDocument | null): IUser | undefined {
+//   if (!userDoc) return undefined;
   
-  // Base user properties
-  const baseUser = {
-    id: (userDoc._id as Types.ObjectId).toString(),
-    username: userDoc.username,
-    email: userDoc.email,
-    preferences: userDoc.preferences || {
-      theme: 'system',
-      language: 'en',
-      notifications: true
-    },
-    isAdmin: userDoc.isAdmin,
-    createdAt: userDoc.createdAt,
-    updatedAt: userDoc.updatedAt
-  };
+//   // Base user properties
+//   const baseUser = {
+//     id: (userDoc._id as Types.ObjectId).toString(),
+//     username: userDoc.username,
+//     email: userDoc.email,
+//     preferences: userDoc.preferences || {
+//       theme: 'system',
+//       language: 'en',
+//       notifications: true
+//     },
+//     isAdmin: userDoc.isAdmin,
+//     createdAt: userDoc.createdAt,
+//     updatedAt: userDoc.updatedAt
+//   };
   
-  // Add optional properties if they exist
-  const user: IUser = {
-    ...baseUser,
-    ...(userDoc.displayName && { displayName: userDoc.displayName }),
-    ...(userDoc.avatar && { avatar: userDoc.avatar }),
-    ...(userDoc.bio && { bio: userDoc.bio }),
-    ...(userDoc.googleId && { googleId: userDoc.googleId })
-  };
+//   // Add optional properties if they exist
+//   const user: IUser = {
+//     ...baseUser,
+//     ...(userDoc.displayName && { displayName: userDoc.displayName }),
+//     ...(userDoc.avatar && { avatar: userDoc.avatar }),
+//     ...(userDoc.bio && { bio: userDoc.bio }),
+//     ...(userDoc.googleId && { googleId: userDoc.googleId })
+//   };
   
-  return user;
-}
+//   return user;
+// }
 
 // Configure Passport
 export function configurePassport(): void {
@@ -62,7 +60,7 @@ export function configurePassport(): void {
   passport.deserializeUser(async (id: string, done) => {
     try {
       const user = await UserModel.findById(id);
-      done(null, toUser(user));
+      done(null, user);
     } catch (error) {
       done(error, undefined);
     }
@@ -85,7 +83,7 @@ export function configurePassport(): void {
             let user = await UserModel.findOne({ googleId: profile.id });
 
             if (user) {
-              return done(null, toUser(user));
+              return done(null, user);
             }
 
             // Check if user exists with the same email
@@ -103,7 +101,7 @@ export function configurePassport(): void {
                 user.avatar = profile.photos[0].value;
               }
               await user.save();
-              return done(null, toUser(user));
+              return done(null, user);
             }
 
             // Create new user
@@ -117,7 +115,7 @@ export function configurePassport(): void {
             });
 
             await newUser.save();
-            return done(null, toUser(newUser));
+            return done(null, newUser);
           } catch (error) {
             return done(error as Error, undefined);
           }

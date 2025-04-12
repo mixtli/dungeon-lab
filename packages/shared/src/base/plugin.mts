@@ -1,4 +1,4 @@
-import { z } from '../lib/zod.mjs';
+import { z } from 'zod';
 import { IPlugin, IPluginConfiguration } from '../types/plugin.mjs';
 import { IPluginMessage } from '../schemas/websocket-messages.schema.mjs';
 

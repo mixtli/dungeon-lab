@@ -1,19 +1,18 @@
-import { z } from '../lib/zod.mjs';
-import { zId } from '@zodyac/zod-mongoose';
+import { z } from 'zod';
 
 // Base message schema that all messages will extend
 export const baseMessageSchema = z.object({
   id: z.string().uuid(),
   type: z.string(),
   timestamp: z.date(), // Keep this as it's a message timestamp, not a Mongoose timestamp
-  sender: zId('User'),
-  gameSessionId: zId('GameSession'),
+  sender: z.string(),
+  gameSessionId: z.string(),
   pluginId: z.string().optional(), // Plugin that should handle this message
   recipient: z.union([
     z.literal('all'),  // Message to all participants
-    zId('User'),      // Direct message to specific user
     z.literal('gm'),   // Message only to game master
-    z.literal('server') // Message only to server
+    z.literal('server'), // Message only to server
+    z.string()      // Direct message to specific user
   ]),
 });
 
@@ -70,7 +69,7 @@ export const pluginMessageSchema = baseMessageSchema.extend({
 export const moveMessageSchema = baseMessageSchema.extend({
   type: z.literal('move'),
   data: z.object({
-    actorId: zId('Actor'),
+    actorId: z.string(),
     position: z.object({
       x: z.number(),
       y: z.number(),
@@ -87,8 +86,8 @@ export const pluginActionMessageSchema = baseMessageSchema.extend({
   pluginId: z.string(), // Required for plugin actions
   data: z.object({
     actionType: z.string(),
-    actorId: zId('Actor').optional(),
-    targetIds: z.array(zId('Actor')).optional(),
+    actorId: z.string().optional(),
+    targetIds: z.array(z.string()).optional(),
     position: z.object({
       x: z.number(),
       y: z.number(),
@@ -106,7 +105,7 @@ export const gameStateUpdateMessageSchema = baseMessageSchema.extend({
     maps: z.record(z.string(), z.unknown()).optional(),
     turn: z.object({
       round: z.number(),
-      actorId: zId('Actor'),
+      actorId: z.string().optional(),
     }).optional(),
   }),
 });
@@ -130,7 +129,7 @@ export const RollResult = z.object({
   rolls: z.array(DieRollResult), // Individual die results
   modifier: z.number(), // The static modifier (e.g., +2)
   total: z.number(), // The final total
-  userId: zId('User'), // Who made the roll
+  userId: z.string(), // Who made the roll
   timestamp: z.date()
 });
 
@@ -138,14 +137,14 @@ export const RollResult = z.object({
 export const RollCommandMessage = z.object({
   type: z.literal('roll-command'),
   formula: z.string(), // The dice formula to roll
-  gameSessionId: zId('GameSession')
+  gameSessionId: z.string()
 });
 
 // Chat message for displaying roll results
 export const RollResultMessage = z.object({
   type: z.literal('roll-result'),
   result: RollResult,
-  gameSessionId: zId('GameSession')
+  gameSessionId: z.string()
 });
 
 // Union of all message types

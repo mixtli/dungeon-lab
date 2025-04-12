@@ -4,7 +4,7 @@ import * as authController from '../controllers/auth.controller.mjs';
 import { authenticate } from '../middleware/auth.middleware.mjs';
 import { userSchema, userCreateSchema } from '@dungeon-lab/shared/schemas/user.schema.mjs';
 import { openApiPost, openApiGet } from '../oapi.mjs';
-import { z } from '@dungeon-lab/shared/lib/zod.mjs';
+import { z } from '../utils/zod.mjs';
 
 const router = Router();
 

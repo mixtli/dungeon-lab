@@ -3,9 +3,9 @@ import { GameSessionController } from '../controllers/game-session.controller.mj
 import { GameSessionService } from '../services/game-session.service.mjs';
 import { authenticate } from '../../../middleware/auth.middleware.mjs';
 import { validateRequest } from '../../../middleware/validation.middleware.mjs';
-import { gameSessionUpdateSchema, gameSessionCreateSchema, gameSessionSchema } from '@dungeon-lab/shared/src/schemas/game-session.schema.mjs';
+import { gameSessionSchema } from '@dungeon-lab/shared/src/schemas/game-session.schema.mjs';
 import { openApiGet, openApiGetOne, openApiPost, openApiPut, openApiDelete } from '../../../oapi.mjs';
-
+import { z } from '../../../utils/zod.mjs';
 // Initialize services and controllers
 const gameSessionService = new GameSessionService();
 const gameSessionController = new GameSessionController(gameSessionService);
@@ -29,15 +29,15 @@ router.get('/:id', authenticate, openApiGetOne(gameSessionSchema, {
   description: 'Get game session by ID'
 }), boundGetGameSession);
 
-router.post('/', authenticate, openApiPost(gameSessionCreateSchema, {
+router.post('/', authenticate, openApiPost(gameSessionSchema, {
   description: 'Create a new game session'
-}), validateRequest(gameSessionCreateSchema), boundCreateGameSession);
+}), validateRequest(gameSessionSchema), boundCreateGameSession);
 
-router.put('/:id', authenticate, openApiPut(gameSessionUpdateSchema, {
+router.put('/:id', authenticate, openApiPut(gameSessionSchema, {
   description: 'Update a game session by ID'
-}), validateRequest(gameSessionUpdateSchema), boundUpdateGameSession);
+}), validateRequest(gameSessionSchema.partial()), boundUpdateGameSession);
 
-router.delete('/:id', authenticate, openApiDelete(gameSessionSchema, {
+router.delete('/:id', authenticate, openApiDelete(z.null(), {
   description: 'Delete a game session by ID'
 }), boundDeleteGameSession);
 

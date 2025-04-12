@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { encounterCreateSchema, encounterUpdateSchema } from '@dungeon-lab/shared/src/schemas/encounter.schema.mjs';
+import { encounterSchema } from '@dungeon-lab/shared/src/schemas/encounter.schema.mjs';
 import { logger } from '../../../utils/logger.mjs';
 
 /**
@@ -7,7 +7,7 @@ import { logger } from '../../../utils/logger.mjs';
  */
 export function validateCreateEncounter(req: Request, res: Response, next: NextFunction) {
   try {
-    const validatedData = encounterCreateSchema.parse(req.body);
+    const validatedData = encounterSchema.parse(req.body);
     req.body = validatedData;
     next();
   } catch (error) {
@@ -21,7 +21,7 @@ export function validateCreateEncounter(req: Request, res: Response, next: NextF
  */
 export function validateUpdateEncounter(req: Request, res: Response, next: NextFunction) {
   try {
-    const validatedData = encounterUpdateSchema.parse(req.body);
+    const validatedData = encounterSchema.partial().parse(req.body);
     req.body = validatedData;
     next();
   } catch (error) {

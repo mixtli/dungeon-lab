@@ -3,8 +3,9 @@ import { MapController } from '../controllers/map.controller.mjs';
 import { MapService } from '../services/map.service.mjs';
 import { authenticate } from '../../../middleware/auth.middleware.mjs';
 import { validateRequest, validateMultipartRequest } from '../../../middleware/validation.middleware.mjs';
-import { mapCreateSchema, mapSchema, mapUpdateSchema } from '@dungeon-lab/shared/src/schemas/map.schema.mjs';
+import { mapSchema } from '@dungeon-lab/shared/src/schemas/map.schema.mjs';
 import { openApiGet, openApiGetOne, openApiPost, openApiDelete, openApiPatch } from '../../../oapi.mjs';
+import { z } from '../../../utils/zod.mjs';
 
 const router = Router();
 const mapService = new MapService();
@@ -37,18 +38,18 @@ router.get('/:id', openApiGetOne(mapSchema, {
 
 // Set a longer timeout for map creation due to AI image generation
 router.post('/',
-  openApiPost(mapCreateSchema, {
+  openApiPost(mapSchema, {
     description: 'Create new map'
   }), 
-  validateMultipartRequest(mapCreateSchema, 'image'), 
+  validateMultipartRequest(mapSchema, 'image'), 
   boundController.createMap
 );
 
-router.patch('/:id', openApiPatch(mapUpdateSchema, {
+router.patch('/:id', openApiPatch(mapSchema, {
   description: 'Update map'
-}), validateRequest(mapUpdateSchema), boundController.updateMap);
+}), validateRequest(mapSchema.partial()), boundController.updateMap);
 
-router.delete('/:id', openApiDelete(mapSchema, {
+router.delete('/:id', openApiDelete(z.null(), {
   description: 'Delete map'
 }), boundController.deleteMap);
 

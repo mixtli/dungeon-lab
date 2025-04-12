@@ -1,4 +1,4 @@
-import { z } from '../lib/zod.mjs';
+import { z } from 'zod';
 
 // Theme type
 export const UserTheme = z.enum(['light', 'dark', 'system']);

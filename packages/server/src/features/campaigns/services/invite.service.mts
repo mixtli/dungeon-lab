@@ -1,4 +1,4 @@
-import { IInvite, IInviteCreateData } from '@dungeon-lab/shared/index.mjs';
+import { IInvite } from '@dungeon-lab/shared/index.mjs';
 import { Types } from 'mongoose';
 import { UserModel } from '../../../models/user.model.mjs';
 import { InviteModel } from '../models/invite.model.mjs';
@@ -38,7 +38,7 @@ export class InviteService {
     return invites as IInvite[];
   }
 
-  async createInvite(data: IInviteCreateData, campaignId: string, userId: string): Promise<IInvite> {
+  async createInvite(data: IInvite, campaignId: string, userId: string): Promise<IInvite> {
     // Check if campaign exists and user has permission
     const hasAccess = await this.campaignService.checkUserPermission(
       campaignId,

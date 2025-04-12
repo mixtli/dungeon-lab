@@ -1,15 +1,15 @@
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
-import { UserModel, UserDocument } from '../models/user.model.mjs';
+import { UserModel } from '../models/user.model.mjs';
 import { logger } from '../utils/logger.mjs';
 import { IUser } from '@dungeon-lab/shared/index.mjs';
 
 /**
  * Format user data for response
  */
-function formatUserResponse(user: UserDocument) {
+function formatUserResponse(user: IUser) {
   return {
-    id: (user._id as mongoose.Types.ObjectId).toString(),
+    id: user.id,
     username: user.username,
     email: user.email,
     displayName: user.displayName,

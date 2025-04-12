@@ -1,27 +1,21 @@
-import mongoose from 'mongoose';
+import mongoose, { ObjectId } from 'mongoose';
 import { ICampaign, campaignSchema } from '@dungeon-lab/shared/index.mjs';
-import { BaseDocument, createBaseSchema } from '../../../models/base-schema.mjs';
+import { baseMongooseZodSchema } from '../../../models/base-schema.mjs';
+import { createMongoSchema } from '../../../models/zod-to-mongo.mjs';
 import { zId } from '@zodyac/zod-mongoose';
-import { z } from 'zod';
+import { z } from '../../../utils/zod.mjs';
 
-/**
- * Campaign document interface extending the base Campaign interface
- */
-export interface CampaignDocument extends Omit<ICampaign, 'id'>, BaseDocument {}
-
-
-
-const newSchema = campaignSchema.extend({
+const campaignSchemaMongoose = campaignSchema.merge(baseMongooseZodSchema).extend({
   members: z.array(zId('Actor')),
+})
+
+const mongooseSchema = createMongoSchema<ICampaign>(campaignSchemaMongoose);
+
+mongooseSchema.path('members').get(function(value: ObjectId[]) {
+  return value.map((p: ObjectId) => p.toString());
+});
+mongooseSchema.path('members').set(function(value: string[]) {
+  return value.map((p: string) => new mongoose.Types.ObjectId(p));
 });
 
-
-/**
- * Create Mongoose schema with base configuration
- */
-const mongooseSchema = createBaseSchema(newSchema);
-
-/**
- * Campaign model
- */
-export const CampaignModel = mongoose.model<CampaignDocument>('Campaign', mongooseSchema); 
+export const CampaignModel = mongoose.model<ICampaign>('Campaign', mongooseSchema); 

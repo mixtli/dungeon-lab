@@ -441,15 +441,15 @@ async function importCharacters() {
     const userId = getNextUserId();
     
     // Check if character already exists by name
-    let existingCharacter = await ActorModel.findOne({ 
-      name: charData.name,
-      type: 'character'
-    }).lean();
+    // let existingCharacter = await ActorModel.findOne({ 
+    //   name: charData.name,
+    //   type: 'character'
+    // }).lean();
     
-    const objectId = existingCharacter ? existingCharacter._id : getObjectId(charData.id);
-    console.log(`${existingCharacter ? 'Updating' : 'Creating'} character: ${charData.name}`);
+    // const objectId = existingCharacter ? existingCharacter._id : getObjectId(charData.id);
+    // console.log(`${existingCharacter ? 'Updating' : 'Creating'} character: ${charData.name}`);
 
-    // Transform and validate character data
+    // // Transform and validate character data
     const characterData = transformCharacterData(charData);
 
     try {
@@ -458,13 +458,37 @@ async function importCharacters() {
         continue;
       }
       
+
+      let actor = await ActorModel.findOne({ name: charData.name, type: 'character' });
+      if(!actor) {
+        actor = await ActorModel.create({
+          name: charData.name,
+          type: 'character',
+          createdBy: userId,
+          updatedBy: userId,
+          gameSystemId: dnd5e2024Plugin.config.id,
+        });
+        console.log("actor",actor.id)
+      }
+
+      actor.set({
+        name: charData.name,
+        description: charData.description,
+        //avatar: avatarAsset,
+        //token: tokenAsset,
+        data: characterData,
+      });
+
+      console.log(actor.name, actor.id)
+      uuidToObjectId.set(charData.id, actor.id);
+
       // Get file extensions from original paths
       const avatarExt = charData.avatar.url.split('.').pop() || 'jpg';
       const tokenExt = charData.token.url.split('.').pop() || 'jpg';
 
       // Create new paths following the pattern actors/<actorId>/images/<filename>
-      const avatarPath = `actors/${objectId}/images/avatar.${avatarExt}`;
-      const tokenPath = `actors/${objectId}/images/token.${tokenExt}`;
+      const avatarPath = `actors/${actor.id}/images/avatar.${avatarExt}`;
+      const tokenPath = `actors/${actor.id}/images/token.${tokenExt}`;
 
       // Get full paths to the source files
       const avatarFilePath = join(__dirname, '../../data', charData.avatar.url);
@@ -483,22 +507,12 @@ async function importCharacters() {
         `image/${tokenExt}`
       );
 
-      await ActorModel.findOneAndUpdate(
-        { _id: objectId },
-        {
-          _id: objectId,
-          name: charData.name,
-          type: 'character',
-          description: charData.description,
-          gameSystemId: dnd5e2024Plugin.config.id,
-          avatar: avatarAsset,
-          token: tokenAsset,
-          data: characterData,
-          createdBy: userId,
-          updatedBy: userId
-        },
-        { upsert: true, new: true }
-      );
+      await actor.set({
+        avatar: avatarAsset,
+        token: tokenAsset,
+      });
+      await actor.save()
+
     } catch (error) {
       console.error(`Error processing character data for ${charFile}:`, error);
     }
@@ -521,34 +535,61 @@ async function importCampaigns() {
     const userId = getNextUserId();
     
     // Check if campaign already exists by name
-    let existingCampaign = await CampaignModel.findOne({ name: campaignData.name }).lean();
-    const objectId = existingCampaign ? existingCampaign._id : getObjectId(campaignData.id);
-    
-    console.log(`${existingCampaign ? 'Updating' : 'Creating'} campaign: ${campaignData.name}`);
 
-    await CampaignModel.findOneAndUpdate(
-      { _id: objectId },
-      {
-        _id: objectId,
+    let campaign = await CampaignModel.findOne({ name: campaignData.name });
+    if(!campaign  ) {
+      campaign = await CampaignModel.create({
         name: campaignData.name,
         description: campaignData.description,
         gameSystemId: dnd5e2024Plugin.config.id,
-        members: campaignData.characters.map((id: string) => {
-          // Find existing character by ID in the JSON
-          const existingId = uuidToObjectId.get(id);
-          return existingId || new Types.ObjectId();
-        }),
-        status: 'active',
-        settings: {
-          setting: campaignData.setting,
-          startDate: campaignData.start_date
-        },
-        createdBy: userId,
-        updatedBy: userId,
-        gameMasterId: userId
+        members: []
+      });
+    }
+    console.log(uuidToObjectId)
+    campaign.set({
+      name: campaignData.name,
+      description: campaignData.description,
+      gameSystemId: dnd5e2024Plugin.config.id,
+      members: campaignData.characters.map((id: string) => {
+        console.log("id", id, uuidToObjectId.get(id)?.toString())
+        return uuidToObjectId.get(id)?.toString();
+      }),
+      status: 'active',
+      settings: {
+        setting: campaignData.setting,
+        startDate: campaignData.start_date
       },
-      { upsert: true, new: true }
-    );
+      createdBy: userId,
+      updatedBy: userId,
+    });
+    await campaign.save()
+
+    
+  //   console.log(`${existingCampaign ? 'Updating' : 'Creating'} campaign: ${campaignData.name}`);
+
+  //   await CampaignModel.findOneAndUpdate(
+  //     { _id: objectId },
+  //     {
+  //       _id: objectId,
+  //       name: campaignData.name,
+  //       description: campaignData.description,
+  //       gameSystemId: dnd5e2024Plugin.config.id,
+  //       members: campaignData.characters.map((id: string) => {
+  //         // Find existing character by ID in the JSON
+  //         const existingId = uuidToObjectId.get(id);
+  //         return existingId || new Types.ObjectId();
+  //       }),
+  //       status: 'active',
+  //       settings: {
+  //         setting: campaignData.setting,
+  //         startDate: campaignData.start_date
+  //       },
+  //       createdBy: userId,
+  //       updatedBy: userId,
+  //       gameMasterId: userId
+  //     },
+  //     { upsert: true, new: true }
+  //   );
   }
 }
 

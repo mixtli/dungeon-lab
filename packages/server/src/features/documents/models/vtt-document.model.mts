@@ -1,10 +1,11 @@
 import { vttDocumentSchema, type IVTTDocument } from '@dungeon-lab/shared/schemas/vtt-document.schema.mjs';
 import mongoose from 'mongoose';
 import { pluginRegistry } from '../../../services/plugin-registry.service.mjs';
-import { BaseDocument, createBaseSchema } from '../../../models/base-schema.mjs';
+import { baseMongooseZodSchema } from '../../../models/base-schema.mjs';
+import { createMongoSchema } from '../../../models/zod-to-mongo.mjs';
 
 // Create mongoose schema using the base schema creator to handle _id to id transformation
-const mongooseSchema = createBaseSchema(vttDocumentSchema);
+const mongooseSchema = createMongoSchema<IVTTDocument>(vttDocumentSchema.merge(baseMongooseZodSchema));
 
 // Add compound unique index for slug within plugin and document type context
 mongooseSchema.index(
@@ -69,7 +70,7 @@ mongooseSchema.pre('save', async function(this: mongoose.Document & IVTTDocument
 /**
  * VTT Document interface extending the base IVTTDocument
  */
-export interface VTTDocument extends Omit<IVTTDocument, 'id'>, BaseDocument {}
+//export interface VTTDocument extends Omit<IVTTDocument, 'id'>, BaseDocument {}
 
 // Create and export model
-export const VTTDocument = mongoose.model<VTTDocument>('VTTDocument', mongooseSchema); 
+export const VTTDocument = mongoose.model<IVTTDocument>('VTTDocument', mongooseSchema); 

@@ -1,5 +1,5 @@
 import { Types } from 'mongoose';
-import { ICampaign, ICampaignCreateData, ICampaignUpdateData } from '@dungeon-lab/shared/index.mjs';
+import { ICampaign } from '@dungeon-lab/shared/index.mjs';
 import { CampaignModel } from '../models/campaign.model.mjs';
 import { ActorModel } from '../../actors/models/actor.model.mjs';
 import { logger } from '../../../utils/logger.mjs';
@@ -42,7 +42,7 @@ export class CampaignService {
     }
   }
 
-  async createCampaign(data: ICampaignCreateData, userId: string): Promise<ICampaign> {
+  async createCampaign(data: ICampaign, userId: string): Promise<ICampaign> {
     try {
       const userObjectId = new Types.ObjectId(userId);
       
@@ -69,7 +69,7 @@ export class CampaignService {
     }
   }
 
-  async updateCampaign(id: string, data: ICampaignUpdateData, userId: string): Promise<ICampaign> {
+  async updateCampaign(id: string, data: Partial<ICampaign>, userId: string): Promise<ICampaign> {
     try {
       const userObjectId = new Types.ObjectId(userId);
       const updateData = {

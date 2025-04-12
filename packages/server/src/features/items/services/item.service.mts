@@ -1,5 +1,5 @@
 import { Types } from 'mongoose';
-import { IItem, IItemCreateData, IItemUpdateData } from '@dungeon-lab/shared/index.mjs';
+import { IItem } from '@dungeon-lab/shared/index.mjs';
 import { ItemModel } from '../models/item.model.mjs';
 import { logger } from '../../../utils/logger.mjs';
 
@@ -37,7 +37,7 @@ export class ItemService {
     }
   }
 
-  async createItem(data: IItemCreateData, userId: string): Promise<IItem> {
+  async createItem(data: IItem, userId: string): Promise<IItem> {
     try {
       const userObjectId = new Types.ObjectId(userId);
       const itemData = {
@@ -54,7 +54,7 @@ export class ItemService {
     }
   }
 
-  async updateItem(id: string, data: IItemUpdateData, userId: string): Promise<IItem> {
+  async updateItem(id: string, data: Partial<IItem>, userId: string): Promise<IItem> {
     try {
       const item = await ItemModel.findById(id);
       if (!item) {

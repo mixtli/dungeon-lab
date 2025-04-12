@@ -3,13 +3,12 @@ import { ActorController } from '../controllers/actor.controller.mjs';
 import { ActorService } from '../services/actor.service.mjs';
 import { authenticate } from '../../../middleware/auth.middleware.mjs';
 import { validateMultipartRequest } from '../../../middleware/validation.middleware.mjs';
-import { actorCreateSchema, actorUpdateSchema, actorSchema } from '@dungeon-lab/shared/schemas/actor.schema.mjs';
+import { actorSchema } from '@dungeon-lab/shared/schemas/actor.schema.mjs';
 import { openApiGet, openApiGetOne, openApiPost, openApiPut, openApiDelete } from '../../../oapi.mjs';
-import { z } from '@dungeon-lab/shared/src/lib/zod.mjs';
 import { generateCharacterToken, generateCharacterAvatar } from '../utils/actor-image-generator.mjs';
 import { ActorModel } from '../models/actor.model.mjs';
 import asyncHandler from 'express-async-handler';
-
+import { z } from '../../../utils/zod.mjs';
 // Initialize services and controllers
 const actorService = new ActorService();
 const actorController = new ActorController(actorService);
@@ -39,15 +38,15 @@ router.get('/campaign/:campaignId', authenticate, boundGetActors);
 
 // For file uploads, use validateMultipartRequest with field names
 
-router.post('/', authenticate, openApiPost(actorCreateSchema, {
+router.post('/', authenticate, openApiPost(actorSchema, {
   description: 'Create new actor'
-}), validateMultipartRequest(actorCreateSchema, ['avatar', 'token']), boundCreateActor);
+}), validateMultipartRequest(actorSchema, ['avatar', 'token']), boundCreateActor);
 
-router.put('/:id', authenticate, openApiPut(actorUpdateSchema, {
+router.put('/:id', authenticate, openApiPut(actorSchema.partial(), {
   description: 'Update actor by ID'
-}), validateMultipartRequest(actorUpdateSchema, ['avatar', 'token']), boundUpdateActor);
+}), validateMultipartRequest(actorSchema.partial(), ['avatar', 'token']), boundUpdateActor);
 
-router.delete('/:id', authenticate, openApiDelete(z.object({}), {
+router.delete('/:id', authenticate, openApiDelete(z.null(), {
   description: 'Delete actor by ID'
 }), boundDeleteActor);
 

@@ -1,10 +1,10 @@
 import { Router } from 'express';
-import { inviteCreateSchema, InviteStatus, inviteSchema } from '@dungeon-lab/shared/index.mjs';
+import { InviteStatus, inviteSchema } from '@dungeon-lab/shared/index.mjs';
 import { validateRequest } from '../../../middleware/validation.middleware.mjs';
 import { InviteController } from '../controllers/invite.controller.mjs';
 import { InviteService } from '../services/invite.service.mjs';
 import { CampaignService } from '../services/campaign.service.mjs';
-import { z } from '@dungeon-lab/shared/lib/zod.mjs';
+import { z } from '../../../utils/zod.mjs';
 import { openApiGet, openApiPost } from '../../../oapi.mjs';
 
 // Initialize services and controller
@@ -40,10 +40,10 @@ router.get('/my-invites', openApiGet(inviteSchema, {
 // Create invite
 router.post(
   '/campaign/:campaignId/invites',
-  openApiPost(inviteCreateSchema, {
+  openApiPost(inviteSchema, {
     description: 'Create a new invite for a campaign'
   }),
-  validateRequest(inviteCreateSchema),
+  validateRequest(inviteSchema),
   createInvite
 );
 

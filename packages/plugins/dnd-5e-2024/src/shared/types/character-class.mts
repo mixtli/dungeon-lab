@@ -1,4 +1,4 @@
-import { z } from '@dungeon-lab/shared/lib/zod.mjs';
+import { z } from 'zod';
 import { abilitySchema } from './common.mjs';
 import { vttDocumentSchema } from '@dungeon-lab/shared/schemas/vtt-document.schema.mjs';
 

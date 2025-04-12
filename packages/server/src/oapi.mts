@@ -1,5 +1,5 @@
 import openapi from '@wesleytodd/openapi';
-import { z } from '@dungeon-lab/shared/src/lib/zod.mjs';
+import { z } from './utils/zod.mjs'; 
 import { createSchema } from 'zod-openapi';
 import { RequestHandler } from 'express';
 

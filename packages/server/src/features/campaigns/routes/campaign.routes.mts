@@ -7,9 +7,9 @@ import { GameSessionController } from '../controllers/game-session.controller.mj
 import { GameSessionService } from '../services/game-session.service.mjs';
 import { authenticate } from '../../../middleware/auth.middleware.mjs';
 import { validateRequest } from '../../../middleware/validation.middleware.mjs';
-import { campaignCreateSchema, campaignUpdateSchema, campaignSchema } from '@dungeon-lab/shared/src/schemas/campaign.schema.mjs';
+import { campaignSchema } from '@dungeon-lab/shared/src/schemas/campaign.schema.mjs';
 import { validateCreateEncounter, validateUpdateEncounter } from '../middleware/encounter.validation.mjs';
-import { gameSessionCreateSchema, gameSessionSchema } from '@dungeon-lab/shared/src/schemas/game-session.schema.mjs';
+import { gameSessionSchema } from '@dungeon-lab/shared/src/schemas/game-session.schema.mjs';
 import { encounterSchema } from '@dungeon-lab/shared/src/schemas/encounter.schema.mjs';
 import { openApiGet, openApiGetOne, openApiPost, openApiPut, openApiDelete, openApiPatch } from '../../../oapi.mjs';
 
@@ -52,13 +52,13 @@ router.get('/:id', authenticate, openApiGetOne(campaignSchema, {
   description: 'Get campaign by ID'
 }), boundGetCampaign);
 
-router.post('/', authenticate, openApiPost(campaignCreateSchema, {
+router.post('/', authenticate, openApiPost(campaignSchema, {
   description: 'Create a new campaign'
-}), validateRequest(campaignCreateSchema), boundCreateCampaign);
+}), validateRequest(campaignSchema), boundCreateCampaign);
 
-router.put('/:id', authenticate, openApiPut(campaignUpdateSchema, {
+router.put('/:id', authenticate, openApiPut(campaignSchema, {
   description: 'Update a campaign by ID'
-}), validateRequest(campaignUpdateSchema), boundUpdateCampaign);
+}), validateRequest(campaignSchema.partial()), boundUpdateCampaign);
 
 router.delete('/:id', authenticate, openApiDelete(campaignSchema, {
   description: 'Delete a campaign by ID'
@@ -94,8 +94,8 @@ router.get('/:campaignId/sessions/:id', authenticate, openApiGetOne(gameSessionS
   description: 'Get a game session by ID in a campaign'
 }), boundGetGameSession);
 
-router.post('/:campaignId/sessions', authenticate, openApiPost(gameSessionCreateSchema, {
+router.post('/:campaignId/sessions', authenticate, openApiPost(gameSessionSchema, {
   description: 'Create a new game session in a campaign'
-}), validateRequest(gameSessionCreateSchema), boundCreateGameSession);
+}), validateRequest(gameSessionSchema), boundCreateGameSession);
 
 export { router as campaignRoutes }; 

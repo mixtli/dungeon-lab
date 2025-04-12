@@ -1,4 +1,4 @@
-import { IMap, IMapCreateData, IMapUpdateData } from '@dungeon-lab/shared/index.mjs';
+import { IMap } from '@dungeon-lab/shared/index.mjs';
 import { MapModel } from '../models/map.model.mjs';
 import storageService from '../../../services/storage.service.mjs';
 import sharp from 'sharp';
@@ -8,7 +8,7 @@ import { UploadedAsset } from '../../../utils/asset-upload.utils.mjs';
 
 
 // Add an interface for update data with assets
-interface MapUpdateDataWithAssets extends IMapUpdateData {
+interface MapUpdateDataWithAssets extends Partial<IMap> {
   assets?: Record<string, UploadedAsset>;
 }
 
@@ -41,7 +41,7 @@ export class MapService {
   /**
    * Create a map in the database initially without processing images
    */
-  async createMapInitial(data: IMapCreateData, userId: string): Promise<IMap> {
+  async createMapInitial(data: IMap, userId: string): Promise<IMap> {
     try {
 
       const mapData = { ...data, gridRows: 0, aspectRatio: 1, createdBy: userId, updatedBy: userId };

@@ -1,25 +1,14 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcrypt';
 import { IUser, userSchema } from '@dungeon-lab/shared/index.mjs';
-import { BaseDocument, createBaseSchema } from './base-schema.mjs';
+import { baseMongooseZodSchema } from './base-schema.mjs';
+import { createMongoSchema } from './zod-to-mongo.mjs';
 
-/**
- * User document interface extending the base User interface
- */
-export interface UserDocument extends Omit<IUser, 'id'>, BaseDocument {
-  comparePassword(candidatePassword: string): Promise<boolean>;
-  password?: string;
-}
 
 /**
  * Create Mongoose schema with base configuration
  */
-const mongooseSchema = createBaseSchema(userSchema.omit({ id: true }), {
-  transform: (_doc, ret) => {
-    delete ret.password; // Don't include password in JSON
-    return ret;
-  },
-});
+const mongooseSchema = createMongoSchema<IUser>(userSchema.merge(baseMongooseZodSchema));
 
 // Add password comparison method
 mongooseSchema.methods.comparePassword = async function(candidatePassword: string): Promise<boolean> {
@@ -28,7 +17,8 @@ mongooseSchema.methods.comparePassword = async function(candidatePassword: strin
 };
 
 // Hash password before saving
-mongooseSchema.pre('save', async function(this: UserDocument, next) {
+
+mongooseSchema.pre('validate', async function(this: mongoose.Document & IUser, next: mongoose.CallbackWithoutResultAndOptionalError) {
   if (!this.isModified('password') || !this.password) {
     return next();
   }
@@ -42,7 +32,12 @@ mongooseSchema.pre('save', async function(this: UserDocument, next) {
   }
 });
 
+interface IUserMethods {
+  comparePassword(candidatePassword: string): Promise<boolean>;
+}
+
+type UserModel = mongoose.Model<IUser, {}, IUserMethods>;
 /**
  * User model
  */
-export const UserModel = mongoose.model<UserDocument>('User', mongooseSchema); 
+export const UserModel = mongoose.model<IUser, UserModel>('User', mongooseSchema); 

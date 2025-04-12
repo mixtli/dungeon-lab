@@ -2,7 +2,7 @@ import express from 'express';
 import * as storageController from '../controllers/storage.controller.mjs';
 import { authenticate } from '../middleware/auth.middleware.mjs';
 import { openApiGet, openApiPost, openApiDelete } from '../oapi.mjs';
-import { z } from '@dungeon-lab/shared/lib/zod.mjs';
+import { z } from '../utils/zod.mjs';
 
 const router = express.Router();
 

@@ -1,9 +1,10 @@
 import { Types } from 'mongoose';
-import { IEncounter, IEncounterCreateData } from '@dungeon-lab/shared/src/schemas/encounter.schema.mjs';
+import { IEncounter} from '@dungeon-lab/shared/src/schemas/encounter.schema.mjs';
 import { EncounterModel} from '../models/encounter.model.mjs';
 import { CampaignModel } from '../models/campaign.model.mjs';
-import { ActorModel, type ActorDocument } from '../../actors/models/actor.model.mjs';
+import { ActorModel } from '../../actors/models/actor.model.mjs';
 import { logger } from '../../../utils/logger.mjs';
+import { IActor } from '@dungeon-lab/shared/index.mjs';
 
 // Transform MongoDB document to API response
 function transformEncounter(doc: any): IEncounter {
@@ -56,7 +57,7 @@ export class EncounterService {
     }
   }
 
-  async createEncounter(data: IEncounterCreateData, campaignId: string, userId: string): Promise<IEncounter> {
+  async createEncounter(data: IEncounter, campaignId: string, userId: string): Promise<IEncounter> {
     try {
       const userObjectId = new Types.ObjectId(userId);
       const mapObjectId = new Types.ObjectId(data.mapId);
@@ -163,7 +164,7 @@ export class EncounterService {
       // Get user's actors
       const userObjectId = new Types.ObjectId(userId);
       const userActors = await ActorModel.find({ createdBy: userObjectId });
-      const actorIds = userActors.map((actor: ActorDocument) => actor._id) as Types.ObjectId[];
+      const actorIds = userActors.map((actor: IActor) => actor.id!)
 
       // Check if user is GM, participant, has a character in the campaign, or is admin
       const isGM = campaign.gameMasterId?.toString() === userId;

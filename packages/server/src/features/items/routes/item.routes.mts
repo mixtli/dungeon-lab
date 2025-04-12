@@ -3,9 +3,9 @@ import { ItemController } from '../controllers/item.controller.mjs';
 import { ItemService } from '../services/item.service.mjs';
 import { authenticate } from '../../../middleware/auth.middleware.mjs';
 import { validateRequest } from '../../../middleware/validation.middleware.mjs';
-import { itemCreateSchema, itemUpdateSchema, itemSchema } from '@dungeon-lab/shared/schemas/item.schema.mjs';
+import { itemSchema } from '@dungeon-lab/shared/schemas/item.schema.mjs';
 import { openApiGet, openApiGetOne, openApiPost, openApiPut, openApiDelete } from '../../../oapi.mjs';
-
+import { z } from '../../../utils/zod.mjs';
 // Initialize services and controllers
 const itemService = new ItemService();
 const itemController = new ItemController(itemService);
@@ -31,15 +31,15 @@ router.get('/:id', openApiGetOne(itemSchema, {
 }), boundGetItemById);
 
 // Protected routes
-router.post('/', authenticate, openApiPost(itemCreateSchema, {
+router.post('/', authenticate, openApiPost(itemSchema, {
   description: 'Create new item'
-}), validateRequest(itemCreateSchema), boundCreateItem);
+}), validateRequest(itemSchema), boundCreateItem);
 
-router.put('/:id', authenticate, openApiPut(itemUpdateSchema, {
+router.put('/:id', authenticate, openApiPut(itemSchema.partial(), {
   description: 'Update item by ID'
-}), validateRequest(itemUpdateSchema), boundUpdateItem);
+}), validateRequest(itemSchema.partial()), boundUpdateItem);
 
-router.delete('/:id', authenticate, openApiDelete(itemSchema, {
+router.delete('/:id', authenticate, openApiDelete(z.null(), {
   description: 'Delete item by ID'
 }), boundDeleteItem);
 

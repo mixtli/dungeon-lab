@@ -1,4 +1,5 @@
-import { z } from '../lib/zod.mjs';
+import { z } from 'zod';
+import { baseSchema } from './base.schema.mjs';
 
 // Token sizes following D&D 5e conventions
 export const TokenSizeEnum = z.enum([
@@ -11,8 +12,7 @@ export const TokenSizeEnum = z.enum([
 ]);
 
 // Base Token schema
-export const tokenSchema = z.object({
-  id: z.string().optional(),
+export const tokenSchema = baseSchema.extend({
   name: z.string().min(1),
   imageUrl: z.string().url(),
   size: TokenSizeEnum,
@@ -24,30 +24,28 @@ export const tokenSchema = z.object({
   notes: z.string().optional(),
   isVisible: z.boolean().default(true),
   elevation: z.number().default(0), // Height above ground in feet
-  createdBy: z.string(),
-  updatedBy: z.string()
 });
 
 // Create data schema (omits auto-generated fields)
-export const tokenCreateSchema = tokenSchema.omit({
-  id: true,
-  createdBy: true,
-  updatedBy: true
-});
+// export const tokenCreateSchema = tokenSchema.omit({
+//   id: true,
+//   createdBy: true,
+//   updatedBy: true
+// });
 
-// Update data schema (makes all fields optional except updatedBy)
-export const tokenUpdateSchema = tokenSchema
-  .omit({
-    id: true,
-    createdBy: true
-  })
-  .partial()
-  .extend({
-    updatedBy: z.string()
-  });
+// // Update data schema (makes all fields optional except updatedBy)
+// export const tokenUpdateSchema = tokenSchema
+//   .omit({
+//     id: true,
+//     createdBy: true
+//   })
+//   .partial()
+//   .extend({
+//     updatedBy: z.string()
+//   });
 
 // Export types generated from the schemas
 export type IToken = z.infer<typeof tokenSchema>;
-export type ITokenCreateData = z.infer<typeof tokenCreateSchema>;
-export type ITokenUpdateData = z.infer<typeof tokenUpdateSchema>;
+// export type ITokenCreateData = z.infer<typeof tokenCreateSchema>;
+// export type ITokenUpdateData = z.infer<typeof tokenUpdateSchema>;
 export type TokenSize = z.infer<typeof TokenSizeEnum>; 
