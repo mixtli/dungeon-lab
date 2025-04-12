@@ -2,7 +2,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useCampaignStore } from '../../stores/campaign.mjs';
-import type { IInviteCreateData } from '@dungeon-lab/shared/index.mjs';
+import type { IInvite } from '@dungeon-lab/shared/index.mjs';
 
 const props = defineProps<{
   campaignId: string;
@@ -29,9 +29,10 @@ async function handleSubmit() {
   error.value = null;
 
   try {
-    const inviteData: IInviteCreateData = {
+    const inviteData: IInvite = {
       campaignId: props.campaignId,
       email: email.value,
+      status: 'pending',
     };
 
     await campaignStore.sendInvite(inviteData);

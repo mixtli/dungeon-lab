@@ -4,7 +4,6 @@ import { useCampaignStore } from '../../stores/campaign.mjs';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/auth.mjs';
 import { pluginRegistry } from '../../services/plugin-registry.service.mjs';
-import { type ICampaignCreateData, type ICampaignUpdateData } from '@dungeon-lab/shared/index.mjs';
 
 const props = defineProps<{
   campaignId?: string;
@@ -87,7 +86,7 @@ async function submitForm() {
   try {
     if (isEditMode.value && props.campaignId) {
       // Update existing campaign
-      const updateData: ICampaignUpdateData = {
+      const updateData = {
         ...formData.value,
         updatedBy: authStore.user?.id || ''
       };
@@ -105,7 +104,7 @@ async function submitForm() {
         return;
       }
 
-      const createData: ICampaignCreateData = {
+      const createData = {
         name: formData.value.name,
         description: formData.value.description || '',
         status: formData.value.status,

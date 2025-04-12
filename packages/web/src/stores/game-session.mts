@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import api from '../network/axios.mjs';
-import type { IGameSession, IGameSessionCreateData } from '@dungeon-lab/shared/index.mjs';
+import type { IGameSession } from '@dungeon-lab/shared/index.mjs';
 import { GameSessionStatus } from '@dungeon-lab/shared/src/schemas/game-session.schema.mjs';
 import type { IActor } from '@dungeon-lab/shared/src/schemas/actor.schema.mjs';
 import type { ICampaign } from '@dungeon-lab/shared/src/schemas/campaign.schema.mjs';
@@ -33,7 +33,7 @@ export const useGameSessionStore = defineStore('gameSession', () => {
   });
 
   // Actions
-  async function createGameSession(data: Omit<IGameSessionCreateData, 'participants'>) {
+  async function createGameSession(data: Omit<IGameSession, 'participants'>) {
     loading.value = true;
     error.value = null;
 

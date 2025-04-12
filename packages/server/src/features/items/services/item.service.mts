@@ -103,7 +103,7 @@ export class ItemService {
         throw new Error('Item not found');
       }
 
-      return item.createdBy.toString() === userId || isAdmin;
+      return item.createdBy === userId || isAdmin;
     } catch (error) {
       logger.error('Error checking user permission:', error);
       throw new Error('Failed to check user permission');

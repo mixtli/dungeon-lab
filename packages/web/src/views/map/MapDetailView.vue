@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import type { IMap, IMapUpdateData } from '@dungeon-lab/shared/index.mjs';
+import type { IMap } from '@dungeon-lab/shared/index.mjs';
 import axios from '../../network/axios.mjs';
 import { ArrowLeftIcon } from '@heroicons/vue/24/outline';
 import MapImage from '../../components/MapImage.vue';
@@ -11,7 +11,7 @@ const router = useRouter();
 const loading = ref(false);
 const editing = ref(false);
 const map = ref<IMap | null>(null);
-const formData = ref<IMapUpdateData>({
+const formData = ref<Partial<IMap>>({
   name: '',
   description: '',
   gridColumns: 20

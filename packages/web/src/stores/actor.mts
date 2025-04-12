@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import api from '../network/axios.mjs';
-import { IActor, IActorCreateData, IActorUpdateData } from '@dungeon-lab/shared/dist/index.mjs';
+import { type IActor } from '@dungeon-lab/shared/index.mjs';
 
 export const useActorStore = defineStore('actor', () => {
   // State
@@ -56,7 +56,7 @@ export const useActorStore = defineStore('actor', () => {
     }
   }
 
-  async function createActor(actorData: IActorCreateData) {
+  async function createActor(actorData: IActor) {
     loading.value = true;
     error.value = null;
 
@@ -75,7 +75,7 @@ export const useActorStore = defineStore('actor', () => {
     }
   }
 
-  async function updateActor(id: string, actorData: IActorUpdateData) {
+  async function updateActor(id: string, actorData: Partial<IActor>) {
     loading.value = true;
     error.value = null;
 

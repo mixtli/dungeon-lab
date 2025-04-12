@@ -19,6 +19,8 @@ export {
   userPreferencesSchema,
 } from './schemas/user.schema.mjs';
 
+export type { IEncounter } from './schemas/encounter.schema.mjs';
+
 // Invite types and schemas
 export type {
   IInvite,

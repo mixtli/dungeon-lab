@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import type { IEncounter, IEncounterCreateData } from '@dungeon-lab/shared/src/schemas/encounter.schema.mjs';
-import type { IActor } from '@dungeon-lab/shared/src/schemas/actor.schema.mjs';
+import type { IEncounter } from '@dungeon-lab/shared/index.mjs';
+import type { IActor } from '@dungeon-lab/shared/index.mjs';
 import { useApi } from '../composables/useApi.js';
 
 export interface IEncounterWithActors extends Omit<IEncounter, 'participants'> {
@@ -75,7 +75,7 @@ export const useEncounterStore = defineStore('encounter', () => {
     }
   }
 
-  async function createEncounter(data: Omit<IEncounterCreateData, 'campaignId'>, campaignId: string) {
+  async function createEncounter(data: Omit<IEncounter, 'campaignId'>, campaignId: string) {
     loading.value = true;
     error.value = null;
     

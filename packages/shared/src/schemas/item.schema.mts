@@ -11,9 +11,7 @@ export const itemSchema = baseSchema.extend({
   pluginId: z.string().min(1),
   weight: z.number().optional(),
   cost: z.number().optional(),
-  data: z.any(),
-  createdBy: z.string(),
-  updatedBy: z.string(),
+  data: z.any()
 });
 
 // Create data schema (omits auto-generated fields)

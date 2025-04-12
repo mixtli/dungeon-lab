@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import api from '../network/axios.mjs';
-import { ICampaign, ICampaignCreateData, ICampaignUpdateData, IInviteCreateData } from '@dungeon-lab/shared/dist/index.mjs';
+import { type ICampaign, type IInvite } from '@dungeon-lab/shared/dist/index.mjs';
 
 export const useCampaignStore = defineStore('campaign', () => {
   // State
@@ -56,7 +56,7 @@ export const useCampaignStore = defineStore('campaign', () => {
     }
   }
 
-  async function createCampaign(campaignData: ICampaignCreateData) {
+  async function createCampaign(campaignData: ICampaign) {
     loading.value = true;
     error.value = null;
 
@@ -75,7 +75,7 @@ export const useCampaignStore = defineStore('campaign', () => {
     }
   }
 
-  async function updateCampaign(id: string, campaignData: ICampaignUpdateData) {
+  async function updateCampaign(id: string, campaignData: Partial<ICampaign>) {
     loading.value = true;
     error.value = null;
 
@@ -129,7 +129,7 @@ export const useCampaignStore = defineStore('campaign', () => {
     }
   }
 
-  async function sendInvite(inviteData: IInviteCreateData) {
+  async function sendInvite(inviteData: IInvite) {
     loading.value = true;
     error.value = null;
 

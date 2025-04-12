@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import api from '../network/axios.mjs';
-import { IItem, IItemCreateData, IItemUpdateData } from '@dungeon-lab/shared/dist/index.mjs';
+import { IItem } from '@dungeon-lab/shared/index.mjs';
 
 export const useItemStore = defineStore('item', () => {
   // State
@@ -56,7 +56,7 @@ export const useItemStore = defineStore('item', () => {
     }
   }
 
-  async function createItem(data: IItemCreateData) {
+  async function createItem(data: IItem) {
     loading.value = true;
     error.value = null;
 
@@ -74,7 +74,7 @@ export const useItemStore = defineStore('item', () => {
     }
   }
 
-  async function updateItem(id: string, data: IItemUpdateData) {
+  async function updateItem(id: string, data: Partial<IItem>) {
     loading.value = true;
     error.value = null;
 

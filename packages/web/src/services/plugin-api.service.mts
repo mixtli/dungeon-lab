@@ -2,9 +2,8 @@ import { IPluginAPI } from '@dungeon-lab/shared/types/plugin-api.mjs';
 import { useActorStore } from '../stores/actor.mjs';
 import { useSocketStore } from '../stores/socket.mjs';
 import { pluginRegistry } from './plugin-registry.service.mjs';
-import { useAuthStore } from '../stores/auth.mjs';
 import { useItemStore } from '../stores/item.mjs';
-import type { IActor, IActorCreateData, IActorUpdateData, IItemCreateData, IItemUpdateData } from '@dungeon-lab/shared/index.mjs';
+import type { IActor, IItem} from '@dungeon-lab/shared/index.mjs';
 import api from '../network/axios.mjs';
 /**
  * Implementation of the Plugin API for the web client
@@ -26,21 +25,10 @@ export class PluginAPI implements IPluginAPI {
     return useSocketStore();
   }
 
-  private get authStore() {
-    return useAuthStore();
-  }
-
   private get itemStore() {
     return useItemStore();
   }
 
-  private getCurrentUserId(): string {
-    const userId = this.authStore.user?.id;
-    if (!userId) {
-      throw new Error('No user logged in');
-    }
-    return userId;
-  }
 
   // Actor management
   async createActor(type: string, data: unknown): Promise<string> {
@@ -59,7 +47,7 @@ export class PluginAPI implements IPluginAPI {
     const validatedData = validation.data as Record<string, unknown>;
     const name = typeof validatedData.name === 'string' ? validatedData.name : `New ${type}`;
 
-    const createData: IActorCreateData = {
+    const createData: IActor = {
       name,
       type,
       gameSystemId: this.pluginId,
@@ -93,12 +81,9 @@ export class PluginAPI implements IPluginAPI {
       throw new Error(`Invalid actor data: ${validation.error.message}`);
     }
 
-    // Get the current user ID for updatedBy
-    const userId = this.getCurrentUserId();
 
-    const updateData: IActorUpdateData = {
-      data: validation.data,
-      updatedBy: userId
+    const updateData: Partial<IActor> = {
+      data: validation.data as Record<string, unknown>
     };
 
     await this.actorStore.updateActor(id, updateData);
@@ -125,7 +110,7 @@ export class PluginAPI implements IPluginAPI {
     const validatedData = validation.data as Record<string, unknown>;
     const name = typeof validatedData.name === 'string' ? validatedData.name : `New ${type}`;
 
-    const createData: IItemCreateData = {
+    const createData: IItem = {
       name,
       type,
       gameSystemId: this.pluginId,
@@ -160,12 +145,9 @@ export class PluginAPI implements IPluginAPI {
       throw new Error(`Invalid item data: ${validation.error.message}`);
     }
 
-    // Get the current user ID for updatedBy
-    const userId = this.getCurrentUserId();
 
-    const updateData: IItemUpdateData = {
-      data: validation.data as Record<string, unknown>,
-      updatedBy: userId
+    const updateData: Partial<IItem> = {
+      data: validation.data as Record<string, unknown>
     };
 
     await this.itemStore.updateItem(id, updateData);
