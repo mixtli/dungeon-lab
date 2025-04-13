@@ -1,0 +1,30 @@
+---
+description: Guide to troubleshooting errors
+globs: 
+alwaysApply: false
+---
+# Troubleshooting Guide
+
+## Storing Errors in persistent state
+
+* Errors and their resolutions will be stored in a persistent state using the memento mcp.
+* Whenever we encounter an error, search the memento mcp for similar errors we have seen in the past.
+* When we resolve an error store the following:
+    * The error message if any
+    * A description of the error
+    * How the error was resolved.
+
+## Debugging
+
+
+### General guidelines
+* Use console.debug to log debugging information
+* Most of the time you don't need to restart to see a change.  We are running with hot reloading.
+
+### Server debugging
+* We will attach the cursor debugger to the node process to set breakpoints.
+
+### Web debugging
+* Currently we debug by running Chrome in debug mode through cursor launch settings.    
+
+

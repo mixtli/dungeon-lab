@@ -3,7 +3,6 @@
     "typescript.enablePromptUseWorkspaceTsdk": true,
     "typescript.validate.enable": true,
     "typescript.tsserver.log": "off",
-    "typescript.tsserver.experimental.enableProjectDiagnostics": false,
     "files.exclude": {
         "**/.git": true,
         "**/.svn": true,
@@ -12,5 +11,8 @@
         "**/.DS_Store": true,
         "**/Thumbs.db": true,
         "**/node_modules": true
-    }   
+    },
+    // IMPORTANT: Setting this to true causes hundreds of false TypeScript errors
+    // Keep this false to prevent spurious errors with ESM imports (.mjs extensions)
+    "typescript.tsserver.experimental.enableProjectDiagnostics": false
 }

@@ -9,12 +9,7 @@ packages/**/dist */
 dist
 
 # VSCode
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
-.vscode/chrome-debug-profile/
+.vscode/chrome-debug-profile
 backup
 mongo_data
 minio_data
