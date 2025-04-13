@@ -1,12 +1,13 @@
 # Tasks
 
 ## Pending
-- Initialize Task Master
-- Create PRD file in scripts directory
-- Generate initial tasks using parse-prd
+- None currently (Proceed to implementation phase)
 
 ## In Progress
-- Set up Memory Bank structure (VAN mode)
+- None currently
 
 ## Completed
-- None yet 
+- Set up Memory Bank structure (VAN mode)
+- Initialize Task Master
+- Review existing PRD file in scripts directory
+- Generate initial tasks using parse-prd 
