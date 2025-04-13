@@ -1,0 +1,12 @@
+---
+description: Rules for importing typescript files.
+globs: 
+alwaysApply: false
+---
+
+# Filename conventions
+1. We are using only typescript, not javascript,  and only ESM module syntax.  We should never use CommonJS format when writing files and should import files using ESM syntax.  Therefore, every typescript files should have a ".mts" extension.
+
+# Imports
+1. **import** When calling import, we should reference the file by the ".mjs" extension.   The development server and compiler expect this and will fail if you reference a file my it's typescript extension. 
+2. Do not import from dist directories.   The dist directory is where the compiled output goes, but you should not import from it. 

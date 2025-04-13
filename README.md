@@ -62,59 +62,24 @@ Dungeon Lab supports a plugin system that allows extending the application with 
 
 ### Plugin Configuration
 
-Plugins are configured using a `config.json` file in the root of each plugin's directory. The file should have the following structure:
+For instructions on creating a plugin, see: `docs/plugins.md` 
 
-```json
-{
-  "id": "plugin-id",
-  "name": "Plugin Name",
-  "version": "0.1.0",
-  "description": "Plugin description",
-  "author": "Plugin Author",
-  "website": "https://example.com/plugin",
-  "type": "gameSystem",
-  "enabled": true
-}
-```
+### Dependencies
+We want to maintain careful control of which way build time dependencies go.  The client and server code should never depend on each other directly.  All code may depend on code in the shared package, however code in plugin's shared folder can only be depended on by code in that plugin.
 
-- `id`: Unique identifier for the plugin
-- `name`: Display name of the plugin
-- `version`: Semantic version of the plugin
-- `description`: Brief description of the plugin
-- `author`: Plugin author's name
-- `website`: Plugin's website (optional)
-- `type`: Plugin type, one of `gameSystem`, `extension`, or `theme`
-- `enabled`: Whether the plugin is enabled by default
 
-### Creating a Plugin
+#### Allowed Build Time Dependencies
 
-To create a new plugin:
+web -> shared
+server -> shared
+plugin/web -> shared
+plugin/server -> shared
+plugin/web -> plugin/shared
+plugin/server -> plugin/shared
+plugin/shared -> shared
 
-1. Create a new directory in the `packages/plugins` directory
-2. Create a `config.json` file in the plugin directory
-3. Implement the plugin code in the `src` directory
-4. Export a default object that implements the appropriate plugin interface
-
-Example structure for a game system plugin:
-
-```
-packages/plugins/my-game-system/
-├── manifest.json
-├── package.json
-├── tsconfig.json
-└── src/
-    ├── index.ts       # Server-side entry point
-    ├── server/        # Server-side code
-    │   ├── index.mts   # server-side entry point
-    │   └── ...
-    ├── web/           # Client-side code
-    │   ├── index.mts   # Client-side entry point
-    │   └── ...
-    ├── shared/           # Plugin shared code
-    │   ├── index.mts   
-    │   └── ...
-    └── ...
-```
+#### Allowed Run Time Dependencies
+At run time, the web and server will load plugins dynamically, but only depend upon an interface defined in the shared package.
 
 ## License
 

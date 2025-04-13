@@ -1,0 +1,147 @@
+<context>
+# Overview  
+DungeonLab is a Virtual Table Top (VTT) system for Table Top Role Playing Games (TTRPGs) with a plugin architecture to support multiple game systems. It provides a collaborative environment for game masters and players to run their tabletop RPG sessions online with rich features and flexibility.
+
+# Core Features  
+- **Multi-System Support**: Run games in D&D 5e, Pathfinder, or any other system with the appropriate plugin
+- **Extensible Plugin Architecture**: Create custom game system plugins with their own data models and UI components
+- **Character Management**: Create, edit, and manage character sheets with full support for game system rules
+- **Battle Maps**: Interactive maps with grid support, token placement, fog of war, and drawing tools
+- **Dice Rolling**: Virtual dice with support for complex dice expressions and roll modifiers
+- **Chat System**: In-game chat with support for dice commands, whispers, and character messages
+- **Media Sharing**: Share images, audio, and documents during gameplay
+- **Campaign Management**: Organize games, sessions, and player invites
+
+# User Experience  
+- **Game Master**: Power users who need to create and manage campaigns, maps, NPCs, and storylines
+- **Players**: Users who join campaigns, manage characters, and participate in game sessions
+- **Plugin Developers**: Technical users who create game system plugins
+</context>
+<PRD>
+# Technical Architecture  
+## System Components
+- **Server**: Node.js Express application with TypeScript
+  - RESTful API for resource management
+  - WebSocket (socket.io) for real-time updates
+  - Authentication and session management
+  - Plugin loader and registry
+
+- **Web Client**: Vue.js application with TypeScript
+  - Responsive UI with Tailwind CSS
+  - Real-time updates via WebSockets
+  - Dynamic loading of plugin UI components
+  - Interactive battle map with canvas rendering
+
+- **Plugin System**:
+  - Game system plugins (D&D 5e, Pathfinder, etc.)
+  - Each plugin has server and client components
+  - Shared TypeScript interfaces for plugin integration
+
+- **Database**: MongoDB
+  - Stores users, campaigns, characters, maps, etc.
+  - Plugin-specific data stores
+
+## Data Models
+- **User**: Authentication and profile information
+- **Campaign**: Game campaign with sessions, players, and settings
+- **Character**: Player and non-player characters with system-specific data
+- **Map**: Battle maps with tokens, layers, and fog of war
+- **Asset**: Shared images, audio, and documents
+- **Plugin**: Registered plugins with metadata
+
+## APIs and Integrations
+- **Authentication API**: Register, login, session management
+- **Campaign API**: CRUD operations for campaigns and invites
+- **Character API**: CRUD operations for characters
+- **Map API**: CRUD operations for maps and real-time updates
+- **Asset API**: Upload, manage, and share media assets
+- **Plugin API**: Register, load, and manage plugins
+
+## Infrastructure
+- **Production**: Docker-based deployment
+- **Development**: Local development with npm workspaces
+- **Storage**: MinIO for local development, cloud storage for production
+
+# Development Roadmap  
+## Phase 1: Core Framework
+- Set up project structure with npm workspaces
+- Implement basic server with Express and TypeScript
+- Set up web client with Vue.js and Tailwind
+- Create shared interfaces for plugins
+- Implement plugin loading system
+- Set up basic authentication and session management
+- Create MongoDB schema and connection
+
+## Phase 2: D&D 5e Plugin (2024 Rules)
+- Implement character model for D&D 5e
+- Create character sheet UI components
+- Implement dice rolling mechanics
+- Add spell and ability lookups
+- Create monster/NPC database
+
+## Phase 3: Battle Map System
+- Implement canvas-based map interface
+- Add token placement and movement
+- Create fog of war system
+- Add measurement and grid tools
+- Implement drawing and annotation tools
+
+## Phase 4: Campaign Management
+- Create campaign creation and management
+- Implement session scheduling
+- Add player invitation system
+- Create campaign notes and journals
+- Implement asset management for campaigns
+
+## Phase 5: Real-time Collaboration
+- Implement chat system with dice commands
+- Add voice and video integration options
+- Create shared initiative tracker
+- Implement turn management
+- Add whisper and private messaging
+
+## Phase 6: Additional Plugins
+- Create plugin for Pathfinder 2e
+- Add support for custom dice systems
+- Implement universal content system
+- Create marketplace for community plugins
+
+# Logical Dependency Chain
+1. Core server and client framework
+2. Plugin system architecture
+3. Authentication and user management
+4. D&D 5e plugin foundation
+5. Basic character management
+6. Simple battle map functionality
+7. Campaign creation and management
+8. Advanced battle map features
+9. Real-time communication
+10. Enhanced game system features
+11. Additional plugins and extensions
+
+# Risks and Mitigations  
+## Technical Challenges
+- **Real-time synchronization**: Implement robust WebSocket handling with reconnection logic
+- **Canvas performance**: Optimize rendering and use web workers where appropriate
+- **Plugin isolation**: Ensure plugins cannot break core functionality
+
+## MVP Definition
+- Focus on core D&D 5e support initially
+- Implement essential battle map features first
+- Start with text-based chat before voice/video
+
+## Resource Constraints
+- Leverage existing libraries where possible
+- Implement robust error handling and monitoring
+- Use progressive enhancement for features
+
+# Appendix  
+## Technical Specifications
+- TypeScript 5.0+
+- Node.js 18+
+- Vue.js 3 with Composition API
+- MongoDB 5.0+
+- Socket.io for real-time communication
+- Tailwind CSS for styling
+- ESM modules throughout
+</PRD>
