@@ -7,20 +7,20 @@
     --color-primary: 14 165 233;
     --color-secondary: 139 92 246;
   }
-  
+
   html {
     font-family: 'Inter', system-ui, sans-serif;
   }
 
   /* Improve form element contrast in dark mode */
-  .dark input[type="text"],
-  .dark input[type="email"],
-  .dark input[type="password"],
-  .dark input[type="number"],
-  .dark input[type="tel"],
-  .dark input[type="url"],
-  .dark input[type="search"],
-  .dark input[type="date"],
+  .dark input[type='text'],
+  .dark input[type='email'],
+  .dark input[type='password'],
+  .dark input[type='number'],
+  .dark input[type='tel'],
+  .dark input[type='url'],
+  .dark input[type='search'],
+  .dark input[type='date'],
   .dark textarea,
   .dark select {
     color: #1f2937 !important; /* text-gray-800 - dark text */
@@ -28,7 +28,10 @@
   }
 
   /* For white background inputs that might be using custom classes */
-  .dark input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not(.bg-transparent),
+  .dark
+    input:not([type='checkbox']):not([type='radio']):not([type='button']):not([type='submit']):not(
+      [type='reset']
+    ):not(.bg-transparent),
   .dark textarea:not(.bg-transparent),
   .dark select:not(.bg-transparent) {
     color: #1f2937 !important; /* text-gray-800 - dark text */
@@ -45,13 +48,17 @@
   .dark .fixed.inset-0 .bg-white label:not(header *),
   .dark .fixed.inset-0 .bg-white span:not(header *),
   .dark .fixed.inset-0 .bg-white h3:not(header *),
-  .dark .fixed.inset-0 .bg-white p:not([class*="text-"]):not(header *),
-  .dark .fixed.inset-0 .bg-white div:not([class*="text-"]):not(header *) > span:not([class*="text-"]):not(header *) {
+  .dark .fixed.inset-0 .bg-white p:not([class*='text-']):not(header *),
+  .dark
+    .fixed.inset-0
+    .bg-white
+    div:not([class*='text-']):not(header *)
+    > span:not([class*='text-']):not(header *) {
     color: #1f2937 !important; /* text-gray-800 - dark text */
   }
 
   /* Fix for headings in modals specifically */
-  .dark .fixed.inset-0 [id="modal-title"]:not(header *),
+  .dark .fixed.inset-0 [id='modal-title']:not(header *),
   .dark .fixed.inset-0 .text-gray-900:not(header *) {
     color: #1f2937 !important; /* text-gray-800 - dark text */
   }
@@ -75,19 +82,19 @@
   .btn {
     @apply px-4 py-2 rounded-md font-medium transition-colors;
   }
-  
+
   .btn-primary {
     @apply bg-primary-600 text-white hover:bg-primary-700;
   }
-  
+
   .btn-secondary {
     @apply bg-secondary-600 text-white hover:bg-secondary-700;
   }
-  
+
   .btn-outline {
     @apply border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800;
   }
-  
+
   .card {
     @apply bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden;
   }
@@ -129,4 +136,4 @@
   .nav-text-primary {
     @apply text-primary-600 dark:text-primary-400;
   }
-} 
+}

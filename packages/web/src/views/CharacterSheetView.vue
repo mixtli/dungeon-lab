@@ -26,14 +26,14 @@ onMounted(async () => {
   try {
     // Fetch the character data
     const fetchedCharacter = await actorStore.fetchActor(characterId);
-    
+
     if (fetchedCharacter) {
       character.value = fetchedCharacter;
       console.log('character', character.value);
-      
+
       // Get the plugin ID from the character's gameSystemId
       pluginId.value = fetchedCharacter.gameSystemId || '';
-      
+
       // Check if plugin is loaded or available
       if (pluginId.value) {
         const plugin = pluginRegistry.getGameSystemPlugin(pluginId.value);
@@ -70,22 +70,22 @@ onMounted(async () => {
       <div class="spinner"></div>
       <p>Loading character...</p>
     </div>
-    
+
     <div v-else-if="error" class="error">
       <h2>Error</h2>
       <p>{{ error }}</p>
     </div>
-    
+
     <div v-else-if="!character" class="not-found">
       <h2>Character Not Found</h2>
       <p>The character you're looking for doesn't exist or has been deleted.</p>
     </div>
-    
+
     <div v-else-if="!isPluginLoaded" class="plugin-error">
       <h2>Game System Not Available</h2>
       <p>The game system plugin required for this character is not available.</p>
     </div>
-    
+
     <div v-else class="character-container">
       <PluginUIContainer
         :plugin-id="pluginId"
@@ -103,7 +103,10 @@ onMounted(async () => {
   height: 100%;
 }
 
-.loading, .error, .not-found, .plugin-error {
+.loading,
+.error,
+.not-found,
+.plugin-error {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -123,14 +126,18 @@ onMounted(async () => {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .character-container {
   height: 100%;
 }
 
-.error, .not-found, .plugin-error {
+.error,
+.not-found,
+.plugin-error {
   color: #d32f2f;
 }
-</style> 
+</style>

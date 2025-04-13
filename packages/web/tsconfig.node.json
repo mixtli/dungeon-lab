@@ -8,7 +8,5 @@
     "allowSyntheticDefaultImports": true,
     "outDir": "./dist"
   },
-  "include": [
-    "vite.config.mts"
-  ]
-} 
+  "include": ["vite.config.mts"]
+}

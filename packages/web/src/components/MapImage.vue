@@ -61,19 +61,19 @@ onMounted(() => {
       @error="handleImageError"
       @load="handleImageLoad"
     />
-    
+
     <!-- Loading placeholder -->
-    <div 
-      v-if="showPlaceholder" 
+    <div
+      v-if="showPlaceholder"
       class="absolute inset-0 flex flex-col items-center justify-center bg-gray-100 text-gray-500 text-sm"
     >
       <ArrowPathIcon class="w-6 h-6 mb-2 animate-spin" />
       <span>Loading image...</span>
     </div>
-    
+
     <!-- Error state -->
-    <div 
-      v-if="imageError" 
+    <div
+      v-if="imageError"
       class="absolute inset-0 flex flex-col items-center justify-center bg-gray-100 text-red-500 text-sm"
     >
       <XCircleIcon class="w-6 h-6 mb-2" />
@@ -84,4 +84,4 @@ onMounted(() => {
 
 <style scoped>
 /* All styles have been converted to Tailwind classes */
-</style> 
+</style>

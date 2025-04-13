@@ -5,10 +5,6 @@
     "src/web/index.{js,ts,mts}",
     "src/scripts/*{ts,js,mts}"
   ],
-  "project": [
-    "**/*.{js,ts}"
-  ],
-  "ignore": [
-    "submodules/**"
-  ]
+  "project": ["**/*.{js,ts}"],
+  "ignore": ["submodules/**"]
 }

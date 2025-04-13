@@ -41,4 +41,4 @@ import LoginForm from '@/components/auth/LoginForm.vue';
 .auth-content {
   background-color: rgb(255 255 255); /* bg-white */
 }
-</style> 
+</style>

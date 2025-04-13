@@ -8,7 +8,8 @@ const notificationStore = useNotificationStore();
 const notifications = computed(() => notificationStore.notifications);
 
 function getNotificationClasses(type: string) {
-  const baseClasses = 'flex items-center p-4 mb-4 rounded-lg shadow-lg transform transition-all duration-300';
+  const baseClasses =
+    'flex items-center p-4 mb-4 rounded-lg shadow-lg transform transition-all duration-300';
   switch (type) {
     case 'success':
       return `${baseClasses} bg-green-50 text-green-800 border border-green-200`;
@@ -76,4 +77,4 @@ function getIconClasses(type: string) {
   opacity: 0;
   transform: translateX(30px);
 }
-</style> 
+</style>

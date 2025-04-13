@@ -8733,9 +8733,7 @@
   {
     "index": "jump",
     "name": "Jump",
-    "desc": [
-      "You touch a creature. The creature's jump distance is tripled until the spell ends."
-    ],
+    "desc": ["You touch a creature. The creature's jump distance is tripled until the spell ends."],
     "range": "Touch",
     "components": ["V", "S", "M"],
     "material": "A grasshopper's hind leg.",
@@ -9281,9 +9279,7 @@
   {
     "index": "longstrider",
     "name": "Longstrider",
-    "desc": [
-      "You touch a creature. The target's speed increases by 10 feet until the spell ends."
-    ],
+    "desc": ["You touch a creature. The target's speed increases by 10 feet until the spell ends."],
     "higher_level": [
       "When you cast this spell using a spell slot of 2nd level or higher, you can target one additional creature for each spell slot above 1st."
     ],

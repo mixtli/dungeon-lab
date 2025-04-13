@@ -21,8 +21,8 @@ const error = ref<string | null>(null);
 
 // Computed
 const isEditMode = computed(() => props.isEdit || false);
-const formTitle = computed(() => isEditMode.value ? 'Edit Campaign' : 'Create New Campaign');
-const submitButtonText = computed(() => isEditMode.value ? 'Save Changes' : 'Create Campaign');
+const formTitle = computed(() => (isEditMode.value ? 'Edit Campaign' : 'Create New Campaign'));
+const submitButtonText = computed(() => (isEditMode.value ? 'Save Changes' : 'Create Campaign'));
 
 const formData = ref<{
   name: string;
@@ -33,7 +33,7 @@ const formData = ref<{
   name: '',
   description: '',
   status: 'active',
-  settings: {}
+  settings: {},
 });
 
 const gameSystemId = ref('');
@@ -42,7 +42,8 @@ const isCreateForm = computed(() => !isEditMode.value);
 
 // Get game systems
 const gameSystems = computed(() => {
-  return pluginRegistry.getPlugins()
+  return pluginRegistry
+    .getPlugins()
     .filter(plugin => plugin.config.type === 'gameSystem' && !!plugin.config.enabled)
     .map(plugin => ({
       id: plugin.config.id,
@@ -62,7 +63,7 @@ onMounted(async () => {
           name: campaign.name,
           description: campaign.description || '',
           status: campaign.status,
-          settings: campaign.settings || {}
+          settings: campaign.settings || {},
         };
         gameSystemId.value = String(campaign.gameSystemId);
       } else {
@@ -88,7 +89,7 @@ async function submitForm() {
       // Update existing campaign
       const updateData = {
         ...formData.value,
-        updatedBy: authStore.user?.id || ''
+        updatedBy: authStore.user?.id || '',
       };
       await campaignStore.updateCampaign(props.campaignId, updateData);
       router.push({ name: 'campaign-detail', params: { id: props.campaignId } });
@@ -111,14 +112,14 @@ async function submitForm() {
         settings: formData.value.settings,
         gameSystemId: gameSystemId.value,
         gameMasterId: authStore.user.id,
-        members: [authStore.user.id]
+        members: [authStore.user.id],
       };
-      
+
       if (!createData.gameSystemId) {
         error.value = 'Please select a game system';
         return;
       }
-      
+
       const newCampaign = await campaignStore.createCampaign(createData);
       router.push({ name: 'campaign-detail', params: { id: newCampaign.id } });
     }
@@ -145,7 +146,11 @@ function cancelForm() {
     <h1 class="text-2xl font-semibold mb-6">{{ formTitle }}</h1>
 
     <form @submit.prevent="submitForm" class="space-y-6">
-      <div v-if="error" class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative" role="alert">
+      <div
+        v-if="error"
+        class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative"
+        role="alert"
+      >
         {{ error }}
       </div>
 
@@ -218,9 +223,26 @@ function cancelForm() {
           :disabled="!formData.name || (!gameSystemId && isCreateForm) || loading"
           class="inline-flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <svg v-if="loading" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          <svg
+            v-if="loading"
+            class="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              class="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              stroke-width="4"
+            ></circle>
+            <path
+              class="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            ></path>
           </svg>
           {{ submitButtonText }}
         </button>
@@ -235,4 +257,4 @@ function cancelForm() {
   margin: 0 auto;
   padding: 20px;
 }
-</style> 
+</style>

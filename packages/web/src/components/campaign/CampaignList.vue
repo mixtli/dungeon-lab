@@ -52,11 +52,11 @@ function viewCampaign(campaign: ICampaign) {
 // Delete campaign
 async function confirmDeleteCampaign(campaign: ICampaign) {
   if (!campaign.name || !campaign.id) return;
-  
+
   if (!confirm(`Are you sure you want to delete the campaign "${campaign.name}"?`)) {
     return;
   }
-  
+
   loading.value = true;
   try {
     await campaignStore.deleteCampaign(campaign.id);
@@ -72,8 +72,10 @@ async function confirmDeleteCampaign(campaign: ICampaign) {
 
 <template>
   <div class="campaign-list">
-    <div v-if="myCampaigns.length === 0 && !loading" 
-      class="mt-4 p-8 bg-white rounded-lg shadow text-center">
+    <div
+      v-if="myCampaigns.length === 0 && !loading"
+      class="mt-4 p-8 bg-white rounded-lg shadow text-center"
+    >
       <div class="text-gray-500 mb-4">You don't have any campaigns yet</div>
     </div>
 
@@ -81,34 +83,59 @@ async function confirmDeleteCampaign(campaign: ICampaign) {
       <table class="min-w-full divide-y divide-gray-200">
         <thead class="bg-gray-50">
           <tr>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Game System</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            <th
+              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+            >
+              Name
+            </th>
+            <th
+              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+            >
+              Game System
+            </th>
+            <th
+              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+            >
+              Status
+            </th>
+            <th
+              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+            >
+              Created
+            </th>
+            <th
+              class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+            >
+              Actions
+            </th>
           </tr>
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
           <tr v-for="campaign in myCampaigns" :key="campaign.id || ''" class="hover:bg-gray-50">
             <td class="px-6 py-4">
-              <div 
+              <div
                 class="cursor-pointer hover:text-blue-600 transition-colors"
                 @click="viewCampaign(campaign)"
               >
                 <div class="font-medium text-gray-900 hover:text-blue-600">{{ campaign.name }}</div>
-                <div class="text-sm text-gray-500 hover:text-blue-400" v-if="campaign.description">{{ campaign.description }}</div>
+                <div class="text-sm text-gray-500 hover:text-blue-400" v-if="campaign.description">
+                  {{ campaign.description }}
+                </div>
               </div>
             </td>
             <td class="px-6 py-4 text-sm text-gray-500">
               {{ getGameSystemName(campaign.gameSystemId) }}
             </td>
             <td class="px-6 py-4">
-              <span :class="{
-                'px-2 py-1 text-xs font-medium rounded-full': true,
-                'bg-green-100 text-green-800': campaign.status === 'active',
-                'bg-yellow-100 text-yellow-800': campaign.status === 'paused',
-                'bg-gray-100 text-gray-800': campaign.status === 'completed' || campaign.status === 'archived'
-              }">
+              <span
+                :class="{
+                  'px-2 py-1 text-xs font-medium rounded-full': true,
+                  'bg-green-100 text-green-800': campaign.status === 'active',
+                  'bg-yellow-100 text-yellow-800': campaign.status === 'paused',
+                  'bg-gray-100 text-gray-800':
+                    campaign.status === 'completed' || campaign.status === 'archived',
+                }"
+              >
                 {{ campaign.status }}
               </span>
             </td>
@@ -152,4 +179,4 @@ async function confirmDeleteCampaign(campaign: ICampaign) {
 .campaign-list {
   padding: 20px;
 }
-</style> 
+</style>

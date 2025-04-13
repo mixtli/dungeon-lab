@@ -52,4 +52,4 @@ npx playwright show-report
 
 To create a new test file, add a `.spec.ts` file in the `tests/` directory.
 
-For more information, refer to the [Playwright documentation](https://playwright.dev/docs/intro). 
+For more information, refer to the [Playwright documentation](https://playwright.dev/docs/intro).

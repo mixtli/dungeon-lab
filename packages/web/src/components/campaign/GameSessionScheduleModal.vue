@@ -57,28 +57,29 @@ async function handleSubmit() {
       gameMasterId: authStore.user.id,
       status: scheduleType.value === 'now' ? 'active' : 'paused',
       settings: {
-        scheduledStart: scheduleType.value === 'later' 
-          ? new Date(`${scheduledDate.value}T${scheduledTime.value}`).toISOString()
-          : undefined
-      }
+        scheduledStart:
+          scheduleType.value === 'later'
+            ? new Date(`${scheduledDate.value}T${scheduledTime.value}`).toISOString()
+            : undefined,
+      },
     } as const;
 
     const session = await gameSessionStore.createGameSession(sessionData);
-    
+
     if (session?.id) {
       if (scheduleType.value === 'now') {
         // Redirect to game session page
-        router.push({ 
-          name: 'game-session', 
-          params: { 
+        router.push({
+          name: 'game-session',
+          params: {
             campaignId: props.campaignId,
-            id: session.id 
-          }
+            id: session.id,
+          },
         });
       } else {
         emit('created', session.id);
       }
-      
+
       emit('close');
     }
   } catch (err) {
@@ -97,27 +98,38 @@ function handleClose() {
   scheduledDate.value = '';
   scheduledTime.value = '';
   error.value = null;
-  
+
   emit('close');
 }
 </script>
 
 <template>
-  <div v-if="show" class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+  <div
+    v-if="show"
+    class="fixed inset-0 z-50 overflow-y-auto"
+    aria-labelledby="modal-title"
+    role="dialog"
+    aria-modal="true"
+  >
+    <div
+      class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0"
+    >
       <!-- Background overlay -->
-      <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
+      <div
+        class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+        aria-hidden="true"
+      ></div>
 
       <!-- Modal panel -->
-      <div class="inline-block align-bottom modal-bg rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+      <div
+        class="inline-block align-bottom modal-bg rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full"
+      >
         <form @submit.prevent="handleSubmit">
           <div class="modal-bg px-4 pt-5 pb-4 sm:p-6">
             <div class="sm:flex sm:items-start">
               <div class="mt-3 text-center sm:mt-0 sm:text-left w-full">
-                <h3 class="modal-header" id="modal-title">
-                  Schedule Game Session
-                </h3>
-                
+                <h3 class="modal-header" id="modal-title">Schedule Game Session</h3>
+
                 <div class="mt-4 space-y-4">
                   <!-- Session Type Selection -->
                   <div>
@@ -129,7 +141,7 @@ function handleClose() {
                           v-model="scheduleType"
                           value="now"
                           class="form-radio text-blue-600"
-                        >
+                        />
                         <span class="ml-2 modal-text">Start Now</span>
                       </label>
                       <label class="inline-flex items-center">
@@ -138,7 +150,7 @@ function handleClose() {
                           v-model="scheduleType"
                           value="later"
                           class="form-radio text-blue-600"
-                        >
+                        />
                         <span class="ml-2 modal-text">Schedule for Later</span>
                       </label>
                     </div>
@@ -159,7 +171,9 @@ function handleClose() {
 
                   <!-- Session Description -->
                   <div>
-                    <label for="sessionDescription" class="modal-label">Description (Optional)</label>
+                    <label for="sessionDescription" class="modal-label"
+                      >Description (Optional)</label
+                    >
                     <textarea
                       id="sessionDescription"
                       v-model="sessionDescription"
@@ -213,9 +227,26 @@ function handleClose() {
               :disabled="loading"
               class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <svg v-if="loading" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              <svg
+                v-if="loading"
+                class="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  class="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  stroke-width="4"
+                ></circle>
+                <path
+                  class="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
               </svg>
               {{ scheduleType === 'now' ? 'Start Session' : 'Schedule Session' }}
             </button>
@@ -231,4 +262,4 @@ function handleClose() {
       </div>
     </div>
   </div>
-</template> 
+</template>

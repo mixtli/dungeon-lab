@@ -25,11 +25,15 @@ const svgWidth = round(containerWidth.value);
 const svgHeight = round(containerWidth.value / aspectRatio);
 
 // Watch for changes in the encounter's map
-watch(() => currentEncounter.value?.mapId, async (newMapId) => {
-  if (newMapId && typeof newMapId === 'string') {
-    await loadMap(newMapId);
-  }
-}, { immediate: true });
+watch(
+  () => currentEncounter.value?.mapId,
+  async newMapId => {
+    if (newMapId && typeof newMapId === 'string') {
+      await loadMap(newMapId);
+    }
+  },
+  { immediate: true }
+);
 
 // Load and render the map
 async function loadMap(mapId: string) {
@@ -94,16 +98,16 @@ function renderMap() {
   // Add the map image as background
   if (image.url) {
     console.log('Loading map image:', image.url); // Debug log
-    mapGroup.image(image.url)
-      .size(totalGridWidth, totalGridHeight);
+    mapGroup.image(image.url).size(totalGridWidth, totalGridHeight);
   }
 
   // Create grid cells
   const gridGroup = mapGroup.group().attr('class', 'grid');
-  
+
   for (let row = 0; row < gridRows; row++) {
     for (let col = 0; col < gridColumns; col++) {
-      const cell = gridGroup.rect(cellSize, cellSize)
+      const cell = gridGroup
+        .rect(cellSize, cellSize)
         .move(round(col * cellSize), round(row * cellSize))
         .fill('transparent')
         .stroke({ color: '#666', width: 1, opacity: 0.5 });
@@ -136,18 +140,13 @@ function renderMap() {
     zoomMin: 0.5,
     zoomMax: 3,
     zoomFactor: 0.02, // Reduced for smoother zooming
-    panning: true
+    panning: true,
   });
 
   // Add viewbox update handler
   draw.value.on('zoom', () => {
     const box = draw.value!.viewbox();
-    draw.value!.viewbox(
-      round(box.x),
-      round(box.y),
-      round(box.width),
-      round(box.height)
-    );
+    draw.value!.viewbox(round(box.x), round(box.y), round(box.width), round(box.height));
   });
 }
 
@@ -183,12 +182,7 @@ function toggleExpanded() {
 
 <template>
   <div class="map-grid" ref="gridContainer">
-    <svg
-      :width="svgWidth"
-      :height="svgHeight"
-      viewBox="0 0 100 100"
-      class="border border-gray-300"
-    >
+    <svg :width="svgWidth" :height="svgHeight" viewBox="0 0 100 100" class="border border-gray-300">
       <!-- Grid lines -->
       <g>
         <!-- Vertical lines -->
@@ -219,7 +213,7 @@ function toggleExpanded() {
 
   <!-- Teleport expanded view to body -->
   <Teleport to="body" v-if="isExpanded">
-    <div 
+    <div
       ref="svgContainer"
       class="fixed inset-0 w-screen h-screen bg-gray-800 overflow-hidden z-[9999]"
     >
@@ -230,11 +224,18 @@ function toggleExpanded() {
           class="p-2 rounded-lg bg-black/30 hover:bg-black/50 transition-colors"
           title="Contract map"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white/70" viewBox="0 0 20 20" fill="currentColor">
-            <path d="M3 3a1 1 0 000 2h11v11a1 1 0 002 0V5a2 2 0 00-2-2H3zM19 17a1 1 0 01-1 1H5a2 2 0 01-2-2V7a1 1 0 012 0v9h13a1 1 0 011 1z" />
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-5 w-5 text-white/70"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+          >
+            <path
+              d="M3 3a1 1 0 000 2h11v11a1 1 0 002 0V5a2 2 0 00-2-2H3zM19 17a1 1 0 01-1 1H5a2 2 0 01-2-2V7a1 1 0 012 0v9h13a1 1 0 011 1z"
+            />
           </svg>
         </button>
       </div>
     </div>
   </Teleport>
-</template> 
+</template>

@@ -43,11 +43,14 @@ onMounted(async () => {
 });
 
 // Computed properties for sessions by status
-const activeSessions = computed(() => 
-  gameSessionStore.campaignSessions?.filter(session => session.status === ('active' as SessionStatus)) || []
+const activeSessions = computed(
+  () =>
+    gameSessionStore.campaignSessions?.filter(
+      session => session.status === ('active' as SessionStatus)
+    ) || []
 );
 
-const scheduledSessions = computed(() => 
+const scheduledSessions = computed(() =>
   (gameSessionStore.campaignSessions || [])
     .filter(session => session.status === ('scheduled' as SessionStatus))
     .sort((a, b) => {
@@ -57,17 +60,20 @@ const scheduledSessions = computed(() =>
     })
 );
 
-const pausedSessions = computed(() => 
-  gameSessionStore.campaignSessions?.filter(session => session.status === ('paused' as SessionStatus)) || []
+const pausedSessions = computed(
+  () =>
+    gameSessionStore.campaignSessions?.filter(
+      session => session.status === ('paused' as SessionStatus)
+    ) || []
 );
 
 function joinSession(sessionId: string) {
-  router.push({ 
-    name: 'game-session', 
-    params: { 
+  router.push({
+    name: 'game-session',
+    params: {
       campaignId: props.campaignId,
-      id: sessionId 
-    }
+      id: sessionId,
+    },
   });
 }
 
@@ -112,7 +118,9 @@ async function updateSessionStatus(sessionId: string, status: SessionStatus) {
 
     <!-- Loading State -->
     <div v-if="loading" class="flex justify-center py-4">
-      <div class="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent"></div>
+      <div
+        class="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent"
+      ></div>
     </div>
 
     <!-- Error State -->
@@ -123,10 +131,15 @@ async function updateSessionStatus(sessionId: string, status: SessionStatus) {
     <div v-else>
       <!-- Active Sessions -->
       <div v-if="activeSessions.length > 0" class="mb-8">
-        <h4 class="text-sm font-medium text-gray-500 uppercase tracking-wider mb-4">Active Sessions</h4>
+        <h4 class="text-sm font-medium text-gray-500 uppercase tracking-wider mb-4">
+          Active Sessions
+        </h4>
         <div class="space-y-3">
-          <div v-for="session in activeSessions" :key="session.id" 
-            class="bg-white shadow-sm rounded-lg border border-green-200 p-4">
+          <div
+            v-for="session in activeSessions"
+            :key="session.id"
+            class="bg-white shadow-sm rounded-lg border border-green-200 p-4"
+          >
             <div class="flex justify-between items-start">
               <div>
                 <h5 class="text-lg font-medium text-gray-900">{{ session.name }}</h5>
@@ -163,10 +176,15 @@ async function updateSessionStatus(sessionId: string, status: SessionStatus) {
 
       <!-- Scheduled Sessions -->
       <div v-if="scheduledSessions.length > 0" class="mb-8">
-        <h4 class="text-sm font-medium text-gray-500 uppercase tracking-wider mb-4">Scheduled Sessions</h4>
+        <h4 class="text-sm font-medium text-gray-500 uppercase tracking-wider mb-4">
+          Scheduled Sessions
+        </h4>
         <div class="space-y-3">
-          <div v-for="session in scheduledSessions" :key="session.id"
-            class="bg-white shadow-sm rounded-lg border border-gray-200 p-4">
+          <div
+            v-for="session in scheduledSessions"
+            :key="session.id"
+            class="bg-white shadow-sm rounded-lg border border-gray-200 p-4"
+          >
             <div class="flex justify-between items-start">
               <div>
                 <h5 class="text-lg font-medium text-gray-900">{{ session.name }}</h5>
@@ -198,8 +216,17 @@ async function updateSessionStatus(sessionId: string, status: SessionStatus) {
                   class="inline-flex items-center px-2 py-1.5 border border-transparent text-sm font-medium rounded-md text-red-600 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                   title="Delete session"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="h-5 w-5"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fill-rule="evenodd"
+                      d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
+                      clip-rule="evenodd"
+                    />
                   </svg>
                 </button>
               </div>
@@ -210,10 +237,15 @@ async function updateSessionStatus(sessionId: string, status: SessionStatus) {
 
       <!-- Paused Sessions -->
       <div v-if="pausedSessions.length > 0" class="mb-8">
-        <h4 class="text-sm font-medium text-gray-500 uppercase tracking-wider mb-4">Paused Sessions</h4>
+        <h4 class="text-sm font-medium text-gray-500 uppercase tracking-wider mb-4">
+          Paused Sessions
+        </h4>
         <div class="space-y-3">
-          <div v-for="session in pausedSessions" :key="session.id"
-            class="bg-white shadow-sm rounded-lg border border-yellow-200 p-4">
+          <div
+            v-for="session in pausedSessions"
+            :key="session.id"
+            class="bg-white shadow-sm rounded-lg border border-yellow-200 p-4"
+          >
             <div class="flex justify-between items-start">
               <div>
                 <h5 class="text-lg font-medium text-gray-900">{{ session.name }}</h5>
@@ -242,8 +274,17 @@ async function updateSessionStatus(sessionId: string, status: SessionStatus) {
                   class="inline-flex items-center px-2 py-1.5 border border-transparent text-sm font-medium rounded-md text-red-600 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                   title="Delete session"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="h-5 w-5"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fill-rule="evenodd"
+                      d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
+                      clip-rule="evenodd"
+                    />
                   </svg>
                 </button>
               </div>
@@ -253,10 +294,16 @@ async function updateSessionStatus(sessionId: string, status: SessionStatus) {
       </div>
 
       <!-- No Sessions State -->
-      <div v-if="activeSessions.length === 0 && scheduledSessions.length === 0 && pausedSessions.length === 0" 
-        class="text-center py-8 bg-gray-50 rounded-lg">
+      <div
+        v-if="
+          activeSessions.length === 0 &&
+          scheduledSessions.length === 0 &&
+          pausedSessions.length === 0
+        "
+        class="text-center py-8 bg-gray-50 rounded-lg"
+      >
         <p class="text-gray-500">No active or scheduled sessions</p>
       </div>
     </div>
   </div>
-</template> 
+</template>

@@ -16,4 +16,4 @@ import AppHeader from './components/layout/AppHeader.vue';
 
 <style>
 @import './assets/styles/main.css';
-</style> 
+</style>

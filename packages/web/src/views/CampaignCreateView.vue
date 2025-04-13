@@ -12,4 +12,4 @@ import CampaignForm from '../components/campaign/CampaignForm.vue';
 .campaign-create-view {
   padding: 20px;
 }
-</style> 
+</style>

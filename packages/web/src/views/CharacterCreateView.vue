@@ -32,32 +32,40 @@ const basicInfo = ref({
   name: '',
   description: '',
   avatarImage: null as File | UploadedImage | null,
-  tokenImage: null as File | UploadedImage | null
+  tokenImage: null as File | UploadedImage | null,
 });
 
 // Watch for changes to avatar and token images
-watch(() => basicInfo.value.avatarImage, (newValue) => {
-  console.log('Avatar image changed:', newValue);
-  if (newValue instanceof File) {
-    console.log('Avatar is a File object');
-  } else if (newValue && typeof newValue === 'object' && 'url' in newValue) {
-    console.log('Avatar is an UploadedImage object with URL:', newValue.url);
-  }
-}, { deep: true });
+watch(
+  () => basicInfo.value.avatarImage,
+  newValue => {
+    console.log('Avatar image changed:', newValue);
+    if (newValue instanceof File) {
+      console.log('Avatar is a File object');
+    } else if (newValue && typeof newValue === 'object' && 'url' in newValue) {
+      console.log('Avatar is an UploadedImage object with URL:', newValue.url);
+    }
+  },
+  { deep: true }
+);
 
-watch(() => basicInfo.value.tokenImage, (newValue) => {
-  console.log('Token image changed:', newValue);
-  if (newValue instanceof File) {
-    console.log('Token is a File object');
-  } else if (newValue && typeof newValue === 'object' && 'url' in newValue) {
-    console.log('Token is an UploadedImage object with URL:', newValue.url);
-  }
-}, { deep: true });
+watch(
+  () => basicInfo.value.tokenImage,
+  newValue => {
+    console.log('Token image changed:', newValue);
+    if (newValue instanceof File) {
+      console.log('Token is a File object');
+    } else if (newValue && typeof newValue === 'object' && 'url' in newValue) {
+      console.log('Token is an UploadedImage object with URL:', newValue.url);
+    }
+  },
+  { deep: true }
+);
 
 // Get a url from either a File or UploadedImage
 function getUrlFromImageObject(imageObj: File | UploadedImage | null): string | null {
   if (!imageObj) return null;
-  
+
   if (imageObj instanceof File) {
     // No need to return a URL - when we submit we'll upload the file
     return null;
@@ -65,7 +73,7 @@ function getUrlFromImageObject(imageObj: File | UploadedImage | null): string | 
     // It's an UploadedImage - use its URL
     return imageObj.url;
   }
-  
+
   return null;
 }
 
@@ -89,22 +97,22 @@ onMounted(async () => {
   // Debug information
   console.log('Character Create View mounted');
   console.log('Active game system ID:', activeGameSystemId.value);
-  
+
   // Check if we have an active game system
   if (!activeGameSystemId.value) {
-    error.value = 'No active game system selected. Please select a game system in the Settings page.';
+    error.value =
+      'No active game system selected. Please select a game system in the Settings page.';
     isLoading.value = false;
     return;
   }
   isLoading.value = false;
 });
 
-
 // Handle form submission
 async function handleSubmit(event: Event) {
   try {
     isSubmitting.value = true;
-    
+
     // Check if plugin is available
     if (!plugin || !actorStore) return;
 
@@ -132,37 +140,37 @@ async function handleSubmit(event: Event) {
 
     // Prepare a FormData object for submission
     const formData = new FormData();
-    
+
     // Add basic character data
     formData.append('name', basicInfo.value.name);
     formData.append('type', 'character');
     formData.append('gameSystemId', plugin.config.id);
-    
+
     if (basicInfo.value.description) {
       formData.append('description', basicInfo.value.description);
     }
-    
+
     // Add plugin data as JSON
     formData.append('data', JSON.stringify(pluginData));
-    
+
     // Add avatar and token files if they exist
     if (basicInfo.value.avatarImage instanceof File) {
       formData.append('avatar', basicInfo.value.avatarImage);
     }
-    
+
     if (basicInfo.value.tokenImage instanceof File) {
       formData.append('token', basicInfo.value.tokenImage);
     }
-    
+
     // Send the request
     const response = await axios.post('/api/actors', formData, {
       headers: {
-        'Content-Type': 'multipart/form-data'
+        'Content-Type': 'multipart/form-data',
       },
-      timeout: 30000 // 30 seconds timeout
+      timeout: 30000, // 30 seconds timeout
     });
     sessionStorage.removeItem('actorCreationState');
-    
+
     // Navigate to the character sheet
     router.push({ name: 'character-sheet', params: { id: response.data.id } });
   } catch (err) {
@@ -187,17 +195,27 @@ function handleError(errorMessage: string) {
   <div class="max-w-3xl mx-auto p-6">
     <div class="bg-white rounded-lg shadow-md p-6">
       <h1 class="text-2xl font-bold text-gray-900 mb-6">Create New Character</h1>
-      
+
       <!-- Loading & Error States -->
       <div v-if="isLoading" class="flex justify-center items-center p-8">
         <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-700"></div>
       </div>
-      
+
       <div v-else-if="error" class="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
         <div class="flex">
           <div class="flex-shrink-0">
-            <svg class="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+            <svg
+              class="h-5 w-5 text-red-400"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                clip-rule="evenodd"
+              />
             </svg>
           </div>
           <div class="ml-3">
@@ -205,30 +223,39 @@ function handleError(errorMessage: string) {
           </div>
         </div>
       </div>
-      
+
       <!-- No Active Game System -->
       <div v-else-if="!activeGameSystemId" class="text-center py-6">
-        <p class="text-gray-700 mb-4">You need to select an active game system before creating a character.</p>
-        <button 
-          @click="router.push('/settings')" 
+        <p class="text-gray-700 mb-4">
+          You need to select an active game system before creating a character.
+        </p>
+        <button
+          @click="router.push('/settings')"
           class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
         >
           Go to Settings
         </button>
       </div>
-      
+
       <!-- Character Creation Steps -->
       <div v-else>
         <!-- Step Indicator -->
         <div class="mb-6">
           <div class="flex items-center">
-            <div class="w-8 h-8 rounded-full flex items-center justify-center" 
-                :class="currentStep === 1 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'">
+            <div
+              class="w-8 h-8 rounded-full flex items-center justify-center"
+              :class="currentStep === 1 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'"
+            >
               1
             </div>
-            <div class="flex-1 h-1 mx-2" :class="currentStep === 1 ? 'bg-gray-200' : 'bg-blue-600'"></div>
-            <div class="w-8 h-8 rounded-full flex items-center justify-center"
-                :class="currentStep === 2 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'">
+            <div
+              class="flex-1 h-1 mx-2"
+              :class="currentStep === 1 ? 'bg-gray-200' : 'bg-blue-600'"
+            ></div>
+            <div
+              class="w-8 h-8 rounded-full flex items-center justify-center"
+              :class="currentStep === 2 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'"
+            >
               2
             </div>
           </div>
@@ -237,62 +264,71 @@ function handleError(errorMessage: string) {
             <span>Character Details</span>
           </div>
         </div>
-        
+
         <!-- Single Form -->
-        <form @submit.prevent="handleSubmit" class="character-create-form" enctype="multipart/form-data">
+        <form
+          @submit.prevent="handleSubmit"
+          class="character-create-form"
+          enctype="multipart/form-data"
+        >
           <!-- Step 1: Basic Info -->
           <div v-show="currentStep === 1" class="form-step">
             <h2>Basic Information</h2>
             <div class="form-group">
               <label for="name">Character Name</label>
-              <input 
-                type="text" 
-                id="name" 
-                v-model="basicInfo.name" 
+              <input
+                type="text"
+                id="name"
+                v-model="basicInfo.name"
                 name="name"
                 required
                 class="form-input"
-              >
+              />
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 my-6">
               <div class="form-group">
                 <label class="block text-sm font-medium text-gray-700 mb-2">Avatar</label>
-                <ImageUpload
-                  v-model="basicInfo.avatarImage"
-                  type="avatar"
-                />
+                <ImageUpload v-model="basicInfo.avatarImage" type="avatar" />
                 <div v-if="basicInfo.avatarImage" class="mt-1 text-xs text-gray-500">
-                  {{ typeof basicInfo.avatarImage === 'object' && 'lastModified' in basicInfo.avatarImage ? 'File selected' : 'Image uploaded' }}
+                  {{
+                    typeof basicInfo.avatarImage === 'object' &&
+                    'lastModified' in basicInfo.avatarImage
+                      ? 'File selected'
+                      : 'Image uploaded'
+                  }}
                 </div>
               </div>
-              
+
               <div class="form-group">
                 <label class="block text-sm font-medium text-gray-700 mb-2">Token</label>
-                <ImageUpload
-                  v-model="basicInfo.tokenImage"
-                  type="token"
-                />
+                <ImageUpload v-model="basicInfo.tokenImage" type="token" />
                 <div v-if="basicInfo.tokenImage" class="mt-1 text-xs text-gray-500">
-                  {{ typeof basicInfo.tokenImage === 'object' && 'lastModified' in basicInfo.tokenImage ? 'File selected' : 'Image uploaded' }}
+                  {{
+                    typeof basicInfo.tokenImage === 'object' &&
+                    'lastModified' in basicInfo.tokenImage
+                      ? 'File selected'
+                      : 'Image uploaded'
+                  }}
                 </div>
               </div>
             </div>
-            
+
             <div class="form-group">
               <label for="description">Description</label>
-              <textarea 
-                id="description" 
-                v-model="basicInfo.description" 
+              <textarea
+                id="description"
+                v-model="basicInfo.description"
                 class="form-textarea"
               ></textarea>
             </div>
 
             <!-- Navigation for Step 1 only -->
             <div class="form-navigation">
-              <div></div> <!-- Empty div for flex spacing -->
-              <button 
-                type="button" 
+              <div></div>
+              <!-- Empty div for flex spacing -->
+              <button
+                type="button"
                 @click="currentStep++"
                 class="btn btn-primary"
                 :disabled="!canProceed"
@@ -301,7 +337,7 @@ function handleError(errorMessage: string) {
               </button>
             </div>
           </div>
-          
+
           <!-- Step 2: Plugin Content -->
           <div v-show="currentStep === 2" class="form-step">
             <h2>Character Details</h2>
@@ -389,4 +425,4 @@ function handleError(errorMessage: string) {
 .btn-primary:hover:not(:disabled) {
   background-color: #3182ce;
 }
-</style> 
+</style>

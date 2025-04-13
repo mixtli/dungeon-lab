@@ -42,10 +42,10 @@ async function fetchMaps() {
 // Handle form submission
 async function handleSubmit(event: Event) {
   event.preventDefault();
-  
+
   console.log('Form data at submission:', JSON.stringify(formData.value, null, 2));
   console.log('Selected mapId:', formData.value.mapId, typeof formData.value.mapId);
-  
+
   if (!formData.value.mapId) {
     error.value = 'Please select a map';
     return;
@@ -57,21 +57,24 @@ async function handleSubmit(event: Event) {
   try {
     const submitData = {
       ...formData.value,
-      mapId: formData.value.mapId
+      mapId: formData.value.mapId,
     };
     console.log('Creating encounter with data:', JSON.stringify(submitData, null, 2));
-    const encounterId = await encounterStore.createEncounter(submitData, route.params.campaignId as string);
-    
+    const encounterId = await encounterStore.createEncounter(
+      submitData,
+      route.params.campaignId as string
+    );
+
     console.log('Successfully created encounter with ID:', encounterId);
-    
+
     if (!encounterId) {
       throw new Error('No encounter ID returned from server');
     }
-    
+
     console.log('Preparing to redirect to:', `/encounter/${encounterId}`);
     router.push({
       name: 'encounter-detail',
-      params: { id: encounterId }
+      params: { id: encounterId },
     });
   } catch (err: unknown) {
     console.error('Failed to create encounter:', err);
@@ -89,23 +92,21 @@ fetchMaps();
   <div class="p-4">
     <div class="max-w-2xl mx-auto">
       <h1 class="text-2xl font-bold mb-6">Create New Encounter</h1>
-      
+
       <!-- Error display -->
       <div v-if="error" class="mb-4 p-4 bg-red-50 border border-red-200 rounded-md text-red-700">
         {{ error }}
       </div>
-      
+
       <!-- Debug info -->
       <div class="mb-4 p-4 bg-gray-50 border border-gray-200 rounded-md">
         <p>Selected Map ID: "{{ formData.mapId }}"</p>
         <p>Available Maps:</p>
         <ul>
-          <li v-for="map in maps" :key="map.id">
-            {{ map.name }} (ID: {{ map.id }})
-          </li>
+          <li v-for="map in maps" :key="map.id">{{ map.name }} (ID: {{ map.id }})</li>
         </ul>
       </div>
-      
+
       <form @submit.prevent="handleSubmit" class="space-y-6">
         <div>
           <label for="name" class="block text-sm font-medium text-gray-700">Name</label>
@@ -118,9 +119,11 @@ fetchMaps();
             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
           />
         </div>
-        
+
         <div>
-          <label for="description" class="block text-sm font-medium text-gray-700">Description</label>
+          <label for="description" class="block text-sm font-medium text-gray-700"
+            >Description</label
+          >
           <textarea
             id="description"
             v-model="formData.description"
@@ -129,9 +132,11 @@ fetchMaps();
             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
           ></textarea>
         </div>
-        
+
         <div>
-          <label for="map" class="block text-sm font-medium text-gray-700">Map <span class="text-red-500">*</span></label>
+          <label for="map" class="block text-sm font-medium text-gray-700"
+            >Map <span class="text-red-500">*</span></label
+          >
           <select
             id="map"
             name="map"
@@ -141,16 +146,12 @@ fetchMaps();
             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
           >
             <option value="" disabled>Select a map</option>
-            <option
-              v-for="map in maps"
-              :key="map.id"
-              :value="map.id"
-            >
+            <option v-for="map in maps" :key="map.id" :value="map.id">
               {{ map.name }}
             </option>
           </select>
         </div>
-        
+
         <div class="flex justify-end space-x-2">
           <button
             type="button"
@@ -171,8 +172,19 @@ fetchMaps();
               fill="none"
               viewBox="0 0 24 24"
             >
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              <circle
+                class="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                stroke-width="4"
+              ></circle>
+              <path
+                class="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              ></path>
             </svg>
             Create Encounter
           </button>
@@ -180,4 +192,4 @@ fetchMaps();
       </form>
     </div>
   </div>
-</template> 
+</template>

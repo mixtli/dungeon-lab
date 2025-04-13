@@ -30,7 +30,7 @@ onMounted(async () => {
   try {
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));
-    
+
     // Mock data
     gameData.value = {
       id: gameId,
@@ -69,7 +69,7 @@ onMounted(async () => {
             <div class="h-4 bg-gray-200 rounded w-5/6"></div>
           </div>
         </div>
-        
+
         <!-- Game Info Card -->
         <div v-else class="bg-white rounded-lg shadow">
           <div class="p-4 border-b border-gray-200">
@@ -80,25 +80,29 @@ onMounted(async () => {
               </span>
             </div>
           </div>
-          
+
           <div class="p-4">
             <p class="mb-4 text-gray-600">{{ gameData?.description }}</p>
-            
+
             <div class="mb-4">
               <h3 class="text-lg font-semibold text-gray-900 mb-2">Game Master</h3>
               <div class="flex items-center">
-                <div class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-medium mr-2">
+                <div
+                  class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-medium mr-2"
+                >
                   DM
                 </div>
                 <span class="text-gray-900">{{ gameData?.dm.displayName }}</span>
               </div>
             </div>
-            
+
             <div>
               <h3 class="text-lg font-semibold text-gray-900 mb-2">Players</h3>
               <ul class="space-y-3">
                 <li v-for="player in gameData?.players" :key="player.id" class="flex items-center">
-                  <div class="w-8 h-8 rounded-full bg-gray-600 text-white flex items-center justify-center text-sm font-medium mr-2">
+                  <div
+                    class="w-8 h-8 rounded-full bg-gray-600 text-white flex items-center justify-center text-sm font-medium mr-2"
+                  >
                     {{ player.displayName.charAt(0) }}
                   </div>
                   <span class="text-gray-900">{{ player.displayName }}</span>
@@ -108,7 +112,7 @@ onMounted(async () => {
           </div>
         </div>
       </div>
-      
+
       <!-- Game Table Main Area -->
       <div class="flex-1">
         <div class="bg-white rounded-lg shadow h-[calc(100vh-150px)] flex flex-col">
@@ -116,49 +120,94 @@ onMounted(async () => {
             <div class="flex justify-between items-center">
               <h2 class="text-xl font-bold text-gray-900">Game Table</h2>
               <div class="flex gap-2">
-                <button class="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center">
+                <button
+                  class="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center"
+                >
                   <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M12 4v16m8-8H4"
+                    />
                   </svg>
                   Add Token
                 </button>
-                <button class="px-3 py-1.5 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 flex items-center">
+                <button
+                  class="px-3 py-1.5 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 flex items-center"
+                >
                   <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
+                    />
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
                   </svg>
                   Start Session
                 </button>
               </div>
             </div>
           </div>
-          
+
           <!-- Loading State -->
           <div v-if="isLoading" class="flex-1 flex items-center justify-center">
-            <div class="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+            <div
+              class="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"
+            ></div>
           </div>
-          
+
           <!-- Game Content -->
           <div v-else class="flex-1 flex flex-col p-4">
             <div class="flex-1 bg-gray-50 rounded-lg flex items-center justify-center">
               <p class="text-center text-gray-500">
                 Game map will be displayed here.
-                <br>
+                <br />
                 This is a placeholder for the interactive game table.
               </p>
             </div>
-            
+
             <div class="mt-4 grid grid-cols-3 gap-4">
               <!-- Dice Roller -->
               <div class="bg-white rounded-lg shadow p-4">
                 <h3 class="text-lg font-semibold text-gray-900 mb-2">Dice Roller</h3>
                 <div class="flex flex-wrap gap-2 mb-2">
-                  <button class="px-3 py-1.5 bg-white border border-gray-300 rounded text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">D4</button>
-                  <button class="px-3 py-1.5 bg-white border border-gray-300 rounded text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">D6</button>
-                  <button class="px-3 py-1.5 bg-white border border-gray-300 rounded text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">D8</button>
-                  <button class="px-3 py-1.5 bg-white border border-gray-300 rounded text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">D10</button>
-                  <button class="px-3 py-1.5 bg-white border border-gray-300 rounded text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">D12</button>
-                  <button class="px-3 py-1.5 bg-white border border-gray-300 rounded text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">D20</button>
+                  <button
+                    class="px-3 py-1.5 bg-white border border-gray-300 rounded text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                  >
+                    D4
+                  </button>
+                  <button
+                    class="px-3 py-1.5 bg-white border border-gray-300 rounded text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                  >
+                    D6
+                  </button>
+                  <button
+                    class="px-3 py-1.5 bg-white border border-gray-300 rounded text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                  >
+                    D8
+                  </button>
+                  <button
+                    class="px-3 py-1.5 bg-white border border-gray-300 rounded text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                  >
+                    D10
+                  </button>
+                  <button
+                    class="px-3 py-1.5 bg-white border border-gray-300 rounded text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                  >
+                    D12
+                  </button>
+                  <button
+                    class="px-3 py-1.5 bg-white border border-gray-300 rounded text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                  >
+                    D20
+                  </button>
                 </div>
                 <input
                   v-model="customRoll"
@@ -167,16 +216,18 @@ onMounted(async () => {
                   class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
-              
+
               <!-- Initiative Tracker -->
               <div class="bg-white rounded-lg shadow p-4">
                 <h3 class="text-lg font-semibold text-gray-900 mb-2">Initiative Tracker</h3>
                 <p class="text-gray-500 mb-2">No combat in progress</p>
-                <button class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                <button
+                  class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                >
                   Start Combat
                 </button>
               </div>
-              
+
               <!-- Chat -->
               <div class="bg-white rounded-lg shadow p-4">
                 <h3 class="text-lg font-semibold text-gray-900 mb-2">Chat</h3>
@@ -282,4 +333,4 @@ onMounted(async () => {
 .token-dragging {
   background-color: rgb(243 244 246); /* bg-gray-100 */
 }
-</style> 
+</style>

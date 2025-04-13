@@ -49,20 +49,31 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <div v-if="show" class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+  <div
+    v-if="show"
+    class="fixed inset-0 z-50 overflow-y-auto"
+    aria-labelledby="modal-title"
+    role="dialog"
+    aria-modal="true"
+  >
+    <div
+      class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0"
+    >
       <!-- Background overlay -->
-      <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
+      <div
+        class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+        aria-hidden="true"
+      ></div>
 
       <!-- Modal panel -->
-      <div class="inline-block align-bottom modal-bg rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+      <div
+        class="inline-block align-bottom modal-bg rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full"
+      >
         <form @submit.prevent="handleSubmit">
           <div class="modal-bg px-4 pt-5 pb-4 sm:p-6">
             <div class="sm:flex sm:items-start">
               <div class="mt-3 text-center sm:mt-0 sm:text-left w-full">
-                <h3 class="modal-header" id="modal-title">
-                  Invite to Campaign
-                </h3>
+                <h3 class="modal-header" id="modal-title">Invite to Campaign</h3>
                 <div class="mt-4">
                   <label for="email" class="modal-label">Email Address</label>
                   <input
@@ -100,4 +111,4 @@ async function handleSubmit() {
       </div>
     </div>
   </div>
-</template> 
+</template>

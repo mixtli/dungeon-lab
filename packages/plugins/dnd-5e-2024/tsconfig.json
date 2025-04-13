@@ -19,17 +19,9 @@
       "@dungeon-lab/server/*": ["../../server/src/*"]
     }
   },
-  "include": [
-    "src/**/*.d.ts",
-    "src/**/*.mts",
-    "src/**/*.ts",
-    "src/**/*.js",
-    "src/**/*.mjs"
-  ],
-  "references": [
-    { "path": "../../shared" },
-  ],
+  "include": ["src/**/*.d.ts", "src/**/*.mts", "src/**/*.ts", "src/**/*.js", "src/**/*.mjs"],
+  "references": [{ "path": "../../shared" }],
   "ts-node": {
     "esm": true
   }
-} 
+}

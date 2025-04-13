@@ -183,11 +183,11 @@
   cursor: pointer;
 }
 
-.skill-option input[type="checkbox"] {
+.skill-option input[type='checkbox'] {
   margin: 0;
 }
 
-.skill-option input[type="checkbox"]:disabled + span {
+.skill-option input[type='checkbox']:disabled + span {
   color: #999;
 }
 
@@ -293,7 +293,7 @@
   box-shadow: 0 2px 4px rgba(66, 153, 225, 0.1);
 }
 
-.choice-option input[type="radio"] {
+.choice-option input[type='radio'] {
   margin-right: 0.75rem;
 }
 
@@ -349,7 +349,7 @@
   .form-row {
     flex-direction: column;
   }
-  
+
   .abilities-grid {
     grid-template-columns: 1fr;
   }
@@ -359,7 +359,7 @@
   .abilities-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .dnd5e-character-creation {
     padding: 1rem;
   }
@@ -507,7 +507,7 @@
   position: relative;
 }
 
-.alignment-option input[type="radio"] {
+.alignment-option input[type='radio'] {
   position: absolute;
   opacity: 0;
   width: 0;
@@ -524,7 +524,7 @@
   transition: all 0.2s;
 }
 
-.alignment-option input[type="radio"]:checked + label {
+.alignment-option input[type='radio']:checked + label {
   background: #ebf8ff;
   border-color: #4299e1;
   box-shadow: 0 0 0 2px #4299e1;
@@ -612,7 +612,7 @@
 .equipment-label {
   display: block;
   padding: 10px;
-  margin: -10px;  /* Offset the padding of the parent */
+  margin: -10px; /* Offset the padding of the parent */
   border-radius: 0.4rem;
   transition: background-color 0.2s;
 }
@@ -622,7 +622,7 @@
 }
 
 /* Make sure the radio buttons are easier to see and interact with */
-input[type="radio"][name="class.selectedEquipment"] {
+input[type='radio'][name='class.selectedEquipment'] {
   cursor: pointer;
   width: 20px;
   height: 20px;
@@ -1145,7 +1145,9 @@ input[type="radio"][name="class.selectedEquipment"] {
   border: 1px solid #ddd;
   border-radius: 4px;
   font-size: 1rem;
-  transition: border-color 0.3s, box-shadow 0.3s;
+  transition:
+    border-color 0.3s,
+    box-shadow 0.3s;
 }
 
 .form-control:focus {
@@ -1167,7 +1169,9 @@ input[type="radio"][name="class.selectedEquipment"] {
   border-radius: 4px;
   font-size: 1rem;
   resize: vertical;
-  transition: border-color 0.3s, box-shadow 0.3s;
+  transition:
+    border-color 0.3s,
+    box-shadow 0.3s;
   font-family: inherit;
 }
 
@@ -1192,7 +1196,9 @@ input[type="radio"][name="class.selectedEquipment"] {
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  transition: background-color 0.3s, transform 0.2s;
+  transition:
+    background-color 0.3s,
+    transform 0.2s;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
@@ -1272,10 +1278,14 @@ input[type="radio"][name="class.selectedEquipment"] {
 
 /* Animation for error messages */
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .validation-error {
   animation: fadeIn 0.3s ease-in-out;
-} 
+}

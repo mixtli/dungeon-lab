@@ -13,15 +13,15 @@ onMounted(async () => {
   try {
     // Check success flag from URL
     const success = route.query.success === 'true';
-    
+
     if (!success) {
       router.push('/auth/login');
       return;
     }
-    
+
     // Fetch user data
     const fetchSuccess = await authStore.fetchUser();
-    
+
     if (fetchSuccess) {
       router.push('/');
     } else {
@@ -40,24 +40,17 @@ onMounted(async () => {
     <div class="w-full max-w-lg">
       <div class="text-center">
         <!-- Loading spinner -->
-        <ArrowPathIcon 
-          v-if="isLoading" 
-          class="w-12 h-12 mx-auto mb-4 text-blue-600 animate-spin" 
-        />
-        
+        <ArrowPathIcon v-if="isLoading" class="w-12 h-12 mx-auto mb-4 text-blue-600 animate-spin" />
+
         <!-- Status heading -->
         <h2 class="text-xl font-semibold mb-2">
           {{ isLoading ? 'Completing Authentication' : 'Authentication Complete' }}
         </h2>
-        
+
         <!-- Status message -->
-        <p v-if="isLoading" class="text-gray-600">
-          Please wait while we complete your login...
-        </p>
-        <p v-else class="text-green-600">
-          Redirecting you now...
-        </p>
+        <p v-if="isLoading" class="text-gray-600">Please wait while we complete your login...</p>
+        <p v-else class="text-green-600">Redirecting you now...</p>
       </div>
     </div>
   </div>
-</template> 
+</template>

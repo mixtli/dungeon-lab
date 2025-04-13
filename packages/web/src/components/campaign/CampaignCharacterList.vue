@@ -33,7 +33,7 @@ onMounted(async () => {
 
       // Fetch each character individually and track non-existent members
       const nonExistentMembers = new Set<string>();
-      const characterPromises = campaign.value.members.map(async (memberId) => {
+      const characterPromises = campaign.value.members.map(async memberId => {
         const response = await fetch(`/api/actors/${memberId}`);
         if (response.status === 404) {
           nonExistentMembers.add(memberId);
@@ -47,15 +47,16 @@ onMounted(async () => {
       });
 
       const results = await Promise.all(characterPromises);
-      localCharacters.value = results
-        .filter((char): char is Character => char !== null && char.type === 'character');
+      localCharacters.value = results.filter(
+        (char): char is Character => char !== null && char.type === 'character'
+      );
 
       // If we found any non-existent members, clean them up from the campaign
       if (nonExistentMembers.size > 0) {
         const updatedMembers = campaign.value.members.filter(id => !nonExistentMembers.has(id));
         await campaignStore.updateCampaign(String(campaign.value.id), {
           members: updatedMembers,
-          updatedBy: String(campaign.value.updatedBy)
+          updatedBy: String(campaign.value.updatedBy),
         });
         console.info(`Removed ${nonExistentMembers.size} non-existent members from campaign`);
       }
@@ -70,15 +71,15 @@ onMounted(async () => {
 
 async function handleRemove(characterId: string) {
   if (!campaign.value?.id) return;
-  
+
   try {
     // Update campaign with the character removed from members
     const updatedMembers = campaign.value.members.filter(id => id !== characterId);
     await campaignStore.updateCampaign(String(campaign.value.id), {
       members: updatedMembers,
-      updatedBy: String(campaign.value.updatedBy)
+      updatedBy: String(campaign.value.updatedBy),
     });
-    
+
     // Update local list
     localCharacters.value = localCharacters.value.filter(char => char.id !== characterId);
   } catch (err) {
@@ -112,7 +113,9 @@ function handleCreate() {
 
     <!-- Loading State -->
     <div v-if="isLoading" class="flex justify-center items-center min-h-[200px]">
-      <div class="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+      <div
+        class="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"
+      ></div>
     </div>
 
     <!-- Empty State -->
@@ -146,4 +149,4 @@ function handleCreate() {
       </div>
     </div>
   </div>
-</template> 
+</template>

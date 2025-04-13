@@ -1,87 +1,85 @@
 {
-	"id": "9CD32D25-DC4A-405F-B134-9DE30C41403D",
-	"name": "Goldmoon",
-	"description": "The Chieftain's Daughter of the Que-Shu tribe, whose discovery of the Blue Crystal Staff marks the return of true healing to Krynn. Her platinum-gold hair and serene beauty match her gentle spirit, yet she possesses great inner strength. As the first true cleric of the new age, her faith in the goddess Mishakal helps restore hope to a world that had forgotten its gods.",
-	"species": "Human",
-	"avatar": {
-		"url": "images/character_tokens/dragonlance/goldmoon.png",
-		"type": "image/png",
-		"size": 0,
-		"name": "goldmoon.png",
-		"data": null
-	},
-	"token": {
-		"url": "images/character_tokens/dragonlance/goldmoon.png",
-		"type": "image/png",
-		"size": 0,
-		"name": "goldmoon.png",
-		"data": null
-	},
-	"classes": [
-		{
-			"name": "Figher",
-			"level": 1,
-			"hit_die": 1
-		}
-	],
-	"xp": 0,
-	"alignment": "",
-	"speed": {
-		"Walk": 30
-	},
-	"hit_points": {
-		"max": 10,
-		"current": 10
-	},
-	"ability_scores": {
-		"str": 10,
-		"dex": 10,
-		"con": 10,
-		"int": 10,
-		"wis": 10,
-		"cha": 10
-	},
-	"skills": {},
-	"armor_class": {
-		"value": 5,
-		"description": ""
-	},
-	"saving_throws": {
-		"dex": true
-	},
-	"languages": [
-		"Common"
-	],
-	"background": {
-		"name": ""
-	},
-	"details": {
-		"personality": "",
-		"ideal": "",
-		"bond": "",
-		"flaw": ""
-	},
-	"weapons": [
-		{
-			"name": "Dagger",
-			"damage": {
-				"dice": {
-					"sides": 4,
-					"count": 1,
-					"mod": 1
-				},
-				"type": "Piercing"
-			},
-			"throw_range": {
-				"short": 20,
-				"long": 60
-			},
-			"properties": {
-				"Finesse": true,
-				"Light": true,
-				"Thrown": true
-			}
-		}
-	],
-	"spells": []
+  "id": "9CD32D25-DC4A-405F-B134-9DE30C41403D",
+  "name": "Goldmoon",
+  "description": "The Chieftain's Daughter of the Que-Shu tribe, whose discovery of the Blue Crystal Staff marks the return of true healing to Krynn. Her platinum-gold hair and serene beauty match her gentle spirit, yet she possesses great inner strength. As the first true cleric of the new age, her faith in the goddess Mishakal helps restore hope to a world that had forgotten its gods.",
+  "species": "Human",
+  "avatar": {
+    "url": "images/character_tokens/dragonlance/goldmoon.png",
+    "type": "image/png",
+    "size": 0,
+    "name": "goldmoon.png",
+    "data": null
+  },
+  "token": {
+    "url": "images/character_tokens/dragonlance/goldmoon.png",
+    "type": "image/png",
+    "size": 0,
+    "name": "goldmoon.png",
+    "data": null
+  },
+  "classes": [
+    {
+      "name": "Figher",
+      "level": 1,
+      "hit_die": 1
+    }
+  ],
+  "xp": 0,
+  "alignment": "",
+  "speed": {
+    "Walk": 30
+  },
+  "hit_points": {
+    "max": 10,
+    "current": 10
+  },
+  "ability_scores": {
+    "str": 10,
+    "dex": 10,
+    "con": 10,
+    "int": 10,
+    "wis": 10,
+    "cha": 10
+  },
+  "skills": {},
+  "armor_class": {
+    "value": 5,
+    "description": ""
+  },
+  "saving_throws": {
+    "dex": true
+  },
+  "languages": ["Common"],
+  "background": {
+    "name": ""
+  },
+  "details": {
+    "personality": "",
+    "ideal": "",
+    "bond": "",
+    "flaw": ""
+  },
+  "weapons": [
+    {
+      "name": "Dagger",
+      "damage": {
+        "dice": {
+          "sides": 4,
+          "count": 1,
+          "mod": 1
+        },
+        "type": "Piercing"
+      },
+      "throw_range": {
+        "short": 20,
+        "long": 60
+      },
+      "properties": {
+        "Finesse": true,
+        "Light": true,
+        "Thrown": true
+      }
+    }
+  ],
+  "spells": []
 }

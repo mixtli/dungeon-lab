@@ -12,15 +12,24 @@ const currentYear = new Date().getFullYear();
           </p>
         </div>
         <div class="flex space-x-6">
-          <a href="#" class="text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400">
+          <a
+            href="#"
+            class="text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400"
+          >
             <span class="sr-only">GitHub</span>
             <span class="i-simple-icons-github w-5 h-5"></span>
           </a>
-          <a href="#" class="text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400">
+          <a
+            href="#"
+            class="text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400"
+          >
             <span class="sr-only">Twitter</span>
             <span class="i-simple-icons-twitter w-5 h-5"></span>
           </a>
-          <a href="#" class="text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400">
+          <a
+            href="#"
+            class="text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400"
+          >
             <span class="sr-only">Discord</span>
             <span class="i-simple-icons-discord w-5 h-5"></span>
           </a>
@@ -28,4 +37,4 @@ const currentYear = new Date().getFullYear();
       </div>
     </div>
   </footer>
-</template> 
+</template>

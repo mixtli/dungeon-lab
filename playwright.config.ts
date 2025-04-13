@@ -1,5 +1,8 @@
 import path from 'path';
 import { defineConfig, devices } from '@playwright/test';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const STORAGE_STATE = path.join(__dirname, 'playwright/.auth/storage-state.json');
 
 export default defineConfig({
@@ -18,16 +21,16 @@ export default defineConfig({
     // Use the storage state from global setup
   },
   projects: [
-     {
-       name: 'setup',
-       use: { ...devices['Desktop Chrome'] },
-       testMatch: /spec-setup\.ts/,
-     },
+    {
+      name: 'setup',
+      use: { ...devices['Desktop Chrome'] },
+      testMatch: /spec-setup\.ts/,
+    },
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'], storageState: STORAGE_STATE },
-       testMatch: /.*spec\.ts/,
+      testMatch: /.*spec\.ts/,
       dependencies: ['setup'],
     },
   ],
-}); 
+});

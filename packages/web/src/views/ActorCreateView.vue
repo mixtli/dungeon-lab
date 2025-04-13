@@ -2,13 +2,13 @@
   <div class="max-w-3xl mx-auto p-6">
     <div class="bg-white rounded-lg shadow-md p-6">
       <h1 class="text-2xl font-bold text-gray-900 mb-6">Create Character</h1>
-      
+
       <div v-if="!selectedGameSystemId" class="space-y-6">
         <h2 class="text-xl font-semibold text-gray-800">Select Game System</h2>
-        
+
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div 
-            v-for="system in availableGameSystems" 
+          <div
+            v-for="system in availableGameSystems"
             :key="system.config.id"
             class="border rounded-lg p-4 hover:border-blue-500 cursor-pointer transition-colors"
             :class="{ 'border-blue-500 bg-blue-50': system.config.id === selectedGameSystemId }"
@@ -18,9 +18,9 @@
             <p class="text-gray-600 text-sm mt-1">{{ system.config.description }}</p>
           </div>
         </div>
-        
+
         <div class="mt-6 flex justify-end">
-          <button 
+          <button
             @click="proceedToCreation"
             class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
             :disabled="!selectedGameSystemId"
@@ -29,21 +29,18 @@
           </button>
         </div>
       </div>
-      
+
       <div v-else class="mt-4">
         <div class="flex justify-between items-center mb-6">
-          <button 
-            @click="goBack" 
-            class="text-blue-600 hover:text-blue-800 flex items-center"
-          >
+          <button @click="goBack" class="text-blue-600 hover:text-blue-800 flex items-center">
             <span class="mr-1">←</span> Back to Game System Selection
           </button>
         </div>
-        
+
         <div v-if="errorMessage" class="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
           <p class="text-red-700">{{ errorMessage }}</p>
         </div>
-        
+
         <PluginUIContainer
           :plugin-id="selectedGameSystemId"
           component-id="characterCreation"
@@ -89,14 +86,14 @@ function selectGameSystem(systemId: string) {
 
 function proceedToCreation() {
   if (!selectedGameSystemId.value) return;
-  
+
   // Initialize with default data for the selected system
   initialActorData.value = {
     name: '',
     gameSystemId: selectedGameSystemId.value,
-    type: 'character'
+    type: 'character',
   };
-  
+
   // Copy to actorData
   actorData.value = { ...initialActorData.value };
 }
@@ -109,22 +106,22 @@ async function handleSubmit(data: Record<string, any>) {
   try {
     isSubmitting.value = true;
     errorMessage.value = null;
-    
+
     // Merge the final data
     const finalActorData = {
       ...actorData.value,
       ...data,
-      gameSystemId: selectedGameSystemId.value
+      gameSystemId: selectedGameSystemId.value,
     };
-    
+
     // Call API to create actor with a longer timeout for AI image generation
     const response = await axios.post('/api/actors', finalActorData, {
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
       },
-      timeout: 120000 // 2 minutes timeout for AI image generation
+      timeout: 120000, // 2 minutes timeout for AI image generation
     });
-    
+
     // Navigate to the character sheet
     router.push(`/character/${response.data.id}`);
   } catch (error) {
@@ -147,4 +144,4 @@ function goBack() {
 function handlePluginError(error: string) {
   errorMessage.value = error;
 }
-</script> 
+</script>

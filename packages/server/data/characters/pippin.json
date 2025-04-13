@@ -1,201 +1,201 @@
 {
-	"id": "7FA76F73-2395-46CF-9708-7B50B00BB674",
-	"name": "Pippin",
-	"description": "Peregrin 'Pippin' Took, the youngest member of the Fellowship, whose curiosity and cheerful nature often lead him into trouble. Though initially seen as merely a foolish young hobbit, his journey transforms him into a knight of Gondor. His bravery in the face of overwhelming odds and his growth from a carefree youth to a valiant warrior make him an essential part of the quest.",
-	"species": "halfling",
-	"classes": [
-		{
-			"name": "Fighter",
-			"level": 1,
-			"hitDiceType": "d10"
-		}
-	],
-	"alignment": "chaotic-good",
-	"avatar": {
-		"url": "images/character_tokens/middle_earth/pippin.png",
-		"type": "image/png",
-		"size": 0,
-		"name": "pippen.png",
-		"data": null
-	},
-	"token": {
-		"url": "images/character_tokens/middle_earth/pippin.png",
-		"type": "image/png",
-		"size": 0,
-		"name": "pippen.png",
-		"data": null
-	},
-	"experiencePoints": 0,
-	"proficiencyBonus": 2,
-	"speed": 25,
-	"hitPoints": {
-		"maximum": 10,
-		"current": 10,
-		"temporary": 0
-	},
-	"hitDice": {
-		"total": 1,
-		"current": 1,
-		"type": "d10"
-	},
-	"abilities": {
-		"strength": {
-			"score": 12,
-			"modifier": 1,
-			"savingThrow": {
-				"proficient": true,
-				"bonus": 3
-			}
-		},
-		"dexterity": {
-			"score": 14,
-			"modifier": 2,
-			"savingThrow": {
-				"proficient": false,
-				"bonus": 2
-			}
-		},
-		"constitution": {
-			"score": 12,
-			"modifier": 1,
-			"savingThrow": {
-				"proficient": true,
-				"bonus": 3
-			}
-		},
-		"intelligence": {
-			"score": 10,
-			"modifier": 0,
-			"savingThrow": {
-				"proficient": false,
-				"bonus": 0
-			}
-		},
-		"wisdom": {
-			"score": 10,
-			"modifier": 0,
-			"savingThrow": {
-				"proficient": false,
-				"bonus": 0
-			}
-		},
-		"charisma": {
-			"score": 12,
-			"modifier": 1,
-			"savingThrow": {
-				"proficient": false,
-				"bonus": 1
-			}
-		}
-	},
-	"skills": {
-		"acrobatics": {
-			"ability": "dexterity",
-			"proficient": true,
-			"bonus": 4
-		},
-		"animalHandling": {
-			"ability": "wisdom",
-			"proficient": false,
-			"bonus": 0
-		},
-		"arcana": {
-			"ability": "intelligence",
-			"proficient": false,
-			"bonus": 0
-		},
-		"athletics": {
-			"ability": "strength",
-			"proficient": true,
-			"bonus": 3
-		},
-		"deception": {
-			"ability": "charisma",
-			"proficient": false,
-			"bonus": 1
-		},
-		"history": {
-			"ability": "intelligence",
-			"proficient": false,
-			"bonus": 0
-		},
-		"insight": {
-			"ability": "wisdom",
-			"proficient": false,
-			"bonus": 0
-		},
-		"intimidation": {
-			"ability": "charisma",
-			"proficient": true,
-			"bonus": 3
-		},
-		"investigation": {
-			"ability": "intelligence",
-			"proficient": false,
-			"bonus": 0
-		},
-		"medicine": {
-			"ability": "wisdom",
-			"proficient": false,
-			"bonus": 0
-		},
-		"nature": {
-			"ability": "intelligence",
-			"proficient": false,
-			"bonus": 0
-		},
-		"perception": {
-			"ability": "wisdom",
-			"proficient": false,
-			"bonus": 0
-		},
-		"performance": {
-			"ability": "charisma",
-			"proficient": false,
-			"bonus": 1
-		},
-		"persuasion": {
-			"ability": "charisma",
-			"proficient": false,
-			"bonus": 1
-		},
-		"religion": {
-			"ability": "intelligence",
-			"proficient": false,
-			"bonus": 0
-		},
-		"sleightOfHand": {
-			"ability": "dexterity",
-			"proficient": false,
-			"bonus": 2
-		},
-		"stealth": {
-			"ability": "dexterity",
-			"proficient": true,
-			"bonus": 4
-		},
-		"survival": {
-			"ability": "wisdom",
-			"proficient": false,
-			"bonus": 0
-		}
-	},
-	"armorClass": 12,
-	"initiative": 2,
-	"equipment": [
-		{
-			"id": "dagger",
-			"quantity": 1
-		}
-	],
-	"features": [],
-	"background": "noble",
-	"biography": {
-		"appearance": "A cheerful halfling with curly hair",
-		"backstory": "A young Took from a noble family in the Shire",
-		"personalityTraits": "Curious and mischievous",
-		"ideals": "Life should be enjoyed to its fullest",
-		"bonds": "Loyal to his friends and family",
-		"flaws": "Often acts without thinking of consequences"
-	}
+  "id": "7FA76F73-2395-46CF-9708-7B50B00BB674",
+  "name": "Pippin",
+  "description": "Peregrin 'Pippin' Took, the youngest member of the Fellowship, whose curiosity and cheerful nature often lead him into trouble. Though initially seen as merely a foolish young hobbit, his journey transforms him into a knight of Gondor. His bravery in the face of overwhelming odds and his growth from a carefree youth to a valiant warrior make him an essential part of the quest.",
+  "species": "halfling",
+  "classes": [
+    {
+      "name": "Fighter",
+      "level": 1,
+      "hitDiceType": "d10"
+    }
+  ],
+  "alignment": "chaotic-good",
+  "avatar": {
+    "url": "images/character_tokens/middle_earth/pippin.png",
+    "type": "image/png",
+    "size": 0,
+    "name": "pippen.png",
+    "data": null
+  },
+  "token": {
+    "url": "images/character_tokens/middle_earth/pippin.png",
+    "type": "image/png",
+    "size": 0,
+    "name": "pippen.png",
+    "data": null
+  },
+  "experiencePoints": 0,
+  "proficiencyBonus": 2,
+  "speed": 25,
+  "hitPoints": {
+    "maximum": 10,
+    "current": 10,
+    "temporary": 0
+  },
+  "hitDice": {
+    "total": 1,
+    "current": 1,
+    "type": "d10"
+  },
+  "abilities": {
+    "strength": {
+      "score": 12,
+      "modifier": 1,
+      "savingThrow": {
+        "proficient": true,
+        "bonus": 3
+      }
+    },
+    "dexterity": {
+      "score": 14,
+      "modifier": 2,
+      "savingThrow": {
+        "proficient": false,
+        "bonus": 2
+      }
+    },
+    "constitution": {
+      "score": 12,
+      "modifier": 1,
+      "savingThrow": {
+        "proficient": true,
+        "bonus": 3
+      }
+    },
+    "intelligence": {
+      "score": 10,
+      "modifier": 0,
+      "savingThrow": {
+        "proficient": false,
+        "bonus": 0
+      }
+    },
+    "wisdom": {
+      "score": 10,
+      "modifier": 0,
+      "savingThrow": {
+        "proficient": false,
+        "bonus": 0
+      }
+    },
+    "charisma": {
+      "score": 12,
+      "modifier": 1,
+      "savingThrow": {
+        "proficient": false,
+        "bonus": 1
+      }
+    }
+  },
+  "skills": {
+    "acrobatics": {
+      "ability": "dexterity",
+      "proficient": true,
+      "bonus": 4
+    },
+    "animalHandling": {
+      "ability": "wisdom",
+      "proficient": false,
+      "bonus": 0
+    },
+    "arcana": {
+      "ability": "intelligence",
+      "proficient": false,
+      "bonus": 0
+    },
+    "athletics": {
+      "ability": "strength",
+      "proficient": true,
+      "bonus": 3
+    },
+    "deception": {
+      "ability": "charisma",
+      "proficient": false,
+      "bonus": 1
+    },
+    "history": {
+      "ability": "intelligence",
+      "proficient": false,
+      "bonus": 0
+    },
+    "insight": {
+      "ability": "wisdom",
+      "proficient": false,
+      "bonus": 0
+    },
+    "intimidation": {
+      "ability": "charisma",
+      "proficient": true,
+      "bonus": 3
+    },
+    "investigation": {
+      "ability": "intelligence",
+      "proficient": false,
+      "bonus": 0
+    },
+    "medicine": {
+      "ability": "wisdom",
+      "proficient": false,
+      "bonus": 0
+    },
+    "nature": {
+      "ability": "intelligence",
+      "proficient": false,
+      "bonus": 0
+    },
+    "perception": {
+      "ability": "wisdom",
+      "proficient": false,
+      "bonus": 0
+    },
+    "performance": {
+      "ability": "charisma",
+      "proficient": false,
+      "bonus": 1
+    },
+    "persuasion": {
+      "ability": "charisma",
+      "proficient": false,
+      "bonus": 1
+    },
+    "religion": {
+      "ability": "intelligence",
+      "proficient": false,
+      "bonus": 0
+    },
+    "sleightOfHand": {
+      "ability": "dexterity",
+      "proficient": false,
+      "bonus": 2
+    },
+    "stealth": {
+      "ability": "dexterity",
+      "proficient": true,
+      "bonus": 4
+    },
+    "survival": {
+      "ability": "wisdom",
+      "proficient": false,
+      "bonus": 0
+    }
+  },
+  "armorClass": 12,
+  "initiative": 2,
+  "equipment": [
+    {
+      "id": "dagger",
+      "quantity": 1
+    }
+  ],
+  "features": [],
+  "background": "noble",
+  "biography": {
+    "appearance": "A cheerful halfling with curly hair",
+    "backstory": "A young Took from a noble family in the Shire",
+    "personalityTraits": "Curious and mischievous",
+    "ideals": "Life should be enjoyed to its fullest",
+    "bonds": "Loyal to his friends and family",
+    "flaws": "Often acts without thinking of consequences"
+  }
 }

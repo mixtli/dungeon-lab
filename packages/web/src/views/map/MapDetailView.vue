@@ -14,7 +14,7 @@ const map = ref<IMap | null>(null);
 const formData = ref<Partial<IMap>>({
   name: '',
   description: '',
-  gridColumns: 20
+  gridColumns: 20,
 });
 
 // Simple notification function (we can replace this with a proper notification system later)
@@ -31,7 +31,7 @@ async function fetchMap() {
       formData.value = {
         name: map.value.name,
         description: map.value.description || '',
-        gridColumns: map.value.gridColumns
+        gridColumns: map.value.gridColumns,
       };
     }
   } catch (error) {
@@ -65,8 +65,8 @@ onMounted(() => {
 <template>
   <div class="p-6">
     <div class="flex items-center mb-6">
-      <button 
-        @click="router.back()" 
+      <button
+        @click="router.back()"
         class="flex items-center px-4 py-2 mr-4 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
       >
         <ArrowLeftIcon class="w-5 h-5 mr-2" />
@@ -78,7 +78,9 @@ onMounted(() => {
     <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-md overflow-hidden">
       <!-- Loading State -->
       <div v-if="loading" class="flex justify-center items-center min-h-[400px]">
-        <div class="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+        <div
+          class="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"
+        ></div>
       </div>
 
       <div v-else-if="map" class="p-6">
@@ -109,7 +111,7 @@ onMounted(() => {
           </div>
 
           <div class="flex justify-end">
-            <button 
+            <button
               @click="editing = true"
               class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             >
@@ -133,9 +135,7 @@ onMounted(() => {
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-              Description
-            </label>
+            <label class="block text-sm font-medium text-gray-700 mb-1"> Description </label>
             <textarea
               v-model="formData.description"
               rows="4"
@@ -157,19 +157,20 @@ onMounted(() => {
               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
             <div class="text-gray-500 text-sm mt-1">
-              Number of columns in the grid. Rows will be calculated based on the image aspect ratio.
+              Number of columns in the grid. Rows will be calculated based on the image aspect
+              ratio.
             </div>
           </div>
 
           <div class="flex justify-end space-x-2">
-            <button 
+            <button
               type="button"
               @click="editing = false"
               class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             >
               Cancel
             </button>
-            <button 
+            <button
               type="submit"
               class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             >
@@ -180,4 +181,4 @@ onMounted(() => {
       </div>
     </div>
   </div>
-</template> 
+</template>

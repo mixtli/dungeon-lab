@@ -14,4 +14,4 @@ import PluginManager from '@/components/plugin/PluginManager.vue';
   max-width: 1200px;
   margin: 0 auto;
 }
-</style> 
+</style>

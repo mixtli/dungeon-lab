@@ -3,16 +3,13 @@
     <div v-if="loading" class="plugin-loading">
       <p>Loading plugin content...</p>
     </div>
-    
+
     <div v-if="error" class="plugin-error">
       <p>Error loading plugin: {{ error }}</p>
     </div>
-    
+
     <!-- Plugin container will be rendered here -->
-    <div 
-      ref="pluginMountPoint" 
-      class="plugin-mount-point"
-    ></div>
+    <div ref="pluginMountPoint" class="plugin-mount-point"></div>
   </div>
 </template>
 
@@ -29,9 +26,9 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:data': [data: Record<string, any>];
-  'submit': [data: Record<string, any>];
-  'cancel': [];
-  'error': [error: string];
+  submit: [data: Record<string, any>];
+  cancel: [];
+  error: [error: string];
 }>();
 
 const pluginMountPoint = ref<HTMLElement | null>(null);
@@ -62,27 +59,27 @@ onBeforeUnmount(() => {
 async function loadComponent() {
   // Clean up previous component if exists
   cleanupComponent();
-  
+
   // Reset state
   loading.value = true;
   error.value = null;
-  
+
   if (!pluginMountPoint.value || !props.pluginId || !props.componentId) {
     loading.value = false;
     return;
   }
-  
+
   try {
     // Get the plugin from the registry
     const plugin = pluginRegistry.getGameSystemPlugin(props.pluginId) as IGameSystemPluginWeb;
-    
+
     if (!plugin) {
       throw new Error(`Plugin ${props.pluginId} not found`);
     }
-    
+
     // Load the component
     const loadedComponent = plugin.loadComponent(props.componentId);
-    
+
     if (!loadedComponent) {
       console.error(`Component ${props.componentId} not found in plugin ${props.pluginId}`);
       throw new Error(`Component ${props.componentId} not found in plugin ${props.pluginId}`);
@@ -90,15 +87,14 @@ async function loadComponent() {
 
     component = loadedComponent;
 
-    
     // Mount the component
     await component.onMount(pluginMountPoint.value);
-    
+
     // Update with initial data if provided
     if (props.initialData) {
       await component.onUpdate(props.initialData);
     }
-    
+
     loading.value = false;
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
@@ -123,7 +119,9 @@ function cleanupComponent() {
   padding: 1rem;
   background-color: #ffffff;
   border-radius: 0.375rem;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  box-shadow:
+    0 1px 3px 0 rgba(0, 0, 0, 0.1),
+    0 1px 2px 0 rgba(0, 0, 0, 0.06);
 }
 
 .plugin-loading {
@@ -143,4 +141,4 @@ function cleanupComponent() {
   color: #b91c1c;
   margin-bottom: 1rem;
 }
-</style> 
+</style>

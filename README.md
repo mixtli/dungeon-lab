@@ -29,12 +29,14 @@ This project uses npm workspaces to organize the codebase:
 ### Setup
 
 1. Clone the repository:
+
    ```
    git clone https://github.com/yourusername/dungeon-lab.git
    cd dungeon-lab
    ```
 
 2. Install dependencies:
+
    ```
    npm install
    ```
@@ -62,11 +64,11 @@ Dungeon Lab supports a plugin system that allows extending the application with 
 
 ### Plugin Configuration
 
-For instructions on creating a plugin, see: `docs/plugins.md` 
+For instructions on creating a plugin, see: `docs/plugins.md`
 
 ### Dependencies
-We want to maintain careful control of which way build time dependencies go.  The client and server code should never depend on each other directly.  All code may depend on code in the shared package, however code in plugin's shared folder can only be depended on by code in that plugin.
 
+We want to maintain careful control of which way build time dependencies go. The client and server code should never depend on each other directly. All code may depend on code in the shared package, however code in plugin's shared folder can only be depended on by code in that plugin.
 
 #### Allowed Build Time Dependencies
 
@@ -79,6 +81,7 @@ plugin/server -> plugin/shared
 plugin/shared -> shared
 
 #### Allowed Run Time Dependencies
+
 At run time, the web and server will load plugins dynamically, but only depend upon an interface defined in the shared package.
 
 ## License

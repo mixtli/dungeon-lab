@@ -12,4 +12,4 @@ import AppFooter from '@/components/layout/AppFooter.vue';
     </main>
     <AppFooter />
   </div>
-</template> 
+</template>

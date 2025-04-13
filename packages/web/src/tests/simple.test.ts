@@ -12,4 +12,4 @@ describe('Web Package Tests', () => {
   it('should correctly handle string concatenation', () => {
     expect('hello' + ' world').toBe('hello world');
   });
-}); 
+});

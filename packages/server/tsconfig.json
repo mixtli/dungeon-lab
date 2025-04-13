@@ -12,9 +12,7 @@
       "@dungeon-lab/shared/*": ["../shared/src/*"]
     }
   },
-  "references": [
-    { "path": "../shared" }
-  ],
+  "references": [{ "path": "../shared" }],
   "include": ["src/**/*.ts", "src/**/*.mts", "src/**/*.d.ts"],
   "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.test.mts"]
-} 
+}

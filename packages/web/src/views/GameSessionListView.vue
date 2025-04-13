@@ -26,16 +26,17 @@ onMounted(async () => {
 });
 
 // Computed properties for active and future sessions
-const activeSessions = computed(() => 
-  gameSessionStore.allSessions?.filter(session => session.status === 'active') || []
+const activeSessions = computed(
+  () => gameSessionStore.allSessions?.filter(session => session.status === 'active') || []
 );
 
-const futureSessions = computed(() => 
+const futureSessions = computed(() =>
   (gameSessionStore.allSessions || [])
-    .filter(session => 
-      session.status === 'paused' && 
-      session.settings?.scheduledStart && 
-      new Date(session.settings.scheduledStart as string) > new Date()
+    .filter(
+      session =>
+        session.status === 'paused' &&
+        session.settings?.scheduledStart &&
+        new Date(session.settings.scheduledStart as string) > new Date()
     )
     .sort((a, b) => {
       const dateA = new Date(a.settings?.scheduledStart as string);
@@ -58,15 +59,15 @@ function formatTime(isoString: string) {
     <div class="sm:flex sm:items-center">
       <div class="sm:flex-auto">
         <h1 class="text-2xl font-semibold text-gray-900">Game Sessions</h1>
-        <p class="mt-2 text-sm text-gray-700">
-          View and join your active game sessions.
-        </p>
+        <p class="mt-2 text-sm text-gray-700">View and join your active game sessions.</p>
       </div>
     </div>
 
     <!-- Loading State -->
     <div v-if="loading" class="flex justify-center items-center min-h-[400px]">
-      <div class="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+      <div
+        class="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"
+      ></div>
     </div>
 
     <!-- Error State -->
@@ -79,8 +80,11 @@ function formatTime(isoString: string) {
       <div v-if="activeSessions.length > 0">
         <h2 class="text-lg font-medium text-gray-900 mb-4">Active Sessions</h2>
         <div class="space-y-3">
-          <div v-for="session in activeSessions" :key="session.id" 
-            class="bg-white shadow-sm rounded-lg border border-green-200 p-4">
+          <div
+            v-for="session in activeSessions"
+            :key="session.id"
+            class="bg-white shadow-sm rounded-lg border border-green-200 p-4"
+          >
             <div class="flex justify-between items-start">
               <div>
                 <h3 class="text-lg font-medium text-gray-900">{{ session.name }}</h3>
@@ -103,8 +107,11 @@ function formatTime(isoString: string) {
       <div v-if="futureSessions.length > 0">
         <h2 class="text-lg font-medium text-gray-900 mb-4">Scheduled Sessions</h2>
         <div class="space-y-3">
-          <div v-for="session in futureSessions" :key="session.id"
-            class="bg-white shadow-sm rounded-lg border border-gray-200 p-4">
+          <div
+            v-for="session in futureSessions"
+            :key="session.id"
+            class="bg-white shadow-sm rounded-lg border border-gray-200 p-4"
+          >
             <div class="flex justify-between items-start">
               <div>
                 <h3 class="text-lg font-medium text-gray-900">{{ session.name }}</h3>
@@ -128,13 +135,13 @@ function formatTime(isoString: string) {
       </div>
 
       <!-- No Sessions State -->
-      <div v-if="activeSessions.length === 0 && futureSessions.length === 0" 
-        class="text-center py-10">
+      <div
+        v-if="activeSessions.length === 0 && futureSessions.length === 0"
+        class="text-center py-10"
+      >
         <p class="text-gray-500 mb-4">You don't have any active game sessions.</p>
-        <p class="text-gray-500">
-          Go to a campaign page to schedule or start a new session.
-        </p>
+        <p class="text-gray-500">Go to a campaign page to schedule or start a new session.</p>
       </div>
     </div>
   </div>
-</template> 
+</template>

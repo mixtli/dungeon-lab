@@ -6,21 +6,21 @@ export function useApi() {
         'Content-Type': 'application/json',
       },
       body: body ? JSON.stringify(body) : undefined,
-    })
+    });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: 'Unknown error' }))
-      throw new Error(errorData.message || `Failed to ${method.toLowerCase()} ${path}`)
+      const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+      throw new Error(errorData.message || `Failed to ${method.toLowerCase()} ${path}`);
     }
 
     // For DELETE requests that return 204 No Content
     if (response.status === 204) {
-      return undefined as T
+      return undefined as T;
     }
 
     // For all other requests, parse the JSON response
-    const data = await response.json()
-    return data
+    const data = await response.json();
+    return data;
   }
 
   return {
@@ -28,5 +28,5 @@ export function useApi() {
     post: <T>(path: string, body: unknown) => request<T>('POST', path, body),
     patch: <T>(path: string, body: unknown) => request<T>('PATCH', path, body),
     delete: (path: string) => request<void>('DELETE', path),
-  }
-} 
+  };
+}

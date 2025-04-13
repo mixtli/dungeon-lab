@@ -3,7 +3,6 @@ import vue from '@vitejs/plugin-vue';
 import path from 'path';
 import tailwindcss from 'tailwindcss';
 import autoprefixer from 'autoprefixer';
-import dynamicImport from 'vite-plugin-dynamic-import'
 
 // @ts-ignore - Vite will handle the .mts extension during build
 // import { pluginImportMap } from './src/plugins/vite-plugin-plugin-import-map.mts';

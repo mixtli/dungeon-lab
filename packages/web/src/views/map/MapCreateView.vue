@@ -16,7 +16,7 @@ const mapImageFile = ref<File | null>(null);
 
 async function handleSubmit(event: Event) {
   event.preventDefault();
-  
+
   // if (!mapImageFile.value) {
   //   alert('Please upload a map image');
   //   return;
@@ -28,7 +28,6 @@ async function handleSubmit(event: Event) {
     form.append('name', formData.value.name);
     form.append('description', formData.value.description || '');
     form.append('gridColumns', formData.value.gridColumns.toString());
-    
 
     // Add the file directly to the form
     if (mapImageFile.value) {
@@ -56,8 +55,8 @@ async function handleSubmit(event: Event) {
 <template>
   <div class="p-6">
     <div class="flex items-center mb-6">
-      <button 
-        @click="router.back()" 
+      <button
+        @click="router.back()"
         class="flex items-center px-4 py-2 mr-4 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
       >
         <ArrowLeftIcon class="h-5 w-5 mr-1" />
@@ -82,9 +81,7 @@ async function handleSubmit(event: Event) {
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">
-            Description
-          </label>
+          <label class="block text-sm font-medium text-gray-700 mb-1"> Description </label>
           <textarea
             v-model="formData.description"
             rows="3"
@@ -114,18 +111,14 @@ async function handleSubmit(event: Event) {
           <label class="block text-sm font-medium text-gray-700 mb-1">
             Map Image <span class="text-red-500">*</span>
           </label>
-          <ImageUpload
-            v-model="mapImageFile"
-          />
-          <p class="text-gray-500 text-sm mt-2">
-            Upload a JPG/PNG image of your map
-          </p>
+          <ImageUpload v-model="mapImageFile" />
+          <p class="text-gray-500 text-sm mt-2">Upload a JPG/PNG image of your map</p>
         </div>
 
         <div class="flex justify-end">
           <button
             type="submit"
-            :disabled="!formData.name ||  loading"
+            :disabled="!formData.name || loading"
             class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {{ loading ? 'Creating...' : 'Create Map' }}
@@ -138,4 +131,4 @@ async function handleSubmit(event: Event) {
 
 <style scoped>
 /* Add any additional custom styles here if needed */
-</style> 
+</style>

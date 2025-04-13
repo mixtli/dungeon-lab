@@ -51,11 +51,11 @@ async function handleDelete(id: string) {
     const response = await fetch(`/api/actors/${id}`, {
       method: 'DELETE',
     });
-    
+
     if (!response.ok) {
       throw new Error('Failed to delete character');
     }
-    
+
     // Remove the character from the list
     characters.value = characters.value.filter(char => char.id !== id);
   } catch (err) {
@@ -94,7 +94,9 @@ function handleCreate() {
 
       <!-- Loading State -->
       <div v-if="isLoading" class="flex justify-center items-center min-h-[400px]">
-        <div class="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+        <div
+          class="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"
+        ></div>
       </div>
 
       <!-- Empty State -->
@@ -123,7 +125,7 @@ function handleCreate() {
               :src="character.avatar.url"
               :alt="character.name"
               class="w-full h-full object-cover"
-            >
+            />
             <div v-else class="w-full h-full flex items-center justify-center text-gray-400">
               No Image
             </div>
@@ -133,7 +135,10 @@ function handleCreate() {
             <div class="flex justify-between items-start">
               <div>
                 <h3 class="text-xl font-bold text-gray-900">{{ character.name }}</h3>
-                <p class="text-gray-600">Level {{ character.data.level }} {{ character.data.race }} {{ character.data.class }}</p>
+                <p class="text-gray-600">
+                  Level {{ character.data.level }} {{ character.data.race }}
+                  {{ character.data.class }}
+                </p>
               </div>
               <div class="flex space-x-2">
                 <button
@@ -164,4 +169,4 @@ function handleCreate() {
       </div>
     </div>
   </div>
-</template> 
+</template>

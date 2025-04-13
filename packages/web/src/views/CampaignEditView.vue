@@ -8,10 +8,7 @@ const campaignId = route.params.id as string;
 
 <template>
   <div class="campaign-edit-view">
-    <CampaignForm 
-      :campaignId="campaignId" 
-      :isEdit="true" 
-    />
+    <CampaignForm :campaignId="campaignId" :isEdit="true" />
   </div>
 </template>
 
@@ -19,4 +16,4 @@ const campaignId = route.params.id as string;
 .campaign-edit-view {
   padding: 20px;
 }
-</style> 
+</style>

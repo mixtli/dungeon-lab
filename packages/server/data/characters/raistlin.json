@@ -1,121 +1,111 @@
 {
-	"id": "3D3AB7F2-6804-4DC2-AAF4-2369F723FC56",
-	"name": "Raistlin Majere",
-	"description": "A brilliant but physically frail mage whose ambition and power are matched only by his cynicism. Cursed with hourglass eyes that show him the decay of time, Raistlin's complex relationship with his twin brother Caramon and his relentless pursuit of arcane mastery make him as fascinating as he is dangerous. His golden skin and white hair mark his transformation through the Test of High Sorcery.",
-	"avatar": {
-		"url": "images/character_tokens/dragonlance/raistlin.png",
-		"type": "image/png",
-		"size": 0,
-		"name": "raistlin.png",
-		"data": null
-	},
-	"token": {
-		"url": "images/character_tokens/dragonlance/raistlin.png",
-		"type": "image/png",
-		"size": 0,
-		"name": "raistlin.png",
-		"data": null
-	},
-	"species": "human",
-	"xp": 0,
-	"classes": [
-		{
-			"name": "Wizard",
-			"subtype": "War Magic",
-			"level": 3,
-			"hit_die": 3,
-			"spellcasting": "int"
-		}
-	],
-	"alignment": "true-neutral",
-	"speed": {
-		"Walk": 30
-	},
-	"hit_points": {
-		"max": 18,
-		"current": 18
-	},
-	"ability_scores": {
-		"str": 10,
-		"dex": 16,
-		"con": 10,
-		"int": 17,
-		"wis": 14,
-		"cha": 10
-	},
-	"skills": {
-		"Arcana": true
-	},
-	"armor_class": {
-		"value": 5,
-		"description": ""
-	},
-	"saving_throws": {
-		"int": true,
-		"dex": true
-	},
-	"languages": [
-		"Common",
-		"Silvanesti",
-		"Sylvan"
-	],
-	"background": "outlander",
-	"details": {
-		"personality": "",
-		"ideal": "",
-		"bond": "",
-		"flaw": ""
-	},
-	"weapons": [
-		{
-			"name": "Dagger",
-			"damage": {
-				"dice": {
-					"sides": 4,
-					"count": 1,
-					"mod": 1
-				},
-				"type": "Piercing"
-			},
-			"throw_range": {
-				"short": 20,
-				"long": 60
-			},
-			"properties": {
-				"Finesse": true,
-				"Light": true,
-				"Thrown": true
-			}
-		}
-	],
-	"spells": [
-		{
-			"name": "Cold Breath",
-			"description": "Each creature in the area must make a DC (8 + CON modifier + proficiency bonus) CON saving throw, taking 2d6 cold damage on a failed save, and half as much damage on a successful one. You can't use it again until you complete a short or Long Rest.",
-			"level": "Cantrip",
-			"casting_time": "1 Action",
-			"range_area": "15 ft. cone",
-			"attack_save": "con",
-			"duration": "Instantaneous",
-			"damage_effect": "Cold",
-			"components": [
-				"V",
-				"S"
-			]
-		},
-		{
-			"name": "Blade Ward",
-			"description": "See PHB",
-			"level": "Cantrip",
-			"casting_time": "1 Action",
-			"range_area": "Self",
-			"duration": "1 Round",
-			"damage_effect": "Combat",
-			"components": [
-				"V",
-				"S"
-			],
-			"school": "Abjuration"
-		}
-	]
+  "id": "3D3AB7F2-6804-4DC2-AAF4-2369F723FC56",
+  "name": "Raistlin Majere",
+  "description": "A brilliant but physically frail mage whose ambition and power are matched only by his cynicism. Cursed with hourglass eyes that show him the decay of time, Raistlin's complex relationship with his twin brother Caramon and his relentless pursuit of arcane mastery make him as fascinating as he is dangerous. His golden skin and white hair mark his transformation through the Test of High Sorcery.",
+  "avatar": {
+    "url": "images/character_tokens/dragonlance/raistlin.png",
+    "type": "image/png",
+    "size": 0,
+    "name": "raistlin.png",
+    "data": null
+  },
+  "token": {
+    "url": "images/character_tokens/dragonlance/raistlin.png",
+    "type": "image/png",
+    "size": 0,
+    "name": "raistlin.png",
+    "data": null
+  },
+  "species": "human",
+  "xp": 0,
+  "classes": [
+    {
+      "name": "Wizard",
+      "subtype": "War Magic",
+      "level": 3,
+      "hit_die": 3,
+      "spellcasting": "int"
+    }
+  ],
+  "alignment": "true-neutral",
+  "speed": {
+    "Walk": 30
+  },
+  "hit_points": {
+    "max": 18,
+    "current": 18
+  },
+  "ability_scores": {
+    "str": 10,
+    "dex": 16,
+    "con": 10,
+    "int": 17,
+    "wis": 14,
+    "cha": 10
+  },
+  "skills": {
+    "Arcana": true
+  },
+  "armor_class": {
+    "value": 5,
+    "description": ""
+  },
+  "saving_throws": {
+    "int": true,
+    "dex": true
+  },
+  "languages": ["Common", "Silvanesti", "Sylvan"],
+  "background": "outlander",
+  "details": {
+    "personality": "",
+    "ideal": "",
+    "bond": "",
+    "flaw": ""
+  },
+  "weapons": [
+    {
+      "name": "Dagger",
+      "damage": {
+        "dice": {
+          "sides": 4,
+          "count": 1,
+          "mod": 1
+        },
+        "type": "Piercing"
+      },
+      "throw_range": {
+        "short": 20,
+        "long": 60
+      },
+      "properties": {
+        "Finesse": true,
+        "Light": true,
+        "Thrown": true
+      }
+    }
+  ],
+  "spells": [
+    {
+      "name": "Cold Breath",
+      "description": "Each creature in the area must make a DC (8 + CON modifier + proficiency bonus) CON saving throw, taking 2d6 cold damage on a failed save, and half as much damage on a successful one. You can't use it again until you complete a short or Long Rest.",
+      "level": "Cantrip",
+      "casting_time": "1 Action",
+      "range_area": "15 ft. cone",
+      "attack_save": "con",
+      "duration": "Instantaneous",
+      "damage_effect": "Cold",
+      "components": ["V", "S"]
+    },
+    {
+      "name": "Blade Ward",
+      "description": "See PHB",
+      "level": "Cantrip",
+      "casting_time": "1 Action",
+      "range_area": "Self",
+      "duration": "1 Round",
+      "damage_effect": "Combat",
+      "components": ["V", "S"],
+      "school": "Abjuration"
+    }
+  ]
 }

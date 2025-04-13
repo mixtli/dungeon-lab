@@ -52,7 +52,7 @@ Start by creating a new plugin package with the following basic files:
   "description": "Description of your plugin",
   "author": "Your Name",
   "website": "https://your-website.com",
-  "type": "gameSystem",  // Possible types: gameSystem, theme, tool, etc.
+  "type": "gameSystem", // Possible types: gameSystem, theme, tool, etc.
   "enabled": true
 }
 ```
@@ -133,9 +133,7 @@ Start by creating a new plugin package with the following basic files:
     "src/**/*.mjs",
     "src/**/*.hbs"
   ],
-  "references": [
-    { "path": "../../shared" }
-  ],
+  "references": [{ "path": "../../shared" }],
   "ts-node": {
     "esm": true
   }
@@ -149,7 +147,11 @@ Create a server plugin class in `src/server/index.mts`:
 ```typescript
 import { IGameSystemPlugin } from '@dungeon-lab/shared/index.mjs';
 import { ServerPlugin } from '@dungeon-lab/shared/base/server.mjs';
-import { validateActorData, validateItemData, validateVTTDocumentData } from '../shared/validation.mjs';
+import {
+  validateActorData,
+  validateItemData,
+  validateVTTDocumentData,
+} from '../shared/validation.mjs';
 import config from '../../manifest.json' with { type: 'json' };
 
 export class YourServerPlugin extends ServerPlugin implements IGameSystemPlugin {
@@ -159,7 +161,7 @@ export class YourServerPlugin extends ServerPlugin implements IGameSystemPlugin 
     super({
       ...config,
       type: 'gameSystem',
-      enabled: true
+      enabled: true,
     });
   }
 
@@ -180,7 +182,11 @@ Create a web plugin class in `src/web/index.mts`:
 ```typescript
 import { IGameSystemPluginWeb, IPluginAPI } from '@dungeon-lab/shared/types/plugin.mjs';
 import { WebPlugin } from '@dungeon-lab/shared/base/web.mjs';
-import { validateActorData, validateItemData, validateVTTDocumentData } from '../shared/validation.mjs';
+import {
+  validateActorData,
+  validateItemData,
+  validateVTTDocumentData,
+} from '../shared/validation.mjs';
 import manifest from '../../manifest.json' with { type: 'json' };
 
 /**
@@ -193,9 +199,9 @@ class YourWebPlugin extends WebPlugin implements IGameSystemPluginWeb {
     super({
       ...manifest,
       type: 'gameSystem',
-      enabled: true
+      enabled: true,
     });
-    
+
     this.initializePlugin();
   }
 
@@ -206,7 +212,7 @@ class YourWebPlugin extends WebPlugin implements IGameSystemPluginWeb {
     try {
       // Register components
       this.registerComponents();
-      
+
       console.log('Your Plugin initialized');
     } catch (error) {
       console.error('Failed to initialize Your Plugin:', error);
@@ -246,7 +252,7 @@ export function validateActorData(data: unknown): z.SafeParseReturnType<unknown,
   const schema = z.object({
     // Define your schema here
   });
-  
+
   return schema.safeParse(data);
 }
 
@@ -258,14 +264,17 @@ export function validateItemData(data: unknown): z.SafeParseReturnType<unknown, 
   const schema = z.object({
     // Define your schema here
   });
-  
+
   return schema.safeParse(data);
 }
 
 /**
  * Validate VTT document data against the schema
  */
-export function validateVTTDocumentData(documentType: string, data: unknown): z.SafeParseReturnType<unknown, unknown> {
+export function validateVTTDocumentData(
+  documentType: string,
+  data: unknown
+): z.SafeParseReturnType<unknown, unknown> {
   // Implement validation based on document type
   switch (documentType) {
     case 'character':
@@ -276,7 +285,7 @@ export function validateVTTDocumentData(documentType: string, data: unknown): z.
       // Return success for unknown document types
       return {
         success: true,
-        data
+        data,
       } as z.SafeParseReturnType<unknown, unknown>;
   }
 }
@@ -326,9 +335,9 @@ export default YourComponent;
 Create a template file `src/web/ui/your-component/template.hbs`:
 
 ```handlebars
-<div class="your-component">
+<div class='your-component'>
   <h2>{{title}}</h2>
-  <div class="content">
+  <div class='content'>
     {{#if items.length}}
       <ul>
         {{#each items}}
@@ -398,14 +407,14 @@ import { yourRouter } from './routes/your-routes.mjs';
 
 export class YourServerPlugin extends ServerPlugin implements IGameSystemPlugin {
   // ...existing code...
-  
+
   constructor() {
     super({
       ...config,
       type: 'gameSystem',
-      enabled: true
+      enabled: true,
     });
-    
+
     // Register routes
     this.registerRoutes('/your-plugin', yourRouter);
   }
@@ -454,7 +463,7 @@ export async function preloadAllDocuments(): Promise<void> {
     classes.forEach(cls => {
       documentCache.classes[cls.id] = cls;
     });
-    
+
     // Load other document types
     // ...
   } catch (error) {
@@ -478,7 +487,7 @@ describe('Validation', () => {
     });
     expect(result.success).toBe(true);
   });
-  
+
   it('should reject invalid actor data', () => {
     const result = validateActorData({
       // Invalid test data

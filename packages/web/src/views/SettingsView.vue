@@ -37,17 +37,14 @@ async function handleGameSystemChange(event: Event) {
 <template>
   <div class="max-w-3xl mx-auto p-6">
     <h1 class="text-2xl font-bold mb-6">Settings</h1>
-    
+
     <div class="bg-white rounded-lg shadow-md p-6 mb-6">
       <div class="border-b pb-4 mb-4">
         <h2 class="text-xl font-semibold">Game System</h2>
       </div>
-      
+
       <div class="game-system-settings">
-        <label 
-          for="gameSystem" 
-          class="block text-sm font-medium text-gray-700 mb-2"
-        >
+        <label for="gameSystem" class="block text-sm font-medium text-gray-700 mb-2">
           Active Game System
         </label>
         <select
@@ -75,4 +72,4 @@ async function handleGameSystemChange(event: Event) {
   max-width: 800px;
   margin: 0 auto;
 }
-</style> 
+</style>
