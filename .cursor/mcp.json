@@ -11,6 +11,11 @@
         "DEFAULT_SUBTASKS": 5,
         "DEFAULT_PRIORITY": "medium"
       }
+    },
+    "memory-bank-mcp": {
+      "command": "npx",
+      "args": ["-y", "@movibe/memory-bank-mcp", "--mode", "code"]
     }
   }
+
 }
