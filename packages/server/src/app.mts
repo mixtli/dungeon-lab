@@ -25,6 +25,7 @@ type ErrorHandlerMiddleware = (
 let authRoutes: Router;
 let storageRoutes: Router;
 let pluginRoutes: Router;
+let healthRoutes: Router;
 let errorHandler: ErrorHandlerMiddleware;
 
 // Create and export the session middleware for reuse
@@ -52,12 +53,14 @@ async function initializeRoutes() {
     const authRoutesModule = await import('./routes/auth.routes.mjs');
     const storageRoutesModule = await import('./routes/storage.routes.mjs');
     const pluginRoutesModule = await import('./routes/plugin.routes.mjs');
+    const healthRoutesModule = await import('./routes/health.routes.mjs');
     const { errorHandler: errorHandlerImport } = await import('./middleware/error.middleware.mjs');
 
     // Get the router instances from each module
     authRoutes = authRoutesModule.default;
     storageRoutes = storageRoutesModule.storageRoutes;
     pluginRoutes = pluginRoutesModule.default;
+    healthRoutes = healthRoutesModule.default;
     errorHandler = errorHandlerImport;
   } catch (error) {
     logger.error('Error initializing routes:', error);
@@ -101,6 +104,7 @@ export async function createApp(): Promise<express.Application> {
   app.use('/api/game-sessions', gameSessionRoutes);
   app.use('/api/maps', mapRoutes);
   app.use('/api/documents', documentRoutes);
+  app.use('/api/health', healthRoutes);
 
   app.use('/swaggerui', oapi.swaggerui())
   // Error handling
