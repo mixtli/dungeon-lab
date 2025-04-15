@@ -84,4 +84,21 @@ router.get('/me', authenticate, openApiGet(z.object({}), {
   }
 }), authController.getCurrentUser);
 
+// Get API key
+router.get('/api-key', authenticate, openApiGet(z.object({}), {
+  description: 'Get the API key for the authenticated user',
+  responses: {
+    200: {
+      description: 'User API key',
+      content: {
+        'application/json': {
+          schema: z.object({
+            apiKey: z.string()
+          })
+        }
+      }
+    }
+  }
+}), authController.getApiKey);
+
 export default router; 

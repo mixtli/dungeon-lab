@@ -212,4 +212,48 @@ export async function getCurrentUser(req: Request, res: Response) {
       },
     });
   }
+}
+
+/**
+ * Get user's API key
+ */
+export async function getApiKey(req: Request, res: Response) {
+  try {
+    // Check for user in session
+    if (!req.session || !req.session.user) {
+      return res.status(401).json({
+        success: false,
+        error: {
+          message: 'Not authenticated'
+        }
+      });
+    }
+
+    const userId = req.session.user.id;
+    const user = await UserModel.findById(userId);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          message: 'User not found'
+        }
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        apiKey: user.apiKey
+      }
+    });
+  } catch (error) {
+    logger.error('Get API key error:', error);
+    return res.status(500).json({
+      success: false,
+      error: {
+        message: 'An error occurred while fetching API key'
+      }
+    });
+  }
 } 

@@ -13,16 +13,10 @@ export const mapSchema = baseSchema.extend({
   aspectRatio: z.number().positive(),
 });
 
-// Create data schema (omits auto-generated fields)
-// export const mapCreateSchema = mapSchema.omit({
-//   id: true,
-//   gridRows: true,
-//   aspectRatio: true,
-//   createdBy: true,
-//   updatedBy: true,
-// }).extend({
-//   image: assetSchema.optional()
-// });
+export const mapCreateSchema = mapSchema.omit({
+  gridRows: true,
+  aspectRatio: true,
+});
 
 // // Update data schema (makes all fields optional except updatedBy)
 // export const mapUpdateSchema = mapSchema

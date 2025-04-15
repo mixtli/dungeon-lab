@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcrypt';
+import crypto from 'crypto';
 import { IUser, userSchema } from '@dungeon-lab/shared/index.mjs';
 import { baseMongooseZodSchema } from './base-schema.mjs';
 import { createMongoSchema } from './zod-to-mongo.mjs';
@@ -19,6 +20,11 @@ mongooseSchema.methods.comparePassword = async function(candidatePassword: strin
 // Hash password before saving
 
 mongooseSchema.pre('validate', async function(this: mongoose.Document & IUser, next: mongoose.CallbackWithoutResultAndOptionalError) {
+  // Generate API key if not present
+  if (!this.apiKey) {
+    this.apiKey = crypto.randomBytes(32).toString('hex');
+  }
+
   if (!this.isModified('password') || !this.password) {
     return next();
   }

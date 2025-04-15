@@ -18,7 +18,7 @@ export class MapService {
   async getMaps(campaignId: string): Promise<IMap[]> {
     try {
       const maps = await MapModel.find({ campaignId });
-      return maps.map(map => this.transformMapResponse(map));
+      return maps
     } catch (error) {
       logger.error('Error getting maps:', error);
       throw new Error('Failed to get maps');
@@ -31,7 +31,7 @@ export class MapService {
       if (!map) {
         throw new Error('Map not found');
       }
-      return this.transformMapResponse(map);
+      return map
     } catch (error) {
       logger.error('Error getting map:', error);
       throw new Error('Failed to get map');
@@ -48,7 +48,7 @@ export class MapService {
       // Create initial map in database
       const map = await MapModel.create(mapData);
       
-      return this.transformMapResponse(map);
+      return map
     } catch (error) {
       logger.error('Error creating initial map:', error);
       throw new Error('Failed to create initial map');
@@ -156,7 +156,7 @@ export class MapService {
           throw new Error('Map not found after update');
         }
         
-        return this.transformMapResponse(updatedMap);
+        return updatedMap;
       } catch (error) {
         logger.error('Error processing image:', error);
         throw new Error(`Failed to process image: ${error instanceof Error ? error.message : String(error)}`);
@@ -249,7 +249,7 @@ export class MapService {
         throw new Error('Map not found');
       }
 
-      return this.transformMapResponse(map);
+      return map;
     } catch (error) {
       logger.error('Error updating map:', error);
       throw error;
@@ -276,20 +276,11 @@ export class MapService {
   async getAllMaps(userId: string): Promise<IMap[]> {
     try {
       const maps = await MapModel.find({ createdBy: userId });
-      return maps.map(map => this.transformMapResponse(map));
+      return maps
     } catch (error) {
       logger.error('Error getting all maps:', error);
       throw new Error('Failed to get maps');
     }
   }
 
-  private transformMapResponse(map: any): IMap {
-    const mapObj = map.toObject();
-    const { _id, __v, ...rest } = mapObj;
-    
-    return {
-      id: _id.toString(),
-      ...rest
-    };
-  }
 } 

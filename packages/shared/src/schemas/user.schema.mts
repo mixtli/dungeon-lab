@@ -22,6 +22,7 @@ export const userSchema = z.object({
   preferences: userPreferencesSchema.default({}),
   isAdmin: z.boolean().default(false),
   googleId: z.string().optional(),
+  apiKey: z.string().optional(),
 });
 
 // Create data schema (for manual registration)

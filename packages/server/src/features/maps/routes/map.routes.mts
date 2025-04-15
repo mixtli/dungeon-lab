@@ -3,7 +3,7 @@ import { MapController } from '../controllers/map.controller.mjs';
 import { MapService } from '../services/map.service.mjs';
 import { authenticate } from '../../../middleware/auth.middleware.mjs';
 import { validateRequest, validateMultipartRequest } from '../../../middleware/validation.middleware.mjs';
-import { mapSchema } from '@dungeon-lab/shared/schemas/map.schema.mjs';
+import { mapCreateSchema, mapSchema } from '@dungeon-lab/shared/schemas/map.schema.mjs';
 import { openApiGet, openApiGetOne, openApiPost, openApiDelete, openApiPatch } from '../../../oapi.mjs';
 import { z } from '../../../utils/zod.mjs';
 
@@ -38,10 +38,10 @@ router.get('/:id', openApiGetOne(mapSchema, {
 
 // Set a longer timeout for map creation due to AI image generation
 router.post('/',
-  openApiPost(mapSchema, {
+  openApiPost(mapCreateSchema, {
     description: 'Create new map'
   }), 
-  validateMultipartRequest(mapSchema, 'image'), 
+  validateMultipartRequest(mapCreateSchema, 'image'), 
   boundController.createMap
 );
 
