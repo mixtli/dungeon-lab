@@ -65,6 +65,7 @@
     "@vitest/coverage-v8": "^1.6.1",
     "eslint": "^8.56.0",
     "glob": "^11.0.1",
+    "mongodb-memory-server": "^10.1.4",
     "supertest": "^6.3.3",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",

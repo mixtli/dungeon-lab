@@ -196,6 +196,7 @@ export async function getCurrentUser(req: Request, res: Response) {
     }
     
     // No user in session
+    // This code should never be reached.  If the user is not authenticated, the middleware should have returned a 401.
     return res.status(401).json({
       success: false,
       error: {

@@ -1,4 +1,4 @@
-import { IVTTDocument } from '@dungeon-lab/shared/src/schemas/vtt-document.schema.mjs';
+import { IVTTDocument } from '@dungeon-lab/shared/schemas/vtt-document.schema.mjs';
 import { VTTDocument } from '../models/vtt-document.model.mjs';
 import { logger } from '../../../utils/logger.mjs';
 

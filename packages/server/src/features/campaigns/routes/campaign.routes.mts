@@ -7,10 +7,10 @@ import { GameSessionController } from '../controllers/game-session.controller.mj
 import { GameSessionService } from '../services/game-session.service.mjs';
 import { authenticate } from '../../../middleware/auth.middleware.mjs';
 import { validateRequest } from '../../../middleware/validation.middleware.mjs';
-import { campaignSchema } from '@dungeon-lab/shared/src/schemas/campaign.schema.mjs';
+import { campaignSchema } from '@dungeon-lab/shared/schemas/campaign.schema.mjs';
 import { validateCreateEncounter, validateUpdateEncounter } from '../middleware/encounter.validation.mjs';
-import { gameSessionSchema } from '@dungeon-lab/shared/src/schemas/game-session.schema.mjs';
-import { encounterSchema } from '@dungeon-lab/shared/src/schemas/encounter.schema.mjs';
+import { gameSessionSchema } from '@dungeon-lab/shared/schemas/game-session.schema.mjs';
+import { encounterSchema } from '@dungeon-lab/shared/schemas/encounter.schema.mjs';
 import { openApiGet, openApiGetOne, openApiPost, openApiPut, openApiDelete, openApiPatch } from '../../../oapi.mjs';
 
 // Initialize services and controllers

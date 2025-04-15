@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { IEncounter, encounterSchema } from '@dungeon-lab/shared/src/schemas/encounter.schema.mjs';
+import { IEncounter, encounterSchema } from '@dungeon-lab/shared/schemas/encounter.schema.mjs';
 import { baseMongooseZodSchema } from '../../../models/base-schema.mjs';
 import { createMongoSchema } from '../../../models/zod-to-mongo.mjs';
 import { logger } from '../../../utils/logger.mjs';

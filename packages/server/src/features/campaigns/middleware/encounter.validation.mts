@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { encounterSchema } from '@dungeon-lab/shared/src/schemas/encounter.schema.mjs';
+import { encounterSchema } from '@dungeon-lab/shared/schemas/encounter.schema.mjs';
 import { logger } from '../../../utils/logger.mjs';
 
 /**

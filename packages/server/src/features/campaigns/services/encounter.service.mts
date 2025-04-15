@@ -1,5 +1,5 @@
 import { Types } from 'mongoose';
-import { IEncounter} from '@dungeon-lab/shared/src/schemas/encounter.schema.mjs';
+import { IEncounter} from '@dungeon-lab/shared/schemas/encounter.schema.mjs';
 import { EncounterModel} from '../models/encounter.model.mjs';
 import { CampaignModel } from '../models/campaign.model.mjs';
 import { ActorModel } from '../../actors/models/actor.model.mjs';
