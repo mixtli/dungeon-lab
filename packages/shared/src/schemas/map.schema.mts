@@ -6,8 +6,8 @@ import { baseSchema } from './base.schema.mjs';
 export const mapSchema = baseSchema.extend({
   name: z.string().min(1).max(255),
   description: z.string().optional(),
-  image: assetSchema,
   thumbnail: assetSchema.optional(),
+  image: assetSchema.optional(),
   gridColumns: z.number().int().positive(),
   gridRows: z.number().int().positive(),
   aspectRatio: z.number().positive(),

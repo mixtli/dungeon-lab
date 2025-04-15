@@ -1,0 +1,19 @@
+---
+description: Use this rule when writing tests
+globs: 
+alwaysApply: false
+---
+
+# Testing Instructions
+## Server Testing
+When writing server tests, we are focused on full stack integration tests.
+1.  Avoid the use of mocks when possible
+2.  Try to only mock external services.
+3.  We have helper methods in [auth-test-helpers.mts](mdc:packages/server/tests/utils/auth-test-helpers.mts).  Use them.  Particulary requestAs to make a request as a particular user.
+4.  We are using supertest to run the API tests.
+5.  We are using the vitest framework, NOT jest.
+
+## Web client testing
+We don't have tests for this yet and haven't decided a strategy.
+
+

@@ -100,6 +100,7 @@ export function validateMultipartRequest(schema: z.ZodSchema, fileFields: string
                 shape[field] instanceof z.ZodUnion &&
                 shape[field]._def.options.some((opt: any) =>
                   opt instanceof z.ZodLiteral && opt._def.value === ''));
+            console.log("isFieldOptional", field, isFieldOptional);
 
             // Make file field optional if it's optional in the original schema
             schemaExtension[field] = isFieldOptional
@@ -123,21 +124,22 @@ export function validateMultipartRequest(schema: z.ZodSchema, fileFields: string
         let bodyData: Record<string, any> = { ...req.body };
         
         // Parse numeric fields and JSON strings
-        Object.entries(bodyData).forEach(([key, value]) => {
-          if (typeof value === 'string') {
-            // Try to parse JSON strings
-            try {
-              const parsed = JSON.parse(value);
-              bodyData[key] = parsed;
-            } catch (e) {
-              // If it's not valid JSON, keep the original string
-              // Only parse numeric fields if not JSON
-              if (key === 'gridColumns') {
-                bodyData[key] = parseInt(value, 10);
-              }
-            }
-          }
-        });
+        // TODO:  Do we still need this?
+        // Object.entries(bodyData).forEach(([key, value]) => {
+        //   if (typeof value === 'string') {
+        //     // Try to parse JSON strings
+        //     try {
+        //       const parsed = JSON.parse(value);
+        //       bodyData[key] = parsed;
+        //     } catch (e) {
+        //       // If it's not valid JSON, keep the original string
+        //       // Only parse numeric fields if not JSON
+        //       if (key === 'gridColumns') {
+        //         bodyData[key] = parseInt(value, 10);
+        //       }
+        //     }
+        //   }
+        // });
         
         // Add all files from our normalized map
         normalizedFiles.forEach((file, fieldName) => {
