@@ -1,5 +1,4 @@
 import { Types } from 'mongoose';
-import bcrypt from 'bcrypt';
 import { UserModel } from '../../src/models/user.model.mjs';
 
 // Define test user data
@@ -34,18 +33,14 @@ export const TEST_USERS = {
  * Create test users in the database
  */
 export async function createTestUsers() {
-  const saltRounds = 10;
   const createdUsers: Record<string, any> = {};
   
   for (const [key, userData] of Object.entries(TEST_USERS)) {
-    // Hash the password for storage
-    const hashedPassword = await bcrypt.hash(userData.password, saltRounds);
-    
-    // Create a user with the original ObjectId
+    // Create a user with the original ObjectId and plain text password
+    // The model's pre-validate middleware will hash the password
     const user = await UserModel.create({
       ...userData,
-      _id: new Types.ObjectId(userData._id),
-      password: hashedPassword
+      _id: new Types.ObjectId(userData._id)
     });
     
     createdUsers[key] = user;

@@ -1,43 +1,62 @@
 import { describe, test, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import request from 'supertest';
+import mongoose from 'mongoose';
 import { getTestAgent } from '../test-utils.mjs';
-import * as mongodbMemory from '../utils/mongodb.mjs';
+import { requestAs, clearAuthCache } from '../utils/auth-test-helpers.mjs';
+import { TEST_USERS, createTestUsers, cleanupTestUsers } from '../utils/testUsers.mjs';
+import { MongoMemoryServer } from 'mongodb-memory-server';
 
 describe('Authentication API', () => {
   let agent: any; // Using any to bypass type issues with superagent
   let testUsers: any;
+  let mongoServer: MongoMemoryServer;
   
   // Setup before all tests
   beforeAll(async () => {
-    await mongodbMemory.connect();
+    // Setup in-memory MongoDB
+    mongoServer = await MongoMemoryServer.create();
+    const mongoUri = mongoServer.getUri();
+    await mongoose.connect(mongoUri);
+    
     agent = await getTestAgent();
-    testUsers = await mongodbMemory.seedUsers();
+    testUsers = await createTestUsers();
   });
   
   // Clean up after all tests
   afterAll(async () => {
-    await mongodbMemory.closeDatabase();
+    await cleanupTestUsers();
+    await mongoose.disconnect();
+    await mongoServer.stop();
   });
   
   // Reset before each test
   beforeEach(async () => {
-    await mongodbMemory.clearDatabase();
-    testUsers = await mongodbMemory.seedUsers();
+    // Clear collections but keep connection
+    const collections = mongoose.connection.collections;
+    for (const key in collections) {
+      await collections[key].deleteMany({});
+    }
+    
+    testUsers = await createTestUsers();
+    // Clear auth cache between tests to ensure clean state
+    clearAuthCache();
   });
 
   describe('POST /api/auth/login', () => {
     test('should login successfully with valid credentials', async () => {
+      const userData = TEST_USERS.user;
+      
       const response = await agent
         .post('/api/auth/login')
         .send({
-          email: 'user@example.com',
-          password: 'password123'
+          email: userData.email,
+          password: userData.password
         });
       
       expect(response.status).toBe(200);
       expect(response.body.success).toBeTruthy();
-      expect(response.body.data.user.username).toBe('testuser');
-      expect(response.body.data.user.email).toBe('user@example.com');
+      expect(response.body.data.user.username).toBe(userData.username);
+      expect(response.body.data.user.email).toBe(userData.email);
       
       // Check that session cookie is set
       expect(response.headers['set-cookie']).toBeDefined();
@@ -49,7 +68,7 @@ describe('Authentication API', () => {
       const response = await agent
         .post('/api/auth/login')
         .send({
-          email: 'user@example.com',
+          email: TEST_USERS.user.email,
           password: 'wrongpassword'
         });
       
@@ -61,26 +80,16 @@ describe('Authentication API', () => {
 
   describe('GET /api/auth/me', () => {
     test('should return user profile when authenticated', async () => {
-      // First login to get a cookie
-      const loginResponse = await agent
-        .post('/api/auth/login')
-        .send({
-          email: 'user@example.com',
-          password: 'password123'
-        });
+      // Use the new requestAs API with the user key from TEST_USERS
+      const userAgent = await requestAs('user');
       
-      // Get the cookie from the login response
-      const cookie = loginResponse.headers['set-cookie'];
-      
-      // Use the cookie to access the /me endpoint
-      const response = await agent
-        .get('/api/auth/me')
-        .set('Cookie', cookie);
+      // Make request - the cookie is automatically attached
+      const response = await userAgent.get('/api/auth/me');
       
       expect(response.status).toBe(200);
       expect(response.body.success).toBeTruthy();
-      expect(response.body.data.username).toBe('testuser');
-      expect(response.body.data.email).toBe('user@example.com');
+      expect(response.body.data.username).toBe(TEST_USERS.user.username);
+      expect(response.body.data.email).toBe(TEST_USERS.user.email);
     });
 
     test('should return 401 when not authenticated', async () => {
@@ -93,29 +102,19 @@ describe('Authentication API', () => {
 
   describe('POST /api/auth/logout', () => {
     test('should successfully logout', async () => {
-      // First login to get a cookie
-      const loginResponse = await agent
-        .post('/api/auth/login')
-        .send({
-          email: 'user@example.com',
-          password: 'password123'
-        });
+      // Get an authenticated agent
+      const userAgent = await requestAs('user');
       
-      // Get the cookie from the login response
-      const cookie = loginResponse.headers['set-cookie'];
-      
-      // Use the cookie to logout
-      const logoutResponse = await agent
-        .post('/api/auth/logout')
-        .set('Cookie', cookie);
-      
+      // Logout
+      const logoutResponse = await userAgent.post('/api/auth/logout');
       expect(logoutResponse.status).toBe(200);
       
-      // Verify that the me endpoint returns 401 after logout
-      const meResponse = await agent
-        .get('/api/auth/me')
-        .set('Cookie', cookie);
+      // Clear the cache to ensure we don't use the old cookie
+      clearAuthCache('user');
       
+      // Try to access protected endpoint using userAgent
+      // After logout, the session cookie should be cleared
+      const meResponse = await userAgent.get('/api/auth/me');
       expect(meResponse.status).toBe(401);
     });
   });
