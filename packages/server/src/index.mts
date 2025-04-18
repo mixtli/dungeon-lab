@@ -1,11 +1,18 @@
+
+import './utils/setup_debug_logging.js';
 import { createServer } from 'http';
 import mongoose from 'mongoose';
 import { createApp } from './app.mjs';
 import { config } from './config/index.mjs';
 import { configurePassport } from './config/passport.mjs';
 import { pluginRegistry } from './services/plugin-registry.service.mjs';
+import { backgroundJobService } from './services/background-job.service.mjs';
+import { initializeJobs } from './jobs/index.mjs';
 import { logger } from './utils/logger.mjs';
 import { createSocketServer } from './websocket/socket-server.mjs';
+
+
+console.log('Starting server...');
 
 // Debug environment variables
 console.log('Environment Variables:');
@@ -38,6 +45,13 @@ async function startServer() {
     // Initialize plugins
     await pluginRegistry.initialize();
 
+    // Initialize background job service
+    await backgroundJobService.initialize();
+    logger.info('Background job service initialized');
+    
+    // Initialize and register background jobs
+    await initializeJobs();
+
     // Create HTTP server
     const httpServer = createServer(app);
     
@@ -53,6 +67,7 @@ async function startServer() {
     // Handle shutdown
     process.on('SIGTERM', async () => {
       logger.info('SIGTERM received. Shutting down...');
+      await backgroundJobService.shutdown();
       await pluginRegistry.cleanupAll();
       httpServer.close(() => {
         logger.info('Server closed');
