@@ -1,8 +1,8 @@
 import axios from 'axios';
 
 // Create an instance of axios with default config
-// @ts-ignore - import.meta.env is provided by Vite
-const baseURL = import.meta.env?.VITE_API_URL || 'http://localhost:3000';
+// Use type assertion for Vite's import.meta.env
+const baseURL = (import.meta.env?.VITE_API_URL as string | undefined) || 'http://localhost:3000';
 
 // Create axios instance with base URL and session cookie support
 const api = axios.create({

@@ -14,14 +14,14 @@ export interface IPluginComponent {
   // Lifecycle hooks
   onMount(container: HTMLElement): Promise<void>;
   onUnmount(): Promise<void>;
-  onUpdate(data: Record<string, any>): Promise<void>;
+  onUpdate(data: Record<string, unknown>): Promise<void>;
 
   // Render method
-  render(data?: Record<string, any>): Promise<void>;
+  render(data?: Record<string, unknown>): Promise<void>;
 
   // Form validation and data transformation
   validateForm(form: HTMLFormElement): z.SafeParseReturnType<unknown, unknown>;
-  translateFormData(data: unknown): any;
+  translateFormData(data: unknown): unknown;
 
   // Optional debug methods
   enableDebugMode?(): void;

@@ -12,7 +12,8 @@
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
     "build": "npm run clean && tsc --project tsconfig.json",
     "dev": "tsc --project tsconfig.json --watch",
-    "lint": "eslint src --ext .ts",
+    "check": "tsc --noEmit",
+    "lint": "eslint src",
     "test": "vitest run"
   },
   "dependencies": {

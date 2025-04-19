@@ -82,7 +82,7 @@ export abstract class PluginComponent implements IPluginComponent {
    * Called when the component's data is updated
    * @param data The updated data
    */
-  async onUpdate(data: Record<string, any>): Promise<void> {
+  async onUpdate(data: Record<string, unknown>): Promise<void> {
     if (this.isDebugMode) {
       console.log(`[${this.name}] Component updated`, {
         id: this.id,
@@ -139,7 +139,7 @@ export abstract class PluginComponent implements IPluginComponent {
    * Render the component with the given data
    * @param data Data to use for rendering
    */
-  public async render(data: Record<string, any> = {}): Promise<void> {
+  public async render(data: object = {}): Promise<void> {
     console.log('Rendering component', {
       id: this.id,
       data

@@ -8,6 +8,7 @@ import type { ICampaign } from '@dungeon-lab/shared/schemas/campaign.schema.mjs'
 import type { z } from 'zod';
 import { useAuthStore } from './auth.mjs';
 import { useRouter } from 'vue-router';
+import { AxiosError } from 'axios';
 
 // Extend IGameSession to include id for frontend use
 interface GameSessionWithId extends IGameSession {
@@ -44,8 +45,14 @@ export const useGameSessionStore = defineStore('gameSession', () => {
       });
       currentSession.value = response.data;
       return currentSession.value;
-    } catch (err: any) {
-      error.value = err.response?.data?.message || err.message || 'Failed to create game session';
+    } catch (err: unknown) {
+      if (err instanceof AxiosError) {
+        error.value = err.response?.data?.message || err.message || 'Failed to create game session';
+      } else if (err instanceof Error) {
+        error.value = err.message || 'Failed to create game session';
+      } else {
+        error.value = 'Failed to create game session: Unknown error';
+      }
       console.error('Error creating game session:', err);
       throw err;
     } finally {
@@ -97,8 +104,14 @@ export const useGameSessionStore = defineStore('gameSession', () => {
       }
 
       return currentSession.value;
-    } catch (err: any) {
-      error.value = err.response?.data?.message || err.message || `Failed to fetch game session ${id}`;
+    } catch (err: unknown) {
+      if (err instanceof AxiosError) {
+        error.value = err.response?.data?.message || err.message || `Failed to fetch game session ${id}`;
+      } else if (err instanceof Error) {
+        error.value = err.message || `Failed to fetch game session ${id}`;
+      } else {
+        error.value = `Failed to fetch game session ${id}: Unknown error`;
+      }
       console.error(`Error fetching game session ${id}:`, err);
       throw err;
     } finally {
@@ -114,8 +127,14 @@ export const useGameSessionStore = defineStore('gameSession', () => {
       const response = await api.get(`/api/campaigns/${campaignId}/sessions`);
       campaignSessions.value = response.data;
       return campaignSessions.value;
-    } catch (err: any) {
-      error.value = err.response?.data?.message || err.message || `Failed to fetch sessions for campaign ${campaignId}`;
+    } catch (err: unknown) {
+      if (err instanceof AxiosError) {
+        error.value = err.response?.data?.message || err.message || `Failed to fetch sessions for campaign ${campaignId}`;
+      } else if (err instanceof Error) {
+        error.value = err.message || `Failed to fetch sessions for campaign ${campaignId}`;
+      } else {
+        error.value = `Failed to fetch sessions for campaign ${campaignId}: Unknown error`;
+      }
       console.error(`Error fetching campaign sessions:`, err);
       throw err;
     } finally {
@@ -131,8 +150,14 @@ export const useGameSessionStore = defineStore('gameSession', () => {
       const response = await api.get('/api/game-sessions');
       allSessions.value = response.data;
       return allSessions.value;
-    } catch (err: any) {
-      error.value = err.response?.data?.message || err.message || 'Failed to fetch game sessions';
+    } catch (err: unknown) {
+      if (err instanceof AxiosError) {
+        error.value = err.response?.data?.message || err.message || 'Failed to fetch game sessions';
+      } else if (err instanceof Error) {
+        error.value = err.message || 'Failed to fetch game sessions';
+      } else {
+        error.value = 'Failed to fetch game sessions: Unknown error';
+      }
       console.error('Error fetching game sessions:', err);
       throw err;
     } finally {
@@ -153,8 +178,14 @@ export const useGameSessionStore = defineStore('gameSession', () => {
       }
       campaignSessions.value = campaignSessions.value.filter(session => session.id !== id);
       allSessions.value = allSessions.value.filter(session => session.id !== id);
-    } catch (err: any) {
-      error.value = err.response?.data?.message || err.message || 'Failed to delete game session';
+    } catch (err: unknown) {
+      if (err instanceof AxiosError) {
+        error.value = err.response?.data?.message || err.message || 'Failed to delete game session';
+      } else if (err instanceof Error) {
+        error.value = err.message || 'Failed to delete game session';
+      } else {
+        error.value = 'Failed to delete game session: Unknown error';
+      }
       console.error('Error deleting game session:', err);
       throw err;
     } finally {
@@ -185,8 +216,14 @@ export const useGameSessionStore = defineStore('gameSession', () => {
       updateSessionInList(allSessions.value);
 
       return response.data;
-    } catch (err: any) {
-      error.value = err.response?.data?.message || err.message || 'Failed to update session status';
+    } catch (err: unknown) {
+      if (err instanceof AxiosError) {
+        error.value = err.response?.data?.message || err.message || 'Failed to update session status';
+      } else if (err instanceof Error) {
+        error.value = err.message || 'Failed to update session status';
+      } else {
+        error.value = 'Failed to update session status: Unknown error';
+      }
       console.error('Error updating session status:', err);
       throw err;
     } finally {

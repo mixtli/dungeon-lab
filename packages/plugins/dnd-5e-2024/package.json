@@ -24,6 +24,8 @@
   },
   "scripts": {
     "build": "tsc -b --force",
+    "check": "tsc --noEmit",
+    "lint": "eslint src",
     "clean": "rimraf dist",
     "test": "vitest run"
   },

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { ISpeciesData } from '../shared/types/vttdocument.mjs';
 import type { IVTTDocument } from '@dungeon-lab/shared/schemas/vtt-document.schema.mjs';
 import {

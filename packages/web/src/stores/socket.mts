@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { io } from 'socket.io-client';
+import { io, Socket as SocketIO } from 'socket.io-client';
 import { ref, watch } from 'vue';
 import { useAuthStore } from './auth.mjs';
 import { useRouter } from 'vue-router';
@@ -7,7 +7,7 @@ import { useEncounterStore } from './encounter.mjs';
 
 // Define a type for the socket store
 interface SocketStore {
-  socket: any | null;  // TODO: Replace with proper type when TS issues are resolved
+  socket: SocketIO | null;
   userId: string | null;
   isConnected: boolean;
   initSocket: () => void;
@@ -16,7 +16,7 @@ interface SocketStore {
 }
 
 export const useSocketStore = defineStore('socket', () => {
-  const socket = ref<any | null>(null);
+  const socket = ref<SocketIO | null>(null);
   const userId = ref<string | null>(null);
   const isConnected = ref(false);
   const authStore = useAuthStore();
@@ -53,13 +53,13 @@ export const useSocketStore = defineStore('socket', () => {
     });
 
     // Add logging for all socket events
-    socket.value.onAny((event: string, ...args: any[]) => {
+    socket.value.onAny((event: string, ...args: unknown[]) => {
       console.log('[Socket Event Received]', event, args);
     });
 
     // Add logging for all outgoing events
     const originalEmit = socket.value.emit;
-    socket.value.emit = function(event: string, ...args: any[]) {
+    socket.value.emit = function(event: string, ...args: unknown[]) {
       console.log('[Socket Event Sent]', event, args);
       return originalEmit.apply(this, [event, ...args]);
     };
@@ -125,4 +125,4 @@ export const useSocketStore = defineStore('socket', () => {
     setUserId,
     disconnect,
   };
-}) satisfies () => SocketStore; 
+}) as () => SocketStore; 

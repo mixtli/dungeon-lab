@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { IBackgroundData } from '../shared/types/vttdocument.mjs';
 import {
   toLowercase,

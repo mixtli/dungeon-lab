@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // convert-5e-tools-class.mts
 import type {
   ICharacterClassData,
@@ -60,7 +61,6 @@ export interface RawSubclassData {
 }
 
 // Output data interface
-export interface NormalizedData extends ICharacterClassData {}
 
 function normalizeSubclassFeatureEntries(entries: any[]): Partial<IFeatureData> {
     const result: Partial<IFeatureData> = {
@@ -692,7 +692,7 @@ export async function getSubclassesForClass(className: string, source: string): 
   }
 }
 
-export function convert5eToolsClass(data: any): NormalizedData {
+export function convert5eToolsClass(data: any): ICharacterClassData {
     // Check if we're dealing with a direct class object or a container with class arrays
     let classData: RawClassData;
     let subclasses: any[] = [];
@@ -706,7 +706,7 @@ export function convert5eToolsClass(data: any): NormalizedData {
         const xphbClasses = data.class.filter((cls: RawClassData) => cls.source === 'XPHB');
         if (xphbClasses.length === 0) {
             console.log(`No XPHB classes found in data`);
-            return {} as NormalizedData;
+            return {} as ICharacterClassData;
         }
         
         classData = xphbClasses[0];
@@ -729,7 +729,7 @@ export function convert5eToolsClass(data: any): NormalizedData {
         (classData as any)._needsSubclassLookup = true;
     } else {
         console.log(`No XPHB class found in data: ${data.name} (${data.source})`);
-        return {} as NormalizedData;
+        return {} as ICharacterClassData;
     }
     
     const className = toLowercase(classData.name || '');

@@ -41,7 +41,7 @@ export class PluginRegistryService {
       const response = await fetch('/api/plugins');
       const availablePlugins = await response.json();
       
-      await Promise.all(availablePlugins.map(async (pluginConfig: any) => {
+      await Promise.all(availablePlugins.map(async (pluginConfig: { config: { id: string }, id: string }) => {
         try {
           await this.loadPlugin(pluginConfig.config.id);
         } catch (error) {

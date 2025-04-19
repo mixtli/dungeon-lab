@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import api from '../network/axios.mjs';
-import { IItem } from '@dungeon-lab/shared/index.mjs';
+import { type IItem } from '@dungeon-lab/shared/index.mjs';
+import { AxiosError } from 'axios';
 
 export const useItemStore = defineStore('item', () => {
   // State
@@ -23,8 +24,14 @@ export const useItemStore = defineStore('item', () => {
       const response = await api.get('/api/items');
       items.value = response.data;
       return items.value;
-    } catch (err: any) {
-      error.value = err.response?.data?.message || err.message || 'Failed to fetch items';
+    } catch (err: unknown) {
+      if (err instanceof AxiosError) {
+        error.value = err.response?.data?.message || err.message || 'Failed to fetch items';
+      } else if (err instanceof Error) {
+        error.value = err.message || 'Failed to fetch items';
+      } else {
+        error.value = 'Failed to fetch items: Unknown error';
+      }
       console.error('Error fetching items:', err);
       return [];
     } finally {
@@ -47,8 +54,14 @@ export const useItemStore = defineStore('item', () => {
       }
       
       return currentItem.value;
-    } catch (err: any) {
-      error.value = err.response?.data?.message || err.message || 'Failed to fetch item';
+    } catch (err: unknown) {
+      if (err instanceof AxiosError) {
+        error.value = err.response?.data?.message || err.message || 'Failed to fetch item';
+      } else if (err instanceof Error) {
+        error.value = err.message || 'Failed to fetch item';
+      } else {
+        error.value = 'Failed to fetch item: Unknown error';
+      }
       console.error('Error fetching item:', err);
       return null;
     } finally {
@@ -65,8 +78,14 @@ export const useItemStore = defineStore('item', () => {
       const newItem = response.data;
       items.value.push(newItem);
       return newItem;
-    } catch (err: any) {
-      error.value = err.response?.data?.message || err.message || 'Failed to create item';
+    } catch (err: unknown) {
+      if (err instanceof AxiosError) {
+        error.value = err.response?.data?.message || err.message || 'Failed to create item';
+      } else if (err instanceof Error) {
+        error.value = err.message || 'Failed to create item';
+      } else {
+        error.value = 'Failed to create item: Unknown error';
+      }
       console.error('Error creating item:', err);
       throw err;
     } finally {
@@ -94,8 +113,14 @@ export const useItemStore = defineStore('item', () => {
       }
       
       return updatedItem;
-    } catch (err: any) {
-      error.value = err.response?.data?.message || err.message || 'Failed to update item';
+    } catch (err: unknown) {
+      if (err instanceof AxiosError) {
+        error.value = err.response?.data?.message || err.message || 'Failed to update item';
+      } else if (err instanceof Error) {
+        error.value = err.message || 'Failed to update item';
+      } else {
+        error.value = 'Failed to update item: Unknown error';
+      }
       console.error('Error updating item:', err);
       throw err;
     } finally {
@@ -117,8 +142,14 @@ export const useItemStore = defineStore('item', () => {
       if (currentItem.value?.id === id) {
         currentItem.value = null;
       }
-    } catch (err: any) {
-      error.value = err.response?.data?.message || err.message || 'Failed to delete item';
+    } catch (err: unknown) {
+      if (err instanceof AxiosError) {
+        error.value = err.response?.data?.message || err.message || 'Failed to delete item';
+      } else if (err instanceof Error) {
+        error.value = err.message || 'Failed to delete item';
+      } else {
+        error.value = 'Failed to delete item: Unknown error';
+      }
       console.error('Error deleting item:', err);
       throw err;
     } finally {

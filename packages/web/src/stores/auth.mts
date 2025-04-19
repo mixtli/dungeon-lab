@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import axios from '../network/axios.mjs';
+import { AxiosError } from 'axios';
 
 interface User {
   id: string;
@@ -45,8 +46,12 @@ export const useAuthStore = defineStore('auth', () => {
       } else {
         throw new Error(response.data.message || 'Login failed');
       }
-    } catch (err: any) {
-      error.value = err.message || 'Failed to login';
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        error.value = err.message || 'Failed to login';
+      } else {
+        error.value = 'Failed to login: Unknown error';
+      }
       throw err;
     } finally {
       isLoading.value = false;
@@ -70,8 +75,14 @@ export const useAuthStore = defineStore('auth', () => {
         user.value = null;
         return false;
       }
-    } catch (err: any) {
-      error.value = err.response?.data?.error?.message || 'An error occurred during registration';
+    } catch (err: unknown) {
+      if (err instanceof AxiosError) {
+        error.value = err.response?.data?.error?.message || 'An error occurred during registration';
+      } else if (err instanceof Error) {
+        error.value = err.message || 'An error occurred during registration';
+      } else {
+        error.value = 'An error occurred during registration: Unknown error';
+      }
       localStorage.removeItem('isAuthenticated');
       user.value = null;
       return false;
@@ -93,7 +104,7 @@ export const useAuthStore = defineStore('auth', () => {
   async function logout() {
     try {
       await axios.post('/api/auth/logout');
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Logout error:', err);
     } finally {
       user.value = null;
@@ -114,7 +125,8 @@ export const useAuthStore = defineStore('auth', () => {
         localStorage.removeItem('isAuthenticated');
         return false;
       }
-    } catch (err) {
+    } catch (err: unknown) {
+      console.error('Error fetching user:', err);
       user.value = null;
       localStorage.removeItem('isAuthenticated');
       return false;

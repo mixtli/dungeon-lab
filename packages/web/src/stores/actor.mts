@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import api from '../network/axios.mjs';
 import { type IActor } from '@dungeon-lab/shared/index.mjs';
+import { AxiosError } from 'axios';
 
 export const useActorStore = defineStore('actor', () => {
   // State
@@ -23,8 +24,12 @@ export const useActorStore = defineStore('actor', () => {
       const response = await api.get('/api/actors');
       actors.value = response.data;
       return actors.value;
-    } catch (err: any) {
-      error.value = err.response?.data?.message || err.message || 'Failed to fetch actors';
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        error.value = err.message || 'Failed to fetch actors';
+      } else {
+        error.value = 'Failed to fetch actors: Unknown error';
+      }
       console.error('Error fetching actors:', err);
       return [];
     } finally {
@@ -47,8 +52,14 @@ export const useActorStore = defineStore('actor', () => {
       }
       
       return currentActor.value;
-    } catch (err: any) {
-      error.value = err.response?.data?.message || err.message || `Failed to fetch actor ${id}`;
+    } catch (err: unknown) {
+      if (err instanceof AxiosError) {
+        error.value = err.response?.data?.message || err.message || `Failed to fetch actor ${id}`;
+      } else if (err instanceof Error) {
+        error.value = err.message || `Failed to fetch actor ${id}`;
+      } else {
+        error.value = `Failed to fetch actor ${id}: Unknown error`;
+      }
       console.error(`Error fetching actor ${id}:`, err);
       return null;
     } finally {
@@ -66,8 +77,14 @@ export const useActorStore = defineStore('actor', () => {
       actors.value.push(newActor);
       currentActor.value = newActor;
       return newActor;
-    } catch (err: any) {
-      error.value = err.response?.data?.message || err.message || 'Failed to create actor';
+    } catch (err: unknown) {
+      if (err instanceof AxiosError) {
+        error.value = err.response?.data?.message || err.message || 'Failed to create actor';
+      } else if (err instanceof Error) {
+        error.value = err.message || 'Failed to create actor';
+      } else {
+        error.value = 'Failed to create actor: Unknown error';
+      }
       console.error('Error creating actor:', err);
       throw err;
     } finally {
@@ -95,8 +112,14 @@ export const useActorStore = defineStore('actor', () => {
       }
       
       return updatedActor;
-    } catch (err: any) {
-      error.value = err.response?.data?.message || err.message || `Failed to update actor ${id}`;
+    } catch (err: unknown) {
+      if (err instanceof AxiosError) {
+        error.value = err.response?.data?.message || err.message || `Failed to update actor ${id}`;
+      } else if (err instanceof Error) {
+        error.value = err.message || `Failed to update actor ${id}`;
+      } else {
+        error.value = `Failed to update actor ${id}: Unknown error`;
+      }
       console.error(`Error updating actor ${id}:`, err);
       throw err;
     } finally {
@@ -120,8 +143,14 @@ export const useActorStore = defineStore('actor', () => {
       }
       
       return true;
-    } catch (err: any) {
-      error.value = err.response?.data?.message || err.message || `Failed to delete actor ${id}`;
+    } catch (err: unknown) {
+      if (err instanceof AxiosError) {
+        error.value = err.response?.data?.message || err.message || `Failed to delete actor ${id}`;
+      } else if (err instanceof Error) {
+        error.value = err.message || `Failed to delete actor ${id}`;
+      } else {
+        error.value = `Failed to delete actor ${id}: Unknown error`;
+      }
       console.error(`Error deleting actor ${id}:`, err);
       throw err;
     } finally {

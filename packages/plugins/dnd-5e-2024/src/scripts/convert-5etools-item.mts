@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { IItemData } from '../shared/types/item.mjs';
 import { toLowercase, cleanRuleText } from './converter-utils.mjs';
 
@@ -294,7 +295,7 @@ export function convert5eToolsItem(sourceItemData: any, fluffData?: any): {
   let fullType = '';
   
   if (type.includes('|')) {
-    const [abbr, _] = type.split('|');
+    const [abbr] = type.split('|');
     fullType = itemTypeMap[abbr] || abbr;
   } else {
     fullType = itemTypeMap[type] || type;

@@ -11,9 +11,9 @@ import { IPluginAPI } from './plugin-api.mjs';
  */
 export interface IPluginScript {
   // Initialize the UI component and return a cleanup function if needed
-  init: (container: HTMLElement, api: any, data?: any) => (() => void) | void;
+  init: (container: HTMLElement, api: unknown, data?: unknown) => (() => void) | void;
   // Any additional exported functions from the script
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**
@@ -124,8 +124,8 @@ export interface IServerPlugin extends IPlugin {
  * Web Plugin interface
  * Extends the base Plugin interface with web-specific functionality
  */
-export interface IWebPlugin extends IPlugin {
-}
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface IWebPlugin extends IPlugin { }
 
 /**
  * Plugin Registry interface

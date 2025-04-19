@@ -4,8 +4,6 @@ import path from 'path';
 import tailwindcss from 'tailwindcss';
 import autoprefixer from 'autoprefixer';
 
-// @ts-ignore - Vite will handle the .mts extension during build
-// import { pluginImportMap } from './src/plugins/vite-plugin-plugin-import-map.mts';
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode, command }) => {
@@ -28,7 +26,6 @@ export default defineConfig(({ mode, command }) => {
     resolve: {
       alias: {
         '@dungeon-lab/shared': path.resolve(__dirname, '../shared/src'),
-        '#plugins': path.resolve(__dirname, '../plugins'),
         '@': path.resolve(__dirname, './src')
       },
       // Add support for TypeScript files

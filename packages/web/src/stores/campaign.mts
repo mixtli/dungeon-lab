@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import api from '../network/axios.mjs';
 import { type ICampaign, type IInvite } from '@dungeon-lab/shared/dist/index.mjs';
+import { AxiosError } from 'axios';
 
 export const useCampaignStore = defineStore('campaign', () => {
   // State
@@ -23,8 +24,14 @@ export const useCampaignStore = defineStore('campaign', () => {
       const response = await api.get('/api/campaigns');
       campaigns.value = response.data;
       return campaigns.value;
-    } catch (err: any) {
-      error.value = err.response?.data?.message || err.message || 'Failed to fetch campaigns';
+    } catch (err: unknown) {
+      if (err instanceof AxiosError) {
+        error.value = err.response?.data?.message || err.message || 'Failed to fetch campaigns';
+      } else if (err instanceof Error) {
+        error.value = err.message || 'Failed to fetch campaigns';
+      } else {
+        error.value = 'Failed to fetch campaigns: Unknown error';
+      }
       console.error('Error fetching campaigns:', err);
       return [];
     } finally {
@@ -47,8 +54,14 @@ export const useCampaignStore = defineStore('campaign', () => {
       }
       
       return currentCampaign.value;
-    } catch (err: any) {
-      error.value = err.response?.data?.message || err.message || `Failed to fetch campaign ${id}`;
+    } catch (err: unknown) {
+      if (err instanceof AxiosError) {
+        error.value = err.response?.data?.message || err.message || `Failed to fetch campaign ${id}`;
+      } else if (err instanceof Error) {
+        error.value = err.message || `Failed to fetch campaign ${id}`;
+      } else {
+        error.value = `Failed to fetch campaign ${id}: Unknown error`;
+      }
       console.error(`Error fetching campaign ${id}:`, err);
       return null;
     } finally {
@@ -66,8 +79,14 @@ export const useCampaignStore = defineStore('campaign', () => {
       campaigns.value.push(newCampaign);
       currentCampaign.value = newCampaign;
       return newCampaign;
-    } catch (err: any) {
-      error.value = err.response?.data?.message || err.message || 'Failed to create campaign';
+    } catch (err: unknown) {
+      if (err instanceof AxiosError) {
+        error.value = err.response?.data?.message || err.message || 'Failed to create campaign';
+      } else if (err instanceof Error) {
+        error.value = err.message || 'Failed to create campaign';
+      } else {
+        error.value = 'Failed to create campaign: Unknown error';
+      }
       console.error('Error creating campaign:', err);
       throw err;
     } finally {
@@ -95,8 +114,14 @@ export const useCampaignStore = defineStore('campaign', () => {
       }
       
       return updatedCampaign;
-    } catch (err: any) {
-      error.value = err.response?.data?.message || err.message || `Failed to update campaign ${id}`;
+    } catch (err: unknown) {
+      if (err instanceof AxiosError) {
+        error.value = err.response?.data?.message || err.message || `Failed to update campaign ${id}`;
+      } else if (err instanceof Error) {
+        error.value = err.message || `Failed to update campaign ${id}`;
+      } else {
+        error.value = `Failed to update campaign ${id}: Unknown error`;
+      }
       console.error(`Error updating campaign ${id}:`, err);
       throw err;
     } finally {
@@ -120,8 +145,14 @@ export const useCampaignStore = defineStore('campaign', () => {
       }
       
       return true;
-    } catch (err: any) {
-      error.value = err.response?.data?.message || err.message || `Failed to delete campaign ${id}`;
+    } catch (err: unknown) {
+      if (err instanceof AxiosError) {
+        error.value = err.response?.data?.message || err.message || `Failed to delete campaign ${id}`;
+      } else if (err instanceof Error) {
+        error.value = err.message || `Failed to delete campaign ${id}`;
+      } else {
+        error.value = `Failed to delete campaign ${id}: Unknown error`;
+      }
       console.error(`Error deleting campaign ${id}:`, err);
       throw err;
     } finally {
@@ -136,8 +167,14 @@ export const useCampaignStore = defineStore('campaign', () => {
     try {
       const response = await api.post(`/api/campaign/${inviteData.campaignId}/invites`, inviteData);
       return response.data;
-    } catch (err: any) {
-      error.value = err.response?.data?.message || err.message || 'Failed to send invite';
+    } catch (err: unknown) {
+      if (err instanceof AxiosError) {
+        error.value = err.response?.data?.message || err.message || 'Failed to send invite';
+      } else if (err instanceof Error) {
+        error.value = err.message || 'Failed to send invite';
+      } else {
+        error.value = 'Failed to send invite: Unknown error';
+      }
       console.error('Error sending invite:', err);
       throw err;
     } finally {

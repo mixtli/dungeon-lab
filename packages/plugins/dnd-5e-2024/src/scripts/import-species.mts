@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { runImport } from './import-utils.mjs';
 import { convert5eToolsSpecies } from './convert-5etools-species.mjs';
 import { join, dirname } from 'path';

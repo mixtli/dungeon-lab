@@ -3,7 +3,7 @@ import { IPlugin, IPluginConfiguration } from '../types/plugin.mjs';
 import { IPluginMessage } from '../schemas/websocket-messages.schema.mjs';
 
 export interface IPluginSchemas {
-  [key: string]: z.ZodType<any>;
+  [key: string]: z.ZodType<unknown>;
 }
 
 /**
@@ -42,7 +42,7 @@ export abstract class BasePlugin implements IPlugin {
   /**
    * Get a schema by document type
    */
-  getSchema(documentType: string): z.ZodType<any> | undefined {
+  getSchema(documentType: string): z.ZodType<unknown> | undefined {
     return this.schemas[documentType];
   }
 
@@ -56,7 +56,7 @@ export abstract class BasePlugin implements IPlugin {
   /**
    * Validate data against a schema
    */
-  async validateData(documentType: string, data: any): Promise<boolean> {
+  async validateData(documentType: string, data: unknown): Promise<boolean> {
     const schema = this.getSchema(documentType);
     if (!schema) {
       throw new Error(`No schema found for document type ${documentType} in plugin ${this.config.name}`);

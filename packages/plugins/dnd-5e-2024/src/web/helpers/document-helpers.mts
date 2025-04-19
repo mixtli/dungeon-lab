@@ -19,7 +19,7 @@ import {
   getAllFeats,
   isLoaded
 } from '../document-cache.mjs';
-
+import type { DocumentType } from '../document-cache.mjs';
 /**
  * Handlebars helper functions
  */
@@ -152,7 +152,7 @@ export const documentHelpers = {
     if (!id) return false;
     try {
       return !!getClass(id);
-    } catch (error) {
+    } catch (_) {
       return false;
     }
   },
@@ -165,7 +165,7 @@ export const documentHelpers = {
     if (!id) return false;
     try {
       return !!getBackground(id);
-    } catch (error) {
+    } catch (_) {
       return false;
     }
   },
@@ -178,7 +178,7 @@ export const documentHelpers = {
     if (!id) return false;
     try {
       return !!getSpecies(id);
-    } catch (error) {
+    } catch (_) {
       return false;
     }
   },
@@ -191,7 +191,7 @@ export const documentHelpers = {
     if (!id) return false;
     try {
       return !!getFeat(id);
-    } catch (error) {
+    } catch (_) {
       return false;
     }
   },
@@ -202,8 +202,8 @@ export const documentHelpers = {
    */
   areDocumentsLoaded: (type: string) => {
     try {
-      return isLoaded(type as any);
-    } catch (error) {
+      return isLoaded(type as DocumentType);
+    } catch (_) {
       return false;
     }
   },
@@ -331,7 +331,7 @@ export const documentHelpers = {
       
       // Access species traits from the appropriate structure
       const traits = speciesDoc.data?.traits || [];
-      return traits.find((trait: any) => trait.name === traitName);
+      return traits.find((trait: { name?: string }) => trait?.name === traitName);
     } catch (error) {
       console.error(`Error getting trait '${traitName}' for species with id '${speciesId}':`, error);
       return undefined;
@@ -351,7 +351,7 @@ export const documentHelpers = {
       
       // Access feat benefits from the appropriate structure
       const benefits = featDoc.data?.benefits || [];
-      return benefits.find((benefit: any) => benefit.name === traitName);
+      return benefits.find((benefit: { name?: string }) => benefit?.name === traitName);
     } catch (error) {
       console.error(`Error getting trait '${traitName}' for feat with id '${featId}':`, error);
       return undefined;

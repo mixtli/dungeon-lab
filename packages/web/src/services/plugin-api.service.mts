@@ -255,8 +255,12 @@ export class PluginAPI implements IPluginAPI {
       }
       
       return response.data;
-    } catch (error: any) {
-      throw new Error(`Failed to search documents: ${error.message}`);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        throw new Error(`Failed to search documents: ${error.message}`);
+      } else {
+        throw new Error('Failed to search documents: Unknown error');
+      }
     }
   }
 }

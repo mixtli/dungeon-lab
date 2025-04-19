@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { runImport } from './import-utils.mjs';
 import { convert5eToolsMonster } from './convert-5etools-monster.mjs';
 import { join, dirname } from 'path';

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { uploadFile, getPublicUrl } from '@dungeon-lab/server/src/services/storage.service.mjs';
 import { join } from 'path';
 import { readFile } from 'fs/promises';

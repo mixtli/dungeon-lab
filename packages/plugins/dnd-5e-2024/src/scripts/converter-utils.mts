@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Convert any value to lowercase string
  * @param value Value to convert to lowercase

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { readFile, readdir } from 'fs/promises';
 import { join } from 'path';
 import mongoose from 'mongoose';

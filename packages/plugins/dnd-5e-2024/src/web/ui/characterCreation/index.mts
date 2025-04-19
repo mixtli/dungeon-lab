@@ -26,23 +26,7 @@ import { unflatten } from 'flat';
 // Import our form schema
 import { characterCreationFormSchema } from './formSchema.mjs';
 
-import { deepPartial } from './formSchema.mjs'
 import { ICharacterData } from '../../../shared/types/character.mjs';
-
-const fooSchema = z.object({
-  a: z.object({
-    b: z.number(),
-    c: z.number()
-  }),
-  d: z.object({e: z.number(), f: z.number()})
-})
-const partialFooSchema = deepPartial(fooSchema)
-type PartialFoo = z.infer<typeof partialFooSchema>
-const foo: PartialFoo = { 'a': { 'b': 1, 'c': 2 }, 'd': { 'e': 3 } }
-const bar: PartialFoo = { 'd': undefined }
-const result = merge(foo, bar)
-console.log(result)
-
 
 // Define component state interface
 interface CharacterCreationState {
@@ -56,13 +40,15 @@ interface CharacterCreationState {
   backgroundDocument: IBackgroundDocument | null;
 }
 
+//interface PartialCharacterCreationState extends Partial<CharacterCreationState> {}
+
 /**
  * Character Creation Component for D&D 5e
  * Handles the creation of new characters with a form-based interface
  */
 export class CharacterCreationComponent extends PluginComponent {
   private state: CharacterCreationState = {
-    formData: {},
+    formData: {}, 
     currentPage: 'class-page',
     validationErrors: {},
     isValid: false,
@@ -95,9 +81,8 @@ export class CharacterCreationComponent extends PluginComponent {
       // Set up one-time form event handlers
       this.setupFormHandlers();
       console.log('Form handlers set up');
-      
       // Render the initial state
-      this.render(this.getState());
+      this.render(this.getState()) ;
     } else {
       console.error('Container element not found on mount');
     }
@@ -159,7 +144,7 @@ export class CharacterCreationComponent extends PluginComponent {
     console.log('Partial update:', partialUpdate);
     
     // Update state with just the changed field
-    this.updateState({ formData: partialUpdate });
+    this.updateState({ formData: partialUpdate as PartialCharacterCreationFormData });
 
     // Handle class selection change after state is updated
     if (target.name === 'class.id' && target.value) {
@@ -177,11 +162,13 @@ export class CharacterCreationComponent extends PluginComponent {
     }
 
     // Re-render the template with updated data
-    this.render(this.getState());
+    this.render(this.getState() as unknown as Record<string, unknown>);
   }
 
 
   private handleClassChange() {
+    const foo = this.state
+    console.log('foo', foo);
     const classId = this.state.formData.class?.id;
     if (!classId) {
       this.updateState({
@@ -194,13 +181,13 @@ export class CharacterCreationComponent extends PluginComponent {
     this.state.classDocument = null;
     this.updateState({ 
       classDocument: classDoc as ICharacterClassDocument,
-      formData: { class: { name: classDoc?.name } }
+      formData: { class: { name: classDoc?.name || '' } }
     });
     console.log('Class document updated:', this.state.classDocument);
   }
 
   private handleSpeciesChange() {
-    const speciesId = this.state.formData.origin?.species.id;
+    const speciesId = this.state.formData.origin?.species?.id;
     if (!speciesId) {
       this.updateState({
         speciesDocument: null
@@ -212,13 +199,13 @@ export class CharacterCreationComponent extends PluginComponent {
     this.state.speciesDocument = null;
     this.updateState({ 
       speciesDocument: speciesDoc as ISpeciesDocument,
-      formData: { origin: { species: { name: speciesDoc?.name, id: speciesId } } }
+      formData: { origin: { species: { name: speciesDoc?.name || '', id: speciesId } } }
     });
     console.log('Species document updated:', this.state.speciesDocument);
   }
 
   private handleBackgroundChange(): void {
-    const backgroundId = this.state.formData.origin?.background.id;
+    const backgroundId = this.state.formData.origin?.background?.id;
     if (!backgroundId) {
       this.updateState({
         backgroundDocument: null
@@ -434,23 +421,23 @@ export class CharacterCreationComponent extends PluginComponent {
     // If there was a previous value, add it back to available scores
     if (oldValue) {
       // Check if it's already in the available scores
-        abilities.availableScores.push(parseInt(oldValue, 10));
+        abilities.availableScores!.push(parseInt(oldValue, 10));
         // Keep scores sorted in descending order
-        abilities.availableScores.sort((a, b) => b - a);
+        abilities.availableScores!.sort((a, b) => b! - a!);
         console.log(`Added ${oldValue} back to available scores:`, abilities.availableScores);
     }
     
     // If a new value was selected, remove it from available scores
     if (newValue) {
-      abilities.availableScores = abilities.availableScores.filter(score => score !== newValue);
+      abilities.availableScores = abilities.availableScores!.filter(score => score !== newValue);
       console.log(`Removed ${newValue} from available scores:`, abilities.availableScores);
     }
     
     // Update the ability score
     if (newValue) {
-      (abilities as any)[ability] = newValue;
+      (abilities as Record<string, unknown>)[ability] = newValue;
     } else {
-      delete (abilities as any)[ability];
+      delete (abilities as Record<string, unknown>)[ability];
     }
     
     formData.abilities = abilities;
@@ -459,13 +446,13 @@ export class CharacterCreationComponent extends PluginComponent {
     this.updateState({formData: formData});
     
     // Render with updated state
-    this.render(this.getState());
+    this.render(this.getState() as unknown as Record<string, unknown>);
   }
   
   /**
    * Handle point buy button clicks
    */
-  private handlePointBuyClick(event: Event): void {
+  private handlePointBuyClick(_event: Event): void {
     // This method is being replaced with new ability score handling
     console.log('Point buy will be implemented later');
   }
@@ -490,8 +477,8 @@ export class CharacterCreationComponent extends PluginComponent {
     const formData = this.getFormData();
     
     // Create a validation schema based on the page
-    let pageSchema: z.ZodType<any>;
-    let dataToValidate: any = {};
+    let pageSchema: z.ZodType<unknown>;
+    let dataToValidate: Record<string, unknown> = {};
     
     if (pageId === 'class-page') {
       // For the class page, validate the class object
@@ -658,7 +645,7 @@ export class CharacterCreationComponent extends PluginComponent {
 
   serializeForm(form: HTMLFormElement): CharacterCreationFormData {
     const formData = new FormData(form);
-    const flatData: Record<string, any> = {};
+    const flatData: Record<string, unknown> = {};
     for (const key of formData.keys()) {
       const target = form.querySelector(`[name="${key}"]`) as HTMLInputElement;
       if (target) {
@@ -785,10 +772,10 @@ export class CharacterCreationComponent extends PluginComponent {
         // Only include level 1 features
         if (parseInt(level, 10) <= 1) {
           // Process each feature in this level
-          levelFeatures.forEach((feature: any) => {
+          levelFeatures.forEach((feature: unknown) => {
             features.push({
-              name: feature.name,
-              description: feature.description || '',
+              name: (feature as {name: string}).name,
+              description: (feature as {description: string}).description || '',
               source: `${formData.class.name} Class`
             });
           });
@@ -798,10 +785,10 @@ export class CharacterCreationComponent extends PluginComponent {
 
     // Add species features
     if (this.state.speciesDocument?.data?.traits) {
-      this.state.speciesDocument.data.traits.forEach((t: any) => {
+      this.state.speciesDocument.data.traits.forEach((t: unknown) => {
         features.push({
-          name: t.name,
-          description: t.description || '',
+          name: (t as {name: string}).name,
+          description: (t as {description: string}).description || '',
           source: `${formData.origin.species.name} Species`
         });
       });
@@ -911,8 +898,8 @@ export class CharacterCreationComponent extends PluginComponent {
   /**
    * Get the current form data
    */
-  getFormData(): Partial<CharacterCreationFormData> {
-    return this.state.formData as Partial<CharacterCreationFormData>;
+  getFormData(): PartialCharacterCreationFormData {
+    return this.state.formData as PartialCharacterCreationFormData;
   }
   
   /**

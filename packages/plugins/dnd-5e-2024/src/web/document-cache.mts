@@ -192,7 +192,7 @@ export function getDocumentById<T extends DocumentType>(
 
   return documents.find(doc => 
     // Check both id and _id since the server might use either
-    (doc as any).id === id || (doc as any)._id === id
+    (doc as { id?: string; _id?: string }).id === id || (doc as { id?: string; _id?: string })._id === id
   ) || null;
 }
 

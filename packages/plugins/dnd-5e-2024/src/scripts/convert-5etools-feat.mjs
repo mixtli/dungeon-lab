@@ -197,7 +197,6 @@ export function convert5eToolsFeat(feat) {
   if (Array.isArray(abilityData)) {
     result.ability = abilityData;
   }
-  console.log(result)
   
   return result;
 } 

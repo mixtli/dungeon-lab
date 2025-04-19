@@ -78,7 +78,7 @@ export function registerHelpers(handlebars: typeof Handlebars): void {
   //
 
   // Helper to check equality
-  handlebars.registerHelper('eq', function(value1: any, value2: any): boolean {
+  handlebars.registerHelper('eq', function(value1: unknown, value2: unknown): boolean {
     return value1 === value2;
   });
 
@@ -95,12 +95,12 @@ export function registerHelpers(handlebars: typeof Handlebars): void {
   });
 
   // Helper to check if an array includes a value
-  handlebars.registerHelper('includes', function(array: any[], value: any): boolean {
+  handlebars.registerHelper('includes', function(array: unknown[], value: unknown): boolean {
     return Array.isArray(array) && array.includes(value);
   });
 
   // Helper to join array elements with a separator
-  handlebars.registerHelper('join', function(array: any[], separator: string = ', '): string {
+  handlebars.registerHelper('join', function(array: unknown[], separator: string = ', '): string {
     if (!Array.isArray(array)) return '';
     return array.join(separator);
   });
@@ -112,18 +112,18 @@ export function registerHelpers(handlebars: typeof Handlebars): void {
   });
 
   // Helper to create an array
-  handlebars.registerHelper('array', function(...args: any[]): any[] {
+  handlebars.registerHelper('array', function(...args: unknown[]): unknown[] {
     // Remove the last argument which is the Handlebars options object
     return args.slice(0, -1);
   });
 
   // Helper to get a default value if the first argument is undefined
-  handlebars.registerHelper('default', function(value: any, defaultValue: any): any {
+  handlebars.registerHelper('default', function(value: unknown, defaultValue: unknown): unknown {
     return value != null ? value : defaultValue;
   });
 
   // Helper to convert an object to JSON string
-  handlebars.registerHelper('json', function(context: any): string {
+  handlebars.registerHelper('json', function(context: unknown): string {
     return JSON.stringify(context, null, 2);
   });
 
@@ -145,9 +145,8 @@ export function registerHelpers(handlebars: typeof Handlebars): void {
   });
   
   // Helper to concatenate strings
-  handlebars.registerHelper('concat', function () {
-    const args = Array.prototype.slice.call(arguments, 0, -1);
-    return args.join('');
+  handlebars.registerHelper('concat', function(...args: unknown[]): string {
+    return args.slice(0, -1).join('');
   });
   
   // Helper to convert a string to lowercase
@@ -210,7 +209,7 @@ export function registerHelpers(handlebars: typeof Handlebars): void {
   });
 
   // Helper to check if a value is an array
-  handlebars.registerHelper('isArray', function(value: any): boolean {
+  handlebars.registerHelper('isArray', function(value: unknown): boolean {
     return Array.isArray(value);
   });
 
@@ -224,7 +223,7 @@ export function registerHelpers(handlebars: typeof Handlebars): void {
   //
   
   // Used for conditional display
-  handlebars.registerHelper('ifEquals', function(this: HandlebarsBlockThis, arg1: any, arg2: any, options: Handlebars.HelperOptions) {
+  handlebars.registerHelper('ifEquals', function(this: HandlebarsBlockThis, arg1: unknown, arg2: unknown, options: Handlebars.HelperOptions) {
     return arg1 === arg2 ? options.fn(this) : options.inverse(this);
   });
   
@@ -239,7 +238,7 @@ export function registerHelpers(handlebars: typeof Handlebars): void {
   });
 
   // Helper to check if any argument is truthy
-  handlebars.registerHelper('or', function(this: HandlebarsBlockThis, ...args: any[]) {
+  handlebars.registerHelper('or', function(this: HandlebarsBlockThis, ...args: unknown[]) {
     // Get options object
     const options = args.pop() as Handlebars.HelperOptions;
     return args.some(Boolean) ? options.fn(this) : options.inverse(this);

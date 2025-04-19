@@ -7,7 +7,7 @@ declare module '*.hbs?raw' {
 }
 
 declare module '*.hbs' {
-  const content: <T = any>(context: T) => string;
+  const content: <T = unknown>(context: T) => string;
   export default content;
 }
 

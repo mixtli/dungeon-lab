@@ -16,13 +16,12 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
+    "noImplicitAny": true,
     "noEmit": true,
     "paths": {
       "@/*": ["./src/*"],
       "@dungeon-lab/shared": ["../shared/src"],
       "@dungeon-lab/shared/*": ["../shared/src/*"],
-      "#plugins/dnd-5e-2024": ["../plugins/dnd-5e-2024/src"],
-      "#plugins/dnd-5e-2024/*": ["../plugins/dnd-5e-2024/src/*"],
       "*": ["../../node_modules/*"]
     }
   },

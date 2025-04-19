@@ -12,7 +12,7 @@ interface CharacterSheetState {
   isEditing: boolean;
   isDirty: boolean;
   activeTab: string;
-  pendingChanges: Record<string, any>;
+  pendingChanges: Record<string, unknown>;
 }
 
 /**
@@ -47,18 +47,18 @@ export class CharacterSheetComponent extends PluginComponent {
     await super.onMount(container);
   }
 
-  async onUpdate(data: Record<string, any>): Promise<void> {
+  async onUpdate(data: Record<string, unknown>): Promise<void> {
     console.log('CharacterSheetComponent updating with data:', data);
     
     // Update our component state with the character data
     if (data.character) {
       this.updateState({
-        character: data.character,
+        character: data.character as ICharacter,
         pendingChanges: {} // Reset pending changes when character data is updated
       });
     }
     
-    await super.onUpdate(this.getState());
+    await super.onUpdate(this.getState() as unknown as Record<string, unknown>);
   }
 
   /**
@@ -102,7 +102,7 @@ export class CharacterSheetComponent extends PluginComponent {
     if (!tabId) return;
 
     this.updateState({ activeTab: tabId });
-    this.render(this.getState());
+    this.render(this.getState() as unknown as Record<string, unknown>);
   }
 
   /**
@@ -110,7 +110,7 @@ export class CharacterSheetComponent extends PluginComponent {
    */
   private toggleEditMode(): void {
     this.updateState({ isEditing: !this.state.isEditing });
-    this.render(this.getState());
+    this.render(this.getState() as unknown as Record<string, unknown>);
   }
 
   /**
@@ -140,7 +140,7 @@ export class CharacterSheetComponent extends PluginComponent {
   /**
    * Get field value based on input type
    */
-  private getFieldValue(field: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement): any {
+  private getFieldValue(field: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement): unknown {
     if (field.type === 'checkbox') {
       return (field as HTMLInputElement).checked;
     } else if (field.type === 'number') {
@@ -153,7 +153,7 @@ export class CharacterSheetComponent extends PluginComponent {
   /**
    * Set a nested value in an object using dot notation path
    */
-  private setNestedValue(obj: Record<string, any>, path: string, value: any): void {
+  private setNestedValue(obj: Record<string, unknown>, path: string, value: unknown): void {
     const keys = path.split('.');
     let current = obj;
     
@@ -164,7 +164,7 @@ export class CharacterSheetComponent extends PluginComponent {
       if (!current[key] || typeof current[key] !== 'object') {
         current[key] = {};
       }
-      current = current[key];
+      current = current[key] as Record<string, unknown>;
     }
     
     // Set the value at the final key
@@ -189,7 +189,7 @@ export class CharacterSheetComponent extends PluginComponent {
         this.deepMerge(updatedCharacter, { [key]: value });
       } else {
         // For top-level properties
-        (updatedCharacter as any)[key] = value;
+        (updatedCharacter as Record<string, unknown>)[key] = value;
       }
     });
     
@@ -199,14 +199,14 @@ export class CharacterSheetComponent extends PluginComponent {
   /**
    * Deep merge two objects
    */
-  private deepMerge(target: Record<string, any>, source: Record<string, any>): Record<string, any> {
+  private deepMerge(target: Record<string, unknown>, source: Record<string, unknown>): Record<string, unknown> {
     Object.keys(source).forEach(key => {
       if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
         // If property doesn't exist on target, create it
         if (!target[key] || typeof target[key] !== 'object') {
           target[key] = {};
         }
-        this.deepMerge(target[key], source[key]);
+        this.deepMerge(target[key] as Record<string, unknown>, source[key] as Record<string, unknown>);
       } else {
         // Simple property or array, just override
         target[key] = source[key];
@@ -243,7 +243,7 @@ export class CharacterSheetComponent extends PluginComponent {
       });
       
       // Re-render with updated state
-      this.render(this.getState());
+      this.render(this.getState() as unknown as Record<string, unknown>);
       
       console.log('Changes saved successfully');
     } catch (error) {

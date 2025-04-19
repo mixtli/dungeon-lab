@@ -7,9 +7,9 @@
     "dev": "vite -d",
     "build": "vue-tsc && vite build",
     "preview": "vite preview",
-    "lint": "eslint src --ext .ts,.vue",
+    "lint": "eslint src",
     "test": "vitest run",
-    "type-check": "vue-tsc --noEmit",
+    "check": "vue-tsc --noEmit",
     "test:plugin-build": "tsx scripts/test-plugin-build.mts",
     "clean:test": "rimraf dist-test"
   },

@@ -1,10 +1,11 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { runImport } from './import-utils.mjs';
 import { 
   convert5eToolsClass, 
   getClassDescription, 
-  NormalizedData, 
   getSubclassesForClass 
 } from './convert-5etools-class.mjs';
+import type { ICharacterClassData } from '../shared/types/character-class.mjs';
 import { toLowercase } from './converter-utils.mjs';
 import config from '../../manifest.json' with { type: 'json' };
 import { join, dirname } from 'path';
@@ -47,7 +48,7 @@ async function convertClassWithDescription(classData: any) {
   const convertedClass = convert5eToolsClass(classData);
   
   // Create the result object that will include both data and description
-  const result: { data: NormalizedData; description?: string } = {
+  const result: { data: ICharacterClassData; description?: string } = {
     data: convertedClass
   };
   
@@ -185,7 +186,7 @@ async function convertClassWithDescription(classData: any) {
         }
       } catch (err) {
         // Just log and continue if we can't find fluff for a class
-        console.log(`No fluff found for class ${className}`);
+        console.log(`No fluff found for class ${className}`, err);
       }
     }
   } catch (error) {

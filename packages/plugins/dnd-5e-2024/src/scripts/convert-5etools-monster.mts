@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { IMonster } from '../shared/types/actor.mjs';
 import { toLowercase, cleanRuleText } from './converter-utils.mjs';
 
