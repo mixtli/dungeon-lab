@@ -8,6 +8,8 @@ packages/*/dist
 packages/**/dist */
 dist
 
+tsconfig.tsbuildinfo
+
 # VSCode
 .vscode/chrome-debug-profile
 backup

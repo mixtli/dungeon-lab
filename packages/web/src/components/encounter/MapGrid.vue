@@ -96,7 +96,7 @@ function renderMap() {
   const mapGroup = draw.value.group();
 
   // Add the map image as background
-  if (image.url) {
+  if (image?.url) {
     console.log('Loading map image:', image.url); // Debug log
     mapGroup.image(image.url).size(totalGridWidth, totalGridHeight);
   }

@@ -6,6 +6,7 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
+    "check": "tsc --noEmit",
     "dev": "tsx --inspect=9229 --watch src/index.mts",
     "start": "node --experimental-specifier-resolution=node dist/index.mjs",
     "lint": "eslint src --ext .ts",

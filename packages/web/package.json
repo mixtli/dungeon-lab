@@ -6,7 +6,6 @@
   "scripts": {
     "dev": "vite -d",
     "build": "vue-tsc && vite build",
-    "build:check": "vue-tsc && vite build",
     "preview": "vite preview",
     "lint": "eslint src --ext .ts,.vue",
     "test": "vitest run",
