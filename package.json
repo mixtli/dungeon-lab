@@ -11,7 +11,7 @@
     "dev:web": "npm run dev --workspace=@dungeon-lab/web",
     "dev:server": "npm run plugins:build && npm run dev --workspace=@dungeon-lab/server",
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:web\"",
-    "build": "npm run build:shared && npm run build:server && npm run build:web",
+    "build": "npm run build:shared && npm run plugins:build && npm run build:server && npm run build:web",
     "build:shared": "cd packages/shared && npm run build",
     "build:server": "cd packages/server && npm run build",
     "build:web": "cd packages/web && npm run build",
