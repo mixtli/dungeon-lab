@@ -47,6 +47,21 @@ export type { IGameSession } from './schemas/game-session.schema.mjs';
 // Export schemas for server-side validation
 export { gameSessionSchema } from './schemas/game-session.schema.mjs';
 
+// Asset types and schemas
+export type { Asset } from './schemas/asset.schema.mjs';
+export { assetSchema } from './schemas/asset.schema.mjs';
+
+// Asset model schemas for the Asset Mongoose model
+export type { 
+  AssetModel, 
+  AssetCreate, 
+  AssetUpdate 
+} from './schemas/asset.model.schema.mjs';
+export { 
+  assetModelSchema, 
+  assetCreateSchema, 
+  assetUpdateSchema 
+} from './schemas/asset.model.schema.mjs';
 
 // WebSocket message types
 export type {
