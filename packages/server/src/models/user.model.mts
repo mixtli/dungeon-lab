@@ -9,7 +9,7 @@ import { createMongoSchema } from './zod-to-mongo.mjs';
 /**
  * Create Mongoose schema with base configuration
  */
-const mongooseSchema = createMongoSchema<IUser>(userSchema.merge(baseMongooseZodSchema));
+const mongooseSchema = createMongoSchema(userSchema.merge(baseMongooseZodSchema));
 
 // Add password comparison method
 mongooseSchema.methods.comparePassword = async function(candidatePassword: string): Promise<boolean> {
@@ -42,8 +42,8 @@ interface IUserMethods {
   comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
-type UserModel = mongoose.Model<IUser, {}, IUserMethods>;
+type UserModel = mongoose.Model<IUser, object, IUserMethods>;
 /**
  * User model
  */
-export const UserModel = mongoose.model<IUser, UserModel>('User', mongooseSchema); 
+export const UserModel = mongoose.model<IUser, UserModel>('User', mongooseSchema);

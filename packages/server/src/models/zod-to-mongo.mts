@@ -9,11 +9,10 @@ import { ObjectId } from 'mongodb';
  * @param transform A function to transform the document before saving it to the database
  * @returns Configured mongoose schema
  */
-export function createMongoSchema<T>(
-  schema: z.ZodObject<any, any, any>,
-  transform?: (doc: any, ret: any) => any
+export function createMongoSchema<T extends z.ZodObject<z.ZodRawShape>>(
+  schema: T,
+  transform?: (doc: Record<string, unknown>, ret: Record<string, unknown>) => Record<string, unknown>
 ): mongoose.Schema {
-
 
   const myZodSchema = zodSchemaRaw(schema.omit({id: true}));
   
@@ -49,10 +48,10 @@ export function createMongoSchema<T>(
   baseMongoSchema.virtual('id').set(function(v: string) {
     this._id = new ObjectId(v);
   })
-  baseMongoSchema.path('createdBy').get(function(value: any) {
+  baseMongoSchema.path('createdBy').get(function(value: ObjectId | undefined) {
     return value?.toString();
   })
-  baseMongoSchema.path('updatedBy').get(function(value: any) {
+  baseMongoSchema.path('updatedBy').get(function(value: ObjectId | undefined) {
     return value?.toString();
   })
 

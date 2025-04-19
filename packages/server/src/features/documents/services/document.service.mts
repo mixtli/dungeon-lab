@@ -2,6 +2,9 @@ import { IVTTDocument } from '@dungeon-lab/shared/schemas/vtt-document.schema.mj
 import { VTTDocument } from '../models/vtt-document.model.mjs';
 import { logger } from '../../../utils/logger.mjs';
 
+// Define a type for document query values
+export type QueryValue = string | number | boolean | RegExp | Date | object;
+
 export class DocumentService {
   async getDocumentById(id: string): Promise<IVTTDocument> {
     try {
@@ -16,7 +19,7 @@ export class DocumentService {
     }
   }
 
-  async searchDocuments(query: Record<string, any>): Promise<IVTTDocument[]> {
+  async searchDocuments(query: Record<string, QueryValue>): Promise<IVTTDocument[]> {
     try {
       // Convert query to case-insensitive regex for string values
       // Only convert simple string values, not nested paths
@@ -27,7 +30,7 @@ export class DocumentService {
           acc[key] = value;
         }
         return acc;
-      }, {} as Record<string, any>);
+      }, {} as Record<string, QueryValue>);
 
       const documents = await VTTDocument.find(mongoQuery);
       return documents;

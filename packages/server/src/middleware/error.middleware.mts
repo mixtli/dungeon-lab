@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response} from 'express';
 import { logger } from '../utils/logger.mjs';
 
 /**
@@ -7,9 +7,8 @@ import { logger } from '../utils/logger.mjs';
  */
 export const errorHandler = (
   err: Error, 
-  req: Request, 
-  res: Response, 
-  next: NextFunction
+  _req: Request, 
+  res: Response,
 ) => {
   // Log the error
   logger.error(`Error: ${err.message}`);

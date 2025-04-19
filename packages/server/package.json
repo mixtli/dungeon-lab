@@ -9,7 +9,7 @@
     "check": "tsc --noEmit",
     "dev": "tsx --inspect=9229 --watch src/index.mts",
     "start": "node --experimental-specifier-resolution=node dist/index.mjs",
-    "lint": "eslint src --ext .ts",
+    "lint": "eslint src",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -54,6 +54,7 @@
     "zod-openapi": "^4.2.4"
   },
   "devDependencies": {
+    "@eslint/js": "^9.25.0",
     "@types/bcrypt": "^5.0.2",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
@@ -62,17 +63,17 @@
     "@types/passport": "^1.0.17",
     "@types/passport-google-oauth20": "^2.0.16",
     "@types/supertest": "^6.0.2",
-    "@typescript-eslint/eslint-plugin": "^6.15.0",
-    "@typescript-eslint/parser": "^6.15.0",
     "@vitest/coverage-v8": "^1.6.1",
-    "eslint": "^8.56.0",
+    "eslint": "^9.25.0",
     "glob": "^11.0.1",
+    "globals": "^16.0.0",
     "mongodb-memory-server": "^10.1.4",
     "supertest": "^6.3.3",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
     "tsx": "^4.13.1",
-    "typescript": "^5.8.2",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.30.1",
     "vite-tsconfig-paths": "^5.1.4",
     "vitest": "^1.6.1"
   }

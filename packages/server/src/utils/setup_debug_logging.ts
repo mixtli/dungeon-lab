@@ -9,14 +9,22 @@ const logFile = fs.createWriteStream('logs/server.log', { flags: 'w' });
 const originalStdoutWrite = process.stdout.write.bind(process.stdout);
 const originalStderrWrite = process.stderr.write.bind(process.stderr);
 
-// Override stdout.write
-process.stdout.write = function(chunk: string | Uint8Array, ...args: any[]) {
-  logFile.write(chunk);
-  return originalStdoutWrite(chunk, ...args);
+// Override stdout.write with a compatible function
+process.stdout.write = function (
+  buffer: string | Uint8Array,
+  encoding?: BufferEncoding | ((err?: Error) => void),
+  cb?: (err?: Error) => void
+): boolean {
+  logFile.write(buffer);
+  return originalStdoutWrite(buffer, encoding as any, cb as any);
 };
 
-// Override stderr.write
-process.stderr.write = function(chunk: string | Uint8Array, ...args: any[]) {
-  logFile.write(chunk);
-  return originalStderrWrite(chunk, ...args);
+// Override stderr.write with a compatible function
+process.stderr.write = function (
+  buffer: string | Uint8Array,
+  encoding?: BufferEncoding | ((err?: Error) => void),
+  cb?: (err?: Error) => void
+): boolean {
+  logFile.write(buffer);
+  return originalStderrWrite(buffer, encoding as any, cb as any);
 };

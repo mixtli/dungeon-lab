@@ -80,7 +80,7 @@ export class PluginController {
         res.setHeader('Content-Type', 'application/javascript');
         res.send(code);
       } catch (error) {
-        logger.error(`Plugin file not found: ${pluginPath}`);
+        logger.error(`Plugin file not found: ${pluginPath}`, error);
         res.status(404).json({ message: 'Plugin file not found' });
       }
     } catch (error) {

@@ -52,9 +52,9 @@ export function configurePassport(): void {
   }
 
   // Serialize user to session
-  passport.serializeUser((user: any, done) => {
-    done(null, user.id);
-  });
+  // passport.serializeUser((user: IUser, done) => {
+  //   done(null, user.id);
+  // });
 
   // Deserialize user from session
   passport.deserializeUser(async (id: string, done) => {

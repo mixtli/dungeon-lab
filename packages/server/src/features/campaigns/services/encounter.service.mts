@@ -6,22 +6,13 @@ import { ActorModel } from '../../actors/models/actor.model.mjs';
 import { logger } from '../../../utils/logger.mjs';
 import { IActor } from '@dungeon-lab/shared/index.mjs';
 
-// Transform MongoDB document to API response
-function transformEncounter(doc: any): IEncounter {
-  const { _id, ...rest } = doc;
-  return {
-    id: _id.toString(),
-    ...rest
-  };
-}
-
 export class EncounterService {
   async getEncounters(campaignId: string): Promise<IEncounter[]> {
     try {
       const encounters = await EncounterModel.find({ campaignId })
         .lean()
         .exec();
-      return encounters.map(transformEncounter);
+      return encounters
     } catch (error) {
       logger.error('Error getting encounters:', error);
       throw new Error('Failed to get encounters');
@@ -45,7 +36,7 @@ export class EncounterService {
       if (!encounter) {
         throw new Error('Encounter not found');
       }
-      return transformEncounter(encounter);
+      return encounter;
     } catch (error) {
       // If it's our specific error, rethrow it
       if (error instanceof Error && error.message === 'Encounter not found') {
@@ -99,7 +90,7 @@ export class EncounterService {
 
       const encounter = new EncounterModel(encounterData);
       await encounter.save();
-      return transformEncounter(encounter.toObject());
+      return encounter;
     } catch (error) {
       logger.error('Error creating encounter:', error);
       throw new Error('Failed to create encounter');
@@ -129,7 +120,7 @@ export class EncounterService {
         throw new Error('Failed to update encounter');
       }
 
-      return transformEncounter(updatedEncounter.toObject());
+      return updatedEncounter;
     } catch (error) {
       logger.error('Error updating encounter:', error);
       throw error;

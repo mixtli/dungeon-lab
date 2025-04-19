@@ -29,7 +29,7 @@ const morganFormat = (tokens: morgan.TokenIndexer<IncomingMessage, ServerRespons
     tokens.body?.(req, res) ? `- body: ${tokens.body(req, res)}` : ''
   ].join(' ');
 
-  const logData: Record<string, any> = {
+  const logData: Record<string, unknown> = {
     method: tokens.method?.(req, res) || 'UNKNOWN',
     url: tokens.url?.(req, res) || 'UNKNOWN',
     status,

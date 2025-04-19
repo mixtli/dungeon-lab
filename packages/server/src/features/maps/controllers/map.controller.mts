@@ -12,9 +12,7 @@ export class MapController {
     try {
       const maps = await this.mapService.getMaps(req.params.campaignId);
       const result = res.json(maps);
-      console.log("got here")
-      console.log(result);
-      debugger
+      console.log("result", result);
       await result
     } catch (error) {
       logger.error('Error in getMaps controller:', error);
@@ -26,9 +24,9 @@ export class MapController {
     try {
       const map = await this.mapService.getMap(req.params.id);
       return res.json(map);
-    } catch (error: any) {
-      if (error.message === 'Map not found') {
-        return res.status(404).json({ message: 'Map not found' });
+    } catch (error) {
+      if (error instanceof Error) {
+        return res.status(404).json({ message: error.message });
       }
       logger.error('Error in getMap controller:', error);
       return res.status(500).json({ message: 'Failed to get map' });
@@ -77,11 +75,13 @@ export class MapController {
         Number(req.body.gridColumns),
         req.session.user.id
       );
-      
       return res.status(201).json(map);
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error in createMap controller:', error);
-      return res.status(500).json({ message: error.message || 'Failed to create map' });
+      if (error instanceof Error) {
+        return res.status(500).json({ message: error.message || 'Failed to create map' });
+      }
+      return res.status(500).json({ message: 'Failed to create map' });
     }
   }
 
@@ -102,12 +102,15 @@ export class MapController {
       
       const map = await this.mapService.updateMap(req.params.id, mapData, req.session.user.id);
       return res.json(map);
-    } catch (error: any) {
-      if (error.message === 'Map not found') {
+    } catch (error: unknown) {
+      if (error instanceof Error && error.message === 'Map not found') {
         return res.status(404).json({ message: 'Map not found' });
       }
       logger.error('Error in updateMap controller:', error);
-      return res.status(500).json({ message: error.message || 'Failed to update map' });
+      if (error instanceof Error) {
+        return res.status(500).json({ message: error.message || 'Failed to update map' });
+      }
+      return res.status(500).json({ message: 'Failed to update map' });
     }
   }
 
@@ -115,12 +118,15 @@ export class MapController {
     try {
       await this.mapService.deleteMap(req.params.id);
       return res.status(204).send();
-    } catch (error: any) {
-      if (error.message === 'Map not found') {
+    } catch (error: unknown) {
+      if (error instanceof Error && error.message === 'Map not found') {
         return res.status(404).json({ message: 'Map not found' });
       }
       logger.error('Error in deleteMap controller:', error);
-      return res.status(500).json({ message: error.message || 'Failed to delete map' });
+      if (error instanceof Error) {
+        return res.status(500).json({ message: error.message || 'Failed to delete map' });
+      }
+      return res.status(500).json({ message: 'Failed to delete map' });
     }
   }
 

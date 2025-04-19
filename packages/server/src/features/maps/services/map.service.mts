@@ -183,7 +183,7 @@ export class MapService {
       }
       
       // Handle image updates if a new image was uploaded
-      let updateData: any = { ...data, updatedBy: userId };
+      let updateData: Partial<IMap> = { ...data, updatedBy: userId };
       
       // If we have new assets, handle them
       if (data.assets) {
@@ -227,15 +227,6 @@ export class MapService {
           }
         }
         
-        // Handle other assets by directly assigning them
-        Object.entries(data.assets).forEach(([key, asset]) => {
-          if (key !== 'image') { // Image was handled separately above
-            updateData[key] = asset;
-          }
-        });
-        
-        // Remove assets property since we've processed it
-        delete updateData.assets;
       }
       
       // Update the map

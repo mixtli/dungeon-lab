@@ -89,9 +89,12 @@ export async function createApp(): Promise<express.Application> {
   // Initialize passport
   app.use(passport.initialize());
   app.use(passport.session());
-
   // Initialize routes
   await initializeRoutes();
+
+  app.get('/favicon.ico', function(_, res) { 
+    res.sendStatus(204); 
+  });
 
   // Mount routes
   app.use('/api/actors', actorRoutes);

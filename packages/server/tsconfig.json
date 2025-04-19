@@ -7,6 +7,8 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitAny": true,
     "paths": {
       "@dungeon-lab/shared": ["../shared/src"],
       "@dungeon-lab/shared/*": ["../shared/src/*"]

@@ -116,11 +116,11 @@ export class CampaignService {
       // Check if user is GM or has a character in the campaign
       const userObjectId = new Types.ObjectId(userId);
       const userActors = await ActorModel.find({ createdBy: userObjectId });
-      const actorIds = userActors.map(actor => (actor as any)._id.toString());
+      const actorIds = userActors.map(actor => actor._id.toString());
 
       const isGM = campaign.gameMasterId?.toString() === userId;
       const hasCharacter = campaign.members.some(memberId => 
-        actorIds.some(actorId => actorId === memberId.toString())
+        actorIds.includes(memberId.toString())
       );
 
       return isGM || hasCharacter || isAdmin;
@@ -146,7 +146,7 @@ export class CampaignService {
       // Get all actors belonging to the user
       const userObjectId = new Types.ObjectId(userId);
       const userActors = await ActorModel.find({ createdBy: userObjectId });
-      const actorIds = userActors.map(actor => (actor as any)._id.toString());
+      const actorIds = userActors.map(actor => actor._id.toString());
 
       // Check if any of the user's actors are members of the campaign
       const isMember = campaign.members.some(memberId => 

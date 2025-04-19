@@ -10,7 +10,7 @@ const upload = multer({
 });
 
 // Custom refinement for multer files
-const isMulterFile = (value: any) => {
+const isMulterFile = (value: unknown) => {
   return value 
     && typeof value === 'object'
     && 'buffer' in value 
@@ -86,7 +86,7 @@ export function validateMultipartRequest(schema: z.ZodSchema, fileFields: string
         const multerFileSchema = z.custom(isMulterFile);
         
         // Build the schema extension for file fields
-        const schemaExtension: Record<string, z.ZodType<any>> = {};
+        const schemaExtension: Record<string, z.ZodType<unknown>> = {};
         // Check if the schema is a ZodObject to access shape property
         if (schema instanceof z.ZodObject) {
           // Get shape of the schema to check if fields are optional
@@ -98,7 +98,7 @@ export function validateMultipartRequest(schema: z.ZodSchema, fileFields: string
               (shape[field] instanceof z.ZodOptional ||
                 shape[field] instanceof z.ZodNullable ||
                 shape[field] instanceof z.ZodUnion &&
-                shape[field]._def.options.some((opt: any) =>
+                shape[field]._def.options.some((opt: z.ZodType<unknown>) =>
                   opt instanceof z.ZodLiteral && opt._def.value === ''));
             console.log("isFieldOptional", field, isFieldOptional);
 
@@ -119,9 +119,8 @@ export function validateMultipartRequest(schema: z.ZodSchema, fileFields: string
         const modifiedSchema = schema instanceof z.ZodObject 
           ? schema.extend(schemaExtension)
           : schema;
-        
         // Build validated data object - start with parsed body form fields
-        let bodyData: Record<string, any> = { ...req.body };
+        const bodyData: Record<string, unknown> = { ...req.body };
         
         // Parse numeric fields and JSON strings
         // TODO:  Do we still need this?

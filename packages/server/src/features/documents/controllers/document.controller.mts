@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { DocumentService } from '../services/document.service.mjs';
+import { DocumentService, QueryValue } from '../services/document.service.mjs';
 import { logger } from '../../../utils/logger.mjs';
 
 export class DocumentController {
@@ -28,17 +28,19 @@ export class DocumentController {
           const parts = key.split('.');
           let current = acc;
           for (let i = 0; i < parts.length - 1; i++) {
-            current[parts[i]] = current[parts[i]] || {};
-            current = current[parts[i]];
+            if (!(parts[i] in current)) {
+              current[parts[i]] = {};
+            }
+            current = current[parts[i]] as Record<string, unknown>;
           }
           current[parts[parts.length - 1]] = value;
         } else {
           acc[key] = value;
         }
         return acc;
-      }, {} as Record<string, any>);
+      }, {} as Record<string, unknown>);
 
-      const documents = await this.documentService.searchDocuments(query);
+      const documents = await this.documentService.searchDocuments(query as Record<string, QueryValue>);
       res.json(documents);
     } catch (error) {
       logger.error('Error in searchDocuments:', error);

@@ -13,6 +13,12 @@
     "noUnusedLocals": true,
     "sourceMap": true
   },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.mjs"
+    }
+  },
   "include": ["src/**/*.mts", "src/**/*.ts"],
   "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.test.mts"]
 }
