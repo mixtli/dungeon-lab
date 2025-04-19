@@ -152,7 +152,6 @@ async function handleSubmit(event: Event) {
 
     // Add plugin data as JSON
     formData.append('data', JSON.stringify(pluginData));
-    formData.append('foo', pluginData)
 
     // Add avatar and token files if they exist
     if (basicInfo.value.avatarImage instanceof File) {
