@@ -152,6 +152,7 @@ async function handleSubmit(event: Event) {
 
     // Add plugin data as JSON
     formData.append('data', JSON.stringify(pluginData));
+    formData.append('foo', pluginData)
 
     // Add avatar and token files if they exist
     if (basicInfo.value.avatarImage instanceof File) {
@@ -161,6 +162,17 @@ async function handleSubmit(event: Event) {
     if (basicInfo.value.tokenImage instanceof File) {
       formData.append('token', basicInfo.value.tokenImage);
     }
+    // const actorData: IActorCreateData = {
+    //   name: basicInfo.value.name,
+    //   type: 'character',
+    //   description: basicInfo.value.description || undefined,
+    //   gameSystemId: plugin.config.id,
+    //   avatar: avatarUrl,
+    //   token: tokenUrl,
+    //   data: pluginData
+    // };
+
+    // const actor = await actorStore.createActor(actorData);
 
     // Send the request
     const response = await axios.post('/api/actors', formData, {

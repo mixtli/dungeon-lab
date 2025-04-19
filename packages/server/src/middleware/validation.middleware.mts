@@ -145,6 +145,16 @@ export function validateMultipartRequest(schema: z.ZodSchema, fileFields: string
           bodyData[fieldName] = file;
         });
 
+        // Parse the 'data' field if it's a JSON string
+        if (typeof bodyData.data === 'string') {
+          try {
+            bodyData.data = JSON.parse(bodyData.data);
+          } catch (e) {
+            // If parsing fails, keep the original string
+            console.warn('Failed to parse JSON data field:', e);
+          }
+        }
+
         const validatedData = await modifiedSchema.parseAsync(bodyData);
         req.body = validatedData;
         next();

@@ -52,9 +52,19 @@ export function configurePassport(): void {
   }
 
   // Serialize user to session
-  // passport.serializeUser((user: IUser, done) => {
-  //   done(null, user.id);
-  // });
+  passport.serializeUser((user: Express.User, done) => {
+    // Check for _id property (MongoDB document)
+    if (user && typeof user === 'object' && '_id' in user && user._id) {
+      done(null, user._id.toString());
+    } 
+    // Check for id property (IUser interface)
+    else if (user && typeof user === 'object' && 'id' in user) {
+      done(null, user.id);
+    } 
+    else {
+      done(new Error('Invalid user object - missing id'), null);
+    }
+  });
 
   // Deserialize user from session
   passport.deserializeUser(async (id: string, done) => {

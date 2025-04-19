@@ -296,8 +296,20 @@ interface CharData {
   armor_class?: ArmorClass;
   biography?: Biography;
   speed?: number | { Walk?: number; [key: string]: number | undefined };
-  avatar?: string;
-  token?: string;
+  avatar?: {
+    url: string;
+    type: string;
+    size: number;
+    name: string;
+    data: Buffer | null;
+  };
+  token?: {
+    url: string;
+    type: string;
+    size: number;
+    name: string;
+    data: Buffer | null;
+  };
   [key: string]: unknown;
 }
 
@@ -583,8 +595,8 @@ async function importCharacters() {
       uuidToObjectId.set(charData.id, actor.id);
 
       // Get file extensions from original paths
-      const avatarExt = charData.avatar?.split('.').pop() || 'jpg';
-      const tokenExt = charData.token?.split('.').pop() || 'jpg';
+      const avatarExt = charData.avatar?.url?.split('.').pop() || 'jpg';
+      const tokenExt = charData.token?.url?.split('.').pop() || 'jpg';
 
       // Create new paths following the pattern actors/<actorId>/images/<filename>
       const avatarPath = `actors/${actor.id}/images/avatar.${avatarExt}`;
@@ -599,10 +611,10 @@ async function importCharacters() {
 
       // Get full paths to the source files
       const avatarFilePath = charData.avatar 
-        ? getFilePath('../../data', charData.avatar)
+        ? getFilePath('../../data', charData.avatar.url)
         : '';
       const tokenFilePath = charData.token 
-        ? getFilePath('../../data', charData.token)
+        ? getFilePath('../../data', charData.token.url)
         : '';
 
       // Only upload if the file paths are valid
@@ -612,7 +624,7 @@ async function importCharacters() {
           avatarPath,
           `image/${avatarExt}`
         );
-        await actor.set({ avatar: avatarAsset });
+        actor.set({ avatar: avatarAsset });
       }
 
       if (tokenFilePath) {
