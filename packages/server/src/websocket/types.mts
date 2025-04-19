@@ -31,7 +31,7 @@ export interface RemoteAuthenticatedSocket {
   id: string;
   userId: string;
   sessionId?: string;
-  emit: (ev: string, ...args: any[]) => boolean;
+  emit: (ev: string, ...args: unknown[]) => boolean;
   join: (room: string) => Promise<void>;
   leave: (room: string) => Promise<void>;
   to: (room: string) => { emit: RemoteAuthenticatedSocket['emit'] };

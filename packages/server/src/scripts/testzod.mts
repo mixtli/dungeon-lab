@@ -21,10 +21,9 @@ console.log(res);
  * @returns Configured mongoose schema
  */
 export function createMongoSchema(
-  schema: z.ZodObject<any, any, any>,
-  transform?: (doc: any, ret: any) => any
+  schema: z.ZodObject<Record<string, z.ZodTypeAny>, "strip", z.ZodTypeAny>,
+  transform?: (doc: unknown, ret: Record<string, unknown>) => unknown
 ): mongoose.Schema {
-
 
   const myZodSchema = zodSchemaRaw(schema.omit({id: true}));
   
@@ -60,10 +59,10 @@ export function createMongoSchema(
   fullSchema.virtual('id').set(function(v: string) {
     this._id = new ObjectId(v);
   })
-  fullSchema.path('createdBy').get(function(value: any) {
+  fullSchema.path('createdBy').get(function(value: mongoose.Types.ObjectId | undefined | null) {
     return value?.toString();
   })
-  fullSchema.path('updatedBy').get(function(value: any) {
+  fullSchema.path('updatedBy').get(function(value: mongoose.Types.ObjectId | undefined | null) {
     return value?.toString();
   })
 
@@ -77,8 +76,9 @@ export interface BaseDocument extends mongoose.Document {
   id: string;
   createdAt: Date;
   updatedAt: Date;
-
-} 
+  createdBy?: string;
+  updatedBy?: string;
+}
 
 
 const baseSchema = z.object({
@@ -112,16 +112,15 @@ const orderSchemaMongoose = orderSchema.extend({
 const productSchemaMongoose = productSchema.merge(baseMongooseZodSchema);
 
 type IOrder = z.infer<typeof orderSchema>;
-
-interface IProduct extends z.infer<typeof productSchema> {}
+type IProduct = z.infer<typeof productSchema>;
 
 const mongooseProductSchema = createMongoSchema(productSchemaMongoose);
 export const ProductModel = mongoose.model<IProduct>('Product', mongooseProductSchema); 
 
 
 const mongooseOrderSchema = createMongoSchema(orderSchemaMongoose)
-mongooseOrderSchema.path('products').get(function(value: any) {
-  return value.map((p: ObjectId) => p.toString());
+mongooseOrderSchema.path('products').get(function(value: mongoose.Types.ObjectId[]) {
+  return value.map((p: mongoose.Types.ObjectId) => p.toString());
 });
 
 export const OrderModel = mongoose.model<IOrder>('Order', mongooseOrderSchema); 

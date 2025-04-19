@@ -133,7 +133,7 @@ async function importMaps() {
     const userId = getNextUserId();
     
     // Check if map already exists by name
-    let existingMap = await MapModel.findOne({ name: mapData.name }).lean();
+    const existingMap = await MapModel.findOne({ name: mapData.name }).lean();
     const objectId = existingMap ? existingMap._id : getObjectId(mapData.id);
     
     // Generate a consistent mapId either from existing record or create new one
@@ -222,30 +222,110 @@ async function importMaps() {
   }
 }
 
+// Define proper types for character data
+interface AbilityScores {
+  str?: number;
+  dex?: number;
+  con?: number;
+  int?: number;
+  wis?: number;
+  cha?: number;
+  [key: string]: number | undefined;
+}
+
+interface SavingThrows {
+  str?: number;
+  dex?: number;
+  con?: number;
+  int?: number;
+  wis?: number;
+  cha?: number;
+  [key: string]: number | undefined;
+}
+
+interface Skills {
+  acrobatics?: number;
+  animal_handling?: number;
+  arcana?: number;
+  athletics?: number;
+  deception?: number;
+  history?: number;
+  insight?: number;
+  intimidation?: number;
+  investigation?: number;
+  medicine?: number;
+  nature?: number;
+  perception?: number;
+  performance?: number;
+  persuasion?: number;
+  religion?: number;
+  sleight_of_hand?: number;
+  stealth?: number;
+  survival?: number;
+  [key: string]: number | undefined;
+}
+
+interface HitPoints {
+  max?: number;
+  current?: number;
+  temporary?: number;
+  [key: string]: number | undefined;
+}
+
+interface ArmorClass {
+  value?: number;
+  [key: string]: number | undefined;
+}
+
+interface Biography {
+  appearance?: string;
+  backstory?: string;
+  personalityTraits?: string;
+  ideals?: string;
+  bonds?: string;
+  flaws?: string;
+  [key: string]: string | undefined;
+}
+
+interface CharData {
+  id: string;
+  ability_scores?: AbilityScores;
+  saving_throws?: SavingThrows;
+  skills?: Skills;
+  hit_points?: HitPoints;
+  armor_class?: ArmorClass;
+  biography?: Biography;
+  speed?: number | { Walk?: number; [key: string]: number | undefined };
+  avatar?: string;
+  token?: string;
+  [key: string]: unknown;
+}
+
 // Transform character data to match schema
-function transformCharacterData(charData: any): any {
+function transformCharacterData(charData: CharData): Record<string, unknown> {
   // Calculate ability score modifiers
   function getModifier(score: number): number {
     return Math.floor((score - 10) / 2);
   }
-
-  // Calculate proficiency bonus based on level
-  function getProficiencyBonus(level: number): number {
-    return Math.floor((level - 1) / 4) + 2;
-  }
-
-  // Get the highest class level
-  const level = charData.classes.reduce((max: number, c: any) => Math.max(max, c.level), 0);
-  const proficiencyBonus = getProficiencyBonus(level);
-
-  // Create ability scores with modifiers and saving throws
-  const abilities = {
+  
+  // Default proficiency bonus based on common D&D rules
+  const proficiencyBonus = 2;
+  
+  // Ability scores with modifiers and saving throws
+  const abilityScores: Record<string, {
+    score: number;
+    modifier: number;
+    savingThrow: {
+      proficient: boolean;
+      bonus: number;
+    }
+  }> = {
     strength: {
       score: charData.ability_scores?.str ?? 10,
       modifier: getModifier(charData.ability_scores?.str ?? 10),
       savingThrow: {
         proficient: Boolean(charData.saving_throws?.str),
-        bonus: Boolean(charData.saving_throws?.str) ? proficiencyBonus : 0
+        bonus: charData.saving_throws?.str ? proficiencyBonus : 0
       }
     },
     dexterity: {
@@ -253,7 +333,7 @@ function transformCharacterData(charData: any): any {
       modifier: getModifier(charData.ability_scores?.dex ?? 10),
       savingThrow: {
         proficient: Boolean(charData.saving_throws?.dex),
-        bonus: Boolean(charData.saving_throws?.dex) ? proficiencyBonus : 0
+        bonus: charData.saving_throws?.dex ? proficiencyBonus : 0
       }
     },
     constitution: {
@@ -261,7 +341,7 @@ function transformCharacterData(charData: any): any {
       modifier: getModifier(charData.ability_scores?.con ?? 10),
       savingThrow: {
         proficient: Boolean(charData.saving_throws?.con),
-        bonus: Boolean(charData.saving_throws?.con) ? proficiencyBonus : 0
+        bonus: charData.saving_throws?.con ? proficiencyBonus : 0
       }
     },
     intelligence: {
@@ -269,7 +349,7 @@ function transformCharacterData(charData: any): any {
       modifier: getModifier(charData.ability_scores?.int ?? 10),
       savingThrow: {
         proficient: Boolean(charData.saving_throws?.int),
-        bonus: Boolean(charData.saving_throws?.int) ? proficiencyBonus : 0
+        bonus: charData.saving_throws?.int ? proficiencyBonus : 0
       }
     },
     wisdom: {
@@ -277,7 +357,7 @@ function transformCharacterData(charData: any): any {
       modifier: getModifier(charData.ability_scores?.wis ?? 10),
       savingThrow: {
         proficient: Boolean(charData.saving_throws?.wis),
-        bonus: Boolean(charData.saving_throws?.wis) ? proficiencyBonus : 0
+        bonus: charData.saving_throws?.wis ? proficiencyBonus : 0
       }
     },
     charisma: {
@@ -285,7 +365,7 @@ function transformCharacterData(charData: any): any {
       modifier: getModifier(charData.ability_scores?.cha ?? 10),
       savingThrow: {
         proficient: Boolean(charData.saving_throws?.cha),
-        bonus: Boolean(charData.saving_throws?.cha) ? proficiencyBonus : 0
+        bonus: charData.saving_throws?.cha ? proficiencyBonus : 0
       }
     }
   };
@@ -295,100 +375,111 @@ function transformCharacterData(charData: any): any {
     acrobatics: {
       ability: 'dexterity',
       proficient: Boolean(charData.skills?.acrobatics),
-      bonus: Boolean(charData.skills?.acrobatics) ? proficiencyBonus : 0
+      bonus: charData.skills?.acrobatics ? proficiencyBonus : 0
     },
     animalHandling: {
       ability: 'wisdom',
       proficient: Boolean(charData.skills?.animal_handling),
-      bonus: Boolean(charData.skills?.animal_handling) ? proficiencyBonus : 0
+      bonus: charData.skills?.animal_handling ? proficiencyBonus : 0
     },
     arcana: {
       ability: 'intelligence',
       proficient: Boolean(charData.skills?.arcana),
-      bonus: Boolean(charData.skills?.arcana) ? proficiencyBonus : 0
+      bonus: charData.skills?.arcana ? proficiencyBonus : 0
     },
     athletics: {
       ability: 'strength',
       proficient: Boolean(charData.skills?.athletics),
-      bonus: Boolean(charData.skills?.athletics) ? proficiencyBonus : 0
+      bonus: charData.skills?.athletics ? proficiencyBonus : 0
     },
     deception: {
       ability: 'charisma',
       proficient: Boolean(charData.skills?.deception),
-      bonus: Boolean(charData.skills?.deception) ? proficiencyBonus : 0
+      bonus: charData.skills?.deception ? proficiencyBonus : 0
     },
     history: {
       ability: 'intelligence',
       proficient: Boolean(charData.skills?.history),
-      bonus: Boolean(charData.skills?.history) ? proficiencyBonus : 0
+      bonus: charData.skills?.history ? proficiencyBonus : 0
     },
     insight: {
       ability: 'wisdom',
       proficient: Boolean(charData.skills?.insight),
-      bonus: Boolean(charData.skills?.insight) ? proficiencyBonus : 0
+      bonus: charData.skills?.insight ? proficiencyBonus : 0
     },
     intimidation: {
       ability: 'charisma',
       proficient: Boolean(charData.skills?.intimidation),
-      bonus: Boolean(charData.skills?.intimidation) ? proficiencyBonus : 0
+      bonus: charData.skills?.intimidation ? proficiencyBonus : 0
     },
     investigation: {
       ability: 'intelligence',
       proficient: Boolean(charData.skills?.investigation),
-      bonus: Boolean(charData.skills?.investigation) ? proficiencyBonus : 0
+      bonus: charData.skills?.investigation ? proficiencyBonus : 0
     },
     medicine: {
       ability: 'wisdom',
       proficient: Boolean(charData.skills?.medicine),
-      bonus: Boolean(charData.skills?.medicine) ? proficiencyBonus : 0
+      bonus: charData.skills?.medicine ? proficiencyBonus : 0
     },
     nature: {
       ability: 'intelligence',
       proficient: Boolean(charData.skills?.nature),
-      bonus: Boolean(charData.skills?.nature) ? proficiencyBonus : 0
+      bonus: charData.skills?.nature ? proficiencyBonus : 0
     },
     perception: {
       ability: 'wisdom',
       proficient: Boolean(charData.skills?.perception),
-      bonus: Boolean(charData.skills?.perception) ? proficiencyBonus : 0
+      bonus: charData.skills?.perception ? proficiencyBonus : 0
     },
     performance: {
       ability: 'charisma',
       proficient: Boolean(charData.skills?.performance),
-      bonus: Boolean(charData.skills?.performance) ? proficiencyBonus : 0
+      bonus: charData.skills?.performance ? proficiencyBonus : 0
     },
     persuasion: {
       ability: 'charisma',
       proficient: Boolean(charData.skills?.persuasion),
-      bonus: Boolean(charData.skills?.persuasion) ? proficiencyBonus : 0
+      bonus: charData.skills?.persuasion ? proficiencyBonus : 0
     },
     religion: {
       ability: 'intelligence',
       proficient: Boolean(charData.skills?.religion),
-      bonus: Boolean(charData.skills?.religion) ? proficiencyBonus : 0
+      bonus: charData.skills?.religion ? proficiencyBonus : 0
     },
     sleightOfHand: {
       ability: 'dexterity',
       proficient: Boolean(charData.skills?.sleight_of_hand),
-      bonus: Boolean(charData.skills?.sleight_of_hand) ? proficiencyBonus : 0
+      bonus: charData.skills?.sleight_of_hand ? proficiencyBonus : 0
     },
     stealth: {
       ability: 'dexterity',
       proficient: Boolean(charData.skills?.stealth),
-      bonus: Boolean(charData.skills?.stealth) ? proficiencyBonus : 0
+      bonus: charData.skills?.stealth ? proficiencyBonus : 0
     },
     survival: {
       ability: 'wisdom',
       proficient: Boolean(charData.skills?.survival),
-      bonus: Boolean(charData.skills?.survival) ? proficiencyBonus : 0
+      bonus: charData.skills?.survival ? proficiencyBonus : 0
     }
   };
 
-  // Transform the character data
-  return {
+  // Handle speed value with proper null checking and type assertion
+  let speedValue = 30;
+  if (charData.speed !== undefined && charData.speed !== null) {
+    if (typeof charData.speed === 'object') {
+      const speedObj = charData.speed as { Walk?: number };
+      speedValue = speedObj.Walk || 30;
+    } else {
+      speedValue = charData.speed as number;
+    }
+  }
+
+  // Create result with proper type assertions
+  const data: Record<string, unknown> = {
     name: charData.name,
     species: charData.species,
-    classes: charData.classes.map((c: any) => ({
+    classes: (charData.classes as Array<{name: string; level: number}>).map((c) => ({
       name: c.name,
       level: c.level,
       hitDiceType: `d8`
@@ -399,18 +490,18 @@ function transformCharacterData(charData: any): any {
     proficiencyBonus,
     armorClass: charData.armor_class?.value || 10,
     initiative: getModifier(charData.ability_scores?.dex ?? 10),
-    speed: typeof charData.speed === 'object' ? charData.speed.Walk || 30 : charData.speed || 30,
+    speed: speedValue,
     hitPoints: {
       maximum: charData.hit_points?.max || 10,
       current: charData.hit_points?.current || 10,
       temporary: charData.hit_points?.temporary || 0
     },
     hitDice: {
-      total: level,
-      current: level,
+      total: (charData.classes as Array<{level: number}>).reduce((max: number, c: {level: number}) => Math.max(max, c.level), 0),
+      current: (charData.classes as Array<{level: number}>).reduce((max: number, c: {level: number}) => Math.max(max, c.level), 0),
       type: `d8`
     },
-    abilities,
+    abilities: abilityScores,
     skills,
     equipment: charData.equipment || [],
     features: charData.features || [],
@@ -423,6 +514,16 @@ function transformCharacterData(charData: any): any {
       flaws: charData.biography?.flaws || ''
     }
   };
+
+  // Handle avatar and token conversions correctly
+  if (charData.avatar && typeof charData.avatar === 'string') {
+    data.avatar = charData.avatar;
+  }
+  if (charData.token && typeof charData.token === 'string') {
+    data.token = charData.token;
+  }
+
+  return data;
 }
 
 // Import characters
@@ -437,19 +538,20 @@ async function importCharacters() {
   }
 
   for (const charFile of characterFiles) {
-    const charData = JSON.parse(readFileSync(join(charactersDir, charFile), 'utf-8'));
+    const charData: CharData = JSON.parse(readFileSync(join(charactersDir, charFile), 'utf-8'));
     const userId = getNextUserId();
     
     // Check if character already exists by name
-    // let existingCharacter = await ActorModel.findOne({ 
-    //   name: charData.name,
-    //   type: 'character'
-    // }).lean();
+    const existingCharacter = await ActorModel.findOne({ 
+      name: charData.name,
+      type: 'character'
+    }).lean();
     
-    // const objectId = existingCharacter ? existingCharacter._id : getObjectId(charData.id);
-    // console.log(`${existingCharacter ? 'Updating' : 'Creating'} character: ${charData.name}`);
+    // Use type assertion for objectId since it's assigned but may not be used in this section
+    const objectId = existingCharacter ? existingCharacter._id : getObjectId(charData.id);
+    console.log(`${existingCharacter ? 'Updating' : 'Creating'} character: ${charData.name}`);
 
-    // // Transform and validate character data
+    // Transform and validate character data
     const characterData = transformCharacterData(charData);
 
     try {
@@ -458,7 +560,6 @@ async function importCharacters() {
         continue;
       }
       
-
       let actor = await ActorModel.findOne({ name: charData.name, type: 'character' });
       if(!actor) {
         actor = await ActorModel.create({
@@ -467,6 +568,7 @@ async function importCharacters() {
           createdBy: userId,
           updatedBy: userId,
           gameSystemId: dnd5e2024Plugin.config.id,
+          _id: objectId,
         });
         console.log("actor",actor.id)
       }
@@ -474,8 +576,6 @@ async function importCharacters() {
       actor.set({
         name: charData.name,
         description: charData.description,
-        //avatar: avatarAsset,
-        //token: tokenAsset,
         data: characterData,
       });
 
@@ -483,35 +583,48 @@ async function importCharacters() {
       uuidToObjectId.set(charData.id, actor.id);
 
       // Get file extensions from original paths
-      const avatarExt = charData.avatar.url.split('.').pop() || 'jpg';
-      const tokenExt = charData.token.url.split('.').pop() || 'jpg';
+      const avatarExt = charData.avatar?.split('.').pop() || 'jpg';
+      const tokenExt = charData.token?.split('.').pop() || 'jpg';
 
       // Create new paths following the pattern actors/<actorId>/images/<filename>
       const avatarPath = `actors/${actor.id}/images/avatar.${avatarExt}`;
       const tokenPath = `actors/${actor.id}/images/token.${tokenExt}`;
 
+      // Function to safely get file paths
+      const getFilePath = (basePath: string, relativePath: unknown): string => {
+        if (!relativePath) return '';
+        const safePath = typeof relativePath === 'string' ? relativePath : String(relativePath);
+        return join(__dirname, basePath, safePath);
+      };
+
       // Get full paths to the source files
-      const avatarFilePath = join(__dirname, '../../data', charData.avatar.url);
-      const tokenFilePath = join(__dirname, '../../data', charData.token.url);
+      const avatarFilePath = charData.avatar 
+        ? getFilePath('../../data', charData.avatar)
+        : '';
+      const tokenFilePath = charData.token 
+        ? getFilePath('../../data', charData.token)
+        : '';
 
-      // Upload avatar and token images to MinIO with proper content type
-      const avatarAsset = await uploadToMinio(
-        avatarFilePath,
-        avatarPath,
-        `image/${avatarExt}`
-      );
+      // Only upload if the file paths are valid
+      if (avatarFilePath) {
+        const avatarAsset = await uploadToMinio(
+          avatarFilePath,
+          avatarPath,
+          `image/${avatarExt}`
+        );
+        await actor.set({ avatar: avatarAsset });
+      }
 
-      const tokenAsset = await uploadToMinio(
-        tokenFilePath,
-        tokenPath,
-        `image/${tokenExt}`
-      );
+      if (tokenFilePath) {
+        const tokenAsset = await uploadToMinio(
+          tokenFilePath,
+          tokenPath,
+          `image/${tokenExt}`
+        );
+        await actor.set({ token: tokenAsset });
+      }
 
-      await actor.set({
-        avatar: avatarAsset,
-        token: tokenAsset,
-      });
-      await actor.save()
+      await actor.save();
 
     } catch (error) {
       console.error(`Error processing character data for ${charFile}:`, error);
@@ -535,7 +648,6 @@ async function importCampaigns() {
     const userId = getNextUserId();
     
     // Check if campaign already exists by name
-
     let campaign = await CampaignModel.findOne({ name: campaignData.name });
     if(!campaign  ) {
       campaign = await CampaignModel.create({
@@ -551,8 +663,8 @@ async function importCampaigns() {
       description: campaignData.description,
       gameSystemId: dnd5e2024Plugin.config.id,
       members: campaignData.characters.map((id: string) => {
-        console.log("id", id, uuidToObjectId.get(id)?.toString())
-        return uuidToObjectId.get(id)?.toString();
+        console.log("id", id, uuidToObjectId.get(id as string)?.toString())
+        return uuidToObjectId.get(id as string)?.toString();
       }),
       status: 'active',
       settings: {

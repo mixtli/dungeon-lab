@@ -16,7 +16,11 @@ process.stdout.write = function (
   cb?: (err?: Error) => void
 ): boolean {
   logFile.write(buffer);
-  return originalStdoutWrite(buffer, encoding as any, cb as any);
+  return originalStdoutWrite(
+    buffer, 
+    encoding as BufferEncoding | undefined, 
+    cb as ((err?: Error) => void) | undefined
+  );
 };
 
 // Override stderr.write with a compatible function
@@ -26,5 +30,9 @@ process.stderr.write = function (
   cb?: (err?: Error) => void
 ): boolean {
   logFile.write(buffer);
-  return originalStderrWrite(buffer, encoding as any, cb as any);
+  return originalStderrWrite(
+    buffer, 
+    encoding as BufferEncoding | undefined, 
+    cb as ((err?: Error) => void) | undefined
+  );
 };

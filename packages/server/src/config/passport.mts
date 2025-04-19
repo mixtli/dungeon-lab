@@ -77,7 +77,7 @@ export function configurePassport(): void {
           callbackURL: config.google.callbackUrl,
           scope: ['profile', 'email'],
         },
-        async (accessToken, refreshToken, profile, done) => {
+        async (_accessToken, _refreshToken, profile, done) => {
           try {
             // Check if user already exists with this Google ID
             let user = await UserModel.findOne({ googleId: profile.id });

@@ -33,9 +33,12 @@ export async function handleGameStateUpdate(
   }
 }
 
-// Helper function to get current game state
-export async function getCurrentGameState(sessionId: string): Promise<IGameStateUpdateMessage['data']> {
-  // TODO: Implement game state retrieval
+/**
+ * Helper function to get current game state
+ * @returns Current game state data
+ */
+export async function getCurrentGameState(): Promise<IGameStateUpdateMessage['data']> {
+  // TODO: Implement game state retrieval using sessionId parameter (to be added)
   // - Load actors
   // - Load items
   // - Load maps

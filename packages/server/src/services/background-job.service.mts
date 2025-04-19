@@ -2,14 +2,29 @@ import  { Pulse } from '@pulsecron/pulse';
 import { config } from '../config/index.mjs';
 import { logger } from '../utils/logger.mjs';
 
-// Get the Pulse class constructor from the module
+// Define types for JobAttributesData and other Pulse-related types
+type JobAttributesData = Record<string, unknown>;
+
+// Define job types
+export interface JobAttrs {
+  id: string;
+  data: JobAttributesData;
+  name: string;
+  lastRunAt?: Date;
+  [key: string]: unknown;
+}
+
+export interface Job {
+  attrs: JobAttrs;
+  [key: string]: unknown;
+}
 
 /**
  * Background Job Service using PulseCron
  * Handles scheduling and processing of background jobs
  */
 class BackgroundJobService {
-  private pulse: any; // Using any for Pulse type since it doesn't have TypeScript definitions
+  private pulse: Pulse;
   private initialized = false;
 
   constructor() {
@@ -25,18 +40,18 @@ class BackgroundJobService {
     });
 
     // Set up event listeners
-    this.pulse.on('start', (job: any) => {
+    this.pulse.on('start', (job) => {
       logger.info(`Background job started: ${job.attrs.name}`, { jobId: job.attrs.id });
     });
 
-    this.pulse.on('success', (job: any) => {
+    this.pulse.on('success', (job) => {
       logger.info(`Background job completed successfully: ${job.attrs.name}`, { 
         jobId: job.attrs.id,
         duration: job.attrs.lastRunAt ? new Date().getTime() - job.attrs.lastRunAt.getTime() : undefined
       });
     });
 
-    this.pulse.on('fail', (error: Error, job: any) => {
+    this.pulse.on('fail', (error: Error, job) => {
       logger.error(`Background job failed: ${job.attrs.name}`, {
         jobId: job.attrs.id,
         error: error.message,
@@ -57,7 +72,7 @@ class BackgroundJobService {
       await this.pulse.start();
       this.initialized = true;
       logger.info('Background job service initialized successfully');
-    } catch (error: any) {
+    } catch (error) {
       logger.error('Failed to initialize background job service', { error });
       throw error;
     }
@@ -69,8 +84,8 @@ class BackgroundJobService {
    * @param handler The function to run when the job is processed
    * @param options Options for the job
    */
-  defineJob(name: string, handler: (job: any) => Promise<void>, options: any = {}): void {
-    this.pulse.define(name, handler, {
+  defineJob(name: string, handler: (job: Job) => Promise<void>, options: Record<string, unknown> = {}): void {
+    this.pulse.define(name, handler as (job: unknown) => Promise<unknown>, {
       shouldSaveResult: true,
       attempts: 5,
       backoff: { type: 'exponential', delay: 5000 },
@@ -84,10 +99,10 @@ class BackgroundJobService {
    * @param name The name of the job (must be defined first)
    * @param data Data to pass to the job
    */
-  async scheduleJob(when: string | Date, name: string, data?: any): Promise<any> {
+  async scheduleJob(when: string | Date, name: string, data?: JobAttributesData): Promise<unknown> {
     try {
       return await this.pulse.schedule(when, name, data);
-    } catch (error: any) {
+    } catch (error) {
       logger.error(`Failed to schedule job: ${name}`, { error, when, data });
       throw error;
     }
@@ -99,10 +114,10 @@ class BackgroundJobService {
    * @param name The name of the job (must be defined first)
    * @param data Data to pass to the job
    */
-  async scheduleRecurringJob(interval: string, name: string, data?: any): Promise<any> {
+  async scheduleRecurringJob(interval: string, name: string, data?: JobAttributesData): Promise<unknown> {
     try {
       return await this.pulse.every(interval, name, data);
-    } catch (error: any) {
+    } catch (error) {
       logger.error(`Failed to schedule recurring job: ${name}`, { error, interval, data });
       throw error;
     }
@@ -113,8 +128,8 @@ class BackgroundJobService {
    * @param name The name of the job
    * @param data Data to pass to the job
    */
-  createJob(name: string, data?: any): any {
-    return this.pulse.create(name, data);
+  createJob(name: string, data?: JobAttributesData): unknown {
+    return this.pulse.create(name, data || {});
   }
 
   /**
@@ -125,8 +140,8 @@ class BackgroundJobService {
     try {
       const result = await this.pulse.cancel({ name });
       logger.info(`Cancelled ${result} jobs of type: ${name}`);
-      return result;
-    } catch (error: any) {
+      return result || 0;
+    } catch (error) {
       logger.error(`Failed to cancel jobs: ${name}`, { error });
       throw error;
     }
@@ -136,8 +151,8 @@ class BackgroundJobService {
    * Get a list of pending jobs
    * @param name Optional job name to filter by
    */
-  async getPendingJobs(name?: string): Promise<any[]> {
-    const query: any = { nextRunAt: { $exists: true } };
+  async getPendingJobs(name?: string): Promise<unknown[]> {
+    const query: Record<string, unknown> = { nextRunAt: { $exists: true } };
     if (name) {
       query.name = name;
     }
@@ -148,8 +163,8 @@ class BackgroundJobService {
    * Get a list of completed jobs
    * @param name Optional job name to filter by
    */
-  async getCompletedJobs(name?: string): Promise<any[]> {
-    const query: any = { lastFinishedAt: { $exists: true } };
+  async getCompletedJobs(name?: string): Promise<unknown[]> {
+    const query: Record<string, unknown> = { lastFinishedAt: { $exists: true } };
     if (name) {
       query.name = name;
     }
@@ -160,8 +175,8 @@ class BackgroundJobService {
    * Get a list of failed jobs
    * @param name Optional job name to filter by
    */
-  async getFailedJobs(name?: string): Promise<any[]> {
-    const query: any = { 
+  async getFailedJobs(name?: string): Promise<unknown[]> {
+    const query: Record<string, unknown> = { 
       failCount: { $gt: 0 },
       lastFinishedAt: { $exists: true } 
     };
@@ -183,7 +198,7 @@ class BackgroundJobService {
       await this.pulse.stop();
       this.initialized = false;
       logger.info('Background job service shut down successfully');
-    } catch (error: any) {
+    } catch (error) {
       logger.error('Failed to shut down background job service', { error });
       throw error;
     }

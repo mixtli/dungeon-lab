@@ -9,8 +9,8 @@ import { ObjectId } from 'mongodb';
  * @param transform A function to transform the document before saving it to the database
  * @returns Configured mongoose schema
  */
-export function createMongoSchema<T extends z.ZodObject<z.ZodRawShape>>(
-  schema: T,
+export function createMongoSchema<T>(
+  schema: z.ZodObject<z.ZodRawShape>,
   transform?: (doc: Record<string, unknown>, ret: Record<string, unknown>) => Record<string, unknown>
 ): mongoose.Schema {
 

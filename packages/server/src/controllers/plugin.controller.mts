@@ -16,7 +16,7 @@ export class PluginController {
   /**
    * Get all plugins
    */
-  async getAllPlugins(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async getAllPlugins(_req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const plugins = pluginRegistry.getPlugins();
       // Map plugins to a safe format for client consumption

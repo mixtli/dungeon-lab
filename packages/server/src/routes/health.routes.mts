@@ -7,7 +7,7 @@ const router = Router();
  * @desc    Health check endpoint
  * @access  Public
  */
-router.get('/', (req, res) => {
+router.get('/', (_req, res) => {
   res.status(200).json({
     status: 'ok',
     timestamp: new Date().toISOString(),

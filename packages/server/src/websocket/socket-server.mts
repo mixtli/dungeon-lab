@@ -12,6 +12,13 @@ import { logger } from '../utils/logger.mjs';
 import { Socket } from 'socket.io';
 import { sessionMiddleware } from '../app.mjs';
 
+// Define a type for the session with user information
+interface SessionWithUser {
+  user?: {
+    id: string;
+  };
+}
+
 export function createSocketServer(httpServer: HttpServer): Server {
   const io = new Server(httpServer, {
     cors: {
@@ -27,8 +34,10 @@ export function createSocketServer(httpServer: HttpServer): Server {
 
   // Middleware to handle authentication
   io.use((socket: Socket, next) => {
-    // Now socket.request.session is available, properly typed as 'any' to avoid TS errors
-    const session = (socket.request as any).session;
+    // Now socket.request.session is available
+    const request = socket.request as { session?: SessionWithUser };
+    const session = request.session;
+    
     if (session?.user?.id) {
       (socket as AuthenticatedSocket).userId = session.user.id;
       logger.debug(`Socket authenticated for user: ${session.user.id}`);
@@ -47,7 +56,7 @@ export function createSocketServer(httpServer: HttpServer): Server {
     socket.on('dice:roll', (message) => handleDiceRoll(io, socket, message));
     socket.on('plugin:action', (message) => handlePluginAction(io, socket, message));
     socket.on('game:stateUpdate', (message) => handleGameStateUpdate(io, socket, message));
-    socket.on('roll:command', (_) => handleRollCommand(socket));
+    socket.on('roll:command', () => handleRollCommand(socket));
     socket.on('combat:action', (message) => handleCombatAction(io, socket, message));
     socket.on('encounter:start', (message) => handleEncounterStart(io, socket, message));
     socket.on('encounter:stop', (message) => handleEncounterStop(io, socket, message));

@@ -30,11 +30,18 @@ const standardResponses = {
  */
 export function createOpenApiDocs(
   zodSchema: z.ZodType, 
-  overrides: Record<string, any> = {}, 
+  overrides: Record<string, unknown> = {}, 
   method = 'GET',
   isSingleItem = false
 ): RequestHandler {
-  let pathConfig: Record<string, any> = {
+  // Define a more specific type for pathConfig
+  interface PathConfig {
+    responses: Record<string | number, unknown>;
+    requestBody?: unknown;
+    [key: string]: unknown;
+  }
+  
+  const pathConfig: PathConfig = {
     responses: { ...standardResponses }
   };
   

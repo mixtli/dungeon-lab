@@ -13,7 +13,7 @@ export class ActorController {
    * @route GET /api/actors
    * @access Public
    */
-  async getAllActors(req: Request, res: Response): Promise<Response | void> {
+  async getAllActors(_req: Request, res: Response): Promise<Response | void> {
     try {
       const actors = await this.actorService.getAllActors();
       return res.json(actors);

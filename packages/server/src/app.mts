@@ -84,6 +84,8 @@ export async function createApp(): Promise<express.Application> {
 
   // Session configuration
   app.use(sessionMiddleware);
+  
+  // Mount OpenAPI as middleware
   app.use(oapi);
 
   // Initialize passport
@@ -109,7 +111,9 @@ export async function createApp(): Promise<express.Application> {
   app.use('/api/documents', documentRoutes);
   app.use('/api/health', healthRoutes);
 
-  app.use('/swaggerui', oapi.swaggerui())
+  // Mount Swagger UI correctly
+  app.use('/swaggerui', oapi.swaggerui());
+  
   // Error handling
   app.use(errorHandler);
 

@@ -2,7 +2,7 @@ import { Server, Socket } from 'socket.io';
 import { IMoveMessage } from '@dungeon-lab/shared/index.mjs';
 import { logger } from '../../utils/logger.mjs';
 
-export function handleMoveMessage(io: Server, socket: Socket, message: IMoveMessage): void {
+export function handleMoveMessage(_io: Server, socket: Socket, message: IMoveMessage): void {
   try {
     // TODO: Implement move message handling
     logger.info('Move message received:', message);

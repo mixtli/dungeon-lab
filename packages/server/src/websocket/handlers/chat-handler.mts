@@ -46,6 +46,12 @@ export async function handleChatMessage(
       return;
     }
 
+    // Prepare variables that might be used in switch cases
+    let sockets;
+    let gmSocket;
+    let targetSockets;
+    let targetSocket;
+
     // Handle different recipient types
     switch (message.recipient) {
       case 'all':
@@ -59,8 +65,8 @@ export async function handleChatMessage(
           socket.emit('error', { message: 'Game master not found' });
           return;
         }
-        const sockets = await io.in(socket.sessionId).fetchSockets();
-        const gmSocket = sockets.find(s => {
+        sockets = await io.in(socket.sessionId).fetchSockets();
+        gmSocket = sockets.find(s => {
           const authSocket = s as unknown as RemoteAuthenticatedSocket;
           return campaign.gameMasterId && authSocket.data.userId === campaign.gameMasterId.toString();
         });
@@ -75,8 +81,8 @@ export async function handleChatMessage(
 
       default:
         // Direct message to specific user
-        const targetSockets = await io.in(socket.sessionId).fetchSockets();
-        const targetSocket = targetSockets.find(s => {
+        targetSockets = await io.in(socket.sessionId).fetchSockets();
+        targetSocket = targetSockets.find(s => {
           const authSocket = s as unknown as RemoteAuthenticatedSocket;
           return authSocket.data.userId === message.recipient;
         });

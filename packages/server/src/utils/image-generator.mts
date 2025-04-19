@@ -6,7 +6,7 @@ import { logger } from './logger.mjs';
 // Generic function to generate and process an AI image
 export async function generateAIImage(
   prompt: string,
-  data: any,
+  data: Record<string, unknown>,
   size: '256x256' | '512x512' | '1024x1024',
   options: {
     entityId: string;

@@ -30,7 +30,7 @@ export async function handlePluginAction(io: Server, socket: Socket, message: IP
   }
 }
 
-export function handlePluginStateUpdate(io: Server, socket: Socket, message: IPluginStateUpdateMessage): void {
+export function handlePluginStateUpdate(_io: Server, socket: Socket, message: IPluginStateUpdateMessage): void {
   try {
     const plugin = pluginRegistry.getGameSystemPlugin(message.pluginId);
     if (!plugin) {

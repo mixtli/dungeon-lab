@@ -1,4 +1,4 @@
-import { backgroundJobService } from '../services/background-job.service.mjs';
+import { backgroundJobService, Job } from '../services/background-job.service.mjs';
 import { logger } from '../utils/logger.mjs';
 
 /**
@@ -8,7 +8,7 @@ export async function registerExampleJob(): Promise<void> {
   // Define the job processor
   backgroundJobService.defineJob(
     'example-job',
-    async (job) => {
+    async (job: Job) => {
       const { message } = job.attrs.data || { message: 'Hello from background job!' };
       logger.info(`Executing example job: ${message}`, {
         jobId: job.attrs.id,
