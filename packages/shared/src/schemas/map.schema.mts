@@ -1,13 +1,15 @@
 import { z } from 'zod';
-import { assetSchema } from './asset.schema.mjs';
 import { baseSchema } from './base.schema.mjs';
 
 // Base Map schema
 export const mapSchema = baseSchema.extend({
   name: z.string().min(1).max(255),
   description: z.string().optional(),
-  thumbnail: assetSchema.optional(),
-  image: assetSchema.optional(),
+  
+  // Direct asset references using string IDs (will be ObjectId in server models via zId)
+  thumbnailId: z.string().optional(),
+  imageId: z.string().optional(),
+  
   gridColumns: z.number().int().positive(),
   gridRows: z.number().int().positive(),
   aspectRatio: z.number().positive(),

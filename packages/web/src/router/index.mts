@@ -15,7 +15,6 @@ const ActorEditView = () => import('@/views/ActorEditView.vue');
 const LoginView = () => import('@/views/auth/LoginView.vue');
 const RegisterView = () => import('@/views/auth/RegisterView.vue');
 const GoogleCallbackView = () => import('@/views/auth/GoogleCallbackView.vue');
-const FileUploadDemoView = () => import('@/views/FileUploadDemo.vue');
 const NotFoundView = () => import('@/views/NotFoundView.vue');
 const PluginManagerView = () => import('@/views/plugin/PluginManagerView.vue');
 const ChatView = () => import('@/views/ChatView.vue');
@@ -33,6 +32,10 @@ const GameSessionListView = () => import('@/views/GameSessionListView.vue');
 const MapListView = () => import('@/views/map/MapListView.vue');
 const MapCreateView = () => import('@/views/map/MapCreateView.vue');
 const MapDetailView = () => import('@/views/map/MapDetailView.vue');
+
+// Asset views
+const AssetListView = () => import('@/views/AssetListView.vue');
+const AssetDetailView = () => import('@/views/AssetDetailView.vue');
 
 const InvitesView = () => import('@/views/InvitesView.vue');
 
@@ -102,12 +105,22 @@ const routes: RouteRecordRaw[] = [
           requiresAuth: true,
         },
       },
+      // Asset routes
       {
-        path: 'file-upload-demo',
-        name: 'file-upload-demo',
-        component: FileUploadDemoView,
+        path: 'assets',
+        name: 'asset-list',
+        component: AssetListView,
         meta: {
-          title: 'File Upload Demo',
+          title: 'Asset Library',
+          requiresAuth: true,
+        },
+      },
+      {
+        path: 'assets/:id',
+        name: 'asset-detail',
+        component: AssetDetailView,
+        meta: {
+          title: 'Asset Details',
           requiresAuth: true,
         },
       },

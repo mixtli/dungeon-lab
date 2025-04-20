@@ -1,0 +1,11 @@
+---
+description: Server URLs, backend and frontend.  Browser URL
+globs: 
+alwaysApply: false
+---
+* UI Url is http://localhost:8080
+* API Url is http://localhost:3000
+
+* Login credentials
+Email: admin@dungeonlab.com
+Password: password

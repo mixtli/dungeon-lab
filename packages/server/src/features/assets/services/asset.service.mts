@@ -1,5 +1,5 @@
 import { AssetModel } from '../models/asset.model.mjs';
-import { AssetCreate, AssetUpdate, AssetModel as IAssetModel } from '@dungeon-lab/shared/schemas/asset.model.schema.mjs';
+import { AssetCreate, AssetUpdate, IAsset} from '@dungeon-lab/shared/schemas/asset.schema.mjs';
 import { getFileUrl, getPublicUrl, uploadFile, deleteFile } from '../../../services/storage.service.mjs';
 import mongoose from 'mongoose';
 import path from 'path';
@@ -27,7 +27,7 @@ export class ValidationError extends Error {
 }
 
 // Type for Asset document with methods
-export type AssetDocument = mongoose.Document<unknown, object, IAssetModel> & IAssetModel & {
+export type AssetDocument = mongoose.Document<unknown, object, IAsset> & IAsset & {
   updateMetadata(newMetadata: Record<string, unknown>): Promise<AssetDocument>;
   getSignedUrl(expiryTimeSeconds?: number): Promise<string>;
   isOwnedBy(userId: string): boolean;
@@ -70,10 +70,14 @@ class AssetService {
     // Get public URL for the file
     const url = getPublicUrl(minioPath);
 
+    // Set the asset name - use provided name or fall back to filename
+    const name = assetData.name || filename;
+
     // Create the asset document
     const asset = await AssetModel.createAssetWithPath(
       {
         ...assetData,
+        name,
         createdBy: userId,
         url,
         size: file.size,

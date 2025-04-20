@@ -4,7 +4,7 @@ import assetController from '../controllers/asset.controller.mjs';
 import { validateRequest } from '../../../middleware/validation.middleware.mjs';
 import multer from 'multer';
 import { openApiDelete, openApiGet, openApiGetOne, openApiPatch, openApiPost } from '../../../oapi.mjs';
-import { assetModelSchema, assetUpdateSchema } from '@dungeon-lab/shared/schemas/asset.model.schema.mjs';
+import { assetSchema, assetUpdateSchema } from '@dungeon-lab/shared/schemas/asset.schema.mjs';
 
 // Configure multer for file upload
 const upload = multer({
@@ -20,7 +20,7 @@ const router = Router();
 router.get(
   '/',
   authenticate,
-  openApiGet(assetModelSchema, {
+  openApiGet(assetSchema, {
     summary: 'Get all assets for the current user',
     description: 'Retrieve all assets owned by the authenticated user',
     tags: ['Assets'],
@@ -50,7 +50,7 @@ router.get(
 router.post(
   '/',
   authenticate,
-  openApiPost(assetModelSchema, {
+  openApiPost(assetSchema, {
     summary: 'Upload and create a new asset',
     description: 'Upload a file and create a new asset with associated metadata',
     tags: ['Assets'],
@@ -100,7 +100,7 @@ router.post(
 router.get(
   '/:id',
   authenticate,
-  openApiGetOne(assetModelSchema, {
+  openApiGetOne(assetSchema, {
     summary: 'Get an asset by ID',
     description: 'Retrieve details for a specific asset',
     tags: ['Assets'],
@@ -166,7 +166,7 @@ router.patch(
 router.delete(
   '/:id',
   authenticate,
-  openApiDelete(assetModelSchema, {
+  openApiDelete(assetSchema, {
     summary: 'Delete an asset',
     description: 'Delete an asset and its associated file storage',
     tags: ['Assets'],
@@ -201,7 +201,7 @@ router.get(
   '/:id/signed-url',
   authenticate,
   openApiGetOne(
-    assetModelSchema.pick({ url: true }),
+    assetSchema.pick({ url: true }),
     {
       summary: 'Get a pre-signed URL for an asset',
       description: 'Generate a temporary pre-signed URL for accessing an asset',

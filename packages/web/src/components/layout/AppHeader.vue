@@ -117,6 +117,13 @@ function goToChat() {
               </RouterLink>
               <RouterLink
                 v-if="authStore.isAuthenticated"
+                to="/assets"
+                class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600"
+              >
+                Asset Library
+              </RouterLink>
+              <RouterLink
+                v-if="authStore.isAuthenticated"
                 to="/file-upload-demo"
                 class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600"
               >
@@ -289,6 +296,13 @@ function goToChat() {
           class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700"
         >
           Characters
+        </RouterLink>
+        <RouterLink
+          v-if="authStore.isAuthenticated"
+          to="/assets"
+          class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700"
+        >
+          Asset Library
         </RouterLink>
         <button
           v-if="authStore.isAuthenticated"

@@ -1,13 +1,15 @@
 import { z } from 'zod';
-import { assetSchema } from './asset.schema.mjs';
 import { baseSchema } from './base.schema.mjs';
 
 // Base Actor schema
 export const actorSchema = baseSchema.extend({
   name: z.string().min(1).max(255),
   type: z.string().min(1).max(255),
-  avatar: assetSchema.optional(),
-  token: assetSchema.optional(),
+  
+  // Direct asset references using string IDs (will be ObjectId in server models via zId)
+  avatarId: z.string().optional(),
+  tokenId: z.string().optional(),
+  
   description: z.string().optional(),
   gameSystemId: z.string().min(1),
   data: z.record(z.any()).optional()

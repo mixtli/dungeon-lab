@@ -1,41 +1,102 @@
 import { z } from 'zod';
 
 /**
- * Schema for representing an uploaded asset (image, document, etc)
+ * Schema for the Asset model
  */
 export const assetSchema = z.object({
-  // Path where the asset is stored (relative to storage bucket)
-  path: z.string().optional(),
+  // ID is handled by Mongoose/MongoDB
+  id: z.string().optional(),
   
-  // Public URL to access this asset
-  url: z.string().optional(),
+  // Name of the asset (defaults to filename if not provided)
+  name: z.string().optional(),
+  
+  // Reference to the parent entity (optional)
+  parentId: z.string().optional(),
+  
+  // Type of the parent entity (optional)
+  parentType: z.string().optional(),
+  
+  // Field name on the parent entity (optional)
+  fieldName: z.string().optional(),
+  
+  // Storage path in Minio
+  path: z.string(),
+  
+  // Public URL to access the asset
+  url: z.string(),
   
   // File size in bytes
   size: z.number().optional(),
   
-  // MIME type of the asset
+  // MIME type
   type: z.string().optional(),
+  
+  // Additional metadata (optional)
+  metadata: z.record(z.any()).optional(),
+  
+  // Reference to the user who created this asset
+  createdBy: z.string(),
+  
+  // Created and updated timestamps (handled by Mongoose)
+  createdAt: z.date().optional(),
+  updatedAt: z.date().optional(),
 });
 
-// Type definition for assets
-export type Asset = z.infer<typeof assetSchema>;
+// Type definition for the Asset model
+export type IAsset = z.infer<typeof assetSchema>;
 
 /**
- * Schema for asset types that can be accepted by the client
- * Extends assetSchema to also accept File instances
+ * Schema for creating a new asset
  */
-export const assetCreateSchema = z.union([
-  assetSchema,
-  z.instanceof(File), // For browser File objects
-]);
+export const assetCreateSchema = assetSchema
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .partial({ size: true, type: true, metadata: true, name: true });
 
-// Type definition for asset create operations
+// Type definition for asset creation
 export type AssetCreate = z.infer<typeof assetCreateSchema>;
 
 /**
- * Schema for asset updates, making all fields optional
+ * Schema for updating an asset
  */
-export const assetUpdateSchema = assetSchema.partial();
+export const assetUpdateSchema = assetSchema
+  .omit({ id: true, createdAt: true, updatedAt: true, createdBy: true, path: true })
+  .partial();
 
-// Type definition for asset update operations
+// Type definition for asset updates
 export type AssetUpdate = z.infer<typeof assetUpdateSchema>;
+
+/**
+ * Helper functions for working with assets
+ */
+export const assetHelpers = {
+  /**
+   * Get the URL from an asset
+   * @param asset The asset to get the URL from
+   * @returns The URL of the asset, or undefined if not available
+   */
+  getUrl(asset: IAsset | null | undefined): string | undefined {
+    if (!asset) return undefined;
+    return asset.url;
+  },
+  
+  /**
+   * Get the display name for an asset
+   * @param asset The asset to get the name from
+   * @returns The name of the asset, the filename from path, or "Unnamed asset"
+   */
+  getDisplayName(asset: IAsset | null | undefined): string {
+    if (!asset) return "Unnamed asset";
+    
+    // Use explicit name if available
+    if (asset.name) return asset.name;
+    
+    // Fall back to filename from path
+    if (asset.path) {
+      const filename = asset.path.split('/').pop();
+      if (filename) return filename;
+    }
+    
+    // Last resort
+    return "Unnamed asset";
+  }
+}; 

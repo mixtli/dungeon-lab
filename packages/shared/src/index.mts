@@ -48,20 +48,17 @@ export type { IGameSession } from './schemas/game-session.schema.mjs';
 export { gameSessionSchema } from './schemas/game-session.schema.mjs';
 
 // Asset types and schemas
-export type { Asset } from './schemas/asset.schema.mjs';
-export { assetSchema } from './schemas/asset.schema.mjs';
-
-// Asset model schemas for the Asset Mongoose model
 export type { 
-  AssetModel, 
+  IAsset, 
   AssetCreate, 
   AssetUpdate 
-} from './schemas/asset.model.schema.mjs';
+} from './schemas/asset.schema.mjs';
 export { 
-  assetModelSchema, 
+  assetSchema, 
   assetCreateSchema, 
-  assetUpdateSchema 
-} from './schemas/asset.model.schema.mjs';
+  assetUpdateSchema,
+  assetHelpers
+} from './schemas/asset.schema.mjs';
 
 // WebSocket message types
 export type {

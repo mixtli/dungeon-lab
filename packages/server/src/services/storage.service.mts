@@ -1,6 +1,5 @@
 import { Client } from 'minio';
 import { logger } from '../utils/logger.mjs';
-import path from 'path';
 
 // Storage provider configuration
 interface StorageConfig {
@@ -82,9 +81,8 @@ class StorageService {
    * Upload a file to storage
    */
   async uploadFile(buffer: Buffer, originalName: string, contentType: string, folder: string = ''): Promise<{key: string, size: number}> {
-    // Generate a unique file name
-    const fileExtension = path.extname(originalName);
-    const fileName = `${path.basename(originalName, fileExtension)}_${Date.now()}${fileExtension}`;
+    // Use the original filename without appending a timestamp
+    const fileName = originalName;
     
     // Construct key with folder
     const key = folder ? `${folder}/${fileName}` : fileName;
@@ -163,7 +161,9 @@ class StorageService {
    * Get a public URL for a file
    */
   getPublicUrl(key: string): string {
-    return `${this.publicUrl}/${this.bucket}/${encodeURIComponent(key)}`;
+    // Only encode parts of the key that need encoding, preserving slashes
+    const encodedKey = key.split('/').map(part => encodeURIComponent(part)).join('/');
+    return `${this.publicUrl}/${this.bucket}/${encodedKey}`;
   }
 }
 

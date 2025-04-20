@@ -14,7 +14,10 @@ class AssetController {
     try {
       const userId = req.session.user?.id;
       const assets = await assetService.getAssetsByUser(userId);
-      res.json(assets.map(asset => asset.toPublicJSON()));
+      res.json({
+        data: assets.map(asset => asset.toPublicJSON()),
+        total: assets.length
+      });
     } catch (error) {
       logger.error('Error listing assets', { error });
       next(error);

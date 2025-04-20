@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { assetModelSchema, AssetModel as IAssetModel } from '@dungeon-lab/shared/schemas/asset.model.schema.mjs';
+import { assetSchema, IAsset } from '@dungeon-lab/shared/schemas/asset.schema.mjs';
 import { createMongoSchema } from './zod-to-mongo.mjs';
 import { baseMongooseZodSchema } from './base-schema.mjs';
 
@@ -15,7 +15,7 @@ function generateMinioPath(userId: string, assetId: string, filename: string): s
 /**
  * Create Mongoose schema with base configuration
  */
-const mongooseSchema = createMongoSchema(assetModelSchema.merge(baseMongooseZodSchema));
+const mongooseSchema = createMongoSchema(assetSchema.merge(baseMongooseZodSchema));
 
 // Define indexes for efficient querying
 mongooseSchema.index({ parentId: 1, parentType: 1 });
@@ -86,7 +86,7 @@ mongooseSchema.statics.generateMinioPath = function(
  * @returns Promise that resolves to the created asset and its Minio path
  */
 mongooseSchema.statics.createAssetWithPath = async function(
-  assetData: Partial<IAssetModel>,
+  assetData: Partial<IAsset>,
   filename: string
 ) {
   // Pre-generate a MongoDB ID that will be used for both the document and path
@@ -168,12 +168,12 @@ mongooseSchema.methods.toPublicJSON = function() {
 
 // Define the interface for Asset static methods
 interface AssetStaticMethods {
-  findByParent(parentId: string, parentType: string): Promise<mongoose.Document<unknown, object, IAssetModel>[]>;
-  findByField(parentId: string, parentType: string, fieldName: string): Promise<mongoose.Document<unknown, object, IAssetModel>[]>;
+  findByParent(parentId: string, parentType: string): Promise<mongoose.Document<unknown, object, IAsset>[]>;
+  findByField(parentId: string, parentType: string, fieldName: string): Promise<mongoose.Document<unknown, object, IAsset>[]>;
   checkUserPermission(assetId: string, userId: string): Promise<boolean>;
   generateMinioPath(userId: string, assetId: string, filename: string): string;
-  createAssetWithPath(assetData: Partial<IAssetModel>, filename: string): Promise<{
-    asset: mongoose.Document<unknown, object, IAssetModel>;
+  createAssetWithPath(assetData: Partial<IAsset>, filename: string): Promise<{
+    asset: mongoose.Document<unknown, object, IAsset>;
     path: string;
   }>;
 }
@@ -181,15 +181,15 @@ interface AssetStaticMethods {
 // Define the interface for Asset instance methods
 interface AssetMethods {
   getSignedUrl(expiryTimeSeconds?: number): Promise<string>;
-  updateMetadata(newMetadata: Record<string, unknown>): Promise<mongoose.Document<unknown, object, IAssetModel>>;
+  updateMetadata(newMetadata: Record<string, unknown>): Promise<mongoose.Document<unknown, object, IAsset>>;
   isOwnedBy(userId: string): boolean;
   toPublicJSON(): Record<string, unknown>;
 }
 
 // Define the Asset model type combining both static and instance methods
-type AssetModelType = mongoose.Model<IAssetModel, object, AssetMethods> & AssetStaticMethods;
+type AssetModelType = mongoose.Model<IAsset, object, AssetMethods> & AssetStaticMethods;
 
 /**
  * Asset model - Represents a file stored in Minio with references to parent entities
  */
-export const AssetModel = mongoose.model<IAssetModel, AssetModelType>('Asset', mongooseSchema); 
+export const AssetModel = mongoose.model<IAsset, AssetModelType>('Asset', mongooseSchema); 
