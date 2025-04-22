@@ -421,15 +421,15 @@ export class CharacterCreationComponent extends PluginComponent {
     // If there was a previous value, add it back to available scores
     if (oldValue) {
       // Check if it's already in the available scores
-        abilities.availableScores!.push(parseInt(oldValue, 10));
+        abilities.availableScores!.push(parseInt(oldValue, 10) as number);
         // Keep scores sorted in descending order
-        abilities.availableScores!.sort((a: number, b: number) => b! - a!);
+        abilities.availableScores!.sort((a, b) => b! - a!);
         console.log(`Added ${oldValue} back to available scores:`, abilities.availableScores);
     }
     
     // If a new value was selected, remove it from available scores
     if (newValue) {
-      abilities.availableScores = abilities.availableScores!.filter((score: number) => score !== newValue);
+      abilities.availableScores = abilities.availableScores!.filter((score: number | undefined) => score !== newValue);
       console.log(`Removed ${newValue} from available scores:`, abilities.availableScores);
     }
     
