@@ -26,7 +26,7 @@ morgan.token('body', (req: Request) => {
 });
 
 // Create a custom morgan token for request id
-morgan.token('request-id', (req: Request, res: Response) => {
+morgan.token('request-id', (_: Request, res: Response) => {
   return res.locals.requestId;
 });
 
@@ -35,7 +35,7 @@ morgan.token('user-id', (req: Request) => {
   return req.session?.user?.id || '-';
 });
 
-morgan.token('error-message', (req: Request, res: Response) => {
+morgan.token('error-message', (_: Request, res: Response) => {
   const error = res.locals?.error;
   if (error?.message) {
     return error.message;
@@ -57,7 +57,7 @@ export function requestLoggerMiddleware() {
     ':method :url :status :response-time ms - :res[content-length] - :body - [req-id: :request-id] - [user: :user-id] :error-message';
   return [
     // Assign request ID
-    (req: Request, res: Response, next: NextFunction) => {
+    (_: Request, res: Response, next: NextFunction) => {
       res.locals.requestId = nanoid(8);
       next();
     },
