@@ -4,9 +4,10 @@ import { ActorService } from '../services/actor.service.mjs';
 import { authenticate } from '../../../middleware/auth.middleware.mjs';
 import { validateMultipartRequest } from '../../../middleware/validation.middleware.mjs';
 import { actorCreateSchema, actorSchema } from '@dungeon-lab/shared/schemas/actor.schema.mjs';
-import { openApiGet, openApiGetOne, openApiPost, openApiPut, openApiDelete } from '../../../oapi.mjs';
-import { z } from '../../../utils/zod.mjs';
+import { openApiGet, openApiGetOne, openApiPost, openApiPut, openApiPatch, openApiDelete } from '../../../oapi.mjs';
+import { z } from 'zod';
 import express from 'express';
+import { deepPartial } from '@dungeon-lab/shared/utils/deepPartial.mjs';
 
 // Initialize services and controllers
 const actorService = new ActorService();
@@ -21,7 +22,8 @@ const boundController = {
   getActorById: actorController.getActorById.bind(actorController),
   getActors: actorController.getActors.bind(actorController),
   createActor: actorController.createActor.bind(actorController),
-  updateActor: actorController.updateActor.bind(actorController),
+  putActor: actorController.putActor.bind(actorController),
+  patchActor: actorController.patchActor.bind(actorController),
   deleteActor: actorController.deleteActor.bind(actorController),
   uploadActorAvatar: actorController.uploadActorAvatar.bind(actorController),
   uploadActorToken: actorController.uploadActorToken.bind(actorController),
@@ -63,11 +65,20 @@ router.post('/',
 );
 
 router.put('/:id', 
-  openApiPut(actorSchema.partial(), {
-    description: 'Update actor by ID'
+  openApiPut(actorSchema, {
+    description: 'Replace actor by ID (full update)'
   }), 
-  validateMultipartRequest(actorSchema.partial(), ['avatar', 'token']), 
-  boundController.updateActor
+  validateMultipartRequest(actorSchema, ['avatar', 'token']), 
+  boundController.putActor
+);
+
+// PATCH route for partial updates
+router.patch('/:id',
+  openApiPatch(deepPartial(actorSchema), {
+    description: 'Update actor by ID (partial update)'
+  }),
+  validateMultipartRequest(deepPartial(actorCreateSchema), ['avatar', 'token']),
+  boundController.patchActor
 );
 
 // Upload a binary avatar image
@@ -76,16 +87,13 @@ router.put('/:id/avatar',
     type: ['image/jpeg', 'image/png', 'image/webp'],
     limit: '5mb'
   }),
-  openApiPut(z.null(), {
-    description: 'Upload raw avatar image',
+  openApiPut(z.string(), {
+    description: 'Upload actor avatar',
     requestBody: {
       content: {
-        'image/*': {
-          schema: {
-            type: 'string',
-            format: 'binary'
-          }
-        }
+        'image/jpeg': { schema: { type: 'string', format: 'binary' } },
+        'image/png': { schema: { type: 'string', format: 'binary' } },
+        'image/webp': { schema: { type: 'string', format: 'binary' } }
       }
     }
   }), 
@@ -98,16 +106,13 @@ router.put('/:id/token',
     type: ['image/jpeg', 'image/png', 'image/webp'],
     limit: '2mb'
   }),
-  openApiPut(z.null(), {
-    description: 'Upload raw token image',
+  openApiPut(z.string(), {
+    description: 'Upload actor token',
     requestBody: {
       content: {
-        'image/*': {
-          schema: {
-            type: 'string',
-            format: 'binary'
-          }
-        }
+        'image/jpeg': { schema: { type: 'string', format: 'binary' } },
+        'image/png': { schema: { type: 'string', format: 'binary' } },
+        'image/webp': { schema: { type: 'string', format: 'binary' } }
       }
     }
   }), 
@@ -115,22 +120,22 @@ router.put('/:id/token',
 );
 
 // Generate avatar and token using AI
-router.post('/:id/avatar/generate', 
-  openApiPost(z.null(), {
+router.post('/:id/generate-avatar', 
+  openApiPost(z.object({}), {
     description: 'Generate actor avatar using AI'
   }),
   boundController.generateActorAvatar
 );
 
-router.post('/:id/token/generate', 
-  openApiPost(z.null(), {
+router.post('/:id/generate-token', 
+  openApiPost(z.object({}), {
     description: 'Generate actor token using AI'
   }),
   boundController.generateActorToken
 );
 
 router.delete('/:id', 
-  openApiDelete(z.null(), {
+  openApiDelete(z.string(), {
     description: 'Delete actor by ID'
   }), 
   boundController.deleteActor

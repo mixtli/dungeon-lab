@@ -64,7 +64,7 @@ export class CampaignController {
     }
   }
 
-  async updateCampaign(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
+  async putCampaign(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
     try {
       
       // Check if user has permission to update
@@ -78,7 +78,7 @@ export class CampaignController {
         return res.status(403).json({ message: 'Access denied' });
       }
 
-      const updatedCampaign = await this.campaignService.updateCampaign(
+      const updatedCampaign = await this.campaignService.putCampaign(
         req.params.id,
         req.body,
         req.session.user.id
@@ -91,6 +91,36 @@ export class CampaignController {
       }
       logger.error('Error updating campaign:', error);
       return res.status(500).json({ message: 'Failed to update campaign' });
+    }
+  }
+
+  async patchCampaign(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
+    try {
+      
+      // Check if user has permission to update
+      const hasAccess = await this.campaignService.checkUserPermission(
+        req.params.id,
+        req.session.user.id,
+        req.session.user.isAdmin
+      );
+
+      if (!hasAccess) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
+
+      const updatedCampaign = await this.campaignService.patchCampaign(
+        req.params.id,
+        req.body,
+        req.session.user.id
+      );
+
+      return res.json(updatedCampaign);
+    } catch (error) {
+      if (isErrorWithMessage(error) && error.message === 'Campaign not found') {
+        return res.status(404).json({ message: 'Campaign not found' });
+      }
+      logger.error('Error patching campaign:', error);
+      return res.status(500).json({ message: 'Failed to patch campaign' });
     }
   }
 

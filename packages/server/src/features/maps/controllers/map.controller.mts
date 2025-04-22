@@ -61,13 +61,16 @@ export class MapController {
     }
   }
 
-  async updateMap(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
+  /**
+   * Replace a map completely (PUT)
+   */
+  async putMap(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
     try {
       // Get image file from req.assets if present
       const imageFile = req.assets?.image?.[0];
       
       // Update the map using the service
-      const map = await this.mapService.updateMap(
+      const map = await this.mapService.putMap(
         req.params.id,
         req.body,
         req.session.user.id,
@@ -79,11 +82,40 @@ export class MapController {
       if (error instanceof Error && error.message === 'Map not found') {
         return res.status(404).json({ message: 'Map not found' });
       }
-      logger.error('Error in updateMap controller:', error);
+      logger.error('Error in putMap controller:', error);
       if (error instanceof Error) {
         return res.status(500).json({ message: error.message || 'Failed to update map' });
       }
       return res.status(500).json({ message: 'Failed to update map' });
+    }
+  }
+
+  /**
+   * Partially update a map (PATCH)
+   */
+  async patchMap(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
+    try {
+      // Get image file from req.assets if present
+      const imageFile = req.assets?.image?.[0];
+      
+      // Patch the map using the service
+      const map = await this.mapService.patchMap(
+        req.params.id,
+        req.body,
+        req.session.user.id,
+        imageFile
+      );
+      
+      return res.json(map);
+    } catch (error: unknown) {
+      if (error instanceof Error && error.message === 'Map not found') {
+        return res.status(404).json({ message: 'Map not found' });
+      }
+      logger.error('Error in patchMap controller:', error);
+      if (error instanceof Error) {
+        return res.status(500).json({ message: error.message || 'Failed to patch map' });
+      }
+      return res.status(500).json({ message: 'Failed to patch map' });
     }
   }
 

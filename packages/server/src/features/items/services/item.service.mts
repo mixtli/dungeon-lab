@@ -2,6 +2,7 @@ import { Types } from 'mongoose';
 import { IItem } from '@dungeon-lab/shared/index.mjs';
 import { ItemModel } from '../models/item.model.mjs';
 import { logger } from '../../../utils/logger.mjs';
+import { deepMerge } from '@dungeon-lab/shared/utils/deepMerge.mjs';
 
 export class ItemService {
   async getAllItems(): Promise<IItem[]> {
@@ -67,11 +68,7 @@ export class ItemService {
         updatedBy: userObjectId
       };
 
-      const updatedItem = await ItemModel.findByIdAndUpdate(
-        id,
-        updateData,
-        { new: true }
-      );
+      const updatedItem = await ItemModel.findByIdAndUpdate(id, updateData, { new: true });
 
       if (!updatedItem) {
         throw new Error('Failed to update item');
@@ -109,4 +106,53 @@ export class ItemService {
       throw new Error('Failed to check user permission');
     }
   }
-} 
+
+  async putItem(id: string, data: IItem, userId: string): Promise<IItem> {
+    try {
+      const item = await ItemModel.findById(id);
+      if (!item) {
+        throw new Error('Item not found');
+      }
+
+      const userObjectId = new Types.ObjectId(userId);
+      const updateData = {
+        ...data,
+        updatedBy: userObjectId
+      };
+
+      // Replace the entire item (PUT)
+      item.set(updateData);
+      await item.save();
+
+      return item;
+    } catch (error) {
+      logger.error('Error replacing item:', error);
+      throw new Error('Failed to replace item');
+    }
+  }
+
+  async patchItem(id: string, data: Partial<IItem>, userId: string): Promise<IItem> {
+    try {
+      const item = await ItemModel.findById(id);
+      if (!item) {
+        throw new Error('Item not found');
+      }
+
+      const userObjectId = new Types.ObjectId(userId);
+      const updateData = {
+        ...data,
+        updatedBy: userObjectId
+      };
+
+      // Apply partial update using deepMerge (PATCH)
+      const obj = item.toObject();
+      item.set(deepMerge(obj, updateData));
+      await item.save();
+
+      return item;
+    } catch (error) {
+      logger.error('Error patching item:', error);
+      throw new Error('Failed to patch item');
+    }
+  }
+}

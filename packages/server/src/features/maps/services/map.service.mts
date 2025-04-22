@@ -8,6 +8,8 @@ import { AssetDocument } from '../../../features/assets/services/asset.service.m
 import { AssetModel } from '../../../features/assets/models/asset.model.mjs';
 import { backgroundJobService } from '../../../services/background-job.service.mjs';
 import { MAP_IMAGE_GENERATION_JOB, MAP_THUMBNAIL_GENERATION_JOB } from '../jobs/map-image.job.mjs';
+import { deepMerge } from '@dungeon-lab/shared/utils/deepMerge.mjs';
+import { Types } from 'mongoose';
 
 export class MapService {
   constructor() {}
@@ -467,6 +469,125 @@ export class MapService {
     } catch (error) {
       logger.error(`Error checking map image status for map ${id}:`, error);
       throw new Error('Failed to check map image status');
+    }
+  }
+
+  /**
+   * Replace a map (PUT)
+   * 
+   * @param id - The ID of the map to update
+   * @param data - New data for the map
+   * @param userId - ID of the user updating the map
+   * @param imageFile - Optional new image file
+   */
+  async putMap(
+    id: string, 
+    data: IMap, 
+    userId: string,
+    imageFile?: File
+  ): Promise<IMap> {
+    try {
+      const map = await MapModel.findById(id);
+      if (!map) {
+        throw new Error('Map not found');
+      }
+
+      const userObjectId = new Types.ObjectId(userId);
+      const updateData = {
+        ...data,
+        updatedBy: userObjectId
+      };
+
+      // Handle image file if provided
+      if (imageFile) {
+        // Create asset using the createAsset method
+        const newImageAsset = await createAsset(imageFile, 'maps', userId);
+        
+        // Delete the old image asset if it exists and is different
+        if (map.imageId && map.imageId.toString() !== newImageAsset.id.toString()) {
+          try {
+            const oldAsset = await AssetModel.findById(map.imageId);
+            if (oldAsset) {
+              await oldAsset.deleteOne();
+              logger.info(`Deleted old image asset ${map.imageId} for map ${id}`);
+            }
+          } catch (deleteError) {
+            logger.warn(`Could not delete old image asset ${map.imageId}:`, deleteError);
+          }
+        }
+        
+        // Update image ID in map data
+        updateData.imageId = newImageAsset.id;
+      }
+
+      // Replace the entire map (PUT)
+      map.set(updateData);
+      await map.save();
+
+      return map.populate('image');
+    } catch (error) {
+      logger.error('Error in putMap service:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Partially update a map (PATCH)
+   * 
+   * @param id - The ID of the map to update
+   * @param data - Partial data for the map
+   * @param userId - ID of the user updating the map
+   * @param imageFile - Optional new image file
+   */
+  async patchMap(
+    id: string, 
+    data: Partial<IMap>, 
+    userId: string,
+    imageFile?: File
+  ): Promise<IMap> {
+    try {
+      const map = await MapModel.findById(id);
+      if (!map) {
+        throw new Error('Map not found');
+      }
+
+      const userObjectId = new Types.ObjectId(userId);
+      const updateData = {
+        ...data,
+        updatedBy: userObjectId
+      };
+
+      // Handle image file if provided
+      if (imageFile) {
+        // Create asset using the createAsset method
+        const newImageAsset = await createAsset(imageFile, 'maps', userId);
+        
+        // Delete the old image asset if it exists and is different
+        if (map.imageId && map.imageId.toString() !== newImageAsset.id.toString()) {
+          try {
+            const oldAsset = await AssetModel.findById(map.imageId);
+            if (oldAsset) {
+              await oldAsset.deleteOne();
+              logger.info(`Deleted old image asset ${map.imageId} for map ${id}`);
+            }
+          } catch (deleteError) {
+            logger.warn(`Could not delete old image asset ${map.imageId}:`, deleteError);
+          }
+        }
+        
+        // Update image ID in map data
+        updateData.imageId = newImageAsset.id;
+      }
+
+      // Apply partial update using deepMerge (PATCH)
+      const obj = map.toObject();
+      map.set(deepMerge(obj, updateData));
+      await map.save();
+
+      return map.populate('image');
+    } catch (error) {
+      logger.error('Error in patchMap service:', error);
+      throw error;
     }
   }
 }

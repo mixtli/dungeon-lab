@@ -78,11 +78,11 @@ export class ItemController {
   }
 
   /**
-   * Update an item
+   * Replace an item (full update)
    * @route PUT /api/items/:id
    * @access Private
    */
-  async updateItem(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
+  async putItem(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
     try {
       const hasPermission = await this.itemService.checkUserPermission(
         req.params.id,
@@ -94,20 +94,46 @@ export class ItemController {
         return res.status(403).json({ message: 'Access denied' });
       }
 
-      const item = await this.itemService.updateItem(
-        req.params.id,
-        req.body,
-        req.session.user.id
-      );
+      const item = await this.itemService.putItem(req.params.id, req.body, req.session.user.id);
       return res.json(item);
     } catch (error) {
       if (error instanceof Error) {
-        logger.error('Error updating item:', error);
+        logger.error('Error replacing item:', error);
         if (error.message === 'Item not found') {
           return res.status(404).json({ message: 'Item not found' });
         }
       }
-      return res.status(500).json({ message: 'Failed to update item' });
+      return res.status(500).json({ message: 'Failed to replace item' });
+    }
+  }
+
+  /**
+   * Update an item (partial update)
+   * @route PATCH /api/items/:id
+   * @access Private
+   */
+  async patchItem(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
+    try {
+      const hasPermission = await this.itemService.checkUserPermission(
+        req.params.id,
+        req.session.user.id,
+        req.session.user.isAdmin
+      );
+
+      if (!hasPermission) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
+
+      const item = await this.itemService.patchItem(req.params.id, req.body, req.session.user.id);
+      return res.json(item);
+    } catch (error) {
+      if (error instanceof Error) {
+        logger.error('Error patching item:', error);
+        if (error.message === 'Item not found') {
+          return res.status(404).json({ message: 'Item not found' });
+        }
+      }
+      return res.status(500).json({ message: 'Failed to patch item' });
     }
   }
 
@@ -140,4 +166,4 @@ export class ItemController {
       return res.status(500).json({ message: 'Failed to delete item' });
     }
   }
-} 
+}

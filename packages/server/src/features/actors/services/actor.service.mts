@@ -5,7 +5,11 @@ import { logger } from '../../../utils/logger.mjs';
 import { createAsset } from '../../../utils/asset-upload.utils.mjs';
 import { AssetModel } from '../../../features/assets/models/asset.model.mjs';
 import { backgroundJobService } from '../../../services/background-job.service.mjs';
-import { ACTOR_AVATAR_GENERATION_JOB, ACTOR_TOKEN_GENERATION_JOB } from '../jobs/actor-image.job.mjs';
+import {
+  ACTOR_AVATAR_GENERATION_JOB,
+  ACTOR_TOKEN_GENERATION_JOB
+} from '../jobs/actor-image.job.mjs';
+import { deepMerge } from '@dungeon-lab/shared/utils/deepMerge.mjs';
 
 export class ActorService {
   async getAllActors(type?: string): Promise<IActor[]> {
@@ -44,15 +48,15 @@ export class ActorService {
 
   /**
    * Create an actor with optional avatar and token files
-   * 
+   *
    * @param data - The actor data
    * @param userId - ID of the user creating the actor
    * @param avatarFile - Optional avatar file for the actor
    * @param tokenFile - Optional token file for the actor
    */
   async createActor(
-    data: IActor, 
-    userId: string, 
+    data: IActor,
+    userId: string,
     avatarFile?: File,
     tokenFile?: File
   ): Promise<IActor> {
@@ -66,48 +70,48 @@ export class ActorService {
 
       // Create actor in database to get an ID
       const actor = await ActorModel.create(actorData);
-      
+
       // Handle avatar file if provided
       if (avatarFile) {
         logger.info('Uploading provided actor avatar');
-        
+
         // Create asset using the createAsset method
         const avatarAsset = await createAsset(avatarFile, 'actors', userId);
-        
+
         // Update the actor with the avatar ID
         actor.avatarId = avatarAsset.id;
         await actor.save();
       } else {
         // If no avatar file was provided, schedule a background job to generate one
         logger.info('No avatar provided, scheduling actor avatar generation job');
-        
+
         await backgroundJobService.scheduleJob('now', ACTOR_AVATAR_GENERATION_JOB, {
           actorId: actor.id,
           userId
         });
-        
+
         logger.info(`Scheduled actor avatar generation job for actor ${actor.id}`);
       }
-      
+
       // Handle token file if provided
       if (tokenFile) {
         logger.info('Uploading provided actor token');
-        
+
         // Create asset using the createAsset method
         const tokenAsset = await createAsset(tokenFile, 'actors/tokens', userId);
-        
+
         // Update the actor with the token ID
         actor.tokenId = tokenAsset.id;
         await actor.save();
       } else {
         // If no token file was provided, schedule a background job to generate one
         logger.info('No token provided, scheduling actor token generation job');
-        
+
         await backgroundJobService.scheduleJob('now', ACTOR_TOKEN_GENERATION_JOB, {
           actorId: actor.id,
           userId
         });
-        
+
         logger.info(`Scheduled actor token generation job for actor ${actor.id}`);
       }
 
@@ -120,17 +124,17 @@ export class ActorService {
   }
 
   /**
-   * Update an actor with optional new avatar and token files
-   * 
+   * Update an actor with optional new avatar and token files (full replacement)
+   *
    * @param id - The ID of the actor to update
    * @param data - New data for the actor
    * @param userId - ID of the user updating the actor
    * @param avatarFile - Optional new avatar file
    * @param tokenFile - Optional new token file
    */
-  async updateActor(
-    id: string, 
-    data: Partial<IActor>, 
+  async putActor(
+    id: string,
+    data: IActor,
     userId: string,
     avatarFile?: File,
     tokenFile?: File
@@ -150,10 +154,10 @@ export class ActorService {
       // Handle avatar file if provided
       if (avatarFile) {
         logger.info(`Updating actor ${id} with new avatar`);
-        
+
         // Create asset using the createAsset method
         const newAvatarAsset = await createAsset(avatarFile, 'actors', userId);
-        
+
         // Delete the old avatar asset if it exists and is different
         if (actor.avatarId && actor.avatarId.toString() !== newAvatarAsset.id.toString()) {
           try {
@@ -166,18 +170,18 @@ export class ActorService {
             logger.warn(`Could not delete old avatar asset ${actor.avatarId}:`, deleteError);
           }
         }
-        
+
         // Update avatar ID in actor data
         updateData.avatarId = newAvatarAsset.id;
       }
-      
+
       // Handle token file if provided
       if (tokenFile) {
         logger.info(`Updating actor ${id} with new token`);
-        
+
         // Create asset using the createAsset method
         const newTokenAsset = await createAsset(tokenFile, 'actors/tokens', userId);
-        
+
         // Delete the old token asset if it exists and is different
         if (actor.tokenId && actor.tokenId.toString() !== newTokenAsset.id.toString()) {
           try {
@@ -190,25 +194,106 @@ export class ActorService {
             logger.warn(`Could not delete old token asset ${actor.tokenId}:`, deleteError);
           }
         }
-        
+
         // Update token ID in actor data
         updateData.tokenId = newTokenAsset.id;
       }
 
-      const updatedActor = await ActorModel.findByIdAndUpdate(
-        id,
-        updateData,
-        { new: true }
-      ).populate('avatar').populate('token');
+      // Set the entire actor data (full replacement)
+      actor.set(updateData);
+      await actor.save();
 
-      if (!updatedActor) {
-        throw new Error('Failed to update actor');
-      }
-
-      return updatedActor;
+      return actor.populate(['avatar', 'token']);
     } catch (error) {
       logger.error('Error updating actor:', error);
       throw new Error('Failed to update actor');
+    }
+  }
+
+  /**
+   * Partially update an actor with optional new avatar and token files
+   *
+   * @param id - The ID of the actor to update
+   * @param data - Partial data for the actor
+   * @param userId - ID of the user updating the actor
+   * @param avatarFile - Optional new avatar file
+   * @param tokenFile - Optional new token file
+   */
+  async patchActor(
+    id: string,
+    data: Partial<IActor>,
+    userId: string,
+    avatarFile?: File,
+    tokenFile?: File
+  ): Promise<IActor> {
+    try {
+      const actor = await ActorModel.findById(id);
+      if (!actor) {
+        throw new Error('Actor not found');
+      }
+
+      const updateData = {
+        ...data,
+        updatedBy: userId
+      };
+
+      // Handle avatar file if provided
+      if (avatarFile) {
+        logger.info(`Updating actor ${id} with new avatar`);
+
+        // Create asset using the createAsset method
+        const newAvatarAsset = await createAsset(avatarFile, 'actors', userId);
+
+        // Delete the old avatar asset if it exists and is different
+        if (actor.avatarId && actor.avatarId.toString() !== newAvatarAsset.id.toString()) {
+          try {
+            const oldAsset = await AssetModel.findById(actor.avatarId);
+            if (oldAsset) {
+              await oldAsset.deleteOne();
+              logger.info(`Deleted old avatar asset ${actor.avatarId} for actor ${id}`);
+            }
+          } catch (deleteError) {
+            logger.warn(`Could not delete old avatar asset ${actor.avatarId}:`, deleteError);
+          }
+        }
+
+        // Update avatar ID in actor data
+        updateData.avatarId = newAvatarAsset.id;
+      }
+
+      // Handle token file if provided
+      if (tokenFile) {
+        logger.info(`Updating actor ${id} with new token`);
+
+        // Create asset using the createAsset method
+        const newTokenAsset = await createAsset(tokenFile, 'actors/tokens', userId);
+
+        // Delete the old token asset if it exists and is different
+        if (actor.tokenId && actor.tokenId.toString() !== newTokenAsset.id.toString()) {
+          try {
+            const oldAsset = await AssetModel.findById(actor.tokenId);
+            if (oldAsset) {
+              await oldAsset.deleteOne();
+              logger.info(`Deleted old token asset ${actor.tokenId} for actor ${id}`);
+            }
+          } catch (deleteError) {
+            logger.warn(`Could not delete old token asset ${actor.tokenId}:`, deleteError);
+          }
+        }
+
+        // Update token ID in actor data
+        updateData.tokenId = newTokenAsset.id;
+      }
+
+      // Use deepMerge to only update the specified fields
+      const obj = actor.toObject();
+      actor.set(deepMerge(obj, updateData));
+      await actor.save();
+
+      return actor.populate(['avatar', 'token']);
+    } catch (error) {
+      logger.error('Error patching actor:', error);
+      throw new Error('Failed to patch actor');
     }
   }
 
@@ -218,11 +303,7 @@ export class ActorService {
    * @param file - The file object
    * @param userId - ID of the user updating the actor
    */
-  async updateActorAvatar(
-    id: string,
-    file: File,
-    userId: string
-  ): Promise<IActor> {
+  async updateActorAvatar(id: string, file: File, userId: string): Promise<IActor> {
     try {
       // Get existing actor
       const existingActor = await ActorModel.findById(id);
@@ -234,7 +315,10 @@ export class ActorService {
       const newAvatarAsset = await createAsset(file, 'actors', userId);
 
       // Delete the old avatar asset if it exists and is different
-      if (existingActor.avatarId && existingActor.avatarId.toString() !== newAvatarAsset.id.toString()) {
+      if (
+        existingActor.avatarId &&
+        existingActor.avatarId.toString() !== newAvatarAsset.id.toString()
+      ) {
         try {
           const oldAsset = await AssetModel.findById(existingActor.avatarId);
           if (oldAsset) {
@@ -255,8 +339,8 @@ export class ActorService {
         },
         { new: true }
       )
-      .populate('avatar')
-      .populate('token');
+        .populate('avatar')
+        .populate('token');
 
       if (!updatedActor) {
         throw new Error('Actor not found after update');
@@ -268,7 +352,9 @@ export class ActorService {
       if (error instanceof Error && error.message.includes('Actor not found')) {
         throw error;
       }
-      throw new Error(`Failed to update actor avatar: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Failed to update actor avatar: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 
@@ -278,11 +364,7 @@ export class ActorService {
    * @param file - The file object
    * @param userId - ID of the user updating the actor
    */
-  async updateActorToken(
-    id: string,
-    file: File,
-    userId: string
-  ): Promise<IActor> {
+  async updateActorToken(id: string, file: File, userId: string): Promise<IActor> {
     try {
       // Get existing actor
       const existingActor = await ActorModel.findById(id);
@@ -294,7 +376,10 @@ export class ActorService {
       const newTokenAsset = await createAsset(file, 'actors/tokens', userId);
 
       // Delete the old token asset if it exists and is different
-      if (existingActor.tokenId && existingActor.tokenId.toString() !== newTokenAsset.id.toString()) {
+      if (
+        existingActor.tokenId &&
+        existingActor.tokenId.toString() !== newTokenAsset.id.toString()
+      ) {
         try {
           const oldAsset = await AssetModel.findById(existingActor.tokenId);
           if (oldAsset) {
@@ -315,8 +400,8 @@ export class ActorService {
         },
         { new: true }
       )
-      .populate('avatar')
-      .populate('token');
+        .populate('avatar')
+        .populate('token');
 
       if (!updatedActor) {
         throw new Error('Actor not found after update');
@@ -328,7 +413,9 @@ export class ActorService {
       if (error instanceof Error && error.message.includes('Actor not found')) {
         throw error;
       }
-      throw new Error(`Failed to update actor token: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Failed to update actor token: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 
@@ -368,12 +455,12 @@ export class ActorService {
     if (!actor) {
       throw new Error('Actor not found');
     }
-    
+
     await backgroundJobService.scheduleJob('now', ACTOR_AVATAR_GENERATION_JOB, {
       actorId: actor.id,
       userId
     });
-    
+
     logger.info(`Scheduled avatar generation job for actor ${actorId}`);
   }
 
@@ -387,12 +474,12 @@ export class ActorService {
     if (!actor) {
       throw new Error('Actor not found');
     }
-    
+
     await backgroundJobService.scheduleJob('now', ACTOR_TOKEN_GENERATION_JOB, {
       actorId: actor.id,
       userId
     });
-    
+
     logger.info(`Scheduled token generation job for actor ${actorId}`);
   }
-} 
+}

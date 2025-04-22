@@ -4,7 +4,8 @@ import { MapService } from '../services/map.service.mjs';
 import { authenticate } from '../../../middleware/auth.middleware.mjs';
 import { validateMultipartRequest } from '../../../middleware/validation.middleware.mjs';
 import { mapCreateSchema, mapSchema } from '@dungeon-lab/shared/schemas/map.schema.mjs';
-import { openApiGet, openApiGetOne, openApiPost, openApiDelete, openApiPatch } from '../../../oapi.mjs';
+import { openApiGet, openApiGetOne, openApiPost, openApiPut, openApiPatch, openApiDelete } from '../../../oapi.mjs';
+import { deepPartial } from '@dungeon-lab/shared/utils/deepPartial.mjs';
 import { z } from '../../../utils/zod.mjs';
 import express from 'express';
 
@@ -18,7 +19,8 @@ const boundController = {
   getMaps: mapController.getMaps.bind(mapController),
   getMap: mapController.getMap.bind(mapController),
   createMap: mapController.createMap.bind(mapController),
-  updateMap: mapController.updateMap.bind(mapController),
+  putMap: mapController.putMap.bind(mapController),
+  patchMap: mapController.patchMap.bind(mapController),
   deleteMap: mapController.deleteMap.bind(mapController),
   generateMapImage: mapController.generateMapImage.bind(mapController),
   uploadMapImage: mapController.uploadMapImage.bind(mapController),
@@ -48,40 +50,45 @@ router.post('/',
 );
 
 // Upload a binary map image
-router.post('/:id/image', 
+router.put('/:id/image', 
   express.raw({
     type: ['image/jpeg', 'image/png', 'image/webp'],
     limit: '10mb'
   }),
-  openApiPost(z.null(), {
+  openApiPut(z.string(), {
     description: 'Upload raw map image',
     requestBody: {
       content: {
-        'image/*': {
-          schema: {
-            type: 'string',
-            format: 'binary'
-          }
-        }
+        'image/jpeg': { schema: { type: 'string', format: 'binary' } },
+        'image/png': { schema: { type: 'string', format: 'binary' } },
+        'image/webp': { schema: { type: 'string', format: 'binary' } }
       }
     }
   }), 
   boundController.uploadMapImage
 );
 
-router.post('/:id/image/generate', openApiPost(z.null(), {
+router.post('/:id/generate-image', openApiPost(z.object({}), {
   description: 'Generate map image'
 }), boundController.generateMapImage);
 
-router.patch('/:id', 
-  openApiPatch(mapSchema, {
-    description: 'Update map'
-  }), 
-  validateMultipartRequest(mapSchema.partial(), 'image'),
-  boundController.updateMap
+router.put('/:id', 
+  openApiPut(mapSchema, {
+    description: 'Replace map (full update)'
+  }),
+  validateMultipartRequest(mapSchema, 'image'),
+  boundController.putMap
 );
 
-router.delete('/:id', openApiDelete(z.null(), {
+router.patch('/:id', 
+  openApiPatch(deepPartial(mapSchema), {
+    description: 'Update map (partial update)'
+  }),
+  validateMultipartRequest(deepPartial(mapSchema), 'image'),
+  boundController.patchMap
+);
+
+router.delete('/:id', openApiDelete(z.string(), {
   description: 'Delete map'
 }), boundController.deleteMap);
 

@@ -4,6 +4,7 @@ import { CampaignModel } from '../models/campaign.model.mjs';
 import { ActorModel } from '../../actors/models/actor.model.mjs';
 import { logger } from '../../../utils/logger.mjs';
 import { pluginRegistry } from '../../../services/plugin-registry.service.mjs';
+import { deepMerge } from '@dungeon-lab/shared/utils/deepMerge.mjs';
 
 export class CampaignService {
   async getMyCampaigns(userId: string): Promise<ICampaign[]> {
@@ -157,6 +158,64 @@ export class CampaignService {
     } catch (error) {
       logger.error('Error checking if user is campaign member:', error);
       throw new Error('Failed to check campaign membership');
+    }
+  }
+
+  /**
+   * Replace an entire campaign (PUT)
+   */
+  async putCampaign(
+    id: string,
+    data: ICampaign,
+    userId: string
+  ): Promise<ICampaign> {
+    try {
+      const campaign = await CampaignModel.findById(id);
+      if (!campaign) {
+        throw new Error('Campaign not found');
+      }
+
+      // Set the entire campaign data (full replacement)
+      campaign.set({
+        ...data,
+        updatedBy: userId
+      });
+      
+      await campaign.save();
+      return campaign;
+    } catch (error) {
+      logger.error('Error in putCampaign service:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Partially update a campaign (PATCH)
+   */
+  async patchCampaign(
+    id: string,
+    data: Partial<ICampaign>,
+    userId: string
+  ): Promise<ICampaign> {
+    try {
+      const campaign = await CampaignModel.findById(id);
+      if (!campaign) {
+        throw new Error('Campaign not found');
+      }
+
+      // Apply partial update using deepMerge
+      const obj = campaign.toObject();
+      const updateData = {
+        ...data,
+        updatedBy: userId
+      };
+      
+      campaign.set(deepMerge(obj, updateData));
+      await campaign.save();
+      return campaign;
+    } catch (error) {
+      logger.error('Error in patchCampaign service:', error);
+      throw error;
     }
   }
 } 

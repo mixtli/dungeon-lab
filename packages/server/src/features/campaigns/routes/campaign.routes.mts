@@ -8,10 +8,10 @@ import { GameSessionService } from '../services/game-session.service.mjs';
 import { authenticate } from '../../../middleware/auth.middleware.mjs';
 import { validateRequest } from '../../../middleware/validation.middleware.mjs';
 import { campaignSchema } from '@dungeon-lab/shared/schemas/campaign.schema.mjs';
-import { validateCreateEncounter, validateUpdateEncounter } from '../middleware/encounter.validation.mjs';
 import { gameSessionSchema } from '@dungeon-lab/shared/schemas/game-session.schema.mjs';
 import { encounterSchema } from '@dungeon-lab/shared/schemas/encounter.schema.mjs';
 import { openApiGet, openApiGetOne, openApiPost, openApiPut, openApiDelete, openApiPatch } from '../../../oapi.mjs';
+import { deepPartial } from '@dungeon-lab/shared/utils/deepPartial.mjs';
 
 // Initialize services and controllers
 const campaignService = new CampaignService();
@@ -28,7 +28,8 @@ const router = Router();
 const boundGetMyCampaigns = campaignController.getMyCampaigns.bind(campaignController);
 const boundGetCampaign = campaignController.getCampaign.bind(campaignController);
 const boundCreateCampaign = campaignController.createCampaign.bind(campaignController);
-const boundUpdateCampaign = campaignController.updateCampaign.bind(campaignController);
+const boundPutCampaign = campaignController.putCampaign.bind(campaignController);
+const boundPatchCampaign = campaignController.patchCampaign.bind(campaignController);
 const boundDeleteCampaign = campaignController.deleteCampaign.bind(campaignController);
 
 // Bind encounter controller methods
@@ -40,8 +41,8 @@ const boundDeleteEncounter = encounterController.deleteEncounter.bind(encounterC
 
 // Bind game session controller methods
 const boundGetCampaignSessions = gameSessionController.getCampaignSessions.bind(gameSessionController);
-const boundCreateGameSession = gameSessionController.createGameSession.bind(gameSessionController);
 const boundGetGameSession = gameSessionController.getGameSession.bind(gameSessionController);
+const boundCreateGameSession = gameSessionController.createGameSession.bind(gameSessionController);
 
 // Campaign routes
 router.get('/', authenticate, openApiGet(campaignSchema, {
@@ -57,8 +58,12 @@ router.post('/', authenticate, openApiPost(campaignSchema, {
 }), validateRequest(campaignSchema), boundCreateCampaign);
 
 router.put('/:id', authenticate, openApiPut(campaignSchema, {
-  description: 'Update a campaign by ID'
-}), validateRequest(campaignSchema.partial()), boundUpdateCampaign);
+  description: 'Replace a campaign by ID (full update)'
+}), validateRequest(campaignSchema), boundPutCampaign);
+
+router.patch('/:id', authenticate, openApiPatch(deepPartial(campaignSchema), {
+  description: 'Update a campaign by ID (partial update)'
+}), validateRequest(deepPartial(campaignSchema)), boundPatchCampaign);
 
 router.delete('/:id', authenticate, openApiDelete(campaignSchema, {
   description: 'Delete a campaign by ID'
@@ -71,7 +76,7 @@ router.get('/:campaignId/encounters', authenticate, openApiGet(encounterSchema, 
 
 router.post('/:campaignId/encounters', authenticate, openApiPost(encounterSchema, {
   description: 'Create a new encounter in a campaign'
-}), validateCreateEncounter, boundCreateEncounter);
+}), validateRequest(encounterSchema), boundCreateEncounter);
 
 router.get('/:campaignId/encounters/:id', authenticate, openApiGetOne(encounterSchema, {
   description: 'Get an encounter by ID in a campaign'
@@ -79,7 +84,7 @@ router.get('/:campaignId/encounters/:id', authenticate, openApiGetOne(encounterS
 
 router.patch('/:campaignId/encounters/:id', authenticate, openApiPatch(encounterSchema, {
   description: 'Update an encounter by ID in a campaign'
-}), validateUpdateEncounter, boundUpdateEncounter);
+}), validateRequest(encounterSchema.partial()), boundUpdateEncounter);
 
 router.delete('/:campaignId/encounters/:id', authenticate, openApiDelete(encounterSchema, {
   description: 'Delete an encounter by ID in a campaign'

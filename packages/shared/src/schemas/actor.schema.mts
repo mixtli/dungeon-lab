@@ -20,8 +20,10 @@ export const actorSchema = baseSchema.extend({
 
 
 export const actorCreateSchema = actorSchema.extend({
-  avatar: z.any().optional(),
-  token: z.any().optional(),
+  // avatar: z.any().optional(),
+  // token: z.any().optional(),
+  avatar: z.instanceof(File).optional(),
+  token: z.instanceof(File).optional(),
 });
 
 export const actorSchemaWithVirtuals = actorSchema.extend({

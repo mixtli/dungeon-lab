@@ -105,11 +105,11 @@ export class ActorController {
   }
 
   /**
-   * Update an actor
+   * Update an actor (replace entirely)
    * @route PUT /api/actors/:id
    * @access Private
    */
-  async updateActor(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
+  async putActor(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
     try {
       const hasPermission = await this.actorService.checkUserPermission(
         req.params.id,
@@ -126,7 +126,7 @@ export class ActorController {
       const tokenFile = req.assets?.token?.[0];
       
       // Update the actor using the service
-      const actor = await this.actorService.updateActor(
+      const actor = await this.actorService.putActor(
         req.params.id,
         req.body,
         req.session.user.id,
@@ -144,6 +144,49 @@ export class ActorController {
         return res.status(500).json({ message: error.message || 'Failed to update actor' });
       }
       return res.status(500).json({ message: 'Failed to update actor' });
+    }
+  }
+
+  /**
+   * Partially update an actor
+   * @route PATCH /api/actors/:id
+   * @access Private
+   */
+  async patchActor(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
+    try {
+      const hasPermission = await this.actorService.checkUserPermission(
+        req.params.id,
+        req.session.user.id,
+        req.session.user.isAdmin
+      );
+
+      if (!hasPermission) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
+
+      // Get avatar and token files from req.assets if present
+      const avatarFile = req.assets?.avatar?.[0];
+      const tokenFile = req.assets?.token?.[0];
+      
+      // Patch the actor using the service
+      const actor = await this.actorService.patchActor(
+        req.params.id,
+        req.body,
+        req.session.user.id,
+        avatarFile,
+        tokenFile
+      );
+
+      return res.json(actor);
+    } catch (error) {
+      if (error instanceof Error) {
+        logger.error('Error patching actor:', error);
+        if (error.message === 'Actor not found') {
+          return res.status(404).json({ message: 'Actor not found' });
+        }
+        return res.status(500).json({ message: error.message || 'Failed to patch actor' });
+      }
+      return res.status(500).json({ message: 'Failed to patch actor' });
     }
   }
 
@@ -322,6 +365,7 @@ export class ActorController {
       return res.status(500).json({ message: 'Failed to generate actor token' });
     }
   }
+
   /**
    * Delete an actor
    * @route DELETE /api/actors/:id
