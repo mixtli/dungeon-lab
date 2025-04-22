@@ -25,7 +25,7 @@ export class DocumentService {
     return newDocument;
   }
 
-  async updateDocument(id: string, document: IVTTDocument): Promise<IVTTDocument> {
+  async patchDocument(id: string, document: IVTTDocument): Promise<IVTTDocument> {
     const existingDocument = await VTTDocument.findById(id);
     if (!existingDocument) {
       throw new Error('Document not found');
@@ -39,6 +39,16 @@ export class DocumentService {
     //   throw new Error('Document not found');
     // }
     // return updatedDocument;
+    return existingDocument;
+  }
+
+  async putDocument(id: string, document: IVTTDocument): Promise<IVTTDocument> {
+    const existingDocument = await VTTDocument.findById(id);
+    if (!existingDocument) {
+      throw new Error('Document not found');
+    }
+    existingDocument.set(document);
+    await existingDocument.save();
     return existingDocument;
   }
 

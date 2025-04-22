@@ -20,10 +20,21 @@ export class DocumentController {
     }
   };
 
+  putDocument = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const document = await this.documentService.putDocument(id, req.body);
+      res.json(document);
+    } catch (error) {
+      logger.error('Error in putDocument:', error);
+      res.status(500).json({ error: 'Failed to update document' });
+    }
+  };
+
   patchDocument = async (req: Request, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
-      const document = await this.documentService.updateDocument(id, req.body);
+      const document = await this.documentService.patchDocument(id, req.body);
       res.json(document);
     } catch (error) {
       logger.error('Error in updateDocument:', error);

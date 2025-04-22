@@ -28,4 +28,8 @@ router.patch('/:id', openApiPatch(deepPartial(vttDocumentSchema), {
   description: 'Update a document by ID'
 }), validateRequest(deepPartial(vttDocumentSchema)), documentController.patchDocument);
 
+router.put('/:id', openApiPatch(vttDocumentSchema, {
+  description: 'Update a document by ID'
+}), validateRequest(vttDocumentSchema), documentController.putDocument);
+
 export default router; 
