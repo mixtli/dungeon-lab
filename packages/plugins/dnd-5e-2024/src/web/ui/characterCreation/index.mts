@@ -423,13 +423,13 @@ export class CharacterCreationComponent extends PluginComponent {
       // Check if it's already in the available scores
         abilities.availableScores!.push(parseInt(oldValue, 10));
         // Keep scores sorted in descending order
-        abilities.availableScores!.sort((a, b) => b! - a!);
+        abilities.availableScores!.sort((a: number, b: number) => b! - a!);
         console.log(`Added ${oldValue} back to available scores:`, abilities.availableScores);
     }
     
     // If a new value was selected, remove it from available scores
     if (newValue) {
-      abilities.availableScores = abilities.availableScores!.filter(score => score !== newValue);
+      abilities.availableScores = abilities.availableScores!.filter((score: number) => score !== newValue);
       console.log(`Removed ${newValue} from available scores:`, abilities.availableScores);
     }
     
@@ -757,10 +757,7 @@ export class CharacterCreationComponent extends PluginComponent {
     const maxHitPoints = hitDiceValue + constitutionModifier;
 
     // Get alignment (convert from form format with hyphens to character format with spaces)
-    const alignment = formData.details.alignment.replace('-', ' ') as
-      'lawful good' | 'neutral good' | 'chaotic good' |
-      'lawful neutral' | 'true neutral' | 'chaotic neutral' |
-      'lawful evil' | 'neutral evil' | 'chaotic evil';
+    const alignment = formData.details.alignment;
 
     // Get features based on class, species, and background
     const features: Array<{name: string, description: string, source: string}> = [];

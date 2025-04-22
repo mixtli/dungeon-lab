@@ -23,9 +23,9 @@ export const characterDataSchema = z.object({
   })),
   background: z.string(),
   alignment: z.enum([
-    'lawful good', 'neutral good', 'chaotic good',
-    'lawful neutral', 'true neutral', 'chaotic neutral',
-    'lawful evil', 'neutral evil', 'chaotic evil'
+    'lawful-good', 'neutral-good', 'chaotic-good',
+    'lawful-neutral', 'true-neutral', 'chaotic-neutral',
+    'lawful-evil', 'neutral-evil', 'chaotic-evil'
   ]),
 
   // Core stats

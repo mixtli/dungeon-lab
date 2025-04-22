@@ -5,7 +5,7 @@ import template from './template.hbs?raw';
 import styles from './styles.css?raw';
 import { registerHelpers } from '../../../web/helpers/handlebars.mjs';
 import { ICharacter } from '../../../shared/types/character.mjs';
-
+import { deepMerge } from '@dungeon-lab/shared/utils/deepMerge.mjs';
 // Define component state interface
 interface CharacterSheetState {
   character: ICharacter | null;
@@ -186,7 +186,7 @@ export class CharacterSheetComponent extends PluginComponent {
     // Apply each pending change to the character copy
     Object.entries(this.state.pendingChanges).forEach(([key, value]) => {
       if (typeof value === 'object' && value !== null) {
-        this.deepMerge(updatedCharacter, { [key]: value });
+        deepMerge(updatedCharacter, { [key]: value });
       } else {
         // For top-level properties
         (updatedCharacter as Record<string, unknown>)[key] = value;
@@ -196,25 +196,6 @@ export class CharacterSheetComponent extends PluginComponent {
     return updatedCharacter;
   }
   
-  /**
-   * Deep merge two objects
-   */
-  private deepMerge(target: Record<string, unknown>, source: Record<string, unknown>): Record<string, unknown> {
-    Object.keys(source).forEach(key => {
-      if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
-        // If property doesn't exist on target, create it
-        if (!target[key] || typeof target[key] !== 'object') {
-          target[key] = {};
-        }
-        this.deepMerge(target[key] as Record<string, unknown>, source[key] as Record<string, unknown>);
-      } else {
-        // Simple property or array, just override
-        target[key] = source[key];
-      }
-    });
-    
-    return target;
-  }
 
   /**
    * Save changes to the character

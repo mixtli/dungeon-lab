@@ -11,7 +11,8 @@ export const campaignSchema = baseSchema.extend({
   members: z.array(z.string()).default([]),  // Actor IDs of the characters in the campaign.  NOT User IDs.
   gameMasterId: z.string().optional(),
   status: z.enum(['active', 'paused', 'completed', 'archived']).default('active'),
-  settings: z.record(z.string(), z.unknown()).optional()
+  setting: z.string().optional(),
+  startDate: z.string().default(new Date().toISOString())
 });
 
 // Create data schema (omits auto-generated fields)

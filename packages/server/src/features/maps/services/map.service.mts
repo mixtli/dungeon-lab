@@ -3,22 +3,21 @@ import { MapModel } from '../models/map.model.mjs';
 import storageService from '../../../services/storage.service.mjs';
 import sharp from 'sharp';
 import { logger } from '../../../utils/logger.mjs';
-import { UploadedAsset } from '../../../utils/asset-upload.utils.mjs';
-
-
-
-// Add an interface for update data with assets
-interface MapUpdateDataWithAssets extends Partial<IMap> {
-  assets?: Record<string, UploadedAsset>;
-}
+import { createAsset } from '../../../utils/asset-upload.utils.mjs';
+import { AssetDocument } from '../../../features/assets/services/asset.service.mjs';
+import { AssetModel } from '../../../features/assets/models/asset.model.mjs';
+import { backgroundJobService } from '../../../services/background-job.service.mjs';
+import { MAP_IMAGE_GENERATION_JOB, MAP_THUMBNAIL_GENERATION_JOB } from '../jobs/map-image.job.mjs';
 
 export class MapService {
   constructor() {}
 
-  async getMaps(campaignId: string): Promise<IMap[]> {
+  async getMapsForCampaign(campaignId: string): Promise<IMap[]> {
     try {
-      const maps = await MapModel.find({ campaignId });
-      return maps
+      const maps = await MapModel.find({ campaignId })
+        .populate('image')
+        .populate('thumbnail');
+      return maps;
     } catch (error) {
       logger.error('Error getting maps:', error);
       throw new Error('Failed to get maps');
@@ -27,11 +26,13 @@ export class MapService {
 
   async getMap(id: string): Promise<IMap> {
     try {
-      const map = await MapModel.findById(id);
+      const map = await MapModel.findById(id)
+        .populate('image')
+        .populate('thumbnail');
       if (!map) {
         throw new Error('Map not found');
       }
-      return map
+      return map;
     } catch (error) {
       logger.error('Error getting map:', error);
       throw new Error('Failed to get map');
@@ -39,31 +40,91 @@ export class MapService {
   }
 
   /**
-   * Create a map in the database initially without processing images
+   * Create a map with its image
+   * 
+   * @param data - The map data
+   * @param userId - ID of the user creating the map
+   * @param imageFile - Optional image file for the map
    */
-  async createMapInitial(data: IMap, userId: string): Promise<IMap> {
+  async createMap(
+    data: IMap, 
+    userId: string, 
+    imageFile?: File
+  ): Promise<IMap> {
     try {
-
-      const mapData = { ...data, gridRows: 0, aspectRatio: 1, createdBy: userId, updatedBy: userId };
-      // Create initial map in database
+      // First create a basic map record
+      const mapData = { 
+        ...data, 
+        gridRows: 0, // Placeholder, will be calculated after image processing
+        aspectRatio: 1, // Placeholder, will be calculated after image processing
+        createdBy: userId, 
+        updatedBy: userId 
+      };
+      
+      // Create map in database to get an ID
       const map = await MapModel.create(mapData);
       
-      return map
+      // If an image file was provided
+      if (imageFile) {
+        logger.info('Uploading provided map image');
+        
+        // Create asset using the new method
+        const imageAsset = await createAsset(imageFile, 'uploads/maps', userId);
+        
+        // Update the map with the image ID
+        map.imageId = imageAsset.id;
+        await map.save();
+        
+        // Schedule a background job to generate the thumbnail
+        await backgroundJobService.scheduleJob('now', MAP_THUMBNAIL_GENERATION_JOB, {
+          mapId: map.id,
+          userId,
+          imageAssetId: imageAsset.id
+        });
+        
+        logger.info(`Scheduled thumbnail generation job for map ${map.id}`);
+        
+        // Return the map document
+        return map.populate(['image', 'thumbnail']);
+      } else {
+        // If no file was provided, schedule a background job to generate an image
+        logger.info('No image provided, scheduling map image generation job');
+        
+        await backgroundJobService.scheduleJob('now', MAP_IMAGE_GENERATION_JOB, {
+          mapId: map.id,
+          userId
+        });
+        
+        logger.info(`Scheduled map image generation job for map ${map.id}`);
+        
+        // Return the map document (image will be added asynchronously)
+        return map;
+      }
     } catch (error) {
-      logger.error('Error creating initial map:', error);
-      throw new Error('Failed to create initial map');
+      logger.error('Error creating map:', error);
+      throw error;
     }
+  }
+
+  async generateMapImage(mapId: string) {
+    const map = await MapModel.findById(mapId);
+    if (!map) {
+      throw new Error('Map not found');
+    }
+    await backgroundJobService.scheduleJob('now', MAP_IMAGE_GENERATION_JOB, {
+      mapId: map.id,
+      userId: map.createdBy
+    });
   }
 
   /**
    * Generate and upload a map thumbnail
    */
-  async generateAndUploadThumbnail(mapId: string, imageBuffer: Buffer, mimeType: string): Promise<{
-    path: string;
-    url: string;
-    size: number;
-    type: string;
-  }> {
+  async generateAndUploadThumbnail(
+    imageBuffer: Buffer, 
+    mimeType: string,
+    userId: string
+  ): Promise<AssetDocument> {
     try {
       const imageMetadata = await sharp(imageBuffer).metadata();
       
@@ -80,24 +141,15 @@ export class MapService {
         .resize(300, 300, { fit: 'inside' })
         .toBuffer();
       
-      // Upload thumbnail
-      const imageFolder = `maps/${mapId}`;
-      const uploadResult = await storageService.uploadFile(
-        thumbnailBuffer,
+      // Create a standard File object from the buffer
+      const thumbnailFile = new File(
+        [thumbnailBuffer], 
         thumbnailFilename,
-        mimeType,
-        imageFolder
+        { type: mimeType }
       );
       
-      const thumbnailKey = uploadResult.key;
-      const thumbnailUrl = storageService.getPublicUrl(thumbnailKey);
-      
-      return {
-        path: thumbnailKey,
-        url: thumbnailUrl,
-        size: thumbnailBuffer.length,
-        type: mimeType
-      };
+      // Create the asset
+      return await createAsset(thumbnailFile, 'uploads/thumbnails', userId);
     } catch (error) {
       logger.error('Error generating thumbnail:', error);
       throw new Error('Failed to generate thumbnail');
@@ -105,9 +157,14 @@ export class MapService {
   }
 
   /**
-   * Process map images and update the map with finalized data
+   * Process map image to extract dimensions and generate thumbnail
    */
-  async processThumbnail(id: string, imageAsset: UploadedAsset, gridColumns: number, userId: string): Promise<IMap> {
+  async processMapImage(
+    id: string, 
+    imageAsset: AssetDocument, 
+    gridColumns: number, 
+    userId: string
+  ): Promise<IMap> {
     try {
       // Get the existing map
       const map = await MapModel.findById(id);
@@ -116,8 +173,10 @@ export class MapService {
       }
       
       try {
-        // Since we already have the uploaded image, we just need to generate dimensions and thumbnail
-        // Fetch the image to process it (we might want to modify this approach later for efficiency)
+        // Get image type
+        const imageType = imageAsset.type || 'image/jpeg';
+        
+        // Fetch the image to process it
         const imageResponse = await fetch(imageAsset.url);
         
         if (!imageResponse.ok) {
@@ -133,24 +192,29 @@ export class MapService {
         }
         
         // Generate and upload thumbnail
-        const thumbnail = await this.generateAndUploadThumbnail(id, imageBuffer, imageAsset.type);
+        const thumbnail = await this.generateAndUploadThumbnail(imageBuffer, imageType, userId);
         
         // Calculate grid dimensions and aspect ratio
         const aspectRatio = imageMetadata.width / imageMetadata.height;
         const gridRows = Math.floor(gridColumns / aspectRatio);
         
-        // Update the map with final data
+        // Update the map with all the data
+        const updateData = {
+          gridRows,
+          aspectRatio,
+          thumbnailId: thumbnail.id,
+          updatedBy: userId,
+          imageId: imageAsset.id
+        };
+        
+        // Update the map
         const updatedMap = await MapModel.findByIdAndUpdate(
           id,
-          {
-            gridRows,
-            aspectRatio,
-            image: imageAsset,
-            thumbnail,
-            updatedBy: userId
-          },
+          updateData,
           { new: true }
-        );
+        )
+        .populate('image')
+        .populate('thumbnail');
         
         if (!updatedMap) {
           throw new Error('Map not found after update');
@@ -174,7 +238,19 @@ export class MapService {
     }
   }
 
-  async updateMap(id: string, data: MapUpdateDataWithAssets, userId: string): Promise<IMap> {
+  /**
+   * Update an existing map with new data and optionally a new image
+   * @param id - The ID of the map to update
+   * @param data - New data for the map
+   * @param userId - ID of the user updating the map
+   * @param imageFile - Optional new image file for the map
+   */
+  async updateMap(
+    id: string, 
+    data: Partial<IMap>, 
+    userId: string,
+    imageFile?: File
+  ): Promise<IMap> {
     try {
       // Get existing map
       const existingMap = await MapModel.findById(id);
@@ -182,68 +258,136 @@ export class MapService {
         throw new Error('Map not found');
       }
       
-      // Handle image updates if a new image was uploaded
-      let updateData: Partial<IMap> = { ...data, updatedBy: userId };
-      
-      // If we have new assets, handle them
-      if (data.assets) {
-        // If a new image was uploaded
-        if (data.assets.image) {
+      // Prepare update data
+      const mapUpdateData: Partial<IMap> = { ...data, updatedBy: userId };
+
+      // Handle image file if provided
+      if (imageFile) {
+        logger.info(`Updating map ${id} with new image`);
+        
+        // Create asset using the new method
+        const newImageAsset = await createAsset(imageFile, 'uploads/maps', userId);
+        
+        // Delete the old image asset if it exists and is different
+        if (existingMap.imageId && existingMap.imageId.toString() !== newImageAsset.id.toString()) {
           try {
-            // Fetch the image to process it
-            const imageAsset = data.assets.image;
-            const imageResponse = await fetch(imageAsset.url);
-            
-            if (!imageResponse.ok) {
-              throw new Error(`Failed to fetch image from ${imageAsset.url}`);
+            const oldAsset = await AssetModel.findById(existingMap.imageId);
+            if (oldAsset) {
+              await storageService.deleteFile(oldAsset.path);
+              await oldAsset.deleteOne();
+              logger.info(`Deleted old image asset ${existingMap.imageId} for map ${id}`);
             }
-            
-            const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
-            
-            // Get image metadata
-            const imageMetadata = await sharp(imageBuffer).metadata();
-            if (!imageMetadata.width || !imageMetadata.height) {
-              throw new Error('Invalid image metadata');
-            }
-            
-            // Generate and upload thumbnail
-            const thumbnail = await this.generateAndUploadThumbnail(id, imageBuffer, imageAsset.type);
-            
-            // Calculate grid dimensions and aspect ratio
-            const aspectRatio = imageMetadata.width / imageMetadata.height;
-            const gridRows = Math.floor(data.gridColumns || existingMap.gridColumns / aspectRatio);
-            
-            // Add image and thumbnail to update data
-            updateData = {
-              ...updateData,
-              gridRows,
-              aspectRatio,
-              image: imageAsset,
-              thumbnail
-            };
-          } catch (error) {
-            logger.error('Error processing update image:', error);
-            throw new Error(`Failed to process update image: ${error instanceof Error ? error.message : String(error)}`);
+          } catch (deleteError) {
+            logger.warn(`Could not delete old image asset ${existingMap.imageId}:`, deleteError);
           }
         }
+
+        // Update image ID in map data
+        mapUpdateData.imageId = newImageAsset.id;
         
+        // Schedule a thumbnail generation job in the background
+        await backgroundJobService.scheduleJob('now', MAP_THUMBNAIL_GENERATION_JOB, {
+          mapId: id,
+          userId,
+          imageAssetId: newImageAsset.id
+        });
+        
+        logger.info(`Scheduled thumbnail generation job for updated map ${id}`);
+      } else if (mapUpdateData.gridColumns && existingMap.aspectRatio) {
+        // If no new image, but gridColumns changed, recalculate gridRows based on existing aspect ratio
+        mapUpdateData.gridRows = Math.floor(mapUpdateData.gridColumns / existingMap.aspectRatio);
       }
       
-      // Update the map
-      const map = await MapModel.findByIdAndUpdate(
+      // Apply updates
+      const updatedMap = await MapModel.findByIdAndUpdate(
         id,
-        updateData,
+        mapUpdateData,
         { new: true }
-      );
+      )
+      .populate('image')
+      .populate('thumbnail');
       
-      if (!map) {
+      if (!updatedMap) {
+        throw new Error('Map not found after update');
+      }
+
+      return updatedMap;
+    } catch (error) {
+      logger.error(`Error updating map ${id}:`, error);
+      if (error instanceof Error && error.message.includes('Map not found')) {
+         throw error;
+      }
+      throw new Error(`Failed to update map: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /**
+   * Update a map's image with a file
+   * @param id - The ID of the map to update
+   * @param file - The file object
+   * @param userId - ID of the user updating the map
+   */
+  async updateMapImage(
+    id: string,
+    file: File,
+    userId: string
+  ): Promise<IMap> {
+    try {
+      // Get existing map
+      const existingMap = await MapModel.findById(id);
+      if (!existingMap) {
         throw new Error('Map not found');
       }
 
-      return map;
+      // Create the asset
+      const newImageAsset = await createAsset(file, 'uploads/maps', userId);
+
+      // Delete the old image asset if it exists and is different
+      if (existingMap.imageId && existingMap.imageId.toString() !== newImageAsset.id.toString()) {
+        try {
+          const oldAsset = await AssetModel.findById(existingMap.imageId);
+          if (oldAsset) {
+            //await storageService.deleteFile(oldAsset.path);
+            await oldAsset.deleteOne();
+            logger.info(`Deleted old image asset ${existingMap.imageId} for map ${id}`);
+          }
+        } catch (deleteError) {
+          logger.warn(`Could not delete old image asset ${existingMap.imageId}:`, deleteError);
+        }
+      }
+
+      // Update the map with the new image ID
+      const updatedMap = await MapModel.findByIdAndUpdate(
+        id,
+        {
+          imageId: newImageAsset.id,
+          updatedBy: userId
+        },
+        { new: true }
+      )
+      .populate('image')
+      .populate('thumbnail');
+
+      if (!updatedMap) {
+        throw new Error('Map not found after update');
+      }
+
+      // Schedule a thumbnail generation job in the background
+      await backgroundJobService.scheduleJob('now', MAP_THUMBNAIL_GENERATION_JOB, {
+        mapId: id,
+        userId,
+        imageAssetId: newImageAsset.id
+      });
+
+      logger.info(`Scheduled thumbnail generation job for updated map ${id}`);
+
+      return updatedMap;
     } catch (error) {
-      logger.error('Error updating map:', error);
-      throw error;
+      logger.error(`Error updating map image ${id}:`, error);
+      if (error instanceof Error && error.message.includes('Map not found')) {
+        throw error;
+      }
+      throw new Error(`Failed to update map image: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -266,12 +410,63 @@ export class MapService {
 
   async getAllMaps(userId: string): Promise<IMap[]> {
     try {
-      const maps = await MapModel.find({ createdBy: userId });
-      return maps
+      const maps = await MapModel.find({ createdBy: userId })
+        .populate('image')
+        .populate('thumbnail');
+      return maps;
     } catch (error) {
       logger.error('Error getting all maps:', error);
       throw new Error('Failed to get maps');
     }
   }
 
-} 
+  /**
+   * Check if a map's image and thumbnail have been generated
+   * @param id - The ID of the map to check
+   */
+  async checkMapImageStatus(id: string): Promise<{ 
+    hasImage: boolean; 
+    hasThumbnail: boolean; 
+    pending: boolean;
+  }> {
+    try {
+      const map = await MapModel.findById(id);
+      if (!map) {
+        throw new Error('Map not found');
+      }
+      
+      // Define a type for the job structure
+      interface PendingJob {
+        attrs: {
+          name: string;
+          data?: {
+            mapId?: string;
+            [key: string]: unknown;
+          };
+          [key: string]: unknown;
+        };
+      }
+      
+      // Check for pending jobs
+      const pendingJobs = await backgroundJobService.getPendingJobs() as PendingJob[];
+      const hasPendingImageJob = pendingJobs.some((job: PendingJob) => 
+        job.attrs.name === MAP_IMAGE_GENERATION_JOB && 
+        job.attrs.data?.mapId === id
+      );
+      
+      const hasPendingThumbnailJob = pendingJobs.some((job: PendingJob) => 
+        job.attrs.name === MAP_THUMBNAIL_GENERATION_JOB && 
+        job.attrs.data?.mapId === id
+      );
+      
+      return {
+        hasImage: !!map.imageId,
+        hasThumbnail: !!map.thumbnailId,
+        pending: hasPendingImageJob || hasPendingThumbnailJob
+      };
+    } catch (error) {
+      logger.error(`Error checking map image status for map ${id}:`, error);
+      throw new Error('Failed to check map image status');
+    }
+  }
+}

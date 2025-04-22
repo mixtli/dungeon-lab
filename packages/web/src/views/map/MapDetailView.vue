@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import type { IMap } from '@dungeon-lab/shared/index.mjs';
+import type { IMap, IAsset } from '@dungeon-lab/shared/index.mjs';
 import axios from '../../network/axios.mjs';
 import { ArrowLeftIcon } from '@heroicons/vue/24/outline';
-import MapImage from '../../components/MapImage.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -16,6 +15,25 @@ const formData = ref<Partial<IMap>>({
   description: '',
   gridColumns: 20,
 });
+const showDebug = ref(false);
+
+// Function to get image URL from map
+const getMapImageUrl = (map: IMap | null): string | undefined => {
+  if (!map) return undefined;
+  
+  if (map.imageId) {
+    // Handle populated ObjectId reference
+    if (typeof map.imageId === 'object') {
+      const asset = map.imageId as unknown as IAsset;
+      return asset.url;
+    }
+  }
+  // Fallback for legacy data structure
+  if ('image' in map && typeof map.image === 'object' && map.image !== null && 'url' in map.image) {
+    return map.image.url as string;
+  }
+  return undefined;
+};
 
 // Simple notification function (we can replace this with a proper notification system later)
 function showNotification(message: string) {
@@ -27,6 +45,7 @@ async function fetchMap() {
     loading.value = true;
     const response = await axios.get(`/api/maps/${route.params.id}`);
     map.value = response.data;
+    console.log('Map data:', map.value);
     if (map.value) {
       formData.value = {
         name: map.value.name,
@@ -57,6 +76,10 @@ async function handleUpdate() {
   }
 }
 
+function toggleDebug() {
+  showDebug.value = !showDebug.value;
+}
+
 onMounted(() => {
   fetchMap();
 });
@@ -85,12 +108,15 @@ onMounted(() => {
 
       <div v-else-if="map" class="p-6">
         <div class="mb-6">
-          <MapImage
-            :map-id="map.id || ''"
-            :image-url="map.image && map.image.url"
+          <img
+            v-if="getMapImageUrl(map)"
+            :src="getMapImageUrl(map)"
             :alt="map.name"
-            class="w-full rounded shadow-lg"
+            class="w-full rounded shadow-lg object-cover"
           />
+          <div v-else class="w-full h-64 bg-gray-200 rounded shadow-lg flex items-center justify-center">
+            <span class="text-gray-500">No image available</span>
+          </div>
         </div>
 
         <div v-if="!editing" class="space-y-4">
@@ -107,6 +133,19 @@ onMounted(() => {
             <div>
               <span class="font-medium">Aspect Ratio:</span>
               {{ map.aspectRatio.toFixed(2) }}
+            </div>
+          </div>
+
+          <!-- Debug section -->
+          <div class="mt-8 border-t pt-4">
+            <button 
+              @click="toggleDebug"
+              class="text-sm text-gray-500 hover:text-gray-700"
+            >
+              {{ showDebug ? 'Hide' : 'Show' }} Debug Info
+            </button>
+            <div v-if="showDebug" class="mt-2 bg-gray-100 p-4 rounded overflow-auto max-h-96">
+              <pre class="text-xs">{{ JSON.stringify(map, null, 2) }}</pre>
             </div>
           </div>
 

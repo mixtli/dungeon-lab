@@ -86,7 +86,7 @@ class AssetService {
       filename
     );
 
-    return asset.asset as AssetDocument;
+    return asset as AssetDocument;
   }
 
   /**
@@ -116,22 +116,6 @@ class AssetService {
     return asset;
   }
 
-  /**
-   * Get all assets for a specific parent entity
-   * @param parentId - The ID of the parent entity
-   * @param parentType - The type of parent entity (e.g., 'actor', 'map')
-   * @param fieldName - Optional field name to filter by
-   */
-  async getAssetsByParent(
-    parentId: string,
-    parentType: string,
-    fieldName?: string
-  ): Promise<AssetDocument[]> {
-    if (fieldName) {
-      return AssetModel.findByField(parentId, parentType, fieldName) as Promise<AssetDocument[]>;
-    }
-    return AssetModel.findByParent(parentId, parentType) as Promise<AssetDocument[]>;
-  }
 
   /**
    * Update an asset
@@ -211,7 +195,12 @@ class AssetService {
    * @param userId - The ID of the user
    */
   async checkUserPermission(assetId: string, userId: string): Promise<boolean> {
-    return AssetModel.checkUserPermission(assetId, userId);
+    const asset = await AssetModel.findById(assetId).select('createdBy'); // Fetch only the necessary field
+    if (!asset) {
+      // If asset not found, user certainly doesn't have permission
+      return false; 
+    }
+    return asset.isOwnedBy(userId); // Use the instance method
   }
 
   /**

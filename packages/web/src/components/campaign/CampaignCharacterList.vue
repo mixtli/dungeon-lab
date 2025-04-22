@@ -3,19 +3,32 @@ import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { PlusIcon, TrashIcon } from '@heroicons/vue/24/outline';
 import { useCampaignStore } from '../../stores/campaign.mjs';
+import { type IActor, type IAsset } from '@dungeon-lab/shared/index.mjs';
 
-interface Character {
-  id: string;
-  name: string;
-  type: string;
-}
+// No need for these interfaces as we're using the shared types
+// interface Asset {
+//   id: string;
+//   url: string;
+//   path: string;
+//   size: number;
+//   type: string;
+//   filename: string;
+// }
+
+// interface Character {
+//   id: string;
+//   name: string;
+//   type: string;
+//   avatarId?: Asset;
+//   tokenId?: Asset;
+// }
 
 const props = defineProps<{
-  characters?: Character[];
+  characters?: IActor[];
   campaignId?: string;
 }>();
 
-const localCharacters = ref<Character[]>(props.characters || []);
+const localCharacters = ref<IActor[]>(props.characters || []);
 const router = useRouter();
 const campaignStore = useCampaignStore();
 const isLoading = ref(!props.characters);
@@ -48,7 +61,7 @@ onMounted(async () => {
 
       const results = await Promise.all(characterPromises);
       localCharacters.value = results.filter(
-        (char): char is Character => char !== null && char.type === 'character'
+        (char): char is IActor => char !== null && char.type === 'character'
       );
 
       // If we found any non-existent members, clean them up from the campaign
@@ -81,7 +94,7 @@ async function handleRemove(characterId: string) {
     });
 
     // Update local list
-    localCharacters.value = localCharacters.value.filter(char => char.id !== characterId);
+    localCharacters.value = localCharacters.value.filter(char => char.id !== undefined && char.id !== characterId);
   } catch (err) {
     console.error('Error removing character:', err);
     error.value = 'Failed to remove character. Please try again later.';
@@ -135,11 +148,22 @@ function handleCreate() {
     <div v-else class="bg-white rounded-lg border border-gray-200 divide-y divide-gray-200">
       <div
         v-for="character in localCharacters"
-        :key="character.id"
+        :key="character.id || ''"
         class="flex items-center justify-between px-4 py-3 hover:bg-gray-50"
       >
-        <span class="text-gray-900">{{ character.name }}</span>
+        <div class="flex items-center">
+          <div class="w-10 h-10 rounded-full overflow-hidden bg-gray-200 mr-3">
+            <img
+              v-if="character.avatarId && typeof character.avatarId === 'object'"
+              :src="(character.avatarId as unknown as IAsset).url"
+              :alt="character.name"
+              class="w-full h-full object-cover"
+            />
+          </div>
+          <span class="text-gray-900">{{ character.name }}</span>
+        </div>
         <button
+          v-if="character.id"
           @click="handleRemove(character.id)"
           class="p-2 text-gray-400 hover:text-red-500 focus:outline-none"
           title="Remove character from campaign"

@@ -1,15 +1,46 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import type { IMap } from '@dungeon-lab/shared/index.mjs';
+import type { IMap, IAsset } from '@dungeon-lab/shared/index.mjs';
 import axios from '../../network/axios.mjs';
-import MapImage from '../../components/MapImage.vue';
 
 const router = useRouter();
 const maps = ref<IMap[]>([]);
 const loading = ref(false);
 const showDeleteModal = ref(false);
 const mapToDelete = ref<string | null>(null);
+
+// Function to get image URL from map
+const getImageUrl = (map: IMap): string | undefined => {
+  if (map.imageId) {
+    // Handle populated ObjectId reference
+    if (typeof map.imageId === 'object') {
+      const asset = map.imageId as unknown as IAsset;
+      return asset.url;
+    }
+  }
+  // Fallback for legacy data structure
+  if ('image' in map && typeof map.image === 'object' && map.image !== null && 'url' in map.image) {
+    return map.image.url as string;
+  }
+  return undefined;
+};
+
+// Function to get thumbnail URL from map
+const getThumbnailUrl = (map: IMap): string | undefined => {
+  if (map.thumbnailId) {
+    // Handle populated ObjectId reference
+    if (typeof map.thumbnailId === 'object') {
+      const asset = map.thumbnailId as unknown as IAsset;
+      return asset.url;
+    }
+  }
+  // Fallback for legacy data structure
+  if ('thumbnail' in map && typeof map.thumbnail === 'object' && map.thumbnail !== null && 'url' in map.thumbnail) {
+    return map.thumbnail.url as string;
+  }
+  return undefined;
+};
 
 async function fetchMaps() {
   try {
@@ -84,13 +115,16 @@ onMounted(() => {
           :key="map.id || ''"
           class="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 hover:-translate-y-1"
         >
-          <div class="aspect-w-16 aspect-h-9">
-            <MapImage
-              :map-id="map.id || ''"
-              :image-url="map.thumbnail && map.thumbnail.url"
+          <div class="aspect-w-16 aspect-h-9 relative">
+            <img
+              v-if="getThumbnailUrl(map)"
+              :src="getThumbnailUrl(map)"
               :alt="map.name"
-              class="object-cover rounded-t-lg"
+              class="object-cover rounded-t-lg w-full h-full"
             />
+            <div v-else class="w-full h-full flex items-center justify-center bg-gray-200 rounded-t-lg">
+              <span class="text-gray-400">No Image</span>
+            </div>
           </div>
           <div class="p-4">
             <h3 class="text-lg font-semibold text-gray-900 mb-2">{{ map.name }}</h3>

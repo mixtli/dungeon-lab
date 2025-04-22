@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { IUser } from '@dungeon-lab/shared/index.mjs';
 import { logger } from '../utils/logger.mjs';
 import { UserModel } from '../models/user.model.mjs';
+import { FilesData } from './validation.middleware.mjs';
 
 // Extend Express Session type to include user
 declare module 'express-session' {
@@ -15,6 +16,7 @@ export interface AuthenticatedRequest extends Request {
   session: {
     user: IUser;
   } & Request['session'];
+  assets?: FilesData;
 }
 
 /**

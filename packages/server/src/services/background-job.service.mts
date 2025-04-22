@@ -1,23 +1,11 @@
 import  { Pulse } from '@pulsecron/pulse';
 import { config } from '../config/index.mjs';
 import { logger } from '../utils/logger.mjs';
+import type { Job } from '@pulsecron/pulse';
 
 // Define types for JobAttributesData and other Pulse-related types
 type JobAttributesData = Record<string, unknown>;
 
-// Define job types
-export interface JobAttrs {
-  id: string;
-  data: JobAttributesData;
-  name: string;
-  lastRunAt?: Date;
-  [key: string]: unknown;
-}
-
-export interface Job {
-  attrs: JobAttrs;
-  [key: string]: unknown;
-}
 
 /**
  * Background Job Service using PulseCron

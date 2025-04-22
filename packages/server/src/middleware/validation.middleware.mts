@@ -2,6 +2,16 @@ import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import multer from 'multer';
 
+// Define FilesData type
+export type FilesData = { [fieldName: string]: File[] };
+
+// Add assets field to Express Request interface using module augmentation
+declare module 'express' {
+  interface Request {
+    assets?: FilesData;
+  }
+}
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
@@ -9,14 +19,6 @@ const upload = multer({
   },
 });
 
-// Custom refinement for multer files
-const isMulterFile = (value: unknown) => {
-  return value 
-    && typeof value === 'object'
-    && 'buffer' in value 
-    && 'mimetype' in value 
-    && 'originalname' in value;
-};
 
 export function validateRequest(schema: z.ZodSchema) {
   return async (req: Request, res: Response, next: NextFunction) => {
@@ -49,6 +51,7 @@ export function validateRequest(schema: z.ZodSchema) {
 export function validateMultipartRequest(schema: z.ZodSchema, fileFields: string | string[] = 'image') {
   // Convert to array for consistent handling
   const fieldsArray = Array.isArray(fileFields) ? fileFields : [fileFields];
+  console.log("fieldsArray", fieldsArray);
   
   // Always use fields for consistency, even for a single file
   const multerMiddleware = upload.fields(
@@ -73,17 +76,6 @@ export function validateMultipartRequest(schema: z.ZodSchema, fileFields: string
           });
         }
         
-        // Check if we have all required files
-        // const missingFields = fieldsArray.filter(field => !normalizedFiles.has(field));
-        // if (missingFields.length > 0) {
-        //   const error = new Error(`Missing required file field(s): ${missingFields.join(', ')}`);
-        //   res.locals.error = error;
-        //   res.status(400).json({ message: error.message });
-        //   return;
-        // }
-        
-        // Create a multer file schema that uses the isMulterFile check
-        const multerFileSchema = z.custom(isMulterFile);
         
         // Build the schema extension for file fields
         const schemaExtension: Record<string, z.ZodType<unknown>> = {};
@@ -104,13 +96,13 @@ export function validateMultipartRequest(schema: z.ZodSchema, fileFields: string
 
             // Make file field optional if it's optional in the original schema
             schemaExtension[field] = isFieldOptional
-              ? multerFileSchema.optional()
-              : multerFileSchema;
+              ? z.instanceof(File).optional()
+              : z.instanceof(File);
           });
         } else {
           // Default behavior if schema is not a ZodObject
           fieldsArray.forEach(field => {
-            schemaExtension[field] = multerFileSchema;
+            schemaExtension[field] = z.instanceof(File);
           });
         }
 
@@ -122,28 +114,17 @@ export function validateMultipartRequest(schema: z.ZodSchema, fileFields: string
         // Build validated data object - start with parsed body form fields
         const bodyData: Record<string, unknown> = { ...req.body };
         
-        // Parse numeric fields and JSON strings
-        // TODO:  Do we still need this?
-        // Object.entries(bodyData).forEach(([key, value]) => {
-        //   if (typeof value === 'string') {
-        //     // Try to parse JSON strings
-        //     try {
-        //       const parsed = JSON.parse(value);
-        //       bodyData[key] = parsed;
-        //     } catch (e) {
-        //       // If it's not valid JSON, keep the original string
-        //       // Only parse numeric fields if not JSON
-        //       if (key === 'gridColumns') {
-        //         bodyData[key] = parseInt(value, 10);
-        //       }
-        //     }
-        //   }
-        // });
         
         // Add all files from our normalized map
+        const filesData: FilesData = {};
         normalizedFiles.forEach((file, fieldName) => {
-          bodyData[fieldName] = file;
+          const f = new File([file.buffer], file.originalname, { type: file.mimetype });
+          bodyData[fieldName] = f;
+          filesData[fieldName] = [f];
         });
+        
+        // Store in both places for backward compatibility
+        req.assets = filesData; // New property with correct typing
 
         // Parse the 'data' field if it's a JSON string
         if (typeof bodyData.data === 'string') {

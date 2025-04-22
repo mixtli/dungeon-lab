@@ -3,12 +3,11 @@ import { ActorController } from '../controllers/actor.controller.mjs';
 import { ActorService } from '../services/actor.service.mjs';
 import { authenticate } from '../../../middleware/auth.middleware.mjs';
 import { validateMultipartRequest } from '../../../middleware/validation.middleware.mjs';
-import { actorSchema } from '@dungeon-lab/shared/schemas/actor.schema.mjs';
+import { actorCreateSchema, actorSchema } from '@dungeon-lab/shared/schemas/actor.schema.mjs';
 import { openApiGet, openApiGetOne, openApiPost, openApiPut, openApiDelete } from '../../../oapi.mjs';
-import { generateCharacterToken, generateCharacterAvatar } from '../utils/actor-image-generator.mjs';
-import { ActorModel } from '../models/actor.model.mjs';
-import asyncHandler from 'express-async-handler';
 import { z } from '../../../utils/zod.mjs';
+import express from 'express';
+
 // Initialize services and controllers
 const actorService = new ActorService();
 const actorController = new ActorController(actorService);
@@ -17,74 +16,132 @@ const actorController = new ActorController(actorService);
 const router = Router();
 
 // Bind controller methods to maintain 'this' context
-const boundGetAllActors = actorController.getAllActors.bind(actorController);
-const boundGetActorById = actorController.getActorById.bind(actorController);
-const boundGetActors = actorController.getActors.bind(actorController);
-const boundCreateActor = actorController.createActor.bind(actorController);
-const boundUpdateActor = actorController.updateActor.bind(actorController);
-const boundDeleteActor = actorController.deleteActor.bind(actorController);
+const boundController = {
+  getAllActors: actorController.getAllActors.bind(actorController),
+  getActorById: actorController.getActorById.bind(actorController),
+  getActors: actorController.getActors.bind(actorController),
+  createActor: actorController.createActor.bind(actorController),
+  updateActor: actorController.updateActor.bind(actorController),
+  deleteActor: actorController.deleteActor.bind(actorController),
+  uploadActorAvatar: actorController.uploadActorAvatar.bind(actorController),
+  uploadActorToken: actorController.uploadActorToken.bind(actorController),
+  generateActorAvatar: actorController.generateActorAvatar.bind(actorController),
+  generateActorToken: actorController.generateActorToken.bind(actorController)
+};
 
 // Public routes
 router.get('/', openApiGet(actorSchema, {
-  description: 'Get all actors'
-}), boundGetAllActors);
+  description: 'Get all actors',
+  parameters: [{
+    name: 'type',
+    in: 'query',
+    required: false,
+    schema: {
+      type: 'string',
+      enum: ['character', 'npc']
+    },
+    description: 'Filter actors by type'
+  }]
+}), boundController.getAllActors);
 
 router.get('/:id', openApiGetOne(actorSchema, {
   description: 'Get actor by ID'
-}), boundGetActorById);
+}), boundController.getActorById);
 
-// Protected routes
-router.get('/campaign/:campaignId', authenticate, boundGetActors);
+// Protected routes - require authentication
+router.use(authenticate);
+
+router.get('/campaign/:campaignId', boundController.getActors);
 
 // For file uploads, use validateMultipartRequest with field names
+router.post('/', 
+  openApiPost(actorCreateSchema, {
+    description: 'Create new actor'
+  }), 
+  validateMultipartRequest(actorCreateSchema, ['avatar', 'token']), 
+  boundController.createActor
+);
 
-router.post('/', authenticate, openApiPost(actorSchema, {
-  description: 'Create new actor'
-}), validateMultipartRequest(actorSchema, ['avatar', 'token']), boundCreateActor);
+router.put('/:id', 
+  openApiPut(actorSchema.partial(), {
+    description: 'Update actor by ID'
+  }), 
+  validateMultipartRequest(actorSchema.partial(), ['avatar', 'token']), 
+  boundController.updateActor
+);
 
-router.put('/:id', authenticate, openApiPut(actorSchema.partial(), {
-  description: 'Update actor by ID'
-}), validateMultipartRequest(actorSchema.partial(), ['avatar', 'token']), boundUpdateActor);
+// Upload a binary avatar image
+router.put('/:id/avatar', 
+  express.raw({
+    type: ['image/jpeg', 'image/png', 'image/webp'],
+    limit: '5mb'
+  }),
+  openApiPut(z.null(), {
+    description: 'Upload raw avatar image',
+    requestBody: {
+      content: {
+        'image/*': {
+          schema: {
+            type: 'string',
+            format: 'binary'
+          }
+        }
+      }
+    }
+  }), 
+  boundController.uploadActorAvatar
+);
 
-router.delete('/:id', authenticate, openApiDelete(z.null(), {
-  description: 'Delete actor by ID'
-}), boundDeleteActor);
+// Upload a binary token image
+router.put('/:id/token', 
+  express.raw({
+    type: ['image/jpeg', 'image/png', 'image/webp'],
+    limit: '2mb'
+  }),
+  openApiPut(z.null(), {
+    description: 'Upload raw token image',
+    requestBody: {
+      content: {
+        'image/*': {
+          schema: {
+            type: 'string',
+            format: 'binary'
+          }
+        }
+      }
+    }
+  }), 
+  boundController.uploadActorToken
+);
+
+// Generate avatar and token using AI
+router.post('/:id/avatar/generate', 
+  openApiPost(z.null(), {
+    description: 'Generate actor avatar using AI'
+  }),
+  boundController.generateActorAvatar
+);
+
+router.post('/:id/token/generate', 
+  openApiPost(z.null(), {
+    description: 'Generate actor token using AI'
+  }),
+  boundController.generateActorToken
+);
+
+router.delete('/:id', 
+  openApiDelete(z.null(), {
+    description: 'Delete actor by ID'
+  }), 
+  boundController.deleteActor
+);
 
 // Campaign-specific routes
-router.get('/campaigns/:campaignId/actors', authenticate, openApiGet(actorSchema, {
-  description: 'Get actors for a specific campaign'
-}), boundGetActors);
-
-// Generate new image for an actor using AI
-router.post('/:id/generate-images/:type', asyncHandler(async (req, res) => {
-  const actorId = req.params.id;
-  const imageType = req.params.type as 'avatar' | 'token';
-  
-  // Find the actor
-  const actor = await ActorModel.findById(actorId);
-  if (!actor) {
-    res.status(404).json({ message: 'Actor not found' });
-    return;
-  }
-
-
-  // Generate the requested image type
-  const result = imageType === 'avatar' 
-    ? await generateCharacterAvatar(actor.toObject())
-    : await generateCharacterToken(actor.toObject());
-
-  // Update the actor with new image
-  const update = imageType === 'avatar' 
-    ? { avatar: result }
-    : { token: result };
-
-  await ActorModel.findByIdAndUpdate(actorId, {
-    ...update,
-    updatedBy: req.session.user.id
-  });
-
-  // Return the new image data
-  res.json(result);
-}));
+router.get('/campaigns/:campaignId/actors', 
+  openApiGet(actorSchema, {
+    description: 'Get actors for a specific campaign'
+  }), 
+  boundController.getActors
+);
 
 export { router as actorRoutes }; 

@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { assetSchema, IAsset } from '@dungeon-lab/shared/schemas/asset.schema.mjs';
 import { createMongoSchema } from '../../../models/zod-to-mongo.mjs';
 import { baseMongooseZodSchema } from '../../../models/base-schema.mjs';
+import { zId } from '@zodyac/zod-mongoose';
 
 /**
  * Helper function to generate the Minio path outside of the mongoose schema methods
@@ -13,111 +14,20 @@ function generateMinioPath(userId: string, assetId: string, filename: string): s
 }
 
 /**
+ * Create custom schema with ObjectId references for Mongoose
+ */
+const assetSchemaMongoose = assetSchema.merge(baseMongooseZodSchema).extend({
+  // Only require user reference 
+  createdBy: zId('User'),
+});
+
+/**
  * Create Mongoose schema with base configuration
  */
-const mongooseSchema = createMongoSchema(assetSchema.merge(baseMongooseZodSchema));
+const mongooseSchema = createMongoSchema(assetSchemaMongoose);
 
 // Define indexes for efficient querying
-mongooseSchema.index({ parentId: 1, parentType: 1 });
 mongooseSchema.index({ createdBy: 1 });
-
-/**
- * Find all assets for a specific parent entity
- * @param parentId - The parent entity ID
- * @param parentType - The type of parent entity (e.g., 'actor', 'map')
- * @returns Promise that resolves to an array of assets
- */
-mongooseSchema.statics.findByParent = function(parentId: string, parentType: string) {
-  return this.find({ parentId, parentType }).sort({ createdAt: -1 });
-};
-
-/**
- * Find assets for a specific field on a parent entity
- * @param parentId - The parent entity ID
- * @param parentType - The type of parent entity (e.g., 'actor', 'map')
- * @param fieldName - The field name (e.g., 'avatar', 'token')
- * @returns Promise that resolves to an array of assets
- */
-mongooseSchema.statics.findByField = function(parentId: string, parentType: string, fieldName: string) {
-  return this.find({ parentId, parentType, fieldName }).sort({ createdAt: -1 });
-};
-
-/**
- * Check if a user has permission to access an asset
- * @param assetId - The asset ID to check
- * @param userId - The user ID requesting access
- * @returns Promise that resolves to a boolean indicating permission
- */
-mongooseSchema.statics.checkUserPermission = async function(assetId: string, userId: string) {
-  const asset = await this.findById(assetId);
-  if (!asset) return false;
-  
-  // Basic permission: user created the asset
-  if (asset.createdBy.toString() === userId) return true;
-  
-  // Additional permission logic can be added here
-  // e.g., check if user has access to the parent entity
-  
-  return false;
-};
-
-/**
- * Generate the full Minio storage path with user scoping
- * @param userId - The user ID who owns the asset
- * @param assetId - The asset ID (MongoDB ObjectId)
- * @param filename - The original filename
- * @returns The scoped path for storing in Minio
- */
-mongooseSchema.statics.generateMinioPath = function(
-  userId: string,
-  assetId: string,
-  filename: string
-) {
-  return generateMinioPath(userId, assetId, filename);
-};
-
-/**
- * Create a new asset with a pre-generated ID to ensure path consistency
- * This method handles both the MongoDB document creation and generating consistent Minio paths
- * 
- * @param assetData - The asset data to create
- * @param filename - The original filename
- * @returns Promise that resolves to the created asset and its Minio path
- */
-mongooseSchema.statics.createAssetWithPath = async function(
-  assetData: Partial<IAsset>,
-  filename: string
-) {
-  // Pre-generate a MongoDB ID that will be used for both the document and path
-  const assetId = new mongoose.Types.ObjectId();
-  
-  // Ensure createdBy exists
-  if (!assetData.createdBy) {
-    throw new Error('createdBy is required for creating an asset');
-  }
-  
-  // Generate the Minio path using the helper function
-  const path = generateMinioPath(
-    assetData.createdBy.toString(),
-    assetId.toString(),
-    filename
-  );
-  
-  // Create the asset document with the pre-generated ID and path
-  const asset = new this({
-    ...assetData,
-    _id: assetId,
-    path
-  });
-  
-  // Save the asset to the database
-  await asset.save();
-  
-  return {
-    asset,
-    path
-  };
-};
 
 /**
  * Get a pre-signed URL for temporarily accessing the asset
@@ -165,16 +75,65 @@ mongooseSchema.methods.toPublicJSON = function() {
   return obj;
 };
 
+/**
+ * Generate the full Minio storage path with user scoping
+ * @param userId - The user ID who owns the asset
+ * @param assetId - The asset ID (MongoDB ObjectId)
+ * @param filename - The original filename
+ * @returns The scoped path for storing in Minio
+ */
+mongooseSchema.statics.generateMinioPath = function(
+  userId: string,
+  assetId: string,
+  filename: string
+) {
+  return generateMinioPath(userId, assetId, filename);
+};
+
+/**
+ * Create a new asset with a pre-generated ID to ensure path consistency
+ * This method handles both the MongoDB document creation and generating consistent Minio paths
+ * 
+ * @param assetData - The asset data to create
+ * @param filename - The original filename
+ * @returns Promise that resolves to the created asset
+ */
+mongooseSchema.statics.createAssetWithPath = async function(
+  assetData: Partial<IAsset>,
+  filename: string
+) {
+  // Pre-generate a MongoDB ID that will be used for both the document and path
+  const assetId = new mongoose.Types.ObjectId();
+  
+  // Ensure createdBy exists
+  if (!assetData.createdBy) {
+    throw new Error('createdBy is required for creating an asset');
+  }
+  
+  // Generate the Minio path using the helper function
+  const path = generateMinioPath(
+    assetData.createdBy.toString(),
+    assetId.toString(),
+    filename
+  );
+  
+  // Create the asset document with the pre-generated ID and path
+  const asset = new this({
+    ...assetData,
+    _id: assetId,
+    path
+  });
+  
+  // Save the asset to the database
+  await asset.save();
+  
+  return asset;
+};
+
 // Define the interface for Asset static methods
 interface AssetStaticMethods {
-  findByParent(parentId: string, parentType: string): Promise<mongoose.Document<unknown, object, IAsset>[]>;
-  findByField(parentId: string, parentType: string, fieldName: string): Promise<mongoose.Document<unknown, object, IAsset>[]>;
-  checkUserPermission(assetId: string, userId: string): Promise<boolean>;
   generateMinioPath(userId: string, assetId: string, filename: string): string;
-  createAssetWithPath(assetData: Partial<IAsset>, filename: string): Promise<{
-    asset: mongoose.Document<unknown, object, IAsset>;
-    path: string;
-  }>;
+  createAssetWithPath(assetData: Partial<IAsset>, filename: string): Promise<mongoose.Document<unknown, object, IAsset> & IAsset>;
 }
 
 // Extend Mongoose model with our static methods

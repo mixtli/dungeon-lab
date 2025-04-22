@@ -24,6 +24,28 @@ const serverMapSchema = mapSchema.extend({
  */
 const mongooseSchema = createMongoSchema<IMap>(serverMapSchema.merge(baseMongooseZodSchema));
 
+// Add virtual properties for image and thumbnail
+mongooseSchema.virtual('image', {
+  ref: 'Asset',
+  localField: 'imageId',
+  foreignField: '_id',
+  justOne: true
+});
+
+mongooseSchema.virtual('thumbnail', {
+  ref: 'Asset',
+  localField: 'thumbnailId',
+  foreignField: '_id',
+  justOne: true
+});
+
+
+// Configure schema to include virtuals when converting to JSON
+// mongooseSchema.set('toJSON', { virtuals: true });
+
+// Also set toObject options to make sure virtuals work consistently
+// mongooseSchema.set('toObject', { virtuals: true });
+
 /**
  * Map model
  */

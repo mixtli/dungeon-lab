@@ -4,6 +4,7 @@ import { ref, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import ImageUpload from '../components/common/ImageUpload.vue';
 import axios from '../network/axios.mjs';
+import { type IAsset } from '@dungeon-lab/shared/index.mjs';
 
 interface UploadedImage {
   url: string;
@@ -45,20 +46,20 @@ onMounted(async () => {
     basicInfo.value = {
       name: actor.name || '',
       description: actor.description || '',
-      avatarImage: actor.avatar
+      avatarImage: actor.avatarId
         ? {
-            url: actor.avatar.url,
-            path: actor.avatar.path,
-            size: actor.avatar.size,
-            type: actor.avatar.type,
+            url: (actor.avatarId as unknown as IAsset).url,
+            path: (actor.avatarId as unknown as IAsset).path,
+            size: (actor.avatarId as unknown as IAsset).size,
+            type: (actor.avatarId as unknown as IAsset).type,
           }
         : null,
-      tokenImage: actor.token
+      tokenImage: actor.tokenId
         ? {
-            url: actor.token.url,
-            path: actor.token.path,
-            size: actor.token.size,
-            type: actor.token.type,
+            url: (actor.tokenId as unknown as IAsset).url,
+            path: (actor.tokenId as unknown as IAsset).path,
+            size: (actor.tokenId as unknown as IAsset).size,
+            type: (actor.tokenId as unknown as IAsset).type,
           }
         : null,
     };

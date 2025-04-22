@@ -1,5 +1,7 @@
 import { logger } from '../utils/logger.mjs';
 import { registerExampleJob } from './example.job.mjs';
+import { registerMapImageJobs } from '../features/maps/jobs/map-image.job.mjs';
+import { registerActorImageJobs } from '../features/actors/jobs/actor-image.job.mjs';
 
 console.log('Initializing jobs...');
 /**
@@ -11,6 +13,8 @@ export async function initializeJobs(): Promise<void> {
   try {
     // Register all jobs here
     await registerExampleJob();
+    await registerMapImageJobs();
+    await registerActorImageJobs();
     
     logger.info('All background jobs initialized successfully');
   } catch (error) {

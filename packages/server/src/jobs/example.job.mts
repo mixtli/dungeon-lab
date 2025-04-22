@@ -26,8 +26,8 @@ export async function registerExampleJob(): Promise<void> {
   );
 
   // Schedule this job to run every minute
-  await backgroundJobService.scheduleRecurringJob('1 minute', 'example-job', {
-    message: 'This is a recurring job running every minute!'
+  await backgroundJobService.scheduleRecurringJob('1 hour', 'example-job', {
+    message: 'This is a recurring job running every hour!'
   });
 
   logger.info('Example job registered and scheduled');

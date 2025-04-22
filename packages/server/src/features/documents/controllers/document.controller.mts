@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { DocumentService, QueryValue } from '../services/document.service.mjs';
 import { logger } from '../../../utils/logger.mjs';
-
+import { pluginRegistry } from '../../../services/plugin-registry.service.mjs';
 export class DocumentController {
   private documentService: DocumentService;
 
@@ -17,6 +17,48 @@ export class DocumentController {
     } catch (error) {
       logger.error('Error in getDocument:', error);
       res.status(404).json({ error: 'Document not found' });
+    }
+  };
+
+  patchDocument = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const document = await this.documentService.updateDocument(id, req.body);
+      res.json(document);
+    } catch (error) {
+      logger.error('Error in updateDocument:', error);
+      res.status(500).json({ error: 'Failed to update document' });
+    }
+  };
+
+  deleteDocument = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+      await this.documentService.deleteDocument(id);
+      res.json({ message: 'Document deleted successfully' });
+    } catch (error) {
+      logger.error('Error in deleteDocument:', error);
+      res.status(500).json({ error: 'Failed to delete document' });
+    }
+  }
+
+  createDocument = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const plugin = pluginRegistry.getPlugin(req.body.pluginId);
+      if (!plugin) {
+        res.status(400).json({ error: 'Invalid game system ID' });
+        return
+      }
+      const data = plugin.validateVTTDocumentData(req.body.documentType, req.body.data);
+      if (!data.success) {
+        res.status(400).json({ error: data.error });
+        return
+      }
+      const document = await this.documentService.createDocument(req.body);
+      res.json(document);
+    } catch (error) {
+      logger.error('Error in createDocument:', error);  
+      res.status(500).json({ error: 'Failed to create document' });
     }
   };
 

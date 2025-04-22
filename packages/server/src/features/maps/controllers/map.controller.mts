@@ -2,21 +2,27 @@ import { Response } from 'express';
 import { AuthenticatedRequest } from '../../../middleware/auth.middleware.mjs';
 import { MapService } from '../services/map.service.mjs';
 import { logger } from '../../../utils/logger.mjs';
-import { uploadAssets } from '../../../utils/asset-upload.utils.mjs';
-import { generateMapImage } from '../utils/map-image-generator.mjs';
 
 export class MapController {
   constructor(private mapService: MapService) {}
 
   async getMaps(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
     try {
-      const maps = await this.mapService.getMaps(req.params.campaignId);
-      const result = res.json(maps);
-      console.log("result", result);
-      await result
+      const maps = await this.mapService.getMapsForCampaign(req.params.campaignId);
+      return res.json(maps);
     } catch (error) {
       logger.error('Error in getMaps controller:', error);
       return res.status(500).json({ message: 'Failed to get maps' });
+    }
+  }
+
+  async generateMapImage(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
+    try {
+      await this.mapService.generateMapImage(req.params.id);
+      return res.status(204).send();
+    } catch (error) {
+      logger.error('Error in generateMapImage controller:', error);
+      return res.status(500).json({ message: 'Failed to generate map image' });
     }
   }
 
@@ -35,46 +41,16 @@ export class MapController {
 
   async createMap(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
     try {
-      // First create the map in database without images
-      const initialMapData = {
-        ...req.body,
-        gridRows: 0, // Placeholder, will be calculated after image processing
-        aspectRatio: 1, // Placeholder, will be calculated after image processing
-      };
+      // Get the image file from req.assets
+      const imageFile = req.assets?.image?.[0];
       
-      // Create initial map record to get an ID
-      const initialMap = await this.mapService.createMapInitial(initialMapData, req.session.user.id);
-      
-      let assets;
-      
-      // Check if files were provided
-      const files = req.files as Record<string, Express.Multer.File[]> | undefined;
-      const file = req.file;
-
-      // Check if we have actual files to process
-      const hasFiles = files && Object.keys(files).length > 0 && Object.values(files).some(f => f && f.length > 0);
-      const hasFile = file && Object.keys(file).length > 0;
-      
-      if (hasFiles || hasFile) {
-        // If files were provided, upload them
-        logger.info('Uploading provided map image');
-        assets = await uploadAssets(files || file, 'maps', initialMap.id!);
-      } else {
-        // If no files were provided, generate an image using AI
-        logger.info('No image provided, generating map image with AI');
-        const generatedImage = await generateMapImage(initialMap);
-        assets = {
-          image: generatedImage
-        };
-      }
-      
-      // Process the image and update the map with final data
-      const map = await this.mapService.processThumbnail(
-        initialMap.id!,
-        assets.image,
-        Number(req.body.gridColumns),
-        req.session.user.id
+      // Create the map using the service
+      const map = await this.mapService.createMap(
+        req.body,
+        req.session.user.id,
+        imageFile
       );
+      
       return res.status(201).json(map);
     } catch (error: unknown) {
       logger.error('Error in createMap controller:', error);
@@ -87,20 +63,17 @@ export class MapController {
 
   async updateMap(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
     try {
-      // Prepare files for upload
-      const files = req.files as Record<string, Express.Multer.File[]> | undefined;
-      const file = req.file;
+      // Get image file from req.assets if present
+      const imageFile = req.assets?.image?.[0];
       
-      // Upload any new assets
-      const assets = await uploadAssets(files || file, 'maps', req.params.id);
+      // Update the map using the service
+      const map = await this.mapService.updateMap(
+        req.params.id,
+        req.body,
+        req.session.user.id,
+        imageFile
+      );
       
-      // Add file data to request body
-      const mapData = {
-        ...req.body,
-        assets
-      };
-      
-      const map = await this.mapService.updateMap(req.params.id, mapData, req.session.user.id);
       return res.json(map);
     } catch (error: unknown) {
       if (error instanceof Error && error.message === 'Map not found') {
@@ -133,11 +106,53 @@ export class MapController {
   async getAllMaps(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
     try {
       const maps = await this.mapService.getAllMaps(req.session.user.id);
-      const result = res.json(maps);
-      return result
+      return res.json(maps);
     } catch (error) {
       logger.error('Error in getAllMaps controller:', error);
       return res.status(500).json({ message: 'Failed to get maps' });
+    }
+  }
+
+  async uploadMapImage(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
+    try {
+      // Get the raw image data from the request body
+      const imageBuffer = req.body as Buffer;
+      const contentType = req.headers['content-type'] || 'image/jpeg';
+      
+      if (!imageBuffer || imageBuffer.length === 0) {
+        return res.status(400).json({ message: 'No image data provided' });
+      }
+
+      // Validate content type
+      const validMimes = ['image/jpeg', 'image/png', 'image/webp'];
+      if (!validMimes.includes(contentType)) {
+        return res.status(400).json({ message: 'Invalid image type. Please upload JPEG, PNG, or WebP' });
+      }
+
+      // Create a standard File object from the buffer
+      const file = new File(
+        [imageBuffer], 
+        `map_${Date.now()}.${contentType.split('/')[1]}`, 
+        { type: contentType }
+      );
+
+      // Update the map with just the new image
+      const map = await this.mapService.updateMapImage(
+        req.params.id,
+        file,
+        req.session.user.id
+      );
+      
+      return res.json(map);
+    } catch (error: unknown) {
+      if (error instanceof Error && error.message === 'Map not found') {
+        return res.status(404).json({ message: 'Map not found' });
+      }
+      logger.error('Error in uploadMapImage controller:', error);
+      if (error instanceof Error) {
+        return res.status(500).json({ message: error.message || 'Failed to upload map image' });
+      }
+      return res.status(500).json({ message: 'Failed to upload map image' });
     }
   }
 } 

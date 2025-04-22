@@ -6,6 +6,11 @@ import { baseMongooseZodSchema } from './base-schema.mjs';
 import { createMongoSchema } from './zod-to-mongo.mjs';
 
 
+function generateApiKey() {
+  return crypto.randomBytes(32).toString('hex');
+}
+console.log(generateApiKey());
+
 /**
  * Create Mongoose schema with base configuration
  */
@@ -22,7 +27,7 @@ mongooseSchema.methods.comparePassword = async function(candidatePassword: strin
 mongooseSchema.pre('validate', async function(this: mongoose.Document & IUser, next: mongoose.CallbackWithoutResultAndOptionalError) {
   // Generate API key if not present
   if (!this.apiKey) {
-    this.apiKey = crypto.randomBytes(32).toString('hex');
+    this.apiKey = generateApiKey();
   }
 
   if (!this.isModified('password') || !this.password) {

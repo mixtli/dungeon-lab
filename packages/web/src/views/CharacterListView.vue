@@ -2,32 +2,25 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { PlusIcon, PencilIcon, TrashIcon } from '@heroicons/vue/24/outline';
-
-interface Character {
-  id: string;
-  name: string;
-  type: string;
-  avatar?: {
-    url?: string;
-    path?: string;
-    size?: number;
-    type?: string;
-  };
-  data: {
-    race: string;
-    class: string;
-    level: number;
-    hitPoints: {
-      current: number;
-      maximum: number;
-    };
-  };
-}
+import { type IActor, type IAsset } from '@dungeon-lab/shared/index.mjs';
 
 const router = useRouter();
-const characters = ref<Character[]>([]);
+const characters = ref<IActor[]>([]);
 const isLoading = ref(true);
 const error = ref<string | null>(null);
+
+// Computed property to get the avatar URL for a character
+const getAvatarUrl = (character: IActor): string | undefined => {
+  if (character.avatar) {
+    // Handle populated ObjectId reference
+    if (typeof character.avatar === 'object') {
+      const asset = character.avatar as unknown as IAsset;
+      return asset.url as string;
+    }
+  }
+  return undefined;
+};
+
 
 onMounted(async () => {
   try {
@@ -37,7 +30,7 @@ onMounted(async () => {
     }
     const actors = await response.json();
     // Filter only character type actors
-    characters.value = actors.filter((actor: Character) => actor.type === 'character');
+    characters.value = actors.filter((actor: IActor) => actor.type === 'character');
   } catch (err) {
     console.error('Error loading characters:', err);
     error.value = 'Failed to load characters. Please try again later.';
@@ -46,7 +39,9 @@ onMounted(async () => {
   }
 });
 
-async function handleDelete(id: string) {
+async function handleDelete(id: string | undefined) {
+  if (!id) return;
+  
   try {
     const response = await fetch(`/api/actors/${id}`, {
       method: 'DELETE',
@@ -64,8 +59,10 @@ async function handleDelete(id: string) {
   }
 }
 
-function handleEdit(id: string) {
-  router.push(`/character/${id}`);
+function handleEdit(id: string | undefined) {
+  if (id) {
+    router.push(`/character/${id}`);
+  }
 }
 
 function handleCreate() {
@@ -116,14 +113,14 @@ function handleCreate() {
       <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <div
           v-for="character in characters"
-          :key="character.id"
+          :key="character.id || ''"
           class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-200"
         >
           <div class="aspect-[4/3] bg-gray-200 relative">
             <img
-              v-if="character.avatar && character.avatar.url"
-              :src="character.avatar.url"
-              :alt="character.name"
+              v-if="getAvatarUrl(character)"
+              :src="getAvatarUrl(character) || ''"
+              :alt="character.name || 'Character'"
               class="w-full h-full object-cover"
             />
             <div v-else class="w-full h-full flex items-center justify-center text-gray-400">
@@ -135,13 +132,14 @@ function handleCreate() {
             <div class="flex justify-between items-start">
               <div>
                 <h3 class="text-xl font-bold text-gray-900">{{ character.name }}</h3>
-                <p class="text-gray-600">
+                <p v-if="character.data" class="text-gray-600">
                   Level {{ character.data.level }} {{ character.data.race }}
                   {{ character.data.class }}
                 </p>
               </div>
               <div class="flex space-x-2">
                 <button
+                  v-if="character.id"
                   @click="handleEdit(character.id)"
                   class="p-2 text-gray-400 hover:text-blue-500 focus:outline-none"
                   title="Edit character"
@@ -149,6 +147,7 @@ function handleCreate() {
                   <PencilIcon class="h-5 w-5" />
                 </button>
                 <button
+                  v-if="character.id"
                   @click="handleDelete(character.id)"
                   class="p-2 text-gray-400 hover:text-red-500 focus:outline-none"
                   title="Delete character"
@@ -158,10 +157,10 @@ function handleCreate() {
               </div>
             </div>
 
-            <div class="mt-4 flex items-center justify-between">
+            <div v-if="character.data && character.data.hitPoints" class="mt-4 flex items-center justify-between">
               <div class="text-sm font-medium text-gray-500">HP</div>
               <div class="text-sm font-semibold text-gray-900">
-                {{ character.data.hitPoints?.current }}/{{ character.data.hitPoints?.maximum }}
+                {{ character.data.hitPoints.current }}/{{ character.data.hitPoints.maximum }}
               </div>
             </div>
           </div>

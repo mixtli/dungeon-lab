@@ -11,9 +11,11 @@ export const assetSchema = z.object({
   name: z.string().optional(),
   
   // Reference to the parent entity (optional)
+  // Will be converted to ObjectId with zId('Entity') on the server
   parentId: z.string().optional(),
   
   // Type of the parent entity (optional)
+  // Used for determining the type of entity referenced by parentId
   parentType: z.string().optional(),
   
   // Field name on the parent entity (optional)
@@ -35,6 +37,7 @@ export const assetSchema = z.object({
   metadata: z.record(z.any()).optional(),
   
   // Reference to the user who created this asset
+  // Will be converted to ObjectId with zId('User') on the server
   createdBy: z.string(),
   
   // Created and updated timestamps (handled by Mongoose)

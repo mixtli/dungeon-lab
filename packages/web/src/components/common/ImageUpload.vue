@@ -13,7 +13,7 @@ interface UploadedImage {
 // Define the new props - can accept either a File object or the uploaded image data
 const props = defineProps<{
   modelValue: File | UploadedImage | null;
-  type?: 'avatar' | 'token'; // Make type optional since we're not using it for direct uploads
+  type?: 'avatar' | 'token' | 'map'; // Add 'map' as a valid type
   showPreview?: boolean; // Whether to show image preview (default true)
 }>();
 

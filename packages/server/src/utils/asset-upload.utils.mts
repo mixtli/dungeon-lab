@@ -1,104 +1,58 @@
-import { Request } from 'express';
 import storageService from '../services/storage.service.mjs';
 import { logger } from './logger.mjs';
+import { AssetModel } from '../features/assets/models/asset.model.mjs';
+import { Types } from 'mongoose';
+import type { AssetDocument } from '../features/assets/services/asset.service.mjs';
 
 /**
- * Interface representing an uploaded asset
- */
-export interface UploadedAsset {
-  path: string;
-  url: string;
-  size: number;
-  type: string;
-}
-
-/**
- * Upload assets from request files to storage
+ * Creates an Asset document from a File object
  * 
- * @param files - Files from the request (req.files or req.file)
- * @param modelType - Type of model (e.g., 'maps', 'actors')
- * @param modelId - ID of the model being created/updated
- * @returns Object with field names as keys and asset objects as values
+ * @param file - The File object to create an asset from
+ * @param prefix - Prefix to use in the storage path after the userId (e.g., 'uploads/maps')
+ * @param userId - ID of the user creating the asset
+ * @returns Asset document created in the database
  */
-export async function uploadAssets(
-  files: Record<string, Express.Multer.File[]> | Express.Multer.File | undefined,
-  modelType: string,
-  modelId: string
-): Promise<Record<string, UploadedAsset>> {
-  const assets: Record<string, UploadedAsset> = {};
-  
+export async function createAsset(
+  file: File,
+  prefix: string,
+  userId: string
+): Promise<AssetDocument> {
   try {
-    // Handle single file upload case (req.file)
-    if (files && 'buffer' in files && 'fieldname' in files) {
-      const singleFile = files as Express.Multer.File;
-      const fieldName = singleFile.fieldname;
-      assets[fieldName] = await processFile(singleFile, modelType, modelId, fieldName);
-    }
+    // Extract file information
+    const buffer = await file.arrayBuffer();
+    const originalname = file.name;
+    const mimetype = file.type;
+    const size = file.size;
     
-    // Process multiple files from req.files
-    else if (files && typeof files === 'object' && !('buffer' in files)) {
-      const fileMap = files as Record<string, Express.Multer.File[]>;
-      for (const [fieldName, fieldFiles] of Object.entries(fileMap)) {
-        if (Array.isArray(fieldFiles) && fieldFiles.length > 0) {
-          assets[fieldName] = await processFile(fieldFiles[0], modelType, modelId, fieldName);
-        }
-      }
-    }
     
-    return assets;
+    // Generate the full folder path
+    const folder = `users/${userId}/${prefix}`;
+    
+    // Upload to storage service
+    const uploadResult = await storageService.uploadFile(
+      Buffer.from(buffer),
+      originalname,
+      mimetype,
+      folder
+    );
+    
+    // Get the public URL
+    const fileUrl = storageService.getPublicUrl(uploadResult.key);
+    
+    // Create an Asset record in MongoDB
+    const asset = await AssetModel.create({
+      path: uploadResult.key,
+      url: fileUrl,
+      size,
+      type: mimetype,
+      name: originalname,
+      createdBy: new Types.ObjectId(userId)
+    });
+    
+    // Return the asset document
+    return asset as AssetDocument;
   } catch (error) {
-    logger.error('Error uploading assets:', error);
-    throw new Error('Failed to upload assets');
+    logger.error('Error creating asset:', error);
+    throw new Error('Failed to create asset');
   }
-}
-
-/**
- * Process a single file upload
- */
-async function processFile(
-  file: Express.Multer.File,
-  modelType: string,
-  modelId: string,
-  fieldName: string
-): Promise<UploadedAsset> {
-  // Create the folder path with model type, id, and field name
-  const folder = `${modelType}/${modelId}/${fieldName}`;
-  
-  // Upload to storage service
-  const uploadResult = await storageService.uploadFile(
-    file.buffer,
-    file.originalname,
-    file.mimetype,
-    folder
-  );
-  
-  // Get the public URL (use non-expiring public URL)
-  const fileUrl = storageService.getPublicUrl(uploadResult.key);
-  
-  // Return asset object
-  return {
-    path: uploadResult.key,
-    url: fileUrl,
-    size: file.size,
-    type: file.mimetype
-  };
-}
-
-// Keep processFileUploads for backward compatibility, but refactor to use uploadAssets
-export async function processFileUploads(
-  req: Request, 
-  modelType: string, 
-  modelId: string
-): Promise<Record<string, UploadedAsset>> {
-  // Get files from the request
-  const files = req.files as Record<string, Express.Multer.File[]> | undefined;
-  const file = req.file;
-  
-  if (file) {
-    return uploadAssets(file, modelType, modelId);
-  } else if (files) {
-    return uploadAssets(files, modelType, modelId);
-  }
-  
-  return {};
 } 

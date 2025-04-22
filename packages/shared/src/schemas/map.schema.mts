@@ -10,15 +10,21 @@ export const mapSchema = baseSchema.extend({
   thumbnailId: z.string().optional(),
   imageId: z.string().optional(),
   
-  gridColumns: z.number().int().positive(),
-  gridRows: z.number().int().positive(),
-  aspectRatio: z.number().positive(),
+  gridColumns: z.coerce.number().int().positive(),
+  gridRows: z.coerce.number().int().positive(),
+  aspectRatio: z.coerce.number().positive(),
 });
 
-export const mapCreateSchema = mapSchema.omit({
-  gridRows: true,
-  aspectRatio: true,
-});
+// Schema for map creation that includes an optional image field for validation
+export const mapCreateSchema = mapSchema
+  .omit({
+    gridRows: true,
+    aspectRatio: true,
+  })
+  .extend({
+    // Add an optional field for the image during creation (can be file upload or AI generated)
+    image: z.any().optional(),
+  });
 
 // // Update data schema (makes all fields optional except updatedBy)
 // export const mapUpdateSchema = mapSchema

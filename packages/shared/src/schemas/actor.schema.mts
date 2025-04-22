@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { baseSchema } from './base.schema.mjs';
+import { assetSchema } from './asset.schema.mjs';
 
 // Base Actor schema
 export const actorSchema = baseSchema.extend({
@@ -12,28 +13,21 @@ export const actorSchema = baseSchema.extend({
   
   description: z.string().optional(),
   gameSystemId: z.string().min(1),
-  data: z.record(z.any()).optional()
+  data: z.record(z.any()).optional(),
+  // token: assetSchema.optional()
+  //avatar: assetSchema.optional(),
+});
+
+
+export const actorCreateSchema = actorSchema.extend({
+  avatar: z.any().optional(),
+  token: z.any().optional(),
+});
+
+export const actorSchemaWithVirtuals = actorSchema.extend({
+  token: assetSchema.optional(),
+  avatar: assetSchema.optional()
 });
 
 // Schema for actor data used in creation
-export type IActor = z.infer<typeof actorSchema>;
-
-// Create data schema (makes id, createdBy, and updatedBy optional)
-// export const actorCreateSchema = actorSchema
-//   .omit({
-//     id: true,
-//     createdBy: true,
-//     updatedBy: true,
-//   });
-
-// export type IActorCreateData = z.infer<typeof actorCreateSchema>;
-
-// // Update data schema (makes all fields optional except updatedBy)
-// export const actorUpdateSchema = actorSchema
-//   .omit({
-//     id: true,
-//     createdBy: true
-//   })
-//   .partial()
-
-// export type IActorUpdateData = z.infer<typeof actorUpdateSchema>; 
+export type IActor = z.infer<typeof actorSchemaWithVirtuals>;
