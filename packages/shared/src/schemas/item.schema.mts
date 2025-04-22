@@ -5,13 +5,17 @@ import { baseSchema } from './base.schema.mjs';
 export const itemSchema = baseSchema.extend({
   name: z.string().min(1).max(255),
   type: z.string().min(1).max(255),
-  image: z.string().url().optional(),
+  imageId: z.string().optional(),
   description: z.string().optional(),
   gameSystemId: z.string().min(1),
   pluginId: z.string().min(1),
   weight: z.number().optional(),
   cost: z.number().optional(),
   data: z.any()
+});
+
+export const itemCreateSchema = itemSchema.extend({
+  image: z.instanceof(File).optional()
 });
 
 // Create data schema (omits auto-generated fields)
@@ -35,4 +39,4 @@ export const itemSchema = baseSchema.extend({
 // Export types generated from the schemas
 export type IItem = z.infer<typeof itemSchema>;
 // export type IItemCreateData = z.infer<typeof itemCreateSchema>;
-// export type IItemUpdateData = z.infer<typeof itemUpdateSchema>; 
+// export type IItemUpdateData = z.infer<typeof itemUpdateSchema>;

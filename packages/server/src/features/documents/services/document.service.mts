@@ -2,6 +2,7 @@ import { IVTTDocument } from '@dungeon-lab/shared/schemas/vtt-document.schema.mj
 import { VTTDocument } from '../models/vtt-document.model.mjs';
 import { logger } from '../../../utils/logger.mjs';
 import { deepMerge } from '@dungeon-lab/shared/utils/deepMerge.mjs';
+import { Types } from 'mongoose';
 // Define a type for document query values
 export type QueryValue = string | number | boolean | RegExp | Date | object;
 
@@ -19,37 +20,68 @@ export class DocumentService {
     }
   }
 
-  async createDocument(document: IVTTDocument): Promise<IVTTDocument> {
-    const newDocument = new VTTDocument(document);
-    await newDocument.save();
-    return newDocument;
+  async createDocument(document: IVTTDocument, userId: string): Promise<IVTTDocument> {
+    try {
+      const userObjectId = new Types.ObjectId(userId);
+      const documentData = {
+        ...document,
+        createdBy: userObjectId,
+        updatedBy: userObjectId
+      };
+
+      const newDocument = new VTTDocument(documentData);
+      await newDocument.save();
+      return newDocument;
+    } catch (error) {
+      logger.error('Error creating document:', error);
+      throw error;
+    }
   }
 
-  async patchDocument(id: string, document: IVTTDocument): Promise<IVTTDocument> {
-    const existingDocument = await VTTDocument.findById(id);
-    if (!existingDocument) {
-      throw new Error('Document not found');
-    }
-    const obj = existingDocument?.toObject();
-    existingDocument.set(deepMerge(obj, document));
-    await existingDocument.save();
+  async patchDocument(id: string, document: IVTTDocument, userId: string): Promise<IVTTDocument> {
+    try {
+      const existingDocument = await VTTDocument.findById(id);
+      if (!existingDocument) {
+        throw new Error('Document not found');
+      }
 
-    // const updatedDocument = await VTTDocument.findByIdAndUpdate(id, document, { new: true });
-    // if (!updatedDocument) {
-    //   throw new Error('Document not found');
-    // }
-    // return updatedDocument;
-    return existingDocument;
+      const userObjectId = new Types.ObjectId(userId);
+      const updateData = {
+        ...document,
+        updatedBy: userObjectId
+      };
+
+      const obj = existingDocument?.toObject();
+      existingDocument.set(deepMerge(obj, updateData));
+      await existingDocument.save();
+
+      return existingDocument;
+    } catch (error) {
+      logger.error('Error patching document:', error);
+      throw error;
+    }
   }
 
-  async putDocument(id: string, document: IVTTDocument): Promise<IVTTDocument> {
-    const existingDocument = await VTTDocument.findById(id);
-    if (!existingDocument) {
-      throw new Error('Document not found');
+  async putDocument(id: string, document: IVTTDocument, userId: string): Promise<IVTTDocument> {
+    try {
+      const existingDocument = await VTTDocument.findById(id);
+      if (!existingDocument) {
+        throw new Error('Document not found');
+      }
+
+      const userObjectId = new Types.ObjectId(userId);
+      const updateData = {
+        ...document,
+        updatedBy: userObjectId
+      };
+
+      existingDocument.set(updateData);
+      await existingDocument.save();
+      return existingDocument;
+    } catch (error) {
+      logger.error('Error updating document:', error);
+      throw error;
     }
-    existingDocument.set(document);
-    await existingDocument.save();
-    return existingDocument;
   }
 
   async deleteDocument(id: string): Promise<void> {
@@ -76,4 +108,4 @@ export class DocumentService {
       throw new Error('Failed to search documents');
     }
   }
-} 
+}

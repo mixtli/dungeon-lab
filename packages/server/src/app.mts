@@ -5,7 +5,7 @@ import passport from 'passport';
 import { Router } from 'express';
 import MongoStore from 'connect-mongo';
 import { logger } from './utils/logger.mjs';
-import { requestLogger } from './middleware/request-logger.middleware.mjs';
+import { requestLoggerMiddleware } from './middleware/request-logger.middleware.mjs';
 import { mapRoutes } from './features/maps/index.mjs';
 import { itemRoutes } from './features/items/index.mjs';
 import { actorRoutes } from './features/actors/index.mjs';
@@ -16,9 +16,9 @@ import { oapi } from './oapi.mjs';
 
 // Define type interfaces for our routes and middleware
 type ErrorHandlerMiddleware = (
-  err: Error, 
-  req: express.Request, 
-  res: express.Response, 
+  err: Error,
+  req: express.Request,
+  res: express.Response,
   next: express.NextFunction
 ) => void;
 
@@ -76,16 +76,18 @@ export async function createApp(): Promise<express.Application> {
   const app = express();
 
   // Basic middleware
-  app.use(cors({
-    origin: process.env.CLIENT_URL || 'http://localhost:5173',
-    credentials: true
-  }));
+  app.use(
+    cors({
+      origin: process.env.CLIENT_URL || 'http://localhost:5173',
+      credentials: true
+    })
+  );
   app.use(express.json());
-  app.use(requestLogger);
+  app.use(requestLoggerMiddleware());
 
   // Session configuration
   app.use(sessionMiddleware);
-  
+
   // Mount OpenAPI as middleware
   app.use(oapi);
 
@@ -95,8 +97,8 @@ export async function createApp(): Promise<express.Application> {
   // Initialize routes
   await initializeRoutes();
 
-  app.get('/favicon.ico', function(_, res) { 
-    res.sendStatus(204); 
+  app.get('/favicon.ico', function (_, res) {
+    res.sendStatus(204);
   });
 
   // Mount routes
@@ -115,9 +117,9 @@ export async function createApp(): Promise<express.Application> {
 
   // Mount Swagger UI correctly
   app.use('/swaggerui', oapi.swaggerui());
-  
+
   // Error handling
   app.use(errorHandler);
 
   return app;
-} 
+}

@@ -2,10 +2,10 @@
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { readFile } from 'fs/promises';
-import { connectToDatabase, getFirstUserId, disconnectFromDatabase } from './import-utils.mjs';
 import { convertSpell, uploadSpellImage } from './convert-5etools-spell.mjs';
 import { itemDataSchema } from '../shared/types/item.mjs';
 import config from '../../manifest.json' with { type: 'json' };
+import fetch from 'node-fetch';
 
 // Get the current file's directory in ESM
 const __filename = fileURLToPath(import.meta.url);
@@ -27,15 +27,20 @@ function validateSpellData(data: any): boolean {
 }
 
 /**
- * Import spells from 5e-SRD-Spells.json
+ * Import spells from 5e-SRD-Spells.json using the REST API
+ * @param apiBaseUrl Base URL for the API
+ * @param authToken Optional authentication token
  */
-async function importSpells(): Promise<void> {
+async function importSpellsViaAPI(apiBaseUrl = 'http://localhost:3000', authToken?: string): Promise<void> {
   try {
-    // Connect to the database
-    await connectToDatabase();
+    // Setup headers with auth token if provided
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
+    };
     
-    // Get user ID for creation/updates
-    const userId = await getFirstUserId();
+    if (authToken) {
+      headers['Authorization'] = `Bearer ${authToken}`;
+    }
     
     // Load spell data
     console.log('Loading spell data...');
@@ -56,9 +61,6 @@ async function importSpells(): Promise<void> {
       }
     }
     console.log(`Loaded ${fluffMap.size} spell fluff entries`);
-    
-    // Get the Item model
-    const { ItemModel } = await import('@dungeon-lab/server/src/features/items/models/item.model.mjs');
     
     // Stats for reporting
     let created = 0;
@@ -99,33 +101,52 @@ async function importSpells(): Promise<void> {
           gameSystemId: config.id
         };
         
-        // Check if this spell already exists
-        const existingSpell = await ItemModel.findOne({
+        // Check if this spell already exists using the REST API
+        const searchParams = new URLSearchParams({
           name: itemData.name,
           type: 'spell',
           pluginId: config.id
         });
         
-        if (existingSpell) {
-          await ItemModel.updateOne(
-            { _id: existingSpell._id },
-            { 
-              $set: { 
-                ...itemData,
-                updatedBy: userId
-              }
-            }
-          );
-          console.log(`Updated spell: ${spell.name}`);
-          updated++;
-        } else {
-          await ItemModel.create({
-            ...itemData,
-            createdBy: userId,
-            updatedBy: userId
+        const searchResponse = await fetch(`${apiBaseUrl}/api/items?${searchParams}`, {
+          method: 'GET',
+          headers
+        });
+        
+        const searchResults = await searchResponse.json();
+        
+        if (searchResults && searchResults.length > 0) {
+          // Update existing spell
+          const existingSpell = searchResults[0];
+          
+          const updateResponse = await fetch(`${apiBaseUrl}/api/items/${existingSpell.id}`, {
+            method: 'PUT',
+            headers,
+            body: JSON.stringify(itemData)
           });
-          console.log(`Created spell: ${spell.name}`);
-          created++;
+          
+          if (updateResponse.ok) {
+            console.log(`Updated spell: ${spell.name}`);
+            updated++;
+          } else {
+            console.error(`Failed to update spell: ${spell.name}`, await updateResponse.text());
+            errors++;
+          }
+        } else {
+          // Create new spell
+          const createResponse = await fetch(`${apiBaseUrl}/api/items`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(itemData)
+          });
+          
+          if (createResponse.ok) {
+            console.log(`Created spell: ${spell.name}`);
+            created++;
+          } else {
+            console.error(`Failed to create spell: ${spell.name}`, await createResponse.text());
+            errors++;
+          }
         }
       } catch (error) {
         console.error(`Error processing spell ${spellData.name}:`, error);
@@ -142,15 +163,20 @@ async function importSpells(): Promise<void> {
     
   } catch (error) {
     console.error('Error importing spells:', error);
-  } finally {
-    // Disconnect from the database
-    await disconnectFromDatabase();
   }
 }
 
 // Run the import if this script is executed directly
 if (import.meta.url === (typeof document === 'undefined' ? new URL('file:' + process.argv[1]).href : undefined)) {
-  importSpells().catch(error => {
+  // Configure the API base URL and auth token from environment variables
+  const apiBaseUrl = process.env.API_BASE_URL || 'http://localhost:3000';
+  const authToken = process.env.API_AUTH_TOKEN; // Optional
+  
+  // Display initial configuration
+  console.log(`Using API URL: ${apiBaseUrl}`);
+  console.log(`Authentication: ${authToken ? 'Enabled' : 'Disabled'}`);
+  
+  importSpellsViaAPI(apiBaseUrl, authToken).catch(error => {
     console.error('Failed to import spells:', error);
     process.exit(1);
   });

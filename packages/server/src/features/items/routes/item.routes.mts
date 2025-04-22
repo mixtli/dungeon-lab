@@ -2,8 +2,8 @@ import { Router } from 'express';
 import { ItemController } from '../controllers/item.controller.mjs';
 import { ItemService } from '../services/item.service.mjs';
 import { authenticate } from '../../../middleware/auth.middleware.mjs';
-import { validateRequest } from '../../../middleware/validation.middleware.mjs';
-import { itemSchema } from '@dungeon-lab/shared/schemas/item.schema.mjs';
+import { validateMultipartRequest } from '../../../middleware/validation.middleware.mjs';
+import { itemSchema, itemCreateSchema } from '@dungeon-lab/shared/schemas/item.schema.mjs';
 import {
   openApiGet,
   openApiGetOne,
@@ -14,6 +14,7 @@ import {
 } from '../../../oapi.mjs';
 import { z } from '../../../utils/zod.mjs';
 import { deepPartial } from '@dungeon-lab/shared/utils/deepPartial.mjs';
+import express from 'express';
 
 // Initialize services and controllers
 const itemService = new ItemService();
@@ -23,21 +24,42 @@ const itemController = new ItemController(itemService);
 const router = Router();
 
 // Bind controller methods to maintain 'this' context
-const boundGetAllItems = itemController.getAllItems.bind(itemController);
+const boundSearchItems = itemController.searchItems.bind(itemController);
 const boundGetItemById = itemController.getItemById.bind(itemController);
 const boundGetItems = itemController.getItems.bind(itemController);
 const boundCreateItem = itemController.createItem.bind(itemController);
 const boundPutItem = itemController.putItem.bind(itemController);
 const boundPatchItem = itemController.patchItem.bind(itemController);
 const boundDeleteItem = itemController.deleteItem.bind(itemController);
+const boundUploadItemImage = itemController.uploadItemImage.bind(itemController);
 
 // Public routes
 router.get(
   '/',
   openApiGet(itemSchema, {
-    description: 'Get all items'
+    description: 'Search items with filters or get all items',
+    parameters: [
+      {
+        name: 'name',
+        in: 'query',
+        description: 'Filter by item name (case-insensitive)',
+        schema: { type: 'string' }
+      },
+      {
+        name: 'type',
+        in: 'query',
+        description: 'Filter by item type',
+        schema: { type: 'string' }
+      },
+      {
+        name: 'pluginId',
+        in: 'query',
+        description: 'Filter by game system plugin ID',
+        schema: { type: 'string' }
+      }
+    ]
   }),
-  boundGetAllItems
+  boundSearchItems
 );
 
 router.get(
@@ -52,20 +74,41 @@ router.get(
 router.post(
   '/',
   authenticate,
-  openApiPost(itemSchema, {
+  openApiPost(itemCreateSchema, {
     description: 'Create new item'
   }),
-  validateRequest(itemSchema),
+  validateMultipartRequest(itemCreateSchema, ['image']),
   boundCreateItem
+);
+
+// Upload a binary item image
+router.put(
+  '/:id/image',
+  authenticate,
+  express.raw({
+    type: ['image/jpeg', 'image/png', 'image/webp'],
+    limit: '10mb'
+  }),
+  openApiPut(z.string(), {
+    description: 'Upload raw item image',
+    requestBody: {
+      content: {
+        'image/jpeg': { schema: { type: 'string', format: 'binary' } },
+        'image/png': { schema: { type: 'string', format: 'binary' } },
+        'image/webp': { schema: { type: 'string', format: 'binary' } }
+      }
+    }
+  }),
+  boundUploadItemImage
 );
 
 router.put(
   '/:id',
   authenticate,
-  openApiPut(itemSchema, {
+  openApiPut(itemCreateSchema, {
     description: 'Replace item by ID (full update)'
   }),
-  validateRequest(itemSchema),
+  validateMultipartRequest(itemCreateSchema, 'image'),
   boundPutItem
 );
 
@@ -75,7 +118,7 @@ router.patch(
   openApiPatch(deepPartial(itemSchema), {
     description: 'Update item by ID (partial update)'
   }),
-  validateRequest(deepPartial(itemSchema)),
+  validateMultipartRequest(deepPartial(itemSchema), 'image'),
   boundPatchItem
 );
 

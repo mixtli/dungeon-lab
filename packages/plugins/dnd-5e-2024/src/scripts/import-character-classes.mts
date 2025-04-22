@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { runImport } from './import-utils.mjs';
+import { runImportViaAPI, deleteDocumentsViaAPI, read5eToolsData } from './import-utils.mjs';
 import { 
   convert5eToolsClass, 
   getClassDescription, 
@@ -10,31 +10,27 @@ import { toLowercase } from './converter-utils.mjs';
 import config from '../../manifest.json' with { type: 'json' };
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { VTTDocument } from '@dungeon-lab/server/src/features/documents/models/vtt-document.model.mjs';
-import { connectToDatabase, disconnectFromDatabase, read5eToolsData } from './import-utils.mjs';
 
 // Get the current file's directory in ESM
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 /**
- * Clear existing character class documents for clean import
+ * Clear existing character class documents for clean import using the REST API
+ * @param apiBaseUrl Base URL for the API, defaults to localhost:3000
+ * @param authToken Optional authentication token
+ * @returns Promise that resolves when deletion is complete
  */
-async function clearExistingClasses() {
+async function clearExistingClassesViaAPI(apiBaseUrl = 'http://localhost:3000', authToken?: string): Promise<number> {
   try {
-    await connectToDatabase();
-    console.log("Connected to database to clear existing class documents");
+    console.log("Using REST API to clear existing class documents");
     
-    const result = await VTTDocument.deleteMany({
-      pluginId: config.id,
-      documentType: 'characterClass'
-    });
+    const deletedCount = await deleteDocumentsViaAPI('characterClass', config.id, apiBaseUrl, authToken);
     
-    console.log(`Deleted ${result.deletedCount} existing character class documents`);
+    return deletedCount;
   } catch (error) {
     console.error("Error clearing existing classes:", error);
-  } finally {
-    await disconnectFromDatabase();
+    return 0;
   }
 }
 
@@ -67,7 +63,7 @@ async function convertClassWithDescription(classData: any) {
       if (subclasses.length > 0) {
         // We need to get the class features and subclass features data to process properly
         // Get the complete data again with features
-        const dataPath = join(__dirname, '../../submodules/5etools-src/data');
+        const dataPath = join(__dirname, '../../data');
         const allClassData = await read5eToolsData(dataPath, 'class/class-*.json');
         
         // Get any available class features and subclass features
@@ -198,14 +194,26 @@ async function convertClassWithDescription(classData: any) {
 
 // Run the import if this script is run directly
 if (import.meta.url === (typeof document === 'undefined' ? new URL('file:' + process.argv[1]).href : undefined)) {
+  // Configure the API base URL and auth token from environment variables
+  const apiBaseUrl = process.env.API_BASE_URL || 'http://localhost:3000';
+  const authToken = process.env.API_AUTH_TOKEN; // Optional
+  
+  // Display initial configuration
+  console.log(`Using API URL: ${apiBaseUrl}`);
+  console.log(`Authentication: ${authToken ? 'Enabled' : 'Disabled'}`);
+  
   // First clear existing classes, then run the import
-  clearExistingClasses().then(() => {
-    runImport({
+  // clearExistingClassesViaAPI(apiBaseUrl, authToken).then((deletedCount) => {
+  //   console.log(`Deleted ${deletedCount} existing character class documents via API`);
+    
+    runImportViaAPI({
       documentType: 'characterClass',
       dataFile: 'class/class-*.json',
       dataKey: 'class',
       converter: convertClassWithDescription,
-      dirPath: join(__dirname, '../../submodules/5etools-src/data')
+      dirPath: join(__dirname, '../../data'),
+      apiBaseUrl,
+      authToken
     }).catch(console.error);
-  }).catch(console.error);
+  // }).catch(console.error);
 } 

@@ -1,0 +1,9 @@
+---
+description: Don't use javascript.  Don't look at .mjs files.
+globs: 
+alwaysApply: false
+---
+This is a typescript project.
+Don't try to read files with a .mjs extension.  You probably want .mts.
+We use ES6 module syntax.
+Don't edit javascript files.   If there is no typescript version, suggest making one.

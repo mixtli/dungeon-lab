@@ -4,7 +4,14 @@ import { ActorService } from '../services/actor.service.mjs';
 import { authenticate } from '../../../middleware/auth.middleware.mjs';
 import { validateMultipartRequest } from '../../../middleware/validation.middleware.mjs';
 import { actorCreateSchema, actorSchema } from '@dungeon-lab/shared/schemas/actor.schema.mjs';
-import { openApiGet, openApiGetOne, openApiPost, openApiPut, openApiPatch, openApiDelete } from '../../../oapi.mjs';
+import {
+  openApiGet,
+  openApiGetOne,
+  openApiPost,
+  openApiPut,
+  openApiPatch,
+  openApiDelete
+} from '../../../oapi.mjs';
 import { z } from 'zod';
 import express from 'express';
 import { deepPartial } from '@dungeon-lab/shared/utils/deepPartial.mjs';
@@ -32,23 +39,33 @@ const boundController = {
 };
 
 // Public routes
-router.get('/', openApiGet(actorSchema, {
-  description: 'Get all actors',
-  parameters: [{
-    name: 'type',
-    in: 'query',
-    required: false,
-    schema: {
-      type: 'string',
-      enum: ['character', 'npc']
-    },
-    description: 'Filter actors by type'
-  }]
-}), boundController.getAllActors);
+router.get(
+  '/',
+  openApiGet(actorSchema, {
+    description: 'Get all actors',
+    parameters: [
+      {
+        name: 'type',
+        in: 'query',
+        required: false,
+        schema: {
+          type: 'string',
+          enum: ['character', 'npc']
+        },
+        description: 'Filter actors by type'
+      }
+    ]
+  }),
+  boundController.getAllActors
+);
 
-router.get('/:id', openApiGetOne(actorSchema, {
-  description: 'Get actor by ID'
-}), boundController.getActorById);
+router.get(
+  '/:id',
+  openApiGetOne(actorSchema, {
+    description: 'Get actor by ID'
+  }),
+  boundController.getActorById
+);
 
 // Protected routes - require authentication
 router.use(authenticate);
@@ -56,24 +73,27 @@ router.use(authenticate);
 router.get('/campaign/:campaignId', boundController.getActors);
 
 // For file uploads, use validateMultipartRequest with field names
-router.post('/', 
+router.post(
+  '/',
   openApiPost(actorCreateSchema, {
     description: 'Create new actor'
-  }), 
-  validateMultipartRequest(actorCreateSchema, ['avatar', 'token']), 
+  }),
+  validateMultipartRequest(actorCreateSchema, ['avatar', 'token']),
   boundController.createActor
 );
 
-router.put('/:id', 
-  openApiPut(actorSchema, {
+router.put(
+  '/:id',
+  openApiPut(actorCreateSchema, {
     description: 'Replace actor by ID (full update)'
-  }), 
-  validateMultipartRequest(actorSchema, ['avatar', 'token']), 
+  }),
+  validateMultipartRequest(actorCreateSchema, ['avatar', 'token']),
   boundController.putActor
 );
 
 // PATCH route for partial updates
-router.patch('/:id',
+router.patch(
+  '/:id',
   openApiPatch(deepPartial(actorSchema), {
     description: 'Update actor by ID (partial update)'
   }),
@@ -82,7 +102,8 @@ router.patch('/:id',
 );
 
 // Upload a binary avatar image
-router.put('/:id/avatar', 
+router.put(
+  '/:id/avatar',
   express.raw({
     type: ['image/jpeg', 'image/png', 'image/webp'],
     limit: '5mb'
@@ -96,12 +117,13 @@ router.put('/:id/avatar',
         'image/webp': { schema: { type: 'string', format: 'binary' } }
       }
     }
-  }), 
+  }),
   boundController.uploadActorAvatar
 );
 
 // Upload a binary token image
-router.put('/:id/token', 
+router.put(
+  '/:id/token',
   express.raw({
     type: ['image/jpeg', 'image/png', 'image/webp'],
     limit: '2mb'
@@ -115,38 +137,42 @@ router.put('/:id/token',
         'image/webp': { schema: { type: 'string', format: 'binary' } }
       }
     }
-  }), 
+  }),
   boundController.uploadActorToken
 );
 
 // Generate avatar and token using AI
-router.post('/:id/generate-avatar', 
+router.post(
+  '/:id/generate-avatar',
   openApiPost(z.object({}), {
     description: 'Generate actor avatar using AI'
   }),
   boundController.generateActorAvatar
 );
 
-router.post('/:id/generate-token', 
+router.post(
+  '/:id/generate-token',
   openApiPost(z.object({}), {
     description: 'Generate actor token using AI'
   }),
   boundController.generateActorToken
 );
 
-router.delete('/:id', 
+router.delete(
+  '/:id',
   openApiDelete(z.string(), {
     description: 'Delete actor by ID'
-  }), 
+  }),
   boundController.deleteActor
 );
 
 // Campaign-specific routes
-router.get('/campaigns/:campaignId/actors', 
+router.get(
+  '/campaigns/:campaignId/actors',
   openApiGet(actorSchema, {
     description: 'Get actors for a specific campaign'
-  }), 
+  }),
   boundController.getActors
 );
 
-export { router as actorRoutes }; 
+export { router as actorRoutes };

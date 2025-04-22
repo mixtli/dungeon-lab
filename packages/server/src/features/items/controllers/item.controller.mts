@@ -1,23 +1,42 @@
 import { Request, Response } from 'express';
 import { AuthenticatedRequest } from '../../../middleware/auth.middleware.mjs';
-import { ItemService } from '../services/item.service.mjs';
+import { ItemService, QueryValue } from '../services/item.service.mjs';
 import { logger } from '../../../utils/logger.mjs';
 
 export class ItemController {
   constructor(private itemService: ItemService) {}
 
   /**
-   * Get all items
+   * Search items with filters or get all items
    * @route GET /api/items
    * @access Public
    */
-  async getAllItems(_: Request, res: Response): Promise<Response | void> {
+  async searchItems(req: Request, res: Response): Promise<Response | void> {
     try {
-      const items = await this.itemService.getAllItems();
+      // Convert dot notation in query params to nested objects, similar to document controller
+      const query = Object.entries(req.query).reduce((acc, [key, value]) => {
+        if (key.includes('.')) {
+          const parts = key.split('.');
+          let current = acc;
+          for (let i = 0; i < parts.length - 1; i++) {
+            if (!(parts[i] in current)) {
+              current[parts[i]] = {};
+            }
+            current = current[parts[i]] as Record<string, unknown>;
+          }
+          current[parts[parts.length - 1]] = value;
+        } else {
+          acc[key] = value;
+        }
+        return acc;
+      }, {} as Record<string, unknown>);
+
+      logger.debug('Search items query parameters:', query);
+      const items = await this.itemService.searchItems(query as Record<string, QueryValue>);
       return res.json(items);
     } catch (error) {
       if (error instanceof Error) {
-        logger.error('Error fetching items:', error);
+        logger.error('Error searching items:', error);
       }
       return res.status(500).json({ message: 'Server error' });
     }
@@ -94,7 +113,15 @@ export class ItemController {
         return res.status(403).json({ message: 'Access denied' });
       }
 
-      const item = await this.itemService.putItem(req.params.id, req.body, req.session.user.id);
+      // Check if an image file was uploaded
+      const file = req.assets?.image?.[0];
+      const item = await this.itemService.putItem(
+        req.params.id,
+        req.body,
+        req.session.user.id,
+        file
+      );
+
       return res.json(item);
     } catch (error) {
       if (error instanceof Error) {
@@ -124,7 +151,15 @@ export class ItemController {
         return res.status(403).json({ message: 'Access denied' });
       }
 
-      const item = await this.itemService.patchItem(req.params.id, req.body, req.session.user.id);
+      // Check if an image file was uploaded
+      const file = req.assets?.image[0];
+      const item = await this.itemService.patchItem(
+        req.params.id,
+        req.body,
+        req.session.user.id,
+        file
+      );
+
       return res.json(item);
     } catch (error) {
       if (error instanceof Error) {
@@ -164,6 +199,61 @@ export class ItemController {
         }
       }
       return res.status(500).json({ message: 'Failed to delete item' });
+    }
+  }
+
+  /**
+   * Upload an image for an item
+   * @route PUT /api/items/:id/image
+   * @access Private
+   */
+  async uploadItemImage(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
+    try {
+      // Get the raw image data from the request body
+      const imageBuffer = req.body as Buffer;
+      const contentType = req.headers['content-type'] || 'image/jpeg';
+
+      if (!imageBuffer || imageBuffer.length === 0) {
+        return res.status(400).json({ message: 'No image data provided' });
+      }
+
+      // Validate content type
+      const validMimes = ['image/jpeg', 'image/png', 'image/webp'];
+      if (!validMimes.includes(contentType)) {
+        return res
+          .status(400)
+          .json({ message: 'Invalid image type. Please upload JPEG, PNG, or WebP' });
+      }
+
+      // Check permission
+      const hasPermission = await this.itemService.checkUserPermission(
+        req.params.id,
+        req.session.user.id,
+        req.session.user.isAdmin
+      );
+
+      if (!hasPermission) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
+
+      // Create a standard File object from the buffer
+      const file = new File([imageBuffer], `item_${Date.now()}.${contentType.split('/')[1]}`, {
+        type: contentType
+      });
+
+      // Update the item with just the new image
+      const item = await this.itemService.updateItemImage(req.params.id, file, req.session.user.id);
+
+      return res.json(item);
+    } catch (error: unknown) {
+      if (error instanceof Error && error.message === 'Item not found') {
+        return res.status(404).json({ message: 'Item not found' });
+      }
+      logger.error('Error in uploadItemImage controller:', error);
+      if (error instanceof Error) {
+        return res.status(500).json({ message: error.message || 'Failed to upload item image' });
+      }
+      return res.status(500).json({ message: 'Failed to upload item image' });
     }
   }
 }

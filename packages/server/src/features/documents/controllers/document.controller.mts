@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import { DocumentService, QueryValue } from '../services/document.service.mjs';
 import { logger } from '../../../utils/logger.mjs';
 import { pluginRegistry } from '../../../services/plugin-registry.service.mjs';
+import { AuthenticatedRequest } from '../../../middleware/auth.middleware.mjs';
+
 export class DocumentController {
   private documentService: DocumentService;
 
@@ -20,10 +22,11 @@ export class DocumentController {
     }
   };
 
-  putDocument = async (req: Request, res: Response): Promise<void> => {
+  putDocument = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
-      const document = await this.documentService.putDocument(id, req.body);
+      const userId = req.session.user.id;
+      const document = await this.documentService.putDocument(id, req.body, userId);
       res.json(document);
     } catch (error) {
       logger.error('Error in putDocument:', error);
@@ -31,10 +34,11 @@ export class DocumentController {
     }
   };
 
-  patchDocument = async (req: Request, res: Response): Promise<void> => {
+  patchDocument = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
-      const document = await this.documentService.patchDocument(id, req.body);
+      const userId = req.session.user.id;
+      const document = await this.documentService.patchDocument(id, req.body, userId);
       res.json(document);
     } catch (error) {
       logger.error('Error in updateDocument:', error);
@@ -51,24 +55,25 @@ export class DocumentController {
       logger.error('Error in deleteDocument:', error);
       res.status(500).json({ error: 'Failed to delete document' });
     }
-  }
+  };
 
-  createDocument = async (req: Request, res: Response): Promise<void> => {
+  createDocument = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
+      const userId = req.session.user.id;
       const plugin = pluginRegistry.getPlugin(req.body.pluginId);
       if (!plugin) {
         res.status(400).json({ error: 'Invalid game system ID' });
-        return
+        return;
       }
       const data = plugin.validateVTTDocumentData(req.body.documentType, req.body.data);
       if (!data.success) {
         res.status(400).json({ error: data.error });
-        return
+        return;
       }
-      const document = await this.documentService.createDocument(req.body);
+      const document = await this.documentService.createDocument(req.body, userId);
       res.json(document);
     } catch (error) {
-      logger.error('Error in createDocument:', error);  
+      logger.error('Error in createDocument:', error);
       res.status(500).json({ error: 'Failed to create document' });
     }
   };
@@ -93,11 +98,13 @@ export class DocumentController {
         return acc;
       }, {} as Record<string, unknown>);
 
-      const documents = await this.documentService.searchDocuments(query as Record<string, QueryValue>);
+      const documents = await this.documentService.searchDocuments(
+        query as Record<string, QueryValue>
+      );
       res.json(documents);
     } catch (error) {
       logger.error('Error in searchDocuments:', error);
       res.status(500).json({ error: 'Failed to search documents' });
     }
   };
-} 
+}

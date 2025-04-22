@@ -27,13 +27,22 @@
     "check": "tsc --noEmit",
     "lint": "eslint src",
     "clean": "rimraf dist",
-    "test": "vitest run"
+    "test": "vitest run",
+    "import:dnd-5e-2024:classes": "tsx ./src/scripts/import-character-classes.mts",
+    "import:dnd-5e-2024:species": "tsx ./src/scripts/import-species.mts",
+    "import:dnd-5e-2024:backgrounds": "tsx ./src/scripts/import-backgrounds.mts",
+    "import:dnd-5e-2024:items": "tsx ./src/scripts/import-items.mts",
+    "import:dnd-5e-2024:monsters": "tsx ./src/scripts/import-monsters.mts",
+    "import:dnd-5e-2024:spells": "tsx ./src/scripts/import-spells.mts",
+    "import:dnd-5e-2024:feats": "tsx ./src/scripts/import-feats.mts",
+    "import:dnd-5e-2024:sample-data": "tsx ./src/scripts/import-sample-data.mts"
   },
   "dependencies": {
     "@dungeon-lab/server": "file:../../server",
     "@dungeon-lab/shared": "file:../../shared",
     "flat": "^6.0.1",
     "handlebars-helpers": "^0.10.0",
+    "node-fetch": "^3.3.2",
     "sprintf-js": "^1.1.3",
     "zod": "^3.22.4"
   },
