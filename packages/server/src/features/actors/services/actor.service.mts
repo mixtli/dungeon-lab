@@ -11,6 +11,9 @@ import {
 } from '../jobs/actor-image.job.mjs';
 import { deepMerge } from '@dungeon-lab/shared/utils/deepMerge.mjs';
 
+// Define a type for actor query values
+export type QueryValue = string | number | boolean | RegExp | Date | object;
+
 export class ActorService {
   async getAllActors(type?: string): Promise<IActor[]> {
     try {
@@ -81,18 +84,7 @@ export class ActorService {
         // Update the actor with the avatar ID
         actor.avatarId = avatarAsset.id;
         await actor.save();
-      } else {
-        // If no avatar file was provided, schedule a background job to generate one
-        logger.info('No avatar provided, scheduling actor avatar generation job');
-
-        await backgroundJobService.scheduleJob('now', ACTOR_AVATAR_GENERATION_JOB, {
-          actorId: actor.id,
-          userId
-        });
-
-        logger.info(`Scheduled actor avatar generation job for actor ${actor.id}`);
       }
-
       // Handle token file if provided
       if (tokenFile) {
         logger.info('Uploading provided actor token');
@@ -103,18 +95,7 @@ export class ActorService {
         // Update the actor with the token ID
         actor.tokenId = tokenAsset.id;
         await actor.save();
-      } else {
-        // If no token file was provided, schedule a background job to generate one
-        logger.info('No token provided, scheduling actor token generation job');
-
-        await backgroundJobService.scheduleJob('now', ACTOR_TOKEN_GENERATION_JOB, {
-          actorId: actor.id,
-          userId
-        });
-
-        logger.info(`Scheduled actor token generation job for actor ${actor.id}`);
       }
-
       // Return the actor with populated avatar and token
       return actor.populate(['avatar', 'token']);
     } catch (error) {
@@ -481,5 +462,31 @@ export class ActorService {
     });
 
     logger.info(`Scheduled token generation job for actor ${actorId}`);
+  }
+
+  /**
+   * Search actors based on query parameters
+   * @param query Query object with search parameters
+   * @returns Array of actors matching the search criteria
+   */
+  async searchActors(query: Record<string, QueryValue>): Promise<IActor[]> {
+    try {
+      // Convert query to case-insensitive regex for string values
+      // Only convert simple string values, not nested paths
+      const mongoQuery = Object.entries(query).reduce((acc, [key, value]) => {
+        if (typeof value === 'string' && !key.includes('.')) {
+          acc[key] = new RegExp(value, 'i');
+        } else {
+          acc[key] = value;
+        }
+        return acc;
+      }, {} as Record<string, QueryValue>);
+
+      const actors = await ActorModel.find(mongoQuery).populate('avatar').populate('token');
+      return actors;
+    } catch (error) {
+      logger.error('Error searching actors:', error);
+      throw new Error('Failed to search actors');
+    }
   }
 }

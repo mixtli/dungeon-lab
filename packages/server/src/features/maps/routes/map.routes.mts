@@ -4,7 +4,14 @@ import { MapService } from '../services/map.service.mjs';
 import { authenticate } from '../../../middleware/auth.middleware.mjs';
 import { validateMultipartRequest } from '../../../middleware/validation.middleware.mjs';
 import { mapCreateSchema, mapSchema } from '@dungeon-lab/shared/schemas/map.schema.mjs';
-import { openApiGet, openApiGetOne, openApiPost, openApiPut, openApiPatch, openApiDelete } from '../../../oapi.mjs';
+import {
+  openApiGet,
+  openApiGetOne,
+  openApiPost,
+  openApiPut,
+  openApiPatch,
+  openApiDelete
+} from '../../../oapi.mjs';
 import { deepPartial } from '@dungeon-lab/shared/utils/deepPartial.mjs';
 import { z } from '../../../utils/zod.mjs';
 import express from 'express';
@@ -24,33 +31,48 @@ const boundController = {
   deleteMap: mapController.deleteMap.bind(mapController),
   generateMapImage: mapController.generateMapImage.bind(mapController),
   uploadMapImage: mapController.uploadMapImage.bind(mapController),
+  searchMaps: mapController.searchMaps.bind(mapController)
 };
 
 // Routes
 router.use(authenticate);
 
-router.get('/', openApiGet(mapSchema, {
-  description: 'Get all maps'
-}), boundController.getAllMaps);
+router.get(
+  '/',
+  openApiGet(mapSchema, {
+    description: 'Search for maps based on query parameters'
+  }),
+  boundController.searchMaps
+);
 
-router.get('/campaigns/:campaignId', openApiGet(mapSchema, {
-  description: 'Get maps for a campaign'
-}), boundController.getMaps);
+router.get(
+  '/campaigns/:campaignId',
+  openApiGet(mapSchema, {
+    description: 'Get maps for a campaign'
+  }),
+  boundController.getMaps
+);
 
-router.get('/:id', openApiGetOne(mapSchema, {
-  description: 'Get map by ID'
-}), boundController.getMap);
+router.get(
+  '/:id',
+  openApiGetOne(mapSchema, {
+    description: 'Get map by ID'
+  }),
+  boundController.getMap
+);
 
-router.post('/',
+router.post(
+  '/',
   openApiPost(mapCreateSchema, {
     description: 'Create new map'
-  }), 
+  }),
   validateMultipartRequest(mapCreateSchema, 'image'),
   boundController.createMap
 );
 
 // Upload a binary map image
-router.put('/:id/image', 
+router.put(
+  '/:id/image',
   express.raw({
     type: ['image/jpeg', 'image/png', 'image/webp'],
     limit: '10mb'
@@ -64,23 +86,29 @@ router.put('/:id/image',
         'image/webp': { schema: { type: 'string', format: 'binary' } }
       }
     }
-  }), 
+  }),
   boundController.uploadMapImage
 );
 
-router.post('/:id/generate-image', openApiPost(z.object({}), {
-  description: 'Generate map image'
-}), boundController.generateMapImage);
+router.post(
+  '/:id/generate-image',
+  openApiPost(z.object({}), {
+    description: 'Generate map image'
+  }),
+  boundController.generateMapImage
+);
 
-router.put('/:id', 
-  openApiPut(mapSchema, {
+router.put(
+  '/:id',
+  openApiPut(mapCreateSchema, {
     description: 'Replace map (full update)'
   }),
-  validateMultipartRequest(mapSchema, 'image'),
+  validateMultipartRequest(mapCreateSchema, 'image'),
   boundController.putMap
 );
 
-router.patch('/:id', 
+router.patch(
+  '/:id',
   openApiPatch(deepPartial(mapSchema), {
     description: 'Update map (partial update)'
   }),
@@ -88,8 +116,12 @@ router.patch('/:id',
   boundController.patchMap
 );
 
-router.delete('/:id', openApiDelete(z.string(), {
-  description: 'Delete map'
-}), boundController.deleteMap);
+router.delete(
+  '/:id',
+  openApiDelete(z.string(), {
+    description: 'Delete map'
+  }),
+  boundController.deleteMap
+);
 
-export const mapRoutes = router; 
+export const mapRoutes = router;

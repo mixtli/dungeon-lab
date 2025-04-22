@@ -6,20 +6,38 @@ import { logger } from '../../../utils/logger.mjs';
 import { pluginRegistry } from '../../../services/plugin-registry.service.mjs';
 import { deepMerge } from '@dungeon-lab/shared/utils/deepMerge.mjs';
 
+// Define a type for campaign query values
+export type QueryValue = string | number | boolean | RegExp | Date | object;
+
 export class CampaignService {
-  async getMyCampaigns(userId: string): Promise<ICampaign[]> {
+  async getMyCampaigns(
+    userId: string,
+    query: Record<string, QueryValue> = {}
+  ): Promise<ICampaign[]> {
     try {
       const userObjectId = new Types.ObjectId(userId);
 
       // First get all actors belonging to the user
       const userActors = await ActorModel.find({ createdBy: userObjectId });
-      const actorIds = userActors.map(actor => actor._id);
+      const actorIds = userActors.map((actor) => actor._id);
+
+      // Convert query to case-insensitive regex for string values
+      // Only convert simple string values, not nested paths
+      const mongoQuery = Object.entries(query).reduce((acc, [key, value]) => {
+        if (typeof value === 'string' && !key.includes('.')) {
+          acc[key] = new RegExp(value, 'i');
+        } else {
+          acc[key] = value;
+        }
+        return acc;
+      }, {} as Record<string, QueryValue>);
 
       // Find campaigns where user is either the GM or has a character as a member
+      // AND apply any additional search filters
       const campaigns = await CampaignModel.find({
-        $or: [
-          { gameMasterId: userObjectId },
-          { members: { $in: actorIds } }
+        $and: [
+          { $or: [{ gameMasterId: userObjectId }, { members: { $in: actorIds } }] },
+          mongoQuery // Add the search query as an additional filter
         ]
       }).exec();
 
@@ -46,7 +64,7 @@ export class CampaignService {
   async createCampaign(data: ICampaign, userId: string): Promise<ICampaign> {
     try {
       const userObjectId = new Types.ObjectId(userId);
-      
+
       // Initialize with empty members array - members will be added later as actors
       const campaignData = {
         ...data,
@@ -78,11 +96,9 @@ export class CampaignService {
         updatedBy: userObjectId
       };
 
-      const updatedCampaign = await CampaignModel.findByIdAndUpdate(
-        id,
-        updateData,
-        { new: true }
-      ).exec();
+      const updatedCampaign = await CampaignModel.findByIdAndUpdate(id, updateData, {
+        new: true
+      }).exec();
 
       if (!updatedCampaign) {
         throw new Error('Campaign not found');
@@ -107,7 +123,11 @@ export class CampaignService {
     }
   }
 
-  async checkUserPermission(campaignId: string, userId: string, isAdmin: boolean): Promise<boolean> {
+  async checkUserPermission(
+    campaignId: string,
+    userId: string,
+    isAdmin: boolean
+  ): Promise<boolean> {
     try {
       const campaign = await CampaignModel.findById(campaignId).exec();
       if (!campaign) {
@@ -117,10 +137,10 @@ export class CampaignService {
       // Check if user is GM or has a character in the campaign
       const userObjectId = new Types.ObjectId(userId);
       const userActors = await ActorModel.find({ createdBy: userObjectId });
-      const actorIds = userActors.map(actor => actor._id.toString());
+      const actorIds = userActors.map((actor) => actor._id.toString());
 
       const isGM = campaign.gameMasterId?.toString() === userId;
-      const hasCharacter = campaign.members.some(memberId => 
+      const hasCharacter = campaign.members.some((memberId) =>
         actorIds.includes(memberId.toString())
       );
 
@@ -147,12 +167,10 @@ export class CampaignService {
       // Get all actors belonging to the user
       const userObjectId = new Types.ObjectId(userId);
       const userActors = await ActorModel.find({ createdBy: userObjectId });
-      const actorIds = userActors.map(actor => actor._id.toString());
+      const actorIds = userActors.map((actor) => actor._id.toString());
 
       // Check if any of the user's actors are members of the campaign
-      const isMember = campaign.members.some(memberId => 
-        actorIds.includes(memberId.toString())
-      );
+      const isMember = campaign.members.some((memberId) => actorIds.includes(memberId.toString()));
 
       return isMember;
     } catch (error) {
@@ -164,11 +182,7 @@ export class CampaignService {
   /**
    * Replace an entire campaign (PUT)
    */
-  async putCampaign(
-    id: string,
-    data: ICampaign,
-    userId: string
-  ): Promise<ICampaign> {
+  async putCampaign(id: string, data: ICampaign, userId: string): Promise<ICampaign> {
     try {
       const campaign = await CampaignModel.findById(id);
       if (!campaign) {
@@ -180,7 +194,7 @@ export class CampaignService {
         ...data,
         updatedBy: userId
       });
-      
+
       await campaign.save();
       return campaign;
     } catch (error) {
@@ -192,11 +206,7 @@ export class CampaignService {
   /**
    * Partially update a campaign (PATCH)
    */
-  async patchCampaign(
-    id: string,
-    data: Partial<ICampaign>,
-    userId: string
-  ): Promise<ICampaign> {
+  async patchCampaign(id: string, data: Partial<ICampaign>, userId: string): Promise<ICampaign> {
     try {
       const campaign = await CampaignModel.findById(id);
       if (!campaign) {
@@ -209,7 +219,7 @@ export class CampaignService {
         ...data,
         updatedBy: userId
       };
-      
+
       campaign.set(deepMerge(obj, updateData));
       await campaign.save();
       return campaign;
@@ -218,4 +228,4 @@ export class CampaignService {
       throw error;
     }
   }
-} 
+}

@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { AuthenticatedRequest } from '../../../middleware/auth.middleware.mjs';
-import { ActorService } from '../services/actor.service.mjs';
+import { ActorService, QueryValue } from '../services/actor.service.mjs';
 import { logger } from '../../../utils/logger.mjs';
 import { pluginRegistry } from '../../../services/plugin-registry.service.mjs';
 // import { uploadAssets } from '../../../utils/asset-upload.utils.mjs';
@@ -83,6 +83,7 @@ export class ActorController {
       const result = plugin.validateActorData(req.body.type, data);
 
       if (!result.success) {
+        console.log(result.error);
         return res.status(400).json({ message: result.error });
       }
 
@@ -93,7 +94,7 @@ export class ActorController {
         avatarFile,
         tokenFile
       );
-      
+
       return res.status(201).json(actor);
     } catch (error) {
       if (error instanceof Error) {
@@ -124,7 +125,7 @@ export class ActorController {
       // Get avatar and token files from req.assets if present
       const avatarFile = req.assets?.avatar?.[0];
       const tokenFile = req.assets?.token?.[0];
-      
+
       // Update the actor using the service
       const actor = await this.actorService.putActor(
         req.params.id,
@@ -167,7 +168,7 @@ export class ActorController {
       // Get avatar and token files from req.assets if present
       const avatarFile = req.assets?.avatar?.[0];
       const tokenFile = req.assets?.token?.[0];
-      
+
       // Patch the actor using the service
       const actor = await this.actorService.patchActor(
         req.params.id,
@@ -210,7 +211,7 @@ export class ActorController {
       // Get the raw image data from the request body
       const imageBuffer = req.body as Buffer;
       const contentType = req.headers['content-type'] || 'image/jpeg';
-      
+
       if (!imageBuffer || imageBuffer.length === 0) {
         return res.status(400).json({ message: 'No image data provided' });
       }
@@ -218,15 +219,15 @@ export class ActorController {
       // Validate content type
       const validMimes = ['image/jpeg', 'image/png', 'image/webp'];
       if (!validMimes.includes(contentType)) {
-        return res.status(400).json({ message: 'Invalid image type. Please upload JPEG, PNG, or WebP' });
+        return res
+          .status(400)
+          .json({ message: 'Invalid image type. Please upload JPEG, PNG, or WebP' });
       }
 
       // Create a standard File object from the buffer
-      const file = new File(
-        [imageBuffer], 
-        `avatar_${Date.now()}.${contentType.split('/')[1]}`, 
-        { type: contentType }
-      );
+      const file = new File([imageBuffer], `avatar_${Date.now()}.${contentType.split('/')[1]}`, {
+        type: contentType
+      });
 
       // Update the actor with just the new avatar
       const actor = await this.actorService.updateActorAvatar(
@@ -234,7 +235,7 @@ export class ActorController {
         file,
         req.session.user.id
       );
-      
+
       return res.json(actor);
     } catch (error) {
       if (error instanceof Error) {
@@ -268,7 +269,7 @@ export class ActorController {
       // Get the raw image data from the request body
       const imageBuffer = req.body as Buffer;
       const contentType = req.headers['content-type'] || 'image/png';
-      
+
       if (!imageBuffer || imageBuffer.length === 0) {
         return res.status(400).json({ message: 'No image data provided' });
       }
@@ -276,15 +277,15 @@ export class ActorController {
       // Validate content type
       const validMimes = ['image/jpeg', 'image/png', 'image/webp'];
       if (!validMimes.includes(contentType)) {
-        return res.status(400).json({ message: 'Invalid image type. Please upload JPEG, PNG, or WebP' });
+        return res
+          .status(400)
+          .json({ message: 'Invalid image type. Please upload JPEG, PNG, or WebP' });
       }
 
       // Create a standard File object from the buffer
-      const file = new File(
-        [imageBuffer], 
-        `token_${Date.now()}.${contentType.split('/')[1]}`, 
-        { type: contentType }
-      );
+      const file = new File([imageBuffer], `token_${Date.now()}.${contentType.split('/')[1]}`, {
+        type: contentType
+      });
 
       // Update the actor with just the new token
       const actor = await this.actorService.updateActorToken(
@@ -292,7 +293,7 @@ export class ActorController {
         file,
         req.session.user.id
       );
-      
+
       return res.json(actor);
     } catch (error) {
       if (error instanceof Error) {
@@ -395,4 +396,39 @@ export class ActorController {
       return res.status(500).json({ message: 'Failed to delete actor' });
     }
   }
-} 
+
+  /**
+   * Search actors based on query parameters
+   * @route GET /api/actors/search
+   * @access Public
+   */
+  async searchActors(req: Request, res: Response): Promise<Response | void> {
+    try {
+      // Convert dot notation in query params to nested objects
+      const query = Object.entries(req.query).reduce((acc, [key, value]) => {
+        if (key.includes('.')) {
+          const parts = key.split('.');
+          let current = acc;
+          for (let i = 0; i < parts.length - 1; i++) {
+            if (!(parts[i] in current)) {
+              current[parts[i]] = {};
+            }
+            current = current[parts[i]] as Record<string, unknown>;
+          }
+          current[parts[parts.length - 1]] = value;
+        } else {
+          acc[key] = value;
+        }
+        return acc;
+      }, {} as Record<string, unknown>);
+
+      const actors = await this.actorService.searchActors(query as Record<string, QueryValue>);
+      return res.json(actors);
+    } catch (error) {
+      if (error instanceof Error) {
+        logger.error('Error in searchActors:', error);
+      }
+      return res.status(500).json({ message: 'Failed to search actors' });
+    }
+  }
+}

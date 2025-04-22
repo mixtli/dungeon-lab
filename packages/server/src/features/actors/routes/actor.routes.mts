@@ -35,34 +35,23 @@ const boundController = {
   uploadActorAvatar: actorController.uploadActorAvatar.bind(actorController),
   uploadActorToken: actorController.uploadActorToken.bind(actorController),
   generateActorAvatar: actorController.generateActorAvatar.bind(actorController),
-  generateActorToken: actorController.generateActorToken.bind(actorController)
+  generateActorToken: actorController.generateActorToken.bind(actorController),
+  searchActors: actorController.searchActors.bind(actorController)
 };
 
 // Public routes
 router.get(
   '/',
   openApiGet(actorSchema, {
-    description: 'Get all actors',
-    parameters: [
-      {
-        name: 'type',
-        in: 'query',
-        required: false,
-        schema: {
-          type: 'string',
-          enum: ['character', 'npc']
-        },
-        description: 'Filter actors by type'
-      }
-    ]
+    description: 'Search for actors based on query parameters'
   }),
-  boundController.getAllActors
+  boundController.searchActors
 );
 
 router.get(
   '/:id',
   openApiGetOne(actorSchema, {
-    description: 'Get actor by ID'
+    description: 'Get an actor by ID'
   }),
   boundController.getActorById
 );

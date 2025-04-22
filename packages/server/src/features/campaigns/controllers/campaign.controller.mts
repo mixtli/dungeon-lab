@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { AuthenticatedRequest } from '../../../middleware/auth.middleware.mjs';
-import { CampaignService } from '../services/campaign.service.mjs';
+import { CampaignService, QueryValue } from '../services/campaign.service.mjs';
 import { logger } from '../../../utils/logger.mjs';
 
 // Custom error type guard
@@ -18,7 +18,28 @@ export class CampaignController {
 
   async getMyCampaigns(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
     try {
-      const campaigns = await this.campaignService.getMyCampaigns(req.session.user.id);
+      // Convert dot notation in query params to nested objects
+      const query = Object.entries(req.query).reduce((acc, [key, value]) => {
+        if (key.includes('.')) {
+          const parts = key.split('.');
+          let current = acc;
+          for (let i = 0; i < parts.length - 1; i++) {
+            if (!(parts[i] in current)) {
+              current[parts[i]] = {};
+            }
+            current = current[parts[i]] as Record<string, unknown>;
+          }
+          current[parts[parts.length - 1]] = value;
+        } else {
+          acc[key] = value;
+        }
+        return acc;
+      }, {} as Record<string, unknown>);
+
+      const campaigns = await this.campaignService.getMyCampaigns(
+        req.session.user.id,
+        query as Record<string, QueryValue>
+      );
       return res.json(campaigns);
     } catch (error) {
       logger.error('Error getting campaigns:', error);
@@ -29,7 +50,7 @@ export class CampaignController {
   async getCampaign(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
     try {
       const campaign = await this.campaignService.getCampaign(req.params.id);
-      
+
       // Check if user has access to this campaign
       const hasAccess = await this.campaignService.checkUserPermission(
         req.params.id,
@@ -66,7 +87,6 @@ export class CampaignController {
 
   async putCampaign(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
     try {
-      
       // Check if user has permission to update
       const hasAccess = await this.campaignService.checkUserPermission(
         req.params.id,
@@ -96,7 +116,6 @@ export class CampaignController {
 
   async patchCampaign(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
     try {
-      
       // Check if user has permission to update
       const hasAccess = await this.campaignService.checkUserPermission(
         req.params.id,
@@ -147,4 +166,4 @@ export class CampaignController {
       return res.status(500).json({ message: 'Failed to delete campaign' });
     }
   }
-} 
+}

@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { AuthenticatedRequest } from '../../../middleware/auth.middleware.mjs';
-import { MapService } from '../services/map.service.mjs';
+import { MapService, QueryValue } from '../services/map.service.mjs';
 import { logger } from '../../../utils/logger.mjs';
 
 export class MapController {
@@ -43,14 +43,10 @@ export class MapController {
     try {
       // Get the image file from req.assets
       const imageFile = req.assets?.image?.[0];
-      
+
       // Create the map using the service
-      const map = await this.mapService.createMap(
-        req.body,
-        req.session.user.id,
-        imageFile
-      );
-      
+      const map = await this.mapService.createMap(req.body, req.session.user.id, imageFile);
+
       return res.status(201).json(map);
     } catch (error: unknown) {
       logger.error('Error in createMap controller:', error);
@@ -68,7 +64,7 @@ export class MapController {
     try {
       // Get image file from req.assets if present
       const imageFile = req.assets?.image?.[0];
-      
+
       // Update the map using the service
       const map = await this.mapService.putMap(
         req.params.id,
@@ -76,7 +72,7 @@ export class MapController {
         req.session.user.id,
         imageFile
       );
-      
+
       return res.json(map);
     } catch (error: unknown) {
       if (error instanceof Error && error.message === 'Map not found') {
@@ -97,7 +93,7 @@ export class MapController {
     try {
       // Get image file from req.assets if present
       const imageFile = req.assets?.image?.[0];
-      
+
       // Patch the map using the service
       const map = await this.mapService.patchMap(
         req.params.id,
@@ -105,7 +101,7 @@ export class MapController {
         req.session.user.id,
         imageFile
       );
-      
+
       return res.json(map);
     } catch (error: unknown) {
       if (error instanceof Error && error.message === 'Map not found') {
@@ -150,7 +146,7 @@ export class MapController {
       // Get the raw image data from the request body
       const imageBuffer = req.body as Buffer;
       const contentType = req.headers['content-type'] || 'image/jpeg';
-      
+
       if (!imageBuffer || imageBuffer.length === 0) {
         return res.status(400).json({ message: 'No image data provided' });
       }
@@ -158,23 +154,19 @@ export class MapController {
       // Validate content type
       const validMimes = ['image/jpeg', 'image/png', 'image/webp'];
       if (!validMimes.includes(contentType)) {
-        return res.status(400).json({ message: 'Invalid image type. Please upload JPEG, PNG, or WebP' });
+        return res
+          .status(400)
+          .json({ message: 'Invalid image type. Please upload JPEG, PNG, or WebP' });
       }
 
       // Create a standard File object from the buffer
-      const file = new File(
-        [imageBuffer], 
-        `map_${Date.now()}.${contentType.split('/')[1]}`, 
-        { type: contentType }
-      );
+      const file = new File([imageBuffer], `map_${Date.now()}.${contentType.split('/')[1]}`, {
+        type: contentType
+      });
 
       // Update the map with just the new image
-      const map = await this.mapService.updateMapImage(
-        req.params.id,
-        file,
-        req.session.user.id
-      );
-      
+      const map = await this.mapService.updateMapImage(req.params.id, file, req.session.user.id);
+
       return res.json(map);
     } catch (error: unknown) {
       if (error instanceof Error && error.message === 'Map not found') {
@@ -187,4 +179,37 @@ export class MapController {
       return res.status(500).json({ message: 'Failed to upload map image' });
     }
   }
-} 
+
+  /**
+   * Search maps based on query parameters
+   * @route GET /api/maps/search
+   * @access Public
+   */
+  async searchMaps(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
+    try {
+      // Convert dot notation in query params to nested objects
+      const query = Object.entries(req.query).reduce((acc, [key, value]) => {
+        if (key.includes('.')) {
+          const parts = key.split('.');
+          let current = acc;
+          for (let i = 0; i < parts.length - 1; i++) {
+            if (!(parts[i] in current)) {
+              current[parts[i]] = {};
+            }
+            current = current[parts[i]] as Record<string, unknown>;
+          }
+          current[parts[parts.length - 1]] = value;
+        } else {
+          acc[key] = value;
+        }
+        return acc;
+      }, {} as Record<string, unknown>);
+
+      const maps = await this.mapService.searchMaps(query as Record<string, QueryValue>);
+      return res.json(maps);
+    } catch (error) {
+      logger.error('Error in searchMaps:', error);
+      return res.status(500).json({ message: 'Failed to search maps' });
+    }
+  }
+}

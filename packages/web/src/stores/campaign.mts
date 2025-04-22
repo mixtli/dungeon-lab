@@ -13,7 +13,7 @@ export const useCampaignStore = defineStore('campaign', () => {
 
   // Getters
   const myCampaigns = computed(() => campaigns.value);
-  const getCampaignById = (id: string) => campaigns.value.find(c => c.id === id);
+  const getCampaignById = (id: string) => campaigns.value.find((c) => c.id === id);
 
   // Actions
   async function fetchCampaigns() {
@@ -46,17 +46,18 @@ export const useCampaignStore = defineStore('campaign', () => {
     try {
       const response = await api.get(`/api/campaigns/${id}`);
       currentCampaign.value = response.data;
-      
+
       // Also update in the campaigns list if it exists
-      const index = campaigns.value.findIndex(c => c.id === id);
+      const index = campaigns.value.findIndex((c) => c.id === id);
       if (index !== -1) {
         campaigns.value[index] = response.data;
       }
-      
+
       return currentCampaign.value;
     } catch (err: unknown) {
       if (err instanceof AxiosError) {
-        error.value = err.response?.data?.message || err.message || `Failed to fetch campaign ${id}`;
+        error.value =
+          err.response?.data?.message || err.message || `Failed to fetch campaign ${id}`;
       } else if (err instanceof Error) {
         error.value = err.message || `Failed to fetch campaign ${id}`;
       } else {
@@ -101,22 +102,23 @@ export const useCampaignStore = defineStore('campaign', () => {
     try {
       const response = await api.put(`/api/campaigns/${id}`, campaignData);
       const updatedCampaign = response.data as ICampaign;
-      
+
       // Update in campaigns list
-      const index = campaigns.value.findIndex(c => c.id === id);
+      const index = campaigns.value.findIndex((c) => c.id === id);
       if (index !== -1) {
         campaigns.value[index] = updatedCampaign;
       }
-      
+
       // Update current campaign if it's the one being edited
       if (currentCampaign.value?.id === id) {
         currentCampaign.value = updatedCampaign;
       }
-      
+
       return updatedCampaign;
     } catch (err: unknown) {
       if (err instanceof AxiosError) {
-        error.value = err.response?.data?.message || err.message || `Failed to update campaign ${id}`;
+        error.value =
+          err.response?.data?.message || err.message || `Failed to update campaign ${id}`;
       } else if (err instanceof Error) {
         error.value = err.message || `Failed to update campaign ${id}`;
       } else {
@@ -135,19 +137,20 @@ export const useCampaignStore = defineStore('campaign', () => {
 
     try {
       await api.delete(`/api/campaigns/${id}`);
-      
+
       // Remove from campaigns list
-      campaigns.value = campaigns.value.filter(c => c.id !== id);
-      
+      campaigns.value = campaigns.value.filter((c) => c.id !== id);
+
       // Clear current campaign if it's the one being deleted
       if (currentCampaign.value?.id === id) {
         currentCampaign.value = null;
       }
-      
+
       return true;
     } catch (err: unknown) {
       if (err instanceof AxiosError) {
-        error.value = err.response?.data?.message || err.message || `Failed to delete campaign ${id}`;
+        error.value =
+          err.response?.data?.message || err.message || `Failed to delete campaign ${id}`;
       } else if (err instanceof Error) {
         error.value = err.message || `Failed to delete campaign ${id}`;
       } else {
@@ -188,11 +191,11 @@ export const useCampaignStore = defineStore('campaign', () => {
     currentCampaign,
     loading,
     error,
-    
+
     // Getters
     myCampaigns,
     getCampaignById,
-    
+
     // Actions
     fetchCampaigns,
     fetchCampaign,
@@ -201,4 +204,4 @@ export const useCampaignStore = defineStore('campaign', () => {
     deleteCampaign,
     sendInvite
   };
-}); 
+});

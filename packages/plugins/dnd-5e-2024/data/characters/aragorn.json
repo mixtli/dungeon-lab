@@ -24,7 +24,7 @@
       "hitDiceType": "d8"
     }
   ],
-  "alignment": "lawful good",
+  "alignment": "lawful-good",
   "speed": 30,
   "experiencePoints": 0,
   "proficiencyBonus": 2,

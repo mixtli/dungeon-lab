@@ -35,7 +35,9 @@
     "import:dnd-5e-2024:monsters": "tsx ./src/scripts/import-monsters.mts",
     "import:dnd-5e-2024:spells": "tsx ./src/scripts/import-spells.mts",
     "import:dnd-5e-2024:feats": "tsx ./src/scripts/import-feats.mts",
-    "import:dnd-5e-2024:sample-data": "tsx ./src/scripts/import-sample-data.mts"
+    "import:dnd-5e-2024:characters": "tsx ./src/scripts/import-characters.mts",
+    "import:dnd-5e-2024:maps": "tsx ./src/scripts/import-maps.mts",
+    "import:dnd-5e-2024:campaigns": "tsx ./src/scripts/import-campaigns.mts"
   },
   "dependencies": {
     "@dungeon-lab/server": "file:../../server",
