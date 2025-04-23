@@ -14,7 +14,9 @@ import { z } from 'zod';
 const router = Router();
 const documentController = new DocumentController();
 import { deepPartial } from '@dungeon-lab/shared/utils/deepPartial.mjs';
+import { authenticate } from '../../../middleware/auth.middleware.mjs';
 
+router.use(authenticate);
 // Get a single document by ID
 router.get(
   '/:id',

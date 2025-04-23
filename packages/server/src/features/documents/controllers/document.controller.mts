@@ -67,14 +67,14 @@ export class DocumentController {
       }
       const data = plugin.validateVTTDocumentData(req.body.documentType, req.body.data);
       if (!data.success) {
-        res.status(400).json({ error: data.error });
+        res.status(400).json(JSON.parse(data.error.message));
         return;
       }
       const document = await this.documentService.createDocument(req.body, userId);
       res.json(document);
     } catch (error) {
       logger.error('Error in createDocument:', error);
-      res.status(500).json({ error: 'Failed to create document' });
+      res.status(500).json({ error: 'Failed to create document ' + error });
     }
   };
 

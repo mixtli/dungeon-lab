@@ -37,7 +37,15 @@
     "import:users": "npm run import:users --workspace=@dungeon-lab/server",
     "import:characters": "npm run import:characters --workspace=@dungeon-lab/plugin-dnd-5e-2024",
     "import:maps": "npm run import:maps --workspace=@dungeon-lab/plugin-dnd-5e-2024",
-    "import:campaigns": "npm run import:campaigns --workspace=@dungeon-lab/plugin-dnd-5e-2024"
+    "import:campaigns": "npm run import:campaigns --workspace=@dungeon-lab/plugin-dnd-5e-2024",
+    "import:classes": "npm run import:classes --workspace=@dungeon-lab/plugin-dnd-5e-2024",
+    "import:species": "npm run import:species --workspace=@dungeon-lab/plugin-dnd-5e-2024",
+    "import:backgrounds": "npm run import:backgrounds --workspace=@dungeon-lab/plugin-dnd-5e-2024",
+    "import:feats": "npm run import:feats --workspace=@dungeon-lab/plugin-dnd-5e-2024",
+    "import:monsters": "npm run import:monsters --workspace=@dungeon-lab/plugin-dnd-5e-2024",
+    "import:spells": "npm run import:spells --workspace=@dungeon-lab/plugin-dnd-5e-2024",
+    "import:items": "npm run import:items --workspace=@dungeon-lab/plugin-dnd-5e-2024",
+    "import:all": "npm run import:users && npm run import:characters && npm run import:maps && npm run import:campaigns && npm run import:classes && npm run import:species && npm run import:backgrounds && npm run import:feats && npm run import:monsters && npm run import:spells && npm run import:items"
   },
   "keywords": [
     "vtt",
