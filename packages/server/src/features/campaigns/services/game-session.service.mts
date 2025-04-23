@@ -3,16 +3,14 @@ import { IGameSession } from '@dungeon-lab/shared/index.mjs';
 import { GameSessionModel } from '../models/game-session.model.mjs';
 import { CampaignModel } from '../models/campaign.model.mjs';
 import { logger } from '../../../utils/logger.mjs';
+import { CampaignService } from './campaign.service.mjs';
 
 export class GameSessionService {
   async getGameSessions(userId: string): Promise<IGameSession[]> {
     try {
       const userObjectId = new Types.ObjectId(userId);
       const sessions = await GameSessionModel.find({
-        $or: [
-          { gameMasterId: userObjectId },
-          { participants: userObjectId }
-        ]
+        $or: [{ gameMasterId: userObjectId }, { participants: userObjectId }]
       }).exec();
       return sessions;
     } catch (error) {
@@ -47,7 +45,7 @@ export class GameSessionService {
   async createGameSession(data: IGameSession, userId: string): Promise<IGameSession> {
     try {
       const userObjectId = new Types.ObjectId(userId);
-      
+
       // Verify campaign exists
       const campaign = await CampaignModel.findById(data.campaignId).exec();
       if (!campaign) {
@@ -75,7 +73,11 @@ export class GameSessionService {
     }
   }
 
-  async updateGameSession(id: string, data: Partial<IGameSession>, userId: string): Promise<IGameSession> {
+  async updateGameSession(
+    id: string,
+    data: Partial<IGameSession>,
+    userId: string
+  ): Promise<IGameSession> {
     try {
       const userObjectId = new Types.ObjectId(userId);
       const updateData = {
@@ -83,11 +85,9 @@ export class GameSessionService {
         updatedBy: userObjectId
       };
 
-      const updatedSession = await GameSessionModel.findByIdAndUpdate(
-        id,
-        updateData,
-        { new: true }
-      ).exec();
+      const updatedSession = await GameSessionModel.findByIdAndUpdate(id, updateData, {
+        new: true
+      }).exec();
 
       if (!updatedSession) {
         throw new Error('Game session not found');
@@ -119,14 +119,19 @@ export class GameSessionService {
         throw new Error('Game session not found');
       }
 
+      const campaignService = new CampaignService();
+      const isCampaignMember = await campaignService.isUserCampaignMember(
+        session.campaignId,
+        userId
+      );
       // Check if user is GM or participant
       const isGM = session.gameMasterId?.toString() === userId;
-      const isParticipant = session.participants.some(p => p.toString() === userId);
+      const isParticipant = session.participants.some((p) => p.toString() === userId);
 
-      return isGM || isParticipant || isAdmin;
+      return isGM || isCampaignMember || isParticipant || isAdmin;
     } catch (error) {
       logger.error('Error checking game session permission:', error);
       throw new Error('Failed to check game session permission');
     }
   }
-} 
+}

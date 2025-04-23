@@ -173,6 +173,15 @@ function handleSessionCreated() {
             </p>
           </div>
         </div>
+
+        <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="bg-gray-50 p-4 rounded-lg shadow-sm">
+            <h3 class="text-sm uppercase text-gray-500 font-medium">Game Master</h3>
+            <p class="mt-1 text-gray-900">
+              {{ (campaign as any).gameMaster?.username || 'Unknown' }}
+            </p>
+          </div>
+        </div>
       </div>
 
       <!-- Campaign Content -->

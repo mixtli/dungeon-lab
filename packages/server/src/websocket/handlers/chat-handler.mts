@@ -14,6 +14,7 @@ export async function handleChatMessage(
   socket: AuthenticatedSocket,
   message: IMessage
 ): Promise<void> {
+  console.log('handleChatMessage', message);
   try {
     if (!socket.sessionId) {
       socket.emit('error', { message: 'Not in a game session' });
@@ -66,9 +67,11 @@ export async function handleChatMessage(
           return;
         }
         sockets = await io.in(socket.sessionId).fetchSockets();
-        gmSocket = sockets.find(s => {
+        gmSocket = sockets.find((s) => {
           const authSocket = s as unknown as RemoteAuthenticatedSocket;
-          return campaign.gameMasterId && authSocket.data.userId === campaign.gameMasterId.toString();
+          return (
+            campaign.gameMasterId && authSocket.data.userId === campaign.gameMasterId.toString()
+          );
         });
         if (gmSocket) {
           (gmSocket as unknown as RemoteAuthenticatedSocket).emit('message', message);
@@ -82,7 +85,7 @@ export async function handleChatMessage(
       default:
         // Direct message to specific user
         targetSockets = await io.in(socket.sessionId).fetchSockets();
-        targetSocket = targetSockets.find(s => {
+        targetSocket = targetSockets.find((s) => {
           const authSocket = s as unknown as RemoteAuthenticatedSocket;
           return authSocket.data.userId === message.recipient;
         });
@@ -98,4 +101,4 @@ export async function handleChatMessage(
     console.error('Error handling chat message:', error);
     socket.emit('error', { message: 'Failed to process chat message' });
   }
-} 
+}

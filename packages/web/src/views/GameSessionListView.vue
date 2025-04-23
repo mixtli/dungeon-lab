@@ -45,8 +45,8 @@ const futureSessions = computed(() =>
     })
 );
 
-function joinSession(sessionId: string) {
-  router.push({ name: 'game-session', params: { id: sessionId } });
+function joinSession(sessionId: string, campaignId: string) {
+  router.push({ name: 'game-session', params: { id: sessionId, campaignId } });
 }
 
 function formatTime(isoString: string) {
@@ -93,7 +93,7 @@ function formatTime(isoString: string) {
                 </p>
               </div>
               <button
-                @click="joinSession(session.id)"
+                @click="joinSession(session.id, session.campaignId)"
                 class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
               >
                 Join Session

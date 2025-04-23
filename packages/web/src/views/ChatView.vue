@@ -188,6 +188,7 @@ async function updateParticipants() {
 onMounted(async () => {
   // Join the game session
   if (route.params.id) {
+    console.log('joining session', route.params.id);  
     socketStore.socket?.emit('join-session', route.params.id);
   }
 

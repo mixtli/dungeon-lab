@@ -114,6 +114,8 @@ async function importCampaigns(): Promise<void> {
         existingCampaign = searchResponse.data.find(
           (c: { id: string; name: string }) => c.name === campaignData.name
         );
+        console.log(searchResponse.data);
+        console.log(existingCampaign);
       } catch (error) {
         console.warn(`Error checking if campaign '${campaignData.name}' exists:`, error);
       }

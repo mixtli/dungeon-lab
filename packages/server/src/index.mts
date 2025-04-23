@@ -1,4 +1,3 @@
-
 import './utils/setup_debug_logging.js';
 import { createServer } from 'http';
 import mongoose from 'mongoose';
@@ -10,7 +9,6 @@ import { backgroundJobService } from './services/background-job.service.mjs';
 import { initializeJobs } from './jobs/index.mjs';
 import { logger } from './utils/logger.mjs';
 import { createSocketServer } from './websocket/socket-server.mjs';
-
 
 console.log('Starting server...');
 
@@ -30,7 +28,7 @@ async function startServer() {
     console.log('CLIENT_URL:', config.clientUrl);
     console.log('NODE_ENV:', process.env.NODE_ENV);
     console.log('==========================');
-    
+
     // Connect to MongoDB
     await mongoose.connect(config.mongoUri);
     console.log('Connected to MongoDB');
@@ -48,15 +46,15 @@ async function startServer() {
     // Initialize background job service
     await backgroundJobService.initialize();
     logger.info('Background job service initialized');
-    
+
     // Initialize and register background jobs
     await initializeJobs();
 
     // Create HTTP server
     const httpServer = createServer(app);
-    
+
     // Initialize Socket.IO server
-    createSocketServer(httpServer);
+    const io = createSocketServer(httpServer);
     console.log('Socket.IO server initialized');
 
     // Start listening
@@ -69,6 +67,9 @@ async function startServer() {
       logger.info('SIGTERM received. Shutting down...');
       await backgroundJobService.shutdown();
       await pluginRegistry.cleanupAll();
+      await mongoose.disconnect();
+      io.close();
+      console.log('Socket.IO server closed');
       httpServer.close(() => {
         logger.info('Server closed');
         process.exit(0);
@@ -80,4 +81,4 @@ async function startServer() {
   }
 }
 
-startServer(); 
+startServer();

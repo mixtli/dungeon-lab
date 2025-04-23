@@ -1,5 +1,5 @@
 import { Types } from 'mongoose';
-import { ICampaign } from '@dungeon-lab/shared/index.mjs';
+import { ICampaign, IUser } from '@dungeon-lab/shared/index.mjs';
 import { CampaignModel } from '../models/campaign.model.mjs';
 import { ActorModel } from '../../actors/models/actor.model.mjs';
 import { logger } from '../../../utils/logger.mjs';
@@ -32,15 +32,21 @@ export class CampaignService {
         }
         return acc;
       }, {} as Record<string, QueryValue>);
+      const user = await UserModel.findById(userId);
 
-      // Find campaigns where user is either the GM or has a character as a member
-      // AND apply any additional search filters
-      const campaigns = await CampaignModel.find({
-        $and: [
-          { $or: [{ gameMasterId: userObjectId }, { members: { $in: actorIds } }] },
-          mongoQuery // Add the search query as an additional filter
-        ]
-      }).exec();
+      let campaigns: ICampaign[] = [];
+      if (user?.isAdmin) {
+        campaigns = await CampaignModel.find().exec();
+      } else {
+        // Find campaigns where user is either the GM or has a character as a member
+        // AND apply any additional search filters
+        campaigns = await CampaignModel.find({
+          $and: [
+            { $or: [{ gameMasterId: userObjectId }, { members: { $in: actorIds } }] },
+            mongoQuery // Add the search query as an additional filter
+          ]
+        }).exec();
+      }
 
       return campaigns;
     } catch (error) {
@@ -51,7 +57,10 @@ export class CampaignService {
 
   async getCampaign(id: string): Promise<ICampaign> {
     try {
-      const campaign = await CampaignModel.findById(id).exec();
+      //const campaign = await CampaignModel.findById(id).populate('gameMaster').exec();
+      const campaign = await CampaignModel.findById(id)
+        .populate('gameMaster', 'username displayName')
+        .exec();
       if (!campaign) {
         throw new Error('Campaign not found');
       }
@@ -61,6 +70,22 @@ export class CampaignService {
       throw new Error('Failed to get campaign');
     }
   }
+
+  async getCampaignUsers(campaignId: string): Promise<IUser[]> {
+    const campaign = await CampaignModel.findById(campaignId).populate('members').exec();
+    if (!campaign) {
+      throw new Error('Campaign not found');
+    }
+    const actors = await ActorModel.find({ _id: { $in: campaign.members } });
+    const usersPromises = actors.map(async (actor) => await UserModel.findById(actor.createdBy));
+    const users = await Promise.all(usersPromises);
+    return users.filter((user) => user !== null);
+  }
+
+  // async isUserCampaignMember(campaignId: string, userId: string): Promise<boolean> {
+  //   const users = await this.getCampaignUsers(campaignId);
+  //   return users.some((user) => user.id === userId);
+  // }
 
   async createCampaign(data: ICampaign, userId: string): Promise<ICampaign> {
     try {

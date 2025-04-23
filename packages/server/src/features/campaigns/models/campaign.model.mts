@@ -18,5 +18,15 @@ mongooseSchema.path('members').get(function (value: ObjectId[]) {
 mongooseSchema.path('members').set(function (value: string[]) {
   return value.map((p: string) => new mongoose.Types.ObjectId(p));
 });
+mongooseSchema.path('gameMasterId').set(function (value: string) {
+  return new mongoose.Types.ObjectId(value);
+});
+
+mongooseSchema.virtual('gameMaster', {
+  ref: 'User',
+  localField: 'gameMasterId',
+  foreignField: '_id',
+  justOne: true
+});
 
 export const CampaignModel = mongoose.model<ICampaign>('Campaign', mongooseSchema);

@@ -11,6 +11,7 @@ import { AuthenticatedSocket } from './types.mjs';
 import { logger } from '../utils/logger.mjs';
 import { Socket } from 'socket.io';
 import { sessionMiddleware } from '../app.mjs';
+import { GameSessionModel } from '../features/campaigns/index.mjs';
 
 // Define a type for the session with user information
 interface SessionWithUser {
@@ -37,7 +38,7 @@ export function createSocketServer(httpServer: HttpServer): Server {
     // Now socket.request.session is available
     const request = socket.request as { session?: SessionWithUser };
     const session = request.session;
-    
+
     if (session?.user?.id) {
       (socket as AuthenticatedSocket).userId = session.user.id;
       logger.debug(`Socket authenticated for user: ${session.user.id}`);
@@ -48,11 +49,22 @@ export function createSocketServer(httpServer: HttpServer): Server {
     }
   });
 
+  const handleJoinSession = async (io: Server, socket: AuthenticatedSocket, sessionId: string) => {
+    console.log('join-session', sessionId);
+    const session = await GameSessionModel.findById(sessionId).exec();
+    if (!session) {
+      throw new Error('Session not found');
+    }
+    socket.join(sessionId);
+  };
+
   io.on('connection', (rawSocket: Socket) => {
     const socket = rawSocket as AuthenticatedSocket;
     logger.info(`Client connected: ${socket.id} (${socket.userId})`);
 
-    socket.on('chat:message', (message) => handleChatMessage(io, socket, message));
+    socket.on('message', (message) => console.log('message', message));
+    socket.on('join-session', (sessionId: string) => handleJoinSession(io, socket, sessionId));
+    socket.on('chat', (message) => handleChatMessage(io, socket, message));
     socket.on('dice:roll', (message) => handleDiceRoll(io, socket, message));
     socket.on('plugin:action', (message) => handlePluginAction(io, socket, message));
     socket.on('game:stateUpdate', (message) => handleGameStateUpdate(io, socket, message));
@@ -67,4 +79,4 @@ export function createSocketServer(httpServer: HttpServer): Server {
   });
 
   return io;
-} 
+}
