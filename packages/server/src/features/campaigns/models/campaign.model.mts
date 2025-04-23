@@ -7,15 +7,16 @@ import { z } from '../../../utils/zod.mjs';
 
 const campaignSchemaMongoose = campaignSchema.merge(baseMongooseZodSchema).extend({
   members: z.array(zId('Actor')),
-})
+  gameMasterId: zId('User')
+});
 
 const mongooseSchema = createMongoSchema<ICampaign>(campaignSchemaMongoose);
 
-mongooseSchema.path('members').get(function(value: ObjectId[]) {
+mongooseSchema.path('members').get(function (value: ObjectId[]) {
   return value.map((p: ObjectId) => p.toString());
 });
-mongooseSchema.path('members').set(function(value: string[]) {
+mongooseSchema.path('members').set(function (value: string[]) {
   return value.map((p: string) => new mongoose.Types.ObjectId(p));
 });
 
-export const CampaignModel = mongoose.model<ICampaign>('Campaign', mongooseSchema); 
+export const CampaignModel = mongoose.model<ICampaign>('Campaign', mongooseSchema);

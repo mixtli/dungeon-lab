@@ -3,6 +3,7 @@ import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import axios from 'axios';
 import fs from 'fs';
+import { nextUser } from './import-utils.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -36,7 +37,6 @@ interface MapData {
   description?: string;
   columns: number;
   rows: number;
-  campaignId?: string;
   [key: string]: unknown;
 }
 
@@ -78,8 +78,7 @@ async function importMapsViaAPI() {
         await api.put(`/api/maps/${mapId}`, {
           name: mapData.name,
           description: mapData.description || '',
-          gridColumns: mapData.columns,
-          campaignId: mapData.campaignId
+          gridColumns: mapData.columns
         });
       } else {
         // Create new map
@@ -88,7 +87,7 @@ async function importMapsViaAPI() {
           name: mapData.name,
           description: mapData.description || '',
           gridColumns: mapData.columns,
-          campaignId: mapData.campaignId
+          createdBy: nextUser.next()
         });
 
         mapId = createResponse.data.id;

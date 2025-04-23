@@ -10,22 +10,13 @@ import { backgroundJobService } from '../../../services/background-job.service.m
 import { MAP_IMAGE_GENERATION_JOB, MAP_THUMBNAIL_GENERATION_JOB } from '../jobs/map-image.job.mjs';
 import { deepMerge } from '@dungeon-lab/shared/utils/deepMerge.mjs';
 import { Types } from 'mongoose';
+import { UserModel } from '../../../models/user.model.mjs';
 
 // Define a type for map query values
 export type QueryValue = string | number | boolean | RegExp | Date | object;
 
 export class MapService {
   constructor() {}
-
-  async getMapsForCampaign(campaignId: string): Promise<IMap[]> {
-    try {
-      const maps = await MapModel.find({ campaignId }).populate('image').populate('thumbnail');
-      return maps;
-    } catch (error) {
-      logger.error('Error getting maps:', error);
-      throw new Error('Failed to get maps');
-    }
-  }
 
   async getMap(id: string): Promise<IMap> {
     try {
@@ -57,6 +48,10 @@ export class MapService {
         createdBy: userId,
         updatedBy: userId
       };
+      const user = await UserModel.findById(userId);
+      if (user?.isAdmin && data.createdBy) {
+        mapData.createdBy = data.createdBy;
+      }
 
       // Create map in database to get an ID
       const map = await MapModel.create(mapData);
@@ -66,7 +61,7 @@ export class MapService {
         logger.info('Uploading provided map image');
 
         // Create asset using the new method
-        const imageAsset = await createAsset(imageFile, 'uploads/maps', userId);
+        const imageAsset = await createAsset(imageFile, 'maps', userId);
 
         // Update the map with the image ID
         map.imageId = imageAsset.id;
@@ -142,7 +137,7 @@ export class MapService {
       const thumbnailFile = new File([thumbnailBuffer], thumbnailFilename, { type: mimeType });
 
       // Create the asset
-      return await createAsset(thumbnailFile, 'uploads/thumbnails', userId);
+      return await createAsset(thumbnailFile, 'thumbnails', userId);
     } catch (error) {
       logger.error('Error generating thumbnail:', error);
       throw new Error('Failed to generate thumbnail');
@@ -257,7 +252,7 @@ export class MapService {
         logger.info(`Updating map ${id} with new image`);
 
         // Create asset using the new method
-        const newImageAsset = await createAsset(imageFile, 'uploads/maps', userId);
+        const newImageAsset = await createAsset(imageFile, 'maps', userId);
 
         // Delete the old image asset if it exists and is different
         if (existingMap.imageId && existingMap.imageId.toString() !== newImageAsset.id.toString()) {
@@ -325,7 +320,7 @@ export class MapService {
       }
 
       // Create the asset
-      const newImageAsset = await createAsset(file, 'uploads/maps', userId);
+      const newImageAsset = await createAsset(file, 'maps', userId);
 
       // Delete the old image asset if it exists and is different
       if (existingMap.imageId && existingMap.imageId.toString() !== newImageAsset.id.toString()) {

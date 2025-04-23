@@ -46,14 +46,6 @@ router.get(
 );
 
 router.get(
-  '/campaigns/:campaignId',
-  openApiGet(mapSchema, {
-    description: 'Get maps for a campaign'
-  }),
-  boundController.getMaps
-);
-
-router.get(
   '/:id',
   openApiGetOne(mapSchema, {
     description: 'Get map by ID'

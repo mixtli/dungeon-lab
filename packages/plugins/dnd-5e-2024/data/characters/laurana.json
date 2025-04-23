@@ -25,7 +25,7 @@
     }
   ],
   "xp": 0,
-  "alignment": "neutral good",
+  "alignment": "neutral-good",
   "speed": {
     "Walk": 30
   },
@@ -50,9 +50,7 @@
     "dex": true
   },
   "languages": ["Common"],
-  "background": {
-    "name": ""
-  },
+  "background": "Noble",
   "details": {
     "personality": "",
     "ideal": "",

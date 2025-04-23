@@ -10,20 +10,29 @@ const users = [
     password: 'password',
     displayName: 'Admin',
     isAdmin: true,
+    apiKey: '3c185b285d615ae21de877fcf31b46b8b903a48333525527d5be767c7ef68860'
+  },
+  {
+    username: 'test1',
+    email: 'test1@dungeonlab.com',
+    password: 'password',
+    displayName: 'Test User 1'
+  },
+  {
+    username: 'test2',
+    email: 'test2@dungeonlab.com',
+    password: 'password',
+    displayName: 'Test User 2'
   }
-]
+];
 
-async function createUser(userData: typeof users[number]) {
+async function createUser(userData: (typeof users)[number]) {
   try {
-    // Connect to MongoDB
-    await mongoose.connect(config.mongoUri);
-    logger.info('Connected to MongoDB');
-
     // Check if admin user already exists
     const existingUser = await UserModel.findOne({ email: userData.email });
     if (existingUser) {
       logger.info('User already exists');
-      process.exit(0);
+      return;
     }
 
     // Create user
@@ -32,7 +41,8 @@ async function createUser(userData: typeof users[number]) {
       email: userData.email,
       password: userData.password,
       displayName: userData.displayName,
-      isAdmin: true,
+      apiKey: userData.apiKey,
+      isAdmin: userData.isAdmin,
       preferences: {
         theme: 'system',
         language: 'en',
@@ -45,12 +55,24 @@ async function createUser(userData: typeof users[number]) {
       username: user.username,
       email: user.email
     });
-
-    process.exit(0);
   } catch (error) {
-    logger.error('Error creating admin user:', error);
-    process.exit(1);
+    logger.error('Error creating user:', error);
+    throw error;
   }
 }
 
-users.forEach(createUser);
+async function main() {
+  // Connect to MongoDB
+  await mongoose.connect(config.mongoUri);
+  logger.info('Connected to MongoDB');
+
+  for (const user of users) {
+    await createUser(user);
+  }
+
+  // Disconnect from MongoDB
+  await mongoose.disconnect();
+  logger.info('Disconnected from MongoDB');
+}
+
+main();

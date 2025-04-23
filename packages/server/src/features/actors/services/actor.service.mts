@@ -10,6 +10,7 @@ import {
   ACTOR_TOKEN_GENERATION_JOB
 } from '../jobs/actor-image.job.mjs';
 import { deepMerge } from '@dungeon-lab/shared/utils/deepMerge.mjs';
+import { UserModel } from '../../../models/user.model.mjs';
 
 // Define a type for actor query values
 export type QueryValue = string | number | boolean | RegExp | Date | object;
@@ -70,6 +71,12 @@ export class ActorService {
         createdBy: userObjectId,
         updatedBy: userObjectId
       };
+
+      // This allows admins to create actors for other users
+      const user = await UserModel.findById(userId);
+      if (user?.isAdmin && data.createdBy) {
+        actorData.createdBy = new Types.ObjectId(data.createdBy);
+      }
 
       // Create actor in database to get an ID
       const actor = await ActorModel.create(actorData);
@@ -293,7 +300,7 @@ export class ActorService {
       }
 
       // Create the asset
-      const newAvatarAsset = await createAsset(file, 'actors', userId);
+      const newAvatarAsset = await createAsset(file, 'actors/avatars', userId);
 
       // Delete the old avatar asset if it exists and is different
       if (

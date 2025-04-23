@@ -84,7 +84,7 @@ export class ActorController {
 
       if (!result.success) {
         console.log(result.error);
-        return res.status(400).json({ message: result.error });
+        return res.status(400).json(JSON.parse(result.error.message));
       }
 
       // Create the actor using the service

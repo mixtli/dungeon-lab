@@ -5,6 +5,7 @@ import { ActorModel } from '../../actors/models/actor.model.mjs';
 import { logger } from '../../../utils/logger.mjs';
 import { pluginRegistry } from '../../../services/plugin-registry.service.mjs';
 import { deepMerge } from '@dungeon-lab/shared/utils/deepMerge.mjs';
+import { UserModel } from '../../../models/user.model.mjs';
 
 // Define a type for campaign query values
 export type QueryValue = string | number | boolean | RegExp | Date | object;
@@ -68,16 +69,24 @@ export class CampaignService {
       // Initialize with empty members array - members will be added later as actors
       const campaignData = {
         ...data,
-        gameMasterId: userObjectId,
-        members: [], // Starting with empty members array
-        createdBy: userObjectId,
-        updatedBy: userObjectId
+        gameMasterId: userObjectId.toString(),
+        createdBy: userObjectId.toString(),
+        updatedBy: userObjectId.toString()
       };
 
       // Validate that the game system exists
       const gameSystem = pluginRegistry.getGameSystemPlugin(campaignData.gameSystemId.toString());
       if (!gameSystem) {
         throw new Error('Invalid game system');
+      }
+      const user = await UserModel.findById(userId);
+      if (user?.isAdmin) {
+        if (data.createdBy) {
+          campaignData.createdBy = data.createdBy;
+        }
+        if (data.gameMasterId) {
+          campaignData.gameMasterId = data.gameMasterId;
+        }
       }
 
       const campaign = await CampaignModel.create(campaignData);

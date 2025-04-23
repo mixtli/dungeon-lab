@@ -1,52 +1,38 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { readFile, readdir } from 'fs/promises';
 import { join, dirname } from 'path';
-import mongoose from 'mongoose';
-import { VTTDocument } from '@dungeon-lab/server/src/features/documents/models/vtt-document.model.mjs';
-import { pluginRegistry } from '@dungeon-lab/server/src/services/plugin-registry.service.mjs';
 import config from '../../manifest.json' with { type: 'json' };
 import type { IVTTDocument } from '@dungeon-lab/shared/schemas/vtt-document.schema.mjs';
 import fetch from 'node-fetch';
 import * as mimeTypes from 'mime-types';
 import { fileURLToPath } from 'url';
-
+import axios from 'axios';
+import { IUser } from '@dungeon-lab/shared/schemas/user.schema.mjs';
 // Get the current file's directory in ESM
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-/**
- * Connect to MongoDB
- * @returns Promise that resolves when connected
- */
-export async function connectToDatabase(): Promise<void> {
-  // Initialize plugin registry so the VTTDocument model can validate plugin IDs
-  pluginRegistry.initialize();
-  console.log('Plugin registry initialized');
-  
-  await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/dungeon-lab');
-  console.log('Connected to MongoDB');
+interface ActorData {
+  name: string;
+  type: string;
+  pluginId: string;
+  gameSystemId: string;
+  data: any;
+  token?: string;
 }
 
-/**
- * Disconnect from MongoDB
- * @returns Promise that resolves when disconnected
- */
-export async function disconnectFromDatabase(): Promise<void> {
-  await mongoose.connection.close();
-  console.log('MongoDB connection closed');
+interface ItemData {
+  name: string;
+  type: string;
+  image?: string;
+  description?: string;
+  weight?: number;
+  cost?: number;
+  data: any;
+  pluginId: string;
+  gameSystemId: string;
 }
 
-/**
- * Find the first user to use as creator/updater ID
- * @returns Promise that resolves to user ID
- */
-export async function getFirstUserId(): Promise<string> {
-  const User = mongoose.connection.collection('users');
-  const firstUser = await User.findOne({});
-  const userId = firstUser ? firstUser._id.toString() : 'system';
-  console.log(`Using user ID: ${userId} for import operations`);
-  return userId;
-}
 
 /**
  * Read and parse a JSON file from the 5etools data directory
@@ -198,275 +184,6 @@ async function processClassFiles(directory: string, filePattern: string): Promis
   };
 }
 
-/**
- * Check if a document already exists in the database
- * @param documentType Type of document to check
- * @param name Name of the document to check
- * @returns Promise that resolves to the existing document or null
- */
-export async function findExistingDocument(documentType: string, name: string): Promise<any> {
-  return VTTDocument.findOne({
-    pluginId: config.id,
-    documentType,
-    'data.name': name
-  });
-}
-
-/**
- * Update an existing document in the database
- * @param document Existing document to update
- * @param data New data to save
- * @param userId User ID to attribute the update to
- * @returns Promise that resolves when the document is saved
- */
-export async function updateDocument(document: any, data: any, userId: string): Promise<void> {
-  // Update document fields
-  document.data = data;
-  document.updatedBy = userId;
-  
-  // Save to trigger validators
-  await document.save();
-}
-
-/**
- * Create a new document in the database
- * @param documentType Type of document to create
- * @param name Name of the document
- * @param data Data to save
- * @param userId User ID to attribute creation to
- * @returns Promise that resolves when the document is created
- */
-export async function createDocument(documentType: string, name: string, data: any, userId: string): Promise<void> {
-  const document = new VTTDocument({
-    documentType,
-    pluginId: config.id,
-    name,
-    data,
-    createdBy: userId,
-    updatedBy: userId
-  });
-  
-  // Save to trigger validators
-  await document.save();
-}
-
-interface ActorData {
-  name: string;
-  type: string;
-  pluginId: string;
-  gameSystemId: string;
-  data: any;
-  token?: string;
-}
-
-interface ItemData {
-  name: string;
-  type: string;
-  image?: string;
-  description?: string;
-  weight?: number;
-  cost?: number;
-  data: any;
-  pluginId: string;
-  gameSystemId: string;
-}
-
-export async function runImport<T>({
-  documentType,
-  dataFile,
-  dataKey,
-  converter,
-  sourceFilter,
-  dirPath,
-  isActor = false,
-  isItem = false
-}: {
-  documentType: string;
-  dataFile: string;
-  dataKey: string;
-  converter: (data: any) => Promise<T | ActorData | ItemData | IVTTDocument> | (T | ActorData | ItemData | IVTTDocument);
-  sourceFilter?: string | ((source: string) => boolean);
-  dirPath: string;
-  isActor?: boolean;
-  isItem?: boolean;
-}): Promise<void> {
-  try {
-    // Connect to database
-    await connectToDatabase();
-    
-    // Get user ID
-    const userId = await getFirstUserId();
-    
-    // Read data file
-    const data = await read5eToolsData(dirPath, dataFile);
-    
-    // Extract items array
-    const items = data[dataKey] || [];
-    //console.log(`Found ${items.length} ${documentType} entries in source file`);
-    
-    // Filter items by source if a filter is provided
-    const filteredItems = sourceFilter 
-      ? items.filter((item: any) => {
-          if (typeof sourceFilter === 'function') {
-            return sourceFilter(item.source);
-          }
-          return item.source === sourceFilter;
-        })
-      : items;
-    
-    const sourceDescription = sourceFilter 
-      ? (typeof sourceFilter === 'function' ? 'filtered' : sourceFilter) 
-      : 'all';
-    console.log(`Found ${filteredItems.length} ${sourceDescription} ${documentType} entries to import`);
-    
-    // Stats for reporting
-    let created = 0;
-    let updated = 0;
-    let skipped = 0;
-    let errors = 0;
-    
-    // Process each item
-    for (const item of filteredItems) {
-      try {
-        // Convert the item
-        const convertedData = await Promise.resolve(converter(item));
-        
-        if (!convertedData) {
-          console.log(`No valid data for ${documentType}: ${item.name}`);
-          skipped++;
-          continue;
-        }
-
-        if (isItem) {
-          // Handle item import
-          const { ItemModel } = await import('@dungeon-lab/server/src/features/items/models/item.model.mjs');
-          const itemData = convertedData as ItemData;
-          const existingItem = await ItemModel.findOne({
-            name: itemData.name,
-            type: itemData.type,
-            pluginId: itemData.pluginId
-          });
-
-          if (existingItem) {
-            // Update fields and save to trigger validation
-            Object.assign(existingItem, {
-              ...itemData,
-              updatedBy: userId
-            });
-            await existingItem.save();
-            console.log(`Updated ${documentType}: ${item.name}`);
-            updated++;
-          } else {
-            // Create new item and save to trigger validation
-            const newItem = new ItemModel({
-              ...itemData,
-              createdBy: userId,
-              updatedBy: userId
-            });
-            await newItem.save();
-            console.log(`Created ${documentType}: ${item.name}`);
-            created++;
-          }
-        } else if (isActor) {
-          // Handle actor import
-          const { ActorModel } = await import('@dungeon-lab/server/src/features/actors/models/actor.model.mjs');
-          const actorData = convertedData as ActorData;
-          const existingActor = await ActorModel.findOne({
-            name: actorData.name,
-            type: actorData.type,
-            pluginId: actorData.pluginId
-          });
-
-          if (existingActor) {
-            // Update fields and save to trigger validation
-            Object.assign(existingActor, {
-              ...actorData,
-              updatedBy: userId
-            });
-            await existingActor.save();
-            console.log(`Updated ${documentType}: ${item.name}`);
-            updated++;
-          } else {
-            // Create new actor and save to trigger validation
-            const newActor = new ActorModel({
-              ...actorData,
-              createdBy: userId,
-              updatedBy: userId
-            });
-            await newActor.save();
-            console.log(`Created ${documentType}: ${item.name}`);
-            created++;
-          }
-        } else {
-          // Handle VTTDocument import with save() to trigger validation
-          const existingDoc = await VTTDocument.findOne({
-            pluginId: config.id,
-            documentType,
-            name: item.name
-          });
-
-          console.log(`Checking for existing ${documentType}: ${item.name}`);
-          
-          // Check if convertedData has a structure with both data and description properties
-          interface DataWithDescription {
-            data: any;
-            description?: string;
-          }
-          
-          const hasDataStructure = convertedData && 
-            typeof convertedData === 'object' && 
-            'data' in convertedData && 
-            typeof (convertedData as DataWithDescription).data !== 'undefined';
-            
-          const documentData = hasDataStructure ? (convertedData as DataWithDescription).data : convertedData;
-          const documentDescription = hasDataStructure 
-            ? (convertedData as DataWithDescription).description || ''
-            : (convertedData as IVTTDocument).description || '';
-          
-          if (existingDoc) {
-            console.log(`Found existing document with id: ${existingDoc._id}`);
-            // Update existing document and save
-            existingDoc.name = item.name;
-            existingDoc.data = documentData;
-            existingDoc.description = documentDescription;
-            existingDoc.updatedBy = userId;
-            await existingDoc.save();
-            console.log(`Updated ${documentType}: ${item.name}`);
-            updated++;
-          } else {
-            // Create new document and save
-            const newDoc = new VTTDocument({
-              pluginId: config.id,
-              documentType,
-              name: item.name,
-              data: documentData,
-              description: documentDescription,
-              createdBy: userId,
-              updatedBy: userId
-            });
-            await newDoc.save();
-            console.log(`Created ${documentType}: ${item.name}`);
-            created++;
-          }
-        }
-      } catch (error) {
-        console.error(`Error processing ${documentType} ${item.name}:`, (error as Error).stack);
-        errors++;
-      }
-    }
-    
-    // Print import summary
-    console.log('\nImport Summary:');
-    console.log(`- Created: ${created} new ${documentType} entries`);
-    console.log(`- Updated: ${updated} existing ${documentType} entries`);
-    console.log(`- Skipped: ${skipped} ${documentType} entries`);
-    console.log(`- Errors: ${errors} ${documentType} entries`);
-    
-  } finally {
-    // Always disconnect from database
-    await disconnectFromDatabase();
-  }
-}
 
 /**
  * Delete all documents of a specific type for a plugin through the REST API
@@ -941,3 +658,40 @@ export async function runImportViaAPI<T>({
     console.error("Fatal error during import:", error);
   }
 } 
+
+const api = axios.create({
+  baseURL: 'http://localhost:3000',
+  headers: {
+    'Content-Type': 'application/json'
+  }
+});
+
+async function getAllUsers() {
+  const authToken = process.env.API_AUTH_TOKEN;
+  const response = await api.get('/api/users', {
+    headers: {
+      'Authorization': `Bearer ${authToken}`
+    }
+  });
+  return response.data as IUser[];
+}
+    
+const userResponse  = await getAllUsers()
+console.log(userResponse);
+const users = userResponse.filter((user) => !user.isAdmin);
+console.log(users);
+function getNextUser() {
+  // generator to return the next user.  Loop back to the first user after the last one
+  let currentIndex = 0;
+  return {
+    next: () => {
+      const user = users[currentIndex];
+      currentIndex = (currentIndex + 1) % users.length;
+      return user.id;
+    }
+  };
+}
+export const nextUser = getNextUser();
+for(let i=0; i<20; i++) {
+  console.log(nextUser.next());
+}

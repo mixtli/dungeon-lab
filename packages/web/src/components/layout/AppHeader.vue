@@ -122,13 +122,6 @@ function goToChat() {
               >
                 Asset Library
               </RouterLink>
-              <RouterLink
-                v-if="authStore.isAuthenticated"
-                to="/file-upload-demo"
-                class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600"
-              >
-                File Upload
-              </RouterLink>
               <template v-if="authStore.isAuthenticated && authStore.user?.isAdmin">
                 <div class="border-t border-gray-200 dark:border-gray-600 my-1"></div>
                 <RouterLink

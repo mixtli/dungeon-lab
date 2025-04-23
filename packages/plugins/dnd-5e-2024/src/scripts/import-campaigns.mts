@@ -2,6 +2,7 @@ import axios from 'axios';
 import { readFileSync, readdirSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
+import { nextUser } from './import-utils.mjs';
 
 // Get the directory path
 const __filename = fileURLToPath(import.meta.url);
@@ -38,10 +39,11 @@ let currentUserId: string;
 async function getUserInfo(): Promise<void> {
   // Get current user info to use as game master
   const userResponse = await api.get('/api/auth/me');
-  currentUserId = userResponse.data.id;
+  currentUserId = userResponse.data.data.id;
   console.log(`Current user ID: ${currentUserId}`);
 
   if (!currentUserId) {
+    console.error(userResponse.data);
     throw new Error('Failed to get current user ID');
   }
 }
@@ -135,12 +137,11 @@ async function importCampaigns(): Promise<void> {
       }
 
       // Prepare campaign object for API
-      const campaignApiData = {
+      const campaignApiData: Record<string, unknown> = {
         name: campaignData.name,
         description: campaignData.description || '',
         gameSystemId: 'dnd-5e-2024',
         members: actorIds,
-        gameMasterId: currentUserId,
         status: 'active',
         setting: campaignData.setting || '',
         startDate: campaignData.start_date || new Date().toISOString()
@@ -152,7 +153,11 @@ async function importCampaigns(): Promise<void> {
         await api.put(`/api/campaigns/${existingCampaign.id}`, campaignApiData);
         console.log(`Campaign '${campaignData.name}' updated successfully`);
       } else {
+        const u = nextUser.next();
+        campaignApiData.createdBy = u;
+        campaignApiData.gameMasterId = u;
         console.log(`Creating new campaign: ${campaignData.name}`);
+        console.log(campaignApiData);
         const response = await api.post('/api/campaigns', campaignApiData);
         console.log(`Campaign '${campaignData.name}' created with ID ${response.data.id}`);
       }

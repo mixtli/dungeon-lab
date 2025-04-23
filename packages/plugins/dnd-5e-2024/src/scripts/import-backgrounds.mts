@@ -1,46 +1,29 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { runImportViaAPI, deleteDocumentsViaAPI } from './import-utils.mjs';
+import { runImportViaAPI } from './import-utils.mjs';
 import { convert5eToolsBackground } from './convert-5etools-background.mjs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
-import config from '../../manifest.json' with { type: 'json' };
 
 // Get the current file's directory in ESM
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-/**
- * Clear existing background documents for clean import using the REST API
- * @param apiBaseUrl Base URL for the API, defaults to localhost:3000
- * @param authToken Optional authentication token
- * @returns Promise that resolves when deletion is complete
- */
-async function _clearExistingBackgroundsViaAPI(apiBaseUrl = 'http://localhost:3000', authToken?: string): Promise<number> {
-  try {
-    console.log("Using REST API to clear existing background documents");
-    
-    const deletedCount = await deleteDocumentsViaAPI('background', config.id, apiBaseUrl, authToken);
-    
-    return deletedCount;
-  } catch (error) {
-    console.error("Error clearing existing backgrounds:", error);
-    return 0;
-  }
-}
-
 // Run the import if this script is run directly
-if (import.meta.url === (typeof document === 'undefined' ? new URL('file:' + process.argv[1]).href : undefined)) {
+if (
+  import.meta.url ===
+  (typeof document === 'undefined' ? new URL('file:' + process.argv[1]).href : undefined)
+) {
   const dataPath = join(__dirname, '../../data');
-  
+
   // Configure the API base URL and auth token from environment variables
   const apiBaseUrl = process.env.API_BASE_URL || 'http://localhost:3000';
   const authToken = process.env.API_AUTH_TOKEN; // Optional
-  
+
   // Display initial configuration
   console.log(`Using API URL: ${apiBaseUrl}`);
   console.log(`Authentication: ${authToken ? 'Enabled' : 'Disabled'}`);
-  
+
   // Load fluff data before running the import
   const loadFluffData = async () => {
     try {
@@ -55,20 +38,20 @@ if (import.meta.url === (typeof document === 'undefined' ? new URL('file:' + pro
 
   // Run the import with fluff data
   loadFluffData()
-    .then(fluffData => {
+    .then((fluffData) => {
       // First clear existing backgrounds - commented out as per requirements
       // return clearExistingBackgroundsViaAPI(apiBaseUrl, authToken).then(() => {
-        return runImportViaAPI({
-          documentType: 'background',
-          dataFile: 'backgrounds.json',
-          dataKey: 'background',
-          converter: (data) => convert5eToolsBackground(data, fluffData),
-          sourceFilter: 'XPHB',
-          dirPath: dataPath,
-          apiBaseUrl,
-          authToken
-        });
+      return runImportViaAPI({
+        documentType: 'background',
+        dataFile: 'backgrounds.json',
+        dataKey: 'background',
+        converter: (data) => convert5eToolsBackground(data, fluffData),
+        sourceFilter: 'XPHB',
+        dirPath: dataPath,
+        apiBaseUrl,
+        authToken
+      });
       // });
     })
     .catch(console.error);
-} 
+}

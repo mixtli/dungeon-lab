@@ -3,6 +3,7 @@ import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import axios from 'axios';
 import fs from 'fs';
+import { nextUser } from './import-utils.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -405,7 +406,8 @@ async function importCharactersViaAPI() {
           type: 'character',
           gameSystemId: 'dnd-5e-2024',
           data: characterData,
-          userData: { uuid: charData.id }
+          userData: { uuid: charData.id },
+          createdBy: nextUser.next()
         });
       } else {
         // Create new character
@@ -416,7 +418,8 @@ async function importCharactersViaAPI() {
           type: 'character',
           gameSystemId: 'dnd-5e-2024',
           data: characterData,
-          userData: { uuid: charData.id }
+          userData: { uuid: charData.id },
+          createdBy: nextUser.next()
         });
 
         actorId = createResponse.data.id;
@@ -503,7 +506,7 @@ async function importCharactersViaAPI() {
 
       console.log(`Successfully processed character: ${charData.name}`);
     } catch (error) {
-      console.error(`Error processing character data for ${charFile}:`, error);
+      console.error(`Error processing character data for ${charFile}:`, (error as Error).message);
     }
   }
 }

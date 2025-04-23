@@ -85,49 +85,6 @@
       "modifier": 2
     }
   },
-  "equipment": {
-    "weapons": [
-      {
-        "name": "Battleaxe",
-        "damage": {
-          "diceCount": 1,
-          "diceType": 8,
-          "type": "slashing",
-          "modifier": 3
-        },
-        "properties": ["versatile"],
-        "versatileDamage": {
-          "diceCount": 1,
-          "diceType": 10,
-          "type": "slashing",
-          "modifier": 3
-        }
-      },
-      {
-        "name": "Handaxe",
-        "damage": {
-          "diceCount": 1,
-          "diceType": 6,
-          "type": "slashing",
-          "modifier": 3
-        },
-        "properties": ["light", "thrown"],
-        "range": {
-          "normal": 20,
-          "long": 60
-        }
-      }
-    ],
-    "armor": [
-      {
-        "name": "Chain Mail",
-        "type": "heavy",
-        "baseAC": 16,
-        "stealthDisadvantage": true
-      }
-    ],
-    "other": ["Explorer's Pack", "Shield", "10 throwing axes", "50 feet of rope"]
-  },
   "features": [
     {
       "name": "Darkvision",

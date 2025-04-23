@@ -13,21 +13,14 @@ import { campaignRoutes, gameSessionRoutes, inviteRoutes } from './features/camp
 import documentRoutes from './features/documents/routes/document.routes.mjs';
 import assetRoutes from './features/assets/index.mjs';
 import { oapi } from './oapi.mjs';
-
-// Define type interfaces for our routes and middleware
-type ErrorHandlerMiddleware = (
-  err: Error,
-  req: express.Request,
-  res: express.Response,
-  next: express.NextFunction
-) => void;
+import userRoutes from './features/users/routes/user.routes.mjs';
+import { errorHandler } from './middleware/error.middleware.mjs';
 
 // Route handlers and middleware
 let authRoutes: Router;
 let storageRoutes: Router;
 let pluginRoutes: Router;
 let healthRoutes: Router;
-let errorHandler: ErrorHandlerMiddleware;
 
 // Create and export the session middleware for reuse
 export const sessionMiddleware = session({
@@ -55,14 +48,12 @@ async function initializeRoutes() {
     const storageRoutesModule = await import('./routes/storage.routes.mjs');
     const pluginRoutesModule = await import('./routes/plugin.routes.mjs');
     const healthRoutesModule = await import('./routes/health.routes.mjs');
-    const { errorHandler: errorHandlerImport } = await import('./middleware/error.middleware.mjs');
 
     // Get the router instances from each module
     authRoutes = authRoutesModule.default;
     storageRoutes = storageRoutesModule.storageRoutes;
     pluginRoutes = pluginRoutesModule.default;
     healthRoutes = healthRoutesModule.default;
-    errorHandler = errorHandlerImport;
   } catch (error) {
     logger.error('Error initializing routes:', error);
     throw error;
@@ -100,6 +91,8 @@ export async function createApp(): Promise<express.Application> {
   app.get('/favicon.ico', function (_, res) {
     res.sendStatus(204);
   });
+  // Error handling
+  app.use(errorHandler);
 
   // Mount routes
   app.use('/api/actors', actorRoutes);
@@ -114,12 +107,10 @@ export async function createApp(): Promise<express.Application> {
   app.use('/api/documents', documentRoutes);
   app.use('/api/assets', assetRoutes);
   app.use('/api/health', healthRoutes);
+  app.use('/api/users', userRoutes);
 
   // Mount Swagger UI correctly
   app.use('/swaggerui', oapi.swaggerui());
-
-  // Error handling
-  app.use(errorHandler);
 
   return app;
 }

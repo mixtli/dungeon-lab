@@ -31,10 +31,13 @@
     "plugins:test:clean": "npm run clean:test --workspace=@dungeon-lab/web",
     "typecheck": "tsc -b tsconfig.workspace.json --verbose",
     "typecheck:watch": "tsc -b tsconfig.workspace.json --watch",
-    "import:dnd-5e-2024": "tsx packages/plugins/dnd-5e-2024/src/scripts/import-character-classes.mts",
     "list": "node scripts/dev.js list",
     "generate": "node scripts/dev.js generate",
-    "parse-prd": "node scripts/dev.js parse-prd"
+    "parse-prd": "node scripts/dev.js parse-prd",
+    "import:users": "npm run import:users --workspace=@dungeon-lab/server",
+    "import:characters": "npm run import:characters --workspace=@dungeon-lab/plugin-dnd-5e-2024",
+    "import:maps": "npm run import:maps --workspace=@dungeon-lab/plugin-dnd-5e-2024",
+    "import:campaigns": "npm run import:campaigns --workspace=@dungeon-lab/plugin-dnd-5e-2024"
   },
   "keywords": [
     "vtt",

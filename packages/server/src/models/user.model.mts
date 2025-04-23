@@ -5,11 +5,9 @@ import { IUser, userSchema } from '@dungeon-lab/shared/index.mjs';
 import { baseMongooseZodSchema } from './base-schema.mjs';
 import { createMongoSchema } from './zod-to-mongo.mjs';
 
-
 function generateApiKey() {
   return crypto.randomBytes(32).toString('hex');
 }
-console.log(generateApiKey());
 
 /**
  * Create Mongoose schema with base configuration
@@ -17,31 +15,39 @@ console.log(generateApiKey());
 const mongooseSchema = createMongoSchema(userSchema.merge(baseMongooseZodSchema));
 
 // Add password comparison method
-mongooseSchema.methods.comparePassword = async function(candidatePassword: string): Promise<boolean> {
+mongooseSchema.methods.comparePassword = async function (
+  candidatePassword: string
+): Promise<boolean> {
   if (!this.password) return false;
   return bcrypt.compare(candidatePassword, this.password);
 };
 
 // Hash password before saving
 
-mongooseSchema.pre('validate', async function(this: mongoose.Document & IUser, next: mongoose.CallbackWithoutResultAndOptionalError) {
-  // Generate API key if not present
-  if (!this.apiKey) {
-    this.apiKey = generateApiKey();
-  }
+mongooseSchema.pre(
+  'validate',
+  async function (
+    this: mongoose.Document & IUser,
+    next: mongoose.CallbackWithoutResultAndOptionalError
+  ) {
+    // Generate API key if not present
+    if (!this.apiKey) {
+      this.apiKey = generateApiKey();
+    }
 
-  if (!this.isModified('password') || !this.password) {
-    return next();
-  }
+    if (!this.isModified('password') || !this.password) {
+      return next();
+    }
 
-  try {
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
-    next();
-  } catch (error) {
-    next(error as Error);
+    try {
+      const salt = await bcrypt.genSalt(10);
+      this.password = await bcrypt.hash(this.password, salt);
+      next();
+    } catch (error) {
+      next(error as Error);
+    }
   }
-});
+);
 
 interface IUserMethods {
   comparePassword(candidatePassword: string): Promise<boolean>;

@@ -15,6 +15,7 @@ import {
 import { z } from 'zod';
 import express from 'express';
 import { deepPartial } from '@dungeon-lab/shared/utils/deepPartial.mjs';
+import { errorHandler } from '../../../middleware/error.middleware.mjs';
 
 // Initialize services and controllers
 const actorService = new ActorService();
@@ -58,6 +59,7 @@ router.get(
 
 // Protected routes - require authentication
 router.use(authenticate);
+router.use(errorHandler);
 
 router.get('/campaign/:campaignId', boundController.getActors);
 

@@ -8,7 +8,7 @@ export class MapController {
 
   async getMaps(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
     try {
-      const maps = await this.mapService.getMapsForCampaign(req.params.campaignId);
+      const maps = await this.mapService.getAllMaps(req.session.user.id);
       return res.json(maps);
     } catch (error) {
       logger.error('Error in getMaps controller:', error);

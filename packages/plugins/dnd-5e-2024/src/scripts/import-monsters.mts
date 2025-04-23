@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { runImportViaAPI, deleteDocumentsViaAPI as _deleteDocumentsViaAPI } from './import-utils.mjs';
+import { runImportViaAPI } from './import-utils.mjs';
 import { convert5eToolsMonster } from './convert-5etools-monster.mjs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -9,76 +9,6 @@ import config from '../../manifest.json' with { type: 'json' };
 // Get the current file's directory in ESM
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-
-/**
- * Clear existing monster actor documents for clean import using the REST API
- * @param apiBaseUrl Base URL for the API, defaults to localhost:3000
- * @param authToken Optional authentication token
- * @returns Promise that resolves when deletion is complete
- * @unused This function is kept for potential future use but currently inactive
- */
-async function _clearExistingMonstersViaAPI(apiBaseUrl = 'http://localhost:3000', authToken?: string): Promise<number> {
-  try {
-    console.log("Using REST API to clear existing monster documents");
-    
-    // We need to specify 'monster' as the type for actors
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json'
-    };
-    
-    if (authToken) {
-      headers['Authorization'] = `Bearer ${authToken}`;
-    }
-    
-    // First fetch all monster actors
-    const searchParams = new URLSearchParams({
-      pluginId: config.id,
-      type: 'monster'
-    });
-    
-    const searchResponse = await fetch(`${apiBaseUrl}/api/actors?${searchParams}`, {
-      method: 'GET',
-      headers
-    });
-    
-    if (!searchResponse.ok) {
-      throw new Error(`Failed to search monster actors: ${searchResponse.statusText}`);
-    }
-    
-    const monsters = await searchResponse.json();
-    console.log(`Found ${monsters.length} monster actors to delete`);
-    
-    if (monsters.length === 0) {
-      return 0;
-    }
-    
-    // Delete each monster individually
-    let deletedCount = 0;
-    
-    for (const monster of monsters) {
-      try {
-        const deleteResponse = await fetch(`${apiBaseUrl}/api/actors/${monster.id}`, {
-          method: 'DELETE',
-          headers
-        });
-        
-        if (deleteResponse.ok) {
-          deletedCount++;
-        } else {
-          console.error(`Failed to delete monster ${monster.id}: ${deleteResponse.statusText}`);
-        }
-      } catch (error) {
-        console.error(`Error deleting monster ${monster.id}:`, error);
-      }
-    }
-    
-    console.log(`Deleted ${deletedCount} monster actors via API`);
-    return deletedCount;
-  } catch (error) {
-    console.error(`Error deleting monster actors:`, error);
-    return 0;
-  }
-}
 
 /**
  * Import monsters from a specific bestiary file

@@ -50,9 +50,7 @@
     "dex": true
   },
   "languages": ["Common"],
-  "background": {
-    "name": ""
-  },
+  "background": "Artisan",
   "details": {
     "personality": "",
     "ideal": "",
