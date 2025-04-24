@@ -3,8 +3,8 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useEncounterStore } from '../../stores/encounter.mjs';
-import type { IEncounter } from '@dungeon-lab/shared/src/schemas/encounter.schema.mjs';
-import { useApi } from '../../composables/useApi.js';
+import type { IEncounter } from '@dungeon-lab/shared/schemas/encounter.schema.mjs';
+import * as encounterApi from '../../api/encounters.mjs';
 
 const props = defineProps<{
   campaignId: string;
@@ -15,7 +15,6 @@ const encounterStore = useEncounterStore();
 const encounters = ref<IEncounter[]>([]);
 const loading = ref(false);
 const error = ref<string | null>(null);
-const api = useApi();
 
 // Fetch encounters for the campaign
 async function fetchEncounters() {
@@ -23,9 +22,8 @@ async function fetchEncounters() {
   error.value = null;
 
   try {
-    const response = await api.get<IEncounter[]>(`/campaigns/${props.campaignId}/encounters`);
-    console.log('Fetched encounters:', response);
-    encounters.value = response;
+    encounters.value = await encounterApi.getEncountersByCampaign(props.campaignId);
+    console.log('Fetched encounters:', encounters.value);
   } catch (err) {
     console.error('Error fetching encounters:', err);
     error.value = 'Failed to load encounters';

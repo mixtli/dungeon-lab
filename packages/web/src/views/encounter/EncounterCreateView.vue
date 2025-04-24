@@ -2,13 +2,12 @@
 import { ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useEncounterStore } from '../../stores/encounter.mts';
-import { useApi } from '../../composables/useApi.js';
 import type { IMap } from '@dungeon-lab/shared/src/schemas/map.schema.mjs';
+import * as mapApi from '../../api/maps.mjs';
 
 const route = useRoute();
 const router = useRouter();
 const encounterStore = useEncounterStore();
-const api = useApi();
 
 const loading = ref(false);
 const maps = ref<IMap[]>([]);
@@ -27,9 +26,7 @@ async function fetchMaps() {
   loading.value = true;
   error.value = null;
   try {
-    const response = await api.get<IMap[]>('/maps');
-    console.log('Raw map data from API:', JSON.stringify(response, null, 2));
-    maps.value = response;
+    maps.value = await mapApi.getMaps();
     console.log('Maps:', JSON.stringify(maps.value, null, 2));
   } catch (err) {
     console.error('Error fetching maps:', err);

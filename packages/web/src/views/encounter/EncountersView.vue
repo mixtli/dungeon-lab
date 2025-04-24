@@ -1,20 +1,14 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { useApi } from '../../composables/useApi.ts';
+import type { IEncounter } from '@dungeon-lab/shared/schemas/encounter.schema.mjs';
+import * as encounterApi from '../../api/encounters.mjs';
 
-interface Encounter {
-  id: string;
-  name: string;
-  description?: string;
-  status: string;
+interface IEncounterWithDates extends IEncounter {
   createdAt?: string;
   updatedAt?: string;
-  [key: string]: any;
 }
 
-const api = useApi();
-
-const encounters = ref<Encounter[]>([]);
+const encounters = ref<IEncounterWithDates[]>([]);
 const loading = ref(true);
 const error = ref<string | null>(null);
 
@@ -25,9 +19,7 @@ onMounted(async () => {
 async function fetchEncounters() {
   loading.value = true;
   try {
-    // Fetch all encounters across campaigns
-    const response = await api.get<Encounter[]>('/encounters');
-    encounters.value = response;
+    encounters.value = await encounterApi.getEncounters();
   } catch (err) {
     console.error('Error fetching encounters:', err);
     error.value = 'Failed to load encounters';
