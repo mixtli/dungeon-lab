@@ -3,7 +3,7 @@
 import { ref, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import ImageUpload from '../components/common/ImageUpload.vue';
-import axios from '../network/axios.mjs';
+import axios from '../api/axios.mjs';
 import { type IAsset } from '@dungeon-lab/shared/index.mjs';
 
 interface UploadedImage {

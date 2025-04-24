@@ -18,7 +18,14 @@ export class GameSessionController {
 
   async getGameSessions(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
     try {
-      const sessions = await this.gameSessionService.getGameSessions(req.session.user.id);
+      // Extract query parameters
+      const { campaignId, status } = req.query;
+
+      // Pass query parameters to the service
+      const sessions = await this.gameSessionService.getGameSessions(req.session.user.id, {
+        campaignId: campaignId as string,
+        status: status as string
+      });
       return res.json(sessions);
     } catch (error) {
       logger.error('Error getting game sessions:', error);
@@ -29,7 +36,7 @@ export class GameSessionController {
   async getGameSession(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
     try {
       const session = await this.gameSessionService.getGameSession(req.params.id);
-      
+
       // Check if user has access to this session
       const hasAccess = await this.gameSessionService.checkUserPermission(
         req.params.id,
@@ -63,7 +70,10 @@ export class GameSessionController {
 
   async createGameSession(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
     try {
-      const session = await this.gameSessionService.createGameSession(req.body, req.session.user.id);
+      const session = await this.gameSessionService.createGameSession(
+        req.body,
+        req.session.user.id
+      );
       return res.status(201).json(session);
     } catch (error) {
       if (isErrorWithMessage(error)) {
@@ -131,4 +141,4 @@ export class GameSessionController {
       return res.status(500).json({ message: 'Failed to delete game session' });
     }
   }
-} 
+}

@@ -60,7 +60,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import api from '../../network/axios.mjs';
+import api from '../../api/axios.mjs';
 
 const props = defineProps<{
   show: boolean;

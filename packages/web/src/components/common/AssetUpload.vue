@@ -96,7 +96,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onBeforeUnmount } from 'vue';
-import axios from '../../network/axios.mjs';
+import axios from '../../api/axios.mjs';
 import { IAsset } from '@dungeon-lab/shared/src/schemas/asset.schema.mjs';
 
 const props = defineProps({

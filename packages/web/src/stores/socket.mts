@@ -23,24 +23,29 @@ export const useSocketStore = defineStore('socket', () => {
   const router = useRouter();
 
   // Watch for auth store changes
-  watch(() => authStore.user, async (newUser) => {
-    if (newUser) {
-      userId.value = newUser.id;
-      // Wait a bit for the session to be established
-      await new Promise(resolve => setTimeout(resolve, 100));
-      // Initialize socket when user is authenticated
-      initSocket();
-    } else {
-      userId.value = null;
-      disconnect();
-    }
-  }, { immediate: true });
+  watch(
+    () => authStore.user,
+    async (newUser) => {
+      if (newUser) {
+        userId.value = newUser.id;
+        // Wait a bit for the session to be established
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        // Initialize socket when user is authenticated
+        await initSocket();
+      } else {
+        userId.value = null;
+        console.log('disconnecting');
+        disconnect();
+      }
+    },
+    { immediate: true }
+  );
 
-  function initSocket() {
+  async function initSocket() {
     if (socket.value) return;
 
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-    
+
     socket.value = io(apiUrl, {
       withCredentials: true,
       path: '/socket.io',
@@ -51,6 +56,7 @@ export const useSocketStore = defineStore('socket', () => {
       reconnectionAttempts: 5,
       transports: ['websocket', 'polling']
     });
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     // Add logging for all socket events
     socket.value.onAny((event: string, ...args: unknown[]) => {
@@ -59,7 +65,7 @@ export const useSocketStore = defineStore('socket', () => {
 
     // Add logging for all outgoing events
     const originalEmit = socket.value.emit;
-    socket.value.emit = function(event: string, ...args: unknown[]) {
+    socket.value.emit = function (event: string, ...args: unknown[]) {
       console.log('[Socket Event Sent]', event, args);
       return originalEmit.apply(this, [event, ...args]);
     };
@@ -83,20 +89,22 @@ export const useSocketStore = defineStore('socket', () => {
     });
 
     // Global encounter:start handler
-    socket.value.on('encounter:start', (data: { campaignId: string, encounterId: string }) => {
+    socket.value.on('encounter:start', (data: { campaignId: string; encounterId: string }) => {
       console.log('[Socket] Received encounter:start event:', data);
       // Navigate to the encounter page
       router.push(`/campaigns/${data.campaignId}/encounters/${data.encounterId}`);
     });
 
     // Global encounter:stop handler
-    socket.value.on('encounter:stop', (data: { campaignId: string, encounterId: string }) => {
+    socket.value.on('encounter:stop', (data: { campaignId: string; encounterId: string }) => {
       console.log('[Socket] Received encounter:stop event:', data);
       // Update the encounter status in the store if we're on the encounter page
       const currentRoute = router.currentRoute.value;
-      if (currentRoute.name === 'encounter-detail' && 
-          currentRoute.params.id === data.encounterId &&
-          currentRoute.params.campaignId === data.campaignId) {
+      if (
+        currentRoute.name === 'encounter-detail' &&
+        currentRoute.params.id === data.encounterId &&
+        currentRoute.params.campaignId === data.campaignId
+      ) {
         // Import and use the encounter store
         const encounterStore = useEncounterStore();
         encounterStore.updateEncounterStatus(data.encounterId, data.campaignId, 'ready');
@@ -123,6 +131,6 @@ export const useSocketStore = defineStore('socket', () => {
     isConnected,
     initSocket,
     setUserId,
-    disconnect,
+    disconnect
   };
-}) as () => SocketStore; 
+}) as () => SocketStore;

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import axios from '../../network/axios.mjs';
+import axios from '../../api/axios.mjs';
 import { ArrowLeftIcon } from '@heroicons/vue/24/outline';
 import ImageUpload from '../../components/common/ImageUpload.vue';
 import { type IAsset } from '@dungeon-lab/shared/index.mjs';

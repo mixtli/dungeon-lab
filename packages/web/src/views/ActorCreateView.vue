@@ -61,7 +61,7 @@ import { useRouter } from 'vue-router';
 import { pluginRegistry } from '@/services/plugin-registry.service.mjs';
 import PluginUIContainer from '@/components/plugin/PluginUIContainer.vue';
 import type { IGameSystemPluginWeb } from '@dungeon-lab/shared/types/plugin.mjs';
-import axios from '../network/axios.mjs';
+import axios from '../api/axios.mjs';
 
 const router = useRouter();
 

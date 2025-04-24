@@ -1,20 +1,31 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import { useGameSessionStore } from '../stores/game-session.mjs';
 import { formatDate } from '../utils/date-utils.mjs';
 import { CalendarIcon, ClockIcon } from '@heroicons/vue/24/outline';
+import { fetchGameSessions } from '../api/index.mjs';
+
+// Define the game session interface to match the API response
+interface GameSession {
+  id: string;
+  name: string;
+  description?: string;
+  campaignId: string;
+  status: 'active' | 'paused' | 'ended' | 'scheduled';
+  participants: string[];
+  settings?: Record<string, unknown>;
+}
 
 const router = useRouter();
-const gameSessionStore = useGameSessionStore();
 const loading = ref(false);
 const error = ref<string | null>(null);
+const allSessions = ref<GameSession[]>([]);
 
 // Fetch sessions on mount
 onMounted(async () => {
   loading.value = true;
   try {
-    await gameSessionStore.fetchAllSessions();
+    allSessions.value = await fetchGameSessions();
   } catch (err) {
     if (err instanceof Error) {
       console.error('Error loading sessions:', err);
@@ -27,11 +38,11 @@ onMounted(async () => {
 
 // Computed properties for active and future sessions
 const activeSessions = computed(
-  () => gameSessionStore.allSessions?.filter(session => session.status === 'active') || []
+  () => allSessions.value.filter(session => session.status === 'active') || []
 );
 
 const futureSessions = computed(() =>
-  (gameSessionStore.allSessions || [])
+  (allSessions.value || [])
     .filter(
       session =>
         session.status === 'paused' &&

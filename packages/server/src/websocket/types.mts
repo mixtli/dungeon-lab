@@ -13,28 +13,16 @@ declare module 'express-session' {
   }
 }
 
-// Define the shape of our socket data
-interface SocketData {
-  userId: string;
-  sessionId?: string;
+declare module 'socket.io' {
+  interface Socket {
+    userId: string;
+    gameSessionId?: string;
+  }
 }
 
 // Socket type for connected clients
-export interface AuthenticatedSocket extends Socket {
-  userId: string;
-  sessionId?: string;
-  request: Request;
-}
-
-// Socket type for remote clients (other users in the session)
-export interface RemoteAuthenticatedSocket {
-  id: string;
-  userId: string;
-  sessionId?: string;
-  emit: (ev: string, ...args: unknown[]) => boolean;
-  join: (room: string) => Promise<void>;
-  leave: (room: string) => Promise<void>;
-  to: (room: string) => { emit: RemoteAuthenticatedSocket['emit'] };
-  handshake: { auth: { token?: string } };
-  data: SocketData;
-} 
+// export interface AuthenticatedSocket extends Socket {
+//   userId: string;
+//   gameSessionId?: string;
+//   request: Request;
+// }

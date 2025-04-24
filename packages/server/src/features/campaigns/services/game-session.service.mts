@@ -5,13 +5,41 @@ import { CampaignModel } from '../models/campaign.model.mjs';
 import { logger } from '../../../utils/logger.mjs';
 import { CampaignService } from './campaign.service.mjs';
 
+// Add an interface for filter parameters
+interface GameSessionFilter {
+  campaignId?: string;
+  status?: string;
+}
+
+// Define a proper type for the MongoDB query
+interface GameSessionQuery {
+  $or: Array<{ gameMasterId: Types.ObjectId } | { participants: Types.ObjectId }>;
+  campaignId?: string;
+  status?: string;
+}
+
 export class GameSessionService {
-  async getGameSessions(userId: string): Promise<IGameSession[]> {
+  async getGameSessions(userId: string, filter?: GameSessionFilter): Promise<IGameSession[]> {
     try {
       const userObjectId = new Types.ObjectId(userId);
-      const sessions = await GameSessionModel.find({
+
+      // Build the query with user access condition
+      const baseQuery = {
         $or: [{ gameMasterId: userObjectId }, { participants: userObjectId }]
-      }).exec();
+      };
+
+      // Add filters if provided
+      const query: GameSessionQuery = { ...baseQuery };
+
+      if (filter?.campaignId) {
+        query.campaignId = filter.campaignId;
+      }
+
+      if (filter?.status) {
+        query.status = filter.status;
+      }
+
+      const sessions = await GameSessionModel.find(query).exec();
       return sessions;
     } catch (error) {
       logger.error('Error getting game sessions:', error);

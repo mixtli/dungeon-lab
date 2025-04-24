@@ -1,260 +1,159 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import api from '../network/axios.mjs';
 import type { IGameSession } from '@dungeon-lab/shared/index.mjs';
-import { GameSessionStatus } from '@dungeon-lab/shared//schemas/game-session.schema.mjs';
 import type { IActor } from '@dungeon-lab/shared/schemas/actor.schema.mjs';
 import type { ICampaign } from '@dungeon-lab/shared/schemas/campaign.schema.mjs';
-import type { z } from 'zod';
 import { useAuthStore } from './auth.mjs';
-import { useRouter } from 'vue-router';
-import { AxiosError } from 'axios';
+import { useSocketStore } from './socket.mjs';
 
 // Extend IGameSession to include id for frontend use
 interface GameSessionWithId extends IGameSession {
   id: string;
 }
 
-export const useGameSessionStore = defineStore('gameSession', () => {
-  const authStore = useAuthStore();
-  const router = useRouter();
+// Interface for game state update events
+interface GameStateUpdate {
+  sessionId: string;
+  state: Record<string, unknown>;
+  timestamp: number;
+}
 
-  // State
-  const currentSession = ref<GameSessionWithId | null>(null);
-  const currentCampaign = ref<ICampaign | null>(null);
-  const currentCharacter = ref<IActor | null>(null);
-  const campaignSessions = ref<GameSessionWithId[]>([]);
-  const allSessions = ref<GameSessionWithId[]>([]);
-  const loading = ref(false);
-  const error = ref<string | null>(null);
+export const useGameSessionStore = defineStore(
+  'gameSession',
+  () => {
+    const authStore = useAuthStore();
+    const socketStore = useSocketStore();
 
-  // Computed
-  const isGameMaster = computed(() => {
-    return currentSession.value?.gameMasterId === authStore.user?.id;
-  });
+    // State
+    const currentSession = ref<GameSessionWithId | null>(null);
+    const currentCampaign = ref<ICampaign | null>(null);
+    const currentCharacter = ref<IActor | null>(null);
+    const loading = ref(false);
+    const error = ref<string | null>(null);
 
-  // Actions
-  async function createGameSession(data: Omit<IGameSession, 'participants'>) {
-    loading.value = true;
-    error.value = null;
+    // Computed
+    const isGameMaster = computed(() => {
+      return currentSession.value?.gameMasterId === authStore.user?.id;
+    });
 
-    try {
-      const response = await api.post('/api/game-sessions', {
-        ...data,
-        participants: [] // Server will add the creator as the first participant
-      });
-      currentSession.value = response.data;
-      return currentSession.value;
-    } catch (err: unknown) {
-      if (err instanceof AxiosError) {
-        error.value = err.response?.data?.message || err.message || 'Failed to create game session';
-      } else if (err instanceof Error) {
-        error.value = err.message || 'Failed to create game session';
-      } else {
-        error.value = 'Failed to create game session: Unknown error';
-      }
-      console.error('Error creating game session:', err);
-      throw err;
-    } finally {
-      loading.value = false;
-    }
-  }
+    // Actions
+    async function joinSession(sessionId: string) {
+      loading.value = true;
+      error.value = null;
 
-  async function getGameSession(id: string) {
-    loading.value = true;
-    error.value = null;
+      try {
+        if (!socketStore.socket || !socketStore.isConnected) {
+          throw new Error('Socket not connected');
+        }
 
-    try {
-      // Get campaignId from route params or stored value
-      const route = router.currentRoute.value;
-      const campaignId = route.params.campaignId as string || localStorage.getItem('lastActiveCampaignId');
-      
-      if (!campaignId) {
-        throw new Error('No campaign ID available');
-      }
+        return new Promise<GameSessionWithId>((resolve, reject) => {
+          socketStore.socket?.emit(
+            'joinSession',
+            { sessionId },
+            (response: { success: boolean; data?: GameSessionWithId; error?: string }) => {
+              if (response.success && response.data) {
+                currentSession.value = response.data;
+                loading.value = false;
 
-      // Fetch campaign data first
-      const campaignResponse = await api.get(`/api/campaigns/${campaignId}`);
-      currentCampaign.value = campaignResponse.data;
+                // Register socket listeners for this session
+                registerSessionListeners(sessionId);
 
-      // Now fetch the session
-      const response = await api.get(`/api/campaigns/${campaignId}/sessions/${id}`);
-      currentSession.value = response.data;
-
-      // Find the current user's character in the campaign
-      let foundCharacter = null;
-      if (currentCampaign.value) {
-        for (const actorId of currentCampaign.value.members) {
-          try {
-            const actorResponse = await api.get(`/api/actors/${actorId}`);
-            if (actorResponse.data.createdBy === authStore.user?.id) {
-              foundCharacter = actorResponse.data;
-              break;
+                resolve(response.data);
+              } else {
+                const errorMsg = response.error || 'Failed to join game session';
+                error.value = errorMsg;
+                loading.value = false;
+                reject(new Error(errorMsg));
+              }
             }
-          } catch (err) {
-            console.warn(`Failed to fetch actor ${actorId}:`, err);
-          }
+          );
+
+          // Set a timeout in case the server doesn't respond
+          setTimeout(() => {
+            if (loading.value) {
+              loading.value = false;
+              error.value = 'Server did not respond to join request';
+              reject(new Error('Server did not respond to join request'));
+            }
+          }, 10000); // 10 second timeout
+        });
+      } catch (err: unknown) {
+        loading.value = false;
+        if (err instanceof Error) {
+          error.value = err.message || 'Failed to join game session';
+        } else {
+          error.value = 'Failed to join game session: Unknown error';
         }
+        console.error('Error joining game session:', err);
+        throw err;
       }
-
-      if (foundCharacter) {
-        currentCharacter.value = foundCharacter;
-      } else if (!isGameMaster.value) {
-        console.warn('No character found in this campaign');
-      }
-
-      return currentSession.value;
-    } catch (err: unknown) {
-      if (err instanceof AxiosError) {
-        error.value = err.response?.data?.message || err.message || `Failed to fetch game session ${id}`;
-      } else if (err instanceof Error) {
-        error.value = err.message || `Failed to fetch game session ${id}`;
-      } else {
-        error.value = `Failed to fetch game session ${id}: Unknown error`;
-      }
-      console.error(`Error fetching game session ${id}:`, err);
-      throw err;
-    } finally {
-      loading.value = false;
     }
-  }
 
-  async function fetchCampaignSessions(campaignId: string) {
-    loading.value = true;
-    error.value = null;
+    function registerSessionListeners(sessionId: string) {
+      if (!socketStore.socket) return;
 
-    try {
-      const response = await api.get(`/api/campaigns/${campaignId}/sessions`);
-      campaignSessions.value = response.data;
-      return campaignSessions.value;
-    } catch (err: unknown) {
-      if (err instanceof AxiosError) {
-        error.value = err.response?.data?.message || err.message || `Failed to fetch sessions for campaign ${campaignId}`;
-      } else if (err instanceof Error) {
-        error.value = err.message || `Failed to fetch sessions for campaign ${campaignId}`;
-      } else {
-        error.value = `Failed to fetch sessions for campaign ${campaignId}: Unknown error`;
-      }
-      console.error(`Error fetching campaign sessions:`, err);
-      throw err;
-    } finally {
-      loading.value = false;
-    }
-  }
+      // Remove any existing listeners to prevent duplicates
+      socketStore.socket.off('gameSession:update');
+      socketStore.socket.off('gameSession:end');
+      socketStore.socket.off('gameState:update');
 
-  async function fetchAllSessions() {
-    loading.value = true;
-    error.value = null;
-
-    try {
-      const response = await api.get('/api/game-sessions');
-      allSessions.value = response.data;
-      return allSessions.value;
-    } catch (err: unknown) {
-      if (err instanceof AxiosError) {
-        error.value = err.response?.data?.message || err.message || 'Failed to fetch game sessions';
-      } else if (err instanceof Error) {
-        error.value = err.message || 'Failed to fetch game sessions';
-      } else {
-        error.value = 'Failed to fetch game sessions: Unknown error';
-      }
-      console.error('Error fetching game sessions:', err);
-      throw err;
-    } finally {
-      loading.value = false;
-    }
-  }
-
-  async function deleteGameSession(id: string) {
-    loading.value = true;
-    error.value = null;
-
-    try {
-      await api.delete(`/api/game-sessions/${id}`);
-      
-      // Remove from all relevant lists
-      if (currentSession.value?.id === id) {
-        currentSession.value = null;
-      }
-      campaignSessions.value = campaignSessions.value.filter(session => session.id !== id);
-      allSessions.value = allSessions.value.filter(session => session.id !== id);
-    } catch (err: unknown) {
-      if (err instanceof AxiosError) {
-        error.value = err.response?.data?.message || err.message || 'Failed to delete game session';
-      } else if (err instanceof Error) {
-        error.value = err.message || 'Failed to delete game session';
-      } else {
-        error.value = 'Failed to delete game session: Unknown error';
-      }
-      console.error('Error deleting game session:', err);
-      throw err;
-    } finally {
-      loading.value = false;
-    }
-  }
-
-  async function updateSessionStatus(id: string, status: z.infer<typeof GameSessionStatus>) {
-    loading.value = true;
-    error.value = null;
-
-    try {
-      const response = await api.patch(`/api/game-sessions/${id}/status`, { status });
-      
-      // Update in all relevant lists
-      if (currentSession.value?.id === id) {
-        currentSession.value = response.data;
-      }
-      
-      const updateSessionInList = (list: GameSessionWithId[]) => {
-        const index = list.findIndex(s => s.id === id);
-        if (index !== -1) {
-          list[index] = response.data;
+      // Listen for session updates
+      socketStore.socket.on('gameSession:update', (data: GameSessionWithId) => {
+        if (data.id === sessionId) {
+          console.log('[Socket] Received gameSession:update event:', data);
+          currentSession.value = data;
         }
-      };
+      });
 
-      updateSessionInList(campaignSessions.value);
-      updateSessionInList(allSessions.value);
+      // Listen for session end
+      socketStore.socket.on('gameSession:end', (data: { sessionId: string }) => {
+        if (data.sessionId === sessionId) {
+          console.log('[Socket] Received gameSession:end event:', data);
+          clearSession();
+        }
+      });
 
-      return response.data;
-    } catch (err: unknown) {
-      if (err instanceof AxiosError) {
-        error.value = err.response?.data?.message || err.message || 'Failed to update session status';
-      } else if (err instanceof Error) {
-        error.value = err.message || 'Failed to update session status';
-      } else {
-        error.value = 'Failed to update session status: Unknown error';
-      }
-      console.error('Error updating session status:', err);
-      throw err;
-    } finally {
-      loading.value = false;
+      // Listen for game state updates
+      socketStore.socket.on('gameState:update', (data: GameStateUpdate) => {
+        if (data.sessionId === sessionId) {
+          console.log('[Socket] Received gameState:update event:', data);
+          // Here we would update game state information
+          // This is where future game state will be maintained
+        }
+      });
     }
-  }
 
-  function clearSession() {
-    currentSession.value = null;
-    currentCampaign.value = null;
-    currentCharacter.value = null;
-    campaignSessions.value = [];
-    allSessions.value = [];
-    error.value = null;
-  }
+    function leaveSession() {
+      if (currentSession.value && socketStore.socket) {
+        socketStore.socket.emit('leaveSession', { sessionId: currentSession.value.id });
 
-  return {
-    currentSession,
-    currentCampaign,
-    currentCharacter,
-    campaignSessions,
-    allSessions,
-    loading,
-    error,
-    isGameMaster,
-    createGameSession,
-    getGameSession,
-    fetchCampaignSessions,
-    fetchAllSessions,
-    deleteGameSession,
-    updateSessionStatus,
-    clearSession
-  };
-}); 
+        // Remove listeners
+        socketStore.socket.off('gameSession:update');
+        socketStore.socket.off('gameSession:end');
+        socketStore.socket.off('gameState:update');
+
+        clearSession();
+      }
+    }
+
+    function clearSession() {
+      currentSession.value = null;
+      currentCampaign.value = null;
+      currentCharacter.value = null;
+      error.value = null;
+    }
+
+    return {
+      currentSession,
+      currentCampaign,
+      currentCharacter,
+      loading,
+      error,
+      isGameMaster,
+      joinSession,
+      leaveSession,
+      clearSession
+    };
+  },
+  { persist: { storage: localStorage } }
+);

@@ -2,7 +2,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { ArrowPathIcon, XCircleIcon } from '@heroicons/vue/24/outline';
-import axios from '../network/axios.mjs';
+import axios from '../api/axios.mjs';
 
 const props = defineProps<{
   mapId: string;

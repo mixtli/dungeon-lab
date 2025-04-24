@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { RouterLink } from 'vue-router';
-import axios from '../network/axios.mjs';
+import axios from '../api/axios.mjs';
 import AssetUpload from '../components/common/AssetUpload.vue';
 import { IAsset } from '@dungeon-lab/shared/src/schemas/asset.schema.mjs';
 

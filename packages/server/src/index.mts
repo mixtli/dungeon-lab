@@ -8,7 +8,7 @@ import { pluginRegistry } from './services/plugin-registry.service.mjs';
 import { backgroundJobService } from './services/background-job.service.mjs';
 import { initializeJobs } from './jobs/index.mjs';
 import { logger } from './utils/logger.mjs';
-import { createSocketServer } from './websocket/socket-server.mjs';
+import { SocketServer } from './websocket/socket-server.mjs';
 
 console.log('Starting server...');
 
@@ -54,7 +54,7 @@ async function startServer() {
     const httpServer = createServer(app);
 
     // Initialize Socket.IO server
-    const io = createSocketServer(httpServer);
+    const socketServer = new SocketServer(httpServer);
     console.log('Socket.IO server initialized');
 
     // Start listening
@@ -68,7 +68,7 @@ async function startServer() {
       await backgroundJobService.shutdown();
       await pluginRegistry.cleanupAll();
       await mongoose.disconnect();
-      io.close();
+      socketServer.close();
       console.log('Socket.IO server closed');
       httpServer.close(() => {
         logger.info('Server closed');

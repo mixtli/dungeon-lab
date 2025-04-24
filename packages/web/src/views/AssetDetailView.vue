@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import axios from '../network/axios.mjs';
+import axios from '../api/axios.mjs';
 import { IAsset } from '@dungeon-lab/shared/src/schemas/asset.schema.mjs';
 
 const router = useRouter();

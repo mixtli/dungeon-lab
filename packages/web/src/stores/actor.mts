@@ -1,8 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import api from '../network/axios.mjs';
 import { type IActor } from '@dungeon-lab/shared/index.mjs';
-import { AxiosError } from 'axios';
+import * as actorApi from '../api/actors.mjs';
 
 export const useActorStore = defineStore('actor', () => {
   // State
@@ -13,7 +12,7 @@ export const useActorStore = defineStore('actor', () => {
 
   // Getters
   const myActors = computed(() => actors.value);
-  const getActorById = (id: string) => actors.value.find(a => a.id === id);
+  const getActorById = (id: string) => actors.value.find((a) => a.id === id);
 
   // Actions
   async function fetchActors() {
@@ -21,15 +20,12 @@ export const useActorStore = defineStore('actor', () => {
     error.value = null;
 
     try {
-      const response = await api.get('/api/actors');
-      actors.value = response.data;
+      // Assuming we're getting the current user's actors
+      const userId = 'current'; // This should come from auth store or similar
+      actors.value = await actorApi.getActorsByUser(userId);
       return actors.value;
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        error.value = err.message || 'Failed to fetch actors';
-      } else {
-        error.value = 'Failed to fetch actors: Unknown error';
-      }
+      error.value = err instanceof Error ? err.message : 'Failed to fetch actors';
       console.error('Error fetching actors:', err);
       return [];
     } finally {
@@ -42,24 +38,18 @@ export const useActorStore = defineStore('actor', () => {
     error.value = null;
 
     try {
-      const response = await api.get(`/api/actors/${id}`);
-      currentActor.value = response.data;
-      
+      const actor = await actorApi.getActor(id);
+      currentActor.value = actor;
+
       // Also update in the actors list if it exists
-      const index = actors.value.findIndex(a => a.id === id);
+      const index = actors.value.findIndex((a) => a.id === id);
       if (index !== -1) {
-        actors.value[index] = response.data;
+        actors.value[index] = actor;
       }
-      
+
       return currentActor.value;
     } catch (err: unknown) {
-      if (err instanceof AxiosError) {
-        error.value = err.response?.data?.message || err.message || `Failed to fetch actor ${id}`;
-      } else if (err instanceof Error) {
-        error.value = err.message || `Failed to fetch actor ${id}`;
-      } else {
-        error.value = `Failed to fetch actor ${id}: Unknown error`;
-      }
+      error.value = err instanceof Error ? err.message : `Failed to fetch actor ${id}`;
       console.error(`Error fetching actor ${id}:`, err);
       return null;
     } finally {
@@ -67,24 +57,17 @@ export const useActorStore = defineStore('actor', () => {
     }
   }
 
-  async function createActor(actorData: IActor) {
+  async function createActor(actorData: Omit<IActor, 'id'>) {
     loading.value = true;
     error.value = null;
 
     try {
-      const response = await api.post('/api/actors', actorData);
-      const newActor = response.data as IActor;
+      const newActor = await actorApi.createActor(actorData);
       actors.value.push(newActor);
       currentActor.value = newActor;
       return newActor;
     } catch (err: unknown) {
-      if (err instanceof AxiosError) {
-        error.value = err.response?.data?.message || err.message || 'Failed to create actor';
-      } else if (err instanceof Error) {
-        error.value = err.message || 'Failed to create actor';
-      } else {
-        error.value = 'Failed to create actor: Unknown error';
-      }
+      error.value = err instanceof Error ? err.message : 'Failed to create actor';
       console.error('Error creating actor:', err);
       throw err;
     } finally {
@@ -97,29 +80,22 @@ export const useActorStore = defineStore('actor', () => {
     error.value = null;
 
     try {
-      const response = await api.put(`/api/actors/${id}`, actorData);
-      const updatedActor = response.data as IActor;
-      
+      const updatedActor = await actorApi.updateActor(id, actorData);
+
       // Update in actors list
-      const index = actors.value.findIndex(a => a.id === id);
+      const index = actors.value.findIndex((a) => a.id === id);
       if (index !== -1) {
         actors.value[index] = updatedActor;
       }
-      
+
       // Update current actor if it's the one being edited
       if (currentActor.value?.id === id) {
         currentActor.value = updatedActor;
       }
-      
+
       return updatedActor;
     } catch (err: unknown) {
-      if (err instanceof AxiosError) {
-        error.value = err.response?.data?.message || err.message || `Failed to update actor ${id}`;
-      } else if (err instanceof Error) {
-        error.value = err.message || `Failed to update actor ${id}`;
-      } else {
-        error.value = `Failed to update actor ${id}: Unknown error`;
-      }
+      error.value = err instanceof Error ? err.message : `Failed to update actor ${id}`;
       console.error(`Error updating actor ${id}:`, err);
       throw err;
     } finally {
@@ -132,25 +108,19 @@ export const useActorStore = defineStore('actor', () => {
     error.value = null;
 
     try {
-      await api.delete(`/api/actors/${id}`);
-      
+      await actorApi.deleteActor(id);
+
       // Remove from actors list
-      actors.value = actors.value.filter(a => a.id !== id);
-      
+      actors.value = actors.value.filter((a) => a.id !== id);
+
       // Clear current actor if it's the one being deleted
       if (currentActor.value?.id === id) {
         currentActor.value = null;
       }
-      
+
       return true;
     } catch (err: unknown) {
-      if (err instanceof AxiosError) {
-        error.value = err.response?.data?.message || err.message || `Failed to delete actor ${id}`;
-      } else if (err instanceof Error) {
-        error.value = err.message || `Failed to delete actor ${id}`;
-      } else {
-        error.value = `Failed to delete actor ${id}: Unknown error`;
-      }
+      error.value = err instanceof Error ? err.message : `Failed to delete actor ${id}`;
       console.error(`Error deleting actor ${id}:`, err);
       throw err;
     } finally {
@@ -164,11 +134,11 @@ export const useActorStore = defineStore('actor', () => {
     currentActor,
     loading,
     error,
-    
+
     // Getters
     myActors,
     getActorById,
-    
+
     // Actions
     fetchActors,
     fetchActor,
@@ -176,4 +146,4 @@ export const useActorStore = defineStore('actor', () => {
     updateActor,
     deleteActor
   };
-}); 
+});

@@ -9,7 +9,7 @@ import {
   IRollResultMessage,
 } from '@dungeon-lab/shared/src/schemas/websocket-messages.schema.mjs';
 import { Combobox, ComboboxInput, ComboboxOptions, ComboboxOption } from '@headlessui/vue';
-import api from '../network/axios.mjs';
+import api from '../api/axios.mjs';
 
 const route = useRoute();
 const gameSessionStore = useGameSessionStore();
@@ -188,8 +188,9 @@ async function updateParticipants() {
 onMounted(async () => {
   // Join the game session
   if (route.params.id) {
-    console.log('joining session', route.params.id);  
-    socketStore.socket?.emit('join-session', route.params.id);
+    console.log('joining session', route.params.id);
+    console.log('socketStore.socket', socketStore.socket);
+    socketStore.socket?.emit('joinSession', route.params.id);
   }
 
   // Listen for messages

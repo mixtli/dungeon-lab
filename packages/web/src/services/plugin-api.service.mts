@@ -3,8 +3,8 @@ import { useActorStore } from '../stores/actor.mjs';
 import { useSocketStore } from '../stores/socket.mjs';
 import { pluginRegistry } from './plugin-registry.service.mjs';
 import { useItemStore } from '../stores/item.mjs';
-import type { IActor, IItem} from '@dungeon-lab/shared/index.mjs';
-import api from '../network/axios.mjs';
+import type { IActor, IItem } from '@dungeon-lab/shared/index.mjs';
+import api from '../api/axios.mjs';
 /**
  * Implementation of the Plugin API for the web client
  */
@@ -28,7 +28,6 @@ export class PluginAPI implements IPluginAPI {
   private get itemStore() {
     return useItemStore();
   }
-
 
   // Actor management
   async createActor(type: string, data: unknown): Promise<string> {
@@ -80,7 +79,6 @@ export class PluginAPI implements IPluginAPI {
     if (!validation.success) {
       throw new Error(`Invalid actor data: ${validation.error.message}`);
     }
-
 
     const updateData: Partial<IActor> = {
       data: validation.data as Record<string, unknown>
@@ -144,7 +142,6 @@ export class PluginAPI implements IPluginAPI {
     if (!validation.success) {
       throw new Error(`Invalid item data: ${validation.error.message}`);
     }
-
 
     const updateData: Partial<IItem> = {
       data: validation.data as Record<string, unknown>
@@ -216,7 +213,7 @@ export class PluginAPI implements IPluginAPI {
         this.socketStore.socket.on(`plugin:message:${type}`, (message: { data: unknown }) => {
           const handlers = this.messageHandlers.get(type);
           if (handlers) {
-            handlers.forEach(h => h(message.data));
+            handlers.forEach((h) => h(message.data));
           }
         });
       }
@@ -249,11 +246,11 @@ export class PluginAPI implements IPluginAPI {
   async searchDocuments(params: Record<string, string>): Promise<unknown[]> {
     try {
       const response = await api.get('/api/documents', { params });
-      
+
       if (!Array.isArray(response.data)) {
         throw new Error('Invalid response format: expected an array');
       }
-      
+
       return response.data;
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -272,4 +269,4 @@ export class PluginAPI implements IPluginAPI {
  */
 export function createPluginAPI(pluginId: string): IPluginAPI {
   return new PluginAPI(pluginId);
-} 
+}

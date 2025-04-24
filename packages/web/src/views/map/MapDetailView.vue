@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import type { IMap, IAsset } from '@dungeon-lab/shared/index.mjs';
-import axios from '../../network/axios.mjs';
+import axios from '../../api/axios.mjs';
 import { ArrowLeftIcon } from '@heroicons/vue/24/outline';
 
 const route = useRoute();

@@ -1,27 +1,25 @@
 import type { IChatMessage, IMessage } from '@dungeon-lab/shared/index.mjs';
-import { Server } from 'socket.io';
 import { CampaignModel } from '../../features/campaigns/models/campaign.model.mjs';
 import { GameSessionModel } from '../../features/campaigns/models/game-session.model.mjs';
-import { AuthenticatedSocket, RemoteAuthenticatedSocket } from '../types.mjs';
-
+import { AuthenticatedSocket } from '../types.mjs';
 // Type guard to check if a message is a chat message
 function isChatMessage(message: IMessage): message is IChatMessage {
   return message.type === 'chat';
 }
 
 export async function handleChatMessage(
-  io: Server,
   socket: AuthenticatedSocket,
   message: IMessage
 ): Promise<void> {
   console.log('handleChatMessage', message);
+  console.log('sessionId', socket.gameSessionId);
   try {
-    if (!socket.sessionId) {
+    if (!socket.gameSessionId) {
       socket.emit('error', { message: 'Not in a game session' });
       return;
     }
 
-    // Verify this is a chat message
+    // Verify socket is a chat message
     if (!isChatMessage(message)) {
       socket.emit('error', { message: 'Invalid message type' });
       return;
@@ -49,15 +47,15 @@ export async function handleChatMessage(
 
     // Prepare variables that might be used in switch cases
     let sockets;
-    let gmSocket;
-    let targetSockets;
-    let targetSocket;
+    let gmsocket;
+    let targetsockets;
+    let targetsocket;
 
     // Handle different recipient types
     switch (message.recipient) {
       case 'all':
         // Broadcast to all users in the session
-        io.to(socket.sessionId).emit('message', message);
+        socket.to(socket.gameSessionId).emit('message', message);
         break;
 
       case 'gm':
@@ -66,15 +64,15 @@ export async function handleChatMessage(
           socket.emit('error', { message: 'Game master not found' });
           return;
         }
-        sockets = await io.in(socket.sessionId).fetchSockets();
-        gmSocket = sockets.find((s) => {
-          const authSocket = s as unknown as RemoteAuthenticatedSocket;
+        sockets = await socket.in(socket.gameSessionId).fetchSockets();
+        gmsocket = sockets.find((s) => {
+          const authsocket = s as unknown as AuthenticatedSocket;
           return (
-            campaign.gameMasterId && authSocket.data.userId === campaign.gameMasterId.toString()
+            campaign.gameMasterId && authsocket.data.userId === campaign.gameMasterId.toString()
           );
         });
-        if (gmSocket) {
-          (gmSocket as unknown as RemoteAuthenticatedSocket).emit('message', message);
+        if (gmsocket) {
+          (gmsocket as unknown as AuthenticatedSocket).emit('message', message);
         }
         break;
 
@@ -84,13 +82,13 @@ export async function handleChatMessage(
 
       default:
         // Direct message to specific user
-        targetSockets = await io.in(socket.sessionId).fetchSockets();
-        targetSocket = targetSockets.find((s) => {
-          const authSocket = s as unknown as RemoteAuthenticatedSocket;
-          return authSocket.data.userId === message.recipient;
+        targetsockets = await socket.in(socket.gameSessionId).fetchSockets();
+        targetsocket = targetsockets.find((s) => {
+          const authsocket = s as unknown as AuthenticatedSocket;
+          return authsocket.data.userId === message.recipient;
         });
-        if (targetSocket) {
-          (targetSocket as unknown as RemoteAuthenticatedSocket).emit('message', message);
+        if (targetsocket) {
+          (targetsocket as unknown as AuthenticatedSocket).emit('message', message);
           // Also send to sender if they're not the target
           if (message.sender.toString() !== message.recipient.toString()) {
             socket.emit('message', message);
