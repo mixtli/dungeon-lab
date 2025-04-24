@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import type { IItem } from '@dungeon-lab/shared/index.mjs';
-import * as itemApi from '../api/items.mjs';
+import * as itemApi from '../api/items.client.mjs';
 
 export const useItemStore = defineStore('item', () => {
   // State

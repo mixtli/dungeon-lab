@@ -1,4 +1,4 @@
-import api from './axios.mjs';
+import api from './axios.mts';
 import type { ICampaign, IInvite } from '@dungeon-lab/shared/index.mjs';
 
 export async function getCampaigns(): Promise<ICampaign[]> {

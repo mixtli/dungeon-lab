@@ -2,9 +2,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { useEncounterStore } from '../../stores/encounter.mjs';
+import { useEncounterStore } from '../../stores/encounter.store.mjs';
 import type { IEncounter } from '@dungeon-lab/shared/schemas/encounter.schema.mjs';
-import * as encounterApi from '../../api/encounters.mjs';
+import * as encounterApi from '../../api/encounters.client.mjs';
 
 const props = defineProps<{
   campaignId: string;

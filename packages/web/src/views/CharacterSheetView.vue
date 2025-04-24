@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
-import { useActorStore } from '../stores/actor.mts';
+import { useActorStore } from '../stores/actor.store.mjs';
 import PluginUIContainer from '@/components/plugin/PluginUIContainer.vue';
 import { pluginRegistry } from '@/services/plugin-registry.service.mts';
 import type { IActor } from '@dungeon-lab/shared/dist/index.mjs';

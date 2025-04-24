@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import type { IUser } from '@dungeon-lab/shared/index.mjs';
-import * as authApi from '../api/auth.mjs';
+import * as authApi from '../api/auth.client.mts';
 import { AxiosError } from 'axios';
 
 export const useAuthStore = defineStore('auth', () => {

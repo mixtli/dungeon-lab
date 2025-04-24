@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { onMounted, ref, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useEncounterStore } from '../../stores/encounter.mts';
-import { useSocketStore } from '../../stores/socket.mjs';
-import { useAuthStore } from '../../stores/auth.mjs';
-import { useGameSessionStore } from '../../stores/game-session.mjs';
+import { useEncounterStore } from '../../stores/encounter.store.mjs';
+import { useSocketStore } from '../../stores/socket.store.mjs';
+import { useAuthStore } from '../../stores/auth.store.mjs';
+import { useGameSessionStore } from '../../stores/game-session.store.mjs';
 
 const route = useRoute();
 const router = useRouter();

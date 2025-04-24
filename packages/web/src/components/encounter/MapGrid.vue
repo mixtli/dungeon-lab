@@ -2,8 +2,8 @@
 import { onMounted, onUnmounted, ref, watch } from 'vue';
 import { SVG, Svg } from '@svgdotjs/svg.js';
 import '@svgdotjs/svg.panzoom.js';
-import { useMapStore } from '../../stores/map.mjs';
-import { useEncounterStore } from '../../stores/encounter.mjs';
+import { useMapStore } from '../../stores/map.store.mjs';
+import { useEncounterStore } from '../../stores/encounter.store.mjs';
 import { storeToRefs } from 'pinia';
 
 const { width, height } = defineProps<{

@@ -1,14 +1,5 @@
 import { Server } from 'socket.io';
 import type { Server as HttpServer } from 'http';
-import { handleChatMessage } from './handlers/chat-handler.mjs';
-import { handleDiceRoll } from './handlers/dice-handler.mjs';
-import { handlePluginAction } from './handlers/plugin-handler.mjs';
-import { handleGameStateUpdate } from './handlers/game-state-handler.mjs';
-import { handleRollCommand } from './handlers/roll-command.handler.mjs';
-import { handleCombatAction } from './handlers/combat-handler.mjs';
-import { handleEncounterStart, handleEncounterStop } from './handlers/encounter-handler.mjs';
-//import { AuthenticatedSocket } from './types.mjs';
-import { logger } from '../utils/logger.mjs';
 import { Socket } from 'socket.io';
 import { sessionMiddleware } from '../app.mjs';
 import { CampaignService, GameSessionModel } from '../features/campaigns/index.mjs';
@@ -16,6 +7,8 @@ import type {
   ServerToClientEvents,
   ClientToServerEvents
 } from '@dungeon-lab/shared/schemas/socket/index.mjs';
+import { logger } from '../utils/logger.mjs';
+import type { JoinCallback } from '@dungeon-lab/shared/schemas/socket/index.mjs';
 
 // Define a type for the session with user information
 interface SessionWithUser {
@@ -34,6 +27,9 @@ export class SocketServer {
         methods: ['GET', 'POST'],
         credentials: true
       }
+    });
+    this.io.on('error', (error) => {
+      console.error('Socket.IO server error:', error);
     });
     this.io.engine.use(sessionMiddleware);
     this.setupAuthMiddleware();
@@ -61,25 +57,44 @@ export class SocketServer {
     });
   }
 
-  async handleJoinSession(socket: Socket, sessionId: string) {
+  async handleJoinSession(
+    socket: Socket,
+    sessionId: string,
+    callback: (response: JoinCallback) => void
+  ) {
     console.log('joinSession', sessionId);
-    const session = await GameSessionModel.findById(sessionId).exec();
-    if (!session) {
-      throw new Error('Session not found');
-    }
-    if (session.participants.includes(socket.userId)) {
-      socket.join(sessionId);
-    } else {
-      const campaignService = new CampaignService();
-      if (await campaignService.isUserCampaignMember(socket.userId, session.campaignId)) {
-        session.participants.push(socket.userId);
-        await session.save();
+    try {
+      const session = await GameSessionModel.findById(sessionId).exec();
+      if (!session) {
+        throw new Error('Session not found');
+      }
+      if (session.participants.includes(socket.userId)) {
         socket.join(sessionId);
       } else {
-        throw new Error('User not in session');
+        const campaignService = new CampaignService();
+        if (await campaignService.isUserCampaignMember(socket.userId, session.campaignId)) {
+          session.participants.push(socket.userId);
+          await session.save();
+          socket.join(sessionId);
+        } else {
+          throw new Error('User not in session');
+        }
       }
+      socket.gameSessionId = sessionId;
+      console.log('calling callback');
+      callback({ success: true, data: session, error: '' });
+      console.log('callback called');
+    } catch (error) {
+      logger.error('Error joining session', error);
+      socket.emit('error', 'Error joining session');
+      callback({ success: false, error: 'Error joining session' });
     }
-    socket.gameSessionId = sessionId;
+  }
+
+  handleLeaveSession(socket: Socket, sessionId: string) {
+    console.log('leaveSession', sessionId);
+    socket.leave(sessionId);
+    socket.gameSessionId = undefined;
   }
 
   handleConnections() {
@@ -87,12 +102,22 @@ export class SocketServer {
       // const socket = rawSocket as AuthenticatedSocket;
       logger.info(`Client connected: ${socket.id} (${socket.userId})`);
 
+      socket.onAny((eventName, ...args) => {
+        logger.info('Socket event:', { eventName, args });
+      });
+      socket.on('error', (error) => {
+        console.error('Socket error:', error);
+        // Implement retry logic or user notification
+      });
+      socket.on('joinSession', (sessionId: string, callback) =>
+        this.handleJoinSession(socket, sessionId, callback)
+      );
+      socket.on('leaveSession', (sessionId: string) => this.handleLeaveSession(socket, sessionId));
       socket.on('chat', (foo) => {
         console.log('foo', foo);
       });
 
       // socket.on('message', (message) => console.log('message', message));
-      socket.on('joinSession', (sessionId: string) => this.handleJoinSession(socket, sessionId));
       // socket.on('dice:roll', (message) => handleDiceRoll(socket, message));
       // socket.on('plugin:action', (message) => handlePluginAction(socket, message));
       // socket.on('game:stateUpdate', (message) => handleGameStateUpdate(socket, message));

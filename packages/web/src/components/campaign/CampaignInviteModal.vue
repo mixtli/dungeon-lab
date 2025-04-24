@@ -1,7 +1,7 @@
 <!-- CampaignInviteModal.vue -->
 <script setup lang="ts">
 import { ref } from 'vue';
-import { useCampaignStore } from '../../stores/campaign.mjs';
+import { useCampaignStore } from '../../stores/campaign.store.mjs';
 import type { IInvite } from '@dungeon-lab/shared/index.mjs';
 
 const props = defineProps<{

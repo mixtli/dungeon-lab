@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import { onMounted, watch } from 'vue';
-import { useRoute } from 'vue-router';
-import { useSocketStore } from '../../stores/socket.mjs';
-import { useGameSessionStore } from '../../stores/game-session.mjs';
+import { onMounted } from 'vue';
+import { useSocketStore } from '../../stores/socket.store.mjs';
+import { useGameSessionStore } from '../../stores/game-session.store.mjs';
 
-const route = useRoute();
 const socketStore = useSocketStore();
 const gameSessionStore = useGameSessionStore();
 
@@ -12,19 +10,15 @@ const gameSessionStore = useGameSessionStore();
 async function restoreGameSession() {
   try {
     // Check for stored session and campaign IDs
-    const lastSessionId = localStorage.getItem('lastActiveSessionId');
-    const lastCampaignId = localStorage.getItem('lastActiveCampaignId');
 
     // If we have both stored, try to restore the session
-    if (lastSessionId && lastCampaignId) {
+    if (gameSessionStore.currentSession && gameSessionStore.currentCampaign) {
       console.log('[Debug] Found stored session:', {
-        sessionId: lastSessionId,
-        campaignId: lastCampaignId,
+        sessionId: gameSessionStore.currentSession.id,
+        campaignId: gameSessionStore.currentCampaign.id,
       });
 
       try {
-        // Get the session details
-        await gameSessionStore.getGameSession(lastSessionId);
 
         if (socketStore.socket && gameSessionStore.currentSession) {
           console.log(
@@ -45,50 +39,12 @@ async function restoreGameSession() {
           });
 
           // Attempt to join the session
-          socketStore.socket.emit('join-session', gameSessionStore.currentSession.id);
+          socketStore.socket.emit('joinSession', gameSessionStore.currentSession.id);
           return;
         }
       } catch (error) {
         console.warn('[Debug] Failed to restore stored session:', error);
         clearStoredSession();
-      }
-    }
-
-    // If we're on a campaign route, check for active sessions
-    const currentCampaignId = route.params.campaignId as string;
-    if (currentCampaignId) {
-      console.log('[Debug] Checking for active sessions in campaign:', currentCampaignId);
-
-      // Fetch active sessions for the campaign
-      const sessions = await gameSessionStore.fetchCampaignSessions(currentCampaignId);
-
-      // Find an active session
-      const activeSession = sessions.find(session => session.status === 'active');
-
-      if (activeSession) {
-        // Get full session details and join it
-        await gameSessionStore.getGameSession(activeSession.id);
-
-        if (socketStore.socket && gameSessionStore.currentSession) {
-          console.log('[Debug] Joining active session:', gameSessionStore.currentSession.id);
-
-          // Store both session and campaign IDs
-          storeSessionInfo(gameSessionStore.currentSession.id, currentCampaignId);
-
-          // Set up a one-time listener for join confirmation
-          socketStore.socket.once('user-joined', (data: { userId: string; timestamp: Date }) => {
-            console.log('[Debug] Successfully joined session:', data);
-          });
-
-          // Set up error listener
-          socketStore.socket.once('error', (error: { message: string }) => {
-            console.error('[Debug] Error joining session:', error);
-            clearStoredSession();
-          });
-
-          // Attempt to join the session
-          socketStore.socket.emit('join-session', gameSessionStore.currentSession.id);
-        }
       }
     }
   } catch (error) {
@@ -97,29 +53,11 @@ async function restoreGameSession() {
   }
 }
 
-// Helper to store session info
-function storeSessionInfo(sessionId: string, campaignId: string) {
-  localStorage.setItem('lastActiveSessionId', sessionId);
-  localStorage.setItem('lastActiveCampaignId', campaignId);
-}
 
 // Helper to clear stored session
 function clearStoredSession() {
-  localStorage.removeItem('lastActiveSessionId');
-  localStorage.removeItem('lastActiveCampaignId');
   gameSessionStore.clearSession();
 }
-
-// Watch for route changes
-watch(
-  () => route.params.campaignId,
-  (newCampaignId, oldCampaignId) => {
-    if (newCampaignId !== oldCampaignId) {
-      console.log('[Debug] Campaign ID changed in route, attempting to restore session');
-      restoreGameSession();
-    }
-  }
-);
 
 onMounted(() => {
   // When socket is initialized or reconnects, try to restore game session

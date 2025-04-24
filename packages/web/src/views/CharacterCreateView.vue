@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { useActorStore } from '../stores/actor.mts';
+import { useActorStore } from '../stores/actor.store.mjs';
 import PluginUIContainer from '@/components/plugin/PluginUIContainer.vue';
 import { pluginRegistry } from '@/services/plugin-registry.service.mjs';
 import ImageUpload from '../components/common/ImageUpload.vue';

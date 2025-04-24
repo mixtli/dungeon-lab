@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useGameSessionStore } from '../stores/game-session.mjs';
-import { useSocketStore } from '../stores/socket.mjs';
-import { useAuthStore } from '../stores/auth.mjs';
+import { useGameSessionStore } from '../stores/game-session.store.mjs';
+import { useSocketStore } from '../stores/socket.store.mjs';
+import { useAuthStore } from '../stores/auth.store.mjs';
 import EncounterSelectModal from '../components/encounter/EncounterSelectModal.vue';
 
 const route = useRoute();

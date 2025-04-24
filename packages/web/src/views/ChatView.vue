@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick } from 'vue';
 import { useRoute, RouterLink } from 'vue-router';
-import { useGameSessionStore } from '../stores/game-session.mjs';
-import { useSocketStore } from '../stores/socket.mjs';
+import { useGameSessionStore } from '../stores/game-session.store.mjs';
+import { useSocketStore } from '../stores/socket.store.mjs';
 import {
   IChatMessage,
   IRollCommandMessage,

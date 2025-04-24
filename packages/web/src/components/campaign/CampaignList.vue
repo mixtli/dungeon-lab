@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
-import { useCampaignStore } from '../../stores/campaign.mjs';
+import { useCampaignStore } from '../../stores/campaign.store.mjs';
 import { useRouter } from 'vue-router';
 import { PencilIcon, TrashIcon, EyeIcon } from '@heroicons/vue/24/outline';
 import { pluginRegistry } from '../../services/plugin-registry.service.mjs';

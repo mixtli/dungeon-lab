@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { type ICampaign, type IInvite } from '@dungeon-lab/shared/index.mjs';
-import * as campaignApi from '../api/campaigns.mjs';
+import * as campaignApi from '../api/campaigns.client.mts';
 
 export const useCampaignStore = defineStore('campaign', () => {
   // State

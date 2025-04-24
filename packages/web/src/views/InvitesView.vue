@@ -106,8 +106,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { useActorStore } from '../stores/actor.mjs';
-import { useAuthStore } from '../stores/auth.mjs';
+import { useActorStore } from '../stores/actor.store.mjs';
+import { useAuthStore } from '../stores/auth.store.mjs';
 import type { IActor } from '@dungeon-lab/shared/dist/index.mjs';
 import api from '../api/axios.mjs';
 

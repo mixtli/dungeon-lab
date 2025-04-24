@@ -1,5 +1,5 @@
 import type { IMap } from '@dungeon-lab/shared/schemas/map.schema.mjs';
-import api from './axios.mjs';
+import api from './axios.mts';
 
 export async function getMap(mapId: string): Promise<IMap> {
   const response = await api.get<IMap>(`/api/maps/${mapId}`);

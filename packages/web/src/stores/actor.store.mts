@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { type IActor } from '@dungeon-lab/shared/index.mjs';
-import * as actorApi from '../api/actors.mjs';
+import * as actorApi from '../api/actors.client.mts';
 
 export const useActorStore = defineStore('actor', () => {
   // State

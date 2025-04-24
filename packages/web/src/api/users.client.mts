@@ -1,4 +1,4 @@
-import api from './axios.mjs';
+import api from './axios.mts';
 import type { IUser, IUserUpdateData } from '@dungeon-lab/shared/schemas/user.schema.mjs';
 
 /**

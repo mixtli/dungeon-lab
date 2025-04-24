@@ -1,6 +1,3 @@
-import { Socket } from 'socket.io';
-import { Request } from 'express';
-
 // Extend express-session with our user data
 declare module 'express-session' {
   interface SessionData {

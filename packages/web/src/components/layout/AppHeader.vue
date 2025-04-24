@@ -2,8 +2,8 @@
 import { ref } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 import { useTheme } from '../../composables/useTheme.mjs';
-import { useAuthStore } from '../../stores/auth.mjs';
-import { useGameSessionStore } from '../../stores/game-session.mjs';
+import { useAuthStore } from '../../stores/auth.store.mjs';
+import { useGameSessionStore } from '../../stores/game-session.store.mjs';
 import { SunIcon, MoonIcon, Bars3Icon, XMarkIcon } from '@heroicons/vue/24/solid';
 
 const router = useRouter();

@@ -1,5 +1,5 @@
 import type { IItem } from '@dungeon-lab/shared/index.mjs';
-import api from './axios.mjs';
+import api from './axios.mts';
 
 export async function getItems(): Promise<IItem[]> {
   const response = await api.get<IItem[]>('/api/items');

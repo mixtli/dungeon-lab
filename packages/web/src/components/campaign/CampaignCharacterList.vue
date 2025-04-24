@@ -2,7 +2,7 @@
 import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { PlusIcon, TrashIcon } from '@heroicons/vue/24/outline';
-import { useCampaignStore } from '../../stores/campaign.mjs';
+import { useCampaignStore } from '../../stores/campaign.store.mjs';
 import { type IActor, type IAsset } from '@dungeon-lab/shared/index.mjs';
 
 // No need for these interfaces as we're using the shared types

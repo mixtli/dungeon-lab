@@ -1,38 +1,27 @@
 <!-- eslint-disable vue/multi-word-component-names -->
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
-import { useRouter } from 'vue-router';
-import { useAuthStore } from '../../stores/auth.mjs';
+import { useAuthStore } from '../../stores/auth.store.mjs';
+import { useGameSessionStore } from '../../stores/game-session.store.mjs';
 import { formatDate } from '../../utils/date-utils.mjs';
 import { CalendarIcon, ClockIcon } from '@heroicons/vue/24/outline';
 import { GameSessionStatus } from '@dungeon-lab/shared/src/schemas/game-session.schema.mjs';
 import type { z } from 'zod';
 import { fetchCampaignSessions, updateGameSessionStatus, deleteGameSession } from '../../api/index.mjs';
+import type { IGameSession } from '@dungeon-lab/shared/schemas/game-session.schema.mjs';
 
 type SessionStatus = z.infer<typeof GameSessionStatus>;
-
-// Define the game session interface to match the API response
-interface GameSessionWithId {
-  id: string;
-  name: string;
-  description?: string;
-  campaignId: string;
-  gameMasterId: string;
-  status: SessionStatus;
-  participants: string[];
-  settings?: Record<string, unknown>;
-}
 
 const props = defineProps<{
   campaignId: string;
 }>();
 
-const router = useRouter();
 const authStore = useAuthStore();
+const gameSessionStore = useGameSessionStore();
 
 const loading = ref(false);
 const error = ref<string | null>(null);
-const sessions = ref<GameSessionWithId[]>([]);
+const sessions = ref<IGameSession[]>([]);
 
 // Fetch sessions on mount
 onMounted(async () => {
@@ -74,13 +63,7 @@ const pausedSessions = computed(
 );
 
 function joinSession(sessionId: string) {
-  router.push({
-    name: 'game-session',
-    params: {
-      campaignId: props.campaignId,
-      id: sessionId,
-    },
-  });
+  useGameSessionStore().joinSession(sessionId);
 }
 
 function formatTime(isoString: string) {
@@ -88,7 +71,7 @@ function formatTime(isoString: string) {
 }
 
 // Check if user is game master
-function isGameMaster(session: GameSessionWithId) {
+function isGameMaster(session: IGameSession) {
   return session.gameMasterId === authStore.user?.id;
 }
 
@@ -168,21 +151,29 @@ async function handleUpdateSessionStatus(sessionId: string, status: SessionStatu
               </div>
               <div class="flex space-x-2">
                 <button
-                  @click="joinSession(session.id)"
+                  v-if="session.id !== gameSessionStore.currentSession?.id"
+                  @click="joinSession(session.id!)"
                   class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                 >
                   Join Session
                 </button>
                 <button
+                  v-else
+                  @click="gameSessionStore.leaveSession()"
+                  class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                >
+                  Leave Session
+                </button>
+                <button
                   v-if="isGameMaster(session)"
-                  @click="handleUpdateSessionStatus(session.id, 'paused')"
+                  @click="handleUpdateSessionStatus(session.id!, 'paused')"
                   class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-yellow-700 bg-yellow-100 hover:bg-yellow-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
                 >
                   Pause
                 </button>
                 <button
                   v-if="isGameMaster(session)"
-                  @click="handleUpdateSessionStatus(session.id, 'ended')"
+                  @click="handleUpdateSessionStatus(session.id!, 'ended')"
                   class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                 >
                   End
@@ -224,14 +215,14 @@ async function handleUpdateSessionStatus(sessionId: string, status: SessionStatu
               <div class="flex space-x-2">
                 <button
                   v-if="isGameMaster(session) && !activeSessions.length"
-                  @click="handleUpdateSessionStatus(session.id, 'active')"
+                  @click="handleUpdateSessionStatus(session.id!, 'active')"
                   class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                 >
                   Start Session
                 </button>
                 <button
                   v-if="isGameMaster(session)"
-                  @click="handleDeleteSession(session.id, session.name)"
+                  @click="handleDeleteSession(session.id!, session.name)"
                   class="inline-flex items-center px-2 py-1.5 border border-transparent text-sm font-medium rounded-md text-red-600 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                   title="Delete session"
                 >
@@ -275,21 +266,21 @@ async function handleUpdateSessionStatus(sessionId: string, status: SessionStatu
               <div class="flex space-x-2">
                 <button
                   v-if="isGameMaster(session) && !activeSessions.length"
-                  @click="handleUpdateSessionStatus(session.id, 'active')"
+                  @click="handleUpdateSessionStatus(session.id!, 'active')"
                   class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                 >
                   Resume Session
                 </button>
                 <button
                   v-if="isGameMaster(session)"
-                  @click="handleUpdateSessionStatus(session.id, 'ended')"
+                  @click="handleUpdateSessionStatus(session.id!, 'ended')"
                   class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                 >
                   End
                 </button>
                 <button
                   v-if="isGameMaster(session)"
-                  @click="handleDeleteSession(session.id, session.name)"
+                  @click="handleDeleteSession(session.id!, session.name)"
                   class="inline-flex items-center px-2 py-1.5 border border-transparent text-sm font-medium rounded-md text-red-600 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                   title="Delete session"
                 >

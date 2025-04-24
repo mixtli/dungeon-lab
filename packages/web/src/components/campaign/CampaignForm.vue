@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { useCampaignStore } from '../../stores/campaign.mjs';
+import { useCampaignStore } from '../../stores/campaign.store.mjs';
 import { useRouter } from 'vue-router';
-import { useAuthStore } from '../../stores/auth.mjs';
+import { useAuthStore } from '../../stores/auth.store.mjs';
 import { pluginRegistry } from '../../services/plugin-registry.service.mjs';
 
 const props = defineProps<{

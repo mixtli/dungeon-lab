@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useCampaignStore } from '../stores/campaign.mjs';
+import { useCampaignStore } from '../stores/campaign.store.mjs';
 import { pluginRegistry } from '../services/plugin-registry.service.mjs';
 import { formatDate } from '../utils/date-utils.mjs';
 import type { ICampaign } from '@dungeon-lab/shared/index.mjs';

@@ -3,13 +3,13 @@ import { RouterView } from 'vue-router';
 import NotificationToast from './components/common/NotificationToast.vue';
 import AppHeader from './components/layout/AppHeader.vue';
 
-import { useSocketStore } from './stores/socket.mts';
+import { useSocketStore } from './stores/socket.store.mjs';
 import { onMounted } from 'vue';
 const store = useSocketStore();
 
-//onMounted(() => {
+onMounted(() => {
   store.initSocket();
-//});
+});
 
 </script>
 

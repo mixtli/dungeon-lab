@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useNotificationStore } from '../../stores/notification.mjs';
+import { useNotificationStore } from '../../stores/notification.store.mjs';
 import { XMarkIcon } from '@heroicons/vue/24/outline';
 import { computed } from 'vue';
 

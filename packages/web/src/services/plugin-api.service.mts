@@ -1,8 +1,8 @@
 import { IPluginAPI } from '@dungeon-lab/shared/types/plugin-api.mjs';
-import { useActorStore } from '../stores/actor.mjs';
-import { useSocketStore } from '../stores/socket.mjs';
+import { useSocketStore } from '../stores/socket.store.mjs';
 import { pluginRegistry } from './plugin-registry.service.mjs';
-import { useItemStore } from '../stores/item.mjs';
+import * as itemApi from '../api/items.client.mjs';
+import * as actorApi from '../api/actors.client.mjs';
 import type { IActor, IItem } from '@dungeon-lab/shared/index.mjs';
 import api from '../api/axios.mjs';
 /**
@@ -17,16 +17,8 @@ export class PluginAPI implements IPluginAPI {
     this.pluginId = pluginId;
   }
 
-  private get actorStore() {
-    return useActorStore();
-  }
-
   private get socketStore() {
     return useSocketStore();
-  }
-
-  private get itemStore() {
-    return useItemStore();
   }
 
   // Actor management
@@ -53,7 +45,7 @@ export class PluginAPI implements IPluginAPI {
       data: validatedData
     };
 
-    const actor = await this.actorStore.createActor(createData);
+    const actor = await actorApi.createActor(createData);
     if (!actor.id) {
       throw new Error('Failed to create actor: No ID returned');
     }
@@ -61,7 +53,7 @@ export class PluginAPI implements IPluginAPI {
   }
 
   async getActor(id: string): Promise<unknown> {
-    const actor = await this.actorStore.fetchActor(id);
+    const actor = await actorApi.getActor(id);
     if (!actor) {
       throw new Error('Actor not found');
     }
@@ -69,7 +61,7 @@ export class PluginAPI implements IPluginAPI {
   }
 
   async updateActor(id: string, data: unknown): Promise<void> {
-    const actor: IActor | null = await this.actorStore.fetchActor(id);
+    const actor = await actorApi.getActor(id);
     if (!actor) {
       throw new Error('Actor not found');
     }
@@ -84,11 +76,11 @@ export class PluginAPI implements IPluginAPI {
       data: validation.data as Record<string, unknown>
     };
 
-    await this.actorStore.updateActor(id, updateData);
+    await actorApi.updateActor(id, updateData);
   }
 
   async deleteActor(id: string): Promise<void> {
-    await this.actorStore.deleteActor(id);
+    await actorApi.deleteActor(id);
   }
 
   // Item management
@@ -116,7 +108,7 @@ export class PluginAPI implements IPluginAPI {
       data: validatedData
     };
 
-    const item = await this.itemStore.createItem(createData);
+    const item = await itemApi.createItem(createData);
     if (!item.id) {
       throw new Error('Failed to create item: No ID returned');
     }
@@ -124,7 +116,7 @@ export class PluginAPI implements IPluginAPI {
   }
 
   async getItem(id: string): Promise<unknown> {
-    const item = await this.itemStore.fetchItem(id);
+    const item = await itemApi.getItem(id);
     if (!item) {
       throw new Error('Item not found');
     }
@@ -132,7 +124,7 @@ export class PluginAPI implements IPluginAPI {
   }
 
   async updateItem(id: string, data: unknown): Promise<void> {
-    const item = await this.itemStore.fetchItem(id);
+    const item = await itemApi.getItem(id);
     if (!item) {
       throw new Error('Item not found');
     }
@@ -147,11 +139,11 @@ export class PluginAPI implements IPluginAPI {
       data: validation.data as Record<string, unknown>
     };
 
-    await this.itemStore.updateItem(id, updateData);
+    await itemApi.updateItem(id, updateData);
   }
 
   async deleteItem(id: string): Promise<void> {
-    await this.itemStore.deleteItem(id);
+    await itemApi.deleteItem(id);
   }
 
   // Data validation

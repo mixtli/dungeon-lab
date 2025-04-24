@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useEncounterStore } from '../../stores/encounter.mts';
+import { useEncounterStore } from '../../stores/encounter.store.mjs';
 import type { IMap } from '@dungeon-lab/shared/src/schemas/map.schema.mjs';
-import * as mapApi from '../../api/maps.mjs';
+import * as mapApi from '../../api/maps.client.mjs';
 
 const route = useRoute();
 const router = useRouter();

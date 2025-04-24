@@ -1,4 +1,4 @@
-import api from './axios.mjs';
+import api from './axios.mts';
 import type { IActor } from '@dungeon-lab/shared/index.mjs';
 
 export async function getActors(): Promise<IActor[]> {

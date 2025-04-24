@@ -2,8 +2,8 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import type { IEncounter } from '@dungeon-lab/shared/index.mjs';
 import type { IActor } from '@dungeon-lab/shared/index.mjs';
-import * as encounterApi from '../api/encounters.mjs';
-import * as actorApi from '../api/actors.mjs';
+import * as encounterApi from '../api/encounters.client.mts';
+import * as actorApi from '../api/actors.client.mts';
 
 export interface IEncounterWithActors extends Omit<IEncounter, 'participants'> {
   participants: IActor[];

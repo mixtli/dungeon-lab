@@ -7,7 +7,7 @@ import router from './router/index.mjs';
 import './assets/styles/main.css';
 import api from './api/axios.mjs';
 import { pluginRegistry } from './services/plugin-registry.service.mjs';
-import { useAuthStore } from './stores/auth.mjs';
+import { useAuthStore } from './stores/auth.store.mjs';
 
 const app = createApp(App);
 const pinia = createPinia();

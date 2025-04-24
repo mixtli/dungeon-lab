@@ -2,8 +2,8 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { useGameSessionStore } from '../../stores/game-session.mjs';
-import { useAuthStore } from '../../stores/auth.mjs';
+import { useGameSessionStore } from '../../stores/game-session.store.mjs';
+import { useAuthStore } from '../../stores/auth.store.mjs';
 
 const props = defineProps<{
   show: boolean;

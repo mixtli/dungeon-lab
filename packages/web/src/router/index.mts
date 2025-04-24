@@ -44,7 +44,7 @@ const EncounterCreateView = () => import('@/views/encounter/EncounterCreateView.
 const EncounterDetailView = () => import('@/views/encounter/EncounterDetailView.vue');
 const EncounterRunView = () => import('@/views/encounter/EncounterRunView.vue');
 // Not actively used in navigation, but kept for potential programmatic access
-// const EncountersView = () => import('@/views/encounter/EncountersView.vue'); 
+// const EncountersView = () => import('@/views/encounter/EncountersView.vue');
 
 const routes: RouteRecordRaw[] = [
   {
@@ -57,8 +57,8 @@ const routes: RouteRecordRaw[] = [
         component: HomeView,
         meta: {
           title: 'Home',
-          requiresAuth: false,
-        },
+          requiresAuth: false
+        }
       },
       {
         path: 'game/:id',
@@ -66,8 +66,8 @@ const routes: RouteRecordRaw[] = [
         component: GameTableView,
         meta: {
           title: 'Game Table',
-          requiresAuth: true,
-        },
+          requiresAuth: true
+        }
       },
       {
         path: 'characters',
@@ -75,8 +75,8 @@ const routes: RouteRecordRaw[] = [
         component: CharacterListView,
         meta: {
           title: 'My Characters',
-          requiresAuth: true,
-        },
+          requiresAuth: true
+        }
       },
       {
         path: 'character/create',
@@ -84,8 +84,8 @@ const routes: RouteRecordRaw[] = [
         component: CharacterCreateView,
         meta: {
           title: 'Create Character',
-          requiresAuth: true,
-        },
+          requiresAuth: true
+        }
       },
       {
         path: 'actor/create',
@@ -93,8 +93,8 @@ const routes: RouteRecordRaw[] = [
         component: ActorCreateView,
         meta: {
           title: 'Create Character (Plugin)',
-          requiresAuth: true,
-        },
+          requiresAuth: true
+        }
       },
       {
         path: 'character/:id',
@@ -102,8 +102,8 @@ const routes: RouteRecordRaw[] = [
         component: CharacterSheetView,
         meta: {
           title: 'Character Sheet',
-          requiresAuth: true,
-        },
+          requiresAuth: true
+        }
       },
       // Asset routes
       {
@@ -112,8 +112,8 @@ const routes: RouteRecordRaw[] = [
         component: AssetListView,
         meta: {
           title: 'Asset Library',
-          requiresAuth: true,
-        },
+          requiresAuth: true
+        }
       },
       {
         path: 'assets/:id',
@@ -121,8 +121,8 @@ const routes: RouteRecordRaw[] = [
         component: AssetDetailView,
         meta: {
           title: 'Asset Details',
-          requiresAuth: true,
-        },
+          requiresAuth: true
+        }
       },
       // Campaign routes
       {
@@ -131,8 +131,8 @@ const routes: RouteRecordRaw[] = [
         component: CampaignsView,
         meta: {
           title: 'My Campaigns',
-          requiresAuth: true,
-        },
+          requiresAuth: true
+        }
       },
       {
         path: 'campaigns/create',
@@ -140,8 +140,8 @@ const routes: RouteRecordRaw[] = [
         component: CampaignCreateView,
         meta: {
           title: 'Create Campaign',
-          requiresAuth: true,
-        },
+          requiresAuth: true
+        }
       },
       {
         path: 'campaigns/:id',
@@ -149,8 +149,8 @@ const routes: RouteRecordRaw[] = [
         component: CampaignDetailView,
         meta: {
           title: 'Campaign Details',
-          requiresAuth: true,
-        },
+          requiresAuth: true
+        }
       },
       {
         path: 'campaigns/:id/edit',
@@ -158,8 +158,8 @@ const routes: RouteRecordRaw[] = [
         component: CampaignEditView,
         meta: {
           title: 'Edit Campaign',
-          requiresAuth: true,
-        },
+          requiresAuth: true
+        }
       },
       {
         path: '/game-sessions',
@@ -167,8 +167,8 @@ const routes: RouteRecordRaw[] = [
         component: GameSessionListView,
         meta: {
           title: 'Game Sessions',
-          requiresAuth: true,
-        },
+          requiresAuth: true
+        }
       },
       {
         path: '/campaigns/:campaignId/sessions/:id',
@@ -176,8 +176,8 @@ const routes: RouteRecordRaw[] = [
         component: GameSessionView,
         meta: {
           title: 'Game Session',
-          requiresAuth: true,
-        },
+          requiresAuth: true
+        }
       },
       {
         path: '/campaigns/:campaignId/sessions/:id/chat',
@@ -185,8 +185,8 @@ const routes: RouteRecordRaw[] = [
         component: ChatView,
         meta: {
           title: 'Game Chat',
-          requiresAuth: true,
-        },
+          requiresAuth: true
+        }
       },
       // Encounter routes - not exposed in main navigation
       {
@@ -195,8 +195,8 @@ const routes: RouteRecordRaw[] = [
         component: NotFoundView, // Redirect to not found for now
         meta: {
           title: 'Page Not Found',
-          requiresAuth: true,
-        },
+          requiresAuth: true
+        }
       },
       {
         path: 'campaigns/:campaignId/encounters/create',
@@ -204,8 +204,8 @@ const routes: RouteRecordRaw[] = [
         component: EncounterCreateView,
         meta: {
           title: 'Create Encounter',
-          requiresAuth: true,
-        },
+          requiresAuth: true
+        }
       },
       {
         path: 'campaigns/:campaignId/encounters/:id',
@@ -213,8 +213,8 @@ const routes: RouteRecordRaw[] = [
         component: EncounterDetailView,
         meta: {
           title: 'Encounter Details',
-          requiresAuth: true,
-        },
+          requiresAuth: true
+        }
       },
       {
         path: 'campaigns/:campaignId/encounters/:id/run',
@@ -222,8 +222,8 @@ const routes: RouteRecordRaw[] = [
         component: EncounterRunView,
         meta: {
           title: 'Run Encounter',
-          requiresAuth: true,
-        },
+          requiresAuth: true
+        }
       },
       // Map routes
       {
@@ -232,8 +232,8 @@ const routes: RouteRecordRaw[] = [
         component: MapListView,
         meta: {
           title: 'My Maps',
-          requiresAuth: true,
-        },
+          requiresAuth: true
+        }
       },
       {
         path: 'maps/create',
@@ -241,8 +241,8 @@ const routes: RouteRecordRaw[] = [
         component: MapCreateView,
         meta: {
           title: 'Create Map',
-          requiresAuth: true,
-        },
+          requiresAuth: true
+        }
       },
       {
         path: 'maps/:id',
@@ -250,8 +250,8 @@ const routes: RouteRecordRaw[] = [
         component: MapDetailView,
         meta: {
           title: 'Map Details',
-          requiresAuth: true,
-        },
+          requiresAuth: true
+        }
       },
       // Invites route
       {
@@ -260,8 +260,8 @@ const routes: RouteRecordRaw[] = [
         component: InvitesView,
         meta: {
           title: 'Campaign Invites',
-          requiresAuth: true,
-        },
+          requiresAuth: true
+        }
       },
       {
         path: 'settings',
@@ -269,8 +269,8 @@ const routes: RouteRecordRaw[] = [
         component: SettingsView,
         meta: {
           title: 'Settings',
-          requiresAuth: true,
-        },
+          requiresAuth: true
+        }
       },
       {
         path: 'actor/:id/edit',
@@ -278,17 +278,17 @@ const routes: RouteRecordRaw[] = [
         component: ActorEditView,
         meta: {
           title: 'Edit Actor',
-          requiresAuth: true,
-        },
-      },
-    ],
+          requiresAuth: true
+        }
+      }
+    ]
   },
   {
     path: '/admin',
     component: DefaultLayout,
     meta: {
       requiresAuth: true,
-      requiresAdmin: true,
+      requiresAdmin: true
     },
     children: [
       {
@@ -298,10 +298,10 @@ const routes: RouteRecordRaw[] = [
         meta: {
           title: 'Plugin Manager',
           requiresAuth: true,
-          requiresAdmin: true,
-        },
-      },
-    ],
+          requiresAdmin: true
+        }
+      }
+    ]
   },
   {
     path: '/auth',
@@ -313,8 +313,8 @@ const routes: RouteRecordRaw[] = [
         component: LoginView,
         meta: {
           title: 'Login',
-          requiresAuth: false,
-        },
+          requiresAuth: false
+        }
       },
       {
         path: 'register',
@@ -322,8 +322,8 @@ const routes: RouteRecordRaw[] = [
         component: RegisterView,
         meta: {
           title: 'Register',
-          requiresAuth: false,
-        },
+          requiresAuth: false
+        }
       },
       {
         path: 'google/callback',
@@ -331,19 +331,19 @@ const routes: RouteRecordRaw[] = [
         component: GoogleCallbackView,
         meta: {
           title: 'Google Authentication',
-          requiresAuth: false,
-        },
-      },
-    ],
+          requiresAuth: false
+        }
+      }
+    ]
   },
   // Redirect old auth routes to new ones
   {
     path: '/login',
-    redirect: '/auth/login',
+    redirect: '/auth/login'
   },
   {
     path: '/register',
-    redirect: '/auth/register',
+    redirect: '/auth/register'
   },
   {
     path: '/:pathMatch(.*)*',
@@ -351,9 +351,9 @@ const routes: RouteRecordRaw[] = [
     component: NotFoundView,
     meta: {
       title: 'Page Not Found',
-      requiresAuth: false,
-    },
-  },
+      requiresAuth: false
+    }
+  }
 ];
 
 const router = createRouter({
@@ -365,23 +365,23 @@ const router = createRouter({
     } else {
       return { top: 0 };
     }
-  },
+  }
 });
 
 // Navigation guard
 router.beforeEach(async (to, from, next) => {
   console.log('Route navigation:', { from: from.path, to: to.path });
-  
+
   // Set document title
   document.title = `${to.meta.title} | Dungeon Lab`;
-  
+
   // Dynamically import the auth store to avoid circular dependencies
-  const { useAuthStore } = await import('../stores/auth.mjs');
+  const { useAuthStore } = await import('../stores/auth.store.mjs');
   const authStore = useAuthStore();
-  
+
   // Convenience variables
   const isAuthRoute = to.path.startsWith('/auth') || to.path === '/';
-  
+
   // If localStorage has isAuthenticated but user is not loaded, try to fetch user data
   if (localStorage.getItem('isAuthenticated') && !authStore.user) {
     try {
@@ -395,28 +395,28 @@ router.beforeEach(async (to, from, next) => {
       localStorage.removeItem('isAuthenticated');
     }
   }
-  
+
   // Check authentication status from store
   const isAuthenticated = authStore.isAuthenticated;
-  
+
   console.log('Auth status:', { isAuthRoute, isAuthenticated });
-  
+
   // Check if the user is authenticated
   if (to.meta.requiresAuth && !isAuthenticated) {
     console.log('Redirecting to login - auth required');
     next({ name: 'login', query: { redirect: to.fullPath } });
     return;
   }
-  
+
   // Handle auth routes when already authenticated
   if (isAuthenticated && isAuthRoute && to.name !== 'home') {
     console.log('Redirecting to home - already authenticated');
     next({ name: 'home' });
     return;
   }
-  
+
   console.log('Proceeding with navigation to:', to.path);
   next();
 });
 
-export default router; 
+export default router;

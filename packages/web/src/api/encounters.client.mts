@@ -1,5 +1,5 @@
 import type { IEncounter } from '@dungeon-lab/shared/schemas/encounter.schema.mjs';
-import api from './axios.mjs';
+import api from './axios.mts';
 
 export async function getEncounters(): Promise<IEncounter[]> {
   const response = await api.get<IEncounter[]>('/api/encounters');

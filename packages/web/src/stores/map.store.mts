@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import type { IMap } from '@dungeon-lab/shared/schemas/map.schema.mjs';
-import * as mapApi from '../api/maps.mjs';
+import * as mapApi from '../api/maps.client.mts';
 
 export const useMapStore = defineStore('map', () => {
   const currentMap = ref<IMap | null>(null);
