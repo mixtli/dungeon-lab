@@ -29,10 +29,6 @@ const participantQuery = ref('');
 function handleMessage(message: IChatMessage) {
   if (message.type === 'chat') {
     messages.value.push(message);
-    // If we don't have character info yet, try to load it
-    if (!gameSessionStore.currentCharacter) {
-      gameSessionStore.getGameSession(route.params.id as string);
-    }
     // Scroll to bottom
     nextTick(() => {
       const chatContainer = document.querySelector('.chat-messages');
@@ -89,11 +85,6 @@ function sendMessage() {
     return;
   }
 
-  // If we don't have character info yet, try to load it
-  if (!gameSessionStore.currentCharacter && !gameSessionStore.isGameMaster) {
-    console.log('Reloading game session to get character info...');
-    gameSessionStore.getGameSession(route.params.id as string);
-  }
 
   const recipient = selectedParticipant.value?.id || 'all';
   const message: IChatMessage = {
@@ -121,6 +112,7 @@ function sendMessage() {
 
 // Handle input changes for @ mentions
 function handleInput(event: Event) {
+  console.log('handleInput', event);
   const input = (event.target as HTMLInputElement).value;
   if (input.startsWith('@')) {
     isDirectMessage.value = true;
@@ -187,11 +179,6 @@ async function updateParticipants() {
 
 onMounted(async () => {
   // Join the game session
-  if (route.params.id) {
-    console.log('joining session', route.params.id);
-    console.log('socketStore.socket', socketStore.socket);
-    socketStore.socket?.emit('joinSession', route.params.id);
-  }
 
   // Listen for messages
   socketStore.socket?.on('message', handleMessage);
@@ -200,16 +187,12 @@ onMounted(async () => {
   socketStore.socket?.on('roll-result', handleRollResult);
 
   // Get participants
-  await gameSessionStore.getGameSession(route.params.id as string);
   updateParticipants();
 });
 
 onUnmounted(() => {
   socketStore.socket?.off('message', handleMessage);
   socketStore.socket?.off('roll-result', handleRollResult);
-  if (route.params.id) {
-    socketStore.socket?.emit('leave-session', route.params.id);
-  }
 });
 </script>
 

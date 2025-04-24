@@ -180,8 +180,8 @@ const routes: RouteRecordRaw[] = [
         }
       },
       {
-        path: '/campaigns/:campaignId/sessions/:id/chat',
-        name: 'game-session-chat',
+        path: '/chat',
+        name: 'chat',
         component: ChatView,
         meta: {
           title: 'Game Chat',

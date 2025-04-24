@@ -29,7 +29,7 @@ function logout() {
 function goToChat() {
   if (gameSessionStore.currentSession && gameSessionStore.currentCampaign) {
     router.push({
-      name: 'game-session-chat',
+      name: 'chat',
       params: {
         campaignId: gameSessionStore.currentCampaign.id,
         id: gameSessionStore.currentSession.id,

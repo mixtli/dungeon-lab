@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
-import { useRouter } from 'vue-router';
 import { formatDate } from '../utils/date-utils.mjs';
 import { CalendarIcon, ClockIcon } from '@heroicons/vue/24/outline';
 import { fetchGameSessions } from '../api/index.mjs';
+import { useGameSessionStore } from '../stores/game-session.store.mjs';
+import router from '@/router/index.mjs';
 
 // Define the game session interface to match the API response
 interface GameSession {
@@ -16,10 +17,10 @@ interface GameSession {
   settings?: Record<string, unknown>;
 }
 
-const router = useRouter();
 const loading = ref(false);
 const error = ref<string | null>(null);
 const allSessions = ref<GameSession[]>([]);
+const gameSessionStore = useGameSessionStore();
 
 // Fetch sessions on mount
 onMounted(async () => {
@@ -56,8 +57,9 @@ const futureSessions = computed(() =>
     })
 );
 
-function joinSession(sessionId: string, campaignId: string) {
-  router.push({ name: 'game-session', params: { id: sessionId, campaignId } });
+function joinSession(sessionId: string) {
+  useGameSessionStore().joinSession(sessionId);
+  router.push({ name: 'chat'})
 }
 
 function formatTime(isoString: string) {
@@ -103,12 +105,22 @@ function formatTime(isoString: string) {
                   {{ session.description }}
                 </p>
               </div>
+              <!-- Conditional Join/Leave Button -->
               <button
-                @click="joinSession(session.id, session.campaignId)"
+                v-if="session.id !== gameSessionStore.currentSession?.id"
+                @click="joinSession(session.id)"
                 class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
               >
                 Join Session
               </button>
+              <button
+                v-else
+                @click="gameSessionStore.leaveSession()"
+                class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+              >
+                Leave Session
+              </button>
+              <!-- End Conditional Button -->
             </div>
           </div>
         </div>

@@ -26,7 +26,6 @@ onMounted(async () => {
   error.value = null;
 
   try {
-    await gameSessionStore.getGameSession(sessionId);
     setupSocketListeners();
   } catch (err) {
     console.error('Error fetching game session:', err);
