@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import { IEncounter, encounterSchema } from '@dungeon-lab/shared/schemas/encounter.schema.mjs';
-import { baseMongooseZodSchema } from '../../../models/base-schema.mjs';
+import { baseMongooseZodSchema } from '../../../models/base.model.schema.mjs';
 import { createMongoSchema } from '../../../models/zod-to-mongo.mjs';
 import { logger } from '../../../utils/logger.mjs';
 
@@ -24,4 +24,4 @@ mongooseSchema.index({ gameSessionId: 1 });
 /**
  * Encounter model
  */
-export const EncounterModel = mongoose.model<IEncounter>('Encounter', mongooseSchema); 
+export const EncounterModel = mongoose.model<IEncounter>('Encounter', mongooseSchema);

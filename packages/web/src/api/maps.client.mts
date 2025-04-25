@@ -25,11 +25,6 @@ export async function deleteMap(mapId: string): Promise<void> {
   await api.delete(`/api/maps/${mapId}`);
 }
 
-export async function getMapsByCampaign(campaignId: string): Promise<IMap[]> {
-  const response = await api.get<IMap[]>(`/api/campaigns/${campaignId}/maps`);
-  return response.data;
-}
-
 export async function uploadMapImage(mapId: string, file: File): Promise<string> {
   const formData = new FormData();
   formData.append('image', file);

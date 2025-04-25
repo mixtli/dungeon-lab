@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import { IToken, tokenSchema } from '@dungeon-lab/shared/index.mjs';
-import { baseMongooseZodSchema } from '../../../models/base-schema.mjs';
+import { baseMongooseZodSchema } from '../../../models/base.model.schema.mjs';
 import { createMongoSchema } from '../../../models/zod-to-mongo.mjs';
 
 /**
@@ -21,4 +21,4 @@ mongooseSchema.index({ itemId: 1 });
 /**
  * Token model
  */
-export const TokenModel = mongoose.model<IToken>('Token', mongooseSchema); 
+export const TokenModel = mongoose.model<IToken>('Token', mongooseSchema);

@@ -3,7 +3,7 @@ import { ref, computed } from 'vue';
 import type { IUser } from '@dungeon-lab/shared/index.mjs';
 import * as authApi from '../api/auth.client.mts';
 import { AxiosError } from 'axios';
-import { LoginRequest } from '@dungeon-lab/shared/types/api/authentication.mjs';
+import { LoginRequest, RegisterRequest } from '@dungeon-lab/shared/types/api/authentication.mjs';
 
 export const useAuthStore = defineStore(
   'auth',
@@ -40,12 +40,17 @@ export const useAuthStore = defineStore(
       }
     }
 
-    async function register(data: authApi.RegisterData) {
+    async function register(data: RegisterRequest) {
       isLoading.value = true;
       error.value = undefined;
 
       try {
-        user.value = await authApi.register(data);
+        const result = await authApi.register(data);
+        if (result.success) {
+          user.value = result.data;
+        } else {
+          error.value = result.error;
+        }
         return true;
       } catch (err: unknown) {
         if (err instanceof AxiosError) {

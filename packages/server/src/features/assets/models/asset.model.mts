@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 import { assetSchema, IAsset } from '@dungeon-lab/shared/schemas/asset.schema.mjs';
 import { createMongoSchema } from '../../../models/zod-to-mongo.mjs';
-import { baseMongooseZodSchema } from '../../../models/base-schema.mjs';
+import { baseMongooseZodSchema } from '../../../models/base.model.schema.mjs';
 import { zId } from '@zodyac/zod-mongoose';
 
 /**
@@ -17,8 +17,8 @@ function generateMinioPath(userId: string, assetId: string, filename: string): s
  * Create custom schema with ObjectId references for Mongoose
  */
 const assetSchemaMongoose = assetSchema.merge(baseMongooseZodSchema).extend({
-  // Only require user reference 
-  createdBy: zId('User'),
+  // Only require user reference
+  createdBy: zId('User')
 });
 
 /**
@@ -34,7 +34,7 @@ mongooseSchema.index({ createdBy: 1 });
  * @param expiryTimeSeconds - The expiry time in seconds (default 3600 = 1 hour)
  * @returns Promise that resolves to the signed URL
  */
-mongooseSchema.methods.getSignedUrl = async function(_expiryTimeSeconds = 3600) {
+mongooseSchema.methods.getSignedUrl = async function (_expiryTimeSeconds = 3600) {
   console.log('getSignedUrl', this.url, _expiryTimeSeconds);
   // This would typically call the Minio client to get a pre-signed URL
   // For now we'll just return the regular URL as a placeholder
@@ -47,9 +47,9 @@ mongooseSchema.methods.getSignedUrl = async function(_expiryTimeSeconds = 3600) 
  * @param newMetadata - The metadata to merge with existing metadata
  * @returns Promise that resolves to the updated asset
  */
-mongooseSchema.methods.updateMetadata = async function(newMetadata: Record<string, unknown>) {
+mongooseSchema.methods.updateMetadata = async function (newMetadata: Record<string, unknown>) {
   // Merge the new metadata with existing metadata (if any)
-  this.metadata = { ...this.metadata || {}, ...newMetadata };
+  this.metadata = { ...(this.metadata || {}), ...newMetadata };
   return this.save();
 };
 
@@ -58,7 +58,7 @@ mongooseSchema.methods.updateMetadata = async function(newMetadata: Record<strin
  * @param userId - The user ID to check ownership against
  * @returns Boolean indicating ownership
  */
-mongooseSchema.methods.isOwnedBy = function(userId: string) {
+mongooseSchema.methods.isOwnedBy = function (userId: string) {
   return this.createdBy.toString() === userId;
 };
 
@@ -66,12 +66,12 @@ mongooseSchema.methods.isOwnedBy = function(userId: string) {
  * Return a public-friendly JSON representation of the asset
  * @returns Object with public asset data
  */
-mongooseSchema.methods.toPublicJSON = function() {
+mongooseSchema.methods.toPublicJSON = function () {
   const obj = this.toObject();
-  
+
   // Remove any sensitive fields if needed
   // Currently there are no sensitive fields in the asset model
-  
+
   return obj;
 };
 
@@ -82,7 +82,7 @@ mongooseSchema.methods.toPublicJSON = function() {
  * @param filename - The original filename
  * @returns The scoped path for storing in Minio
  */
-mongooseSchema.statics.generateMinioPath = function(
+mongooseSchema.statics.generateMinioPath = function (
   userId: string,
   assetId: string,
   filename: string
@@ -93,58 +93,68 @@ mongooseSchema.statics.generateMinioPath = function(
 /**
  * Create a new asset with a pre-generated ID to ensure path consistency
  * This method handles both the MongoDB document creation and generating consistent Minio paths
- * 
+ *
  * @param assetData - The asset data to create
  * @param filename - The original filename
  * @returns Promise that resolves to the created asset
  */
-mongooseSchema.statics.createAssetWithPath = async function(
+mongooseSchema.statics.createAssetWithPath = async function (
   assetData: Partial<IAsset>,
   filename: string
 ) {
   // Pre-generate a MongoDB ID that will be used for both the document and path
   const assetId = new mongoose.Types.ObjectId();
-  
+
   // Ensure createdBy exists
   if (!assetData.createdBy) {
     throw new Error('createdBy is required for creating an asset');
   }
-  
+
   // Generate the Minio path using the helper function
-  const path = generateMinioPath(
-    assetData.createdBy.toString(),
-    assetId.toString(),
-    filename
-  );
-  
+  const path = generateMinioPath(assetData.createdBy.toString(), assetId.toString(), filename);
+
   // Create the asset document with the pre-generated ID and path
   const asset = new this({
     ...assetData,
     _id: assetId,
     path
   });
-  
+
   // Save the asset to the database
   await asset.save();
-  
+
   return asset;
 };
 
 // Define the interface for Asset static methods
 interface AssetStaticMethods {
   generateMinioPath(userId: string, assetId: string, filename: string): string;
-  createAssetWithPath(assetData: Partial<IAsset>, filename: string): Promise<mongoose.Document<unknown, object, IAsset> & IAsset>;
+  createAssetWithPath(
+    assetData: Partial<IAsset>,
+    filename: string
+  ): Promise<mongoose.Document<unknown, object, IAsset> & IAsset>;
 }
 
 // Extend Mongoose model with our static methods
-type AssetModelType = mongoose.Model<IAsset, object, object, object, mongoose.Document<unknown, object, IAsset> & IAsset & {
-  updateMetadata(newMetadata: Record<string, unknown>): Promise<mongoose.Document<unknown, object, IAsset>>;
-  getSignedUrl(expiryTimeSeconds?: number): Promise<string>;
-  isOwnedBy(userId: string): boolean;
-  toPublicJSON(): Record<string, unknown>;
-}, unknown> & AssetStaticMethods;
+type AssetModelType = mongoose.Model<
+  IAsset,
+  object,
+  object,
+  object,
+  mongoose.Document<unknown, object, IAsset> &
+    IAsset & {
+      updateMetadata(
+        newMetadata: Record<string, unknown>
+      ): Promise<mongoose.Document<unknown, object, IAsset>>;
+      getSignedUrl(expiryTimeSeconds?: number): Promise<string>;
+      isOwnedBy(userId: string): boolean;
+      toPublicJSON(): Record<string, unknown>;
+    },
+  unknown
+> &
+  AssetStaticMethods;
 
 /**
  * Asset model - Represents a file stored in Minio with references to parent entities
  */
-export const AssetModel = mongoose.model<IAsset, AssetModelType>('Asset', mongooseSchema); 
+export const AssetModel = mongoose.model<IAsset, AssetModelType>('Asset', mongooseSchema);

@@ -152,6 +152,12 @@ export const openApiGet = (zodSchema: z.ZodType, overrides = {}) =>
 export const openApiGetOne = (zodSchema: z.ZodType, overrides = {}) =>
   createOpenApiDocs(zodSchema, overrides, 'GET', true);
 
+/**
+ * Create OpenAPI documentation middleware for POST requests
+ * @param zodSchema The Zod schema to use for request/response
+ * @param overrides Optional overrides for the generated OpenAPI documentation
+ * @returns OpenAPI documentation middleware
+ */
 export const openApiPost = (zodSchema: z.ZodType, overrides = {}) =>
   createOpenApiDocs(zodSchema, overrides, 'POST');
 

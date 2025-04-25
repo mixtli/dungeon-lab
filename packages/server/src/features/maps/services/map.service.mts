@@ -11,6 +11,7 @@ import { MAP_IMAGE_GENERATION_JOB, MAP_THUMBNAIL_GENERATION_JOB } from '../jobs/
 import { deepMerge } from '@dungeon-lab/shared/utils/deepMerge.mjs';
 import { Types } from 'mongoose';
 import { UserModel } from '../../../models/user.model.mjs';
+import { IMapCreateData, IMapUpdateData } from '@dungeon-lab/shared/schemas/map.schema.mjs';
 
 // Define a type for map query values
 export type QueryValue = string | number | boolean | RegExp | Date | object;
@@ -38,7 +39,7 @@ export class MapService {
    * @param userId - ID of the user creating the map
    * @param imageFile - Optional image file for the map
    */
-  async createMap(data: IMap, userId: string, imageFile?: File): Promise<IMap> {
+  async createMap(data: IMapCreateData, userId: string, imageFile?: File): Promise<IMap> {
     try {
       // First create a basic map record
       const mapData = {
@@ -460,7 +461,7 @@ export class MapService {
    * @param userId - ID of the user updating the map
    * @param imageFile - Optional new image file
    */
-  async putMap(id: string, data: IMap, userId: string, imageFile?: File): Promise<IMap> {
+  async putMap(id: string, data: IMapUpdateData, userId: string, imageFile?: File): Promise<IMap> {
     try {
       const map = await MapModel.findById(id);
       if (!map) {

@@ -1,14 +1,21 @@
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
+import { ZodError } from 'zod';
 import { UserModel } from '../models/user.model.mjs';
 import { logger } from '../utils/logger.mjs';
 import { IUser } from '@dungeon-lab/shared/index.mjs';
 import {
   LoginRequest,
   loginRequestSchema,
-  LoginResponse
-} from '@dungeon-lab/shared/types/api/authentication.mjs';
-import { ZodError } from 'zod';
+  LoginResponse,
+  RegisterRequest,
+  registerRequestSchema,
+  RegisterResponse,
+  LogoutResponse,
+  GoogleCallbackResponse,
+  GetCurrentUserResponse,
+  GetApiKeyResponse
+} from '@dungeon-lab/shared/types/api/index.mjs';
 
 /**
  * Format user data for response
@@ -28,14 +35,17 @@ function formatUserResponse(user: IUser): LoginResponse['user'] {
 /**
  * Register a new user
  */
-export async function register(req: Request, res: Response): Promise<void> {
+export async function register(
+  req: Request<object, object, RegisterRequest>,
+  res: Response<RegisterResponse>
+): Promise<void> {
   try {
-    const { username, email, password } = req.body;
+    const { username, email, password } = registerRequestSchema.parse(req.body);
 
     // Check if user already exists
     const existingUser = await UserModel.findOne({ $or: [{ username }, { email }] });
     if (existingUser) {
-      res.status(400).json({ message: 'Username or email already exists' });
+      res.status(400).json({ success: false, message: 'Username or email already exists' });
       return;
     }
 
@@ -60,10 +70,17 @@ export async function register(req: Request, res: Response): Promise<void> {
       preferences: user.preferences
     };
 
-    res.status(201).json({ message: 'User created successfully' });
+    res.status(201).json({ success: true, message: 'User created successfully', data: user });
   } catch (error) {
     logger.error('Error registering user:', error);
-    res.status(500).json({ message: 'Error creating user' });
+    if (error instanceof ZodError) {
+      res.status(400).json({
+        success: false,
+        error: JSON.parse(error.message)
+      });
+      return;
+    }
+    res.status(500).json({ success: false, message: 'Error creating user' });
   }
 }
 
@@ -134,7 +151,10 @@ export async function login(
 /**
  * Google authentication callback
  */
-export async function googleCallback(req: Request, res: Response): Promise<void> {
+export async function googleCallback(
+  req: Request,
+  res: Response<GoogleCallbackResponse>
+): Promise<void> {
   try {
     const user = req.user as IUser;
     if (!user) {
@@ -183,21 +203,21 @@ export async function googleCallback(req: Request, res: Response): Promise<void>
 /**
  * Logout - clears the session
  */
-export async function logout(req: Request, res: Response): Promise<void> {
+export async function logout(req: Request, res: Response<LogoutResponse>): Promise<void> {
   req.session.destroy((err) => {
     if (err) {
       logger.error('Error destroying session:', err);
-      res.status(500).json({ message: 'Error during logout' });
+      res.status(500).json({ success: false, message: 'Error during logout' });
       return;
     }
-    res.json({ message: 'Logout successful' });
+    res.json({ success: true, message: 'Logout successful' });
   });
 }
 
 /**
  * Get current user
  */
-export async function getCurrentUser(req: Request, res: Response) {
+export async function getCurrentUser(req: Request, res: Response<GetCurrentUserResponse>) {
   try {
     // Check for user in session
     if (req.session && req.session.user) {
@@ -208,7 +228,9 @@ export async function getCurrentUser(req: Request, res: Response) {
       if (user) {
         return res.status(200).json({
           success: true,
-          data: formatUserResponse(user)
+          data: {
+            user: formatUserResponse(user)
+          }
         });
       }
     }
@@ -235,7 +257,7 @@ export async function getCurrentUser(req: Request, res: Response) {
 /**
  * Get user's API key
  */
-export async function getApiKey(req: Request, res: Response) {
+export async function getApiKey(req: Request, res: Response<GetApiKeyResponse>) {
   try {
     // Check for user in session
     if (!req.session || !req.session.user) {
@@ -262,7 +284,7 @@ export async function getApiKey(req: Request, res: Response) {
     return res.status(200).json({
       success: true,
       data: {
-        apiKey: user.apiKey
+        apiKey: user.apiKey || ''
       }
     });
   } catch (error) {

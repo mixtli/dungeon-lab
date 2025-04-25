@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 import { IMap, mapSchema } from '@dungeon-lab/shared/index.mjs';
 import { zId } from '@zodyac/zod-mongoose';
 
-import { baseMongooseZodSchema } from '../../../models/base-schema.mjs';
+import { baseMongooseZodSchema } from '../../../models/base.model.schema.mjs';
 import { createMongoSchema } from '../../../models/zod-to-mongo.mjs';
 
 /**
@@ -16,7 +16,7 @@ import { createMongoSchema } from '../../../models/zod-to-mongo.mjs';
 const serverMapSchema = mapSchema.extend({
   // Convert string IDs to ObjectIds for asset references
   thumbnailId: zId('Asset').optional(),
-  imageId: zId('Asset').optional(),
+  imageId: zId('Asset').optional()
 });
 
 /**
@@ -39,7 +39,6 @@ mongooseSchema.virtual('thumbnail', {
   justOne: true
 });
 
-
 // Configure schema to include virtuals when converting to JSON
 // mongooseSchema.set('toJSON', { virtuals: true });
 
@@ -49,4 +48,4 @@ mongooseSchema.virtual('thumbnail', {
 /**
  * Map model
  */
-export const MapModel = mongoose.model<IMap>('Map', mongooseSchema); 
+export const MapModel = mongoose.model<IMap>('Map', mongooseSchema);

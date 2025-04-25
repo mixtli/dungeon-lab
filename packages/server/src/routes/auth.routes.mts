@@ -2,14 +2,17 @@ import { Router } from 'express';
 import passport from 'passport';
 import * as authController from '../controllers/auth.controller.mjs';
 import { authenticate } from '../middleware/auth.middleware.mjs';
-import { userSchema, userCreateSchema } from '@dungeon-lab/shared/schemas/user.schema.mjs';
 import { openApiPost, openApiGet } from '../oapi.mjs';
-import { NextFunction, Request, Response } from 'express';
 import { z } from '../utils/zod.mjs';
 import {
   loginRequestSchema,
-  loginResponseSchema
-} from '@dungeon-lab/shared/types/api/authentication.mjs';
+  loginResponseSchema,
+  registerRequestSchema,
+  registerResponseSchema,
+  logoutResponseSchema,
+  getCurrentUserResponseSchema,
+  getApiKeyResponseSchema
+} from '@dungeon-lab/shared/types/api/index.mjs';
 import { createSchema } from 'zod-openapi';
 
 const router = Router();
@@ -18,17 +21,24 @@ const router = Router();
 // Public routes
 router.post(
   '/register',
-  openApiPost(userCreateSchema, {
+  openApiPost(registerRequestSchema, {
     description: 'Register a new user account',
     responses: {
       201: {
         description: 'User registered successfully',
         content: {
           'application/json': {
-            schema: userSchema.omit({ password: true })
+            schema: createSchema(
+              registerResponseSchema.openapi({
+                description: 'Register response'
+              })
+            )
           }
         }
-      }
+      },
+      400: { description: 'Invalid registration data' },
+      409: { description: 'Username or email already exists' },
+      500: { description: 'Server error' }
     }
   }),
   authController.register
@@ -61,7 +71,19 @@ router.post(
   openApiPost(z.object({}), {
     description: 'Log out the current user',
     responses: {
-      200: { description: 'Logout successful' }
+      200: {
+        description: 'Logout successful',
+        content: {
+          'application/json': {
+            schema: createSchema(
+              logoutResponseSchema.openapi({
+                description: 'Logout response'
+              })
+            )
+          }
+        }
+      },
+      500: { description: 'Server error' }
     }
   }),
   authController.logout
@@ -100,10 +122,16 @@ router.get(
         description: 'Current user profile',
         content: {
           'application/json': {
-            schema: userSchema.omit({ password: true })
+            schema: createSchema(
+              getCurrentUserResponseSchema.openapi({
+                description: 'Current user response'
+              })
+            )
           }
         }
-      }
+      },
+      401: { description: 'Not authenticated' },
+      500: { description: 'Server error' }
     }
   }),
   authController.getCurrentUser
@@ -120,12 +148,17 @@ router.get(
         description: 'User API key',
         content: {
           'application/json': {
-            schema: z.object({
-              apiKey: z.string()
-            })
+            schema: createSchema(
+              getApiKeyResponseSchema.openapi({
+                description: 'API key response'
+              })
+            )
           }
         }
-      }
+      },
+      401: { description: 'Not authenticated' },
+      404: { description: 'User not found' },
+      500: { description: 'Server error' }
     }
   }),
   authController.getApiKey

@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import { IInvite, inviteSchema } from '@dungeon-lab/shared/index.mjs';
-import { baseMongooseZodSchema } from '../../../models/base-schema.mjs';
+import { baseMongooseZodSchema } from '../../../models/base.model.schema.mjs';
 import { createMongoSchema } from '../../../models/zod-to-mongo.mjs';
 
 /**
