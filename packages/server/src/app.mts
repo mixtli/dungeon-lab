@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { NextFunction, Request, Response } from 'express';
 import cors from 'cors';
 import session from 'express-session';
 import passport from 'passport';
@@ -21,6 +21,27 @@ let authRoutes: Router;
 let storageRoutes: Router;
 let pluginRoutes: Router;
 let healthRoutes: Router;
+
+type ValidationError = {
+  status: number;
+  message: string;
+  validationErrors: unknown;
+  validationSchema: unknown;
+};
+
+const validationErrorHandler = (
+  err: ValidationError,
+  _req: Request,
+  res: Response,
+  _: NextFunction
+) => {
+  console.log('errorHandler', err);
+  res.status(err.status).json({
+    error: err.message,
+    validation: err.validationErrors,
+    schema: err.validationSchema
+  });
+};
 
 // Create and export the session middleware for reuse
 export const sessionMiddleware = session({
@@ -91,8 +112,6 @@ export async function createApp(): Promise<express.Application> {
   app.get('/favicon.ico', function (_, res) {
     res.sendStatus(204);
   });
-  // Error handling
-  app.use(errorHandler);
 
   // Mount routes
   app.use('/api/actors', actorRoutes);
@@ -108,6 +127,10 @@ export async function createApp(): Promise<express.Application> {
   app.use('/api/assets', assetRoutes);
   app.use('/api/health', healthRoutes);
   app.use('/api/users', userRoutes);
+
+  app.use(validationErrorHandler);
+  // Error handling
+  app.use(errorHandler);
 
   // Mount Swagger UI correctly
   app.use('/swaggerui', oapi.swaggerui());

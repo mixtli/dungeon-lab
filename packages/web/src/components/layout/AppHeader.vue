@@ -27,13 +27,9 @@ function logout() {
 }
 
 function goToChat() {
-  if (gameSessionStore.currentSession && gameSessionStore.currentCampaign) {
+  if (gameSessionStore.currentSession) {
     router.push({
-      name: 'chat',
-      params: {
-        campaignId: gameSessionStore.currentCampaign.id,
-        id: gameSessionStore.currentSession.id,
-      },
+      name: 'chat'
     });
   } else {
     router.push({ name: 'game-sessions' });
@@ -201,7 +197,10 @@ function goToChat() {
                 alt="User Avatar"
                 class="h-8 w-8 rounded-full object-cover"
               />
-              <span class="text-sm font-medium">{{ authStore.user?.username }}</span>
+              {{  authStore.isAuthenticated }}
+              {{  console.log('authStore.user', authStore.user)}}
+              {{  console.log('authStore.user.username', authStore.user?.data?.user?.username)}}
+              <span class="text-sm font-medium">{{ authStore.user?.data?.user?.username }}</span>
             </button>
             <div
               class="absolute right-0 w-48 mt-2 py-1 bg-white dark:bg-gray-700 rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200"

@@ -56,6 +56,7 @@ async function handleSubmit(event: Event) {
 
   try {
     await authStore.login(form);
+    console.log('authStore.user', authStore.user);
 
     if (authStore.isAuthenticated) {
       notificationStore.addNotification({

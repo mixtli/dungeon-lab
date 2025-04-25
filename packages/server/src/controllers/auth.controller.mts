@@ -3,11 +3,17 @@ import mongoose from 'mongoose';
 import { UserModel } from '../models/user.model.mjs';
 import { logger } from '../utils/logger.mjs';
 import { IUser } from '@dungeon-lab/shared/index.mjs';
+import {
+  LoginRequest,
+  loginRequestSchema,
+  LoginResponse
+} from '@dungeon-lab/shared/types/api/authentication.mjs';
+import { ZodError } from 'zod';
 
 /**
  * Format user data for response
  */
-function formatUserResponse(user: IUser) {
+function formatUserResponse(user: IUser): LoginResponse['user'] {
   return {
     id: user.id,
     username: user.username,
@@ -15,6 +21,7 @@ function formatUserResponse(user: IUser) {
     displayName: user.displayName,
     avatar: user.avatar,
     isAdmin: user.isAdmin,
+    preferences: user.preferences
   };
 }
 
@@ -63,18 +70,19 @@ export async function register(req: Request, res: Response): Promise<void> {
 /**
  * Login user
  */
-export async function login(req: Request, res: Response): Promise<void> {
+export async function login(
+  req: Request<object, object, LoginRequest>,
+  res: Response<LoginResponse>
+): Promise<void> {
+  console.log('login', req.body);
   try {
-    const { email, password } = req.body;
-
+    const { email, password } = loginRequestSchema.parse(req.body);
     // Find user by email
     const user = await UserModel.findOne({ email });
     if (!user) {
       res.status(401).json({
         success: false,
-        error: {
-          message: 'Invalid credentials'
-        }
+        error: 'Invalid credentials'
       });
       return;
     }
@@ -84,9 +92,7 @@ export async function login(req: Request, res: Response): Promise<void> {
     if (!isValid) {
       res.status(401).json({
         success: false,
-        error: {
-          message: 'Invalid credentials'
-        }
+        error: 'Invalid credentials'
       });
       return;
     }
@@ -102,17 +108,25 @@ export async function login(req: Request, res: Response): Promise<void> {
 
     res.json({
       success: true,
-      data: {
-        user: formatUserResponse(user)
-      }
+      user: formatUserResponse(user)
     });
   } catch (error) {
     logger.error('Error logging in:', error);
+    if (error instanceof ZodError) {
+      res.status(400).json({
+        success: false,
+        error: JSON.parse(error.message)
+      });
+      return;
+    }
+    res.status(400).json({
+      success: false,
+      error: 'Invalid request body'
+    });
+    return;
     res.status(500).json({
       success: false,
-      error: {
-        message: 'Error during login'
-      }
+      error: 'Error during login'
     });
   }
 }
@@ -155,10 +169,14 @@ export async function googleCallback(req: Request, res: Response): Promise<void>
     }
 
     // Redirect to frontend with success flag in query params
-    res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}/auth/google/callback?success=true`);
+    res.redirect(
+      `${process.env.CLIENT_URL || 'http://localhost:5173'}/auth/google/callback?success=true`
+    );
   } catch (error) {
     logger.error('Error in Google callback:', error);
-    res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}/auth/google/callback?success=false`);
+    res.redirect(
+      `${process.env.CLIENT_URL || 'http://localhost:5173'}/auth/google/callback?success=false`
+    );
   }
 }
 
@@ -184,32 +202,32 @@ export async function getCurrentUser(req: Request, res: Response) {
     // Check for user in session
     if (req.session && req.session.user) {
       const userId = req.session.user.id;
-      
+
       const user = await UserModel.findById(userId).select('-password');
-      
+
       if (user) {
         return res.status(200).json({
           success: true,
-          data: formatUserResponse(user),
+          data: formatUserResponse(user)
         });
       }
     }
-    
+
     // No user in session
     // This code should never be reached.  If the user is not authenticated, the middleware should have returned a 401.
     return res.status(401).json({
       success: false,
       error: {
-        message: 'Not authenticated',
-      },
+        message: 'Not authenticated'
+      }
     });
   } catch (error) {
     logger.error('Get current user error:', error);
     return res.status(500).json({
       success: false,
       error: {
-        message: 'An error occurred while fetching user data',
-      },
+        message: 'An error occurred while fetching user data'
+      }
     });
   }
 }
@@ -231,7 +249,7 @@ export async function getApiKey(req: Request, res: Response) {
 
     const userId = req.session.user.id;
     const user = await UserModel.findById(userId);
-    
+
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -256,4 +274,4 @@ export async function getApiKey(req: Request, res: Response) {
       }
     });
   }
-} 
+}

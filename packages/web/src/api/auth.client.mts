@@ -1,16 +1,12 @@
+import { LoginRequest, LoginResponse } from '@dungeon-lab/shared/types/api/authentication.mjs';
 import api from './axios.mts';
 import type { IUser } from '@dungeon-lab/shared/index.mjs';
 
-export interface LoginData {
-  email: string;
-  password: string;
-}
-
-export interface RegisterData extends LoginData {
+export interface RegisterData extends LoginRequest {
   name: string;
 }
 
-export async function login(data: LoginData): Promise<IUser> {
+export async function login(data: LoginRequest): Promise<LoginResponse> {
   const response = await api.post('/api/auth/login', data);
   return response.data;
 }

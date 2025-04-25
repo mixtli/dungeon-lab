@@ -1,16 +1,19 @@
 import openapi from '@wesleytodd/openapi';
-import { z } from './utils/zod.mjs'; 
+import { z } from './utils/zod.mjs';
 import { createSchema } from 'zod-openapi';
 import { RequestHandler } from 'express';
 
-export const oapi = openapi({
-  openapi: '3.0.0',
-  info: {
-    title: 'Express Application',
-    description: 'Generated docs from an Express api',
-    version: '1.0.0',
-  }
-}, { htmlui: true });
+export const oapi = openapi(
+  {
+    openapi: '3.0.0',
+    info: {
+      title: 'Express Application',
+      description: 'Generated docs from an Express api',
+      version: '1.0.0'
+    }
+  },
+  { htmlui: true }
+);
 
 // Standard response codes used across different endpoints
 const standardResponses = {
@@ -29,8 +32,8 @@ const standardResponses = {
  * @param isSingleItem Whether this is for a single item endpoint (defaults to false)
  */
 export function createOpenApiDocs(
-  zodSchema: z.ZodType, 
-  overrides: Record<string, unknown> = {}, 
+  zodSchema: z.ZodType,
+  overrides: Record<string, unknown> = {},
   method = 'GET',
   isSingleItem = false
 ): RequestHandler {
@@ -40,11 +43,11 @@ export function createOpenApiDocs(
     requestBody?: unknown;
     [key: string]: unknown;
   }
-  
+
   const pathConfig: PathConfig = {
     responses: { ...standardResponses }
   };
-  
+
   // Configure based on HTTP method
   switch (method) {
     case 'GET':
@@ -53,9 +56,11 @@ export function createOpenApiDocs(
         pathConfig.responses[200] = {
           description: 'Success',
           content: {
-            'application/json': createSchema(zodSchema.openapi({
-              description: 'Single item'
-            }))
+            'application/json': createSchema(
+              zodSchema.openapi({
+                description: 'Single item'
+              })
+            )
           }
         };
       } else {
@@ -63,53 +68,63 @@ export function createOpenApiDocs(
         pathConfig.responses[200] = {
           description: 'Success',
           content: {
-            'application/json': createSchema(z.array(zodSchema).openapi({
-              description: 'List of items'
-            }))
+            'application/json': createSchema(
+              z.array(zodSchema).openapi({
+                description: 'List of items'
+              })
+            )
           }
         };
       }
       break;
-      
+
     case 'POST':
       // Create endpoint
       pathConfig.requestBody = {
         content: {
-          'application/json': createSchema(zodSchema.openapi({
-            description: 'Create new item'
-          }))
+          'application/json': createSchema(
+            zodSchema.openapi({
+              description: 'Create new item'
+            })
+          )
         }
       };
       pathConfig.responses[201] = {
         description: 'Created',
         content: {
-          'application/json': createSchema(zodSchema.openapi({
-            description: 'Created item'
-          }))
+          'application/json': createSchema(
+            zodSchema.openapi({
+              description: 'Created item'
+            })
+          )
         }
       };
       break;
-      
+
     case 'PUT':
     case 'PATCH':
       // Update endpoint
       pathConfig.requestBody = {
         content: {
-          'application/json': createSchema(zodSchema.openapi({
-            description: 'Update item'
-          }))
+          'application/json': createSchema(
+            zodSchema.openapi({
+              description: 'Update item'
+            })
+          )
         }
       };
       pathConfig.responses[200] = {
         description: 'Updated',
         content: {
-          'application/json': createSchema(zodSchema.openapi({
-            description: 'Updated item'
-          }))
+          'application/json': createSchema(
+            zodSchema.openapi({
+              description: 'Updated item'
+            })
+          )
         }
       };
       break;
-      
+
     case 'DELETE':
       // Delete endpoint
       pathConfig.responses[204] = {
@@ -117,29 +132,34 @@ export function createOpenApiDocs(
       };
       break;
   }
-  
+
   // Merge with overrides
   const finalConfig = { ...pathConfig, ...overrides };
-  
+  console.log('--------------------------------');
+  console.log(pathConfig);
+  console.log(overrides);
+  console.log(finalConfig);
+
   // Return the openapi middleware
-  return oapi.path(finalConfig);
+  // @ts-expect-error for some reason the type inference is wrong
+  return oapi.validPath(finalConfig);
 }
 
 // Convenience methods for specific HTTP verbs
-export const openApiGet = (zodSchema: z.ZodType, overrides = {}) => 
+export const openApiGet = (zodSchema: z.ZodType, overrides = {}) =>
   createOpenApiDocs(zodSchema, overrides, 'GET', false);
 
-export const openApiGetOne = (zodSchema: z.ZodType, overrides = {}) => 
+export const openApiGetOne = (zodSchema: z.ZodType, overrides = {}) =>
   createOpenApiDocs(zodSchema, overrides, 'GET', true);
 
-export const openApiPost = (zodSchema: z.ZodType, overrides = {}) => 
+export const openApiPost = (zodSchema: z.ZodType, overrides = {}) =>
   createOpenApiDocs(zodSchema, overrides, 'POST');
 
-export const openApiPut = (zodSchema: z.ZodType, overrides = {}) => 
+export const openApiPut = (zodSchema: z.ZodType, overrides = {}) =>
   createOpenApiDocs(zodSchema, overrides, 'PUT');
 
-export const openApiPatch = (zodSchema: z.ZodType, overrides = {}) => 
+export const openApiPatch = (zodSchema: z.ZodType, overrides = {}) =>
   createOpenApiDocs(zodSchema, overrides, 'PATCH');
 
-export const openApiDelete = (zodSchema: z.ZodType, overrides = {}) => 
+export const openApiDelete = (zodSchema: z.ZodType, overrides = {}) =>
   createOpenApiDocs(zodSchema, overrides, 'DELETE');

@@ -64,7 +64,9 @@ export class SocketServer {
   ) {
     console.log('joinSession', sessionId);
     try {
-      const session = await GameSessionModel.findById(sessionId).exec();
+      const session = await GameSessionModel.findById(sessionId)
+        .populate('campaign')
+        .populate('gameMaster');
       if (!session) {
         throw new Error('Session not found');
       }
@@ -101,6 +103,9 @@ export class SocketServer {
     this.io.on('connection', (socket) => {
       // const socket = rawSocket as AuthenticatedSocket;
       logger.info(`Client connected: ${socket.id} (${socket.userId})`);
+
+      // Join your own "Room" so others can message you directly with your userId
+      socket.join(socket.userId);
 
       socket.onAny((eventName, ...args) => {
         logger.info('Socket event:', { eventName, args });

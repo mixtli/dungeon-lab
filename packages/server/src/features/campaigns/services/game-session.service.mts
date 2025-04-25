@@ -49,7 +49,8 @@ export class GameSessionService {
 
   async getGameSession(id: string): Promise<IGameSession> {
     try {
-      const session = await GameSessionModel.findById(id).exec();
+      const session = await GameSessionModel.findById(id).populate('campaign');
+      console.log('session', session);
       if (!session) {
         throw new Error('Game session not found');
       }

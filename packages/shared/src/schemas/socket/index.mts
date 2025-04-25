@@ -13,7 +13,7 @@ export const serverToClientEvents = z.object({
 });
 
 export const clientToServerEvents = z.object({
-  chat: z.function().args(z.string()).returns(z.void()),
+  chat: z.function().args(z.string(), z.string()).returns(z.void()),
   joinSession: z
     .function()
     .args(z.string(), z.function().args(joinCallbackSchema))

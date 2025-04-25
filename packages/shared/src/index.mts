@@ -16,21 +16,16 @@ export {
   userSchema,
   userCreateSchema,
   userUpdateSchema,
-  userPreferencesSchema,
+  userPreferencesSchema
 } from './schemas/user.schema.mjs';
 
 export type { IEncounter } from './schemas/encounter.schema.mjs';
 
 // Invite types and schemas
-export type {
-  IInvite,
-} from './schemas/invite.schema.mjs';
+export type { IInvite } from './schemas/invite.schema.mjs';
 
 // Export invite schemas for server-side validation
-export {
-  inviteSchema,
-  InviteStatus,
-} from './schemas/invite.schema.mjs';
+export { inviteSchema, InviteStatus } from './schemas/invite.schema.mjs';
 
 export type { ICampaign } from './schemas/campaign.schema.mjs';
 
@@ -48,14 +43,10 @@ export type { IGameSession } from './schemas/game-session.schema.mjs';
 export { gameSessionSchema } from './schemas/game-session.schema.mjs';
 
 // Asset types and schemas
-export type { 
-  IAsset, 
-  AssetCreate, 
-  AssetUpdate 
-} from './schemas/asset.schema.mjs';
-export { 
-  assetSchema, 
-  assetCreateSchema, 
+export type { IAsset, AssetCreate, AssetUpdate } from './schemas/asset.schema.mjs';
+export {
+  assetSchema,
+  assetCreateSchema,
   assetUpdateSchema,
   assetHelpers
 } from './schemas/asset.schema.mjs';
@@ -74,7 +65,7 @@ export type {
   IDieRollResult,
   IRollResult,
   IRollCommandMessage,
-  IRollResultMessage,
+  IRollResultMessage
 } from './schemas/websocket-messages.schema.mjs';
 
 // Plugin system interfaces and base classes
@@ -104,8 +95,8 @@ export type {
   IApiResponse,
   IApiError,
   IPagination,
-  IPaginatedApiResponse,
-} from './types/api.mjs';
+  IPaginatedApiResponse
+} from './types/api/base.mts';
 
 // Enums and constants
 export { CampaignStatus } from './schemas/campaign.schema.mjs';
@@ -113,13 +104,7 @@ export { GameSessionStatus } from './schemas/game-session.schema.mjs';
 export { UserTheme } from './schemas/user.schema.mjs';
 
 // Token types
-export type {
-  IToken,
-  TokenSize
-} from './schemas/token.schema.mjs';
+export type { IToken, TokenSize } from './schemas/token.schema.mjs';
 
 // Token schema and enums
-export { 
-  TokenSizeEnum,
-  tokenSchema,
-} from './schemas/token.schema.mjs';
+export { TokenSizeEnum, tokenSchema } from './schemas/token.schema.mjs';
