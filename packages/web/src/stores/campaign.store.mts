@@ -1,7 +1,11 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import { type ICampaign, type IInvite } from '@dungeon-lab/shared/index.mjs';
+import type { ICampaign } from '@dungeon-lab/shared/schemas/campaign.schema.mjs';
 import * as campaignApi from '../api/campaigns.client.mts';
+import {
+  CreateCampaignRequest,
+  PatchCampaignRequest
+} from '@dungeon-lab/shared/types/api/index.mjs';
 
 export const useCampaignStore = defineStore('campaign', () => {
   // State
@@ -55,7 +59,7 @@ export const useCampaignStore = defineStore('campaign', () => {
     }
   }
 
-  async function createCampaign(campaignData: Omit<ICampaign, 'id'>) {
+  async function createCampaign(campaignData: CreateCampaignRequest) {
     loading.value = true;
     error.value = null;
 
@@ -73,7 +77,7 @@ export const useCampaignStore = defineStore('campaign', () => {
     }
   }
 
-  async function updateCampaign(id: string, campaignData: Partial<ICampaign>) {
+  async function updateCampaign(id: string, campaignData: PatchCampaignRequest) {
     loading.value = true;
     error.value = null;
 
@@ -126,7 +130,7 @@ export const useCampaignStore = defineStore('campaign', () => {
     }
   }
 
-  async function sendInvite(inviteData: IInvite) {
+  async function sendInvite(inviteData: { campaignId: string; email: string; permission: string }) {
     loading.value = true;
     error.value = null;
 

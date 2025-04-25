@@ -155,7 +155,7 @@ export class GameSessionService {
       );
       // Check if user is GM or participant
       const isGM = session.gameMasterId?.toString() === userId;
-      const isParticipant = session.participants.some((p) => p.toString() === userId);
+      const isParticipant = session.participantIds.some((p) => p === userId);
 
       return isGM || isCampaignMember || isParticipant || isAdmin;
     } catch (error) {

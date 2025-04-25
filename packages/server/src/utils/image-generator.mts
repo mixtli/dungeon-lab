@@ -36,24 +36,8 @@ export async function generateAIImage(
     return new File([processedBuffer], options.fileName, {
       type: options.contentType || 'image/jpeg'
     });
-
-    // // Upload to storage
-    // const contentType = options.contentType || 'image/jpeg';
-    // const uploadResult = await storageService.uploadFile(
-    //   processedBuffer,
-    //   options.fileName,
-    //   contentType,
-    //   options.folder
-    // );
-
-    // return {
-    //   url: storageService.getPublicUrl(uploadResult.key),
-    //   path: uploadResult.key,
-    //   size: uploadResult.size,
-    //   type: contentType
-    // };
   } catch (error) {
     logger.error('Error generating image:', error);
     throw error;
   }
-} 
+}

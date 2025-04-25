@@ -3,7 +3,7 @@
 import { ref, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import ImageUpload from '../components/common/ImageUpload.vue';
-import axios from '../api/axios.mjs';
+import { actorClient } from '../api/index.mjs';
 import { type IAsset } from '@dungeon-lab/shared/index.mjs';
 
 interface UploadedImage {
@@ -39,8 +39,11 @@ onMounted(async () => {
     }
 
     // Fetch actor data
-    const response = await axios.get(`/api/actors/${actorId}`);
-    const actor = response.data;
+    const actor = await actorClient.getActor(actorId);
+    if (!actor) {
+      error.value = 'Actor not found';
+      return;
+    }
 
     // Set form data
     basicInfo.value = {
@@ -77,36 +80,50 @@ onMounted(async () => {
 
 // Generate new image using AI
 async function generateNewImage(type: 'avatar' | 'token') {
-  const isGenerating = type === 'avatar' ? isGeneratingAvatar : isGeneratingToken;
+  const actorId = route.params.id as string;
+  if (type === 'avatar') {
+    isGeneratingAvatar.value = true;
+  } else {
+    isGeneratingToken.value = true;
+  }
+  
   try {
-    isGenerating.value = true;
     error.value = null;
-    const actorId = route.params.id as string;
-
-    // Call the API endpoint to generate image with a longer timeout
-    const response = await axios.post(
-      `/api/actors/${actorId}/generate-images/${type}`,
-      {},
-      {
-        timeout: 120000, // 2 minutes timeout
-      }
-    );
-
-    // Update the form with new image
+    
     if (type === 'avatar') {
-      basicInfo.value.avatarImage = response.data;
+      const updatedActor = await actorClient.generateActorAvatar(actorId);
+      if (updatedActor && updatedActor.avatarId) {
+        basicInfo.value.avatarImage = {
+          url: (updatedActor.avatarId as unknown as IAsset).url,
+          path: (updatedActor.avatarId as unknown as IAsset).path,
+          size: (updatedActor.avatarId as unknown as IAsset).size,
+          type: (updatedActor.avatarId as unknown as IAsset).type,
+        };
+      }
     } else {
-      basicInfo.value.tokenImage = response.data;
+      const updatedActor = await actorClient.generateActorToken(actorId);
+      if (updatedActor && updatedActor.tokenId) {
+        basicInfo.value.tokenImage = {
+          url: (updatedActor.tokenId as unknown as IAsset).url,
+          path: (updatedActor.tokenId as unknown as IAsset).path,
+          size: (updatedActor.tokenId as unknown as IAsset).size,
+          type: (updatedActor.tokenId as unknown as IAsset).type,
+        };
+      }
     }
   } catch (err) {
-    console.error('Failed to generate image:', err);
+    console.error(`Failed to generate ${type}:`, err);
     if (err instanceof Error) {
       error.value = `Error generating ${type}: ${err.message}`;
     } else {
       error.value = `An unknown error occurred while generating ${type}`;
     }
   } finally {
-    isGenerating.value = false;
+    if (type === 'avatar') {
+      isGeneratingAvatar.value = false;
+    } else {
+      isGeneratingToken.value = false;
+    }
   }
 }
 
@@ -117,31 +134,19 @@ async function handleSubmit(event: Event) {
     isSubmitting.value = true;
     const actorId = route.params.id as string;
 
-    // Prepare a FormData object for submission
-    const formData = new FormData();
-
-    // Add basic actor data
-    formData.append('name', basicInfo.value.name);
-
-    if (basicInfo.value.description) {
-      formData.append('description', basicInfo.value.description);
-    }
-
-    // Add avatar and token files if they are new File objects
-    if (basicInfo.value.avatarImage instanceof File) {
-      formData.append('avatar', basicInfo.value.avatarImage);
-    }
-
-    if (basicInfo.value.tokenImage instanceof File) {
-      formData.append('token', basicInfo.value.tokenImage);
-    }
+    // Prepare the update request
+    const updateData = {
+      name: basicInfo.value.name,
+      description: basicInfo.value.description,
+      avatar: basicInfo.value.avatarImage instanceof File ? basicInfo.value.avatarImage : undefined,
+      token: basicInfo.value.tokenImage instanceof File ? basicInfo.value.tokenImage : undefined,
+      // Add required fields from the existing actor
+      type: 'character', // Since we're in CharacterEditView, this is a character
+      gameSystemId: 'dnd-5e-2024', // Hardcode for now - ideally would get from the actual actor
+    };
 
     // Send the request
-    await axios.put(`/api/actors/${actorId}`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    await actorClient.putActor(actorId, updateData);
 
     // Navigate back to the character sheet
     router.push({ name: 'character-sheet', params: { id: actorId } });

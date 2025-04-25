@@ -25,6 +25,17 @@ export async function getActor(actorId: string): Promise<IActor | undefined> {
   return response.data.data;
 }
 
+export async function updateActor(
+  actorId: string,
+  data: PatchActorRequest
+): Promise<IActor | undefined> {
+  const response = await api.patch<PatchActorResponse>(`/api/actors/${actorId}`, data);
+  if (!response.data.success) {
+    throw new Error(response.data.error || 'Failed to update actor');
+  }
+  return response.data.data;
+}
+
 /**
  * Get all actors
  */

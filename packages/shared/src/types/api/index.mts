@@ -5,3 +5,5 @@ export * from './campaigns.mjs';
 export * from './actors.mjs';
 export * from './game-sessions.mjs';
 export * from './items.mjs';
+export * from './documents.mjs';
+export * from './plugins.mjs';

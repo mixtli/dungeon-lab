@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router';
 import { PlusIcon, TrashIcon } from '@heroicons/vue/24/outline';
 import { useCampaignStore } from '../../stores/campaign.store.mjs';
 import { type IActor, type IAsset } from '@dungeon-lab/shared/index.mjs';
+import { actorClient } from '../../api/index.mjs';
 
 // No need for these interfaces as we're using the shared types
 // interface Asset {
@@ -47,21 +48,22 @@ onMounted(async () => {
       // Fetch each character individually and track non-existent members
       const nonExistentMembers = new Set<string>();
       const characterPromises = campaign.value.members.map(async memberId => {
-        const response = await fetch(`/api/actors/${memberId}`);
-        if (response.status === 404) {
-          nonExistentMembers.add(memberId);
+        try {
+          return await actorClient.getActor(memberId);
+        } catch (err) {
+          // Check if 404 error
+          if (err instanceof Error && err.message.includes('404')) {
+            nonExistentMembers.add(memberId);
+          } else {
+            console.warn(`Failed to fetch character ${memberId}:`, err);
+          }
           return null;
         }
-        if (!response.ok) {
-          console.warn(`Failed to fetch character ${memberId}`);
-          return null;
-        }
-        return response.json();
       });
 
       const results = await Promise.all(characterPromises);
       localCharacters.value = results.filter(
-        (char): char is IActor => char !== null && char.type === 'character'
+        (char): char is IActor => char !== null && char?.type === 'character'
       );
 
       // If we found any non-existent members, clean them up from the campaign

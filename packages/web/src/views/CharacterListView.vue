@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { PlusIcon, PencilIcon, TrashIcon } from '@heroicons/vue/24/outline';
 import { type IActor, type IAsset } from '@dungeon-lab/shared/index.mjs';
+import { actorClient } from '../api/index.mjs';
 
 const router = useRouter();
 const characters = ref<IActor[]>([]);
@@ -24,11 +25,7 @@ const getAvatarUrl = (character: IActor): string | undefined => {
 
 onMounted(async () => {
   try {
-    const response = await fetch('/api/actors');
-    if (!response.ok) {
-      throw new Error('Failed to fetch characters');
-    }
-    const actors = await response.json();
+    const actors = await actorClient.getActors();
     // Filter only character type actors
     characters.value = actors.filter((actor: IActor) => actor.type === 'character');
   } catch (err) {
@@ -43,14 +40,7 @@ async function handleDelete(id: string | undefined) {
   if (!id) return;
   
   try {
-    const response = await fetch(`/api/actors/${id}`, {
-      method: 'DELETE',
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to delete character');
-    }
-
+    await actorClient.deleteActor(id);
     // Remove the character from the list
     characters.value = characters.value.filter(char => char.id !== id);
   } catch (err) {

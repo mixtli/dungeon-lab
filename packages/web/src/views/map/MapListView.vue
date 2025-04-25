@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import type { IMap, IAsset } from '@dungeon-lab/shared/index.mjs';
-import axios from '../../api/axios.mjs';
+import { mapClient } from '../../api/index.mjs';
 
 const router = useRouter();
 const maps = ref<IMap[]>([]);
@@ -10,21 +10,6 @@ const loading = ref(false);
 const showDeleteModal = ref(false);
 const mapToDelete = ref<string | null>(null);
 
-// Function to get image URL from map
-const getImageUrl = (map: IMap): string | undefined => {
-  if (map.imageId) {
-    // Handle populated ObjectId reference
-    if (typeof map.imageId === 'object') {
-      const asset = map.imageId as unknown as IAsset;
-      return asset.url;
-    }
-  }
-  // Fallback for legacy data structure
-  if ('image' in map && typeof map.image === 'object' && map.image !== null && 'url' in map.image) {
-    return map.image.url as string;
-  }
-  return undefined;
-};
 
 // Function to get thumbnail URL from map
 const getThumbnailUrl = (map: IMap): string | undefined => {
@@ -45,8 +30,7 @@ const getThumbnailUrl = (map: IMap): string | undefined => {
 async function fetchMaps() {
   try {
     loading.value = true;
-    const response = await axios.get('/api/maps');
-    maps.value = response.data;
+    maps.value = await mapClient.getMaps();
   } catch (error) {
     showNotification('Failed to fetch maps');
     console.error('Error fetching maps:', error);
@@ -57,7 +41,7 @@ async function fetchMaps() {
 
 async function deleteMap(mapId: string) {
   try {
-    await axios.delete(`/api/maps/${mapId}`);
+    await mapClient.deleteMap(mapId);
     showNotification('Map deleted successfully');
     await fetchMaps();
   } catch (error) {

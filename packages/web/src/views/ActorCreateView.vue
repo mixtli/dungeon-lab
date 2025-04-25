@@ -61,7 +61,8 @@ import { useRouter } from 'vue-router';
 import { pluginRegistry } from '@/services/plugin-registry.service.mjs';
 import PluginUIContainer from '@/components/plugin/PluginUIContainer.vue';
 import type { IGameSystemPluginWeb } from '@dungeon-lab/shared/types/plugin.mjs';
-import axios from '../api/axios.mjs';
+import { actorClient } from '../api/index.mjs';
+import { CreateActorRequest } from '@dungeon-lab/shared/types/api/index.mjs';
 
 const router = useRouter();
 
@@ -108,22 +109,24 @@ async function handleSubmit(data: Record<string, any>) {
     errorMessage.value = null;
 
     // Merge the final data
-    const finalActorData = {
+    const finalActorData: CreateActorRequest = {
       ...actorData.value,
       ...data,
       gameSystemId: selectedGameSystemId.value,
+      name: actorData.value.name || data.name || '',
+      type: 'character',
+      data: data
     };
 
-    // Call API to create actor with a longer timeout for AI image generation
-    const response = await axios.post('/api/actors', finalActorData, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      timeout: 120000, // 2 minutes timeout for AI image generation
-    });
+    // Call API to create actor with the actorClient
+    const response = await actorClient.createActor(finalActorData);
 
     // Navigate to the character sheet
-    router.push(`/character/${response.data.id}`);
+    if (response) {
+      router.push(`/character/${response.id}`);
+    } else {
+      errorMessage.value = 'Failed to create actor: No response from server';
+    }
   } catch (error) {
     console.error('Failed to create actor:', error);
     errorMessage.value = error instanceof Error ? error.message : String(error);

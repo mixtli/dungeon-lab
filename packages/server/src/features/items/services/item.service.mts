@@ -43,7 +43,7 @@ export class ItemService {
     }
   }
 
-  async createItem(data: IItem, userId: string, file?: File): Promise<IItem> {
+  async createItem(data: Omit<IItem, 'id'>, userId: string, file?: File): Promise<IItem> {
     try {
       const userObjectId = new Types.ObjectId(userId);
       const itemData = {
@@ -123,7 +123,12 @@ export class ItemService {
     }
   }
 
-  async putItem(id: string, data: IItem, userId: string, imageFile?: File): Promise<IItem> {
+  async putItem(
+    id: string,
+    data: Omit<IItem, 'id'>,
+    userId: string,
+    imageFile?: File
+  ): Promise<IItem> {
     try {
       const item = await ItemModel.findById(id);
       if (!item) {

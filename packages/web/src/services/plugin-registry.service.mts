@@ -1,5 +1,6 @@
 import { IWebPlugin, IGameSystemPluginWeb } from '@dungeon-lab/shared/types/plugin.mjs';
 import { createPluginAPI } from '@/services/plugin-api.service.mjs';
+import * as pluginsClient from '@/api/plugins.client.mjs';
 
 /**
  * Plugin Registry Service
@@ -21,7 +22,7 @@ export class PluginRegistryService {
       console.log('Plugin registry already initialized, skipping');
       return;
     }
-    
+
     try {
       this.initialized = true;
       await this.loadAvailablePlugins();
@@ -38,16 +39,17 @@ export class PluginRegistryService {
    */
   private async loadAvailablePlugins(): Promise<void> {
     try {
-      const response = await fetch('/api/plugins');
-      const availablePlugins = await response.json();
-      
-      await Promise.all(availablePlugins.map(async (pluginConfig: { config: { id: string }, id: string }) => {
-        try {
-          await this.loadPlugin(pluginConfig.config.id);
-        } catch (error) {
-          console.error(`Failed to load plugin ${pluginConfig.id}:`, error);
-        }
-      }));
+      const availablePlugins = await pluginsClient.getPlugins();
+
+      await Promise.all(
+        availablePlugins.map(async (pluginConfig) => {
+          try {
+            await this.loadPlugin(pluginConfig.config.id);
+          } catch (error) {
+            console.error(`Failed to load plugin ${pluginConfig.config.id}:`, error);
+          }
+        })
+      );
     } catch (error) {
       console.error('Failed to load available plugins:', error);
       throw error;
@@ -80,22 +82,22 @@ export class PluginRegistryService {
       this.loadingPlugins.add(pluginId);
 
       const pluginModule = await import(`../../../plugins/${pluginId}/src/web/index.mts`);
-      
+
       const PluginClass = pluginModule.default;
       if (!PluginClass) {
         throw new Error(`Plugin ${pluginId} has no default export`);
       }
-      
+
       // Create plugin API for this plugin
       const api = createPluginAPI(pluginId);
-      
+
       // Initialize plugin with API
       const plugin = new PluginClass(api);
       await this.registerPlugin(plugin);
-      
+
       this.loadingPlugins.delete(pluginId);
       this.loadedPlugins.add(pluginId);
-      
+
       return plugin;
     } catch (error) {
       console.error(`Failed to load plugin ${pluginId}:`, error);
@@ -109,11 +111,11 @@ export class PluginRegistryService {
    */
   private async registerPlugin(plugin: IWebPlugin): Promise<void> {
     this.plugins.set(plugin.config.id, plugin);
-    
+
     if (plugin.type === 'gameSystem') {
       this.gameSystemPlugins.set(plugin.config.id, plugin as IGameSystemPluginWeb);
     }
-    
+
     try {
       await plugin.onRegister();
     } catch (error) {
@@ -129,13 +131,13 @@ export class PluginRegistryService {
       console.log(`Plugin ${pluginId} already initialized`);
       return;
     }
-    
+
     const plugin = this.plugins.get(pluginId);
     if (!plugin) {
       console.error(`Plugin ${pluginId} not found`);
       return;
     }
-    
+
     try {
       await plugin.onLoad();
       this.initializedPlugins.add(pluginId);
@@ -178,6 +180,13 @@ export class PluginRegistryService {
   public async loadGameSystemPlugin(pluginId: string): Promise<IGameSystemPluginWeb | undefined> {
     const plugin = await this.loadPlugin(pluginId);
     return plugin as IGameSystemPluginWeb;
+  }
+
+  /**
+   * Get plugin code for a specific file
+   */
+  public async getPluginCode(pluginId: string, fileName: string): Promise<string> {
+    return pluginsClient.getPluginCode(pluginId, fileName);
   }
 }
 

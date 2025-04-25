@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { RouterLink } from 'vue-router';
-import axios from '../api/axios.mjs';
+import { assetClient } from '../api/index.mjs';
 import AssetUpload from '../components/common/AssetUpload.vue';
 import { IAsset } from '@dungeon-lab/shared/src/schemas/asset.schema.mjs';
 
@@ -9,9 +9,6 @@ import { IAsset } from '@dungeon-lab/shared/src/schemas/asset.schema.mjs';
 const assets = ref<IAsset[]>([]);
 const loading = ref(true);
 const error = ref<string | null>(null);
-const searchQuery = ref('');
-const filterType = ref('');
-const sortBy = ref('createdAt_desc');
 const showUploadModal = ref(false);
 
 // Pagination
@@ -162,10 +159,14 @@ async function loadAssets() {
       params.order = order;
     }
     
-    const response = await axios.get('/api/assets', { params });
+    const assetsData = await assetClient.getAssets(params);
     
-    assets.value = response.data.data;
-    totalAssets.value = response.data.total;
+    // Handle the response format
+    assets.value = assetsData || [];
+    // Note: Since our API doesn't return pagination metadata along with the results,
+    // we're using the array length as a fallback for total count
+    totalAssets.value = assetsData.length;
+    
   } catch (err: any) {
     console.error('Failed to load assets:', err);
     error.value = err.response?.data?.message || 'Failed to load assets';

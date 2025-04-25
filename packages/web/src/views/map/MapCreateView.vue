@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import axios from '../../api/axios.mjs';
+import { mapClient } from '../../api/index.mjs';
 import { ArrowLeftIcon } from '@heroicons/vue/24/outline';
 import ImageUpload from '../../components/common/ImageUpload.vue';
-import { type IAsset } from '@dungeon-lab/shared/index.mjs';
 
 interface UploadedImage {
   url: string;
@@ -30,22 +29,17 @@ async function handleSubmit(event: Event) {
   try {
     loading.value = true;
     error.value = null;
-    const form = new FormData();
-    form.append('name', formData.value.name);
-    form.append('description', formData.value.description || '');
-    form.append('gridColumns', formData.value.gridColumns.toString());
+    
+    // Prepare the create map request data
+    const mapData = {
+      name: formData.value.name,
+      description: formData.value.description || '',
+      gridColumns: formData.value.gridColumns,
+      // Add the image if it's a File object
+      image: mapImageFile.value instanceof File ? mapImageFile.value : undefined
+    };
 
-    // Add the file directly to the form if it's a File object
-    if (mapImageFile.value instanceof File) {
-      form.append('image', mapImageFile.value);
-    }
-
-    await axios.post('/api/maps', form, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-      timeout: 120000, // 2 minutes timeout for large uploads or AI image generation
-    });
+    await mapClient.createMap(mapData);
 
     // Show success and navigate to map list
     router.push({ name: 'maps' });

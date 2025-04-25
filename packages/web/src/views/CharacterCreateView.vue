@@ -6,7 +6,8 @@ import PluginUIContainer from '@/components/plugin/PluginUIContainer.vue';
 import { pluginRegistry } from '@/services/plugin-registry.service.mjs';
 import ImageUpload from '../components/common/ImageUpload.vue';
 import { IGameSystemPluginWeb } from '@dungeon-lab/shared/types/plugin.mjs';
-import axios from '../api/axios.mjs';
+import { actorClient } from '../api/index.mjs';
+import { CreateActorRequest } from '@dungeon-lab/shared/types/api/index.mjs';
 
 interface UploadedImage {
   url: string;
@@ -135,55 +136,30 @@ async function handleSubmit(event: Event) {
 
     // Translate form data to character schema format
     console.log('Validation data:', validation.data);
-    const pluginData = pluginComponent.translateFormData(validation.data);
+    const pluginData = pluginComponent.translateFormData(validation.data) as Record<string, any>;
     console.log('Plugin data:', pluginData);
 
-    // Prepare a FormData object for submission
-    const formData = new FormData();
+    // Create a proper actor request object
+    const actorData: CreateActorRequest = {
+      name: basicInfo.value.name,
+      type: 'character',
+      gameSystemId: plugin.config.id,
+      data: pluginData,
+      description: basicInfo.value.description || undefined,
+      avatar: basicInfo.value.avatarImage instanceof File ? basicInfo.value.avatarImage : undefined,
+      token: basicInfo.value.tokenImage instanceof File ? basicInfo.value.tokenImage : undefined
+    };
 
-    // Add basic character data
-    formData.append('name', basicInfo.value.name);
-    formData.append('type', 'character');
-    formData.append('gameSystemId', plugin.config.id);
-
-    if (basicInfo.value.description) {
-      formData.append('description', basicInfo.value.description);
-    }
-
-    // Add plugin data as JSON
-    formData.append('data', JSON.stringify(pluginData));
-
-    // Add avatar and token files if they exist
-    if (basicInfo.value.avatarImage instanceof File) {
-      formData.append('avatar', basicInfo.value.avatarImage);
-    }
-
-    if (basicInfo.value.tokenImage instanceof File) {
-      formData.append('token', basicInfo.value.tokenImage);
-    }
-    // const actorData: IActorCreateData = {
-    //   name: basicInfo.value.name,
-    //   type: 'character',
-    //   description: basicInfo.value.description || undefined,
-    //   gameSystemId: plugin.config.id,
-    //   avatar: avatarUrl,
-    //   token: tokenUrl,
-    //   data: pluginData
-    // };
-
-    // const actor = await actorStore.createActor(actorData);
-
-    // Send the request
-    const response = await axios.post('/api/actors', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-      timeout: 30000, // 30 seconds timeout
-    });
+    // Send the request using actorClient
+    const response = await actorClient.createActor(actorData);
     sessionStorage.removeItem('actorCreationState');
 
     // Navigate to the character sheet
-    router.push({ name: 'character-sheet', params: { id: response.data.id } });
+    if (response) {
+      router.push({ name: 'character-sheet', params: { id: response.id } });
+    } else {
+      error.value = 'Failed to create character: No response data';
+    }
   } catch (err) {
     console.error('Failed to create character:', err);
     if (err instanceof Error) {

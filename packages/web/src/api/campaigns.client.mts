@@ -1,5 +1,5 @@
 import api from './axios.mts';
-import type { ICampaign, IInvite } from '@dungeon-lab/shared/index.mjs';
+import type { ICampaign } from '@dungeon-lab/shared/schemas/campaign.schema.mjs';
 import {
   GetCampaignsResponse,
   GetCampaignResponse,
@@ -60,26 +60,74 @@ export async function deleteCampaign(campaignId: string): Promise<void> {
   }
 }
 
-export async function sendInvite(inviteData: IInvite): Promise<Record<string, unknown>> {
-  const response = await api.post(`/api/campaign/${inviteData.campaignId}/invites`, inviteData);
-  return response.data;
+// Generic success/error response
+interface GenericResponse {
+  success: boolean;
+  error?: string;
+}
+
+// Generic success/error response with data
+interface GenericDataResponse<T> {
+  success: boolean;
+  data: T;
+  error?: string;
+}
+
+export async function sendInvite(inviteData: {
+  campaignId: string;
+  email: string;
+  permission: string;
+}): Promise<boolean> {
+  const response = await api.post<GenericResponse>(
+    `/api/campaigns/${inviteData.campaignId}/invites`,
+    inviteData
+  );
+  if (!response.data.success) {
+    throw new Error(response.data.error || 'Failed to send invite');
+  }
+  return true;
 }
 
 export async function getCampaignsByUser(userId: string): Promise<ICampaign[]> {
-  const response = await api.get(`/api/users/${userId}/campaigns`);
-  return response.data;
+  const response = await api.get<GenericDataResponse<ICampaign[]>>(
+    `/api/users/${userId}/campaigns`
+  );
+  if (!response.data.success) {
+    throw new Error(response.data.error || 'Failed to get user campaigns');
+  }
+  return response.data.data;
 }
 
 export async function joinCampaign(campaignId: string, inviteCode: string): Promise<ICampaign> {
-  const response = await api.post(`/api/campaigns/${campaignId}/join`, { inviteCode });
-  return response.data;
+  const response = await api.post<GetCampaignResponse>(`/api/campaigns/${campaignId}/join`, {
+    inviteCode
+  });
+  if (!response.data.success) {
+    throw new Error(response.data.error || 'Failed to join campaign');
+  }
+  if (!response.data.data) {
+    throw new Error('Failed to join campaign');
+  }
+  return response.data.data;
 }
 
 export async function leaveCampaign(campaignId: string): Promise<void> {
-  await api.post(`/api/campaigns/${campaignId}/leave`);
+  const response = await api.post<GenericResponse>(`/api/campaigns/${campaignId}/leave`);
+  if (response.data && !response.data.success) {
+    throw new Error(response.data.error || 'Failed to leave campaign');
+  }
+}
+
+interface InviteCodeResponse {
+  success: boolean;
+  inviteCode: string;
+  error?: string;
 }
 
 export async function generateInviteCode(campaignId: string): Promise<string> {
-  const response = await api.post(`/api/campaigns/${campaignId}/invite-code`);
+  const response = await api.post<InviteCodeResponse>(`/api/campaigns/${campaignId}/invite-code`);
+  if (!response.data.success) {
+    throw new Error(response.data.error || 'Failed to generate invite code');
+  }
   return response.data.inviteCode;
 }

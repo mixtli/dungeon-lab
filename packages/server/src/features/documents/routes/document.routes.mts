@@ -6,62 +6,194 @@ import {
   openApiGetOne,
   openApiPatch,
   openApiPost,
-  openApiPut
+  openApiPut,
+  toQuerySchema
 } from '../../../oapi.mjs';
-import { vttDocumentSchema } from '@dungeon-lab/shared/schemas/vtt-document.schema.mjs';
 import { validateRequest } from '../../../middleware/validation.middleware.mjs';
-import { z } from 'zod';
+import { authenticate } from '../../../middleware/auth.middleware.mjs';
+import { createSchema } from 'zod-openapi';
+import {
+  createDocumentRequestSchema,
+  putDocumentRequestSchema,
+  patchDocumentRequestSchema,
+  searchDocumentsQuerySchema,
+  getDocumentsResponseSchema,
+  getDocumentResponseSchema,
+  createDocumentResponseSchema,
+  putDocumentResponseSchema,
+  patchDocumentResponseSchema,
+  deleteDocumentResponseSchema
+} from '@dungeon-lab/shared/types/api/index.mjs';
+
 const router = Router();
 const documentController = new DocumentController();
-import { deepPartial } from '@dungeon-lab/shared/utils/deepPartial.mjs';
-import { authenticate } from '../../../middleware/auth.middleware.mjs';
+
+// Bind controller methods to maintain 'this' context
+const boundController = {
+  getDocument: documentController.getDocument.bind(documentController),
+  putDocument: documentController.putDocument.bind(documentController),
+  patchDocument: documentController.patchDocument.bind(documentController),
+  deleteDocument: documentController.deleteDocument.bind(documentController),
+  createDocument: documentController.createDocument.bind(documentController),
+  searchDocuments: documentController.searchDocuments.bind(documentController)
+};
 
 router.use(authenticate);
+
 // Get a single document by ID
 router.get(
   '/:id',
-  openApiGetOne(vttDocumentSchema, {
-    description: 'Get a document by ID'
+  openApiGetOne(searchDocumentsQuerySchema, {
+    description: 'Get a document by ID',
+    responses: {
+      200: {
+        description: 'Document retrieved successfully',
+        content: {
+          'application/json': {
+            schema: createSchema(
+              getDocumentResponseSchema.openapi({
+                description: 'Document response'
+              })
+            )
+          }
+        }
+      },
+      404: { description: 'Document not found' },
+      500: { description: 'Server error' }
+    }
   }),
-  documentController.getDocument
+  boundController.getDocument
 );
 
+console.log('DOCUMENT QUERY PARAMS', toQuerySchema(searchDocumentsQuerySchema));
 // Search documents
 router.get(
   '/',
-  openApiGet(vttDocumentSchema, {
-    description: 'Search for documents based on query parameters'
+  openApiGet(searchDocumentsQuerySchema, {
+    description: 'Search for documents based on query parameters',
+    parameters: toQuerySchema(searchDocumentsQuerySchema),
+    responses: {
+      200: {
+        description: 'Documents retrieved successfully',
+        content: {
+          'application/json': {
+            schema: createSchema(
+              getDocumentsResponseSchema.openapi({
+                description: 'Documents response'
+              })
+            )
+          }
+        }
+      },
+      500: { description: 'Server error' }
+    }
   }),
-  documentController.searchDocuments
+  boundController.searchDocuments
 );
 
+// Create a new document
 router.post(
   '/',
-  openApiPost(vttDocumentSchema, {
-    description: 'Create a new document'
+  openApiPost(createDocumentRequestSchema, {
+    description: 'Create a new document',
+    responses: {
+      201: {
+        description: 'Document created successfully',
+        content: {
+          'application/json': {
+            schema: createSchema(
+              createDocumentResponseSchema.openapi({
+                description: 'Create document response'
+              })
+            )
+          }
+        }
+      },
+      400: { description: 'Invalid document data' },
+      500: { description: 'Server error' }
+    }
   }),
-  validateRequest(vttDocumentSchema),
-  documentController.createDocument
+  validateRequest(createDocumentRequestSchema),
+  boundController.createDocument
 );
 
-router.delete('/:id', openApiDelete(z.string()), documentController.deleteDocument);
+// Delete a document
+router.delete(
+  '/:id',
+  openApiDelete(searchDocumentsQuerySchema, {
+    description: 'Delete a document',
+    responses: {
+      204: { description: 'Document deleted successfully' },
+      404: { description: 'Document not found' },
+      500: {
+        description: 'Server error',
+        content: {
+          'application/json': {
+            schema: createSchema(
+              deleteDocumentResponseSchema.openapi({
+                description: 'Delete document response'
+              })
+            )
+          }
+        }
+      }
+    }
+  }),
+  boundController.deleteDocument
+);
 
+// Patch a document
 router.patch(
   '/:id',
-  openApiPatch(deepPartial(vttDocumentSchema), {
-    description: 'Update a document by ID'
+  openApiPatch(patchDocumentRequestSchema, {
+    description: 'Update a document by ID (partial)',
+    responses: {
+      200: {
+        description: 'Document patched successfully',
+        content: {
+          'application/json': {
+            schema: createSchema(
+              patchDocumentResponseSchema.openapi({
+                description: 'Patch document response'
+              })
+            )
+          }
+        }
+      },
+      400: { description: 'Invalid document data' },
+      404: { description: 'Document not found' },
+      500: { description: 'Server error' }
+    }
   }),
-  validateRequest(deepPartial(vttDocumentSchema)),
-  documentController.patchDocument
+  validateRequest(patchDocumentRequestSchema),
+  boundController.patchDocument
 );
 
+// Put a document
 router.put(
   '/:id',
-  openApiPut(vttDocumentSchema, {
-    description: 'Replace a document by ID'
+  openApiPut(putDocumentRequestSchema, {
+    description: 'Replace a document by ID (full update)',
+    responses: {
+      200: {
+        description: 'Document updated successfully',
+        content: {
+          'application/json': {
+            schema: createSchema(
+              putDocumentResponseSchema.openapi({
+                description: 'Update document response'
+              })
+            )
+          }
+        }
+      },
+      400: { description: 'Invalid document data' },
+      404: { description: 'Document not found' },
+      500: { description: 'Server error' }
+    }
   }),
-  validateRequest(vttDocumentSchema),
-  documentController.putDocument
+  validateRequest(putDocumentRequestSchema),
+  boundController.putDocument
 );
 
 export default router;

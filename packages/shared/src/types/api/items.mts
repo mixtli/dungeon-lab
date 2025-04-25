@@ -17,7 +17,7 @@ export const getItemResponseSchema = baseAPIResponseSchema.extend({
 export type GetItemResponse = z.infer<typeof getItemResponseSchema>;
 
 // Types for POST /items (Create item)
-export const createItemRequestSchema = itemCreateSchema;
+export const createItemRequestSchema = itemCreateSchema.omit({ id: true });
 export type CreateItemRequest = z.infer<typeof createItemRequestSchema>;
 
 export const createItemResponseSchema = baseAPIResponseSchema.extend({

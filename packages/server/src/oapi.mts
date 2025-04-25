@@ -177,8 +177,9 @@ export const toQuerySchema = (zodSchema: z.ZodObject<z.ZodRawShape>) => {
     querySchema.push({
       name: key,
       in: 'query',
-      description: schema.description,
-      required: false
+      description: schema.description || '',
+      required: false,
+      schema: createSchema(schema.openapi({ description: schema.description || '' }))
     });
   }
   return querySchema;

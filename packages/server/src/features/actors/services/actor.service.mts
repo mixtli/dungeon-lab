@@ -122,7 +122,7 @@ export class ActorService {
    */
   async putActor(
     id: string,
-    data: IActor,
+    data: Omit<IActor, 'id'>,
     userId: string,
     avatarFile?: File,
     tokenFile?: File

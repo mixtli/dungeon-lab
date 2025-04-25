@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import type { IEncounter } from '@dungeon-lab/shared/index.mjs';
-import type { IActor } from '@dungeon-lab/shared/index.mjs';
+import type { IEncounter } from '@dungeon-lab/shared/schemas/encounter.schema.mjs';
+import type { IActor } from '@dungeon-lab/shared/schemas/actor.schema.mjs';
 import * as encounterApi from '../api/encounters.client.mts';
 import * as actorApi from '../api/actors.client.mts';
 
@@ -33,7 +33,7 @@ export const useEncounterStore = defineStore('encounter', () => {
       }
     } catch (err) {
       console.error('Failed to update encounter status:', err);
-      error.value = 'Failed to update encounter status';
+      error.value = err instanceof Error ? err.message : 'Failed to update encounter status';
       throw err;
     } finally {
       loading.value = false;
@@ -76,14 +76,14 @@ export const useEncounterStore = defineStore('encounter', () => {
       };
     } catch (err) {
       console.error('Failed to fetch encounter:', err);
-      error.value = 'Failed to fetch encounter';
+      error.value = err instanceof Error ? err.message : 'Failed to fetch encounter';
       throw err;
     } finally {
       loading.value = false;
     }
   }
 
-  async function createEncounter(data: Omit<IEncounter, 'campaignId'>, campaignId: string) {
+  async function createEncounter(data: Omit<IEncounter, 'id'>, campaignId: string) {
     loading.value = true;
     error.value = null;
 
@@ -92,7 +92,7 @@ export const useEncounterStore = defineStore('encounter', () => {
       return encounter.id;
     } catch (err: unknown) {
       console.error('Failed to create encounter:', err);
-      error.value = 'Failed to create encounter';
+      error.value = err instanceof Error ? err.message : 'Failed to create encounter';
       throw err;
     } finally {
       loading.value = false;

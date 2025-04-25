@@ -8,17 +8,20 @@ export const useMapStore = defineStore('map', () => {
   const loading = ref(false);
   const error = ref<string | null>(null);
 
-  async function fetchMap(mapId: string) {
+  async function fetchMap(mapId: string): Promise<IMap | null> {
     loading.value = true;
     error.value = null;
 
     try {
       const map = await mapApi.getMap(mapId);
-      currentMap.value = map;
-      return map;
+      if (map) {
+        currentMap.value = map;
+        return map;
+      }
+      return null;
     } catch (err) {
       console.error('Failed to fetch map:', err);
-      error.value = 'Failed to fetch map';
+      error.value = err instanceof Error ? err.message : 'Failed to fetch map';
       throw err;
     } finally {
       loading.value = false;
@@ -31,11 +34,14 @@ export const useMapStore = defineStore('map', () => {
 
     try {
       const map = await mapApi.createMap(data);
-      currentMap.value = map;
-      return map;
+      if (map) {
+        currentMap.value = map;
+        return map;
+      }
+      throw new Error('Failed to create map: No map returned from API');
     } catch (err) {
       console.error('Failed to create map:', err);
-      error.value = 'Failed to create map';
+      error.value = err instanceof Error ? err.message : 'Failed to create map';
       throw err;
     } finally {
       loading.value = false;
@@ -48,13 +54,16 @@ export const useMapStore = defineStore('map', () => {
 
     try {
       const map = await mapApi.updateMap(mapId, data);
-      if (currentMap.value?.id === mapId) {
-        currentMap.value = map;
+      if (map) {
+        if (currentMap.value?.id === mapId) {
+          currentMap.value = map;
+        }
+        return map;
       }
-      return map;
+      throw new Error('Failed to update map: No map returned from API');
     } catch (err) {
       console.error('Failed to update map:', err);
-      error.value = 'Failed to update map';
+      error.value = err instanceof Error ? err.message : 'Failed to update map';
       throw err;
     } finally {
       loading.value = false;
@@ -72,7 +81,7 @@ export const useMapStore = defineStore('map', () => {
       }
     } catch (err) {
       console.error('Failed to delete map:', err);
-      error.value = 'Failed to delete map';
+      error.value = err instanceof Error ? err.message : 'Failed to delete map';
       throw err;
     } finally {
       loading.value = false;

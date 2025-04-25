@@ -10,6 +10,7 @@ const pluginRouter = Router();
 // Define plugin routes - read only operations
 pluginRouter.get('/', pluginController.getAllPlugins);
 pluginRouter.get('/:id', pluginController.getPlugin);
+pluginRouter.get('/:id/code/:file', pluginController.getPluginCode);
 
 // Export the router
-export default pluginRouter; 
+export default pluginRouter;

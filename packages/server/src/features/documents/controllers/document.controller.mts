@@ -2,6 +2,21 @@ import { Request, Response } from 'express';
 import { DocumentService, QueryValue } from '../services/document.service.mjs';
 import { logger } from '../../../utils/logger.mjs';
 import { pluginRegistry } from '../../../services/plugin-registry.service.mjs';
+import {
+  GetDocumentResponse,
+  CreateDocumentRequest,
+  CreateDocumentResponse,
+  PutDocumentRequest,
+  PutDocumentResponse,
+  PatchDocumentRequest,
+  PatchDocumentResponse,
+  DeleteDocumentResponse,
+  SearchDocumentsResponse,
+  createDocumentRequestSchema,
+  putDocumentRequestSchema,
+  patchDocumentRequestSchema
+} from '@dungeon-lab/shared/types/api/index.mjs';
+import { ZodError } from 'zod';
 
 export class DocumentController {
   private documentService: DocumentService;
@@ -10,74 +25,173 @@ export class DocumentController {
     this.documentService = new DocumentService();
   }
 
-  getDocument = async (req: Request, res: Response): Promise<void> => {
+  getDocument = async (
+    req: Request,
+    res: Response<GetDocumentResponse>
+  ): Promise<Response<GetDocumentResponse> | void> => {
     try {
       const { id } = req.params;
       const document = await this.documentService.getDocumentById(id);
-      res.json(document);
+      res.json({
+        success: true,
+        data: document
+      });
     } catch (error) {
       logger.error('Error in getDocument:', error);
-      res.status(404).json({ error: 'Document not found' });
+      res.status(404).json({
+        success: false,
+        error: 'Document not found'
+      });
     }
   };
 
-  putDocument = async (req: Request, res: Response): Promise<void> => {
+  putDocument = async (
+    req: Request<{ id: string }, object, PutDocumentRequest>,
+    res: Response<PutDocumentResponse>
+  ): Promise<Response<PutDocumentResponse> | void> => {
     try {
       const { id } = req.params;
       const userId = req.session.user.id;
-      const document = await this.documentService.putDocument(id, req.body, userId);
-      res.json(document);
+      const validatedData = putDocumentRequestSchema.parse(req.body);
+      // @ts-expect-error - Service expects id which will be provided from route params
+      const document = await this.documentService.putDocument(id, validatedData, userId);
+      res.json({
+        success: true,
+        data: document
+      });
     } catch (error) {
       logger.error('Error in putDocument:', error);
-      res.status(500).json({ error: 'Failed to update document' });
+      if (error instanceof ZodError) {
+        return res.status(400).json({
+          success: false,
+          error: JSON.parse(error.message)
+        });
+      }
+      if (error instanceof Error) {
+        return res.status(500).json({
+          success: false,
+          error: error.message || 'Failed to update document'
+        });
+      }
+      res.status(500).json({
+        success: false,
+        error: 'Failed to update document'
+      });
     }
   };
 
-  patchDocument = async (req: Request, res: Response): Promise<void> => {
+  patchDocument = async (
+    req: Request<{ id: string }, object, PatchDocumentRequest>,
+    res: Response<PatchDocumentResponse>
+  ): Promise<Response<PatchDocumentResponse> | void> => {
     try {
       const { id } = req.params;
       const userId = req.session.user.id;
-      const document = await this.documentService.patchDocument(id, req.body, userId);
-      res.json(document);
+      const validatedData = patchDocumentRequestSchema.parse(req.body);
+      const document = await this.documentService.patchDocument(id, validatedData, userId);
+      res.json({
+        success: true,
+        data: document
+      });
     } catch (error) {
       logger.error('Error in updateDocument:', error);
-      res.status(500).json({ error: 'Failed to update document' });
+      if (error instanceof ZodError) {
+        return res.status(400).json({
+          success: false,
+          error: JSON.parse(error.message)
+        });
+      }
+      if (error instanceof Error) {
+        return res.status(500).json({
+          success: false,
+          error: error.message || 'Failed to update document'
+        });
+      }
+      res.status(500).json({
+        success: false,
+        error: 'Failed to update document'
+      });
     }
   };
 
-  deleteDocument = async (req: Request, res: Response): Promise<void> => {
+  deleteDocument = async (
+    req: Request,
+    res: Response<DeleteDocumentResponse>
+  ): Promise<Response<DeleteDocumentResponse> | void> => {
     try {
       const { id } = req.params;
       await this.documentService.deleteDocument(id);
-      res.json({ message: 'Document deleted successfully' });
+      res.status(204).send();
     } catch (error) {
       logger.error('Error in deleteDocument:', error);
-      res.status(500).json({ error: 'Failed to delete document' });
+      if (error instanceof Error) {
+        return res.status(500).json({
+          success: false,
+          error: error.message || 'Failed to delete document'
+        });
+      }
+      res.status(500).json({
+        success: false,
+        error: 'Failed to delete document'
+      });
     }
   };
 
-  createDocument = async (req: Request, res: Response): Promise<void> => {
+  createDocument = async (
+    req: Request<object, object, CreateDocumentRequest>,
+    res: Response<CreateDocumentResponse>
+  ): Promise<Response<CreateDocumentResponse> | void> => {
     try {
       const userId = req.session.user.id;
-      const plugin = pluginRegistry.getPlugin(req.body.pluginId);
+      const validatedData = createDocumentRequestSchema.parse(req.body);
+      const plugin = pluginRegistry.getPlugin(validatedData.pluginId);
+
       if (!plugin) {
-        res.status(400).json({ error: 'Invalid game system ID' });
-        return;
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid game system ID'
+        });
       }
-      const data = plugin.validateVTTDocumentData(req.body.documentType, req.body.data);
+
+      const data = plugin.validateVTTDocumentData(validatedData.documentType, validatedData.data);
       if (!data.success) {
-        res.status(400).json(JSON.parse(data.error.message));
-        return;
+        return res.status(400).json({
+          success: false,
+          error: JSON.parse(data.error.message)
+        });
       }
-      const document = await this.documentService.createDocument(req.body, userId);
-      res.json(document);
+
+      // @ts-expect-error - Service expects id which will be generated
+      const document = await this.documentService.createDocument(validatedData, userId);
+      res.status(201).json({
+        success: true,
+        data: document
+      });
     } catch (error) {
       logger.error('Error in createDocument:', error);
-      res.status(500).json({ error: 'Failed to create document ' + error });
+      if (error instanceof ZodError) {
+        return res.status(400).json({
+          success: false,
+          error: JSON.parse(error.message)
+        });
+      }
+      if (error instanceof Error) {
+        return res.status(500).json({
+          success: false,
+          error: error.message || 'Failed to create document'
+        });
+      }
+      res.status(500).json({
+        success: false,
+        error: 'Failed to create document ' + error
+      });
     }
   };
 
-  searchDocuments = async (req: Request, res: Response): Promise<void> => {
+  searchDocuments = async (
+    req: Request,
+    res: Response<SearchDocumentsResponse>
+  ): Promise<Response<SearchDocumentsResponse> | void> => {
     try {
       // Convert dot notation in query params to nested objects
       const query = Object.entries(req.query).reduce((acc, [key, value]) => {
@@ -100,10 +214,24 @@ export class DocumentController {
       const documents = await this.documentService.searchDocuments(
         query as Record<string, QueryValue>
       );
-      res.json(documents);
+      res.status(200).json({
+        success: true,
+        data: documents
+      });
     } catch (error) {
       logger.error('Error in searchDocuments:', error);
-      res.status(500).json({ error: 'Failed to search documents' });
+      if (error instanceof Error) {
+        return res.status(500).json({
+          success: false,
+          data: [],
+          error: error.message || 'Failed to search documents'
+        });
+      }
+      res.status(500).json({
+        success: false,
+        data: [],
+        error: 'Failed to search documents'
+      });
     }
   };
 }

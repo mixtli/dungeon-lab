@@ -38,7 +38,11 @@ export class DocumentService {
     }
   }
 
-  async patchDocument(id: string, document: IVTTDocument, userId: string): Promise<IVTTDocument> {
+  async patchDocument(
+    id: string,
+    document: Partial<IVTTDocument>,
+    userId: string
+  ): Promise<IVTTDocument> {
     try {
       const existingDocument = await VTTDocument.findById(id);
       if (!existingDocument) {

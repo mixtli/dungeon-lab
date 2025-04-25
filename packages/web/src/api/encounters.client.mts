@@ -1,45 +1,116 @@
 import type { IEncounter } from '@dungeon-lab/shared/schemas/encounter.schema.mjs';
 import api from './axios.mts';
 
-export async function getEncounters(): Promise<IEncounter[]> {
-  const response = await api.get<IEncounter[]>('/api/encounters');
-  return response.data;
+// Generic response types for endpoints without specific type definitions
+interface GenericResponse {
+  success: boolean;
+  error?: string;
 }
 
-export async function getEncounter(encounterId: string): Promise<IEncounter> {
-  const response = await api.get<IEncounter>(`/api/encounters/${encounterId}`);
-  return response.data;
+interface GenericDataResponse<T> {
+  success: boolean;
+  data: T;
+  error?: string;
+}
+
+// Specific response types
+type GetEncountersResponse = GenericDataResponse<IEncounter[]>;
+type GetEncounterResponse = GenericDataResponse<IEncounter>;
+type CreateEncounterResponse = GenericDataResponse<IEncounter>;
+type PatchEncounterResponse = GenericDataResponse<IEncounter>;
+type DeleteEncounterResponse = GenericResponse;
+
+// Request types
+type CreateEncounterRequest = Omit<IEncounter, 'id'>;
+type PatchEncounterRequest = Partial<IEncounter>;
+
+export async function getEncounters(): Promise<IEncounter[]> {
+  const response = await api.get<GetEncountersResponse>('/api/encounters');
+  if (!response.data.success) {
+    throw new Error(response.data.error || 'Failed to get encounters');
+  }
+  return response.data.data;
+}
+
+export async function getEncounter(encounterId: string, campaignId: string): Promise<IEncounter> {
+  const response = await api.get<GetEncounterResponse>(
+    `/api/campaigns/${campaignId}/encounters/${encounterId}`
+  );
+  if (!response.data.success) {
+    throw new Error(response.data.error || 'Failed to get encounter');
+  }
+  if (!response.data.data) {
+    throw new Error('Encounter not found');
+  }
+  return response.data.data;
 }
 
 export async function createEncounter(
-  data: Omit<IEncounter, 'id'>,
+  data: CreateEncounterRequest,
   campaignId: string
 ): Promise<IEncounter> {
-  const response = await api.post<IEncounter>(`/api/campaigns/${campaignId}/encounters`, data);
-  return response.data;
+  const response = await api.post<CreateEncounterResponse>(
+    `/api/campaigns/${campaignId}/encounters`,
+    data
+  );
+  if (!response.data.success) {
+    throw new Error(response.data.error || 'Failed to create encounter');
+  }
+  if (!response.data.data) {
+    throw new Error('Failed to create encounter');
+  }
+  return response.data.data;
 }
 
 export async function updateEncounter(
   encounterId: string,
-  data: Partial<IEncounter>
+  campaignId: string,
+  data: PatchEncounterRequest
 ): Promise<IEncounter> {
-  const response = await api.patch<IEncounter>(`/api/encounters/${encounterId}`, data);
-  return response.data;
+  const response = await api.patch<PatchEncounterResponse>(
+    `/api/campaigns/${campaignId}/encounters/${encounterId}`,
+    data
+  );
+  if (!response.data.success) {
+    throw new Error(response.data.error || 'Failed to update encounter');
+  }
+  if (!response.data.data) {
+    throw new Error('Encounter not found');
+  }
+  return response.data.data;
 }
 
-export async function deleteEncounter(encounterId: string): Promise<void> {
-  await api.delete(`/api/encounters/${encounterId}`);
+export async function deleteEncounter(encounterId: string, campaignId: string): Promise<void> {
+  const response = await api.delete<DeleteEncounterResponse>(
+    `/api/campaigns/${campaignId}/encounters/${encounterId}`
+  );
+  if (response.data && !response.data.success) {
+    throw new Error(response.data.error || 'Failed to delete encounter');
+  }
 }
 
 export async function getEncountersByCampaign(campaignId: string): Promise<IEncounter[]> {
-  const response = await api.get<IEncounter[]>(`/api/campaigns/${campaignId}/encounters`);
-  return response.data;
+  const response = await api.get<GetEncountersResponse>(`/api/campaigns/${campaignId}/encounters`);
+  if (!response.data.success) {
+    throw new Error(response.data.error || 'Failed to get campaign encounters');
+  }
+  return response.data.data;
 }
 
 export async function updateEncounterStatus(
   encounterId: string,
+  campaignId: string,
   status: 'draft' | 'ready' | 'in_progress' | 'completed'
 ): Promise<IEncounter> {
-  const response = await api.patch<IEncounter>(`/api/encounters/${encounterId}/status`, { status });
-  return response.data;
+  const response = await api.patch<PatchEncounterResponse>(
+    `/api/campaigns/${campaignId}/encounters/${encounterId}/status`,
+    { status }
+  );
+  if (!response.data.success) {
+    throw new Error(response.data.error || 'Failed to update encounter status');
+  }
+  if (!response.data.data) {
+    throw new Error('Encounter not found');
+  }
+  return response.data.data;
 }

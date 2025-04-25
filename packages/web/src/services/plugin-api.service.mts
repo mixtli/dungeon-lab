@@ -1,10 +1,10 @@
 import { IPluginAPI } from '@dungeon-lab/shared/types/plugin-api.mjs';
-import { useSocketStore } from '../stores/socket.store.mjs';
 import { pluginRegistry } from './plugin-registry.service.mjs';
 import * as itemApi from '../api/items.client.mjs';
 import * as actorApi from '../api/actors.client.mjs';
+import * as documentApi from '../api/documents.client.mjs';
 import type { IActor, IItem } from '@dungeon-lab/shared/index.mjs';
-import api from '../api/axios.mjs';
+import type { SearchDocumentsQuery } from '@dungeon-lab/shared/types/api/index.mjs';
 /**
  * Implementation of the Plugin API for the web client
  */
@@ -17,12 +17,12 @@ export class PluginAPI implements IPluginAPI {
     this.pluginId = pluginId;
   }
 
-  private get socketStore() {
-    return useSocketStore();
+  sendPluginMessage(_type: string, _data: unknown): void {
+    console.log('sendPluginMessage', _type, _data);
   }
 
   // Actor management
-  async createActor(type: string, data: unknown): Promise<string> {
+  async createActor(type: string, data: Omit<IActor, 'id'>): Promise<string> {
     const plugin = pluginRegistry.getGameSystemPlugin(this.pluginId);
     if (!plugin) {
       throw new Error('Plugin not found');
@@ -38,7 +38,7 @@ export class PluginAPI implements IPluginAPI {
     const validatedData = validation.data as Record<string, unknown>;
     const name = typeof validatedData.name === 'string' ? validatedData.name : `New ${type}`;
 
-    const createData: IActor = {
+    const createData = {
       name,
       type,
       gameSystemId: this.pluginId,
@@ -46,7 +46,7 @@ export class PluginAPI implements IPluginAPI {
     };
 
     const actor = await actorApi.createActor(createData);
-    if (!actor.id) {
+    if (!actor?.id) {
       throw new Error('Failed to create actor: No ID returned');
     }
     return actor.id;
@@ -60,7 +60,7 @@ export class PluginAPI implements IPluginAPI {
     return actor.data;
   }
 
-  async updateActor(id: string, data: unknown): Promise<void> {
+  async updateActor(id: string, data: Omit<IActor, 'id'>): Promise<void> {
     const actor = await actorApi.getActor(id);
     if (!actor) {
       throw new Error('Actor not found');
@@ -71,12 +71,13 @@ export class PluginAPI implements IPluginAPI {
     if (!validation.success) {
       throw new Error(`Invalid actor data: ${validation.error.message}`);
     }
-
-    const updateData: Partial<IActor> = {
-      data: validation.data as Record<string, unknown>
-    };
-
-    await actorApi.updateActor(id, updateData);
+    const { createdBy, updatedBy, token, avatar, ...updatedData } = data;
+    // Use the void operator to mark the destructured "createdBy" and "updatedBy" as used, avoiding the unused variable errors.
+    void createdBy;
+    void updatedBy;
+    void token;
+    void avatar;
+    await actorApi.updateActor(id, updatedData);
   }
 
   async deleteActor(id: string): Promise<void> {
@@ -100,7 +101,7 @@ export class PluginAPI implements IPluginAPI {
     const validatedData = validation.data as Record<string, unknown>;
     const name = typeof validatedData.name === 'string' ? validatedData.name : `New ${type}`;
 
-    const createData: IItem = {
+    const createData = {
       name,
       type,
       gameSystemId: this.pluginId,
@@ -109,7 +110,7 @@ export class PluginAPI implements IPluginAPI {
     };
 
     const item = await itemApi.createItem(createData);
-    if (!item.id) {
+    if (!item?.id) {
       throw new Error('Failed to create item: No ID returned');
     }
     return item.id;
@@ -147,7 +148,7 @@ export class PluginAPI implements IPluginAPI {
   }
 
   // Data validation
-  validateActorData(type: string, data: unknown) {
+  validateActorData(type: string, data: Omit<IActor, 'id'>) {
     const plugin = pluginRegistry.getGameSystemPlugin(this.pluginId);
     if (!plugin) {
       throw new Error('Plugin not found');
@@ -176,24 +177,24 @@ export class PluginAPI implements IPluginAPI {
     };
 
     // Notify other instances of this plugin about the state update
-    if (this.socketStore.socket) {
-      this.socketStore.socket.emit('plugin:stateUpdate', {
-        pluginId: this.pluginId,
-        state: this.pluginState
-      });
-    }
+    // if (this.socketStore.socket) {
+    //   this.socketStore.socket.emit('plugin:stateUpdate', {
+    //     pluginId: this.pluginId,
+    //     state: this.pluginState
+    //   });
+    // }
   }
 
   // Plugin messaging
-  sendPluginMessage(type: string, data: unknown): void {
-    if (this.socketStore.socket) {
-      this.socketStore.socket.emit('plugin:message', {
-        pluginId: this.pluginId,
-        type,
-        data
-      });
-    }
-  }
+  //sendPluginMessage(_type: string, _data: unknown): void {
+  // if (this.socketStore.socket) {
+  //   this.socketStore.socket.emit('plugin:message', {
+  //     pluginId: this.pluginId,
+  //     type,
+  //     data
+  //   });
+  // }
+  //}
 
   onPluginMessage(type: string, handler: (data: unknown) => void): void {
     // Initialize handler set if it doesn't exist
@@ -201,14 +202,14 @@ export class PluginAPI implements IPluginAPI {
       this.messageHandlers.set(type, new Set());
 
       // Set up socket listener for this message type if it's the first handler
-      if (this.socketStore.socket) {
-        this.socketStore.socket.on(`plugin:message:${type}`, (message: { data: unknown }) => {
-          const handlers = this.messageHandlers.get(type);
-          if (handlers) {
-            handlers.forEach((h) => h(message.data));
-          }
-        });
-      }
+      // if (this.socketStore.socket) {
+      //   this.socketStore.socket.on(`plugin:message:${type}`, (message: { data: unknown }) => {
+      //     const handlers = this.messageHandlers.get(type);
+      //     if (handlers) {
+      //       handlers.forEach((h) => h(message.data));
+      //     }
+      //   });
+      // }
     }
 
     // Add the handler
@@ -223,11 +224,34 @@ export class PluginAPI implements IPluginAPI {
    * @returns The document data
    */
   async getDocument(pluginId: string, documentType: string, documentId: string): Promise<unknown> {
-    const response = await fetch(`/api/documents/${pluginId}/${documentType}/${documentId}`);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch document: ${response.statusText}`);
+    try {
+      // We need to search for documents first to find the right one by plugin and type
+      const query: SearchDocumentsQuery = {
+        pluginId,
+        documentType,
+        // If documentId is a UUID pattern, then it's an actual ID
+        ...(documentId.match(/^[0-9a-f]{24}$/) ? { id: documentId } : { slug: documentId })
+      };
+
+      const documents = await documentApi.searchDocuments(query);
+      const document = documents.find(
+        (doc) =>
+          doc.pluginId === pluginId &&
+          doc.documentType === documentType &&
+          (doc.id === documentId || doc.slug === documentId)
+      );
+
+      if (!document) {
+        throw new Error(`Document not found: ${documentId}`);
+      }
+
+      return document.data;
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new Error(`Failed to fetch document: ${error.message}`);
+      }
+      throw new Error('Failed to fetch document: Unknown error');
     }
-    return response.json();
   }
 
   /**
@@ -237,14 +261,13 @@ export class PluginAPI implements IPluginAPI {
    */
   async searchDocuments(params: Record<string, string>): Promise<unknown[]> {
     try {
-      const response = await api.get('/api/documents', { params });
+      // Convert params to SearchDocumentsQuery
+      const query: SearchDocumentsQuery = { ...params };
+      const documents = await documentApi.searchDocuments(query);
 
-      if (!Array.isArray(response.data)) {
-        throw new Error('Invalid response format: expected an array');
-      }
-
-      return response.data;
-    } catch (error: unknown) {
+      // Only return the document data in the same format as the original implementation
+      return documents.map((doc) => doc.data || {});
+    } catch (error) {
       if (error instanceof Error) {
         throw new Error(`Failed to search documents: ${error.message}`);
       } else {

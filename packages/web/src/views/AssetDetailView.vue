@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import axios from '../api/axios.mjs';
+import { assetClient } from '../api/index.mjs';
 import { IAsset } from '@dungeon-lab/shared/src/schemas/asset.schema.mjs';
 
 const router = useRouter();
@@ -29,8 +29,8 @@ async function fetchAsset() {
   error.value = null;
   
   try {
-    const response = await axios.get(`/api/assets/${assetId}`);
-    asset.value = response.data;
+    const assetData = await assetClient.getAsset(assetId);
+    asset.value = assetData || null;
   } catch (err: any) {
     console.error('Failed to load asset:', err);
     error.value = err.response?.data?.message || 'Failed to load asset';
@@ -46,7 +46,7 @@ async function deleteAsset() {
   deleting.value = true;
   
   try {
-    await axios.delete(`/api/assets/${assetId}`);
+    await assetClient.deleteAsset(assetId);
     // Navigate back to assets list after successful deletion
     router.push('/assets');
   } catch (err: any) {

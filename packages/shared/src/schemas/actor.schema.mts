@@ -19,12 +19,18 @@ export const actorSchema = baseSchema.extend({
   //avatar: assetSchema.optional(),
 });
 
-export const actorCreateSchema = actorSchema.extend({
-  // avatar: z.any().optional(),
-  // token: z.any().optional(),
-  avatar: z.instanceof(File).optional(),
-  token: z.instanceof(File).optional()
-});
+export const actorCreateSchema = actorSchema
+  .extend({
+    // avatar: z.any().optional(),
+    // token: z.any().optional(),
+    avatar: z.instanceof(File).optional(),
+    token: z.instanceof(File).optional()
+  })
+  .omit({
+    avatarId: true,
+    tokenId: true,
+    id: true
+  });
 
 export const actorSchemaWithVirtuals = actorSchema.extend({
   token: assetSchema.optional(),

@@ -1,14 +1,15 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import type { IItem } from '@dungeon-lab/shared/index.mjs';
-import * as itemApi from '../api/items.client.mjs';
+import type { IItem } from '@dungeon-lab/shared/schemas/item.schema.mjs';
+import * as itemApi from '../api/items.client.mts';
+import { CreateItemRequest, PatchItemRequest } from '@dungeon-lab/shared/types/api/index.mjs';
 
 export const useItemStore = defineStore('item', () => {
   // State
   const items = ref<IItem[]>([]);
   const currentItem = ref<IItem | null>(null);
   const loading = ref(false);
-  const error = ref<Error | null>(null);
+  const error = ref<string | null>(null);
 
   // Getters
   const myItems = computed(() => items.value);
@@ -22,7 +23,7 @@ export const useItemStore = defineStore('item', () => {
       items.value = await itemApi.getItems();
     } catch (err) {
       console.error('Error fetching items:', err);
-      error.value = err as Error;
+      error.value = err instanceof Error ? err.message : 'Failed to fetch items';
     } finally {
       loading.value = false;
     }
@@ -32,48 +33,57 @@ export const useItemStore = defineStore('item', () => {
     loading.value = true;
     error.value = null;
     try {
-      currentItem.value = await itemApi.getItem(itemId);
+      const item = await itemApi.getItem(itemId);
+      if (item) {
+        currentItem.value = item;
+      }
     } catch (err) {
       console.error('Error fetching item:', err);
-      error.value = err as Error;
+      error.value = err instanceof Error ? err.message : 'Failed to fetch item';
     } finally {
       loading.value = false;
     }
   }
 
-  async function createItem(data: Omit<IItem, 'id'>) {
+  async function createItem(data: CreateItemRequest) {
     loading.value = true;
     error.value = null;
     try {
       const newItem = await itemApi.createItem(data);
-      items.value.push(newItem);
-      currentItem.value = newItem;
-      return newItem;
+      if (newItem) {
+        items.value.push(newItem);
+        currentItem.value = newItem;
+        return newItem;
+      }
+      return null;
     } catch (err) {
       console.error('Error creating item:', err);
-      error.value = err as Error;
+      error.value = err instanceof Error ? err.message : 'Failed to create item';
       throw err;
     } finally {
       loading.value = false;
     }
   }
 
-  async function updateItem(itemId: string, data: Partial<IItem>) {
+  async function updateItem(itemId: string, data: PatchItemRequest) {
     loading.value = true;
     error.value = null;
     try {
       const updatedItem = await itemApi.updateItem(itemId, data);
-      const index = items.value.findIndex((item) => item.id === itemId);
-      if (index !== -1) {
-        items.value[index] = updatedItem;
+      if (updatedItem) {
+        const index = items.value.findIndex((item) => item.id === itemId);
+        if (index !== -1) {
+          items.value[index] = updatedItem;
+        }
+        if (currentItem.value?.id === itemId) {
+          currentItem.value = updatedItem;
+        }
+        return updatedItem;
       }
-      if (currentItem.value?.id === itemId) {
-        currentItem.value = updatedItem;
-      }
-      return updatedItem;
+      return null;
     } catch (err) {
       console.error('Error updating item:', err);
-      error.value = err as Error;
+      error.value = err instanceof Error ? err.message : 'Failed to update item';
       throw err;
     } finally {
       loading.value = false;
@@ -91,7 +101,7 @@ export const useItemStore = defineStore('item', () => {
       }
     } catch (err) {
       console.error('Error deleting item:', err);
-      error.value = err as Error;
+      error.value = err instanceof Error ? err.message : 'Failed to delete item';
       throw err;
     } finally {
       loading.value = false;
@@ -105,7 +115,7 @@ export const useItemStore = defineStore('item', () => {
       items.value = await itemApi.getItemsByCampaign(campaignId);
     } catch (err) {
       console.error('Error fetching campaign items:', err);
-      error.value = err as Error;
+      error.value = err instanceof Error ? err.message : 'Failed to fetch campaign items';
     } finally {
       loading.value = false;
     }
@@ -118,7 +128,7 @@ export const useItemStore = defineStore('item', () => {
       items.value = await itemApi.getItemsByActor(actorId);
     } catch (err) {
       console.error('Error fetching actor items:', err);
-      error.value = err as Error;
+      error.value = err instanceof Error ? err.message : 'Failed to fetch actor items';
     } finally {
       loading.value = false;
     }

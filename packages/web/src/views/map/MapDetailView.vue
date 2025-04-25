@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import type { IMap, IAsset } from '@dungeon-lab/shared/index.mjs';
-import axios from '../../api/axios.mjs';
+import { mapClient } from '../../api/index.mjs';
 import { ArrowLeftIcon } from '@heroicons/vue/24/outline';
 
 const route = useRoute();
@@ -43,8 +43,8 @@ function showNotification(message: string) {
 async function fetchMap() {
   try {
     loading.value = true;
-    const response = await axios.get(`/api/maps/${route.params.id}`);
-    map.value = response.data;
+    const mapData = await mapClient.getMap(route.params.id as string);
+    map.value = mapData || null;
     console.log('Map data:', map.value);
     if (map.value) {
       formData.value = {
@@ -64,7 +64,7 @@ async function fetchMap() {
 async function handleUpdate() {
   try {
     loading.value = true;
-    await axios.patch(`/api/maps/${route.params.id}`, formData.value);
+    await mapClient.updateMap(route.params.id as string, formData.value);
     showNotification('Map updated successfully');
     editing.value = false;
     await fetchMap();
