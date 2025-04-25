@@ -1,5 +1,4 @@
-import { Response } from 'express';
-import { AuthenticatedRequest } from '../../../middleware/auth.middleware.mjs';
+import { Request, Response } from 'express';
 import { GameSessionService } from '../services/game-session.service.mjs';
 import { logger } from '../../../utils/logger.mjs';
 
@@ -16,7 +15,7 @@ function isErrorWithMessage(error: unknown): error is { message: string } {
 export class GameSessionController {
   constructor(private gameSessionService: GameSessionService) {}
 
-  async getGameSessions(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
+  async getGameSessions(req: Request, res: Response): Promise<Response | void> {
     try {
       // Extract query parameters
       const { campaignId, status } = req.query;
@@ -33,7 +32,7 @@ export class GameSessionController {
     }
   }
 
-  async getGameSession(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
+  async getGameSession(req: Request, res: Response): Promise<Response | void> {
     try {
       const session = await this.gameSessionService.getGameSession(req.params.id);
 
@@ -58,7 +57,7 @@ export class GameSessionController {
     }
   }
 
-  async getCampaignSessions(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
+  async getCampaignSessions(req: Request, res: Response): Promise<Response | void> {
     try {
       const sessions = await this.gameSessionService.getCampaignSessions(req.params.campaignId);
       return res.json(sessions);
@@ -68,7 +67,7 @@ export class GameSessionController {
     }
   }
 
-  async createGameSession(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
+  async createGameSession(req: Request, res: Response): Promise<Response | void> {
     try {
       const session = await this.gameSessionService.createGameSession(
         req.body,
@@ -89,7 +88,7 @@ export class GameSessionController {
     }
   }
 
-  async updateGameSession(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
+  async updateGameSession(req: Request, res: Response): Promise<Response | void> {
     try {
       // Check if user has permission to update
       const hasAccess = await this.gameSessionService.checkUserPermission(
@@ -118,7 +117,7 @@ export class GameSessionController {
     }
   }
 
-  async deleteGameSession(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
+  async deleteGameSession(req: Request, res: Response): Promise<Response | void> {
     try {
       // Check if user has permission to delete
       const hasAccess = await this.gameSessionService.checkUserPermission(

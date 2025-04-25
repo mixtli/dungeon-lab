@@ -43,7 +43,7 @@ export class ItemService {
     }
   }
 
-  async createItem(data: IItem, userId: string): Promise<IItem> {
+  async createItem(data: IItem, userId: string, file?: File): Promise<IItem> {
     try {
       const userObjectId = new Types.ObjectId(userId);
       const itemData = {
@@ -53,7 +53,18 @@ export class ItemService {
       };
 
       const item = await ItemModel.create(itemData);
-      return item;
+      if (file) {
+        logger.info('Uploading provided actor token');
+
+        // Create asset using the createAsset method
+        const tokenAsset = await createAsset(file, 'items', userId);
+
+        // Update the actor with the token ID
+        item.imageId = tokenAsset.id;
+        await item.save();
+      }
+      // Return the actor with populated avatar and token
+      return item.populate('image');
     } catch (error) {
       logger.error('Error creating item:', error);
       throw new Error('Failed to create item');

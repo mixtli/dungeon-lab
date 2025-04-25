@@ -1,21 +1,16 @@
 import api from './axios.mts';
-import type { IGameSession } from '@dungeon-lab/shared/index.mjs';
-
-// Interface to include frontend id
-interface GameSessionWithId extends IGameSession {
-  id: string;
-}
-
-// Interface for filter options
-interface GameSessionFilter {
-  campaignId?: string;
-  status?: string;
-}
+import type {
+  IGameSession,
+  CreateGameSessionRequest,
+  UpdateGameSessionRequest,
+  GameSessionStatusUpdateRequest,
+  GameSessionQueryParams
+} from '@dungeon-lab/shared/types/api/index.mjs';
 
 /**
  * Fetch all game sessions with optional filters
  */
-export async function fetchGameSessions(filter?: GameSessionFilter): Promise<GameSessionWithId[]> {
+export async function fetchGameSessions(filter?: GameSessionQueryParams): Promise<IGameSession[]> {
   // Build query parameters
   const params = new URLSearchParams();
   if (filter?.campaignId) {
@@ -34,7 +29,7 @@ export async function fetchGameSessions(filter?: GameSessionFilter): Promise<Gam
 /**
  * Fetch a specific game session by ID
  */
-export async function fetchGameSession(id: string): Promise<GameSessionWithId> {
+export async function fetchGameSession(id: string): Promise<IGameSession> {
   const response = await api.get(`/api/game-sessions/${id}`);
   return response.data;
 }
@@ -42,14 +37,14 @@ export async function fetchGameSession(id: string): Promise<GameSessionWithId> {
 /**
  * Fetch all game sessions for a specific campaign
  */
-export async function fetchCampaignSessions(campaignId: string): Promise<GameSessionWithId[]> {
+export async function fetchCampaignSessions(campaignId: string): Promise<IGameSession[]> {
   return fetchGameSessions({ campaignId });
 }
 
 /**
  * Create a new game session
  */
-export async function createGameSession(data: Omit<IGameSession, 'id'>): Promise<IGameSession> {
+export async function createGameSession(data: CreateGameSessionRequest): Promise<IGameSession> {
   const response = await api.post('/api/game-sessions', data);
   return response.data;
 }
@@ -57,11 +52,9 @@ export async function createGameSession(data: Omit<IGameSession, 'id'>): Promise
 /**
  * Update a game session status
  */
-export async function updateGameSessionStatus(
-  id: string,
-  status: string
-): Promise<GameSessionWithId> {
-  const response = await api.patch(`/api/game-sessions/${id}/status`, { status });
+export async function updateGameSessionStatus(id: string, status: string): Promise<IGameSession> {
+  const request: GameSessionStatusUpdateRequest = { status };
+  const response = await api.patch(`/api/game-sessions/${id}/status`, request);
   return response.data;
 }
 
@@ -79,7 +72,7 @@ export async function getGameSession(sessionId: string): Promise<IGameSession> {
 
 export async function updateGameSession(
   sessionId: string,
-  data: Partial<IGameSession>
+  data: UpdateGameSessionRequest
 ): Promise<IGameSession> {
   const response = await api.patch(`/api/game-sessions/${sessionId}`, data);
   return response.data;

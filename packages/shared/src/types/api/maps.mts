@@ -73,9 +73,7 @@ export type UploadMapImageResponse = z.infer<typeof uploadMapImageResponseSchema
 // Types for GET /maps/search (Search maps)
 export const searchMapsQuerySchema = z
   .object({
-    name: z.string().optional(),
-    tags: z.union([z.string(), z.array(z.string())]).optional(),
-    campaign: z.string().optional()
+    name: z.string().optional()
   })
   .passthrough(); // Allow additional query parameters
 

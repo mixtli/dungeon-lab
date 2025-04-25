@@ -169,3 +169,17 @@ export const openApiPatch = (zodSchema: z.ZodType, overrides = {}) =>
 
 export const openApiDelete = (zodSchema: z.ZodType, overrides = {}) =>
   createOpenApiDocs(zodSchema, overrides, 'DELETE');
+
+export const toQuerySchema = (zodSchema: z.ZodObject<z.ZodRawShape>) => {
+  const querySchema = [];
+  for (const key in zodSchema.shape) {
+    const schema = zodSchema.shape[key];
+    querySchema.push({
+      name: key,
+      in: 'query',
+      description: schema.description,
+      required: false
+    });
+  }
+  return querySchema;
+};

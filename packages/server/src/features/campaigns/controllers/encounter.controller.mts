@@ -1,5 +1,4 @@
-import { Response } from 'express';
-import { AuthenticatedRequest } from '../../../middleware/auth.middleware.mjs';
+import { Request, Response } from 'express';
 import { EncounterService } from '../services/encounter.service.mjs';
 import { logger } from '../../../utils/logger.mjs';
 
@@ -16,7 +15,7 @@ function isErrorWithMessage(error: unknown): error is { message: string } {
 export class EncounterController {
   constructor(private encounterService: EncounterService) {}
 
-  async getEncounters(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
+  async getEncounters(req: Request, res: Response): Promise<Response | void> {
     try {
       const encounters = await this.encounterService.getEncounters(req.params.campaignId);
       return res.json(encounters);
@@ -26,10 +25,13 @@ export class EncounterController {
     }
   }
 
-  async getEncounter(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
+  async getEncounter(req: Request, res: Response): Promise<Response | void> {
     try {
-      const encounter = await this.encounterService.getEncounter(req.params.id, req.params.campaignId);
-      
+      const encounter = await this.encounterService.getEncounter(
+        req.params.id,
+        req.params.campaignId
+      );
+
       // Check if user has access to this encounter
       const hasAccess = await this.encounterService.checkUserPermission(
         req.params.id,
@@ -55,7 +57,7 @@ export class EncounterController {
     }
   }
 
-  async createEncounter(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
+  async createEncounter(req: Request, res: Response): Promise<Response | void> {
     try {
       const encounter = await this.encounterService.createEncounter(
         req.body,
@@ -77,7 +79,7 @@ export class EncounterController {
     }
   }
 
-  async updateEncounter(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
+  async updateEncounter(req: Request, res: Response): Promise<Response | void> {
     try {
       // Check if user has permission to update
       const hasAccess = await this.encounterService.checkUserPermission(
@@ -106,7 +108,7 @@ export class EncounterController {
     }
   }
 
-  async deleteEncounter(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
+  async deleteEncounter(req: Request, res: Response): Promise<Response | void> {
     try {
       // Check if user has permission to delete
       const hasAccess = await this.encounterService.checkUserPermission(
@@ -129,4 +131,4 @@ export class EncounterController {
       return res.status(500).json({ message: 'Failed to delete encounter' });
     }
   }
-} 
+}

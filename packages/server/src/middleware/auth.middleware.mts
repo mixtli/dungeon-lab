@@ -2,7 +2,6 @@ import { Request, Response, NextFunction } from 'express';
 import { IUser } from '@dungeon-lab/shared/index.mjs';
 import { logger } from '../utils/logger.mjs';
 import { UserModel } from '../models/user.model.mjs';
-import { FilesData } from './validation.middleware.mjs';
 
 // Extend Express Session type to include user
 declare module 'express-session' {
@@ -11,18 +10,14 @@ declare module 'express-session' {
   }
 }
 
-// Extend Express Request type to include session user
-export interface AuthenticatedRequest extends Request {
-  session: {
-    user: IUser;
-  } & Request['session'];
-  assets?: FilesData;
-}
-
 /**
  * Middleware to authenticate requests using session or API key
  */
-export async function authenticate(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void | Response> {
+export async function authenticate(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void | Response> {
   // Check if already authenticated via session
   if (req.session.user) {
     return next();
@@ -32,11 +27,11 @@ export async function authenticate(req: AuthenticatedRequest, res: Response, nex
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const apiKey = authHeader.substring(7); // Remove 'Bearer ' prefix
-    
+
     try {
       // Find user with this API key
       const user = await UserModel.findOne({ apiKey });
-      
+
       if (user) {
         // Temporarily set the user in the session for this request
         req.session.user = {
@@ -61,7 +56,7 @@ export async function authenticate(req: AuthenticatedRequest, res: Response, nex
 /**
  * Middleware to check if user is an admin
  */
-export function requireAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction): void | Response {
+export function requireAdmin(req: Request, res: Response, next: NextFunction): void | Response {
   if (!req.session.user) {
     logger.warn('Unauthorized access attempt');
     return res.status(401).json({ message: 'Unauthorized' });
@@ -73,4 +68,4 @@ export function requireAdmin(req: AuthenticatedRequest, res: Response, next: Nex
   }
 
   next();
-} 
+}

@@ -59,7 +59,7 @@ export class ActorService {
    * @param tokenFile - Optional token file for the actor
    */
   async createActor(
-    data: IActor,
+    data: Omit<IActor, 'id'>,
     userId: string,
     avatarFile?: File,
     tokenFile?: File

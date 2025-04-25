@@ -9,7 +9,8 @@ import {
   openApiPost,
   openApiPut,
   openApiPatch,
-  openApiDelete
+  openApiDelete,
+  toQuerySchema
 } from '../../../oapi.mjs';
 import { z } from '../../../utils/zod.mjs';
 import express from 'express';
@@ -54,16 +55,7 @@ router.get(
   '/',
   openApiGet(searchMapsQuerySchema, {
     description: 'Search for maps based on query parameters',
-    parameters: [
-      {
-        name: 'name',
-        in: 'query',
-        description: 'Name of the map',
-        required: false
-      }
-
-      // searchMapsQuerySchema.openapi({ description: 'Search maps query parameters' })
-    ],
+    parameters: toQuerySchema(searchMapsQuerySchema),
     responses: {
       200: {
         description: 'Maps retrieved successfully',

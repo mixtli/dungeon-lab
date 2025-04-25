@@ -1,5 +1,4 @@
-import { Response } from 'express';
-import { AuthenticatedRequest } from '../../../middleware/auth.middleware.mjs';
+import { Request, Response } from 'express';
 import { InviteService } from '../services/invite.service.mjs';
 import { logger } from '../../../utils/logger.mjs';
 
@@ -16,7 +15,7 @@ function isErrorWithMessage(error: unknown): error is { message: string } {
 export class InviteController {
   constructor(private inviteService: InviteService) {}
 
-  async getInvites(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
+  async getInvites(req: Request, res: Response): Promise<Response | void> {
     try {
       const invites = await this.inviteService.getInvites(req.params.campaignId);
       return res.json(invites);
@@ -26,7 +25,7 @@ export class InviteController {
     }
   }
 
-  async getMyInvites(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
+  async getMyInvites(req: Request, res: Response): Promise<Response | void> {
     try {
       const invites = await this.inviteService.getMyInvites(req.session.user.id);
       return res.json(invites);
@@ -36,7 +35,7 @@ export class InviteController {
     }
   }
 
-  async createInvite(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
+  async createInvite(req: Request, res: Response): Promise<Response | void> {
     try {
       const invite = await this.inviteService.createInvite(
         req.body,
@@ -52,8 +51,10 @@ export class InviteController {
         if (error.message === 'Invited user not found') {
           return res.status(404).json({ message: error.message });
         }
-        if (error.message === 'User is already a member of this campaign' ||
-            error.message === 'User already has a pending invite for this campaign') {
+        if (
+          error.message === 'User is already a member of this campaign' ||
+          error.message === 'User already has a pending invite for this campaign'
+        ) {
           return res.status(400).json({ message: error.message });
         }
       }
@@ -62,7 +63,7 @@ export class InviteController {
     }
   }
 
-  async respondToInvite(req: AuthenticatedRequest, res: Response): Promise<Response | void> {
+  async respondToInvite(req: Request, res: Response): Promise<Response | void> {
     try {
       const invite = await this.inviteService.respondToInvite(
         req.params.id,
@@ -84,4 +85,4 @@ export class InviteController {
       return res.status(500).json({ message: 'Failed to respond to invite' });
     }
   }
-} 
+}

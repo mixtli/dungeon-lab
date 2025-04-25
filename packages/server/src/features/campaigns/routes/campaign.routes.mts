@@ -7,7 +7,6 @@ import { GameSessionController } from '../controllers/game-session.controller.mj
 import { GameSessionService } from '../services/game-session.service.mjs';
 import { authenticate } from '../../../middleware/auth.middleware.mjs';
 import { validateRequest } from '../../../middleware/validation.middleware.mjs';
-import { campaignSchema } from '@dungeon-lab/shared/schemas/campaign.schema.mjs';
 import { gameSessionSchema } from '@dungeon-lab/shared/schemas/game-session.schema.mjs';
 import { encounterSchema } from '@dungeon-lab/shared/schemas/encounter.schema.mjs';
 import {
@@ -16,9 +15,23 @@ import {
   openApiPost,
   openApiPut,
   openApiDelete,
-  openApiPatch
+  openApiPatch,
+  toQuerySchema
 } from '../../../oapi.mjs';
-import { deepPartial } from '@dungeon-lab/shared/utils/deepPartial.mjs';
+import { z } from '../../../utils/zod.mjs';
+import { createSchema } from 'zod-openapi';
+import {
+  getCampaignsResponseSchema,
+  getCampaignResponseSchema,
+  createCampaignRequestSchema,
+  createCampaignResponseSchema,
+  putCampaignRequestSchema,
+  putCampaignResponseSchema,
+  patchCampaignRequestSchema,
+  patchCampaignResponseSchema,
+  deleteCampaignResponseSchema,
+  searchCampaignsQuerySchema
+} from '@dungeon-lab/shared/types/api/index.mjs';
 
 // Initialize services and controllers
 const campaignService = new CampaignService();
@@ -56,32 +69,25 @@ const boundCreateGameSession = gameSessionController.createGameSession.bind(game
 router.get(
   '/',
   authenticate,
-  openApiGet(campaignSchema, {
+  openApiGet(searchCampaignsQuerySchema, {
     description:
       'Get all campaigns for the authenticated user with optional filtering by query parameters',
-    parameters: [
-      {
-        name: 'name',
-        in: 'query',
-        description: 'Filter by campaign name (case insensitive)',
-        required: false,
-        schema: { type: 'string' }
+    parameters: toQuerySchema(searchCampaignsQuerySchema),
+    responses: {
+      200: {
+        description: 'Campaigns retrieved successfully',
+        content: {
+          'application/json': {
+            schema: createSchema(
+              getCampaignsResponseSchema.openapi({
+                description: 'Campaigns response'
+              })
+            )
+          }
+        }
       },
-      {
-        name: 'status',
-        in: 'query',
-        description: 'Filter by campaign status',
-        required: false,
-        schema: { type: 'string' }
-      },
-      {
-        name: 'gameSystemId',
-        in: 'query',
-        description: 'Filter by game system ID',
-        required: false,
-        schema: { type: 'string' }
-      }
-    ]
+      500: { description: 'Server error' }
+    }
   }),
   boundGetMyCampaigns
 );
@@ -89,8 +95,25 @@ router.get(
 router.get(
   '/:id',
   authenticate,
-  openApiGetOne(campaignSchema, {
-    description: 'Get campaign by ID'
+  openApiGetOne(z.null(), {
+    description: 'Get campaign by ID',
+    responses: {
+      200: {
+        description: 'Campaign retrieved successfully',
+        content: {
+          'application/json': {
+            schema: createSchema(
+              getCampaignResponseSchema.openapi({
+                description: 'Campaign response'
+              })
+            )
+          }
+        }
+      },
+      403: { description: 'Forbidden - Access denied' },
+      404: { description: 'Campaign not found' },
+      500: { description: 'Server error' }
+    }
   }),
   boundGetCampaign
 );
@@ -98,38 +121,107 @@ router.get(
 router.post(
   '/',
   authenticate,
-  openApiPost(campaignSchema, {
-    description: 'Create a new campaign'
+  openApiPost(createCampaignRequestSchema, {
+    description: 'Create a new campaign',
+    responses: {
+      201: {
+        description: 'Campaign created successfully',
+        content: {
+          'application/json': {
+            schema: createSchema(
+              createCampaignResponseSchema.openapi({
+                description: 'Create campaign response'
+              })
+            )
+          }
+        }
+      },
+      400: { description: 'Invalid campaign data' },
+      500: { description: 'Server error' }
+    }
   }),
-  validateRequest(campaignSchema),
+  validateRequest(createCampaignRequestSchema),
   boundCreateCampaign
 );
 
 router.put(
   '/:id',
   authenticate,
-  openApiPut(campaignSchema, {
-    description: 'Replace a campaign by ID (full update)'
+  openApiPut(putCampaignRequestSchema, {
+    description: 'Replace a campaign by ID (full update)',
+    responses: {
+      200: {
+        description: 'Campaign updated successfully',
+        content: {
+          'application/json': {
+            schema: createSchema(
+              putCampaignResponseSchema.openapi({
+                description: 'Update campaign response'
+              })
+            )
+          }
+        }
+      },
+      400: { description: 'Invalid campaign data' },
+      403: { description: 'Forbidden - Access denied' },
+      404: { description: 'Campaign not found' },
+      500: { description: 'Server error' }
+    }
   }),
-  validateRequest(campaignSchema),
+  validateRequest(putCampaignRequestSchema),
   boundPutCampaign
 );
 
 router.patch(
   '/:id',
   authenticate,
-  openApiPatch(deepPartial(campaignSchema), {
-    description: 'Update a campaign by ID (partial update)'
+  openApiPatch(patchCampaignRequestSchema, {
+    description: 'Update a campaign by ID (partial update)',
+    responses: {
+      200: {
+        description: 'Campaign patched successfully',
+        content: {
+          'application/json': {
+            schema: createSchema(
+              patchCampaignResponseSchema.openapi({
+                description: 'Patch campaign response'
+              })
+            )
+          }
+        }
+      },
+      400: { description: 'Invalid campaign data' },
+      403: { description: 'Forbidden - Access denied' },
+      404: { description: 'Campaign not found' },
+      500: { description: 'Server error' }
+    }
   }),
-  validateRequest(deepPartial(campaignSchema)),
+  validateRequest(patchCampaignRequestSchema),
   boundPatchCampaign
 );
 
 router.delete(
   '/:id',
   authenticate,
-  openApiDelete(campaignSchema, {
-    description: 'Delete a campaign by ID'
+  openApiDelete(z.null(), {
+    description: 'Delete a campaign by ID',
+    responses: {
+      204: { description: 'Campaign deleted successfully' },
+      403: { description: 'Forbidden - Access denied' },
+      404: { description: 'Campaign not found' },
+      500: {
+        description: 'Server error',
+        content: {
+          'application/json': {
+            schema: createSchema(
+              deleteCampaignResponseSchema.openapi({
+                description: 'Delete campaign response'
+              })
+            )
+          }
+        }
+      }
+    }
   }),
   boundDeleteCampaign
 );

@@ -2,7 +2,6 @@ import { Request, Response } from 'express';
 import { DocumentService, QueryValue } from '../services/document.service.mjs';
 import { logger } from '../../../utils/logger.mjs';
 import { pluginRegistry } from '../../../services/plugin-registry.service.mjs';
-import { AuthenticatedRequest } from '../../../middleware/auth.middleware.mjs';
 
 export class DocumentController {
   private documentService: DocumentService;
@@ -22,7 +21,7 @@ export class DocumentController {
     }
   };
 
-  putDocument = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  putDocument = async (req: Request, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
       const userId = req.session.user.id;
@@ -34,7 +33,7 @@ export class DocumentController {
     }
   };
 
-  patchDocument = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  patchDocument = async (req: Request, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
       const userId = req.session.user.id;
@@ -57,7 +56,7 @@ export class DocumentController {
     }
   };
 
-  createDocument = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  createDocument = async (req: Request, res: Response): Promise<void> => {
     try {
       const userId = req.session.user.id;
       const plugin = pluginRegistry.getPlugin(req.body.pluginId);

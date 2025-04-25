@@ -90,13 +90,7 @@ export { PluginComponent } from './base/plugin-component.mjs';
 export { BasePlugin } from './base/plugin.mjs';
 export { WebPlugin } from './base/web.mjs';
 
-// API interfaces
-export type {
-  IApiResponse,
-  IApiError,
-  IPagination,
-  IPaginatedApiResponse
-} from './types/api/base.mts';
+export { baseAPIResponseSchema } from './types/api/base.mjs';
 
 // Enums and constants
 export { CampaignStatus } from './schemas/campaign.schema.mjs';

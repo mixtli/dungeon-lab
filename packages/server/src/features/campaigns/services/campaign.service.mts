@@ -87,7 +87,7 @@ export class CampaignService {
   //   return users.some((user) => user.id === userId);
   // }
 
-  async createCampaign(data: ICampaign, userId: string): Promise<ICampaign> {
+  async createCampaign(data: Omit<ICampaign, 'id'>, userId: string): Promise<ICampaign> {
     try {
       const userObjectId = new Types.ObjectId(userId);
 
@@ -216,7 +216,7 @@ export class CampaignService {
   /**
    * Replace an entire campaign (PUT)
    */
-  async putCampaign(id: string, data: ICampaign, userId: string): Promise<ICampaign> {
+  async putCampaign(id: string, data: Omit<ICampaign, 'id'>, userId: string): Promise<ICampaign> {
     try {
       const campaign = await CampaignModel.findById(id);
       if (!campaign) {

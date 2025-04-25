@@ -1,7 +1,10 @@
-import { Response, NextFunction } from 'express';
-import assetService, { NotFoundError, PermissionError, ValidationError } from '../services/asset.service.mjs';
+import { Request, Response, NextFunction } from 'express';
+import assetService, {
+  NotFoundError,
+  PermissionError,
+  ValidationError
+} from '../services/asset.service.mjs';
 import { logger } from '../../../utils/logger.mjs';
-import { AuthenticatedRequest } from '../../../middleware/auth.middleware.mjs';
 
 /**
  * Asset Controller - Handles HTTP requests for assets
@@ -10,12 +13,12 @@ class AssetController {
   /**
    * List all assets for the current user
    */
-  async listAssets(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+  async listAssets(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const userId = req.session.user?.id;
       const assets = await assetService.getAssetsByUser(userId);
       res.json({
-        data: assets.map(asset => asset.toPublicJSON()),
+        data: assets.map((asset) => asset.toPublicJSON()),
         total: assets.length
       });
     } catch (error) {
@@ -28,7 +31,7 @@ class AssetController {
    * Upload and create a new asset
    * @route POST /api/assets
    */
-  async createAsset(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+  async createAsset(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       // Check if file exists
       if (!req.file) {
@@ -40,11 +43,7 @@ class AssetController {
       const userId = req.session.user.id;
 
       // Create asset
-      const asset = await assetService.createAsset(
-        req.file,
-        userId,
-        req.body
-      );
+      const asset = await assetService.createAsset(req.file, userId, req.body);
 
       // Return created asset
       res.status(201).json(asset.toPublicJSON());
@@ -62,7 +61,7 @@ class AssetController {
    * Get an asset by ID
    * @route GET /api/assets/:id
    */
-  async getAssetById(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+  async getAssetById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const assetId = req.params.id;
       const userId = req.session.user.id;
@@ -85,7 +84,7 @@ class AssetController {
    * Update an asset
    * @route PUT /api/assets/:id
    */
-  async updateAsset(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+  async updateAsset(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const assetId = req.params.id;
       const userId = req.session.user.id;
@@ -110,7 +109,7 @@ class AssetController {
    * Delete an asset
    * @route DELETE /api/assets/:id
    */
-  async deleteAsset(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+  async deleteAsset(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const assetId = req.params.id;
       const userId = req.session.user.id;
@@ -133,11 +132,13 @@ class AssetController {
    * Get a pre-signed URL for an asset
    * @route GET /api/assets/:id/signed-url
    */
-  async getSignedUrl(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+  async getSignedUrl(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const assetId = req.params.id;
       const userId = req.session.user.id;
-      const expiryTimeSeconds = req.query.expiry ? parseInt(req.query.expiry as string, 10) : undefined;
+      const expiryTimeSeconds = req.query.expiry
+        ? parseInt(req.query.expiry as string, 10)
+        : undefined;
 
       const signedUrl = await assetService.getSignedUrl(assetId, userId, expiryTimeSeconds);
       res.json({ url: signedUrl });
@@ -156,4 +157,4 @@ class AssetController {
 
 // Export a singleton instance
 const assetController = new AssetController();
-export default assetController; 
+export default assetController;
