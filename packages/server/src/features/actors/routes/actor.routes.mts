@@ -1,4 +1,4 @@
-import express, { Router } from 'express';
+import express from 'express';
 import { ActorController } from '../controllers/actor.controller.mjs';
 import { ActorService } from '../services/actor.service.mjs';
 import { authenticate } from '../../../middleware/auth.middleware.mjs';
