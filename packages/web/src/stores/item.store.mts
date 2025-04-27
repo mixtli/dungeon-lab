@@ -13,7 +13,7 @@ export const useItemStore = defineStore('item', () => {
 
   // Getters
   const myItems = computed(() => items.value);
-  const getItemById = (id: string) => items.value.find((i) => i.id === id);
+  const getItemById = (id: string) => items.value.find((i: IItem) => i.id === id);
 
   // Actions
   async function fetchItems() {
@@ -71,7 +71,7 @@ export const useItemStore = defineStore('item', () => {
     try {
       const updatedItem = await itemApi.updateItem(itemId, data);
       if (updatedItem) {
-        const index = items.value.findIndex((item) => item.id === itemId);
+        const index = items.value.findIndex((item: IItem) => item.id === itemId);
         if (index !== -1) {
           items.value[index] = updatedItem;
         }
@@ -95,7 +95,7 @@ export const useItemStore = defineStore('item', () => {
     error.value = null;
     try {
       await itemApi.deleteItem(itemId);
-      items.value = items.value.filter((item) => item.id !== itemId);
+      items.value = items.value.filter((item: IItem) => item.id !== itemId);
       if (currentItem.value?.id === itemId) {
         currentItem.value = null;
       }

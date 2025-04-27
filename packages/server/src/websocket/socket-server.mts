@@ -1,6 +1,5 @@
-import { Server } from 'socket.io';
+import { Server, Socket } from 'socket.io';
 import type { Server as HttpServer } from 'http';
-import { Socket } from 'socket.io';
 import { sessionMiddleware } from '../app.mjs';
 import { CampaignService, GameSessionModel } from '../features/campaigns/index.mjs';
 import type {
@@ -70,12 +69,12 @@ export class SocketServer {
       if (!session) {
         throw new Error('Session not found');
       }
-      if (session.participants.includes(socket.userId)) {
+      if (session.participantIds.includes(socket.userId)) {
         socket.join(sessionId);
       } else {
         const campaignService = new CampaignService();
         if (await campaignService.isUserCampaignMember(socket.userId, session.campaignId)) {
-          session.participants.push(socket.userId);
+          session.participantIds.push(socket.userId);
           await session.save();
           socket.join(sessionId);
         } else {
@@ -114,12 +113,12 @@ export class SocketServer {
         console.error('Socket error:', error);
         // Implement retry logic or user notification
       });
-      socket.on('joinSession', (sessionId: string, callback) =>
+      socket.on('joinSession', (sessionId: string, callback: (response: JoinCallback) => void) =>
         this.handleJoinSession(socket, sessionId, callback)
       );
       socket.on('leaveSession', (sessionId: string) => this.handleLeaveSession(socket, sessionId));
-      socket.on('chat', (foo) => {
-        console.log('foo', foo);
+      socket.on('chat', (message: string) => {
+        console.log('chat message', message);
       });
 
       // socket.on('message', (message) => console.log('message', message));

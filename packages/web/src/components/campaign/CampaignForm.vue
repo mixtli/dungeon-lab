@@ -62,8 +62,7 @@ onMounted(async () => {
         formData.value = {
           name: campaign.name,
           description: campaign.description || '',
-          status: campaign.status,
-          settings: campaign.settings || {},
+          status: campaign.status
         };
         gameSystemId.value = String(campaign.gameSystemId);
       } else {

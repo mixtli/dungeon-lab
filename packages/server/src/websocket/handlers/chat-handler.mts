@@ -1,16 +1,14 @@
 import type { IChatMessage, IMessage } from '@dungeon-lab/shared/index.mjs';
 import { CampaignModel } from '../../features/campaigns/models/campaign.model.mjs';
 import { GameSessionModel } from '../../features/campaigns/models/game-session.model.mjs';
-import { AuthenticatedSocket } from '../types.mjs';
+import { Socket } from 'socket.io';
+
 // Type guard to check if a message is a chat message
 function isChatMessage(message: IMessage): message is IChatMessage {
   return message.type === 'chat';
 }
 
-export async function handleChatMessage(
-  socket: AuthenticatedSocket,
-  message: IMessage
-): Promise<void> {
+export async function handleChatMessage(socket: Socket, message: IMessage): Promise<void> {
   console.log('handleChatMessage', message);
   console.log('sessionId', socket.gameSessionId);
   try {
@@ -66,13 +64,10 @@ export async function handleChatMessage(
         }
         sockets = await socket.in(socket.gameSessionId).fetchSockets();
         gmsocket = sockets.find((s) => {
-          const authsocket = s as unknown as AuthenticatedSocket;
-          return (
-            campaign.gameMasterId && authsocket.data.userId === campaign.gameMasterId.toString()
-          );
+          return campaign.gameMasterId && s.data.userId === campaign.gameMasterId.toString();
         });
         if (gmsocket) {
-          (gmsocket as unknown as AuthenticatedSocket).emit('message', message);
+          gmsocket.emit('message', message);
         }
         break;
 
@@ -84,11 +79,10 @@ export async function handleChatMessage(
         // Direct message to specific user
         targetsockets = await socket.in(socket.gameSessionId).fetchSockets();
         targetsocket = targetsockets.find((s) => {
-          const authsocket = s as unknown as AuthenticatedSocket;
-          return authsocket.data.userId === message.recipient;
+          return s.data.userId === message.recipient;
         });
         if (targetsocket) {
-          (targetsocket as unknown as AuthenticatedSocket).emit('message', message);
+          targetsocket.emit('message', message);
           // Also send to sender if they're not the target
           if (message.sender.toString() !== message.recipient.toString()) {
             socket.emit('message', message);

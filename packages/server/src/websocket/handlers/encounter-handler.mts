@@ -1,7 +1,6 @@
-import { Server } from 'socket.io';
+import { Server, Socket } from 'socket.io';
 import { GameSessionModel } from '../../features/campaigns/models/game-session.model.mjs';
 import { logger } from '../../utils/logger.mjs';
-import { AuthenticatedSocket } from '../types.mjs';
 
 interface EncounterStartMessage {
   sessionId: string;
@@ -17,7 +16,7 @@ interface EncounterStopMessage {
 
 export async function handleEncounterStart(
   io: Server,
-  socket: AuthenticatedSocket,
+  socket: Socket,
   message: EncounterStartMessage
 ): Promise<void> {
   try {
@@ -54,22 +53,22 @@ export async function handleEncounterStart(
     const eventData = {
       encounterId: message.encounterId,
       campaignId: message.campaignId,
-      timestamp: new Date(),
+      timestamp: new Date()
     };
-    
+
     // Log current session members before broadcasting
     const sockets = await io.in(message.sessionId).fetchSockets();
     logger.info('[Encounter Start] Current session members:', {
       sessionId: message.sessionId,
       memberCount: sockets.length,
-      members: sockets.map(s => ((s as unknown) as AuthenticatedSocket).userId)
+      members: sockets.map((s) => (s as unknown as Socket).userId)
     });
-    
+
     logger.info('[Encounter Start] Broadcasting to session:', {
       sessionId: message.sessionId,
       eventData
     });
-    
+
     // Broadcast and log the result
     const broadcastResult = io.to(message.sessionId).emit('encounter:start', eventData);
     logger.info('[Encounter Start] Broadcast result:', {
@@ -89,7 +88,7 @@ export async function handleEncounterStart(
 
 export async function handleEncounterStop(
   io: Server,
-  socket: AuthenticatedSocket,
+  socket: Socket,
   message: EncounterStopMessage
 ): Promise<void> {
   try {
@@ -126,22 +125,22 @@ export async function handleEncounterStop(
     const eventData = {
       encounterId: message.encounterId,
       campaignId: message.campaignId,
-      timestamp: new Date(),
+      timestamp: new Date()
     };
-    
+
     // Log current session members before broadcasting
     const sockets = await io.in(message.sessionId).fetchSockets();
     logger.info('[Encounter Stop] Current session members:', {
       sessionId: message.sessionId,
       memberCount: sockets.length,
-      members: sockets.map(s => ((s as unknown) as AuthenticatedSocket).userId)
+      members: sockets.map((s) => (s as unknown as Socket).userId)
     });
-    
+
     logger.info('[Encounter Stop] Broadcasting to session:', {
       sessionId: message.sessionId,
       eventData
     });
-    
+
     // Broadcast and log the result
     const broadcastResult = io.to(message.sessionId).emit('encounter:stop', eventData);
     logger.info('[Encounter Stop] Broadcast result:', {
@@ -157,4 +156,4 @@ export async function handleEncounterStop(
     logger.error('[Encounter Stop] Error:', error);
     socket.emit('error', { message: 'Failed to stop encounter' });
   }
-} 
+}

@@ -7,7 +7,6 @@ import { GameSessionController } from '../controllers/game-session.controller.mj
 import { GameSessionService } from '../services/game-session.service.mjs';
 import { authenticate } from '../../../middleware/auth.middleware.mjs';
 import { validateRequest } from '../../../middleware/validation.middleware.mjs';
-import { gameSessionSchema } from '@dungeon-lab/shared/schemas/game-session.schema.mjs';
 import { encounterSchema } from '@dungeon-lab/shared/schemas/encounter.schema.mjs';
 import {
   openApiGet,
@@ -30,7 +29,11 @@ import {
   patchCampaignRequestSchema,
   patchCampaignResponseSchema,
   deleteCampaignResponseSchema,
-  searchCampaignsQuerySchema
+  searchCampaignsQuerySchema,
+  getCampaignSessionsResponseSchema,
+  getGameSessionResponseSchema,
+  createGameSessionResponseSchema,
+  createGameSessionSchema
 } from '@dungeon-lab/shared/types/api/index.mjs';
 
 // Initialize services and controllers
@@ -278,8 +281,23 @@ router.delete(
 router.get(
   '/:campaignId/sessions',
   authenticate,
-  openApiGet(gameSessionSchema, {
-    description: 'Get all game sessions for a campaign'
+  openApiGet(z.null(), {
+    description: 'Get all game sessions for a campaign',
+    responses: {
+      200: {
+        description: 'Campaign game sessions retrieved successfully',
+        content: {
+          'application/json': {
+            schema: createSchema(
+              getCampaignSessionsResponseSchema.openapi({
+                description: 'Campaign game sessions response'
+              })
+            )
+          }
+        }
+      },
+      500: { description: 'Server error' }
+    }
   }),
   boundGetCampaignSessions
 );
@@ -287,8 +305,24 @@ router.get(
 router.get(
   '/:campaignId/sessions/:id',
   authenticate,
-  openApiGetOne(gameSessionSchema, {
-    description: 'Get a game session by ID in a campaign'
+  openApiGetOne(z.null(), {
+    description: 'Get a game session by ID in a campaign',
+    responses: {
+      200: {
+        description: 'Game session retrieved successfully',
+        content: {
+          'application/json': {
+            schema: createSchema(
+              getGameSessionResponseSchema.openapi({
+                description: 'Game session response'
+              })
+            )
+          }
+        }
+      },
+      404: { description: 'Game session not found' },
+      500: { description: 'Server error' }
+    }
   }),
   boundGetGameSession
 );
@@ -296,10 +330,28 @@ router.get(
 router.post(
   '/:campaignId/sessions',
   authenticate,
-  openApiPost(gameSessionSchema, {
-    description: 'Create a new game session in a campaign'
+  openApiPost(createGameSessionSchema, {
+    description: 'Create a new game session in a campaign',
+    responses: {
+      201: {
+        description: 'Game session created successfully',
+        content: {
+          'application/json': {
+            schema: createSchema(
+              createGameSessionResponseSchema.openapi({
+                description: 'Create game session response'
+              })
+            )
+          }
+        }
+      },
+      400: { description: 'Invalid game session data' },
+      403: { description: 'Only the game master can create sessions' },
+      404: { description: 'Campaign not found' },
+      500: { description: 'Server error' }
+    }
   }),
-  validateRequest(gameSessionSchema),
+  validateRequest(createGameSessionSchema),
   boundCreateGameSession
 );
 

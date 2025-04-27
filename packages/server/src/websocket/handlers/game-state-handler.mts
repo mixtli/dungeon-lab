@@ -1,14 +1,13 @@
-import { Server } from 'socket.io';
+import { Server, Socket } from 'socket.io';
 import { type IGameStateUpdateMessage } from '@dungeon-lab/shared/index.mjs';
-import { AuthenticatedSocket } from '../types.mjs';
 
 export async function handleGameStateUpdate(
   io: Server,
-  socket: AuthenticatedSocket,
+  socket: Socket,
   message: IGameStateUpdateMessage
 ): Promise<void> {
   try {
-    if (!socket.sessionId) {
+    if (!socket.gameSessionId) {
       socket.emit('error', { message: 'Not in a game session' });
       return;
     }
@@ -26,7 +25,7 @@ export async function handleGameStateUpdate(
     // - Manage active effects
 
     // Broadcast state update to all participants
-    io.to(socket.sessionId).emit('message', message);
+    io.to(socket.gameSessionId).emit('message', message);
   } catch (error) {
     console.error('Error handling game state update:', error);
     socket.emit('error', { message: 'Failed to process game state update' });
@@ -47,6 +46,6 @@ export async function getCurrentGameState(): Promise<IGameStateUpdateMessage['da
   return {
     actors: {},
     items: {},
-    maps: {},
+    maps: {}
   };
-} 
+}

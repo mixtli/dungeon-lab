@@ -16,7 +16,7 @@ export const useCampaignStore = defineStore('campaign', () => {
 
   // Getters
   const myCampaigns = computed(() => campaigns.value);
-  const getCampaignById = (id: string) => campaigns.value.find((c) => c.id === id);
+  const getCampaignById = (id: string) => campaigns.value.find((c: ICampaign) => c.id === id);
 
   // Actions
   async function fetchCampaigns() {
@@ -44,7 +44,7 @@ export const useCampaignStore = defineStore('campaign', () => {
       currentCampaign.value = campaign;
 
       // Also update in the campaigns list if it exists
-      const index = campaigns.value.findIndex((c) => c.id === id);
+      const index = campaigns.value.findIndex((c: ICampaign) => c.id === id);
       if (index !== -1) {
         campaigns.value[index] = campaign;
       }
@@ -85,7 +85,7 @@ export const useCampaignStore = defineStore('campaign', () => {
       const updatedCampaign = await campaignApi.updateCampaign(id, campaignData);
 
       // Update in campaigns list
-      const index = campaigns.value.findIndex((c) => c.id === id);
+      const index = campaigns.value.findIndex((c: ICampaign) => c.id === id);
       if (index !== -1) {
         campaigns.value[index] = updatedCampaign;
       }
@@ -113,7 +113,7 @@ export const useCampaignStore = defineStore('campaign', () => {
       await campaignApi.deleteCampaign(id);
 
       // Remove from campaigns list
-      campaigns.value = campaigns.value.filter((c) => c.id !== id);
+      campaigns.value = campaigns.value.filter((c: ICampaign) => c.id !== id);
 
       // Clear current campaign if it's the one being deleted
       if (currentCampaign.value?.id === id) {

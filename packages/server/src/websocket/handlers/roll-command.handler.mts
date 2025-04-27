@@ -2,16 +2,13 @@ import { IRollCommandMessage, IRollResultMessage } from '@dungeon-lab/shared/ind
 import { GameSessionModel } from '../../features/campaigns/models/game-session.model.mjs';
 import { DiceService } from '../../services/dice.service.mjs';
 import { logger } from '../../utils/logger.mjs';
-import { AuthenticatedSocket } from '../types.mjs';
+import { Socket } from 'socket.io';
 
 const diceService = new DiceService();
 
-type RollCommandCallback = (response: { 
-  success: boolean; 
-  error?: string;
-}) => void;
+type RollCommandCallback = (response: { success: boolean; error?: string }) => void;
 
-export function handleRollCommand(socket: AuthenticatedSocket) {
+export function handleRollCommand(socket: Socket) {
   logger.info('Registering roll command handler for socket:', {
     socketId: socket.id,
     userId: socket.userId
@@ -40,7 +37,7 @@ export function handleRollCommand(socket: AuthenticatedSocket) {
         throw new Error('Game session not found');
       }
 
-      if (!gameSession.participants.includes(userId)) {
+      if (!gameSession.participantIds.includes(userId)) {
         logger.warn('Roll command rejected: User not in session', {
           userId,
           sessionId: message.gameSessionId
@@ -85,13 +82,12 @@ export function handleRollCommand(socket: AuthenticatedSocket) {
 
       // Send acknowledgment
       callback({ success: true });
-
     } catch (error) {
       logger.error('Error handling roll command:', error);
-      callback({ 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
+      callback({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
       });
     }
   });
-} 
+}

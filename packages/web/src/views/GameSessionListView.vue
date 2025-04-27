@@ -2,31 +2,22 @@
 import { ref, onMounted, computed } from 'vue';
 import { formatDate } from '../utils/date-utils.mjs';
 import { CalendarIcon, ClockIcon } from '@heroicons/vue/24/outline';
-import { fetchGameSessions } from '../api/index.mjs';
 import { useGameSessionStore } from '../stores/game-session.store.mjs';
 import router from '@/router/index.mjs';
-
+import { getGameSessions } from '../api/game-sessions.client.mts';
+import type { IGameSession } from '@dungeon-lab/shared/schemas/game-session.schema.mjs';
 // Define the game session interface to match the API response
-interface GameSession {
-  id: string;
-  name: string;
-  description?: string;
-  campaignId: string;
-  status: 'active' | 'paused' | 'ended' | 'scheduled';
-  participants: string[];
-  settings?: Record<string, unknown>;
-}
 
 const loading = ref(false);
 const error = ref<string | null>(null);
-const allSessions = ref<GameSession[]>([]);
+const allSessions = ref<IGameSession[]>([]);
 const gameSessionStore = useGameSessionStore();
 
 // Fetch sessions on mount
 onMounted(async () => {
   loading.value = true;
   try {
-    allSessions.value = await fetchGameSessions();
+    allSessions.value = await getGameSessions();
   } catch (err) {
     if (err instanceof Error) {
       console.error('Error loading sessions:', err);

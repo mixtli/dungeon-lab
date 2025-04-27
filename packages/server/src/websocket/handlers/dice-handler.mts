@@ -1,12 +1,11 @@
 import { IDiceRollMessage } from '@dungeon-lab/shared/index.mjs';
-import { Server } from 'socket.io';
-import { AuthenticatedSocket } from '../types.mjs';
+import { Server, Socket } from 'socket.io';
 import { rollDice } from '../utils/dice.mjs';
 import { logger } from '../../utils/logger.mjs';
 
 export async function handleDiceRoll(
   io: Server,
-  socket: AuthenticatedSocket,
+  socket: Socket,
   message: IDiceRollMessage
 ): Promise<void> {
   try {
@@ -48,4 +47,4 @@ export async function handleDiceRoll(
     logger.error('Error handling dice roll:', error);
     socket.emit('error', { message: 'Failed to process dice roll' });
   }
-} 
+}

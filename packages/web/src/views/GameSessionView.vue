@@ -15,7 +15,7 @@ const loading = ref(false);
 const error = ref<string | null>(null);
 const showEncounterModal = ref(false);
 
-const sessionId = route.params.id as string;
+const sessionId = route.params.id;
 const isGameMaster = computed(() => {
   return gameSessionStore.currentSession?.gameMasterId === authStore.user?.id;
 });
@@ -39,9 +39,9 @@ function setupSocketListeners() {
   if (!socketStore.socket) return;
 
   // Listen for encounter start events
-  socketStore.socket.on('encounter:start', (data: { encounterId: string }) => {
-    router.push(`/encounter/${data.encounterId}`);
-  });
+  // socketStore.socket.on('encounter:start', (data: { encounterId: string }) => {
+  //   router.push(`/encounter/${data.encounterId}`);
+  // });
 }
 
 function goToChat() {
@@ -56,12 +56,12 @@ function handleEncounterSelect(encounterId: string) {
   showEncounterModal.value = false;
 
   // Emit socket event to start encounter
-  if (socketStore.socket) {
-    socketStore.socket.emit('encounter:start', {
-      sessionId,
-      encounterId,
-    });
-  }
+  // if (socketStore.socket) {
+  //   socketStore.socket.emit('encounter:start', {
+  //     sessionId,
+  //     encounterId,
+  //   });
+  // }
 
   // Navigate to encounter page
   router.push(`/encounter/${encounterId}`);

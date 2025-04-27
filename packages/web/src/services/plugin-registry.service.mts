@@ -2,6 +2,17 @@ import { IWebPlugin, IGameSystemPluginWeb } from '@dungeon-lab/shared/types/plug
 import { createPluginAPI } from '@/services/plugin-api.service.mjs';
 import * as pluginsClient from '@/api/plugins.client.mjs';
 
+// Define a type for plugin config
+interface PluginConfig {
+  config: {
+    id: string;
+    name: string;
+    version: string;
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+}
+
 /**
  * Plugin Registry Service
  * Manages a registry of plugins for the web client
@@ -42,7 +53,7 @@ export class PluginRegistryService {
       const availablePlugins = await pluginsClient.getPlugins();
 
       await Promise.all(
-        availablePlugins.map(async (pluginConfig) => {
+        availablePlugins.map(async (pluginConfig: PluginConfig) => {
           try {
             await this.loadPlugin(pluginConfig.config.id);
           } catch (error) {

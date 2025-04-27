@@ -12,6 +12,12 @@
     "resolveJsonModule": true,
     "noUnusedLocals": true,
     "noErrorTruncation": true,
-    "outDir": "./dist"
+    "outDir": "./dist",
+    "plugins": [
+      {
+        "name": "@vue/typescript-plugin",
+        "extensions": [".vue"]
+      }
+    ]
   }
 }

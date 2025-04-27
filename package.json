@@ -29,7 +29,7 @@
     "plugins:clean": "for dir in packages/plugins/dnd-5e-2024; do if [ -d \"$dir\" ]; then cd \"$dir\" && npm run clean && cd ../../..; fi done",
     "plugins:test": "npm run test:plugin-build --workspace=@dungeon-lab/web",
     "plugins:test:clean": "npm run clean:test --workspace=@dungeon-lab/web",
-    "typecheck": "tsc --noEmit ",
+    "check": "tsc --noEmit ",
     "typecheck:watch": "tsc -b tsconfig.workspace.json --watch",
     "list": "node scripts/dev.js list",
     "generate": "node scripts/dev.js generate",

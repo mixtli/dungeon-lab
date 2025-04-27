@@ -7,7 +7,7 @@ import { formatDate } from '../../utils/date-utils.mjs';
 import { CalendarIcon, ClockIcon } from '@heroicons/vue/24/outline';
 import { GameSessionStatus } from '@dungeon-lab/shared/src/schemas/game-session.schema.mjs';
 import type { z } from 'zod';
-import { fetchCampaignSessions, updateGameSessionStatus, deleteGameSession } from '../../api/index.mjs';
+import { getCampaignSessions, deleteGameSession, updateGameSessionStatus } from '../../api/game-sessions.client.mjs';
 import type { IGameSession } from '@dungeon-lab/shared/schemas/game-session.schema.mjs';
 
 type SessionStatus = z.infer<typeof GameSessionStatus>;
@@ -28,7 +28,7 @@ onMounted(async () => {
   loading.value = true;
   try {
     console.log('Fetching sessions for campaign:', props.campaignId);
-    sessions.value = await fetchCampaignSessions(props.campaignId);
+    sessions.value = await getCampaignSessions(props.campaignId);
     console.log('Fetched sessions:', sessions.value);
     console.log('Active sessions:', activeSessions.value);
     console.log('Scheduled sessions:', scheduledSessions.value);
@@ -101,7 +101,7 @@ async function handleUpdateSessionStatus(sessionId: string, status: SessionStatu
     
     // Update the session in the array
     const index = sessions.value.findIndex(s => s.id === sessionId);
-    if (index !== -1) {
+    if (index !== -1 && updatedSession) {
       sessions.value[index] = updatedSession;
     }
   } catch (err: any) {

@@ -13,7 +13,7 @@ export const useActorStore = defineStore('actor', () => {
 
   // Getters
   const myActors = computed(() => actors.value);
-  const getActorById = (id: string) => actors.value.find((a) => a.id === id);
+  const getActorById = (id: string) => actors.value.find((a: IActor) => a.id === id);
 
   // Actions
   async function fetchActors() {
@@ -43,7 +43,7 @@ export const useActorStore = defineStore('actor', () => {
         currentActor.value = actor;
 
         // Also update in the actors list if it exists
-        const index = actors.value.findIndex((a) => a.id === id);
+        const index = actors.value.findIndex((a: IActor) => a.id === id);
         if (index !== -1) {
           actors.value[index] = actor;
         }
@@ -88,7 +88,7 @@ export const useActorStore = defineStore('actor', () => {
 
       // Update in actors list if actor was returned and exists in the list
       if (updatedActor) {
-        const index = actors.value.findIndex((a) => a.id === id);
+        const index = actors.value.findIndex((a: IActor) => a.id === id);
         if (index !== -1) {
           actors.value[index] = updatedActor as IActor;
         }
@@ -117,7 +117,7 @@ export const useActorStore = defineStore('actor', () => {
       await actorApi.deleteActor(id);
 
       // Remove from actors list
-      actors.value = actors.value.filter((a) => a.id !== id);
+      actors.value = actors.value.filter((a: IActor) => a.id !== id);
 
       // Clear current actor if it's the one being deleted
       if (currentActor.value?.id === id) {

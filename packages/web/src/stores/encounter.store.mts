@@ -53,7 +53,7 @@ export const useEncounterStore = defineStore('encounter', () => {
       // Only try to fetch participants if the encounter has a participants array
       if (encounter && Array.isArray(encounter.participants) && encounter.participants.length > 0) {
         // Fetch actor details for each participant
-        const participantPromises = encounter.participants.map(async (participantId) => {
+        const participantPromises = encounter.participants.map(async (participantId: string) => {
           if (!participantId) return null;
           try {
             const actor = await actorApi.getActor(participantId);
@@ -66,7 +66,7 @@ export const useEncounterStore = defineStore('encounter', () => {
 
         // Filter out null values from participants
         const participantResults = await Promise.all(participantPromises);
-        participants = participantResults.filter((p): p is IActor => p !== null);
+        participants = participantResults.filter((p: IActor | null): p is IActor => p !== null);
       }
 
       // Set current encounter with participants
@@ -120,7 +120,7 @@ export const useEncounterStore = defineStore('encounter', () => {
 
     // Ensure we have a valid participants array
     const currentParticipants = currentEncounter.value.participants || [];
-    const participants = [...currentParticipants.map((p) => p?.id || ''), actorId];
+    const participants = [...currentParticipants.map((p: IActor | null) => p?.id || ''), actorId];
 
     await updateEncounter(encounterId, campaignId, { participants });
     await fetchEncounter(encounterId, campaignId);

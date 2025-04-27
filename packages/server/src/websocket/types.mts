@@ -16,10 +16,3 @@ declare module 'socket.io' {
     gameSessionId?: string;
   }
 }
-
-// Socket type for connected clients
-// export interface AuthenticatedSocket extends Socket {
-//   userId: string;
-//   gameSessionId?: string;
-//   request: Request;
-// }

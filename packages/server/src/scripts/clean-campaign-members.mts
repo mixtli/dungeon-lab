@@ -14,22 +14,31 @@ async function cleanCampaignMembers() {
     for (const campaign of campaigns) {
       if (!campaign.members || campaign.members.length === 0) continue;
 
-      const memberIds = campaign.members.map(id => new mongoose.Types.ObjectId(id));
-      const existingActors = await ActorModel.find({ _id: { $in: memberIds } }) as mongoose.Document[];
-      const existingActorIds = new Set(existingActors.map(actor => actor.get('_id').toString()));
+      const memberIds = campaign.members.map(
+        (id: string | mongoose.Types.ObjectId) => new mongoose.Types.ObjectId(id)
+      );
+      const existingActors = (await ActorModel.find({
+        _id: { $in: memberIds }
+      })) as mongoose.Document[];
+      const existingActorIds = new Set(existingActors.map((actor) => actor.get('_id').toString()));
 
-      const nonExistentMembers = campaign.members.filter(id => !existingActorIds.has(id.toString()));
+      const nonExistentMembers = campaign.members.filter(
+        (id: string | mongoose.Types.ObjectId) => !existingActorIds.has(id.toString())
+      );
 
       if (nonExistentMembers.length > 0) {
-        logger.info(`Campaign ${campaign.name} (${campaign._id}) has ${nonExistentMembers.length} non-existent members`);
-        
-        const updatedMembers = campaign.members.filter(id => existingActorIds.has(id.toString()));
-        await CampaignModel.updateOne(
-          { _id: campaign._id },
-          { $set: { members: updatedMembers } }
+        logger.info(
+          `Campaign ${campaign.name} (${campaign._id}) has ${nonExistentMembers.length} non-existent members`
         );
-        
-        logger.info(`Updated campaign ${campaign.name} (${campaign._id}): removed ${nonExistentMembers.length} non-existent members`);
+
+        const updatedMembers = campaign.members.filter((id: string | mongoose.Types.ObjectId) =>
+          existingActorIds.has(id.toString())
+        );
+        await CampaignModel.updateOne({ _id: campaign._id }, { $set: { members: updatedMembers } });
+
+        logger.info(
+          `Updated campaign ${campaign.name} (${campaign._id}): removed ${nonExistentMembers.length} non-existent members`
+        );
       }
     }
 
@@ -41,4 +50,4 @@ async function cleanCampaignMembers() {
   }
 }
 
-cleanCampaignMembers(); 
+cleanCampaignMembers();

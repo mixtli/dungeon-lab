@@ -1,14 +1,13 @@
 import { Server } from 'socket.io';
 import { IPluginActionMessage } from '@dungeon-lab/shared/index.mjs';
-import { AuthenticatedSocket } from '../types.mjs';
-
+import { Socket } from 'socket.io';
 export async function handleCombatAction(
   io: Server,
-  socket: AuthenticatedSocket,
+  socket: Socket,
   message: IPluginActionMessage
 ): Promise<void> {
   try {
-    if (!socket.sessionId) {
+    if (!socket.gameSessionId) {
       socket.emit('error', { message: 'Not in a game session' });
       return;
     }
@@ -29,7 +28,7 @@ export async function handleCombatAction(
         break;
       default:
         // For simple actions, just broadcast to all participants
-        io.to(socket.sessionId).emit('message', message);
+        io.to(socket.gameSessionId).emit('message', message);
     }
   } catch (error) {
     console.error('Error handling combat action:', error);
@@ -39,10 +38,10 @@ export async function handleCombatAction(
 
 async function handleAttackAction(
   io: Server,
-  socket: AuthenticatedSocket,
+  socket: Socket,
   message: IPluginActionMessage
 ): Promise<void> {
-  if (!socket.sessionId) {
+  if (!socket.gameSessionId) {
     socket.emit('error', { message: 'Not in a game session' });
     return;
   }
@@ -52,15 +51,15 @@ async function handleAttackAction(
   // - Calculate attack roll
   // - Calculate damage if hit
   // - Update target state
-  io.to(socket.sessionId).emit('message', message);
+  io.to(socket.gameSessionId).emit('message', message);
 }
 
 async function handleSpellAction(
   io: Server,
-  socket: AuthenticatedSocket,
+  socket: Socket,
   message: IPluginActionMessage
 ): Promise<void> {
-  if (!socket.sessionId) {
+  if (!socket.gameSessionId) {
     socket.emit('error', { message: 'Not in a game session' });
     return;
   }
@@ -70,5 +69,5 @@ async function handleSpellAction(
   // - Handle different spell types
   // - Apply spell effects
   // - Update affected targets
-  io.to(socket.sessionId).emit('message', message);
-} 
+  io.to(socket.gameSessionId).emit('message', message);
+}
