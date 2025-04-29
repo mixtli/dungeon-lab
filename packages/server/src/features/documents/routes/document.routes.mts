@@ -12,38 +12,30 @@ import {
 import { validateRequest } from '../../../middleware/validation.middleware.mjs';
 import { authenticate } from '../../../middleware/auth.middleware.mjs';
 import { createSchema } from 'zod-openapi';
+import { z } from '../../../utils/zod.mjs';
 import {
   createDocumentRequestSchema,
   putDocumentRequestSchema,
   patchDocumentRequestSchema,
   searchDocumentsQuerySchema,
-  getDocumentsResponseSchema,
-  getDocumentResponseSchema,
-  createDocumentResponseSchema,
-  putDocumentResponseSchema,
-  patchDocumentResponseSchema,
-  deleteDocumentResponseSchema
+  baseAPIResponseSchema,
+  deleteAPIResponseSchema
 } from '@dungeon-lab/shared/types/api/index.mjs';
+import { vttDocumentSchema } from '@dungeon-lab/shared/schemas/vtt-document.schema.mjs';
 
-const router = Router();
+// Initialize controller
 const documentController = new DocumentController();
 
-// Bind controller methods to maintain 'this' context
-const boundController = {
-  getDocument: documentController.getDocument.bind(documentController),
-  putDocument: documentController.putDocument.bind(documentController),
-  patchDocument: documentController.patchDocument.bind(documentController),
-  deleteDocument: documentController.deleteDocument.bind(documentController),
-  createDocument: documentController.createDocument.bind(documentController),
-  searchDocuments: documentController.searchDocuments.bind(documentController)
-};
+// Create router
+const router = Router();
 
+// Apply authentication middleware to all document routes
 router.use(authenticate);
 
 // Get a single document by ID
 router.get(
   '/:id',
-  openApiGetOne(searchDocumentsQuerySchema, {
+  openApiGetOne(z.null(), {
     description: 'Get a document by ID',
     responses: {
       200: {
@@ -51,7 +43,7 @@ router.get(
         content: {
           'application/json': {
             schema: createSchema(
-              getDocumentResponseSchema.openapi({
+              baseAPIResponseSchema.extend({ data: vttDocumentSchema }).openapi({
                 description: 'Document response'
               })
             )
@@ -62,10 +54,9 @@ router.get(
       500: { description: 'Server error' }
     }
   }),
-  boundController.getDocument
+  documentController.getDocument
 );
 
-console.log('DOCUMENT QUERY PARAMS', toQuerySchema(searchDocumentsQuerySchema));
 // Search documents
 router.get(
   '/',
@@ -78,7 +69,7 @@ router.get(
         content: {
           'application/json': {
             schema: createSchema(
-              getDocumentsResponseSchema.openapi({
+              baseAPIResponseSchema.extend({ data: z.array(vttDocumentSchema) }).openapi({
                 description: 'Documents response'
               })
             )
@@ -88,7 +79,7 @@ router.get(
       500: { description: 'Server error' }
     }
   }),
-  boundController.searchDocuments
+  documentController.searchDocuments
 );
 
 // Create a new document
@@ -102,7 +93,7 @@ router.post(
         content: {
           'application/json': {
             schema: createSchema(
-              createDocumentResponseSchema.openapi({
+              baseAPIResponseSchema.extend({ data: vttDocumentSchema }).openapi({
                 description: 'Create document response'
               })
             )
@@ -114,23 +105,23 @@ router.post(
     }
   }),
   validateRequest(createDocumentRequestSchema),
-  boundController.createDocument
+  documentController.createDocument
 );
 
 // Delete a document
 router.delete(
   '/:id',
-  openApiDelete(searchDocumentsQuerySchema, {
+  openApiDelete(z.null(), {
     description: 'Delete a document',
     responses: {
-      204: { description: 'Document deleted successfully' },
+      200: { description: 'Document deleted successfully' },
       404: { description: 'Document not found' },
       500: {
         description: 'Server error',
         content: {
           'application/json': {
             schema: createSchema(
-              deleteDocumentResponseSchema.openapi({
+              deleteAPIResponseSchema.openapi({
                 description: 'Delete document response'
               })
             )
@@ -139,7 +130,7 @@ router.delete(
       }
     }
   }),
-  boundController.deleteDocument
+  documentController.deleteDocument
 );
 
 // Patch a document
@@ -153,7 +144,7 @@ router.patch(
         content: {
           'application/json': {
             schema: createSchema(
-              patchDocumentResponseSchema.openapi({
+              baseAPIResponseSchema.extend({ data: vttDocumentSchema }).openapi({
                 description: 'Patch document response'
               })
             )
@@ -166,7 +157,7 @@ router.patch(
     }
   }),
   validateRequest(patchDocumentRequestSchema),
-  boundController.patchDocument
+  documentController.patchDocument
 );
 
 // Put a document
@@ -180,7 +171,7 @@ router.put(
         content: {
           'application/json': {
             schema: createSchema(
-              putDocumentResponseSchema.openapi({
+              baseAPIResponseSchema.extend({ data: vttDocumentSchema }).openapi({
                 description: 'Update document response'
               })
             )
@@ -193,7 +184,7 @@ router.put(
     }
   }),
   validateRequest(putDocumentRequestSchema),
-  boundController.putDocument
+  documentController.putDocument
 );
 
-export default router;
+export { router as documentRoutes };

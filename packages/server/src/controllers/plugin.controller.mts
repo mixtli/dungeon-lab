@@ -1,10 +1,14 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response } from 'express';
 import { logger } from '../utils/logger.mjs';
 import { pluginRegistry } from '../services/plugin-registry.service.mjs';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { fileURLToPath } from 'url';
-import { GetPluginsResponse, GetPluginResponse } from '@dungeon-lab/shared/types/api/index.mjs';
+import {
+  GetPluginsResponse,
+  GetPluginResponse,
+  GetPluginCodeResponse
+} from '@dungeon-lab/shared/types/api/index.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = join(__filename, '..');
@@ -17,11 +21,10 @@ export class PluginController {
   /**
    * Get all plugins
    */
-  async getAllPlugins(
+  getAllPlugins = async (
     _req: Request,
-    res: Response<GetPluginsResponse>,
-    next: NextFunction
-  ): Promise<void> {
+    res: Response<GetPluginsResponse>
+  ): Promise<Response<GetPluginsResponse> | void> => {
     try {
       const plugins = pluginRegistry.getPlugins();
       // Map plugins to a safe format for client consumption
@@ -31,46 +34,36 @@ export class PluginController {
         name: plugin.config.name,
         description: plugin.config.description || ''
       }));
-      res.json({
+
+      return res.json({
         success: true,
         data: clientPlugins
       });
     } catch (error) {
       logger.error('Error getting plugins:', error);
-      if (error instanceof Error) {
-        res.status(500).json({
-          success: false,
-          data: [],
-          error: error.message || 'Failed to get plugins'
-        });
-      } else {
-        res.status(500).json({
-          success: false,
-          data: [],
-          error: 'Failed to get plugins'
-        });
-      }
-      next(error);
+      return res.status(500).json({
+        success: false,
+        data: [],
+        error: error instanceof Error ? error.message : 'Failed to get plugins'
+      });
     }
-  }
+  };
 
   /**
    * Get a single plugin by ID
    */
-  async getPlugin(
-    req: Request,
-    res: Response<GetPluginResponse>,
-    next: NextFunction
-  ): Promise<void> {
+  getPlugin = async (
+    req: Request<{ id: string }>,
+    res: Response<GetPluginResponse>
+  ): Promise<Response<GetPluginResponse> | void> => {
     try {
       const plugin = pluginRegistry.getPlugin(req.params.id);
 
       if (!plugin) {
-        res.status(404).json({
+        return res.status(404).json({
           success: false,
           error: 'Plugin not found'
         });
-        return;
       }
 
       // Map plugin to a safe format for client consumption
@@ -79,41 +72,35 @@ export class PluginController {
         type: plugin.type
       };
 
-      res.json({
+      return res.json({
         success: true,
         data: clientPlugin
       });
     } catch (error) {
       logger.error('Error getting plugin:', error);
-      if (error instanceof Error) {
-        res.status(500).json({
-          success: false,
-          error: error.message || 'Failed to get plugin'
-        });
-      } else {
-        res.status(500).json({
-          success: false,
-          error: 'Failed to get plugin'
-        });
-      }
-      next(error);
+      return res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to get plugin'
+      });
     }
-  }
+  };
 
   /**
    * Get plugin code
    */
-  async getPluginCode(req: Request, res: Response, next: NextFunction): Promise<void> {
+  getPluginCode = async (
+    req: Request<{ id: string; file: string }>,
+    res: Response<GetPluginCodeResponse>
+  ): Promise<Response<GetPluginCodeResponse> | void> => {
     try {
       const { id, file } = req.params;
 
       // Validate the file path to prevent directory traversal
       if (file.includes('..') || !file.endsWith('.mjs')) {
-        res.status(400).json({
+        return res.status(400).json({
           success: false,
           error: 'Invalid file path'
         });
-        return;
       }
 
       // Construct the full path to the plugin file
@@ -123,30 +110,24 @@ export class PluginController {
         // Read the file
         const code = await readFile(pluginPath, 'utf-8');
 
-        // Set appropriate headers
-        res.setHeader('Content-Type', 'application/javascript');
-        res.send(code);
+        // Return the code as data in the response
+        return res.json({
+          success: true,
+          data: code
+        });
       } catch (error) {
         logger.error(`Plugin file not found: ${pluginPath}`, error);
-        res.status(404).json({
+        return res.status(404).json({
           success: false,
           error: 'Plugin file not found'
         });
       }
     } catch (error) {
       logger.error('Error serving plugin code:', error);
-      if (error instanceof Error) {
-        res.status(500).json({
-          success: false,
-          error: error.message || 'Failed to get plugin code'
-        });
-      } else {
-        res.status(500).json({
-          success: false,
-          error: 'Failed to get plugin code'
-        });
-      }
-      next(error);
+      return res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to get plugin code'
+      });
     }
-  }
+  };
 }

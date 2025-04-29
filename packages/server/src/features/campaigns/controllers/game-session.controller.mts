@@ -15,7 +15,7 @@ export class GameSessionController {
   constructor(private gameSessionService: GameSessionService) {}
 
   getGameSessions = async (
-    req: Request,
+    req: Request<object, object, object, z.infer<typeof getGameSessionsQuerySchema>>,
     res: Response<BaseAPIResponse<IGameSession[]>>
   ): Promise<Response<BaseAPIResponse<IGameSession[]>> | void> => {
     try {
@@ -56,7 +56,7 @@ export class GameSessionController {
   };
 
   getGameSession = async (
-    req: Request,
+    req: Request<{ id: string }>,
     res: Response<BaseAPIResponse<IGameSession>>
   ): Promise<Response<BaseAPIResponse<IGameSession>> | void> => {
     try {
@@ -99,11 +99,21 @@ export class GameSessionController {
   };
 
   getCampaignSessions = async (
-    req: Request,
+    req: Request<object, object, object, { campaignId: string }>,
     res: Response<BaseAPIResponse<IGameSession[]>>
   ): Promise<Response<BaseAPIResponse<IGameSession[]>> | void> => {
     try {
-      const sessions = await this.gameSessionService.getCampaignSessions(req.params.campaignId);
+      const campaignId = req.query.campaignId;
+
+      if (!campaignId) {
+        return res.status(400).json({
+          success: false,
+          data: [],
+          error: 'Campaign ID is required'
+        });
+      }
+
+      const sessions = await this.gameSessionService.getCampaignSessions(campaignId);
       return res.json({
         success: true,
         data: sessions
@@ -257,7 +267,7 @@ export class GameSessionController {
   };
 
   deleteGameSession = async (
-    req: Request,
+    req: Request<{ id: string }>,
     res: Response<BaseAPIResponse<void>>
   ): Promise<Response<BaseAPIResponse<void>> | void> => {
     try {

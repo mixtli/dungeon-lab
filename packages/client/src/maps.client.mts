@@ -1,69 +1,101 @@
-import type { IMap } from '@dungeon-lab/shared/schemas/map.schema.mjs';
+import { ApiClient } from './api.client.mjs';
+import type { IMap } from '@dungeon-lab/shared/types/index.mjs';
 import {
+  BaseAPIResponse,
+  DeleteAPIResponse,
   CreateMapRequest,
-  PatchMapRequest,
-  GetMapResponse,
-  GetMapsResponse,
-  CreateMapResponse,
-  PatchMapResponse,
-  UploadMapImageResponse
+  PatchMapRequest
 } from '@dungeon-lab/shared/types/api/index.mjs';
-import api from './api.client.mjs';
 
-export async function getMap(mapId: string): Promise<IMap | undefined> {
-  const response = await api.get<GetMapResponse>(`/api/maps/${mapId}`);
-  if (!response.data.success) {
-    throw new Error(response.data.error || 'Failed to get map');
-  }
-  return response.data.data;
-}
-
-export async function getMaps(): Promise<IMap[]> {
-  const response = await api.get<GetMapsResponse>('/api/maps');
-  if (!response.data.success) {
-    throw new Error(response.data.error || 'Failed to get maps');
-  }
-  return response.data.data;
-}
-
-export async function createMap(data: CreateMapRequest): Promise<IMap | undefined> {
-  const response = await api.post<CreateMapResponse>('/api/maps', data);
-  if (!response.data.success) {
-    throw new Error(response.data.error || 'Failed to create map');
-  }
-  return response.data.data;
-}
-
-export async function updateMap(mapId: string, data: PatchMapRequest): Promise<IMap | undefined> {
-  const response = await api.patch<PatchMapResponse>(`/api/maps/${mapId}`, data);
-  if (!response.data.success) {
-    throw new Error(response.data.error || 'Failed to update map');
-  }
-  return response.data.data;
-}
-
-export async function deleteMap(mapId: string): Promise<void> {
-  const response = await api.delete(`/api/maps/${mapId}`);
-  if (response.data && !response.data.success) {
-    throw new Error(response.data.error || 'Failed to delete map');
-  }
-}
-
-export async function uploadMapImage(mapId: string, file: File): Promise<string | undefined> {
-  const formData = new FormData();
-  formData.append('image', file);
-  const response = await api.post<UploadMapImageResponse>(`/api/maps/${mapId}/image`, formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data'
+/**
+ * Client for interacting with maps API
+ */
+export class MapsClient extends ApiClient {
+  /**
+   * Fetch a specific map by ID
+   */
+  async getMap(mapId: string): Promise<IMap> {
+    const response = await this.api.get<BaseAPIResponse<IMap>>(`/api/maps/${mapId}`);
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to get map');
     }
-  });
-
-  if (!response.data.success) {
-    throw new Error(response.data.error || 'Failed to upload map image');
+    if (!response.data.data) {
+      throw new Error('Map not found');
+    }
+    return response.data.data;
   }
 
-  // The map is returned with its image ID reference
-  const map = response.data.data;
-  // Just return a success indication since we don't get direct URL access
-  return map?.id;
+  /**
+   * Fetch all maps
+   */
+  async getMaps(): Promise<IMap[]> {
+    const response = await this.api.get<BaseAPIResponse<IMap[]>>('/api/maps');
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to get maps');
+    }
+    return response.data.data;
+  }
+
+  /**
+   * Create a new map
+   */
+  async createMap(data: CreateMapRequest): Promise<IMap> {
+    const response = await this.api.post<BaseAPIResponse<IMap>>('/api/maps', data);
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to create map');
+    }
+    if (!response.data.data) {
+      throw new Error('Failed to create map');
+    }
+    return response.data.data;
+  }
+
+  /**
+   * Update an existing map
+   */
+  async updateMap(mapId: string, data: PatchMapRequest): Promise<IMap> {
+    const response = await this.api.patch<BaseAPIResponse<IMap>>(`/api/maps/${mapId}`, data);
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to update map');
+    }
+    if (!response.data.data) {
+      throw new Error('Map not found');
+    }
+    return response.data.data;
+  }
+
+  /**
+   * Delete a map
+   */
+  async deleteMap(mapId: string): Promise<void> {
+    const response = await this.api.delete<DeleteAPIResponse>(`/api/maps/${mapId}`);
+    if (response.data && !response.data.success) {
+      throw new Error(response.data.error || 'Failed to delete map');
+    }
+  }
+
+  /**
+   * Upload an image for a map
+   */
+  async uploadMapImage(mapId: string, file: File): Promise<string> {
+    const response = await this.api.put<BaseAPIResponse<IMap>>(`/api/maps/${mapId}/image`, file, {
+      headers: {
+        'Content-Type': file.type
+      }
+    });
+
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to upload map image');
+    }
+    if (!response.data.data) {
+      throw new Error('Failed to upload map image');
+    }
+
+    // The map is returned with its image ID reference
+    const map = response.data.data;
+    if (!map.id) {
+      throw new Error('Invalid map data returned');
+    }
+    return map.id;
+  }
 }

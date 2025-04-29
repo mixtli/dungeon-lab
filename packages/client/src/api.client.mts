@@ -1,4 +1,4 @@
-import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
+import axios, { AxiosInstance } from 'axios';
 
 // Create an instance of axios with default config
 // Use type assertion for Vite's import.meta.env
@@ -13,11 +13,13 @@ export const configureApiClient = (url: string) => {
 export class ApiClient {
   api: AxiosInstance;
 
-  constructor(params: {
-    baseURL: string | undefined;
-    withCredentials: boolean | undefined;
-    apiKey: string | undefined;
-  }) {
+  constructor(
+    params: {
+      baseURL?: string;
+      withCredentials?: boolean;
+      apiKey?: string;
+    } = {}
+  ) {
     let config = {
       baseURL: params.baseURL || baseUrl,
       timeout: 10000,

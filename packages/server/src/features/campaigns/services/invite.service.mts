@@ -1,15 +1,19 @@
-import { IInvite } from '@dungeon-lab/shared/index.mjs';
-import { Types } from 'mongoose';
+import { IInvite } from '@dungeon-lab/shared/types/index.mjs';
+import { FilterQuery, Types } from 'mongoose';
 import { UserModel } from '../../../models/user.model.mjs';
 import { InviteModel } from '../models/invite.model.mjs';
 import { CampaignService } from './campaign.service.mjs';
-import type { InviteStatus } from '@dungeon-lab/shared/index.mjs';
+import type { InviteStatusType } from '@dungeon-lab/shared/types/index.mjs';
 
 export class InviteService {
   constructor(private campaignService: CampaignService) {}
 
-  async getInvites(campaignId: string): Promise<IInvite[]> {
-    const invites = await InviteModel.find({ campaignId: new Types.ObjectId(campaignId) }).lean();
+  async getInvites(campaignId?: string): Promise<IInvite[]> {
+    const query: FilterQuery<IInvite> = {};
+    if (campaignId) {
+      query.campaignId = new Types.ObjectId(campaignId);
+    }
+    const invites = await InviteModel.find(query).lean();
     return invites as IInvite[];
   }
 
@@ -89,7 +93,7 @@ export class InviteService {
 
   async respondToInvite(
     id: string,
-    status: InviteStatus,
+    status: InviteStatusType,
     userId: string,
     actorId?: string
   ): Promise<IInvite> {

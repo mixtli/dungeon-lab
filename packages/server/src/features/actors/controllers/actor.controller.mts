@@ -16,8 +16,8 @@ import {
 export class ActorController {
   private actorService: ActorService;
 
-  constructor() {
-    this.actorService = new ActorService();
+  constructor(actorService?: ActorService) {
+    this.actorService = actorService || new ActorService();
   }
 
   /**
@@ -268,7 +268,10 @@ export class ActorController {
    * @route PATCH /api/actors/:id
    * @access Private
    */
-  patchActor = async (req: Request, res: Response): Promise<Response<BaseAPIResponse<IActor>>> => {
+  patchActor = async (
+    req: Request<{ id: string }>,
+    res: Response
+  ): Promise<Response<BaseAPIResponse<IActor>>> => {
     const userId = req.session.user?.id;
     if (!userId) {
       return res.status(403).json({ success: false, data: null, error: 'Access denied' });
@@ -280,7 +283,15 @@ export class ActorController {
     }
 
     try {
-      const actor = await this.actorService.patchActor(result.data.id, result.data, userId);
+      // Extract only the fields from result.data that are needed by patchActor
+      // Omit the avatar and token fields which are causing type issues and rename with underscore prefix
+      const { avatar: _avatar, token: _token, ...restData } = result.data;
+
+      // Add the id from the route parameter
+      const actorData = { ...restData, id: req.params.id };
+
+      const actor = await this.actorService.patchActor(req.params.id, actorData, userId);
+
       if (!actor) {
         return res.status(404).json({ success: false, data: null, error: 'Actor not found' });
       }
@@ -301,7 +312,7 @@ export class ActorController {
    * @access Private
    */
   uploadActorAvatar = async (
-    req: Request,
+    req: Request<{ id: string }>,
     res: Response
   ): Promise<Response<BaseAPIResponse<IActor>>> => {
     const userId = req.session.user?.id;
@@ -309,16 +320,36 @@ export class ActorController {
       return res.status(403).json({ success: false, data: null, error: 'Access denied' });
     }
 
-    if (!req.assets?.avatar?.[0]) {
-      return res.status(400).json({ success: false, data: null, error: 'No file uploaded' });
-    }
-
     try {
-      const actor = await this.actorService.updateActorAvatar(
-        req.params.id,
-        req.assets?.avatar?.[0],
-        userId
-      );
+      // Get the raw image data from the request body
+      const imageBuffer = req.body as Buffer;
+      const contentType = req.headers['content-type'] || 'image/jpeg';
+
+      if (!imageBuffer || imageBuffer.length === 0) {
+        return res.status(400).json({
+          success: false,
+          data: null,
+          error: 'No image data provided'
+        });
+      }
+
+      // Validate content type
+      const validMimes = ['image/jpeg', 'image/png', 'image/webp'];
+      if (!validMimes.includes(contentType)) {
+        return res.status(400).json({
+          success: false,
+          data: null,
+          error: 'Invalid image type. Please upload JPEG, PNG, or WebP'
+        });
+      }
+
+      // Create a File object from the buffer
+      const file = new File([imageBuffer], `avatar_${Date.now()}.${contentType.split('/')[1]}`, {
+        type: contentType
+      });
+
+      const actor = await this.actorService.updateActorAvatar(req.params.id, file, userId);
+
       if (!actor) {
         return res.status(404).json({ success: false, data: null, error: 'Actor not found' });
       }
@@ -339,7 +370,7 @@ export class ActorController {
    * @access Private
    */
   uploadActorToken = async (
-    req: Request,
+    req: Request<{ id: string }>,
     res: Response
   ): Promise<Response<BaseAPIResponse<IActor>>> => {
     const userId = req.session.user?.id;
@@ -347,16 +378,36 @@ export class ActorController {
       return res.status(403).json({ success: false, data: null, error: 'Access denied' });
     }
 
-    if (!req.assets?.token?.[0]) {
-      return res.status(400).json({ success: false, data: null, error: 'No file uploaded' });
-    }
-
     try {
-      const actor = await this.actorService.updateActorToken(
-        req.params.id,
-        req.assets?.token?.[0],
-        userId
-      );
+      // Get the raw image data from the request body
+      const imageBuffer = req.body as Buffer;
+      const contentType = req.headers['content-type'] || 'image/jpeg';
+
+      if (!imageBuffer || imageBuffer.length === 0) {
+        return res.status(400).json({
+          success: false,
+          data: null,
+          error: 'No image data provided'
+        });
+      }
+
+      // Validate content type
+      const validMimes = ['image/jpeg', 'image/png', 'image/webp'];
+      if (!validMimes.includes(contentType)) {
+        return res.status(400).json({
+          success: false,
+          data: null,
+          error: 'Invalid image type. Please upload JPEG, PNG, or WebP'
+        });
+      }
+
+      // Create a File object from the buffer
+      const file = new File([imageBuffer], `token_${Date.now()}.${contentType.split('/')[1]}`, {
+        type: contentType
+      });
+
+      const actor = await this.actorService.updateActorToken(req.params.id, file, userId);
+
       if (!actor) {
         return res.status(404).json({ success: false, data: null, error: 'Actor not found' });
       }
@@ -377,7 +428,7 @@ export class ActorController {
    * @access Private
    */
   generateActorAvatar = async (
-    req: Request,
+    req: Request<{ id: string }>,
     res: Response
   ): Promise<Response<BaseAPIResponse<IActor>>> => {
     const userId = req.session.user?.id;
@@ -404,7 +455,7 @@ export class ActorController {
    * @access Private
    */
   generateActorToken = async (
-    req: Request,
+    req: Request<{ id: string }>,
     res: Response
   ): Promise<Response<BaseAPIResponse<IActor>>> => {
     const userId = req.session.user?.id;
@@ -430,7 +481,10 @@ export class ActorController {
    * @route DELETE /api/actors/:id
    * @access Private
    */
-  deleteActor = async (req: Request, res: Response): Promise<Response<BaseAPIResponse<void>>> => {
+  deleteActor = async (
+    req: Request<{ id: string }>,
+    res: Response
+  ): Promise<Response<BaseAPIResponse<void>>> => {
     const userId = req.session.user?.id;
     if (!userId) {
       return res.status(403).json({ success: false, data: null, error: 'Access denied' });
@@ -455,7 +509,7 @@ export class ActorController {
    * @access Public
    */
   searchActors = async (
-    req: Request,
+    req: Request<object, object, object, z.infer<typeof searchActorsQuerySchema>>,
     res: Response
   ): Promise<Response<BaseAPIResponse<IActor[]>>> => {
     const userId = req.session.user?.id;
@@ -471,7 +525,15 @@ export class ActorController {
     }
 
     try {
-      const actors = await this.actorService.searchActors(result.data);
+      // Convert the zod parsed result to the correct query format
+      const queryParams: Record<string, string> = {};
+
+      // Only add defined values as strings
+      if (result.data.name) queryParams.name = result.data.name;
+      if (result.data.type) queryParams.type = result.data.type;
+      if (result.data.gameSystemId) queryParams.gameSystemId = result.data.gameSystemId;
+
+      const actors = await this.actorService.searchActors(queryParams);
       return res.json({ success: true, data: actors, error: null });
     } catch (error) {
       logger.error('Error searching actors:', error);

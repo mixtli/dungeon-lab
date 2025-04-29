@@ -10,7 +10,7 @@ import { mapRoutes } from './features/maps/index.mjs';
 import { itemRoutes } from './features/items/index.mjs';
 import { actorRoutes } from './features/actors/index.mjs';
 import { campaignRoutes, gameSessionRoutes, inviteRoutes } from './features/campaigns/index.mjs';
-import documentRoutes from './features/documents/routes/document.routes.mjs';
+import { documentRoutes } from './features/documents/index.mjs';
 import assetRoutes from './features/assets/index.mjs';
 import { oapi } from './oapi.mjs';
 import userRoutes from './features/users/routes/user.routes.mjs';
@@ -73,7 +73,7 @@ async function initializeRoutes() {
     // Get the router instances from each module
     authRoutes = authRoutesModule.default;
     storageRoutes = storageRoutesModule.storageRoutes;
-    pluginRoutes = pluginRoutesModule.default;
+    pluginRoutes = pluginRoutesModule.pluginRoutes;
     healthRoutes = healthRoutesModule.default;
   } catch (error) {
     logger.error('Error initializing routes:', error);

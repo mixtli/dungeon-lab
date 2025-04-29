@@ -19,7 +19,11 @@ import {
 import { QueryValue } from '@dungeon-lab/shared/types/index.mjs';
 
 export class CampaignController {
-  constructor(private campaignService: CampaignService) {}
+  private campaignService: CampaignService;
+
+  constructor() {
+    this.campaignService = new CampaignService();
+  }
 
   getMyCampaigns = async (
     req: Request<object, object, object, SearchCampaignsQuery>,

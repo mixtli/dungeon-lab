@@ -6,41 +6,41 @@ import * as mimeTypes from 'mime-types';
 
 // Map for converting school abbreviations to full names
 const schoolMap: Record<string, string> = {
-  'A': 'abjuration',
-  'C': 'conjuration',
-  'D': 'divination',
-  'E': 'enchantment',
-  'V': 'evocation',
-  'I': 'illusion',
-  'N': 'necromancy',
-  'T': 'transmutation'
+  A: 'abjuration',
+  C: 'conjuration',
+  D: 'divination',
+  E: 'enchantment',
+  V: 'evocation',
+  I: 'illusion',
+  N: 'necromancy',
+  T: 'transmutation'
 };
 
 // Map for converting damage type abbreviations to full names
 const damageTypeMap: Record<string, string> = {
-  'acid': 'acid',
-  'bludgeoning': 'bludgeoning',
-  'cold': 'cold',
-  'fire': 'fire',
-  'force': 'force',
-  'lightning': 'lightning',
-  'necrotic': 'necrotic',
-  'piercing': 'piercing',
-  'poison': 'poison',
-  'psychic': 'psychic',
-  'radiant': 'radiant',
-  'slashing': 'slashing',
-  'thunder': 'thunder'
+  acid: 'acid',
+  bludgeoning: 'bludgeoning',
+  cold: 'cold',
+  fire: 'fire',
+  force: 'force',
+  lightning: 'lightning',
+  necrotic: 'necrotic',
+  piercing: 'piercing',
+  poison: 'poison',
+  psychic: 'psychic',
+  radiant: 'radiant',
+  slashing: 'slashing',
+  thunder: 'thunder'
 };
 
 // Map for saving throw abilities
 const savingThrowMap: Record<string, string> = {
-  'str': 'strength',
-  'dex': 'dexterity',
-  'con': 'constitution',
-  'int': 'intelligence',
-  'wis': 'wisdom',
-  'cha': 'charisma'
+  str: 'strength',
+  dex: 'dexterity',
+  con: 'constitution',
+  int: 'intelligence',
+  wis: 'wisdom',
+  cha: 'charisma'
 };
 
 /**
@@ -48,23 +48,26 @@ const savingThrowMap: Record<string, string> = {
  * @param imagePath Path to the image in the 5etools-img directory
  * @returns Public URL of the uploaded image
  */
-export async function uploadSpellImage(imagePath: string, dirPath: string): Promise<string | undefined> {
+export async function uploadSpellImage(
+  imagePath: string,
+  dirPath: string
+): Promise<string | undefined> {
   try {
     // Construct the full path to the image
     const fullPath = join(dirPath, '../../submodules/5etools-img', imagePath);
-    
+
     // Read the image file
     const buffer = await readFile(fullPath);
-    
+
     // Determine content type
     const contentType = mimeTypes.lookup(imagePath) || 'image/jpeg';
-    
+
     // Extract file name
     const fileName = imagePath.split('/').pop() || 'spell.jpg';
-    
+
     // Upload to MinIO
     const { key } = await uploadFile(buffer, fileName, contentType, 'spells');
-    
+
     // Return public URL
     return getPublicUrl(key);
   } catch (error) {
@@ -78,14 +81,14 @@ export async function uploadSpellImage(imagePath: string, dirPath: string): Prom
  */
 function formatCastingTime(time: any): string {
   if (!time) return 'action';
-  
+
   // Just return the string value as is if it's a string
   if (typeof time === 'string') return time;
-  
+
   // Try to handle other formats
   if (Array.isArray(time) && time.length > 0) {
     const entry = time[0];
-    
+
     if (typeof entry === 'object' && entry.number && entry.unit) {
       if (entry.number === 1) {
         if (entry.unit === 'action') return '1 action';
@@ -94,7 +97,7 @@ function formatCastingTime(time: any): string {
         if (entry.unit === 'minute') return '1 minute';
         if (entry.unit === 'hour') return '1 hour';
       }
-      
+
       return `${entry.number} ${entry.unit}s`;
     }
   }
@@ -108,20 +111,21 @@ function formatCastingTime(time: any): string {
  */
 function formatDuration(duration: any): any {
   if (!duration) return 'instantaneous';
-  
+
   // If it's already a string, return it
   if (typeof duration === 'string') return duration;
-  
+
   // Try to parse various duration formats
   if (Array.isArray(duration) && duration.length > 0) {
     const entry = duration[0];
-    
+
     if (typeof entry === 'object') {
       // Handle specific duration types
       if (entry.type === 'instant') return 'instantaneous';
-      if (entry.type === 'permanent' && entry.ends && entry.ends.includes('dispel')) return 'until dispelled';
+      if (entry.type === 'permanent' && entry.ends && entry.ends.includes('dispel'))
+        return 'until dispelled';
       if (entry.concentration) return `Concentration, ${formatDurationPart(entry)}`;
-      
+
       // Return the formatted duration
       return formatDurationPart(entry);
     }
@@ -140,21 +144,21 @@ function formatDurationPart(entry: any): string {
       if (typeof entry.duration === 'object') {
         const amount = entry.duration.amount || 0;
         const type = entry.duration.type || 'minutes';
-        
+
         if (amount === 1) {
           return `${amount} ${type.slice(0, -1)}`; // Remove 's' from plural
         }
-        
+
         return `${amount} ${type}`;
       }
     }
   }
-  
+
   // If we can't determine a specific format, return the original
   if (entry.duration && typeof entry.duration === 'string') {
     return entry.duration;
   }
-  
+
   return 'instantaneous';
 }
 
@@ -163,12 +167,12 @@ function formatDurationPart(entry: any): string {
  */
 function formatRange(range: any): any {
   if (!range) return { type: 'range', distance: 30 };
-  
+
   if (typeof range === 'string') {
     if (range.toLowerCase() === 'self') return 'self';
     if (range.toLowerCase() === 'touch') return 'touch';
   }
-  
+
   if (typeof range === 'object') {
     if (range.type === 'point' && range.distance) {
       return {
@@ -176,7 +180,7 @@ function formatRange(range: any): any {
         distance: Number(range.distance.amount) || 30
       };
     }
-    
+
     if (range.type === 'radius' && range.distance) {
       return {
         type: 'radius',
@@ -204,10 +208,10 @@ function parseComponents(components: string[], material?: string): any {
     // Check if it mentions cost
     const costMatch = material.match(/(\d+)\s*(?:gp|gold)/i);
     const cost = costMatch ? parseInt(costMatch[1], 10) : undefined;
-    
+
     // Check if it mentions being consumed
     const consumed = /consumed|destroy/i.test(material);
-    
+
     return {
       ...result,
       material: {
@@ -226,23 +230,23 @@ function parseComponents(components: string[], material?: string): any {
  */
 function extractDamageTypes(spell: any): string[] {
   const damageTypes: string[] = [];
-  
+
   // Check direct damage_type field
   if (spell.damage && spell.damage.damage_type && spell.damage.damage_type.name) {
     damageTypes.push(spell.damage.damage_type.name.toLowerCase());
   }
-  
+
   // Check description for damage types
   if (spell.desc) {
     const desc = Array.isArray(spell.desc) ? spell.desc.join(' ') : spell.desc;
-    
-    Object.keys(damageTypeMap).forEach(type => {
+
+    Object.keys(damageTypeMap).forEach((type) => {
       if (desc.toLowerCase().includes(type)) {
         damageTypes.push(type);
       }
     });
   }
-  
+
   // Remove duplicates
   return [...new Set(damageTypes)];
 }
@@ -252,7 +256,7 @@ function extractDamageTypes(spell: any): string[] {
  */
 function extractSavingThrows(spell: any): string[] {
   const savingThrows: string[] = [];
-  
+
   // Check direct dc field
   if (spell.dc && spell.dc.dc_type && spell.dc.dc_type.name) {
     const ability = spell.dc.dc_type.name.toLowerCase();
@@ -260,20 +264,22 @@ function extractSavingThrows(spell: any): string[] {
       savingThrows.push(savingThrowMap[ability]);
     }
   }
-  
+
   // Check description for saving throws
   if (spell.desc) {
-    const desc = Array.isArray(spell.desc) ? spell.desc.join(' ').toLowerCase() : spell.desc.toLowerCase();
-    
+    const desc = Array.isArray(spell.desc)
+      ? spell.desc.join(' ').toLowerCase()
+      : spell.desc.toLowerCase();
+
     // Look for patterns like "strength saving throw", "dexterity save", etc.
-    Object.keys(savingThrowMap).forEach(key => {
+    Object.keys(savingThrowMap).forEach((key) => {
       const fullName = savingThrowMap[key];
       if (desc.includes(`${fullName} saving throw`) || desc.includes(`${fullName} save`)) {
         savingThrows.push(fullName);
       }
     });
   }
-  
+
   // Remove duplicates
   return [...new Set(savingThrows)];
 }
@@ -283,28 +289,28 @@ function extractSavingThrows(spell: any): string[] {
  */
 function formatDamage(spell: any): Record<string, string> {
   const result: Record<string, string> = {};
-  
+
   // Cantrip damage by character level
   if (spell.damage && spell.damage.damage_at_character_level) {
     Object.entries(spell.damage.damage_at_character_level).forEach(([level, damage]) => {
       result[`character_${level}`] = damage as string;
     });
   }
-  
+
   // Leveled spell damage by slot level
   if (spell.damage && spell.damage.damage_at_slot_level) {
     Object.entries(spell.damage.damage_at_slot_level).forEach(([level, damage]) => {
       result[`slot_${level}`] = damage as string;
     });
   }
-  
+
   // Healing by slot level
   if (spell.heal_at_slot_level) {
     Object.entries(spell.heal_at_slot_level).forEach(([level, healing]) => {
       result[`heal_${level}`] = healing as string;
     });
   }
-  
+
   return result;
 }
 
@@ -314,7 +320,10 @@ function formatDamage(spell: any): Record<string, string> {
  * @param fluffData Optional fluff data for the spell image
  * @returns Converted spell and image path
  */
-export function convertSpell(spellData: any, fluffData?: any): {
+export function convertSpell(
+  spellData: any,
+  fluffData?: any
+): {
   spell: {
     name: string;
     type: string;
@@ -332,9 +341,9 @@ export function convertSpell(spellData: any, fluffData?: any): {
       damage: Record<string, string>;
       duration: any;
       description: string;
-    }
-  },
-  imagePath?: string
+    };
+  };
+  imagePath?: string;
 } {
   // Extract image path from fluff data if available
   let imagePath: string | undefined;
@@ -344,19 +353,20 @@ export function convertSpell(spellData: any, fluffData?: any): {
       imagePath = imageData.href.path;
     }
   }
-  
+
   // Get class names
-  const classes = spellData.classes ? 
-    spellData.classes.map((c: any) => c.name.toLowerCase()) : [];
-  
+  const classes = spellData.classes ? spellData.classes.map((c: any) => c.name.toLowerCase()) : [];
+
   // Extract description
-  const description = Array.isArray(spellData.desc) ? 
-    spellData.desc.join('\n\n') : spellData.desc || '';
-  
+  const description = Array.isArray(spellData.desc)
+    ? spellData.desc.join('\n\n')
+    : spellData.desc || '';
+
   // Add higher level info if available
-  const fullDescription = spellData.higher_level ? 
-    `${description}\n\nAt Higher Levels: ${spellData.higher_level.join('\n')}` : description;
-  
+  const fullDescription = spellData.higher_level
+    ? `${description}\n\nAt Higher Levels: ${spellData.higher_level.join('\n')}`
+    : description;
+
   // Convert the spell
   return {
     spell: {
@@ -367,7 +377,10 @@ export function convertSpell(spellData: any, fluffData?: any): {
         type: 'spell',
         level: spellData.level || 0,
         classes: classes,
-        school: schoolMap[spellData.school?.name[0]] || spellData.school?.name.toLowerCase() || 'evocation',
+        school:
+          schoolMap[spellData.school?.name[0]] ||
+          spellData.school?.name.toLowerCase() ||
+          'evocation',
         castingTime: formatCastingTime(spellData.casting_time),
         range: formatRange(spellData.range),
         components: parseComponents(spellData.components || [], spellData.material),
@@ -380,4 +393,4 @@ export function convertSpell(spellData: any, fluffData?: any): {
     },
     imagePath
   };
-} 
+}

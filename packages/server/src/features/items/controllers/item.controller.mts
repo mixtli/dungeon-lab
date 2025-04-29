@@ -2,51 +2,32 @@ import { Request, Response } from 'express';
 import { ItemService, QueryValue } from '../services/item.service.mjs';
 import { logger } from '../../../utils/logger.mjs';
 import {
-  GetItemResponse,
-  CreateItemRequest,
-  CreateItemResponse,
-  PutItemRequest,
-  PutItemResponse,
-  PatchItemRequest,
-  PatchItemResponse,
-  DeleteItemResponse,
-  UploadItemImageResponse,
-  SearchItemsResponse,
-  GetCampaignItemsResponse,
+  BaseAPIResponse,
+  SearchItemsQuery,
   searchItemsQuerySchema
 } from '@dungeon-lab/shared/types/api/index.mjs';
+import { IItem } from '@dungeon-lab/shared/types/index.mjs';
 import { ZodError } from 'zod';
+import { isErrorWithMessage } from '../../../utils/error.mjs';
+import { createSearchParams } from '../../../utils/create.search.params.mjs';
 
 export class ItemController {
-  constructor(private itemService: ItemService) {}
+  constructor(private itemService: ItemService) {
+    this.itemService = itemService;
+  }
 
   /**
    * Search items with filters or get all items
    * @route GET /api/items
    * @access Public
    */
-  async searchItems(
-    req: Request,
-    res: Response<SearchItemsResponse>
-  ): Promise<Response<SearchItemsResponse> | void> {
+  searchItems = async (
+    req: Request<object, object, object, SearchItemsQuery>,
+    res: Response<BaseAPIResponse<IItem[]>>
+  ): Promise<Response<BaseAPIResponse<IItem[]>> | void> => {
     try {
-      // Convert dot notation in query params to nested objects, similar to document controller
-      const query = Object.entries(req.query).reduce((acc, [key, value]) => {
-        if (key.includes('.')) {
-          const parts = key.split('.');
-          let current = acc;
-          for (let i = 0; i < parts.length - 1; i++) {
-            if (!(parts[i] in current)) {
-              current[parts[i]] = {};
-            }
-            current = current[parts[i]] as Record<string, unknown>;
-          }
-          current[parts[parts.length - 1]] = value;
-        } else {
-          acc[key] = value;
-        }
-        return acc;
-      }, {} as Record<string, unknown>);
+      // Convert dot notation in query params to nested objects
+      const query = createSearchParams(req.query as Record<string, QueryValue>);
 
       try {
         searchItemsQuerySchema.parse(query);
@@ -55,13 +36,13 @@ export class ItemController {
           return res.status(400).json({
             success: false,
             data: [],
-            error: JSON.parse(validationError.message)
+            error: validationError.errors.map((e) => e.message).join(', ')
           });
         }
       }
 
       logger.debug('Search items query parameters:', query);
-      const items = await this.itemService.searchItems(query as Record<string, QueryValue>);
+      const items = await this.itemService.searchItems(query);
       return res.json({
         success: true,
         data: items
@@ -76,17 +57,17 @@ export class ItemController {
         error: 'Server error'
       });
     }
-  }
+  };
 
   /**
    * Get item by ID
    * @route GET /api/items/:id
    * @access Public
    */
-  async getItemById(
+  getItemById = async (
     req: Request,
-    res: Response<GetItemResponse>
-  ): Promise<Response<GetItemResponse> | void> {
+    res: Response<BaseAPIResponse<IItem>>
+  ): Promise<Response<BaseAPIResponse<IItem>> | void> => {
     try {
       const item = await this.itemService.getItemById(req.params.id);
       return res.json({
@@ -94,31 +75,31 @@ export class ItemController {
         data: item
       });
     } catch (error) {
-      if (error instanceof Error) {
-        logger.error('Error fetching item:', error);
-        if (error.message === 'Item not found') {
-          return res.status(404).json({
-            success: false,
-            error: 'Item not found'
-          });
-        }
+      if (isErrorWithMessage(error) && error.message === 'Item not found') {
+        return res.status(404).json({
+          success: false,
+          data: null,
+          error: 'Item not found'
+        });
       }
+      logger.error('Error fetching item:', error);
       return res.status(500).json({
         success: false,
+        data: null,
         error: 'Server error'
       });
     }
-  }
+  };
 
   /**
    * Get items for a campaign
    * @route GET /api/campaigns/:campaignId/items
    * @access Private
    */
-  async getItems(
+  getItems = async (
     req: Request,
-    res: Response<GetCampaignItemsResponse>
-  ): Promise<Response<GetCampaignItemsResponse> | void> {
+    res: Response<BaseAPIResponse<IItem[]>>
+  ): Promise<Response<BaseAPIResponse<IItem[]>> | void> => {
     try {
       const items = await this.itemService.getItems(req.params.campaignId);
       return res.json({
@@ -135,17 +116,17 @@ export class ItemController {
         error: 'Failed to get items'
       });
     }
-  }
+  };
 
   /**
    * Create a new item
    * @route POST /api/items
    * @access Private
    */
-  async createItem(
-    req: Request<object, object, CreateItemRequest>,
-    res: Response<CreateItemResponse>
-  ): Promise<Response<CreateItemResponse> | void> {
+  createItem = async (
+    req: Request<object, object, IItem>,
+    res: Response<BaseAPIResponse<IItem>>
+  ): Promise<Response<BaseAPIResponse<IItem>> | void> => {
     try {
       // Get the file from assets if provided
       const file = req.assets?.image?.[0];
@@ -159,25 +140,27 @@ export class ItemController {
         logger.error('Error creating item:', error);
         return res.status(500).json({
           success: false,
+          data: null,
           error: error.message || 'Failed to create item'
         });
       }
       return res.status(500).json({
         success: false,
+        data: null,
         error: 'Failed to create item'
       });
     }
-  }
+  };
 
   /**
    * Replace an item (full update)
    * @route PUT /api/items/:id
    * @access Private
    */
-  async putItem(
-    req: Request<{ id: string }, object, PutItemRequest>,
-    res: Response<PutItemResponse>
-  ): Promise<Response<PutItemResponse> | void> {
+  putItem = async (
+    req: Request<{ id: string }, object, IItem>,
+    res: Response<BaseAPIResponse<IItem>>
+  ): Promise<Response<BaseAPIResponse<IItem>> | void> => {
     try {
       const hasPermission = await this.itemService.checkUserPermission(
         req.params.id,
@@ -188,6 +171,7 @@ export class ItemController {
       if (!hasPermission) {
         return res.status(403).json({
           success: false,
+          data: null,
           error: 'Access denied'
         });
       }
@@ -206,35 +190,38 @@ export class ItemController {
         data: item
       });
     } catch (error) {
+      if (isErrorWithMessage(error) && error.message === 'Item not found') {
+        return res.status(404).json({
+          success: false,
+          data: null,
+          error: 'Item not found'
+        });
+      }
+      logger.error('Error replacing item:', error);
       if (error instanceof Error) {
-        logger.error('Error replacing item:', error);
-        if (error.message === 'Item not found') {
-          return res.status(404).json({
-            success: false,
-            error: 'Item not found'
-          });
-        }
         return res.status(500).json({
           success: false,
+          data: null,
           error: error.message || 'Failed to replace item'
         });
       }
       return res.status(500).json({
         success: false,
+        data: null,
         error: 'Failed to replace item'
       });
     }
-  }
+  };
 
   /**
    * Update an item (partial update)
    * @route PATCH /api/items/:id
    * @access Private
    */
-  async patchItem(
-    req: Request<{ id: string }, object, PatchItemRequest>,
-    res: Response<PatchItemResponse>
-  ): Promise<Response<PatchItemResponse> | void> {
+  patchItem = async (
+    req: Request<{ id: string }, object, IItem>,
+    res: Response<BaseAPIResponse<IItem>>
+  ): Promise<Response<BaseAPIResponse<IItem>> | void> => {
     try {
       const hasPermission = await this.itemService.checkUserPermission(
         req.params.id,
@@ -245,6 +232,7 @@ export class ItemController {
       if (!hasPermission) {
         return res.status(403).json({
           success: false,
+          data: null,
           error: 'Access denied'
         });
       }
@@ -263,35 +251,38 @@ export class ItemController {
         data: item
       });
     } catch (error) {
+      if (isErrorWithMessage(error) && error.message === 'Item not found') {
+        return res.status(404).json({
+          success: false,
+          data: null,
+          error: 'Item not found'
+        });
+      }
+      logger.error('Error patching item:', error);
       if (error instanceof Error) {
-        logger.error('Error patching item:', error);
-        if (error.message === 'Item not found') {
-          return res.status(404).json({
-            success: false,
-            error: 'Item not found'
-          });
-        }
         return res.status(500).json({
           success: false,
+          data: null,
           error: error.message || 'Failed to patch item'
         });
       }
       return res.status(500).json({
         success: false,
+        data: null,
         error: 'Failed to patch item'
       });
     }
-  }
+  };
 
   /**
    * Delete an item
    * @route DELETE /api/items/:id
    * @access Private
    */
-  async deleteItem(
+  deleteItem = async (
     req: Request,
-    res: Response<DeleteItemResponse>
-  ): Promise<Response<DeleteItemResponse> | void> {
+    res: Response<BaseAPIResponse<void>>
+  ): Promise<Response<BaseAPIResponse<void>> | void> => {
     try {
       const hasPermission = await this.itemService.checkUserPermission(
         req.params.id,
@@ -302,42 +293,49 @@ export class ItemController {
       if (!hasPermission) {
         return res.status(403).json({
           success: false,
+          data: null,
           error: 'Access denied'
         });
       }
 
       await this.itemService.deleteItem(req.params.id);
-      return res.status(204).send();
+      return res.json({
+        success: true,
+        data: null
+      });
     } catch (error) {
+      if (isErrorWithMessage(error) && error.message === 'Item not found') {
+        return res.status(404).json({
+          success: false,
+          data: null,
+          error: 'Item not found'
+        });
+      }
+      logger.error('Error deleting item:', error);
       if (error instanceof Error) {
-        logger.error('Error deleting item:', error);
-        if (error.message === 'Item not found') {
-          return res.status(404).json({
-            success: false,
-            error: 'Item not found'
-          });
-        }
         return res.status(500).json({
           success: false,
-          error: 'Failed to delete item'
+          data: null,
+          error: error.message || 'Failed to delete item'
         });
       }
       return res.status(500).json({
         success: false,
+        data: null,
         error: 'Failed to delete item'
       });
     }
-  }
+  };
 
   /**
    * Upload an image for an item
    * @route PUT /api/items/:id/image
    * @access Private
    */
-  async uploadItemImage(
+  uploadItemImage = async (
     req: Request,
-    res: Response<UploadItemImageResponse>
-  ): Promise<Response<UploadItemImageResponse> | void> {
+    res: Response<BaseAPIResponse<IItem>>
+  ): Promise<Response<BaseAPIResponse<IItem>> | void> => {
     try {
       // Get the raw image data from the request body
       const imageBuffer = req.body as Buffer;
@@ -346,6 +344,7 @@ export class ItemController {
       if (!imageBuffer || imageBuffer.length === 0) {
         return res.status(400).json({
           success: false,
+          data: null,
           error: 'No image data provided'
         });
       }
@@ -355,6 +354,7 @@ export class ItemController {
       if (!validMimes.includes(contentType)) {
         return res.status(400).json({
           success: false,
+          data: null,
           error: 'Invalid image type. Please upload JPEG, PNG, or WebP'
         });
       }
@@ -369,6 +369,7 @@ export class ItemController {
       if (!hasPermission) {
         return res.status(403).json({
           success: false,
+          data: null,
           error: 'Access denied'
         });
       }
@@ -386,23 +387,26 @@ export class ItemController {
         data: item
       });
     } catch (error) {
+      if (isErrorWithMessage(error) && error.message === 'Item not found') {
+        return res.status(404).json({
+          success: false,
+          data: null,
+          error: 'Item not found'
+        });
+      }
+      logger.error('Error uploading item image:', error);
       if (error instanceof Error) {
-        logger.error('Error uploading item image:', error);
-        if (error.message === 'Item not found') {
-          return res.status(404).json({
-            success: false,
-            error: 'Item not found'
-          });
-        }
         return res.status(500).json({
           success: false,
+          data: null,
           error: error.message || 'Failed to upload item image'
         });
       }
       return res.status(500).json({
         success: false,
+        data: null,
         error: 'Failed to upload item image'
       });
     }
-  }
+  };
 }

@@ -19,38 +19,23 @@ import {
   putMapRequestSchema,
   patchMapRequestSchema,
   searchMapsQuerySchema,
-  getMapsResponseSchema,
-  getMapResponseSchema,
-  createMapResponseSchema,
-  putMapResponseSchema,
-  patchMapResponseSchema,
-  deleteMapResponseSchema,
-  uploadMapImageResponseSchema,
-  generateMapImageResponseSchema
+  baseAPIResponseSchema,
+  deleteAPIResponseSchema
 } from '@dungeon-lab/shared/types/api/index.mjs';
 import { createSchema } from 'zod-openapi';
+import { mapSchema } from '@dungeon-lab/shared/schemas/map.schema.mjs';
 
-const router = Router();
+// Initialize controller
 const mapService = new MapService();
 const mapController = new MapController(mapService);
 
-// Bind controller methods to maintain 'this' context
-const boundController = {
-  getAllMaps: mapController.getAllMaps.bind(mapController),
-  getMaps: mapController.getMaps.bind(mapController),
-  getMap: mapController.getMap.bind(mapController),
-  createMap: mapController.createMap.bind(mapController),
-  putMap: mapController.putMap.bind(mapController),
-  patchMap: mapController.patchMap.bind(mapController),
-  deleteMap: mapController.deleteMap.bind(mapController),
-  generateMapImage: mapController.generateMapImage.bind(mapController),
-  uploadMapImage: mapController.uploadMapImage.bind(mapController),
-  searchMaps: mapController.searchMaps.bind(mapController)
-};
+// Create router
+const router = Router();
 
-// Routes
+// Apply authentication middleware to all map routes
 router.use(authenticate);
 
+// Search maps
 router.get(
   '/',
   openApiGet(searchMapsQuerySchema, {
@@ -62,7 +47,7 @@ router.get(
         content: {
           'application/json': {
             schema: createSchema(
-              getMapsResponseSchema.openapi({
+              baseAPIResponseSchema.extend({ data: z.array(mapSchema) }).openapi({
                 description: 'Maps response'
               })
             )
@@ -72,9 +57,10 @@ router.get(
       500: { description: 'Server error' }
     }
   }),
-  boundController.searchMaps
+  mapController.searchMaps
 );
 
+// Get map by ID
 router.get(
   '/:id',
   openApiGetOne(z.null(), {
@@ -85,7 +71,7 @@ router.get(
         content: {
           'application/json': {
             schema: createSchema(
-              getMapResponseSchema.openapi({
+              baseAPIResponseSchema.extend({ data: mapSchema }).openapi({
                 description: 'Map response'
               })
             )
@@ -96,9 +82,10 @@ router.get(
       500: { description: 'Server error' }
     }
   }),
-  boundController.getMap
+  mapController.getMap
 );
 
+// Create new map
 router.post(
   '/',
   openApiPost(createMapRequestSchema, {
@@ -109,7 +96,7 @@ router.post(
         content: {
           'application/json': {
             schema: createSchema(
-              createMapResponseSchema.openapi({
+              baseAPIResponseSchema.extend({ data: mapSchema }).openapi({
                 description: 'Create map response'
               })
             )
@@ -121,7 +108,7 @@ router.post(
     }
   }),
   validateMultipartRequest(createMapRequestSchema, 'image'),
-  boundController.createMap
+  mapController.createMap
 );
 
 // Upload a binary map image
@@ -146,7 +133,7 @@ router.put(
         content: {
           'application/json': {
             schema: createSchema(
-              uploadMapImageResponseSchema.openapi({
+              baseAPIResponseSchema.extend({ data: mapSchema }).openapi({
                 description: 'Upload map image response'
               })
             )
@@ -158,9 +145,10 @@ router.put(
       500: { description: 'Server error' }
     }
   }),
-  boundController.uploadMapImage
+  mapController.uploadMapImage
 );
 
+// Generate map image
 router.post(
   '/:id/generate-image',
   openApiPost(z.object({}), {
@@ -174,7 +162,7 @@ router.post(
         content: {
           'application/json': {
             schema: createSchema(
-              generateMapImageResponseSchema.openapi({
+              baseAPIResponseSchema.extend({ data: z.null() }).openapi({
                 description: 'Generate map image response'
               })
             )
@@ -183,9 +171,10 @@ router.post(
       }
     }
   }),
-  boundController.generateMapImage
+  mapController.generateMapImage
 );
 
+// Replace map (full update)
 router.put(
   '/:id',
   openApiPut(putMapRequestSchema, {
@@ -196,7 +185,7 @@ router.put(
         content: {
           'application/json': {
             schema: createSchema(
-              putMapResponseSchema.openapi({
+              baseAPIResponseSchema.extend({ data: mapSchema }).openapi({
                 description: 'Update map response'
               })
             )
@@ -209,9 +198,10 @@ router.put(
     }
   }),
   validateMultipartRequest(putMapRequestSchema, 'image'),
-  boundController.putMap
+  mapController.putMap
 );
 
+// Update map (partial update)
 router.patch(
   '/:id',
   openApiPatch(patchMapRequestSchema, {
@@ -222,7 +212,7 @@ router.patch(
         content: {
           'application/json': {
             schema: createSchema(
-              patchMapResponseSchema.openapi({
+              baseAPIResponseSchema.extend({ data: mapSchema }).openapi({
                 description: 'Patch map response'
               })
             )
@@ -235,22 +225,23 @@ router.patch(
     }
   }),
   validateMultipartRequest(patchMapRequestSchema, 'image'),
-  boundController.patchMap
+  mapController.patchMap
 );
 
+// Delete map
 router.delete(
   '/:id',
-  openApiDelete(z.string(), {
+  openApiDelete(z.null(), {
     description: 'Delete map',
     responses: {
-      204: { description: 'Map deleted successfully' },
+      200: { description: 'Map deleted successfully' },
       404: { description: 'Map not found' },
       500: {
         description: 'Server error',
         content: {
           'application/json': {
             schema: createSchema(
-              deleteMapResponseSchema.openapi({
+              deleteAPIResponseSchema.openapi({
                 description: 'Delete map response'
               })
             )
@@ -259,7 +250,7 @@ router.delete(
       }
     }
   }),
-  boundController.deleteMap
+  mapController.deleteMap
 );
 
-export const mapRoutes = router;
+export { router as mapRoutes };

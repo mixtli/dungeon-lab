@@ -14,34 +14,22 @@ import {
 } from '../../../oapi.mjs';
 import { z } from '../../../utils/zod.mjs';
 import {
+  baseAPIResponseSchema,
   getGameSessionsQuerySchema,
-  getGameSessionsResponseSchema,
-  getGameSessionResponseSchema,
-  getCampaignSessionsResponseSchema,
-  createGameSessionResponseSchema,
-  updateGameSessionSchema,
-  updateGameSessionResponseSchema,
-  deleteGameSessionResponseSchema,
-  createGameSessionSchema
+  deleteAPIResponseSchema,
+  createGameSessionSchema,
+  updateGameSessionSchema
 } from '@dungeon-lab/shared/types/api/index.mjs';
+import { gameSessionSchema } from '@dungeon-lab/shared/schemas/game-session.schema.mjs';
 
-// Initialize services and controllers
+// Initialize services and controller
 const gameSessionService = new GameSessionService();
 const gameSessionController = new GameSessionController(gameSessionService);
 
 // Create router
 const router = Router();
 
-// Bind controller methods to maintain 'this' context
-const boundGetGameSessions = gameSessionController.getGameSessions.bind(gameSessionController);
-const boundGetGameSession = gameSessionController.getGameSession.bind(gameSessionController);
-const boundCreateGameSession = gameSessionController.createGameSession.bind(gameSessionController);
-const boundUpdateGameSession = gameSessionController.updateGameSession.bind(gameSessionController);
-const boundDeleteGameSession = gameSessionController.deleteGameSession.bind(gameSessionController);
-const boundGetCampaignSessions =
-  gameSessionController.getCampaignSessions?.bind(gameSessionController);
-
-// Routes
+// Define routes
 router.get(
   '/',
   authenticate,
@@ -54,9 +42,13 @@ router.get(
         content: {
           'application/json': {
             schema: createSchema(
-              getGameSessionsResponseSchema.openapi({
-                description: 'Game sessions response'
-              })
+              baseAPIResponseSchema
+                .extend({
+                  data: z.array(gameSessionSchema)
+                })
+                .openapi({
+                  description: 'Game sessions response'
+                })
             )
           }
         }
@@ -64,7 +56,7 @@ router.get(
       500: { description: 'Server error' }
     }
   }),
-  boundGetGameSessions
+  gameSessionController.getGameSessions
 );
 
 router.get(
@@ -78,9 +70,13 @@ router.get(
         content: {
           'application/json': {
             schema: createSchema(
-              getGameSessionResponseSchema.openapi({
-                description: 'Game session response'
-              })
+              baseAPIResponseSchema
+                .extend({
+                  data: gameSessionSchema
+                })
+                .openapi({
+                  description: 'Game session response'
+                })
             )
           }
         }
@@ -89,7 +85,7 @@ router.get(
       500: { description: 'Server error' }
     }
   }),
-  boundGetGameSession
+  gameSessionController.getGameSession
 );
 
 router.post(
@@ -103,9 +99,13 @@ router.post(
         content: {
           'application/json': {
             schema: createSchema(
-              createGameSessionResponseSchema.openapi({
-                description: 'Create game session response'
-              })
+              baseAPIResponseSchema
+                .extend({
+                  data: gameSessionSchema
+                })
+                .openapi({
+                  description: 'Create game session response'
+                })
             )
           }
         }
@@ -117,7 +117,7 @@ router.post(
     }
   }),
   validateRequest(createGameSessionSchema),
-  boundCreateGameSession
+  gameSessionController.createGameSession
 );
 
 router.patch(
@@ -131,9 +131,13 @@ router.patch(
         content: {
           'application/json': {
             schema: createSchema(
-              updateGameSessionResponseSchema.openapi({
-                description: 'Update game session response'
-              })
+              baseAPIResponseSchema
+                .extend({
+                  data: gameSessionSchema
+                })
+                .openapi({
+                  description: 'Update game session response'
+                })
             )
           }
         }
@@ -145,7 +149,7 @@ router.patch(
     }
   }),
   validateRequest(updateGameSessionSchema),
-  boundUpdateGameSession
+  gameSessionController.updateGameSession
 );
 
 router.delete(
@@ -162,7 +166,7 @@ router.delete(
         content: {
           'application/json': {
             schema: createSchema(
-              deleteGameSessionResponseSchema.openapi({
+              deleteAPIResponseSchema.openapi({
                 description: 'Delete game session response'
               })
             )
@@ -171,33 +175,46 @@ router.delete(
       }
     }
   }),
-  boundDeleteGameSession
+  gameSessionController.deleteGameSession
 );
 
-if (boundGetCampaignSessions) {
-  router.get(
-    '/campaign/:campaignId',
-    authenticate,
-    openApiGet(z.null(), {
+// Add route for getting sessions by campaign ID using query parameter
+router.get(
+  '/campaign',
+  authenticate,
+  openApiGet(
+    z.object({
+      campaignId: z.string()
+    }),
+    {
       description: 'Get all game sessions for a campaign',
+      parameters: toQuerySchema(
+        z.object({
+          campaignId: z.string()
+        })
+      ),
       responses: {
         200: {
           description: 'Campaign game sessions retrieved successfully',
           content: {
             'application/json': {
               schema: createSchema(
-                getCampaignSessionsResponseSchema.openapi({
-                  description: 'Campaign game sessions response'
-                })
+                baseAPIResponseSchema
+                  .extend({
+                    data: z.array(gameSessionSchema)
+                  })
+                  .openapi({
+                    description: 'Campaign game sessions response'
+                  })
               )
             }
           }
         },
         500: { description: 'Server error' }
       }
-    }),
-    boundGetCampaignSessions
-  );
-}
+    }
+  ),
+  gameSessionController.getCampaignSessions
+);
 
 export { router as gameSessionRoutes };

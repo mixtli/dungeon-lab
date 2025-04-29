@@ -4,7 +4,10 @@ import { fileURLToPath } from 'url';
 import axios from 'axios';
 import fs from 'fs';
 import { nextUser } from './import-utils.mjs';
+import { MapsClient } from '@dungeon-lab/client/index.mjs';
 
+const mapsClient = new MapsClient();
+console.log(mapsClient);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 

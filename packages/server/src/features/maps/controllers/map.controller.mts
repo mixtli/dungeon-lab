@@ -2,32 +2,25 @@ import { Response, Request } from 'express';
 import { MapService, QueryValue } from '../services/map.service.mjs';
 import { logger } from '../../../utils/logger.mjs';
 import {
-  GetMapsResponse,
-  GetMapResponse,
-  CreateMapRequest,
-  CreateMapResponse,
-  PutMapRequest,
-  PutMapResponse,
-  PatchMapRequest,
-  PatchMapResponse,
-  DeleteMapResponse,
-  GenerateMapImageResponse,
+  BaseAPIResponse,
+  SearchMapsQuery,
   createMapRequestSchema,
   putMapRequestSchema,
   patchMapRequestSchema,
-  searchMapsQuerySchema,
-  SearchMapsResponse,
-  UploadMapImageResponse
+  searchMapsQuerySchema
 } from '@dungeon-lab/shared/types/api/index.mjs';
+import { IMap } from '@dungeon-lab/shared/types/index.mjs';
 import { ZodError } from 'zod';
+import { isErrorWithMessage } from '../../../utils/error.mjs';
+import { createSearchParams } from '../../../utils/create.search.params.mjs';
 
 export class MapController {
   constructor(private mapService: MapService) {}
 
-  async getMaps(
+  getMaps = async (
     req: Request,
-    res: Response<GetMapsResponse>
-  ): Promise<Response<GetMapsResponse> | void> {
+    res: Response<BaseAPIResponse<IMap[]>>
+  ): Promise<Response<BaseAPIResponse<IMap[]>> | void> => {
     try {
       const maps = await this.mapService.getAllMaps(req.session.user.id);
       return res.json({
@@ -42,12 +35,12 @@ export class MapController {
         error: 'Failed to get maps'
       });
     }
-  }
+  };
 
-  async generateMapImage(
+  generateMapImage = async (
     req: Request,
-    res: Response<GenerateMapImageResponse>
-  ): Promise<Response<GenerateMapImageResponse> | void> {
+    res: Response<BaseAPIResponse<void>>
+  ): Promise<Response<BaseAPIResponse<void>> | void> => {
     try {
       await this.mapService.generateMapImage(req.params.id);
       return res.status(204).send();
@@ -55,15 +48,16 @@ export class MapController {
       logger.error('Error in generateMapImage controller:', error);
       return res.status(500).json({
         success: false,
+        data: null,
         error: 'Failed to generate map image'
       });
     }
-  }
+  };
 
-  async getMap(
+  getMap = async (
     req: Request,
-    res: Response<GetMapResponse>
-  ): Promise<Response<GetMapResponse> | void> {
+    res: Response<BaseAPIResponse<IMap>>
+  ): Promise<Response<BaseAPIResponse<IMap>> | void> => {
     try {
       const map = await this.mapService.getMap(req.params.id);
       return res.json({
@@ -71,24 +65,26 @@ export class MapController {
         data: map
       });
     } catch (error) {
-      if (error instanceof Error) {
+      if (isErrorWithMessage(error) && error.message === 'Map not found') {
         return res.status(404).json({
           success: false,
-          error: error.message
+          data: null,
+          error: 'Map not found'
         });
       }
       logger.error('Error in getMap controller:', error);
       return res.status(500).json({
         success: false,
+        data: null,
         error: 'Failed to get map'
       });
     }
-  }
+  };
 
-  async createMap(
-    req: Request<object, object, CreateMapRequest>,
-    res: Response<CreateMapResponse>
-  ): Promise<Response<CreateMapResponse> | void> {
+  createMap = async (
+    req: Request<object, object, IMap>,
+    res: Response<BaseAPIResponse<IMap>>
+  ): Promise<Response<BaseAPIResponse<IMap>> | void> => {
     try {
       // Validate request body
       const validatedData = createMapRequestSchema.parse(req.body);
@@ -108,29 +104,32 @@ export class MapController {
       if (error instanceof ZodError) {
         return res.status(400).json({
           success: false,
-          error: JSON.parse(error.message)
+          data: null,
+          error: error.errors.map((e) => e.message).join(', ')
         });
       }
       if (error instanceof Error) {
         return res.status(500).json({
           success: false,
+          data: null,
           error: error.message || 'Failed to create map'
         });
       }
       return res.status(500).json({
         success: false,
+        data: null,
         error: 'Failed to create map'
       });
     }
-  }
+  };
 
   /**
    * Replace a map completely (PUT)
    */
-  async putMap(
-    req: Request<{ id: string }, object, PutMapRequest>,
-    res: Response<PutMapResponse>
-  ): Promise<Response<PutMapResponse> | void> {
+  putMap = async (
+    req: Request<{ id: string }, object, IMap>,
+    res: Response<BaseAPIResponse<IMap>>
+  ): Promise<Response<BaseAPIResponse<IMap>> | void> => {
     try {
       // Validate request body
       const validatedData = putMapRequestSchema.parse(req.body);
@@ -154,12 +153,14 @@ export class MapController {
       if (error instanceof ZodError) {
         return res.status(400).json({
           success: false,
-          error: JSON.parse(error.message)
+          data: null,
+          error: error.errors.map((e) => e.message).join(', ')
         });
       }
-      if (error instanceof Error && error.message === 'Map not found') {
+      if (isErrorWithMessage(error) && error.message === 'Map not found') {
         return res.status(404).json({
           success: false,
+          data: null,
           error: 'Map not found'
         });
       }
@@ -167,23 +168,25 @@ export class MapController {
       if (error instanceof Error) {
         return res.status(500).json({
           success: false,
+          data: null,
           error: error.message || 'Failed to update map'
         });
       }
       return res.status(500).json({
         success: false,
+        data: null,
         error: 'Failed to update map'
       });
     }
-  }
+  };
 
   /**
    * Partially update a map (PATCH)
    */
-  async patchMap(
-    req: Request<{ id: string }, object, PatchMapRequest>,
-    res: Response<PatchMapResponse>
-  ): Promise<Response<PatchMapResponse> | void> {
+  patchMap = async (
+    req: Request<{ id: string }, object, IMap>,
+    res: Response<BaseAPIResponse<IMap>>
+  ): Promise<Response<BaseAPIResponse<IMap>> | void> => {
     try {
       // Validate request body
       const validatedData = patchMapRequestSchema.parse(req.body);
@@ -207,12 +210,14 @@ export class MapController {
       if (error instanceof ZodError) {
         return res.status(400).json({
           success: false,
-          error: JSON.parse(error.message)
+          data: null,
+          error: error.errors.map((e) => e.message).join(', ')
         });
       }
-      if (error instanceof Error && error.message === 'Map not found') {
+      if (isErrorWithMessage(error) && error.message === 'Map not found') {
         return res.status(404).json({
           success: false,
+          data: null,
           error: 'Map not found'
         });
       }
@@ -220,27 +225,33 @@ export class MapController {
       if (error instanceof Error) {
         return res.status(500).json({
           success: false,
+          data: null,
           error: error.message || 'Failed to patch map'
         });
       }
       return res.status(500).json({
         success: false,
+        data: null,
         error: 'Failed to patch map'
       });
     }
-  }
+  };
 
-  async deleteMap(
+  deleteMap = async (
     req: Request,
-    res: Response<DeleteMapResponse>
-  ): Promise<Response<DeleteMapResponse> | void> {
+    res: Response<BaseAPIResponse<void>>
+  ): Promise<Response<BaseAPIResponse<void>> | void> => {
     try {
       await this.mapService.deleteMap(req.params.id);
-      return res.status(204).send();
+      return res.json({
+        success: true,
+        data: null
+      });
     } catch (error: unknown) {
-      if (error instanceof Error && error.message === 'Map not found') {
+      if (isErrorWithMessage(error) && error.message === 'Map not found') {
         return res.status(404).json({
           success: false,
+          data: null,
           error: 'Map not found'
         });
       }
@@ -248,20 +259,22 @@ export class MapController {
       if (error instanceof Error) {
         return res.status(500).json({
           success: false,
+          data: null,
           error: error.message || 'Failed to delete map'
         });
       }
       return res.status(500).json({
         success: false,
+        data: null,
         error: 'Failed to delete map'
       });
     }
-  }
+  };
 
-  async getAllMaps(
+  getAllMaps = async (
     req: Request,
-    res: Response<GetMapsResponse>
-  ): Promise<Response<GetMapsResponse> | void> {
+    res: Response<BaseAPIResponse<IMap[]>>
+  ): Promise<Response<BaseAPIResponse<IMap[]>> | void> => {
     try {
       const maps = await this.mapService.getAllMaps(req.session.user.id);
       return res.json({
@@ -276,12 +289,12 @@ export class MapController {
         error: 'Failed to get maps'
       });
     }
-  }
+  };
 
-  async uploadMapImage(
+  uploadMapImage = async (
     req: Request,
-    res: Response<UploadMapImageResponse>
-  ): Promise<Response<UploadMapImageResponse> | void> {
+    res: Response<BaseAPIResponse<IMap>>
+  ): Promise<Response<BaseAPIResponse<IMap>> | void> => {
     try {
       // Get the raw image data from the request body
       const imageBuffer = req.body as Buffer;
@@ -290,6 +303,7 @@ export class MapController {
       if (!imageBuffer || imageBuffer.length === 0) {
         return res.status(400).json({
           success: false,
+          data: null,
           error: 'No image data provided'
         });
       }
@@ -299,6 +313,7 @@ export class MapController {
       if (!validMimes.includes(contentType)) {
         return res.status(400).json({
           success: false,
+          data: null,
           error: 'Invalid image type. Please upload JPEG, PNG, or WebP'
         });
       }
@@ -316,9 +331,10 @@ export class MapController {
         data: map
       });
     } catch (error: unknown) {
-      if (error instanceof Error && error.message === 'Map not found') {
+      if (isErrorWithMessage(error) && error.message === 'Map not found') {
         return res.status(404).json({
           success: false,
+          data: null,
           error: 'Map not found'
         });
       }
@@ -326,43 +342,30 @@ export class MapController {
       if (error instanceof Error) {
         return res.status(500).json({
           success: false,
+          data: null,
           error: error.message || 'Failed to upload map image'
         });
       }
       return res.status(500).json({
         success: false,
+        data: null,
         error: 'Failed to upload map image'
       });
     }
-  }
+  };
 
   /**
    * Search maps based on query parameters
    * @route GET /api/maps/search
    * @access Public
    */
-  async searchMaps(
-    req: Request,
-    res: Response<SearchMapsResponse>
-  ): Promise<Response<SearchMapsResponse> | void> {
+  searchMaps = async (
+    req: Request<object, object, object, SearchMapsQuery>,
+    res: Response<BaseAPIResponse<IMap[]>>
+  ): Promise<Response<BaseAPIResponse<IMap[]>> | void> => {
     try {
       // Convert dot notation in query params to nested objects
-      const query = Object.entries(req.query).reduce((acc, [key, value]) => {
-        if (key.includes('.')) {
-          const parts = key.split('.');
-          let current = acc;
-          for (let i = 0; i < parts.length - 1; i++) {
-            if (!(parts[i] in current)) {
-              current[parts[i]] = {};
-            }
-            current = current[parts[i]] as Record<string, unknown>;
-          }
-          current[parts[parts.length - 1]] = value;
-        } else {
-          acc[key] = value;
-        }
-        return acc;
-      }, {} as Record<string, unknown>);
+      const query = createSearchParams(req.query as Record<string, QueryValue>);
 
       // Validate query parameters
       try {
@@ -372,12 +375,12 @@ export class MapController {
           return res.status(400).json({
             success: false,
             data: [],
-            error: JSON.parse(validationError.message)
+            error: validationError.errors.map((e) => e.message).join(', ')
           });
         }
       }
 
-      const maps = await this.mapService.searchMaps(query as Record<string, QueryValue>);
+      const maps = await this.mapService.searchMaps(query);
       return res.json({
         success: true,
         data: maps
@@ -390,5 +393,5 @@ export class MapController {
         error: 'Failed to search maps'
       });
     }
-  }
+  };
 }

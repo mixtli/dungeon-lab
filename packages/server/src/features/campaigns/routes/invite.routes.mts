@@ -4,15 +4,12 @@ import { InviteController } from '../controllers/invite.controller.mjs';
 import { InviteService } from '../services/invite.service.mjs';
 import { CampaignService } from '../services/campaign.service.mjs';
 import { z } from '../../../utils/zod.mjs';
-import { openApiGet, openApiPost } from '../../../oapi.mjs';
+import { openApiGet, openApiPost, toQuerySchema } from '../../../oapi.mjs';
 import { createSchema } from 'zod-openapi';
 import {
-  getCampaignInvitesResponseSchema,
-  getMyInvitesResponseSchema,
+  baseAPIResponseSchema,
   createInviteRequestSchema,
-  createInviteResponseSchema,
-  respondToInviteRequestSchema,
-  respondToInviteResponseSchema
+  respondToInviteRequestSchema
 } from '@dungeon-lab/shared/types/api/index.mjs';
 
 // Initialize services and controller
@@ -23,26 +20,32 @@ const inviteController = new InviteController(inviteService);
 // Create router
 const router = Router();
 
-// Bind controller methods to maintain correct 'this' context
-const getInvites = inviteController.getInvites.bind(inviteController);
-const getMyInvites = inviteController.getMyInvites.bind(inviteController);
-const createInvite = inviteController.createInvite.bind(inviteController);
-const respondToInvite = inviteController.respondToInvite.bind(inviteController);
+// Define query schema for filtering invites
+const getInvitesQuerySchema = z
+  .object({
+    campaignId: z.string().optional()
+  })
+  .openapi({ description: 'Query parameters for filtering invites' });
 
-// Get invites for a campaign
+// Get all invites (with optional campaign filter)
 router.get(
-  '/campaign/:campaignId/invites',
-  openApiGet(createInviteRequestSchema, {
-    description: 'Get all invites for a campaign',
+  '/',
+  openApiGet(getInvitesQuerySchema, {
+    description: 'Get all invites, optionally filtered by campaign',
+    parameters: toQuerySchema(getInvitesQuerySchema),
     responses: {
       200: {
         description: 'Invites retrieved successfully',
         content: {
           'application/json': {
             schema: createSchema(
-              getCampaignInvitesResponseSchema.openapi({
-                description: 'Invites response'
-              })
+              baseAPIResponseSchema
+                .extend({
+                  data: z.array(z.any())
+                })
+                .openapi({
+                  description: 'Invites response'
+                })
             )
           }
         }
@@ -52,10 +55,9 @@ router.get(
         content: {
           'application/json': {
             schema: createSchema(
-              z
-                .object({
-                  success: z.boolean().default(false),
-                  data: z.array(createInviteRequestSchema).default([]),
+              baseAPIResponseSchema
+                .extend({
+                  data: z.array(z.any()).default([]),
                   error: z.string()
                 })
                 .openapi({
@@ -67,23 +69,28 @@ router.get(
       }
     }
   }),
-  getInvites
+  inviteController.getInvites
 );
 
 // Get invites for the current user
 router.get(
-  '/my-invites',
-  openApiGet(createInviteRequestSchema, {
+  '/me',
+  openApiGet(getInvitesQuerySchema, {
     description: 'Get all invites for the current user',
+    parameters: toQuerySchema(getInvitesQuerySchema),
     responses: {
       200: {
         description: 'User invites retrieved successfully',
         content: {
           'application/json': {
             schema: createSchema(
-              getMyInvitesResponseSchema.openapi({
-                description: 'User invites response'
-              })
+              baseAPIResponseSchema
+                .extend({
+                  data: z.array(z.any())
+                })
+                .openapi({
+                  description: 'User invites response'
+                })
             )
           }
         }
@@ -93,10 +100,9 @@ router.get(
         content: {
           'application/json': {
             schema: createSchema(
-              z
-                .object({
-                  success: z.boolean().default(false),
-                  data: z.array(createInviteRequestSchema).default([]),
+              baseAPIResponseSchema
+                .extend({
+                  data: z.array(z.any()).default([]),
                   error: z.string()
                 })
                 .openapi({
@@ -108,12 +114,12 @@ router.get(
       }
     }
   }),
-  getMyInvites
+  inviteController.getMyInvites
 );
 
 // Create invite
 router.post(
-  '/campaign/:campaignId/invites',
+  '/',
   openApiPost(createInviteRequestSchema, {
     description: 'Create a new invite for a campaign',
     responses: {
@@ -122,9 +128,13 @@ router.post(
         content: {
           'application/json': {
             schema: createSchema(
-              createInviteResponseSchema.openapi({
-                description: 'Create invite response'
-              })
+              baseAPIResponseSchema
+                .extend({
+                  data: z.any()
+                })
+                .openapi({
+                  description: 'Create invite response'
+                })
             )
           }
         }
@@ -134,9 +144,9 @@ router.post(
         content: {
           'application/json': {
             schema: createSchema(
-              z
-                .object({
-                  success: z.boolean().default(false),
+              baseAPIResponseSchema
+                .extend({
+                  data: z.null(),
                   error: z.string()
                 })
                 .openapi({
@@ -151,9 +161,9 @@ router.post(
         content: {
           'application/json': {
             schema: createSchema(
-              z
-                .object({
-                  success: z.boolean().default(false),
+              baseAPIResponseSchema
+                .extend({
+                  data: z.null(),
                   error: z.string()
                 })
                 .openapi({
@@ -168,9 +178,9 @@ router.post(
         content: {
           'application/json': {
             schema: createSchema(
-              z
-                .object({
-                  success: z.boolean().default(false),
+              baseAPIResponseSchema
+                .extend({
+                  data: z.null(),
                   error: z.string()
                 })
                 .openapi({
@@ -185,9 +195,9 @@ router.post(
         content: {
           'application/json': {
             schema: createSchema(
-              z
-                .object({
-                  success: z.boolean().default(false),
+              baseAPIResponseSchema
+                .extend({
+                  data: z.null(),
                   error: z.string()
                 })
                 .openapi({
@@ -200,12 +210,12 @@ router.post(
     }
   }),
   validateRequest(createInviteRequestSchema),
-  createInvite
+  inviteController.createInvite
 );
 
 // Respond to an invite
 router.post(
-  '/invites/:id/respond',
+  '/:id/respond',
   openApiPost(respondToInviteRequestSchema, {
     description: 'Respond to an invite',
     responses: {
@@ -214,9 +224,13 @@ router.post(
         content: {
           'application/json': {
             schema: createSchema(
-              respondToInviteResponseSchema.openapi({
-                description: 'Respond to invite response'
-              })
+              baseAPIResponseSchema
+                .extend({
+                  data: z.any()
+                })
+                .openapi({
+                  description: 'Respond to invite response'
+                })
             )
           }
         }
@@ -226,9 +240,9 @@ router.post(
         content: {
           'application/json': {
             schema: createSchema(
-              z
-                .object({
-                  success: z.boolean().default(false),
+              baseAPIResponseSchema
+                .extend({
+                  data: z.null(),
                   error: z.string()
                 })
                 .openapi({
@@ -243,9 +257,9 @@ router.post(
         content: {
           'application/json': {
             schema: createSchema(
-              z
-                .object({
-                  success: z.boolean().default(false),
+              baseAPIResponseSchema
+                .extend({
+                  data: z.null(),
                   error: z.string()
                 })
                 .openapi({
@@ -260,9 +274,9 @@ router.post(
         content: {
           'application/json': {
             schema: createSchema(
-              z
-                .object({
-                  success: z.boolean().default(false),
+              baseAPIResponseSchema
+                .extend({
+                  data: z.null(),
                   error: z.string()
                 })
                 .openapi({
@@ -275,7 +289,7 @@ router.post(
     }
   }),
   validateRequest(respondToInviteRequestSchema),
-  respondToInvite
+  inviteController.respondToInvite
 );
 
 export default router;

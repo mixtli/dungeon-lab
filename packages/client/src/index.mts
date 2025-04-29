@@ -1,9 +1,13 @@
-// Export all API functions
-export * as gameSessionClient from './game-sessions.client.mjs';
-export * as documentClient from './documents.client.mjs';
-export * as actorClient from './actors.client.mjs';
-export * as mapClient from './maps.client.mjs';
-export * as pluginClient from './plugins.client.mjs';
-export * as userClient from './users.client.mjs';
-export * as campaignClient from './campaigns.client.mjs';
-export * as assetClient from './assets.client.mjs';
+// Export client classes
+export { ActorsClient } from './actors.client.mjs';
+export { PluginsClient } from './plugins.client.mjs';
+export { ItemsClient } from './items.client.mjs';
+export { AssetsClient } from './assets.client.mjs';
+export { CampaignsClient } from './campaigns.client.mjs';
+export { GameSessionsClient } from './game-sessions.client.mjs';
+export { DocumentsClient } from './documents.client.mjs';
+export { EncountersClient } from './encounters.client.mjs';
+export { MapsClient } from './maps.client.mjs';
+
+// Export ApiClient base class
+export { ApiClient, configureApiClient } from './api.client.mjs';

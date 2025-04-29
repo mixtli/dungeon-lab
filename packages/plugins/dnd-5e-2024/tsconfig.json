@@ -15,12 +15,12 @@
     "paths": {
       "@dungeon-lab/shared": ["../../shared/src"],
       "@dungeon-lab/shared/*": ["../../shared/src/*"],
-      "@dungeon-lab/server": ["../../server/src"],
-      "@dungeon-lab/server/*": ["../../server/src/*"]
+      "@dungeon-lab/client": ["../../client/src"],
+      "@dungeon-lab/client/*": ["../../client/src/*"]
     }
   },
   "include": ["src/**/*.d.ts", "src/**/*.mts", "src/**/*.ts", "src/**/*.js", "src/**/*.mjs"],
-  "references": [{ "path": "../../shared" }],
+  "references": [{ "path": "../../shared" }, { "path": "../../client" }],
   "ts-node": {
     "esm": true
   }

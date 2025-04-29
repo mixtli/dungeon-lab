@@ -13,23 +13,13 @@ import {
 } from '../../../oapi.mjs';
 import { z } from '../../../utils/zod.mjs';
 import {
-  getActorsResponseSchema,
-  getActorResponseSchema,
   createActorRequestSchema,
-  createActorResponseSchema,
   putActorRequestSchema,
-  putActorResponseSchema,
   patchActorRequestSchema,
-  patchActorResponseSchema,
-  deleteActorResponseSchema,
-  uploadActorAvatarResponseSchema,
-  uploadActorTokenResponseSchema,
-  generateActorAvatarResponseSchema,
-  generateActorTokenResponseSchema,
-  getActorsByCampaignResponseSchema,
-  searchActorsQuerySchema,
-  searchActorsResponseSchema
+  searchActorsQuerySchema
 } from '@dungeon-lab/shared/types/api/index.mjs';
+import { actorSchema } from '@dungeon-lab/shared/schemas/actor.schema.mjs';
+import { baseAPIResponseSchema } from '@dungeon-lab/shared/types/api/base.mjs';
 import { createSchema } from 'zod-openapi';
 
 /**
@@ -38,13 +28,38 @@ import { createSchema } from 'zod-openapi';
 const router = express.Router();
 const actorController = new ActorController();
 
+// Create response schemas using baseAPIResponseSchema
+const getActorsResponseSchema = baseAPIResponseSchema.extend({
+  data: z.array(actorSchema)
+});
+
+const getActorResponseSchema = baseAPIResponseSchema.extend({
+  data: actorSchema.optional()
+});
+
+const actorResponseSchema = baseAPIResponseSchema.extend({
+  data: actorSchema.optional()
+});
+
+const deleteResponseSchema = baseAPIResponseSchema.extend({
+  data: z.undefined()
+});
+
 // Routes
 // Get all actors
 router.get(
   '/',
-  openApiGet(searchActorsQuerySchema, {
-    description: 'Search for actors based on query parameters',
-    parameters: toQuerySchema(searchActorsQuerySchema),
+  openApiGet(z.object({ type: z.string().optional() }), {
+    description: 'Get all actors, optionally filtered by type',
+    parameters: [
+      {
+        name: 'type',
+        in: 'query',
+        required: false,
+        schema: { type: 'string' },
+        description: 'Filter actors by type'
+      }
+    ],
     responses: {
       200: {
         description: 'Actors retrieved successfully',
@@ -67,6 +82,7 @@ router.get(
 // Search actors
 router.get(
   '/search',
+  authenticate,
   openApiGet(searchActorsQuerySchema, {
     description: 'Search for actors based on query parameters',
     parameters: toQuerySchema(searchActorsQuerySchema),
@@ -76,13 +92,14 @@ router.get(
         content: {
           'application/json': {
             schema: createSchema(
-              searchActorsResponseSchema.openapi({
+              getActorsResponseSchema.openapi({
                 description: 'Search actors response'
               })
             )
           }
         }
       },
+      403: { description: 'Access denied' },
       500: { description: 'Server error' }
     }
   }),
@@ -101,13 +118,14 @@ router.get(
         content: {
           'application/json': {
             schema: createSchema(
-              getActorsByCampaignResponseSchema.openapi({
+              getActorsResponseSchema.openapi({
                 description: 'Campaign actors response'
               })
             )
           }
         }
       },
+      403: { description: 'Access denied' },
       500: { description: 'Server error' }
     }
   }),
@@ -151,7 +169,7 @@ router.post(
         content: {
           'application/json': {
             schema: createSchema(
-              createActorResponseSchema.openapi({
+              actorResponseSchema.openapi({
                 description: 'Create actor response'
               })
             )
@@ -159,6 +177,7 @@ router.post(
         }
       },
       400: { description: 'Invalid actor data' },
+      403: { description: 'Access denied' },
       500: { description: 'Server error' }
     }
   }),
@@ -178,7 +197,7 @@ router.put(
         content: {
           'application/json': {
             schema: createSchema(
-              putActorResponseSchema.openapi({
+              actorResponseSchema.openapi({
                 description: 'Update actor response'
               })
             )
@@ -186,6 +205,7 @@ router.put(
         }
       },
       400: { description: 'Invalid actor data' },
+      403: { description: 'Access denied' },
       404: { description: 'Actor not found' },
       500: { description: 'Server error' }
     }
@@ -206,7 +226,7 @@ router.patch(
         content: {
           'application/json': {
             schema: createSchema(
-              patchActorResponseSchema.openapi({
+              actorResponseSchema.openapi({
                 description: 'Patch actor response'
               })
             )
@@ -214,6 +234,7 @@ router.patch(
         }
       },
       400: { description: 'Invalid actor data' },
+      403: { description: 'Access denied' },
       404: { description: 'Actor not found' },
       500: { description: 'Server error' }
     }
@@ -245,7 +266,7 @@ router.put(
         content: {
           'application/json': {
             schema: createSchema(
-              uploadActorAvatarResponseSchema.openapi({
+              actorResponseSchema.openapi({
                 description: 'Upload actor avatar response'
               })
             )
@@ -253,6 +274,7 @@ router.put(
         }
       },
       400: { description: 'Invalid image data' },
+      403: { description: 'Access denied' },
       404: { description: 'Actor not found' },
       500: { description: 'Server error' }
     }
@@ -283,7 +305,7 @@ router.put(
         content: {
           'application/json': {
             schema: createSchema(
-              uploadActorTokenResponseSchema.openapi({
+              actorResponseSchema.openapi({
                 description: 'Upload actor token response'
               })
             )
@@ -291,6 +313,7 @@ router.put(
         }
       },
       400: { description: 'Invalid image data' },
+      403: { description: 'Access denied' },
       404: { description: 'Actor not found' },
       500: { description: 'Server error' }
     }
@@ -310,13 +333,14 @@ router.post(
         content: {
           'application/json': {
             schema: createSchema(
-              generateActorAvatarResponseSchema.openapi({
+              actorResponseSchema.openapi({
                 description: 'Generate actor avatar response'
               })
             )
           }
         }
       },
+      403: { description: 'Access denied' },
       500: { description: 'Failed to generate actor avatar' }
     }
   }),
@@ -335,13 +359,14 @@ router.post(
         content: {
           'application/json': {
             schema: createSchema(
-              generateActorTokenResponseSchema.openapi({
+              baseAPIResponseSchema.openapi({
                 description: 'Generate actor token response'
               })
             )
           }
         }
       },
+      403: { description: 'Access denied' },
       500: { description: 'Failed to generate actor token' }
     }
   }),
@@ -355,20 +380,21 @@ router.delete(
   openApiDelete(z.string(), {
     description: 'Delete actor',
     responses: {
-      204: { description: 'Actor deleted successfully' },
-      404: { description: 'Actor not found' },
-      500: {
-        description: 'Server error',
+      200: {
+        description: 'Actor deleted successfully',
         content: {
           'application/json': {
             schema: createSchema(
-              deleteActorResponseSchema.openapi({
+              deleteResponseSchema.openapi({
                 description: 'Delete actor response'
               })
             )
           }
         }
-      }
+      },
+      403: { description: 'Access denied' },
+      404: { description: 'Actor not found' },
+      500: { description: 'Server error' }
     }
   }),
   actorController.deleteActor

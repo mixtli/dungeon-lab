@@ -6,19 +6,19 @@ import {
   createInviteRequestSchema,
   respondToInviteRequestSchema
 } from '@dungeon-lab/shared/types/api/index.mjs';
-import { IInvite } from '@dungeon-lab/shared/schemas/invite.schema.mjs';
+import type { IInvite } from '@dungeon-lab/shared/types/index.mjs';
 import { z } from 'zod';
 import { isErrorWithMessage } from '../../../utils/error.mjs';
 
 export class InviteController {
   constructor(private inviteService: InviteService) {}
 
-  async getInvites(
-    req: Request,
+  getInvites = async (
+    req: Request<object, object, object, { campaignId?: string }>,
     res: Response<BaseAPIResponse<IInvite[]>>
-  ): Promise<Response<BaseAPIResponse<IInvite[]>> | void> {
+  ): Promise<Response<BaseAPIResponse<IInvite[]>> | void> => {
     try {
-      const invites = await this.inviteService.getInvites(req.params.campaignId);
+      const invites = await this.inviteService.getInvites(req.query.campaignId);
       return res.json({
         success: true,
         data: invites
@@ -31,12 +31,12 @@ export class InviteController {
         error: 'Failed to get invites'
       });
     }
-  }
+  };
 
-  async getMyInvites(
-    req: Request,
+  getMyInvites = async (
+    req: Request<object, object, object, { campaignId?: string }>,
     res: Response<BaseAPIResponse<IInvite[]>>
-  ): Promise<Response<BaseAPIResponse<IInvite[]>> | void> {
+  ): Promise<Response<BaseAPIResponse<IInvite[]>> | void> => {
     try {
       const invites = await this.inviteService.getMyInvites(req.session.user.id);
       return res.json({
@@ -51,16 +51,16 @@ export class InviteController {
         error: 'Failed to get invites'
       });
     }
-  }
+  };
 
-  async createInvite(
-    req: Request<{ campaignId: string }, object, z.infer<typeof createInviteRequestSchema>>,
+  createInvite = async (
+    req: Request<object, object, z.infer<typeof createInviteRequestSchema>>,
     res: Response<BaseAPIResponse<IInvite>>
-  ): Promise<Response<BaseAPIResponse<IInvite>> | void> {
+  ): Promise<Response<BaseAPIResponse<IInvite>> | void> => {
     try {
       const invite = await this.inviteService.createInvite(
         req.body,
-        req.params.campaignId,
+        req.body.campaignId,
         req.session.user.id
       );
       return res.status(201).json({
@@ -101,12 +101,12 @@ export class InviteController {
         error: 'Failed to create invite'
       });
     }
-  }
+  };
 
-  async respondToInvite(
+  respondToInvite = async (
     req: Request<{ id: string }, object, z.infer<typeof respondToInviteRequestSchema>>,
     res: Response<BaseAPIResponse<IInvite>>
-  ): Promise<Response<BaseAPIResponse<IInvite>> | void> {
+  ): Promise<Response<BaseAPIResponse<IInvite>> | void> => {
     try {
       const invite = await this.inviteService.respondToInvite(
         req.params.id,
@@ -142,5 +142,5 @@ export class InviteController {
         error: 'Failed to respond to invite'
       });
     }
-  }
+  };
 }
