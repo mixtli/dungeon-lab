@@ -1,5 +1,6 @@
 import mongoose, { ObjectId } from 'mongoose';
-import { ICampaign, campaignSchema } from '@dungeon-lab/shared/index.mjs';
+import { ICampaign } from '@dungeon-lab/shared/types/index.mjs';
+import { campaignSchema } from '@dungeon-lab/shared/schemas/campaign.schema.mjs';
 import { baseMongooseZodSchema } from '../../../models/base.model.schema.mjs';
 import { createMongoSchema } from '../../../models/zod-to-mongo.mjs';
 import { zId } from '@zodyac/zod-mongoose';
@@ -20,6 +21,9 @@ mongooseSchema.path('members').set(function (value: string[]) {
 });
 mongooseSchema.path('gameMasterId').set(function (value: string) {
   return new mongoose.Types.ObjectId(value);
+});
+mongooseSchema.path('gameMasterId').get(function (value: string) {
+  return value.toString();
 });
 
 mongooseSchema.virtual('gameMaster', {

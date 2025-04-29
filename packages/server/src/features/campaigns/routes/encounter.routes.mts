@@ -11,14 +11,9 @@ const encounterController = new EncounterController(encounterService);
 // Create router
 const router = Router();
 
-// Bind controller methods to maintain correct 'this' context
-const getEncounter = encounterController.getEncounter.bind(encounterController);
-const updateEncounter = encounterController.updateEncounter.bind(encounterController);
-const deleteEncounter = encounterController.deleteEncounter.bind(encounterController);
+// Define routes - using arrow functions directly
+router.get('/:id', authenticate, encounterController.getEncounter);
+router.put('/:id', authenticate, validateUpdateEncounter, encounterController.updateEncounter);
+router.delete('/:id', authenticate, encounterController.deleteEncounter);
 
-// Define routes
-router.get('/:id', authenticate, getEncounter);
-router.put('/:id', authenticate, validateUpdateEncounter, updateEncounter);
-router.delete('/:id', authenticate, deleteEncounter);
-
-export const encounterRoutes = router; 
+export const encounterRoutes = router;

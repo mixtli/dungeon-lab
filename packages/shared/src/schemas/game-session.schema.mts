@@ -13,6 +13,3 @@ export const gameSessionSchema = baseSchema.extend({
   gameMasterId: z.string(),
   settings: z.record(z.string(), z.unknown()).optional()
 });
-
-// Export types generated from the schemas
-export type IGameSession = z.infer<typeof gameSessionSchema>;

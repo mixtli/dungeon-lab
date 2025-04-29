@@ -7,7 +7,10 @@ import { GameSessionController } from '../controllers/game-session.controller.mj
 import { GameSessionService } from '../services/game-session.service.mjs';
 import { authenticate } from '../../../middleware/auth.middleware.mjs';
 import { validateRequest } from '../../../middleware/validation.middleware.mjs';
-import { encounterSchema } from '@dungeon-lab/shared/schemas/encounter.schema.mjs';
+import {
+  encounterPatchSchema,
+  encounterSchema
+} from '@dungeon-lab/shared/schemas/encounter.schema.mjs';
 import {
   openApiGet,
   openApiGetOne,
@@ -20,21 +23,17 @@ import {
 import { z } from '../../../utils/zod.mjs';
 import { createSchema } from 'zod-openapi';
 import {
-  getCampaignsResponseSchema,
-  getCampaignResponseSchema,
-  createCampaignRequestSchema,
-  createCampaignResponseSchema,
-  putCampaignRequestSchema,
-  putCampaignResponseSchema,
-  patchCampaignRequestSchema,
-  patchCampaignResponseSchema,
-  deleteCampaignResponseSchema,
+  createGameSessionSchema,
   searchCampaignsQuerySchema,
-  getCampaignSessionsResponseSchema,
-  getGameSessionResponseSchema,
-  createGameSessionResponseSchema,
-  createGameSessionSchema
+  deleteAPIResponseSchema,
+  baseAPIResponseSchema
 } from '@dungeon-lab/shared/types/api/index.mjs';
+import { campaignSchema } from '@dungeon-lab/shared/schemas/campaign.schema.mjs';
+import {
+  campaignCreateSchema,
+  campaignPatchSchema
+} from '@dungeon-lab/shared/schemas/campaign.schema.mjs';
+import { gameSessionSchema } from '@dungeon-lab/shared/schemas/game-session.schema.mjs';
 
 // Initialize services and controllers
 const campaignService = new CampaignService();
@@ -46,27 +45,6 @@ const gameSessionController = new GameSessionController(gameSessionService);
 
 // Create router
 const router = Router();
-
-// Bind campaign controller methods
-const boundGetMyCampaigns = campaignController.getMyCampaigns.bind(campaignController);
-const boundGetCampaign = campaignController.getCampaign.bind(campaignController);
-const boundCreateCampaign = campaignController.createCampaign.bind(campaignController);
-const boundPutCampaign = campaignController.putCampaign.bind(campaignController);
-const boundPatchCampaign = campaignController.patchCampaign.bind(campaignController);
-const boundDeleteCampaign = campaignController.deleteCampaign.bind(campaignController);
-
-// Bind encounter controller methods
-const boundGetEncounters = encounterController.getEncounters.bind(encounterController);
-const boundCreateEncounter = encounterController.createEncounter.bind(encounterController);
-const boundGetEncounter = encounterController.getEncounter.bind(encounterController);
-const boundUpdateEncounter = encounterController.updateEncounter.bind(encounterController);
-const boundDeleteEncounter = encounterController.deleteEncounter.bind(encounterController);
-
-// Bind game session controller methods
-const boundGetCampaignSessions =
-  gameSessionController.getCampaignSessions.bind(gameSessionController);
-const boundGetGameSession = gameSessionController.getGameSession.bind(gameSessionController);
-const boundCreateGameSession = gameSessionController.createGameSession.bind(gameSessionController);
 
 // Campaign routes
 router.get(
@@ -82,7 +60,7 @@ router.get(
         content: {
           'application/json': {
             schema: createSchema(
-              getCampaignsResponseSchema.openapi({
+              z.array(campaignSchema).openapi({
                 description: 'Campaigns response'
               })
             )
@@ -92,7 +70,7 @@ router.get(
       500: { description: 'Server error' }
     }
   }),
-  boundGetMyCampaigns
+  campaignController.getMyCampaigns
 );
 
 router.get(
@@ -106,7 +84,7 @@ router.get(
         content: {
           'application/json': {
             schema: createSchema(
-              getCampaignResponseSchema.openapi({
+              baseAPIResponseSchema.extend({ data: campaignSchema }).openapi({
                 description: 'Campaign response'
               })
             )
@@ -118,13 +96,13 @@ router.get(
       500: { description: 'Server error' }
     }
   }),
-  boundGetCampaign
+  campaignController.getCampaign
 );
 
 router.post(
   '/',
   authenticate,
-  openApiPost(createCampaignRequestSchema, {
+  openApiPost(campaignCreateSchema, {
     description: 'Create a new campaign',
     responses: {
       201: {
@@ -132,7 +110,7 @@ router.post(
         content: {
           'application/json': {
             schema: createSchema(
-              createCampaignResponseSchema.openapi({
+              baseAPIResponseSchema.extend({ data: campaignSchema }).openapi({
                 description: 'Create campaign response'
               })
             )
@@ -143,14 +121,14 @@ router.post(
       500: { description: 'Server error' }
     }
   }),
-  validateRequest(createCampaignRequestSchema),
-  boundCreateCampaign
+  validateRequest(campaignCreateSchema),
+  campaignController.createCampaign
 );
 
 router.put(
   '/:id',
   authenticate,
-  openApiPut(putCampaignRequestSchema, {
+  openApiPut(campaignCreateSchema, {
     description: 'Replace a campaign by ID (full update)',
     responses: {
       200: {
@@ -158,7 +136,7 @@ router.put(
         content: {
           'application/json': {
             schema: createSchema(
-              putCampaignResponseSchema.openapi({
+              baseAPIResponseSchema.extend({ data: campaignSchema }).openapi({
                 description: 'Update campaign response'
               })
             )
@@ -171,14 +149,14 @@ router.put(
       500: { description: 'Server error' }
     }
   }),
-  validateRequest(putCampaignRequestSchema),
-  boundPutCampaign
+  validateRequest(campaignCreateSchema),
+  campaignController.putCampaign
 );
 
 router.patch(
   '/:id',
   authenticate,
-  openApiPatch(patchCampaignRequestSchema, {
+  openApiPatch(campaignPatchSchema, {
     description: 'Update a campaign by ID (partial update)',
     responses: {
       200: {
@@ -186,7 +164,7 @@ router.patch(
         content: {
           'application/json': {
             schema: createSchema(
-              patchCampaignResponseSchema.openapi({
+              baseAPIResponseSchema.extend({ data: campaignSchema }).openapi({
                 description: 'Patch campaign response'
               })
             )
@@ -199,8 +177,8 @@ router.patch(
       500: { description: 'Server error' }
     }
   }),
-  validateRequest(patchCampaignRequestSchema),
-  boundPatchCampaign
+  validateRequest(campaignPatchSchema),
+  campaignController.patchCampaign
 );
 
 router.delete(
@@ -217,7 +195,7 @@ router.delete(
         content: {
           'application/json': {
             schema: createSchema(
-              deleteCampaignResponseSchema.openapi({
+              deleteAPIResponseSchema.openapi({}).openapi({
                 description: 'Delete campaign response'
               })
             )
@@ -226,55 +204,55 @@ router.delete(
       }
     }
   }),
-  boundDeleteCampaign
+  campaignController.deleteCampaign
 );
 
 // Campaign encounter routes
 router.get(
   '/:campaignId/encounters',
   authenticate,
-  openApiGet(encounterSchema, {
+  openApiGet(baseAPIResponseSchema.extend({ data: z.array(encounterSchema) }), {
     description: 'Get all encounters for a campaign'
   }),
-  boundGetEncounters
+  encounterController.getEncounters
 );
 
 router.post(
   '/:campaignId/encounters',
   authenticate,
-  openApiPost(encounterSchema, {
+  openApiPost(baseAPIResponseSchema.extend({ data: encounterSchema }), {
     description: 'Create a new encounter in a campaign'
   }),
   validateRequest(encounterSchema),
-  boundCreateEncounter
+  encounterController.createEncounter
 );
 
 router.get(
   '/:campaignId/encounters/:id',
   authenticate,
-  openApiGetOne(encounterSchema, {
+  openApiGetOne(baseAPIResponseSchema.extend({ data: encounterSchema }), {
     description: 'Get an encounter by ID in a campaign'
   }),
-  boundGetEncounter
+  encounterController.getEncounter
 );
 
 router.patch(
   '/:campaignId/encounters/:id',
   authenticate,
-  openApiPatch(encounterSchema, {
+  openApiPatch(baseAPIResponseSchema.extend({ data: encounterSchema }), {
     description: 'Update an encounter by ID in a campaign'
   }),
-  validateRequest(encounterSchema.partial()),
-  boundUpdateEncounter
+  validateRequest(encounterPatchSchema),
+  encounterController.updateEncounter
 );
 
 router.delete(
   '/:campaignId/encounters/:id',
   authenticate,
-  openApiDelete(encounterSchema, {
+  openApiDelete(deleteAPIResponseSchema, {
     description: 'Delete an encounter by ID in a campaign'
   }),
-  boundDeleteEncounter
+  encounterController.deleteEncounter
 );
 
 // Campaign game session routes
@@ -289,7 +267,7 @@ router.get(
         content: {
           'application/json': {
             schema: createSchema(
-              getCampaignSessionsResponseSchema.openapi({
+              baseAPIResponseSchema.extend({ data: z.array(gameSessionSchema) }).openapi({
                 description: 'Campaign game sessions response'
               })
             )
@@ -299,7 +277,7 @@ router.get(
       500: { description: 'Server error' }
     }
   }),
-  boundGetCampaignSessions
+  gameSessionController.getCampaignSessions
 );
 
 router.get(
@@ -313,7 +291,7 @@ router.get(
         content: {
           'application/json': {
             schema: createSchema(
-              getGameSessionResponseSchema.openapi({
+              baseAPIResponseSchema.extend({ data: gameSessionSchema }).openapi({
                 description: 'Game session response'
               })
             )
@@ -324,13 +302,13 @@ router.get(
       500: { description: 'Server error' }
     }
   }),
-  boundGetGameSession
+  gameSessionController.getGameSession
 );
 
 router.post(
   '/:campaignId/sessions',
   authenticate,
-  openApiPost(createGameSessionSchema, {
+  openApiPost(baseAPIResponseSchema.extend({ data: gameSessionSchema }), {
     description: 'Create a new game session in a campaign',
     responses: {
       201: {
@@ -338,7 +316,7 @@ router.post(
         content: {
           'application/json': {
             schema: createSchema(
-              createGameSessionResponseSchema.openapi({
+              baseAPIResponseSchema.extend({ data: gameSessionSchema }).openapi({
                 description: 'Create game session response'
               })
             )
@@ -352,7 +330,60 @@ router.post(
     }
   }),
   validateRequest(createGameSessionSchema),
-  boundCreateGameSession
+  gameSessionController.createGameSession
+);
+
+// Active session and encounter routes
+router.get(
+  '/:campaignId/active-session',
+  authenticate,
+  openApiGetOne(z.null(), {
+    description: 'Get the active game session for a campaign',
+    responses: {
+      200: {
+        description: 'Active session retrieved successfully',
+        content: {
+          'application/json': {
+            schema: createSchema(
+              baseAPIResponseSchema.extend({ data: gameSessionSchema }).openapi({
+                description: 'Active session response'
+              })
+            )
+          }
+        }
+      },
+      403: { description: 'Forbidden - Access denied' },
+      404: { description: 'Campaign not found' },
+      500: { description: 'Server error' }
+    }
+  }),
+  campaignController.getActiveCampaignSession
+);
+
+router.get(
+  '/:campaignId/active-encounter',
+  authenticate,
+  openApiGetOne(z.null(), {
+    description: 'Get the active encounter for a campaign',
+    responses: {
+      200: {
+        description: 'Active encounter retrieved successfully',
+        content: {
+          'application/json': {
+            schema: createSchema(
+              baseAPIResponseSchema.extend({ data: encounterSchema }).openapi({
+                description: 'Active encounter response'
+              })
+            )
+          }
+        }
+      },
+      403: { description: 'Forbidden - Access denied' },
+      404: { description: 'Campaign not found' },
+      500: { description: 'Server error' }
+    }
+  }),
+  campaignController.getActiveCampaignEncounter
 );
 
 export { router as campaignRoutes };

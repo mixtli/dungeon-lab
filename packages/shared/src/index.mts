@@ -4,12 +4,8 @@ export type { IActor } from './schemas/actor.schema.mjs';
 // Export schemas for server-side validation
 export { actorSchema } from './schemas/actor.schema.mjs';
 
-export type { IItem } from './schemas/item.schema.mjs';
-
 // Export schemas for server-side validation
 export { itemSchema } from './schemas/item.schema.mjs';
-
-export type { IUser } from './schemas/user.schema.mjs';
 
 // Export schemas for server-side validation
 export {
@@ -19,31 +15,19 @@ export {
   userPreferencesSchema
 } from './schemas/user.schema.mjs';
 
-export type { IEncounter } from './schemas/encounter.schema.mjs';
-
-// Invite types and schemas
-export type { IInvite } from './schemas/invite.schema.mjs';
-
 // Export invite schemas for server-side validation
-export { inviteSchema, InviteStatus } from './schemas/invite.schema.mjs';
-
-export type { ICampaign } from './schemas/campaign.schema.mjs';
+export { inviteSchema } from './schemas/invite.schema.mjs';
 
 // Export schemas for server-side validation
 export { campaignSchema } from './schemas/campaign.schema.mjs';
 
-export type { IMap } from './schemas/map.schema.mjs';
-
 // Export schemas for server-side validation
 export { mapSchema } from './schemas/map.schema.mjs';
-
-export type { IGameSession } from './schemas/game-session.schema.mjs';
 
 // Export schemas for server-side validation
 export { gameSessionSchema } from './schemas/game-session.schema.mjs';
 
 // Asset types and schemas
-export type { IAsset, AssetCreate, AssetUpdate } from './schemas/asset.schema.mjs';
 export {
   assetSchema,
   assetCreateSchema,
@@ -93,12 +77,10 @@ export { WebPlugin } from './base/web.mjs';
 export { baseAPIResponseSchema } from './types/api/base.mjs';
 
 // Enums and constants
-export { CampaignStatus } from './schemas/campaign.schema.mjs';
 export { GameSessionStatus } from './schemas/game-session.schema.mjs';
 export { UserTheme } from './schemas/user.schema.mjs';
 
 // Token types
-export type { IToken, TokenSize } from './schemas/token.schema.mjs';
 
 // Token schema and enums
 export { TokenSizeEnum, tokenSchema } from './schemas/token.schema.mjs';

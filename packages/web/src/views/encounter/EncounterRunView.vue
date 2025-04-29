@@ -4,7 +4,9 @@ import { useRoute, useRouter } from 'vue-router';
 import { useEncounterStore } from '../../stores/encounter.store.mjs';
 import { useGameSessionStore } from '../../stores/game-session.store.mjs';
 import { useSocketStore } from '../../stores/socket.store.mjs';
+import * as gameSessionsClient from '../../api/game-sessions.client.mts';
 import MapGrid from '../../components/encounter/MapGrid.vue';
+import type { IGameSession } from '@dungeon-lab/shared/schemas/game-session.schema.mjs';
 
 const route = useRoute();
 const router = useRouter();
@@ -22,12 +24,13 @@ onMounted(async () => {
     await encounterStore.fetchEncounter(encounterId, campaignId);
 
     // Then fetch the game session for the campaign
-    const sessions = await gameSessionStore.fetchCampaignSessions(campaignId);
+    const sessions = await gameSessionsClient.getGameSessions(campaignId);
 
     // Find an active session for this campaign
     const activeSession = sessions.find(session => session.status === 'active');
     if (activeSession) {
       await gameSessionStore.getGameSession(activeSession.id);
+      await gameSessionClient.getGameSession(activeSession.id);
 
       // Join the game session if we have one
       if (socketStore.socket && gameSessionStore.currentSession) {

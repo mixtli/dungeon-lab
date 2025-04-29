@@ -70,8 +70,7 @@ onMounted(async () => {
       if (nonExistentMembers.size > 0) {
         const updatedMembers = campaign.value.members.filter(id => !nonExistentMembers.has(id));
         await campaignStore.updateCampaign(String(campaign.value.id), {
-          members: updatedMembers,
-          updatedBy: String(campaign.value.updatedBy),
+          members: updatedMembers
         });
         console.info(`Removed ${nonExistentMembers.size} non-existent members from campaign`);
       }
@@ -91,8 +90,7 @@ async function handleRemove(characterId: string) {
     // Update campaign with the character removed from members
     const updatedMembers = campaign.value.members.filter(id => id !== characterId);
     await campaignStore.updateCampaign(String(campaign.value.id), {
-      members: updatedMembers,
-      updatedBy: String(campaign.value.updatedBy),
+      members: updatedMembers
     });
 
     // Update local list

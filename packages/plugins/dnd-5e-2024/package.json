@@ -41,7 +41,7 @@
     "import:all": "npm run import:classes && npm run import:species && npm run import:backgrounds && npm run import:items && npm run import:monsters && npm run import:spells && npm run import:feats && npm run import:characters && npm run import:maps && npm run import:campaigns"
   },
   "dependencies": {
-    "@dungeon-lab/server": "file:../../server",
+    "@dungeon-lab/client": "file:../../client",
     "@dungeon-lab/shared": "file:../../shared",
     "flat": "^6.0.1",
     "handlebars-helpers": "^0.10.0",

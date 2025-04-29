@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { baseAPIResponseSchema } from './base.mts';
 
 // Base plugin schema for the client-safe plugin representation
 export const pluginSchema = z.object({
@@ -18,28 +19,22 @@ export const pluginSchema = z.object({
 export type IPlugin = z.infer<typeof pluginSchema>;
 
 // Types for GET /plugins (Get all plugins)
-export const getPluginsResponseSchema = z.object({
-  success: z.boolean().default(true),
-  data: z.array(pluginSchema),
-  error: z.string().optional()
+export const getPluginsResponseSchema = baseAPIResponseSchema.extend({
+  data: z.array(pluginSchema)
 });
 
 export type GetPluginsResponse = z.infer<typeof getPluginsResponseSchema>;
 
 // Types for GET /plugins/:id (Get one plugin)
-export const getPluginResponseSchema = z.object({
-  success: z.boolean().default(true),
-  data: pluginSchema.optional(),
-  error: z.string().optional()
+export const getPluginResponseSchema = baseAPIResponseSchema.extend({
+  data: pluginSchema.optional()
 });
 
 export type GetPluginResponse = z.infer<typeof getPluginResponseSchema>;
 
 // Types for GET /plugins/:id/code/:file (Get plugin code)
-export const getPluginCodeResponseSchema = z.object({
-  success: z.boolean().default(true),
-  data: z.string().optional(),
-  error: z.string().optional()
+export const getPluginCodeResponseSchema = baseAPIResponseSchema.extend({
+  data: z.string().optional()
 });
 
 export type GetPluginCodeResponse = z.infer<typeof getPluginCodeResponseSchema>;

@@ -8,6 +8,8 @@ import {
   PatchCampaignRequest,
   PatchCampaignResponse
 } from '@dungeon-lab/shared/types/api/index.mjs';
+import type { IGameSession } from '@dungeon-lab/shared/schemas/game-session.schema.mjs';
+import type { IEncounter } from '@dungeon-lab/shared/schemas/encounter.schema.mjs';
 
 export async function getCampaigns(): Promise<ICampaign[]> {
   const response = await api.get<GetCampaignsResponse>('/api/campaigns');
@@ -130,4 +132,30 @@ export async function generateInviteCode(campaignId: string): Promise<string> {
     throw new Error(response.data.error || 'Failed to generate invite code');
   }
   return response.data.inviteCode;
+}
+
+/**
+ * Gets the active game session for a campaign if one exists
+ */
+export async function getActiveCampaignSession(campaignId: string): Promise<IGameSession | null> {
+  const response = await api.get<GenericDataResponse<IGameSession | null>>(
+    `/api/campaigns/${campaignId}/active-session`
+  );
+  if (!response.data.success) {
+    throw new Error(response.data.error || 'Failed to get active campaign session');
+  }
+  return response.data.data;
+}
+
+/**
+ * Gets the active encounter for a campaign if one exists
+ */
+export async function getActiveCampaignEncounter(campaignId: string): Promise<IEncounter | null> {
+  const response = await api.get<GenericDataResponse<IEncounter | null>>(
+    `/api/campaigns/${campaignId}/active-encounter`
+  );
+  if (!response.data.success) {
+    throw new Error(response.data.error || 'Failed to get active campaign encounter');
+  }
+  return response.data.data;
 }

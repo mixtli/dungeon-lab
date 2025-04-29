@@ -3,6 +3,7 @@ import { readFileSync, readdirSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import { nextUser } from './import-utils.mjs';
+import * as campaignsClient from '@dungeon-lab/client/campaigns.client.mjs';
 
 // Get the directory path
 const __filename = fileURLToPath(import.meta.url);
@@ -22,6 +23,7 @@ const api = axios.create({
   }
 });
 
+console.log('API_AUTH_TOKEN', API_AUTH_TOKEN);
 // Set auth token from environment variable
 if (API_AUTH_TOKEN) {
   api.defaults.headers.common['Authorization'] = `Bearer ${API_AUTH_TOKEN}`;
@@ -178,7 +180,7 @@ async function main() {
     console.log('Starting campaign import...');
 
     // Get user info or login
-    await getUserInfo();
+    //await getUserInfo();
 
     // Map character UUIDs to actor IDs
     await mapCharacterIds();

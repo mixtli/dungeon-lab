@@ -1,5 +1,6 @@
 import { userSchema } from '../../index.mjs';
 import { z } from 'zod';
+import { baseAPIResponseSchema } from './base.mts';
 
 export const loginResponseSchema = z.object({
   success: z.boolean(),
@@ -25,19 +26,15 @@ export const registerRequestSchema = z.object({
 
 export type RegisterRequest = z.infer<typeof registerRequestSchema>;
 
-export const registerResponseSchema = z.object({
-  success: z.boolean().optional(),
+export const registerResponseSchema = baseAPIResponseSchema.extend({
   data: userSchema.optional(),
-  message: z.string().optional(),
-  error: z.string().optional()
+  message: z.string().optional()
 });
 
 export type RegisterResponse = z.infer<typeof registerResponseSchema>;
 
-export const logoutResponseSchema = z.object({
-  message: z.string().optional(),
-  success: z.boolean().optional(),
-  error: z.string().optional()
+export const logoutResponseSchema = baseAPIResponseSchema.extend({
+  message: z.string().optional()
 });
 
 export type LogoutResponse = z.infer<typeof logoutResponseSchema>;
@@ -53,34 +50,15 @@ export const googleCallbackResponseSchema = z.object({
 
 export type GoogleCallbackResponse = z.infer<typeof googleCallbackResponseSchema>;
 
-export const getCurrentUserResponseSchema = z.object({
-  success: z.boolean(),
-  data: z
-    .object({
-      user: userSchema.optional()
-    })
-    .optional(),
-  error: z
-    .object({
-      message: z.string().optional()
-    })
-    .optional()
+export const getCurrentUserResponseSchema = baseAPIResponseSchema.extend({
+  data: userSchema.optional(),
+  message: z.string().optional()
 });
 
 export type GetCurrentUserResponse = z.infer<typeof getCurrentUserResponseSchema>;
 
-export const getApiKeyResponseSchema = z.object({
-  success: z.boolean(),
-  data: z
-    .object({
-      apiKey: z.string()
-    })
-    .optional(),
-  error: z
-    .object({
-      message: z.string().optional()
-    })
-    .optional()
+export const getApiKeyResponseSchema = baseAPIResponseSchema.extend({
+  data: z.object({ apiKey: z.string() }).optional()
 });
 
 export type GetApiKeyResponse = z.infer<typeof getApiKeyResponseSchema>;

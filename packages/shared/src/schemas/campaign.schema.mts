@@ -1,7 +1,14 @@
 import { z } from 'zod';
 import { baseSchema } from './base.schema.mjs';
+import { deepPartial } from '../utils/deepPartial.mjs';
 // Campaign Status enum
-export const CampaignStatus = z.enum(['planning', 'active', 'completed', 'archived']);
+export const campaignStatusSchema = z.enum([
+  'planning',
+  'paused',
+  'active',
+  'completed',
+  'archived'
+]);
 
 // Base Campaign schema
 export const campaignSchema = baseSchema.extend({
@@ -9,13 +16,16 @@ export const campaignSchema = baseSchema.extend({
   description: z.string().optional(),
   gameSystemId: z.string().min(1),
   members: z.array(z.string()).default([]), // Actor IDs of the characters in the campaign.  NOT User IDs.
-  gameMasterId: z.string().optional(),
-  status: z.enum(['active', 'paused', 'completed', 'archived']).default('active'),
+  gameMasterId: z.string().optional(), // This is the User ID of the game master.
+  status: campaignStatusSchema.default('active'),
   setting: z.string().optional(),
   startDate: z.string().default(new Date().toISOString())
 });
 
-// Export types generated from the schemas
-export type ICampaign = z.infer<typeof campaignSchema>;
-// export type ICampaignCreateData = z.infer<typeof campaignCreateSchema>;
-// export type ICampaignUpdateData = z.infer<typeof campaignUpdateSchema>;
+export const campaignCreateSchema = campaignSchema.omit({
+  id: true,
+  createdBy: true,
+  updatedBy: true
+});
+
+export const campaignPatchSchema = deepPartial(campaignSchema);

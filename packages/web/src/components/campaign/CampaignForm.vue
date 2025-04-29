@@ -28,12 +28,12 @@ const formData = ref<{
   name: string;
   description: string;
   status: 'active' | 'paused' | 'completed' | 'archived';
-  settings: Record<string, unknown>;
+  setting: string | undefined;
 }>({
   name: '',
   description: '',
   status: 'active',
-  settings: {},
+  setting: undefined
 });
 
 const gameSystemId = ref('');
@@ -62,7 +62,8 @@ onMounted(async () => {
         formData.value = {
           name: campaign.name,
           description: campaign.description || '',
-          status: campaign.status
+          status: campaign.status,
+          setting: campaign.setting
         };
         gameSystemId.value = String(campaign.gameSystemId);
       } else {
@@ -87,8 +88,7 @@ async function submitForm() {
     if (isEditMode.value && props.campaignId) {
       // Update existing campaign
       const updateData = {
-        ...formData.value,
-        updatedBy: authStore.user?.id || '',
+        ...formData.value
       };
       await campaignStore.updateCampaign(props.campaignId, updateData);
       router.push({ name: 'campaign-detail', params: { id: props.campaignId } });
@@ -108,10 +108,11 @@ async function submitForm() {
         name: formData.value.name,
         description: formData.value.description || '',
         status: formData.value.status,
-        settings: formData.value.settings,
+        setting: formData.value.setting,
         gameSystemId: gameSystemId.value,
         gameMasterId: authStore.user.id,
-        members: [authStore.user.id],
+        startDate: new Date().toISOString(),
+        members: [],
       };
 
       if (!createData.gameSystemId) {

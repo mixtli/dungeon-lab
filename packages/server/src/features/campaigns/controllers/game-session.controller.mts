@@ -2,38 +2,22 @@ import { Request, Response } from 'express';
 import { GameSessionService } from '../services/game-session.service.mjs';
 import { logger } from '../../../utils/logger.mjs';
 import {
-  GetGameSessionsResponse,
-  GetGameSessionResponse,
-  GetCampaignSessionsResponse,
-  CreateGameSessionRequest,
-  CreateGameSessionResponse,
-  UpdateGameSessionRequest,
-  UpdateGameSessionResponse,
-  DeleteGameSessionResponse,
-  getGameSessionsQuerySchema,
+  BaseAPIResponse,
   IGameSession,
   createGameSessionSchema,
-  updateGameSessionSchema
+  updateGameSessionSchema,
+  getGameSessionsQuerySchema
 } from '@dungeon-lab/shared/types/api/index.mjs';
-import { ZodError } from 'zod';
-
-// Custom error type guard
-function isErrorWithMessage(error: unknown): error is { message: string } {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'message' in error &&
-    typeof (error as { message: unknown }).message === 'string'
-  );
-}
+import { z, ZodError } from 'zod';
+import { isErrorWithMessage } from '../../../utils/error.mjs';
 
 export class GameSessionController {
   constructor(private gameSessionService: GameSessionService) {}
 
-  async getGameSessions(
+  getGameSessions = async (
     req: Request,
-    res: Response<GetGameSessionsResponse>
-  ): Promise<Response<GetGameSessionsResponse> | void> {
+    res: Response<BaseAPIResponse<IGameSession[]>>
+  ): Promise<Response<BaseAPIResponse<IGameSession[]>> | void> => {
     try {
       // Extract query parameters
       const { campaignId, status } = req.query;
@@ -69,12 +53,12 @@ export class GameSessionController {
         error: 'Failed to get game sessions'
       });
     }
-  }
+  };
 
-  async getGameSession(
+  getGameSession = async (
     req: Request,
-    res: Response<GetGameSessionResponse>
-  ): Promise<Response<GetGameSessionResponse> | void> {
+    res: Response<BaseAPIResponse<IGameSession>>
+  ): Promise<Response<BaseAPIResponse<IGameSession>> | void> => {
     try {
       const session = await this.gameSessionService.getGameSession(req.params.id);
 
@@ -88,6 +72,7 @@ export class GameSessionController {
       if (!hasAccess) {
         return res.status(403).json({
           success: false,
+          data: null,
           error: 'Access denied'
         });
       }
@@ -100,21 +85,23 @@ export class GameSessionController {
       if (isErrorWithMessage(error) && error.message === 'Game session not found') {
         return res.status(404).json({
           success: false,
+          data: null,
           error: 'Game session not found'
         });
       }
       logger.error('Error getting game session:', error);
       return res.status(500).json({
         success: false,
+        data: null,
         error: 'Failed to get game session'
       });
     }
-  }
+  };
 
-  async getCampaignSessions(
+  getCampaignSessions = async (
     req: Request,
-    res: Response<GetCampaignSessionsResponse>
-  ): Promise<Response<GetCampaignSessionsResponse> | void> {
+    res: Response<BaseAPIResponse<IGameSession[]>>
+  ): Promise<Response<BaseAPIResponse<IGameSession[]>> | void> => {
     try {
       const sessions = await this.gameSessionService.getCampaignSessions(req.params.campaignId);
       return res.json({
@@ -129,12 +116,12 @@ export class GameSessionController {
         error: 'Failed to get campaign sessions'
       });
     }
-  }
+  };
 
-  async createGameSession(
-    req: Request<object, object, CreateGameSessionRequest>,
-    res: Response<CreateGameSessionResponse>
-  ): Promise<Response<CreateGameSessionResponse> | void> {
+  createGameSession = async (
+    req: Request<object, object, z.infer<typeof createGameSessionSchema>>,
+    res: Response<BaseAPIResponse<IGameSession>>
+  ): Promise<Response<BaseAPIResponse<IGameSession>> | void> => {
     try {
       // Validate request body
       try {
@@ -167,6 +154,7 @@ export class GameSessionController {
         if (validationError instanceof ZodError) {
           return res.status(400).json({
             success: false,
+            data: null,
             error: JSON.parse(validationError.message)
           });
         }
@@ -177,12 +165,14 @@ export class GameSessionController {
         if (error.message === 'Campaign not found') {
           return res.status(404).json({
             success: false,
+            data: null,
             error: 'Campaign not found'
           });
         }
         if (error.message === 'Only the game master can create sessions') {
           return res.status(403).json({
             success: false,
+            data: null,
             error: 'Only the game master can create sessions'
           });
         }
@@ -190,15 +180,16 @@ export class GameSessionController {
       logger.error('Error creating game session:', error);
       return res.status(500).json({
         success: false,
+        data: null,
         error: 'Failed to create game session'
       });
     }
-  }
+  };
 
-  async updateGameSession(
-    req: Request<{ id: string }, object, UpdateGameSessionRequest>,
-    res: Response<UpdateGameSessionResponse>
-  ): Promise<Response<UpdateGameSessionResponse> | void> {
+  updateGameSession = async (
+    req: Request<{ id: string }, object, z.infer<typeof updateGameSessionSchema>>,
+    res: Response<BaseAPIResponse<IGameSession>>
+  ): Promise<Response<BaseAPIResponse<IGameSession>> | void> => {
     try {
       // Check if user has permission to update
       const hasAccess = await this.gameSessionService.checkUserPermission(
@@ -210,6 +201,7 @@ export class GameSessionController {
       if (!hasAccess) {
         return res.status(403).json({
           success: false,
+          data: null,
           error: 'Access denied'
         });
       }
@@ -241,6 +233,7 @@ export class GameSessionController {
         if (validationError instanceof ZodError) {
           return res.status(400).json({
             success: false,
+            data: null,
             error: JSON.parse(validationError.message)
           });
         }
@@ -250,21 +243,23 @@ export class GameSessionController {
       if (isErrorWithMessage(error) && error.message === 'Game session not found') {
         return res.status(404).json({
           success: false,
+          data: null,
           error: 'Game session not found'
         });
       }
       logger.error('Error updating game session:', error);
       return res.status(500).json({
         success: false,
+        data: null,
         error: 'Failed to update game session'
       });
     }
-  }
+  };
 
-  async deleteGameSession(
+  deleteGameSession = async (
     req: Request,
-    res: Response<DeleteGameSessionResponse>
-  ): Promise<Response<DeleteGameSessionResponse> | void> {
+    res: Response<BaseAPIResponse<void>>
+  ): Promise<Response<BaseAPIResponse<void>> | void> => {
     try {
       // Check if user has permission to delete
       const hasAccess = await this.gameSessionService.checkUserPermission(
@@ -276,6 +271,7 @@ export class GameSessionController {
       if (!hasAccess) {
         return res.status(403).json({
           success: false,
+          data: null,
           error: 'Access denied'
         });
       }
@@ -286,14 +282,16 @@ export class GameSessionController {
       if (isErrorWithMessage(error) && error.message === 'Game session not found') {
         return res.status(404).json({
           success: false,
+          data: null,
           error: 'Game session not found'
         });
       }
       logger.error('Error deleting game session:', error);
       return res.status(500).json({
         success: false,
+        data: null,
         error: 'Failed to delete game session'
       });
     }
-  }
+  };
 }

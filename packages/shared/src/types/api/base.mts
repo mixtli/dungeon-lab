@@ -8,3 +8,10 @@ export const baseAPIResponseSchema = z.object({
   data: z.any().optional(),
   error: z.string().optional()
 });
+
+export type BaseAPIResponseZod = z.infer<typeof baseAPIResponseSchema>;
+
+export type BaseAPIResponse<T> = BaseAPIResponseZod & { data: T | null };
+
+export const deleteAPIResponseSchema = baseAPIResponseSchema.omit({ data: true });
+export type DeleteAPIResponse = z.infer<typeof deleteAPIResponseSchema>;

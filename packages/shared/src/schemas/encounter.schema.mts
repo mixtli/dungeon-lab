@@ -1,8 +1,9 @@
 import { z } from 'zod';
 import { baseSchema } from './base.schema.mjs';
+import { deepPartial } from '../utils/deepPartial.mjs';
 
 // Encounter Status enum
-const EncounterStatus = z.enum(['draft', 'ready', 'in_progress', 'completed']);
+export const EncounterStatus = z.enum(['draft', 'ready', 'in_progress', 'completed']);
 
 // Base Encounter schema
 export const encounterSchema = baseSchema.extend({
@@ -15,27 +16,10 @@ export const encounterSchema = baseSchema.extend({
   settings: z.record(z.string(), z.unknown()).optional()
 });
 
-// // Create data schema (omits auto-generated fields)
-// export const encounterCreateSchema = encounterSchema.omit({
-//   id: true,
-//   createdBy: true,
-//   updatedBy: true,
-//   participants: true,
-//   campaignId: true,
-// }).extend({
-//   participants: z.array(z.string()).default([]),
-// });
+export const encounterCreateSchema = encounterSchema.omit({
+  id: true,
+  createdBy: true,
+  updatedBy: true
+});
 
-// // Update data schema (all fields optional, updatedBy handled by server)
-// export const encounterUpdateSchema = encounterSchema
-//   .omit({
-//     id: true,
-//     createdBy: true,
-//     updatedBy: true,
-//   })
-//   .partial();
-
-// Export types generated from the schemas
-export type IEncounter = z.infer<typeof encounterSchema>;
-// export type IEncounterCreateData = z.infer<typeof encounterCreateSchema>;
-// export type IEncounterUpdateData = z.infer<typeof encounterUpdateSchema>; 
+export const encounterPatchSchema = deepPartial(encounterSchema);

@@ -17,26 +17,3 @@ export const itemSchema = baseSchema.extend({
 export const itemCreateSchema = itemSchema.extend({
   image: z.instanceof(File).optional()
 });
-
-// Create data schema (omits auto-generated fields)
-// export const itemCreateSchema = itemSchema.omit({
-//   id: true,
-//   createdBy: true,
-//   updatedBy: true,
-// });
-
-// // Update data schema (makes all fields optional except updatedBy)
-// export const itemUpdateSchema = itemSchema
-//   .omit({
-//     id: true,
-//     createdBy: true,
-//   })
-//   .partial()
-//   .extend({
-//     updatedBy: z.string(),
-//   });
-
-// Export types generated from the schemas
-export type IItem = z.infer<typeof itemSchema>;
-// export type IItemCreateData = z.infer<typeof itemCreateSchema>;
-// export type IItemUpdateData = z.infer<typeof itemUpdateSchema>;

@@ -1,51 +1,44 @@
 import { Request, Response } from 'express';
-import { ActorService, QueryValue } from '../services/actor.service.mjs';
+import { z, ZodError } from 'zod';
 import { logger } from '../../../utils/logger.mjs';
+import { isErrorWithMessage } from '../../../utils/error.mjs';
+import { ActorService } from '../services/actor.service.mjs';
+import { BaseAPIResponse } from '@dungeon-lab/shared/types/api/index.mjs';
+import { IActor } from '@dungeon-lab/shared/schemas/actor.schema.mjs';
 import { pluginRegistry } from '../../../services/plugin-registry.service.mjs';
 import {
-  GetActorsResponse,
-  GetActorResponse,
-  CreateActorRequest,
-  CreateActorResponse,
-  PutActorRequest,
-  PutActorResponse,
-  PatchActorRequest,
-  PatchActorResponse,
-  DeleteActorResponse,
-  UploadActorAvatarResponse,
-  UploadActorTokenResponse,
-  GenerateActorAvatarResponse,
-  GenerateActorTokenResponse,
-  GetActorsByCampaignResponse,
-  SearchActorsResponse,
-  createActorRequestSchema,
   putActorRequestSchema,
+  createActorRequestSchema,
   patchActorRequestSchema,
   searchActorsQuerySchema
 } from '@dungeon-lab/shared/types/api/index.mjs';
-import { ZodError } from 'zod';
 
 export class ActorController {
-  constructor(private actorService: ActorService) {}
+  private actorService: ActorService;
+
+  constructor() {
+    this.actorService = new ActorService();
+  }
+
   /**
    * Get all actors, optionally filtered by type
    * @route GET /api/actors
    * @param {string} type - Optional type to filter actors by (e.g. 'character', 'npc')
    * @access Public
    */
-  async getAllActors(
-    req: Request,
-    res: Response<GetActorsResponse>
-  ): Promise<Response<GetActorsResponse> | void> {
+  getAllActors = async (
+    req: Request<object, object, object, { type: string | undefined }>,
+    res: Response<BaseAPIResponse<IActor[]>>
+  ): Promise<Response<BaseAPIResponse<IActor[]>> | void> => {
     try {
-      const type = req.query.type as string | undefined;
+      const type = req.query.type;
       const actors = await this.actorService.getAllActors(type);
       return res.json({
         success: true,
         data: actors
       });
     } catch (error) {
-      if (error instanceof Error) {
+      if (isErrorWithMessage(error)) {
         logger.error('Error fetching all actors:', error);
       }
       return res.status(500).json({
@@ -54,17 +47,17 @@ export class ActorController {
         error: 'Server error'
       });
     }
-  }
+  };
 
   /**
    * Get actor by ID
    * @route GET /api/actors/:id
    * @access Public
    */
-  async getActorById(
-    req: Request,
-    res: Response<GetActorResponse>
-  ): Promise<Response<GetActorResponse> | void> {
+  getActorById = async (
+    req: Request<{ id: string }>,
+    res: Response<BaseAPIResponse<IActor>>
+  ): Promise<Response<BaseAPIResponse<IActor>> | void> => {
     try {
       const actor = await this.actorService.getActorById(req.params.id);
       return res.json({
@@ -72,31 +65,33 @@ export class ActorController {
         data: actor
       });
     } catch (error) {
-      if (error instanceof Error) {
+      if (isErrorWithMessage(error)) {
         logger.error('Error fetching actor:', error);
         if (error.message === 'Actor not found') {
           return res.status(404).json({
             success: false,
+            data: null,
             error: 'Actor not found'
           });
         }
       }
       return res.status(500).json({
         success: false,
+        data: null,
         error: 'Server error'
       });
     }
-  }
+  };
 
   /**
    * Get actors for a campaign
    * @route GET /api/actors/campaign/:campaignId
    * @access Private
    */
-  async getActors(
-    req: Request,
-    res: Response<GetActorsByCampaignResponse>
-  ): Promise<Response<GetActorsByCampaignResponse> | void> {
+  getActors = async (
+    req: Request<{ campaignId: string }>,
+    res: Response<BaseAPIResponse<IActor[]>>
+  ): Promise<Response<BaseAPIResponse<IActor[]>> | void> => {
     try {
       const actors = await this.actorService.getActors(req.params.campaignId);
       return res.json({
@@ -104,7 +99,7 @@ export class ActorController {
         data: actors
       });
     } catch (error) {
-      if (error instanceof Error) {
+      if (isErrorWithMessage(error)) {
         logger.error('Error getting actors:', error);
       }
       return res.status(500).json({
@@ -113,17 +108,17 @@ export class ActorController {
         error: 'Failed to get actors'
       });
     }
-  }
+  };
 
   /**
    * Create a new actor
    * @route POST /api/actors
    * @access Private
    */
-  async createActor(
-    req: Request<object, object, CreateActorRequest>,
-    res: Response<CreateActorResponse>
-  ): Promise<Response<CreateActorResponse> | void> {
+  createActor = async (
+    req: Request<object, object, z.infer<typeof createActorRequestSchema>>,
+    res: Response<BaseAPIResponse<IActor>>
+  ): Promise<Response<BaseAPIResponse<IActor>> | void> => {
     try {
       // Validate request body
       const validatedData = createActorRequestSchema.parse(req.body);
@@ -138,6 +133,7 @@ export class ActorController {
       if (!plugin) {
         return res.status(400).json({
           success: false,
+          data: null,
           error: 'Invalid plugin ID'
         });
       }
@@ -147,6 +143,7 @@ export class ActorController {
         console.log(result.error);
         return res.status(400).json({
           success: false,
+          data: null,
           error: JSON.parse(result.error.message)
         });
       }
@@ -170,32 +167,35 @@ export class ActorController {
       if (error instanceof ZodError) {
         return res.status(400).json({
           success: false,
+          data: null,
           error: JSON.parse(error.message)
         });
       }
-      if (error instanceof Error) {
+      if (isErrorWithMessage(error)) {
         logger.error('Error creating actor:', error);
         return res.status(500).json({
           success: false,
+          data: null,
           error: error.message || 'Failed to create actor'
         });
       }
       return res.status(500).json({
         success: false,
+        data: null,
         error: 'Failed to create actor'
       });
     }
-  }
+  };
 
   /**
    * Update an actor (replace entirely)
    * @route PUT /api/actors/:id
    * @access Private
    */
-  async putActor(
-    req: Request<{ id: string }, object, PutActorRequest>,
-    res: Response<PutActorResponse>
-  ): Promise<Response<PutActorResponse> | void> {
+  putActor = async (
+    req: Request<{ id: string }, object, z.infer<typeof putActorRequestSchema>>,
+    res: Response<BaseAPIResponse<IActor>>
+  ): Promise<Response<BaseAPIResponse<IActor>> | void> => {
     try {
       // Validate request body
       const validatedData = putActorRequestSchema.parse(req.body);
@@ -209,6 +209,7 @@ export class ActorController {
       if (!hasPermission) {
         return res.status(403).json({
           success: false,
+          data: null,
           error: 'Access denied'
         });
       }
@@ -235,460 +236,250 @@ export class ActorController {
       if (error instanceof ZodError) {
         return res.status(400).json({
           success: false,
+          data: null,
           error: JSON.parse(error.message)
         });
       }
-      if (error instanceof Error) {
+      if (isErrorWithMessage(error)) {
         logger.error('Error updating actor:', error);
         if (error.message === 'Actor not found') {
           return res.status(404).json({
             success: false,
+            data: null,
             error: 'Actor not found'
           });
         }
         return res.status(500).json({
           success: false,
+          data: null,
           error: error.message || 'Failed to update actor'
         });
       }
       return res.status(500).json({
         success: false,
+        data: null,
         error: 'Failed to update actor'
       });
     }
-  }
+  };
 
   /**
    * Partially update an actor
    * @route PATCH /api/actors/:id
    * @access Private
    */
-  async patchActor(
-    req: Request<{ id: string }, object, PatchActorRequest>,
-    res: Response<PatchActorResponse>
-  ): Promise<Response<PatchActorResponse> | void> {
+  patchActor = async (req: Request, res: Response): Promise<Response<BaseAPIResponse<IActor>>> => {
+    const userId = req.session.user?.id;
+    if (!userId) {
+      return res.status(403).json({ success: false, data: null, error: 'Access denied' });
+    }
+
+    const result = patchActorRequestSchema.safeParse(req.body);
+    if (!result.success) {
+      return res.status(400).json({ success: false, data: null, error: 'Invalid request body' });
+    }
+
     try {
-      // Validate request body
-      const validatedData = patchActorRequestSchema.parse(req.body);
-
-      const hasPermission = await this.actorService.checkUserPermission(
-        req.params.id,
-        req.session.user.id,
-        req.session.user.isAdmin
-      );
-
-      if (!hasPermission) {
-        return res.status(403).json({
-          success: false,
-          error: 'Access denied'
-        });
+      const actor = await this.actorService.patchActor(result.data.id, result.data, userId);
+      if (!actor) {
+        return res.status(404).json({ success: false, data: null, error: 'Actor not found' });
       }
-
-      // Get avatar and token files from req.assets if present
-      const avatarFile = req.assets?.avatar?.[0];
-      const tokenFile = req.assets?.token?.[0];
-
-      const { avatar: _avatar, token: _token, ...actorData } = validatedData;
-      // Patch the actor using the service
-      const actor = await this.actorService.patchActor(
-        req.params.id,
-        actorData,
-        req.session.user.id,
-        avatarFile,
-        tokenFile
-      );
-
-      return res.json({
-        success: true,
-        data: actor
-      });
+      return res.json({ success: true, data: actor, error: null });
     } catch (error) {
-      if (error instanceof ZodError) {
-        return res.status(400).json({
-          success: false,
-          error: JSON.parse(error.message)
-        });
-      }
-      if (error instanceof Error) {
-        logger.error('Error patching actor:', error);
-        if (error.message === 'Actor not found') {
-          return res.status(404).json({
-            success: false,
-            error: 'Actor not found'
-          });
-        }
-        return res.status(500).json({
-          success: false,
-          error: error.message || 'Failed to patch actor'
-        });
-      }
+      logger.error('Error patching actor:', error);
       return res.status(500).json({
         success: false,
-        error: 'Failed to patch actor'
+        data: null,
+        error: isErrorWithMessage(error) ? error.message : 'Internal server error'
       });
     }
-  }
+  };
 
   /**
    * Upload an actor's avatar
    * @route PUT /api/actors/:id/avatar
    * @access Private
    */
-  async uploadActorAvatar(
+  uploadActorAvatar = async (
     req: Request,
-    res: Response<UploadActorAvatarResponse>
-  ): Promise<Response<UploadActorAvatarResponse> | void> {
+    res: Response
+  ): Promise<Response<BaseAPIResponse<IActor>>> => {
+    const userId = req.session.user?.id;
+    if (!userId) {
+      return res.status(403).json({ success: false, data: null, error: 'Access denied' });
+    }
+
+    if (!req.assets?.avatar?.[0]) {
+      return res.status(400).json({ success: false, data: null, error: 'No file uploaded' });
+    }
+
     try {
-      const hasPermission = await this.actorService.checkUserPermission(
-        req.params.id,
-        req.session.user.id,
-        req.session.user.isAdmin
-      );
-
-      if (!hasPermission) {
-        return res.status(403).json({
-          success: false,
-          error: 'Access denied'
-        });
-      }
-
-      // Get the raw image data from the request body
-      const imageBuffer = req.body as Buffer;
-      const contentType = req.headers['content-type'] || 'image/jpeg';
-
-      if (!imageBuffer || imageBuffer.length === 0) {
-        return res.status(400).json({
-          success: false,
-          error: 'No image data provided'
-        });
-      }
-
-      // Validate content type
-      const validMimes = ['image/jpeg', 'image/png', 'image/webp'];
-      if (!validMimes.includes(contentType)) {
-        return res.status(400).json({
-          success: false,
-          error: 'Invalid image type. Please upload JPEG, PNG, or WebP'
-        });
-      }
-
-      // Create a standard File object from the buffer
-      const file = new File([imageBuffer], `avatar_${Date.now()}.${contentType.split('/')[1]}`, {
-        type: contentType
-      });
-
-      // Update the actor with just the new avatar
       const actor = await this.actorService.updateActorAvatar(
         req.params.id,
-        file,
-        req.session.user.id
+        req.assets?.avatar?.[0],
+        userId
       );
-
-      return res.json({
-        success: true,
-        data: actor
-      });
-    } catch (error) {
-      if (error instanceof Error) {
-        logger.error('Error uploading actor avatar:', error);
-        if (error.message === 'Actor not found') {
-          return res.status(404).json({
-            success: false,
-            error: 'Actor not found'
-          });
-        }
-        return res.status(500).json({
-          success: false,
-          error: error.message || 'Failed to upload actor avatar'
-        });
+      if (!actor) {
+        return res.status(404).json({ success: false, data: null, error: 'Actor not found' });
       }
+      return res.json({ success: true, data: actor, error: null });
+    } catch (error) {
+      logger.error('Error uploading actor avatar:', error);
       return res.status(500).json({
         success: false,
-        error: 'Failed to upload actor avatar'
+        data: null,
+        error: isErrorWithMessage(error) ? error.message : 'Internal server error'
       });
     }
-  }
+  };
 
   /**
    * Upload an actor's token
    * @route PUT /api/actors/:id/token
    * @access Private
    */
-  async uploadActorToken(
+  uploadActorToken = async (
     req: Request,
-    res: Response<UploadActorTokenResponse>
-  ): Promise<Response<UploadActorTokenResponse> | void> {
+    res: Response
+  ): Promise<Response<BaseAPIResponse<IActor>>> => {
+    const userId = req.session.user?.id;
+    if (!userId) {
+      return res.status(403).json({ success: false, data: null, error: 'Access denied' });
+    }
+
+    if (!req.assets?.token?.[0]) {
+      return res.status(400).json({ success: false, data: null, error: 'No file uploaded' });
+    }
+
     try {
-      const hasPermission = await this.actorService.checkUserPermission(
-        req.params.id,
-        req.session.user.id,
-        req.session.user.isAdmin
-      );
-
-      if (!hasPermission) {
-        return res.status(403).json({
-          success: false,
-          error: 'Access denied'
-        });
-      }
-
-      // Get the raw image data from the request body
-      const imageBuffer = req.body as Buffer;
-      const contentType = req.headers['content-type'] || 'image/jpeg';
-
-      if (!imageBuffer || imageBuffer.length === 0) {
-        return res.status(400).json({
-          success: false,
-          error: 'No image data provided'
-        });
-      }
-
-      // Validate content type
-      const validMimes = ['image/jpeg', 'image/png', 'image/webp'];
-      if (!validMimes.includes(contentType)) {
-        return res.status(400).json({
-          success: false,
-          error: 'Invalid image type. Please upload JPEG, PNG, or WebP'
-        });
-      }
-
-      // Create a standard File object from the buffer
-      const file = new File([imageBuffer], `token_${Date.now()}.${contentType.split('/')[1]}`, {
-        type: contentType
-      });
-
-      // Update the actor with just the new token
       const actor = await this.actorService.updateActorToken(
         req.params.id,
-        file,
-        req.session.user.id
+        req.assets?.token?.[0],
+        userId
       );
-
-      return res.json({
-        success: true,
-        data: actor
-      });
-    } catch (error) {
-      if (error instanceof Error) {
-        logger.error('Error uploading actor token:', error);
-        if (error.message === 'Actor not found') {
-          return res.status(404).json({
-            success: false,
-            error: 'Actor not found'
-          });
-        }
-        return res.status(500).json({
-          success: false,
-          error: error.message || 'Failed to upload actor token'
-        });
+      if (!actor) {
+        return res.status(404).json({ success: false, data: null, error: 'Actor not found' });
       }
+      return res.json({ success: true, data: actor, error: null });
+    } catch (error) {
+      logger.error('Error uploading actor token:', error);
       return res.status(500).json({
         success: false,
-        error: 'Failed to upload actor token'
+        data: null,
+        error: isErrorWithMessage(error) ? error.message : 'Internal server error'
       });
     }
-  }
+  };
 
   /**
    * Generate an actor's avatar using AI
    * @route POST /api/actors/:id/generate-avatar
    * @access Private
    */
-  async generateActorAvatar(
+  generateActorAvatar = async (
     req: Request,
-    res: Response<GenerateActorAvatarResponse>
-  ): Promise<Response<GenerateActorAvatarResponse> | void> {
+    res: Response
+  ): Promise<Response<BaseAPIResponse<IActor>>> => {
+    const userId = req.session.user?.id;
+    if (!userId) {
+      return res.status(403).json({ success: false, data: null, error: 'Access denied' });
+    }
+
     try {
-      const hasPermission = await this.actorService.checkUserPermission(
-        req.params.id,
-        req.session.user.id,
-        req.session.user.isAdmin
-      );
-
-      if (!hasPermission) {
-        return res.status(403).json({
-          success: false,
-          error: 'Access denied'
-        });
-      }
-
-      await this.actorService.generateActorAvatar(req.params.id, req.session.user.id);
-
-      return res.json({
-        success: true
-      });
+      await this.actorService.generateActorAvatar(req.params.id, userId);
+      return res.json({ success: true, error: null });
     } catch (error) {
-      if (error instanceof Error) {
-        logger.error('Error generating actor avatar:', error);
-        if (error.message === 'Actor not found') {
-          return res.status(404).json({
-            success: false,
-            error: 'Actor not found'
-          });
-        }
-        return res.status(500).json({
-          success: false,
-          error: error.message || 'Failed to generate actor avatar'
-        });
-      }
+      logger.error('Error generating actor avatar:', error);
       return res.status(500).json({
         success: false,
-        error: 'Failed to generate actor avatar'
+        data: null,
+        error: isErrorWithMessage(error) ? error.message : 'Internal server error'
       });
     }
-  }
+  };
 
   /**
    * Generate an actor's token using AI
    * @route POST /api/actors/:id/generate-token
    * @access Private
    */
-  async generateActorToken(
+  generateActorToken = async (
     req: Request,
-    res: Response<GenerateActorTokenResponse>
-  ): Promise<Response<GenerateActorTokenResponse> | void> {
+    res: Response
+  ): Promise<Response<BaseAPIResponse<IActor>>> => {
+    const userId = req.session.user?.id;
+    if (!userId) {
+      return res.status(403).json({ success: false, data: null, error: 'Access denied' });
+    }
+
     try {
-      const hasPermission = await this.actorService.checkUserPermission(
-        req.params.id,
-        req.session.user.id,
-        req.session.user.isAdmin
-      );
-
-      if (!hasPermission) {
-        return res.status(403).json({
-          success: false,
-          error: 'Access denied'
-        });
-      }
-
-      await this.actorService.generateActorToken(req.params.id, req.session.user.id);
-
-      return res.json({
-        success: true
-      });
+      await this.actorService.generateActorToken(req.params.id, userId);
+      return res.json({ success: true, error: null });
     } catch (error) {
-      if (error instanceof Error) {
-        logger.error('Error generating actor token:', error);
-        if (error.message === 'Actor not found') {
-          return res.status(404).json({
-            success: false,
-            error: 'Actor not found'
-          });
-        }
-        return res.status(500).json({
-          success: false,
-          error: error.message || 'Failed to generate actor token'
-        });
-      }
+      logger.error('Error generating actor token:', error);
       return res.status(500).json({
         success: false,
-        error: 'Failed to generate actor token'
+        data: null,
+        error: isErrorWithMessage(error) ? error.message : 'Internal server error'
       });
     }
-  }
+  };
 
   /**
    * Delete an actor
    * @route DELETE /api/actors/:id
    * @access Private
    */
-  async deleteActor(
-    req: Request,
-    res: Response<DeleteActorResponse>
-  ): Promise<Response<DeleteActorResponse> | void> {
+  deleteActor = async (req: Request, res: Response): Promise<Response<BaseAPIResponse<void>>> => {
+    const userId = req.session.user?.id;
+    if (!userId) {
+      return res.status(403).json({ success: false, data: null, error: 'Access denied' });
+    }
+
     try {
-      const hasPermission = await this.actorService.checkUserPermission(
-        req.params.id,
-        req.session.user.id,
-        req.session.user.isAdmin
-      );
-
-      if (!hasPermission) {
-        return res.status(403).json({
-          success: false,
-          error: 'Access denied'
-        });
-      }
-
       await this.actorService.deleteActor(req.params.id);
-
-      return res.status(204).send();
+      return res.json({ success: true, data: null, error: null });
     } catch (error) {
-      if (error instanceof Error) {
-        logger.error('Error deleting actor:', error);
-        if (error.message === 'Actor not found') {
-          return res.status(404).json({
-            success: false,
-            error: 'Actor not found'
-          });
-        }
-        return res.status(500).json({
-          success: false,
-          error: error.message || 'Failed to delete actor'
-        });
-      }
+      logger.error('Error deleting actor:', error);
       return res.status(500).json({
         success: false,
-        error: 'Failed to delete actor'
+        data: null,
+        error: isErrorWithMessage(error) ? error.message : 'Internal server error'
       });
     }
-  }
+  };
 
   /**
    * Search actors based on query parameters
    * @route GET /api/actors/search
    * @access Public
    */
-  async searchActors(
+  searchActors = async (
     req: Request,
-    res: Response<SearchActorsResponse>
-  ): Promise<Response<SearchActorsResponse> | void> {
+    res: Response
+  ): Promise<Response<BaseAPIResponse<IActor[]>>> => {
+    const userId = req.session.user?.id;
+    if (!userId) {
+      return res.status(403).json({ success: false, data: null, error: 'Access denied' });
+    }
+
+    const result = searchActorsQuerySchema.safeParse(req.query);
+    if (!result.success) {
+      return res
+        .status(400)
+        .json({ success: false, data: null, error: 'Invalid query parameters' });
+    }
+
     try {
-      // Convert dot notation in query params to nested objects
-      const query = Object.entries(req.query).reduce((acc, [key, value]) => {
-        if (key.includes('.')) {
-          const parts = key.split('.');
-          let current = acc;
-          for (let i = 0; i < parts.length - 1; i++) {
-            if (!(parts[i] in current)) {
-              current[parts[i]] = {};
-            }
-            current = current[parts[i]] as Record<string, unknown>;
-          }
-          current[parts[parts.length - 1]] = value;
-        } else {
-          acc[key] = value;
-        }
-        return acc;
-      }, {} as Record<string, unknown>);
-
-      // Validate query parameters
-      try {
-        searchActorsQuerySchema.parse(query);
-      } catch (validationError) {
-        if (validationError instanceof ZodError) {
-          return res.status(400).json({
-            success: false,
-            data: [],
-            error: JSON.parse(validationError.message)
-          });
-        }
-      }
-
-      const actors = await this.actorService.searchActors(query as Record<string, QueryValue>);
-      return res.json({
-        success: true,
-        data: actors
-      });
+      const actors = await this.actorService.searchActors(result.data);
+      return res.json({ success: true, data: actors, error: null });
     } catch (error) {
-      if (error instanceof Error) {
-        logger.error('Error searching actors:', error);
-      }
+      logger.error('Error searching actors:', error);
       return res.status(500).json({
         success: false,
-        data: [],
-        error: 'Failed to search actors'
+        data: null,
+        error: isErrorWithMessage(error) ? error.message : 'Internal server error'
       });
     }
-  }
+  };
 }

@@ -1,62 +1,35 @@
 import { Request, Response } from 'express';
-import { CampaignService, QueryValue } from '../services/campaign.service.mjs';
+import { CampaignService } from '../services/campaign.service.mjs';
 import { logger } from '../../../utils/logger.mjs';
-import {
-  GetCampaignsResponse,
-  GetCampaignResponse,
-  CreateCampaignRequest,
-  CreateCampaignResponse,
-  PutCampaignRequest,
-  PutCampaignResponse,
-  PatchCampaignRequest,
-  PatchCampaignResponse,
-  DeleteCampaignResponse,
-  createCampaignRequestSchema,
-  putCampaignRequestSchema,
-  patchCampaignRequestSchema
-} from '@dungeon-lab/shared/types/api/index.mjs';
+import { BaseAPIResponse, IGameSession } from '@dungeon-lab/shared/types/api/index.mjs';
 import { ZodError } from 'zod';
-
-// Custom error type guard
-function isErrorWithMessage(error: unknown): error is { message: string } {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'message' in error &&
-    typeof (error as { message: unknown }).message === 'string'
-  );
-}
+import {
+  ICampaign,
+  ICampaignCreateData,
+  ICampaignPatchData
+} from '@dungeon-lab/shared/types/index.mjs';
+import { IEncounter } from '@dungeon-lab/shared/types/index.mjs';
+import { isErrorWithMessage } from '../../../utils/error.mjs';
+import { createSearchParams } from '../../../utils/create.search.params.mjs';
+import { SearchCampaignsQuery } from '@dungeon-lab/shared/types/api/index.mjs';
+import {
+  campaignCreateSchema,
+  campaignPatchSchema
+} from '@dungeon-lab/shared/schemas/campaign.schema.mjs';
+import { QueryValue } from '@dungeon-lab/shared/types/index.mjs';
 
 export class CampaignController {
   constructor(private campaignService: CampaignService) {}
 
-  async getMyCampaigns(
-    req: Request,
-    res: Response<GetCampaignsResponse>
-  ): Promise<Response<GetCampaignsResponse> | void> {
+  getMyCampaigns = async (
+    req: Request<object, object, object, SearchCampaignsQuery>,
+    res: Response<BaseAPIResponse<ICampaign[]>>
+  ): Promise<Response<BaseAPIResponse<ICampaign[]>> | void> => {
     try {
       // Convert dot notation in query params to nested objects
-      const query = Object.entries(req.query).reduce((acc, [key, value]) => {
-        if (key.includes('.')) {
-          const parts = key.split('.');
-          let current = acc;
-          for (let i = 0; i < parts.length - 1; i++) {
-            if (!(parts[i] in current)) {
-              current[parts[i]] = {};
-            }
-            current = current[parts[i]] as Record<string, unknown>;
-          }
-          current[parts[parts.length - 1]] = value;
-        } else {
-          acc[key] = value;
-        }
-        return acc;
-      }, {} as Record<string, unknown>);
+      const query = createSearchParams(req.query as Record<string, QueryValue>);
 
-      const campaigns = await this.campaignService.getMyCampaigns(
-        req.session.user.id,
-        query as Record<string, QueryValue>
-      );
+      const campaigns = await this.campaignService.getMyCampaigns(req.session.user.id, query);
       return res.json({
         success: true,
         data: campaigns
@@ -65,16 +38,16 @@ export class CampaignController {
       logger.error('Error getting campaigns:', error);
       return res.status(500).json({
         success: false,
-        data: [],
+        data: null,
         error: 'Failed to get campaigns'
       });
     }
-  }
+  };
 
-  async getCampaign(
-    req: Request,
-    res: Response<GetCampaignResponse>
-  ): Promise<Response<GetCampaignResponse> | void> {
+  getCampaign = async (
+    req: Request<{ id: string }>,
+    res: Response<BaseAPIResponse<ICampaign>>
+  ): Promise<Response<BaseAPIResponse<ICampaign>> | void> => {
     try {
       const campaign = await this.campaignService.getCampaign(req.params.id);
 
@@ -88,6 +61,7 @@ export class CampaignController {
       if (!hasAccess) {
         return res.status(403).json({
           success: false,
+          data: null,
           error: 'Access denied'
         });
       }
@@ -100,25 +74,25 @@ export class CampaignController {
       if (isErrorWithMessage(error) && error.message === 'Campaign not found') {
         return res.status(404).json({
           success: false,
+          data: null,
           error: 'Campaign not found'
         });
       }
       logger.error('Error getting campaign:', error);
       return res.status(500).json({
         success: false,
+        data: null,
         error: 'Failed to get campaign'
       });
     }
-  }
+  };
 
-  async createCampaign(
-    req: Request<object, object, CreateCampaignRequest>,
-    res: Response<CreateCampaignResponse>
-  ): Promise<Response<CreateCampaignResponse> | void> {
+  createCampaign = async (
+    req: Request<unknown, unknown, ICampaignCreateData>,
+    res: Response<BaseAPIResponse<ICampaign>>
+  ): Promise<Response<BaseAPIResponse<ICampaign>> | void> => {
     try {
-      // Validate request body
-      const validatedData = createCampaignRequestSchema.parse(req.body);
-
+      const validatedData = await campaignCreateSchema.parseAsync(req.body);
       const campaign = await this.campaignService.createCampaign(
         validatedData,
         req.session.user.id
@@ -131,32 +105,27 @@ export class CampaignController {
       if (error instanceof ZodError) {
         return res.status(400).json({
           success: false,
-          error: JSON.parse(error.message)
-        });
-      }
-      if (isErrorWithMessage(error) && error.message === 'Invalid game system') {
-        return res.status(400).json({
-          success: false,
-          error: 'Invalid game system'
+          data: null,
+          error: error.errors.map((e) => e.message).join(', ')
         });
       }
       logger.error('Error creating campaign:', error);
       return res.status(500).json({
         success: false,
+        data: null,
         error: 'Failed to create campaign'
       });
     }
-  }
+  };
 
-  async putCampaign(
-    req: Request<{ id: string }, object, PutCampaignRequest>,
-    res: Response<PutCampaignResponse>
-  ): Promise<Response<PutCampaignResponse> | void> {
+  putCampaign = async (
+    req: Request<{ id: string }, unknown, ICampaignCreateData>,
+    res: Response<BaseAPIResponse<ICampaign>>
+  ): Promise<Response<BaseAPIResponse<ICampaign>> | void> => {
     try {
-      // Validate request body
-      const validatedData = putCampaignRequestSchema.parse(req.body);
+      const validatedData = await campaignCreateSchema.parseAsync(req.body);
 
-      // Check if user has permission to update
+      // Check if user has access to this campaign
       const hasAccess = await this.campaignService.checkUserPermission(
         req.params.id,
         req.session.user.id,
@@ -166,50 +135,52 @@ export class CampaignController {
       if (!hasAccess) {
         return res.status(403).json({
           success: false,
+          data: null,
           error: 'Access denied'
         });
       }
 
-      const updatedCampaign = await this.campaignService.putCampaign(
+      const campaign = await this.campaignService.updateCampaign(
         req.params.id,
         validatedData,
         req.session.user.id
       );
-
       return res.json({
         success: true,
-        data: updatedCampaign
+        data: campaign
       });
     } catch (error) {
       if (error instanceof ZodError) {
         return res.status(400).json({
           success: false,
-          error: JSON.parse(error.message)
+          data: null,
+          error: error.errors.map((e) => e.message).join(', ')
         });
       }
       if (isErrorWithMessage(error) && error.message === 'Campaign not found') {
         return res.status(404).json({
           success: false,
+          data: null,
           error: 'Campaign not found'
         });
       }
       logger.error('Error updating campaign:', error);
       return res.status(500).json({
         success: false,
+        data: null,
         error: 'Failed to update campaign'
       });
     }
-  }
+  };
 
-  async patchCampaign(
-    req: Request<{ id: string }, object, PatchCampaignRequest>,
-    res: Response<PatchCampaignResponse>
-  ): Promise<Response<PatchCampaignResponse> | void> {
+  patchCampaign = async (
+    req: Request<{ id: string }, object, ICampaignPatchData>,
+    res: Response<BaseAPIResponse<ICampaign>>
+  ): Promise<Response<BaseAPIResponse<ICampaign>> | void> => {
     try {
-      // Validate request body
-      const validatedData = patchCampaignRequestSchema.parse(req.body);
+      const validatedData = await campaignPatchSchema.parseAsync(req.body);
 
-      // Check if user has permission to update
+      // Check if user has access to this campaign
       const hasAccess = await this.campaignService.checkUserPermission(
         req.params.id,
         req.session.user.id,
@@ -219,47 +190,50 @@ export class CampaignController {
       if (!hasAccess) {
         return res.status(403).json({
           success: false,
+          data: null,
           error: 'Access denied'
         });
       }
 
-      const updatedCampaign = await this.campaignService.patchCampaign(
+      const campaign = await this.campaignService.patchCampaign(
         req.params.id,
         validatedData,
         req.session.user.id
       );
-
       return res.json({
         success: true,
-        data: updatedCampaign
+        data: campaign
       });
     } catch (error) {
       if (error instanceof ZodError) {
         return res.status(400).json({
           success: false,
-          error: JSON.parse(error.message)
+          data: null,
+          error: error.errors.map((e) => e.message).join(', ')
         });
       }
       if (isErrorWithMessage(error) && error.message === 'Campaign not found') {
         return res.status(404).json({
           success: false,
+          data: null,
           error: 'Campaign not found'
         });
       }
       logger.error('Error patching campaign:', error);
       return res.status(500).json({
         success: false,
+        data: null,
         error: 'Failed to patch campaign'
       });
     }
-  }
+  };
 
-  async deleteCampaign(
-    req: Request,
-    res: Response<DeleteCampaignResponse>
-  ): Promise<Response<DeleteCampaignResponse> | void> {
+  deleteCampaign = async (
+    req: Request<{ id: string }>,
+    res: Response<BaseAPIResponse<void>>
+  ): Promise<Response<BaseAPIResponse<void>> | void> => {
     try {
-      // Check if user has permission to delete
+      // Check if user has access to this campaign
       const hasAccess = await this.campaignService.checkUserPermission(
         req.params.id,
         req.session.user.id,
@@ -269,24 +243,124 @@ export class CampaignController {
       if (!hasAccess) {
         return res.status(403).json({
           success: false,
+          data: null,
           error: 'Access denied'
         });
       }
 
       await this.campaignService.deleteCampaign(req.params.id);
-      return res.status(204).send();
+      return res.json({
+        success: true,
+        data: null
+      });
     } catch (error) {
       if (isErrorWithMessage(error) && error.message === 'Campaign not found') {
         return res.status(404).json({
           success: false,
+          data: null,
           error: 'Campaign not found'
         });
       }
       logger.error('Error deleting campaign:', error);
       return res.status(500).json({
         success: false,
+        data: null,
         error: 'Failed to delete campaign'
       });
     }
-  }
+  };
+
+  /**
+   * Get the active game session for a campaign
+   */
+  getActiveCampaignSession = async (
+    req: Request<{ campaignId: string }>,
+    res: Response<BaseAPIResponse<IGameSession | null>>
+  ): Promise<Response<BaseAPIResponse<IGameSession | null>> | void> => {
+    try {
+      // Check if user has permission to access this campaign
+      const hasAccess = await this.campaignService.checkUserPermission(
+        req.params.campaignId,
+        req.session.user.id,
+        req.session.user.isAdmin
+      );
+
+      if (!hasAccess) {
+        return res.status(403).json({
+          success: false,
+          error: 'Access denied',
+          data: null
+        });
+      }
+
+      const session = await this.campaignService.getActiveCampaignSession(req.params.campaignId);
+
+      return res.json({
+        success: true,
+        data: session
+      });
+    } catch (error) {
+      if (isErrorWithMessage(error) && error.message === 'Campaign not found') {
+        return res.status(404).json({
+          success: false,
+          error: 'Campaign not found',
+          data: null
+        });
+      }
+      logger.error('Error getting active campaign session:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to get active campaign session',
+        data: null
+      });
+    }
+  };
+
+  /**
+   * Get the active encounter for a campaign
+   */
+  getActiveCampaignEncounter = async (
+    req: Request<{ campaignId: string }>,
+    res: Response<BaseAPIResponse<IEncounter | null>>
+  ): Promise<Response<BaseAPIResponse<IEncounter | null>> | void> => {
+    try {
+      // Check if user has permission to access this campaign
+      const hasAccess = await this.campaignService.checkUserPermission(
+        req.params.campaignId,
+        req.session.user.id,
+        req.session.user.isAdmin
+      );
+
+      if (!hasAccess) {
+        return res.status(403).json({
+          success: false,
+          error: 'Access denied',
+          data: null
+        });
+      }
+
+      const encounter = await this.campaignService.getActiveCampaignEncounter(
+        req.params.campaignId
+      );
+
+      return res.json({
+        success: true,
+        data: encounter
+      });
+    } catch (error) {
+      if (isErrorWithMessage(error) && error.message === 'Campaign not found') {
+        return res.status(404).json({
+          success: false,
+          error: 'Campaign not found',
+          data: null
+        });
+      }
+      logger.error('Error getting active campaign encounter:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to get active campaign encounter',
+        data: null
+      });
+    }
+  };
 }

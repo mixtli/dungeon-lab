@@ -26,8 +26,3 @@ export const mapCreateSchema = mapSchema
     // Add an optional field for the image during creation (can be file upload or AI generated)
     image: z.any().optional()
   });
-
-// Export types generated from the schemas
-export type IMap = z.infer<typeof mapSchema>;
-export type IMapCreateData = z.infer<typeof mapCreateSchema>;
-export type IMapUpdateData = z.infer<typeof mapCreateSchema>;

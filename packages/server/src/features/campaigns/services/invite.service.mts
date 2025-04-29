@@ -3,6 +3,7 @@ import { Types } from 'mongoose';
 import { UserModel } from '../../../models/user.model.mjs';
 import { InviteModel } from '../models/invite.model.mjs';
 import { CampaignService } from './campaign.service.mjs';
+import type { InviteStatus } from '@dungeon-lab/shared/index.mjs';
 
 export class InviteService {
   constructor(private campaignService: CampaignService) {}
@@ -33,8 +34,8 @@ export class InviteService {
       .populate({
         path: 'createdBy',
         select: 'email'
-      })
-    console.log("got invites", invites)
+      });
+    console.log('got invites', invites);
     return invites as IInvite[];
   }
 
@@ -57,7 +58,10 @@ export class InviteService {
     }
 
     // Check if user is already a member of the campaign
-    const isAlreadyMember = await this.campaignService.isUserCampaignMember(campaignId, invitedUser.id);
+    const isAlreadyMember = await this.campaignService.isUserCampaignMember(
+      campaignId,
+      invitedUser.id
+    );
     if (isAlreadyMember) {
       throw new Error('User is already a member of this campaign');
     }
@@ -83,7 +87,12 @@ export class InviteService {
     return invite.toObject() as IInvite;
   }
 
-  async respondToInvite(id: string, status: 'accepted' | 'declined', userId: string, actorId?: string): Promise<IInvite> {
+  async respondToInvite(
+    id: string,
+    status: InviteStatus,
+    userId: string,
+    actorId?: string
+  ): Promise<IInvite> {
     const user = await UserModel.findById(userId);
     if (!user) {
       throw new Error('User not found');
@@ -106,14 +115,13 @@ export class InviteService {
 
       // Add actor to campaign members (not the user)
       const campaign = await this.campaignService.getCampaign(invite.campaignId.toString());
-      
+
       // Check if the actor already exists in members
       if (!campaign.members.includes(actorId)) {
         await this.campaignService.updateCampaign(
           invite.campaignId.toString(),
           {
-            members: [...campaign.members, actorId], // Add actor, not user
-            updatedBy: userId
+            members: [...campaign.members, actorId] // Add actor, not user
           },
           userId
         );
@@ -129,7 +137,7 @@ export class InviteService {
 
   async checkUserPermission(inviteId: string, userId: string, isAdmin: boolean): Promise<boolean> {
     const invite = await InviteModel.findById(inviteId).populate('campaignId');
-    
+
     if (!invite) {
       throw new Error('Invite not found');
     }
@@ -149,4 +157,4 @@ export class InviteService {
     const campaign = await this.campaignService.getCampaign(invite.campaignId.toString());
     return campaign.gameMasterId === userId;
   }
-} 
+}

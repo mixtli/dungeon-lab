@@ -1,20 +1,27 @@
 import { Types } from 'mongoose';
-import { ICampaign, IUser } from '@dungeon-lab/shared/index.mjs';
+import { ICampaign, ICampaignPatchData, IUser } from '@dungeon-lab/shared/types/index.mjs';
 import { CampaignModel } from '../models/campaign.model.mjs';
 import { ActorModel } from '../../actors/models/actor.model.mjs';
 import { logger } from '../../../utils/logger.mjs';
 import { pluginRegistry } from '../../../services/plugin-registry.service.mjs';
 import { deepMerge } from '@dungeon-lab/shared/utils/deepMerge.mjs';
 import { UserModel } from '../../../models/user.model.mjs';
+import { GameSessionModel } from '../models/game-session.model.mjs';
+import { EncounterModel } from '../models/encounter.model.mjs';
+import { IGameSession } from '@dungeon-lab/shared/types/index.mjs';
+import { IEncounter } from '@dungeon-lab/shared/types/index.mjs';
+import { QueryValue } from '@dungeon-lab/shared/types/index.mjs';
+import { campaignStatusSchema } from '@dungeon-lab/shared/schemas/campaign.schema.mjs';
+import { z } from '../../../utils/zod.mjs';
 
-// Define a type for campaign query values
-export type QueryValue = string | number | boolean | RegExp | Date | object;
+export const campaignQuerySchema = z.object({
+  status: campaignStatusSchema.optional()
+});
+
+type CampaignQuery = z.infer<typeof campaignQuerySchema>;
 
 export class CampaignService {
-  async getMyCampaigns(
-    userId: string,
-    query: Record<string, QueryValue> = {}
-  ): Promise<ICampaign[]> {
+  async getMyCampaigns(userId: string, query: CampaignQuery = {}): Promise<ICampaign[]> {
     try {
       const userObjectId = new Types.ObjectId(userId);
 
@@ -79,7 +86,7 @@ export class CampaignService {
     const actors = await ActorModel.find({ _id: { $in: campaign.members } });
     const usersPromises = actors.map(async (actor) => await UserModel.findById(actor.createdBy));
     const users = await Promise.all(usersPromises);
-    return users.filter((user) => user !== null);
+    return users.filter((user: IUser | null) => user !== null);
   }
 
   // async isUserCampaignMember(campaignId: string, userId: string): Promise<boolean> {
@@ -163,7 +170,8 @@ export class CampaignService {
     isAdmin: boolean
   ): Promise<boolean> {
     try {
-      const campaign = await CampaignModel.findById(campaignId).exec();
+      // This ensures that the returned campaign is correctly typed as ICampaign.
+      const campaign = await CampaignModel.findById<ICampaign>(campaignId).exec();
       if (!campaign) {
         throw new Error('Campaign not found');
       }
@@ -240,7 +248,7 @@ export class CampaignService {
   /**
    * Partially update a campaign (PATCH)
    */
-  async patchCampaign(id: string, data: Partial<ICampaign>, userId: string): Promise<ICampaign> {
+  async patchCampaign(id: string, data: ICampaignPatchData, userId: string): Promise<ICampaign> {
     try {
       const campaign = await CampaignModel.findById(id);
       if (!campaign) {
@@ -260,6 +268,56 @@ export class CampaignService {
     } catch (error) {
       logger.error('Error in patchCampaign service:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Get the active game session for a campaign
+   * There is only one active session per campaign
+   */
+  async getActiveCampaignSession(campaignId: string): Promise<IGameSession | null> {
+    try {
+      // First check if the campaign exists
+      const campaign = await CampaignModel.findById(campaignId).exec();
+      if (!campaign) {
+        throw new Error('Campaign not found');
+      }
+
+      // Find an active session for this campaign
+      const activeSession = await GameSessionModel.findOne({
+        campaignId,
+        status: 'active'
+      }).exec();
+
+      return activeSession;
+    } catch (error) {
+      logger.error('Error getting active campaign session:', error);
+      throw new Error('Failed to get active campaign session');
+    }
+  }
+
+  /**
+   * Get the active encounter for a campaign
+   * There is only one active encounter per campaign
+   */
+  async getActiveCampaignEncounter(campaignId: string): Promise<IEncounter | null> {
+    try {
+      // First check if the campaign exists
+      const campaign = await CampaignModel.findById(campaignId).exec();
+      if (!campaign) {
+        throw new Error('Campaign not found');
+      }
+
+      // Find an active encounter for this campaign (in_progress status)
+      const activeEncounter = await EncounterModel.findOne({
+        campaignId,
+        status: 'in_progress'
+      }).exec();
+
+      return activeEncounter;
+    } catch (error) {
+      logger.error('Error getting active campaign encounter:', error);
+      throw new Error('Failed to get active campaign encounter');
     }
   }
 }

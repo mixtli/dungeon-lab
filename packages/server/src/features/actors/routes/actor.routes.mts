@@ -1,6 +1,5 @@
 import express from 'express';
 import { ActorController } from '../controllers/actor.controller.mjs';
-import { ActorService } from '../services/actor.service.mjs';
 import { authenticate } from '../../../middleware/auth.middleware.mjs';
 import { validateMultipartRequest } from '../../../middleware/validation.middleware.mjs';
 import {
@@ -37,24 +36,7 @@ import { createSchema } from 'zod-openapi';
  * Actors routes
  */
 const router = express.Router();
-const actorService = new ActorService();
-const actorController = new ActorController(actorService);
-
-// Bind controller methods to maintain 'this' context
-const boundController = {
-  getAllActors: actorController.getAllActors.bind(actorController),
-  getActorById: actorController.getActorById.bind(actorController),
-  getActors: actorController.getActors.bind(actorController),
-  createActor: actorController.createActor.bind(actorController),
-  putActor: actorController.putActor.bind(actorController),
-  patchActor: actorController.patchActor.bind(actorController),
-  deleteActor: actorController.deleteActor.bind(actorController),
-  uploadActorAvatar: actorController.uploadActorAvatar.bind(actorController),
-  uploadActorToken: actorController.uploadActorToken.bind(actorController),
-  generateActorAvatar: actorController.generateActorAvatar.bind(actorController),
-  generateActorToken: actorController.generateActorToken.bind(actorController),
-  searchActors: actorController.searchActors.bind(actorController)
-};
+const actorController = new ActorController();
 
 // Routes
 // Get all actors
@@ -79,7 +61,7 @@ router.get(
       500: { description: 'Server error' }
     }
   }),
-  boundController.getAllActors
+  actorController.getAllActors
 );
 
 // Search actors
@@ -104,7 +86,7 @@ router.get(
       500: { description: 'Server error' }
     }
   }),
-  boundController.searchActors
+  actorController.searchActors
 );
 
 // Get actors for a campaign
@@ -129,7 +111,7 @@ router.get(
       500: { description: 'Server error' }
     }
   }),
-  boundController.getActors
+  actorController.getActors
 );
 
 // Get actor by ID
@@ -154,7 +136,7 @@ router.get(
       500: { description: 'Server error' }
     }
   }),
-  boundController.getActorById
+  actorController.getActorById
 );
 
 // Create a new actor
@@ -181,7 +163,7 @@ router.post(
     }
   }),
   validateMultipartRequest(createActorRequestSchema, ['avatar', 'token']),
-  boundController.createActor
+  actorController.createActor
 );
 
 // Update an actor (replace entirely)
@@ -209,7 +191,7 @@ router.put(
     }
   }),
   validateMultipartRequest(putActorRequestSchema, ['avatar', 'token']),
-  boundController.putActor
+  actorController.putActor
 );
 
 // Partially update an actor
@@ -237,7 +219,7 @@ router.patch(
     }
   }),
   validateMultipartRequest(patchActorRequestSchema, ['avatar', 'token']),
-  boundController.patchActor
+  actorController.patchActor
 );
 
 // Upload an actor's avatar
@@ -275,7 +257,7 @@ router.put(
       500: { description: 'Server error' }
     }
   }),
-  boundController.uploadActorAvatar
+  actorController.uploadActorAvatar
 );
 
 // Upload an actor's token
@@ -313,7 +295,7 @@ router.put(
       500: { description: 'Server error' }
     }
   }),
-  boundController.uploadActorToken
+  actorController.uploadActorToken
 );
 
 // Generate an actor's avatar using AI
@@ -338,7 +320,7 @@ router.post(
       500: { description: 'Failed to generate actor avatar' }
     }
   }),
-  boundController.generateActorAvatar
+  actorController.generateActorAvatar
 );
 
 // Generate an actor's token using AI
@@ -363,7 +345,7 @@ router.post(
       500: { description: 'Failed to generate actor token' }
     }
   }),
-  boundController.generateActorToken
+  actorController.generateActorToken
 );
 
 // Delete an actor
@@ -389,7 +371,7 @@ router.delete(
       }
     }
   }),
-  boundController.deleteActor
+  actorController.deleteActor
 );
 
 export default router;
