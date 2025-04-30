@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { mapSchema, mapCreateSchema } from '../../schemas/map.schema.mjs';
-import { baseAPIResponseSchema } from './base.mts';
+import { baseAPIResponseSchema } from './base.mjs';
 
 // Base map schema (common properties) that matches the service/DB model
 

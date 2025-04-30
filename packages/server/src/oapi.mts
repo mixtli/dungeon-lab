@@ -1,14 +1,15 @@
 import openapi from '@wesleytodd/openapi';
 import { z } from './utils/zod.mjs';
-import { createSchema } from 'zod-openapi';
+import { createSchema, createDocument } from 'zod-openapi';
 import { RequestHandler } from 'express';
+import { ZodOpenApiOperationObject } from 'zod-openapi';
 
 export const oapi = openapi(
   {
     openapi: '3.0.0',
     info: {
-      title: 'Express Application',
-      description: 'Generated docs from an Express api',
+      title: 'Dungeon Lab API',
+      description: 'API for the Dungeon Lab project',
       version: '1.0.0'
     }
   },
@@ -136,12 +137,11 @@ export function createOpenApiDocs(
   // Merge with overrides
   const finalConfig = { ...pathConfig, ...overrides };
   console.log('--------------------------------');
-  console.log(pathConfig);
-  console.log(overrides);
-  console.log(finalConfig);
+  //console.log(pathConfig);
+  //console.log(overrides);
+  //console.log(JSON.stringify(finalConfig, null, 2));
 
   // Return the openapi middleware
-  // @ts-expect-error for some reason the type inference is wrong
   return oapi.validPath(finalConfig);
 }
 
@@ -183,4 +183,39 @@ export const toQuerySchema = (zodSchema: z.ZodObject<z.ZodRawShape>) => {
     });
   }
   return querySchema;
+};
+
+export const createPathSchema = (obj: ZodOpenApiOperationObject): object => {
+  obj['responses'] ||= {};
+  obj['responses']['401'] ||= {
+    description: 'Unauthorized'
+  };
+  obj['responses']['403'] ||= {
+    description: 'Forbidden'
+  };
+  obj['responses']['404'] ||= {
+    description: 'Not found'
+  };
+  obj['responses']['422'] ||= {
+    description: 'Validation error'
+  };
+  obj['responses']['500'] ||= {
+    description: 'Internal server error'
+  };
+
+  const schema = createDocument({
+    openapi: '3.1.0',
+    info: {
+      title: 'Dungeon Lab API',
+      version: '1.0.0',
+      description: 'API for the Dungeon Lab project'
+    },
+    paths: {
+      tmpPath: {
+        get: obj
+      }
+    }
+  });
+  // @ts-expect-error for some reason the type inference is wrong
+  return schema.paths!['tmpPath']['get'];
 };

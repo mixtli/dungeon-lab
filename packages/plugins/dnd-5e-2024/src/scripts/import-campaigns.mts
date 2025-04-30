@@ -157,7 +157,7 @@ async function importCampaigns(): Promise<void> {
         await api.put(`/api/campaigns/${existingCampaign.id}`, campaignApiData);
         console.log(`Campaign '${campaignData.name}' updated successfully`);
       } else {
-        const u = nextUser.next();
+        const u = nextUser();
         campaignApiData.createdBy = u;
         campaignApiData.gameMasterId = u;
         console.log(`Creating new campaign: ${campaignData.name}`);

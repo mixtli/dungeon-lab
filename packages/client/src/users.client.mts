@@ -1,72 +1,105 @@
-import api from './api.client.mjs';
-import type { IUser, IUserUpdateData } from '@dungeon-lab/shared/schemas/user.schema.mjs';
+import { ApiClient } from './api.client.mjs';
+import type { IUser, IUserUpdateData } from '@dungeon-lab/shared/types/index.mjs';
+import { BaseAPIResponse } from '@dungeon-lab/shared/types/api/index.mjs';
 
-/**
- * Fetch all users (admin only)
- */
-export async function fetchUsers(): Promise<IUser[]> {
-  const response = await api.get('/api/users');
-  return response.data;
-}
-
-/**
- * Fetch a specific user by ID
- */
-export async function fetchUser(id: string): Promise<IUser> {
-  const response = await api.get(`/api/users/${id}`);
-  return response.data;
-}
-
-/**
- * Update a user's profile
- */
-export async function updateUser(id: string, data: IUserUpdateData): Promise<IUser> {
-  const response = await api.patch(`/api/users/${id}`, data);
-  return response.data;
-}
-
-/**
- * Update current user's profile
- */
-export async function updateCurrentUser(data: IUserUpdateData): Promise<IUser> {
-  const response = await api.patch('/api/users/me', data);
-  return response.data;
-}
-
-/**
- * Upload user avatar
- */
-export async function uploadAvatar(file: File): Promise<{ avatarUrl: string }> {
-  const formData = new FormData();
-  formData.append('avatar', file);
-
-  const response = await api.post('/api/users/avatar', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data'
+export class UsersClient extends ApiClient {
+  /**
+   * Fetch all users (admin only)
+   */
+  async fetchUsers(): Promise<IUser[]> {
+    const response = await this.api.get<BaseAPIResponse<IUser[]>>('/api/users');
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to fetch users');
     }
-  });
+    return response.data.data;
+  }
 
-  return response.data;
-}
+  /**
+   * Fetch a specific user by ID
+   */
+  async fetchUser(id: string): Promise<IUser> {
+    const response = await this.api.get<BaseAPIResponse<IUser>>(`/api/users/${id}`);
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to fetch user');
+    }
+    return response.data.data;
+  }
 
-/**
- * Change user password
- */
-export async function changePassword(
-  currentPassword: string,
-  newPassword: string
-): Promise<{ success: boolean }> {
-  const response = await api.post('/api/users/change-password', {
-    currentPassword,
-    newPassword
-  });
-  return response.data;
-}
+  /**
+   * Update a user's profile
+   */
+  async updateUser(id: string, data: IUserUpdateData): Promise<IUser> {
+    const response = await this.api.patch<BaseAPIResponse<IUser>>(`/api/users/${id}`, data);
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to update user');
+    }
+    return response.data.data;
+  }
 
-/**
- * Generate API key for user
- */
-export async function generateApiKey(): Promise<{ apiKey: string }> {
-  const response = await api.post('/api/users/api-key');
-  return response.data;
+  /**
+   * Update current user's profile
+   */
+  async updateCurrentUser(data: IUserUpdateData): Promise<IUser> {
+    const response = await this.api.patch<BaseAPIResponse<IUser>>('/api/users/me', data);
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to update user');
+    }
+    return response.data.data;
+  }
+
+  /**
+   * Upload user avatar
+   */
+  async uploadAvatar(file: File): Promise<{ avatarUrl: string }> {
+    const formData = new FormData();
+    formData.append('avatar', file);
+
+    const response = await this.api.post<BaseAPIResponse<{ avatarUrl: string }>>(
+      '/api/users/avatar',
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      }
+    );
+
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to upload avatar');
+    }
+    return response.data.data;
+  }
+
+  /**
+   * Change user password
+   */
+  async changePassword(
+    currentPassword: string,
+    newPassword: string
+  ): Promise<{ success: boolean }> {
+    const response = await this.api.post<BaseAPIResponse<{ success: boolean }>>(
+      '/api/users/change-password',
+      {
+        currentPassword,
+        newPassword
+      }
+    );
+
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to change password');
+    }
+    return response.data.data;
+  }
+
+  /**
+   * Generate API key for user
+   */
+  async generateApiKey(): Promise<{ apiKey: string }> {
+    const response = await this.api.post<BaseAPIResponse<{ apiKey: string }>>('/api/users/api-key');
+
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to generate API key');
+    }
+    return response.data.data;
+  }
 }

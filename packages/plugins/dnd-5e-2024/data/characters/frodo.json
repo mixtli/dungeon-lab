@@ -1,16 +1,9 @@
 {
-  "id": "E9C69F44-4BFF-4F93-801A-894337C06B94",
+  "userData": {
+    "uuid": "E9C69F44-4BFF-4F93-801A-894337C06B94"
+  },
   "name": "Frodo",
   "description": "The Ring-bearer chosen to carry the burden of the One Ring, Frodo Baggins embodies the strength found in gentleness and wisdom. Though he appears to be a simple hobbit from the Shire, his extraordinary resilience and moral courage in the face of overwhelming darkness make him the perfect choice for this impossible task. His journey from innocent hobbit to wounded hero shows both the cost of evil and the power of mercy.",
-  "species": "halfling",
-  "classes": [
-    {
-      "name": "Rogue",
-      "level": 1,
-      "hitDiceType": "d8"
-    }
-  ],
-  "alignment": "neutral-good",
   "avatar": {
     "url": "images/character_tokens/middle_earth/frodo.png",
     "type": "image/png",
@@ -25,177 +18,96 @@
     "name": "frodo.png",
     "data": null
   },
-  "experiencePoints": 0,
-  "proficiencyBonus": 2,
-  "speed": 25,
-  "hitPoints": {
-    "maximum": 10,
-    "current": 10,
-    "temporary": 0
-  },
-  "hitDice": {
-    "total": 1,
-    "current": 1,
-    "type": "d8"
-  },
-  "abilities": {
-    "strength": {
-      "score": 10,
-      "modifier": 0,
-      "savingThrow": {
-        "proficient": false,
-        "bonus": 0
+  "data": {
+    "species": "halfling",
+    "classes": [
+      {
+        "name": "rogue",
+        "level": 1,
+        "hitDiceType": "d8"
+      }
+    ],
+    "background": "noble",
+    "alignment": "neutral-good",
+    "experiencePoints": 0,
+    "proficiencyBonus": 2,
+    "armorClass": 10,
+    "initiative": 2,
+    "speed": 25,
+    "hitPoints": {
+      "maximum": 10,
+      "current": 10,
+      "temporary": 0
+    },
+    "hitDice": {
+      "total": 1,
+      "current": 1,
+      "type": "d8"
+    },
+    "abilities": {
+      "strength": {
+        "score": 10,
+        "modifier": 0,
+        "savingThrow": {
+          "proficient": false,
+          "bonus": 0
+        }
+      },
+      "dexterity": {
+        "score": 10,
+        "modifier": 0,
+        "savingThrow": {
+          "proficient": false,
+          "bonus": 0
+        }
+      },
+      "constitution": {
+        "score": 10,
+        "modifier": 0,
+        "savingThrow": {
+          "proficient": false,
+          "bonus": 0
+        }
+      },
+      "intelligence": {
+        "score": 10,
+        "modifier": 0,
+        "savingThrow": {
+          "proficient": false,
+          "bonus": 0
+        }
+      },
+      "wisdom": {
+        "score": 10,
+        "modifier": 0,
+        "savingThrow": {
+          "proficient": false,
+          "bonus": 0
+        }
+      },
+      "charisma": {
+        "score": 10,
+        "modifier": 0,
+        "savingThrow": {
+          "proficient": false,
+          "bonus": 0
+        }
       }
     },
-    "dexterity": {
-      "score": 14,
-      "modifier": 2,
-      "savingThrow": {
-        "proficient": true,
-        "bonus": 4
+    "equipment": [
+      {
+        "id": "dagger",
+        "quantity": 1
       }
-    },
-    "constitution": {
-      "score": 12,
-      "modifier": 1,
-      "savingThrow": {
-        "proficient": false,
-        "bonus": 1
-      }
-    },
-    "intelligence": {
-      "score": 14,
-      "modifier": 2,
-      "savingThrow": {
-        "proficient": true,
-        "bonus": 4
-      }
-    },
-    "wisdom": {
-      "score": 12,
-      "modifier": 1,
-      "savingThrow": {
-        "proficient": false,
-        "bonus": 1
-      }
-    },
-    "charisma": {
-      "score": 12,
-      "modifier": 1,
-      "savingThrow": {
-        "proficient": false,
-        "bonus": 1
-      }
+    ],
+    "features": [],
+    "biography": {
+      "appearance": "A small halfling with dark curly hair and bright eyes",
+      "backstory": "A well-to-do hobbit from Bag End who inherited a mysterious ring",
+      "personalityTraits": "Thoughtful and determined",
+      "ideals": "Doing what's right, even in the face of great danger",
+      "bonds": "Devoted to his friends and the Shire",
+      "flaws": "Sometimes too trusting and naive"
     }
-  },
-  "skills": {
-    "acrobatics": {
-      "ability": "dexterity",
-      "proficient": true,
-      "bonus": 4
-    },
-    "animalHandling": {
-      "ability": "wisdom",
-      "proficient": false,
-      "bonus": 1
-    },
-    "arcana": {
-      "ability": "intelligence",
-      "proficient": false,
-      "bonus": 2
-    },
-    "athletics": {
-      "ability": "strength",
-      "proficient": false,
-      "bonus": 0
-    },
-    "deception": {
-      "ability": "charisma",
-      "proficient": false,
-      "bonus": 1
-    },
-    "history": {
-      "ability": "intelligence",
-      "proficient": true,
-      "bonus": 4
-    },
-    "insight": {
-      "ability": "wisdom",
-      "proficient": true,
-      "bonus": 3
-    },
-    "intimidation": {
-      "ability": "charisma",
-      "proficient": false,
-      "bonus": 1
-    },
-    "investigation": {
-      "ability": "intelligence",
-      "proficient": true,
-      "bonus": 4
-    },
-    "medicine": {
-      "ability": "wisdom",
-      "proficient": false,
-      "bonus": 1
-    },
-    "nature": {
-      "ability": "intelligence",
-      "proficient": false,
-      "bonus": 2
-    },
-    "perception": {
-      "ability": "wisdom",
-      "proficient": false,
-      "bonus": 1
-    },
-    "performance": {
-      "ability": "charisma",
-      "proficient": false,
-      "bonus": 1
-    },
-    "persuasion": {
-      "ability": "charisma",
-      "proficient": false,
-      "bonus": 1
-    },
-    "religion": {
-      "ability": "intelligence",
-      "proficient": false,
-      "bonus": 2
-    },
-    "sleightOfHand": {
-      "ability": "dexterity",
-      "proficient": true,
-      "bonus": 4
-    },
-    "stealth": {
-      "ability": "dexterity",
-      "proficient": true,
-      "bonus": 4
-    },
-    "survival": {
-      "ability": "wisdom",
-      "proficient": false,
-      "bonus": 1
-    }
-  },
-  "armorClass": 12,
-  "initiative": 2,
-  "equipment": [
-    {
-      "id": "dagger",
-      "quantity": 1
-    }
-  ],
-  "features": [],
-  "background": "noble",
-  "biography": {
-    "appearance": "A small halfling with dark curly hair and bright eyes",
-    "backstory": "A well-to-do hobbit from Bag End who inherited a mysterious ring",
-    "personalityTraits": "Thoughtful and determined",
-    "ideals": "Doing what's right, even in the face of great danger",
-    "bonds": "Devoted to his friends and the Shire",
-    "flaws": "Sometimes too trusting and naive"
   }
 }

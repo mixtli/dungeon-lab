@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { baseSchema } from './base.schema.mjs';
 import { assetSchema } from './asset.schema.mjs';
+import { deepPartial } from '../utils/deepPartial.mjs';
 
 // Base Actor schema
 export const actorSchema = baseSchema.extend({
@@ -37,5 +38,4 @@ export const actorSchemaWithVirtuals = actorSchema.extend({
   avatar: assetSchema.optional()
 });
 
-// Schema for actor data used in creation
-export type IActor = z.infer<typeof actorSchemaWithVirtuals>;
+export const actorPatchSchema = deepPartial(actorSchema);

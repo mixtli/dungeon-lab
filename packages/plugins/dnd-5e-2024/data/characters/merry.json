@@ -1,16 +1,9 @@
 {
-  "id": "0921B45C-B705-40AF-A86D-931B48B0D02B",
+  "userData": {
+    "uuid": "0921B45C-B705-40AF-A86D-931B48B0D02B"
+  },
   "name": "Merry",
   "description": "Meriadoc 'Merry' Brandybuck, a clever and resourceful hobbit whose practical nature complements his cousin Pippin's impulsiveness. More mature than his younger cousin, Merry's strategic mind and courage lead him to become a squire of Rohan. His loyalty to his friends and his unexpected valor in the battle of the Pelennor Fields, where he helps slay the Witch-king, prove that even the smallest person can change the course of history.",
-  "species": "halfling",
-  "classes": [
-    {
-      "name": "Fighter",
-      "level": 1,
-      "hitDiceType": "d10"
-    }
-  ],
-  "alignment": "neutral-good",
   "avatar": {
     "url": "images/character_tokens/middle_earth/merry.png",
     "type": "image/png",
@@ -25,177 +18,96 @@
     "name": "merry.png",
     "data": null
   },
-  "experiencePoints": 0,
-  "proficiencyBonus": 2,
-  "speed": 25,
-  "hitPoints": {
-    "maximum": 10,
-    "current": 10,
-    "temporary": 0
-  },
-  "hitDice": {
-    "total": 1,
-    "current": 1,
-    "type": "d10"
-  },
-  "abilities": {
-    "strength": {
-      "score": 12,
-      "modifier": 1,
-      "savingThrow": {
-        "proficient": true,
-        "bonus": 3
+  "data": {
+    "species": "halfling",
+    "classes": [
+      {
+        "name": "fighter",
+        "level": 1,
+        "hitDiceType": "d10"
+      }
+    ],
+    "background": "noble",
+    "alignment": "neutral-good",
+    "experiencePoints": 0,
+    "proficiencyBonus": 2,
+    "armorClass": 10,
+    "initiative": 2,
+    "speed": 25,
+    "hitPoints": {
+      "maximum": 10,
+      "current": 10,
+      "temporary": 0
+    },
+    "hitDice": {
+      "total": 1,
+      "current": 1,
+      "type": "d10"
+    },
+    "abilities": {
+      "strength": {
+        "score": 10,
+        "modifier": 0,
+        "savingThrow": {
+          "proficient": false,
+          "bonus": 0
+        }
+      },
+      "dexterity": {
+        "score": 10,
+        "modifier": 0,
+        "savingThrow": {
+          "proficient": false,
+          "bonus": 0
+        }
+      },
+      "constitution": {
+        "score": 10,
+        "modifier": 0,
+        "savingThrow": {
+          "proficient": false,
+          "bonus": 0
+        }
+      },
+      "intelligence": {
+        "score": 10,
+        "modifier": 0,
+        "savingThrow": {
+          "proficient": false,
+          "bonus": 0
+        }
+      },
+      "wisdom": {
+        "score": 10,
+        "modifier": 0,
+        "savingThrow": {
+          "proficient": false,
+          "bonus": 0
+        }
+      },
+      "charisma": {
+        "score": 10,
+        "modifier": 0,
+        "savingThrow": {
+          "proficient": false,
+          "bonus": 0
+        }
       }
     },
-    "dexterity": {
-      "score": 14,
-      "modifier": 2,
-      "savingThrow": {
-        "proficient": false,
-        "bonus": 2
+    "equipment": [
+      {
+        "id": "dagger",
+        "quantity": 1
       }
-    },
-    "constitution": {
-      "score": 12,
-      "modifier": 1,
-      "savingThrow": {
-        "proficient": true,
-        "bonus": 3
-      }
-    },
-    "intelligence": {
-      "score": 12,
-      "modifier": 1,
-      "savingThrow": {
-        "proficient": false,
-        "bonus": 1
-      }
-    },
-    "wisdom": {
-      "score": 10,
-      "modifier": 0,
-      "savingThrow": {
-        "proficient": false,
-        "bonus": 0
-      }
-    },
-    "charisma": {
-      "score": 12,
-      "modifier": 1,
-      "savingThrow": {
-        "proficient": false,
-        "bonus": 1
-      }
+    ],
+    "features": [],
+    "biography": {
+      "appearance": "A clever-looking halfling with bright eyes",
+      "backstory": "A Brandybuck from Buckland, more adventurous than most hobbits",
+      "personalityTraits": "Clever and resourceful",
+      "ideals": "Standing up for what's right",
+      "bonds": "Devoted to his friends and family",
+      "flaws": "Can be too eager to prove himself"
     }
-  },
-  "skills": {
-    "acrobatics": {
-      "ability": "dexterity",
-      "proficient": true,
-      "bonus": 4
-    },
-    "animalHandling": {
-      "ability": "wisdom",
-      "proficient": false,
-      "bonus": 0
-    },
-    "arcana": {
-      "ability": "intelligence",
-      "proficient": false,
-      "bonus": 1
-    },
-    "athletics": {
-      "ability": "strength",
-      "proficient": true,
-      "bonus": 3
-    },
-    "deception": {
-      "ability": "charisma",
-      "proficient": false,
-      "bonus": 1
-    },
-    "history": {
-      "ability": "intelligence",
-      "proficient": true,
-      "bonus": 3
-    },
-    "insight": {
-      "ability": "wisdom",
-      "proficient": false,
-      "bonus": 0
-    },
-    "intimidation": {
-      "ability": "charisma",
-      "proficient": false,
-      "bonus": 1
-    },
-    "investigation": {
-      "ability": "intelligence",
-      "proficient": false,
-      "bonus": 1
-    },
-    "medicine": {
-      "ability": "wisdom",
-      "proficient": false,
-      "bonus": 0
-    },
-    "nature": {
-      "ability": "intelligence",
-      "proficient": false,
-      "bonus": 1
-    },
-    "perception": {
-      "ability": "wisdom",
-      "proficient": false,
-      "bonus": 0
-    },
-    "performance": {
-      "ability": "charisma",
-      "proficient": false,
-      "bonus": 1
-    },
-    "persuasion": {
-      "ability": "charisma",
-      "proficient": false,
-      "bonus": 1
-    },
-    "religion": {
-      "ability": "intelligence",
-      "proficient": false,
-      "bonus": 1
-    },
-    "sleightOfHand": {
-      "ability": "dexterity",
-      "proficient": false,
-      "bonus": 2
-    },
-    "stealth": {
-      "ability": "dexterity",
-      "proficient": true,
-      "bonus": 4
-    },
-    "survival": {
-      "ability": "wisdom",
-      "proficient": false,
-      "bonus": 0
-    }
-  },
-  "armorClass": 12,
-  "initiative": 2,
-  "equipment": [
-    {
-      "id": "dagger",
-      "quantity": 1
-    }
-  ],
-  "features": [],
-  "background": "noble",
-  "biography": {
-    "appearance": "A clever-looking halfling with bright eyes",
-    "backstory": "A Brandybuck from Buckland, more adventurous than most hobbits",
-    "personalityTraits": "Clever and resourceful",
-    "ideals": "Standing up for what's right",
-    "bonds": "Devoted to his friends and family",
-    "flaws": "Can be too eager to prove himself"
   }
 }

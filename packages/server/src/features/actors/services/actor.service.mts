@@ -11,6 +11,7 @@ import {
 } from '../jobs/actor-image.job.mjs';
 import { deepMerge } from '@dungeon-lab/shared/utils/deepMerge.mjs';
 import { UserModel } from '../../../models/user.model.mjs';
+import { IActorPatchData } from '@dungeon-lab/shared/types/index.mjs';
 
 // Define a type for actor query values
 export type QueryValue = string | number | boolean | RegExp | Date | object;
@@ -209,7 +210,7 @@ export class ActorService {
    */
   async patchActor(
     id: string,
-    data: Partial<IActor>,
+    data: IActorPatchData,
     userId: string,
     avatarFile?: File,
     tokenFile?: File

@@ -522,10 +522,9 @@ export class MapService {
         throw new Error('Map not found');
       }
 
-      const userObjectId = new Types.ObjectId(userId);
       const updateData = {
         ...data,
-        updatedBy: userObjectId
+        updatedBy: userId
       };
 
       // Handle image file if provided
@@ -552,7 +551,9 @@ export class MapService {
 
       // Apply partial update using deepMerge (PATCH)
       const obj = map.toObject();
-      map.set(deepMerge(obj, updateData));
+      const newObj = deepMerge(obj, updateData);
+      console.log('newObj', newObj);
+      map.set(newObj);
       await map.save();
 
       return map.populate('image');

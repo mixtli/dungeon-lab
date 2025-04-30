@@ -1,37 +1,26 @@
 import { readFileSync, readdirSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
-import axios from 'axios';
 import fs from 'fs';
 import { nextUser } from './import-utils.mjs';
-import { MapsClient } from '@dungeon-lab/client/index.mjs';
+import { configureApiClient, MapsClient } from '@dungeon-lab/client/index.mjs';
 
-const mapsClient = new MapsClient();
-console.log(mapsClient);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // API configuration
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
 const API_AUTH_TOKEN = process.env.API_AUTH_TOKEN;
-const API_TIMEOUT = 30000; // 30 seconds
 
-// Create axios instance with default config
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: API_TIMEOUT,
-  headers: {
-    'Content-Type': 'application/json'
-  }
-});
+// Configure API client
+configureApiClient(API_BASE_URL, API_AUTH_TOKEN);
 
-// Set auth token from environment variable
-if (API_AUTH_TOKEN) {
-  api.defaults.headers.common['Authorization'] = `Bearer ${API_AUTH_TOKEN}`;
-  console.log('Using API token from environment');
-} else {
-  console.warn('Warning: API_AUTH_TOKEN not provided. API calls may fail with 401 Unauthorized');
-}
+// Create maps client instance
+const mapsClient = new MapsClient();
+
+// Display initial configuration
+console.log(`Using API URL: ${API_BASE_URL}`);
+console.log(`Authentication: ${API_AUTH_TOKEN ? 'Enabled' : 'Disabled'}`);
 
 // Define proper types for map data
 interface MapData {
@@ -40,6 +29,7 @@ interface MapData {
   description?: string;
   columns: number;
   rows: number;
+  image?: string;
   [key: string]: unknown;
 }
 
@@ -50,6 +40,11 @@ async function importMapsViaAPI() {
 
   console.log(`Found ${mapFiles.length} map files to import`);
 
+  // Stats for reporting
+  let created = 0;
+  let updated = 0;
+  let errors = 0;
+
   for (const mapFile of mapFiles) {
     const mapData: MapData = JSON.parse(readFileSync(join(mapsDir, mapFile), 'utf-8'));
     console.log(`Processing map: ${mapData.name}`);
@@ -59,48 +54,61 @@ async function importMapsViaAPI() {
       let mapId: string | null = null;
 
       try {
-        const response = await api.get('/api/maps', {
-          params: {
-            name: mapData.name
-          }
-        });
+        // Get maps with the same name
+        const existingMaps = await mapsClient.getMaps();
 
-        const existingMaps = response.data;
-        if (existingMaps.length > 0) {
-          mapId = existingMaps[0].id;
+        // Filter maps by name manually if needed
+        const matchingMaps = existingMaps.filter((map) => map.name === mapData.name);
+
+        if (matchingMaps.length > 0) {
+          mapId = matchingMaps[0].id;
           console.log(`Found existing map with ID: ${mapId}`);
         }
       } catch (error) {
         console.warn(`Could not check for existing map: ${mapData.name}`, error);
       }
 
-      // Create or update map via API
+      // Create or update map via client API
       if (mapId) {
         // Update existing map
         console.log(`Updating map: ${mapData.name}`);
-        await api.put(`/api/maps/${mapId}`, {
+        await mapsClient.updateMap(mapId, {
           name: mapData.name,
           description: mapData.description || '',
           gridColumns: mapData.columns
         });
+        updated++;
       } else {
         // Create new map
         console.log(`Creating new map: ${mapData.name}`);
-        const createResponse = await api.post('/api/maps', {
-          name: mapData.name,
-          description: mapData.description || '',
-          gridColumns: mapData.columns,
-          createdBy: nextUser.next()
-        });
 
-        mapId = createResponse.data.id;
-        console.log(`Created new map with ID: ${mapId}`);
+        // Get user ID for creator field
+        const userId = await nextUser();
+
+        if (userId) {
+          const createMapData = {
+            name: mapData.name,
+            description: mapData.description || '',
+            gridColumns: mapData.columns
+          };
+
+          const newMap = await mapsClient.createMap(createMapData);
+
+          if (newMap && newMap.id) {
+            mapId = newMap.id;
+            console.log(`Created new map with ID: ${mapId}`);
+            created++;
+          }
+        } else {
+          console.warn(`Couldn't get user ID for map: ${mapData.name}`);
+          errors++;
+          continue;
+        }
       }
 
       // Upload map image if available
-      if (mapId) {
+      if (mapId && mapData.image) {
         // Function to safely get file paths
-        console.log('got mapid', mapData.image);
         const getFilePath = (basePath: string, relativePath: unknown): string => {
           if (!relativePath) return '';
           const safePath = typeof relativePath === 'string' ? relativePath : String(relativePath);
@@ -126,16 +134,17 @@ async function importMapsViaAPI() {
               contentType = 'image/webp';
             }
 
-            // Upload raw image data
-            await api.put(`/api/maps/${mapId}/image`, imageData, {
-              headers: {
-                'Content-Type': contentType
-              }
-            });
+            // Create File object
+            const fileName = imageFilePath.split('/').pop() || 'image.jpg';
+            const imageFile = new File([imageData], fileName, { type: contentType });
+
+            // Upload image using the client
+            await mapsClient.uploadMapImage(mapId, imageFile);
 
             console.log(`Image uploaded for ${mapData.name}`);
           } catch (error) {
             console.error(`Failed to upload image for ${mapData.name}:`, error);
+            errors++;
           }
         }
       }
@@ -143,8 +152,15 @@ async function importMapsViaAPI() {
       console.log(`Successfully processed map: ${mapData.name}`);
     } catch (error) {
       console.error(`Error processing map data for ${mapFile}:`, error);
+      errors++;
     }
   }
+
+  // Print import summary
+  console.log('\nMap Import Summary:');
+  console.log(`- Created: ${created} new maps`);
+  console.log(`- Updated: ${updated} existing maps`);
+  console.log(`- Errors: ${errors} maps`);
 }
 
 async function main() {

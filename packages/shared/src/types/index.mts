@@ -16,6 +16,7 @@ import {
 import {
   actorSchema,
   actorCreateSchema,
+  actorPatchSchema,
   actorSchemaWithVirtuals
 } from '../schemas/actor.schema.mjs';
 
@@ -56,6 +57,7 @@ export type ICampaignPatchData = z.infer<typeof campaignPatchSchema>;
 export type IActor = z.infer<typeof actorSchemaWithVirtuals>;
 export type IActorCreateData = z.infer<typeof actorCreateSchema>;
 export type IActorBaseData = z.infer<typeof actorSchema>;
+export type IActorPatchData = z.infer<typeof actorPatchSchema>;
 
 // Asset Types
 export type IAsset = z.infer<typeof assetSchema>;

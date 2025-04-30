@@ -1,9 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { readFile, readdir } from 'fs/promises';
 import { join, dirname } from 'path';
-import type { IVTTDocument } from '@dungeon-lab/shared/schemas/vtt-document.schema.mjs';
+import type { IVTTDocument, IUser } from '@dungeon-lab/shared/types/index.mjs';
 import * as mimeTypes from 'mime-types';
 import { fileURLToPath } from 'url';
+import axios from 'axios';
 // Import client classes
 import {
   configureApiClient,
@@ -15,6 +16,10 @@ import {
 // Get the current file's directory in ESM
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+// Store users for nextUser function
+let userIds: string[] = [];
+let currentUserIndex = 0;
 
 interface ActorData {
   name: string;
@@ -35,6 +40,60 @@ interface ItemData {
   data: any;
   pluginId: string;
   gameSystemId: string;
+}
+
+/**
+ * Gets the next user ID in sequence, fetching all users if needed
+ * @param apiBaseUrl Base URL for the API
+ * @param authToken Optional authentication token
+ * @returns The next user ID in the sequence
+ */
+export async function nextUser(
+  apiBaseUrl = 'http://localhost:3000',
+  authToken?: string
+): Promise<string | null> {
+  try {
+    // If users array is empty, fetch all users
+    if (userIds.length === 0) {
+      // Make a direct API call to fetch users since UsersClient may not be available
+      const headers: Record<string, string> = {};
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+      }
+
+      const response = await axios.get(`${apiBaseUrl}/api/users`, { headers });
+
+      if (!response.data || !Array.isArray(response.data)) {
+        throw new Error('Invalid response from users API');
+      }
+
+      const users = response.data as IUser[];
+
+      // Filter out admin user (assuming admin has email 'admin@dungeonlab.com')
+      userIds = users
+        .filter((user: IUser) => user.email !== 'admin@dungeonlab.com')
+        .map((user: IUser) => user.id);
+
+      if (userIds.length === 0) {
+        console.error('No non-admin users found in the system');
+        return null;
+      }
+
+      console.log(`Loaded ${userIds.length} users for cycling through`);
+      currentUserIndex = 0;
+    }
+
+    // Get the next user ID
+    const userId = userIds[currentUserIndex];
+
+    // Increment the index, wrapping around if necessary
+    currentUserIndex = (currentUserIndex + 1) % userIds.length;
+
+    return userId;
+  } catch (error) {
+    console.error('Error getting next user:', error);
+    return null;
+  }
 }
 
 /**

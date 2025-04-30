@@ -15,10 +15,9 @@ declare module 'express' {
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
-  },
+    fileSize: 10 * 1024 * 1024 // 10MB limit
+  }
 });
-
 
 export function validateRequest(schema: z.ZodSchema) {
   return async (req: Request, res: Response, next: NextFunction) => {
@@ -29,10 +28,10 @@ export function validateRequest(schema: z.ZodSchema) {
     } catch (err) {
       if (err instanceof z.ZodError) {
         res.locals.validationErrors = err.errors;
-        console.log("Validation errors", err.errors, err.message);
+        console.log('Validation errors', err.errors, err.message);
         res.status(400).json({
           message: 'Validation error' + err.message,
-          errors: err.errors,
+          errors: err.errors
         });
       } else {
         res.locals.error = err;
@@ -44,30 +43,33 @@ export function validateRequest(schema: z.ZodSchema) {
 
 /**
  * Middleware to validate multipart form data with file uploads
- * 
+ *
  * @param schema - The Zod schema to validate against
  * @param fileFields - Array of file field names or a single field name (defaults to 'image')
  */
-export function validateMultipartRequest(schema: z.ZodSchema, fileFields: string | string[] = 'image') {
+export function validateMultipartRequest(
+  schema: z.ZodSchema,
+  fileFields: string | string[] = 'image'
+) {
   // Convert to array for consistent handling
   const fieldsArray = Array.isArray(fileFields) ? fileFields : [fileFields];
-  console.log("fieldsArray", fieldsArray);
-  
+  console.log('fieldsArray', fieldsArray);
+
   // Always use fields for consistency, even for a single file
   const multerMiddleware = upload.fields(
-    fieldsArray.map(field => ({ name: field, maxCount: 1 }))
+    fieldsArray.map((field) => ({ name: field, maxCount: 1 }))
   );
-  
+
   return [
     multerMiddleware,
     async (req: Request, res: Response, next: NextFunction) => {
       try {
         // Normalize file structure to a consistent format for easier processing
         const normalizedFiles = new Map<string, Express.Multer.File>();
-        
+
         // Process multiple file uploads from req.files (we don't need to handle req.file anymore)
         const files = req.files as Record<string, Express.Multer.File[]> | undefined;
-        
+
         if (files) {
           Object.entries(files).forEach(([fieldName, fieldFiles]) => {
             if (Array.isArray(fieldFiles) && fieldFiles.length > 0) {
@@ -75,8 +77,7 @@ export function validateMultipartRequest(schema: z.ZodSchema, fileFields: string
             }
           });
         }
-        
-        
+
         // Build the schema extension for file fields
         const schemaExtension: Record<string, z.ZodType<unknown>> = {};
         // Check if the schema is a ZodObject to access shape property
@@ -84,15 +85,18 @@ export function validateMultipartRequest(schema: z.ZodSchema, fileFields: string
           // Get shape of the schema to check if fields are optional
           const shape = schema._def.shape();
 
-          fieldsArray.forEach(field => {
+          fieldsArray.forEach((field) => {
             // Check if the field exists in the schema and if it's optional
-            const isFieldOptional = field in shape &&
+            const isFieldOptional =
+              field in shape &&
               (shape[field] instanceof z.ZodOptional ||
                 shape[field] instanceof z.ZodNullable ||
-                shape[field] instanceof z.ZodUnion &&
-                shape[field]._def.options.some((opt: z.ZodType<unknown>) =>
-                  opt instanceof z.ZodLiteral && opt._def.value === ''));
-            console.log("isFieldOptional", field, isFieldOptional);
+                (shape[field] instanceof z.ZodUnion &&
+                  shape[field]._def.options.some(
+                    (opt: z.ZodType<unknown>) =>
+                      opt instanceof z.ZodLiteral && opt._def.value === ''
+                  )));
+            console.log('isFieldOptional', field, isFieldOptional);
 
             // Make file field optional if it's optional in the original schema
             schemaExtension[field] = isFieldOptional
@@ -101,20 +105,17 @@ export function validateMultipartRequest(schema: z.ZodSchema, fileFields: string
           });
         } else {
           // Default behavior if schema is not a ZodObject
-          fieldsArray.forEach(field => {
+          fieldsArray.forEach((field) => {
             schemaExtension[field] = z.instanceof(File);
           });
         }
 
-
         // Create a modified schema that accepts multer files
-        const modifiedSchema = schema instanceof z.ZodObject 
-          ? schema.extend(schemaExtension)
-          : schema;
+        const modifiedSchema =
+          schema instanceof z.ZodObject ? schema.extend(schemaExtension) : schema;
         // Build validated data object - start with parsed body form fields
         const bodyData: Record<string, unknown> = { ...req.body };
-        
-        
+
         // Add all files from our normalized map
         const filesData: FilesData = {};
         normalizedFiles.forEach((file, fieldName) => {
@@ -122,7 +123,7 @@ export function validateMultipartRequest(schema: z.ZodSchema, fileFields: string
           bodyData[fieldName] = f;
           filesData[fieldName] = [f];
         });
-        
+
         // Store in both places for backward compatibility
         req.assets = filesData; // New property with correct typing
 
@@ -135,6 +136,15 @@ export function validateMultipartRequest(schema: z.ZodSchema, fileFields: string
             console.warn('Failed to parse JSON data field:', e);
           }
         }
+        if (typeof bodyData.userData === 'string') {
+          try {
+            bodyData.userData = JSON.parse(bodyData.userData);
+          } catch (e) {
+            // If parsing fails, keep the original string
+            console.warn('Failed to parse JSON userData field:', e);
+          }
+        }
+        console.log('bodyData', bodyData);
 
         const validatedData = await modifiedSchema.parseAsync(bodyData);
         req.body = validatedData;
@@ -142,18 +152,18 @@ export function validateMultipartRequest(schema: z.ZodSchema, fileFields: string
       } catch (err) {
         if (err instanceof z.ZodError) {
           res.locals.validationErrors = err.errors;
-          console.log("Validation errors", err.errors, err.message);
+          console.log('Multipart Validation errors', err.errors, err.message);
           res.status(400).json({
-            message: 'Validation error' + err.message,
-            errors: err.errors,
+            message: 'Multipart Validation error' + err.message,
+            errors: err.errors
           });
         } else {
           res.locals.error = err;
           res.status(400).json({
-            message: err instanceof Error ? err.message : 'Invalid request data',
+            message: err instanceof Error ? err.message : 'Invalid request data'
           });
         }
       }
-    },
+    }
   ];
-} 
+}

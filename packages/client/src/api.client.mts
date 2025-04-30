@@ -5,9 +5,12 @@ import axios, { AxiosInstance } from 'axios';
 // const baseURL = (import.meta.env?.VITE_API_URL as string | undefined) || 'http://localhost:3000';
 
 let baseUrl: string;
+let apiKey: string | undefined;
 
-export const configureApiClient = (url: string) => {
+export const configureApiClient = (url: string, key?: string) => {
+  console.log('configureApiClient', url, apiKey);
   baseUrl = url;
+  apiKey = key;
 };
 
 export class ApiClient {
@@ -28,10 +31,16 @@ export class ApiClient {
         'Content-Type': 'application/json'
       } as Record<string, string>
     };
+    console.log('baseUrl', baseUrl);
+    console.log('apiKey', apiKey);
+    if (apiKey) {
+      config.headers['Authorization'] = `Bearer ${apiKey}`;
+    }
 
     if (params.apiKey) {
       config.headers['Authorization'] = `Bearer ${params.apiKey}`;
     }
+    config.timeout = 100000;
 
     this.api = axios.create(config);
   }

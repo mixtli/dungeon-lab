@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { actorCreateSchema } from '../../schemas/actor.schema.mjs';
-import type { IActor } from '../../schemas/actor.schema.mjs';
+import type { IActor } from '../../types/index.mjs';
 export type { IActor };
 
 // Types for POST /actors (Create actor)

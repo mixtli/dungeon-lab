@@ -80,6 +80,8 @@ export { baseAPIResponseSchema } from './types/api/base.mjs';
 export { GameSessionStatus } from './schemas/game-session.schema.mjs';
 export { UserTheme } from './schemas/user.schema.mjs';
 
+export type { IGameSession } from './types/api/game-sessions.mjs';
+
 // Token types
 
 // Token schema and enums

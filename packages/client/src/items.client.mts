@@ -2,7 +2,8 @@ import type { IItem } from '@dungeon-lab/shared/types/index.mjs';
 import {
   BaseAPIResponse,
   CreateItemRequest,
-  PatchItemRequest
+  PatchItemRequest,
+  SearchItemsQuery
 } from '@dungeon-lab/shared/types/api/index.mjs';
 import { ApiClient } from './api.client.mjs';
 
@@ -11,10 +12,13 @@ import { ApiClient } from './api.client.mjs';
  */
 export class ItemsClient extends ApiClient {
   /**
-   * Get all items
+   * Get items with optional filtering
+   * @param query Optional filter parameters
    */
-  async getItems(): Promise<IItem[]> {
-    const response = await this.api.get<BaseAPIResponse<IItem[]>>('/api/items');
+  async getItems(query?: SearchItemsQuery): Promise<IItem[]> {
+    const response = await this.api.get<BaseAPIResponse<IItem[]>>('/api/items', {
+      params: query
+    });
     if (!response.data.success) {
       throw new Error(response.data.error || 'Failed to get items');
     }
@@ -86,5 +90,34 @@ export class ItemsClient extends ApiClient {
       throw new Error(response.data.error || 'Failed to get actor items');
     }
     return response.data.data;
+  }
+
+  /**
+   * Upload an image for an item
+   */
+  async uploadItemImage(itemId: string, file: File): Promise<string> {
+    const response = await this.api.put<BaseAPIResponse<IItem>>(
+      `/api/items/${itemId}/image`,
+      file,
+      {
+        headers: {
+          'Content-Type': file.type
+        }
+      }
+    );
+
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to upload item image');
+    }
+    if (!response.data.data) {
+      throw new Error('Failed to upload item image');
+    }
+
+    // The item is returned with its image ID reference
+    const item = response.data.data;
+    if (!item.id) {
+      throw new Error('Invalid item data returned');
+    }
+    return item.id;
   }
 }

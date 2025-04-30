@@ -28,6 +28,8 @@ mongooseSchema.path('avatarId').get(function (value: ObjectId | undefined) {
 
 // Override the data field to use Mixed type
 mongooseSchema.path('data', mongoose.Schema.Types.Mixed);
+// Override the data field to use Mixed type
+mongooseSchema.path('userData', mongoose.Schema.Types.Mixed);
 
 // Add virtual properties for avatar and token
 mongooseSchema.virtual('avatar', {

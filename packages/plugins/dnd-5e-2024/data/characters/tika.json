@@ -1,8 +1,9 @@
 {
-  "id": "93ED43DF-8168-41B0-8E0C-A6A822B11CBF",
+  "userData": {
+    "uuid": "93ED43DF-8168-41B0-8E0C-A6A822B11CBF"
+  },
   "name": "Tika Waylan",
   "description": "A spirited young barmaid from the Inn of the Last Home who proves herself a capable warrior when crisis strikes. Her fiery red curls match her passionate nature, and her skill with a frying pan in combat is as legendary as her warm heart. Though she begins as a simple tavern server, her courage, determination, and growing love for Caramon Majere help her develop into a true hero.",
-  "species": "Human",
   "avatar": {
     "url": "images/character_tokens/dragonlance/tika.png",
     "type": "image/png",
@@ -17,200 +18,111 @@
     "name": "tika.png",
     "data": null
   },
-  "classes": [
-    {
-      "name": "Fighter",
-      "level": 1,
-      "hitDiceType": "d8"
-    }
-  ],
-  "xp": 0,
-  "alignment": "neutral-good",
-  "speed": 30,
-  "hit_points": {
-    "max": 12,
-    "current": 12,
-    "temporary": 0
-  },
-  "hitDice": {
-    "total": 1,
-    "current": 1,
-    "type": "d8"
-  },
-  "ability_scores": {
-    "str": 14,
-    "dex": 15,
-    "con": 14,
-    "int": 10,
-    "wis": 12,
-    "cha": 13
-  },
-  "skills": {
-    "acrobatics": {
-      "ability": "dexterity",
-      "proficient": true,
-      "bonus": 4
-    },
-    "animalHandling": {
-      "ability": "wisdom",
-      "proficient": false,
-      "bonus": 1
-    },
-    "arcana": {
-      "ability": "intelligence",
-      "proficient": false,
-      "bonus": 0
-    },
-    "athletics": {
-      "ability": "strength",
-      "proficient": true,
-      "bonus": 4
-    },
-    "deception": {
-      "ability": "charisma",
-      "proficient": false,
-      "bonus": 1
-    },
-    "history": {
-      "ability": "intelligence",
-      "proficient": false,
-      "bonus": 0
-    },
-    "insight": {
-      "ability": "wisdom",
-      "proficient": true,
-      "bonus": 3
-    },
-    "intimidation": {
-      "ability": "charisma",
-      "proficient": false,
-      "bonus": 1
-    },
-    "investigation": {
-      "ability": "intelligence",
-      "proficient": false,
-      "bonus": 0
-    },
-    "medicine": {
-      "ability": "wisdom",
-      "proficient": false,
-      "bonus": 1
-    },
-    "nature": {
-      "ability": "intelligence",
-      "proficient": false,
-      "bonus": 0
-    },
-    "perception": {
-      "ability": "wisdom",
-      "proficient": false,
-      "bonus": 1
-    },
-    "performance": {
-      "ability": "charisma",
-      "proficient": false,
-      "bonus": 1
-    },
-    "persuasion": {
-      "ability": "charisma",
-      "proficient": true,
-      "bonus": 3
-    },
-    "religion": {
-      "ability": "intelligence",
-      "proficient": false,
-      "bonus": 0
-    },
-    "sleightOfHand": {
-      "ability": "dexterity",
-      "proficient": true,
-      "bonus": 4
-    },
-    "stealth": {
-      "ability": "dexterity",
-      "proficient": false,
-      "bonus": 2
-    },
-    "survival": {
-      "ability": "wisdom",
-      "proficient": false,
-      "bonus": 1
-    }
-  },
-  "armor_class": {
-    "value": 14,
-    "description": ""
-  },
-  "saving_throws": {
-    "str": true,
-    "dex": false,
-    "con": true,
-    "int": false,
-    "wis": false,
-    "cha": false
-  },
-  "languages": ["Common"],
-  "background": "Tavern Server",
-  "details": {
-    "personality": "Practical and hardworking, with a fierce protective streak",
-    "ideal": "Protecting those who can't protect themselves",
-    "bond": "The Inn of the Last Home and its patrons are my family",
-    "flaw": "Quick to anger when those she cares about are threatened"
-  },
-  "weapons": [
-    {
-      "name": "Dagger",
-      "damage": {
-        "dice": {
-          "sides": 4,
-          "count": 1,
-          "mod": 1
-        },
-        "type": "Piercing"
-      },
-      "throw_range": {
-        "short": 20,
-        "long": 60
-      },
-      "properties": {
-        "Finesse": true,
-        "Light": true,
-        "Thrown": true
+  "data": {
+    "species": "human",
+    "classes": [
+      {
+        "name": "fighter",
+        "level": 1,
+        "hitDiceType": "d8"
       }
-    }
-  ],
-  "spells": [],
-  "experiencePoints": 0,
-  "proficiencyBonus": 2,
-  "initiative": 2,
-  "equipment": [
-    {
-      "id": "frying-pan",
-      "quantity": 1
+    ],
+    "background": "tavern server",
+    "alignment": "neutral-good",
+    "experiencePoints": 0,
+    "proficiencyBonus": 2,
+    "armorClass": 14,
+    "initiative": 2,
+    "speed": 30,
+    "hitPoints": {
+      "maximum": 12,
+      "current": 12,
+      "temporary": 0
     },
-    {
-      "id": "studded-leather",
-      "quantity": 1
-    }
-  ],
-  "features": [
-    {
-      "name": "Fighting Style: Two-Weapon Fighting",
-      "source": "Fighter",
-      "description": "Add your ability modifier to the damage of your off-hand attack"
+    "hitDice": {
+      "total": 1,
+      "current": 1,
+      "type": "d8"
     },
-    {
-      "name": "Second Wind",
-      "source": "Fighter",
-      "description": "Once per short rest, bonus action to regain 1d10 + fighter level HP"
+    "abilities": {
+      "strength": {
+        "score": 14,
+        "modifier": 2,
+        "savingThrow": {
+          "proficient": true,
+          "bonus": 0
+        }
+      },
+      "dexterity": {
+        "score": 15,
+        "modifier": 2,
+        "savingThrow": {
+          "proficient": false,
+          "bonus": 0
+        }
+      },
+      "constitution": {
+        "score": 14,
+        "modifier": 2,
+        "savingThrow": {
+          "proficient": true,
+          "bonus": 0
+        }
+      },
+      "intelligence": {
+        "score": 10,
+        "modifier": 0,
+        "savingThrow": {
+          "proficient": false,
+          "bonus": 0
+        }
+      },
+      "wisdom": {
+        "score": 12,
+        "modifier": 1,
+        "savingThrow": {
+          "proficient": false,
+          "bonus": 0
+        }
+      },
+      "charisma": {
+        "score": 13,
+        "modifier": 1,
+        "savingThrow": {
+          "proficient": false,
+          "bonus": 0
+        }
+      }
+    },
+    "equipment": [
+      {
+        "id": "frying-pan",
+        "quantity": 1
+      },
+      {
+        "id": "studded-leather",
+        "quantity": 1
+      }
+    ],
+    "features": [
+      {
+        "name": "Fighting Style: Two-Weapon Fighting",
+        "source": "Fighter",
+        "description": "Add your ability modifier to the damage of your off-hand attack"
+      },
+      {
+        "name": "Second Wind",
+        "source": "Fighter",
+        "description": "Once per short rest, bonus action to regain 1d10 + fighter level HP"
+      }
+    ],
+    "biography": {
+      "appearance": "A pretty young woman with curly red hair, wearing practical clothing suitable for serving at an inn",
+      "backstory": "Raised at the Inn of the Last Home in Solace after being orphaned, Tika learned to defend herself while working as a barmaid",
+      "personalityTraits": "Practical and hardworking, with a fierce protective streak",
+      "ideals": "Protecting those who can't protect themselves",
+      "bonds": "The Inn of the Last Home and its patrons are my family",
+      "flaws": "Quick to anger when those she cares about are threatened"
     }
-  ],
-  "biography": {
-    "appearance": "A pretty young woman with curly red hair, wearing practical clothing suitable for serving at an inn",
-    "backstory": "Raised at the Inn of the Last Home in Solace after being orphaned, Tika learned to defend herself while working as a barmaid",
-    "personalityTraits": "Practical and hardworking, with a fierce protective streak",
-    "ideals": "Protecting those who can't protect themselves",
-    "bonds": "The Inn of the Last Home and its patrons are my family",
-    "flaws": "Quick to anger when those she cares about are threatened"
   }
 }

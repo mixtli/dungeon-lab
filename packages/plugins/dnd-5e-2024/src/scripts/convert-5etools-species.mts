@@ -1,12 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { ISpeciesData } from '../shared/types/vttdocument.mjs';
-import type { IVTTDocument } from '@dungeon-lab/shared/schemas/vtt-document.schema.mjs';
+import type { IVTTDocument } from '@dungeon-lab/shared/types/index.mjs';
 import {
   toLowercase,
   cleanRuleText,
   extractTextFromEntries,
   normalizeSize,
-  extractSpells,
+  extractSpells
 } from './converter-utils.mjs';
 
 // Input data interface
@@ -14,13 +14,15 @@ export interface RawSpeciesData {
   name?: string;
   source?: string;
   size?: string[];
-  speed?: number | { 
-    walk?: number; 
-    fly?: number;
-    swim?: number;
-    climb?: number;
-    burrow?: number;
-  };
+  speed?:
+    | number
+    | {
+        walk?: number;
+        fly?: number;
+        swim?: number;
+        climb?: number;
+        burrow?: number;
+      };
   darkvision?: number;
   sizeEntry?: {
     type?: string;
@@ -36,9 +38,11 @@ export interface RawSpeciesData {
   resist?: string[];
   additionalSpells?: Array<{
     name?: string;
-    ability?: string | {
-      choose?: string[];
-    };
+    ability?:
+      | string
+      | {
+          choose?: string[];
+        };
     innate?: Record<string, any>;
     known?: Record<string, any>;
   }>;
@@ -51,9 +55,11 @@ export interface RawSpeciesData {
     name?: string;
     source?: string;
     additionalSpells?: Array<{
-      ability?: string | {
-        choose?: string[];
-      };
+      ability?:
+        | string
+        | {
+            choose?: string[];
+          };
       innate?: Record<string, any>;
       known?: Record<string, any>;
     }>;
@@ -77,7 +83,7 @@ function getSpeed(data: RawSpeciesData): number {
   } else if (typeof data.speed === 'object' && data.speed !== null) {
     return data.speed.walk || 30; // Default to walk speed or 30
   }
-  
+
   return 30; // Default
 }
 
@@ -85,15 +91,18 @@ function extractTraits(data: RawSpeciesData): Array<{ name: string; description:
   if (!data.entries || !Array.isArray(data.entries)) {
     return [];
   }
-  
+
   return data.entries
-    .filter(entry => 
-      typeof entry === 'object' && entry !== null && 
-      entry.name && entry.entries &&
-      entry.name.toLowerCase() !== 'size' && // Skip size entry as it's handled separately
-      entry.name.toLowerCase() !== 'languages' // Skip languages entry as we don't need them
+    .filter(
+      (entry) =>
+        typeof entry === 'object' &&
+        entry !== null &&
+        entry.name &&
+        entry.entries &&
+        entry.name.toLowerCase() !== 'size' && // Skip size entry as it's handled separately
+        entry.name.toLowerCase() !== 'languages' // Skip languages entry as we don't need them
     )
-    .map(entry => ({
+    .map((entry) => ({
       name: toLowercase(entry.name || ''),
       description: extractTextFromEntries(entry.entries || [])
     }));
@@ -112,25 +121,25 @@ function extractSubspeciesFromVersions(data: RawSpeciesData): Array<{
   if (!data._versions || !Array.isArray(data._versions)) {
     return [];
   }
-  
+
   return data._versions
-    .filter(version => version.source === 'XPHB') // Only include XPHB versions
-    .map(version => {
+    .filter((version) => version.source === 'XPHB') // Only include XPHB versions
+    .map((version) => {
       const traits: Array<{ name: string; description: string }> = [];
       let description = '';
       let versionName = version.name || '';
-      
+
       // Extract the subspecies name from the version name
       // Example format: "Goliath; Cloud Giant Ancestry" should become "cloud giant ancestry"
       const nameParts = versionName.split(';');
       if (nameParts.length > 1) {
         versionName = nameParts[1].trim();
       }
-      
+
       // Extract trait info from the _mod.entries.items
       if (version._mod?.entries?.items) {
         const entryItems = version._mod.entries.items;
-        
+
         // Get the trait name
         if (entryItems.name) {
           // Add it as a trait
@@ -139,7 +148,7 @@ function extractSubspeciesFromVersions(data: RawSpeciesData): Array<{
             description: entryItems.entries ? extractTextFromEntries(entryItems.entries) : ''
           });
         }
-        
+
         // If there's no explicit description, use the first text entry as the description
         if (!description && entryItems.entries && Array.isArray(entryItems.entries)) {
           const firstEntry = entryItems.entries[0];
@@ -148,10 +157,10 @@ function extractSubspeciesFromVersions(data: RawSpeciesData): Array<{
           }
         }
       }
-      
+
       // Extract additional spells if present
       const spells = version.additionalSpells ? extractSpells(version.additionalSpells) : undefined;
-      
+
       return {
         name: toLowercase(versionName),
         description: description,
@@ -163,40 +172,43 @@ function extractSubspeciesFromVersions(data: RawSpeciesData): Array<{
 
 function getDescription(data: RawSpeciesData): string {
   // Extract general description from entries that aren't explicit traits
-  const description = data.entries ? 
-    data.entries
-      .filter(entry => 
-        typeof entry === 'string' || 
-        (entry && entry.type && entry.type === 'entries' && !entry.name)
-      )
-      .map(entry => 
-        typeof entry === 'string' ? 
-          cleanRuleText(entry) : 
-          extractTextFromEntries(entry.entries || [])
-      )
-      .join(' ') 
+  const description = data.entries
+    ? data.entries
+        .filter(
+          (entry) =>
+            typeof entry === 'string' ||
+            (entry && entry.type && entry.type === 'entries' && !entry.name)
+        )
+        .map((entry) =>
+          typeof entry === 'string'
+            ? cleanRuleText(entry)
+            : extractTextFromEntries(entry.entries || [])
+        )
+        .join(' ')
     : '';
-    
+
   return description;
 }
 
-export function convert5eToolsSpecies(data: RawSpeciesData): ISpeciesData & Pick<IVTTDocument, 'name' | 'description'> {
+export function convert5eToolsSpecies(
+  data: RawSpeciesData
+): ISpeciesData & Pick<IVTTDocument, 'name' | 'description'> {
   // Skip non-XPHB species
   if (data.source !== 'XPHB') {
     return {} as ISpeciesData & Pick<IVTTDocument, 'name' | 'description'>;
   }
-  
+
   // First extract subspecies from _versions
   let subspecies = extractSubspeciesFromVersions(data);
-  
+
   // If no subspecies were found, but there are additionalSpells at the species level,
   // we need to create subspecies to hold that data
   if (subspecies.length === 0 && data.additionalSpells && data.additionalSpells.length > 0) {
     // Extract spells from the main species entry
     const spellsData = extractSpells(data.additionalSpells);
-    
+
     // Create subspecies entries for each spell group
-    subspecies = spellsData.map(spellGroup => {
+    subspecies = spellsData.map((spellGroup) => {
       return {
         name: spellGroup.name ? spellGroup.name : `${data.name} variant`,
         description: `${data.name} with ${spellGroup.name || 'special'} spells.`,
@@ -208,7 +220,7 @@ export function convert5eToolsSpecies(data: RawSpeciesData): ISpeciesData & Pick
 
   const name = toLowercase(data.name || '');
   const description = getDescription(data);
-  
+
   return {
     name,
     description,
@@ -217,4 +229,4 @@ export function convert5eToolsSpecies(data: RawSpeciesData): ISpeciesData & Pick
     traits: extractTraits(data),
     subspecies: subspecies.length > 0 ? subspecies : undefined
   };
-} 
+}

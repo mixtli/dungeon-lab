@@ -4,7 +4,7 @@ import { logger } from '../../../utils/logger.mjs';
 import { isErrorWithMessage } from '../../../utils/error.mjs';
 import { ActorService } from '../services/actor.service.mjs';
 import { BaseAPIResponse } from '@dungeon-lab/shared/types/api/index.mjs';
-import { IActor } from '@dungeon-lab/shared/schemas/actor.schema.mjs';
+import { IActor } from '@dungeon-lab/shared/types/index.mjs';
 import { pluginRegistry } from '../../../services/plugin-registry.service.mjs';
 import {
   putActorRequestSchema,
@@ -12,6 +12,8 @@ import {
   patchActorRequestSchema,
   searchActorsQuerySchema
 } from '@dungeon-lab/shared/types/api/index.mjs';
+import { createSearchParams } from '../../../utils/create.search.params.mjs';
+import { QueryValue } from '@dungeon-lab/shared/types/index.mjs';
 
 export class ActorController {
   private actorService: ActorService;
@@ -21,25 +23,39 @@ export class ActorController {
   }
 
   /**
-   * Get all actors, optionally filtered by type
+   * Get actors with flexible filtering through query parameters
    * @route GET /api/actors
-   * @param {string} type - Optional type to filter actors by (e.g. 'character', 'npc')
+   * @param {Object} query - Query parameters to filter actors by
    * @access Public
    */
-  getAllActors = async (
-    req: Request<object, object, object, { type: string | undefined }>,
+  getActors = async (
+    req: Request,
     res: Response<BaseAPIResponse<IActor[]>>
   ): Promise<Response<BaseAPIResponse<IActor[]>> | void> => {
     try {
-      const type = req.query.type;
-      const actors = await this.actorService.getAllActors(type);
+      // Convert query object to a Record with string values
+      const queryParams: Record<string, QueryValue> = {};
+
+      // Add all query parameters to the record
+      for (const [key, value] of Object.entries(req.query)) {
+        if (value !== undefined) {
+          queryParams[key] = value as QueryValue;
+        }
+      }
+
+      // Process query parameters including any nested values
+      const searchParams = createSearchParams(queryParams);
+
+      // Get actors using the service with the processed search parameters
+      const actors = await this.actorService.searchActors(searchParams);
+
       return res.json({
         success: true,
         data: actors
       });
     } catch (error) {
       if (isErrorWithMessage(error)) {
-        logger.error('Error fetching all actors:', error);
+        logger.error('Error fetching actors:', error);
       }
       return res.status(500).json({
         success: false,
@@ -79,33 +95,6 @@ export class ActorController {
         success: false,
         data: null,
         error: 'Server error'
-      });
-    }
-  };
-
-  /**
-   * Get actors for a campaign
-   * @route GET /api/actors/campaign/:campaignId
-   * @access Private
-   */
-  getActors = async (
-    req: Request<{ campaignId: string }>,
-    res: Response<BaseAPIResponse<IActor[]>>
-  ): Promise<Response<BaseAPIResponse<IActor[]>> | void> => {
-    try {
-      const actors = await this.actorService.getActors(req.params.campaignId);
-      return res.json({
-        success: true,
-        data: actors
-      });
-    } catch (error) {
-      if (isErrorWithMessage(error)) {
-        logger.error('Error getting actors:', error);
-      }
-      return res.status(500).json({
-        success: false,
-        data: [],
-        error: 'Failed to get actors'
       });
     }
   };

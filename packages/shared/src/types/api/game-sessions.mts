@@ -1,9 +1,7 @@
-import type { IGameSession } from '../../schemas/game-session.schema.mjs';
 import { z } from 'zod';
 import { gameSessionSchema } from '../../schemas/game-session.schema.mjs';
-import { baseAPIResponseSchema } from './base.mts';
-export type { IGameSession };
-
+import { baseAPIResponseSchema } from './base.mjs';
+import type { IGameSession } from '../index.mjs';
 // Game Session API Types
 export interface GameSessionListResponse {
   data: IGameSession[];

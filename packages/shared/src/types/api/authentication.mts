@@ -1,6 +1,6 @@
 import { userSchema } from '../../index.mjs';
 import { z } from 'zod';
-import { baseAPIResponseSchema } from './base.mts';
+import { baseAPIResponseSchema } from './base.mjs';
 
 export const loginResponseSchema = z.object({
   success: z.boolean(),

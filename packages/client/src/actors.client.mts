@@ -3,7 +3,8 @@ import {
   CreateActorRequest,
   PatchActorRequest,
   BaseAPIResponse,
-  DeleteAPIResponse
+  DeleteAPIResponse,
+  SearchActorsQuery
 } from '@dungeon-lab/shared/types/api/index.mjs';
 import { ApiClient } from './api.client.mjs';
 
@@ -22,11 +23,60 @@ export class ActorsClient extends ApiClient {
     return response.data.data;
   }
 
+  private toFormData(data: PatchActorRequest): FormData {
+    const formData = new FormData();
+
+    // Add all standard fields to the form data
+    Object.entries(data).forEach(([key, value]) => {
+      if (key === 'data' || key === 'userData') {
+        formData.append(key, JSON.stringify(value));
+      } else if (value !== undefined && value !== null && key !== 'avatar' && key !== 'token') {
+        formData.append(key, value.toString());
+      }
+    });
+
+    // Add avatar and token files if present
+    if (data.avatar instanceof File) {
+      formData.append('avatar', data.avatar);
+    }
+
+    if (data.token instanceof File) {
+      formData.append('token', data.token);
+    }
+    return formData;
+  }
+
+  /**
+   * Create a new actor
+   */
+  async createActor(data: CreateActorRequest): Promise<IActor | undefined> {
+    const formData = this.toFormData(data);
+    const response = await this.api.post<BaseAPIResponse<IActor>>('/api/actors', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to create actor');
+    }
+    return response.data.data;
+  }
+
   /**
    * Update an actor
    */
   async updateActor(actorId: string, data: PatchActorRequest): Promise<IActor | undefined> {
-    const response = await this.api.patch<BaseAPIResponse<IActor>>(`/api/actors/${actorId}`, data);
+    const formData = this.toFormData(data);
+    const response = await this.api.patch<BaseAPIResponse<IActor>>(
+      `/api/actors/${actorId}`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      }
+    );
     if (!response.data.success) {
       throw new Error(response.data.error || 'Failed to update actor');
     }
@@ -34,10 +84,13 @@ export class ActorsClient extends ApiClient {
   }
 
   /**
-   * Get all actors
+   * Get actors with optional filtering
+   * @param query Optional filter parameters
    */
-  async getActors(): Promise<IActor[]> {
-    const response = await this.api.get<BaseAPIResponse<IActor[]>>('/api/actors');
+  async getActors(query?: SearchActorsQuery): Promise<IActor[]> {
+    const response = await this.api.get<BaseAPIResponse<IActor[]>>('/api/actors', {
+      params: query
+    });
     if (!response.data.success) {
       throw new Error(response.data.error || 'Failed to get actors');
     }
@@ -54,43 +107,6 @@ export class ActorsClient extends ApiClient {
     if (!response.data.success) {
       throw new Error(response.data.error || 'Failed to get campaign actors');
     }
-    return response.data.data;
-  }
-
-  /**
-   * Create a new actor
-   */
-  async createActor(data: CreateActorRequest): Promise<IActor | undefined> {
-    const formData = new FormData();
-
-    // Add all standard fields to the form data
-    Object.entries(data).forEach(([key, value]) => {
-      if (key === 'data') {
-        formData.append(key, JSON.stringify(value));
-      } else if (value !== undefined && value !== null && key !== 'avatar' && key !== 'token') {
-        formData.append(key, value.toString());
-      }
-    });
-
-    // Add avatar and token files if present
-    if (data.avatar instanceof File) {
-      formData.append('avatar', data.avatar);
-    }
-
-    if (data.token instanceof File) {
-      formData.append('token', data.token);
-    }
-
-    const response = await this.api.post<BaseAPIResponse<IActor>>('/api/actors', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    });
-
-    if (!response.data.success) {
-      throw new Error(response.data.error || 'Failed to create actor');
-    }
-
     return response.data.data;
   }
 

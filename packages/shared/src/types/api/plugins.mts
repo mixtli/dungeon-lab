@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { baseAPIResponseSchema } from './base.mts';
+import { baseAPIResponseSchema } from './base.mjs';
 
 // Base plugin schema for the client-safe plugin representation
 export const pluginSchema = z.object({

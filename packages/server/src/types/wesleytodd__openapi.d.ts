@@ -16,7 +16,8 @@ declare module '@wesleytodd/openapi' {
   }
 
   interface OpenApiInstance {
-    path: (config: Record<string, unknown>) => RequestHandler;
+    path: (config: object) => RequestHandler;
+    validPath: (config: object) => RequestHandler;
     swaggerui: () => RequestHandler;
     (req: unknown, res: unknown, next: unknown): void;
   }

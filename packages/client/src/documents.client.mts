@@ -31,8 +31,10 @@ export class DocumentsClient extends ApiClient {
    * Get all documents (defaults to empty query)
    * @returns Array of documents
    */
-  async getDocuments(): Promise<IVTTDocument[]> {
-    const response = await this.api.get<BaseAPIResponse<IVTTDocument[]>>('/api/documents');
+  async getDocuments(params?: SearchDocumentsQuery): Promise<IVTTDocument[]> {
+    const response = await this.api.get<BaseAPIResponse<IVTTDocument[]>>('/api/documents', {
+      params
+    });
     if (!response.data.success) {
       throw new Error(response.data.error || 'Failed to get documents');
     }

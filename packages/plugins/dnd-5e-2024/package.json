@@ -35,7 +35,7 @@
     "import:monsters": "tsx ./src/scripts/import-monsters.mts",
     "import:spells": "tsx ./src/scripts/import-spells.mts",
     "import:feats": "tsx ./src/scripts/import-feats.mts",
-    "import:characters": "tsx ./src/scripts/import-characters.mts",
+    "import:characters": "tsx --inspect=9222 ./src/scripts/import-characters.mts",
     "import:maps": "tsx ./src/scripts/import-maps.mts",
     "import:campaigns": "tsx ./src/scripts/import-campaigns.mts",
     "import:all": "npm run import:classes && npm run import:species && npm run import:backgrounds && npm run import:items && npm run import:monsters && npm run import:spells && npm run import:feats && npm run import:characters && npm run import:maps && npm run import:campaigns"

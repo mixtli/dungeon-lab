@@ -5,6 +5,7 @@ import { baseSchema } from './base.schema.mjs';
 export const mapSchema = baseSchema.extend({
   name: z.string().min(1).max(255),
   description: z.string().optional(),
+  userData: z.record(z.any()).optional(),
 
   // Direct asset references using string IDs (will be ObjectId in server models via zId)
   thumbnailId: z.string().optional(),

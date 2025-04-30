@@ -2,15 +2,7 @@ import express from 'express';
 import { ActorController } from '../controllers/actor.controller.mjs';
 import { authenticate } from '../../../middleware/auth.middleware.mjs';
 import { validateMultipartRequest } from '../../../middleware/validation.middleware.mjs';
-import {
-  openApiGet,
-  openApiGetOne,
-  openApiPost,
-  openApiPut,
-  openApiPatch,
-  openApiDelete,
-  toQuerySchema
-} from '../../../oapi.mjs';
+import { createPathSchema, oapi } from '../../../oapi.mjs';
 import { z } from '../../../utils/zod.mjs';
 import {
   createActorRequestSchema,
@@ -20,7 +12,6 @@ import {
 } from '@dungeon-lab/shared/types/api/index.mjs';
 import { actorSchema } from '@dungeon-lab/shared/schemas/actor.schema.mjs';
 import { baseAPIResponseSchema } from '@dungeon-lab/shared/types/api/base.mjs';
-import { createSchema } from 'zod-openapi';
 
 /**
  * Actors routes
@@ -49,111 +40,52 @@ const deleteResponseSchema = baseAPIResponseSchema.extend({
 // Get all actors
 router.get(
   '/',
-  openApiGet(z.object({ type: z.string().optional() }), {
-    description: 'Get all actors, optionally filtered by type',
-    parameters: [
-      {
-        name: 'type',
-        in: 'query',
-        required: false,
-        schema: { type: 'string' },
-        description: 'Filter actors by type'
-      }
-    ],
-    responses: {
-      200: {
-        description: 'Actors retrieved successfully',
-        content: {
-          'application/json': {
-            schema: createSchema(
-              getActorsResponseSchema.openapi({
+  oapi.validPath(
+    createPathSchema({
+      description: 'Get all actors, optionally filtered by type',
+      requestParams: {
+        query: searchActorsQuerySchema
+      },
+      responses: {
+        200: {
+          description: 'Actors retrieved successfully',
+          content: {
+            'application/json': {
+              schema: getActorsResponseSchema.openapi({
                 description: 'Actors response'
               })
-            )
+            }
           }
         }
-      },
-      500: { description: 'Server error' }
-    }
-  }),
-  actorController.getAllActors
-);
-
-// Search actors
-router.get(
-  '/search',
-  authenticate,
-  openApiGet(searchActorsQuerySchema, {
-    description: 'Search for actors based on query parameters',
-    parameters: toQuerySchema(searchActorsQuerySchema),
-    responses: {
-      200: {
-        description: 'Actors retrieved successfully',
-        content: {
-          'application/json': {
-            schema: createSchema(
-              getActorsResponseSchema.openapi({
-                description: 'Search actors response'
-              })
-            )
-          }
-        }
-      },
-      403: { description: 'Access denied' },
-      500: { description: 'Server error' }
-    }
-  }),
-  actorController.searchActors
-);
-
-// Get actors for a campaign
-router.get(
-  '/campaign/:campaignId',
-  authenticate,
-  openApiGetOne(z.null(), {
-    description: 'Get actors by campaign ID',
-    responses: {
-      200: {
-        description: 'Actors retrieved successfully',
-        content: {
-          'application/json': {
-            schema: createSchema(
-              getActorsResponseSchema.openapi({
-                description: 'Campaign actors response'
-              })
-            )
-          }
-        }
-      },
-      403: { description: 'Access denied' },
-      500: { description: 'Server error' }
-    }
-  }),
+      }
+    })
+  ),
   actorController.getActors
 );
 
 // Get actor by ID
 router.get(
   '/:id',
-  openApiGetOne(z.null(), {
-    description: 'Get actor by ID',
-    responses: {
-      200: {
-        description: 'Actor retrieved successfully',
-        content: {
-          'application/json': {
-            schema: createSchema(
-              getActorResponseSchema.openapi({
+  oapi.validPath(
+    createPathSchema({
+      description: 'Get actor by ID',
+      requestParams: {
+        path: z.object({ id: z.string() })
+      },
+      responses: {
+        200: {
+          description: 'Actor retrieved successfully',
+          content: {
+            'application/json': {
+              schema: getActorResponseSchema.openapi({
                 description: 'Actor response'
               })
-            )
+            }
           }
         }
-      },
-      404: { description: 'Actor not found' },
-      500: { description: 'Server error' }
-    }
-  }),
+      }
+    })
+  ),
   actorController.getActorById
 );
 
@@ -161,26 +93,48 @@ router.get(
 router.post(
   '/',
   authenticate,
-  openApiPost(createActorRequestSchema, {
-    description: 'Create new actor',
-    responses: {
-      201: {
-        description: 'Actor created successfully',
+  oapi.path(
+    createPathSchema({
+      description: 'Create new actor',
+      requestBody: {
         content: {
           'application/json': {
-            schema: createSchema(
-              actorResponseSchema.openapi({
-                description: 'Create actor response'
+            schema: createActorRequestSchema.openapi({
+              description: 'Create actor request'
+            })
+          },
+          'multipart/form-data': {
+            schema: createActorRequestSchema
+              .extend({
+                avatar: z.instanceof(File).openapi({
+                  type: 'string',
+                  format: 'binary'
+                }),
+                token: z.instanceof(File).openapi({
+                  type: 'string',
+                  format: 'binary'
+                })
               })
-            )
+              .openapi({
+                description: 'Create actor request'
+              })
           }
         }
       },
-      400: { description: 'Invalid actor data' },
-      403: { description: 'Access denied' },
-      500: { description: 'Server error' }
-    }
-  }),
+      responses: {
+        201: {
+          description: 'Actor created successfully',
+          content: {
+            'application/json': {
+              schema: actorResponseSchema.openapi({
+                description: 'Create actor response'
+              })
+            }
+          }
+        }
+      }
+    })
+  ),
   validateMultipartRequest(createActorRequestSchema, ['avatar', 'token']),
   actorController.createActor
 );
@@ -189,27 +143,51 @@ router.post(
 router.put(
   '/:id',
   authenticate,
-  openApiPut(putActorRequestSchema, {
-    description: 'Replace actor (full update)',
-    responses: {
-      200: {
-        description: 'Actor updated successfully',
+  oapi.path(
+    createPathSchema({
+      description: 'Replace actor (full update)',
+      requestParams: {
+        path: z.object({ id: z.string() })
+      },
+      requestBody: {
         content: {
           'application/json': {
-            schema: createSchema(
-              actorResponseSchema.openapi({
-                description: 'Update actor response'
+            schema: putActorRequestSchema.openapi({
+              description: 'Update actor request'
+            })
+          },
+          'multipart/form-data': {
+            schema: putActorRequestSchema
+              .extend({
+                avatar: z.instanceof(File).openapi({
+                  type: 'string',
+                  format: 'binary'
+                }),
+                token: z.instanceof(File).openapi({
+                  type: 'string',
+                  format: 'binary'
+                })
               })
-            )
+              .openapi({
+                description: 'Update actor request'
+              })
           }
         }
       },
-      400: { description: 'Invalid actor data' },
-      403: { description: 'Access denied' },
-      404: { description: 'Actor not found' },
-      500: { description: 'Server error' }
-    }
-  }),
+      responses: {
+        200: {
+          description: 'Actor updated successfully',
+          content: {
+            'application/json': {
+              schema: actorResponseSchema.openapi({
+                description: 'Update actor response'
+              })
+            }
+          }
+        }
+      }
+    })
+  ),
   validateMultipartRequest(putActorRequestSchema, ['avatar', 'token']),
   actorController.putActor
 );
@@ -218,27 +196,51 @@ router.put(
 router.patch(
   '/:id',
   authenticate,
-  openApiPatch(patchActorRequestSchema, {
-    description: 'Update actor (partial update)',
-    responses: {
-      200: {
-        description: 'Actor patched successfully',
+  oapi.path(
+    createPathSchema({
+      description: 'Update actor (partial update)',
+      requestParams: {
+        path: z.object({ id: z.string() })
+      },
+      requestBody: {
         content: {
           'application/json': {
-            schema: createSchema(
-              actorResponseSchema.openapi({
-                description: 'Patch actor response'
+            schema: patchActorRequestSchema.openapi({
+              description: 'Patch actor request'
+            })
+          },
+          'multipart/form-data': {
+            schema: patchActorRequestSchema
+              .extend({
+                avatar: z.instanceof(File).openapi({
+                  type: 'string',
+                  format: 'binary'
+                }),
+                token: z.instanceof(File).openapi({
+                  type: 'string',
+                  format: 'binary'
+                })
               })
-            )
+              .openapi({
+                description: 'Patch actor request'
+              })
           }
         }
       },
-      400: { description: 'Invalid actor data' },
-      403: { description: 'Access denied' },
-      404: { description: 'Actor not found' },
-      500: { description: 'Server error' }
-    }
-  }),
+      responses: {
+        200: {
+          description: 'Actor patched successfully',
+          content: {
+            'application/json': {
+              schema: actorResponseSchema.openapi({
+                description: 'Patch actor response'
+              })
+            }
+          }
+        }
+      }
+    })
+  ),
   validateMultipartRequest(patchActorRequestSchema, ['avatar', 'token']),
   actorController.patchActor
 );
@@ -251,34 +253,33 @@ router.put(
     type: ['image/jpeg', 'image/png', 'image/webp'],
     limit: '10mb'
   }),
-  openApiPut(z.string(), {
-    description: 'Upload raw actor avatar image',
-    requestBody: {
-      content: {
-        'image/jpeg': { schema: { type: 'string', format: 'binary' } },
-        'image/png': { schema: { type: 'string', format: 'binary' } },
-        'image/webp': { schema: { type: 'string', format: 'binary' } }
-      }
-    },
-    responses: {
-      200: {
-        description: 'Actor avatar uploaded successfully',
+  oapi.path(
+    createPathSchema({
+      description: 'Upload raw actor avatar image',
+      requestParams: {
+        path: z.object({ id: z.string() })
+      },
+      requestBody: {
         content: {
-          'application/json': {
-            schema: createSchema(
-              actorResponseSchema.openapi({
-                description: 'Upload actor avatar response'
-              })
-            )
-          }
+          'image/jpeg': { schema: { type: 'string', format: 'binary' } },
+          'image/png': { schema: { type: 'string', format: 'binary' } },
+          'image/webp': { schema: { type: 'string', format: 'binary' } }
         }
       },
-      400: { description: 'Invalid image data' },
-      403: { description: 'Access denied' },
-      404: { description: 'Actor not found' },
-      500: { description: 'Server error' }
-    }
-  }),
+      responses: {
+        200: {
+          description: 'Actor avatar uploaded successfully',
+          content: {
+            'application/json': {
+              schema: actorResponseSchema.openapi({
+                description: 'Upload actor avatar response'
+              })
+            }
+          }
+        }
+      }
+    })
+  ),
   actorController.uploadActorAvatar
 );
 
@@ -290,34 +291,34 @@ router.put(
     type: ['image/jpeg', 'image/png', 'image/webp'],
     limit: '10mb'
   }),
-  openApiPut(z.string(), {
-    description: 'Upload raw actor token image',
-    requestBody: {
-      content: {
-        'image/jpeg': { schema: { type: 'string', format: 'binary' } },
-        'image/png': { schema: { type: 'string', format: 'binary' } },
-        'image/webp': { schema: { type: 'string', format: 'binary' } }
-      }
-    },
-    responses: {
-      200: {
-        description: 'Actor token uploaded successfully',
+  oapi.path(
+    createPathSchema({
+      description: 'Upload raw actor token image',
+      requestParams: {
+        path: z.object({ id: z.string() })
+      },
+      requestBody: {
         content: {
-          'application/json': {
-            schema: createSchema(
-              actorResponseSchema.openapi({
-                description: 'Upload actor token response'
-              })
-            )
-          }
+          'image/jpeg': { schema: { type: 'string', format: 'binary' } },
+          'image/png': { schema: { type: 'string', format: 'binary' } },
+          'image/webp': { schema: { type: 'string', format: 'binary' } }
         }
       },
-      400: { description: 'Invalid image data' },
-      403: { description: 'Access denied' },
-      404: { description: 'Actor not found' },
-      500: { description: 'Server error' }
-    }
-  }),
+      responses: {
+        200: {
+          description: 'Actor token uploaded successfully',
+          content: {
+            'application/json': {
+              schema: actorResponseSchema.openapi({
+                description: 'Upload actor token response'
+              })
+            }
+          }
+        }
+      }
+    })
+  ),
+
   actorController.uploadActorToken
 );
 
@@ -325,25 +326,26 @@ router.put(
 router.post(
   '/:id/generate-avatar',
   authenticate,
-  openApiPost(z.object({}), {
-    description: 'Generate actor avatar using AI',
-    responses: {
-      200: {
-        description: 'Actor avatar generation triggered',
-        content: {
-          'application/json': {
-            schema: createSchema(
-              actorResponseSchema.openapi({
+  oapi.validPath(
+    createPathSchema({
+      description: 'Generate actor avatar using AI',
+      requestParams: {
+        path: z.object({ id: z.string() })
+      },
+      responses: {
+        200: {
+          description: 'Actor avatar generation triggered',
+          content: {
+            'application/json': {
+              schema: actorResponseSchema.openapi({
                 description: 'Generate actor avatar response'
               })
-            )
+            }
           }
         }
-      },
-      403: { description: 'Access denied' },
-      500: { description: 'Failed to generate actor avatar' }
-    }
-  }),
+      }
+    })
+  ),
   actorController.generateActorAvatar
 );
 
@@ -351,25 +353,26 @@ router.post(
 router.post(
   '/:id/generate-token',
   authenticate,
-  openApiPost(z.object({}), {
-    description: 'Generate actor token using AI',
-    responses: {
-      200: {
-        description: 'Actor token generation triggered',
-        content: {
-          'application/json': {
-            schema: createSchema(
-              baseAPIResponseSchema.openapi({
+  oapi.validPath(
+    createPathSchema({
+      description: 'Generate actor token using AI',
+      requestParams: {
+        path: z.object({ id: z.string() })
+      },
+      responses: {
+        200: {
+          description: 'Actor token generation triggered',
+          content: {
+            'application/json': {
+              schema: actorResponseSchema.openapi({
                 description: 'Generate actor token response'
               })
-            )
+            }
           }
         }
-      },
-      403: { description: 'Access denied' },
-      500: { description: 'Failed to generate actor token' }
-    }
-  }),
+      }
+    })
+  ),
   actorController.generateActorToken
 );
 
@@ -377,26 +380,26 @@ router.post(
 router.delete(
   '/:id',
   authenticate,
-  openApiDelete(z.string(), {
-    description: 'Delete actor',
-    responses: {
-      200: {
-        description: 'Actor deleted successfully',
-        content: {
-          'application/json': {
-            schema: createSchema(
-              deleteResponseSchema.openapi({
+  oapi.validPath(
+    createPathSchema({
+      description: 'Delete actor',
+      requestParams: {
+        path: z.object({ id: z.string() })
+      },
+      responses: {
+        200: {
+          description: 'Actor deleted successfully',
+          content: {
+            'application/json': {
+              schema: deleteResponseSchema.openapi({
                 description: 'Delete actor response'
               })
-            )
+            }
           }
         }
-      },
-      403: { description: 'Access denied' },
-      404: { description: 'Actor not found' },
-      500: { description: 'Server error' }
-    }
-  }),
+      }
+    })
+  ),
   actorController.deleteActor
 );
 
