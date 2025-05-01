@@ -49,10 +49,9 @@ export class DocumentService {
         throw new Error('Document not found');
       }
 
-      const userObjectId = new Types.ObjectId(userId);
       const updateData = {
         ...document,
-        updatedBy: userObjectId
+        updatedBy: userId
       };
 
       const obj = existingDocument?.toObject();

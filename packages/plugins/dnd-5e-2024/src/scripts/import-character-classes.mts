@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { runImportViaAPI, read5eToolsData } from './import-utils.mjs';
+import { read5eToolsData } from './import-utils.mjs';
 import {
   convert5eToolsClass,
   getClassDescription,
@@ -9,6 +9,7 @@ import type { ICharacterClassData } from '../shared/types/character-class.mjs';
 import { toLowercase } from './converter-utils.mjs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { DocumentsClient, configureApiClient } from '@dungeon-lab/client/index.mjs';
 
 // Get the current file's directory in ESM
 const __filename = fileURLToPath(import.meta.url);
@@ -175,6 +176,107 @@ async function convertClassWithDescription(classData: any) {
   return result;
 }
 
+/**
+ * Import character classes using DocumentsClient
+ */
+async function importCharacterClasses(apiBaseUrl: string, authToken?: string): Promise<void> {
+  try {
+    // Configure API client
+    configureApiClient(apiBaseUrl, authToken);
+
+    // Create DocumentsClient
+    const documentsClient = new DocumentsClient();
+
+    // Stats for reporting
+    let created = 0;
+    let updated = 0;
+    let skipped = 0;
+    let errors = 0;
+
+    // Read the class data
+    const dataPath = join(__dirname, '../../data');
+    const classData = await read5eToolsData(dataPath, 'class/class-*.json');
+
+    // Extract classes array
+    const classes = classData.class || [];
+
+    // Filter classes by source if needed
+    const sourceFilter = 'XPHB';
+    const filteredClasses = classes.filter((item: any) => item.source === sourceFilter);
+
+    console.log(`Found ${filteredClasses.length} classes to import`);
+
+    // Process each class
+    for (const classItem of filteredClasses) {
+      try {
+        console.log(`Processing class: ${classItem.name}`);
+
+        // Convert the class data
+        const convertedData = await convertClassWithDescription(classItem);
+
+        if (!convertedData) {
+          console.log(`No valid data for class: ${classItem.name}`);
+          skipped++;
+          continue;
+        }
+
+        // Prepare document data
+        const documentData = {
+          documentType: 'characterClass',
+          name: convertedData.data.name,
+          pluginId: 'dnd-5e-2024',
+          // Add a slug field - lowercase version of name with spaces replaced by hyphens
+          slug: convertedData.data.name.toLowerCase().replace(/\s+/g, '-'),
+          description: convertedData.description || '',
+          // Data field should contain the converted class data
+          data: convertedData.data
+        };
+
+        // Check if the document already exists
+        const existingDocs = await documentsClient.getDocuments({
+          documentType: 'characterClass',
+          name: documentData.name,
+          pluginId: 'dnd-5e-2024'
+        });
+
+        let docId: string | undefined;
+
+        if (existingDocs && existingDocs.length > 0) {
+          // Update existing document
+          docId = existingDocs[0].id;
+          await documentsClient.patchDocument(docId, documentData);
+          console.log(`Updated character class: ${documentData.name}`);
+          updated++;
+        } else {
+          // Create new document
+          const createdDoc = await documentsClient.createDocument(documentData);
+          if (createdDoc) {
+            docId = createdDoc.id;
+            console.log(`Created character class: ${documentData.name}`);
+            created++;
+          } else {
+            console.error(`Failed to create character class: ${documentData.name}`);
+            errors++;
+          }
+        }
+      } catch (error) {
+        console.error(`Error processing class ${classItem.name}:`, error);
+        errors++;
+      }
+    }
+
+    // Print import summary
+    console.log('\nCharacter Class Import Summary:');
+    console.log(`- Created: ${created} new classes`);
+    console.log(`- Updated: ${updated} existing classes`);
+    console.log(`- Skipped: ${skipped} classes`);
+    console.log(`- Errors: ${errors} classes`);
+  } catch (error) {
+    console.error('Error importing character classes:', error);
+    throw error;
+  }
+}
+
 // Run the import if this script is run directly
 if (
   import.meta.url ===
@@ -188,18 +290,14 @@ if (
   console.log(`Using API URL: ${apiBaseUrl}`);
   console.log(`Authentication: ${authToken ? 'Enabled' : 'Disabled'}`);
 
-  // First clear existing classes, then run the import
-  // clearExistingClassesViaAPI(apiBaseUrl, authToken).then((deletedCount) => {
-  //   console.log(`Deleted ${deletedCount} existing character class documents via API`);
-
-  runImportViaAPI({
-    documentType: 'characterClass',
-    dataFile: 'class/class-*.json',
-    dataKey: 'class',
-    converter: convertClassWithDescription,
-    dirPath: join(__dirname, '../../data'),
-    apiBaseUrl,
-    authToken
-  }).catch(console.error);
-  // }).catch(console.error);
+  // Run the import
+  importCharacterClasses(apiBaseUrl, authToken)
+    .then(() => {
+      console.log('Character class import completed successfully!');
+      process.exit(0);
+    })
+    .catch((error) => {
+      console.error('Character class import failed:', error);
+      process.exit(1);
+    });
 }
