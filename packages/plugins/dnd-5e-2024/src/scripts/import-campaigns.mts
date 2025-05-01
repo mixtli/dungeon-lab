@@ -1,8 +1,8 @@
-import axios from 'axios';
 import { readFileSync, readdirSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import { nextUser } from './import-utils.mjs';
+import { configureApiClient, CampaignsClient, ActorsClient } from '@dungeon-lab/client/index.mjs';
 
 // Get the directory path
 const __filename = fileURLToPath(import.meta.url);
@@ -11,39 +11,27 @@ const __dirname = dirname(__filename);
 // API configuration
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
 const API_AUTH_TOKEN = process.env.API_AUTH_TOKEN;
-const API_TIMEOUT = 30000; // 30 seconds
 
-// Create axios instance with default config
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: API_TIMEOUT,
-  headers: {
-    'Content-Type': 'application/json'
-  }
-});
+// Configure API client
+configureApiClient(API_BASE_URL, API_AUTH_TOKEN);
 
-console.log('API_AUTH_TOKEN', API_AUTH_TOKEN);
-// Set auth token from environment variable
-if (API_AUTH_TOKEN) {
-  api.defaults.headers.common['Authorization'] = `Bearer ${API_AUTH_TOKEN}`;
-  console.log('Using API token from environment');
-} else {
-  console.warn('Warning: API_AUTH_TOKEN not provided. Falling back to credentials login.');
-}
+// Create client instances
+const actorsClient = new ActorsClient();
+const campaignsClient = new CampaignsClient();
+
+// Display initial configuration
+console.log(`Using API URL: ${API_BASE_URL}`);
+console.log(`Authentication: ${API_AUTH_TOKEN ? 'Enabled' : 'Disabled'}`);
 
 // Map to store UUID to actor ID mappings
 const uuidToActorId = new Map<string, string>();
-// User information
 
 // Fetch all character actors and create UUID to ID mapping
 async function mapCharacterIds(): Promise<void> {
   try {
     console.log('Fetching all character actors...');
-    const response = await api.get('/api/actors', {
-      params: { type: 'character' }
-    });
+    const actors = await actorsClient.getActors({ type: 'character' });
 
-    const actors = response.data;
     console.log(`Found ${actors.length} character actors`);
 
     // Debug the first actor structure to understand where UUID is stored
@@ -95,14 +83,16 @@ async function importCampaigns(): Promise<void> {
       // Check if campaign already exists by name
       let existingCampaign: { id: string; name: string } | undefined;
       try {
-        const searchResponse = await api.get('/api/campaigns', {
-          params: { name: campaignData.name }
-        });
-        existingCampaign = searchResponse.data.find(
+        const campaigns = await campaignsClient.getCampaigns();
+        existingCampaign = campaigns.find(
           (c: { id: string; name: string }) => c.name === campaignData.name
         );
-        console.log(searchResponse.data);
-        console.log(existingCampaign);
+        console.log(`Found ${campaigns.length} campaigns`);
+        console.log(
+          existingCampaign
+            ? `Found existing campaign: ${existingCampaign.name}`
+            : 'No existing campaign found'
+        );
       } catch (error) {
         console.warn(`Error checking if campaign '${campaignData.name}' exists:`, error);
       }
@@ -125,30 +115,52 @@ async function importCampaigns(): Promise<void> {
         );
       }
 
-      // Prepare campaign object for API
-      const campaignApiData: Record<string, unknown> = {
-        name: campaignData.name,
-        description: campaignData.description || '',
-        gameSystemId: 'dnd-5e-2024',
-        members: actorIds,
-        status: 'active',
-        setting: campaignData.setting || '',
-        startDate: campaignData.start_date || new Date().toISOString()
-      };
-
       // Create or update the campaign
       if (existingCampaign) {
         console.log(`Updating existing campaign: ${campaignData.name}`);
-        await api.put(`/api/campaigns/${existingCampaign.id}`, campaignApiData);
+
+        // Create a partial update object according to the patch schema
+        const updateData = {
+          name: campaignData.name,
+          description: campaignData.description || '',
+          gameSystemId: 'dnd-5e-2024',
+          members: actorIds as string[],
+          status: 'active',
+          setting: campaignData.setting || '',
+          startDate: campaignData.start_date || new Date().toISOString()
+        };
+
+        // Use type assertion to work around type mismatch
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await campaignsClient.updateCampaign(existingCampaign.id, updateData as any);
         console.log(`Campaign '${campaignData.name}' updated successfully`);
       } else {
-        const u = nextUser();
-        campaignApiData.createdBy = u;
-        campaignApiData.gameMasterId = u;
+        // Get user ID for creator field
+        const userId = await nextUser();
+
+        if (!userId) {
+          console.warn(`Couldn't get user ID for campaign: ${campaignData.name}`);
+          continue;
+        }
+
+        // Create campaign object according to create schema
+        const createData = {
+          name: campaignData.name,
+          description: campaignData.description || '',
+          gameSystemId: 'dnd-5e-2024',
+          members: actorIds as string[],
+          status: 'active',
+          setting: campaignData.setting || '',
+          startDate: campaignData.start_date || new Date().toISOString(),
+          gameMasterId: userId
+          // createdBy is handled by the server
+        };
+
         console.log(`Creating new campaign: ${campaignData.name}`);
-        console.log(campaignApiData);
-        const response = await api.post('/api/campaigns', campaignApiData);
-        console.log(`Campaign '${campaignData.name}' created with ID ${response.data.id}`);
+        console.log(createData);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const response = await campaignsClient.createCampaign(createData as any);
+        console.log(`Campaign '${campaignData.name}' created with ID ${response.id}`);
       }
     }
 
@@ -164,9 +176,6 @@ async function main() {
   try {
     console.log('Starting campaign import...');
 
-    // Get user info or login
-    //await getUserInfo();
-
     // Map character UUIDs to actor IDs
     await mapCharacterIds();
 
@@ -176,7 +185,6 @@ async function main() {
     console.log('Campaign import completed successfully');
   } catch (error) {
     console.error('Campaign import failed:', error);
-    process.exit(1);
   }
 }
 

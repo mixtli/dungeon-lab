@@ -4,13 +4,13 @@ import { join, dirname } from 'path';
 import type { IVTTDocument, IUser } from '@dungeon-lab/shared/types/index.mjs';
 import * as mimeTypes from 'mime-types';
 import { fileURLToPath } from 'url';
-import axios from 'axios';
 // Import client classes
 import {
   configureApiClient,
   ActorsClient,
   ItemsClient,
-  DocumentsClient
+  DocumentsClient,
+  UsersClient
 } from '@dungeon-lab/client/index.mjs';
 
 // Get the current file's directory in ESM
@@ -27,7 +27,7 @@ interface ActorData {
   pluginId: string;
   gameSystemId: string;
   data: any;
-  token?: string;
+  token?: string | File;
 }
 
 interface ItemData {
@@ -42,32 +42,25 @@ interface ItemData {
   gameSystemId: string;
 }
 
+const authToken = process.env.API_AUTH_TOKEN;
 /**
  * Gets the next user ID in sequence, fetching all users if needed
  * @param apiBaseUrl Base URL for the API
  * @param authToken Optional authentication token
  * @returns The next user ID in the sequence
  */
-export async function nextUser(
-  apiBaseUrl = 'http://localhost:3000',
-  authToken?: string
-): Promise<string | null> {
+export async function nextUser(apiBaseUrl = 'http://localhost:3000'): Promise<string | null> {
   try {
     // If users array is empty, fetch all users
     if (userIds.length === 0) {
-      // Make a direct API call to fetch users since UsersClient may not be available
-      const headers: Record<string, string> = {};
-      if (authToken) {
-        headers['Authorization'] = `Bearer ${authToken}`;
-      }
+      // Configure API client
+      configureApiClient(apiBaseUrl, authToken);
 
-      const response = await axios.get(`${apiBaseUrl}/api/users`, { headers });
+      // Create UsersClient instance
+      const usersClient = new UsersClient();
 
-      if (!response.data || !Array.isArray(response.data)) {
-        throw new Error('Invalid response from users API');
-      }
-
-      const users = response.data as IUser[];
+      // Fetch all users
+      const users = await usersClient.fetchUsers();
 
       // Filter out admin user (assuming admin has email 'admin@dungeonlab.com')
       userIds = users
@@ -505,7 +498,9 @@ export async function runImportViaAPI<T>({
               actorId = existingActor.id;
 
               try {
-                await actorsClient.updateActor(existingActor.id, actorData);
+                // Extract token string if it exists
+                const { token: _tokenString, ...actorDataWithoutToken } = actorData;
+                await actorsClient.updateActor(existingActor.id, actorDataWithoutToken);
                 console.log(`Updated ${documentType}: ${item.name}`);
                 updated++;
               } catch (error) {
@@ -516,7 +511,9 @@ export async function runImportViaAPI<T>({
             } else {
               // Create new actor
               try {
-                const createdActor = await actorsClient.createActor(actorData);
+                // Extract token string if it exists
+                const { token: _tokenString, ...actorDataWithoutToken } = actorData;
+                const createdActor = await actorsClient.createActor(actorDataWithoutToken);
                 if (createdActor) {
                   actorId = createdActor.id;
                   console.log(`Created ${documentType}: ${item.name}`);
