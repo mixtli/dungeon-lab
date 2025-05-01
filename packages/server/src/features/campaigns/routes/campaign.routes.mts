@@ -2,17 +2,8 @@ import { Router } from 'express';
 import { CampaignController } from '../controllers/campaign.controller.mjs';
 import { authenticate } from '../../../middleware/auth.middleware.mjs';
 import { validateRequest } from '../../../middleware/validation.middleware.mjs';
-import {
-  openApiGet,
-  openApiGetOne,
-  openApiPost,
-  openApiPut,
-  openApiDelete,
-  openApiPatch,
-  toQuerySchema
-} from '../../../oapi.mjs';
+import { createPathSchema, oapi } from '../../../oapi.mjs';
 import { z } from '../../../utils/zod.mjs';
-import { createSchema } from 'zod-openapi';
 import {
   searchCampaignsQuerySchema,
   deleteAPIResponseSchema,
@@ -32,81 +23,106 @@ const campaignController = new CampaignController();
 // Create router
 const router = Router();
 
+// Create response schemas using baseAPIResponseSchema
+const getCampaignsResponseSchema = baseAPIResponseSchema.extend({
+  data: z.array(campaignSchema)
+});
+
+const getCampaignResponseSchema = baseAPIResponseSchema.extend({
+  data: campaignSchema
+});
+
+const gameSessionResponseSchema = baseAPIResponseSchema.extend({
+  data: gameSessionSchema
+});
+
+const encounterResponseSchema = baseAPIResponseSchema.extend({
+  data: encounterSchema
+});
+
 // Campaign routes
 router.get(
   '/',
   authenticate,
-  openApiGet(searchCampaignsQuerySchema, {
-    description:
-      'Get all campaigns for the authenticated user with optional filtering by query parameters',
-    parameters: toQuerySchema(searchCampaignsQuerySchema),
-    responses: {
-      200: {
-        description: 'Campaigns retrieved successfully',
-        content: {
-          'application/json': {
-            schema: createSchema(
-              baseAPIResponseSchema.extend({ data: z.array(campaignSchema) }).openapi({
+  oapi.validPath(
+    createPathSchema({
+      description:
+        'Get all campaigns for the authenticated user with optional filtering by query parameters',
+      requestParams: {
+        query: searchCampaignsQuerySchema
+      },
+      responses: {
+        200: {
+          description: 'Campaigns retrieved successfully',
+          content: {
+            'application/json': {
+              schema: getCampaignsResponseSchema.openapi({
                 description: 'Campaigns response'
               })
-            )
+            }
           }
         }
-      },
-      500: { description: 'Server error' }
-    }
-  }),
+      }
+    })
+  ),
   campaignController.getMyCampaigns
 );
 
 router.get(
   '/:id',
   authenticate,
-  openApiGetOne(z.null(), {
-    description: 'Get campaign by ID',
-    responses: {
-      200: {
-        description: 'Campaign retrieved successfully',
-        content: {
-          'application/json': {
-            schema: createSchema(
-              baseAPIResponseSchema.extend({ data: campaignSchema }).openapi({
+  oapi.validPath(
+    createPathSchema({
+      description: 'Get campaign by ID',
+      requestParams: {
+        path: z.object({ id: z.string() })
+      },
+      responses: {
+        200: {
+          description: 'Campaign retrieved successfully',
+          content: {
+            'application/json': {
+              schema: getCampaignResponseSchema.openapi({
                 description: 'Campaign response'
               })
-            )
+            }
           }
         }
-      },
-      403: { description: 'Forbidden - Access denied' },
-      404: { description: 'Campaign not found' },
-      500: { description: 'Server error' }
-    }
-  }),
+      }
+    })
+  ),
   campaignController.getCampaign
 );
 
 router.post(
   '/',
   authenticate,
-  openApiPost(campaignCreateSchema, {
-    description: 'Create a new campaign',
-    responses: {
-      201: {
-        description: 'Campaign created successfully',
+  oapi.validPath(
+    createPathSchema({
+      description: 'Create a new campaign',
+      requestBody: {
         content: {
           'application/json': {
-            schema: createSchema(
-              baseAPIResponseSchema.extend({ data: campaignSchema }).openapi({
-                description: 'Create campaign response'
-              })
-            )
+            schema: campaignCreateSchema.openapi({
+              description: 'Create campaign request'
+            })
           }
         }
       },
-      400: { description: 'Invalid campaign data' },
-      500: { description: 'Server error' }
-    }
-  }),
+      responses: {
+        201: {
+          description: 'Campaign created successfully',
+          content: {
+            'application/json': {
+              schema: getCampaignResponseSchema.openapi({
+                description: 'Create campaign response'
+              })
+            }
+          }
+        }
+      }
+    })
+  ),
   validateRequest(campaignCreateSchema),
   campaignController.createCampaign
 );
@@ -114,27 +130,35 @@ router.post(
 router.put(
   '/:id',
   authenticate,
-  openApiPut(campaignCreateSchema, {
-    description: 'Replace a campaign by ID (full update)',
-    responses: {
-      200: {
-        description: 'Campaign updated successfully',
+  oapi.validPath(
+    createPathSchema({
+      description: 'Replace a campaign by ID (full update)',
+      requestParams: {
+        path: z.object({ id: z.string() })
+      },
+      requestBody: {
         content: {
           'application/json': {
-            schema: createSchema(
-              baseAPIResponseSchema.extend({ data: campaignSchema }).openapi({
-                description: 'Update campaign response'
-              })
-            )
+            schema: campaignCreateSchema.openapi({
+              description: 'Update campaign request'
+            })
           }
         }
       },
-      400: { description: 'Invalid campaign data' },
-      403: { description: 'Forbidden - Access denied' },
-      404: { description: 'Campaign not found' },
-      500: { description: 'Server error' }
-    }
-  }),
+      responses: {
+        200: {
+          description: 'Campaign updated successfully',
+          content: {
+            'application/json': {
+              schema: getCampaignResponseSchema.openapi({
+                description: 'Update campaign response'
+              })
+            }
+          }
+        }
+      }
+    })
+  ),
   validateRequest(campaignCreateSchema),
   campaignController.putCampaign
 );
@@ -142,27 +166,35 @@ router.put(
 router.patch(
   '/:id',
   authenticate,
-  openApiPatch(campaignPatchSchema, {
-    description: 'Update a campaign by ID (partial update)',
-    responses: {
-      200: {
-        description: 'Campaign patched successfully',
+  oapi.validPath(
+    createPathSchema({
+      description: 'Update a campaign by ID (partial update)',
+      requestParams: {
+        path: z.object({ id: z.string() })
+      },
+      requestBody: {
         content: {
           'application/json': {
-            schema: createSchema(
-              baseAPIResponseSchema.extend({ data: campaignSchema }).openapi({
-                description: 'Patch campaign response'
-              })
-            )
+            schema: campaignPatchSchema.openapi({
+              description: 'Patch campaign request'
+            })
           }
         }
       },
-      400: { description: 'Invalid campaign data' },
-      403: { description: 'Forbidden - Access denied' },
-      404: { description: 'Campaign not found' },
-      500: { description: 'Server error' }
-    }
-  }),
+      responses: {
+        200: {
+          description: 'Campaign patched successfully',
+          content: {
+            'application/json': {
+              schema: getCampaignResponseSchema.openapi({
+                description: 'Patch campaign response'
+              })
+            }
+          }
+        }
+      }
+    })
+  ),
   validateRequest(campaignPatchSchema),
   campaignController.patchCampaign
 );
@@ -170,26 +202,26 @@ router.patch(
 router.delete(
   '/:id',
   authenticate,
-  openApiDelete(z.null(), {
-    description: 'Delete a campaign by ID',
-    responses: {
-      204: { description: 'Campaign deleted successfully' },
-      403: { description: 'Forbidden - Access denied' },
-      404: { description: 'Campaign not found' },
-      500: {
-        description: 'Server error',
-        content: {
-          'application/json': {
-            schema: createSchema(
-              deleteAPIResponseSchema.openapi({}).openapi({
+  oapi.validPath(
+    createPathSchema({
+      description: 'Delete a campaign by ID',
+      requestParams: {
+        path: z.object({ id: z.string() })
+      },
+      responses: {
+        200: {
+          description: 'Campaign deleted successfully',
+          content: {
+            'application/json': {
+              schema: deleteAPIResponseSchema.openapi({
                 description: 'Delete campaign response'
               })
-            )
+            }
           }
         }
       }
-    }
-  }),
+    })
+  ),
   campaignController.deleteCampaign
 );
 
@@ -197,52 +229,52 @@ router.delete(
 router.get(
   '/:campaignId/active-session',
   authenticate,
-  openApiGetOne(z.null(), {
-    description: 'Get the active game session for a campaign',
-    responses: {
-      200: {
-        description: 'Active session retrieved successfully',
-        content: {
-          'application/json': {
-            schema: createSchema(
-              baseAPIResponseSchema.extend({ data: gameSessionSchema }).openapi({
+  oapi.validPath(
+    createPathSchema({
+      description: 'Get the active game session for a campaign',
+      requestParams: {
+        path: z.object({ campaignId: z.string() })
+      },
+      responses: {
+        200: {
+          description: 'Active session retrieved successfully',
+          content: {
+            'application/json': {
+              schema: gameSessionResponseSchema.openapi({
                 description: 'Active session response'
               })
-            )
+            }
           }
         }
-      },
-      403: { description: 'Forbidden - Access denied' },
-      404: { description: 'Campaign not found' },
-      500: { description: 'Server error' }
-    }
-  }),
+      }
+    })
+  ),
   campaignController.getActiveCampaignSession
 );
 
 router.get(
   '/:campaignId/active-encounter',
   authenticate,
-  openApiGetOne(z.null(), {
-    description: 'Get the active encounter for a campaign',
-    responses: {
-      200: {
-        description: 'Active encounter retrieved successfully',
-        content: {
-          'application/json': {
-            schema: createSchema(
-              baseAPIResponseSchema.extend({ data: encounterSchema }).openapi({
+  oapi.validPath(
+    createPathSchema({
+      description: 'Get the active encounter for a campaign',
+      requestParams: {
+        path: z.object({ campaignId: z.string() })
+      },
+      responses: {
+        200: {
+          description: 'Active encounter retrieved successfully',
+          content: {
+            'application/json': {
+              schema: encounterResponseSchema.openapi({
                 description: 'Active encounter response'
               })
-            )
+            }
           }
         }
-      },
-      403: { description: 'Forbidden - Access denied' },
-      404: { description: 'Campaign not found' },
-      500: { description: 'Server error' }
-    }
-  }),
+      }
+    })
+  ),
   campaignController.getActiveCampaignEncounter
 );
 

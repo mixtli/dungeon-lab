@@ -3,15 +3,7 @@ import { GameSessionController } from '../controllers/game-session.controller.mj
 import { GameSessionService } from '../services/game-session.service.mjs';
 import { authenticate } from '../../../middleware/auth.middleware.mjs';
 import { validateRequest } from '../../../middleware/validation.middleware.mjs';
-import { createSchema } from 'zod-openapi';
-import {
-  openApiGet,
-  openApiGetOne,
-  openApiPost,
-  openApiDelete,
-  openApiPatch,
-  toQuerySchema
-} from '../../../oapi.mjs';
+import { createPathSchema, oapi } from '../../../oapi.mjs';
 import { z } from '../../../utils/zod.mjs';
 import {
   baseAPIResponseSchema,
@@ -29,93 +21,102 @@ const gameSessionController = new GameSessionController(gameSessionService);
 // Create router
 const router = Router();
 
+// Create response schemas using baseAPIResponseSchema
+const getGameSessionsResponseSchema = baseAPIResponseSchema.extend({
+  data: z.array(gameSessionSchema)
+});
+
+const getGameSessionResponseSchema = baseAPIResponseSchema.extend({
+  data: gameSessionSchema
+});
+
+// Define campaign query schema
+const campaignQuerySchema = z.object({
+  campaignId: z.string()
+});
+
 // Define routes
 router.get(
   '/',
   authenticate,
-  openApiGet(getGameSessionsQuerySchema, {
-    description: 'Get all game sessions',
-    parameters: toQuerySchema(getGameSessionsQuerySchema),
-    responses: {
-      200: {
-        description: 'Game sessions retrieved successfully',
-        content: {
-          'application/json': {
-            schema: createSchema(
-              baseAPIResponseSchema
-                .extend({
-                  data: z.array(gameSessionSchema)
-                })
-                .openapi({
-                  description: 'Game sessions response'
-                })
-            )
+  oapi.validPath(
+    createPathSchema({
+      description: 'Get all game sessions',
+      requestParams: {
+        query: getGameSessionsQuerySchema
+      },
+      responses: {
+        200: {
+          description: 'Game sessions retrieved successfully',
+          content: {
+            'application/json': {
+              schema: getGameSessionsResponseSchema.openapi({
+                description: 'Game sessions response'
+              })
+            }
           }
         }
-      },
-      500: { description: 'Server error' }
-    }
-  }),
+      }
+    })
+  ),
   gameSessionController.getGameSessions
 );
 
 router.get(
   '/:id',
   authenticate,
-  openApiGetOne(z.null(), {
-    description: 'Get game session by ID',
-    responses: {
-      200: {
-        description: 'Game session retrieved successfully',
-        content: {
-          'application/json': {
-            schema: createSchema(
-              baseAPIResponseSchema
-                .extend({
-                  data: gameSessionSchema
-                })
-                .openapi({
-                  description: 'Game session response'
-                })
-            )
+  oapi.validPath(
+    createPathSchema({
+      description: 'Get game session by ID',
+      requestParams: {
+        path: z.object({ id: z.string() })
+      },
+      responses: {
+        200: {
+          description: 'Game session retrieved successfully',
+          content: {
+            'application/json': {
+              schema: getGameSessionResponseSchema.openapi({
+                description: 'Game session response'
+              })
+            }
           }
         }
-      },
-      404: { description: 'Game session not found' },
-      500: { description: 'Server error' }
-    }
-  }),
+      }
+    })
+  ),
   gameSessionController.getGameSession
 );
 
 router.post(
   '/',
   authenticate,
-  openApiPost(createGameSessionSchema, {
-    description: 'Create a new game session',
-    responses: {
-      201: {
-        description: 'Game session created successfully',
+  oapi.validPath(
+    createPathSchema({
+      description: 'Create a new game session',
+      requestBody: {
         content: {
           'application/json': {
-            schema: createSchema(
-              baseAPIResponseSchema
-                .extend({
-                  data: gameSessionSchema
-                })
-                .openapi({
-                  description: 'Create game session response'
-                })
-            )
+            schema: createGameSessionSchema.openapi({
+              description: 'Create game session request'
+            })
           }
         }
       },
-      400: { description: 'Invalid game session data' },
-      403: { description: 'Only the game master can create sessions' },
-      404: { description: 'Campaign not found' },
-      500: { description: 'Server error' }
-    }
-  }),
+      responses: {
+        201: {
+          description: 'Game session created successfully',
+          content: {
+            'application/json': {
+              schema: getGameSessionResponseSchema.openapi({
+                description: 'Create game session response'
+              })
+            }
+          }
+        }
+      }
+    })
+  ),
   validateRequest(createGameSessionSchema),
   gameSessionController.createGameSession
 );
@@ -123,31 +124,35 @@ router.post(
 router.patch(
   '/:id',
   authenticate,
-  openApiPatch(updateGameSessionSchema, {
-    description: 'Update a game session by ID',
-    responses: {
-      200: {
-        description: 'Game session updated successfully',
+  oapi.validPath(
+    createPathSchema({
+      description: 'Update a game session by ID',
+      requestParams: {
+        path: z.object({ id: z.string() })
+      },
+      requestBody: {
         content: {
           'application/json': {
-            schema: createSchema(
-              baseAPIResponseSchema
-                .extend({
-                  data: gameSessionSchema
-                })
-                .openapi({
-                  description: 'Update game session response'
-                })
-            )
+            schema: updateGameSessionSchema.openapi({
+              description: 'Update game session request'
+            })
           }
         }
       },
-      400: { description: 'Invalid game session data' },
-      403: { description: 'Access denied' },
-      404: { description: 'Game session not found' },
-      500: { description: 'Server error' }
-    }
-  }),
+      responses: {
+        200: {
+          description: 'Game session updated successfully',
+          content: {
+            'application/json': {
+              schema: getGameSessionResponseSchema.openapi({
+                description: 'Update game session response'
+              })
+            }
+          }
+        }
+      }
+    })
+  ),
   validateRequest(updateGameSessionSchema),
   gameSessionController.updateGameSession
 );
@@ -155,26 +160,26 @@ router.patch(
 router.delete(
   '/:id',
   authenticate,
-  openApiDelete(z.null(), {
-    description: 'Delete a game session by ID',
-    responses: {
-      204: { description: 'Game session deleted successfully' },
-      403: { description: 'Access denied' },
-      404: { description: 'Game session not found' },
-      500: {
-        description: 'Server error',
-        content: {
-          'application/json': {
-            schema: createSchema(
-              deleteAPIResponseSchema.openapi({
+  oapi.validPath(
+    createPathSchema({
+      description: 'Delete a game session by ID',
+      requestParams: {
+        path: z.object({ id: z.string() })
+      },
+      responses: {
+        200: {
+          description: 'Game session deleted successfully',
+          content: {
+            'application/json': {
+              schema: deleteAPIResponseSchema.openapi({
                 description: 'Delete game session response'
               })
-            )
+            }
           }
         }
       }
-    }
-  }),
+    })
+  ),
   gameSessionController.deleteGameSession
 );
 
@@ -182,37 +187,25 @@ router.delete(
 router.get(
   '/campaign',
   authenticate,
-  openApiGet(
-    z.object({
-      campaignId: z.string()
-    }),
-    {
+  oapi.validPath(
+    createPathSchema({
       description: 'Get all game sessions for a campaign',
-      parameters: toQuerySchema(
-        z.object({
-          campaignId: z.string()
-        })
-      ),
+      requestParams: {
+        query: campaignQuerySchema
+      },
       responses: {
         200: {
           description: 'Campaign game sessions retrieved successfully',
           content: {
             'application/json': {
-              schema: createSchema(
-                baseAPIResponseSchema
-                  .extend({
-                    data: z.array(gameSessionSchema)
-                  })
-                  .openapi({
-                    description: 'Campaign game sessions response'
-                  })
-              )
+              schema: getGameSessionsResponseSchema.openapi({
+                description: 'Campaign game sessions response'
+              })
             }
           }
-        },
-        500: { description: 'Server error' }
+        }
       }
-    }
+    })
   ),
   gameSessionController.getCampaignSessions
 );

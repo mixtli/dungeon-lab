@@ -185,8 +185,11 @@ export const toQuerySchema = (zodSchema: z.ZodObject<z.ZodRawShape>) => {
   return querySchema;
 };
 
-export const createPathSchema = (obj: ZodOpenApiOperationObject): object => {
+export const createPathSchema = (obj: ZodOpenApiOperationObject): ZodOpenApiOperationObject => {
   obj['responses'] ||= {};
+  obj['responses']['400'] ||= {
+    description: 'Bad request'
+  };
   obj['responses']['401'] ||= {
     description: 'Unauthorized'
   };
@@ -203,6 +206,8 @@ export const createPathSchema = (obj: ZodOpenApiOperationObject): object => {
     description: 'Internal server error'
   };
 
+  // This is a huge hack because there is no exported function to create a path schema.
+  // So we create a full document and extract the path we need.
   const schema = createDocument({
     openapi: '3.1.0',
     info: {

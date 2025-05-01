@@ -13,6 +13,7 @@ export const campaignStatusSchema = z.enum([
 // Base Campaign schema
 export const campaignSchema = baseSchema.extend({
   name: z.string().min(1).max(255),
+  userData: z.record(z.string(), z.any()).optional(),
   description: z.string().optional(),
   gameSystemId: z.string().min(1),
   members: z.array(z.string()).default([]), // Actor IDs of the characters in the campaign.  NOT User IDs.

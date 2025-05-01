@@ -1,5 +1,4 @@
 // Core types from schemas
-export type { IActor } from './schemas/actor.schema.mjs';
 
 // Export schemas for server-side validation
 export { actorSchema } from './schemas/actor.schema.mjs';
@@ -79,8 +78,6 @@ export { baseAPIResponseSchema } from './types/api/base.mjs';
 // Enums and constants
 export { GameSessionStatus } from './schemas/game-session.schema.mjs';
 export { UserTheme } from './schemas/user.schema.mjs';
-
-export type { IGameSession } from './types/api/game-sessions.mjs';
 
 // Token types
 

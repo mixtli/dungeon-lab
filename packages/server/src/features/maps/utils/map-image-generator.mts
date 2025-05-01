@@ -1,13 +1,10 @@
 import sharp from 'sharp';
-import { IMap } from '@dungeon-lab/shared/index.mjs';
+import { IMap } from '@dungeon-lab/shared/types/index.mjs';
 import { generateAIImage } from '../../../utils/image-generator.mjs';
 
 // Process map image to maintain aspect ratio and ensure proper format
 async function processMapImage(buffer: Buffer): Promise<Buffer> {
-  return sharp(buffer)
-    .resize(1024, 1024, { fit: 'inside' })
-    .jpeg()
-    .toBuffer();
+  return sharp(buffer).resize(1024, 1024, { fit: 'inside' }).jpeg().toBuffer();
 }
 
 // Generate a map image
@@ -24,6 +21,6 @@ export async function generateMapImage(map: IMap): Promise<File> {
       contentType: 'image/jpeg'
     }
   );
-  
+
   return imageData;
-} 
+}

@@ -1,5 +1,5 @@
 import { Types } from 'mongoose';
-import { IActor } from '@dungeon-lab/shared/index.mjs';
+import { IActor } from '@dungeon-lab/shared/types/index.mjs';
 import { ActorModel } from '../models/actor.model.mjs';
 import { logger } from '../../../utils/logger.mjs';
 import { createAsset } from '../../../utils/asset-upload.utils.mjs';

@@ -37,6 +37,7 @@ import {
   vttDocumentCreateSchema,
   vttDocumentUpdateSchema
 } from '../schemas/vtt-document.schema.mjs';
+import { tokenSchema } from '../index.mjs';
 
 // General Types
 export type QueryValue = string | number | boolean | RegExp | Date | object;
@@ -89,3 +90,5 @@ export type IMapUpdateData = z.infer<typeof mapCreateSchema>;
 export type IVTTDocument = z.infer<typeof vttDocumentSchema>;
 export type IVTTDocumentCreateData = z.infer<typeof vttDocumentCreateSchema>;
 export type IVTTDocumentUpdateData = z.infer<typeof vttDocumentUpdateSchema>;
+
+export type IToken = z.infer<typeof tokenSchema>;

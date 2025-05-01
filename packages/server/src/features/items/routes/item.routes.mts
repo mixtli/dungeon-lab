@@ -4,15 +4,7 @@ import { ItemService } from '../services/item.service.mjs';
 import { authenticate } from '../../../middleware/auth.middleware.mjs';
 import { validateMultipartRequest } from '../../../middleware/validation.middleware.mjs';
 import { itemSchema, itemCreateSchema } from '@dungeon-lab/shared/schemas/item.schema.mjs';
-import {
-  openApiGet,
-  openApiGetOne,
-  openApiPost,
-  openApiPut,
-  openApiPatch,
-  openApiDelete,
-  toQuerySchema
-} from '../../../oapi.mjs';
+import { createPathSchema, oapi } from '../../../oapi.mjs';
 import { z } from '../../../utils/zod.mjs';
 import { deepPartial } from '@dungeon-lab/shared/utils/deepPartial.mjs';
 import express from 'express';
@@ -21,7 +13,6 @@ import {
   baseAPIResponseSchema,
   deleteAPIResponseSchema
 } from '@dungeon-lab/shared/types/api/index.mjs';
-import { createSchema } from 'zod-openapi';
 
 // Initialize services and controllers
 const itemService = new ItemService();
@@ -30,52 +21,63 @@ const itemController = new ItemController(itemService);
 // Create router
 const router = Router();
 
+// Create response schemas using baseAPIResponseSchema
+const getItemsResponseSchema = baseAPIResponseSchema.extend({
+  data: z.array(itemSchema)
+});
+
+const getItemResponseSchema = baseAPIResponseSchema.extend({
+  data: itemSchema
+});
+
 // Public routes
 router.get(
   '/',
-  openApiGet(searchItemsQuerySchema, {
-    description: 'Search items with filters or get all items',
-    parameters: toQuerySchema(searchItemsQuerySchema),
-    responses: {
-      200: {
-        description: 'Items retrieved successfully',
-        content: {
-          'application/json': {
-            schema: createSchema(
-              baseAPIResponseSchema.extend({ data: z.array(itemSchema) }).openapi({
+  oapi.validPath(
+    createPathSchema({
+      description: 'Search items with filters or get all items',
+      requestParams: {
+        query: searchItemsQuerySchema
+      },
+      responses: {
+        200: {
+          description: 'Items retrieved successfully',
+          content: {
+            'application/json': {
+              schema: getItemsResponseSchema.openapi({
                 description: 'Items response'
               })
-            )
+            }
           }
         }
-      },
-      500: { description: 'Server error' }
-    }
-  }),
+      }
+    })
+  ),
   itemController.searchItems
 );
 
 router.get(
   '/:id',
-  openApiGetOne(z.null(), {
-    description: 'Get item by ID',
-    responses: {
-      200: {
-        description: 'Item retrieved successfully',
-        content: {
-          'application/json': {
-            schema: createSchema(
-              baseAPIResponseSchema.extend({ data: itemSchema }).openapi({
+  oapi.validPath(
+    createPathSchema({
+      description: 'Get item by ID',
+      requestParams: {
+        path: z.object({ id: z.string() })
+      },
+      responses: {
+        200: {
+          description: 'Item retrieved successfully',
+          content: {
+            'application/json': {
+              schema: getItemResponseSchema.openapi({
                 description: 'Item response'
               })
-            )
+            }
           }
         }
-      },
-      404: { description: 'Item not found' },
-      500: { description: 'Server error' }
-    }
-  }),
+      }
+    })
+  ),
   itemController.getItemById
 );
 
@@ -83,25 +85,44 @@ router.get(
 router.post(
   '/',
   authenticate,
-  openApiPost(itemCreateSchema, {
-    description: 'Create new item',
-    responses: {
-      201: {
-        description: 'Item created successfully',
+  oapi.path(
+    createPathSchema({
+      description: 'Create new item',
+      requestBody: {
         content: {
           'application/json': {
-            schema: createSchema(
-              baseAPIResponseSchema.extend({ data: itemSchema }).openapi({
-                description: 'Create item response'
+            schema: itemCreateSchema.openapi({
+              description: 'Create item request'
+            })
+          },
+          'multipart/form-data': {
+            schema: itemCreateSchema
+              .extend({
+                image: z.instanceof(File).openapi({
+                  type: 'string',
+                  format: 'binary'
+                })
               })
-            )
+              .openapi({
+                description: 'Create item request with image'
+              })
           }
         }
       },
-      400: { description: 'Invalid item data' },
-      500: { description: 'Server error' }
-    }
-  }),
+      responses: {
+        201: {
+          description: 'Item created successfully',
+          content: {
+            'application/json': {
+              schema: getItemResponseSchema.openapi({
+                description: 'Create item response'
+              })
+            }
+          }
+        }
+      }
+    })
+  ),
   validateMultipartRequest(itemCreateSchema, ['image']),
   itemController.createItem
 );
@@ -114,61 +135,80 @@ router.put(
     type: ['image/jpeg', 'image/png', 'image/webp'],
     limit: '10mb'
   }),
-  openApiPut(z.string(), {
-    description: 'Upload raw item image',
-    requestBody: {
-      content: {
-        'image/jpeg': { schema: { type: 'string', format: 'binary' } },
-        'image/png': { schema: { type: 'string', format: 'binary' } },
-        'image/webp': { schema: { type: 'string', format: 'binary' } }
-      }
-    },
-    responses: {
-      200: {
-        description: 'Item image uploaded successfully',
+  oapi.path(
+    createPathSchema({
+      description: 'Upload raw item image',
+      requestParams: {
+        path: z.object({ id: z.string() })
+      },
+      requestBody: {
         content: {
-          'application/json': {
-            schema: createSchema(
-              baseAPIResponseSchema.extend({ data: itemSchema }).openapi({
-                description: 'Upload item image response'
-              })
-            )
-          }
+          'image/jpeg': { schema: { type: 'string', format: 'binary' } },
+          'image/png': { schema: { type: 'string', format: 'binary' } },
+          'image/webp': { schema: { type: 'string', format: 'binary' } }
         }
       },
-      400: { description: 'Invalid image data' },
-      403: { description: 'Access denied' },
-      404: { description: 'Item not found' },
-      500: { description: 'Server error' }
-    }
-  }),
+      responses: {
+        200: {
+          description: 'Item image uploaded successfully',
+          content: {
+            'application/json': {
+              schema: getItemResponseSchema.openapi({
+                description: 'Upload item image response'
+              })
+            }
+          }
+        }
+      }
+    })
+  ),
   itemController.uploadItemImage
 );
 
 router.put(
   '/:id',
   authenticate,
-  openApiPut(itemCreateSchema, {
-    description: 'Replace item by ID (full update)',
-    responses: {
-      200: {
-        description: 'Item updated successfully',
+  oapi.path(
+    createPathSchema({
+      description: 'Replace item by ID (full update)',
+      requestParams: {
+        path: z.object({ id: z.string() })
+      },
+      requestBody: {
         content: {
           'application/json': {
-            schema: createSchema(
-              baseAPIResponseSchema.extend({ data: itemSchema }).openapi({
-                description: 'Update item response'
+            schema: itemCreateSchema.openapi({
+              description: 'Update item request'
+            })
+          },
+          'multipart/form-data': {
+            schema: itemCreateSchema
+              .extend({
+                image: z.instanceof(File).openapi({
+                  type: 'string',
+                  format: 'binary'
+                })
               })
-            )
+              .openapi({
+                description: 'Update item request with image'
+              })
           }
         }
       },
-      400: { description: 'Invalid item data' },
-      403: { description: 'Access denied' },
-      404: { description: 'Item not found' },
-      500: { description: 'Server error' }
-    }
-  }),
+      responses: {
+        200: {
+          description: 'Item updated successfully',
+          content: {
+            'application/json': {
+              schema: getItemResponseSchema.openapi({
+                description: 'Update item response'
+              })
+            }
+          }
+        }
+      }
+    })
+  ),
   validateMultipartRequest(itemCreateSchema, 'image'),
   itemController.putItem
 );
@@ -176,27 +216,44 @@ router.put(
 router.patch(
   '/:id',
   authenticate,
-  openApiPatch(deepPartial(itemSchema), {
-    description: 'Update item by ID (partial update)',
-    responses: {
-      200: {
-        description: 'Item patched successfully',
+  oapi.path(
+    createPathSchema({
+      description: 'Update item by ID (partial update)',
+      requestParams: {
+        path: z.object({ id: z.string() })
+      },
+      requestBody: {
         content: {
           'application/json': {
-            schema: createSchema(
-              baseAPIResponseSchema.extend({ data: itemSchema }).openapi({
-                description: 'Patch item response'
+            schema: deepPartial(itemSchema).openapi({
+              description: 'Patch item request'
+            })
+          },
+          'multipart/form-data': {
+            schema: deepPartial(itemSchema)
+              .extend({
+                image: z.instanceof(File).openapi({ type: 'string', format: 'binary' })
               })
-            )
+              .openapi({
+                description: 'Patch item request with image'
+              })
           }
         }
       },
-      400: { description: 'Invalid item data' },
-      403: { description: 'Access denied' },
-      404: { description: 'Item not found' },
-      500: { description: 'Server error' }
-    }
-  }),
+      responses: {
+        200: {
+          description: 'Item patched successfully',
+          content: {
+            'application/json': {
+              schema: getItemResponseSchema.openapi({
+                description: 'Patch item response'
+              })
+            }
+          }
+        }
+      }
+    })
+  ),
   validateMultipartRequest(deepPartial(itemSchema), 'image'),
   itemController.patchItem
 );
@@ -204,26 +261,26 @@ router.patch(
 router.delete(
   '/:id',
   authenticate,
-  openApiDelete(z.null(), {
-    description: 'Delete item by ID',
-    responses: {
-      200: { description: 'Item deleted successfully' },
-      403: { description: 'Access denied' },
-      404: { description: 'Item not found' },
-      500: {
-        description: 'Server error',
-        content: {
-          'application/json': {
-            schema: createSchema(
-              deleteAPIResponseSchema.openapi({
+  oapi.validPath(
+    createPathSchema({
+      description: 'Delete item by ID',
+      requestParams: {
+        path: z.object({ id: z.string() })
+      },
+      responses: {
+        200: {
+          description: 'Item deleted successfully',
+          content: {
+            'application/json': {
+              schema: deleteAPIResponseSchema.openapi({
                 description: 'Delete item response'
               })
-            )
+            }
           }
         }
       }
-    }
-  }),
+    })
+  ),
   itemController.deleteItem
 );
 
@@ -231,24 +288,26 @@ router.delete(
 router.get(
   '/campaigns/:campaignId/items',
   authenticate,
-  openApiGet(z.null(), {
-    description: 'Get items for a specific campaign',
-    responses: {
-      200: {
-        description: 'Campaign items retrieved successfully',
-        content: {
-          'application/json': {
-            schema: createSchema(
-              baseAPIResponseSchema.extend({ data: z.array(itemSchema) }).openapi({
+  oapi.validPath(
+    createPathSchema({
+      description: 'Get items for a specific campaign',
+      requestParams: {
+        path: z.object({ campaignId: z.string() })
+      },
+      responses: {
+        200: {
+          description: 'Campaign items retrieved successfully',
+          content: {
+            'application/json': {
+              schema: getItemsResponseSchema.openapi({
                 description: 'Campaign items response'
               })
-            )
+            }
           }
         }
-      },
-      500: { description: 'Server error' }
-    }
-  }),
+      }
+    })
+  ),
   itemController.getItems
 );
 

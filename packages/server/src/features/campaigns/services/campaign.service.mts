@@ -86,7 +86,7 @@ export class CampaignService {
     const actors = await ActorModel.find({ _id: { $in: campaign.members } });
     const usersPromises = actors.map(async (actor) => await UserModel.findById(actor.createdBy));
     const users = await Promise.all(usersPromises);
-    return users.filter((user: IUser | null) => user !== null);
+    return users.filter((user) => user !== null) as IUser[];
   }
 
   // async isUserCampaignMember(campaignId: string, userId: string): Promise<boolean> {

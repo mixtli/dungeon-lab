@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { z } from 'zod';
 
 /**
  * Schema for validating character creation form data
@@ -6,30 +6,36 @@ import { z } from 'zod'
  * and doesn't duplicate document schemas from the shared types
  */
 
-export function deepPartial<T extends z.ZodTypeAny>(
-  schema: T
-): z.ZodType<DeepPartial<z.infer<T>>> {
+export function deepPartial<T extends z.ZodTypeAny>(schema: T): T {
   if (schema instanceof z.ZodObject) {
-    const newShape = Object.fromEntries(
+    const newShape: z.ZodRawShape = Object.fromEntries(
       Object.entries(schema.shape).map(([key, value]) => [
         key,
         deepPartial(value as z.ZodTypeAny).optional()
       ])
     );
-    return z.object(newShape) as unknown as z.ZodType<DeepPartial<z.infer<T>>>;
+    return z.object(newShape) as unknown as T;
   } else if (schema instanceof z.ZodArray) {
-    return z.array(deepPartial(schema.element as z.ZodTypeAny)).optional() as unknown as z.ZodType<DeepPartial<z.infer<T>>>;
+    return z.array(deepPartial(schema.element)) as unknown as T;
   } else if (schema instanceof z.ZodEnum) {
-    return schema.optional() as unknown as z.ZodType<DeepPartial<z.infer<T>>>;
+    return schema.optional() as unknown as T;
   } else if (schema instanceof z.ZodUnion || schema instanceof z.ZodDiscriminatedUnion) {
-    return schema.optional() as unknown as z.ZodType<DeepPartial<z.infer<T>>>;
+    return schema.optional() as unknown as T;
   } else if (schema instanceof z.ZodDefault) {
-    return deepPartial(schema._def.innerType as z.ZodTypeAny) as unknown as z.ZodType<DeepPartial<z.infer<T>>>;
+    return deepPartial(schema._def.innerType) as unknown as T;
   }
-  return schema.optional() as unknown as z.ZodType<DeepPartial<z.infer<T>>>;
+  console.log(schema);
+  return schema.optional() as unknown as T;
 }
 // Define the DeepPartial type helper
 
-export type DeepPartial<T> = T extends object ? {
-  [P in keyof T]?: DeepPartial<T[P]>;
-} : T;
+// const schema0 = z.string();
+// const schema1 = z.object({ foo: z.string() });
+// const schema2 = deepPartial(schema1);
+// console.log(schema2);
+
+export type DeepPartial<T> = T extends object
+  ? {
+      [P in keyof T]?: DeepPartial<T[P]>;
+    }
+  : T;

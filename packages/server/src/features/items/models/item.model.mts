@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
-import { IItem, itemSchema } from '@dungeon-lab/shared/index.mjs';
+import { IItem } from '@dungeon-lab/shared/types/index.mjs';
+import { itemSchema } from '@dungeon-lab/shared/schemas/item.schema.mjs';
 import { zId } from '@zodyac/zod-mongoose';
 import { baseMongooseZodSchema } from '../../../models/base.model.schema.mjs';
 import { createMongoSchema } from '../../../models/zod-to-mongo.mjs';

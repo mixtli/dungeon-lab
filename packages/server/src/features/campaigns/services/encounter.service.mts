@@ -1,18 +1,16 @@
 import { Types } from 'mongoose';
-import { IEncounter} from '@dungeon-lab/shared/schemas/encounter.schema.mjs';
-import { EncounterModel} from '../models/encounter.model.mjs';
+import { IEncounter } from '@dungeon-lab/shared/types/index.mjs';
+import { EncounterModel } from '../models/encounter.model.mjs';
 import { CampaignModel } from '../models/campaign.model.mjs';
 import { ActorModel } from '../../actors/models/actor.model.mjs';
 import { logger } from '../../../utils/logger.mjs';
-import { IActor } from '@dungeon-lab/shared/index.mjs';
+import { IActor } from '@dungeon-lab/shared/types/index.mjs';
 
 export class EncounterService {
   async getEncounters(campaignId: string): Promise<IEncounter[]> {
     try {
-      const encounters = await EncounterModel.find({ campaignId })
-        .lean()
-        .exec();
-      return encounters
+      const encounters = await EncounterModel.find({ campaignId }).lean().exec();
+      return encounters;
     } catch (error) {
       logger.error('Error getting encounters:', error);
       throw new Error('Failed to get encounters');
@@ -32,7 +30,7 @@ export class EncounterService {
       })
         .lean()
         .exec();
-      
+
       if (!encounter) {
         throw new Error('Encounter not found');
       }
@@ -48,12 +46,16 @@ export class EncounterService {
     }
   }
 
-  async createEncounter(data: IEncounter, campaignId: string, userId: string): Promise<IEncounter> {
+  async createEncounter(
+    data: Omit<IEncounter, 'id'>,
+    campaignId: string,
+    userId: string
+  ): Promise<IEncounter> {
     try {
       const userObjectId = new Types.ObjectId(userId);
       const mapObjectId = new Types.ObjectId(data.mapId);
       const campaignObjectId = new Types.ObjectId(campaignId);
-      
+
       // Verify campaign exists
       const campaign = await CampaignModel.findById(campaignId).exec();
       if (!campaign) {
@@ -77,7 +79,10 @@ export class EncounterService {
         updatedBy: userObjectId
       };
 
-      logger.debug('Creating encounter with data (stringified):', JSON.stringify(encounterData, null, 2));
+      logger.debug(
+        'Creating encounter with data (stringified):',
+        JSON.stringify(encounterData, null, 2)
+      );
       logger.debug('ObjectId values:', {
         mapId: mapObjectId instanceof Types.ObjectId,
         campaignId: campaignObjectId instanceof Types.ObjectId,
@@ -97,7 +102,11 @@ export class EncounterService {
     }
   }
 
-  async updateEncounter(encounterId: string, data: Partial<IEncounter>, userId: string): Promise<IEncounter> {
+  async updateEncounter(
+    encounterId: string,
+    data: Partial<IEncounter>,
+    userId: string
+  ): Promise<IEncounter> {
     try {
       const encounter = await EncounterModel.findById(encounterId);
       if (!encounter) {
@@ -110,11 +119,9 @@ export class EncounterService {
         updatedBy: new Types.ObjectId(userId)
       };
 
-      const updatedEncounter = await EncounterModel.findByIdAndUpdate(
-        encounterId,
-        updateData,
-        { new: true }
-      );
+      const updatedEncounter = await EncounterModel.findByIdAndUpdate(encounterId, updateData, {
+        new: true
+      });
 
       if (!updatedEncounter) {
         throw new Error('Failed to update encounter');
@@ -139,7 +146,11 @@ export class EncounterService {
     }
   }
 
-  async checkUserPermission(encounterId: string, userId: string, isAdmin: boolean): Promise<boolean> {
+  async checkUserPermission(
+    encounterId: string,
+    userId: string,
+    isAdmin: boolean
+  ): Promise<boolean> {
     try {
       const encounter = await EncounterModel.findById(encounterId).exec();
       if (!encounter) {
@@ -155,13 +166,13 @@ export class EncounterService {
       // Get user's actors
       const userObjectId = new Types.ObjectId(userId);
       const userActors = await ActorModel.find({ createdBy: userObjectId });
-      const actorIds = userActors.map((actor: IActor) => actor.id!)
+      const actorIds = userActors.map((actor: IActor) => actor.id!);
 
       // Check if user is GM, participant, has a character in the campaign, or is admin
       const isGM = campaign.gameMasterId?.toString() === userId;
-      const isParticipant = encounter.participants.some(p => p.toString() === userId);
-      const hasCharacter = campaign.members.some(memberId => 
-        actorIds.some(actorId => actorId.toString() === memberId.toString())
+      const isParticipant = encounter.participants.some((p) => p.toString() === userId);
+      const hasCharacter = campaign.members.some((memberId) =>
+        actorIds.some((actorId) => actorId.toString() === memberId.toString())
       );
 
       return isGM || isParticipant || hasCharacter || isAdmin;
@@ -170,4 +181,4 @@ export class EncounterService {
       throw new Error('Failed to check encounter permission');
     }
   }
-} 
+}

@@ -1,9 +1,10 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
-import { IUser, userSchema } from '@dungeon-lab/shared/index.mjs';
+import { userSchema } from '@dungeon-lab/shared/index.mjs';
 import { baseMongooseZodSchema } from './base.model.schema.mjs';
 import { createMongoSchema } from './zod-to-mongo.mjs';
+import { IUser } from '@dungeon-lab/shared/types/index.mjs';
 
 function generateApiKey() {
   return crypto.randomBytes(32).toString('hex');

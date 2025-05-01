@@ -1,5 +1,5 @@
 import { UserModel } from '../../../models/user.model.mjs';
-import { IUser } from '@dungeon-lab/shared/schemas/user.schema.mjs';
+import { IUser } from '@dungeon-lab/shared/types/index.mjs';
 
 export class UserService {
   constructor() {}

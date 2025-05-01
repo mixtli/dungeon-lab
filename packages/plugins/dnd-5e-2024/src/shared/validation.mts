@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { actorTypes, itemTypes } from './types/index.mjs';
 import { vttDocumentDataTypes } from './types/vttdocument.mjs';
-import { IActor } from '@dungeon-lab/shared/schemas/actor.schema.mjs';
 
 /**
  * Validates actor data for a specific actor type
@@ -10,10 +9,7 @@ import { IActor } from '@dungeon-lab/shared/schemas/actor.schema.mjs';
  * @param data - The data to validate
  * @returns A SafeParseReturn object with the validation result
  */
-export function validateActorData(
-  actorType: string,
-  data: unknown
-): z.SafeParseReturnType<Omit<IActor, 'id'>, unknown> {
+export function validateActorData(actorType: string, data: unknown) {
   const schema = actorTypes[actorType as keyof typeof actorTypes];
 
   if (schema) {

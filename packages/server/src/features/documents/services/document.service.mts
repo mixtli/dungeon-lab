@@ -1,4 +1,4 @@
-import { IVTTDocument } from '@dungeon-lab/shared/schemas/vtt-document.schema.mjs';
+import type { IVTTDocument } from '@dungeon-lab/shared/types/index.mjs';
 import { VTTDocument } from '../models/vtt-document.model.mjs';
 import { logger } from '../../../utils/logger.mjs';
 import { deepMerge } from '@dungeon-lab/shared/utils/deepMerge.mjs';
@@ -20,7 +20,7 @@ export class DocumentService {
     }
   }
 
-  async createDocument(document: IVTTDocument, userId: string): Promise<IVTTDocument> {
+  async createDocument(document: Omit<IVTTDocument, 'id'>, userId: string): Promise<IVTTDocument> {
     try {
       const userObjectId = new Types.ObjectId(userId);
       const documentData = {
@@ -66,7 +66,11 @@ export class DocumentService {
     }
   }
 
-  async putDocument(id: string, document: IVTTDocument, userId: string): Promise<IVTTDocument> {
+  async putDocument(
+    id: string,
+    document: Omit<IVTTDocument, 'id'>,
+    userId: string
+  ): Promise<IVTTDocument> {
     try {
       const existingDocument = await VTTDocument.findById(id);
       if (!existingDocument) {

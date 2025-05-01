@@ -1,17 +1,8 @@
 import { Router } from 'express';
 import { DocumentController } from '../controllers/document.controller.mjs';
-import {
-  openApiDelete,
-  openApiGet,
-  openApiGetOne,
-  openApiPatch,
-  openApiPost,
-  openApiPut,
-  toQuerySchema
-} from '../../../oapi.mjs';
+import { createPathSchema, oapi } from '../../../oapi.mjs';
 import { validateRequest } from '../../../middleware/validation.middleware.mjs';
 import { authenticate } from '../../../middleware/auth.middleware.mjs';
-import { createSchema } from 'zod-openapi';
 import { z } from '../../../utils/zod.mjs';
 import {
   createDocumentRequestSchema,
@@ -32,78 +23,96 @@ const router = Router();
 // Apply authentication middleware to all document routes
 router.use(authenticate);
 
+// Create response schemas using baseAPIResponseSchema
+const getDocumentsResponseSchema = baseAPIResponseSchema.extend({
+  data: z.array(vttDocumentSchema)
+});
+
+const getDocumentResponseSchema = baseAPIResponseSchema.extend({
+  data: vttDocumentSchema
+});
+
 // Get a single document by ID
 router.get(
   '/:id',
-  openApiGetOne(z.null(), {
-    description: 'Get a document by ID',
-    responses: {
-      200: {
-        description: 'Document retrieved successfully',
-        content: {
-          'application/json': {
-            schema: createSchema(
-              baseAPIResponseSchema.extend({ data: vttDocumentSchema }).openapi({
+  oapi.validPath(
+    createPathSchema({
+      description: 'Get a document by ID',
+      requestParams: {
+        path: z.object({ id: z.string() })
+      },
+      responses: {
+        200: {
+          description: 'Document retrieved successfully',
+          content: {
+            'application/json': {
+              schema: getDocumentResponseSchema.openapi({
                 description: 'Document response'
               })
-            )
+            }
           }
         }
-      },
-      404: { description: 'Document not found' },
-      500: { description: 'Server error' }
-    }
-  }),
+      }
+    })
+  ),
   documentController.getDocument
 );
 
 // Search documents
 router.get(
   '/',
-  openApiGet(searchDocumentsQuerySchema, {
-    description: 'Search for documents based on query parameters',
-    parameters: toQuerySchema(searchDocumentsQuerySchema),
-    responses: {
-      200: {
-        description: 'Documents retrieved successfully',
-        content: {
-          'application/json': {
-            schema: createSchema(
-              baseAPIResponseSchema.extend({ data: z.array(vttDocumentSchema) }).openapi({
+  oapi.validPath(
+    createPathSchema({
+      description: 'Search for documents based on query parameters',
+      requestParams: {
+        query: searchDocumentsQuerySchema
+      },
+      responses: {
+        200: {
+          description: 'Documents retrieved successfully',
+          content: {
+            'application/json': {
+              schema: getDocumentsResponseSchema.openapi({
                 description: 'Documents response'
               })
-            )
+            }
           }
         }
-      },
-      500: { description: 'Server error' }
-    }
-  }),
+      }
+    })
+  ),
   documentController.searchDocuments
 );
 
 // Create a new document
 router.post(
   '/',
-  openApiPost(createDocumentRequestSchema, {
-    description: 'Create a new document',
-    responses: {
-      201: {
-        description: 'Document created successfully',
+  oapi.validPath(
+    createPathSchema({
+      description: 'Create a new document',
+      requestBody: {
         content: {
           'application/json': {
-            schema: createSchema(
-              baseAPIResponseSchema.extend({ data: vttDocumentSchema }).openapi({
-                description: 'Create document response'
-              })
-            )
+            schema: createDocumentRequestSchema.openapi({
+              description: 'Create document request'
+            })
           }
         }
       },
-      400: { description: 'Invalid document data' },
-      500: { description: 'Server error' }
-    }
-  }),
+      responses: {
+        201: {
+          description: 'Document created successfully',
+          content: {
+            'application/json': {
+              schema: getDocumentResponseSchema.openapi({
+                description: 'Create document response'
+              })
+            }
+          }
+        }
+      }
+    })
+  ),
   validateRequest(createDocumentRequestSchema),
   documentController.createDocument
 );
@@ -111,51 +120,61 @@ router.post(
 // Delete a document
 router.delete(
   '/:id',
-  openApiDelete(z.null(), {
-    description: 'Delete a document',
-    responses: {
-      200: { description: 'Document deleted successfully' },
-      404: { description: 'Document not found' },
-      500: {
-        description: 'Server error',
-        content: {
-          'application/json': {
-            schema: createSchema(
-              deleteAPIResponseSchema.openapi({
+  oapi.validPath(
+    createPathSchema({
+      description: 'Delete a document',
+      requestParams: {
+        path: z.object({ id: z.string() })
+      },
+      responses: {
+        200: {
+          description: 'Document deleted successfully',
+          content: {
+            'application/json': {
+              schema: deleteAPIResponseSchema.openapi({
                 description: 'Delete document response'
               })
-            )
+            }
           }
         }
       }
-    }
-  }),
+    })
+  ),
   documentController.deleteDocument
 );
 
 // Patch a document
 router.patch(
   '/:id',
-  openApiPatch(patchDocumentRequestSchema, {
-    description: 'Update a document by ID (partial)',
-    responses: {
-      200: {
-        description: 'Document patched successfully',
+  oapi.validPath(
+    createPathSchema({
+      description: 'Update a document by ID (partial)',
+      requestParams: {
+        path: z.object({ id: z.string() })
+      },
+      requestBody: {
         content: {
           'application/json': {
-            schema: createSchema(
-              baseAPIResponseSchema.extend({ data: vttDocumentSchema }).openapi({
-                description: 'Patch document response'
-              })
-            )
+            schema: patchDocumentRequestSchema.openapi({
+              description: 'Patch document request'
+            })
           }
         }
       },
-      400: { description: 'Invalid document data' },
-      404: { description: 'Document not found' },
-      500: { description: 'Server error' }
-    }
-  }),
+      responses: {
+        200: {
+          description: 'Document patched successfully',
+          content: {
+            'application/json': {
+              schema: getDocumentResponseSchema.openapi({
+                description: 'Patch document response'
+              })
+            }
+          }
+        }
+      }
+    })
+  ),
   validateRequest(patchDocumentRequestSchema),
   documentController.patchDocument
 );
@@ -163,26 +182,35 @@ router.patch(
 // Put a document
 router.put(
   '/:id',
-  openApiPut(putDocumentRequestSchema, {
-    description: 'Replace a document by ID (full update)',
-    responses: {
-      200: {
-        description: 'Document updated successfully',
+  oapi.validPath(
+    createPathSchema({
+      description: 'Replace a document by ID (full update)',
+      requestParams: {
+        path: z.object({ id: z.string() })
+      },
+      requestBody: {
         content: {
           'application/json': {
-            schema: createSchema(
-              baseAPIResponseSchema.extend({ data: vttDocumentSchema }).openapi({
-                description: 'Update document response'
-              })
-            )
+            schema: putDocumentRequestSchema.openapi({
+              description: 'Update document request'
+            })
           }
         }
       },
-      400: { description: 'Invalid document data' },
-      404: { description: 'Document not found' },
-      500: { description: 'Server error' }
-    }
-  }),
+      responses: {
+        200: {
+          description: 'Document updated successfully',
+          content: {
+            'application/json': {
+              schema: getDocumentResponseSchema.openapi({
+                description: 'Update document response'
+              })
+            }
+          }
+        }
+      }
+    })
+  ),
   validateRequest(putDocumentRequestSchema),
   documentController.putDocument
 );

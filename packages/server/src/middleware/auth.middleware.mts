@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { IUser } from '@dungeon-lab/shared/index.mjs';
+import { IUser } from '@dungeon-lab/shared/types/index.mjs';
 import { logger } from '../utils/logger.mjs';
 import { UserModel } from '../models/user.model.mjs';
 

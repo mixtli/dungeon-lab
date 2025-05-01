@@ -1,6 +1,11 @@
 import { AssetModel } from '../models/asset.model.mjs';
-import { AssetCreate, AssetUpdate, IAsset} from '@dungeon-lab/shared/schemas/asset.schema.mjs';
-import { getFileUrl, getPublicUrl, uploadFile, deleteFile } from '../../../services/storage.service.mjs';
+import { IAsset, IAssetCreateData, IAssetUpdateData } from '@dungeon-lab/shared/types/index.mjs';
+import {
+  getFileUrl,
+  getPublicUrl,
+  uploadFile,
+  deleteFile
+} from '../../../services/storage.service.mjs';
 import mongoose from 'mongoose';
 import path from 'path';
 
@@ -27,12 +32,13 @@ export class ValidationError extends Error {
 }
 
 // Type for Asset document with methods
-export type AssetDocument = mongoose.Document<unknown, object, IAsset> & IAsset & {
-  updateMetadata(newMetadata: Record<string, unknown>): Promise<AssetDocument>;
-  getSignedUrl(expiryTimeSeconds?: number): Promise<string>;
-  isOwnedBy(userId: string): boolean;
-  toPublicJSON(): Record<string, unknown>;
-};
+export type AssetDocument = mongoose.Document<unknown, object, IAsset> &
+  IAsset & {
+    updateMetadata(newMetadata: Record<string, unknown>): Promise<AssetDocument>;
+    getSignedUrl(expiryTimeSeconds?: number): Promise<string>;
+    isOwnedBy(userId: string): boolean;
+    toPublicJSON(): Record<string, unknown>;
+  };
 
 /**
  * Asset Service - Encapsulates business logic for asset management
@@ -47,7 +53,7 @@ class AssetService {
   async createAsset(
     file: { buffer: Buffer; originalname: string; mimetype: string; size: number },
     userId: string,
-    assetData: Partial<AssetCreate>
+    assetData: Partial<IAssetCreateData>
   ): Promise<AssetDocument> {
     if (!file || !file.buffer) {
       throw new ValidationError('File is required');
@@ -100,7 +106,7 @@ class AssetService {
     userId?: string,
     skipPermissionCheck = false
   ): Promise<AssetDocument> {
-    const asset = await AssetModel.findById(assetId) as AssetDocument | null;
+    const asset = (await AssetModel.findById(assetId)) as AssetDocument | null;
 
     if (!asset) {
       throw new NotFoundError('Asset not found');
@@ -116,7 +122,6 @@ class AssetService {
     return asset;
   }
 
-
   /**
    * Update an asset
    * @param assetId - The ID of the asset to update
@@ -125,7 +130,7 @@ class AssetService {
    */
   async updateAsset(
     assetId: string,
-    updateData: AssetUpdate,
+    updateData: IAssetUpdateData,
     userId: string
   ): Promise<AssetDocument> {
     const asset = await this.getAssetById(assetId, userId);
@@ -198,7 +203,7 @@ class AssetService {
     const asset = await AssetModel.findById(assetId).select('createdBy'); // Fetch only the necessary field
     if (!asset) {
       // If asset not found, user certainly doesn't have permission
-      return false; 
+      return false;
     }
     return asset.isOwnedBy(userId); // Use the instance method
   }
@@ -249,10 +254,12 @@ class AssetService {
    * @param userId - The ID of the user
    */
   async getAssetsByUser(userId: string): Promise<AssetDocument[]> {
-    return AssetModel.find({ createdBy: userId }).sort({ createdAt: -1 }) as Promise<AssetDocument[]>;
+    return AssetModel.find({ createdBy: userId }).sort({ createdAt: -1 }) as Promise<
+      AssetDocument[]
+    >;
   }
 }
 
 // Export a singleton instance
 const assetService = new AssetService();
-export default assetService; 
+export default assetService;

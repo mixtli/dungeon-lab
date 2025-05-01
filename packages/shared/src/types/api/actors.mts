@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { actorCreateSchema } from '../../schemas/actor.schema.mjs';
 import type { IActor } from '../../types/index.mjs';
 export type { IActor };
+// import { deepPartial } from '../../utils/deepPartial.mjs';
 
 // Types for POST /actors (Create actor)
 export const createActorRequestSchema = actorCreateSchema;
@@ -12,7 +13,8 @@ export const putActorRequestSchema = createActorRequestSchema;
 export type PutActorRequest = z.infer<typeof putActorRequestSchema>;
 
 // Types for PATCH /actors/:id (Update actor partially)
-export const patchActorRequestSchema = createActorRequestSchema.partial();
+//  export const patchActorRequestSchema = deepPartial(createActorRequestSchema);
+export const patchActorRequestSchema = createActorRequestSchema.deepPartial();
 export type PatchActorRequest = z.infer<typeof patchActorRequestSchema>;
 
 // Types for GET /actors/search (Search actors)

@@ -1,7 +1,8 @@
 import { Request, Response } from 'express';
 import { CampaignService } from '../services/campaign.service.mjs';
 import { logger } from '../../../utils/logger.mjs';
-import { BaseAPIResponse, IGameSession } from '@dungeon-lab/shared/types/api/index.mjs';
+import { BaseAPIResponse } from '@dungeon-lab/shared/types/api/index.mjs';
+import { IGameSession } from '@dungeon-lab/shared/types/index.mjs';
 import { ZodError } from 'zod';
 import {
   ICampaign,

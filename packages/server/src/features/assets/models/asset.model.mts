@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
-import { assetSchema, IAsset } from '@dungeon-lab/shared/schemas/asset.schema.mjs';
+import { assetSchema } from '@dungeon-lab/shared/schemas/asset.schema.mjs';
+import { IAsset } from '@dungeon-lab/shared/types/index.mjs';
 import { createMongoSchema } from '../../../models/zod-to-mongo.mjs';
 import { baseMongooseZodSchema } from '../../../models/base.model.schema.mjs';
 import { zId } from '@zodyac/zod-mongoose';

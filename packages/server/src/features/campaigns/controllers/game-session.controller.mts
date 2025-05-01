@@ -3,11 +3,11 @@ import { GameSessionService } from '../services/game-session.service.mjs';
 import { logger } from '../../../utils/logger.mjs';
 import {
   BaseAPIResponse,
-  IGameSession,
   createGameSessionSchema,
   updateGameSessionSchema,
   getGameSessionsQuerySchema
 } from '@dungeon-lab/shared/types/api/index.mjs';
+import { IGameSession } from '@dungeon-lab/shared/types/index.mjs';
 import { z, ZodError } from 'zod';
 import { isErrorWithMessage } from '../../../utils/error.mjs';
 

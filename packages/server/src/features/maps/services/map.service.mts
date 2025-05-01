@@ -1,4 +1,4 @@
-import { IMap } from '@dungeon-lab/shared/index.mjs';
+import { IMap } from '@dungeon-lab/shared/types/index.mjs';
 import { MapModel } from '../models/map.model.mjs';
 import storageService from '../../../services/storage.service.mjs';
 import sharp from 'sharp';
@@ -11,7 +11,7 @@ import { MAP_IMAGE_GENERATION_JOB, MAP_THUMBNAIL_GENERATION_JOB } from '../jobs/
 import { deepMerge } from '@dungeon-lab/shared/utils/deepMerge.mjs';
 import { Types } from 'mongoose';
 import { UserModel } from '../../../models/user.model.mjs';
-import { IMapCreateData, IMapUpdateData } from '@dungeon-lab/shared/schemas/map.schema.mjs';
+import { IMapCreateData, IMapUpdateData } from '@dungeon-lab/shared/types/index.mjs';
 
 // Define a type for map query values
 export type QueryValue = string | number | boolean | RegExp | Date | object;

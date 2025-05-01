@@ -4,15 +4,7 @@ import { EncounterService } from '../services/encounter.service.mjs';
 import { authenticate } from '../../../middleware/auth.middleware.mjs';
 import { validateRequest } from '../../../middleware/validation.middleware.mjs';
 import { z } from '../../../utils/zod.mjs';
-import { createSchema } from 'zod-openapi';
-import {
-  openApiGet,
-  openApiGetOne,
-  openApiPost,
-  openApiPatch,
-  openApiDelete,
-  toQuerySchema
-} from '../../../oapi.mjs';
+import { createPathSchema, oapi } from '../../../oapi.mjs';
 import {
   encounterSchema,
   encounterCreateSchema,
@@ -30,96 +22,101 @@ const encounterController = new EncounterController(encounterService);
 // Create router
 const router = Router();
 
+// Create response schemas using baseAPIResponseSchema
+const getEncountersResponseSchema = baseAPIResponseSchema.extend({
+  data: z.array(encounterSchema)
+});
+
+const getEncounterResponseSchema = baseAPIResponseSchema.extend({
+  data: encounterSchema
+});
+
+// Define encounter query schema
+const encounterQuerySchema = z.object({ campaignId: z.string().optional() });
+
 // Define routes
 router.get(
   '/',
   authenticate,
-  openApiGet(z.object({ campaignId: z.string().optional() }), {
-    description: 'Get all encounters, optionally filtered by campaignId',
-    parameters: toQuerySchema(z.object({ campaignId: z.string().optional() })),
-    responses: {
-      200: {
-        description: 'Encounters retrieved successfully',
-        content: {
-          'application/json': {
-            schema: createSchema(
-              baseAPIResponseSchema
-                .extend({
-                  data: z.array(encounterSchema)
-                })
-                .openapi({
-                  description: 'Encounters response'
-                })
-            )
+  oapi.validPath(
+    createPathSchema({
+      description: 'Get all encounters, optionally filtered by campaignId',
+      requestParams: {
+        query: encounterQuerySchema
+      },
+      responses: {
+        200: {
+          description: 'Encounters retrieved successfully',
+          content: {
+            'application/json': {
+              schema: getEncountersResponseSchema.openapi({
+                description: 'Encounters response'
+              })
+            }
           }
         }
-      },
-      500: { description: 'Server error' }
-    }
-  }),
+      }
+    })
+  ),
   encounterController.getEncounters
 );
 
 router.get(
   '/:id',
   authenticate,
-  openApiGetOne(z.object({ campaignId: z.string().optional() }), {
-    description: 'Get encounter by ID',
-    parameters: toQuerySchema(z.object({ campaignId: z.string().optional() })),
-    responses: {
-      200: {
-        description: 'Encounter retrieved successfully',
-        content: {
-          'application/json': {
-            schema: createSchema(
-              baseAPIResponseSchema
-                .extend({
-                  data: encounterSchema
-                })
-                .openapi({
-                  description: 'Encounter response'
-                })
-            )
+  oapi.validPath(
+    createPathSchema({
+      description: 'Get encounter by ID',
+      requestParams: {
+        path: z.object({ id: z.string() }),
+        query: encounterQuerySchema
+      },
+      responses: {
+        200: {
+          description: 'Encounter retrieved successfully',
+          content: {
+            'application/json': {
+              schema: getEncounterResponseSchema.openapi({
+                description: 'Encounter response'
+              })
+            }
           }
         }
-      },
-      400: { description: 'Bad request - Campaign ID required' },
-      403: { description: 'Forbidden - Access denied' },
-      404: { description: 'Encounter not found' },
-      500: { description: 'Server error' }
-    }
-  }),
+      }
+    })
+  ),
   encounterController.getEncounter
 );
 
 router.post(
   '/',
   authenticate,
-  openApiPost(encounterCreateSchema, {
-    description: 'Create a new encounter',
-    responses: {
-      201: {
-        description: 'Encounter created successfully',
+  oapi.validPath(
+    createPathSchema({
+      description: 'Create a new encounter',
+      requestBody: {
         content: {
           'application/json': {
-            schema: createSchema(
-              baseAPIResponseSchema
-                .extend({
-                  data: encounterSchema
-                })
-                .openapi({
-                  description: 'Create encounter response'
-                })
-            )
+            schema: encounterCreateSchema.openapi({
+              description: 'Create encounter request'
+            })
           }
         }
       },
-      400: { description: 'Invalid encounter data or missing campaign ID' },
-      403: { description: 'Only the game master can create encounters' },
-      404: { description: 'Campaign not found' },
-      500: { description: 'Server error' }
-    }
-  }),
+      responses: {
+        201: {
+          description: 'Encounter created successfully',
+          content: {
+            'application/json': {
+              schema: getEncounterResponseSchema.openapi({
+                description: 'Create encounter response'
+              })
+            }
+          }
+        }
+      }
+    })
+  ),
   validateRequest(encounterCreateSchema),
   encounterController.createEncounter
 );
@@ -127,31 +124,35 @@ router.post(
 router.patch(
   '/:id',
   authenticate,
-  openApiPatch(encounterPatchSchema, {
-    description: 'Update an encounter by ID (partial update)',
-    responses: {
-      200: {
-        description: 'Encounter patched successfully',
+  oapi.validPath(
+    createPathSchema({
+      description: 'Update an encounter by ID (partial update)',
+      requestParams: {
+        path: z.object({ id: z.string() })
+      },
+      requestBody: {
         content: {
           'application/json': {
-            schema: createSchema(
-              baseAPIResponseSchema
-                .extend({
-                  data: encounterSchema
-                })
-                .openapi({
-                  description: 'Patch encounter response'
-                })
-            )
+            schema: encounterPatchSchema.openapi({
+              description: 'Patch encounter request'
+            })
           }
         }
       },
-      400: { description: 'Invalid encounter data' },
-      403: { description: 'Forbidden - Access denied' },
-      404: { description: 'Encounter not found' },
-      500: { description: 'Server error' }
-    }
-  }),
+      responses: {
+        200: {
+          description: 'Encounter patched successfully',
+          content: {
+            'application/json': {
+              schema: getEncounterResponseSchema.openapi({
+                description: 'Patch encounter response'
+              })
+            }
+          }
+        }
+      }
+    })
+  ),
   validateRequest(encounterPatchSchema),
   encounterController.updateEncounter
 );
@@ -159,26 +160,26 @@ router.patch(
 router.delete(
   '/:id',
   authenticate,
-  openApiDelete(z.null(), {
-    description: 'Delete an encounter by ID',
-    responses: {
-      204: { description: 'Encounter deleted successfully' },
-      403: { description: 'Forbidden - Access denied' },
-      404: { description: 'Encounter not found' },
-      500: {
-        description: 'Server error',
-        content: {
-          'application/json': {
-            schema: createSchema(
-              deleteAPIResponseSchema.openapi({
+  oapi.validPath(
+    createPathSchema({
+      description: 'Delete an encounter by ID',
+      requestParams: {
+        path: z.object({ id: z.string() })
+      },
+      responses: {
+        200: {
+          description: 'Encounter deleted successfully',
+          content: {
+            'application/json': {
+              schema: deleteAPIResponseSchema.openapi({
                 description: 'Delete encounter response'
               })
-            )
+            }
           }
         }
       }
-    }
-  }),
+    })
+  ),
   encounterController.deleteEncounter
 );
 

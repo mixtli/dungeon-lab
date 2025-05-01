@@ -3,7 +3,6 @@ import { readFileSync, readdirSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import { nextUser } from './import-utils.mjs';
-import * as campaignsClient from '@dungeon-lab/client/campaigns.client.mjs';
 
 // Get the directory path
 const __filename = fileURLToPath(import.meta.url);
@@ -35,20 +34,6 @@ if (API_AUTH_TOKEN) {
 // Map to store UUID to actor ID mappings
 const uuidToActorId = new Map<string, string>();
 // User information
-let currentUserId: string;
-
-// Get user info or login if token not provided
-async function getUserInfo(): Promise<void> {
-  // Get current user info to use as game master
-  const userResponse = await api.get('/api/auth/me');
-  currentUserId = userResponse.data.data.id;
-  console.log(`Current user ID: ${currentUserId}`);
-
-  if (!currentUserId) {
-    console.error(userResponse.data);
-    throw new Error('Failed to get current user ID');
-  }
-}
 
 // Fetch all character actors and create UUID to ID mapping
 async function mapCharacterIds(): Promise<void> {

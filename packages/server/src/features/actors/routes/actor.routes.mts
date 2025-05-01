@@ -18,6 +18,7 @@ import { baseAPIResponseSchema } from '@dungeon-lab/shared/types/api/base.mjs';
  */
 const router = express.Router();
 const actorController = new ActorController();
+router.use(authenticate);
 
 // Create response schemas using baseAPIResponseSchema
 const getActorsResponseSchema = baseAPIResponseSchema.extend({
@@ -325,7 +326,6 @@ router.put(
 // Generate an actor's avatar using AI
 router.post(
   '/:id/generate-avatar',
-  authenticate,
   oapi.validPath(
     createPathSchema({
       description: 'Generate actor avatar using AI',
@@ -352,7 +352,6 @@ router.post(
 // Generate an actor's token using AI
 router.post(
   '/:id/generate-token',
-  authenticate,
   oapi.validPath(
     createPathSchema({
       description: 'Generate actor token using AI',
@@ -379,7 +378,6 @@ router.post(
 // Delete an actor
 router.delete(
   '/:id',
-  authenticate,
   oapi.validPath(
     createPathSchema({
       description: 'Delete actor',

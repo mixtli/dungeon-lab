@@ -1,5 +1,5 @@
 import { Types } from 'mongoose';
-import { IGameSession } from '@dungeon-lab/shared/index.mjs';
+import { IGameSession } from '@dungeon-lab/shared/types/index.mjs';
 import { GameSessionModel } from '../models/game-session.model.mjs';
 import { CampaignModel } from '../models/campaign.model.mjs';
 import { logger } from '../../../utils/logger.mjs';

@@ -1,4 +1,4 @@
-import type { IActor } from '@dungeon-lab/shared/schemas/actor.schema.mjs';
+import type { IActor } from '@dungeon-lab/shared/types/index.mjs';
 import {
   CreateActorRequest,
   PatchActorRequest,

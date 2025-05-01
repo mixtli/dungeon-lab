@@ -1,5 +1,5 @@
 import { Types } from 'mongoose';
-import { IItem } from '@dungeon-lab/shared/index.mjs';
+import type { IItem } from '@dungeon-lab/shared/types/index.mjs';
 import { ItemModel } from '../models/item.model.mjs';
 import { logger } from '../../../utils/logger.mjs';
 import { deepMerge } from '@dungeon-lab/shared/utils/deepMerge.mjs';

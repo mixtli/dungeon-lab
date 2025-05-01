@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 import { ZodError } from 'zod';
 import { UserModel } from '../models/user.model.mjs';
 import { logger } from '../utils/logger.mjs';
-import { IUser } from '@dungeon-lab/shared/index.mjs';
+import { IUser } from '@dungeon-lab/shared/types/index.mjs';
 import {
   LoginRequest,
   loginRequestSchema,
@@ -228,9 +228,7 @@ export async function getCurrentUser(req: Request, res: Response<GetCurrentUserR
       if (user) {
         return res.status(200).json({
           success: true,
-          data: {
-            user: formatUserResponse(user)
-          }
+          data: formatUserResponse(user)
         });
       }
     }
@@ -239,17 +237,13 @@ export async function getCurrentUser(req: Request, res: Response<GetCurrentUserR
     // This code should never be reached.  If the user is not authenticated, the middleware should have returned a 401.
     return res.status(401).json({
       success: false,
-      error: {
-        message: 'Not authenticated'
-      }
+      error: 'Not authenticated'
     });
   } catch (error) {
     logger.error('Get current user error:', error);
     return res.status(500).json({
       success: false,
-      error: {
-        message: 'An error occurred while fetching user data'
-      }
+      error: 'An error occurred while fetching user data'
     });
   }
 }
@@ -263,9 +257,7 @@ export async function getApiKey(req: Request, res: Response<GetApiKeyResponse>) 
     if (!req.session || !req.session.user) {
       return res.status(401).json({
         success: false,
-        error: {
-          message: 'Not authenticated'
-        }
+        error: 'Not authenticated'
       });
     }
 
@@ -275,25 +267,19 @@ export async function getApiKey(req: Request, res: Response<GetApiKeyResponse>) 
     if (!user) {
       return res.status(404).json({
         success: false,
-        error: {
-          message: 'User not found'
-        }
+        error: 'User not found'
       });
     }
 
     return res.status(200).json({
       success: true,
-      data: {
-        apiKey: user.apiKey || ''
-      }
+      data: { apiKey: user.apiKey || '' }
     });
   } catch (error) {
     logger.error('Get API key error:', error);
     return res.status(500).json({
       success: false,
-      error: {
-        message: 'An error occurred while fetching API key'
-      }
+      error: 'An error occurred while fetching API key'
     });
   }
 }
