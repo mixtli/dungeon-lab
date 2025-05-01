@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import multer from 'multer';
+import { BaseAPIResponse } from '@dungeon-lab/shared/types/api/base.mjs';
 
 // Define FilesData type
 export type FilesData = { [fieldName: string]: File[] };
@@ -20,7 +21,7 @@ const upload = multer({
 });
 
 export function validateRequest(schema: z.ZodSchema) {
-  return async (req: Request, res: Response, next: NextFunction) => {
+  return async (req: Request, res: Response<BaseAPIResponse<unknown>>, next: NextFunction) => {
     try {
       const validatedData = await schema.parseAsync(req.body);
       req.body = validatedData;
@@ -29,13 +30,17 @@ export function validateRequest(schema: z.ZodSchema) {
       if (err instanceof z.ZodError) {
         res.locals.validationErrors = err.errors;
         console.log('Validation errors', err.errors, err.message);
-        res.status(400).json({
-          message: 'Validation error' + err.message,
-          errors: err.errors
+        res.status(422).json({
+          success: false,
+          error: 'Validation error' + err.message,
+          error_details: err.issues
         });
       } else {
         res.locals.error = err;
-        next(err);
+        res.status(400).json({
+          success: false,
+          error: err instanceof Error ? err.message : 'Invalid request data'
+        });
       }
     }
   };
@@ -62,7 +67,7 @@ export function validateMultipartRequest(
 
   return [
     multerMiddleware,
-    async (req: Request, res: Response, next: NextFunction) => {
+    async (req: Request, res: Response<BaseAPIResponse<unknown>>, next: NextFunction) => {
       try {
         // Normalize file structure to a consistent format for easier processing
         const normalizedFiles = new Map<string, Express.Multer.File>();
@@ -85,6 +90,7 @@ export function validateMultipartRequest(
           // Get shape of the schema to check if fields are optional
           const shape = schema._def.shape();
 
+          // Add all of the file fields to the schema
           fieldsArray.forEach((field) => {
             // Check if the field exists in the schema and if it's optional
             const isFieldOptional =
@@ -153,14 +159,16 @@ export function validateMultipartRequest(
         if (err instanceof z.ZodError) {
           res.locals.validationErrors = err.errors;
           console.log('Multipart Validation errors', err.errors, err.message);
-          res.status(400).json({
-            message: 'Multipart Validation error' + err.message,
-            errors: err.errors
+          res.status(422).json({
+            success: false,
+            error: 'Multipart Validation error' + err.message,
+            error_details: err.issues
           });
         } else {
           res.locals.error = err;
           res.status(400).json({
-            message: err instanceof Error ? err.message : 'Invalid request data'
+            success: false,
+            error: err instanceof Error ? err.message : 'Invalid request data'
           });
         }
       }

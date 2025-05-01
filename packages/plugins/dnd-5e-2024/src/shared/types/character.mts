@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { IActor } from '@dungeon-lab/shared/index.mjs';
+import { IActor } from '@dungeon-lab/shared/types/index.mjs';
 
 const abilitySchema = z.object({
   score: z.number().min(1).max(30),

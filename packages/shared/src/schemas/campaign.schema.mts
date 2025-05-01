@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import { baseSchema } from './base.schema.mjs';
-import { deepPartial } from '../utils/deepPartial.mjs';
 // Campaign Status enum
 export const campaignStatusSchema = z.enum([
   'planning',
@@ -29,4 +28,4 @@ export const campaignCreateSchema = campaignSchema.omit({
   updatedBy: true
 });
 
-export const campaignPatchSchema = deepPartial(campaignSchema);
+export const campaignPatchSchema = campaignSchema.deepPartial();

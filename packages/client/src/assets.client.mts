@@ -14,7 +14,7 @@ export class AssetsClient extends ApiClient {
     if (!response.data) {
       throw new Error('Failed to get asset');
     }
-    return response.data.data || (response.data as any); // Handle legacy responses
+    return response.data.data; // Handle legacy responses
   }
 
   /**
@@ -25,7 +25,7 @@ export class AssetsClient extends ApiClient {
     if (!response.data) {
       throw new Error('Failed to get assets');
     }
-    return response.data.data || (response.data as any); // Handle legacy responses
+    return response.data.data; // Handle legacy responses
   }
 
   /**
@@ -50,7 +50,7 @@ export class AssetsClient extends ApiClient {
     if (!response.data) {
       throw new Error('Failed to upload asset');
     }
-    return response.data.data || (response.data as any); // Handle legacy responses
+    return response.data.data; // Handle legacy responses
   }
 
   /**
@@ -61,6 +61,6 @@ export class AssetsClient extends ApiClient {
     if (!response.data) {
       throw new Error('Failed to update asset');
     }
-    return response.data.data || (response.data as any); // Handle legacy responses
+    return response.data.data; // Handle legacy responses
   }
 }

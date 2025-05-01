@@ -9,7 +9,10 @@ import { vttDocumentDataTypes } from './types/vttdocument.mjs';
  * @param data - The data to validate
  * @returns A SafeParseReturn object with the validation result
  */
-export function validateActorData(actorType: string, data: unknown) {
+export function validateActorData(
+  actorType: string,
+  data: unknown
+): z.SafeParseReturnType<unknown, unknown> {
   const schema = actorTypes[actorType as keyof typeof actorTypes];
 
   if (schema) {

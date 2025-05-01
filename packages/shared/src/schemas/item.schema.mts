@@ -14,6 +14,10 @@ export const itemSchema = baseSchema.extend({
   data: z.any()
 });
 
-export const itemCreateSchema = itemSchema.extend({
-  image: z.instanceof(File).optional()
-});
+export const itemCreateSchema = itemSchema
+  .extend({
+    image: z.instanceof(File).optional()
+  })
+  .omit({
+    id: true
+  });

@@ -27,20 +27,17 @@ function validateSpellData(data: any): boolean {
 }
 
 /**
- * Import spells from 5e-SRD-Spells.json using the REST API
+ * Import spells from 5e-SRD-Spells.json using the ItemsClient
  * @param apiBaseUrl Base URL for the API
  * @param authToken Optional authentication token
  */
-async function importSpellsViaAPI(apiBaseUrl = 'http://localhost:3000', authToken?: string): Promise<void> {
+async function importSpells(apiBaseUrl = 'http://localhost:3000', authToken?: string): Promise<void> {
   try {
     // Configure the API client
-    configureApiClient(apiBaseUrl);
+    configureApiClient(apiBaseUrl, authToken);
     
     // Create the items client
-    const itemsClient = new ItemsClient({
-      baseURL: apiBaseUrl,
-      apiKey: authToken
-    });
+    const itemsClient = new ItemsClient();
     
     // Load spell data
     console.log('Loading spell data...');
@@ -152,7 +149,7 @@ if (import.meta.url === (typeof document === 'undefined' ? new URL('file:' + pro
   console.log(`Using API URL: ${apiBaseUrl}`);
   console.log(`Authentication: ${authToken ? 'Enabled' : 'Disabled'}`);
   
-  importSpellsViaAPI(apiBaseUrl, authToken).catch(error => {
+  importSpells(apiBaseUrl, authToken).catch(error => {
     console.error('Failed to import spells:', error);
     process.exit(1);
   });

@@ -17,8 +17,7 @@ export const getItemResponseSchema = baseAPIResponseSchema.extend({
 export type GetItemResponse = z.infer<typeof getItemResponseSchema>;
 
 // Types for POST /items (Create item)
-export const createItemRequestSchema = itemCreateSchema.omit({ id: true });
-export type CreateItemRequest = z.infer<typeof createItemRequestSchema>;
+export type CreateItemRequest = z.infer<typeof itemCreateSchema>;
 
 export const createItemResponseSchema = baseAPIResponseSchema.extend({
   data: itemSchema.optional()
@@ -27,7 +26,7 @@ export const createItemResponseSchema = baseAPIResponseSchema.extend({
 export type CreateItemResponse = z.infer<typeof createItemResponseSchema>;
 
 // Types for PUT /items/:id (Replace item)
-export const putItemRequestSchema = createItemRequestSchema;
+export const putItemRequestSchema = itemCreateSchema;
 export type PutItemRequest = z.infer<typeof putItemRequestSchema>;
 
 export const putItemResponseSchema = baseAPIResponseSchema.extend({
@@ -37,7 +36,7 @@ export const putItemResponseSchema = baseAPIResponseSchema.extend({
 export type PutItemResponse = z.infer<typeof putItemResponseSchema>;
 
 // Types for PATCH /items/:id (Update item partially)
-export const patchItemRequestSchema = createItemRequestSchema.partial();
+export const patchItemRequestSchema = itemCreateSchema.deepPartial();
 export type PatchItemRequest = z.infer<typeof patchItemRequestSchema>;
 
 export const patchItemResponseSchema = putItemResponseSchema;

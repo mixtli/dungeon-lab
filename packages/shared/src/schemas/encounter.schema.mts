@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import { baseSchema } from './base.schema.mjs';
-import { deepPartial } from '../utils/deepPartial.mjs';
 
 // Encounter Status enum
 export const EncounterStatus = z.enum(['draft', 'ready', 'in_progress', 'completed']);
@@ -22,4 +21,4 @@ export const encounterCreateSchema = encounterSchema.omit({
   updatedBy: true
 });
 
-export const encounterPatchSchema = deepPartial(encounterSchema);
+export const encounterPatchSchema = encounterSchema.deepPartial();

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+
 /**
  * API Response interface
  * This interface defines the structure of an API response
@@ -6,12 +7,13 @@ import { z } from 'zod';
 export const baseAPIResponseSchema = z.object({
   success: z.boolean().default(true),
   data: z.any().optional(),
-  error: z.string().optional()
+  error: z.string().optional(),
+  error_details: z.any().optional()
 });
 
 export type BaseAPIResponseZod = z.infer<typeof baseAPIResponseSchema>;
 
-export type BaseAPIResponse<T> = BaseAPIResponseZod & { data: T | null };
+export type BaseAPIResponse<T> = BaseAPIResponseZod & { data?: T | null };
 
 export const deleteAPIResponseSchema = baseAPIResponseSchema.omit({ data: true });
 export type DeleteAPIResponse = z.infer<typeof deleteAPIResponseSchema>;

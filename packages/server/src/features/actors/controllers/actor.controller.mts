@@ -129,11 +129,12 @@ export class ActorController {
       const result = plugin.validateActorData(validatedData.type, data);
 
       if (!result.success) {
-        console.log(result.error);
-        return res.status(400).json({
+        console.log(result.error.message);
+        return res.status(422).json({
           success: false,
           data: null,
-          error: JSON.parse(result.error.message)
+          error: result.error.message,
+          error_details: result.error.issues
         });
       }
 

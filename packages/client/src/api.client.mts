@@ -23,7 +23,7 @@ export class ApiClient {
       apiKey?: string;
     } = {}
   ) {
-    let config = {
+    const config = {
       baseURL: params.baseURL || baseUrl,
       timeout: 10000,
       withCredentials: params.withCredentials || true,

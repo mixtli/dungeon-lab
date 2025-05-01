@@ -6,7 +6,6 @@ import { validateMultipartRequest } from '../../../middleware/validation.middlew
 import { itemSchema, itemCreateSchema } from '@dungeon-lab/shared/schemas/item.schema.mjs';
 import { createPathSchema, oapi } from '../../../oapi.mjs';
 import { z } from '../../../utils/zod.mjs';
-import { deepPartial } from '@dungeon-lab/shared/utils/deepPartial.mjs';
 import express from 'express';
 import {
   searchItemsQuerySchema,
@@ -225,12 +224,13 @@ router.patch(
       requestBody: {
         content: {
           'application/json': {
-            schema: deepPartial(itemSchema).openapi({
+            schema: itemSchema.deepPartial().openapi({
               description: 'Patch item request'
             })
           },
           'multipart/form-data': {
-            schema: deepPartial(itemSchema)
+            schema: itemSchema
+              .deepPartial()
               .extend({
                 image: z.instanceof(File).openapi({ type: 'string', format: 'binary' })
               })
@@ -254,7 +254,7 @@ router.patch(
       }
     })
   ),
-  validateMultipartRequest(deepPartial(itemSchema), 'image'),
+  validateMultipartRequest(itemSchema.deepPartial(), 'image'),
   itemController.patchItem
 );
 
