@@ -276,7 +276,8 @@ export class ActorService {
 
       // Use deepMerge to only update the specified fields
       const obj = actor.toObject();
-      actor.set(deepMerge(obj, updateData));
+      const mergedData = deepMerge(obj, updateData);
+      actor.set(mergedData);
       await actor.save();
 
       return actor.populate(['avatar', 'token']);

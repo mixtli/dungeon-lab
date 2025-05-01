@@ -262,7 +262,10 @@ export class CampaignService {
         updatedBy: userId
       };
 
-      campaign.set(deepMerge(obj, updateData));
+      const mergedData = deepMerge(obj, updateData) as ICampaign;
+      // unique members
+      mergedData.members = [...new Set(mergedData.members)];
+      campaign.set(mergedData);
       await campaign.save();
       return campaign;
     } catch (error) {
