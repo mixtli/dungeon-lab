@@ -60,7 +60,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import api from '../../api/axios.mjs';
+import { EncountersClient } from '@dungeon-lab/client/index.mjs';
+
+const encounterClient = new EncountersClient();
 
 const props = defineProps<{
   show: boolean;
@@ -82,10 +84,8 @@ async function fetchEncounters() {
   error.value = null;
 
   try {
-    const response = await api.get(
-      `/api/campaigns/${props.campaignId}/encounters?status=!completed`
-    );
-    encounters.value = response.data;
+    const response = await encounterClient.getEncountersByCampaign(props.campaignId);
+    encounters.value = response;
   } catch (err: any) {
     error.value = err.response?.data?.message || err.message || 'Failed to fetch encounters';
   } finally {

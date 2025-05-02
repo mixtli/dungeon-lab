@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { baseSchema } from './base.schema.mjs';
+import { assetSchema } from './asset.schema.mjs';
 
 // Base Map schema
 export const mapSchema = baseSchema.extend({
@@ -14,6 +15,11 @@ export const mapSchema = baseSchema.extend({
   gridColumns: z.coerce.number().int().positive(),
   gridRows: z.coerce.number().int().positive(),
   aspectRatio: z.coerce.number().positive()
+});
+
+export const mapSchemaWithVirtuals = mapSchema.extend({
+  thumbnail: assetSchema.optional(),
+  image: assetSchema.optional()
 });
 
 // Schema for map creation that includes an optional image field for validation

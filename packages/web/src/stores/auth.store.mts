@@ -1,9 +1,12 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import type { IUser } from '@dungeon-lab/shared/index.mjs';
-import * as authApi from '../api/auth.client.mts';
-import { AxiosError } from 'axios';
+import type { IUser } from '@dungeon-lab/shared/types/index.mjs';
+import { AuthClient } from '@dungeon-lab/client/auth.client.mjs';
 import { LoginRequest, RegisterRequest } from '@dungeon-lab/shared/types/api/authentication.mjs';
+
+// Create a more specific client for auth methods
+// Note: This would normally be part of the client library, but we're creating it temporarily
+const authClient = new AuthClient();
 
 export const useAuthStore = defineStore(
   'auth',
@@ -21,7 +24,7 @@ export const useAuthStore = defineStore(
       error.value = undefined;
 
       try {
-        const value = await authApi.login(credentials);
+        const value = await authClient.login(credentials);
         if (value.success) {
           console.log('user.value', value);
           user.value = value.user;
@@ -45,7 +48,7 @@ export const useAuthStore = defineStore(
       error.value = undefined;
 
       try {
-        const result = await authApi.register(data);
+        const result = await authClient.register(data);
         if (result.success) {
           user.value = result.data;
         } else {
@@ -53,10 +56,7 @@ export const useAuthStore = defineStore(
         }
         return true;
       } catch (err: unknown) {
-        if (err instanceof AxiosError) {
-          error.value =
-            err.response?.data?.error?.message || 'An error occurred during registration';
-        } else if (err instanceof Error) {
+        if (err instanceof Error) {
           error.value = err.message || 'An error occurred during registration';
         } else {
           error.value = 'An error occurred during registration: Unknown error';
@@ -80,7 +80,7 @@ export const useAuthStore = defineStore(
 
     async function logout() {
       try {
-        await authApi.logout();
+        await authClient.logout();
       } catch (err: unknown) {
         console.error('Logout error:', err);
       } finally {
@@ -90,7 +90,7 @@ export const useAuthStore = defineStore(
 
     async function fetchUser() {
       try {
-        user.value = await authApi.getCurrentUser();
+        user.value = await authClient.getCurrentUser();
         return true;
       } catch (err: unknown) {
         console.error('Error fetching user:', err);
@@ -101,7 +101,7 @@ export const useAuthStore = defineStore(
 
     async function updateUser(data: Partial<IUser>) {
       try {
-        user.value = await authApi.updateUser(data);
+        user.value = await authClient.updateUser(data);
         return true;
       } catch (err: unknown) {
         console.error('Error updating user:', err);

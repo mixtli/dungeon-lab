@@ -8,12 +8,30 @@ import type { InviteStatusType } from '@dungeon-lab/shared/types/index.mjs';
 export class InviteService {
   constructor(private campaignService: CampaignService) {}
 
-  async getInvites(campaignId?: string): Promise<IInvite[]> {
+  async getInvites(
+    filters: { campaignId?: string; status?: InviteStatusType; userId?: string } = {}
+  ): Promise<IInvite[]> {
     const query: FilterQuery<IInvite> = {};
-    if (campaignId) {
-      query.campaignId = new Types.ObjectId(campaignId);
+
+    if (filters.campaignId) {
+      query.campaignId = new Types.ObjectId(filters.campaignId);
     }
-    const invites = await InviteModel.find(query).lean();
+
+    if (filters.status) {
+      query.status = filters.status;
+    }
+
+    if (filters.userId) {
+      // Get the user's email to filter by
+      const user = await UserModel.findById(filters.userId);
+      if (!user) {
+        throw new Error('User not found');
+      }
+      query.email = user.email;
+    }
+
+    const invites = await InviteModel.find(query);
+
     return invites as IInvite[];
   }
 
@@ -23,24 +41,6 @@ export class InviteService {
       throw new Error('Invite not found');
     }
     return invite as IInvite;
-  }
-
-  async getMyInvites(userId: string): Promise<IInvite[]> {
-    const user = await UserModel.findById(userId);
-    if (!user) {
-      throw new Error('User not found');
-    }
-    const invites = await InviteModel.find({ email: user.email, status: 'pending' })
-      .populate({
-        path: 'campaignId',
-        select: 'name gameSystemId'
-      })
-      .populate({
-        path: 'createdBy',
-        select: 'email'
-      });
-    console.log('got invites', invites);
-    return invites as IInvite[];
   }
 
   async createInvite(data: IInvite, campaignId: string, userId: string): Promise<IInvite> {

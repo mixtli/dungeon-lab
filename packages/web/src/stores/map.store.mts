@@ -1,10 +1,13 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import type { IMap } from '@dungeon-lab/shared/schemas/map.schema.mjs';
-import * as mapApi from '../api/maps.client.mts';
+import type { IMap } from '@dungeon-lab/shared/types/index.mjs';
+import { MapsClient } from '@dungeon-lab/client/index.mjs';
+import { IMapResponse } from '@dungeon-lab/shared/types/api/maps.mjs';
+
+const mapClient = new MapsClient();
 
 export const useMapStore = defineStore('map', () => {
-  const currentMap = ref<IMap | null>(null);
+  const currentMap = ref<IMapResponse | null>(null);
   const loading = ref(false);
   const error = ref<string | null>(null);
 
@@ -13,7 +16,7 @@ export const useMapStore = defineStore('map', () => {
     error.value = null;
 
     try {
-      const map = await mapApi.getMap(mapId);
+      const map = await mapClient.getMap(mapId);
       if (map) {
         currentMap.value = map;
         return map;
@@ -33,7 +36,7 @@ export const useMapStore = defineStore('map', () => {
     error.value = null;
 
     try {
-      const map = await mapApi.createMap(data);
+      const map = await mapClient.createMap(data);
       if (map) {
         currentMap.value = map;
         return map;
@@ -53,7 +56,7 @@ export const useMapStore = defineStore('map', () => {
     error.value = null;
 
     try {
-      const map = await mapApi.updateMap(mapId, data);
+      const map = await mapClient.updateMap(mapId, data);
       if (map) {
         if (currentMap.value?.id === mapId) {
           currentMap.value = map;
@@ -75,7 +78,7 @@ export const useMapStore = defineStore('map', () => {
     error.value = null;
 
     try {
-      await mapApi.deleteMap(mapId);
+      await mapClient.deleteMap(mapId);
       if (currentMap.value?.id === mapId) {
         currentMap.value = null;
       }

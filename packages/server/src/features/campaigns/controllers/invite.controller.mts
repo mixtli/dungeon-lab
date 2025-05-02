@@ -6,7 +6,7 @@ import {
   createInviteRequestSchema,
   respondToInviteRequestSchema
 } from '@dungeon-lab/shared/types/api/index.mjs';
-import type { IInvite } from '@dungeon-lab/shared/types/index.mjs';
+import type { IInvite, InviteStatusType } from '@dungeon-lab/shared/types/index.mjs';
 import { z } from 'zod';
 import { isErrorWithMessage } from '../../../utils/error.mjs';
 
@@ -14,37 +14,38 @@ export class InviteController {
   constructor(private inviteService: InviteService) {}
 
   getInvites = async (
-    req: Request<object, object, object, { campaignId?: string }>,
+    req: Request<
+      object,
+      object,
+      object,
+      { campaignId?: string; status?: InviteStatusType; forCurrentUser?: string }
+    >,
     res: Response<BaseAPIResponse<IInvite[]>>
   ): Promise<Response<BaseAPIResponse<IInvite[]>> | void> => {
     try {
-      const invites = await this.inviteService.getInvites(req.query.campaignId);
+      const filters: { campaignId?: string; status?: InviteStatusType; userId?: string } = {};
+
+      if (req.query.campaignId) {
+        filters.campaignId = req.query.campaignId;
+      }
+
+      if (req.query.status) {
+        filters.status = req.query.status as InviteStatusType;
+      }
+
+      // If forCurrentUser is true, get invites for the logged-in user
+      if (req.query.forCurrentUser === 'true') {
+        filters.userId = req.session.user.id;
+      }
+
+      const invites = await this.inviteService.getInvites(filters);
+
       return res.json({
         success: true,
         data: invites
       });
     } catch (error) {
       logger.error('Error getting invites:', error);
-      return res.status(500).json({
-        success: false,
-        data: [],
-        error: 'Failed to get invites'
-      });
-    }
-  };
-
-  getMyInvites = async (
-    req: Request<object, object, object, { campaignId?: string }>,
-    res: Response<BaseAPIResponse<IInvite[]>>
-  ): Promise<Response<BaseAPIResponse<IInvite[]>> | void> => {
-    try {
-      const invites = await this.inviteService.getMyInvites(req.session.user.id);
-      return res.json({
-        success: true,
-        data: invites
-      });
-    } catch (error) {
-      logger.error('Error getting user invites:', error);
       return res.status(500).json({
         success: false,
         data: [],

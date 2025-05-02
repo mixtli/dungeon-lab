@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import type { IMap, IAsset } from '@dungeon-lab/shared/index.mjs';
-import { mapClient } from '../../api/index.mjs';
+import type { IMap, IAsset } from '@dungeon-lab/shared/types/index.mjs';
+import { MapsClient } from '@dungeon-lab/client/index.mjs';
 
 const router = useRouter();
 const maps = ref<IMap[]>([]);
 const loading = ref(false);
 const showDeleteModal = ref(false);
 const mapToDelete = ref<string | null>(null);
+const mapClient = new MapsClient();
 
 
 // Function to get thumbnail URL from map

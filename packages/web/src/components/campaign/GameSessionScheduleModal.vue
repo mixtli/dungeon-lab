@@ -4,7 +4,9 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useGameSessionStore } from '../../stores/game-session.store.mjs';
 import { useAuthStore } from '../../stores/auth.store.mjs';
+import { GameSessionsClient } from '@dungeon-lab/client/index.mjs';
 
+const gameSessionClient = new GameSessionsClient();
 const props = defineProps<{
   show: boolean;
   campaignId: string;
@@ -56,6 +58,7 @@ async function handleSubmit() {
       campaignId: props.campaignId,
       gameMasterId: authStore.user.id,
       status: scheduleType.value === 'now' ? 'active' : 'paused',
+      participantIds: [],
       settings: {
         scheduledStart:
           scheduleType.value === 'later'
@@ -64,7 +67,7 @@ async function handleSubmit() {
       },
     } as const;
 
-    const session = await gameSessionStore.createGameSession(sessionData);
+    const session = await gameSessionClient.createGameSession(sessionData);
 
     if (session?.id) {
       if (scheduleType.value === 'now') {

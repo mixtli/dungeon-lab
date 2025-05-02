@@ -27,7 +27,7 @@ const submitButtonText = computed(() => (isEditMode.value ? 'Save Changes' : 'Cr
 const formData = ref<{
   name: string;
   description: string;
-  status: 'active' | 'paused' | 'completed' | 'archived';
+  status: 'active' | 'paused' | 'completed' | 'archived' | 'planning';
   setting: string | undefined;
 }>({
   name: '',

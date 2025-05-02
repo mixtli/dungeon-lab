@@ -7,8 +7,8 @@ import { formatDate } from '../../utils/date-utils.mjs';
 import { CalendarIcon, ClockIcon } from '@heroicons/vue/24/outline';
 import { GameSessionStatus } from '@dungeon-lab/shared/src/schemas/game-session.schema.mjs';
 import type { z } from 'zod';
-import { getCampaignSessions, deleteGameSession, updateGameSessionStatus } from '../../api/game-sessions.client.mjs';
-import type { IGameSession } from '@dungeon-lab/shared/schemas/game-session.schema.mjs';
+import type { IGameSession } from '@dungeon-lab/shared/types/index.mjs';
+import { GameSessionsClient } from '@dungeon-lab/client/index.mjs';
 
 type SessionStatus = z.infer<typeof GameSessionStatus>;
 
@@ -23,12 +23,14 @@ const loading = ref(false);
 const error = ref<string | null>(null);
 const sessions = ref<IGameSession[]>([]);
 
+const gameSessionClient = new GameSessionsClient();
+
 // Fetch sessions on mount
 onMounted(async () => {
   loading.value = true;
   try {
     console.log('Fetching sessions for campaign:', props.campaignId);
-    sessions.value = await getCampaignSessions(props.campaignId);
+    sessions.value = await gameSessionClient.getGameSessions(props.campaignId);
     console.log('Fetched sessions:', sessions.value);
     console.log('Active sessions:', activeSessions.value);
     console.log('Scheduled sessions:', scheduledSessions.value);
@@ -83,7 +85,7 @@ async function handleDeleteSession(sessionId: string, sessionName: string) {
 
   try {
     loading.value = true;
-    await deleteGameSession(sessionId);
+    await gameSessionClient.deleteGameSession(sessionId);
     // Update the sessions list after deletion
     sessions.value = sessions.value.filter(session => session.id !== sessionId);
   } catch (err) {
@@ -97,7 +99,7 @@ async function handleDeleteSession(sessionId: string, sessionName: string) {
 async function handleUpdateSessionStatus(sessionId: string, status: SessionStatus) {
   try {
     loading.value = true;
-    const updatedSession = await updateGameSessionStatus(sessionId, status);
+    const updatedSession = await gameSessionClient.updateGameSessionStatus(sessionId, status);
     
     // Update the session in the array
     const index = sessions.value.findIndex(s => s.id === sessionId);

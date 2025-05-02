@@ -1,11 +1,10 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import type { ICampaign } from '@dungeon-lab/shared/schemas/campaign.schema.mjs';
-import * as campaignApi from '../api/campaigns.client.mts';
-import {
-  CreateCampaignRequest,
-  PatchCampaignRequest
-} from '@dungeon-lab/shared/types/api/index.mjs';
+import type { ICampaign, IInvite } from '@dungeon-lab/shared/types/index.mjs';
+import { CampaignsClient } from '@dungeon-lab/client/index.mjs';
+import { ICampaignCreateData, ICampaignPatchData } from '@dungeon-lab/shared/types/index.mjs';
+
+const campaignClient = new CampaignsClient();
 
 export const useCampaignStore = defineStore('campaign', () => {
   // State
@@ -24,7 +23,7 @@ export const useCampaignStore = defineStore('campaign', () => {
     error.value = null;
 
     try {
-      campaigns.value = await campaignApi.getCampaigns();
+      campaigns.value = await campaignClient.getCampaigns();
       return campaigns.value;
     } catch (err: unknown) {
       error.value = err instanceof Error ? err.message : 'Failed to fetch campaigns';
@@ -40,7 +39,7 @@ export const useCampaignStore = defineStore('campaign', () => {
     error.value = null;
 
     try {
-      const campaign = await campaignApi.getCampaign(id);
+      const campaign = await campaignClient.getCampaign(id);
       currentCampaign.value = campaign;
 
       // Also update in the campaigns list if it exists
@@ -59,12 +58,12 @@ export const useCampaignStore = defineStore('campaign', () => {
     }
   }
 
-  async function createCampaign(campaignData: CreateCampaignRequest) {
+  async function createCampaign(campaignData: ICampaignCreateData) {
     loading.value = true;
     error.value = null;
 
     try {
-      const newCampaign = await campaignApi.createCampaign(campaignData);
+      const newCampaign = await campaignClient.createCampaign(campaignData);
       campaigns.value.push(newCampaign);
       currentCampaign.value = newCampaign;
       return newCampaign;
@@ -77,12 +76,12 @@ export const useCampaignStore = defineStore('campaign', () => {
     }
   }
 
-  async function updateCampaign(id: string, campaignData: PatchCampaignRequest) {
+  async function updateCampaign(id: string, campaignData: ICampaignPatchData) {
     loading.value = true;
     error.value = null;
 
     try {
-      const updatedCampaign = await campaignApi.updateCampaign(id, campaignData);
+      const updatedCampaign = await campaignClient.updateCampaign(id, campaignData);
 
       // Update in campaigns list
       const index = campaigns.value.findIndex((c: ICampaign) => c.id === id);
@@ -110,7 +109,7 @@ export const useCampaignStore = defineStore('campaign', () => {
     error.value = null;
 
     try {
-      await campaignApi.deleteCampaign(id);
+      await campaignClient.deleteCampaign(id);
 
       // Remove from campaigns list
       campaigns.value = campaigns.value.filter((c: ICampaign) => c.id !== id);
@@ -130,12 +129,12 @@ export const useCampaignStore = defineStore('campaign', () => {
     }
   }
 
-  async function sendInvite(inviteData: { campaignId: string; email: string; permission: string }) {
+  async function sendInvite(inviteData: Omit<IInvite, 'id'>) {
     loading.value = true;
     error.value = null;
 
     try {
-      return await campaignApi.sendInvite(inviteData);
+      return await campaignClient.sendInvite(inviteData);
     } catch (err: unknown) {
       error.value = err instanceof Error ? err.message : 'Failed to send invite';
       console.error('Error sending invite:', err);

@@ -3,31 +3,23 @@ import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { PlusIcon, TrashIcon } from '@heroicons/vue/24/outline';
 import { useCampaignStore } from '../../stores/campaign.store.mjs';
-import { type IActor, type IAsset } from '@dungeon-lab/shared/index.mjs';
-import { actorClient } from '../../api/index.mjs';
+import { type IActor, type IAsset } from '@dungeon-lab/shared/types/index.mjs';
+import { ActorsClient } from '@dungeon-lab/client/index.mjs';
 
-// No need for these interfaces as we're using the shared types
-// interface Asset {
-//   id: string;
-//   url: string;
-//   path: string;
-//   size: number;
-//   type: string;
-//   filename: string;
-// }
+const actorClient = new ActorsClient();
 
-// interface Character {
-//   id: string;
-//   name: string;
-//   type: string;
-//   avatarId?: Asset;
-//   tokenId?: Asset;
-// }
 
-const props = defineProps<{
-  characters?: IActor[];
-  campaignId?: string;
-}>();
+const props = defineProps({
+  campaignId: {
+    type: String,
+    required: true
+  },
+  characters: {
+    type: Array as () => IActor[],
+    required: false,
+    default: () => []
+  }
+});
 
 const localCharacters = ref<IActor[]>(props.characters || []);
 const router = useRouter();

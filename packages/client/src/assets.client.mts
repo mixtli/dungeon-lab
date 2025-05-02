@@ -9,12 +9,12 @@ export class AssetsClient extends ApiClient {
   /**
    * Get an asset by ID
    */
-  async getAsset(assetId: string): Promise<IAsset | undefined> {
+  async getAsset(assetId: string): Promise<IAsset> {
     const response = await this.api.get<BaseAPIResponse<IAsset>>(`/api/assets/${assetId}`);
     if (!response.data) {
       throw new Error('Failed to get asset');
     }
-    return response.data.data; // Handle legacy responses
+    return response.data.data;
   }
 
   /**
@@ -25,7 +25,7 @@ export class AssetsClient extends ApiClient {
     if (!response.data) {
       throw new Error('Failed to get assets');
     }
-    return response.data.data; // Handle legacy responses
+    return response.data.data;
   }
 
   /**
@@ -41,7 +41,7 @@ export class AssetsClient extends ApiClient {
   /**
    * Upload a new asset
    */
-  async uploadAsset(data: FormData): Promise<IAsset | undefined> {
+  async uploadAsset(data: FormData): Promise<IAsset> {
     const response = await this.api.post<BaseAPIResponse<IAsset>>('/api/assets', data, {
       headers: {
         'Content-Type': 'multipart/form-data'
@@ -50,17 +50,17 @@ export class AssetsClient extends ApiClient {
     if (!response.data) {
       throw new Error('Failed to upload asset');
     }
-    return response.data.data; // Handle legacy responses
+    return response.data.data;
   }
 
   /**
    * Update an asset
    */
-  async updateAsset(assetId: string, data: Partial<IAsset>): Promise<IAsset | undefined> {
+  async updateAsset(assetId: string, data: Partial<IAsset>): Promise<IAsset> {
     const response = await this.api.patch<BaseAPIResponse<IAsset>>(`/api/assets/${assetId}`, data);
     if (!response.data) {
       throw new Error('Failed to update asset');
     }
-    return response.data.data; // Handle legacy responses
+    return response.data.data;
   }
 }

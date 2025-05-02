@@ -4,7 +4,8 @@ import {
   BaseAPIResponse,
   DeleteAPIResponse,
   CreateMapRequest,
-  PatchMapRequest
+  PatchMapRequest,
+  IMapResponse
 } from '@dungeon-lab/shared/types/api/index.mjs';
 
 /**
@@ -14,8 +15,8 @@ export class MapsClient extends ApiClient {
   /**
    * Fetch a specific map by ID
    */
-  async getMap(mapId: string): Promise<IMap> {
-    const response = await this.api.get<BaseAPIResponse<IMap>>(`/api/maps/${mapId}`);
+  async getMap(mapId: string): Promise<IMapResponse> {
+    const response = await this.api.get<BaseAPIResponse<IMapResponse>>(`/api/maps/${mapId}`);
     if (!response.data.success) {
       throw new Error(response.data.error || 'Failed to get map');
     }
@@ -28,8 +29,8 @@ export class MapsClient extends ApiClient {
   /**
    * Fetch all maps
    */
-  async getMaps(): Promise<IMap[]> {
-    const response = await this.api.get<BaseAPIResponse<IMap[]>>('/api/maps');
+  async getMaps(): Promise<IMapResponse[]> {
+    const response = await this.api.get<BaseAPIResponse<IMapResponse[]>>('/api/maps');
     if (!response.data.success) {
       throw new Error(response.data.error || 'Failed to get maps');
     }

@@ -1,13 +1,21 @@
 import { IPluginAPI } from '@dungeon-lab/shared/types/plugin-api.mjs';
 import { pluginRegistry } from './plugin-registry.service.mjs';
-import * as itemApi from '../api/items.client.mjs';
-import * as actorApi from '../api/actors.client.mjs';
-import * as documentApi from '../api/documents.client.mjs';
-import type { IActor, IItem } from '@dungeon-lab/shared/index.mjs';
-import type { SearchDocumentsQuery } from '@dungeon-lab/shared/types/api/index.mjs';
+import { ActorsClient } from '@dungeon-lab/client/actors.client.mjs';
+import { ItemsClient } from '@dungeon-lab/client/items.client.mjs';
+import { DocumentsClient } from '@dungeon-lab/client/documents.client.mjs';
+import type { IActor, IItem, IVTTDocument } from '@dungeon-lab/shared/types/index.mjs';
+import type {
+  CreateActorRequest,
+  CreateItemRequest,
+  SearchDocumentsQuery
+} from '@dungeon-lab/shared/types/api/index.mjs';
 /**
  * Implementation of the Plugin API for the web client
  */
+const actorClient = new ActorsClient();
+const itemClient = new ItemsClient();
+const documentClient = new DocumentsClient();
+
 export class PluginAPI implements IPluginAPI {
   private readonly pluginId: string;
   private messageHandlers = new Map<string, Set<(data: unknown) => void>>();
@@ -17,12 +25,8 @@ export class PluginAPI implements IPluginAPI {
     this.pluginId = pluginId;
   }
 
-  sendPluginMessage(_type: string, _data: unknown): void {
-    console.log('sendPluginMessage', _type, _data);
-  }
-
   // Actor management
-  async createActor(type: string, data: Omit<IActor, 'id'>): Promise<string> {
+  async createActor(type: string, data: CreateActorRequest): Promise<IActor> {
     const plugin = pluginRegistry.getGameSystemPlugin(this.pluginId);
     if (!plugin) {
       throw new Error('Plugin not found');
@@ -45,23 +49,23 @@ export class PluginAPI implements IPluginAPI {
       data: validatedData
     };
 
-    const actor = await actorApi.createActor(createData);
+    const actor = await actorClient.createActor(createData);
     if (!actor?.id) {
       throw new Error('Failed to create actor: No ID returned');
     }
-    return actor.id;
+    return actor;
   }
 
-  async getActor(id: string): Promise<unknown> {
-    const actor = await actorApi.getActor(id);
+  async getActor(id: string): Promise<IActor> {
+    const actor = await actorClient.getActor(id);
     if (!actor) {
       throw new Error('Actor not found');
     }
-    return actor.data;
+    return actor;
   }
 
-  async updateActor(id: string, data: Omit<IActor, 'id'>): Promise<void> {
-    const actor = await actorApi.getActor(id);
+  async updateActor(id: string, data: CreateActorRequest): Promise<IActor> {
+    const actor = await actorClient.getActor(id);
     if (!actor) {
       throw new Error('Actor not found');
     }
@@ -77,15 +81,15 @@ export class PluginAPI implements IPluginAPI {
     void updatedBy;
     void token;
     void avatar;
-    await actorApi.updateActor(id, updatedData);
+    return await actorClient.updateActor(id, updatedData);
   }
 
   async deleteActor(id: string): Promise<void> {
-    await actorApi.deleteActor(id);
+    await actorClient.deleteActor(id);
   }
 
   // Item management
-  async createItem(type: string, data: unknown): Promise<string> {
+  async createItem(type: string, data: Omit<IItem, 'id'>): Promise<IItem> {
     const plugin = pluginRegistry.getGameSystemPlugin(this.pluginId);
     if (!plugin) {
       throw new Error('Plugin not found');
@@ -109,23 +113,23 @@ export class PluginAPI implements IPluginAPI {
       data: validatedData
     };
 
-    const item = await itemApi.createItem(createData);
+    const item = await itemClient.createItem(createData);
     if (!item?.id) {
       throw new Error('Failed to create item: No ID returned');
     }
-    return item.id;
+    return item;
   }
 
-  async getItem(id: string): Promise<unknown> {
-    const item = await itemApi.getItem(id);
+  async getItem(id: string): Promise<IItem> {
+    const item = await itemClient.getItem(id);
     if (!item) {
       throw new Error('Item not found');
     }
-    return item.data;
+    return item;
   }
 
-  async updateItem(id: string, data: unknown): Promise<void> {
-    const item = await itemApi.getItem(id);
+  async updateItem(id: string, data: Omit<IItem, 'id'>): Promise<IItem> {
+    const item = await itemClient.getItem(id);
     if (!item) {
       throw new Error('Item not found');
     }
@@ -140,15 +144,15 @@ export class PluginAPI implements IPluginAPI {
       data: validation.data as Record<string, unknown>
     };
 
-    await itemApi.updateItem(id, updateData);
+    return await itemClient.updateItem(id, updateData);
   }
 
   async deleteItem(id: string): Promise<void> {
-    await itemApi.deleteItem(id);
+    await itemClient.deleteItem(id);
   }
 
   // Data validation
-  validateActorData(type: string, data: Omit<IActor, 'id'>) {
+  validateActorData(type: string, data: CreateActorRequest) {
     const plugin = pluginRegistry.getGameSystemPlugin(this.pluginId);
     if (!plugin) {
       throw new Error('Plugin not found');
@@ -157,7 +161,7 @@ export class PluginAPI implements IPluginAPI {
     return plugin.validateActorData(type, data);
   }
 
-  validateItemData(type: string, data: unknown) {
+  validateItemData(type: string, data: CreateItemRequest) {
     const plugin = pluginRegistry.getGameSystemPlugin(this.pluginId);
     if (!plugin) {
       throw new Error('Plugin not found');
@@ -223,7 +227,11 @@ export class PluginAPI implements IPluginAPI {
    * @param documentId The ID or name of the document to fetch
    * @returns The document data
    */
-  async getDocument(pluginId: string, documentType: string, documentId: string): Promise<unknown> {
+  async getDocument(
+    pluginId: string,
+    documentType: string,
+    documentId: string
+  ): Promise<IVTTDocument> {
     try {
       // We need to search for documents first to find the right one by plugin and type
       const query: SearchDocumentsQuery = {
@@ -233,7 +241,7 @@ export class PluginAPI implements IPluginAPI {
         ...(documentId.match(/^[0-9a-f]{24}$/) ? { id: documentId } : { slug: documentId })
       };
 
-      const documents = await documentApi.searchDocuments(query);
+      const documents = await documentClient.searchDocuments(query);
       const document = documents.find(
         (doc) =>
           doc.pluginId === pluginId &&
@@ -245,7 +253,7 @@ export class PluginAPI implements IPluginAPI {
         throw new Error(`Document not found: ${documentId}`);
       }
 
-      return document.data;
+      return document;
     } catch (error) {
       if (error instanceof Error) {
         throw new Error(`Failed to fetch document: ${error.message}`);
@@ -259,14 +267,13 @@ export class PluginAPI implements IPluginAPI {
    * @param params An object containing key-value pairs to search for (e.g., { pluginId: 'dnd-5e-2024', documentType: 'class' })
    * @returns An array of matching documents
    */
-  async searchDocuments(params: Record<string, string>): Promise<unknown[]> {
+  async searchDocuments(query: SearchDocumentsQuery): Promise<IVTTDocument[]> {
     try {
       // Convert params to SearchDocumentsQuery
-      const query: SearchDocumentsQuery = { ...params };
-      const documents = await documentApi.searchDocuments(query);
+      const documents = await documentClient.searchDocuments(query);
 
       // Only return the document data in the same format as the original implementation
-      return documents.map((doc) => doc.data || {});
+      return documents;
     } catch (error) {
       if (error instanceof Error) {
         throw new Error(`Failed to search documents: ${error.message}`);
@@ -274,6 +281,15 @@ export class PluginAPI implements IPluginAPI {
         throw new Error('Failed to search documents: Unknown error');
       }
     }
+  }
+
+  /**
+   * Send a message to the plugin
+   * @param type The type of message to send
+   * @param data The data to send
+   */
+  sendPluginMessage(type: string, data: unknown): void {
+    console.log('sendPluginMessage', type, data);
   }
 }
 

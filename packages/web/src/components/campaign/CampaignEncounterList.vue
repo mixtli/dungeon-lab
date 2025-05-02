@@ -3,8 +3,8 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useEncounterStore } from '../../stores/encounter.store.mjs';
-import type { IEncounter } from '@dungeon-lab/shared/schemas/encounter.schema.mjs';
-import * as encounterApi from '../../api/encounters.client.mjs';
+import type { IEncounter } from '@dungeon-lab/shared/types/index.mjs';
+import { EncountersClient } from '@dungeon-lab/client/index.mjs';
 
 const props = defineProps<{
   campaignId: string;
@@ -15,14 +15,14 @@ const encounterStore = useEncounterStore();
 const encounters = ref<IEncounter[]>([]);
 const loading = ref(false);
 const error = ref<string | null>(null);
-
+const encounterClient = new EncountersClient();
 // Fetch encounters for the campaign
 async function fetchEncounters() {
   loading.value = true;
   error.value = null;
 
   try {
-    encounters.value = await encounterApi.getEncountersByCampaign(props.campaignId);
+    encounters.value = await encounterClient.getEncountersByCampaign(props.campaignId);
     console.log('Fetched encounters:', encounters.value);
   } catch (err) {
     console.error('Error fetching encounters:', err);
@@ -47,7 +47,7 @@ async function deleteEncounter(encounterId: string, encounterName: string) {
   }
 
   try {
-    await encounterStore.deleteEncounter(encounterId, props.campaignId);
+    await encounterStore.deleteEncounter(encounterId);
     await fetchEncounters(); // Refresh the list
   } catch (err) {
     console.error('Error deleting encounter:', err);

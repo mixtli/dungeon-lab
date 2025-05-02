@@ -4,9 +4,11 @@ import { formatDate } from '../utils/date-utils.mjs';
 import { CalendarIcon, ClockIcon } from '@heroicons/vue/24/outline';
 import { useGameSessionStore } from '../stores/game-session.store.mjs';
 import router from '@/router/index.mjs';
-import { getGameSessions } from '../api/game-sessions.client.mts';
-import type { IGameSession } from '@dungeon-lab/shared/schemas/game-session.schema.mjs';
+import { GameSessionsClient } from '@dungeon-lab/client/index.mjs';
+import type { IGameSession } from '@dungeon-lab/shared/types/index.mjs';
 // Define the game session interface to match the API response
+
+const gameSessionClient = new GameSessionsClient();
 
 const loading = ref(false);
 const error = ref<string | null>(null);
@@ -17,7 +19,7 @@ const gameSessionStore = useGameSessionStore();
 onMounted(async () => {
   loading.value = true;
   try {
-    allSessions.value = await getGameSessions();
+    allSessions.value = await gameSessionClient.getGameSessions();
   } catch (err) {
     if (err instanceof Error) {
       console.error('Error loading sessions:', err);

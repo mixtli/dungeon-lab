@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import type { IActor, IItem, IVTTDocument } from './index.mjs';
+import type { CreateActorRequest, CreateItemRequest, SearchDocumentsQuery } from './api/index.mjs';
 
 /**
  * Interface for the API provided to plugin components
@@ -6,20 +8,20 @@ import { z } from 'zod';
  */
 export interface IPluginAPI {
   // Actor management
-  createActor(type: string, data: unknown): Promise<string>;
-  getActor(id: string): Promise<unknown>;
-  updateActor(id: string, data: unknown): Promise<void>;
+  createActor(type: string, data: CreateActorRequest): Promise<IActor>;
+  getActor(id: string): Promise<IActor>;
+  updateActor(id: string, data: CreateActorRequest): Promise<IActor>;
   deleteActor(id: string): Promise<void>;
-  
+
   // Item management
-  createItem(type: string, data: unknown): Promise<string>;
-  getItem(id: string): Promise<unknown>;
-  updateItem(id: string, data: unknown): Promise<void>;
+  createItem(type: string, data: CreateItemRequest): Promise<IItem>;
+  getItem(id: string): Promise<IItem>;
+  updateItem(id: string, data: CreateItemRequest): Promise<IItem>;
   deleteItem(id: string): Promise<void>;
 
   // Document management
-  getDocument(pluginId: string, documentType: string, documentId: string): Promise<unknown>;
-  searchDocuments(params: Record<string, string>): Promise<unknown[]>;
+  getDocument(pluginId: string, documentType: string, documentId: string): Promise<IVTTDocument>;
+  searchDocuments(query: SearchDocumentsQuery): Promise<IVTTDocument[]>;
 
   // Data validation
   validateActorData(type: string, data: unknown): z.SafeParseReturnType<unknown, unknown>;
@@ -32,4 +34,4 @@ export interface IPluginAPI {
   // Plugin messaging
   sendPluginMessage(type: string, data: unknown): void;
   onPluginMessage(type: string, handler: (data: unknown) => void): void;
-} 
+}

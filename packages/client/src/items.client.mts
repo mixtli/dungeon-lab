@@ -50,7 +50,7 @@ export class ItemsClient extends ApiClient {
   /**
    * Update an existing item
    */
-  async updateItem(itemId: string, data: PatchItemRequest): Promise<IItem | undefined> {
+  async updateItem(itemId: string, data: PatchItemRequest): Promise<IItem> {
     const response = await this.api.patch<BaseAPIResponse<IItem>>(`/api/items/${itemId}`, data);
     if (!response.data.success) {
       throw new Error(response.data.error || 'Failed to update item');

@@ -1,19 +1,19 @@
 import { z } from 'zod';
-import { mapSchema, mapCreateSchema } from '../../schemas/map.schema.mjs';
+import { mapSchema, mapCreateSchema, mapSchemaWithVirtuals } from '../../schemas/map.schema.mjs';
 import { baseAPIResponseSchema } from './base.mjs';
 
-// Base map schema (common properties) that matches the service/DB model
+export type IMapResponse = z.infer<typeof mapSchemaWithVirtuals>;
 
 // Types for GET /maps (Get all maps)
 export const getMapsResponseSchema = baseAPIResponseSchema.extend({
-  data: z.array(mapSchema)
+  data: z.array(mapSchemaWithVirtuals)
 });
 
 export type GetMapsResponse = z.infer<typeof getMapsResponseSchema>;
 
 // Types for GET /maps/:id (Get one map)
 export const getMapResponseSchema = baseAPIResponseSchema.extend({
-  data: mapSchema.optional()
+  data: mapSchemaWithVirtuals.optional()
 });
 
 export type GetMapResponse = z.infer<typeof getMapResponseSchema>;

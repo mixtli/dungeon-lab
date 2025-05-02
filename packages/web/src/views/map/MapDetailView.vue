@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import type { IMap, IAsset } from '@dungeon-lab/shared/index.mjs';
-import { mapClient } from '../../api/index.mjs';
+import type { IMap, IAsset } from '@dungeon-lab/shared/types/index.mjs';
+import { MapsClient } from '@dungeon-lab/client/index.mjs';
 import { ArrowLeftIcon } from '@heroicons/vue/24/outline';
 
 const route = useRoute();
@@ -16,6 +16,8 @@ const formData = ref<Partial<IMap>>({
   gridColumns: 20,
 });
 const showDebug = ref(false);
+
+const mapClient = new MapsClient();
 
 // Function to get image URL from map
 const getMapImageUrl = (map: IMap | null): string | undefined => {

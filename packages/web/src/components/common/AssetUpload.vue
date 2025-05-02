@@ -96,8 +96,10 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onBeforeUnmount } from 'vue';
-import axios from '../../api/axios.mjs';
-import { IAsset } from '@dungeon-lab/shared/src/schemas/asset.schema.mjs';
+import { IAsset } from '@dungeon-lab/shared/types/index.mjs';
+import { AssetsClient } from '@dungeon-lab/client/index.mjs';
+
+const assetsClient = new AssetsClient();
 
 const props = defineProps({
   parentId: {
@@ -137,7 +139,7 @@ const emit = defineEmits<{
 
 const fileInput = ref<HTMLInputElement | null>(null);
 const file = ref<File | null>(null);
-const previewUrl = ref<string | null>(null);
+const previewUrl = ref<string | undefined>(undefined);
 const uploading = ref(false);
 const progress = ref(0);
 const error = ref<string | null>(null);
@@ -227,7 +229,7 @@ function clearFile() {
     URL.revokeObjectURL(previewUrl.value);
   }
   file.value = null;
-  previewUrl.value = null;
+  previewUrl.value = undefined;
   error.value = null;
   assetName.value = '';
   
@@ -262,18 +264,9 @@ async function uploadFile() {
   }
   
   try {
-    const response = await axios.post('/api/assets', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      },
-      onUploadProgress: (progressEvent) => {
-        if (progressEvent.total) {
-          progress.value = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-        }
-      }
-    });
+    const response = await assetsClient.uploadAsset(formData);
     
-    asset.value = response.data;
+    asset.value = response;
     emit('asset-uploaded', {
       asset: asset.value as IAsset,
       standalone: isStandaloneMode.value
@@ -291,8 +284,8 @@ async function fetchAsset() {
   if (!props.assetId) return;
   
   try {
-    const response = await axios.get(`/api/assets/${props.assetId}`);
-    asset.value = response.data;
+    const response = await assetsClient.getAsset(props.assetId);
+    asset.value = response;
   } catch (err) {
     console.error('Fetch asset error:', err);
     error.value = 'Failed to load asset';
@@ -307,7 +300,7 @@ async function removeAsset() {
   if (!props.assetId) return;
   
   try {
-    await axios.delete(`/api/assets/${props.assetId}`);
+    await assetsClient.deleteAsset(props.assetId);
     emit('asset-removed', {
       assetId: props.assetId,
       standalone: isStandaloneMode.value

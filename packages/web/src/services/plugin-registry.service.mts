@@ -1,6 +1,6 @@
 import { IWebPlugin, IGameSystemPluginWeb } from '@dungeon-lab/shared/types/plugin.mjs';
 import { createPluginAPI } from '@/services/plugin-api.service.mjs';
-import * as pluginsClient from '@/api/plugins.client.mjs';
+import { PluginsClient } from '@dungeon-lab/client/index.mjs';
 
 // Define a type for plugin config
 interface PluginConfig {
@@ -12,6 +12,8 @@ interface PluginConfig {
   };
   [key: string]: unknown;
 }
+
+const pluginsClient = new PluginsClient();
 
 /**
  * Plugin Registry Service

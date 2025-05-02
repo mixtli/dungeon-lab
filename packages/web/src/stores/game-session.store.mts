@@ -1,18 +1,11 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import type { IGameSession } from '@dungeon-lab/shared/index.mjs';
-import type { IActor } from '@dungeon-lab/shared/schemas/actor.schema.mjs';
-import type { ICampaign } from '@dungeon-lab/shared/schemas/campaign.schema.mjs';
+import type { IGameSession } from '@dungeon-lab/shared/types/index.mjs';
+import type { IActor } from '@dungeon-lab/shared/types/index.mjs';
+import type { ICampaign } from '@dungeon-lab/shared/types/index.mjs';
 import { useAuthStore } from './auth.store.mts';
 import { useSocketStore } from './socket.store.mjs';
 import type { JoinCallback } from '@dungeon-lab/shared/schemas/socket/index.mjs';
-
-// Interface for game state update events
-// interface GameStateUpdate {
-//   sessionId: string;
-//   state: Record<string, unknown>;
-//   timestamp: number;
-// }
 
 export const useGameSessionStore = defineStore(
   'gameSession',

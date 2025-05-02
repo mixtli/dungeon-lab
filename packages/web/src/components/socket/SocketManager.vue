@@ -27,19 +27,21 @@ async function restoreGameSession() {
           );
 
           // Set up a one-time listener for join confirmation
-          socketStore.socket.once('user-joined', (data: { userId: string; timestamp: Date }) => {
-            console.log('[Debug] Successfully restored session connection:', data);
-          });
+          // socketStore.socket.once('userJoined', (data: { userId: string; timestamp: Date }) => {
+          //   console.log('[Debug] Successfully restored session connection:', data);
+          // });
 
           // Set up error listener
-          socketStore.socket.once('error', (error: { message: string }) => {
+          socketStore.socket.once('error', (error: string ) => {
             console.error('[Debug] Error restoring session connection:', error);
             // On error, clear stored session
             clearStoredSession();
           });
 
           // Attempt to join the session
-          socketStore.socket.emit('joinSession', gameSessionStore.currentSession.id);
+          socketStore.socket.emit('joinSession', gameSessionStore.currentSession.id, (result) => {
+            console.log('[Debug] Join session result:', result);
+          });
           return;
         }
       } catch (error) {

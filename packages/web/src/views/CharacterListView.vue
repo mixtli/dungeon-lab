@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { type IActor, type IAsset } from '@dungeon-lab/shared/types/index.mjs';
+import { ActorsClient } from '@dungeon-lab/client/index.mjs';
 import { PlusIcon, PencilIcon, TrashIcon } from '@heroicons/vue/24/outline';
-import { type IActor, type IAsset } from '@dungeon-lab/shared/index.mjs';
-import { actorClient } from '../api/index.mjs';
 
 const router = useRouter();
+const actorClient = new ActorsClient();
 const characters = ref<IActor[]>([]);
 const isLoading = ref(true);
 const error = ref<string | null>(null);

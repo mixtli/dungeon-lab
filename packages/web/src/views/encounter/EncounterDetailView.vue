@@ -5,7 +5,10 @@ import { useEncounterStore } from '../../stores/encounter.store.mjs';
 import { useSocketStore } from '../../stores/socket.store.mjs';
 import { useAuthStore } from '../../stores/auth.store.mjs';
 import { useGameSessionStore } from '../../stores/game-session.store.mjs';
+import { IGameSession } from '@dungeon-lab/shared/types/index.mjs';
+import { GameSessionsClient } from '@dungeon-lab/client/index.mjs';
 
+const gameSessionClient = new GameSessionsClient();
 const route = useRoute();
 const router = useRouter();
 const encounterStore = useEncounterStore();
@@ -66,45 +69,46 @@ onMounted(async () => {
 
     // First fetch the encounter to get its data
     console.log('[Debug] Fetching encounter:', { encounterId, campaignId });
-    await encounterStore.fetchEncounter(encounterId, campaignId);
+    await encounterStore.fetchEncounter(encounterId);
 
     // Then fetch the game session for the campaign
     console.log('[Debug] Fetching game session for campaign:', campaignId);
-    const sessions = await gameSessionStore.fetchCampaignSessions(campaignId);
+    const sessions = await gameSessionClient.getGameSessions(campaignId);
 
     // Find an active session for this campaign
-    const activeSession = sessions.find(session => session.status === 'active');
+    const activeSession = sessions.find((session: IGameSession) => session.status === 'active');
     if (activeSession) {
       console.log('[Debug] Found active session:', activeSession.id);
-      await gameSessionStore.getGameSession(activeSession.id);
+      await gameSessionClient.getGameSession(activeSession.id);
 
       // Join the game session if we have one
       if (gameSessionStore.currentSession) {
         console.log('[Debug] Joining game session:', gameSessionStore.currentSession.id);
 
-        // Set up a one-time listener for join confirmation
-        socketStore.socket?.once('user-joined', (data: { userId: string; timestamp: Date }) => {
-          console.log('[Debug] Successfully joined session:', data);
+        // TODO: Do we need this?
+        // // Set up a one-time listener for join confirmation
+        // socketStore.socket?.once('user-joined', (data: { userId: string; timestamp: Date }) => {
+        //   console.log('[Debug] Successfully joined session:', data);
 
-          // Set up event listeners after successfully joining
-          console.log('[Debug] Setting up socket listeners');
-          setupSocketListeners();
+        //   // Set up event listeners after successfully joining
+        //   console.log('[Debug] Setting up socket listeners');
+        //   setupSocketListeners();
 
-          console.log('[Debug] Socket status:', {
-            isConnected: socketStore.isConnected,
-            hasSocket: !!socketStore.socket,
-            currentSession: gameSessionStore.currentSession,
-          });
-        });
+        //   console.log('[Debug] Socket status:', {
+        //     isConnected: socketStore.isConnected,
+        //     hasSocket: !!socketStore.socket,
+        //     currentSession: gameSessionStore.currentSession,
+        //   });
+        // });
 
         // Set up error listener
-        socketStore.socket?.once('error', (error: { message: string }) => {
-          console.error('[Debug] Error joining session:', error);
-          loadError.value = 'Failed to join game session';
-        });
+        // socketStore.socket?.once('error', (error: { message: string }) => {
+        //   console.error('[Debug] Error joining session:', error);
+        //   loadError.value = 'Failed to join game session';
+        // });
 
         // Attempt to join the session
-        socketStore.socket?.emit('join-session', gameSessionStore.currentSession.id);
+        // socketStore.socket?.emit('join-session', gameSessionStore.currentSession.id);
       } else {
         console.warn('[Debug] No game session available to join');
       }
@@ -117,13 +121,6 @@ onMounted(async () => {
   }
 });
 
-function setupSocketListeners() {
-  console.log('[Debug] Setting up socket listeners, socket available:', !!socketStore.socket);
-  if (!socketStore.socket) return;
-
-  // No need to set up encounter:start listener here as it's handled globally
-  console.log('[Debug] Socket listeners set up successfully');
-}
 
 async function handleStartEncounter() {
   console.log('[Debug] Start Encounter clicked');
@@ -143,7 +140,7 @@ async function handleStartEncounter() {
     encounterId,
     campaignId,
     sessionId: gameSessionStore.currentSession.id,
-    socketConnected: socketStore.isConnected,
+    socketConnected: socketStore.socket?.connected,
     hasSocket: !!socketStore.socket,
   });
 
@@ -151,45 +148,46 @@ async function handleStartEncounter() {
     // Ensure we're joined to the session
     if (socketStore.socket) {
       // Set up a promise to wait for join confirmation
-      const joinPromise = new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error('Timeout waiting for session join confirmation'));
-        }, 5000);
+        // TODO: Do we need this?
+      // const joinPromise = new Promise<void>((resolve, reject) => {
+        // const timeout = setTimeout(() => {
+        //   reject(new Error('Timeout waiting for session join confirmation'));
+        // }, 5000);
 
-        socketStore.socket?.once('user-joined', (data: { userId: string; timestamp: Date }) => {
-          console.log('[Debug] Join confirmation received:', data);
-          clearTimeout(timeout);
-          resolve();
-        });
+        // socketStore.socket?.once('user-joined', (data: { userId: string; timestamp: Date }) => {
+        //   console.log('[Debug] Join confirmation received:', data);
+        //   clearTimeout(timeout);
+        //   resolve();
+        // });
 
-        socketStore.socket?.once('error', (error: { message: string }) => {
-          console.error('[Debug] Error joining session:', error);
-          clearTimeout(timeout);
-          reject(new Error(error.message));
-        });
-      });
+        // socketStore.socket?.once('error', (error: { message: string }) => {
+        //   console.error('[Debug] Error joining session:', error);
+        //   clearTimeout(timeout);
+        //   reject(new Error(error.message));
+        // });
+      // });
 
       // Attempt to join the session
       console.log('[Debug] Joining session:', gameSessionStore.currentSession.id);
-      socketStore.socket.emit('join-session', gameSessionStore.currentSession.id);
+      // socketStore.socket.emit('join-session', gameSessionStore.currentSession.id);
 
       // Wait for join confirmation
-      await joinPromise;
+      //await joinPromise;
 
       // Now emit the start event
       console.log('[Debug] Emitting encounter:start event');
-      socketStore.socket.emit('encounter:start', {
-        sessionId: gameSessionStore.currentSession.id,
-        encounterId,
-        campaignId,
-      });
+      // socketStore.socket.emit('encounter:start', {
+      //   sessionId: gameSessionStore.currentSession.id,
+      //   encounterId,
+      //   campaignId,
+      // });
       console.log('[Debug] Event emitted successfully');
     } else {
       console.error('[Debug] Socket not available');
     }
 
     // Update encounter status to in_progress
-    await encounterStore.updateEncounterStatus(encounterId, campaignId, 'in_progress');
+    await encounterStore.updateEncounterStatus(encounterId, 'in_progress');
   } catch (error) {
     console.error('[Debug] Failed to start encounter:', error);
   }
@@ -199,10 +197,9 @@ async function handleSetReady() {
   if (!encounterStore.currentEncounter) return;
 
   const encounterId = route.params.id as string;
-  const campaignId = route.params.campaignId as string;
 
   try {
-    await encounterStore.updateEncounterStatus(encounterId, campaignId, 'ready');
+    await encounterStore.updateEncounterStatus(encounterId, 'ready');
   } catch (error) {
     console.error('Failed to set encounter ready:', error);
   }
@@ -226,7 +223,7 @@ async function handleStopEncounter() {
     encounterId,
     campaignId,
     sessionId: gameSessionStore.currentSession.id,
-    socketConnected: socketStore.isConnected,
+    socketConnected: socketStore.socket?.connected,
     hasSocket: !!socketStore.socket,
   });
 
@@ -234,18 +231,18 @@ async function handleStopEncounter() {
     // Emit socket event to notify all clients
     if (socketStore.socket) {
       console.log('[Debug] Emitting encounter:stop event');
-      socketStore.socket.emit('encounter:stop', {
-        sessionId: gameSessionStore.currentSession.id,
-        encounterId,
-        campaignId,
-      });
+      // socketStore.socket.emit('encounter:stop', {
+      //   sessionId: gameSessionStore.currentSession.id,
+      //   encounterId,
+      //   campaignId,
+      // });
       console.log('[Debug] Event emitted successfully');
     } else {
       console.error('[Debug] Socket not available');
     }
 
     // Update encounter status back to ready
-    await encounterStore.updateEncounterStatus(encounterId, campaignId, 'ready');
+    await encounterStore.updateEncounterStatus(encounterId, 'ready');
   } catch (error) {
     console.error('[Debug] Failed to stop encounter:', error);
   }

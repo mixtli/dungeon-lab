@@ -1,8 +1,10 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import { type IActor } from '@dungeon-lab/shared/schemas/actor.schema.mjs';
-import * as actorApi from '../api/actors.client.mts';
+import { type IActor } from '@dungeon-lab/shared/types/index.mjs';
+import { ActorsClient } from '@dungeon-lab/client/index.mjs';
 import { CreateActorRequest, PatchActorRequest } from '@dungeon-lab/shared/types/api/index.mjs';
+
+const actorClient = new ActorsClient();
 
 export const useActorStore = defineStore('actor', () => {
   // State
@@ -22,7 +24,7 @@ export const useActorStore = defineStore('actor', () => {
 
     try {
       // Get all actors (the API will filter for the current user's actors)
-      actors.value = await actorApi.getActors();
+      actors.value = await actorClient.getActors();
       return actors.value;
     } catch (err: unknown) {
       error.value = err instanceof Error ? err.message : 'Failed to fetch actors';
@@ -38,7 +40,7 @@ export const useActorStore = defineStore('actor', () => {
     error.value = null;
 
     try {
-      const actor = await actorApi.getActor(id);
+      const actor = await actorClient.getActor(id);
       if (actor) {
         currentActor.value = actor;
 
@@ -64,7 +66,7 @@ export const useActorStore = defineStore('actor', () => {
     error.value = null;
 
     try {
-      const newActor = await actorApi.createActor(actorData);
+      const newActor = await actorClient.createActor(actorData);
       if (newActor) {
         actors.value.push(newActor as IActor);
         currentActor.value = newActor as IActor;
@@ -84,7 +86,7 @@ export const useActorStore = defineStore('actor', () => {
     error.value = null;
 
     try {
-      const updatedActor = await actorApi.patchActor(id, actorData);
+      const updatedActor = await actorClient.patchActor(id, actorData);
 
       // Update in actors list if actor was returned and exists in the list
       if (updatedActor) {
@@ -114,7 +116,7 @@ export const useActorStore = defineStore('actor', () => {
     error.value = null;
 
     try {
-      await actorApi.deleteActor(id);
+      await actorClient.deleteActor(id);
 
       // Remove from actors list
       actors.value = actors.value.filter((a: IActor) => a.id !== id);

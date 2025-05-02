@@ -61,11 +61,7 @@ export class CampaignsClient extends ApiClient {
     }
   }
 
-  async sendInvite(inviteData: {
-    campaignId: string;
-    email: string;
-    permission: string;
-  }): Promise<boolean> {
+  async sendInvite(inviteData: Omit<IInvite, 'id'>): Promise<boolean> {
     const response = await this.api.post<BaseAPIResponse<boolean>>(
       `/api/campaigns/${inviteData.campaignId}/invites`,
       inviteData

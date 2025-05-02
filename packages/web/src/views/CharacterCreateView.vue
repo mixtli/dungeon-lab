@@ -6,7 +6,7 @@ import PluginUIContainer from '@/components/plugin/PluginUIContainer.vue';
 import { pluginRegistry } from '@/services/plugin-registry.service.mjs';
 import ImageUpload from '../components/common/ImageUpload.vue';
 import { IGameSystemPluginWeb } from '@dungeon-lab/shared/types/plugin.mjs';
-import { actorClient } from '../api/index.mjs';
+import { ActorsClient } from '@dungeon-lab/client/index.mjs';
 import { CreateActorRequest } from '@dungeon-lab/shared/types/api/index.mjs';
 
 interface UploadedImage {
@@ -17,6 +17,7 @@ interface UploadedImage {
   type?: string;
 }
 
+const actorClient = new ActorsClient();
 const router = useRouter();
 const actorStore = useActorStore();
 const activeGameSystemId = ref<string>(localStorage.getItem('activeGameSystem') || '');

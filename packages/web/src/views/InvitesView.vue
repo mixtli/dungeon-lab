@@ -108,13 +108,14 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useActorStore } from '../stores/actor.store.mjs';
 import { useAuthStore } from '../stores/auth.store.mjs';
-import type { IActor } from '@dungeon-lab/shared/dist/index.mjs';
-import api from '../api/axios.mjs';
+import type { IActor } from '@dungeon-lab/shared/types/index.mjs';
+import { InvitesClient } from '@dungeon-lab/client/index.mjs';
+
+const invitesClient = new InvitesClient();
 
 const router = useRouter();
 const actorStore = useActorStore();
 const authStore = useAuthStore();
-
 const loading = ref(false);
 const error = ref<string | null>(null);
 const invites = ref<any[]>([]);
@@ -128,8 +129,8 @@ async function fetchInvites() {
   error.value = null;
 
   try {
-    const response = await api.get('/api/my-invites');
-    invites.value = response.data;
+    const response = await invitesClient.getMyInvites();
+    invites.value = response;
   } catch (err: any) {
     error.value = err.response?.data?.message || err.message || 'Failed to fetch invites';
   } finally {
@@ -161,9 +162,7 @@ async function handleAccept(invite: any) {
 
 async function handleDecline(invite: any) {
   try {
-    await api.post(`/api/invites/${invite.id}/respond`, {
-      status: 'declined',
-    });
+    await invitesClient.respondToInvite(invite.id, { status: 'declined' });
 
     // Remove from list
     invites.value = invites.value.filter(i => i.id !== invite.id);
@@ -176,7 +175,7 @@ async function selectCharacter(character: IActor) {
   if (!selectedInvite.value) return;
 
   try {
-    await api.post(`/api/invites/${selectedInvite.value.id}/respond`, {
+    await invitesClient.respondToInvite(selectedInvite.value.id, {
       status: 'accepted',
       actorId: character.id,
     });

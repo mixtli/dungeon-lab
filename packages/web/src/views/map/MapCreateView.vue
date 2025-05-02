@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { mapClient } from '../../api/index.mjs';
+import { MapsClient } from '@dungeon-lab/client/index.mjs';
 import { ArrowLeftIcon } from '@heroicons/vue/24/outline';
 import ImageUpload from '../../components/common/ImageUpload.vue';
 
@@ -12,6 +12,8 @@ interface UploadedImage {
   size?: number;
   type?: string;
 }
+
+const mapClient = new MapsClient();
 
 const router = useRouter();
 const loading = ref(false);

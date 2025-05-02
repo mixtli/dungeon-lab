@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { assetClient } from '../api/index.mjs';
-import { IAsset } from '@dungeon-lab/shared/src/schemas/asset.schema.mjs';
+import { AssetsClient } from '@dungeon-lab/client/index.mjs';
+import { type IAsset } from '@dungeon-lab/shared/types/index.mjs';
 
 const router = useRouter();
 const route = useRoute();
 const assetId = route.params.id as string;
 
+const assetClient = new AssetsClient();
 const asset = ref<IAsset | null>(null);
 const loading = ref(true);
 const error = ref<string | null>(null);
@@ -127,11 +128,6 @@ const isPdf = computed(() => {
   return asset.value?.type && asset.value.type.includes('pdf');
 });
 
-// JSON representation of metadata for display
-const formattedMetadata = computed(() => {
-  if (!asset.value?.metadata) return '{}';
-  return JSON.stringify(asset.value.metadata, null, 2);
-});
 
 // Show toast message
 function showToast(message: string) {
@@ -324,9 +320,9 @@ function formatMetadataValue(value: any): string {
         <div v-if="asset.metadata && Object.keys(asset.metadata).length > 0" class="mt-6">
           <h2 class="text-lg font-semibold mb-4">Metadata</h2>
           <div class="space-y-3">
-            <div v-for="(value, key) in asset.metadata" :key="key" v-if="key !== 'filename'">
+            <div v-for="key in Object.keys(asset.metadata).filter(key => key !== 'filename')" :key="key">
               <p class="text-sm text-gray-500 dark:text-gray-400">{{ formatMetadataKey(key) }}</p>
-              <p>{{ formatMetadataValue(value) }}</p>
+              <p>{{ formatMetadataValue(asset.metadata[key]) }}</p>
             </div>
           </div>
         </div>

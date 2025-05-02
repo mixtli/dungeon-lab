@@ -1,14 +1,12 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import { useEncounterStore } from '../../stores/encounter.store.mjs';
-import type { IMap } from '@dungeon-lab/shared/src/schemas/map.schema.mjs';
-import * as mapApi from '../../api/maps.client.mjs';
+import { useRouter } from 'vue-router';
+import type { IMap } from '@dungeon-lab/shared/types/index.mjs';
+import { MapsClient } from '@dungeon-lab/client/index.mjs';
+import { EncountersClient } from '@dungeon-lab/client/index.mjs';
 
-const route = useRoute();
 const router = useRouter();
-const encounterStore = useEncounterStore();
-
+const mapClient = new MapsClient();
 const loading = ref(false);
 const maps = ref<IMap[]>([]);
 const formData = ref({
@@ -20,13 +18,13 @@ const formData = ref({
   settings: {},
 });
 const error = ref<string | null>(null);
-
+const encounterClient = new EncountersClient();
 // Fetch available maps
 async function fetchMaps() {
   loading.value = true;
   error.value = null;
   try {
-    maps.value = await mapApi.getMaps();
+    maps.value = await mapClient.getMaps();
     console.log('Maps:', JSON.stringify(maps.value, null, 2));
   } catch (err) {
     console.error('Error fetching maps:', err);
@@ -55,23 +53,21 @@ async function handleSubmit(event: Event) {
     const submitData = {
       ...formData.value,
       mapId: formData.value.mapId,
+      campaignId: router.currentRoute.value.params.campaignId as string,
     };
     console.log('Creating encounter with data:', JSON.stringify(submitData, null, 2));
-    const encounterId = await encounterStore.createEncounter(
-      submitData,
-      route.params.campaignId as string
-    );
+    const encounter = await encounterClient.createEncounter(submitData);
 
-    console.log('Successfully created encounter with ID:', encounterId);
+    console.log('Successfully created encounter with ID:', encounter.id);
 
-    if (!encounterId) {
+    if (!encounter) {
       throw new Error('No encounter ID returned from server');
     }
 
-    console.log('Preparing to redirect to:', `/encounter/${encounterId}`);
+    console.log('Preparing to redirect to:', `/encounter/${encounter.id}`);
     router.push({
       name: 'encounter-detail',
-      params: { id: encounterId },
+      params: { id: encounter.id}
     });
   } catch (err: unknown) {
     console.error('Failed to create encounter:', err);

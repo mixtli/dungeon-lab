@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { RouterLink } from 'vue-router';
-import { assetClient } from '../api/index.mjs';
+import { AssetsClient } from '@dungeon-lab/client/index.mjs';
 import AssetUpload from '../components/common/AssetUpload.vue';
-import { IAsset } from '@dungeon-lab/shared/src/schemas/asset.schema.mjs';
+import type { IAsset } from '@dungeon-lab/shared/types/index.mjs';
+
+const assetsClient = new AssetsClient();
 
 // State for assets and UI
 const assets = ref<IAsset[]>([]);
@@ -76,7 +78,7 @@ const filters = ref({
 let searchTimeout: number | null = null;
 
 // Filtered and sorted assets
-const filteredAssets = computed(() => {
+computed(() => {
   let result = [...assets.value];
   
   // Apply search filter
@@ -158,15 +160,14 @@ async function loadAssets() {
       params.sort = field;
       params.order = order;
     }
-    
-    const assetsData = await assetClient.getAssets(params);
-    
+
+    const assetsData = await assetsClient.getAssets(params);
+
     // Handle the response format
     assets.value = assetsData || [];
     // Note: Since our API doesn't return pagination metadata along with the results,
     // we're using the array length as a fallback for total count
     totalAssets.value = assetsData.length;
-    
   } catch (err: any) {
     console.error('Failed to load assets:', err);
     error.value = err.response?.data?.message || 'Failed to load assets';
@@ -253,23 +254,23 @@ function isOtherType(type?: string): boolean {
   );
 }
 
-// Get the appropriate icon for a file type
-function getFileIconClass(type?: string): string {
-  if (!type) return 'file';
+// // Get the appropriate icon for a file type
+// function getFileIconClass(type?: string): string {
+//   if (!type) return 'file';
   
-  if (isImageType(type)) return 'image';
-  if (isVideoType(type)) return 'video';
-  if (isAudioType(type)) return 'music';
-  if (type.includes('pdf')) return 'file-pdf';
-  if (type.includes('word') || type.includes('document')) return 'file-word';
-  if (type.includes('excel') || type.includes('spreadsheet')) return 'file-excel';
-  if (type.includes('powerpoint') || type.includes('presentation')) return 'file-powerpoint';
-  if (type.includes('zip') || type.includes('compressed')) return 'archive';
-  if (type.includes('text')) return 'file-alt';
-  if (type.includes('code') || type.includes('javascript') || type.includes('html')) return 'file-code';
+//   if (isImageType(type)) return 'image';
+//   if (isVideoType(type)) return 'video';
+//   if (isAudioType(type)) return 'music';
+//   if (type.includes('pdf')) return 'file-pdf';
+//   if (type.includes('word') || type.includes('document')) return 'file-word';
+//   if (type.includes('excel') || type.includes('spreadsheet')) return 'file-excel';
+//   if (type.includes('powerpoint') || type.includes('presentation')) return 'file-powerpoint';
+//   if (type.includes('zip') || type.includes('compressed')) return 'archive';
+//   if (type.includes('text')) return 'file-alt';
+//   if (type.includes('code') || type.includes('javascript') || type.includes('html')) return 'file-code';
   
-  return 'file';
-}
+//   return 'file';
+// }
 
 // Debounce search input
 function debounceSearch() {

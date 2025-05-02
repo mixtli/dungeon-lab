@@ -1,9 +1,12 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import type { IEncounter } from '@dungeon-lab/shared/schemas/encounter.schema.mjs';
-import type { IActor } from '@dungeon-lab/shared/schemas/actor.schema.mjs';
-import * as encounterApi from '../api/encounters.client.mts';
-import * as actorApi from '../api/actors.client.mts';
+import type { IEncounter } from '@dungeon-lab/shared/types/index.mjs';
+import type { IActor } from '@dungeon-lab/shared/types/index.mjs';
+import { EncountersClient } from '@dungeon-lab/client/index.mjs';
+import { ActorsClient } from '@dungeon-lab/client/index.mjs';
+
+const encounterClient = new EncountersClient();
+const actorClient = new ActorsClient();
 
 export interface IEncounterWithActors extends Omit<IEncounter, 'participants'> {
   participants: IActor[];
@@ -16,18 +19,13 @@ export const useEncounterStore = defineStore('encounter', () => {
 
   async function updateEncounterStatus(
     encounterId: string,
-    campaignId: string,
     status: 'draft' | 'ready' | 'in_progress' | 'completed'
   ) {
     loading.value = true;
     error.value = null;
 
     try {
-      const updatedEncounter = await encounterApi.updateEncounterStatus(
-        encounterId,
-        campaignId,
-        status
-      );
+      const updatedEncounter = await encounterClient.updateEncounterStatus(encounterId, status);
       if (currentEncounter.value && currentEncounter.value.id === encounterId) {
         currentEncounter.value = { ...currentEncounter.value, status: updatedEncounter.status };
       }
@@ -40,12 +38,12 @@ export const useEncounterStore = defineStore('encounter', () => {
     }
   }
 
-  async function fetchEncounter(encounterId: string, campaignId: string) {
+  async function fetchEncounter(encounterId: string) {
     loading.value = true;
     error.value = null;
 
     try {
-      const encounter = await encounterApi.getEncounter(encounterId, campaignId);
+      const encounter = await encounterClient.getEncounter(encounterId);
 
       // Initialize with empty participants array in case participants don't exist
       let participants: IActor[] = [];
@@ -56,7 +54,7 @@ export const useEncounterStore = defineStore('encounter', () => {
         const participantPromises = encounter.participants.map(async (participantId: string) => {
           if (!participantId) return null;
           try {
-            const actor = await actorApi.getActor(participantId);
+            const actor = await actorClient.getActor(participantId);
             return actor;
           } catch (error) {
             console.error(`Failed to fetch actor ${participantId}:`, error);
@@ -66,7 +64,7 @@ export const useEncounterStore = defineStore('encounter', () => {
 
         // Filter out null values from participants
         const participantResults = await Promise.all(participantPromises);
-        participants = participantResults.filter((p: IActor | null): p is IActor => p !== null);
+        participants = participantResults.filter((p) => p !== null && p !== undefined);
       }
 
       // Set current encounter with participants
@@ -83,12 +81,12 @@ export const useEncounterStore = defineStore('encounter', () => {
     }
   }
 
-  async function createEncounter(data: Omit<IEncounter, 'id'>, campaignId: string) {
+  async function createEncounter(data: Omit<IEncounter, 'id'>) {
     loading.value = true;
     error.value = null;
 
     try {
-      const encounter = await encounterApi.createEncounter(data, campaignId);
+      const encounter = await encounterClient.createEncounter(data);
       return encounter.id;
     } catch (err: unknown) {
       console.error('Failed to create encounter:', err);
@@ -99,31 +97,30 @@ export const useEncounterStore = defineStore('encounter', () => {
     }
   }
 
-  async function getEncounter(encounterId: string, campaignId: string): Promise<IEncounter> {
-    return encounterApi.getEncounter(encounterId, campaignId);
+  async function getEncounter(encounterId: string): Promise<IEncounter> {
+    return encounterClient.getEncounter(encounterId);
   }
 
   async function updateEncounter(
     encounterId: string,
-    campaignId: string,
     data: Partial<IEncounter>
   ): Promise<IEncounter> {
-    return encounterApi.updateEncounter(encounterId, campaignId, data);
+    return encounterClient.updateEncounter(encounterId, data);
   }
 
-  async function deleteEncounter(encounterId: string, campaignId: string): Promise<void> {
-    await encounterApi.deleteEncounter(encounterId, campaignId);
+  async function deleteEncounter(encounterId: string): Promise<void> {
+    await encounterClient.deleteEncounter(encounterId);
   }
 
-  async function addParticipant(encounterId: string, campaignId: string, actorId: string) {
+  async function addParticipant(encounterId: string, actorId: string) {
     if (!currentEncounter.value) return;
 
     // Ensure we have a valid participants array
     const currentParticipants = currentEncounter.value.participants || [];
     const participants = [...currentParticipants.map((p: IActor | null) => p?.id || ''), actorId];
 
-    await updateEncounter(encounterId, campaignId, { participants });
-    await fetchEncounter(encounterId, campaignId);
+    await updateEncounter(encounterId, { participants });
+    await fetchEncounter(encounterId);
   }
 
   return {

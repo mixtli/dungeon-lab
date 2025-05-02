@@ -66,7 +66,7 @@ export class ActorsClient extends ApiClient {
   /**
    * Update an actor
    */
-  async updateActor(actorId: string, data: PatchActorRequest): Promise<IActor | undefined> {
+  async updateActor(actorId: string, data: PatchActorRequest): Promise<IActor> {
     const formData = this.toFormData(data);
     const response = await this.api.patch<BaseAPIResponse<IActor>>(
       `/api/actors/${actorId}`,

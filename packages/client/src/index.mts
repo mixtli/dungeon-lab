@@ -9,6 +9,6 @@ export { DocumentsClient } from './documents.client.mjs';
 export { EncountersClient } from './encounters.client.mjs';
 export { MapsClient } from './maps.client.mjs';
 export { UsersClient } from './users.client.mjs';
-
+export { InvitesClient } from './invites.client.mjs';
 // Export ApiClient base class
 export { ApiClient, configureApiClient } from './api.client.mjs';

@@ -1,8 +1,10 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import type { IItem } from '@dungeon-lab/shared/schemas/item.schema.mjs';
-import * as itemApi from '../api/items.client.mts';
+import type { IItem } from '@dungeon-lab/shared/types/index.mjs';
+import { ItemsClient } from '@dungeon-lab/client/index.mjs';
 import { CreateItemRequest, PatchItemRequest } from '@dungeon-lab/shared/types/api/index.mjs';
+
+const itemClient = new ItemsClient();
 
 export const useItemStore = defineStore('item', () => {
   // State
@@ -20,7 +22,7 @@ export const useItemStore = defineStore('item', () => {
     loading.value = true;
     error.value = null;
     try {
-      items.value = await itemApi.getItems();
+      items.value = await itemClient.getItems();
     } catch (err) {
       console.error('Error fetching items:', err);
       error.value = err instanceof Error ? err.message : 'Failed to fetch items';
@@ -33,7 +35,7 @@ export const useItemStore = defineStore('item', () => {
     loading.value = true;
     error.value = null;
     try {
-      const item = await itemApi.getItem(itemId);
+      const item = await itemClient.getItem(itemId);
       if (item) {
         currentItem.value = item;
       }
@@ -49,7 +51,7 @@ export const useItemStore = defineStore('item', () => {
     loading.value = true;
     error.value = null;
     try {
-      const newItem = await itemApi.createItem(data);
+      const newItem = await itemClient.createItem(data);
       if (newItem) {
         items.value.push(newItem);
         currentItem.value = newItem;
@@ -69,7 +71,7 @@ export const useItemStore = defineStore('item', () => {
     loading.value = true;
     error.value = null;
     try {
-      const updatedItem = await itemApi.updateItem(itemId, data);
+      const updatedItem = await itemClient.updateItem(itemId, data);
       if (updatedItem) {
         const index = items.value.findIndex((item: IItem) => item.id === itemId);
         if (index !== -1) {
@@ -94,7 +96,7 @@ export const useItemStore = defineStore('item', () => {
     loading.value = true;
     error.value = null;
     try {
-      await itemApi.deleteItem(itemId);
+      await itemClient.deleteItem(itemId);
       items.value = items.value.filter((item: IItem) => item.id !== itemId);
       if (currentItem.value?.id === itemId) {
         currentItem.value = null;
@@ -112,7 +114,7 @@ export const useItemStore = defineStore('item', () => {
     loading.value = true;
     error.value = null;
     try {
-      items.value = await itemApi.getItemsByCampaign(campaignId);
+      items.value = await itemClient.getItemsByCampaign(campaignId);
     } catch (err) {
       console.error('Error fetching campaign items:', err);
       error.value = err instanceof Error ? err.message : 'Failed to fetch campaign items';
@@ -125,7 +127,7 @@ export const useItemStore = defineStore('item', () => {
     loading.value = true;
     error.value = null;
     try {
-      items.value = await itemApi.getItemsByActor(actorId);
+      items.value = await itemClient.getItemsByActor(actorId);
     } catch (err) {
       console.error('Error fetching actor items:', err);
       error.value = err instanceof Error ? err.message : 'Failed to fetch actor items';

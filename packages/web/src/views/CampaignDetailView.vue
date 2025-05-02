@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useCampaignStore } from '../stores/campaign.store.mjs';
 import { pluginRegistry } from '../services/plugin-registry.service.mjs';
 import { formatDate } from '../utils/date-utils.mjs';
-import type { ICampaign } from '@dungeon-lab/shared/index.mjs';
+import type { ICampaign } from '@dungeon-lab/shared/types/index.mjs';
 import CampaignCharacterList from '../components/campaign/CampaignCharacterList.vue';
 import CampaignEncounterList from '../components/campaign/CampaignEncounterList.vue';
 import CampaignInviteModal from '../components/campaign/CampaignInviteModal.vue';

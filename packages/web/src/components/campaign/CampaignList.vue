@@ -4,7 +4,7 @@ import { useCampaignStore } from '../../stores/campaign.store.mjs';
 import { useRouter } from 'vue-router';
 import { PencilIcon, TrashIcon, EyeIcon } from '@heroicons/vue/24/outline';
 import { pluginRegistry } from '../../services/plugin-registry.service.mjs';
-import type { ICampaign } from '@dungeon-lab/shared/index.mjs';
+import type { ICampaign } from '@dungeon-lab/shared/types/index.mjs';
 
 // Stores
 const campaignStore = useCampaignStore();

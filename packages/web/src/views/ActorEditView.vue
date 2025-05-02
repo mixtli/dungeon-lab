@@ -3,8 +3,10 @@
 import { ref, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import ImageUpload from '../components/common/ImageUpload.vue';
-import { actorClient } from '../api/index.mjs';
-import { type IAsset } from '@dungeon-lab/shared/index.mjs';
+import { ActorsClient } from '@dungeon-lab/client/index.mjs';
+import { type IAsset } from '@dungeon-lab/shared/types/index.mjs';
+
+const actorClient = new ActorsClient();
 
 interface UploadedImage {
   url: string;

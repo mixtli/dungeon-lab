@@ -61,7 +61,7 @@ import { useRouter } from 'vue-router';
 import { pluginRegistry } from '@/services/plugin-registry.service.mjs';
 import PluginUIContainer from '@/components/plugin/PluginUIContainer.vue';
 import type { IGameSystemPluginWeb } from '@dungeon-lab/shared/types/plugin.mjs';
-import { actorClient } from '../api/index.mjs';
+import { ActorsClient } from '@dungeon-lab/client/index.mjs';
 import { CreateActorRequest } from '@dungeon-lab/shared/types/api/index.mjs';
 
 const router = useRouter();
@@ -71,6 +71,8 @@ const initialActorData = ref<Record<string, any>>({});
 const actorData = ref<Record<string, any>>({});
 const errorMessage = ref<string | null>(null);
 const isSubmitting = ref(false);
+
+const actorClient = new ActorsClient();
 
 // Get all available game systems that support character creation
 const availableGameSystems = computed(() => {

@@ -2,7 +2,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { ArrowPathIcon, XCircleIcon } from '@heroicons/vue/24/outline';
-import axios from '../api/axios.mjs';
+
 
 const props = defineProps<{
   mapId: string;
@@ -16,27 +16,23 @@ const loading = ref(true);
 const currentUrl = ref(props.imageUrl || '');
 const showPlaceholder = ref(true);
 
-// Simple notification function (we can replace this with a proper notification system later)
-function showNotification(message: string) {
-  alert(message);
-}
 
-async function refreshPresignedUrl() {
-  try {
-    const response = await axios.get(`/api/maps/${props.mapId}/image-url`);
-    currentUrl.value = response.data.imageUrl;
-    imageError.value = false;
-  } catch (error) {
-    console.error('Error refreshing image URL:', error);
-    showNotification('Failed to refresh image URL');
-  }
-}
+// async function refreshPresignedUrl() {
+//   try {
+//     const response = await axios.get(`/api/maps/${props.mapId}/image-url`);
+//     currentUrl.value = response.data.imageUrl;
+//     imageError.value = false;
+//   } catch (error) {
+//     console.error('Error refreshing image URL:', error);
+//     showNotification('Failed to refresh image URL');
+//   }
+// }
 
 async function handleImageError() {
   if (!imageError.value) {
     imageError.value = true;
     showPlaceholder.value = false;
-    await refreshPresignedUrl();
+    //await refreshPresignedUrl();
   }
 }
 

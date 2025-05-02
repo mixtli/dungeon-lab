@@ -197,10 +197,7 @@ function goToChat() {
                 alt="User Avatar"
                 class="h-8 w-8 rounded-full object-cover"
               />
-              {{  authStore.isAuthenticated }}
-              {{  console.log('authStore.user', authStore.user)}}
-              {{  console.log('authStore.user.username', authStore.user?.data?.user?.username)}}
-              <span class="text-sm font-medium">{{ authStore.user?.data?.user?.username }}</span>
+              <span class="text-sm font-medium">{{ authStore.user?.username }}</span>
             </button>
             <div
               class="absolute right-0 w-48 mt-2 py-1 bg-white dark:bg-gray-700 rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200"

@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router';
 import { useActorStore } from '../stores/actor.store.mjs';
 import PluginUIContainer from '@/components/plugin/PluginUIContainer.vue';
 import { pluginRegistry } from '@/services/plugin-registry.service.mts';
-import type { IActor } from '@dungeon-lab/shared/dist/index.mjs';
+import type { IActor } from '@dungeon-lab/shared/types/index.mjs';
 
 const route = useRoute();
 const actorStore = useActorStore();

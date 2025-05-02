@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import type { IEncounter } from '@dungeon-lab/shared/schemas/encounter.schema.mjs';
-import * as encounterApi from '../../api/encounters.client.mjs';
+import type { IEncounter } from '@dungeon-lab/shared/types/index.mjs';
+import { EncountersClient } from '@dungeon-lab/client/index.mjs';
 
 interface IEncounterWithDates extends IEncounter {
   createdAt?: string;
   updatedAt?: string;
 }
+
+const encounterClient = new EncountersClient();
 
 const encounters = ref<IEncounterWithDates[]>([]);
 const loading = ref(true);
@@ -19,7 +21,7 @@ onMounted(async () => {
 async function fetchEncounters() {
   loading.value = true;
   try {
-    encounters.value = await encounterApi.getEncounters();
+    encounters.value = await encounterClient.getEncounters();
   } catch (err) {
     console.error('Error fetching encounters:', err);
     error.value = 'Failed to load encounters';
