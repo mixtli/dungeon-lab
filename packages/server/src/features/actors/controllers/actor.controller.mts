@@ -117,6 +117,13 @@ export class ActorController {
       const tokenFile = req.assets?.token?.[0];
 
       const data = validatedData.data;
+      if (!data) {
+        return res.status(400).json({
+          success: false,
+          data: null,
+          error: 'Data is required'
+        });
+      }
 
       const plugin = pluginRegistry.getPlugin(validatedData.gameSystemId);
       if (!plugin) {

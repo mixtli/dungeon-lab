@@ -1,16 +1,32 @@
-import { Server, Socket } from 'socket.io';
-import { IMoveMessage } from '@dungeon-lab/shared/index.mjs';
+import { Socket } from 'socket.io';
+import { socketHandlerRegistry } from '../handler-registry.mjs';
 import { logger } from '../../utils/logger.mjs';
+import type {
+  ServerToClientEvents,
+  ClientToServerEvents
+} from '@dungeon-lab/shared/types/socket/index.mjs';
 
-export function handleMoveMessage(_io: Server, socket: Socket, message: IMoveMessage): void {
-  try {
-    // TODO: Implement move message handling
-    logger.info('Move message received:', message);
+/**
+ * Socket handler for movement messages
+ * @param socket The client socket connection
+ */
+function moveHandler(socket: Socket<ClientToServerEvents, ServerToClientEvents>): void {
+  socket.on('move', (message) => {
+    try {
+      logger.info('Move message received:', message);
 
-    // Broadcast the move to all clients in the room
-    socket.to(message.gameSessionId.toString()).emit('move', message);
-  } catch (error) {
-    logger.error('Error handling move message:', error);
-    socket.emit('error', { message: 'Failed to process move' });
-  }
-} 
+      // Broadcast the move to all clients in the game session
+      if (socket.gameSessionId) {
+        socket.to(socket.gameSessionId).emit('move', message);
+      }
+    } catch (error) {
+      logger.error('Error handling move message:', error);
+      socket.emit('error', 'Failed to process move');
+    }
+  });
+}
+
+// Register the socket handler
+socketHandlerRegistry.register(moveHandler);
+
+export default moveHandler;

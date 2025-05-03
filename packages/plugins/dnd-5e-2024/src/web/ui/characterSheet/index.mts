@@ -49,7 +49,7 @@ export class CharacterSheetComponent extends PluginComponent {
 
   async onUpdate(data: Record<string, unknown>): Promise<void> {
     console.log('CharacterSheetComponent updating with data:', data);
-    
+
     // Update our component state with the character data
     if (data.character) {
       this.updateState({
@@ -57,7 +57,7 @@ export class CharacterSheetComponent extends PluginComponent {
         pendingChanges: {} // Reset pending changes when character data is updated
       });
     }
-    
+
     await super.onUpdate(this.getState() as unknown as Record<string, unknown>);
   }
 
@@ -70,7 +70,7 @@ export class CharacterSheetComponent extends PluginComponent {
 
     // Set up tab navigation
     const tabButtons = this.container.querySelectorAll('.tab-button');
-    tabButtons.forEach(button => {
+    tabButtons.forEach((button) => {
       button.addEventListener('click', this.handleTabChange.bind(this));
     });
 
@@ -88,7 +88,7 @@ export class CharacterSheetComponent extends PluginComponent {
 
     // Set up form fields change listeners
     const formFields = this.container.querySelectorAll('input, select, textarea');
-    formFields.forEach(field => {
+    formFields.forEach((field) => {
       field.addEventListener('change', this.handleFieldChange.bind(this));
     });
   }
@@ -119,20 +119,20 @@ export class CharacterSheetComponent extends PluginComponent {
   private handleFieldChange(event: Event): void {
     const target = event.target as HTMLInputElement;
     if (!target || !target.name) return;
-    
+
     // Get the field name and value
     const fieldName = target.name;
     const fieldValue = this.getFieldValue(target);
-    
+
     // Store the change in the pending changes
     const pendingChanges = { ...this.state.pendingChanges };
     this.setNestedValue(pendingChanges, fieldName, fieldValue);
-    
-    this.updateState({ 
+
+    this.updateState({
       isDirty: true,
       pendingChanges
     });
-    
+
     console.log('Field changed:', fieldName, fieldValue);
     console.log('Pending changes:', pendingChanges);
   }
@@ -140,7 +140,9 @@ export class CharacterSheetComponent extends PluginComponent {
   /**
    * Get field value based on input type
    */
-  private getFieldValue(field: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement): unknown {
+  private getFieldValue(
+    field: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+  ): unknown {
     if (field.type === 'checkbox') {
       return (field as HTMLInputElement).checked;
     } else if (field.type === 'number') {
@@ -156,7 +158,7 @@ export class CharacterSheetComponent extends PluginComponent {
   private setNestedValue(obj: Record<string, unknown>, path: string, value: unknown): void {
     const keys = path.split('.');
     let current = obj;
-    
+
     // Traverse the path to the second-to-last key
     for (let i = 0; i < keys.length - 1; i++) {
       const key = keys[i];
@@ -166,7 +168,7 @@ export class CharacterSheetComponent extends PluginComponent {
       }
       current = current[key] as Record<string, unknown>;
     }
-    
+
     // Set the value at the final key
     const finalKey = keys[keys.length - 1];
     current[finalKey] = value;
@@ -179,10 +181,10 @@ export class CharacterSheetComponent extends PluginComponent {
     if (!this.state.character) {
       throw new Error('No character data to update');
     }
-    
+
     // Create a deep copy of the character to avoid mutating the original
     const updatedCharacter = JSON.parse(JSON.stringify(this.state.character)) as ICharacter;
-    
+
     // Apply each pending change to the character copy
     Object.entries(this.state.pendingChanges).forEach(([key, value]) => {
       if (typeof value === 'object' && value !== null) {
@@ -192,40 +194,40 @@ export class CharacterSheetComponent extends PluginComponent {
         (updatedCharacter as Record<string, unknown>)[key] = value;
       }
     });
-    
+
     return updatedCharacter;
   }
-  
 
   /**
    * Save changes to the character
    */
   private async saveChanges(): Promise<void> {
     if (!this.state.character || !this.state.isDirty) return;
-    
+
     try {
       // Apply pending changes to create the updated character data
       const updatedCharacter = this.applyPendingChanges();
-      
+
       // Make sure we have a character ID
       if (!this.state.character.id) {
         throw new Error('Character ID is missing');
       }
-      
+      const { token: _token, avatar: _avatar, ...rest } = updatedCharacter;
+
       // Send the update to the server via the plugin API
-      await this.api.updateActor(this.state.character.id, updatedCharacter.data);
-      
+      await this.api.updateActor(this.state.character.id, rest);
+
       // Update our local state with the saved changes
-      this.updateState({ 
+      this.updateState({
         character: updatedCharacter,
-        isDirty: false, 
+        isDirty: false,
         isEditing: false,
         pendingChanges: {}
       });
-      
+
       // Re-render with updated state
       this.render(this.getState() as unknown as Record<string, unknown>);
-      
+
       console.log('Changes saved successfully');
     } catch (error) {
       console.error('error', error);
@@ -242,12 +244,12 @@ export class CharacterSheetComponent extends PluginComponent {
   protected registerHelpers(): void {
     // Register the shared helpers
     registerHelpers(this.handlebars);
-    
+
     // Register component-specific helpers
     this.handlebars.registerHelper('isActiveTab', (tabId: string) => {
       return tabId === this.state.activeTab;
     });
-    
+
     this.handlebars.registerHelper('modifierValue', (score: number) => {
       const modifier = Math.floor((score - 10) / 2);
       return modifier >= 0 ? `+${modifier}` : modifier;
@@ -270,4 +272,4 @@ export class CharacterSheetComponent extends PluginComponent {
 }
 
 // Export the component class
-export default CharacterSheetComponent; 
+export default CharacterSheetComponent;

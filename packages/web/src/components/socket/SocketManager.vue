@@ -2,6 +2,7 @@
 import { onMounted } from 'vue';
 import { useSocketStore } from '../../stores/socket.store.mjs';
 import { useGameSessionStore } from '../../stores/game-session.store.mjs';
+import { JoinCallback } from '@dungeon-lab/shared/types/socket/index.mjs';
 
 const socketStore = useSocketStore();
 const gameSessionStore = useGameSessionStore();
@@ -39,7 +40,7 @@ async function restoreGameSession() {
           });
 
           // Attempt to join the session
-          socketStore.socket.emit('joinSession', gameSessionStore.currentSession.id, (result) => {
+          socketStore.socket.emit('joinSession', gameSessionStore.currentSession.id, (result: JoinCallback) => {
             console.log('[Debug] Join session result:', result);
           });
           return;

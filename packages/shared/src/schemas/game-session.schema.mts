@@ -9,7 +9,9 @@ export const gameSessionSchema = baseSchema.extend({
   campaignId: z.string(),
   description: z.string().optional(),
   status: GameSessionStatus.default('scheduled'),
-  participantIds: z.array(z.string()).default([]),
+  participantIds: z.array(z.string()).default([]), // User IDs of the participants in the game session.
   gameMasterId: z.string(),
   settings: z.record(z.string(), z.unknown()).optional()
 });
+
+export const gameSessionPatchSchema = gameSessionSchema.deepPartial();

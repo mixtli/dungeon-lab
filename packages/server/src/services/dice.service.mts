@@ -1,5 +1,3 @@
-import { IDieRollResult, IRollResult } from '@dungeon-lab/shared/index.mjs';
-
 export class DiceService {
   /**
    * Parse a dice formula and roll the dice
@@ -7,9 +5,19 @@ export class DiceService {
    * @param userId The ID of the user making the roll
    * @returns The roll result
    */
-  rollDice(formula: string, userId: string): IRollResult {
+  rollDice(
+    formula: string,
+    userId: string
+  ): {
+    formula: string;
+    rolls: { die: number; result: number }[];
+    modifier: number;
+    total: number;
+    userId: string;
+    timestamp: Date;
+  } {
     const { count, die, modifier } = this.parseFormula(formula);
-    const rolls: IDieRollResult[] = [];
+    const rolls: { die: number; result: number }[] = [];
     let total = 0;
 
     // Roll each die
@@ -71,4 +79,4 @@ export class DiceService {
     const validDice = [4, 6, 8, 10, 12, 20, 100];
     return validDice.includes(die);
   }
-} 
+}

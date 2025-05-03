@@ -1,5 +1,4 @@
-import { IGameSystemPluginServer, PluginActionResult } from '@dungeon-lab/shared/types/plugin.mjs';
-import { IPluginActionMessage } from '@dungeon-lab/shared/schemas/websocket-messages.schema.mjs';
+import { IGameSystemPluginServer } from '@dungeon-lab/shared/types/plugin.mjs';
 import { logger } from '../utils/logger.mjs';
 import { readdir, stat } from 'fs/promises';
 import { join } from 'path';
@@ -20,7 +19,6 @@ interface IPluginRegistry {
   getPlugin(pluginId: string): IGameSystemPluginServer | undefined;
   getPlugins(): IGameSystemPluginServer[];
   getGameSystemPlugin(pluginId: string): IGameSystemPluginServer | undefined;
-  handlePluginAction(message: IPluginActionMessage): Promise<PluginActionResult | void>;
   cleanupAll(): Promise<void>;
 }
 
@@ -34,18 +32,18 @@ class PluginRegistryService implements IPluginRegistry {
 
       // Read all entries in the plugins directory
       const entries = await readdir(PLUGINS_DIR);
-      
+
       // Filter for directories only and ignore specified directories
       const pluginDirs = await Promise.all(
         entries
-          .filter(entry => !IGNORED_DIRS.includes(entry))
+          .filter((entry) => !IGNORED_DIRS.includes(entry))
           .map(async (entry) => {
             const fullPath = join(PLUGINS_DIR, entry);
             const stats = await stat(fullPath);
             return stats.isDirectory() ? entry : null;
           })
       );
-      
+
       const validPluginDirs = pluginDirs.filter((dir): dir is string => dir !== null);
       logger.info('Found plugin directories:', validPluginDirs);
 
@@ -95,23 +93,6 @@ class PluginRegistryService implements IPluginRegistry {
     return plugin?.type === 'gameSystem' ? plugin : undefined;
   }
 
-  async handlePluginAction(message: IPluginActionMessage): Promise<PluginActionResult | void> {
-    const plugin = this.getPlugin(message.pluginId);
-    if (!plugin) {
-      logger.error('Plugin not found:', message.pluginId);
-      throw new Error('Plugin not found');
-    }
-
-    try {
-      if (plugin.handleAction) {
-        return await plugin.handleAction(message);
-      }
-    } catch (error) {
-      logger.error('Error handling plugin action:', error);
-      throw error;
-    }
-  }
-
   async cleanupAll(): Promise<void> {
     logger.info('Cleaning up all plugins...');
     for (const [id, plugin] of this.plugins) {
@@ -127,4 +108,4 @@ class PluginRegistryService implements IPluginRegistry {
   }
 }
 
-export const pluginRegistry = new PluginRegistryService(); 
+export const pluginRegistry = new PluginRegistryService();

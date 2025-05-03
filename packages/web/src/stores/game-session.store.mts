@@ -5,7 +5,7 @@ import type { IActor } from '@dungeon-lab/shared/types/index.mjs';
 import type { ICampaign } from '@dungeon-lab/shared/types/index.mjs';
 import { useAuthStore } from './auth.store.mts';
 import { useSocketStore } from './socket.store.mjs';
-import type { JoinCallback } from '@dungeon-lab/shared/schemas/socket/index.mjs';
+import type { JoinCallback } from '@dungeon-lab/shared/types/socket/index.mjs';
 
 export const useGameSessionStore = defineStore(
   'gameSession',

@@ -4,10 +4,11 @@ import { sessionMiddleware } from '../app.mjs';
 import { CampaignService, GameSessionModel } from '../features/campaigns/index.mjs';
 import type {
   ServerToClientEvents,
-  ClientToServerEvents
-} from '@dungeon-lab/shared/schemas/socket/index.mjs';
+  ClientToServerEvents,
+  JoinCallback
+} from '@dungeon-lab/shared/types/socket/index.mjs';
 import { logger } from '../utils/logger.mjs';
-import type { JoinCallback } from '@dungeon-lab/shared/schemas/socket/index.mjs';
+import { socketHandlerRegistry } from './handler-registry.mjs';
 
 // Define a type for the session with user information
 interface SessionWithUser {
@@ -57,7 +58,7 @@ export class SocketServer {
   }
 
   async handleJoinSession(
-    socket: Socket,
+    socket: Socket<ClientToServerEvents, ServerToClientEvents>,
     sessionId: string,
     callback: (response: JoinCallback) => void
   ) {
@@ -92,43 +93,37 @@ export class SocketServer {
     }
   }
 
-  handleLeaveSession(socket: Socket, sessionId: string) {
+  handleLeaveSession(
+    socket: Socket<ClientToServerEvents, ServerToClientEvents>,
+    sessionId: string
+  ) {
     console.log('leaveSession', sessionId);
     socket.leave(sessionId);
     socket.gameSessionId = undefined;
   }
 
   handleConnections() {
-    this.io.on('connection', (socket) => {
+    this.io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>) => {
       // const socket = rawSocket as AuthenticatedSocket;
       logger.info(`Client connected: ${socket.id} (${socket.userId})`);
 
       // Join your own "Room" so others can message you directly with your userId
       socket.join(socket.userId);
 
+      // Apply all registered handlers
+      socketHandlerRegistry.applyAll(socket);
+
       socket.onAny((eventName, ...args) => {
         logger.info('Socket event:', { eventName, args });
       });
       socket.on('error', (error) => {
         console.error('Socket error:', error);
-        // Implement retry logic or user notification
+        // TODO: Implement retry logic or user notification
       });
       socket.on('joinSession', (sessionId: string, callback: (response: JoinCallback) => void) =>
         this.handleJoinSession(socket, sessionId, callback)
       );
       socket.on('leaveSession', (sessionId: string) => this.handleLeaveSession(socket, sessionId));
-      socket.on('chat', (message: string) => {
-        console.log('chat message', message);
-      });
-
-      // socket.on('message', (message) => console.log('message', message));
-      // socket.on('dice:roll', (message) => handleDiceRoll(socket, message));
-      // socket.on('plugin:action', (message) => handlePluginAction(socket, message));
-      // socket.on('game:stateUpdate', (message) => handleGameStateUpdate(socket, message));
-      // socket.on('roll:command', () => handleRollCommand(socket));
-      // socket.on('combat:action', (message) => handleCombatAction(io, socket, message));
-      // socket.on('encounter:start', (message) => handleEncounterStart(io, socket, message));
-      // socket.on('encounter:stop', (message) => handleEncounterStop(io, socket, message));
 
       socket.on('disconnect', () => {
         logger.info(`Client disconnected: ${socket.id} (${socket.userId})`);

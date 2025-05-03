@@ -34,23 +34,6 @@ export {
   assetHelpers
 } from './schemas/asset.schema.mjs';
 
-// WebSocket message types
-export type {
-  IBaseMessage,
-  IChatMessage,
-  IDiceRollMessage,
-  IMoveMessage,
-  IPluginActionMessage,
-  IGameStateUpdateMessage,
-  IPluginStateUpdateMessage,
-  IMessage,
-  // Dice roll types
-  IDieRollResult,
-  IRollResult,
-  IRollCommandMessage,
-  IRollResultMessage
-} from './schemas/websocket-messages.schema.mjs';
-
 // Plugin system interfaces and base classes
 export type {
   IPlugin,

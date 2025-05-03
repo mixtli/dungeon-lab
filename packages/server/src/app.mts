@@ -16,6 +16,10 @@ import { oapi } from './oapi.mjs';
 import userRoutes from './features/users/routes/user.routes.mjs';
 import { errorHandler } from './middleware/error.middleware.mjs';
 
+// Import socket handlers
+import './websocket/handlers/index.mjs';
+// Add more socket handler imports here as needed
+
 // Route handlers and middleware
 let authRoutes: Router;
 let storageRoutes: Router;

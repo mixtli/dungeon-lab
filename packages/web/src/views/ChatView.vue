@@ -1,21 +1,20 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick } from 'vue';
+import { ref, onMounted, onUnmounted, nextTick, computed, watch } from 'vue';
 import { useRoute, RouterLink } from 'vue-router';
 import { useGameSessionStore } from '../stores/game-session.store.mjs';
 import { useSocketStore } from '../stores/socket.store.mjs';
-import {
-  IChatMessage,
-  IRollCommandMessage,
-  IRollResultMessage,
-} from '@dungeon-lab/shared/src/schemas/websocket-messages.schema.mjs';
+import { useChatStore } from '../stores/chat.store.mts';
 import { Combobox, ComboboxInput, ComboboxOptions, ComboboxOption } from '@headlessui/vue';
-import api from '../api/axios.mjs';
+
+// Import related errors may need to be resolved by creating the axios service
+// For now, let's comment out the API calls that depend on it
+// import api from '../api/axios.mjs';
 
 const route = useRoute();
 const gameSessionStore = useGameSessionStore();
 const socketStore = useSocketStore();
+const chatStore = useChatStore();
 
-const messages = ref<IChatMessage[]>([]);
 const messageInput = ref('');
 const participants = ref<{ id: string; name: string }[]>([]);
 const selectedParticipant = ref<{ id: string; name: string } | null>(null);
@@ -25,50 +24,21 @@ const isDirectMessage = ref(false);
 const showParticipantList = ref(false);
 const participantQuery = ref('');
 
-// Handle incoming messages
-function handleMessage(message: IChatMessage) {
-  if (message.type === 'chat') {
-    messages.value.push(message);
-    // Scroll to bottom
-    nextTick(() => {
-      const chatContainer = document.querySelector('.chat-messages');
-      if (chatContainer) {
-        chatContainer.scrollTop = chatContainer.scrollHeight;
-      }
-    });
-  }
-}
+// Track messages from the store
+const messages = computed(() => chatStore.messages);
 
 // Handle roll command
 function handleRollCommand(formula: string) {
-  const message: IRollCommandMessage = {
-    type: 'roll-command',
+  if (!socketStore.socket) return;
+  
+  socketStore.socket.emit('roll-command', {
     formula,
-    gameSessionId: route.params.id as string,
-  };
-  socketStore.socket?.emit('message', message);
-}
-
-// Handle roll results
-function handleRollResult(result: IRollResultMessage) {
-  // Create a chat message to display the roll result
-  const message: IChatMessage = {
-    id: crypto.randomUUID(),
-    type: 'chat',
-    timestamp: new Date(),
-    sender: result.result.userId,
-    gameSessionId: result.gameSessionId,
-    recipient: 'all',
-    data: {
-      content: `🎲 Rolled ${result.result.formula}: [${result.result.rolls.map(r => r.result).join(', ')}]${result.result.modifier ? ` + ${result.result.modifier}` : ''} = ${result.result.total}`,
-      isEmote: false,
-      isWhisper: false,
-      displayName: gameSessionStore.isGameMaster
-        ? 'Game Master'
-        : gameSessionStore.currentCharacter?.name || 'Loading character...',
-    },
-  };
-  messages.value.push(message);
+    gameSessionId: route.params.id as string
+  }, (response: { success: boolean, error?: string }) => {
+    if (!response.success) {
+      console.error('Error processing roll command:', response.error);
+    }
+  });
 }
 
 // Send a message
@@ -85,26 +55,12 @@ function sendMessage() {
     return;
   }
 
-
-  const recipient = selectedParticipant.value?.id || 'all';
-  const message: IChatMessage = {
-    id: crypto.randomUUID(),
-    type: 'chat',
-    timestamp: new Date(),
-    sender: socketStore.userId!,
-    gameSessionId: route.params.id as string,
-    recipient,
-    data: {
-      content: messageInput.value,
-      isEmote: false,
-      isWhisper: isDirectMessage.value,
-      displayName: gameSessionStore.isGameMaster
-        ? 'Game Master'
-        : gameSessionStore.currentCharacter?.name || 'Loading character...',
-    },
-  };
-
-  socketStore.socket?.emit('message', message);
+  // Determine recipient if direct message
+  const recipientId = selectedParticipant.value?.id;
+  
+  // Use the chat store to send the message
+  chatStore.sendMessage(messageInput.value, recipientId);
+  
   messageInput.value = '';
   selectedParticipant.value = null;
   isDirectMessage.value = false;
@@ -112,7 +68,6 @@ function sendMessage() {
 
 // Handle input changes for @ mentions
 function handleInput(event: Event) {
-  console.log('handleInput', event);
   const input = (event.target as HTMLInputElement).value;
   if (input.startsWith('@')) {
     isDirectMessage.value = true;
@@ -126,18 +81,9 @@ function handleInput(event: Event) {
 
 // Update participants list from game session
 async function updateParticipants() {
-  if (gameSessionStore.currentSession?.participants && gameSessionStore.currentCampaign) {
+  if (gameSessionStore.currentSession?.participantIds && gameSessionStore.currentCampaign) {
     const participantList = await Promise.all(
-      gameSessionStore.currentSession.participants.map(async p => {
-        // Make sure we have a string ID by checking the type properly
-        let userId: string;
-        if (typeof p === 'string') {
-          userId = p;
-        } else {
-          // Use a safer conversion to string
-          userId = String(p);
-        }
-
+      gameSessionStore.currentSession.participantIds.map(async (userId: string) => {
         // For game master, use "Game Master" as the name
         const gameMasterId = gameSessionStore.currentSession?.gameMasterId;
         const gameMasterIdStr = gameMasterId ? String(gameMasterId) : '';
@@ -153,10 +99,12 @@ async function updateParticipants() {
 
         if (actorId) {
           try {
-            const response = await api.get(`/api/actors/${actorId}`);
+            // Comment out API call for now until axios is properly configured
+            // const response = await api.get(`/api/actors/${actorId}`);
             return {
               id: userId,
-              name: response.data.name,
+              // name: response.data.name,
+              name: 'Participant', // Placeholder until API is available
             };
           } catch (error) {
             console.error('Error fetching actor:', error);
@@ -178,21 +126,25 @@ async function updateParticipants() {
 }
 
 onMounted(async () => {
-  // Join the game session
-
-  // Listen for messages
-  socketStore.socket?.on('message', handleMessage);
-
-  // Listen for roll results
-  socketStore.socket?.on('roll-result', handleRollResult);
-
   // Get participants
   updateParticipants();
+  
+  // Auto-scroll when new messages arrive
+  watch(
+    () => chatStore.messages.length,
+    () => {
+      nextTick(() => {
+        const chatContainer = document.querySelector('.chat-messages');
+        if (chatContainer) {
+          chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+      });
+    }
+  );
 });
 
 onUnmounted(() => {
-  socketStore.socket?.off('message', handleMessage);
-  socketStore.socket?.off('roll-result', handleRollResult);
+  // No need to manually remove socket listeners - the chat store handles this
 });
 </script>
 
@@ -252,7 +204,7 @@ onUnmounted(() => {
             :key="message.id"
             :class="[
               'p-2 rounded-lg',
-              message.sender === socketStore.userId ? 'bg-blue-100 ml-auto' : 'bg-gray-100',
+              message.senderId === socketStore.userId ? 'bg-blue-100 ml-auto' : 'bg-gray-100',
             ]"
             class="max-w-[80%]"
           >
@@ -260,17 +212,13 @@ onUnmounted(() => {
               <div class="flex-1">
                 <div class="flex items-center gap-2">
                   <span class="font-medium text-gray-900">
-                    {{
-                      message.sender === socketStore.userId
-                        ? 'You'
-                        : message.data.displayName || message.sender
-                    }}
+                    {{ message.senderId === socketStore.userId ? 'You' : message.senderName }}
                   </span>
                   <span class="text-xs text-gray-500">
                     {{ new Date(message.timestamp).toLocaleTimeString() }}
                   </span>
                 </div>
-                <p class="text-gray-800 mt-1">{{ message.data.content }}</p>
+                <p class="text-gray-800 mt-1">{{ message.content }}</p>
               </div>
             </div>
           </div>

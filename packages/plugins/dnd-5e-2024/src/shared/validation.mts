@@ -6,7 +6,7 @@ import { vttDocumentDataTypes } from './types/vttdocument.mjs';
  * Validates actor data for a specific actor type
  *
  * @param actorType - The type of actor (character, monster, npc)
- * @param data - The data to validate
+ * @param data - The data to validate.  This is the data from the actor.data field
  * @returns A SafeParseReturn object with the validation result
  */
 export function validateActorData(
@@ -35,7 +35,7 @@ export function validateActorData(
  * Validates item data for a specific item type
  *
  * @param itemType - The type of item (weapon, spell, armor, tool, gear, consumable)
- * @param data - The data to validate
+ * @param data - The data to validate.  This is the data from the item.data field
  * @returns A SafeParseReturn object with the validation result
  */
 export function validateItemData(
@@ -64,7 +64,7 @@ export function validateItemData(
  * Validates VTT document data for a specific document type
  *
  * @param documentType - The type of document (characterClass, background, species, feat)
- * @param data - The data to validate
+ * @param data - The data to validate.  This is the data from the document.data field
  * @returns A SafeParseReturn object with the validation result
  */
 export function validateVTTDocumentData(

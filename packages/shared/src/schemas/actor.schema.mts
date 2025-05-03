@@ -15,7 +15,7 @@ export const actorSchema = baseSchema.extend({
 
   description: z.string().optional(),
   gameSystemId: z.string().min(1),
-  data: z.record(z.any()).optional()
+  data: z.record(z.string(), z.any()).optional()
   // token: assetSchema.optional()
   //avatar: assetSchema.optional(),
 });

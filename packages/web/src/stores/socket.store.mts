@@ -6,7 +6,7 @@ import { useAuthStore } from './auth.store.mts';
 import {
   ClientToServerEvents,
   ServerToClientEvents
-} from '@dungeon-lab/shared/schemas/socket/index.mjs';
+} from '@dungeon-lab/shared/types/socket/index.mjs';
 
 // Define a type for the socket store
 interface SocketStore {

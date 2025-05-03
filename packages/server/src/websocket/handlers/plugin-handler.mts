@@ -1,51 +1,75 @@
-import { Server, Socket } from 'socket.io';
-import { IPluginActionMessage, IPluginStateUpdateMessage } from '@dungeon-lab/shared/index.mjs';
+import { Socket } from 'socket.io';
+import { socketHandlerRegistry } from '../handler-registry.mjs';
 import { logger } from '../../utils/logger.mjs';
 import { pluginRegistry } from '../../services/plugin-registry.service.mjs';
+import type {
+  ServerToClientEvents,
+  ClientToServerEvents
+} from '@dungeon-lab/shared/types/socket/index.mjs';
 
-export async function handlePluginAction(io: Server, socket: Socket, message: IPluginActionMessage): Promise<void> {
-  try {
-    const result = await pluginRegistry.handlePluginAction(message);
-    
-    if (result?.stateUpdate) {
-      // If forward is true, broadcast to all clients, otherwise just send back to sender
-      if (result.forward) {
-        io.emit('plugin:stateUpdate', {
-          pluginId: message.pluginId,
-          ...result.stateUpdate
-        });
-      } else {
-        socket.emit('plugin:stateUpdate', {
-          pluginId: message.pluginId,
-          ...result.stateUpdate
-        });
+/**
+ * Socket handler for plugin actions
+ * @param socket The client socket connection
+ */
+function pluginHandler(socket: Socket<ClientToServerEvents, ServerToClientEvents>): void {
+  // Handle plugin action
+  socket.on('pluginAction', async (pluginId, data, callback) => {
+    try {
+      const plugin = pluginRegistry.getGameSystemPlugin(pluginId);
+
+      if (!plugin) {
+        throw new Error(`Plugin with ID ${pluginId} not found`);
       }
+
+      // Process the plugin action
+      // Note: We're accessing a custom property that might not be in the TypeScript interface
+      // but is expected to be available at runtime
+      const pluginWithAction = plugin as unknown as {
+        handleAction?: (args: {
+          pluginId: string;
+          data: Record<string, unknown>;
+          userId: string;
+          gameSessionId?: string;
+        }) => Promise<{
+          stateUpdate?: { type: string; state: Record<string, unknown> };
+          forward?: boolean;
+        } | void>;
+      };
+
+      const result = await pluginWithAction.handleAction?.({
+        pluginId,
+        data,
+        userId: socket.userId,
+        gameSessionId: socket.gameSessionId
+      });
+
+      if (result?.stateUpdate) {
+        // If forward is true, broadcast to all clients in the session
+        if (result.forward && socket.gameSessionId) {
+          socket.to(socket.gameSessionId).emit('pluginStateUpdate', {
+            pluginId,
+            ...result.stateUpdate
+          });
+        }
+      }
+
+      callback({
+        success: true,
+        data: result || {},
+        error: ''
+      });
+    } catch (error) {
+      logger.error('Error handling plugin action:', error);
+      callback({
+        success: false,
+        data: {},
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
-  } catch (error) {
-    console.error('Error handling plugin action:', error);
-    socket.emit('error', {
-      message: 'Failed to handle plugin action',
-      error: error instanceof Error ? error.message : String(error)
-    });
-  }
+  });
 }
 
-export function handlePluginStateUpdate(_io: Server, socket: Socket, message: IPluginStateUpdateMessage): void {
-  try {
-    const plugin = pluginRegistry.getGameSystemPlugin(message.pluginId);
-    if (!plugin) {
-      logger.error('Plugin not found:', message.pluginId);
-      socket.emit('error', { message: 'Plugin not found' });
-      return;
-    }
+// Register the socket handler
+socketHandlerRegistry.register(pluginHandler);
 
-    // TODO: Implement plugin state update handling
-    logger.info('Plugin state update received:', message);
-
-    // Broadcast the state update to all clients in the room
-    socket.to(message.gameSessionId.toString()).emit('plugin-state-update', message);
-  } catch (error) {
-    logger.error('Error handling plugin state update:', error);
-    socket.emit('error', { message: 'Failed to process plugin state update' });
-  }
-} 
+export default pluginHandler;

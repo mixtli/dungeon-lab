@@ -21,7 +21,7 @@
     "editor.formatOnPaste": true,
     // IMPORTANT: Setting this to true causes hundreds of false TypeScript errors
     // Keep this false to prevent spurious errors with ESM imports (.mjs extensions)
-    "typescript.tsserver.experimental.enableProjectDiagnostics": false,
+    "typescript.tsserver.experimental.enableProjectDiagnostics": true,
 
     "typescript.tsserver.log": "verbose",
     "problems.excludePatterns": [

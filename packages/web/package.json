@@ -10,7 +10,6 @@
     "lint": "eslint src",
     "test": "vitest run",
     "check": "npm run build --workspace=@dungeon-lab/shared && npm run build --workspace=@dungeon-lab/client && vue-tsc --noEmit",
-    "test:plugin-build": "tsx scripts/test-plugin-build.mts",
     "clean:test": "rimraf dist-test"
   },
   "dependencies": {

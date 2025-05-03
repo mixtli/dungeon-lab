@@ -31,43 +31,63 @@ export const monsterSchema = z.object({
     wisdom: z.number().min(1).max(30),
     charisma: z.number().min(1).max(30)
   }),
-  savingThrows: z.object({
-    strength: z.number().optional(),
-    dexterity: z.number().optional(),
-    constitution: z.number().optional(),
-    intelligence: z.number().optional(),
-    wisdom: z.number().optional(),
-    charisma: z.number().optional()
-  }).optional(),
+  savingThrows: z
+    .object({
+      strength: z.number().optional(),
+      dexterity: z.number().optional(),
+      constitution: z.number().optional(),
+      intelligence: z.number().optional(),
+      wisdom: z.number().optional(),
+      charisma: z.number().optional()
+    })
+    .optional(),
   skills: z.record(z.string(), z.number()).optional(),
-  senses: z.object({
-    darkvision: z.number().optional(),
-    blindsight: z.number().optional(),
-    tremorsense: z.number().optional(),
-    truesight: z.number().optional()
-  }).optional(),
+  senses: z
+    .object({
+      darkvision: z.number().optional(),
+      blindsight: z.number().optional(),
+      tremorsense: z.number().optional(),
+      truesight: z.number().optional()
+    })
+    .optional(),
   languages: z.array(z.string()).optional(),
   challengeRating: z.number(),
   xp: z.number().optional(),
-  traits: z.array(z.object({
-    name: z.string(),
-    description: z.string()
-  })).optional(),
-  actions: z.array(z.object({
-    name: z.string(),
-    description: z.string(),
-    attackBonus: z.number().optional(),
-    damage: z.string().optional(),
-    damageType: z.string().optional()
-  })).optional(),
-  reactions: z.array(z.object({
-    name: z.string(),
-    description: z.string()
-  })).optional(),
-  legendaryActions: z.array(z.object({
-    name: z.string(),
-    description: z.string()
-  })).optional()
+  traits: z
+    .array(
+      z.object({
+        name: z.string(),
+        description: z.string()
+      })
+    )
+    .optional(),
+  actions: z
+    .array(
+      z.object({
+        name: z.string(),
+        description: z.string(),
+        attackBonus: z.number().optional(),
+        damage: z.string().optional(),
+        damageType: z.string().optional()
+      })
+    )
+    .optional(),
+  reactions: z
+    .array(
+      z.object({
+        name: z.string(),
+        description: z.string()
+      })
+    )
+    .optional(),
+  legendaryActions: z
+    .array(
+      z.object({
+        name: z.string(),
+        description: z.string()
+      })
+    )
+    .optional()
 });
 
 // NPC schema - simplified character for non-player characters
@@ -91,14 +111,22 @@ export const npcSchema = z.object({
     charisma: z.number().min(1).max(30)
   }),
   skills: z.record(z.string(), z.number()).optional(),
-  equipment: z.array(z.object({
-    id: z.string(),
-    quantity: z.number().min(0)
-  })).optional(),
-  features: z.array(z.object({
-    name: z.string(),
-    description: z.string()
-  })).optional(),
+  equipment: z
+    .array(
+      z.object({
+        id: z.string(),
+        quantity: z.number().min(0)
+      })
+    )
+    .optional(),
+  features: z
+    .array(
+      z.object({
+        name: z.string(),
+        description: z.string()
+      })
+    )
+    .optional(),
   biography: z.string().optional()
 });
 
@@ -123,4 +151,4 @@ export const actorTypes = {
 
 // Convert schemas to JSON Schema for plugin registration
 export const monsterJsonSchema = monsterSchema.describe('D&D 5E Monster');
-export const npcJsonSchema = npcSchema.describe('D&D 5E NPC'); 
+export const npcJsonSchema = npcSchema.describe('D&D 5E NPC');

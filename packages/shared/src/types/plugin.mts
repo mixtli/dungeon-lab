@@ -1,10 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { IPluginMessage } from '../schemas/websocket-messages.schema.mjs';
-import { IPluginActionMessage } from '../schemas/websocket-messages.schema.mjs';
 import { IPluginComponent } from './plugin-component.mjs';
 import { IPluginAPI } from './plugin-api.mjs';
-import { CreateActorRequest, CreateDocumentRequest, CreateItemRequest } from './api/index.mjs';
 
 /**
  * Interface for plugin script API
@@ -80,7 +77,6 @@ export interface IPlugin {
   onLoad(): Promise<void>; // Called when the plugin is loaded
   onUnload(): Promise<void>; // Called when the plugin is unloaded
   onRegister(): Promise<void>; // Called when the plugin is registered with the system
-  handlePluginMessage(message: IPluginMessage): Promise<void>;
 }
 
 /**
@@ -89,18 +85,12 @@ export interface IPlugin {
  */
 export interface IGameSystemPlugin extends IPlugin {
   type: 'gameSystem';
-  validateActorData: (
-    actorType: string,
-    data: CreateActorRequest
-  ) => z.SafeParseReturnType<CreateActorRequest, CreateActorRequest>;
-  validateItemData: (
-    itemType: string,
-    data: CreateItemRequest
-  ) => z.SafeParseReturnType<CreateItemRequest, CreateItemRequest>;
+  validateActorData: (actorType: string, data: unknown) => z.SafeParseReturnType<unknown, unknown>;
+  validateItemData: (itemType: string, data: unknown) => z.SafeParseReturnType<unknown, unknown>;
   validateVTTDocumentData: (
     documentType: string,
-    data: CreateDocumentRequest
-  ) => z.SafeParseReturnType<CreateDocumentRequest, CreateDocumentRequest>;
+    data: unknown
+  ) => z.SafeParseReturnType<unknown, unknown>;
 }
 
 /**
@@ -118,9 +108,6 @@ export interface IGameSystemPluginWeb extends IGameSystemPlugin, IWebPlugin {
  */
 export interface IGameSystemPluginServer extends IGameSystemPlugin {
   router?: Router; // Optional Express router for plugin-specific routes
-  handleAction?: (
-    message: IPluginMessage | IPluginActionMessage
-  ) => Promise<PluginActionResult | void>;
 }
 
 /**

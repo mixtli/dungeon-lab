@@ -24,7 +24,11 @@ import { assetSchema, assetCreateSchema, assetUpdateSchema } from '../schemas/as
 
 import { encounterSchema, EncounterStatus } from '../schemas/encounter.schema.mjs';
 
-import { gameSessionSchema, GameSessionStatus } from '../schemas/game-session.schema.mjs';
+import {
+  gameSessionPatchSchema,
+  gameSessionSchema,
+  GameSessionStatus
+} from '../schemas/game-session.schema.mjs';
 
 import { inviteSchema, inviteStatusSchema } from '../schemas/invite.schema.mjs';
 
@@ -72,6 +76,7 @@ export type EncounterStatusType = z.infer<typeof EncounterStatus>;
 // Game Session Types
 export type IGameSession = z.infer<typeof gameSessionSchema>;
 export type GameSessionStatusType = z.infer<typeof GameSessionStatus>;
+export type IGameSessionPatchData = z.infer<typeof gameSessionPatchSchema>;
 
 // Invite Types
 export type IInvite = z.infer<typeof inviteSchema>;

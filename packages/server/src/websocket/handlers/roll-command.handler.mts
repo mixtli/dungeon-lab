@@ -1,20 +1,22 @@
-import { IRollCommandMessage, IRollResultMessage } from '@dungeon-lab/shared/index.mjs';
+import { Socket } from 'socket.io';
+import { socketHandlerRegistry } from '../handler-registry.mjs';
 import { GameSessionModel } from '../../features/campaigns/models/game-session.model.mjs';
 import { DiceService } from '../../services/dice.service.mjs';
 import { logger } from '../../utils/logger.mjs';
-import { Socket } from 'socket.io';
+import type {
+  ServerToClientEvents,
+  ClientToServerEvents
+} from '@dungeon-lab/shared/types/socket/index.mjs';
 
+// Create a singleton instance of the DiceService
 const diceService = new DiceService();
 
-type RollCommandCallback = (response: { success: boolean; error?: string }) => void;
-
-export function handleRollCommand(socket: Socket) {
-  logger.info('Registering roll command handler for socket:', {
-    socketId: socket.id,
-    userId: socket.userId
-  });
-
-  socket.on('roll-command', async (message: IRollCommandMessage, callback: RollCommandCallback) => {
+/**
+ * Socket handler for roll commands
+ * @param socket The client socket connection
+ */
+function rollCommandHandler(socket: Socket<ClientToServerEvents, ServerToClientEvents>): void {
+  socket.on('roll-command', async (message, callback) => {
     logger.info('Received roll command:', {
       formula: message.formula,
       gameSessionId: message.gameSessionId,
@@ -51,8 +53,8 @@ export function handleRollCommand(socket: Socket) {
       logger.debug('Roll result:', rollResult);
 
       // Create the result message
-      const resultMessage: IRollResultMessage = {
-        type: 'roll-result',
+      const resultMessage = {
+        type: 'roll-result' as const,
         result: rollResult,
         gameSessionId: message.gameSessionId
       };
@@ -91,3 +93,8 @@ export function handleRollCommand(socket: Socket) {
     }
   });
 }
+
+// Register the socket handler
+socketHandlerRegistry.register(rollCommandHandler);
+
+export default rollCommandHandler;
