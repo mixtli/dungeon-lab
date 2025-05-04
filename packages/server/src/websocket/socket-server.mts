@@ -1,5 +1,6 @@
 import { Server, Socket } from 'socket.io';
 import type { Server as HttpServer } from 'http';
+import { instrument } from '@socket.io/admin-ui';
 import { sessionMiddleware } from '../app.mjs';
 import { GameSessionModel } from '../features/campaigns/models/game-session.model.mjs';
 import type {
@@ -10,6 +11,9 @@ import type {
 import { logger } from '../utils/logger.mjs';
 import { socketHandlerRegistry } from './handler-registry.mjs';
 import { CampaignService } from '../features/campaigns/index.mjs';
+
+
+
 
 // Define a type for the session with user information
 interface SessionWithUser {
@@ -24,11 +28,16 @@ export class SocketServer {
   constructor(httpServer: HttpServer) {
     this.io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
       cors: {
-        origin: process.env.CLIENT_URL || 'http://localhost:5173',
+        origin: [process.env.CLIENT_URL || 'http://localhost:5173', 'http://localhost:3001'],
         methods: ['GET', 'POST'],
         credentials: true
       }
     });
+    instrument(this.io, {
+      auth: false,
+      mode: 'development'
+    });
+
     this.io.on('error', (error) => {
       console.error('Socket.IO server error:', error);
     });
@@ -79,18 +88,21 @@ export class SocketServer {
         socket.leave(`session:${socket.gameSessionId}`);
       }
 
+      // socket.join(`user:${socket.userId}`);
+
+      const campaignService = new CampaignService();
+
+      if (!session.participantIds.includes(socket.userId)) {
+        session.participantIds.push(socket.userId);
+      }
+
       // If actorId is provided, join an actor-specific room
       if (actorId) {
         logger.info(`Joining actor room: actor:${actorId}`);
-        socket.join(`actor:${actorId}`);
-      }
-      // socket.join(`user:${socket.userId}`);
-
-      if (!session.participantIds.includes(socket.userId)) {
-        const campaignService = new CampaignService();
-        if (await campaignService.isUserCampaignMember(socket.userId, session.campaignId)) {
-          session.participantIds.push(socket.userId);
+        if (await campaignService.isActorCampaignMember(actorId, session.campaignId)) {
+          session.characterIds.push(actorId);
           await session.save();
+          socket.join(`actor:${actorId}`);
         } else {
           throw new Error('User not in session');
         }
@@ -139,7 +151,7 @@ export class SocketServer {
       logger.info(`Client connected: ${socket.id} (${socket.userId})`);
 
       // Join your own "Room" so others can message you directly with your userId
-      socket.join(socket.userId);
+      socket.join("user:" + socket.userId);
 
       // Apply all registered handlers
       socketHandlerRegistry.applyAll(socket);

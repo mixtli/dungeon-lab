@@ -61,9 +61,14 @@ export class CampaignsClient extends ApiClient {
     }
   }
 
+  /**
+   * Send an invite for a campaign
+   * @deprecated Use InvitesClient.createInvite instead
+   */
   async sendInvite(inviteData: Omit<IInvite, 'id'>): Promise<boolean> {
+    console.warn('CampaignsClient.sendInvite is deprecated. Use InvitesClient.createInvite instead.');
     const response = await this.api.post<BaseAPIResponse<boolean>>(
-      `/api/campaigns/${inviteData.campaignId}/invites`,
+      `/api/invites`,
       inviteData
     );
     if (!response.data.success) {
@@ -98,9 +103,15 @@ export class CampaignsClient extends ApiClient {
     return response.data.data;
   }
 
+  /**
+   * Generate an invite code for a campaign
+   * @deprecated Use InvitesClient.createInvite instead
+   */
   async generateInviteCode(campaignId: string): Promise<IInvite> {
+    console.warn('CampaignsClient.generateInviteCode is deprecated. Use InvitesClient.createInvite instead.');
     const response = await this.api.post<BaseAPIResponse<IInvite>>(
-      `/api/campaigns/${campaignId}/invites`
+      `/api/invites`,
+      { campaignId }
     );
     if (!response.data.success) {
       throw new Error(response.data.error || 'Failed to generate invite code');

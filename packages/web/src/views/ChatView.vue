@@ -45,6 +45,7 @@ function handleRollCommand(formula: string) {
 // Send a message
 function sendMessage() {
   if (!messageInput.value.trim()) return;
+  let recipientId = "session:" + gameSessionStore.currentSession?.id;
 
   // Check for roll command
   if (messageInput.value.startsWith('/roll ')) {
@@ -57,7 +58,9 @@ function sendMessage() {
   }
 
   // Determine recipient if direct message
-  const recipientId = selectedParticipant.value?.id;
+  if (selectedParticipant.value) {
+    recipientId = "actor:" + selectedParticipant.value.id;
+  }
 
   // Use the chat store to send the message
   chatStore.sendMessage(messageInput.value, recipientId);

@@ -16,8 +16,12 @@
 
     <div v-else class="grid gap-6">
       <div v-for="invite in invites" :key="invite.id" class="bg-white rounded-lg shadow p-6">
-        <h2 class="text-xl font-semibold mb-2">{{ invite.campaignId.name }}</h2>
-        <p class="text-sm text-gray-500 mb-4">Invited by {{ invite.createdBy.email }}</p>
+        <h2 class="text-xl font-semibold mb-2">
+          {{ getCampaignName(invite) }}
+        </h2>
+        <p class="text-sm text-gray-500 mb-4">
+          Invited by {{ getCreatorEmail(invite) }}
+        </p>
 
         <div class="flex gap-4">
           <button
@@ -124,6 +128,21 @@ const loadingCharacters = ref(false);
 const compatibleCharacters = ref<IActor[]>([]);
 const selectedInvite = ref<any>(null);
 
+// Helper functions to handle both populated and non-populated data structures
+function getCampaignName(invite: any): string {
+  if (typeof invite.campaignId === 'string') {
+    return 'Campaign';
+  }
+  return invite.campaignId?.name || 'Campaign';
+}
+
+function getCreatorEmail(invite: any): string {
+  if (typeof invite.createdBy === 'string') {
+    return 'User';
+  }
+  return invite.createdBy?.email || 'User';
+}
+
 async function fetchInvites() {
   loading.value = true;
   error.value = null;
@@ -145,7 +164,9 @@ async function loadCompatibleCharacters(gameSystemId: string) {
     await actorStore.fetchActors();
     compatibleCharacters.value = actorStore.actors.filter(
       (actor: IActor) =>
-        actor.gameSystemId === gameSystemId && actor.createdBy === authStore.user?.id
+        actor.gameSystemId === gameSystemId && 
+        actor.createdBy === authStore.user?.id &&
+        actor.type === 'character'
     );
   } catch (err: any) {
     error.value = err.response?.data?.message || err.message || 'Failed to load characters';
@@ -156,8 +177,16 @@ async function loadCompatibleCharacters(gameSystemId: string) {
 
 async function handleAccept(invite: any) {
   selectedInvite.value = invite;
-  await loadCompatibleCharacters(invite.campaignId.gameSystemId);
-  showCharacterSelect.value = true;
+  const gameSystemId = typeof invite.campaignId === 'string' 
+    ? null 
+    : invite.campaignId.gameSystemId;
+  
+  if (gameSystemId) {
+    await loadCompatibleCharacters(gameSystemId);
+    showCharacterSelect.value = true;
+  } else {
+    error.value = "Could not determine game system. Please try again.";
+  }
 }
 
 async function handleDecline(invite: any) {
@@ -184,8 +213,17 @@ async function selectCharacter(character: IActor) {
     invites.value = invites.value.filter(i => i.id !== selectedInvite.value.id);
     showCharacterSelect.value = false;
 
+    // Get campaign ID, handling both object and string formats
+    const campaignId = typeof selectedInvite.value.campaignId === 'string'
+      ? selectedInvite.value.campaignId
+      : selectedInvite.value.campaignId.id;
+
     // Navigate to campaign
-    router.push(`/campaigns/${selectedInvite.value.campaignId.id}`);
+    if (campaignId) {
+      router.push(`/campaigns/${campaignId}`);
+    } else {
+      error.value = "Could not determine campaign ID for navigation.";
+    }
   } catch (err: any) {
     error.value = err.response?.data?.message || err.message || 'Failed to accept invite';
   }
@@ -194,10 +232,19 @@ async function selectCharacter(character: IActor) {
 function createNewCharacter() {
   if (!selectedInvite.value) return;
 
+  const gameSystemId = typeof selectedInvite.value.campaignId === 'string'
+    ? null
+    : selectedInvite.value.campaignId.gameSystemId;
+
+  if (!gameSystemId) {
+    error.value = "Could not determine game system ID.";
+    return;
+  }
+
   router.push({
     path: '/actors/new',
     query: {
-      gameSystemId: selectedInvite.value.campaignId.gameSystemId,
+      gameSystemId,
       returnTo: '/invites',
     },
   });

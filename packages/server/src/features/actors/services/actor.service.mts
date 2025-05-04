@@ -13,6 +13,7 @@ import { deepMerge } from '@dungeon-lab/shared/utils/deepMerge.mjs';
 import { UserModel } from '../../../models/user.model.mjs';
 import { IActorPatchData } from '@dungeon-lab/shared/types/index.mjs';
 import mongoose from 'mongoose';
+import { createSearchParams } from '../../../utils/create.search.params.mjs';
 
 // Define a type for actor query values
 export type QueryValue = string | number | boolean | RegExp | Date | object;
@@ -493,17 +494,18 @@ export class ActorService {
       if (campaignId) {
         delete queryCopy.campaignId;
       }
+      const params = createSearchParams(queryCopy);
 
       // Convert query to case-insensitive regex for string values
       // Only convert simple string values, not nested paths
-      const mongoQuery = Object.entries(queryCopy).reduce((acc, [key, value]) => {
-        if (typeof value === 'string' && !key.includes('.')) {
-          acc[key] = new RegExp(value, 'i');
-        } else {
-          acc[key] = value;
-        }
-        return acc;
-      }, {} as Record<string, QueryValue>);
+      // const mongoQuery = Object.entries(queryCopy).reduce((acc, [key, value]) => {
+      //   if (typeof value === 'string' && !key.includes('.')) {
+      //     acc[key] = new RegExp(value, 'i');
+      //   } else {
+      //     acc[key] = value;
+      //   }
+      //   return acc;
+      // }, {} as Record<string, QueryValue>);
 
       if (campaignId) {
         // If campaignId is provided, we need to filter actors that are members of the campaign
@@ -517,17 +519,17 @@ export class ActorService {
         }
 
         // If the campaign has a members array containing actor IDs
-        if (campaign.members && Array.isArray(campaign.members)) {
+        if (campaign.characterIds && Array.isArray(campaign.characterIds)) {
           // Add condition to filter by actor IDs in campaign.members
-          mongoQuery._id = { $in: campaign.members };
+          params._id = { $in: campaign.characterIds };
         } else {
           // If the schema has actors directly in the campaign document
-          mongoQuery.campaignId = campaignId;
+          params.campaignId = campaignId;
         }
       }
 
       // Execute the query with all conditions
-      return await ActorModel.find(mongoQuery).populate('avatar').populate('token');
+      return await ActorModel.find(params).populate('avatar').populate('token');
     } catch (error) {
       logger.error('Error searching actors:', error);
       throw new Error('Failed to search actors');

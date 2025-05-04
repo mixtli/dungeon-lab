@@ -56,6 +56,7 @@ export const useChatStore = defineStore(
 
       // Listen for chat messages
       socket.on('chat', (senderId: string, message: string) => {
+        console.log('chat message received', senderId, message);
         try {
           const newMessage: ChatMessage = {
             id: generateId(),

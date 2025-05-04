@@ -27,7 +27,7 @@ export class GameSessionController {
         getGameSessionsQuerySchema.parse(req.query);
       } catch (validationError) {
         if (validationError instanceof ZodError) {
-          return res.status(400).json({
+          return res.status(422).json({
             success: false,
             data: [],
             error: JSON.parse(validationError.message)
@@ -35,11 +35,17 @@ export class GameSessionController {
         }
       }
 
+      const params: { campaignId?: string; status?: string } = {};
+
+      if (campaignId) {
+        params.campaignId = campaignId as string;
+      }
+
+      if (status) {
+        params.status = status as string;
+      }
       // Pass query parameters to the service
-      const sessions = await this.gameSessionService.getGameSessions(req.session.user.id, {
-        campaignId: campaignId as string,
-        status: status as string
-      });
+      const sessions = await this.gameSessionService.getGameSessions(req.session.user.id, params);
 
       return res.json({
         success: true,

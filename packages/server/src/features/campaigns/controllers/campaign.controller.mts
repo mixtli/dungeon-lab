@@ -18,6 +18,7 @@ import {
   campaignPatchSchema
 } from '@dungeon-lab/shared/schemas/campaign.schema.mjs';
 import { QueryValue } from '@dungeon-lab/shared/types/index.mjs';
+import mongoose from 'mongoose';
 
 export class CampaignController {
   private campaignService: CampaignService;
@@ -112,6 +113,13 @@ export class CampaignController {
           success: false,
           data: null,
           error: error.errors.map((e) => e.message).join(', ')
+        });
+      }
+      if (error instanceof mongoose.Error.ValidationError) {
+        return res.status(422).json({
+          success: false,
+          data: null,
+          error: error.message
         });
       }
       logger.error('Error creating campaign:', error);

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { io, Socket } from 'socket.io-client';
-import { ref, watch } from 'vue';
+import { onMounted, ref, watch } from 'vue';
 import { useAuthStore } from './auth.store.mts';
 // import { useEncounterStore } from './encounter.store.mts';
 import {
@@ -11,8 +11,9 @@ import {
 // Define a type for the socket store
 interface SocketStore {
   socket: Socket<ServerToClientEvents, ClientToServerEvents> | null;
+  connected: boolean;
   userId: string | null;
-  initSocket: () => void;
+  initSocket: () => Promise<void>;
   setUserId: (id: string) => void;
   disconnect: () => void;
 }
@@ -21,17 +22,25 @@ export const useSocketStore = defineStore(
   'socket',
   () => {
     const socket = ref<Socket<ServerToClientEvents, ClientToServerEvents> | null>(null);
+    const connected = ref(false);
     const userId = ref<string | null>(null);
     const authStore = useAuthStore();
+    
+    onMounted(async() => {
+      console.log('Socket store mounted, auth user:', authStore.user?.id);
+      if (authStore.user) {
+        userId.value = authStore.user.id;
+        await initSocket();
+      }
+    });
 
     // Watch for auth store changes
     watch(
       () => authStore.user,
       async (newUser) => {
+        console.log('Auth user changed:', newUser?.id);
         if (newUser) {
           userId.value = newUser.id;
-          // Wait a bit for the session to be established
-          await new Promise((resolve) => setTimeout(resolve, 100));
           // Initialize socket when user is authenticated
           await initSocket();
         } else {
@@ -43,12 +52,25 @@ export const useSocketStore = defineStore(
       { immediate: true }
     );
 
-    async function initSocket() {
-      if (socket.value) return;
+    async function initSocket(): Promise<void> {
+      console.log('initSocket called, current socket:', socket.value?.connected);
+      if (socket.value?.connected) {
+        console.log('Socket already connected');
+        connected.value = true;
+        return;
+      }
 
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-      console.log('initSocket', apiUrl);
+      console.log('Connecting to socket at', apiUrl);
+      
+      // Disconnect existing socket if it exists but isn't connected
+      if (socket.value && !socket.value.connected) {
+        socket.value.disconnect();
+        socket.value = null;
+      }
+      
+      // Create new socket connection
       socket.value = io(apiUrl, {
         withCredentials: true,
         path: '/socket.io',
@@ -59,7 +81,6 @@ export const useSocketStore = defineStore(
         reconnectionAttempts: 5,
         transports: ['websocket', 'polling']
       });
-      await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Add logging for all socket events
       socket.value.onAny((event: string, ...args: unknown[]) => {
@@ -74,44 +95,43 @@ export const useSocketStore = defineStore(
         return originalEmit.apply(this, [event, ...args]);
       };
 
-      socket.value.on('connect', () => {
-        console.log('[Socket] Connected');
+      return new Promise<void>((resolve) => {
+        // Set up one-time connection handler to resolve the promise
+        socket.value?.once('connect', () => {
+          console.log('[Socket] Connected successfully');
+          connected.value = true;
+          resolve();
+        });
+
+        // Set up regular handlers
+        socket.value?.on('connect', () => {
+          console.log('[Socket] Connected');
+          connected.value = true;
+        });
+
+        socket.value?.on('disconnect', () => {
+          console.log('[Socket] Disconnected');
+          connected.value = false;
+        });
+
+        socket.value?.on('error', (error: string) => {
+          console.error('[Socket Error]', error);
+          connected.value = false;
+        });
+
+        socket.value?.on('connect_error', (error: Error) => {
+          console.error('[Socket Connection Error]', error);
+          connected.value = false;
+        });
+
+        // Add a timeout to resolve the promise even if connection fails
+        setTimeout(() => {
+          if (!connected.value) {
+            console.warn('[Socket] Connection timeout - continuing without socket');
+            resolve();
+          }
+        }, 5000);
       });
-
-      socket.value.on('disconnect', () => {
-        console.log('[Socket] Disconnected');
-      });
-
-      socket.value.on('error', (error: string) => {
-        console.error('[Socket Error]', error);
-      });
-
-      socket.value.on('connect_error', (error: Error) => {
-        console.error('[Socket Connection Error]', error);
-      });
-
-      // Global encounter:start handler
-      // socket.value.on('encounter:start', (data: { campaignId: string; encounterId: string }) => {
-      //   console.log('[Socket] Received encounter:start event:', data);
-      //   // Navigate to the encounter page
-      //   router.push(`/campaigns/${data.campaignId}/encounters/${data.encounterId}`);
-      // });
-
-      // Global encounter:stop handler
-      // socket.value.on('encounter:stop', (data: { campaignId: string; encounterId: string }) => {
-      //   console.log('[Socket] Received encounter:stop event:', data);
-      //   // Update the encounter status in the store if we're on the encounter page
-      //   const currentRoute = router.currentRoute.value;
-      //   if (
-      //     currentRoute.name === 'encounter-detail' &&
-      //     currentRoute.params.id === data.encounterId &&
-      //     currentRoute.params.campaignId === data.campaignId
-      //   ) {
-      //     // Import and use the encounter store
-      //     const encounterStore = useEncounterStore();
-      //     encounterStore.updateEncounterStatus(data.encounterId, data.campaignId, 'ready');
-      //   }
-      // });
     }
 
     function setUserId(id: string) {
@@ -124,16 +144,18 @@ export const useSocketStore = defineStore(
         socket.value.disconnect();
         socket.value = null;
       }
+      connected.value = false;
       userId.value = null;
     }
 
     return {
       socket,
+      connected,
       userId,
       initSocket,
       setUserId,
       disconnect
     };
   },
-  { persist: { storage: localStorage } }
+  { persist: false } // Don't persist socket state as it can't be serialized
 ) as () => SocketStore;

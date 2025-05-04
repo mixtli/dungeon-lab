@@ -1,13 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { PlusIcon, TrashIcon } from '@heroicons/vue/24/outline';
-import { useCampaignStore } from '../../stores/campaign.store.mjs';
-import { type IActor, type IAsset } from '@dungeon-lab/shared/types/index.mjs';
-import { ActorsClient } from '@dungeon-lab/client/index.mjs';
+import { type IActor, type IAsset, type ICampaign } from '@dungeon-lab/shared/types/index.mjs';
+import { CampaignsClient } from '@dungeon-lab/client/index.mjs';
 
-const actorClient = new ActorsClient();
-
+const campaignsClient = new CampaignsClient();
 
 const props = defineProps({
   campaignId: {
@@ -23,51 +21,29 @@ const props = defineProps({
 
 const localCharacters = ref<IActor[]>(props.characters || []);
 const router = useRouter();
-const campaignStore = useCampaignStore();
 const isLoading = ref(!props.characters);
 const error = ref<string | null>(null);
-
-const campaign = computed(() => campaignStore.currentCampaign);
+const campaign = ref<ICampaign | null>(null);
 
 onMounted(async () => {
-  if (!props.characters && props.campaignId) {
+  if (props.campaignId) {
     try {
-      // Get member IDs from the campaign
-      if (!campaign.value?.members || !campaign.value?.id) {
-        throw new Error('No members found in campaign');
-      }
-
-      // Fetch each character individually and track non-existent members
-      const nonExistentMembers = new Set<string>();
-      const characterPromises = campaign.value.members.map(async memberId => {
-        try {
-          return await actorClient.getActor(memberId);
-        } catch (err) {
-          // Check if 404 error
-          if (err instanceof Error && err.message.includes('404')) {
-            nonExistentMembers.add(memberId);
-          } else {
-            console.warn(`Failed to fetch character ${memberId}:`, err);
-          }
-          return null;
-        }
-      });
-
-      const results = await Promise.all(characterPromises);
-      localCharacters.value = results.filter(
-        (char): char is IActor => char !== null && char?.type === 'character'
-      );
-
-      // If we found any non-existent members, clean them up from the campaign
-      if (nonExistentMembers.size > 0) {
-        const updatedMembers = campaign.value.members.filter(id => !nonExistentMembers.has(id));
-        await campaignStore.updateCampaign(String(campaign.value.id), {
-          members: updatedMembers
-        });
-        console.info(`Removed ${nonExistentMembers.size} non-existent members from campaign`);
+      // Fetch campaign directly from API, which includes populated characters
+      const campaignData = await campaignsClient.getCampaign(props.campaignId);
+      console.log('Campaign data:', campaignData);
+      campaign.value = campaignData;
+      
+      // Filter to only include actual characters
+      if (campaignData.characters && Array.isArray(campaignData.characters)) {
+        localCharacters.value = campaignData.characters.filter(
+          (char): char is IActor => char !== null && char?.type === 'character'
+        );
+        console.log('Filtered characters:', localCharacters.value);
+      } else {
+        console.warn('No characters array found in campaign data');
       }
     } catch (err) {
-      console.error('Error loading characters:', err);
+      console.error('Error loading campaign:', err);
       error.value = 'Failed to load characters. Please try again later.';
     } finally {
       isLoading.value = false;
@@ -79,10 +55,10 @@ async function handleRemove(characterId: string) {
   if (!campaign.value?.id) return;
 
   try {
-    // Update campaign with the character removed from members
-    const updatedMembers = campaign.value.members.filter(id => id !== characterId);
-    await campaignStore.updateCampaign(String(campaign.value.id), {
-      members: updatedMembers
+    // Update campaign with the character removed from characterIds
+    const updatedCharacterIds = campaign.value.characterIds.filter((id: string) => id !== characterId);
+    await campaignsClient.updateCampaign(campaign.value.id, {
+      characterIds: updatedCharacterIds
     });
 
     // Update local list

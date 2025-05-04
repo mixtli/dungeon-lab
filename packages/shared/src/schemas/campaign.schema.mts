@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import { baseSchema } from './base.schema.mjs';
+import { actorSchema } from './actor.schema.mjs';
+import { userSchema } from './user.schema.mjs';
 // Campaign Status enum
 export const campaignStatusSchema = z.enum([
   'planning',
@@ -15,7 +17,7 @@ export const campaignSchema = baseSchema.extend({
   userData: z.record(z.string(), z.any()).optional(),
   description: z.string().optional(),
   gameSystemId: z.string().min(1),
-  members: z.array(z.string()).default([]), // Actor IDs of the characters in the campaign.  NOT User IDs.
+  characterIds: z.array(z.string()).default([]), // Actor IDs of the characters in the campaign.  NOT User IDs.
   gameMasterId: z.string().optional(), // This is the User ID of the game master.
   status: campaignStatusSchema.default('active'),
   setting: z.string().optional(),
@@ -26,6 +28,11 @@ export const campaignCreateSchema = campaignSchema.omit({
   id: true,
   createdBy: true,
   updatedBy: true
+});
+
+export const campaignWithVirtualsSchema = campaignSchema.extend({
+  characters: z.array(actorSchema).default([]),
+  gameMaster: userSchema.optional(),
 });
 
 export const campaignPatchSchema = campaignSchema.deepPartial();

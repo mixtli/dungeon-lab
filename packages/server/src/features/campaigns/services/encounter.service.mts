@@ -171,8 +171,8 @@ export class EncounterService {
       // Check if user is GM, participant, has a character in the campaign, or is admin
       const isGM = campaign.gameMasterId?.toString() === userId;
       const isParticipant = encounter.participants.some((p) => p.toString() === userId);
-      const hasCharacter = campaign.members.some((memberId) =>
-        actorIds.some((actorId) => actorId.toString() === memberId.toString())
+      const hasCharacter = campaign.characterIds.some((characterId) =>
+        actorIds.some((actorId) => actorId.toString() === characterId.toString())
       );
 
       return isGM || isParticipant || hasCharacter || isAdmin;

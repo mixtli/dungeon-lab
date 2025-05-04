@@ -30,20 +30,27 @@ export class InviteService {
       query.email = user.email;
     }
 
-    const invites = await InviteModel.find(query);
+    // Populate campaignId and createdBy fields to get their full document data
+    const invites = await InviteModel.find(query)
+      .populate('campaignId')
+      .populate('createdBy', 'email name');
 
     return invites as IInvite[];
   }
 
   async getInvite(id: string): Promise<IInvite> {
-    const invite = await InviteModel.findById(id).lean();
+    const invite = await InviteModel.findById(id)
+      .populate('campaignId')
+      .populate('createdBy', 'email name')
+      .lean();
+    
     if (!invite) {
       throw new Error('Invite not found');
     }
     return invite as IInvite;
   }
 
-  async createInvite(data: IInvite, campaignId: string, userId: string): Promise<IInvite> {
+  async createInvite(data: Omit<IInvite, 'id' | 'createdAt' | 'updatedAt'>, campaignId: string, userId: string): Promise<IInvite> {
     // Check if campaign exists and user has permission
     const hasAccess = await this.campaignService.checkUserPermission(
       campaignId,
@@ -121,11 +128,11 @@ export class InviteService {
       const campaign = await this.campaignService.getCampaign(invite.campaignId.toString());
 
       // Check if the actor already exists in members
-      if (!campaign.members.includes(actorId)) {
+      if (!campaign.characterIds.includes(actorId)) {
         await this.campaignService.updateCampaign(
           invite.campaignId.toString(),
           {
-            members: [...campaign.members, actorId] // Add actor, not user
+            characterIds: [...campaign.characterIds, actorId] // Add actor, not user
           },
           userId
         );
@@ -135,6 +142,10 @@ export class InviteService {
     invite.status = status;
     invite.updatedBy = userId;
     await invite.save();
+
+    // Populate the invite before returning
+    await invite.populate('campaignId');
+    await invite.populate('createdBy', 'email name');
 
     return invite.toObject() as IInvite;
   }

@@ -148,18 +148,18 @@ async function importCampaigns(): Promise<void> {
           name: campaignData.name,
           description: campaignData.description || '',
           gameSystemId: 'dnd-5e-2024',
-          members: actorIds as string[],
+          characterIds: actorIds as string[],
           status: 'active',
           setting: campaignData.setting || '',
           startDate: campaignData.start_date || new Date().toISOString(),
           gameMasterId: userId
           // createdBy is handled by the server
-        };
+        } as const;
 
         console.log(`Creating new campaign: ${campaignData.name}`);
         console.log(createData);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const response = await campaignsClient.createCampaign(createData as any);
+        const response = await campaignsClient.createCampaign(createData);
         console.log(`Campaign '${campaignData.name}' created with ID ${response.id}`);
       }
     }

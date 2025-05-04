@@ -12,17 +12,17 @@ async function cleanCampaignMembers() {
     logger.info(`Found ${campaigns.length} campaigns`);
 
     for (const campaign of campaigns) {
-      if (!campaign.members || campaign.members.length === 0) continue;
+      if (!campaign.characterIds || campaign.characterIds.length === 0) continue;
 
-      const memberIds = campaign.members.map(
+      const characterIds = campaign.characterIds.map(
         (id: string | mongoose.Types.ObjectId) => new mongoose.Types.ObjectId(id)
       );
       const existingActors = (await ActorModel.find({
-        _id: { $in: memberIds }
+        _id: { $in: characterIds }
       })) as mongoose.Document[];
       const existingActorIds = new Set(existingActors.map((actor) => actor.get('_id').toString()));
 
-      const nonExistentMembers = campaign.members.filter(
+      const nonExistentMembers = campaign.characterIds.filter(
         (id: string | mongoose.Types.ObjectId) => !existingActorIds.has(id.toString())
       );
 
@@ -31,10 +31,13 @@ async function cleanCampaignMembers() {
           `Campaign ${campaign.name} (${campaign._id}) has ${nonExistentMembers.length} non-existent members`
         );
 
-        const updatedMembers = campaign.members.filter((id: string | mongoose.Types.ObjectId) =>
+        const updatedMembers = campaign.characterIds.filter((id: string | mongoose.Types.ObjectId) =>
           existingActorIds.has(id.toString())
         );
-        await CampaignModel.updateOne({ _id: campaign._id }, { $set: { members: updatedMembers } });
+        await CampaignModel.updateOne(
+          { _id: campaign._id },
+          { $set: { characterIds: updatedMembers } }
+        );
 
         logger.info(
           `Updated campaign ${campaign.name} (${campaign._id}): removed ${nonExistentMembers.length} non-existent members`

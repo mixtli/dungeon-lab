@@ -31,8 +31,8 @@ export class ApiClient {
         'Content-Type': 'application/json'
       } as Record<string, string>
     };
-    console.log('baseUrl', baseUrl);
-    console.log('apiKey', apiKey);
+    // console.log('baseUrl', baseUrl);
+    // console.log('apiKey', apiKey);
     if (apiKey) {
       config.headers['Authorization'] = `Bearer ${apiKey}`;
     }

@@ -8,9 +8,9 @@ import {
 } from '../schemas/user.schema.mjs';
 
 import {
-  campaignSchema,
   campaignCreateSchema,
-  campaignPatchSchema
+  campaignPatchSchema,
+  campaignWithVirtualsSchema
 } from '../schemas/campaign.schema.mjs';
 
 import {
@@ -55,7 +55,7 @@ export type IUserPreferences = z.infer<typeof userPreferencesSchema>;
 export type UserThemeType = z.infer<typeof UserTheme>;
 
 // Campaign Types
-export type ICampaign = z.infer<typeof campaignSchema>;
+export type ICampaign = z.infer<typeof campaignWithVirtualsSchema>;
 export type ICampaignCreateData = z.infer<typeof campaignCreateSchema>;
 export type ICampaignPatchData = z.infer<typeof campaignPatchSchema>;
 

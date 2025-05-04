@@ -5,6 +5,7 @@ import { readFile, readdir } from 'fs/promises';
 import * as fs from 'fs';
 import * as mimeTypes from 'mime-types';
 // import { runImportViaAPI } from './import-utils.mjs';
+import { nextUser } from './import-utils.mjs';
 import _config from '../../manifest.json' with { type: 'json' };
 import { configureApiClient, ActorsClient } from '@dungeon-lab/client/index.mjs';
 import { IActorCreateData } from '@dungeon-lab/shared/types/index.mjs';
@@ -76,6 +77,14 @@ async function importCharactersViaAPI(): Promise<void> {
         const characterFilePath = join(charactersDir, characterFile);
         const characterData = JSON.parse(await readFile(characterFilePath, 'utf-8'));
         
+        // Get user ID for creator field (alternate between users)
+        const userId = await nextUser();
+        if (!userId) {
+          console.warn(`Couldn't get user ID for character: ${characterData.name}`);
+          errors++;
+          continue;
+        }
+        
         // Create the actor data
         const actorData: IActorCreateData = {
           name: characterData.name,
@@ -83,7 +92,8 @@ async function importCharactersViaAPI(): Promise<void> {
           gameSystemId: 'dnd-5e-2024',
           description: characterData.description,
           userData: characterData.userData,
-          data: characterData.data
+          data: characterData.data,
+          createdBy: userId
         };
         
         // Process avatar image if available

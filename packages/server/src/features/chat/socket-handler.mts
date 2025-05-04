@@ -12,7 +12,7 @@ import {
  */
 function chatSocketHandler(socket: Socket<ClientToServerEvents, ServerToClientEvents>) {
   socket.on('chat', (recipient: string, message: string) => {
-    logger.info(`Chat message from ${socket.userId}: ${message}, ${recipient}`);
+    logger.info(`Chat message from: ${socket.userId}, to: ${recipient}, message: ${message}`);
 
     socket.to(recipient).emit('chat', socket.userId, message);
   });

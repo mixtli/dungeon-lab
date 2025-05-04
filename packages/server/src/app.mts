@@ -133,6 +133,7 @@ export async function createApp(): Promise<express.Application> {
   app.use('/api', inviteRoutes);
   app.use('/api/game-sessions', gameSessionRoutes);
   app.use('/api/encounters', encounterRoutes);
+  app.use('/api/invites', inviteRoutes);
   app.use('/api/maps', mapRoutes);
   app.use('/api/documents', documentRoutes);
   app.use('/api/assets', assetRoutes);

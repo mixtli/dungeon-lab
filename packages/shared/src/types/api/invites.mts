@@ -15,7 +15,9 @@ export const getMyInvitesResponseSchema = baseAPIResponseSchema.extend({
 export type GetMyInvitesResponse = z.infer<typeof getMyInvitesResponseSchema>;
 
 // Types for POST /campaign/:campaignId/invites (Create invite)
-export const createInviteRequestSchema = inviteSchema;
+export const createInviteRequestSchema = inviteSchema.omit({
+  id: true
+});
 export type CreateInviteRequest = z.infer<typeof createInviteRequestSchema>;
 
 export const createInviteResponseSchema = baseAPIResponseSchema.extend({

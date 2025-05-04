@@ -7,16 +7,16 @@ import { zId } from '@zodyac/zod-mongoose';
 import { z } from '../../../utils/zod.mjs';
 
 const campaignSchemaMongoose = campaignSchema.merge(baseMongooseZodSchema).extend({
-  members: z.array(zId('Actor')),
+  characterIds: z.array(zId('Actor')),
   gameMasterId: zId('User')
 });
 
 const mongooseSchema = createMongoSchema<ICampaign>(campaignSchemaMongoose);
 
-mongooseSchema.path('members').get(function (value: ObjectId[]) {
+mongooseSchema.path('characterIds').get(function (value: ObjectId[]) {
   return value.map((p: ObjectId) => p.toString());
 });
-mongooseSchema.path('members').set(function (value: string[]) {
+mongooseSchema.path('characterIds').set(function (value: string[]) {
   return value.map((p: string) => new mongoose.Types.ObjectId(p));
 });
 mongooseSchema.path('gameMasterId').set(function (value: string) {
@@ -31,6 +31,13 @@ mongooseSchema.virtual('gameMaster', {
   localField: 'gameMasterId',
   foreignField: '_id',
   justOne: true
+});
+
+mongooseSchema.virtual('characters', {
+  ref: 'Actor',
+  localField: 'characterIds',
+  foreignField: '_id',
+  justOne: false
 });
 
 export const CampaignModel = mongoose.model<ICampaign>('Campaign', mongooseSchema);

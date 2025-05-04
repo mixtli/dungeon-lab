@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { ref, computed } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import type { IGameSession } from '@dungeon-lab/shared/types/index.mjs';
 import type { IActor } from '@dungeon-lab/shared/types/index.mjs';
 import { useAuthStore } from './auth.store.mts';
@@ -22,6 +22,45 @@ export const useGameSessionStore = defineStore(
     const loading = ref(false);
     const error = ref<string | null>(null);
 
+    console.log('gameSessionStore initialized, session:', currentSession.value);
+    
+    // Initialize socket and join session when component mounts
+    onMounted(async () => {
+      console.log('gameSessionStore mounted, attempting to initialize socket');
+      
+      if (!socketStore.socket) {
+        console.log('Socket not initialized, calling initSocket');
+        await socketStore.initSocket();
+      }
+      
+      if (currentSession.value) {
+        console.log('Existing session found on mount, waiting for socket connection');
+        attemptJoinSession();
+      }
+    });
+
+    // Watch for socket connected state changes
+    watch(
+      () => socketStore.connected,
+      (isConnected) => {
+        console.log('socket connected state changed:', isConnected);
+        if (isConnected && currentSession.value) {
+          console.log('Socket now connected and session exists, joining session:', currentSession.value.id);
+          attemptJoinSession();
+        }
+      }
+    );
+    
+    // Helper function to attempt joining a session with the current session
+    function attemptJoinSession() {
+      if (currentSession.value && socketStore.connected) {
+        console.log('Attempting to join session:', currentSession.value.id);
+        joinSession(currentSession.value.id).catch(err => {
+          console.error('Failed to join session:', err);
+        });
+      }
+    }
+
     // Computed
     const isGameMaster = computed(() => {
       return currentSession.value?.gameMasterId === authStore.user?.id;
@@ -29,16 +68,46 @@ export const useGameSessionStore = defineStore(
 
     // Actions
     async function joinSession(sessionId: string, actorId?: string) {
+      console.log('joinSession called with sessionId:', sessionId);
       loading.value = true;
       error.value = null;
 
       try {
-        if (!socketStore.socket?.connected) {
-          console.log(socketStore.socket);
-          throw new Error('Socket not connected');
+        // Ensure socket is connected before proceeding
+        if (!socketStore.socket) {
+          console.log('Socket not initialized, initializing now');
+          await socketStore.initSocket();
+        }
+        
+        if (!socketStore.connected) {
+          console.log('Socket not connected, waiting for connection...');
+          // Wait up to 5 seconds for the socket to connect
+          await new Promise<void>((resolve, reject) => {
+            const timeout = setTimeout(() => {
+              reject(new Error('Socket connection timeout'));
+            }, 5000);
+            
+            const unwatch = watch(
+              () => socketStore.connected,
+              (isConnected) => {
+                if (isConnected) {
+                  clearTimeout(timeout);
+                  unwatch();
+                  resolve();
+                }
+              },
+              { immediate: true }
+            );
+          });
+        }
+
+        // Double-check that socket is connected before proceeding
+        if (!socketStore.connected || !socketStore.socket) {
+          throw new Error('Socket not connected after waiting');
         }
 
         return new Promise<IGameSession>((resolve, reject) => {
+          console.log('Emitting joinSession event');
           socketStore.socket?.emit(
             'joinSession',
             sessionId,

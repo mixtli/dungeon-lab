@@ -2,16 +2,17 @@
 import { onMounted, onUnmounted, ref, watch } from 'vue';
 import { SVG, Svg } from '@svgdotjs/svg.js';
 import '@svgdotjs/svg.panzoom.js';
-import { useMapStore } from '../../stores/map.store.mjs';
+import { MapsClient } from '@dungeon-lab/client/index.mjs';
 import { useEncounterStore } from '../../stores/encounter.store.mjs';
 import { storeToRefs } from 'pinia';
+import type { IMapResponse } from '@dungeon-lab/shared/types/api/maps.mjs';
 
 const { width, height } = defineProps<{
   width: number;
   height: number;
 }>();
 
-const mapStore = useMapStore();
+const mapClient = new MapsClient();
 const encounterStore = useEncounterStore();
 const { currentEncounter } = storeToRefs(encounterStore);
 
@@ -23,6 +24,9 @@ const containerWidth = ref(800);
 const aspectRatio = width / height;
 const svgWidth = round(containerWidth.value);
 const svgHeight = round(containerWidth.value / aspectRatio);
+const currentMap = ref<IMapResponse | null>(null);
+const loading = ref(false);
+const error = ref<string | null>(null);
 
 // Watch for changes in the encounter's map
 watch(
@@ -38,8 +42,11 @@ watch(
 // Load and render the map
 async function loadMap(mapId: string) {
   try {
-    await mapStore.fetchMap(mapId);
-    if (mapStore.currentMap && svgContainer.value) {
+    loading.value = true;
+    error.value = null;
+    currentMap.value = await mapClient.getMap(mapId);
+    
+    if (currentMap.value && svgContainer.value) {
       renderMap();
       // Update grid cells if available
       if (currentEncounter.value && 'map' in currentEncounter.value) {
@@ -49,8 +56,11 @@ async function loadMap(mapId: string) {
         }
       }
     }
-  } catch (error) {
-    console.error('Failed to load map:', error);
+  } catch (err: unknown) {
+    console.error('Failed to load map:', err);
+    error.value = err instanceof Error ? err.message : 'Failed to load map';
+  } finally {
+    loading.value = false;
   }
 }
 
@@ -61,10 +71,10 @@ function round(num: number): number {
 
 // Render the map with grid
 function renderMap() {
-  if (!mapStore.currentMap || !svgContainer.value) return;
+  if (!currentMap.value || !svgContainer.value) return;
 
-  const { gridColumns, gridRows, image } = mapStore.currentMap;
-  console.log('Map data:', mapStore.currentMap); // Debug log
+  const { gridColumns, gridRows, image } = currentMap.value;
+  console.log('Map data:', currentMap.value); // Debug log
 
   // Clear previous SVG if it exists
   if (draw.value) {
@@ -152,7 +162,7 @@ function renderMap() {
 
 // Handle window resize
 function handleResize() {
-  if (mapStore.currentMap) {
+  if (currentMap.value) {
     renderMap();
   }
 }

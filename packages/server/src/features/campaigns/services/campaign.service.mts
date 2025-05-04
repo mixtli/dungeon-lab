@@ -49,10 +49,10 @@ export class CampaignService {
         // AND apply any additional search filters
         campaigns = await CampaignModel.find({
           $and: [
-            { $or: [{ gameMasterId: userObjectId }, { members: { $in: actorIds } }] },
+            { $or: [{ gameMasterId: userObjectId }, { characterIds: { $in: actorIds } }] },
             mongoQuery // Add the search query as an additional filter
           ]
-        }).exec();
+        }).populate('gameMaster', 'username displayName').populate('characters');
       }
 
       return campaigns;
@@ -66,7 +66,7 @@ export class CampaignService {
     try {
       //const campaign = await CampaignModel.findById(id).populate('gameMaster').exec();
       const campaign = await CampaignModel.findById(id)
-        .populate('gameMaster', 'username displayName')
+        .populate('gameMaster', 'username displayName').populate('characters')
         .exec();
       if (!campaign) {
         throw new Error('Campaign not found');
@@ -83,7 +83,7 @@ export class CampaignService {
     if (!campaign) {
       throw new Error('Campaign not found');
     }
-    const actors = await ActorModel.find({ _id: { $in: campaign.members } });
+    const actors = await ActorModel.find({ _id: { $in: campaign.characterIds } });
     const usersPromises = actors.map(async (actor) => await UserModel.findById(actor.createdBy));
     const users = await Promise.all(usersPromises);
     return users.filter((user) => user !== null) as IUser[];
@@ -94,7 +94,7 @@ export class CampaignService {
   //   return users.some((user) => user.id === userId);
   // }
 
-  async createCampaign(data: Omit<ICampaign, 'id'>, userId: string): Promise<ICampaign> {
+  async createCampaign(data: Omit<ICampaign,  'id' | 'characters' | 'characterIds' | 'createdAt' | 'updatedAt'>, userId: string): Promise<ICampaign> {
     try {
       const userObjectId = new Types.ObjectId(userId);
 
@@ -125,7 +125,7 @@ export class CampaignService {
       return campaign;
     } catch (error) {
       logger.error('Error creating campaign:', error);
-      throw new Error('Failed to create campaign');
+      throw error
     }
   }
 
@@ -182,8 +182,8 @@ export class CampaignService {
       const actorIds = userActors.map((actor) => actor._id.toString());
 
       const isGM = campaign.gameMasterId?.toString() === userId;
-      const hasCharacter = campaign.members.some((memberId) =>
-        actorIds.includes(memberId.toString())
+      const hasCharacter = campaign.characterIds.some((characterId) =>
+        actorIds.includes(characterId.toString())
       );
 
       return isGM || hasCharacter || isAdmin;
@@ -193,26 +193,38 @@ export class CampaignService {
     }
   }
 
-  async isUserCampaignMember(campaignId: string, userId: string): Promise<boolean> {
+  async isUserCampaignMember(userId: string, campaignId: string): Promise<boolean> {
+    const campaign = await CampaignModel.findById(campaignId).exec();
+    if (!campaign) {
+      throw new Error('Campaign not found');
+    }
+    return campaign.characterIds.some((characterId) => characterId.toString() === userId);
+  }
+
+  async isActorCampaignMember(actorId: string, campaignId: string): Promise<boolean> {
     try {
       const campaign = await CampaignModel.findById(campaignId).exec();
       if (!campaign) {
         throw new Error('Campaign not found');
       }
 
-      // Check if user is the Game Master
-      const isGM = campaign.gameMasterId?.toString() === userId;
-      if (isGM) {
-        return true;
-      }
+      // // Check if user is the Game Master
+      // const isGM = campaign.gameMasterId?.toString() === actorId;
+      // if (isGM) {
+      //   return true;
+      // }
 
       // Get all actors belonging to the user
-      const userObjectId = new Types.ObjectId(userId);
-      const userActors = await ActorModel.find({ createdBy: userObjectId });
-      const actorIds = userActors.map((actor) => actor._id.toString());
+      const actorObjectId = new Types.ObjectId(actorId);
+      const actor = await ActorModel.findById(actorObjectId);
+      if (!actor) {
+        throw new Error('Actor not found');
+      }
 
       // Check if any of the user's actors are members of the campaign
-      const isMember = campaign.members.some((memberId) => actorIds.includes(memberId.toString()));
+      const isMember = campaign.characterIds.some((characterId) =>
+        actor.id === characterId.toString()
+      );
 
       return isMember;
     } catch (error) {
@@ -263,8 +275,8 @@ export class CampaignService {
       };
 
       const mergedData = deepMerge(obj, updateData) as ICampaign;
-      // unique members
-      mergedData.members = [...new Set(mergedData.members)];
+      // unique characterIds
+      mergedData.characterIds = [...new Set(mergedData.characterIds)];
       campaign.set(mergedData);
       await campaign.save();
       return campaign;
