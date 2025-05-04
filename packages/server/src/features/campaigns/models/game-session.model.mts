@@ -5,6 +5,7 @@ import { baseMongooseZodSchema } from '../../../models/base.model.schema.mjs';
 import { createMongoSchema } from '../../../models/zod-to-mongo.mjs';
 import { zId } from '@zodyac/zod-mongoose';
 import { z } from 'zod';
+import { ObjectId } from 'mongodb';
 /**
  * GameSession document interface extending the base GameSession interface
  */
@@ -13,13 +14,22 @@ import { z } from 'zod';
 const gameSessionSchemaMongoose = gameSessionSchema.merge(baseMongooseZodSchema).extend({
   campaignId: zId('Campaign'),
   gameMasterId: zId('User'),
-  participantIds: z.array(zId('User'))
+  participantIds: z.array(zId('User')),
+  characterIds: z.array(zId('Actor')).default([])
 });
 
 /**
  * Create Mongoose schema with base configuration
  */
 const mongooseSchema = createMongoSchema<IGameSession>(gameSessionSchemaMongoose);
+
+mongooseSchema.path('gameMasterId').get(function (value: ObjectId | undefined) {
+  return value?.toString();
+});
+
+mongooseSchema.path('characterIds').get(function (value: ObjectId[] | undefined) {
+  return value?.map((id) => id.toString());
+});
 
 mongooseSchema.virtual('campaign', {
   ref: 'Campaign',
@@ -42,6 +52,13 @@ mongooseSchema.virtual('participants', {
   justOne: false
 });
 
+mongooseSchema.virtual('characters', {
+  ref: 'Actor',
+  localField: 'characterIds',
+  foreignField: '_id',
+  justOne: false
+});
+
 // Add indexes for common queries
 mongooseSchema.index({ campaign: 1, isActive: 1 });
 
@@ -49,3 +66,4 @@ mongooseSchema.index({ campaign: 1, isActive: 1 });
  * GameSession model
  */
 export const GameSessionModel = mongoose.model<IGameSession>('GameSession', mongooseSchema);
+

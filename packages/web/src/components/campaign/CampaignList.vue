@@ -1,34 +1,42 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
-import { useCampaignStore } from '../../stores/campaign.store.mjs';
+import { ref, onMounted,  watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { PencilIcon, TrashIcon, EyeIcon } from '@heroicons/vue/24/outline';
 import { pluginRegistry } from '../../services/plugin-registry.service.mjs';
 import type { ICampaign } from '@dungeon-lab/shared/types/index.mjs';
+import { CampaignsClient } from '@dungeon-lab/client/index.mjs';
 
-// Stores
-const campaignStore = useCampaignStore();
+// Define emits
+const emit = defineEmits<{
+  (e: 'update:campaigns', count: number): void
+}>();
+
+// Clients and stores
+const campaignClient = new CampaignsClient();
 const router = useRouter();
 
 // State
 const loading = ref(false);
+const campaigns = ref<ICampaign[]>([]);
+const error = ref<string | null>(null);
+
+// Watch for changes in the campaigns array and emit the count
+watch(campaigns, (newCampaigns) => {
+  emit('update:campaigns', newCampaigns.length);
+}, { immediate: true });
 
 // Load campaigns on mount
 onMounted(async () => {
   loading.value = true;
   try {
-    await campaignStore.fetchCampaigns();
-  } catch (error) {
-    if (error instanceof Error) {
-      console.error('Error loading campaigns:', error);
-    }
+    campaigns.value = await campaignClient.getCampaigns();
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Failed to fetch campaigns';
+    console.error('Error loading campaigns:', err);
   } finally {
     loading.value = false;
   }
 });
-
-// Computed
-const myCampaigns = computed(() => campaignStore.myCampaigns as ICampaign[]);
 
 // Format date
 function formatDate(date: Date | string) {
@@ -59,11 +67,12 @@ async function confirmDeleteCampaign(campaign: ICampaign) {
 
   loading.value = true;
   try {
-    await campaignStore.deleteCampaign(campaign.id);
-  } catch (error) {
-    if (error instanceof Error) {
-      console.error('Error deleting campaign:', error);
-    }
+    await campaignClient.deleteCampaign(campaign.id);
+    // Remove from local list after successful deletion
+    campaigns.value = campaigns.value.filter(c => c.id !== campaign.id);
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Failed to delete campaign';
+    console.error('Error deleting campaign:', err);
   } finally {
     loading.value = false;
   }
@@ -72,11 +81,19 @@ async function confirmDeleteCampaign(campaign: ICampaign) {
 
 <template>
   <div class="campaign-list">
+    <div v-if="error" class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+      {{ error }}
+    </div>
+    
     <div
-      v-if="myCampaigns.length === 0 && !loading"
+      v-if="campaigns.length === 0 && !loading"
       class="mt-4 p-8 bg-white rounded-lg shadow text-center"
     >
       <div class="text-gray-500 mb-4">You don't have any campaigns yet</div>
+    </div>
+
+    <div v-else-if="loading" class="flex justify-center items-center p-8">
+      <div class="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
     </div>
 
     <div v-else class="bg-white shadow rounded-lg overflow-hidden">
@@ -111,7 +128,7 @@ async function confirmDeleteCampaign(campaign: ICampaign) {
           </tr>
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
-          <tr v-for="campaign in myCampaigns" :key="campaign.id || ''" class="hover:bg-gray-50">
+          <tr v-for="campaign in campaigns" :key="campaign.id || ''" class="hover:bg-gray-50">
             <td class="px-6 py-4">
               <div
                 class="cursor-pointer hover:text-blue-600 transition-colors"

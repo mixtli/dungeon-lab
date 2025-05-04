@@ -17,7 +17,7 @@
         "typescript",
         "typescriptreact"
     ],
-    "editor.formatOnSave": true,
+    "editor.formatOnSave": false,
     "editor.formatOnPaste": true,
     // IMPORTANT: Setting this to true causes hundreds of false TypeScript errors
     // Keep this false to prevent spurious errors with ESM imports (.mjs extensions)

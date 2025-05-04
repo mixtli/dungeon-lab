@@ -107,12 +107,12 @@ function handleCreate() {
           :key="character.id || ''"
           class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-200"
         >
-          <div class="aspect-[4/3] bg-gray-200 relative">
+          <div class="aspect-square bg-gray-200 relative">
             <img
               v-if="getAvatarUrl(character)"
               :src="getAvatarUrl(character) || ''"
               :alt="character.name || 'Character'"
-              class="w-full h-full object-cover"
+              class="w-full h-full object-contain"
             />
             <div v-else class="w-full h-full flex items-center justify-center text-gray-400">
               No Image

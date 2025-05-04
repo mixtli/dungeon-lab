@@ -1,4 +1,4 @@
-import { experimental_generateImage as generateImage } from 'ai';
+import { experimental_generateImage as generateImage, generateText } from 'ai';
 import { openai } from '@ai-sdk/openai';
 import { logger } from './logger.mjs';
 
@@ -15,10 +15,24 @@ export async function generateAIImage(
   }
 ): Promise<File> {
   try {
-    logger.info(`Generating image with prompt: ${prompt} with data ${JSON.stringify(data)}`);
+    // get summary of data
+    const summary = await generateText({
+      model: openai('gpt-4o-mini'),
+      messages: [
+        {
+          role: 'user',
+          content: `Create a physical description of the following character: ${JSON.stringify(
+            data
+          )}`
+        }
+      ]
+    });
+
+    logger.info(`Generating image with prompt: ${prompt} with ${summary.text}`);
     const { image } = await generateImage({
-      model: openai.image('dall-e-3'),
-      prompt: `${prompt} Details: ${JSON.stringify(data)}`,
+      // model: openai.image('dall-e-3'),
+      model: openai.image('gpt-image-1'),
+      prompt: `${prompt} Details: ${summary.text}`,
       size
     });
 

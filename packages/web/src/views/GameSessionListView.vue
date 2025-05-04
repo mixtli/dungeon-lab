@@ -6,7 +6,7 @@ import { useGameSessionStore } from '../stores/game-session.store.mjs';
 import router from '@/router/index.mjs';
 import { GameSessionsClient } from '@dungeon-lab/client/index.mjs';
 import type { IGameSession } from '@dungeon-lab/shared/types/index.mjs';
-// Define the game session interface to match the API response
+import CharacterSelector from '../components/campaign/CharacterSelector.vue';
 
 const gameSessionClient = new GameSessionsClient();
 
@@ -14,6 +14,11 @@ const loading = ref(false);
 const error = ref<string | null>(null);
 const allSessions = ref<IGameSession[]>([]);
 const gameSessionStore = useGameSessionStore();
+
+// Add state for character selector
+const showCharacterSelector = ref(false);
+const selectedSessionId = ref('');
+const selectedCampaignId = ref('');
 
 // Fetch sessions on mount
 onMounted(async () => {
@@ -50,9 +55,17 @@ const futureSessions = computed(() =>
     })
 );
 
-function joinSession(sessionId: string) {
-  useGameSessionStore().joinSession(sessionId);
-  router.push({ name: 'chat'})
+function joinSession(sessionId: string, campaignId: string) {
+  // Store session and campaign ID
+  selectedSessionId.value = sessionId;
+  selectedCampaignId.value = campaignId;
+  // Show character selector
+  showCharacterSelector.value = true;
+}
+
+function onCharacterSelected() {
+  showCharacterSelector.value = false;
+  router.push({ name: 'chat' });
 }
 
 function formatTime(isoString: string) {
@@ -101,7 +114,7 @@ function formatTime(isoString: string) {
               <!-- Conditional Join/Leave Button -->
               <button
                 v-if="session.id !== gameSessionStore.currentSession?.id"
-                @click="joinSession(session.id)"
+                @click="joinSession(session.id, session.campaignId)"
                 class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
               >
                 Join Session
@@ -159,5 +172,15 @@ function formatTime(isoString: string) {
         <p class="text-gray-500">Go to a campaign page to schedule or start a new session.</p>
       </div>
     </div>
+
+    <!-- Character Selector Modal -->
+    <CharacterSelector
+      v-if="showCharacterSelector"
+      :show="showCharacterSelector"
+      :campaign-id="selectedCampaignId"
+      :session-id="selectedSessionId"
+      @close="showCharacterSelector = false"
+      @character-selected="onCharacterSelected"
+    />
   </div>
 </template>

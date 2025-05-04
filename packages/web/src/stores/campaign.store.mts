@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 import type { ICampaign, IInvite } from '@dungeon-lab/shared/types/index.mjs';
 import { CampaignsClient } from '@dungeon-lab/client/index.mjs';
 import { ICampaignCreateData, ICampaignPatchData } from '@dungeon-lab/shared/types/index.mjs';
@@ -8,30 +8,13 @@ const campaignClient = new CampaignsClient();
 
 export const useCampaignStore = defineStore('campaign', () => {
   // State
-  const campaigns = ref<ICampaign[]>([]);
   const currentCampaign = ref<ICampaign | null>(null);
   const loading = ref(false);
   const error = ref<string | null>(null);
 
-  // Getters
-  const myCampaigns = computed(() => campaigns.value);
-  const getCampaignById = (id: string) => campaigns.value.find((c: ICampaign) => c.id === id);
-
   // Actions
-  async function fetchCampaigns() {
-    loading.value = true;
-    error.value = null;
-
-    try {
-      campaigns.value = await campaignClient.getCampaigns();
-      return campaigns.value;
-    } catch (err: unknown) {
-      error.value = err instanceof Error ? err.message : 'Failed to fetch campaigns';
-      console.error('Error fetching campaigns:', err);
-      return [];
-    } finally {
-      loading.value = false;
-    }
+  function setActiveCampaign(campaign: ICampaign | null) {
+    currentCampaign.value = campaign;
   }
 
   async function fetchCampaign(id: string) {
@@ -41,13 +24,6 @@ export const useCampaignStore = defineStore('campaign', () => {
     try {
       const campaign = await campaignClient.getCampaign(id);
       currentCampaign.value = campaign;
-
-      // Also update in the campaigns list if it exists
-      const index = campaigns.value.findIndex((c: ICampaign) => c.id === id);
-      if (index !== -1) {
-        campaigns.value[index] = campaign;
-      }
-
       return currentCampaign.value;
     } catch (err: unknown) {
       error.value = err instanceof Error ? err.message : `Failed to fetch campaign ${id}`;
@@ -64,7 +40,6 @@ export const useCampaignStore = defineStore('campaign', () => {
 
     try {
       const newCampaign = await campaignClient.createCampaign(campaignData);
-      campaigns.value.push(newCampaign);
       currentCampaign.value = newCampaign;
       return newCampaign;
     } catch (err: unknown) {
@@ -82,12 +57,6 @@ export const useCampaignStore = defineStore('campaign', () => {
 
     try {
       const updatedCampaign = await campaignClient.updateCampaign(id, campaignData);
-
-      // Update in campaigns list
-      const index = campaigns.value.findIndex((c: ICampaign) => c.id === id);
-      if (index !== -1) {
-        campaigns.value[index] = updatedCampaign;
-      }
 
       // Update current campaign if it's the one being edited
       if (currentCampaign.value?.id === id) {
@@ -110,9 +79,6 @@ export const useCampaignStore = defineStore('campaign', () => {
 
     try {
       await campaignClient.deleteCampaign(id);
-
-      // Remove from campaigns list
-      campaigns.value = campaigns.value.filter((c: ICampaign) => c.id !== id);
 
       // Clear current campaign if it's the one being deleted
       if (currentCampaign.value?.id === id) {
@@ -146,17 +112,12 @@ export const useCampaignStore = defineStore('campaign', () => {
 
   return {
     // State
-    campaigns,
     currentCampaign,
     loading,
     error,
 
-    // Getters
-    myCampaigns,
-    getCampaignById,
-
     // Actions
-    fetchCampaigns,
+    setActiveCampaign,
     fetchCampaign,
     createCampaign,
     updateCampaign,

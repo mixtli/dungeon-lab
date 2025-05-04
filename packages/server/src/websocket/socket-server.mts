@@ -1,7 +1,7 @@
 import { Server, Socket } from 'socket.io';
 import type { Server as HttpServer } from 'http';
 import { sessionMiddleware } from '../app.mjs';
-import { CampaignService, GameSessionModel } from '../features/campaigns/index.mjs';
+import { GameSessionModel } from '../features/campaigns/models/game-session.model.mjs';
 import type {
   ServerToClientEvents,
   ClientToServerEvents,
@@ -9,6 +9,7 @@ import type {
 } from '@dungeon-lab/shared/types/socket/index.mjs';
 import { logger } from '../utils/logger.mjs';
 import { socketHandlerRegistry } from './handler-registry.mjs';
+import { CampaignService } from '../features/campaigns/index.mjs';
 
 // Define a type for the session with user information
 interface SessionWithUser {
@@ -60,36 +61,66 @@ export class SocketServer {
   async handleJoinSession(
     socket: Socket<ClientToServerEvents, ServerToClientEvents>,
     sessionId: string,
-    callback: (response: JoinCallback) => void
+    actorId?: string,
+    callback?: (response: JoinCallback) => void
   ) {
     console.log('joinSession', sessionId);
     try {
       const session = await GameSessionModel.findById(sessionId)
         .populate('campaign')
-        .populate('gameMaster');
+        .populate('gameMaster')
+        .populate('characters');
       if (!session) {
         throw new Error('Session not found');
       }
-      if (session.participantIds.includes(socket.userId)) {
-        socket.join(sessionId);
-      } else {
+
+      // Leave any existing game session room
+      if (socket.gameSessionId) {
+        socket.leave(`session:${socket.gameSessionId}`);
+      }
+
+      // If actorId is provided, join an actor-specific room
+      if (actorId) {
+        logger.info(`Joining actor room: actor:${actorId}`);
+        socket.join(`actor:${actorId}`);
+      }
+      // socket.join(`user:${socket.userId}`);
+
+      if (!session.participantIds.includes(socket.userId)) {
         const campaignService = new CampaignService();
         if (await campaignService.isUserCampaignMember(socket.userId, session.campaignId)) {
           session.participantIds.push(socket.userId);
           await session.save();
-          socket.join(sessionId);
         } else {
           throw new Error('User not in session');
         }
       }
+      // Join the new game session room
+      socket.join(`session:${sessionId}`);
       socket.gameSessionId = sessionId;
-      console.log('calling callback');
-      callback({ success: true, data: session, error: '' });
-      console.log('callback called');
+
+      // Notify other users in the session
+      socket.to(`session:${sessionId}`).emit('userJoinedSession', {
+        userId: socket.userId,
+        sessionId,
+        actorId
+      });
+
+      // Send campaign data to the user via the callback
+      if (callback) {
+        callback({
+          success: true,
+          data: session.toObject()
+        });
+      }
     } catch (error) {
-      logger.error('Error joining session', error);
-      socket.emit('error', 'Error joining session');
-      callback({ success: false, error: 'Error joining session' });
+      logger.error('Error joining session:', error);
+      if (callback) {
+        callback({
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
     }
   }
 
@@ -120,8 +151,13 @@ export class SocketServer {
         console.error('Socket error:', error);
         // TODO: Implement retry logic or user notification
       });
-      socket.on('joinSession', (sessionId: string, callback: (response: JoinCallback) => void) =>
-        this.handleJoinSession(socket, sessionId, callback)
+      socket.on(
+        'joinSession',
+        (
+          sessionId: string,
+          actorId: string | undefined,
+          callback: (response: JoinCallback) => void
+        ) => this.handleJoinSession(socket, sessionId, actorId, callback)
       );
       socket.on('leaveSession', (sessionId: string) => this.handleLeaveSession(socket, sessionId));
 

@@ -1,5 +1,9 @@
 import { Types } from 'mongoose';
-import { IGameSession } from '@dungeon-lab/shared/types/index.mjs';
+import {
+  ICreateGameSession,
+  IGameSession,
+  IGameSessionPatchData
+} from '@dungeon-lab/shared/types/index.mjs';
 import { GameSessionModel } from '../models/game-session.model.mjs';
 import { CampaignModel } from '../models/campaign.model.mjs';
 import { logger } from '../../../utils/logger.mjs';
@@ -71,7 +75,7 @@ export class GameSessionService {
     }
   }
 
-  async createGameSession(data: IGameSession, userId: string): Promise<IGameSession> {
+  async createGameSession(data: ICreateGameSession, userId: string): Promise<IGameSession> {
     try {
       const userObjectId = new Types.ObjectId(userId);
 
@@ -104,7 +108,7 @@ export class GameSessionService {
 
   async updateGameSession(
     id: string,
-    data: Partial<IGameSession>,
+    data: IGameSessionPatchData,
     userId: string
   ): Promise<IGameSession> {
     try {

@@ -6,7 +6,9 @@ export const searchActorsQuerySchema = z.object({
   name: z.string().optional(),
   gameSystemId: z.string().optional(),
   'data.race': z.string().optional(),
-  'data.class': z.string().optional()
+  'data.class': z.string().optional(),
+  campaignId: z.string().optional(),
+  userCharactersOnly: z.string().optional() // 'true' to get only current user's characters
 });
 
 export type SearchActorsQuery = z.infer<typeof searchActorsQuerySchema>;

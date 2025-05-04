@@ -59,6 +59,7 @@ async function handleSubmit() {
       gameMasterId: authStore.user.id,
       status: scheduleType.value === 'now' ? 'active' : 'paused',
       participantIds: [],
+      characterIds: [],
       settings: {
         scheduledStart:
           scheduleType.value === 'later'

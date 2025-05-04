@@ -12,7 +12,11 @@ export interface GameSessionResponse {
   data: IGameSession;
 }
 
-export const createGameSessionSchema = gameSessionSchema.omit({ id: true, participantIds: true });
+export const createGameSessionSchema = gameSessionSchema.omit({
+  id: true,
+  participantIds: true,
+  characterIds: true
+});
 
 export type CreateGameSessionRequest = z.infer<typeof createGameSessionSchema>;
 

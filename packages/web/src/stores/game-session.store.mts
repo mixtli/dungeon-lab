@@ -2,9 +2,10 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import type { IGameSession } from '@dungeon-lab/shared/types/index.mjs';
 import type { IActor } from '@dungeon-lab/shared/types/index.mjs';
-import type { ICampaign } from '@dungeon-lab/shared/types/index.mjs';
 import { useAuthStore } from './auth.store.mts';
 import { useSocketStore } from './socket.store.mjs';
+import { useCampaignStore } from './campaign.store.mts';
+import { CampaignsClient } from '@dungeon-lab/client/index.mjs';
 import type { JoinCallback } from '@dungeon-lab/shared/types/socket/index.mjs';
 
 export const useGameSessionStore = defineStore(
@@ -12,10 +13,11 @@ export const useGameSessionStore = defineStore(
   () => {
     const authStore = useAuthStore();
     const socketStore = useSocketStore();
+    const campaignStore = useCampaignStore();
+    const campaignClient = new CampaignsClient();
 
     // State
     const currentSession = ref<IGameSession | null>(null);
-    const currentCampaign = ref<ICampaign | null>(null);
     const currentCharacter = ref<IActor | null>(null);
     const loading = ref(false);
     const error = ref<string | null>(null);
@@ -26,7 +28,7 @@ export const useGameSessionStore = defineStore(
     });
 
     // Actions
-    async function joinSession(sessionId: string) {
+    async function joinSession(sessionId: string, actorId?: string) {
       loading.value = true;
       error.value = null;
 
@@ -37,23 +39,48 @@ export const useGameSessionStore = defineStore(
         }
 
         return new Promise<IGameSession>((resolve, reject) => {
-          socketStore.socket?.emit('joinSession', sessionId, (response: JoinCallback) => {
-            console.log('joinSession response', response);
-            if (response.success && response.data) {
-              currentSession.value = response.data;
-              loading.value = false;
+          socketStore.socket?.emit(
+            'joinSession',
+            sessionId,
+            actorId,
+            async (response: JoinCallback) => {
+              console.log('joinSession response', response);
+              if (response.success && response.data) {
+                currentSession.value = response.data;
 
-              // Register socket listeners for this session
-              // registerSessionListeners(sessionId);
+                // If joining with an actor, set it as the current character
+                if (actorId) {
+                  // Find the actor in the session's characters
+                  const actor = response.data.characters?.find((c) => c.id === actorId);
+                  if (actor) {
+                    currentCharacter.value = actor;
+                  }
+                }
 
-              resolve(response.data);
-            } else {
-              const errorMsg = response.error || 'Failed to join game session';
-              error.value = errorMsg;
-              loading.value = false;
-              reject(new Error(errorMsg));
+                // Fetch and set the active campaign
+                if (response.data.campaignId) {
+                  try {
+                    const campaign = await campaignClient.getCampaign(response.data.campaignId);
+                    campaignStore.setActiveCampaign(campaign);
+                  } catch (err) {
+                    console.error('Error fetching campaign for session:', err);
+                  }
+                }
+
+                loading.value = false;
+
+                // Register socket listeners for this session
+                // registerSessionListeners(sessionId);
+
+                resolve(response.data);
+              } else {
+                const errorMsg = response.error || 'Failed to join game session';
+                error.value = errorMsg;
+                loading.value = false;
+                reject(new Error(errorMsg));
+              }
             }
-          });
+          );
 
           // Set a timeout in case the server doesn't respond
           setTimeout(() => {
@@ -127,14 +154,13 @@ export const useGameSessionStore = defineStore(
 
     function clearSession() {
       currentSession.value = null;
-      currentCampaign.value = null;
+      campaignStore.setActiveCampaign(null);
       currentCharacter.value = null;
       error.value = null;
     }
 
     return {
       currentSession,
-      currentCampaign,
       currentCharacter,
       loading,
       error,

@@ -4,6 +4,7 @@ import { RouterLink, useRouter } from 'vue-router';
 import { useTheme } from '../../composables/useTheme.mjs';
 import { useAuthStore } from '../../stores/auth.store.mjs';
 import { useGameSessionStore } from '../../stores/game-session.store.mjs';
+import { useCampaignStore } from '../../stores/campaign.store.mjs';
 import { SunIcon, MoonIcon, Bars3Icon, XMarkIcon } from '@heroicons/vue/24/solid';
 
 const router = useRouter();
@@ -11,7 +12,7 @@ const authStore = useAuthStore();
 const { isDarkMode, toggleTheme } = useTheme();
 const isMenuOpen = ref(false);
 const gameSessionStore = useGameSessionStore();
-
+const campaignStore = useCampaignStore();
 function toggleMenu() {
   isMenuOpen.value = !isMenuOpen.value;
 }
@@ -141,7 +142,7 @@ function goToChat() {
               </span>
               <div class="flex items-center space-x-1">
                 <span class="text-sm text-gray-700 dark:text-gray-200">
-                  {{ gameSessionStore.currentCampaign?.name }}
+                  {{ campaignStore.currentCampaign?.name }}
                 </span>
                 <span
                   v-if="!gameSessionStore.isGameMaster && gameSessionStore.currentCharacter"

@@ -2,7 +2,6 @@
 // with the socketHandlerRegistry
 
 // Import handlers (the order doesn't matter as they register themselves)
-import './chat-handler.mjs';
 import './dice-handler.mjs';
 import './move-handler.mjs';
 import './plugin-handler.mjs';

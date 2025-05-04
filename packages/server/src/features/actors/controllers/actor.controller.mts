@@ -43,6 +43,14 @@ export class ActorController {
         }
       }
 
+      // Special handling for userCharactersOnly parameter
+      const userCharactersOnly = queryParams.userCharactersOnly === 'true';
+      if (userCharactersOnly && req.session.user) {
+        // Filter by the current logged-in user
+        queryParams.createdBy = req.session.user.id;
+        delete queryParams.userCharactersOnly; // Remove this special parameter
+      }
+
       // Process query parameters including any nested values
       const searchParams = createSearchParams(queryParams);
 

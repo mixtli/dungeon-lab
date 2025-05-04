@@ -1,16 +1,17 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
-import { computed } from 'vue';
-import { useCampaignStore } from '../stores/campaign.store.mjs';
+import { ref } from 'vue';
 import CampaignList from '../components/campaign/CampaignList.vue';
 
 const router = useRouter();
-const campaignStore = useCampaignStore();
-
-const hasCampaigns = computed(() => campaignStore.myCampaigns.length > 0);
+const hasCampaigns = ref(true); // Default to true to avoid showing "Create First Campaign" button before data loads
 
 function createCampaign() {
   router.push({ name: 'campaign-create' });
+}
+
+function updateHasCampaigns(count: number) {
+  hasCampaigns.value = count > 0;
 }
 </script>
 
@@ -27,7 +28,7 @@ function createCampaign() {
       </button>
     </div>
 
-    <CampaignList />
+    <CampaignList @update:campaigns="updateHasCampaigns($event)" />
 
     <div v-if="!hasCampaigns" class="mt-4 text-center">
       <button

@@ -9,6 +9,7 @@ import { GameSessionStatus } from '@dungeon-lab/shared/src/schemas/game-session.
 import type { z } from 'zod';
 import type { IGameSession } from '@dungeon-lab/shared/types/index.mjs';
 import { GameSessionsClient } from '@dungeon-lab/client/index.mjs';
+import CharacterSelector from './CharacterSelector.vue';
 
 type SessionStatus = z.infer<typeof GameSessionStatus>;
 
@@ -24,6 +25,10 @@ const error = ref<string | null>(null);
 const sessions = ref<IGameSession[]>([]);
 
 const gameSessionClient = new GameSessionsClient();
+
+// Add new refs
+const showCharacterSelector = ref(false);
+const selectedSessionId = ref('');
 
 // Fetch sessions on mount
 onMounted(async () => {
@@ -65,7 +70,9 @@ const pausedSessions = computed(
 );
 
 function joinSession(sessionId: string) {
-  useGameSessionStore().joinSession(sessionId);
+  // Show character selector modal instead of joining immediately
+  selectedSessionId.value = sessionId;
+  showCharacterSelector.value = true;
 }
 
 function formatTime(isoString: string) {
@@ -317,5 +324,15 @@ async function handleUpdateSessionStatus(sessionId: string, status: SessionStatu
         <p class="text-gray-500">No active or scheduled sessions</p>
       </div>
     </div>
+
+    <!-- Character Selector Modal -->
+    <CharacterSelector
+      v-if="showCharacterSelector"
+      :show="showCharacterSelector"
+      :campaign-id="props.campaignId"
+      :session-id="selectedSessionId"
+      @close="showCharacterSelector = false"
+      @character-selected="showCharacterSelector = false"
+    />
   </div>
 </template>

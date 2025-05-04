@@ -4,14 +4,17 @@ import { useCampaignStore } from '../../stores/campaign.store.mjs';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/auth.store.mjs';
 import { pluginRegistry } from '../../services/plugin-registry.service.mjs';
+import { CampaignsClient } from '@dungeon-lab/client/index.mjs';
+import type { ICampaign } from '@dungeon-lab/shared/types/index.mjs';
 
 const props = defineProps<{
   campaignId?: string;
   isEdit?: boolean;
 }>();
 
-// Stores and router
+// Stores, clients, and router
 const campaignStore = useCampaignStore();
+const campaignClient = new CampaignsClient();
 const authStore = useAuthStore();
 const router = useRouter();
 
@@ -57,7 +60,7 @@ onMounted(async () => {
   if (isEditMode.value && props.campaignId) {
     loading.value = true;
     try {
-      const campaign = await campaignStore.fetchCampaign(props.campaignId);
+      const campaign = await campaignClient.getCampaign(props.campaignId);
       if (campaign) {
         formData.value = {
           name: campaign.name,
@@ -85,12 +88,20 @@ async function submitForm() {
   loading.value = true;
 
   try {
+    let updatedCampaign: ICampaign;
+    
     if (isEditMode.value && props.campaignId) {
       // Update existing campaign
       const updateData = {
         ...formData.value
       };
-      await campaignStore.updateCampaign(props.campaignId, updateData);
+      updatedCampaign = await campaignClient.updateCampaign(props.campaignId, updateData);
+      
+      // Update the active campaign in the store if this is the active one
+      if (campaignStore.currentCampaign?.id === props.campaignId) {
+        campaignStore.setActiveCampaign(updatedCampaign);
+      }
+      
       router.push({ name: 'campaign-detail', params: { id: props.campaignId } });
     } else {
       // Create new campaign
@@ -120,11 +131,15 @@ async function submitForm() {
         return;
       }
 
-      const newCampaign = await campaignStore.createCampaign(createData);
-      router.push({ name: 'campaign-detail', params: { id: newCampaign.id } });
+      updatedCampaign = await campaignClient.createCampaign(createData);
+      
+      // Set as active campaign
+      campaignStore.setActiveCampaign(updatedCampaign);
+      
+      router.push({ name: 'campaign-detail', params: { id: updatedCampaign.id } });
     }
   } catch (err) {
-    error.value = campaignStore.error || 'An error occurred';
+    error.value = err instanceof Error ? err.message : 'An error occurred';
     console.error('Form submission error:', err);
   } finally {
     loading.value = false;

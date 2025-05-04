@@ -5,6 +5,7 @@ import { useGameSessionStore } from '../stores/game-session.store.mjs';
 import { useSocketStore } from '../stores/socket.store.mjs';
 import { useChatStore } from '../stores/chat.store.mts';
 import { Combobox, ComboboxInput, ComboboxOptions, ComboboxOption } from '@headlessui/vue';
+import { IActor } from '@dungeon-lab/shared/types/index.mjs';
 
 // Import related errors may need to be resolved by creating the axios service
 // For now, let's comment out the API calls that depend on it
@@ -30,7 +31,7 @@ const messages = computed(() => chatStore.messages);
 // Handle roll command
 function handleRollCommand(formula: string) {
   if (!socketStore.socket) return;
-  
+
   socketStore.socket.emit('roll-command', {
     formula,
     gameSessionId: route.params.id as string
@@ -57,10 +58,10 @@ function sendMessage() {
 
   // Determine recipient if direct message
   const recipientId = selectedParticipant.value?.id;
-  
+
   // Use the chat store to send the message
   chatStore.sendMessage(messageInput.value, recipientId);
-  
+
   messageInput.value = '';
   selectedParticipant.value = null;
   isDirectMessage.value = false;
@@ -81,54 +82,43 @@ function handleInput(event: Event) {
 
 // Update participants list from game session
 async function updateParticipants() {
-  if (gameSessionStore.currentSession?.participantIds && gameSessionStore.currentCampaign) {
+  if (gameSessionStore.currentSession?.characters) {
     const participantList = await Promise.all(
-      gameSessionStore.currentSession.participantIds.map(async (userId: string) => {
-        // For game master, use "Game Master" as the name
-        const gameMasterId = gameSessionStore.currentSession?.gameMasterId;
-        const gameMasterIdStr = gameMasterId ? String(gameMasterId) : '';
-        if (userId === gameMasterIdStr) {
-          return {
-            id: userId,
-            name: 'Game Master',
-          };
-        }
-
+      gameSessionStore.currentSession.characters.map(async (character: IActor) => {
         // Find the member's actor ID in the campaign
-        const actorId = gameSessionStore.currentCampaign?.members.find(m => m === userId);
-
-        if (actorId) {
+        if (character.id) {
           try {
-            // Comment out API call for now until axios is properly configured
-            // const response = await api.get(`/api/actors/${actorId}`);
             return {
-              id: userId,
-              // name: response.data.name,
-              name: 'Participant', // Placeholder until API is available
+              id: character.id,
+              name: character.name,
             };
           } catch (error) {
             console.error('Error fetching actor:', error);
             return {
-              id: userId,
+              id: character.id,
               name: 'Unknown',
             };
           }
         }
-        return {
-          id: userId,
-          name: 'Unknown',
-        };
       })
     );
 
-    participants.value = participantList;
+    // For game master, use "Game Master" as the name
+    participantList.push({
+      id: gameSessionStore.currentSession?.gameMasterId,
+      name: 'Game Master',
+    });
+    participants.value = participantList.filter((participant): participant is { id: string; name: string } =>
+      participant !== undefined
+    );
   }
+
 }
 
 onMounted(async () => {
   // Get participants
   updateParticipants();
-  
+
   // Auto-scroll when new messages arrive
   watch(
     () => chatStore.messages.length,
@@ -151,21 +141,12 @@ onUnmounted(() => {
 <template>
   <div class="chat-view h-full flex flex-col bg-white">
     <!-- No Active Session State -->
-    <div
-      v-if="!gameSessionStore.currentSession"
-      class="flex-1 flex flex-col items-center justify-center p-8"
-    >
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        class="h-16 w-16 text-gray-400 mb-4"
-        viewBox="0 0 20 20"
-        fill="currentColor"
-      >
-        <path
-          fill-rule="evenodd"
+    <div v-if="!gameSessionStore.currentSession" class="flex-1 flex flex-col items-center justify-center p-8">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-gray-400 mb-4" viewBox="0 0 20 20"
+        fill="currentColor">
+        <path fill-rule="evenodd"
           d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z"
-          clip-rule="evenodd"
-        />
+          clip-rule="evenodd" />
       </svg>
       <h2 class="text-2xl font-semibold text-gray-900 mb-2">No Active Game Session</h2>
       <p class="text-gray-600 mb-6 text-center max-w-md">
@@ -173,16 +154,12 @@ onUnmounted(() => {
         new one to start chatting.
       </p>
       <div class="flex gap-4">
-        <RouterLink
-          to="/game-sessions"
-          class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-        >
+        <RouterLink to="/game-sessions"
+          class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
           View Game Sessions
         </RouterLink>
-        <RouterLink
-          to="/campaigns"
-          class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-        >
+        <RouterLink to="/campaigns"
+          class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
           Browse Campaigns
         </RouterLink>
       </div>
@@ -199,15 +176,10 @@ onUnmounted(() => {
       <!-- Chat Messages -->
       <div class="flex-1 overflow-y-auto p-4 space-y-4 chat-messages">
         <template v-if="messages.length">
-          <div
-            v-for="message in messages"
-            :key="message.id"
-            :class="[
-              'p-2 rounded-lg',
-              message.senderId === socketStore.userId ? 'bg-blue-100 ml-auto' : 'bg-gray-100',
-            ]"
-            class="max-w-[80%]"
-          >
+          <div v-for="message in messages" :key="message.id" :class="[
+            'p-2 rounded-lg',
+            message.senderId === socketStore.userId ? 'bg-blue-100 ml-auto' : 'bg-gray-100',
+          ]" class="max-w-[80%]">
             <div class="flex items-start">
               <div class="flex-1">
                 <div class="flex items-center gap-2">
@@ -234,23 +206,15 @@ onUnmounted(() => {
               <ComboboxInput
                 class="w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
                 :displayValue="(participant: any) => participant?.name"
-                @change="event => (participantQuery = (event.target as HTMLInputElement).value)"
-              />
+                @change="event => (participantQuery = (event.target as HTMLInputElement).value)" />
               <ComboboxOptions
-                class="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
-              >
-                <ComboboxOption
-                  v-for="participant in participants"
-                  :key="participant.id"
-                  :value="participant"
-                  v-slot="{ active, selected }"
-                >
-                  <div
-                    :class="[
-                      'relative cursor-default select-none py-2 pl-3 pr-9',
-                      active ? 'bg-blue-600 text-white' : 'text-gray-900',
-                    ]"
-                  >
+                class="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+                <ComboboxOption v-for="participant in participants" :key="participant.id" :value="participant"
+                  v-slot="{ active, selected }">
+                  <div :class="[
+                    'relative cursor-default select-none py-2 pl-3 pr-9',
+                    active ? 'bg-blue-600 text-white' : 'text-gray-900',
+                  ]">
                     <span :class="['block truncate', selected && 'font-semibold']">
                       {{ participant.name }}
                     </span>
@@ -259,18 +223,11 @@ onUnmounted(() => {
               </ComboboxOptions>
             </div>
           </Combobox>
-          <input
-            v-model="messageInput"
-            @input="handleInput"
-            @keyup.enter="sendMessage"
-            type="text"
+          <input v-model="messageInput" @input="handleInput" @keyup.enter="sendMessage" type="text"
             placeholder="Type your message..."
-            class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          />
-          <button
-            @click="sendMessage"
-            class="absolute right-2 top-1/2 transform -translate-y-1/2 px-4 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-          >
+            class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+          <button @click="sendMessage"
+            class="absolute right-2 top-1/2 transform -translate-y-1/2 px-4 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
             Send
           </button>
         </div>
@@ -281,7 +238,8 @@ onUnmounted(() => {
 
 <style scoped>
 .chat-view {
-  height: calc(100vh - 64px); /* Adjust based on your header height */
+  height: calc(100vh - 64px);
+  /* Adjust based on your header height */
 }
 
 .chat-messages {

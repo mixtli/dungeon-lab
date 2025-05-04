@@ -9,7 +9,12 @@ import { requestLoggerMiddleware } from './middleware/request-logger.middleware.
 import { mapRoutes } from './features/maps/index.mjs';
 import { itemRoutes } from './features/items/index.mjs';
 import { actorRoutes } from './features/actors/index.mjs';
-import { campaignRoutes, gameSessionRoutes, inviteRoutes } from './features/campaigns/index.mjs';
+import {
+  campaignRoutes,
+  gameSessionRoutes,
+  inviteRoutes,
+  encounterRoutes
+} from './features/campaigns/index.mjs';
 import { documentRoutes } from './features/documents/index.mjs';
 import assetRoutes from './features/assets/index.mjs';
 import { oapi } from './oapi.mjs';
@@ -18,6 +23,7 @@ import { errorHandler } from './middleware/error.middleware.mjs';
 
 // Import socket handlers
 import './websocket/handlers/index.mjs';
+import './features/chat/socket-handler.mjs';
 // Add more socket handler imports here as needed
 
 // Route handlers and middleware
@@ -126,6 +132,7 @@ export async function createApp(): Promise<express.Application> {
   app.use('/api/campaigns', campaignRoutes);
   app.use('/api', inviteRoutes);
   app.use('/api/game-sessions', gameSessionRoutes);
+  app.use('/api/encounters', encounterRoutes);
   app.use('/api/maps', mapRoutes);
   app.use('/api/documents', documentRoutes);
   app.use('/api/assets', assetRoutes);

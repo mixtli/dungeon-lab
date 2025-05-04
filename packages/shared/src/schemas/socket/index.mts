@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { gameSessionSchema } from '../game-session.schema.mjs';
+import { gameSessionResponseSchema } from '../game-session.schema.mjs';
 
 export const joinCallbackSchema = z.object({
   success: z.boolean(),
-  data: gameSessionSchema.optional(),
+  data: gameSessionResponseSchema.optional(),
   error: z.string().optional()
 });
 
@@ -78,14 +78,28 @@ export const serverToClientEvents = z.object({
     )
     .returns(z.void()),
   'encounter:start': z.function().args(encounterEventSchema).returns(z.void()),
-  'encounter:stop': z.function().args(encounterEventSchema).returns(z.void())
+  'encounter:stop': z.function().args(encounterEventSchema).returns(z.void()),
+  userJoinedSession: z
+    .function()
+    .args(
+      z.object({
+        userId: z.string(),
+        sessionId: z.string(),
+        actorId: z.string().optional()
+      })
+    )
+    .returns(z.void())
 });
 
 export const clientToServerEvents = z.object({
   chat: z.function().args(z.string(/*recipient*/), z.string(/*message*/)).returns(z.void()),
   joinSession: z
     .function()
-    .args(z.string(/*sessionId*/), z.function().args(joinCallbackSchema))
+    .args(
+      z.string(/*sessionId*/),
+      z.string(/*actorId*/).optional(),
+      z.function().args(joinCallbackSchema)
+    )
     .returns(z.void()),
   leaveSession: z.function().args(z.string(/*sessionId*/)).returns(z.void()),
   pluginAction: z

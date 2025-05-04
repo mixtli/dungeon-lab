@@ -10,15 +10,18 @@ import CampaignEncounterList from '../components/campaign/CampaignEncounterList.
 import CampaignInviteModal from '../components/campaign/CampaignInviteModal.vue';
 import GameSessionScheduleModal from '../components/campaign/GameSessionScheduleModal.vue';
 import CampaignSessionList from '../components/campaign/CampaignSessionList.vue';
+import { CampaignsClient } from '@dungeon-lab/client/index.mjs';
 
 const route = useRoute();
 const router = useRouter();
 const campaignStore = useCampaignStore();
+const campaignClient = new CampaignsClient();
 const loading = ref(false);
 const error = ref<string | null>(null);
 const showDeleteModal = ref(false);
 const showInviteModal = ref(false);
 const showScheduleModal = ref(false);
+const campaignData = ref<ICampaign | null>(null);
 
 const campaignId = route.params.id as string;
 
@@ -28,10 +31,11 @@ onMounted(async () => {
   error.value = null;
 
   try {
-    await campaignStore.fetchCampaign(campaignId);
-    if (!campaignStore.currentCampaign) {
-      error.value = 'Campaign not found';
-    }
+    const campaign = await campaignClient.getCampaign(campaignId);
+    campaignData.value = campaign;
+    
+    // Set as active campaign in the store
+    campaignStore.setActiveCampaign(campaign);
   } catch (err) {
     console.error('Error fetching campaign:', err);
     error.value = 'Failed to load campaign data';
@@ -40,7 +44,7 @@ onMounted(async () => {
   }
 });
 
-const campaign = computed(() => campaignStore.currentCampaign as ICampaign | null);
+const campaign = computed(() => campaignData.value);
 
 // Get the campaign's game system
 const gameSystem = computed(() => {
@@ -79,7 +83,13 @@ function editCampaign() {
 
 async function deleteCampaign() {
   try {
-    await campaignStore.deleteCampaign(campaignId);
+    await campaignClient.deleteCampaign(campaignId);
+    
+    // Clear the active campaign if it's the one being deleted
+    if (campaignStore.currentCampaign?.id === campaignId) {
+      campaignStore.setActiveCampaign(null);
+    }
+    
     showNotification('Campaign deleted successfully');
     router.push({ name: 'campaigns' });
   } catch (err) {
@@ -95,8 +105,20 @@ function showNotification(message: string) {
 
 function handleSessionCreated() {
   // Refresh campaign data
-  campaignStore.fetchCampaign(campaignId);
+  refreshCampaign();
   showNotification('Game session scheduled successfully');
+}
+
+async function refreshCampaign() {
+  try {
+    const campaign = await campaignClient.getCampaign(campaignId);
+    campaignData.value = campaign;
+    
+    // Update active campaign in the store
+    campaignStore.setActiveCampaign(campaign);
+  } catch (err) {
+    console.error('Error refreshing campaign:', err);
+  }
 }
 </script>
 
@@ -248,20 +270,21 @@ function handleSessionCreated() {
 
         <!-- Modal panel -->
         <div
-          class="inline-block align-bottom modal-bg rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full"
+          class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full"
         >
-          <div class="modal-bg px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+          <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
             <div class="sm:flex sm:items-start">
               <div
                 class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10"
               >
-                <!-- Warning icon -->
+                <!-- Heroicon name: outline/exclamation -->
                 <svg
                   class="h-6 w-6 text-red-600"
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
+                  aria-hidden="true"
                 >
                   <path
                     stroke-linecap="round"
@@ -272,30 +295,32 @@ function handleSessionCreated() {
                 </svg>
               </div>
               <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
-                <h3 class="modal-header" id="modal-title">Delete Campaign</h3>
+                <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+                  Delete Campaign
+                </h3>
                 <div class="mt-2">
-                  <p class="modal-text">
+                  <p class="text-sm text-gray-500">
                     Are you sure you want to delete this campaign? This action cannot be undone.
                   </p>
                 </div>
               </div>
             </div>
           </div>
-          <div class="modal-footer px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+          <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
             <button
               type="button"
-              class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm"
               @click="
                 deleteCampaign();
                 showDeleteModal = false;
               "
+              class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm"
             >
               Delete
             </button>
             <button
               type="button"
-              class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white modal-button-secondary hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
               @click="showDeleteModal = false"
+              class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
             >
               Cancel
             </button>
@@ -306,8 +331,8 @@ function handleSessionCreated() {
 
     <!-- Invite Modal -->
     <CampaignInviteModal
-      v-if="campaign?.id"
-      :campaign-id="campaign.id"
+      v-if="showInviteModal"
+      :campaign-id="campaignId"
       :show="showInviteModal"
       @close="showInviteModal = false"
       @invited="showNotification('Invite sent successfully')"
@@ -315,8 +340,8 @@ function handleSessionCreated() {
 
     <!-- Schedule Session Modal -->
     <GameSessionScheduleModal
-      v-if="campaign?.id"
-      :campaign-id="campaign.id"
+      v-if="showScheduleModal"
+      :campaign-id="campaignId"
       :show="showScheduleModal"
       @close="showScheduleModal = false"
       @created="handleSessionCreated"

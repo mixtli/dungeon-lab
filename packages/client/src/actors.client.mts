@@ -290,4 +290,15 @@ export class ActorsClient extends ApiClient {
 
     return response.data.data;
   }
+
+  /**
+   * Get user's characters for a specific campaign
+   */
+  async getUserCharacters(campaignId: string): Promise<IActor[]> {
+    // Use the existing getActors method with query parameters
+    return this.getActors({
+      campaignId,
+      userCharactersOnly: 'true' // Special flag to get only the current user's characters
+    });
+  }
 }

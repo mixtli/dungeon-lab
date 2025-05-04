@@ -12,6 +12,7 @@ import {
 import { deepMerge } from '@dungeon-lab/shared/utils/deepMerge.mjs';
 import { UserModel } from '../../../models/user.model.mjs';
 import { IActorPatchData } from '@dungeon-lab/shared/types/index.mjs';
+import mongoose from 'mongoose';
 
 // Define a type for actor query values
 export type QueryValue = string | number | boolean | RegExp | Date | object;
@@ -92,6 +93,8 @@ export class ActorService {
         // Update the actor with the avatar ID
         actor.avatarId = avatarAsset.id;
         await actor.save();
+      } else {
+        this.generateActorAvatar(actor.id, userId);
       }
       // Handle token file if provided
       if (tokenFile) {
@@ -103,6 +106,8 @@ export class ActorService {
         // Update the actor with the token ID
         actor.tokenId = tokenAsset.id;
         await actor.save();
+      } else {
+        this.generateActorToken(actor.id, userId);
       }
       // Return the actor with populated avatar and token
       return actor.populate(['avatar', 'token']);
@@ -480,9 +485,18 @@ export class ActorService {
    */
   async searchActors(query: Record<string, QueryValue>): Promise<IActor[]> {
     try {
+      // Extract campaignId for special handling
+      const campaignId = query.campaignId as string;
+      const queryCopy = { ...query };
+
+      // Remove campaignId from direct query since we'll handle it separately
+      if (campaignId) {
+        delete queryCopy.campaignId;
+      }
+
       // Convert query to case-insensitive regex for string values
       // Only convert simple string values, not nested paths
-      const mongoQuery = Object.entries(query).reduce((acc, [key, value]) => {
+      const mongoQuery = Object.entries(queryCopy).reduce((acc, [key, value]) => {
         if (typeof value === 'string' && !key.includes('.')) {
           acc[key] = new RegExp(value, 'i');
         } else {
@@ -491,8 +505,29 @@ export class ActorService {
         return acc;
       }, {} as Record<string, QueryValue>);
 
-      const actors = await ActorModel.find(mongoQuery).populate('avatar').populate('token');
-      return actors;
+      if (campaignId) {
+        // If campaignId is provided, we need to filter actors that are members of the campaign
+        const CampaignModel = mongoose.model('Campaign');
+
+        // Find the campaign to get its members
+        const campaign = await CampaignModel.findById(campaignId);
+        if (!campaign) {
+          logger.warn(`Campaign not found with ID: ${campaignId}`);
+          return [];
+        }
+
+        // If the campaign has a members array containing actor IDs
+        if (campaign.members && Array.isArray(campaign.members)) {
+          // Add condition to filter by actor IDs in campaign.members
+          mongoQuery._id = { $in: campaign.members };
+        } else {
+          // If the schema has actors directly in the campaign document
+          mongoQuery.campaignId = campaignId;
+        }
+      }
+
+      // Execute the query with all conditions
+      return await ActorModel.find(mongoQuery).populate('avatar').populate('token');
     } catch (error) {
       logger.error('Error searching actors:', error);
       throw new Error('Failed to search actors');

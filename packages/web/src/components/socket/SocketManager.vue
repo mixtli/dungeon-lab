@@ -2,21 +2,20 @@
 import { onMounted } from 'vue';
 import { useSocketStore } from '../../stores/socket.store.mjs';
 import { useGameSessionStore } from '../../stores/game-session.store.mjs';
-import { JoinCallback } from '@dungeon-lab/shared/types/socket/index.mjs';
 
 const socketStore = useSocketStore();
 const gameSessionStore = useGameSessionStore();
 
-// Function to restore game session connection
+// Function to restore game session
 async function restoreGameSession() {
   try {
     // Check for stored session and campaign IDs
 
     // If we have both stored, try to restore the session
-    if (gameSessionStore.currentSession && gameSessionStore.currentCampaign) {
+    if (gameSessionStore.currentSession && gameSessionStore.currentSession.campaignId) {
       console.log('[Debug] Found stored session:', {
         sessionId: gameSessionStore.currentSession.id,
-        campaignId: gameSessionStore.currentCampaign.id,
+        campaignId: gameSessionStore.currentSession.campaignId,
       });
 
       try {
@@ -33,16 +32,15 @@ async function restoreGameSession() {
           // });
 
           // Set up error listener
-          socketStore.socket.once('error', (error: string ) => {
+          socketStore.socket.once('error', (error: string) => {
             console.error('[Debug] Error restoring session connection:', error);
             // On error, clear stored session
             clearStoredSession();
           });
 
-          // Attempt to join the session
-          socketStore.socket.emit('joinSession', gameSessionStore.currentSession.id, (result: JoinCallback) => {
-            console.log('[Debug] Join session result:', result);
-          });
+          // If we have a stored character, rejoin with that character ID
+          const characterId = gameSessionStore.currentCharacter?.id;
+          gameSessionStore.joinSession(gameSessionStore.currentSession.id, characterId);
           return;
         }
       } catch (error) {
