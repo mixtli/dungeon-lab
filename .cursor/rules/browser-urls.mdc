@@ -5,7 +5,16 @@ alwaysApply: false
 ---
 * UI Url is http://localhost:8080
 * API Url is http://localhost:3000
+* OpenAPI Docs: http://localhost:3000/openapi.json (you can use curl to get this)
 
-* Login credentials
+* Admin Login credentials
 Email: admin@dungeonlab.com
+Password: password
+
+# User 1 login credentials
+Email: test1@dungeonlab.com
+Password: password
+
+# User 2 login credentials
+Email: test2@dungeonlab.com
 Password: password

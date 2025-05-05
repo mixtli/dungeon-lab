@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
-import { useActorStore } from '../stores/actor.store.mjs';
 import PluginUIContainer from '@/components/plugin/PluginUIContainer.vue';
 import { pluginRegistry } from '@/services/plugin-registry.service.mts';
 import type { IActor } from '@dungeon-lab/shared/types/index.mjs';
+import { ActorsClient } from '@dungeon-lab/client/index.mjs';
+import { useActorStore } from '../stores/actor.store.mjs';
 
 const route = useRoute();
 const actorStore = useActorStore();
+const actorsClient = new ActorsClient();
 const characterId = route.params.id as string;
 const isLoading = ref(true);
 const character = ref<IActor | null>(null);
@@ -24,11 +26,13 @@ const handleError = (errorMessage: string) => {
 
 onMounted(async () => {
   try {
-    // Fetch the character data
-    const fetchedCharacter = await actorStore.fetchActor(characterId);
+    // Fetch the character data directly using ActorsClient
+    const fetchedCharacter = await actorsClient.getActor(characterId);
 
     if (fetchedCharacter) {
       character.value = fetchedCharacter;
+      // Update the current actor in the store
+      actorStore.setCurrentActor(characterId);
       console.log('character', character.value);
 
       // Get the plugin ID from the character's gameSystemId

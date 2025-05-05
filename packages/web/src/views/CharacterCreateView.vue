@@ -116,7 +116,7 @@ async function handleSubmit(event: Event) {
     isSubmitting.value = true;
 
     // Check if plugin is available
-    if (!plugin || !actorStore) return;
+    if (!plugin) return;
 
     // Get the form data
     const form = event.target as HTMLFormElement;
@@ -154,6 +154,11 @@ async function handleSubmit(event: Event) {
     // Send the request using actorClient
     const response = await actorClient.createActor(actorData);
     sessionStorage.removeItem('actorCreationState');
+
+    // Set current actor in the store if created successfully
+    if (response && response.id) {
+      await actorStore.setCurrentActor(response.id);
+    }
 
     // Navigate to the character sheet
     if (response) {

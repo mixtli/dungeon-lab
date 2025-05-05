@@ -1,6 +1,14 @@
 import { z } from 'zod';
 import { gameSessionResponseSchema } from '../game-session.schema.mjs';
 
+export const messageMetadataSchema = z.object({
+  senderType: z.enum(['user', 'system', 'actor']),
+  senderId: z.string().optional(),
+  recipientType: z.enum(['user', 'system', 'actor', 'session']),
+  recipientId: z.string().optional(),
+  timestamp: z.date().optional()
+});
+
 export const joinCallbackSchema = z.object({
   success: z.boolean(),
   data: gameSessionResponseSchema.optional(),

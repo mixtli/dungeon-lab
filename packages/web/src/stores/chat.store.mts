@@ -29,6 +29,7 @@ export const useChatStore = defineStore(
     const messages = ref<ChatMessage[]>([]);
     const socketStore = useSocketStore();
     const gameSessionStore = useGameSessionStore();
+    const currentSessionId = ref<string | null>(null);
 
     // Watch for socket changes to setup listeners
     watch(
@@ -41,11 +42,21 @@ export const useChatStore = defineStore(
       { immediate: true }
     );
 
-    // Clear messages when session changes
+    // Only clear messages when the session ID changes, not on reload
     watch(
-      () => gameSessionStore.currentSession,
-      () => {
-        clearMessages();
+      () => gameSessionStore.currentSession?.id,
+      (newSessionId, oldSessionId) => {
+        console.log('Session ID changed:', oldSessionId, '->', newSessionId);
+        
+        // Store the current session ID
+        currentSessionId.value = newSessionId || null;
+        
+        // Only clear messages if the session ID actually changed
+        // (not on initial load or when it's the same session reloading)
+        if (oldSessionId !== undefined && newSessionId !== oldSessionId) {
+          console.log('Clearing messages due to session change');
+          clearMessages();
+        }
       }
     );
 
@@ -96,7 +107,7 @@ export const useChatStore = defineStore(
       }
 
       // Determine recipient - if not specified, send to the current game session
-      const recipient = recipientId || gameSessionStore.currentSession?.id || 'broadcast';
+      const recipient = recipientId || currentSessionId.value || gameSessionStore.currentSession?.id || 'broadcast';
 
       // Send the message
       socketStore.socket.emit('chat', recipient, content);
@@ -131,5 +142,31 @@ export const useChatStore = defineStore(
       clearMessages
     };
   },
-  { persist: { storage: sessionStorage } }
+  { 
+    persist: { 
+      storage: sessionStorage,
+      serializer: {
+        serialize: (state) => {
+          // Custom serializer that properly handles Date objects
+          return JSON.stringify(state, (_, value) => {
+            // Convert Date objects to a special format with a type marker
+            if (value instanceof Date) {
+              return { __type: 'Date', value: value.toISOString() };
+            }
+            return value;
+          });
+        },
+        deserialize: (state) => {
+          // Custom deserializer that properly restores Date objects
+          return JSON.parse(state, (_, value) => {
+            // Check for our special Date object marker
+            if (value && typeof value === 'object' && value.__type === 'Date') {
+              return new Date(value.value);
+            }
+            return value;
+          });
+        }
+      }
+    } 
+  }
 ) as () => ChatStore;

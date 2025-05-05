@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { logger } from '../utils/logger.mjs';
+import { ZodError } from 'zod';
 
 /**
  * Global error handler middleware for the application
@@ -18,12 +19,23 @@ export const errorHandler = (
     logger.error(`Stack: ${err.stack}`);
   }
 
+  // Handle ZodError (validation errors)
+  if (err instanceof ZodError) {
+    return res.status(422).json({
+      success: false,
+      error: 'Validation error',
+      details: err.errors,
+      message: err.message,
+    });
+  }
+
   // Determine status code (default to 500)
   const statusCode = res.statusCode !== 200 ? res.statusCode : 500;
 
   // Send appropriate response
   res.status(statusCode).json({
-    message: err.message,
+    success: false,
+    error: err.message,
     // Only include stack trace in development
     stack: process.env.NODE_ENV === 'production' ? undefined : err.stack,
   });

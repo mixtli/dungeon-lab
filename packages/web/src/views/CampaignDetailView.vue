@@ -34,8 +34,6 @@ onMounted(async () => {
     const campaign = await campaignClient.getCampaign(campaignId);
     campaignData.value = campaign;
     
-    // Set as active campaign in the store
-    campaignStore.setActiveCampaign(campaign);
   } catch (err) {
     console.error('Error fetching campaign:', err);
     error.value = 'Failed to load campaign data';

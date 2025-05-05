@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import { GameSessionService } from '../services/game-session.service.mjs';
-import { logger } from '../../../utils/logger.mjs';
 import {
   BaseAPIResponse,
   createGameSessionSchema,
@@ -8,8 +7,7 @@ import {
   getGameSessionsQuerySchema
 } from '@dungeon-lab/shared/types/api/index.mjs';
 import { IGameSession, IGameSessionPatchData } from '@dungeon-lab/shared/types/index.mjs';
-import { z, ZodError } from 'zod';
-import { isErrorWithMessage } from '../../../utils/error.mjs';
+import { z } from 'zod';
 
 export class GameSessionController {
   constructor(private gameSessionService: GameSessionService) {}
@@ -18,293 +16,169 @@ export class GameSessionController {
     req: Request<object, object, object, z.infer<typeof getGameSessionsQuerySchema>>,
     res: Response<BaseAPIResponse<IGameSession[]>>
   ): Promise<Response<BaseAPIResponse<IGameSession[]>> | void> => {
-    try {
-      // Extract query parameters
-      const { campaignId, status } = req.query;
+    // Extract query parameters
+    const { campaignId, status } = req.query;
 
-      // Validate query parameters
-      try {
-        getGameSessionsQuerySchema.parse(req.query);
-      } catch (validationError) {
-        if (validationError instanceof ZodError) {
-          return res.status(422).json({
-            success: false,
-            data: [],
-            error: JSON.parse(validationError.message)
-          });
-        }
-      }
+    // Validate query parameters
+    getGameSessionsQuerySchema.parse(req.query);
 
-      const params: { campaignId?: string; status?: string } = {};
+    const params: { campaignId?: string; status?: string } = {};
 
-      if (campaignId) {
-        params.campaignId = campaignId as string;
-      }
-
-      if (status) {
-        params.status = status as string;
-      }
-      // Pass query parameters to the service
-      const sessions = await this.gameSessionService.getGameSessions(req.session.user.id, params);
-
-      return res.json({
-        success: true,
-        data: sessions
-      });
-    } catch (error) {
-      logger.error('Error getting game sessions:', error);
-      return res.status(500).json({
-        success: false,
-        data: [],
-        error: 'Failed to get game sessions'
-      });
+    if (campaignId) {
+      params.campaignId = campaignId as string;
     }
+
+    if (status) {
+      params.status = status as string;
+    }
+    // Pass query parameters to the service
+    const sessions = await this.gameSessionService.getGameSessions(req.session.user.id, params);
+
+    return res.json({
+      success: true,
+      data: sessions
+    });
   };
 
   getGameSession = async (
     req: Request<{ id: string }>,
     res: Response<BaseAPIResponse<IGameSession>>
   ): Promise<Response<BaseAPIResponse<IGameSession>> | void> => {
-    try {
-      const session = await this.gameSessionService.getGameSession(req.params.id);
+    const session = await this.gameSessionService.getGameSession(req.params.id);
 
-      // Check if user has access to this session
-      const hasAccess = await this.gameSessionService.checkUserPermission(
-        req.params.id,
-        req.session.user.id,
-        req.session.user.isAdmin
-      );
+    // Check if user has access to this session
+    const hasAccess = await this.gameSessionService.checkUserPermission(
+      req.params.id,
+      req.session.user.id,
+      req.session.user.isAdmin
+    );
 
-      if (!hasAccess) {
-        return res.status(403).json({
-          success: false,
-          data: null,
-          error: 'Access denied'
-        });
-      }
-
-      return res.json({
-        success: true,
-        data: session
-      });
-    } catch (error) {
-      if (isErrorWithMessage(error) && error.message === 'Game session not found') {
-        return res.status(404).json({
-          success: false,
-          data: null,
-          error: 'Game session not found'
-        });
-      }
-      logger.error('Error getting game session:', error);
-      return res.status(500).json({
+    if (!hasAccess) {
+      return res.status(403).json({
         success: false,
         data: null,
-        error: 'Failed to get game session'
+        error: 'Access denied'
       });
     }
+
+    return res.json({
+      success: true,
+      data: session
+    });
   };
 
   getCampaignSessions = async (
     req: Request<object, object, object, { campaignId: string }>,
     res: Response<BaseAPIResponse<IGameSession[]>>
   ): Promise<Response<BaseAPIResponse<IGameSession[]>> | void> => {
-    try {
-      const campaignId = req.query.campaignId;
+    const campaignId = req.query.campaignId;
 
-      if (!campaignId) {
-        return res.status(400).json({
-          success: false,
-          data: [],
-          error: 'Campaign ID is required'
-        });
-      }
-
-      const sessions = await this.gameSessionService.getCampaignSessions(campaignId);
-      return res.json({
-        success: true,
-        data: sessions
-      });
-    } catch (error) {
-      logger.error('Error getting campaign sessions:', error);
-      return res.status(500).json({
+    if (!campaignId) {
+      return res.status(400).json({
         success: false,
         data: [],
-        error: 'Failed to get campaign sessions'
+        error: 'Campaign ID is required'
       });
     }
+
+    const sessions = await this.gameSessionService.getCampaignSessions(campaignId);
+    return res.json({
+      success: true,
+      data: sessions
+    });
   };
 
   createGameSession = async (
     req: Request<object, object, z.infer<typeof createGameSessionSchema>>,
     res: Response<BaseAPIResponse<IGameSession>>
   ): Promise<Response<BaseAPIResponse<IGameSession>> | void> => {
-    try {
-      // Validate request body
-      try {
-        const validatedData = createGameSessionSchema.parse(req.body);
+    const validatedData = createGameSessionSchema.parse(req.body);
 
-        // Create a session object with required fields that the service expects
-        // The service will add the missing fields (gameMasterId, participants, etc.)
-        const sessionData = {
-          name: validatedData.name,
-          campaignId: validatedData.campaignId,
-          description: validatedData.description,
-          status: validatedData.status || 'scheduled',
-          settings: validatedData.settings
-          // These will be set by the service but needed for type compatibility
-        } as IGameSession;
+    // Create a session object with required fields that the service expects
+    // The service will add the missing fields (gameMasterId, participants, etc.)
+    const sessionData = {
+      name: validatedData.name,
+      campaignId: validatedData.campaignId,
+      description: validatedData.description,
+      status: validatedData.status || 'scheduled',
+      settings: validatedData.settings
+      // These will be set by the service but needed for type compatibility
+    } as IGameSession;
 
-        const session = await this.gameSessionService.createGameSession(
-          sessionData,
-          req.session.user.id
-        );
+    const session = await this.gameSessionService.createGameSession(
+      sessionData,
+      req.session.user.id
+    );
 
-        return res.status(201).json({
-          success: true,
-          data: session
-        });
-      } catch (validationError) {
-        if (validationError instanceof ZodError) {
-          return res.status(400).json({
-            success: false,
-            data: null,
-            error: JSON.parse(validationError.message)
-          });
-        }
-        throw validationError;
-      }
-    } catch (error) {
-      if (isErrorWithMessage(error)) {
-        if (error.message === 'Campaign not found') {
-          return res.status(404).json({
-            success: false,
-            data: null,
-            error: 'Campaign not found'
-          });
-        }
-        if (error.message === 'Only the game master can create sessions') {
-          return res.status(403).json({
-            success: false,
-            data: null,
-            error: 'Only the game master can create sessions'
-          });
-        }
-      }
-      logger.error('Error creating game session:', error);
-      return res.status(500).json({
-        success: false,
-        data: null,
-        error: 'Failed to create game session'
-      });
-    }
+    return res.status(201).json({
+      success: true,
+      data: session
+    });
   };
 
   updateGameSession = async (
     req: Request<{ id: string }, object, z.infer<typeof updateGameSessionSchema>>,
     res: Response<BaseAPIResponse<IGameSession>>
   ): Promise<Response<BaseAPIResponse<IGameSession>> | void> => {
-    try {
-      // Check if user has permission to update
-      const hasAccess = await this.gameSessionService.checkUserPermission(
-        req.params.id,
-        req.session.user.id,
-        req.session.user.isAdmin
-      );
+    // Check if user has permission to update
+    const hasAccess = await this.gameSessionService.checkUserPermission(
+      req.params.id,
+      req.session.user.id,
+      req.session.user.isAdmin
+    );
 
-      if (!hasAccess) {
-        return res.status(403).json({
-          success: false,
-          data: null,
-          error: 'Access denied'
-        });
-      }
-
-      // Validate request body
-      try {
-        const validatedData = updateGameSessionSchema.parse(req.body);
-
-        // Create a partial session object with the fields from the request
-        const updateData: IGameSessionPatchData = {
-          ...(validatedData.name && { name: validatedData.name }),
-          ...(validatedData.description && { description: validatedData.description }),
-          ...(validatedData.status && { status: validatedData.status }),
-          ...(validatedData.settings && { settings: validatedData.settings })
-          // Explicitly avoiding any nested object properties like gameMaster
-        };
-
-        const updatedSession = await this.gameSessionService.updateGameSession(
-          req.params.id,
-          updateData,
-          req.session.user.id
-        );
-
-        return res.json({
-          success: true,
-          data: updatedSession
-        });
-      } catch (validationError) {
-        if (validationError instanceof ZodError) {
-          return res.status(400).json({
-            success: false,
-            data: null,
-            error: JSON.parse(validationError.message)
-          });
-        }
-        throw validationError;
-      }
-    } catch (error) {
-      if (isErrorWithMessage(error) && error.message === 'Game session not found') {
-        return res.status(404).json({
-          success: false,
-          data: null,
-          error: 'Game session not found'
-        });
-      }
-      logger.error('Error updating game session:', error);
-      return res.status(500).json({
+    if (!hasAccess) {
+      return res.status(403).json({
         success: false,
         data: null,
-        error: 'Failed to update game session'
+        error: 'Access denied'
       });
     }
+
+    // Validate request body
+    const validatedData = updateGameSessionSchema.parse(req.body);
+
+    // Create a partial session object with the fields from the request
+    const updateData: IGameSessionPatchData = {
+      ...(validatedData.name && { name: validatedData.name }),
+      ...(validatedData.description && { description: validatedData.description }),
+      ...(validatedData.status && { status: validatedData.status }),
+      ...(validatedData.settings && { settings: validatedData.settings })
+      // Explicitly avoiding any nested object properties like gameMaster
+    };
+
+    const updatedSession = await this.gameSessionService.updateGameSession(
+      req.params.id,
+      updateData,
+      req.session.user.id
+    );
+
+    return res.json({
+      success: true,
+      data: updatedSession
+    });
   };
 
   deleteGameSession = async (
     req: Request<{ id: string }>,
     res: Response<BaseAPIResponse<void>>
   ): Promise<Response<BaseAPIResponse<void>> | void> => {
-    try {
-      // Check if user has permission to delete
-      const hasAccess = await this.gameSessionService.checkUserPermission(
-        req.params.id,
-        req.session.user.id,
-        req.session.user.isAdmin
-      );
+    // Check if user has permission to delete
+    const hasAccess = await this.gameSessionService.checkUserPermission(
+      req.params.id,
+      req.session.user.id,
+      req.session.user.isAdmin
+    );
 
-      if (!hasAccess) {
-        return res.status(403).json({
-          success: false,
-          data: null,
-          error: 'Access denied'
-        });
-      }
-
-      await this.gameSessionService.deleteGameSession(req.params.id);
-      return res.status(204).send();
-    } catch (error) {
-      if (isErrorWithMessage(error) && error.message === 'Game session not found') {
-        return res.status(404).json({
-          success: false,
-          data: null,
-          error: 'Game session not found'
-        });
-      }
-      logger.error('Error deleting game session:', error);
-      return res.status(500).json({
+    if (!hasAccess) {
+      return res.status(403).json({
         success: false,
         data: null,
-        error: 'Failed to delete game session'
+        error: 'Access denied'
       });
     }
+
+    await this.gameSessionService.deleteGameSession(req.params.id);
+    return res.status(204).send();
   };
 }

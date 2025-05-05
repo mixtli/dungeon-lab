@@ -110,15 +110,14 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { useActorStore } from '../stores/actor.store.mjs';
 import { useAuthStore } from '../stores/auth.store.mjs';
 import type { IActor } from '@dungeon-lab/shared/types/index.mjs';
-import { InvitesClient } from '@dungeon-lab/client/index.mjs';
+import { InvitesClient, ActorsClient } from '@dungeon-lab/client/index.mjs';
 
 const invitesClient = new InvitesClient();
+const actorsClient = new ActorsClient();
 
 const router = useRouter();
-const actorStore = useActorStore();
 const authStore = useAuthStore();
 const loading = ref(false);
 const error = ref<string | null>(null);
@@ -161,8 +160,9 @@ async function loadCompatibleCharacters(gameSystemId: string) {
   loadingCharacters.value = true;
 
   try {
-    await actorStore.fetchActors();
-    compatibleCharacters.value = actorStore.actors.filter(
+    // Use ActorsClient directly instead of store
+    const actors = await actorsClient.getActors();
+    compatibleCharacters.value = actors.filter(
       (actor: IActor) =>
         actor.gameSystemId === gameSystemId && 
         actor.createdBy === authStore.user?.id &&

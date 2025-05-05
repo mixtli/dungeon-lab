@@ -5,8 +5,9 @@ import type { IActor } from '@dungeon-lab/shared/types/index.mjs';
 import { useAuthStore } from './auth.store.mts';
 import { useSocketStore } from './socket.store.mjs';
 import { useCampaignStore } from './campaign.store.mts';
-import { CampaignsClient } from '@dungeon-lab/client/index.mjs';
+import { CampaignsClient, ActorsClient } from '@dungeon-lab/client/index.mjs';
 import type { JoinCallback } from '@dungeon-lab/shared/types/socket/index.mjs';
+import { useChatStore } from './chat.store.mts';
 
 export const useGameSessionStore = defineStore(
   'gameSession',
@@ -14,13 +15,16 @@ export const useGameSessionStore = defineStore(
     const authStore = useAuthStore();
     const socketStore = useSocketStore();
     const campaignStore = useCampaignStore();
+    const chatStore = useChatStore();
     const campaignClient = new CampaignsClient();
+    const actorClient = new ActorsClient();
 
     // State
     const currentSession = ref<IGameSession | null>(null);
     const currentCharacter = ref<IActor | null>(null);
     const loading = ref(false);
     const error = ref<string | null>(null);
+    const activeUsers = ref<Record<string, IActor>>({});
 
     console.log('gameSessionStore initialized, session:', currentSession.value);
     
@@ -123,7 +127,19 @@ export const useGameSessionStore = defineStore(
                   const actor = response.data.characters?.find((c) => c.id === actorId);
                   if (actor) {
                     currentCharacter.value = actor;
+                    
+                    // Add self to active users
+                    activeUsers.value[actor.id] = actor;
                   }
+                }
+
+                // Initialize active users with any existing characters from the session
+                if (response.data.characters && Array.isArray(response.data.characters)) {
+                  response.data.characters.forEach(character => {
+                    if (character.id) {
+                      activeUsers.value[character.id] = character;
+                    }
+                  });
                 }
 
                 // Fetch and set the active campaign
@@ -139,7 +155,7 @@ export const useGameSessionStore = defineStore(
                 loading.value = false;
 
                 // Register socket listeners for this session
-                // registerSessionListeners(sessionId);
+                registerSessionListeners(sessionId);
 
                 resolve(response.data);
               } else {
@@ -172,39 +188,77 @@ export const useGameSessionStore = defineStore(
       }
     }
 
-    // function registerSessionListeners(sessionId: string) {
-    //   if (!socketStore.socket) return;
+    function registerSessionListeners(sessionId: string) {
+      if (!socketStore.socket) return;
 
-    // Remove any existing listeners to prevent duplicates
-    // socketStore.socket.off('gameSession:update');
-    // socketStore.socket.off('gameSession:end');
-    // socketStore.socket.off('gameState:update');
+      // Remove any existing listeners to prevent duplicates
+      socketStore.socket.off('userJoinedSession');
+      // Commented out events that aren't in the socket type definitions yet
+      // socketStore.socket.off('gameSession:update');
+      // socketStore.socket.off('gameSession:end');
+      // socketStore.socket.off('gameState:update');
+      // socketStore.socket.off('userLeftSession');
 
-    // // Listen for session updates
-    // socketStore.socket.on('gameSession:update', (data: GameSessionWithId) => {
-    //   if (data.id === sessionId) {
-    //     console.log('[Socket] Received gameSession:update event:', data);
-    //     currentSession.value = data;
-    //   }
-    // });
+      // Listen for user joined events
+      socketStore.socket.on('userJoinedSession', async (data: { userId: string, sessionId: string, actorId?: string }) => {
+        console.log('[Socket] Received userJoinedSession event:', data);
+        
+        if (data.sessionId === sessionId && data.actorId) {
+          try {
+            // Fetch the actor details
+            const actor = await actorClient.getActor(data.actorId);
+            
+            if (actor) {
+              // Add to active users
+              activeUsers.value[actor.id] = actor;
+              
+              // Notify in chat
+              chatStore.sendMessage(`${actor.name} has joined the session.`, sessionId);
+            }
+          } catch (err) {
+            console.error('Error fetching actor for joined user:', err);
+          }
+        }
+      });
 
-    // // Listen for session end
-    // socketStore.socket.on('gameSession:end', (data: { sessionId: string }) => {
-    //   if (data.sessionId === sessionId) {
-    //     console.log('[Socket] Received gameSession:end event:', data);
-    //     clearSession();
-    //   }
-    // });
+      // TODO: Implement userLeftSession handler once the server emits this event
+      // socketStore.socket.on('userLeftSession', (data: { userId: string, sessionId: string, actorId?: string }) => {
+      //   console.log('[Socket] Received userLeftSession event:', data);
+      //   
+      //   if (data.sessionId === sessionId && data.actorId && activeUsers.value[data.actorId]) {
+      //     const actorName = activeUsers.value[data.actorId].name;
+      //     
+      //     // Remove from active users
+      //     delete activeUsers.value[data.actorId];
+      //     
+      //     // Notify in chat
+      //     chatStore.sendMessage(`${actorName} has left the session.`, sessionId);
+      //   }
+      // });
 
-    // // Listen for game state updates
-    // socketStore.socket.on('gameState:update', (data: GameStateUpdate) => {
-    //   if (data.sessionId === sessionId) {
-    //     console.log('[Socket] Received gameState:update event:', data);
-    //     // Here we would update game state information
-    //     // This is where future game state will be maintained
-    //   }
-    // });
-    //}
+      // TODO: Implement these handlers when the server API is finalized
+      // socketStore.socket.on('gameSession:update', (data: GameSessionWithId) => {
+      //   if (data.id === sessionId) {
+      //     console.log('[Socket] Received gameSession:update event:', data);
+      //     currentSession.value = data;
+      //   }
+      // });
+
+      // socketStore.socket.on('gameSession:end', (data: { sessionId: string }) => {
+      //   if (data.sessionId === sessionId) {
+      //     console.log('[Socket] Received gameSession:end event:', data);
+      //     clearSession();
+      //   }
+      // });
+
+      // socketStore.socket.on('gameState:update', (data: GameStateUpdate) => {
+      //   if (data.sessionId === sessionId) {
+      //     console.log('[Socket] Received gameState:update event:', data);
+      //     // Here we would update game state information
+      //     // This is where future game state will be maintained
+      //   }
+      // });
+    }
 
     function leaveSession() {
       if (currentSession.value && socketStore.socket) {
@@ -212,10 +266,13 @@ export const useGameSessionStore = defineStore(
           socketStore.socket.emit('leaveSession', currentSession.value.id);
         }
 
-        // // Remove listeners
+        // Remove listeners
+        socketStore.socket.off('userJoinedSession');
+        // Commented out events that aren't in the socket type definitions yet
         // socketStore.socket.off('gameSession:update');
         // socketStore.socket.off('gameSession:end');
         // socketStore.socket.off('gameState:update');
+        // socketStore.socket.off('userLeftSession');
 
         clearSession();
       }
@@ -226,6 +283,7 @@ export const useGameSessionStore = defineStore(
       campaignStore.setActiveCampaign(null);
       currentCharacter.value = null;
       error.value = null;
+      activeUsers.value = {};
     }
 
     return {
@@ -234,10 +292,37 @@ export const useGameSessionStore = defineStore(
       loading,
       error,
       isGameMaster,
+      activeUsers,
       joinSession,
       leaveSession,
       clearSession
     };
   },
-  { persist: { storage: localStorage } }
+  { 
+    persist: { 
+      storage: sessionStorage,
+      serializer: {
+        serialize: (state) => {
+          // Custom serializer that properly handles Date objects
+          return JSON.stringify(state, (_, value) => {
+            // Convert Date objects to a special format with a type marker
+            if (value instanceof Date) {
+              return { __type: 'Date', value: value.toISOString() };
+            }
+            return value;
+          });
+        },
+        deserialize: (state) => {
+          // Custom deserializer that properly restores Date objects
+          return JSON.parse(state, (_, value) => {
+            // Check for our special Date object marker
+            if (value && typeof value === 'object' && value.__type === 'Date') {
+              return new Date(value.value);
+            }
+            return value;
+          });
+        }
+      }
+    }
+  }
 );

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { z, ZodError } from 'zod';
+import { z } from 'zod';
 import { logger } from '../../../utils/logger.mjs';
 import { isErrorWithMessage } from '../../../utils/error.mjs';
 import { ActorService } from '../services/actor.service.mjs';
@@ -116,80 +116,57 @@ export class ActorController {
     req: Request<object, object, z.infer<typeof createActorRequestSchema>>,
     res: Response<BaseAPIResponse<IActor>>
   ): Promise<Response<BaseAPIResponse<IActor>> | void> => {
-    try {
-      // Validate request body
-      const validatedData = createActorRequestSchema.parse(req.body);
+    // Validate request body
+    const validatedData = createActorRequestSchema.parse(req.body);
 
-      // Get the avatar and token files from req.assets
-      const avatarFile = req.assets?.avatar?.[0];
-      const tokenFile = req.assets?.token?.[0];
+    // Get the avatar and token files from req.assets
+    const avatarFile = req.assets?.avatar?.[0];
+    const tokenFile = req.assets?.token?.[0];
 
-      const data = validatedData.data;
-      if (!data) {
-        return res.status(400).json({
-          success: false,
-          data: null,
-          error: 'Data is required'
-        });
-      }
-
-      const plugin = pluginRegistry.getPlugin(validatedData.gameSystemId);
-      if (!plugin) {
-        return res.status(400).json({
-          success: false,
-          data: null,
-          error: 'Invalid plugin ID'
-        });
-      }
-      const result = plugin.validateActorData(validatedData.type, data);
-
-      if (!result.success) {
-        console.log(result.error.message);
-        return res.status(422).json({
-          success: false,
-          data: null,
-          error: result.error.message,
-          error_details: result.error.issues
-        });
-      }
-
-      // Destructure validatedData while renaming avatar and token to bypass unused variable warnings
-      const { avatar: _avatar, token: _token, ...actorData } = validatedData;
-
-      // Create the actor using the service
-      const actor = await this.actorService.createActor(
-        actorData,
-        req.session.user.id,
-        avatarFile,
-        tokenFile
-      );
-
-      return res.status(201).json({
-        success: true,
-        data: actor
-      });
-    } catch (error) {
-      if (error instanceof ZodError) {
-        return res.status(400).json({
-          success: false,
-          data: null,
-          error: JSON.parse(error.message)
-        });
-      }
-      if (isErrorWithMessage(error)) {
-        logger.error('Error creating actor:', error);
-        return res.status(500).json({
-          success: false,
-          data: null,
-          error: error.message || 'Failed to create actor'
-        });
-      }
-      return res.status(500).json({
+    const data = validatedData.data;
+    if (!data) {
+      return res.status(400).json({
         success: false,
         data: null,
-        error: 'Failed to create actor'
+        error: 'Data is required'
       });
     }
+
+    const plugin = pluginRegistry.getPlugin(validatedData.gameSystemId);
+    if (!plugin) {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        error: 'Invalid plugin ID'
+      });
+    }
+    const result = plugin.validateActorData(validatedData.type, data);
+
+    if (!result.success) {
+      console.log(result.error.message);
+      return res.status(422).json({
+        success: false,
+        data: null,
+        error: result.error.message,
+        error_details: result.error.issues
+      });
+    }
+
+    // Destructure validatedData while renaming avatar and token to bypass unused variable warnings
+    const { avatar: _avatar, token: _token, ...actorData } = validatedData;
+
+    // Create the actor using the service
+    const actor = await this.actorService.createActor(
+      actorData,
+      req.session.user.id,
+      avatarFile,
+      tokenFile
+    );
+
+    return res.status(201).json({
+      success: true,
+      data: actor
+    });
   };
 
   /**
@@ -201,71 +178,41 @@ export class ActorController {
     req: Request<{ id: string }, object, z.infer<typeof putActorRequestSchema>>,
     res: Response<BaseAPIResponse<IActor>>
   ): Promise<Response<BaseAPIResponse<IActor>> | void> => {
-    try {
-      // Validate request body
-      const validatedData = putActorRequestSchema.parse(req.body);
+    // Validate request body
+    const validatedData = putActorRequestSchema.parse(req.body);
 
-      const hasPermission = await this.actorService.checkUserPermission(
-        req.params.id,
-        req.session.user.id,
-        req.session.user.isAdmin
-      );
+    const hasPermission = await this.actorService.checkUserPermission(
+      req.params.id,
+      req.session.user.id,
+      req.session.user.isAdmin
+    );
 
-      if (!hasPermission) {
-        return res.status(403).json({
-          success: false,
-          data: null,
-          error: 'Access denied'
-        });
-      }
-
-      // Get avatar and token files from req.assets if present
-      const avatarFile = req.assets?.avatar?.[0];
-      const tokenFile = req.assets?.token?.[0];
-
-      const { avatar: _avatar, token: _token, ...actorData } = validatedData;
-      // Update the actor using the service
-      const actor = await this.actorService.putActor(
-        req.params.id,
-        actorData,
-        req.session.user.id,
-        avatarFile,
-        tokenFile
-      );
-
-      return res.json({
-        success: true,
-        data: actor
-      });
-    } catch (error) {
-      if (error instanceof ZodError) {
-        return res.status(400).json({
-          success: false,
-          data: null,
-          error: JSON.parse(error.message)
-        });
-      }
-      if (isErrorWithMessage(error)) {
-        logger.error('Error updating actor:', error);
-        if (error.message === 'Actor not found') {
-          return res.status(404).json({
-            success: false,
-            data: null,
-            error: 'Actor not found'
-          });
-        }
-        return res.status(500).json({
-          success: false,
-          data: null,
-          error: error.message || 'Failed to update actor'
-        });
-      }
-      return res.status(500).json({
+    if (!hasPermission) {
+      return res.status(403).json({
         success: false,
         data: null,
-        error: 'Failed to update actor'
+        error: 'Access denied'
       });
     }
+
+    // Get avatar and token files from req.assets if present
+    const avatarFile = req.assets?.avatar?.[0];
+    const tokenFile = req.assets?.token?.[0];
+
+    const { avatar: _avatar, token: _token, ...actorData } = validatedData;
+    // Update the actor using the service
+    const actor = await this.actorService.putActor(
+      req.params.id,
+      actorData,
+      req.session.user.id,
+      avatarFile,
+      tokenFile
+    );
+
+    return res.json({
+      success: true,
+      data: actor
+    });
   };
 
   /**
@@ -282,15 +229,13 @@ export class ActorController {
       return res.status(403).json({ success: false, data: null, error: 'Access denied' });
     }
 
-    const result = patchActorRequestSchema.safeParse(req.body);
-    if (!result.success) {
-      return res.status(400).json({ success: false, data: null, error: 'Invalid request body' });
-    }
+    // Parse the request body and let ZodError bubble up to middleware
+    const validatedData = patchActorRequestSchema.parse(req.body);
 
     try {
-      // Extract only the fields from result.data that are needed by patchActor
+      // Extract only the fields from validatedData that are needed by patchActor
       // Omit the avatar and token fields which are causing type issues and rename with underscore prefix
-      const { avatar: _avatar, token: _token, ...restData } = result.data;
+      const { avatar: _avatar, token: _token, ...restData } = validatedData;
 
       // Add the id from the route parameter
       const actorData = { ...restData, id: req.params.id };
@@ -522,21 +467,17 @@ export class ActorController {
       return res.status(403).json({ success: false, data: null, error: 'Access denied' });
     }
 
-    const result = searchActorsQuerySchema.safeParse(req.query);
-    if (!result.success) {
-      return res
-        .status(400)
-        .json({ success: false, data: null, error: 'Invalid query parameters' });
-    }
+    // Parse the query and let ZodError bubble up to middleware
+    const validatedQuery = searchActorsQuerySchema.parse(req.query);
 
     try {
       // Convert the zod parsed result to the correct query format
       const queryParams: Record<string, string> = {};
 
       // Only add defined values as strings
-      if (result.data.name) queryParams.name = result.data.name;
-      if (result.data.type) queryParams.type = result.data.type;
-      if (result.data.gameSystemId) queryParams.gameSystemId = result.data.gameSystemId;
+      if (validatedQuery.name) queryParams.name = validatedQuery.name;
+      if (validatedQuery.type) queryParams.type = validatedQuery.type;
+      if (validatedQuery.gameSystemId) queryParams.gameSystemId = validatedQuery.gameSystemId;
 
       const actors = await this.actorService.searchActors(queryParams);
       return res.json({ success: true, data: actors, error: null });
