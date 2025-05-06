@@ -242,7 +242,7 @@ function createNewCharacter() {
   }
 
   router.push({
-    path: '/actors/new',
+    path: '/character/create',
     query: {
       gameSystemId,
       returnTo: '/invites',

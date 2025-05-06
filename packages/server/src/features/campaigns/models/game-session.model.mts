@@ -27,8 +27,49 @@ mongooseSchema.path('gameMasterId').get(function (value: ObjectId | undefined) {
   return value?.toString();
 });
 
+// Add getter/setter for participantIds
+mongooseSchema.path('participantIds').get(function (value: ObjectId[] | undefined) {
+  return value?.map((id) => id.toString());
+});
+
+// Add a setter for participantIds to convert string IDs to ObjectId
+mongooseSchema.path('participantIds').set(function (value: (ObjectId | string)[]) {
+  if (!value) return value;
+  
+  return value.map(id => {
+    // If it's already an ObjectId, leave it as is
+    if (id instanceof ObjectId) return id;
+    
+    // Otherwise try to convert string to ObjectId
+    try {
+      return new ObjectId(id);
+    } catch (error) {
+      console.error('Failed to convert participantId to ObjectId:', id, error);
+      return id; // Return original value if conversion fails
+    }
+  });
+});
+
 mongooseSchema.path('characterIds').get(function (value: ObjectId[] | undefined) {
   return value?.map((id) => id.toString());
+});
+
+// Add a setter for characterIds to convert string IDs to ObjectId
+mongooseSchema.path('characterIds').set(function (value: (ObjectId | string)[]) {
+  if (!value) return value;
+  
+  return value.map(id => {
+    // If it's already an ObjectId, leave it as is
+    if (id instanceof ObjectId) return id;
+    
+    // Otherwise try to convert string to ObjectId
+    try {
+      return new ObjectId(id);
+    } catch (error) {
+      console.error('Failed to convert characterId to ObjectId:', id, error);
+      return id; // Return original value if conversion fails
+    }
+  });
 });
 
 mongooseSchema.virtual('campaign', {

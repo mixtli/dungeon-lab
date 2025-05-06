@@ -47,7 +47,7 @@ export const useActorStore = defineStore(
     // @ts-ignore - The type definitions for Pinia persist don't include all available options
     persist: {
       key: 'actor-store',
-      storage: sessionStorage,
+      storage: localStorage,
       serializer: {
         serialize: (state) => {
           // Custom serializer that properly handles Date objects

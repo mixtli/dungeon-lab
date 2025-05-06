@@ -11,9 +11,7 @@ import type {
 import { logger } from '../utils/logger.mjs';
 import { socketHandlerRegistry } from './handler-registry.mjs';
 import { CampaignService } from '../features/campaigns/index.mjs';
-
-
-
+import { GameSessionService } from '../features/campaigns/services/game-session.service.mjs';
 
 // Define a type for the session with user information
 interface SessionWithUser {
@@ -73,12 +71,11 @@ export class SocketServer {
     actorId?: string,
     callback?: (response: JoinCallback) => void
   ) {
-    console.log('joinSession', sessionId);
+    console.log('joinSession', sessionId, actorId);
     try {
-      const session = await GameSessionModel.findById(sessionId)
-        .populate('campaign')
-        .populate('gameMaster')
-        .populate('characters');
+      // Use GameSessionService to fetch and populate the session
+      const gameSessionService = new GameSessionService();
+      const session = await gameSessionService.getGameSession(sessionId);
       if (!session) {
         throw new Error('Session not found');
       }
@@ -88,25 +85,26 @@ export class SocketServer {
         socket.leave(`session:${socket.gameSessionId}`);
       }
 
-      // socket.join(`user:${socket.userId}`);
+      // Add user to session participants
+      await gameSessionService.addParticipantToSession(sessionId, socket.userId);
 
-      const campaignService = new CampaignService();
-
-      if (!session.participantIds.includes(socket.userId)) {
-        session.participantIds.push(socket.userId);
-      }
-
-      // If actorId is provided, join an actor-specific room
+      // If actorId is provided, join an actor-specific room and add actor to session
       if (actorId) {
         logger.info(`Joining actor room: actor:${actorId}`);
+        const campaignService = new CampaignService();
         if (await campaignService.isActorCampaignMember(actorId, session.campaignId)) {
-          session.characterIds.push(actorId);
-          await session.save();
+          console.log('actor is in campaign', actorId, session.campaignId);
+          
+          // Add actor to session using the new service method
+          await gameSessionService.addActorToSession(sessionId, actorId);
+          
           socket.join(`actor:${actorId}`);
+          console.log('joined actor room', actorId);
         } else {
           throw new Error('User not in session');
         }
       }
+      
       // Join the new game session room
       socket.join(`session:${sessionId}`);
       socket.gameSessionId = sessionId;
@@ -118,11 +116,17 @@ export class SocketServer {
         actorId
       });
 
+      // Fetch the most up-to-date session with populated data
+      const updatedSession = await GameSessionModel.findById(sessionId)
+        .populate('campaign')
+        .populate('gameMaster')
+        .populate('characters');
+
       // Send campaign data to the user via the callback
       if (callback) {
         callback({
           success: true,
-          data: session.toObject()
+          data: updatedSession?.toObject()
         });
       }
     } catch (error) {
@@ -136,13 +140,72 @@ export class SocketServer {
     }
   }
 
-  handleLeaveSession(
+  async handleLeaveSession(
     socket: Socket<ClientToServerEvents, ServerToClientEvents>,
     sessionId: string
   ) {
     console.log('leaveSession', sessionId);
-    socket.leave(sessionId);
-    socket.gameSessionId = undefined;
+    try {
+      // Get the session with populated characters
+      const session = await GameSessionModel.findById(sessionId)
+        .populate('characters');
+      if (!session) {
+        logger.warn(`Session not found when leaving: ${sessionId}`);
+        socket.leave(`session:${sessionId}`);
+        socket.gameSessionId = undefined;
+        return;
+      }
+
+      // Get userId from socket
+      const userId = socket.userId;
+      
+      // Find all characters owned by this user in the session
+      const userActorIds: string[] = [];
+      const characterNames: string[] = [];
+      
+      if (session.characters && Array.isArray(session.characters)) {
+        // Filter characters that belong to this user
+        for (const character of session.characters) {
+          if (character.createdBy === userId && character.id) {
+            userActorIds.push(character.id);
+            characterNames.push(character.name);
+            
+            // Leave the actor-specific room
+            socket.leave(`actor:${character.id}`);
+          }
+        }
+      }
+      
+      // Use the new service methods to remove participants and actors
+      const gameSessionService = new GameSessionService();
+      
+      // Remove the user from participants
+      await gameSessionService.removeParticipantFromSession(sessionId, userId);
+      
+      // Remove each of the user's characters from the session
+      for (const actorId of userActorIds) {
+        await gameSessionService.removeActorFromSession(sessionId, actorId);
+      }
+      
+      // Notify other users in the session
+      socket.to(`session:${sessionId}`).emit('userLeftSession', {
+        userId,
+        sessionId,
+        actorIds: userActorIds,
+        characterNames
+      });
+      
+      // Leave the session room
+      socket.leave(`session:${sessionId}`);
+      socket.gameSessionId = undefined;
+      
+      logger.info(`User ${userId} left session ${sessionId} with characters: ${characterNames.join(', ')}`);
+    } catch (error) {
+      logger.error('Error handling leave session:', error);
+      // Still leave the session room even if there was an error
+      socket.leave(`session:${sessionId}`);
+      socket.gameSessionId = undefined;
+    }
   }
 
   handleConnections() {
@@ -157,7 +220,7 @@ export class SocketServer {
       socketHandlerRegistry.applyAll(socket);
 
       socket.onAny((eventName, ...args) => {
-        logger.info('Socket event:', { eventName, args });
+        logger.info('Socket event:', { eventName, args: JSON.stringify(args, null, 2) });
       });
       socket.on('error', (error) => {
         console.error('Socket error:', error);
@@ -173,8 +236,17 @@ export class SocketServer {
       );
       socket.on('leaveSession', (sessionId: string) => this.handleLeaveSession(socket, sessionId));
 
-      socket.on('disconnect', () => {
+      socket.on('disconnect', async () => {
         logger.info(`Client disconnected: ${socket.id} (${socket.userId})`);
+        
+        // If user was in a session, handle leaving that session
+        if (socket.gameSessionId) {
+          try {
+            await this.handleLeaveSession(socket, socket.gameSessionId);
+          } catch (error) {
+            logger.error('Error handling disconnect from session:', error);
+          }
+        }
       });
     });
   }

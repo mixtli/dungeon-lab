@@ -2,9 +2,11 @@
 import { onMounted } from 'vue';
 import { useSocketStore } from '../../stores/socket.store.mjs';
 import { useGameSessionStore } from '../../stores/game-session.store.mjs';
+import { useActorStore } from '../../stores/actor.store.mjs';
 
 const socketStore = useSocketStore();
 const gameSessionStore = useGameSessionStore();
+const actorStore = useActorStore();
 
 // Function to restore game session
 async function restoreGameSession() {
@@ -39,7 +41,7 @@ async function restoreGameSession() {
           });
 
           // If we have a stored character, rejoin with that character ID
-          const characterId = gameSessionStore.currentCharacter?.id;
+          const characterId = actorStore.currentActor?.id;
           gameSessionStore.joinSession(gameSessionStore.currentSession.id, characterId);
           return;
         }

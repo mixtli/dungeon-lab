@@ -17,8 +17,8 @@ const socketStore = useSocketStore();
 const chatStore = useChatStore();
 
 const messageInput = ref('');
-const participants = ref<{ id: string; name: string }[]>([]);
-const selectedParticipant = ref<{ id: string; name: string } | null>(null);
+const participants = ref<{ id: string; name: string; type: string }[]>([]);
+const selectedParticipant = ref<{ id: string; name: string; type: string } | null>(null);
 const isDirectMessage = ref(false);
 
 // When @ is typed, show participant list for autocomplete
@@ -45,7 +45,7 @@ function handleRollCommand(formula: string) {
 // Send a message
 function sendMessage() {
   if (!messageInput.value.trim()) return;
-  let recipientId = "session:" + gameSessionStore.currentSession?.id;
+  let recipientId: string | undefined;
 
   // Check for roll command
   if (messageInput.value.startsWith('/roll ')) {
@@ -59,7 +59,7 @@ function sendMessage() {
 
   // Determine recipient if direct message
   if (selectedParticipant.value) {
-    recipientId = "actor:" + selectedParticipant.value.id;
+    recipientId = `${selectedParticipant.value.type}:${selectedParticipant.value.id}`;
   }
 
   // Use the chat store to send the message
@@ -94,12 +94,14 @@ async function updateParticipants() {
             return {
               id: character.id,
               name: character.name,
+              type: 'actor'
             };
           } catch (error) {
             console.error('Error fetching actor:', error);
             return {
               id: character.id,
               name: 'Unknown',
+              type: 'actor'
             };
           }
         }
@@ -110,12 +112,12 @@ async function updateParticipants() {
     participantList.push({
       id: gameSessionStore.currentSession?.gameMasterId,
       name: 'Game Master',
+      type: 'user'
     });
-    participants.value = participantList.filter((participant): participant is { id: string; name: string } =>
+    participants.value = participantList.filter((participant): participant is { id: string; name: string; type: string } =>
       participant !== undefined
     );
   }
-
 }
 
 onMounted(async () => {
@@ -187,7 +189,7 @@ onUnmounted(() => {
               <div class="flex-1">
                 <div class="flex items-center gap-2">
                   <span class="font-medium text-gray-900">
-                    {{ message.senderId === socketStore.userId ? 'You' : message.senderName }}
+                    {{ message.senderName }}
                   </span>
                   <span class="text-xs text-gray-500">
                     {{ new Date(message.timestamp).toLocaleTimeString() }}

@@ -24,7 +24,6 @@ export const useGameSessionStore = defineStore(
     const currentCharacter = ref<IActor | null>(null);
     const loading = ref(false);
     const error = ref<string | null>(null);
-    const activeUsers = ref<Record<string, IActor>>({});
 
     console.log('gameSessionStore initialized, session:', currentSession.value);
     
@@ -127,19 +126,7 @@ export const useGameSessionStore = defineStore(
                   const actor = response.data.characters?.find((c) => c.id === actorId);
                   if (actor) {
                     currentCharacter.value = actor;
-                    
-                    // Add self to active users
-                    activeUsers.value[actor.id] = actor;
                   }
-                }
-
-                // Initialize active users with any existing characters from the session
-                if (response.data.characters && Array.isArray(response.data.characters)) {
-                  response.data.characters.forEach(character => {
-                    if (character.id) {
-                      activeUsers.value[character.id] = character;
-                    }
-                  });
                 }
 
                 // Fetch and set the active campaign
@@ -193,11 +180,11 @@ export const useGameSessionStore = defineStore(
 
       // Remove any existing listeners to prevent duplicates
       socketStore.socket.off('userJoinedSession');
+      socketStore.socket.off('userLeftSession');
       // Commented out events that aren't in the socket type definitions yet
       // socketStore.socket.off('gameSession:update');
       // socketStore.socket.off('gameSession:end');
       // socketStore.socket.off('gameState:update');
-      // socketStore.socket.off('userLeftSession');
 
       // Listen for user joined events
       socketStore.socket.on('userJoinedSession', async (data: { userId: string, sessionId: string, actorId?: string }) => {
@@ -209,8 +196,13 @@ export const useGameSessionStore = defineStore(
             const actor = await actorClient.getActor(data.actorId);
             
             if (actor) {
-              // Add to active users
-              activeUsers.value[actor.id] = actor;
+              // Add the character to the current session if not already there
+              if (currentSession.value && currentSession.value.characters) {
+                const existingIndex = currentSession.value.characters.findIndex(c => c.id === actor.id);
+                if (existingIndex === -1) {
+                  currentSession.value.characters.push(actor);
+                }
+              }
               
               // Notify in chat
               chatStore.sendMessage(`${actor.name} has joined the session.`, sessionId);
@@ -221,20 +213,34 @@ export const useGameSessionStore = defineStore(
         }
       });
 
-      // TODO: Implement userLeftSession handler once the server emits this event
-      // socketStore.socket.on('userLeftSession', (data: { userId: string, sessionId: string, actorId?: string }) => {
-      //   console.log('[Socket] Received userLeftSession event:', data);
-      //   
-      //   if (data.sessionId === sessionId && data.actorId && activeUsers.value[data.actorId]) {
-      //     const actorName = activeUsers.value[data.actorId].name;
-      //     
-      //     // Remove from active users
-      //     delete activeUsers.value[data.actorId];
-      //     
-      //     // Notify in chat
-      //     chatStore.sendMessage(`${actorName} has left the session.`, sessionId);
-      //   }
-      // });
+      // Handle user left session events
+      socketStore.socket.on('userLeftSession', (data: { 
+        userId: string, 
+        sessionId: string, 
+        actorIds: string[],
+        characterNames: string[]
+      }) => {
+        console.log('[Socket] Received userLeftSession event:', data);
+        
+        if (data.sessionId === sessionId) {
+          // Remove characters from the current session
+          if (currentSession.value && currentSession.value.characters) {
+            currentSession.value.characters = currentSession.value.characters.filter(
+              character => !data.actorIds.includes(character.id)
+            );
+          }
+          
+          // Notify in chat about each character that left
+          data.characterNames.forEach(name => {
+            chatStore.sendMessage(`${name} has left the session.`, sessionId);
+          });
+          
+          // If this was the current user who left, clear the current character
+          if (data.userId === authStore.user?.id) {
+            currentCharacter.value = null;
+          }
+        }
+      });
 
       // TODO: Implement these handlers when the server API is finalized
       // socketStore.socket.on('gameSession:update', (data: GameSessionWithId) => {
@@ -268,11 +274,11 @@ export const useGameSessionStore = defineStore(
 
         // Remove listeners
         socketStore.socket.off('userJoinedSession');
+        socketStore.socket.off('userLeftSession');
         // Commented out events that aren't in the socket type definitions yet
         // socketStore.socket.off('gameSession:update');
         // socketStore.socket.off('gameSession:end');
         // socketStore.socket.off('gameState:update');
-        // socketStore.socket.off('userLeftSession');
 
         clearSession();
       }
@@ -283,7 +289,6 @@ export const useGameSessionStore = defineStore(
       campaignStore.setActiveCampaign(null);
       currentCharacter.value = null;
       error.value = null;
-      activeUsers.value = {};
     }
 
     return {
@@ -292,7 +297,6 @@ export const useGameSessionStore = defineStore(
       loading,
       error,
       isGameMaster,
-      activeUsers,
       joinSession,
       leaveSession,
       clearSession

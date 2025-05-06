@@ -11,10 +11,25 @@ import {
  * @param socket The client socket connection
  */
 function chatSocketHandler(socket: Socket<ClientToServerEvents, ServerToClientEvents>) {
-  socket.on('chat', (recipient: string, message: string) => {
-    logger.info(`Chat message from: ${socket.userId}, to: ${recipient}, message: ${message}`);
+  socket.on('chat', (metadata, message) => {
+    const recipient = metadata.recipient;
+    
+    // Construct room name by concatenating type and id (except for 'system')
+    const roomName = recipient.type === 'system' ? 'system' : `${recipient.type}:${recipient.id}`;
+    
+    logger.info(`Chat message from: ${socket.userId}, to: ${roomName}, message: ${message}`);
 
-    socket.to(recipient).emit('chat', socket.userId, message);
+    // Set sender userId if not provided
+    if (!metadata.sender.id && socket.userId) {
+      metadata.sender.id = socket.userId;
+    }
+    
+    // Set timestamp if not provided
+    if (!metadata.timestamp) {
+      metadata.timestamp = new Date();
+    }
+
+    socket.to(roomName).emit('chat', metadata, message);
   });
 }
 

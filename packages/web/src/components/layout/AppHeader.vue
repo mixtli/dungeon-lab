@@ -7,6 +7,7 @@ import { useGameSessionStore } from '../../stores/game-session.store.mjs';
 import { useCampaignStore } from '../../stores/campaign.store.mjs';
 import { SunIcon, MoonIcon, Bars3Icon, XMarkIcon } from '@heroicons/vue/24/solid';
 import CharacterSelector from '../common/CharacterSelector.vue';
+import SessionInfoDropdown from '../common/SessionInfoDropdown.vue';
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -132,31 +133,8 @@ function goToChat() {
             </div>
           </div>
 
-          <!-- Session Info -->
-          <div
-            v-if="gameSessionStore.currentSession"
-            class="px-3 py-2 rounded-md text-sm font-medium bg-gray-50 dark:bg-gray-700 flex items-center space-x-2"
-          >
-            <div class="flex flex-col">
-              <span class="text-xs text-gray-500 dark:text-gray-400">
-                {{ gameSessionStore.currentSession.name }}
-              </span>
-              <div class="flex items-center space-x-1">
-                <span class="text-sm text-gray-700 dark:text-gray-200">
-                  {{ campaignStore.currentCampaign?.name }}
-                </span>
-                <span
-                  v-if="!gameSessionStore.isGameMaster && gameSessionStore.currentCharacter"
-                  class="text-xs text-gray-500 dark:text-gray-400"
-                >
-                  ({{ gameSessionStore.currentCharacter.name }})
-                </span>
-                <span v-else-if="gameSessionStore.isGameMaster" class="text-xs text-primary-500">
-                  (GM)
-                </span>
-              </div>
-            </div>
-          </div>
+          <!-- Session Info Dropdown -->
+          <SessionInfoDropdown v-if="gameSessionStore.currentSession" />
 
           <!-- Character Selector -->
           <div v-if="authStore.isAuthenticated && gameSessionStore.currentSession" class="w-40">
@@ -214,6 +192,12 @@ function goToChat() {
                 class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600"
               >
                 Profile
+              </RouterLink>
+              <RouterLink
+                to="/invites"
+                class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600"
+              >
+                Invites
               </RouterLink>
               <RouterLink
                 to="/settings"
@@ -326,6 +310,18 @@ function goToChat() {
         >
           File Upload
         </RouterLink>
+        <RouterLink
+          v-if="authStore.isAuthenticated"
+          to="/invites"
+          class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700"
+        >
+          Invites
+        </RouterLink>
+
+        <!-- Session Info Dropdown for Mobile -->
+        <div v-if="gameSessionStore.currentSession" class="px-3 py-2">
+          <SessionInfoDropdown />
+        </div>
 
         <!-- Character Selector for Mobile -->
         <div v-if="authStore.isAuthenticated && gameSessionStore.currentSession" class="px-3 py-2">

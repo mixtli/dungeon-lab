@@ -70,8 +70,8 @@ export class InviteService {
 
     // Check if user is already a member of the campaign
     const isAlreadyMember = await this.campaignService.isUserCampaignMember(
-      campaignId,
-      invitedUser.id
+      invitedUser.id,
+      campaignId
     );
     if (isAlreadyMember) {
       throw new Error('User is already a member of this campaign');

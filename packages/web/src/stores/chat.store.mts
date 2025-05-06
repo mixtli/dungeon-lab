@@ -7,6 +7,8 @@ import type {
   ClientToServerEvents
 } from '@dungeon-lab/shared/types/socket/index.mjs';
 import { useGameSessionStore } from './game-session.store.mts';
+import { useAuthStore } from './auth.store.mts';
+import { useActorStore } from './actor.store.mts';
 
 export interface ChatMessage {
   id: string;
@@ -29,6 +31,8 @@ export const useChatStore = defineStore(
     const messages = ref<ChatMessage[]>([]);
     const socketStore = useSocketStore();
     const gameSessionStore = useGameSessionStore();
+    const authStore = useAuthStore();
+    const actorStore = useActorStore();
     const currentSessionId = ref<string | null>(null);
 
     // Watch for socket changes to setup listeners
@@ -66,15 +70,18 @@ export const useChatStore = defineStore(
       socket.off('chat');
 
       // Listen for chat messages
-      socket.on('chat', (senderId: string, message: string) => {
-        console.log('chat message received', senderId, message);
+      socket.on('chat', (metadata, message) => {
+        console.log('chat message received', metadata, message);
         try {
+          const senderName = getSenderName(metadata.sender.id, metadata.sender.type);
+          
           const newMessage: ChatMessage = {
             id: generateId(),
             content: message,
-            senderId: senderId,
-            senderName: senderId,
-            timestamp: new Date(Date.now())
+            senderId: metadata.sender.id || 'system',
+            senderName: senderName,
+            timestamp: metadata.timestamp || new Date(),
+            isSystem: metadata.sender.type === 'system'
           };
 
           messages.value.push(newMessage);
@@ -95,6 +102,40 @@ export const useChatStore = defineStore(
       });
     }
 
+    // Get the name of a sender based on their ID and type
+    function getSenderName(senderId?: string, senderType?: string): string {
+      if (senderType === 'system') return 'System';
+      if (!senderId) return 'Unknown';
+      
+      // If sender is the current user
+      if (senderId === socketStore.userId && senderType === 'user') {
+        // If current user is game master, label messages as "You" to self
+        if (gameSessionStore.isGameMaster) {
+          return 'You';
+        }
+        return 'You';
+      }
+      
+      // If sender is the current actor for the current user
+      if (actorStore.currentActor?.id === senderId && senderType === 'actor') return 'You';
+      
+      // If sender is the game master for this session, show as "Game Master"
+      if (gameSessionStore.currentSession?.gameMasterId === senderId && senderType === 'user') {
+        return 'Game Master';
+      }
+      
+      // If sender is an actor in the current session
+      if (senderType === 'actor') {
+        // Check game session characters
+        const character = gameSessionStore.currentSession?.characters?.find(c => c.id === senderId);
+        if (character) {
+          return character.name;
+        }
+      }
+      
+      return 'Unknown User';
+    }
+
     // Send a message
     function sendMessage(content: string, recipientId?: string) {
       if (!socketStore.socket) {
@@ -106,19 +147,55 @@ export const useChatStore = defineStore(
         return; // Don't send empty messages
       }
 
-      // Determine recipient - if not specified, send to the current game session
-      const recipient = recipientId || currentSessionId.value || gameSessionStore.currentSession?.id || 'broadcast';
+      // Check if current user is the game master
+      const isGameMaster = gameSessionStore.isGameMaster;
+      
+      // Use the current actor if set in actor store (unless user is game master)
+      const currentActor = !isGameMaster ? (actorStore.currentActor || gameSessionStore.currentCharacter) : null;
+      
+      // Create the metadata object
+      const metadata = {
+        sender: {
+          // If user is game master, always send as user type
+          type: isGameMaster ? 'user' as 'user' | 'system' | 'actor' | 'session' : 
+                currentActor ? 'actor' as 'user' | 'system' | 'actor' | 'session' : 
+                'user' as 'user' | 'system' | 'actor' | 'session',
+          id: isGameMaster ? (socketStore.userId || undefined) : 
+              (currentActor?.id || socketStore.userId || undefined)
+        },
+        recipient: {
+          type: 'session' as 'user' | 'system' | 'actor' | 'session',
+          id: currentSessionId.value || gameSessionStore.currentSession?.id || undefined
+        },
+        timestamp: new Date()
+      };
+
+      // If recipientId is provided, parse it to determine type
+      if (recipientId) {
+        const parts = recipientId.split(':');
+        if (parts.length === 2) {
+          const recipientType = parts[0];
+          if (recipientType === 'user' || recipientType === 'actor' || recipientType === 'session' || recipientType === 'system') {
+            metadata.recipient.type = recipientType;
+            metadata.recipient.id = parts[1];
+          }
+        } else {
+          // Default to session type
+          metadata.recipient.type = 'session';
+          metadata.recipient.id = recipientId;
+        }
+      }
 
       // Send the message
-      socketStore.socket.emit('chat', recipient, content);
+      socketStore.socket.emit('chat', metadata, content);
 
       // Also add the sent message to our local state
       // The server should echo back the message, but we add it locally for instant feedback
       const newMessage: ChatMessage = {
         id: generateId(),
         content,
-        senderId: socketStore.userId || 'unknown',
-        senderName: 'You', // Could be improved by getting name from auth store
+        senderId: metadata.sender.id || 'unknown',
+        senderName: 'You', // Always show "You" for messages sent by the current user/actor
         timestamp: new Date(),
         isSystem: false
       };

@@ -23,6 +23,12 @@ const users = [
     email: 'test2@dungeonlab.com',
     password: 'password',
     displayName: 'Test User 2'
+  },
+  {
+    username: 'test3',
+    email: 'test3@dungeonlab.com',
+    password: 'password',
+    displayName: 'Test User 3'
   }
 ];
 

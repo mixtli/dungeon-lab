@@ -1,11 +1,14 @@
 import { z } from 'zod';
 import { gameSessionResponseSchema } from '../game-session.schema.mjs';
 
+export const messageParticipantSchema = z.object({
+  type: z.enum(['user', 'system', 'actor', 'session']),
+  id: z.string().optional()
+});
+
 export const messageMetadataSchema = z.object({
-  senderType: z.enum(['user', 'system', 'actor']),
-  senderId: z.string().optional(),
-  recipientType: z.enum(['user', 'system', 'actor', 'session']),
-  recipientId: z.string().optional(),
+  sender: messageParticipantSchema,
+  recipient: messageParticipantSchema,
   timestamp: z.date().optional()
 });
 
@@ -51,7 +54,7 @@ export const encounterEventSchema = z.object({
 });
 
 export const serverToClientEvents = z.object({
-  chat: z.function().args(z.string(/* sender */), z.string(/* message */)).returns(z.void()),
+  chat: z.function().args(messageMetadataSchema, z.string(/* message */)).returns(z.void()),
   error: z.function().args(z.string()).returns(z.void()),
   diceRoll: z
     .function()
@@ -96,11 +99,22 @@ export const serverToClientEvents = z.object({
         actorId: z.string().optional()
       })
     )
+    .returns(z.void()),
+  userLeftSession: z
+    .function()
+    .args(
+      z.object({
+        userId: z.string(),
+        sessionId: z.string(),
+        actorIds: z.array(z.string()),
+        characterNames: z.array(z.string())
+      })
+    )
     .returns(z.void())
 });
 
 export const clientToServerEvents = z.object({
-  chat: z.function().args(z.string(/*recipient*/), z.string(/*message*/)).returns(z.void()),
+  chat: z.function().args(messageMetadataSchema, z.string(/*message*/)).returns(z.void()),
   joinSession: z
     .function()
     .args(
