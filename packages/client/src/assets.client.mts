@@ -42,15 +42,24 @@ export class AssetsClient extends ApiClient {
    * Upload a new asset
    */
   async uploadAsset(data: FormData): Promise<IAsset> {
-    const response = await this.api.post<BaseAPIResponse<IAsset>>('/api/assets', data, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
+    // Make sure the file field is named 'file', not anything else
+    // This is crucial as the server expects the file in this field
+    if (data.has('file')) {
+      // Ensure we have proper field naming
+      const response = await this.api.post<BaseAPIResponse<IAsset>>('/api/assets', data, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      
+      if (!response.data || !response.data.success) {
+        throw new Error(response.data?.error || 'Failed to upload asset');
       }
-    });
-    if (!response.data) {
-      throw new Error('Failed to upload asset');
+      
+      return response.data.data;
+    } else {
+      throw new Error('Form data must include a file field');
     }
-    return response.data.data;
   }
 
   /**

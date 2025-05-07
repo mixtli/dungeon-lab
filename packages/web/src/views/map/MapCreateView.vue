@@ -21,7 +21,9 @@ const error = ref<string | null>(null);
 const formData = ref({
   name: '',
   description: '',
-  gridColumns: 20,
+  width: 20,
+  height: 15,
+  pixelsPerGrid: 70
 });
 const mapImageFile = ref<File | UploadedImage | null>(null);
 
@@ -32,16 +34,34 @@ async function handleSubmit(event: Event) {
     loading.value = true;
     error.value = null;
     
-    // Prepare the create map request data
+    // Prepare the create map request data without the image
     const mapData = {
       name: formData.value.name,
       description: formData.value.description || '',
-      gridColumns: formData.value.gridColumns,
-      // Add the image if it's a File object
-      image: mapImageFile.value instanceof File ? mapImageFile.value : undefined
+      gridColumns: formData.value.width, // Keep for backward compatibility
+      uvtt: {
+        format: 1.0,
+        resolution: {
+          map_origin: { x: 0, y: 0 },
+          map_size: { 
+            x: formData.value.width, 
+            y: formData.value.height 
+          },
+          pixels_per_grid: formData.value.pixelsPerGrid
+        },
+        // Always include environment with required fields
+        environment: {
+          baked_lighting: false,
+          ambient_light: '#ffffff'
+        }
+      }
     };
 
-    await mapClient.createMap(mapData);
+    // Get the image file if it exists
+    const imageFile = mapImageFile.value instanceof File ? mapImageFile.value : undefined;
+
+    // Call the createMap method with separate file parameter
+    await mapClient.createMap(mapData, imageFile);
 
     // Show success and navigate to map list
     router.push({ name: 'maps' });
@@ -120,20 +140,50 @@ async function handleSubmit(event: Event) {
           ></textarea>
         </div>
 
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              Map Width (Squares) <span class="text-red-500">*</span>
+            </label>
+            <input
+              v-model="formData.width"
+              type="number"
+              required
+              min="1"
+              max="100"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              Map Height (Squares) <span class="text-red-500">*</span>
+            </label>
+            <input
+              v-model="formData.height"
+              type="number"
+              required
+              min="1"
+              max="100"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+        
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">
-            Grid Columns <span class="text-red-500">*</span>
+            Pixels Per Grid <span class="text-red-500">*</span>
           </label>
           <input
-            v-model="formData.gridColumns"
+            v-model="formData.pixelsPerGrid"
             type="number"
             required
-            min="1"
-            max="100"
+            min="10"
+            max="200"
             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <p class="text-gray-500 text-sm mt-1">
-            Number of columns in the grid. Rows will be calculated based on the image aspect ratio.
+            Number of pixels per grid square. Higher values result in higher resolution maps.
           </p>
         </div>
 

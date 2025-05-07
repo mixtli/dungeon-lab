@@ -8,6 +8,7 @@ import {
 } from '../../../services/storage.service.mjs';
 import mongoose from 'mongoose';
 import path from 'path';
+import { Express } from 'express';
 
 // Custom error types
 export class NotFoundError extends Error {
@@ -40,18 +41,21 @@ export type AssetDocument = mongoose.Document<unknown, object, IAsset> &
     toPublicJSON(): Record<string, unknown>;
   };
 
+// Define proper interface for multer file to fix type errors
+type MulterFile = Express.Multer.File;
+
 /**
  * Asset Service - Encapsulates business logic for asset management
  */
 class AssetService {
   /**
    * Create a new asset
-   * @param file - The file to upload (Buffer, name, mimetype)
+   * @param file - The file to upload (from Multer middleware)
    * @param userId - The ID of the user creating the asset
    * @param assetData - Additional data for the asset
    */
   async createAsset(
-    file: { buffer: Buffer; originalname: string; mimetype: string; size: number },
+    file: MulterFile,
     userId: string,
     assetData: Partial<IAssetCreateData>
   ): Promise<AssetDocument> {

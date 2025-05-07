@@ -7,7 +7,6 @@ import type {
   ClientToServerEvents
 } from '@dungeon-lab/shared/types/socket/index.mjs';
 import { useGameSessionStore } from './game-session.store.mts';
-import { useAuthStore } from './auth.store.mts';
 import { useActorStore } from './actor.store.mts';
 
 export interface ChatMessage {
@@ -31,7 +30,6 @@ export const useChatStore = defineStore(
     const messages = ref<ChatMessage[]>([]);
     const socketStore = useSocketStore();
     const gameSessionStore = useGameSessionStore();
-    const authStore = useAuthStore();
     const actorStore = useActorStore();
     const currentSessionId = ref<string | null>(null);
 

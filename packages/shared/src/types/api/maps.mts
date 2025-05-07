@@ -1,5 +1,10 @@
 import { z } from 'zod';
-import { mapSchema, mapCreateSchema, mapSchemaWithVirtuals } from '../../schemas/map.schema.mjs';
+import { 
+  mapSchema, 
+  mapCreateSchema, 
+  mapSchemaWithVirtuals,
+  mapImportUVTTSchema
+} from '../../schemas/map.schema.mjs';
 import { baseAPIResponseSchema } from './base.mjs';
 
 export type IMapResponse = z.infer<typeof mapSchemaWithVirtuals>;
@@ -28,6 +33,27 @@ export const createMapResponseSchema = baseAPIResponseSchema.extend({
 });
 
 export type CreateMapResponse = z.infer<typeof createMapResponseSchema>;
+
+// Types for POST /maps/import-uvtt (Import UVTT map)
+export const importUVTTRequestSchema = mapImportUVTTSchema;
+
+export type ImportUVTTRequest = z.infer<typeof mapImportUVTTSchema>;
+
+export const importUVTTResponseSchema = baseAPIResponseSchema.extend({
+  data: mapSchema.optional()
+});
+
+export type ImportUVTTResponse = z.infer<typeof importUVTTResponseSchema>;
+
+// Types for POST /maps/:id/export-uvtt (Export map as UVTT)
+export const exportUVTTResponseSchema = baseAPIResponseSchema.extend({
+  data: z.object({
+    url: z.string(), // URL to download the UVTT file
+    filename: z.string() // Suggested filename for the download
+  }).optional()
+});
+
+export type ExportUVTTResponse = z.infer<typeof exportUVTTResponseSchema>;
 
 // Types for PUT /maps/:id (Replace map)
 export const putMapRequestSchema = createMapRequestSchema;

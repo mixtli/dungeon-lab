@@ -1,5 +1,4 @@
 import { Request, Response } from 'express';
-import asyncHandler from 'express-async-handler';
 import * as storageService from '../services/storage.service.mjs';
 import multer, { FileFilterCallback } from 'multer';
 import path from 'path';
@@ -45,64 +44,47 @@ interface MulterRequest extends Request {
 // Upload a file
 export const uploadFile = [
   upload.single('file'),
-  asyncHandler(async (req: MulterRequest, res: Response) => {
+  async function (req: MulterRequest, res: Response) {
     if (!req.file) {
       res.status(400).json({ message: 'No file uploaded' });
       return;
     }
-    
     const { originalname, buffer, mimetype } = req.file;
     const folder = req.body.folder || '';
-    
     const result = await storageService.uploadFile(buffer, originalname, mimetype, folder);
-    
     res.status(201).json({
       message: 'File uploaded successfully',
       ...result
     });
-  })
+  }
 ];
 
 // Get a file URL
-export const getFileUrl = asyncHandler(async (req: Request, res: Response) => {
+export async function getFileUrl(req: Request, res: Response) {
   const { key } = req.params;
-  
   if (!key) {
     res.status(400).json({ message: 'File key is required' });
     return;
   }
-  
   const url = await storageService.getFileUrl(key);
-  
-  res.status(200).json({
-    url
-  });
-});
+  res.status(200).json({ url });
+}
 
 // Delete a file
-export const deleteFile = asyncHandler(async (req: Request, res: Response) => {
+export async function deleteFile(req: Request, res: Response) {
   const { key } = req.params;
-  
   if (!key) {
     res.status(400).json({ message: 'File key is required' });
     return;
   }
-  
   await storageService.deleteFile(key);
-  
-  res.status(200).json({
-    message: 'File deleted successfully'
-  });
-});
+  res.status(200).json({ message: 'File deleted successfully' });
+}
 
 // List files
-export const listFiles = asyncHandler(async (req: Request, res: Response) => {
+export async function listFiles(req: Request, res: Response) {
   const prefix = req.query.prefix as string || '';
   const recursive = req.query.recursive !== 'false';
-  
   const files = await storageService.listFiles(prefix, recursive);
-  
-  res.status(200).json({
-    files
-  });
-}); 
+  res.status(200).json({ files });
+} 

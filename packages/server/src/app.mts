@@ -20,6 +20,7 @@ import assetRoutes from './features/assets/index.mjs';
 import { oapi } from './oapi.mjs';
 import userRoutes from './features/users/routes/user.routes.mjs';
 import { errorHandler } from './middleware/error.middleware.mjs';
+import { ZodError } from 'zod';
 
 // Import socket handlers
 import './websocket/handlers/index.mjs';
@@ -37,20 +38,50 @@ type ValidationError = {
   message: string;
   validationErrors: unknown;
   validationSchema: unknown;
+  name?: string; // Add name to detect Mongoose ValidationError
 };
 
 const validationErrorHandler = (
-  err: ValidationError,
+  err: ValidationError | Error,
   _req: Request,
   res: Response,
-  _: NextFunction
+  next: NextFunction
 ) => {
-  console.log('errorHandler', err);
-  res.status(err.status).json({
-    error: err.message,
-    validation: err.validationErrors,
-    schema: err.validationSchema
-  });
+  // Handle custom validation errors (from custom middleware)
+  if ('status' in err) {
+    console.log('Custom validationErrorHandler', err);
+    return res.status(err.status).json({
+      success: false,
+      data: null,
+      error: err.message,
+      error_details: err.validationErrors
+    });
+  }
+  
+  // Handle Zod validation errors
+  if (err instanceof ZodError) {
+    console.log('Zod validationErrorHandler', err);
+    return res.status(422).json({
+      success: false,
+      data: null,
+      error: 'Validation error',
+      error_details: err.errors
+    });
+  }
+  
+  // Handle Mongoose validation errors
+  if (err.name === 'ValidationError') {
+    console.log('Mongoose validationErrorHandler', err);
+    return res.status(422).json({
+      success: false,
+      data: null,
+      error: 'Database validation error',
+      error_details: err
+    });
+  }
+  
+  // Pass any other errors to the next error handler
+  next(err);
 };
 
 // Create and export the session middleware for reuse
@@ -140,8 +171,10 @@ export async function createApp(): Promise<express.Application> {
   app.use('/api/health', healthRoutes);
   app.use('/api/users', userRoutes);
 
+  // Validation error handler for non-fatal validation errors
   app.use(validationErrorHandler);
-  // Error handling
+
+  // Global error handler - must be last
   app.use(errorHandler);
 
   // Mount Swagger UI correctly

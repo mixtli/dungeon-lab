@@ -40,7 +40,6 @@ export class MapService {
    * @param imageFile - Optional image file for the map
    */
   async createMap(data: IMapCreateData, userId: string, imageFile?: File): Promise<IMap> {
-    try {
       // First create a basic map record
       const mapData = {
         ...data,
@@ -93,11 +92,7 @@ export class MapService {
         // Return the map document (image will be added asynchronously)
         return map;
       }
-    } catch (error) {
-      logger.error('Error creating map:', error);
-      throw error;
-    }
-  }
+    }   
 
   async generateMapImage(mapId: string) {
     const map = await MapModel.findById(mapId);

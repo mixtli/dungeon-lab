@@ -45,9 +45,9 @@ class AssetController {
     req: Request,
     res: Response<BaseAPIResponse<IAsset>>
   ): Promise<Response<BaseAPIResponse<IAsset>> | void> {
-    try {
       // Check if file exists
-      if (!req.file) {
+      if (!req.assets?.file) {
+        console.log('No file uploaded');
         return res.status(400).json({
           success: false,
           data: null,
@@ -59,30 +59,14 @@ class AssetController {
       const userId = req.session.user.id;
 
       // Create asset
-      const asset = await assetService.createAsset(req.file, userId, req.body);
+      const asset = await assetService.createAsset(req.assets?.file, userId, req.body);
 
       // Return created asset
       return res.status(201).json({
         success: true,
         data: asset.toPublicJSON() as IAsset
       });
-    } catch (error) {
-      if (error instanceof ValidationError) {
-        return res.status(400).json({
-          success: false,
-          data: null,
-          error: error.message
-        });
-      } else {
-        logger.error('Error creating asset:', error);
-        return res.status(500).json({
-          success: false,
-          data: null,
-          error: 'Failed to create asset'
-        });
-      }
     }
-  }
 
   /**
    * Get an asset by ID

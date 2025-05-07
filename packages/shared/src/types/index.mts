@@ -35,7 +35,12 @@ import { inviteSchema, inviteStatusSchema } from '../schemas/invite.schema.mjs';
 
 import { itemSchema, itemCreateSchema } from '../schemas/item.schema.mjs';
 
-import { mapSchema, mapCreateSchema } from '../schemas/map.schema.mjs';
+import { 
+  mapSchema, 
+  mapCreateSchema, 
+  mapImportUVTTSchema,
+  uvttSchema
+} from '../schemas/map.schema.mjs';
 
 import {
   vttDocumentSchema,
@@ -92,6 +97,8 @@ export type IItemCreateData = z.infer<typeof itemCreateSchema>;
 export type IMap = z.infer<typeof mapSchema>;
 export type IMapCreateData = z.infer<typeof mapCreateSchema>;
 export type IMapUpdateData = z.infer<typeof mapCreateSchema>;
+export type IMapImportUVTTData = z.infer<typeof mapImportUVTTSchema>;
+export type IUVTT = z.infer<typeof uvttSchema>;
 
 // VTT Document Types
 export type IVTTDocument = z.infer<typeof vttDocumentSchema>;

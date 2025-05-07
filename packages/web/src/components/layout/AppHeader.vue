@@ -4,7 +4,6 @@ import { RouterLink, useRouter } from 'vue-router';
 import { useTheme } from '../../composables/useTheme.mjs';
 import { useAuthStore } from '../../stores/auth.store.mjs';
 import { useGameSessionStore } from '../../stores/game-session.store.mjs';
-import { useCampaignStore } from '../../stores/campaign.store.mjs';
 import { SunIcon, MoonIcon, Bars3Icon, XMarkIcon } from '@heroicons/vue/24/solid';
 import CharacterSelector from '../common/CharacterSelector.vue';
 import SessionInfoDropdown from '../common/SessionInfoDropdown.vue';
@@ -14,7 +13,6 @@ const authStore = useAuthStore();
 const { isDarkMode, toggleTheme } = useTheme();
 const isMenuOpen = ref(false);
 const gameSessionStore = useGameSessionStore();
-const campaignStore = useCampaignStore();
 function toggleMenu() {
   isMenuOpen.value = !isMenuOpen.value;
 }

@@ -7,11 +7,19 @@ import {
   PatchMapRequest,
   IMapResponse
 } from '@dungeon-lab/shared/types/api/index.mjs';
+import { AssetsClient } from './assets.client.mjs';
 
 /**
  * Client for interacting with maps API
  */
 export class MapsClient extends ApiClient {
+  private assetsClient: AssetsClient;
+
+  constructor(params = {}) {
+    super(params);
+    this.assetsClient = new AssetsClient(params);
+  }
+
   /**
    * Fetch a specific map by ID
    */
@@ -39,29 +47,84 @@ export class MapsClient extends ApiClient {
 
   /**
    * Create a new map
+   * @param data Map data without the image
+   * @param imageFile Optional image file to upload
    */
-  async createMap(data: CreateMapRequest): Promise<IMap> {
-    const response = await this.api.post<BaseAPIResponse<IMap>>('/api/maps', data);
-    if (!response.data.success) {
-      throw new Error(response.data.error || 'Failed to create map');
+  async createMap(data: Omit<CreateMapRequest, 'image'>, imageFile?: File): Promise<IMap> {
+    // Upload the image first if provided
+    let imageId: string | undefined;
+    
+    if (imageFile) {
+      try {
+        // Create form data for the asset upload
+        const formData = new FormData();
+        formData.append('file', imageFile); // Field MUST be named 'file' for the server
+        formData.append('type', 'map');
+        formData.append('name', data.name + ' image');
+        
+        // Upload the asset
+        const asset = await this.assetsClient.uploadAsset(formData);
+        imageId = asset.id;
+      } catch (error) {
+        console.error('Failed to upload map image:', error);
+        throw new Error('Failed to upload map image: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      }
     }
-    if (!response.data.data) {
-      throw new Error('Failed to create map');
+    
+    // Create the map with imageId reference
+    const mapData = {
+      ...data,
+      ...(imageId ? { imageId } : {})
+    };
+    
+    // Use regular JSON request
+    const response = await this.api.post<BaseAPIResponse<IMap>>('/api/maps', mapData);
+    if (!response.data || !response.data.success) {
+      throw new Error(response.data?.error || 'Failed to create map');
     }
+    
     return response.data.data;
   }
 
   /**
    * Update an existing map
+   * @param mapId ID of the map to update
+   * @param data Map update data
+   * @param imageFile Optional new image file
    */
-  async updateMap(mapId: string, data: PatchMapRequest): Promise<IMap> {
-    const response = await this.api.patch<BaseAPIResponse<IMap>>(`/api/maps/${mapId}`, data);
-    if (!response.data.success) {
-      throw new Error(response.data.error || 'Failed to update map');
+  async updateMap(mapId: string, data: Omit<PatchMapRequest, 'image'>, imageFile?: File): Promise<IMap> {
+    // Upload the image first if provided
+    let imageId: string | undefined;
+    
+    if (imageFile) {
+      try {
+        // Create form data for the asset upload
+        const formData = new FormData();
+        formData.append('file', imageFile); // Field MUST be named 'file' for the server
+        formData.append('type', 'map');
+        formData.append('name', (data.name || 'Map') + ' image');
+        
+        // Upload the asset
+        const asset = await this.assetsClient.uploadAsset(formData);
+        imageId = asset.id;
+      } catch (error) {
+        console.error('Failed to upload map image:', error);
+        throw new Error('Failed to upload map image: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      }
     }
-    if (!response.data.data) {
-      throw new Error('Map not found');
+    
+    // Update the map with imageId reference
+    const mapData = {
+      ...data,
+      ...(imageId ? { imageId } : {})
+    };
+    
+    // Use regular JSON request
+    const response = await this.api.patch<BaseAPIResponse<IMap>>(`/api/maps/${mapId}`, mapData);
+    if (!response.data || !response.data.success) {
+      throw new Error(response.data?.error || 'Failed to update map');
     }
+    
     return response.data.data;
   }
 

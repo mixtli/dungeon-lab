@@ -85,7 +85,6 @@ export class MapController {
     req: Request<object, object, IMap>,
     res: Response<BaseAPIResponse<IMap>>
   ): Promise<Response<BaseAPIResponse<IMap>> | void> => {
-    try {
       // Validate request body
       const validatedData = createMapRequestSchema.parse(req.body);
 
@@ -96,31 +95,9 @@ export class MapController {
       const map = await this.mapService.createMap(validatedData, req.session.user.id, imageFile);
 
       return res.status(201).json({
-        success: true,
-        data: map
-      });
-    } catch (error: unknown) {
-      logger.error('Error in createMap controller:', error);
-      if (error instanceof ZodError) {
-        return res.status(400).json({
-          success: false,
-          data: null,
-          error: error.errors.map((e) => e.message).join(', ')
-        });
-      }
-      if (error instanceof Error) {
-        return res.status(500).json({
-          success: false,
-          data: null,
-          error: error.message || 'Failed to create map'
-        });
-      }
-      return res.status(500).json({
-        success: false,
-        data: null,
-        error: 'Failed to create map'
-      });
-    }
+      success: true,
+      data: map
+    });
   };
 
   /**

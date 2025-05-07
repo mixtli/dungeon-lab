@@ -101,9 +101,10 @@ router.post(
       }
     })
   ),
-  validateMultipartRequest(createAssetSchema, 'file'),
+  validateMultipartRequest(createAssetSchema, ['file']),
   assetController.createAsset
 );
+
 
 // GET /api/assets/:id - Get an asset by ID
 router.get(
