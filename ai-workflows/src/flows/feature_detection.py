@@ -3,12 +3,14 @@ Feature detection flow for map images.
 """
 import os
 import json
-import requests
 from datetime import datetime
 from typing import Dict, Any, Optional
 
 from prefect import flow, task, get_run_logger
 from prefect.artifacts import create_markdown_artifact
+
+# Import shared utilities
+from src.utils.callbacks import send_progress_update
 
 from src.tasks.image_processing import (
     load_image,
@@ -20,8 +22,6 @@ from src.tasks.image_processing import (
 )
 
 from configs.prefect_config import (
-    CALLBACK_BASE_URL,
-    CALLBACK_AUTH_TOKEN,
     FEATURE_DETECTION_TIMEOUT,
 )
 
@@ -62,55 +62,6 @@ def validate_input_image(input_data: Dict[str, Any]) -> Dict[str, Any]:
             logger.info(f"Using default value for {key}: {value}")
     
     return input_data
-
-@task(name="send_progress_update", retries=3, retry_delay_seconds=5)
-def send_progress_update(
-    status: str, 
-    progress: float, 
-    message: str,
-    result: Optional[Dict[str, Any]] = None
-) -> bool:
-    """
-    Send a progress update to the callback endpoint.
-    
-    Args:
-        status: Current status (e.g., "running", "completed", "failed")
-        progress: Progress percentage (0-100)
-        message: Progress message
-        result: Optional result data
-        
-    Returns:
-        True if the update was sent successfully
-    """
-    logger = get_run_logger()
-    
-    # Create payload
-    payload = {
-        "status": status,
-        "progress": progress,
-        "message": message,
-        "timestamp": datetime.utcnow().isoformat(),
-    }
-    
-    if result:
-        payload["result"] = result
-    
-    # Create headers
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {CALLBACK_AUTH_TOKEN}",
-    }
-    
-    try:
-        # Send the update
-        endpoint = f"{CALLBACK_BASE_URL}/workflows/progress"
-        response = requests.post(endpoint, json=payload, headers=headers)
-        response.raise_for_status()
-        logger.info(f"Progress update sent: {message} ({progress}%)")
-        return True
-    except Exception as e:
-        logger.error(f"Failed to send progress update: {e}")
-        return False
 
 @flow(name="detect-features", timeout_seconds=FEATURE_DETECTION_TIMEOUT)
 def detect_features_flow(

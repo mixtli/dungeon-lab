@@ -35,7 +35,7 @@ This document tracks the tasks for implementing the AI-powered map builder featu
   - Notes: Moved from previous Phase 5 as it's foundational
   - Status: WONTFIX - Determined that formal session management is unnecessary. Will use a simplified approach: pass userId directly to Prefect flows and include it in callbacks to route socket messages. Prefect server will be internal with no authentication, using an admin API key for callbacks to Express.
 
-- [ ] **Task 1.3**: Build REST callback endpoints
+- [x] **Task 1.3**: Build REST callback endpoints
   - Priority: High 
   - Description: Create Express API endpoints for Prefect flows to report progress and results.
   - Dependencies: ~~1.2~~ 1.1
@@ -48,13 +48,13 @@ This document tracks the tasks for implementing the AI-powered map builder featu
   - Status: Complete - implemented generic workflow progress tracking
   - Notes: Moved from previous Phase 5 and marked as completed
 
-- [ ] **Task 1.5**: Create Prefect client integration
+- [x] **Task 1.5**: Create Prefect client integration
   - Priority: High
   - Description: Implement a service in Express to communicate with the Prefect API.
   - Dependencies: 1.1
   - Notes: Moved from previous Phase 5 as it's foundational
 
-- [ ] **Task 1.6**: Set up Python environment
+- [x] **Task 1.6**: Set up Python environment
   - Priority: High
   - Description: Create a Python environment with necessary libraries (OpenAI, PyTorch, OpenCV, etc.).
   - Dependencies: 1.1
