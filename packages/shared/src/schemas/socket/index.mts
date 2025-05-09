@@ -24,6 +24,19 @@ export const pluginActionCallbackSchema = z.object({
   error: z.string().optional()
 });
 
+export const workflowProgressCallbackSchema = z
+    .function()
+    .args(
+      z.object({
+        session_id: z.string(),
+        step: z.string(),
+        progress: z.number(),
+        workflow_type: z.string(),
+        metadata: z.record(z.string(), z.unknown()).optional()
+      })
+    )
+    .returns(z.void());
+
 export const rollResultSchema = z.object({
   formula: z.string(),
   rolls: z.array(
@@ -110,7 +123,8 @@ export const serverToClientEvents = z.object({
         characterNames: z.array(z.string())
       })
     )
-    .returns(z.void())
+    .returns(z.void()),
+  'workflow:progress:map': workflowProgressCallbackSchema
 });
 
 export const clientToServerEvents = z.object({

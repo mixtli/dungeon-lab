@@ -21,6 +21,7 @@ interface SessionWithUser {
 }
 
 export class SocketServer {
+  private static instance: SocketServer | null = null;
   private io: Server<ClientToServerEvents, ServerToClientEvents>;
 
   constructor(httpServer: HttpServer) {
@@ -42,6 +43,9 @@ export class SocketServer {
     this.io.engine.use(sessionMiddleware);
     this.setupAuthMiddleware();
     this.handleConnections();
+
+    // Store as singleton instance
+    SocketServer.instance = this;
   }
 
   close() {
@@ -250,4 +254,22 @@ export class SocketServer {
       });
     });
   }
+
+  // Add getter for io instance
+  get socketIo() {
+    return this.io;
+  }
+  
+  // Static method to get the instance
+  static getInstance(): SocketServer {
+    if (!SocketServer.instance) {
+      throw new Error('SocketServer has not been initialized yet');
+    }
+    return SocketServer.instance;
+  }
+}
+
+// Helper function to get the socket server instance
+export function getSocketServer(): SocketServer {
+  return SocketServer.getInstance();
 }

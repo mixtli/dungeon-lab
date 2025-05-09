@@ -19,296 +19,276 @@ This document tracks the tasks for implementing the AI-powered map builder featu
   - Description: Implement an API endpoint that allows uploading and importing UVTT files (.uvtt, .dd2vtt, .df2vtt) to create maps in the system. The endpoint should extract all map data and convert the base64 image to an Asset.
   - Dependencies: 0.1
 
-## Phase 1: User Description Interface
+## Phase 1: Foundation Setup
 
-- [ ] **Task 1.1**: Create a Vue component for map description input
+- [ ] **Task 1.1**: Set up workflow orchestration system
   - Priority: High
-  - Description: Build a Vue.js component with a rich text editor that allows users to describe their map in detail.
+  - Description: Install and configure Prefect for workflow orchestration, create the necessary project structure, and establish communication channels.
   - Dependencies: None
+  - Notes: Consolidates former tasks 2.1 and 5.1
 
-- [ ] **Task 1.2**: Add context enhancement features
-  - Priority: Medium
-  - Description: Implement a system that guides users to include specific details helpful for map generation (dimensions, theme, key features, etc.).
-  - Dependencies: 1.1
-
-- [ ] **Task 1.3**: Implement optional parameter inputs
-  - Priority: Medium
-  - Description: Allow users to specify technical parameters like art style preferences, grid size, and lighting atmosphere.
-  - Dependencies: 1.1
-
-- [ ] **Task 1.4**: Design and implement UI layout
-  - Priority: High
-  - Description: Create an intuitive and user-friendly interface for the map creation workflow.
-  - Dependencies: 1.1, 1.2, 1.3
-
-## Phase 2: Map Generation
-
-- [ ] **Task 2.1**: Set up OpenAI integration service
-  - Priority: High
-  - Description: Create a service to communicate with OpenAI's GPT-4o API for image generation.
-  - Dependencies: None
-
-- [ ] **Task 2.2**: Create prompt engineering templates
-  - Priority: High
-  - Description: Develop specialized prompt templates that format the user's description for optimal image generation results.
-  - Dependencies: 2.1
-
-- [ ] **Task 2.3**: Implement image storage system
-  - Priority: High
-  - Description: Create a system to save generated images to the storage system (MinIO) and associate with map records.
-  - Dependencies: None
-
-- [ ] **Task 2.4**: Build preview component
-  - Priority: Medium
-  - Description: Create a component to display the generated map to the user.
-  - Dependencies: 2.1, 2.3
-
-## Phase 3: Iterative Refinement
-
-- [ ] **Task 3.1**: Develop modification interface
-  - Priority: High
-  - Description: Create a component that allows users to view their generated map and input text instructions for modifications.
-  - Dependencies: 2.4
-
-- [ ] **Task 3.2**: Implement differential prompting system
-  - Priority: Medium
-  - Description: Develop a system that generates targeted prompts based on modification requests.
-  - Dependencies: 2.2, 3.1
-
-- [ ] **Task 3.3**: Create version management system
-  - Priority: Medium
-  - Description: Implement a system to track different versions of the map.
-  - Dependencies: 2.3
-
-- [ ] **Task 3.4**: Build version history viewer
-  - Priority: Low
-  - Description: Provide a component to view version history and allow users to revert to previous versions.
-  - Dependencies: 3.3
-
-## Phase 4: Map Saving
-
-- [ ] **Task 4.1**: Implement MongoDB schema
-  - Priority: High
-  - Description: Implement the Mongoose schema for storing map data.
-  - Dependencies: 0.1
-
-- [ ] **Task 4.2**: Create asset management service
-  - Priority: High
-  - Description: Store the map images in the asset management system with appropriate metadata.
-  - Dependencies: 2.3
-
-- [ ] **Task 4.3**: Build save functionality
-  - Priority: High
-  - Description: Implement a service that handles the save operation with proper user/campaign association.
-  - Dependencies: 4.1, 4.2
-
-- [ ] **Task 4.4**: Add export/import capabilities
-  - Priority: Medium
-  - Description: Allow users to export and import map data.
-  - Dependencies: 4.3, 0.2
-
-## Phase 5: Workflow Orchestration Setup
-
-- [ ] **Task 5.1**: Set up Prefect server
-  - Priority: High
-  - Description: Install and configure Prefect server for workflow orchestration.
-  - Dependencies: None
-
-- [ ] **Task 5.2**: Create Prefect client integration
-  - Priority: High
-  - Description: Implement a service in Express to communicate with the Prefect API.
-  - Dependencies: 5.1
-
-- [ ] **Task 5.3**: Implement workflow session management
+- [ ] **Task 1.2**: Implement workflow session management
   - Priority: High
   - Description: Create a system to generate and track session IDs for workflows and manage security tokens for callbacks.
-  - Dependencies: 5.2
+  - Dependencies: 1.1
+  - Notes: Moved from previous Phase 5 as it's foundational
 
-- [ ] **Task 5.4**: Build REST callback endpoints
-  - Priority: High
+- [ ] **Task 1.3**: Build REST callback endpoints
+  - Priority: High 
   - Description: Create Express API endpoints for Prefect flows to report progress and results.
-  - Dependencies: 5.3
+  - Dependencies: 1.2
+  - Notes: Moved from previous Phase 5 as it's foundational
 
-- [ ] **Task 5.5**: Implement Socket.io progress updates
+- [x] **Task 1.4**: Implement Socket.io progress updates
   - Priority: High
   - Description: Create a system to relay progress updates from REST callbacks to clients via Socket.io.
-  - Dependencies: 5.4
+  - Dependencies: 1.3
+  - Status: Complete - implemented generic workflow progress tracking
+  - Notes: Moved from previous Phase 5 and marked as completed
 
-## Phase 6: Map Generation Flow
+- [ ] **Task 1.5**: Create Prefect client integration
+  - Priority: High
+  - Description: Implement a service in Express to communicate with the Prefect API.
+  - Dependencies: 1.1
+  - Notes: Moved from previous Phase 5 as it's foundational
 
-- [ ] **Task 6.1**: Create map generation Prefect flow
+- [ ] **Task 1.6**: Set up Python environment
+  - Priority: High
+  - Description: Create a Python environment with necessary libraries (OpenAI, PyTorch, OpenCV, etc.).
+  - Dependencies: 1.1
+  - Notes: Moved from previous Phase 7 as it's a foundational setup step
+
+## Phase 2: UI Implementation
+
+- [x] **Task 2.1**: Create a Vue component for map description input
+  - Priority: High
+  - Description: Implement a responsive UI component that allows users to input natural language descriptions of desired maps. Include form controls for additional parameters like map size, style, and theme.
+  - Dependencies: None
+  
+- [x] **Task 2.2**: Implement map generation progress tracker
+  - Priority: Medium
+  - Description: Create a UI component to display the map generation progress, showing steps completed and estimated time remaining.
+  - Dependencies: 1.4
+  - Status: Complete - implemented with the generic workflow progress system
+  
+- [ ] **Task 2.3**: Build map preview and results UI
+  - Priority: Medium
+  - Description: Implement the UI for displaying the generated map preview, allowing users to regenerate with changes or proceed to the editor.
+  - Dependencies: 2.1, 2.2
+
+## Phase 3: Map Generation Workflow
+
+- [ ] **Task 3.1**: Create map generation Prefect flow
   - Priority: High
   - Description: Implement a Prefect flow that handles the map generation process, including calling OpenAI and storing results.
-  - Dependencies: 5.2, 2.1, 2.2, 2.3
+  - Dependencies: 1.5, 1.6
+  - Notes: Consolidates former tasks from Phases 2 and 6
 
-- [ ] **Task 6.2**: Implement progress tracking tasks
+- [ ] **Task 3.2**: Implement OpenAI image generation integration
+  - Priority: High
+  - Description: Create the integration with OpenAI's API to generate map images from textual descriptions.
+  - Dependencies: 3.1
+  - Notes: Refined from former task 2.2
+
+- [ ] **Task 3.3**: Implement progress tracking and result storage
   - Priority: Medium
-  - Description: Create Prefect tasks to track and report progress during map generation.
-  - Dependencies: 6.1, 5.4
+  - Description: Implement mechanisms for tracking workflow progress and storing results in MongoDB and file storage.
+  - Dependencies: 1.4, 3.1
+  - Notes: Consolidated from former tasks 2.3 and 6.2
 
-- [ ] **Task 6.3**: Build error handling and retry logic
+- [ ] **Task 3.4**: Add error handling and retry logic
   - Priority: High
   - Description: Implement robust error handling and automatic retries in the Prefect flow.
-  - Dependencies: 6.1
+  - Dependencies: 3.1
+  - Notes: Moved from former task 6.3
 
-## Phase 7: Feature Detection Flow
+## Phase 4: Feature Detection Pipeline
 
-- [ ] **Task 7.1**: Set up Python environment
-  - Priority: High
-  - Description: Create a Python environment with necessary ML libraries (PyTorch, OpenCV, etc.).
-  - Dependencies: 5.1
-
-- [ ] **Task 7.2**: Implement feature detection Prefect flow
+- [ ] **Task 4.1**: Create feature detection Prefect flow
   - Priority: High
   - Description: Create a Prefect flow that handles the complete feature detection process.
-  - Dependencies: 7.1, 5.2
+  - Dependencies: 1.5, 1.6
+  - Notes: Consolidates former tasks from Phases 3 and 7
 
-- [ ] **Task 7.3**: Create wall detection task
+- [ ] **Task 4.2**: Implement wall detection
   - Priority: High
-  - Description: Implement a Prefect task to detect walls using YOLOv8/v11.
-  - Dependencies: 7.2
+  - Description: Implement computer vision algorithms to detect walls and barriers in the generated map image.
+  - Dependencies: 4.1
+  - Notes: Consolidated from former tasks 3.1 and 7.3
 
-- [ ] **Task 7.4**: Create door/portal detection task
+- [ ] **Task 4.3**: Implement room and area detection
   - Priority: Medium
-  - Description: Implement a Prefect task to detect doors and portals.
-  - Dependencies: 7.2
+  - Description: Add functionality to identify distinct rooms, areas, and spaces within the map.
+  - Dependencies: 4.2
+  - Notes: Moved from former task 3.2
 
-- [ ] **Task 7.5**: Create light source detection task
+- [ ] **Task 4.4**: Add door and opening detection
+  - Priority: Medium
+  - Description: Implement algorithms to detect doors, windows, and other openings in the map.
+  - Dependencies: 4.2
+  - Notes: Consolidated from former tasks 3.3 and 7.4
+
+- [ ] **Task 4.5**: Create light source detection
   - Priority: Medium
   - Description: Implement a Prefect task to detect light sources based on brightness analysis.
-  - Dependencies: 7.2
+  - Dependencies: 4.1
+  - Notes: Moved from former task 7.5
 
-- [ ] **Task 7.6**: Implement UVTT conversion task
+- [ ] **Task 4.6**: Implement UVTT conversion
   - Priority: High
   - Description: Create a Prefect task to convert detected features into UVTT format.
-  - Dependencies: 7.3, 7.4, 7.5, 0.1
+  - Dependencies: 4.2, 4.3, 4.4, 4.5, 0.1
+  - Notes: Consolidated from former tasks 4.1 and 7.6
 
-- [ ] **Task 7.7**: Add database storage task
+- [ ] **Task 4.7**: Add database storage task
   - Priority: High
   - Description: Implement a Prefect task to store the complete map data in MongoDB.
-  - Dependencies: 7.6, 4.1
+  - Dependencies: 4.6
+  - Notes: Moved from former task 7.7
 
-## Phase 8: Interactive Editor
+## Phase 5: Interactive Editor
 
-- [ ] **Task 8.1**: Build canvas-based map editor
+- [ ] **Task 5.1**: Implement map editing handoff
+  - Priority: Medium
+  - Description: Create the functionality to transfer the generated map to the map editor for further refinement.
+  - Dependencies: 4.7
+  - Notes: Moved from former task 4.2
+
+- [ ] **Task 5.2**: Build canvas-based map editor
   - Priority: High
   - Description: Implement a Vue.js canvas-based editor using libraries like Fabric.js or Konva.js.
-  - Dependencies: 4.3, 7.7
+  - Dependencies: 5.1
+  - Notes: Moved from former task 8.1
 
-- [ ] **Task 8.2**: Implement wall editing tools
+- [ ] **Task 5.3**: Implement wall editing tools
   - Priority: High
   - Description: Create tools for drawing, modifying, and deleting wall segments.
-  - Dependencies: 8.1
+  - Dependencies: 5.2
+  - Notes: Moved from former task 8.2
 
-- [ ] **Task 8.3**: Create portal/door tools
+- [ ] **Task 5.4**: Create portal/door tools
   - Priority: Medium
   - Description: Implement tools for placing and configuring doors and portals.
-  - Dependencies: 8.1
+  - Dependencies: 5.2
+  - Notes: Moved from former task 8.3
 
-- [ ] **Task 8.4**: Add light editing capabilities
+- [ ] **Task 5.5**: Add light editing capabilities
   - Priority: Medium
   - Description: Build tools for adding and adjusting light properties.
-  - Dependencies: 8.1
+  - Dependencies: 5.2
+  - Notes: Moved from former task 8.4
 
-- [ ] **Task 8.5**: Develop real-time UVTT conversion
+- [ ] **Task 5.6**: Develop real-time UVTT conversion
   - Priority: High
   - Description: Implement a service that converts editor state to UVTT format in real-time.
-  - Dependencies: 8.1, 8.2, 8.3, 8.4, 0.1
+  - Dependencies: 5.2, 5.3, 5.4, 5.5, 0.1
+  - Notes: Moved from former task 8.5
 
-## Phase 9: Deployment and Integration
+## Phase 6: Integration and Enhancements
 
-- [ ] **Task 9.1**: Create Docker Compose setup
+- [ ] **Task 6.1**: Create Docker Compose setup
   - Priority: High
   - Description: Set up Docker Compose configuration for the complete system (Express, Prefect, Redis, etc.).
-  - Dependencies: 5.1, 7.1
+  - Dependencies: 1.1, 1.6
+  - Notes: Moved from former task 9.1
 
-- [ ] **Task 9.2**: Implement workflow triggers from Express
+- [ ] **Task 6.2**: Implement workflow triggers from Express
   - Priority: High
   - Description: Create Express API routes to trigger Prefect workflows based on user actions.
-  - Dependencies: 5.2, 6.1, 7.2
+  - Dependencies: 1.5, 3.1, 4.1
+  - Notes: Moved from former task 9.2
 
-- [ ] **Task 9.3**: Build end-to-end integration
+- [ ] **Task 6.3**: Build end-to-end integration
   - Priority: High
   - Description: Connect all components into a complete workflow from user description to final UVTT export.
-  - Dependencies: All previous tasks
+  - Dependencies: 3.3, 4.7, 5.6
+  - Notes: Moved from former task 9.3
 
-- [ ] **Task 9.4**: Implement error handling and fallbacks
+- [ ] **Task 6.4**: Implement enhanced error handling and fallbacks
   - Priority: High
-  - Description: Add comprehensive error handling and fallback mechanisms throughout the system.
-  - Dependencies: 9.3
+  - Description: Add comprehensive error tracking, reporting, and automatic retry capabilities for all workflow operations.
+  - Dependencies: 6.3
+  - Notes: Consolidates former tasks 4.3, 9.4, and 10.5
 
-- [ ] **Task 9.5**: Add UX enhancements
+- [ ] **Task 6.5**: Add targeted workflow event notifications
+  - Priority: Medium
+  - Description: Update the workflow progress system to send targeted notifications to specific users instead of broadcasting to all users.
+  - Dependencies: 1.4
+  - Notes: Moved from former task 10.2
+
+- [ ] **Task 6.6**: Add workflow cancellation support
+  - Priority: Medium
+  - Description: Create functionality for cancelling in-progress workflows in both the Express server and Prefect.
+  - Dependencies: 1.2, 3.1, 4.1
+  - Notes: Moved from former task 10.4
+
+- [ ] **Task 6.7**: Create workflow history tracking
+  - Priority: Low
+  - Description: Implement a system for tracking historical workflows, allowing users to view past generation attempts and results.
+  - Dependencies: 1.2
+  - Notes: Moved from former task 10.3
+
+- [ ] **Task 6.8**: Add UX enhancements
   - Priority: Medium
   - Description: Implement user experience improvements, loading indicators, and feedback mechanisms.
-  - Dependencies: 9.3
+  - Dependencies: 6.3
+  - Notes: Moved from former task 9.5
 
-- [ ] **Task 9.6**: Perform testing and optimization
+- [ ] **Task 6.9**: Perform testing and optimization
   - Priority: High
   - Description: Conduct end-to-end testing and optimize performance.
-  - Dependencies: 9.4, 9.5
+  - Dependencies: 6.4, 6.8
+  - Notes: Moved from former task 9.6
 
 ## Progress Tracking
 
 ### Phase 0: UVTT Format Integration
 - [x] 0.1 Update map schema to match UVTT format
-- [ ] 0.2 Create API endpoint for UVTT import
+- [x] 0.2 Create API endpoint for UVTT import
 
-### Phase 1: User Description Interface
-- [ ] 1.1 Create Vue component for map description input
-- [ ] 1.2 Add context enhancement features
-- [ ] 1.3 Implement optional parameter inputs
-- [ ] 1.4 Design and implement UI layout
+### Phase 1: Foundation Setup
+- [ ] 1.1 Set up workflow orchestration system
+- [ ] 1.2 Implement workflow session management
+- [ ] 1.3 Build REST callback endpoints
+- [x] 1.4 Implement Socket.io progress updates
+- [ ] 1.5 Create Prefect client integration
+- [ ] 1.6 Set up Python environment
 
-### Phase 2: Map Generation
-- [ ] 2.1 Set up OpenAI integration service
-- [ ] 2.2 Create prompt engineering templates
-- [ ] 2.3 Implement image storage system
-- [ ] 2.4 Build preview component
+### Phase 2: UI Implementation
+- [x] 2.1 Create Vue component for map description input
+- [x] 2.2 Implement map generation progress tracker
+- [ ] 2.3 Build map preview and results UI
 
-### Phase 3: Iterative Refinement
-- [ ] 3.1 Develop modification interface
-- [ ] 3.2 Implement differential prompting system
-- [ ] 3.3 Create version management system
-- [ ] 3.4 Build version history viewer
+### Phase 3: Map Generation Workflow
+- [ ] 3.1 Create map generation Prefect flow
+- [ ] 3.2 Implement OpenAI image generation integration
+- [ ] 3.3 Implement progress tracking and result storage
+- [ ] 3.4 Add error handling and retry logic
 
-### Phase 4: Map Saving
-- [ ] 4.1 Implement MongoDB schema
-- [ ] 4.2 Create asset management service
-- [ ] 4.3 Build save functionality
-- [ ] 4.4 Add export/import capabilities
+### Phase 4: Feature Detection Pipeline
+- [ ] 4.1 Create feature detection Prefect flow
+- [ ] 4.2 Implement wall detection
+- [ ] 4.3 Implement room and area detection
+- [ ] 4.4 Add door and opening detection
+- [ ] 4.5 Create light source detection
+- [ ] 4.6 Implement UVTT conversion
+- [ ] 4.7 Add database storage task
 
-### Phase 5: Workflow Orchestration Setup
-- [ ] 5.1 Set up Prefect server
-- [ ] 5.2 Create Prefect client integration
-- [ ] 5.3 Implement workflow session management
-- [ ] 5.4 Build REST callback endpoints
-- [ ] 5.5 Implement Socket.io progress updates
+### Phase 5: Interactive Editor
+- [ ] 5.1 Implement map editing handoff
+- [ ] 5.2 Build canvas-based map editor
+- [ ] 5.3 Implement wall editing tools
+- [ ] 5.4 Create portal/door tools
+- [ ] 5.5 Add light editing capabilities
+- [ ] 5.6 Develop real-time UVTT conversion
 
-### Phase 6: Map Generation Flow
-- [ ] 6.1 Create map generation Prefect flow
-- [ ] 6.2 Implement progress tracking tasks
-- [ ] 6.3 Build error handling and retry logic
-
-### Phase 7: Feature Detection Flow
-- [ ] 7.1 Set up Python environment
-- [ ] 7.2 Implement feature detection Prefect flow
-- [ ] 7.3 Create wall detection task
-- [ ] 7.4 Create door/portal detection task
-- [ ] 7.5 Create light source detection task
-- [ ] 7.6 Implement UVTT conversion task
-- [ ] 7.7 Add database storage task
-
-### Phase 8: Interactive Editor
-- [ ] 8.1 Build canvas-based map editor
-- [ ] 8.2 Implement wall editing tools
-- [ ] 8.3 Create portal/door tools
-- [ ] 8.4 Add light editing capabilities
-- [ ] 8.5 Develop real-time UVTT conversion
-
-### Phase 9: Deployment and Integration
-- [ ] 9.1 Create Docker Compose setup
-- [ ] 9.2 Implement workflow triggers from Express
-- [ ] 9.3 Build end-to-end integration
-- [ ] 9.4 Implement error handling and fallbacks
-- [ ] 9.5 Add UX enhancements
-- [ ] 9.6 Perform testing and optimization 
+### Phase 6: Integration and Enhancements
+- [ ] 6.1 Create Docker Compose setup
+- [ ] 6.2 Implement workflow triggers from Express
+- [ ] 6.3 Build end-to-end integration
+- [ ] 6.4 Implement enhanced error handling and fallbacks
+- [ ] 6.5 Add targeted workflow event notifications
+- [ ] 6.6 Add workflow cancellation support
+- [ ] 6.7 Create workflow history tracking
+- [ ] 6.8 Add UX enhancements
+- [ ] 6.9 Perform testing and optimization

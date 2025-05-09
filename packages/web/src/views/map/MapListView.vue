@@ -72,12 +72,23 @@ onMounted(() => {
   <div class="p-6">
     <div class="flex justify-between items-center mb-6">
       <h1 class="text-2xl font-bold text-gray-900">My Maps</h1>
-      <button
-        @click="router.push({ name: 'map-create' })"
-        class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-      >
-        Create New Map
-      </button>
+      <div class="flex space-x-3">
+        <button
+          @click="router.push({ name: 'map-builder' })"
+          class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 flex items-center"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1.5" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5v1.5H5a1 1 0 00-1 1v10a1 1 0 001 1h10a1 1 0 001-1v-10a1 1 0 00-1-1h-.5V5.5A4.5 4.5 0 0010 1zm3 6v-.5a3 3 0 10-6 0V7h6zm-6 2h6v8H7V9z" clip-rule="evenodd" />
+          </svg>
+          AI Map Builder
+        </button>
+        <button
+          @click="router.push({ name: 'map-create' })"
+          class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+        >
+          Create New Map
+        </button>
+      </div>
     </div>
 
     <div class="bg-white rounded-lg shadow">

@@ -122,6 +122,9 @@ async function initializeRoutes() {
   }
 }
 
+// Add workflow routes import at the top with other route imports
+import { workflowRoutes } from './features/workflows/index.mjs';
+
 /**
  * Creates and configures an Express application
  */
@@ -170,6 +173,7 @@ export async function createApp(): Promise<express.Application> {
   app.use('/api/assets', assetRoutes);
   app.use('/api/health', healthRoutes);
   app.use('/api/users', userRoutes);
+  app.use('/api/workflows', workflowRoutes);
 
   // Validation error handler for non-fatal validation errors
   app.use(validationErrorHandler);

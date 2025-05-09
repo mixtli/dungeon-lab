@@ -32,6 +32,7 @@ const GameSessionListView = () => import('@/views/GameSessionListView.vue');
 const MapListView = () => import('@/views/map/MapListView.vue');
 const MapCreateView = () => import('@/views/map/MapCreateView.vue');
 const MapDetailView = () => import('@/views/map/MapDetailView.vue');
+const MapBuilderView = () => import('@/views/map/MapBuilderView.vue');
 
 // Asset views
 const AssetListView = () => import('@/views/AssetListView.vue');
@@ -241,6 +242,15 @@ const routes: RouteRecordRaw[] = [
         component: MapCreateView,
         meta: {
           title: 'Create Map',
+          requiresAuth: true
+        }
+      },
+      {
+        path: 'maps/builder',
+        name: 'map-builder',
+        component: MapBuilderView,
+        meta: {
+          title: 'AI Map Builder',
           requiresAuth: true
         }
       },
