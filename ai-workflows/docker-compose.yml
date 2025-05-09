@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  prefect-server:
+    image: prefecthq/prefect:2.14-python3.11
+    container_name: prefect-server
+    restart: unless-stopped
+    command: prefect server start
+    ports:
+      - "4200:4200"  # API
+      - "4201:4201"  # Dashboard
+    volumes:
+      - prefect-data:/root/.prefect
+    environment:
+      - PREFECT_UI_API_URL=http://localhost:4200/api
+      - PREFECT_API_URL=http://localhost:4200/api
+    networks:
+      - prefect-network
+
+  prefect-agent:
+    image: prefecthq/prefect:2.14-python3.11
+    container_name: prefect-agent
+    restart: unless-stopped
+    command: prefect agent start -q 'map-generation-queue'
+    depends_on:
+      - prefect-server
+    volumes:
+      - ./:/app
+      - prefect-data:/root/.prefect
+    working_dir: /app
+    environment:
+      - PREFECT_API_URL=http://prefect-server:4200/api
+      - PYTHONPATH=/app
+    networks:
+      - prefect-network
+
+  # Redis for caching and message broker
+  redis:
+    image: redis:7-alpine
+    container_name: prefect-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - prefect-network
+
+  # Optional: pgAdmin for database management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: prefect-pgadmin
+    restart: unless-stopped
+    ports:
+      - "5050:80"
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@dungeonlab.com
+      - PGADMIN_DEFAULT_PASSWORD=password
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    networks:
+      - prefect-network
+
+volumes:
+  prefect-data:
+  redis-data:
+  pgadmin-data:
+
+networks:
+  prefect-network:
+    name: prefect-network 
