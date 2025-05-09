@@ -68,6 +68,10 @@ export function validateMultipartRequest(
   return [
     multerMiddleware,
     async (req: Request, res: Response<BaseAPIResponse<unknown>>, next: NextFunction) => {
+      if(req.is('application/uvtt')) {
+        next();
+        return;
+      }
       try {
         // Normalize file structure to a consistent format for easier processing
         const normalizedFiles = new Map<string, Express.Multer.File>();
@@ -150,7 +154,7 @@ export function validateMultipartRequest(
             console.warn('Failed to parse JSON userData field:', e);
           }
         }
-        console.log('bodyData', bodyData);
+        //console.log('bodyData', bodyData);
 
         const validatedData = await modifiedSchema.parseAsync(bodyData);
         req.body = validatedData;

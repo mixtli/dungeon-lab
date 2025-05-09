@@ -8,7 +8,6 @@ import {
 } from '../../../services/storage.service.mjs';
 import mongoose from 'mongoose';
 import path from 'path';
-import { Express } from 'express';
 
 // Custom error types
 export class NotFoundError extends Error {

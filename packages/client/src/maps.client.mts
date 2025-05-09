@@ -162,4 +162,25 @@ export class MapsClient extends ApiClient {
     }
     return map.id;
   }
+
+  /**
+   * Export a map as UVTT file
+   * @param mapId ID of the map to export
+   * @returns A Blob containing the UVTT file data
+   */
+  async exportMapAsUVTT(mapId: string): Promise<Blob> {
+    const response = await this.api.get(`/api/maps/${mapId}`, {
+      headers: {
+        'Accept': 'application/uvtt'
+      },
+      responseType: 'blob'
+    });
+    
+    // The response should be a blob with the UVTT data
+    if (response.status !== 200) {
+      throw new Error('Failed to export map as UVTT');
+    }
+    
+    return new Blob([response.data], { type: 'application/uvtt' });
+  }
 }

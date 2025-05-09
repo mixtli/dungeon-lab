@@ -12,9 +12,12 @@ import {
   patchMapRequestSchema,
   searchMapsQuerySchema,
   baseAPIResponseSchema,
-  deleteAPIResponseSchema
+  deleteAPIResponseSchema,
+  importUVTTRequestSchema,
+  importUVTTResponseSchema
 } from '@dungeon-lab/shared/types/api/index.mjs';
 import { mapSchema } from '@dungeon-lab/shared/schemas/map.schema.mjs';
+import { Request, Response, NextFunction } from 'express';
 
 // Initialize controller
 const mapService = new MapService();
@@ -86,6 +89,12 @@ router.get(
               schema: getMapResponseSchema.openapi({
                 description: 'Map response'
               })
+            },
+            'application/uvtt': {
+              schema: {
+                type: 'object',
+                description: 'UVTT formatted map data with embedded base64 image'
+              }
             }
           }
         }
@@ -119,6 +128,11 @@ router.post(
               .openapi({
                 description: 'Create map request with image'
               })
+          },
+          'application/uvtt': {
+            schema: importUVTTRequestSchema.openapi({
+              description: 'Import UVTT file'
+            })
           }
         }
       },
@@ -136,8 +150,68 @@ router.post(
       }
     })
   ),
+  // Content type check middleware
+  (req: Request, res: Response, next: NextFunction) => {
+    if (req.is('application/uvtt')) {
+      // For UVTT files, use the raw body parser middleware
+      return express.raw({ 
+        type: 'application/uvtt',
+        limit: '50mb' 
+      })(req, res, next);
+    } 
+    // For other content types, continue to next middleware
+    next();
+  },
+  // Validation middleware (skipped for UVTT files which are handled by the controller)
   validateMultipartRequest(createMapRequestSchema, 'image'),
-  mapController.createMap
+  // Controller handler that routes based on content type
+  (req: Request, res: Response, _next: NextFunction) => {
+    if (req.is('application/uvtt')) {
+      return mapController.importUVTT(req, res);
+    }
+    return mapController.createMap(req, res);
+  }
+);
+
+// Import UVTT file
+router.post(
+  '/import-uvtt',
+  oapi.path(
+    createPathSchema({
+      description: 'Import a map from UVTT file',
+      requestBody: {
+        content: {
+          'application/uvtt': {
+            schema: importUVTTRequestSchema.openapi({
+              description: 'Import UVTT request'
+            })
+          },
+          'application/json': {
+            schema: importUVTTRequestSchema.openapi({
+              description: 'Import UVTT request'
+            })
+          }
+        }
+      },
+      responses: {
+        201: {
+          description: 'Map imported successfully',
+          content: {
+            'application/json': {
+              schema: importUVTTResponseSchema.openapi({
+                description: 'Import UVTT response'
+              })
+            }
+          }
+        }
+      }
+    })
+  ),
+  express.raw({ 
+    type: 'application/uvtt',
+    limit: '50mb' 
+  }),
+  mapController.importUVTT
 );
 
 // Upload a binary map image

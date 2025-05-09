@@ -3,7 +3,7 @@ import { authenticate } from '../../../middleware/auth.middleware.mjs';
 import assetController from '../controllers/asset.controller.mjs';
 import {
   validateRequest,
-  validateMultipartRequest
+  //validateMultipartRequest
 } from '../../../middleware/validation.middleware.mjs';
 import { createPathSchema, oapi } from '../../../oapi.mjs';
 import { z } from '../../../utils/zod.mjs';
@@ -12,8 +12,15 @@ import {
   baseAPIResponseSchema,
   deleteAPIResponseSchema
 } from '@dungeon-lab/shared/types/api/index.mjs';
-
+import multer from 'multer';
 const router = Router();
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit
+  }
+});
 
 // Apply authentication middleware to all asset routes
 router.use(authenticate);
@@ -64,6 +71,7 @@ const createAssetSchema = assetSchema
 // POST /api/assets - Create a new asset
 router.post(
   '/',
+  upload.single('file'),
   oapi.path(
     createPathSchema({
       description: 'Upload and create a new asset',
@@ -101,7 +109,7 @@ router.post(
       }
     })
   ),
-  validateMultipartRequest(createAssetSchema, ['file']),
+  //validateMultipartRequest(createAssetSchema, ['file']),
   assetController.createAsset
 );
 

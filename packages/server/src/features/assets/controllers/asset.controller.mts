@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import { NextFunction, Request, Response } from 'express';
 import assetService, {
   NotFoundError,
   PermissionError,
@@ -43,10 +43,12 @@ class AssetController {
    */
   async createAsset(
     req: Request,
-    res: Response<BaseAPIResponse<IAsset>>
+    res: Response<BaseAPIResponse<IAsset>>,
+    next: NextFunction
   ): Promise<Response<BaseAPIResponse<IAsset>> | void> {
+    try {
       // Check if file exists
-      if (!req.assets?.file) {
+      if (!req.file) {
         console.log('No file uploaded');
         return res.status(400).json({
           success: false,
@@ -59,15 +61,17 @@ class AssetController {
       const userId = req.session.user.id;
 
       // Create asset
-      const asset = await assetService.createAsset(req.assets?.file, userId, req.body);
+      const asset = await assetService.createAsset(req.file, userId, req.body);
 
       // Return created asset
       return res.status(201).json({
         success: true,
         data: asset.toPublicJSON() as IAsset
       });
+    } catch (error) {
+      next(error);
     }
-
+  }
   /**
    * Get an asset by ID
    * @route GET /api/assets/:id

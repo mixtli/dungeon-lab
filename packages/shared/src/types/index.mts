@@ -93,10 +93,11 @@ export type InviteStatusType = z.infer<typeof inviteStatusSchema>;
 export type IItem = z.infer<typeof itemSchema>;
 export type IItemCreateData = z.infer<typeof itemCreateSchema>;
 
+export const mapUpdateSchema = mapCreateSchema.deepPartial();
 // Map Types
 export type IMap = z.infer<typeof mapSchema>;
 export type IMapCreateData = z.infer<typeof mapCreateSchema>;
-export type IMapUpdateData = z.infer<typeof mapCreateSchema>;
+export type IMapUpdateData = z.infer<typeof mapUpdateSchema>;
 export type IMapImportUVTTData = z.infer<typeof mapImportUVTTSchema>;
 export type IUVTT = z.infer<typeof uvttSchema>;
 

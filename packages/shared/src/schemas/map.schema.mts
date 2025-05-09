@@ -84,7 +84,7 @@ export const mapSchema = baseSchema.extend({
   // Grid information
   //gridColumns: z.coerce.number().int().positive(),
   //gridRows: z.coerce.number().int().positive(),
-  //aspectRatio: z.coerce.number().positive(),
+  aspectRatio: z.coerce.number().positive().optional(),
 
   // UVTT format fields (nested)
   uvtt: uvttSchema.optional(),

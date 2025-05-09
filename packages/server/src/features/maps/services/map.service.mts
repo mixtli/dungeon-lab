@@ -12,9 +12,17 @@ import { deepMerge } from '@dungeon-lab/shared/utils/deepMerge.mjs';
 import { Types } from 'mongoose';
 import { UserModel } from '../../../models/user.model.mjs';
 import { IMapCreateData, IMapUpdateData } from '@dungeon-lab/shared/types/index.mjs';
+import { uvttSchema } from '@dungeon-lab/shared/schemas/map.schema.mjs';
 
 // Define a type for map query values
 export type QueryValue = string | number | boolean | RegExp | Date | object;
+
+// Interface for UVTT import options
+interface UVTTImportOptions {
+  name: string;
+  description: string;
+  campaignId?: string;
+}
 
 export class MapService {
   constructor() {}
@@ -55,6 +63,16 @@ export class MapService {
 
       // Create map in database to get an ID
       const map = await MapModel.create(mapData);
+      if(map.imageId) {
+        if(!map.thumbnailId) {
+          await backgroundJobService.scheduleJob('now', MAP_THUMBNAIL_GENERATION_JOB, {
+            mapId: map.id,
+            userId,
+            imageAssetId: map.imageId
+          });
+        }
+        return map.populate(['image', 'thumbnail']);
+      }
 
       // If an image file was provided
       if (imageFile) {
@@ -229,7 +247,7 @@ export class MapService {
    */
   async updateMap(
     id: string,
-    data: Partial<IMap>,
+    data: IMapUpdateData,
     userId: string,
     imageFile?: File
   ): Promise<IMap> {
@@ -241,7 +259,7 @@ export class MapService {
       }
 
       // Prepare update data
-      const mapUpdateData: Partial<IMap> = { ...data, updatedBy: userId };
+      const mapUpdateData: IMapUpdateData = { ...data, updatedBy: userId };
 
       // Handle image file if provided
       if (imageFile) {
@@ -275,9 +293,9 @@ export class MapService {
         });
 
         logger.info(`Scheduled thumbnail generation job for updated map ${id}`);
-      } else if (mapUpdateData.gridColumns && existingMap.aspectRatio) {
+      } else if (mapUpdateData.uvtt?.resolution?.map_size?.x && existingMap.aspectRatio) {
         // If no new image, but gridColumns changed, recalculate gridRows based on existing aspect ratio
-        mapUpdateData.gridRows = Math.floor(mapUpdateData.gridColumns / existingMap.aspectRatio);
+        mapUpdateData.uvtt.resolution.map_size.y = Math.floor(mapUpdateData.uvtt?.resolution?.map_size?.x / existingMap.aspectRatio);
       }
 
       // Apply updates
@@ -581,6 +599,157 @@ export class MapService {
     } catch (error) {
       logger.error('Error searching maps:', error);
       throw new Error('Failed to search maps');
+    }
+  }
+
+  /**
+   * Import a map from UVTT data
+   * 
+   * @param uvttData - The parsed UVTT data
+   * @param userId - ID of the user importing the map
+   * @param options - Additional options (name, description, campaignId)
+   */
+  async importUVTT(
+    uvttData: Record<string, unknown>,
+    userId: string,
+    options: UVTTImportOptions
+  ): Promise<IMap> {
+    try {
+      // Extract image data from UVTT if available
+      let imageAsset: AssetDocument | null = null;
+      
+      if (uvttData.image && typeof uvttData.image === 'string') {
+        // The image is typically stored as a base64 string
+        const base64Data = uvttData.image.replace(/^data:image\/\w+;base64,/, '');
+        const imageBuffer = Buffer.from(base64Data, 'base64');
+        
+        // Create a File object from the buffer
+        const imageFile = new File([imageBuffer], `${options.name}.webp`, { 
+          type: 'image/webp' 
+        });
+        
+        // Upload the image as an asset
+        imageAsset = await createAsset(imageFile, 'maps', userId);
+        
+        // Remove the image from the UVTT data to avoid storing it twice
+        const { image: _image, ...uvttWithoutImage } = uvttData;
+        uvttData = uvttWithoutImage;
+      }
+      
+      // Ensure UVTT data has all required fields
+      const validUvttData = {
+        format: 1.0, // Default UVTT version
+        resolution: {
+          map_origin: { x: 0, y: 0 },
+          map_size: { x: 50, y: 50 }, // Default if not provided
+          pixels_per_grid: 100 // Default if not provided
+        },
+        ...uvttSchema.partial().parse(uvttData)
+      };
+      
+      // Extract resolution data for calculating grid dimensions
+      const aspectRatio = 
+        validUvttData.resolution.map_size.x / validUvttData.resolution.map_size.y;
+      
+      // Prepare map data
+      const mapData: IMapCreateData = {
+        name: options.name,
+        description: options.description,
+        aspectRatio,
+        uvtt: validUvttData,
+        createdBy: userId,
+        updatedBy: userId
+      };
+      
+      // If this map is associated with a campaign and the model supports it
+      if (options.campaignId) {
+        // The MongoDB model supports campaignId even if it's not in the type
+        // Use a type assertion to avoid TypeScript errors
+        (mapData as IMapCreateData & { campaignId: string }).campaignId = options.campaignId;
+      }
+      
+      // Set image ID if we have one
+      if (imageAsset) {
+        mapData.imageId = imageAsset.id;
+      }
+      
+      // Create the map
+      const map = await MapModel.create(mapData);
+      
+      // If we have an image, we'll generate a thumbnail
+      if (imageAsset) {
+        await backgroundJobService.scheduleJob('now', MAP_THUMBNAIL_GENERATION_JOB, {
+          mapId: map.id,
+          userId,
+          imageAssetId: imageAsset.id
+        });
+        
+        logger.info(`Scheduled thumbnail generation job for imported UVTT map ${map.id}`);
+      }
+      
+      // Return the populated map
+      return map.populate(['image', 'thumbnail']);
+    } catch (error) {
+      logger.error('Error importing UVTT map:', error);
+      throw new Error(
+        `Failed to import UVTT map: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  /**
+   * Get map in UVTT format with embedded base64 image
+   * 
+   * @param id - The ID of the map to retrieve
+   * @returns UVTT formatted map data with embedded base64 image
+   */
+  async getMapAsUVTT(id: string): Promise<Record<string, unknown>> {
+    try {
+      // Get the map with populated image
+      const map = await MapModel.findById(id).populate('image');
+      if (!map) {
+        throw new Error('Map not found');
+      }
+
+      // If there's no UVTT data, throw an error
+      if (!map.uvtt) {
+        throw new Error('Map does not have UVTT data');
+      }
+
+      // Start with the UVTT data from the map
+      const uvttData = { ...map.uvtt } as Record<string, unknown>;
+      
+      // If there's an image, fetch it and convert to base64
+      if (map.imageId) {
+        try {
+          // Get the image asset from the populated document
+          const imageAsset = await AssetModel.findById(map.imageId);
+          
+          if (imageAsset) {
+            // Fetch the image data
+            const imageResponse = await fetch(imageAsset.url);
+            if (!imageResponse.ok) {
+              throw new Error(`Failed to fetch image from ${imageAsset.url}`);
+            }
+            
+            // Convert to buffer and then to base64
+            const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+            const imageType = imageAsset.type || 'image/jpeg';
+            const base64Image = `data:${imageType};base64,${imageBuffer.toString('base64')}`;
+            
+            // Add the base64 image to the UVTT data
+            uvttData.image = base64Image;
+          }
+        } catch (error) {
+          logger.error('Error fetching and converting image:', error);
+          // Continue without the image rather than failing completely
+        }
+      }
+      
+      return uvttData;
+    } catch (error) {
+      logger.error('Error getting map as UVTT:', error);
+      throw error;
     }
   }
 }

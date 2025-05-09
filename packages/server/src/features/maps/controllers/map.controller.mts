@@ -56,9 +56,19 @@ export class MapController {
 
   getMap = async (
     req: Request,
-    res: Response<BaseAPIResponse<IMap>>
-  ): Promise<Response<BaseAPIResponse<IMap>> | void> => {
+    res: Response<BaseAPIResponse<IMap> | unknown>
+  ): Promise<Response<BaseAPIResponse<IMap> | unknown> | void> => {
     try {
+      // Check if the client requests UVTT format
+      if (req.accepts('application/uvtt')) {
+        const uvttData = await this.mapService.getMapAsUVTT(req.params.id);
+        // Set Content-Type to application/uvtt
+        res.setHeader('Content-Type', 'application/uvtt');
+        // Return raw UVTT data without wrapping in API response
+        return res.send(uvttData);
+      } 
+      
+      // Standard JSON response
       const map = await this.mapService.getMap(req.params.id);
       return res.json({
         success: true,
@@ -70,6 +80,13 @@ export class MapController {
           success: false,
           data: null,
           error: 'Map not found'
+        });
+      }
+      if (isErrorWithMessage(error) && error.message === 'Map does not have UVTT data') {
+        return res.status(404).json({
+          success: false,
+          data: null,
+          error: 'Map does not have UVTT data'
         });
       }
       logger.error('Error in getMap controller:', error);
@@ -368,6 +385,91 @@ export class MapController {
         success: false,
         data: [],
         error: 'Failed to search maps'
+      });
+    }
+  };
+
+  /**
+   * Import a map from a UVTT file
+   */
+  importUVTT = async (
+    req: Request,
+    res: Response<BaseAPIResponse<IMap>>
+  ): Promise<Response<BaseAPIResponse<IMap>> | void> => {
+    try {
+      // Check if we have raw body data (application/uvtt) or JSON
+      let uvttData: Record<string, unknown>;
+      let name: string = '';
+      let description: string = '';
+      let campaignId: string | undefined;
+
+      if (req.is('application/uvtt')) {
+        // Handle raw UVTT file content
+        const buffer = req.body; // Express.raw middleware provides the body as a Buffer
+        
+        try {
+          // Parse the buffer as JSON
+          const uvttContent = buffer.toString('utf-8');
+          uvttData = JSON.parse(uvttContent);
+          
+          // Try to extract a name from the file if possible
+          name = 'Imported UVTT map';
+        } catch (error) {
+          logger.error('Error parsing UVTT file:', error);
+          return res.status(400).json({
+            success: false,
+            data: null,
+            error: 'Invalid UVTT file format'
+          });
+        }
+      } else if (req.is('application/json')) {
+        // Handle JSON submission with UVTT data
+        uvttData = req.body.uvttData;
+        name = req.body.name || 'Imported UVTT map';
+        description = req.body.description || '';
+        campaignId = req.body.campaignId;
+        
+        if (!uvttData) {
+          return res.status(400).json({
+            success: false,
+            data: null,
+            error: 'Missing UVTT data in request'
+          });
+        }
+      } else {
+        return res.status(415).json({
+          success: false,
+          data: null,
+          error: 'Unsupported media type. Expected application/uvtt or application/json'
+        });
+      }
+
+      // Process the UVTT map data
+      const map = await this.mapService.importUVTT(
+        uvttData,
+        req.session.user.id,
+        { name, description, campaignId }
+      );
+
+      return res.status(201).json({
+        success: true,
+        data: map
+      });
+    } catch (error) {
+      logger.error('Error importing UVTT map:', error);
+      
+      if (error instanceof Error) {
+        return res.status(500).json({
+          success: false,
+          data: null,
+          error: error.message || 'Failed to import UVTT map'
+        });
+      }
+      
+      return res.status(500).json({
+        success: false,
+        data: null,
+        error: 'Failed to import UVTT map'
       });
     }
   };

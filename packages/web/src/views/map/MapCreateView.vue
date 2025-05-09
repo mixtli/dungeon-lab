@@ -27,6 +27,60 @@ const formData = ref({
 });
 const mapImageFile = ref<File | UploadedImage | null>(null);
 
+// UVTT file upload
+const uvttFile = ref<File | null>(null);
+const uvttLoading = ref(false);
+const uvttError = ref<string | null>(null);
+
+async function handleUvttFileChange(event: Event) {
+  const target = event.target as HTMLInputElement;
+  if (target.files && target.files.length > 0) {
+    uvttFile.value = target.files[0];
+  }
+}
+
+async function handleUvttUpload() {
+  if (!uvttFile.value) {
+    uvttError.value = 'Please select a UVTT file to upload';
+    return;
+  }
+
+  try {
+    uvttLoading.value = true;
+    uvttError.value = null;
+
+    // Read the file content
+    const fileContent = await uvttFile.value.text();
+
+    // Use fetch API directly to control the Content-Type header
+    const response = await fetch('/api/maps', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/uvtt'
+      },
+      body: fileContent
+    });
+
+    if (!response.ok) {
+      throw new Error(`Server returned ${response.status}: ${await response.text()}`);
+    }
+
+    const result = await response.json();
+    
+    // Navigate to the map edit page
+    router.push({ name: 'map-edit', params: { id: result.data.id } });
+  } catch (err) {
+    console.error('Error uploading UVTT file:', err);
+    if (err instanceof Error) {
+      uvttError.value = `Error uploading UVTT file: ${err.message}`;
+    } else {
+      uvttError.value = 'An unknown error occurred while uploading the UVTT file';
+    }
+  } finally {
+    uvttLoading.value = false;
+  }
+}
+
 async function handleSubmit(event: Event) {
   event.preventDefault();
 
@@ -91,7 +145,65 @@ async function handleSubmit(event: Event) {
       <h1 class="text-2xl font-bold">Create New Map</h1>
     </div>
 
+    <!-- UVTT File Upload Section -->
+    <div class="bg-white rounded-lg shadow-md max-w-2xl mx-auto p-6 mb-6 border-2 border-blue-200">
+      <h2 class="text-xl font-semibold mb-4">Import from UVTT File</h2>
+      <p class="text-gray-600 mb-4">
+        Upload a Universal VTT (UVTT) file to quickly import a map with all its settings.
+      </p>
+
+      <!-- UVTT Error Display -->
+      <div v-if="uvttError" class="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
+        <div class="flex">
+          <div class="flex-shrink-0">
+            <svg
+              class="h-5 w-5 text-red-400"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                clip-rule="evenodd"
+              />
+            </svg>
+          </div>
+          <div class="ml-3">
+            <p class="text-sm text-red-700">{{ uvttError }}</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-4">
+        <input 
+          type="file"
+          accept=".uvtt"
+          @change="handleUvttFileChange"
+          class="block w-full text-sm text-gray-500
+                file:mr-4 file:py-2 file:px-4
+                file:rounded-md file:border-0
+                file:text-sm file:font-semibold
+                file:bg-blue-50 file:text-blue-700
+                hover:file:bg-blue-100"
+        />
+        <button
+          @click="handleUvttUpload"
+          :disabled="!uvttFile || uvttLoading"
+          class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {{ uvttLoading ? 'Uploading...' : 'Upload UVTT' }}
+        </button>
+      </div>
+      <div v-if="uvttFile" class="mt-2 text-sm text-gray-600">
+        Selected file: {{ uvttFile.name }}
+      </div>
+    </div>
+
     <div class="bg-white rounded-lg shadow-md max-w-2xl mx-auto p-6">
+      <h2 class="text-xl font-semibold mb-4">Or Create a New Map</h2>
+      
       <!-- Error State -->
       <div v-if="error" class="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
         <div class="flex">
