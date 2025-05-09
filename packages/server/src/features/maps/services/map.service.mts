@@ -648,8 +648,10 @@ export class MapService {
       };
       
       // Extract resolution data for calculating grid dimensions
-      const aspectRatio = 
-        validUvttData.resolution.map_size.x / validUvttData.resolution.map_size.y;
+      let aspectRatio = undefined;
+      if(validUvttData.resolution?.map_size?.x && validUvttData.resolution?.map_size?.y) {
+        aspectRatio = validUvttData.resolution?.map_size?.x / validUvttData.resolution?.map_size?.y;
+      }
       
       // Prepare map data
       const mapData: IMapCreateData = {

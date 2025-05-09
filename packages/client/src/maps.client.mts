@@ -1,10 +1,9 @@
 import { ApiClient } from './api.client.mjs';
-import type { IMap } from '@dungeon-lab/shared/types/index.mjs';
+import type { IMap, IMapUpdateData } from '@dungeon-lab/shared/types/index.mjs';
 import {
   BaseAPIResponse,
   DeleteAPIResponse,
   CreateMapRequest,
-  PatchMapRequest,
   IMapResponse
 } from '@dungeon-lab/shared/types/api/index.mjs';
 import { AssetsClient } from './assets.client.mjs';
@@ -24,7 +23,11 @@ export class MapsClient extends ApiClient {
    * Fetch a specific map by ID
    */
   async getMap(mapId: string): Promise<IMapResponse> {
-    const response = await this.api.get<BaseAPIResponse<IMapResponse>>(`/api/maps/${mapId}`);
+    const response = await this.api.get<BaseAPIResponse<IMapResponse>>(`/api/maps/${mapId}`, {
+      headers: {
+        'Accept': 'application/json'
+      }
+    });
     if (!response.data.success) {
       throw new Error(response.data.error || 'Failed to get map');
     }
@@ -92,7 +95,7 @@ export class MapsClient extends ApiClient {
    * @param data Map update data
    * @param imageFile Optional new image file
    */
-  async updateMap(mapId: string, data: Omit<PatchMapRequest, 'image'>, imageFile?: File): Promise<IMap> {
+  async updateMap(mapId: string, data: IMapUpdateData, imageFile?: File): Promise<IMap> {
     // Upload the image first if provided
     let imageId: string | undefined;
     

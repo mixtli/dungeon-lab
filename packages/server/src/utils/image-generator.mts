@@ -21,7 +21,7 @@ export async function generateAIImage(
       messages: [
         {
           role: 'user',
-          content: `Create a physical description of the following character: ${JSON.stringify(
+          content: `Create a description of the following entity: ${JSON.stringify(
             data
           )}`
         }

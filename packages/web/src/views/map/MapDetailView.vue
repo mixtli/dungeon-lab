@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import type { IMap, IAsset } from '@dungeon-lab/shared/types/index.mjs';
+import type { IMap, IAsset, IMapUpdateData } from '@dungeon-lab/shared/types/index.mjs';
 import { MapsClient } from '@dungeon-lab/client/index.mjs';
 import { ArrowLeftIcon } from '@heroicons/vue/24/outline';
 
@@ -10,10 +10,10 @@ const router = useRouter();
 const loading = ref(false);
 const editing = ref(false);
 const map = ref<IMap | null>(null);
-const formData = ref<Partial<IMap>>({
+const formData = ref<IMapUpdateData>({
   name: '',
   description: '',
-  gridColumns: 20,
+
 });
 const showDebug = ref(false);
 
@@ -51,8 +51,7 @@ async function fetchMap() {
     if (map.value) {
       formData.value = {
         name: map.value.name,
-        description: map.value.description || '',
-        gridColumns: map.value.gridColumns,
+        description: map.value.description || ''
       };
     }
   } catch (error) {
@@ -130,11 +129,11 @@ onMounted(() => {
           <div class="grid grid-cols-2 gap-4 text-sm">
             <div>
               <span class="font-medium">Grid Size:</span>
-              {{ map.gridColumns }} x {{ map.gridRows }}
+              {{ map.uvtt?.resolution?.map_size?.x }} x {{ map.uvtt?.resolution?.map_size?.y }}
             </div>
             <div>
               <span class="font-medium">Aspect Ratio:</span>
-              {{ map.aspectRatio.toFixed(2) }}
+              {{ map.aspectRatio?.toFixed(2) }}
             </div>
           </div>
 
@@ -190,7 +189,7 @@ onMounted(() => {
               Grid Columns <span class="text-red-500">*</span>
             </label>
             <input
-              v-model="formData.gridColumns"
+              v-model="formData.uvtt?.resolution?.map_size?.x"
               type="number"
               required
               min="1"

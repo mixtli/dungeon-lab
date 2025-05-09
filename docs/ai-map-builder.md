@@ -186,38 +186,104 @@ This document outlines the architecture and workflow for implementing an AI-powe
 ### Step 6: Feature Detection Pipeline
 
 **Technical Implementation:**
-1. **Feature Detection Service**: Implement a Python-based service using FastAPI to detect various map features:
+1. **Feature Detection Workflow**: Implement a Python-based Prefect workflow to detect various map features:
 
    ```python
-   # Example Python FastAPI service structure
-   from fastapi import FastAPI, File, UploadFile
+   # Example Python Prefect workflow structure
+   from prefect import flow, task
    import cv2
    import numpy as np
    from ultralytics import YOLO
+   import requests
+
+   @task
+   def load_image(image_url):
+       """Load image from URL or file path"""
+       # Handle both remote and local images
+       if image_url.startswith('http'):
+           response = requests.get(image_url)
+           nparr = np.frombuffer(response.content, np.uint8)
+           img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+       else:
+           img = cv2.imread(image_url)
+       return img
    
-   app = FastAPI()
-   
-   # Load pre-trained models
-   wall_detector = YOLO("models/walls-yolov8.pt")
-   door_detector = YOLO("models/doors-yolov8.pt")
-   
-   @app.post("/detect-features")
-   async def detect_features(image: UploadFile):
-       # Load and preprocess image
-       image_bytes = await image.read()
-       nparr = np.frombuffer(image_bytes, np.uint8)
-       img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-       
-       # Detect walls
+   @task
+   def detect_walls(img, wall_detector):
+       """Detect walls using YOLO model"""
        wall_results = wall_detector(img)
        wall_polygons = process_wall_detections(wall_results)
-       
-       # Detect doors/portals
+       return wall_polygons
+   
+   @task
+   def detect_doors(img, door_detector):
+       """Detect doors and portals using YOLO model"""
        door_results = door_detector(img)
        portal_data = process_door_detections(door_results)
-       
-       # Light detection based on brightness analysis
+       return portal_data
+   
+   @task
+   def detect_lights(img):
+       """Detect light sources based on brightness analysis"""
        light_sources = detect_light_sources(img)
+       return light_sources
+       
+   @task
+   def send_progress_update(session_id, step, progress, api_base_url, api_key):
+       """Send progress update via REST API"""
+       try:
+           requests.post(
+               f"{api_base_url}/api/workflows/progress",
+               json={
+                   "session_id": session_id,
+                   "step": step,
+                   "progress": progress
+               },
+               headers={"Authorization": f"Bearer {api_key}"}
+           )
+       except Exception as e:
+           print(f"Failed to send progress update: {e}")
+   
+   @flow
+   def detect_map_features(image_url, session_data):
+       """Complete map feature detection workflow"""
+       # Load models
+       wall_detector = YOLO("models/walls-yolov8.pt")
+       door_detector = YOLO("models/doors-yolov8.pt")
+       
+       # Send initial progress update
+       send_progress_update(
+           session_data["session_id"], "feature_detection", 10, 
+           session_data["api_base_url"], session_data["api_key"]
+       )
+       
+       # Load image
+       img = load_image(image_url)
+       
+       # Run detection tasks
+       send_progress_update(
+           session_data["session_id"], "feature_detection", 30, 
+           session_data["api_base_url"], session_data["api_key"]
+       )
+       wall_polygons = detect_walls(img, wall_detector)
+       
+       send_progress_update(
+           session_data["session_id"], "feature_detection", 60, 
+           session_data["api_base_url"], session_data["api_key"]
+       )
+       portal_data = detect_doors(img, door_detector)
+       
+       send_progress_update(
+           session_data["session_id"], "feature_detection", 80, 
+           session_data["api_base_url"], session_data["api_key"]
+       )
+       light_sources = detect_lights(img)
+       
+       # Send completion update
+       send_progress_update(
+           session_data["session_id"], "feature_detection", 100, 
+           session_data["api_base_url"], session_data["api_key"]
+       )
        
        # Return UVTT compatible format
        return {
@@ -255,7 +321,7 @@ This document outlines the architecture and workflow for implementing an AI-powe
 - **Layout Analysis**: Specialized CNN or Transformer model for structural understanding
 
 **Implementation Complexity**: High  
-**Dependencies**: Python ML ecosystem (PyTorch, OpenCV), GPU resources for inference
+**Dependencies**: Python ML ecosystem (PyTorch, OpenCV), Prefect workflow management, GPU resources for inference
 
 ### Step 7-8: Visual Editor and Final Map Saving
 
@@ -372,28 +438,174 @@ This document outlines the architecture and workflow for implementing an AI-powe
 
 ## Integration Flow
 
+```mermaid
+sequenceDiagram
+    participant User as Web Client
+    participant Express as Express Server
+    participant Prefect as Prefect Server
+    participant MapGen as Map Generation Flow
+    participant OpenAI as OpenAI GPT-4o
+    participant MinIO as Image Storage
+    participant FeatureDetect as Feature Detection Flow
+    participant CV as Computer Vision Models
+    participant MongoDB as MongoDB
+    
+    User->>Express: 1. Submit map description
+    Express->>Prefect: 2. Trigger map generation workflow
+    Prefect->>MapGen: 3. Start map generation flow
+    
+    Note over Express,MapGen: Session ID created for tracking
+    
+    MapGen->>Express: 4. Progress update (started)
+    Express-->>User: 5. Real-time update via Socket.io
+    
+    MapGen->>OpenAI: 6. Request image generation
+    OpenAI->>MapGen: 7. Return generated image URL
+    
+    MapGen->>Express: 8. Progress update (image generated)
+    Express-->>User: 9. Display preview image
+    
+    alt User wants modifications
+        User->>Express: 10a. Submit modification request
+        Express->>Prefect: 11a. Trigger regeneration
+        Prefect->>MapGen: 12a. Regenerate with modifications
+        MapGen->>OpenAI: 13a. Request modified image
+        OpenAI->>MapGen: 14a. Return updated image
+        MapGen->>Express: 15a. Progress update (image updated)
+        Express-->>User: 16a. Display updated preview
+    end
+    
+    User->>Express: 10. Approve image
+    Express->>Prefect: 11. Proceed to feature detection
+    
+    MapGen->>MinIO: 12. Store final image
+    MinIO->>MapGen: 13. Confirm storage & return URL
+    
+    MapGen->>FeatureDetect: 14. Trigger feature detection flow
+    
+    FeatureDetect->>Express: 15. Progress update (detection started)
+    Express-->>User: 16. Update progress to user
+    
+    FeatureDetect->>CV: 17. Process image for walls
+    CV->>FeatureDetect: 18. Return wall data
+    FeatureDetect->>Express: 19. Progress update (walls detected)
+    Express-->>User: 20. Update progress to user
+    
+    FeatureDetect->>CV: 21. Process image for doors/portals
+    CV->>FeatureDetect: 22. Return portal data
+    FeatureDetect->>Express: 23. Progress update (portals detected)
+    Express-->>User: 24. Update progress to user
+    
+    FeatureDetect->>CV: 25. Process image for light sources
+    CV->>FeatureDetect: 26. Return lighting data
+    FeatureDetect->>Express: 27. Progress update (lights detected)
+    Express-->>User: 28. Update progress to user
+    
+    FeatureDetect->>MongoDB: 29. Save complete map data
+    MongoDB->>FeatureDetect: 30. Confirm data saved
+    
+    FeatureDetect->>Express: 31. Complete notification with map ID
+    Express-->>User: 32. Load editor with detected features
+    
+    Note over User,MongoDB: User can now edit features in the interactive editor
+    
+    User->>Express: 33. Save map modifications
+    Express->>MongoDB: 34. Update map features
+    MongoDB->>Express: 35. Confirm update
+    Express-->>User: 36. Confirm save & offer UVTT export
+    
+    User->>Express: 37. Request UVTT export
+    Express->>Express: 38. Convert to UVTT format
+    Express-->>User: 39. Download UVTT file
+```
+
 To wire all these components together:
 
 1. **Frontend-Backend Communication**:
    - Use RESTful API endpoints for map CRUD operations
-   - Implement WebSocket for real-time editor updates (optional)
+   - Implement WebSocket for real-time status updates to clients
 
-2. **Processing Pipeline**:
-   - Queue system for handling image generation and feature detection tasks
-   - Status updates to frontend during processing
+2. **Workflow Orchestration with Prefect**:
+   - Express server triggers Prefect workflows for long-running operations
+   - REST callbacks from Prefect to Express provide progress updates
+   - Socket.io relays progress to web clients in real-time
 
-3. **Data Flow**:
+3. **Complete Data Flow**:
    ```
-   User Input → Frontend → OpenAI API → Image Storage → 
-   Feature Detection API → Database → 
-   Map Editor → Database (Updated Features) → 
+   User Input → Express → Prefect Map Generation Flow → Image Storage →
+   Prefect Feature Detection Flow → MongoDB →
+   Map Editor → MongoDB (Updated Features) →
    UVTT Export
    ```
 
-4. **Error Handling & Fallbacks**:
-   - Implement retry logic for AI service calls
+4. **Express API Implementation**:
+   ```javascript
+   // API route to start map generation
+   router.post('/api/maps/generate', async (req, res) => {
+     try {
+       const { description, parameters } = req.body;
+       const userId = req.session.user.id;
+       
+       // Create a unique session ID for this workflow
+       const sessionId = uuidv4();
+       
+       // Generate API key for secure callbacks
+       const apiKey = generateApiKey();
+       
+       // Store session info in database or cache
+       await storeWorkflowSession(sessionId, userId, apiKey);
+       
+       // Session data to pass to Prefect
+       const sessionData = {
+         session_id: sessionId,
+         api_base_url: process.env.EXPRESS_API_URL,
+         api_key: apiKey
+       };
+       
+       // Start Prefect flow
+       const prefect = new PrefectClient();
+       const flow = await prefect.createFlowRun({
+         flow_name: "Map Generation Flow",
+         parameters: {
+           description,
+           parameters,
+           user_id: userId,
+           session_data: sessionData
+         }
+       });
+       
+       // Return session ID to client for tracking
+       res.json({ 
+         success: true, 
+         sessionId,
+         flowId: flow.id 
+       });
+       
+     } catch (error) {
+       console.error("Error starting map generation:", error);
+       res.status(500).json({ success: false, error: "Failed to start map generation" });
+     }
+   });
+
+   // Progress update endpoint (called by Prefect)
+   router.post('/api/workflows/progress', authenticateApiRequest, (req, res) => {
+     const { session_id, step, progress } = req.body;
+     
+     // Get user ID associated with this session
+     const userId = getUserIdFromSession(session_id);
+     
+     // Emit Socket.io event to client
+     io.to(userId).emit('ai:map:progress', { step, progress });
+     
+     res.json({ success: true });
+   });
+   ```
+
+5. **Error Handling & Resiliency**:
+   - Implement auto-retries for failed workflow steps in Prefect
+   - Store intermediate results in MongoDB at each successful step
    - Provide manual editing tools as fallback for detection failures
-   - Cache intermediate results to prevent data loss
+   - Implement resume capability for workflows that encounter errors
 
 ## Mongoose Schema for Maps
 
@@ -447,6 +659,6 @@ module.exports = mongoose.model('Map', mapSchema);
 
 ## Conclusion
 
-This sequential approach to building an AI-powered map creator provides a clear roadmap for implementation, from initial user description to final UVTT export. By leveraging the latest AI models like GPT-4o for image generation and specialized computer vision models like YOLOv8/v11 and SAM 2 for feature detection, we can create a powerful yet user-friendly system for map creation.
+This sequential approach to building an AI-powered map creator provides a clear roadmap for implementation, from initial user description to final UVTT export. By leveraging Prefect for workflow orchestration, OpenAI's GPT-4o for image generation, and specialized computer vision models like YOLOv8/v11 and SAM 2 for feature detection, we can create a powerful yet user-friendly system for map creation.
 
 The implementation prioritizes user control throughout the process, with AI doing the heavy lifting of initial generation and feature detection while always giving users the final say through iterative refinement and direct editing. This balance of automation and user control will make map creation both efficient and creatively satisfying. 

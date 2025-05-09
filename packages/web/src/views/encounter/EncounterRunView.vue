@@ -5,7 +5,6 @@ import { useEncounterStore } from '../../stores/encounter.store.mjs';
 import { useGameSessionStore } from '../../stores/game-session.store.mjs';
 import { useSocketStore } from '../../stores/socket.store.mjs';
 import { GameSessionsClient } from '@dungeon-lab/client/index.mjs';
-import MapGrid from '../../components/encounter/MapGrid.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -108,7 +107,7 @@ onMounted(async () => {
       <!-- Main Content Area -->
       <div class="bg-white rounded-lg shadow-sm p-4">
         <div class="aspect-video bg-gray-100 rounded-lg">
-          <MapGrid :width="800" :height="600" />
+          <!-- <MapGrid :width="800" :height="600" /> -->
         </div>
       </div>
     </div>

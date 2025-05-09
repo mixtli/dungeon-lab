@@ -1,4 +1,4 @@
-import { Response, Request } from 'express';
+import { Response, Request, NextFunction } from 'express';
 import { MapService, QueryValue } from '../services/map.service.mjs';
 import { logger } from '../../../utils/logger.mjs';
 import {
@@ -100,8 +100,10 @@ export class MapController {
 
   createMap = async (
     req: Request<object, object, IMap>,
-    res: Response<BaseAPIResponse<IMap>>
+    res: Response<BaseAPIResponse<IMap>>,
+    next: NextFunction
   ): Promise<Response<BaseAPIResponse<IMap>> | void> => {
+    try {
       // Validate request body
       const validatedData = createMapRequestSchema.parse(req.body);
 
@@ -115,7 +117,10 @@ export class MapController {
       success: true,
       data: map
     });
+  } catch (error) {
+    next(error)
   };
+}
 
   /**
    * Replace a map completely (PUT)
@@ -394,7 +399,8 @@ export class MapController {
    */
   importUVTT = async (
     req: Request,
-    res: Response<BaseAPIResponse<IMap>>
+    res: Response<BaseAPIResponse<IMap>>,
+    next: NextFunction
   ): Promise<Response<BaseAPIResponse<IMap>> | void> => {
     try {
       // Check if we have raw body data (application/uvtt) or JSON
@@ -456,21 +462,7 @@ export class MapController {
         data: map
       });
     } catch (error) {
-      logger.error('Error importing UVTT map:', error);
-      
-      if (error instanceof Error) {
-        return res.status(500).json({
-          success: false,
-          data: null,
-          error: error.message || 'Failed to import UVTT map'
-        });
-      }
-      
-      return res.status(500).json({
-        success: false,
-        data: null,
-        error: 'Failed to import UVTT map'
-      });
+      next(error)
     }
   };
 }

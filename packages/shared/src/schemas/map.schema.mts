@@ -18,13 +18,13 @@ const polygonSchema = z.array(coordinateSchema);
 export const resolutionSchema = z.object({
   map_origin: z.object({
     x: z.number().default(0),
-    y: z.number().default(0)
-  }),
+    y: z.number().default(0).optional()
+  }).optional(),
   map_size: z.object({
     x: z.number().positive(),
     y: z.number().positive()
-  }),
-  pixels_per_grid: z.number().int().positive()
+  }).optional(),
+  pixels_per_grid: z.number().int().positive().optional()
 });
 
 /**
@@ -61,8 +61,8 @@ const environmentSchema = z.object({
  * Schema for the UVTT format data
  */
 export const uvttSchema = z.object({
-  format: z.number().default(1.0), // UVTT version
-  resolution: resolutionSchema,
+  format: z.number().default(1.0).optional(), // UVTT version
+  resolution: resolutionSchema.optional(),
   line_of_sight: z.array(polygonSchema).optional(),
   objects_line_of_sight: z.array(polygonSchema).optional(),
   portals: z.array(portalSchema).optional(),

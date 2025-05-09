@@ -165,11 +165,11 @@ router.post(
   // Validation middleware (skipped for UVTT files which are handled by the controller)
   validateMultipartRequest(createMapRequestSchema, 'image'),
   // Controller handler that routes based on content type
-  (req: Request, res: Response, _next: NextFunction) => {
+  (req: Request, res: Response, next: NextFunction) => {
     if (req.is('application/uvtt')) {
-      return mapController.importUVTT(req, res);
+      return mapController.importUVTT(req, res, next);
     }
-    return mapController.createMap(req, res);
+    return mapController.createMap(req, res, next);
   }
 );
 
