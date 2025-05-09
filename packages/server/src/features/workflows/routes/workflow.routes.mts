@@ -24,14 +24,10 @@ const router = Router();
  *           schema:
  *             type: object
  *             required:
- *               - session_id
  *               - workflow_type
  *               - step
  *               - progress
  *             properties:
- *               session_id:
- *                 type: string
- *                 description: The unique session ID for this workflow
  *               workflow_type:
  *                 type: string
  *                 description: Type of workflow (e.g., 'map', 'character', 'encounter')

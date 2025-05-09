@@ -48,3 +48,5 @@ tasks.json
 tasks/ 
 
 packages/server/coverage
+
+__pycache__

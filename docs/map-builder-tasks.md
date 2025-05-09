@@ -28,16 +28,17 @@ This document tracks the tasks for implementing the AI-powered map builder featu
   - Notes: Consolidates former tasks 2.1 and 5.1
   - Status: Completed - Created an ai-workflows Python project with Prefect configuration, flow definitions for map generation and feature detection, Docker Compose setup, and necessary utility scripts.
 
-- [ ] **Task 1.2**: Implement workflow session management
+- [x] **Task 1.2**: Implement workflow session management
   - Priority: High
   - Description: Create a system to generate and track session IDs for workflows and manage security tokens for callbacks.
   - Dependencies: 1.1
   - Notes: Moved from previous Phase 5 as it's foundational
+  - Status: WONTFIX - Determined that formal session management is unnecessary. Will use a simplified approach: pass userId directly to Prefect flows and include it in callbacks to route socket messages. Prefect server will be internal with no authentication, using an admin API key for callbacks to Express.
 
 - [ ] **Task 1.3**: Build REST callback endpoints
   - Priority: High 
   - Description: Create Express API endpoints for Prefect flows to report progress and results.
-  - Dependencies: 1.2
+  - Dependencies: ~~1.2~~ 1.1
   - Notes: Moved from previous Phase 5 as it's foundational
 
 - [x] **Task 1.4**: Implement Socket.io progress updates

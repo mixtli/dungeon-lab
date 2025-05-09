@@ -7,7 +7,7 @@ import requests
 from datetime import datetime
 from typing import Dict, Any, Optional
 
-from prefect import flow, task, get_run_logger
+from prefect import flow, task, get_run_logger, context
 from prefect.artifacts import create_markdown_artifact
 
 # Import project config
@@ -55,7 +55,6 @@ def validate_input(input_data: Dict[str, Any]) -> Dict[str, Any]:
 
 @task(name="send_progress_update", retries=3, retry_delay_seconds=5)
 def send_progress_update(
-    session_id: str, 
     status: str, 
     progress: float, 
     message: str,
@@ -65,7 +64,6 @@ def send_progress_update(
     Send a progress update to the callback endpoint.
     
     Args:
-        session_id: Unique workflow session ID
         status: Current status (e.g., "running", "completed", "failed")
         progress: Progress percentage (0-100)
         message: Progress message
@@ -76,9 +74,17 @@ def send_progress_update(
     """
     logger = get_run_logger()
     
+    flow_run = context.get_run_context().flow_run
+
     # Create payload
     payload = {
-        "sessionId": session_id,
+        "flow_run": {
+            "id": flow_run.id,
+            "name": flow_run.name,
+            "labels": flow_run.labels,
+            "created_at": flow_run.created_at,
+            "updated_at": flow_run.updated_at,
+        },
         "status": status,
         "progress": progress,
         "message": message,
@@ -162,25 +168,22 @@ def generate_map_image(input_data: Dict[str, Any]) -> Dict[str, Any]:
 
 @flow(name="generate-map", timeout_seconds=MAP_GENERATION_TIMEOUT)
 def generate_map_flow(
-    session_id: str,
     input_data: Dict[str, Any]
 ) -> Dict[str, Any]:
     """
     Main flow for generating a map.
     
     Args:
-        session_id: Unique workflow session ID
         input_data: Dictionary containing map generation parameters
         
     Returns:
         Dictionary containing the generated map data
     """
     logger = get_run_logger()
-    logger.info(f"Starting map generation flow with session ID: {session_id}")
+    logger.info(f"Starting map generation flow")
     
     # Start progress tracking
     send_progress_update(
-        session_id=session_id,
         status="running",
         progress=0.0,
         message="Starting map generation workflow"
@@ -190,7 +193,6 @@ def generate_map_flow(
         # Validate input
         validated_input = validate_input(input_data)
         send_progress_update(
-            session_id=session_id,
             status="running",
             progress=10.0,
             message="Input validated successfully"
@@ -199,7 +201,6 @@ def generate_map_flow(
         # Generate the map image
         image_result = generate_map_image(validated_input)
         send_progress_update(
-            session_id=session_id,
             status="running",
             progress=50.0,
             message="Map image generated successfully"
@@ -207,7 +208,6 @@ def generate_map_flow(
         
         # Prepare final result
         result = {
-            "sessionId": session_id,
             "status": "completed",
             "userId": validated_input["userId"],
             "campaignId": validated_input["campaignId"],
@@ -223,14 +223,13 @@ def generate_map_flow(
         
         # Send completion update
         send_progress_update(
-            session_id=session_id,
             status="completed",
             progress=100.0,
             message="Map generation workflow completed successfully",
             result=result
         )
         
-        logger.info(f"Map generation flow completed successfully: {session_id}")
+        logger.info(f"Map generation flow completed successfully")
         return result
         
     except Exception as e:
@@ -238,7 +237,6 @@ def generate_map_flow(
         
         # Send failure update
         send_progress_update(
-            session_id=session_id,
             status="failed",
             progress=0.0,
             message=f"Map generation workflow failed: {str(e)}"
@@ -260,5 +258,5 @@ if __name__ == "__main__":
         "resolution": 70,
     }
     
-    result = generate_map_flow(session_id="test-session-001", input_data=example_input)
+    result = generate_map_flow(input_data=example_input)
     print(json.dumps(result, indent=2)) 

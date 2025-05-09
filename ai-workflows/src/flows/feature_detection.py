@@ -65,7 +65,6 @@ def validate_input_image(input_data: Dict[str, Any]) -> Dict[str, Any]:
 
 @task(name="send_progress_update", retries=3, retry_delay_seconds=5)
 def send_progress_update(
-    session_id: str, 
     status: str, 
     progress: float, 
     message: str,
@@ -75,7 +74,6 @@ def send_progress_update(
     Send a progress update to the callback endpoint.
     
     Args:
-        session_id: Unique workflow session ID
         status: Current status (e.g., "running", "completed", "failed")
         progress: Progress percentage (0-100)
         message: Progress message
@@ -88,7 +86,6 @@ def send_progress_update(
     
     # Create payload
     payload = {
-        "sessionId": session_id,
         "status": status,
         "progress": progress,
         "message": message,
@@ -117,25 +114,22 @@ def send_progress_update(
 
 @flow(name="detect-features", timeout_seconds=FEATURE_DETECTION_TIMEOUT)
 def detect_features_flow(
-    session_id: str,
     input_data: Dict[str, Any]
 ) -> Dict[str, Any]:
     """
     Main flow for detecting features in a map image.
     
     Args:
-        session_id: Unique workflow session ID
         input_data: Dictionary containing feature detection parameters
         
     Returns:
         Dictionary containing the detected features in UVTT format
     """
     logger = get_run_logger()
-    logger.info(f"Starting feature detection flow with session ID: {session_id}")
+    logger.info(f"Starting feature detection flow")
     
     # Start progress tracking
     send_progress_update(
-        session_id=session_id,
         status="running",
         progress=0.0,
         message="Starting feature detection workflow"
@@ -145,7 +139,6 @@ def detect_features_flow(
         # Validate input
         validated_input = validate_input_image(input_data)
         send_progress_update(
-            session_id=session_id,
             status="running",
             progress=5.0,
             message="Input validated successfully"
@@ -155,7 +148,6 @@ def detect_features_flow(
         image_path = validated_input["image_path"]
         img = load_image(image_path)
         send_progress_update(
-            session_id=session_id,
             status="running",
             progress=10.0,
             message="Image loaded successfully"
@@ -164,7 +156,6 @@ def detect_features_flow(
         # Preprocess the image
         preprocessed_img = preprocess_image(img)
         send_progress_update(
-            session_id=session_id,
             status="running",
             progress=20.0,
             message="Image preprocessing completed"
@@ -173,7 +164,6 @@ def detect_features_flow(
         # Detect walls
         walls = detect_walls(preprocessed_img)
         send_progress_update(
-            session_id=session_id,
             status="running",
             progress=40.0,
             message=f"Detected {len(walls)} wall segments"
@@ -182,7 +172,6 @@ def detect_features_flow(
         # Detect doors
         doors = detect_doors(preprocessed_img, walls)
         send_progress_update(
-            session_id=session_id,
             status="running",
             progress=60.0,
             message=f"Detected {len(doors)} doors"
@@ -191,7 +180,6 @@ def detect_features_flow(
         # Detect lights
         lights = detect_lights(img)
         send_progress_update(
-            session_id=session_id,
             status="running",
             progress=80.0,
             message=f"Detected {len(lights)} light sources"
@@ -209,7 +197,6 @@ def detect_features_flow(
         
         # Prepare final result
         result = {
-            "sessionId": session_id,
             "status": "completed",
             "userId": validated_input["userId"],
             "campaignId": validated_input["campaignId"],
@@ -221,6 +208,7 @@ def detect_features_flow(
             },
             "createdAt": datetime.utcnow().isoformat(),
         }
+
         
         # Create an artifact for the detected features
         create_markdown_artifact(
@@ -249,14 +237,13 @@ def detect_features_flow(
         
         # Send completion update
         send_progress_update(
-            session_id=session_id,
             status="completed",
             progress=100.0,
             message="Feature detection workflow completed successfully",
             result=result
         )
         
-        logger.info(f"Feature detection flow completed successfully: {session_id}")
+        logger.info(f"Feature detection flow completed successfully")
         return result
         
     except Exception as e:
@@ -264,7 +251,6 @@ def detect_features_flow(
         
         # Send failure update
         send_progress_update(
-            session_id=session_id,
             status="failed",
             progress=0.0,
             message=f"Feature detection workflow failed: {str(e)}"
@@ -283,5 +269,5 @@ if __name__ == "__main__":
     }
     
     # This will fail unless an actual image path is provided
-    # result = detect_features_flow(session_id="test-session-002", input_data=example_input)
-    # print(json.dumps(result, indent=2)) 
+    result = detect_features_flow(input_data=example_input)
+    print(json.dumps(result, indent=2)) 

@@ -31,5 +31,6 @@
         "**/coverage/**",
         "**/logs/**",
         "**/.github/workflows/**"
-    ]
+    ],
+    "postman.settings.dotenv-detection-notification-visibility": false
 }

@@ -4,7 +4,6 @@ import { logger } from '../../../utils/logger.mjs';
 
 // Define types for workflow progress payloads
 interface WorkflowProgressPayload {
-  session_id: string;
   step: string;
   progress: number;
   workflow_type: string;
@@ -22,13 +21,15 @@ export class WorkflowController {
    */
   async handleProgressUpdate(req: Request, res: Response): Promise<Response> {
     try {
-      const { session_id, workflow_type, step, progress, metadata = {} } = req.body;
+      const { workflow_type, step, progress, metadata = {} } = req.body;
       
       // Validate required fields
-      if (!session_id || !workflow_type || !step || progress === undefined) {
+      if (!workflow_type || !step || progress === undefined) {
+        const errorMessage = 'Missing required fields: workflow_type, step, or progress';
+        logger.error(errorMessage);
         return res.status(400).json({
           success: false,
-          error: 'Missing required fields: session_id, workflow_type, step, or progress'
+          error: errorMessage
         });
       }
 
@@ -41,7 +42,6 @@ export class WorkflowController {
       
       // Create the payload with workflow information
       const payload: WorkflowProgressPayload = {
-        session_id,
         step,
         progress,
         workflow_type,
@@ -51,7 +51,7 @@ export class WorkflowController {
       // Use a more specific type cast to allow dynamic event names
       (socketServer.socketIo as unknown as DynamicSocketEmitter).emit(eventName, payload);
       
-      logger.info(`Workflow progress update [${workflow_type}:${session_id}]: ${step} - ${progress}%`, { metadata });
+      logger.info(`Workflow progress update [${workflow_type}]: ${step} - ${progress}%`, { metadata });
       
       return res.json({ 
         success: true,
