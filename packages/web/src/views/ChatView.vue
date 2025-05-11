@@ -32,7 +32,7 @@ const messages = computed(() => chatStore.messages);
 function handleRollCommand(formula: string) {
   if (!socketStore.socket) return;
 
-  socketStore.socket.emit('roll-command', {
+  socketStore.socket.emit('roll', {
     formula,
     gameSessionId: route.params.id as string
   }, (response: { success: boolean, error?: string }) => {

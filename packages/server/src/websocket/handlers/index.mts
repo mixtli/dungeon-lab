@@ -7,6 +7,7 @@ import './move-handler.mjs';
 import './plugin-handler.mjs';
 import './roll-command.handler.mjs';
 import './encounter-handler.mjs';
+import '../../features/maps/event-handlers/map-generator-handler.mjs';
 
 // Export empty object to satisfy ESM requirements
 export {};

@@ -89,17 +89,23 @@ export class PrefectClient {
    * @param userId - User ID to add as a label for tracking
    * @returns The flow run object
    */
-  async runFlow(flowId: string, params: Record<string, unknown>, userId: string): Promise<PrefectFlowRun> {
+  async runFlow(flowName: string, deploymentName: string,params: Record<string, unknown>, userId: string): Promise<PrefectFlowRun> {
     try {
-      logger.info(`Running flow: ${flowId} for user: ${userId}`);
+      logger.info(`Running flow: ${flowName} for user: ${userId}`);
+      const deployment = await this.client.get(`/deployments/name/${flowName}/${deploymentName}`);
       
       // Create the flow run
       const response = await this.client.post<PrefectFlowRun>('/flow_runs', {
-        flow_id: flowId,
+        flow_id: deployment.data.flow_id,
         parameters: params,
-        tags: ["dungeonlab"],
+        work_pool_name: 'process-pool',
+        work_queue_name: 'default',
+        deployment_id: deployment.data.id,
         labels: {
-          user_id: userId
+          userId: userId
+        },
+        state: {
+          type: "SCHEDULED"
         }
       });
 

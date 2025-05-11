@@ -22,6 +22,9 @@
     // IMPORTANT: Setting this to true causes hundreds of false TypeScript errors
     // Keep this false to prevent spurious errors with ESM imports (.mjs extensions)
     "typescript.tsserver.experimental.enableProjectDiagnostics": true,
+    "python.analysis.extraPaths": [
+        "ai-workflows/src"
+    ],
 
     "typescript.tsserver.log": "verbose",
     "problems.excludePatterns": [
@@ -32,5 +35,13 @@
         "**/logs/**",
         "**/.github/workflows/**"
     ],
-    "postman.settings.dotenv-detection-notification-visibility": false
+    "postman.settings.dotenv-detection-notification-visibility": false,
+    "git.ignoreLimitWarning": true,
+    "python.defaultInterpreterPath": ".venv/bin/python",
+    "python.autoComplete.extraPaths": [
+        "ai-workflows/src"
+    ],
+    "python.analysis.include": [
+        "ai-workflows/src"
+    ]
 }

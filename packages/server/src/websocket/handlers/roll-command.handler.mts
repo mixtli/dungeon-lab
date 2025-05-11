@@ -16,7 +16,7 @@ const diceService = new DiceService();
  * @param socket The client socket connection
  */
 function rollCommandHandler(socket: Socket<ClientToServerEvents, ServerToClientEvents>): void {
-  socket.on('roll-command', async (message, callback) => {
+  socket.on('roll', async (message, callback) => {
     logger.info('Received roll command:', {
       formula: message.formula,
       gameSessionId: message.gameSessionId,

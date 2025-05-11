@@ -87,7 +87,9 @@ services:
       sleep 5;
       /usr/bin/mc config host add myminio http://minio:9000 minioadmin minioadmin;
       /usr/bin/mc mb myminio/dungeon-lab --ignore-existing;
+      /usr/bin/mc mb myminio/prefect --ignore-existing;
       /usr/bin/mc anonymous set download myminio/dungeon-lab;
+      /usr/bin/mc anonymous set download myminio/prefect;
       exit 0;
       "
 

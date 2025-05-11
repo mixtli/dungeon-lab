@@ -24,11 +24,18 @@ export const pluginActionCallbackSchema = z.object({
   error: z.string().optional()
 });
 
+export const mapGenerationResponseSchema = z.object({
+  success: z.boolean(),
+  flowId: z.string(),
+  error: z.string().optional()
+});
+
 export const workflowProgressCallbackSchema = z
     .function()
     .args(
       z.object({
-        session_id: z.string(),
+        flow_id: z.string(),
+        user_id: z.string(),
         step: z.string(),
         progress: z.number(),
         workflow_type: z.string(),
@@ -124,7 +131,17 @@ export const serverToClientEvents = z.object({
       })
     )
     .returns(z.void()),
-  'workflow:progress:map': workflowProgressCallbackSchema
+  'workflow:progress:map': workflowProgressCallbackSchema,
+  'map:generation:complete': z
+    .function()
+    .args(
+      z.object({
+        flowId: z.string(),
+        mapId: z.string(),
+        imageUrl: z.string()
+      })
+    )
+    .returns(z.void())
 });
 
 export const clientToServerEvents = z.object({
@@ -155,7 +172,7 @@ export const clientToServerEvents = z.object({
       })
     )
     .returns(z.void()),
-  'roll-command': z
+  'roll': z
     .function()
     .args(
       z.object({
@@ -184,6 +201,22 @@ export const clientToServerEvents = z.object({
         encounterId: z.string(),
         campaignId: z.string()
       })
+    )
+    .returns(z.void()),
+  'map:generate': z
+    .function()
+    .args(
+      z.object({
+        description: z.string(),
+        parameters: z.object({
+          width: z.number(),
+          height: z.number(),
+          style: z.string(),
+          pixelsPerGrid: z.number(),
+          name: z.string()
+        })
+      }),
+      z.function().args(mapGenerationResponseSchema)
     )
     .returns(z.void())
 });

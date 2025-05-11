@@ -36,4 +36,4 @@ CALLBACK_AUTH_TOKEN = os.getenv("CALLBACK_AUTH_TOKEN", "")
 # Workflow timeouts (in seconds)
 DEFAULT_TASK_TIMEOUT = 300  # 5 minutes
 MAP_GENERATION_TIMEOUT = 600  # 10 minutes
-FEATURE_DETECTION_TIMEOUT = 900  # 15 minutes 
+FEATURE_DETECTION_TIMEOUT = 900  # 15 minutes

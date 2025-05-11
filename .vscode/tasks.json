@@ -19,7 +19,9 @@
       "label": "TypeScript: Check All",
       "type": "shell",
       "command": "npx tsc --noEmit --incremental false --project packages/server/tsconfig.json && npx tsc --noEmit --incremental false --project packages/web/tsconfig.json",
-      "problemMatcher": ["$tsc"],
+      "problemMatcher": [
+        "$tsc"
+      ],
       "group": {
         "kind": "build",
         "isDefault": true
@@ -31,14 +33,18 @@
     },
     {
       "type": "npm",
-      "problemMatcher": ["$eslint-stylish"],
+      "problemMatcher": [
+        "$eslint-stylish"
+      ],
       "label": "eslint: lint whole folder",
       "script": "lint",
       "presentation": {
         "reveal": "never",
         "panel": "new"
       },
-      "runOptions": { "runOn": "folderOpen" },
+      "runOptions": {
+        "runOn": "folderOpen"
+      },
       "detail": "Run eslint for all files on the workspace folder",
       "options": {
         "configFile": ".eslintrc.js",
@@ -48,22 +54,31 @@
     {
       "label": "Prefect: Start Server",
       "type": "shell",
-      "command": "prefect server start",
+      "command": ".venv/bin/prefect server start",
       "isBackground": true,
-      "presentation": { "reveal": "silent", "panel": "new" },
+      "presentation": {
+        "reveal": "silent",
+        "panel": "new"
+      },
       "options": {
         "cwd": "${workspaceFolder}/ai-workflows"
-      }
+      },
+      "problemMatcher": [
+      ]
     },
     {
       "label": "Prefect: Start Worker",
       "type": "shell",
-      "command": "prefect worker start --pool process-pool",
+      "command": ".venv/bin/prefect worker start --pool process-pool",
       "isBackground": true,
-      "presentation": { "reveal": "silent", "panel": "new" },
+      "presentation": {
+        "reveal": "silent",
+        "panel": "new"
+      },
       "options": {
         "cwd": "${workspaceFolder}/ai-workflows"
-      }
+      },
+      "problemMatcher": []
     }
   ]
 }

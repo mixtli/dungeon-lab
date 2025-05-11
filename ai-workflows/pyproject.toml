@@ -1,0 +1,17 @@
+[project]
+name = "ai-workflows"
+version = "0.1.0"
+description = "Dungeon Lab AI workflows for map generation and automation."
+authors = ["Dungeon Lab Team <admin@dungeonlab.com>"]
+readme = "README.md"
+requires-python = ">=3.8"
+
+[tool.pyright]
+typeCheckingMode = "basic"
+reportMissingImports = true
+reportMissingTypeStubs = false
+pythonVersion = "3.10.14"
+venvPath = ".."
+venv = ".venv"
+#exclude = [".venv", "venv", "tests", "__pycache__"]
+

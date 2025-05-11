@@ -229,23 +229,23 @@ This document outlines the architecture and workflow for implementing an AI-powe
        return light_sources
        
    @task
-   def send_progress_update(session_id, step, progress, api_base_url, api_key):
+   def send_progress_update(flow_id, user_id, step, progress, api_base_url):
        """Send progress update via REST API"""
        try:
            requests.post(
                f"{api_base_url}/api/workflows/progress",
                json={
-                   "session_id": session_id,
+                   "flow_id": flow_id,
+                   "user_id": user_id,
                    "step": step,
                    "progress": progress
-               },
-               headers={"Authorization": f"Bearer {api_key}"}
+               }
            )
        except Exception as e:
            print(f"Failed to send progress update: {e}")
    
    @flow
-   def detect_map_features(image_url, session_data):
+   def detect_map_features(image_url, flow_data):
        """Complete map feature detection workflow"""
        # Load models
        wall_detector = YOLO("models/walls-yolov8.pt")
@@ -253,8 +253,8 @@ This document outlines the architecture and workflow for implementing an AI-powe
        
        # Send initial progress update
        send_progress_update(
-           session_data["session_id"], "feature_detection", 10, 
-           session_data["api_base_url"], session_data["api_key"]
+           flow_data["flow_id"], flow_data["user_id"], "feature_detection", 10, 
+           flow_data["api_base_url"]
        )
        
        # Load image
@@ -262,27 +262,27 @@ This document outlines the architecture and workflow for implementing an AI-powe
        
        # Run detection tasks
        send_progress_update(
-           session_data["session_id"], "feature_detection", 30, 
-           session_data["api_base_url"], session_data["api_key"]
+           flow_data["flow_id"], flow_data["user_id"], "feature_detection", 30, 
+           flow_data["api_base_url"]
        )
        wall_polygons = detect_walls(img, wall_detector)
        
        send_progress_update(
-           session_data["session_id"], "feature_detection", 60, 
-           session_data["api_base_url"], session_data["api_key"]
+           flow_data["flow_id"], flow_data["user_id"], "feature_detection", 60, 
+           flow_data["api_base_url"]
        )
        portal_data = detect_doors(img, door_detector)
        
        send_progress_update(
-           session_data["session_id"], "feature_detection", 80, 
-           session_data["api_base_url"], session_data["api_key"]
+           flow_data["flow_id"], flow_data["user_id"], "feature_detection", 80, 
+           flow_data["api_base_url"]
        )
        light_sources = detect_lights(img)
        
        # Send completion update
        send_progress_update(
-           session_data["session_id"], "feature_detection", 100, 
-           session_data["api_base_url"], session_data["api_key"]
+           flow_data["flow_id"], flow_data["user_id"], "feature_detection", 100, 
+           flow_data["api_base_url"]
        )
        
        # Return UVTT compatible format
@@ -451,72 +451,73 @@ sequenceDiagram
     participant MongoDB as MongoDB
     
     User->>Express: 1. Submit map description
-    Express->>Prefect: 2. Trigger map generation workflow
-    Prefect->>MapGen: 3. Start map generation flow
+    Express->>Prefect: 2. Trigger map generation workflow with userId label
+    Prefect-->>Express: 3. Return flow run ID
+    Express-->>User: 4. Return flow run ID to client
     
-    Note over Express,MapGen: Session ID created for tracking
+    Prefect->>MapGen: 5. Start map generation flow
     
-    MapGen->>Express: 4. Progress update (started)
-    Express-->>User: 5. Real-time update via Socket.io
+    MapGen->>Express: 6. Progress update with flowId & userId
+    Express-->>User: 7. Real-time update via Socket.io
     
-    MapGen->>OpenAI: 6. Request image generation
-    OpenAI->>MapGen: 7. Return generated image URL
+    MapGen->>OpenAI: 8. Request image generation
+    OpenAI->>MapGen: 9. Return generated image URL
     
-    MapGen->>Express: 8. Progress update (image generated)
-    Express-->>User: 9. Display preview image
+    MapGen->>Express: 10. Progress update (image generated)
+    Express-->>User: 11. Display preview image
     
     alt User wants modifications
-        User->>Express: 10a. Submit modification request
-        Express->>Prefect: 11a. Trigger regeneration
-        Prefect->>MapGen: 12a. Regenerate with modifications
-        MapGen->>OpenAI: 13a. Request modified image
-        OpenAI->>MapGen: 14a. Return updated image
-        MapGen->>Express: 15a. Progress update (image updated)
-        Express-->>User: 16a. Display updated preview
+        User->>Express: 12a. Submit modification request with flowId
+        Express->>Prefect: 13a. Trigger regeneration
+        Prefect->>MapGen: 14a. Regenerate with modifications
+        MapGen->>OpenAI: 15a. Request modified image
+        OpenAI->>MapGen: 16a. Return updated image
+        MapGen->>Express: 17a. Progress update (image updated)
+        Express-->>User: 18a. Display updated preview
     end
     
-    User->>Express: 10. Approve image
-    Express->>Prefect: 11. Proceed to feature detection
+    User->>Express: 12. Approve image
+    Express->>Prefect: 13. Proceed to feature detection
     
-    MapGen->>MinIO: 12. Store final image
-    MinIO->>MapGen: 13. Confirm storage & return URL
+    MapGen->>MinIO: 14. Store final image
+    MinIO->>MapGen: 15. Confirm storage & return URL
     
-    MapGen->>FeatureDetect: 14. Trigger feature detection flow
+    MapGen->>FeatureDetect: 16. Trigger feature detection flow
     
-    FeatureDetect->>Express: 15. Progress update (detection started)
-    Express-->>User: 16. Update progress to user
+    FeatureDetect->>Express: 17. Progress update (detection started)
+    Express-->>User: 18. Update progress to user
     
-    FeatureDetect->>CV: 17. Process image for walls
-    CV->>FeatureDetect: 18. Return wall data
-    FeatureDetect->>Express: 19. Progress update (walls detected)
-    Express-->>User: 20. Update progress to user
+    FeatureDetect->>CV: 19. Process image for walls
+    CV->>FeatureDetect: 20. Return wall data
+    FeatureDetect->>Express: 21. Progress update (walls detected)
+    Express-->>User: 22. Update progress to user
     
-    FeatureDetect->>CV: 21. Process image for doors/portals
-    CV->>FeatureDetect: 22. Return portal data
-    FeatureDetect->>Express: 23. Progress update (portals detected)
-    Express-->>User: 24. Update progress to user
+    FeatureDetect->>CV: 23. Process image for doors/portals
+    CV->>FeatureDetect: 24. Return portal data
+    FeatureDetect->>Express: 25. Progress update (portals detected)
+    Express-->>User: 26. Update progress to user
     
-    FeatureDetect->>CV: 25. Process image for light sources
-    CV->>FeatureDetect: 26. Return lighting data
-    FeatureDetect->>Express: 27. Progress update (lights detected)
-    Express-->>User: 28. Update progress to user
+    FeatureDetect->>CV: 27. Process image for light sources
+    CV->>FeatureDetect: 28. Return lighting data
+    FeatureDetect->>Express: 29. Progress update (lights detected)
+    Express-->>User: 30. Update progress to user
     
-    FeatureDetect->>MongoDB: 29. Save complete map data
-    MongoDB->>FeatureDetect: 30. Confirm data saved
+    FeatureDetect->>MongoDB: 31. Save complete map data
+    MongoDB->>FeatureDetect: 32. Confirm data saved
     
-    FeatureDetect->>Express: 31. Complete notification with map ID
-    Express-->>User: 32. Load editor with detected features
+    FeatureDetect->>Express: 33. Complete notification with map ID
+    Express-->>User: 34. Load editor with detected features
     
     Note over User,MongoDB: User can now edit features in the interactive editor
     
-    User->>Express: 33. Save map modifications
-    Express->>MongoDB: 34. Update map features
-    MongoDB->>Express: 35. Confirm update
-    Express-->>User: 36. Confirm save & offer UVTT export
+    User->>Express: 35. Save map modifications
+    Express->>MongoDB: 36. Update map features
+    MongoDB->>Express: 37. Confirm update
+    Express-->>User: 38. Confirm save & offer UVTT export
     
-    User->>Express: 37. Request UVTT export
-    Express->>Express: 38. Convert to UVTT format
-    Express-->>User: 39. Download UVTT file
+    User->>Express: 39. Request UVTT export
+    Express->>Express: 40. Convert to UVTT format
+    Express-->>User: 41. Download UVTT file
 ```
 
 To wire all these components together:
@@ -527,12 +528,13 @@ To wire all these components together:
 
 2. **Workflow Orchestration with Prefect**:
    - Express server triggers Prefect workflows for long-running operations
-   - REST callbacks from Prefect to Express provide progress updates
+   - Pass userId as a label on the Prefect job for easy identification
+   - REST callbacks from Prefect to Express provide progress updates with flowId and userId
    - Socket.io relays progress to web clients in real-time
 
 3. **Complete Data Flow**:
    ```
-   User Input → Express → Prefect Map Generation Flow → Image Storage →
+   User Input → Express → Prefect Map Generation Flow (with userId label) → Image Storage →
    Prefect Feature Detection Flow → MongoDB →
    Map Editor → MongoDB (Updated Features) →
    UVTT Export
@@ -546,20 +548,10 @@ To wire all these components together:
        const { description, parameters } = req.body;
        const userId = req.session.user.id;
        
-       // Create a unique session ID for this workflow
-       const sessionId = uuidv4();
-       
-       // Generate API key for secure callbacks
-       const apiKey = generateApiKey();
-       
-       // Store session info in database or cache
-       await storeWorkflowSession(sessionId, userId, apiKey);
-       
-       // Session data to pass to Prefect
-       const sessionData = {
-         session_id: sessionId,
+       // Flow data to pass to Prefect
+       const flowData = {
          api_base_url: process.env.EXPRESS_API_URL,
-         api_key: apiKey
+         user_id: userId
        };
        
        // Start Prefect flow
@@ -570,14 +562,16 @@ To wire all these components together:
            description,
            parameters,
            user_id: userId,
-           session_data: sessionData
+           flow_data: flowData
+         },
+         labels: {
+           userId: userId.toString() // Add userId as a label for easy lookup
          }
        });
        
-       // Return session ID to client for tracking
+       // Return flow ID to client for tracking
        res.json({ 
          success: true, 
-         sessionId,
          flowId: flow.id 
        });
        
@@ -588,14 +582,15 @@ To wire all these components together:
    });
 
    // Progress update endpoint (called by Prefect)
-   router.post('/api/workflows/progress', authenticateApiRequest, (req, res) => {
-     const { session_id, step, progress } = req.body;
-     
-     // Get user ID associated with this session
-     const userId = getUserIdFromSession(session_id);
+   router.post('/api/workflows/progress', (req, res) => {
+     const { flow_id, user_id, step, progress } = req.body;
      
      // Emit Socket.io event to client
-     io.to(userId).emit('ai:map:progress', { step, progress });
+     io.to(user_id).emit('ai:map:progress', { 
+       flowId: flow_id,
+       step, 
+       progress 
+     });
      
      res.json({ success: true });
    });

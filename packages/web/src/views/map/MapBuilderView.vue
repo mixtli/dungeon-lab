@@ -1,12 +1,18 @@
 <script setup lang="ts">
-import { ref, reactive,  onUnmounted } from 'vue';
+import { ref, reactive, onUnmounted, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { ArrowLeftIcon } from '@heroicons/vue/24/outline';
 import MapDescriptionInput from '../../components/map/MapDescriptionInput.vue';
 import MapGenerationProgress from '../../components/map/MapGenerationProgress.vue';
 import { useWorkflowProgress } from '../../composables/useWorkflowProgress.mjs';
+import { useSocketStore } from '../../stores/socket.store.mts';
+import type { MapGenerationResponse } from '@dungeon-lab/shared/types/socket/index.mjs';
 
 const router = useRouter();
+const socketStore = useSocketStore();
+
+// Flow ID for tracking progress
+const flowId = ref('');
 
 // Map description
 const description = ref('');
@@ -44,22 +50,58 @@ const styleOptions = [
   { value: 'realistic', label: 'Realistic' }
 ];
 
-// Add back the timeouts array and clearAllTimeouts function for simulation
-const timeouts: number[] = [];
-function clearAllTimeouts() {
-  timeouts.forEach(id => window.clearTimeout(id));
-  timeouts.length = 0;
-}
-
-// Clean up timeouts on unmount
-onUnmounted(() => {
-  clearAllTimeouts();
+// Setup socket event listeners for map generation progress
+onMounted(() => {
+  if (!socketStore.socket) {
+    console.error('Socket not initialized');
+    return;
+  }
+  
+  // Listen for progress updates
+  socketStore.socket.on('workflow:progress:map', ({ flow_id, step, progress, metadata }) => {
+    if (flow_id === flowId.value) {
+      generationStep.value = step;
+      generationProgress.value = progress;
+      
+      // If we get image URL in metadata, update the preview
+      if (metadata && typeof metadata === 'object' && 'imageUrl' in metadata && typeof metadata.imageUrl === 'string') {
+        previewImage.value = metadata.imageUrl;
+        previewReady.value = true;
+      }
+    }
+  });
+  
+  // Listen for generation complete event
+  socketStore.socket.on('map:generation:complete', ({ flowId: completedFlowId, mapId, imageUrl }) => {
+    if (completedFlowId === flowId.value) {
+      previewImage.value = imageUrl;
+      previewReady.value = true;
+      generationStep.value = 'complete';
+      generationProgress.value = 100;
+      
+      // Store the map ID for the editor
+      localStorage.setItem('lastGeneratedMapId', mapId);
+    }
+  });
 });
 
-// Map generation function with timeouts for simulation
+// Clean up socket listeners on unmount
+onUnmounted(() => {
+  if (socketStore.socket) {
+    socketStore.socket.off('workflow:progress:map');
+    socketStore.socket.off('map:generation:complete');
+  }
+});
+
+// Map generation function using socket.io
 const generateMap = async () => {
   if (!description.value.trim()) {
     descriptionError.value = 'Please provide a description of your map';
+    return;
+  }
+  
+  if (!socketStore.socket || !socketStore.connected) {
+    descriptionError.value = 'Not connected to server';
     return;
   }
   
@@ -67,61 +109,18 @@ const generateMap = async () => {
     resetGenerationProgress();
     descriptionError.value = '';
     
-    // In the actual implementation, this would call the backend API
-    // For now, we'll simulate the generation process
-    
-    // Step 1: Analyze description
-    generationStep.value = 'analyzing';
-    generationProgress.value = 10;
-    
-    const timeout1 = window.setTimeout(async () => {
-      // Step 2: Generate image
-      generationStep.value = 'generating';
-      generationProgress.value = 30;
-      
-      const timeout2 = window.setTimeout(() => {
-        // Simulate progress updates
-        generationProgress.value = 60;
-        
-        const timeout3 = window.setTimeout(() => {
-          // Simulate preview image (would come from API)
-          previewImage.value = 'https://via.placeholder.com/800x600/e6f0ff/0055cc?text=AI+Generated+Map';
-          previewReady.value = true;
-          
-          // Step 3: Complete
-          generationStep.value = 'complete';
-          generationProgress.value = 100;
-        }, 2000);
-        
-        timeouts.push(timeout3);
-      }, 2000);
-      
-      timeouts.push(timeout2);
-    }, 1000);
-    
-    timeouts.push(timeout1);
-    
-    // In a real implementation, we would call the backend API:
-    /*
-    const response = await fetch('/api/maps/generate', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        description: description.value,
-        parameters
-      })
+    // Request map generation via socket
+    socketStore.socket.emit('map:generate', {
+      description: description.value,
+      parameters
+    }, (response: MapGenerationResponse) => {
+      if (response.success) {
+        flowId.value = response.flowId;
+        console.log('Map generation started with flow ID:', flowId.value);
+      } else {
+        throw new Error(response.error || 'Failed to start map generation');
+      }
     });
-    
-    const data = await response.json();
-    
-    if (!data.success) {
-      throw new Error(data.error || 'Failed to generate map');
-    }
-    
-    sessionId.value = data.sessionId;
-    */
     
   } catch (error) {
     descriptionError.value = 'An error occurred during map generation';
@@ -131,21 +130,17 @@ const generateMap = async () => {
 
 // Function to regenerate the map with changes
 const regenerateMap = async () => {
-  // This would send the previous image along with the new description
-  // to generate changes based on the existing map
   resetGenerationProgress();
-  
-  // For now, just call the same generateMap function
   await generateMap();
 };
 
 // Function to proceed to edit the generated map
 const proceedToEdit = () => {
-  // In the real implementation, this would save the generated map and proceed to the editor
+  const mapId = localStorage.getItem('lastGeneratedMapId');
   router.push({ 
     name: 'map-edit', 
     params: { 
-      id: 'new' // This would be the actual ID from the server
+      id: mapId || 'new'
     } 
   });
 };
