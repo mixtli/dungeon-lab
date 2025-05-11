@@ -26,23 +26,23 @@ export const pluginActionCallbackSchema = z.object({
 
 export const mapGenerationResponseSchema = z.object({
   success: z.boolean(),
-  flowId: z.string(),
+  flowRunId: z.string(),
   error: z.string().optional()
 });
 
 export const workflowProgressCallbackSchema = z
-    .function()
-    .args(
-      z.object({
-        flow_id: z.string(),
-        user_id: z.string(),
-        step: z.string(),
-        progress: z.number(),
-        workflow_type: z.string(),
-        metadata: z.record(z.string(), z.unknown()).optional()
-      })
-    )
-    .returns(z.void());
+  .function()
+  .args(
+    z.object({
+      flow: z.string(),
+      flowRun: z.string(),
+      userId: z.string(),
+      status: z.string(),
+      progress: z.number(),
+      metadata: z.record(z.string(), z.unknown()).optional()
+    })
+  )
+  .returns(z.void());
 
 export const rollResultSchema = z.object({
   formula: z.string(),
@@ -131,14 +131,16 @@ export const serverToClientEvents = z.object({
       })
     )
     .returns(z.void()),
-  'workflow:progress:map': workflowProgressCallbackSchema,
-  'map:generation:complete': z
+  'workflow:progress:generate-map': workflowProgressCallbackSchema,
+  'workflow:state:generate-map': z
     .function()
     .args(
       z.object({
-        flowId: z.string(),
-        mapId: z.string(),
-        imageUrl: z.string()
+        flow: z.string(),
+        flowRun: z.string(),
+        userId: z.string(),
+        state: z.string(),
+        result: z.record(z.string(), z.unknown()).optional()
       })
     )
     .returns(z.void())
@@ -172,7 +174,7 @@ export const clientToServerEvents = z.object({
       })
     )
     .returns(z.void()),
-  'roll': z
+  roll: z
     .function()
     .args(
       z.object({

@@ -1,11 +1,12 @@
 """
 Shared utility functions for workflow callbacks.
 """
+
 from datetime import datetime
-from typing import Dict, Any, Optional
 
 import requests
 from prefect import State, get_run_logger, context, Flow
+from prefect import flow as prefect_flow
 
 
 # Import project config
@@ -15,22 +16,32 @@ from configs.prefect_config import (
 )
 
 
-
 def send_state_update(flow: Flow, flow_run, state: State):
     """
     Send a state update to the callback endpoint.
     """
     logger = get_run_logger()
-    logger.info("Sending state update for flow: %s, flow run: %s, state: %s",
-                flow.name, flow_run.id, state.name)
+    logger.info(
+        "Sending state update for flow: %s, flow run: %s, state: %s",
+        flow.name,
+        flow_run.id,
+        state.name,
+    )
 
+    try:
+        result = state.result()
+    except RuntimeError as e:
+        logger.error("Failed to get result: %s", e)
+        result = None
 
     try:
         # Create payload with full context
         payload = {
-            "flow": flow,
-            "flow_run": flow_run,
-            "state": state,
+            "flow": flow.name,
+            "flow_run": str(flow_run.id),
+            "user_id": flow_run.labels["userId"],
+            "state": state.name,
+            "result": result,
         }
 
         # Create headers
@@ -40,7 +51,7 @@ def send_state_update(flow: Flow, flow_run, state: State):
         }
 
         # Send the update
-        endpoint = f"{CALLBACK_BASE_URL}/workflows/callback/progress"
+        endpoint = f"{CALLBACK_BASE_URL}/workflows/callback/state"
         response = requests.post(endpoint, json=payload, headers=headers, timeout=10)
         response.raise_for_status()
         logger.info("State update sent: %s", state.name)
@@ -54,45 +65,38 @@ def send_progress_update(
     status: str,
     progress: float,
     message: str,
-    result: Optional[Dict[str, Any]] = None
 ) -> bool:
     """
     Send a progress update to the callback endpoint.
-    
+
     Args:
         status: Current status (e.g., "running", "completed", "failed")
         progress: Progress percentage (0-100)
         message: Progress message
         result: Optional result data
-        
+
     Returns:
         True if the update was sent successfully
     """
     logger = get_run_logger()
 
-
     try:
         # Get flow and flow_run context
         flow_run_context = context.get_run_context()
         flow_run = flow_run_context.flow_run
+        flow = flow_run_context.flow.name
         print(f"Flow run: {flow_run}")
 
         # Create payload with full context
         payload = {
-            "flow_run": {
-                "id": str(flow_run.id),
-                "name": flow_run.name,
-                "parameters": flow_run.parameters,
-            },
+            "flow": flow,
+            "flow_run": str(flow_run.id),
             "user_id": flow_run.labels["userId"],
             "status": flow_run.state.name,
             "progress": progress,
             "message": message,
             "timestamp": datetime.now().isoformat(),
         }
-
-        if result:
-            payload["result"] = result
 
         # Create headers
         headers = {
@@ -117,3 +121,29 @@ def update_status(status: str):
     """
     logger = get_run_logger()
     logger.info("Updating status to: %s", status)
+
+
+def auto_hook_flow(func=None, **kwargs):
+    """
+    Custom flow decorator that automatically adds state hooks to all flows.
+    Used exactly like @flow but adds standard hooks.
+    """
+
+    def wrapper(flow_func):
+        # Add all state hooks
+        all_kwargs = {
+            "on_completion": [send_state_update],
+            "on_failure": [send_state_update],
+            "on_cancellation": [send_state_update],
+            "on_crashed": [send_state_update],
+            "on_running": [send_state_update],
+            **kwargs,  # Allow overriding defaults
+        }
+
+        # Apply the standard prefect flow decorator with our hooks
+        return prefect_flow(**all_kwargs)(flow_func)
+
+    # Handle both @auto_hook_flow and @auto_hook_flow() syntax
+    if func is None:
+        return wrapper
+    return wrapper(func)

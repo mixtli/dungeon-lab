@@ -54,7 +54,7 @@
     {
       "label": "Prefect: Start Server",
       "type": "shell",
-      "command": ".venv/bin/prefect server start",
+      "command": "prefect server start",
       "isBackground": true,
       "presentation": {
         "reveal": "silent",
@@ -69,7 +69,7 @@
     {
       "label": "Prefect: Start Worker",
       "type": "shell",
-      "command": ".venv/bin/prefect worker start --pool process-pool",
+      "command": "prefect worker start --pool process-pool",
       "isBackground": true,
       "presentation": {
         "reveal": "silent",

@@ -9,6 +9,7 @@ from typing import Dict, Any
 # import base64
 # import os
 import json
+
 # import openai
 # import os
 # import base64
@@ -68,7 +69,7 @@ def validate_input(input_data: Dict[str, Any]) -> Dict[str, Any]:
 @task(name="generate_map_image", timeout_seconds=300, retries=2)
 def generate_map_image(description: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Generate a map image using OpenAI's new API (gpt-image-1 model), upload to MinIO, 
+    Generate a map image using OpenAI's new API (gpt-image-1 model), upload to MinIO,
     and create a Prefect image artifact.
 
     Args:
@@ -82,8 +83,10 @@ def generate_map_image(description: str, parameters: Dict[str, Any]) -> Dict[str
     logger.info("Generating map image with OpenAI (gpt-image-1)")
 
     # Prepare prompt
-    prompt = f"{description}\nStyle: {parameters.get('style', 'fantasy')}. " + \
-             f"Theme: {parameters.get('theme', 'dungeon')}."
+    prompt = (
+        f"{description}\nStyle: {parameters.get('style', 'fantasy')}. "
+        + f"Theme: {parameters.get('theme', 'dungeon')}."
+    )
 
     # Calculate desired pixel size
     # width = parameters.get("width", 30)
@@ -249,29 +252,15 @@ def generate_map_flow(description: str, parameters: Dict[str, Any]) -> Dict[str,
             status="running", progress=50.0, message="Map image generated successfully"
         )
 
-        # Prepare final result
-        final_result = {
-            "status": "completed",
-            "image": image_result,
-            "imageData": {
-                "width": image_result["width"],
-                "height": image_result["height"],
-                "style": image_result["style"],
-                "theme": image_result["theme"],
-            },
-            "createdAt": datetime.now().isoformat(),
-        }
-
         # Send completion update
         send_progress_update(
             status="completed",
             progress=100.0,
             message="Map generation workflow completed successfully",
-            result=final_result,
         )
 
         logger.info("Map generation flow completed successfully")
-        return final_result
+        return image_result
 
     except Exception as e:
         logger.error("Map generation flow failed: %s", e)

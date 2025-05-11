@@ -94,10 +94,66 @@ const workflowController = new WorkflowController();
  *       500:
  *         description: Server error
  */
-workflowRoutes.post(
-  '/callback/progress',
-  (req, res, next) => {
-    Promise.resolve(workflowController.handleProgressUpdate(req, res))
-      .catch(next);
-  }
-); 
+workflowRoutes.post('/callback/progress', (req, res, next) => {
+  Promise.resolve(workflowController.handleProgressUpdate(req, res)).catch(next);
+});
+
+/**
+ * @openapi
+ * /api/workflows/callback/state:
+ *   post:
+ *     summary: Receive workflow state change notifications
+ *     description: Endpoint for receiving state change events from workflow engines like Prefect
+ *     security:
+ *       - ApiKeyAuth: []
+ *     tags:
+ *       - Workflows
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - flow
+ *               - flow_run
+ *               - state
+ *             properties:
+ *               flow:
+ *                 type: object
+ *                 description: Information about the flow definition
+ *               flow_run:
+ *                 type: object
+ *                 description: Information about the flow run instance
+ *               user_id:
+ *                 type: string
+ *                 description: ID of the user who initiated the workflow
+ *               state:
+ *                 type: object
+ *                 description: The state object from Prefect
+ *               result:
+ *                 type: object
+ *                 description: Result data from the workflow (if available)
+ *     responses:
+ *       200:
+ *         description: State update received and processed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 event:
+ *                   type: string
+ *                   description: The socket event name that was emitted
+ *       400:
+ *         description: Bad Request - Missing required fields
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+workflowRoutes.post('/callback/state', (req, res, next) => {
+  Promise.resolve(workflowController.handleStateUpdate(req, res)).catch(next);
+});

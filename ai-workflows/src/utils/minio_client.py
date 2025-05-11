@@ -1,10 +1,10 @@
 """
 MinIO client utility for Dungeon Lab workflows.
 """
+
 import os
-from minio import Minio
-from minio.error import S3Error
 import io
+from minio import Minio
 
 
 def get_minio_client():
@@ -26,8 +26,9 @@ def get_minio_client():
         f"{minio_endpoint}:{minio_port}",
         access_key=minio_access_key,
         secret_key=minio_secret_key,
-        secure=minio_use_ssl
+        secure=minio_use_ssl,
     )
+
 
 def upload_to_minio(object_name, data, content_type="application/octet-stream"):
     """
@@ -53,6 +54,6 @@ def upload_to_minio(object_name, data, content_type="application/octet-stream"):
         object_name,
         data=data_stream,
         length=len(data),
-        content_type=content_type
+        content_type=content_type,
     )
-    return object_name 
+    return object_name

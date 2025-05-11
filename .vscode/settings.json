@@ -17,7 +17,7 @@
         "typescript",
         "typescriptreact"
     ],
-    "editor.formatOnSave": false,
+    "editor.formatOnSave": true,
     "editor.formatOnPaste": true,
     // IMPORTANT: Setting this to true causes hundreds of false TypeScript errors
     // Keep this false to prevent spurious errors with ESM imports (.mjs extensions)
@@ -26,7 +26,7 @@
         "ai-workflows/src"
     ],
 
-    "typescript.tsserver.log": "verbose",
+    "typescript.tsserver.log": "normal",
     "problems.excludePatterns": [
         "**/node_modules/**",
         "**/dist/**",
