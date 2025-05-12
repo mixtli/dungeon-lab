@@ -3,10 +3,11 @@ import { ref, reactive, onUnmounted, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { ArrowLeftIcon } from '@heroicons/vue/24/outline';
 import MapDescriptionInput from '../../components/map/MapDescriptionInput.vue';
+import MapEditInput from '../../components/map/MapEditInput.vue';
 import MapGenerationProgress from '../../components/map/MapGenerationProgress.vue';
 import { useWorkflowProgress } from '../../composables/useWorkflowProgress.mjs';
 import { useSocketStore } from '../../stores/socket.store.mts';
-import type { MapGenerationResponse } from '@dungeon-lab/shared/types/socket/index.mjs';
+import type { MapGenerationResponse, MapEditResponse } from '@dungeon-lab/shared/types/socket/index.mjs';
 
 const router = useRouter();
 const socketStore = useSocketStore();
@@ -18,7 +19,13 @@ const flowRunId = ref('');
 const description = ref('');
 const descriptionError = ref('');
 
-// Use the workflow progress composable for map generation
+// For map editing
+const editPrompt = ref('');
+const isEditing = ref(false);
+const editStatus = ref('');
+const editError = ref('');
+
+// Use the workflow progress composable for map generation and editing
 const {
   progress: generationProgress,
   startTime: generationStartTime,
@@ -26,12 +33,21 @@ const {
   reset: resetGenerationProgress
 } = useWorkflowProgress('map');
 
+// Use a separate progress tracker for edit operations
+const {
+  progress: editProgress,
+  startTime: editStartTime,
+  isComplete: editComplete,
+  reset: resetEditProgress
+} = useWorkflowProgress('map-edit');
+
 // Status message for the workflow
 const statusMessage = ref('');
 
 // Preview image
 const previewImage = ref('');
 const previewReady = ref(false);
+const originalImage = ref(''); // Store the original image for comparison
 
 // Map parameters
 const parameters = reactive({
@@ -62,9 +78,9 @@ function setupSocketListeners() {
   // Clean up any existing listeners first to prevent duplicates
   cleanupSocketListeners();
 
-  console.log('Setting up socket event listeners for map generation');
+  console.log('Setting up socket event listeners for map generation and editing');
 
-  // Listen for progress updates
+  // Listen for map generation progress updates
   socketStore.socket.on('workflow:progress:generate-map', (payload) => {
     console.log('Received workflow progress update:', payload);
 
@@ -73,7 +89,7 @@ function setupSocketListeners() {
 
     if (receivedFlowRunId === flowRunId.value) {
       // Use optional chaining and type assertion to safely access message
-      statusMessage.value = payload.message || payload.status || 'Processing';
+      statusMessage.value = (payload as any).message || payload.status || 'Processing';
       generationProgress.value = payload.progress;
 
       // If we get image URL in metadata, update the preview
@@ -84,8 +100,7 @@ function setupSocketListeners() {
     }
   });
 
-  console.log('Listening for workflow state updates');
-  // Listen for state updates (completion)
+  // Listen for map generation state updates
   socketStore.socket.on('workflow:state:generate-map', (payload) => {
     console.log('Received workflow state update:', payload);
 
@@ -101,6 +116,7 @@ function setupSocketListeners() {
         // If we have a result with an image URL, update the preview
         if (payload.result && typeof payload.result === 'object' && 'image_url' in payload.result && typeof payload.result.image_url === 'string') {
           previewImage.value = payload.result.image_url;
+          originalImage.value = payload.result.image_url; // Save original image
           previewReady.value = true;
         }
 
@@ -108,6 +124,79 @@ function setupSocketListeners() {
         if (payload.result && typeof payload.result === 'object' && 'mapId' in payload.result && typeof payload.result.mapId === 'string') {
           localStorage.setItem('lastGeneratedMapId', payload.result.mapId);
         }
+      }
+    }
+  });
+
+  // Listen for map edit progress updates
+  socketStore.socket.on('workflow:progress:edit-map', (payload) => {
+    console.log('Received map edit progress update:', payload);
+
+    // Extract the flow run ID from the payload
+    const receivedFlowRunId = payload.flowRun;
+
+    if (receivedFlowRunId === flowRunId.value) {
+      // Use optional chaining and type assertion to safely access message
+      editStatus.value = (payload as any).message || payload.status || 'Processing Edit';
+      editProgress.value = payload.progress;
+
+      // If we get image URL in metadata, update the preview
+      if (payload.metadata && typeof payload.metadata === 'object' && 'imageUrl' in payload.metadata && typeof payload.metadata.imageUrl === 'string') {
+        previewImage.value = payload.metadata.imageUrl;
+        previewReady.value = true;
+      }
+    }
+  });
+
+  // Listen for map edit state updates
+  socketStore.socket.on('workflow:state:edit-map', (payload) => {
+    console.log('Received map edit state update:', payload);
+
+    // Extract the flow run ID from the payload
+    const receivedFlowRunId = payload.flowRun;
+
+    if (receivedFlowRunId === flowRunId.value) {
+      // Always show the current state in the UI
+      editStatus.value = `Map Edit: ${payload.state}`;
+
+      if (payload.state === 'COMPLETED' || payload.state === 'Completed') {
+        console.log('Map edit workflow completed', payload);
+        editStatus.value = 'Map Edit Complete';
+        editProgress.value = 100;
+        resetEditProgress();
+        editProgress.value = 100;
+        isEditing.value = false;
+
+        // If we have a result with an image URL, update the preview
+        if (payload.result && typeof payload.result === 'object' && 'image_url' in payload.result && typeof payload.result.image_url === 'string') {
+          previewImage.value = payload.result.image_url;
+          previewReady.value = true;
+        }
+
+        // If we have a mapId in the result, store it for editor access
+        if (payload.result && typeof payload.result === 'object' && 'mapId' in payload.result && typeof payload.result.mapId === 'string') {
+          localStorage.setItem('lastGeneratedMapId', payload.result.mapId);
+        }
+      } else if (['FAILED', 'Failed', 'CRASHED', 'Crashed', 'ERROR', 'Error'].includes(payload.state)) {
+        // Handle all failure states consistently
+        console.log('Map edit workflow failed with state:', payload.state);
+        isEditing.value = false;
+
+        // Extract error message from result if available
+        let errorMessage = 'Map Edit Failed';
+        if (payload.result && typeof payload.result === 'object') {
+          if ('error' in payload.result) {
+            errorMessage = String(payload.result.error);
+          } else if ('message' in payload.result) {
+            errorMessage = String(payload.result.message);
+          }
+        }
+
+        // Set error state with clear message including the state
+        editError.value = `${errorMessage} (State: ${payload.state})`;
+        editStatus.value = `Edit Failed: ${payload.state}`;
+        resetEditProgress();
+        editProgress.value = 100;
       }
     }
   });
@@ -120,6 +209,8 @@ function cleanupSocketListeners() {
   console.log('Removing socket event listeners');
   socketStore.socket.off('workflow:progress:generate-map');
   socketStore.socket.off('workflow:state:generate-map');
+  socketStore.socket.off('workflow:progress:edit-map');
+  socketStore.socket.off('workflow:state:edit-map');
 }
 
 // Setup socket event listeners when component is mounted
@@ -206,6 +297,63 @@ const generateMap = async () => {
   }
 };
 
+// Function to edit the map based on prompt
+const editMap = async () => {
+  if (!editPrompt.value.trim() || !previewImage.value) {
+    return;
+  }
+
+  try {
+    isEditing.value = true;
+    resetEditProgress();
+    editError.value = '';
+    editStatus.value = 'Preparing Map Edit';
+
+    // Store the original image for comparison
+    if (!originalImage.value) {
+      originalImage.value = previewImage.value;
+    }
+
+    // Check socket connection
+    if (!socketStore.socket || !socketStore.connected) {
+      console.log('Socket not connected, attempting to reconnect...');
+      try {
+        await socketStore.initSocket();
+        setupSocketListeners();
+      } catch (error) {
+        throw new Error('Failed to connect to server');
+      }
+    }
+
+    // Request map edit via socket
+    if (!socketStore.socket) {
+      throw new Error('Socket connection not available');
+    }
+
+    socketStore.socket.emit('map:edit', {
+      originalImageUrl: previewImage.value,
+      editPrompt: editPrompt.value,
+      parameters
+    }, (response: MapEditResponse) => {
+      if (response.success) {
+        flowRunId.value = response.flowRunId;
+        editStatus.value = 'Applying Map Edits';
+        console.log('Map edit started with flow run ID:', flowRunId.value);
+      } else {
+        editStatus.value = response.error || 'Failed to edit map';
+        editError.value = response.error || 'Failed to edit map';
+        isEditing.value = false;
+        throw new Error(response.error || 'Failed to edit map');
+      }
+    });
+  } catch (error) {
+    editStatus.value = 'An error occurred during map editing';
+    editError.value = 'An error occurred during map editing';
+    console.error('Map editing error:', error);
+    isEditing.value = false;
+  }
+};
+
 // Function to regenerate the map with changes
 const regenerateMap = async () => {
   resetGenerationProgress();
@@ -221,6 +369,18 @@ const proceedToEdit = () => {
       id: mapId || 'new'
     }
   });
+};
+
+// Function to reset edit state and return to original image
+const cancelEdit = () => {
+  if (originalImage.value) {
+    previewImage.value = originalImage.value;
+  }
+  editPrompt.value = '';
+  isEditing.value = false;
+  editError.value = '';
+  editStatus.value = '';
+  resetEditProgress();
 };
 </script>
 
@@ -336,7 +496,7 @@ const proceedToEdit = () => {
 
         <!-- Generate Button -->
         <div class="flex justify-end">
-          <button @click="generateMap" :disabled="generationComplete || !description"
+          <button @click="generateMap" :disabled="generationComplete || !description || isEditing"
             class="px-6 py-3 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
             <span v-if="generationComplete">
               Regenerate Map
@@ -358,16 +518,94 @@ const proceedToEdit = () => {
           </div>
 
           <div class="mt-4 flex justify-between">
-            <button @click="regenerateMap" :disabled="generationComplete"
-              class="px-4 py-2 bg-gray-200 text-gray-800 font-medium rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500">
+            <button @click="regenerateMap" :disabled="generationComplete || isEditing"
+              class="px-4 py-2 bg-gray-200 text-gray-800 font-medium rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 disabled:opacity-50">
               Regenerate
             </button>
 
-            <button @click="proceedToEdit"
-              class="px-4 py-2 bg-green-600 text-white font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500">
+            <button @click="proceedToEdit" :disabled="isEditing"
+              class="px-4 py-2 bg-green-600 text-white font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50">
               Proceed to Editor
             </button>
           </div>
+        </div>
+
+        <!-- Map Editing Form -->
+        <div class="bg-white rounded-lg shadow p-4">
+          <h2 class="text-lg font-medium text-gray-800 mb-2">Edit Map</h2>
+          <p class="text-sm text-gray-600 mb-4">Describe the changes you'd like to make to the map</p>
+
+          <!-- Edit Status and Progress -->
+          <div v-if="editStatus" class="mb-4 p-3 rounded-md border" :class="{
+            'bg-blue-50 border-blue-200 text-blue-700': isEditing && !editError,
+            'bg-green-50 border-green-200 text-green-700': editComplete && !editError,
+            'bg-red-50 border-red-200 text-red-700': editError
+          }">
+            <div class="flex items-center">
+              <!-- Loading spinner when editing and not in error state -->
+              <svg v-if="isEditing && !editError" class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg"
+                fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                </path>
+              </svg>
+              <!-- Success icon when complete and no error -->
+              <svg v-else-if="editComplete && !editError" class="h-5 w-5 mr-2 text-green-500" fill="currentColor"
+                viewBox="0 0 20 20">
+                <path fill-rule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                  clip-rule="evenodd"></path>
+              </svg>
+              <!-- Error icon for any error state -->
+              <svg v-else-if="editError" class="h-5 w-5 mr-2 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                  clip-rule="evenodd"></path>
+              </svg>
+              <!-- Display status message -->
+              <span>{{ editStatus }}</span>
+            </div>
+
+            <!-- Display error message if present -->
+            <div v-if="editError" class="mt-2 text-red-700 text-sm">
+              {{ editError }}
+            </div>
+
+            <!-- Progress bar -->
+            <div v-if="isEditing || editComplete" class="mt-2">
+              <div class="w-full bg-gray-200 rounded-full h-2.5">
+                <div class="h-2.5 rounded-full"
+                  :class="{ 'bg-blue-600': isEditing && !editError, 'bg-green-600': editComplete && !editError, 'bg-red-600': editError }"
+                  :style="`width: ${editProgress}%`"></div>
+              </div>
+              <div class="flex justify-between mt-1 text-xs">
+                <span>{{ editProgress }}%</span>
+                <span v-if="editStartTime && isEditing">Started {{ new Date(editStartTime).toLocaleTimeString()
+                }}</span>
+              </div>
+            </div>
+          </div>
+
+          <MapEditInput v-model="editPrompt" :disabled="isEditing"
+            placeholder="e.g., Add a secret door in the south wall, make the north room larger..." @submit="editMap">
+            <template #hint>
+              Press Ctrl+Enter or Cmd+Enter to submit
+            </template>
+
+            <div class="flex space-x-2">
+              <button v-if="isEditing" @click="cancelEdit"
+                class="px-4 py-2 bg-gray-200 text-gray-800 font-medium rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500">
+                Cancel
+              </button>
+
+              <button @click="editMap" :disabled="!editPrompt || isEditing"
+                class="px-4 py-2 bg-purple-600 text-white font-medium rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50">
+                <span v-if="isEditing">Processing...</span>
+                <span v-else>Apply Changes</span>
+              </button>
+            </div>
+          </MapEditInput>
         </div>
 
         <div v-if="generationComplete" class="p-4 bg-green-50 text-green-800 rounded-lg border border-green-200">
@@ -382,7 +620,8 @@ const proceedToEdit = () => {
             </div>
             <div class="ml-3">
               <p class="text-sm font-medium">Map generation complete!</p>
-              <p class="mt-1 text-sm">You can now proceed to the editor to refine your map.</p>
+              <p class="mt-1 text-sm">You can now proceed to the editor to refine your map or use the edit function to
+                make changes.</p>
             </div>
           </div>
         </div>

@@ -8,7 +8,7 @@ import type {
 } from '@dungeon-lab/shared/types/socket/index.mjs';
 
 /**
- * Handle map generation requests via socket
+ * Handle map generation and editing requests via socket
  * @param socket The Socket.io socket
  */
 function setupMapGeneratorHandler(
@@ -48,6 +48,49 @@ function setupMapGeneratorHandler(
       logger.info(`Map generation flow started: ${flowRun.id} for user ${userId}`);
     } catch (error) {
       logger.error('Error starting map generation flow:', error);
+      callback({
+        success: false,
+        flowRunId: '',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // Handle map editing requests
+  socket.on('map:edit', async (data, callback) => {
+    try {
+      // Get user ID from socket
+      const userId = socket.userId as string;
+
+      if (!userId) {
+        throw new Error('User ID not found in socket data');
+      }
+
+      logger.info(`Map editing requested by user ${userId}`);
+
+      const prefect = new PrefectClient();
+
+      // Create the flow run for map editing
+      const flowRun = await prefect.runFlow(
+        'edit-map',
+        'edit-map',
+        {
+          original_image_url: data.originalImageUrl,
+          edit_prompt: data.editPrompt,
+          parameters: data.parameters
+        },
+        userId
+      );
+
+      // Send success response with flow ID
+      callback({
+        success: true,
+        flowRunId: flowRun.id
+      });
+
+      logger.info(`Map editing flow started: ${flowRun.id} for user ${userId}`);
+    } catch (error) {
+      logger.error('Error starting map editing flow:', error);
       callback({
         success: false,
         flowRunId: '',

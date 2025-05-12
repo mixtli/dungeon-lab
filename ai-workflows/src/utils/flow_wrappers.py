@@ -4,7 +4,7 @@ Used exactly like @flow but adds standard hooks.
 """
 
 from prefect import flow as prefect_flow
-from src.utils.callbacks import send_state_update
+from .callbacks import send_state_update
 
 
 def auto_hook_flow(func=None, **kwargs):

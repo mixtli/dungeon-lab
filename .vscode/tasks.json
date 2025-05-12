@@ -54,7 +54,7 @@
     {
       "label": "Prefect: Start Server",
       "type": "shell",
-      "command": "prefect server start",
+      "command": "direnv exec . prefect server start",
       "isBackground": true,
       "presentation": {
         "reveal": "silent",
@@ -69,7 +69,7 @@
     {
       "label": "Prefect: Start Worker",
       "type": "shell",
-      "command": "prefect worker start --pool process-pool",
+      "command": "direnv exec . prefect worker start --pool process-pool",
       "isBackground": true,
       "presentation": {
         "reveal": "silent",

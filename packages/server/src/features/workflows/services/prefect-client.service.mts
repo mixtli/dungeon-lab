@@ -52,14 +52,14 @@ export class PrefectClient {
 
   /**
    * Get a flow by name
-   * 
+   *
    * @param name - The name of the flow
    * @returns The flow object if found
    */
   async getFlowByName(name: string): Promise<PrefectFlow> {
     try {
       logger.info(`Getting flow by name: ${name}`);
-      
+
       // Using the correct endpoint to get flow by name
       const response = await this.client.get<PrefectFlow>(`/flows/name/${name}`);
 
@@ -83,17 +83,22 @@ export class PrefectClient {
 
   /**
    * Run a flow with parameters
-   * 
+   *
    * @param flowId - The ID of the flow to run
    * @param params - Parameters to pass to the flow
    * @param userId - User ID to add as a label for tracking
    * @returns The flow run object
    */
-  async runFlow(flowName: string, deploymentName: string,params: Record<string, unknown>, userId: string): Promise<PrefectFlowRun> {
+  async runFlow(
+    flowName: string,
+    deploymentName: string,
+    params: Record<string, unknown>,
+    userId: string
+  ): Promise<PrefectFlowRun> {
     try {
       logger.info(`Running flow: ${flowName} for user: ${userId}`);
       const deployment = await this.client.get(`/deployments/name/${flowName}/${deploymentName}`);
-      
+
       // Create the flow run
       const response = await this.client.post<PrefectFlowRun>('/flow_runs', {
         flow_id: deployment.data.flow_id,
@@ -105,11 +110,12 @@ export class PrefectClient {
           userId: userId
         },
         state: {
-          type: "SCHEDULED"
+          type: 'SCHEDULED'
         }
       });
 
       logger.info(`Started flow run with ID: ${response.data.id}`);
+      logger.info(JSON.stringify(response.data, null, 2));
       return response.data;
     } catch (error) {
       if (axios.isAxiosError(error)) {
@@ -122,10 +128,10 @@ export class PrefectClient {
       throw error;
     }
   }
-  
+
   /**
    * Get the status of a flow run
-   * 
+   *
    * @param flowRunId - The ID of the flow run
    * @returns The flow run object with status information
    */
@@ -145,4 +151,4 @@ export class PrefectClient {
       throw error;
     }
   }
-} 
+}

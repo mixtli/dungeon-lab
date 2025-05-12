@@ -9,7 +9,7 @@ from prefect import State, get_run_logger, context, Flow
 
 
 # Import project config
-from configs.prefect_config import (
+from ..configs.prefect_config import (
     CALLBACK_BASE_URL,
     CALLBACK_AUTH_TOKEN,
 )
@@ -19,18 +19,15 @@ def send_state_update(flow: Flow, flow_run, state: State):
     """
     Send a state update to the callback endpoint.
     """
-    logger = get_run_logger()
-    logger.info(
-        "Sending state update for flow: %s, flow run: %s, state: %s",
-        flow.name,
-        flow_run.id,
-        state.name,
+    log(
+        f"Sending state update for flow: {flow.name}, flow run: {flow_run.id}, state: {state.name}",
+        level="info",
     )
 
-    try:
+    if state.is_completed():
+        print("State is completed")
         result = state.result()
-    except RuntimeError as e:
-        logger.error("Failed to get result: %s", e)
+    else:
         result = None
 
     try:
@@ -53,11 +50,29 @@ def send_state_update(flow: Flow, flow_run, state: State):
         endpoint = f"{CALLBACK_BASE_URL}/workflows/callback/state"
         response = requests.post(endpoint, json=payload, headers=headers, timeout=10)
         response.raise_for_status()
-        logger.info("State update sent: %s", state.name)
+        log(f"State update sent: {state.name}", level="info")
         return True
     except RuntimeError as e:
-        logger.error("Failed to send state update: %s", e)
+        log(f"Failed to send state update: {e}", level="error")
         return False
+
+
+def log(message: str, level: str = "info"):
+    """
+    Log a message.
+    """
+    try:
+        logger = get_run_logger()
+        if level == "info":
+            logger.info(message)
+        elif level == "error":
+            logger.error(message)
+        elif level == "warning":
+            logger.warning(message)
+        else:
+            logger.info(message)
+    except RuntimeError as e:
+        print(f"Failed to log message: {e}")
 
 
 def send_progress_update(
@@ -77,7 +92,6 @@ def send_progress_update(
     Returns:
         True if the update was sent successfully
     """
-    logger = get_run_logger()
 
     try:
         # Get flow and flow_run context
@@ -107,16 +121,8 @@ def send_progress_update(
         endpoint = f"{CALLBACK_BASE_URL}/workflows/callback/progress"
         response = requests.post(endpoint, json=payload, headers=headers, timeout=10)
         response.raise_for_status()
-        logger.info("Progress update sent: %s (%s, %s)", message, progress, status)
+        log(f"Progress update sent: {message} ({progress}, {status})")
         return True
     except RuntimeError as e:
-        logger.error("Failed to send progress update: %s", e)
+        log(f"Failed to send progress update: {e}", level="error")
         return False
-
-
-def update_status(status: str):
-    """
-    Update the status of the flow run.
-    """
-    logger = get_run_logger()
-    logger.info("Updating status to: %s", status)

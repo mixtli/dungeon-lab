@@ -27,7 +27,7 @@ from src.utils.minio_client import upload_to_minio
 from src.utils.flow_wrappers import auto_hook_flow
 
 # Import project config
-from configs.prefect_config import (
+from src.configs.prefect_config import (
     MAP_GENERATION_TIMEOUT,
 )
 
@@ -115,7 +115,12 @@ def generate_image(
             b64_image = response.data[0].b64_json
             image_bytes = base64.b64decode(b64_image)
         else:
-            with open("data/images/map.png", "rb") as image:
+            with open(
+                os.path.join(
+                    os.path.dirname(__file__), "../../data/images/stairs_of_moria.jpg"
+                ),
+                "rb",
+            ) as image:
                 image_bytes = image.read()
         logger.info("Map image generated and decoded from base64.")
     except Exception as e:
@@ -218,6 +223,7 @@ def generate_map_image(description: str, parameters: Dict[str, Any]) -> Dict[str
 @auto_hook_flow(
     name="generate-map",
     timeout_seconds=MAP_GENERATION_TIMEOUT,
+    persist_result=True,
 )
 def generate_map_flow(description: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
     """
