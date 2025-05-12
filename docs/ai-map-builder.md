@@ -7,23 +7,28 @@ This document outlines the architecture and workflow for implementing an AI-powe
 ## User Experience Workflow
 
 1. **Text Description Input**
+
    - User enters a natural language description of their desired map
    - Optional additional parameters: map size, style, theme, etc.
 
 2. **AI Image Generation**
+
    - System processes the description to generate a top-down map image
    - Preview is shown to the user
 
 3. **Iterative Refinement**
+
    - User provides feedback and modification instructions
    - System regenerates the map based on user feedback
    - Process repeats until user is satisfied
 
 4. **Map Saving**
+
    - Map image is saved to the asset system
    - Basic map data is stored in the database
 
 5. **Feature Detection**
+
    - AI analyzes the image to detect and generate:
      - Walls/obstacles
      - Doors/portals
@@ -31,6 +36,7 @@ This document outlines the architecture and workflow for implementing an AI-powe
      - Environmental features
 
 6. **Interactive Editor**
+
    - User can view and modify the auto-detected elements:
      - Add/remove/modify walls
      - Adjust lighting properties
@@ -46,6 +52,7 @@ This document outlines the architecture and workflow for implementing an AI-powe
 ### Step 1: User Creates Map Description
 
 **Technical Implementation:**
+
 1. **Frontend Interface**: Build a Vue.js component with a rich text editor that allows users to describe their map in detail.
 2. **Context Enhancement**: Implement a system that guides users to include specific details helpful for map generation:
    - Overall dimensions (e.g., 30x30 squares)
@@ -57,7 +64,8 @@ This document outlines the architecture and workflow for implementing an AI-powe
    - Grid size
    - Lighting atmosphere
 
-**Model Recommendation:** 
+**Model Recommendation:**
+
 - No AI model needed for this step, but we should implement smart form validation and suggestion features to help users provide comprehensive descriptions.
 
 **Implementation Complexity:** Low to Medium  
@@ -66,9 +74,11 @@ This document outlines the architecture and workflow for implementing an AI-powe
 ### Step 2: Generate Map
 
 **Technical Implementation:**
+
 1. **Prompt Engineering**: Create a specialized prompt template that formats the user's description for optimal image generation results:
+
    ```
-   Generate a top-down fantasy RPG map with clear walls and features with the following description: 
+   Generate a top-down fantasy RPG map with clear walls and features with the following description:
    [USER DESCRIPTION]
    Important: Make walls, doors, and features clearly visible with distinct colors and clean lines.
    Use a resolution of [RESOLUTION] pixels.
@@ -76,15 +86,16 @@ This document outlines the architecture and workflow for implementing an AI-powe
    ```
 
 2. **API Integration**: Set up a service to communicate with OpenAI's GPT-4o API for image generation:
+
    ```javascript
    // Sample code for GPT-4o integration
    async function generateMapImage(description, resolution, style) {
      const response = await openai.images.generate({
-       model: "gpt-4o",
+       model: 'gpt-4o',
        prompt: buildOptimizedPrompt(description, resolution, style),
        n: 1,
        size: resolution,
-       response_format: "url"
+       response_format: 'url'
      });
      return response.data[0].url;
    }
@@ -93,6 +104,7 @@ This document outlines the architecture and workflow for implementing an AI-powe
 3. **Image Storage**: Create a system to save the generated image to your storage system (e.g., S3, MinIO) and associate it with the user's map record.
 
 **Model Recommendation:**
+
 - **Primary Model**: OpenAI's GPT-4o or GPT-4.1 with image generation capabilities
 - **Alternative**: If cost is a concern, GPT-4o Mini offers a more affordable option with slightly reduced quality
 
@@ -102,12 +114,15 @@ This document outlines the architecture and workflow for implementing an AI-powe
 ### Step 3-4: User Modifications & Iteration
 
 **Technical Implementation:**
+
 1. **Modification Interface**: Create a component that allows users to:
+
    - View their generated map
    - Input text instructions for modifications
    - Maintain a history of versions
 
 2. **Differential Prompting**: Develop a system that generates targeted prompts based on modification requests:
+
    ```javascript
    function buildModificationPrompt(originalDescription, modificationRequest) {
      return `
@@ -128,6 +143,7 @@ This document outlines the architecture and workflow for implementing an AI-powe
    - Allow users to revert to previous versions
 
 **Model Recommendation:**
+
 - **Same as Step 2**: OpenAI's GPT-4o or alternatives
 - Ensure the API implementation includes the current image as reference when possible
 
@@ -137,7 +153,9 @@ This document outlines the architecture and workflow for implementing an AI-powe
 ### Step 5: Map Saving
 
 **Technical Implementation:**
+
 1. **Database Schema**: Implement the Mongoose schema as designed earlier, with the following key components:
+
    ```javascript
    const mapSchema = new mongoose.Schema({
      format: { type: Number, default: 1.0 },
@@ -158,12 +176,14 @@ This document outlines the architecture and workflow for implementing an AI-powe
    ```
 
 2. **Asset Management**: Store the image in your asset management system with appropriate metadata:
+
    - User ID
    - Campaign association (if applicable)
    - Creation and modification timestamps
    - Permissions/sharing settings
 
 3. **Save Process**: Implement a service that handles the save operation:
+
    ```javascript
    async function saveMap(userId, mapData, imageUrl) {
      // Create initial map record with image link but no feature data yet
@@ -175,7 +195,7 @@ This document outlines the architecture and workflow for implementing an AI-powe
        lights: [],
        portals: []
      });
-     
+
      return await map.save();
    }
    ```
@@ -186,6 +206,7 @@ This document outlines the architecture and workflow for implementing an AI-powe
 ### Step 6: Feature Detection Pipeline
 
 **Technical Implementation:**
+
 1. **Feature Detection Workflow**: Implement a Python-based Prefect workflow to detect various map features:
 
    ```python
@@ -207,27 +228,27 @@ This document outlines the architecture and workflow for implementing an AI-powe
        else:
            img = cv2.imread(image_url)
        return img
-   
+
    @task
    def detect_walls(img, wall_detector):
        """Detect walls using YOLO model"""
        wall_results = wall_detector(img)
        wall_polygons = process_wall_detections(wall_results)
        return wall_polygons
-   
+
    @task
    def detect_doors(img, door_detector):
        """Detect doors and portals using YOLO model"""
        door_results = door_detector(img)
        portal_data = process_door_detections(door_results)
        return portal_data
-   
+
    @task
    def detect_lights(img):
        """Detect light sources based on brightness analysis"""
        light_sources = detect_light_sources(img)
        return light_sources
-       
+
    @task
    def send_progress_update(flow_id, user_id, step, progress, api_base_url):
        """Send progress update via REST API"""
@@ -243,48 +264,48 @@ This document outlines the architecture and workflow for implementing an AI-powe
            )
        except Exception as e:
            print(f"Failed to send progress update: {e}")
-   
+
    @flow
    def detect_map_features(image_url, flow_data):
        """Complete map feature detection workflow"""
        # Load models
        wall_detector = YOLO("models/walls-yolov8.pt")
        door_detector = YOLO("models/doors-yolov8.pt")
-       
+
        # Send initial progress update
        send_progress_update(
-           flow_data["flow_id"], flow_data["user_id"], "feature_detection", 10, 
+           flow_data["flow_id"], flow_data["user_id"], "feature_detection", 10,
            flow_data["api_base_url"]
        )
-       
+
        # Load image
        img = load_image(image_url)
-       
+
        # Run detection tasks
        send_progress_update(
-           flow_data["flow_id"], flow_data["user_id"], "feature_detection", 30, 
+           flow_data["flow_id"], flow_data["user_id"], "feature_detection", 30,
            flow_data["api_base_url"]
        )
        wall_polygons = detect_walls(img, wall_detector)
-       
+
        send_progress_update(
-           flow_data["flow_id"], flow_data["user_id"], "feature_detection", 60, 
+           flow_data["flow_id"], flow_data["user_id"], "feature_detection", 60,
            flow_data["api_base_url"]
        )
        portal_data = detect_doors(img, door_detector)
-       
+
        send_progress_update(
-           flow_data["flow_id"], flow_data["user_id"], "feature_detection", 80, 
+           flow_data["flow_id"], flow_data["user_id"], "feature_detection", 80,
            flow_data["api_base_url"]
        )
        light_sources = detect_lights(img)
-       
+
        # Send completion update
        send_progress_update(
-           flow_data["flow_id"], flow_data["user_id"], "feature_detection", 100, 
+           flow_data["flow_id"], flow_data["user_id"], "feature_detection", 100,
            flow_data["api_base_url"]
        )
-       
+
        # Return UVTT compatible format
        return {
            "line_of_sight": wall_polygons,
@@ -296,16 +317,19 @@ This document outlines the architecture and workflow for implementing an AI-powe
 2. **Pipeline Components**:
 
    a. **Wall Detection**:
+
    - Train a YOLOv8 or YOLOv11 model on a dataset of top-down maps with annotated walls
    - Post-process detections to create continuous wall segments
    - Convert pixel coordinates to grid coordinates
 
    b. **Portal/Door Detection**:
+
    - Use a specialized object detection model for doors and entrances
    - Determine door states (open/closed) based on visual cues
    - Calculate rotation and position data
 
    c. **Light Source Detection**:
+
    - Implement brightness analysis to identify potential light sources
    - Use color information to determine light types and colors
    - Calculate appropriate intensities and ranges
@@ -316,6 +340,7 @@ This document outlines the architecture and workflow for implementing an AI-powe
    - Validate data structure
 
 **Model Recommendations**:
+
 - **Wall/Structure Detection**: YOLOv8/v11 fine-tuned on map images
 - **Segmentation**: Segment Anything 2 (SAM 2) for precise boundary detection
 - **Layout Analysis**: Specialized CNN or Transformer model for structural understanding
@@ -328,6 +353,7 @@ This document outlines the architecture and workflow for implementing an AI-powe
 **Technical Implementation:**
 
 1. **Visual Map Editor**:
+
    - Implement a Vue.js canvas-based editor using libraries like Fabric.js or Konva.js
    - Create specialized tools for each feature type:
 
@@ -335,73 +361,84 @@ This document outlines the architecture and workflow for implementing an AI-powe
    // Example editor initialization with Fabric.js
    const initializeMapEditor = (mapData, imageUrl) => {
      const canvas = new fabric.Canvas('map-editor');
-     
+
      // Add background image
      fabric.Image.fromURL(imageUrl, (img) => {
        canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas));
-       
+
        // Add wall polygons
-       mapData.line_of_sight.forEach(wallPoints => {
-         const polygon = new fabric.Polygon(wallPoints.map(p => ({ x: p.x * gridSize, y: p.y * gridSize })), {
-           fill: 'transparent',
-           stroke: '#ff0000',
-           strokeWidth: 2,
-           selectable: true
-         });
+       mapData.line_of_sight.forEach((wallPoints) => {
+         const polygon = new fabric.Polygon(
+           wallPoints.map((p) => ({ x: p.x * gridSize, y: p.y * gridSize })),
+           {
+             fill: 'transparent',
+             stroke: '#ff0000',
+             strokeWidth: 2,
+             selectable: true
+           }
+         );
          canvas.add(polygon);
        });
-       
+
        // Add doors/portals
-       mapData.portals.forEach(portal => {
+       mapData.portals.forEach((portal) => {
          addPortalToCanvas(canvas, portal);
        });
-       
+
        // Add light sources
-       mapData.lights.forEach(light => {
+       mapData.lights.forEach((light) => {
          addLightToCanvas(canvas, light);
        });
      });
-     
+
      return canvas;
    };
    ```
 
 2. **Editor Tools**:
    a. **Wall Editor**:
+
    - Draw new wall segments
    - Modify existing walls
    - Delete wall segments
    - Snap-to-grid functionality
 
    b. **Light Editor**:
+
    - Add new light sources
    - Adjust light properties (color, intensity, range)
    - Visual preview of lighting effects
 
    c. **Portal Editor**:
+
    - Place doors and portals
    - Configure portal properties (open/closed, rotation)
    - Link portals to other maps (optional)
 
 3. **Real-time UVTT Conversion**:
+
    - Implement a service that converts editor state to UVTT format:
+
    ```javascript
    function canvasToUVTT(canvas, mapData) {
      // Extract wall polygons
-     const walls = canvas.getObjects('polygon')
-       .filter(obj => obj.wallType === 'wall')
+     const walls = canvas
+       .getObjects('polygon')
+       .filter((obj) => obj.wallType === 'wall')
        .map(convertPolygonToUVTTFormat);
-     
+
      // Extract portals
-     const portals = canvas.getObjects('group')
-       .filter(obj => obj.objectType === 'portal')
+     const portals = canvas
+       .getObjects('group')
+       .filter((obj) => obj.objectType === 'portal')
        .map(convertPortalToUVTTFormat);
-     
+
      // Extract lights
-     const lights = canvas.getObjects('circle')
-       .filter(obj => obj.objectType === 'light')
+     const lights = canvas
+       .getObjects('circle')
+       .filter((obj) => obj.objectType === 'light')
        .map(convertLightToUVTTFormat);
-     
+
      return {
        ...mapData,
        line_of_sight: walls,
@@ -412,15 +449,17 @@ This document outlines the architecture and workflow for implementing an AI-powe
    ```
 
 4. **Final Save Process**:
+
    - Update the existing map record with the editor-modified features
+
    ```javascript
    async function saveMapWithFeatures(mapId, updatedFeatures) {
      return await Map.findByIdAndUpdate(
        mapId,
-       { 
+       {
          line_of_sight: updatedFeatures.line_of_sight,
          portals: updatedFeatures.portals,
-         lights: updatedFeatures.lights,
+         lights: updatedFeatures.lights
          // Add any other modified fields
        },
        { new: true }
@@ -449,23 +488,23 @@ sequenceDiagram
     participant FeatureDetect as Feature Detection Flow
     participant CV as Computer Vision Models
     participant MongoDB as MongoDB
-    
+
     User->>Express: 1. Submit map description
     Express->>Prefect: 2. Trigger map generation workflow with userId label
     Prefect-->>Express: 3. Return flow run ID
     Express-->>User: 4. Return flow run ID to client
-    
+
     Prefect->>MapGen: 5. Start map generation flow
-    
+
     MapGen->>Express: 6. Progress update with flowId & userId
     Express-->>User: 7. Real-time update via Socket.io
-    
+
     MapGen->>OpenAI: 8. Request image generation
     OpenAI->>MapGen: 9. Return generated image URL
-    
+
     MapGen->>Express: 10. Progress update (image generated)
     Express-->>User: 11. Display preview image
-    
+
     alt User wants modifications
         User->>Express: 12a. Submit modification request with flowId
         Express->>Prefect: 13a. Trigger regeneration
@@ -475,46 +514,46 @@ sequenceDiagram
         MapGen->>Express: 17a. Progress update (image updated)
         Express-->>User: 18a. Display updated preview
     end
-    
+
     User->>Express: 12. Approve image
     Express->>Prefect: 13. Proceed to feature detection
-    
+
     MapGen->>MinIO: 14. Store final image
     MinIO->>MapGen: 15. Confirm storage & return URL
-    
+
     MapGen->>FeatureDetect: 16. Trigger feature detection flow
-    
+
     FeatureDetect->>Express: 17. Progress update (detection started)
     Express-->>User: 18. Update progress to user
-    
+
     FeatureDetect->>CV: 19. Process image for walls
     CV->>FeatureDetect: 20. Return wall data
     FeatureDetect->>Express: 21. Progress update (walls detected)
     Express-->>User: 22. Update progress to user
-    
+
     FeatureDetect->>CV: 23. Process image for doors/portals
     CV->>FeatureDetect: 24. Return portal data
     FeatureDetect->>Express: 25. Progress update (portals detected)
     Express-->>User: 26. Update progress to user
-    
+
     FeatureDetect->>CV: 27. Process image for light sources
     CV->>FeatureDetect: 28. Return lighting data
     FeatureDetect->>Express: 29. Progress update (lights detected)
     Express-->>User: 30. Update progress to user
-    
+
     FeatureDetect->>MongoDB: 31. Save complete map data
     MongoDB->>FeatureDetect: 32. Confirm data saved
-    
+
     FeatureDetect->>Express: 33. Complete notification with map ID
     Express-->>User: 34. Load editor with detected features
-    
+
     Note over User,MongoDB: User can now edit features in the interactive editor
-    
+
     User->>Express: 35. Save map modifications
     Express->>MongoDB: 36. Update map features
     MongoDB->>Express: 37. Confirm update
     Express-->>User: 38. Confirm save & offer UVTT export
-    
+
     User->>Express: 39. Request UVTT export
     Express->>Express: 40. Convert to UVTT format
     Express-->>User: 41. Download UVTT file
@@ -523,16 +562,19 @@ sequenceDiagram
 To wire all these components together:
 
 1. **Frontend-Backend Communication**:
+
    - Use RESTful API endpoints for map CRUD operations
    - Implement WebSocket for real-time status updates to clients
 
 2. **Workflow Orchestration with Prefect**:
+
    - Express server triggers Prefect workflows for long-running operations
    - Pass userId as a label on the Prefect job for easy identification
    - REST callbacks from Prefect to Express provide progress updates with flowId and userId
    - Socket.io relays progress to web clients in real-time
 
 3. **Complete Data Flow**:
+
    ```
    User Input → Express → Prefect Map Generation Flow (with userId label) → Image Storage →
    Prefect Feature Detection Flow → MongoDB →
@@ -541,58 +583,77 @@ To wire all these components together:
    ```
 
 4. **Express API Implementation**:
+
    ```javascript
    // API route to start map generation
    router.post('/api/maps/generate', async (req, res) => {
      try {
        const { description, parameters } = req.body;
        const userId = req.session.user.id;
-       
+
        // Flow data to pass to Prefect
        const flowData = {
          api_base_url: process.env.EXPRESS_API_URL,
-         user_id: userId
+         user_id: userId,
+         flow: 'map_generation'
        };
-       
+
        // Start Prefect flow
        const prefect = new PrefectClient();
        const flow = await prefect.createFlowRun({
-         flow_name: "Map Generation Flow",
+         flow_name: 'map_generation',
          parameters: {
            description,
            parameters,
-           user_id: userId,
            flow_data: flowData
          },
          labels: {
            userId: userId.toString() // Add userId as a label for easy lookup
          }
        });
-       
+
        // Return flow ID to client for tracking
-       res.json({ 
-         success: true, 
-         flowId: flow.id 
+       res.json({
+         success: true,
+         flowId: flow.id
        });
-       
      } catch (error) {
-       console.error("Error starting map generation:", error);
-       res.status(500).json({ success: false, error: "Failed to start map generation" });
+       console.error('Error starting map generation:', error);
+       res.status(500).json({ success: false, error: 'Failed to start map generation' });
      }
    });
 
    // Progress update endpoint (called by Prefect)
    router.post('/api/workflows/progress', (req, res) => {
-     const { flow_id, user_id, step, progress } = req.body;
-     
-     // Emit Socket.io event to client
-     io.to(user_id).emit('ai:map:progress', { 
-       flowId: flow_id,
-       step, 
-       progress 
-     });
-     
-     res.json({ success: true });
+     try {
+       const { flow, flow_run, status, progress, message, user_id } = req.body;
+
+       // Get the socket server instance
+       const socketServer = getSocketServer();
+
+       // Construct event name based on workflow type
+       const eventName = `workflow:progress:${flow}`;
+
+       // Create the payload with workflow information
+       const payload = {
+         progress,
+         status,
+         userId: user_id,
+         flow,
+         flowRun: flow_run,
+         message
+       };
+
+       if (user_id) {
+         socketServer.socketIo.to(`user:${user_id}`).emit(eventName, payload);
+         logger.info(`Sent targeted workflow update to user: ${user_id}`);
+       }
+
+       return res.json({ success: true });
+     } catch (error) {
+       logger.error('Error handling workflow update:', error);
+       return res.status(500).json({ success: false, error: 'Internal server error' });
+     }
    });
    ```
 
@@ -601,6 +662,37 @@ To wire all these components together:
    - Store intermediate results in MongoDB at each successful step
    - Provide manual editing tools as fallback for detection failures
    - Implement resume capability for workflows that encounter errors
+
+## Implementation Status
+
+The implementation of this AI-powered map builder is being tracked in the [map-builder-tasks.md](./map-builder-tasks.md) document. Current status:
+
+1. **Completed:**
+
+   - UVTT format integration (schema and import)
+   - Foundation setup (Prefect, callbacks, Socket.io updates)
+   - UI for map description input and progress tracking
+   - Initial map preview UI (generation only)
+   - Map generation Prefect flow implementation
+   - OpenAI image generation integration
+   - Progress tracking with Socket.io
+
+2. **In Progress:**
+
+   - Map regeneration capability
+   - Feature detection pipeline
+   - Interactive editor implementation
+
+3. **Current Limitations:**
+
+   - The UI can generate maps but does not yet support editing the result or regeneration
+   - Generated maps are stored in MinIO but feature detection is not yet implemented
+   - The interactive editor tools are still pending implementation
+
+4. **Next Steps:**
+   - Implement map regeneration capability
+   - Build feature detection pipeline
+   - Create the interactive editor for refining detected features
 
 ## Mongoose Schema for Maps
 
@@ -622,30 +714,34 @@ const mapSchema = new mongoose.Schema({
   },
   line_of_sight: [{ x: Number, y: Number }],
   objects_line_of_sight: [{ x: Number, y: Number }],
-  portals: [{
-    position: {
-      x: Number,
-      y: Number
-    },
-    bounds: [{ x: Number, y: Number }],
-    rotation: Number,
-    closed: Boolean,
-    freestanding: Boolean
-  }],
+  portals: [
+    {
+      position: {
+        x: Number,
+        y: Number
+      },
+      bounds: [{ x: Number, y: Number }],
+      rotation: Number,
+      closed: Boolean,
+      freestanding: Boolean
+    }
+  ],
   environment: {
     baked_lighting: Boolean,
     ambient_light: String
   },
-  lights: [{
-    position: {
-      x: Number,
-      y: Number
-    },
-    range: Number,
-    intensity: Number,
-    color: String,
-    shadows: Boolean
-  }],
+  lights: [
+    {
+      position: {
+        x: Number,
+        y: Number
+      },
+      range: Number,
+      intensity: Number,
+      color: String,
+      shadows: Boolean
+    }
+  ],
   image: { type: String, required: true } // Link to the asset instead of base64
 });
 
@@ -656,4 +752,4 @@ module.exports = mongoose.model('Map', mapSchema);
 
 This sequential approach to building an AI-powered map creator provides a clear roadmap for implementation, from initial user description to final UVTT export. By leveraging Prefect for workflow orchestration, OpenAI's GPT-4o for image generation, and specialized computer vision models like YOLOv8/v11 and SAM 2 for feature detection, we can create a powerful yet user-friendly system for map creation.
 
-The implementation prioritizes user control throughout the process, with AI doing the heavy lifting of initial generation and feature detection while always giving users the final say through iterative refinement and direct editing. This balance of automation and user control will make map creation both efficient and creatively satisfying. 
+The implementation prioritizes user control throughout the process, with AI doing the heavy lifting of initial generation and feature detection while always giving users the final say through iterative refinement and direct editing. This balance of automation and user control will make map creation both efficient and creatively satisfying.

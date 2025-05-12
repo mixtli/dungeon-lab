@@ -2,6 +2,7 @@
 Map generation flow for Dungeon Lab.
 """
 
+import base64
 import os
 from datetime import datetime
 from typing import Dict, Any
@@ -16,6 +17,7 @@ import json
 # from openai import OpenAI
 
 from minio import S3Error
+from openai import OpenAI
 from prefect import task, get_run_logger, context
 from prefect.artifacts import create_markdown_artifact, create_image_artifact
 
@@ -67,6 +69,59 @@ def validate_input(input_data: Dict[str, Any]) -> Dict[str, Any]:
     return input_data
 
 
+def generate_image(description: str, parameters: Dict[str, Any]) -> bytes:
+    """
+    Generate an image from a description and parameters.
+    """
+    # Prepare prompt
+    logger = get_run_logger()
+    prompt = (
+        f"{description}\nStyle: {parameters.get('style', 'fantasy')}. "
+        + f"Theme: {parameters.get('theme', 'dungeon')}."
+    )
+
+    # Calculate desired pixel size
+    width = parameters.get("width", 30)
+    height = parameters.get("height", 20)
+    pixels_per_grid = parameters.get("pixelsPerGrid", 70)
+    desired_width = width * pixels_per_grid
+    desired_height = height * pixels_per_grid
+
+    # OpenAI supports only certain sizes (square)
+    allowed_sizes = [(256, 256), (512, 512), (1024, 1024)]
+
+    def closest_size(w, h):
+        max_dim = max(w, h)
+        closest = min(allowed_sizes, key=lambda s: abs(s[0] - max_dim))
+        return f"{closest[0]}x{closest[1]}", closest[0], closest[1]
+
+    size_str, out_w, out_h = closest_size(desired_width, desired_height)
+    logger.info("Size: %s, Width: %s, Height: %s", size_str, out_w, out_h)
+    print(os.environ.get("MINIO_BUCKET_NAME"))
+    client = OpenAI(
+        api_key=os.environ.get("OPENAI_API_KEY"),
+        organization=os.environ.get("OPENAI_ORGANIZATION"),
+    )
+
+    size_str = "1024x1024"
+
+    try:
+        # Temporarily use a static image for testing to save API costs
+        response = client.images.generate(
+            model="gpt-image-1", prompt=prompt, n=1, size=size_str
+        )
+        b64_image = response.data[0].b64_json
+        image_bytes = base64.b64decode(b64_image)
+
+        with open("data/images/map.png", "rb") as image:
+            image_bytes = image.read()
+        logger.info("Map image generated and decoded from base64.")
+    except Exception as e:
+        logger.error("OpenAI image generation failed: %s", e)
+        raise RuntimeError(f"OpenAI image generation failed: {e}") from e
+    return image_bytes
+
+
 @task(name="generate_map_image", timeout_seconds=300, retries=2)
 def generate_map_image(description: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -83,53 +138,7 @@ def generate_map_image(description: str, parameters: Dict[str, Any]) -> Dict[str
     logger = get_run_logger()
     logger.info("Generating map image with OpenAI (gpt-image-1)")
 
-    # Prepare prompt
-    prompt = (
-        f"{description}\nStyle: {parameters.get('style', 'fantasy')}. "
-        + f"Theme: {parameters.get('theme', 'dungeon')}."
-    )
-
-    # Calculate desired pixel size
-    # width = parameters.get("width", 30)
-    # height = parameters.get("height", 20)
-    # pixels_per_grid = parameters.get("pixelsPerGrid", 70)
-    # desired_width = width * pixels_per_grid
-    # desired_height = height * pixels_per_grid
-
-    # OpenAI supports only certain sizes (square)
-    # allowed_sizes = [(256, 256), (512, 512), (1024, 1024)]
-
-    # def closest_size(w, h):
-    #     max_dim = max(w, h)
-    #     closest = min(allowed_sizes, key=lambda s: abs(s[0] - max_dim))
-    #     return f"{closest[0]}x{closest[1]}", closest[0], closest[1]
-
-    # size_str, out_w, out_h = closest_size(desired_width, desired_height)
-    # print(os.environ.get("MINIO_BUCKET_NAME"))
-    # client = OpenAI(
-    #     api_key=os.environ.get("OPENAI_API_KEY"),
-    #     organization=os.environ.get("OPENAI_ORGANIZATION"),
-    # )
-
-    # size_str = "1024x1024"
-
-    try:
-        # Temporarily use a static image for testing to save API costs
-        # response = client.images.generate(
-        #     model="gpt-image-1",
-        #     prompt=prompt,
-        #     n=1,
-        #     size=size_str
-        # )
-        # b64_image = response.data[0].b64_json
-        # image_bytes = base64.b64decode(b64_image)
-
-        with open("data/images/map.png", "rb") as image:
-            image_bytes = image.read()
-        logger.info("Map image generated and decoded from base64.")
-    except Exception as e:
-        logger.error("OpenAI image generation failed: %s", e)
-        raise RuntimeError(f"OpenAI image generation failed: {e}") from e
+    image_bytes = generate_image(description, parameters)
 
     # MinIO config from environment
     minio_public_url = os.environ.get("MINIO_PUBLIC_URL")
@@ -161,7 +170,6 @@ def generate_map_image(description: str, parameters: Dict[str, Any]) -> Dict[str
     image_result = {
         "image_url": image_url,
         "created_at": datetime.now().isoformat(),
-        "prompt": prompt,
         "width": out_w,
         "height": out_h,
         "style": parameters.get("style", "fantasy"),
