@@ -69,7 +69,9 @@ def validate_input(input_data: Dict[str, Any]) -> Dict[str, Any]:
     return input_data
 
 
-def generate_image(description: str, parameters: Dict[str, Any]) -> bytes:
+def generate_image(
+    description: str, parameters: Dict[str, Any], mock: bool = False
+) -> bytes:
     """
     Generate an image from a description and parameters.
     """
@@ -106,15 +108,15 @@ def generate_image(description: str, parameters: Dict[str, Any]) -> bytes:
     size_str = "1024x1024"
 
     try:
-        # Temporarily use a static image for testing to save API costs
-        response = client.images.generate(
-            model="gpt-image-1", prompt=prompt, n=1, size=size_str
-        )
-        b64_image = response.data[0].b64_json
-        image_bytes = base64.b64decode(b64_image)
-
-        with open("data/images/map.png", "rb") as image:
-            image_bytes = image.read()
+        if not mock:
+            response = client.images.generate(
+                model="gpt-image-1", prompt=prompt, n=1, size=size_str
+            )
+            b64_image = response.data[0].b64_json
+            image_bytes = base64.b64decode(b64_image)
+        else:
+            with open("data/images/map.png", "rb") as image:
+                image_bytes = image.read()
         logger.info("Map image generated and decoded from base64.")
     except Exception as e:
         logger.error("OpenAI image generation failed: %s", e)
@@ -138,7 +140,7 @@ def generate_map_image(description: str, parameters: Dict[str, Any]) -> Dict[str
     logger = get_run_logger()
     logger.info("Generating map image with OpenAI (gpt-image-1)")
 
-    image_bytes = generate_image(description, parameters)
+    image_bytes = generate_image(description, parameters, mock=True)
 
     # MinIO config from environment
     minio_public_url = os.environ.get("MINIO_PUBLIC_URL")

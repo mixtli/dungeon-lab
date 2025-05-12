@@ -80,6 +80,7 @@ export class WorkflowController {
         progress,
         status,
         userId,
+        message,
         flow,
         flowRun: flow_run
       };

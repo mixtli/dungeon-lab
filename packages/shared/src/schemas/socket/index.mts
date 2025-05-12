@@ -39,6 +39,7 @@ export const workflowProgressCallbackSchema = z
       userId: z.string(),
       status: z.string(),
       progress: z.number(),
+      message: z.string(),
       metadata: z.record(z.string(), z.unknown()).optional()
     })
   )
