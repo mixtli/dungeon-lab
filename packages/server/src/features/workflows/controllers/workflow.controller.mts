@@ -1,9 +1,10 @@
 import { Request, Response } from 'express';
 import { getSocketServer } from '../../../websocket/socket-server.mjs';
 import { logger } from '../../../utils/logger.mjs';
+import { BaseAPIResponse } from '@dungeon-lab/shared/types/api/index.mjs';
 
 // Define types for workflow progress payloads
-interface WorkflowProgressPayload {
+interface WorkflowProgressSocketPayload {
   progress: number;
   status: string;
   message?: string;
@@ -13,18 +14,21 @@ interface WorkflowProgressPayload {
   flowRun?: string;
 }
 
-interface WorkflowStatePayload {
+interface WorkflowProgressInput {
+  flow: string;
+  flow_run: string;
+  status: string;
+  progress: number;
+  message?: string;
+  user_id?: string;
+}
+
+interface WorkflowStateSocketPayload {
   flow: string;
   flowRun: string;
   userId?: string;
   state: string;
   result?: Record<string, unknown>;
-}
-
-// Define a type for dynamic event emitter to avoid 'any'
-interface DynamicSocketEmitter {
-  emit: (event: string, payload: WorkflowProgressPayload | WorkflowStatePayload) => boolean;
-  to: (userId: string) => DynamicSocketEmitter;
 }
 
 interface WorkflowStateInput {
@@ -34,13 +38,26 @@ interface WorkflowStateInput {
   state: string;
   result?: Record<string, unknown>;
 }
+
+// Define a type for dynamic event emitter to avoid 'any'
+interface DynamicSocketEmitter {
+  emit: (
+    event: string,
+    payload: WorkflowProgressSocketPayload | WorkflowStateSocketPayload
+  ) => boolean;
+  to: (userId: string) => DynamicSocketEmitter;
+}
+
 export class WorkflowController {
   /**
    * Handle progress and status updates from external workflow systems (e.g., Prefect)
    */
-  async handleProgressUpdate(req: Request, res: Response): Promise<Response> {
+  async handleProgressUpdate(
+    req: Request<object, object, WorkflowProgressInput>,
+    res: Response<BaseAPIResponse<null>>
+  ): Promise<Response<BaseAPIResponse<null>>> {
     try {
-      const { flow, flow_run, status, progress, message, userId: user_id } = req.body;
+      const { flow, flow_run, status, progress, message, user_id: userId } = req.body;
 
       // Validate required fields
       if (!status || progress === undefined) {
@@ -59,30 +76,30 @@ export class WorkflowController {
       const eventName = `workflow:progress:${flow}`;
 
       // Create the payload with workflow information
-      const payload: WorkflowProgressPayload = {
+      const payload: WorkflowProgressSocketPayload = {
         progress,
         status,
-        userId: user_id,
+        userId,
         flow,
         flowRun: flow_run
       };
+      console.log('payload', payload);
 
-      if (user_id) {
+      if (userId) {
         (socketServer.socketIo as unknown as DynamicSocketEmitter)
-          .to(user_id)
+          .to(`user:${userId}`)
           .emit(eventName, payload);
-        logger.info(`Sent targeted workflow update to user: ${user_id}`);
+        logger.info(`Sent targeted workflow update to user: ${userId}`);
       }
 
       const messageContent = message || 'Progress update';
       logger.info(`Workflow update [${flow}]: ${messageContent} - ${progress}% (${status})`, {
-        user_id,
-        flowRunId: flow_run?.id
+        userId,
+        flowRunId: flow_run
       });
 
       return res.json({
-        success: true,
-        event: eventName
+        success: true
       });
     } catch (error) {
       logger.error('Error handling workflow update:', error);
@@ -93,7 +110,10 @@ export class WorkflowController {
   /**
    * Handle state change updates from external workflow systems (e.g., Prefect)
    */
-  async handleStateUpdate(req: Request, res: Response): Promise<Response> {
+  async handleStateUpdate(
+    req: Request<object, object, WorkflowStateInput>,
+    res: Response<BaseAPIResponse<null>>
+  ): Promise<Response<BaseAPIResponse<null>>> {
     try {
       // const { flow, flow_run, user_id, state, result } = req.body;
       const data: WorkflowStateInput = req.body;
@@ -122,7 +142,7 @@ export class WorkflowController {
       }
 
       // Create the payload with workflow information
-      const statePayload: WorkflowStatePayload = {
+      const statePayload: WorkflowStateSocketPayload = {
         flow: data.flow,
         flowRun: data.flow_run,
         state: data.state,
@@ -147,8 +167,7 @@ export class WorkflowController {
       });
 
       return res.json({
-        success: true,
-        event: eventName
+        success: true
       });
     } catch (error) {
       logger.error('Error handling workflow state update:', error);

@@ -16,12 +16,13 @@ import json
 # from openai import OpenAI
 
 from minio import S3Error
-from prefect import flow, task, get_run_logger, context
+from prefect import task, get_run_logger, context
 from prefect.artifacts import create_markdown_artifact, create_image_artifact
 
 # Import shared utilities
-from src.utils.callbacks import send_progress_update, send_state_update
+from src.utils.callbacks import send_progress_update
 from src.utils.minio_client import upload_to_minio
+from src.utils.flow_wrappers import auto_hook_flow
 
 # Import project config
 from configs.prefect_config import (
@@ -204,14 +205,9 @@ def generate_map_image(description: str, parameters: Dict[str, Any]) -> Dict[str
     return image_result
 
 
-@flow(
+@auto_hook_flow(
     name="generate-map",
     timeout_seconds=MAP_GENERATION_TIMEOUT,
-    on_completion=[send_state_update],
-    on_failure=[send_state_update],
-    on_cancellation=[send_state_update],
-    on_crashed=[send_state_update],
-    on_running=[send_state_update],
 )
 def generate_map_flow(description: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
     """
