@@ -98,6 +98,48 @@ function setupMapGeneratorHandler(
       });
     }
   });
+
+  // Handle map feature detection requests
+  socket.on('map:detect-features', async (data, callback) => {
+    try {
+      // Get user ID from socket
+      const userId = socket.userId as string;
+
+      if (!userId) {
+        throw new Error('User ID not found in socket data');
+      }
+
+      logger.info(`Map feature detection requested by user ${userId}`);
+
+      const prefect = new PrefectClient();
+
+      // Create the flow run for feature detection
+      const flowRun = await prefect.runFlow(
+        'detect-map-features',
+        'detect-map-features',
+        {
+          image_url: data.imageUrl,
+          parameters: data.parameters
+        },
+        userId
+      );
+
+      // Send success response with flow ID
+      callback({
+        success: true,
+        flowRunId: flowRun.id
+      });
+
+      logger.info(`Map feature detection flow started: ${flowRun.id} for user ${userId}`);
+    } catch (error) {
+      logger.error('Error starting map feature detection flow:', error);
+      callback({
+        success: false,
+        flowRunId: '',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
 }
 
 // Register the handler with the registry

@@ -7,7 +7,7 @@ import MapEditInput from '../../components/map/MapEditInput.vue';
 import MapGenerationProgress from '../../components/map/MapGenerationProgress.vue';
 import { useWorkflowProgress } from '../../composables/useWorkflowProgress.mjs';
 import { useSocketStore } from '../../stores/socket.store.mts';
-import type { MapGenerationResponse, MapEditResponse } from '@dungeon-lab/shared/types/socket/index.mjs';
+import type { MapGenerationResponse, MapEditResponse, MapFeatureDetectionResponse } from '@dungeon-lab/shared/types/socket/index.mjs';
 
 const router = useRouter();
 const socketStore = useSocketStore();
@@ -25,6 +25,11 @@ const isEditing = ref(false);
 const editStatus = ref('');
 const editError = ref('');
 
+// For feature detection
+const isDetectingFeatures = ref(false);
+const featureDetectionStatus = ref('');
+const featureDetectionError = ref('');
+
 // Use the workflow progress composable for map generation and editing
 const {
   progress: generationProgress,
@@ -40,6 +45,14 @@ const {
   isComplete: editComplete,
   reset: resetEditProgress
 } = useWorkflowProgress('map-edit');
+
+// Use a separate progress tracker for feature detection operations
+const {
+  progress: featureDetectionProgress,
+  startTime: featureDetectionStartTime,
+  isComplete: featureDetectionComplete,
+  reset: resetFeatureDetectionProgress
+} = useWorkflowProgress('map-feature-detection');
 
 // Status message for the workflow
 const statusMessage = ref('');
@@ -200,6 +213,72 @@ function setupSocketListeners() {
       }
     }
   });
+
+  // Listen for feature detection progress updates
+  socketStore.socket.on('workflow:progress:detect-map-features', (payload) => {
+    console.log('Received feature detection progress update:', payload);
+
+    // Extract the flow run ID from the payload
+    const receivedFlowRunId = payload.flowRun;
+
+    if (receivedFlowRunId === flowRunId.value) {
+      featureDetectionStatus.value = (payload as any).message || payload.status || 'Processing';
+      featureDetectionProgress.value = payload.progress;
+
+      // If we get detected features data in metadata, we can handle it here
+      if (payload.metadata && typeof payload.metadata === 'object') {
+        console.log('Feature detection metadata:', payload.metadata);
+      }
+    }
+  });
+
+  // Listen for feature detection state updates
+  socketStore.socket.on('workflow:state:detect-map-features', (payload) => {
+    console.log('Received feature detection state update:', payload);
+
+    // Extract the flow run ID from the payload
+    const receivedFlowRunId = payload.flowRun;
+
+    if (receivedFlowRunId === flowRunId.value) {
+      // Always show the current state in the UI
+      featureDetectionStatus.value = `Feature Detection: ${payload.state}`;
+
+      if (payload.state === 'COMPLETED' || payload.state === 'Completed') {
+        console.log('Feature detection workflow completed', payload);
+        featureDetectionStatus.value = 'Feature Detection Complete';
+        featureDetectionProgress.value = 100;
+        resetFeatureDetectionProgress();
+        featureDetectionProgress.value = 100;
+        isDetectingFeatures.value = false;
+
+        // Handle completed feature detection results
+        if (payload.result && typeof payload.result === 'object') {
+          console.log('Feature detection results:', payload.result);
+          // Handle features data here - could update UI or store data
+        }
+      } else if (['FAILED', 'Failed', 'CRASHED', 'Crashed', 'ERROR', 'Error'].includes(payload.state)) {
+        // Handle all failure states consistently
+        console.log('Feature detection workflow failed with state:', payload.state);
+        isDetectingFeatures.value = false;
+
+        // Extract error message from result if available
+        let errorMessage = 'Feature Detection Failed';
+        if (payload.result && typeof payload.result === 'object') {
+          if ('error' in payload.result) {
+            errorMessage = String(payload.result.error);
+          } else if ('message' in payload.result) {
+            errorMessage = String(payload.result.message);
+          }
+        }
+
+        // Set error state with clear message including the state
+        featureDetectionError.value = `${errorMessage} (State: ${payload.state})`;
+        featureDetectionStatus.value = `Feature Detection Failed: ${payload.state}`;
+        resetFeatureDetectionProgress();
+        featureDetectionProgress.value = 100;
+      }
+    }
+  });
 }
 
 // Function to clean up socket listeners
@@ -211,6 +290,8 @@ function cleanupSocketListeners() {
   socketStore.socket.off('workflow:state:generate-map');
   socketStore.socket.off('workflow:progress:edit-map');
   socketStore.socket.off('workflow:state:edit-map');
+  socketStore.socket.off('workflow:progress:detect-map-features');
+  socketStore.socket.off('workflow:state:detect-map-features');
 }
 
 // Setup socket event listeners when component is mounted
@@ -381,6 +462,65 @@ const cancelEdit = () => {
   editError.value = '';
   editStatus.value = '';
   resetEditProgress();
+};
+
+// Function to detect features in the map
+const detectMapFeatures = async () => {
+  if (!previewImage.value) {
+    return;
+  }
+
+  try {
+    isDetectingFeatures.value = true;
+    resetFeatureDetectionProgress();
+    featureDetectionError.value = '';
+    featureDetectionStatus.value = 'Preparing Feature Detection';
+
+    // Check socket connection
+    if (!socketStore.socket || !socketStore.connected) {
+      console.log('Socket not connected, attempting to reconnect...');
+      try {
+        await socketStore.initSocket();
+        setupSocketListeners();
+      } catch (error) {
+        throw new Error('Failed to connect to server');
+      }
+    }
+
+    // Request feature detection via socket
+    if (!socketStore.socket) {
+      throw new Error('Socket connection not available');
+    }
+
+    socketStore.socket.emit('map:detect-features', {
+      imageUrl: previewImage.value,
+      parameters
+    }, (response: MapFeatureDetectionResponse) => {
+      if (response.success) {
+        flowRunId.value = response.flowRunId;
+        featureDetectionStatus.value = 'Analyzing Map Features';
+        console.log('Feature detection started with flow run ID:', flowRunId.value);
+      } else {
+        featureDetectionStatus.value = response.error || 'Failed to detect map features';
+        featureDetectionError.value = response.error || 'Failed to detect map features';
+        isDetectingFeatures.value = false;
+        throw new Error(response.error || 'Failed to detect map features');
+      }
+    });
+  } catch (error) {
+    featureDetectionStatus.value = 'An error occurred during feature detection';
+    featureDetectionError.value = 'An error occurred during feature detection';
+    console.error('Feature detection error:', error);
+    isDetectingFeatures.value = false;
+  }
+};
+
+// Function to cancel feature detection
+const cancelFeatureDetection = () => {
+  isDetectingFeatures.value = false;
+  featureDetectionError.value = '';
+  featureDetectionStatus.value = '';
+  resetFeatureDetectionProgress();
 };
 </script>
 
@@ -582,7 +722,7 @@ const cancelEdit = () => {
               <div class="flex justify-between mt-1 text-xs">
                 <span>{{ editProgress }}%</span>
                 <span v-if="editStartTime && isEditing">Started {{ new Date(editStartTime).toLocaleTimeString()
-                }}</span>
+                  }}</span>
               </div>
             </div>
           </div>
@@ -606,6 +746,80 @@ const cancelEdit = () => {
               </button>
             </div>
           </MapEditInput>
+        </div>
+
+        <!-- Feature Detection UI -->
+        <div class="bg-white rounded-lg shadow p-4">
+          <h2 class="text-lg font-medium text-gray-800 mb-2">Detect Map Features</h2>
+          <p class="text-sm text-gray-600 mb-4">Automatically detect rooms, corridors, and other features in your map
+          </p>
+
+          <!-- Feature Detection Status and Progress -->
+          <div v-if="featureDetectionStatus" class="mb-4 p-3 rounded-md border" :class="{
+            'bg-blue-50 border-blue-200 text-blue-700': isDetectingFeatures && !featureDetectionError,
+            'bg-green-50 border-green-200 text-green-700': featureDetectionComplete && !featureDetectionError,
+            'bg-red-50 border-red-200 text-red-700': featureDetectionError
+          }">
+            <div class="flex items-center">
+              <!-- Loading spinner when detecting features and not in error state -->
+              <svg v-if="isDetectingFeatures && !featureDetectionError" class="animate-spin h-5 w-5 mr-2"
+                xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                </path>
+              </svg>
+              <!-- Success icon when complete and no error -->
+              <svg v-else-if="featureDetectionComplete && !featureDetectionError" class="h-5 w-5 mr-2 text-green-500"
+                fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                  clip-rule="evenodd"></path>
+              </svg>
+              <!-- Error icon for any error state -->
+              <svg v-else-if="featureDetectionError" class="h-5 w-5 mr-2 text-red-500" fill="currentColor"
+                viewBox="0 0 20 20">
+                <path fill-rule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                  clip-rule="evenodd"></path>
+              </svg>
+              <!-- Display status message -->
+              <span>{{ featureDetectionStatus }}</span>
+            </div>
+
+            <!-- Display error message if present -->
+            <div v-if="featureDetectionError" class="mt-2 text-red-700 text-sm">
+              {{ featureDetectionError }}
+            </div>
+
+            <!-- Progress bar -->
+            <div v-if="isDetectingFeatures || featureDetectionComplete" class="mt-2">
+              <div class="w-full bg-gray-200 rounded-full h-2.5">
+                <div class="h-2.5 rounded-full"
+                  :class="{ 'bg-blue-600': isDetectingFeatures && !featureDetectionError, 'bg-green-600': featureDetectionComplete && !featureDetectionError, 'bg-red-600': featureDetectionError }"
+                  :style="`width: ${featureDetectionProgress}%`"></div>
+              </div>
+              <div class="flex justify-between mt-1 text-xs">
+                <span>{{ featureDetectionProgress }}%</span>
+                <span v-if="featureDetectionStartTime && isDetectingFeatures">Started {{ new
+                  Date(featureDetectionStartTime).toLocaleTimeString()
+                }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex space-x-3">
+            <button @click="detectMapFeatures" :disabled="!previewImage || isDetectingFeatures || isEditing"
+              class="px-4 py-2 bg-indigo-600 text-white font-medium rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50">
+              <span v-if="isDetectingFeatures">Processing...</span>
+              <span v-else>Detect Features</span>
+            </button>
+
+            <button v-if="isDetectingFeatures" @click="cancelFeatureDetection"
+              class="px-4 py-2 bg-gray-200 text-gray-800 font-medium rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500">
+              Cancel
+            </button>
+          </div>
         </div>
 
         <div v-if="generationComplete" class="p-4 bg-green-50 text-green-800 rounded-lg border border-green-200">

@@ -6,7 +6,6 @@ import base64
 import os
 from datetime import datetime
 from typing import Dict, Any
-from io import BytesIO
 import tempfile
 
 import json
@@ -151,7 +150,7 @@ def edit_image(
         logger.info("Map image edited successfully")
         return image_bytes
 
-    except Exception as e:
+    except RuntimeError as e:
         logger.error("OpenAI image editing failed: %s", e)
         # If editing fails, we'll implement a fallback where we generate a new image
         logger.info("Falling back to image generation")

@@ -36,6 +36,12 @@ export const mapEditResponseSchema = z.object({
   error: z.string().optional()
 });
 
+export const mapFeatureDetectionResponseSchema = z.object({
+  success: z.boolean(),
+  flowRunId: z.string(),
+  error: z.string().optional()
+});
+
 export const workflowProgressCallbackSchema = z
   .function()
   .args(
@@ -163,6 +169,19 @@ export const serverToClientEvents = z.object({
         result: z.record(z.string(), z.unknown()).optional()
       })
     )
+    .returns(z.void()),
+  'workflow:progress:detect-map-features': workflowProgressCallbackSchema,
+  'workflow:state:detect-map-features': z
+    .function()
+    .args(
+      z.object({
+        flow: z.string(),
+        flowRun: z.string(),
+        userId: z.string(),
+        state: z.string(),
+        result: z.record(z.string(), z.unknown()).optional()
+      })
+    )
     .returns(z.void())
 });
 
@@ -256,6 +275,22 @@ export const clientToServerEvents = z.object({
         })
       }),
       z.function().args(mapEditResponseSchema)
+    )
+    .returns(z.void()),
+  'map:detect-features': z
+    .function()
+    .args(
+      z.object({
+        imageUrl: z.string(),
+        parameters: z.object({
+          width: z.number(),
+          height: z.number(),
+          style: z.string(),
+          pixelsPerGrid: z.number(),
+          name: z.string()
+        })
+      }),
+      z.function().args(mapFeatureDetectionResponseSchema)
     )
     .returns(z.void())
 });

@@ -63,7 +63,7 @@ def register_deployments():
         entrypoint="src/flows/feature_detection.py:detect_features_flow",
     ).deploy(
         build=False,
-        name="detect-features",
+        name="detect-map-features",
         tags=["feature-detection", "dungeon-lab"],
         version=os.getenv("PROJECT_VERSION", "0.1.0"),
         work_pool_name="process-pool",
