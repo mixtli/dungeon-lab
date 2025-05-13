@@ -47,6 +47,680 @@ This document outlines the architecture and workflow for implementing an AI-powe
    - System exports the complete map as a UVTT file
    - User can save locally or directly to their campaign
 
+## Interactive Map Editor Implementation with Konva.js
+
+The map editor is a critical component of the workflow, allowing users to view AI-detected features and manually refine them. We will implement this using Konva.js with Vue integration for several reasons:
+
+1. **Vue Integration**: Native Vue bindings via vue-konva make integration seamless
+2. **Feature-Rich**: Built-in support for layers, transformations, selections, and drawing
+3. **Performance**: Optimized for interactive editing with many objects
+4. **Serialization**: Easy serialization/deserialization of canvas state
+
+### Editor Architecture
+
+#### Component Structure
+
+```
+MapEditor/
+├── MapEditorView.vue            # Main container component
+├── components/
+│   ├── EditorToolbar.vue        # Tool selection and controls
+│   ├── EditorCanvas.vue         # Konva canvas implementation
+│   ├── EditorLayerPanel.vue     # Layer management UI
+│   ├── EditorPropertiesPanel.vue # Selected object properties
+│   └── tools/
+│       ├── WallTool.vue         # Wall drawing tool
+│       ├── PortalTool.vue       # Door/portal placement tool
+│       ├── LightTool.vue        # Light source placement
+│       └── SelectionTool.vue    # Object selection and manipulation
+└── composables/
+    ├── useEditorState.ts        # Editor state management
+    ├── useEditorHistory.ts      # Undo/redo functionality
+    ├── useGridSystem.ts         # Grid and snapping logic
+    └── useUVTTConverter.ts      # UVTT format conversion
+```
+
+#### Konva Setup with Vue
+
+````typescript
+// EditorCanvas.vue
+<template>
+  <div class="editor-canvas-container">
+    <v-stage
+      ref="stage"
+      :config="stageConfig"
+      @mousedown="handleMouseDown"
+      @mousemove="handleMouseMove"
+      @mouseup="handleMouseUp"
+      @wheel="handleZoom"
+    >
+      <!-- Background layer with map image -->
+      <v-layer ref="bgLayer">
+        <v-image :config="backgroundImageConfig" />
+        <v-rect :config="gridConfig" />
+      </v-layer>
+
+      <!-- Wall layer -->
+      <v-layer ref="wallLayer">
+        <v-line
+          v-for="wall in walls"
+          :key="wall.id"
+          :config="getWallConfig(wall)"
+          @transformend="handleWallTransform"
+          @dragend="handleWallDrag"
+        />
+      </v-layer>
+
+      <!-- Portal layer -->
+      <v-layer ref="portalLayer">
+        <v-group
+          v-for="portal in portals"
+          :key="portal.id"
+          :config="getPortalGroupConfig(portal)"
+        >
+          <v-rect :config="getPortalRectConfig(portal)" />
+          <v-line :config="getPortalLineConfig(portal)" />
+        </v-group>
+      </v-layer>
+
+      <!-- Light layer -->
+      <v-layer ref="lightLayer">
+        <v-circle
+          v-for="light in lights"
+          :key="light.id"
+          :config="getLightConfig(light)"
+        />
+      </v-layer>
+
+      <!-- Selection layer -->
+      <v-layer ref="selectionLayer">
+        <v-transformer
+          v-if="selectedShapeId"
+          ref="transformer"
+          :config="transformerConfig"
+        />
+      </v-layer>
+    </v-stage>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted, watch } from 'vue';
+import { useEditorState } from '../composables/useEditorState';
+import { useGridSystem } from '../composables/useGridSystem';
+import { useUVTTConverter } from '../composables/useUVTTConverter';
+
+// Editor state and tools
+const {
+  currentTool,
+  walls,
+  portals,
+  lights,
+  selectedShapeId,
+  selectShape,
+  addWall,
+  addPortal,
+  addLight,
+  updateWall,
+  updatePortal,
+  updateLight,
+  removeShape
+} = useEditorState();
+
+// Grid system for snapping
+const {
+  gridSize,
+  snapToGrid,
+  toggleGrid,
+  gridConfig
+} = useGridSystem();
+
+// Canvas and stage references
+const stage = ref(null);
+const bgLayer = ref(null);
+const wallLayer = ref(null);
+const portalLayer = ref(null);
+const lightLayer = ref(null);
+const selectionLayer = ref(null);
+const transformer = ref(null);
+
+// Stage configuration
+const stageConfig = computed(() => ({
+  width: window.innerWidth,
+  height: window.innerHeight,
+  draggable: currentTool.value === 'pan'
+}));
+
+// Configure objects based on their data
+const getWallConfig = (wall) => ({
+  points: wall.points,
+  stroke: '#ff3333',
+  strokeWidth: 3,
+  lineCap: 'round',
+  lineJoin: 'round',
+  draggable: currentTool.value === 'select',
+  id: wall.id,
+  objectType: 'wall'
+});
+
+const getPortalGroupConfig = (portal) => ({
+  x: portal.position.x,
+  y: portal.position.y,
+  draggable: currentTool.value === 'select',
+  rotation: portal.rotation,
+  id: portal.id,
+  objectType: 'portal'
+});
+
+const getLightConfig = (light) => ({
+  x: light.position.x,
+  y: light.position.y,
+  radius: 10,
+  fill: light.color || '#ffdd00',
+  stroke: '#000000',
+  strokeWidth: 1,
+  draggable: currentTool.value === 'select',
+  id: light.id,
+  objectType: 'light',
+  // Visual indicator of light range
+  shadowBlur: light.range / 2,
+  shadowColor: light.color || '#ffdd00',
+  shadowOpacity: 0.5
+});
+
+// Transformer config for selection tool
+const transformerConfig = computed(() => ({
+  boundBoxFunc: (oldBox, newBox) => {
+    // Implement constraints if needed
+    return newBox;
+  },
+  rotateEnabled: true,
+  resizeEnabled: true
+}));
+
+// Event handlers
+const handleMouseDown = (e) => {
+  if (currentTool.value === 'select') {
+    // Handle selection logic
+    const clickedOn = e.target;
+    if (clickedOn === e.target.getStage()) {
+      // Clicked on empty space
+      selectShape(null);
+      return;
+    }
+    selectShape(clickedOn.id());
+  } else if (currentTool.value === 'wall') {
+    // Handle wall drawing
+    const pos = stage.value.getStage().getPointerPosition();
+    const snappedPos = snapToGrid({
+      x: pos.x,
+      y: pos.y
+    });
+
+    // Start or continue wall drawing
+    // ...
+  }
+  // Other tool handlers
+};
+
+// ... other event handlers and methods
+
+// Watch for selection changes to update transformer
+watch(selectedShapeId, (newVal) => {
+  if (!newVal) {
+    transformer.value.nodes([]);
+    return;
+  }
+
+  // Find the selected node across all layers
+  const layers = [wallLayer.value, portalLayer.value, lightLayer.value];
+  for (const layer of layers) {
+    const node = layer.getNode().findOne(`#${newVal}`);
+    if (node) {
+      transformer.value.nodes([node]);
+      break;
+    }
+  }
+});
+
+// Load map data
+const loadMapData = async (mapId) => {
+  // Load map data from the API
+  // Set up background image and objects
+};
+
+onMounted(() => {
+  // Initialize editor with map data or empty canvas
+  // Set up window resize handlers
+  // Set up keyboard shortcuts
+});
+</script>
+
+### Core Features Implementation
+
+#### 1. Map Loading
+
+Two primary import methods need to be supported:
+
+1. **Image Import**:
+   ```typescript
+   const loadMapImage = async (imageUrl, mapSize) => {
+     // Create image object
+     const image = new Image();
+     image.src = imageUrl;
+
+     await new Promise((resolve) => {
+       image.onload = resolve;
+     });
+
+     // Set background image
+     backgroundImageConfig.value = {
+       image: image,
+       width: image.width,
+       height: image.height,
+       x: 0,
+       y: 0
+     };
+
+     // Set up grid overlay based on provided map size
+     setupGrid(mapSize, image.width, image.height);
+   };
+````
+
+2. **UVTT Import**:
+
+   ```typescript
+   const importUVTT = async (uvttData) => {
+     // First load the image
+     await loadMapImage(uvttData.image, uvttData.resolution.map_size);
+
+     // Then create all objects from the UVTT data
+     createWallsFromUVTT(uvttData.line_of_sight);
+     createPortalsFromUVTT(uvttData.portals);
+     createLightsFromUVTT(uvttData.lights);
+   };
+
+   const createWallsFromUVTT = (lineOfSight) => {
+     // Convert wall data from UVTT format to Konva objects
+     // Group connected points into wall segments
+     const walls = processWallPoints(lineOfSight);
+
+     // Add walls to the state
+     walls.forEach((wall) => addWall(wall));
+   };
+   ```
+
+#### 2. Drawing Tools
+
+The editor needs specialized tools for different object types:
+
+1. **Wall Tool**:
+
+   ```typescript
+   // State for active drawing
+   const drawingWall = ref(false);
+   const currentWallPoints = ref([]);
+
+   const startWallDrawing = (point) => {
+     drawingWall.value = true;
+     currentWallPoints.value = [point.x, point.y];
+   };
+
+   const continueWallDrawing = (point) => {
+     if (!drawingWall.value) return;
+
+     // Add new point or update last point based on drawing mode
+     if (isMultiPointMode.value) {
+       currentWallPoints.value.push(point.x, point.y);
+     } else {
+       // Update the end point (for preview)
+       if (currentWallPoints.value.length >= 4) {
+         currentWallPoints.value.splice(currentWallPoints.value.length - 2, 2, point.x, point.y);
+       } else {
+         currentWallPoints.value.push(point.x, point.y);
+       }
+     }
+   };
+
+   const finishWallDrawing = () => {
+     if (!drawingWall.value) return;
+
+     // Create a new wall and add it to state
+     const wallId = `wall-${Date.now()}`;
+     addWall({
+       id: wallId,
+       points: [...currentWallPoints.value],
+       objectType: 'wall'
+     });
+
+     // Reset drawing state
+     if (isMultiPointMode.value) {
+       // Keep the last point to continue drawing
+       currentWallPoints.value = currentWallPoints.value.slice(-2);
+     } else {
+       drawingWall.value = false;
+       currentWallPoints.value = [];
+     }
+   };
+   ```
+
+2. **Portal Tool**:
+
+   ```typescript
+   const placeDoor = (position, size = 40) => {
+     const portalId = `portal-${Date.now()}`;
+     addPortal({
+       id: portalId,
+       position: snapToGrid(position),
+       bounds: calculatePortalBounds(position, size),
+       rotation: 0,
+       closed: true,
+       freestanding: false,
+       objectType: 'portal'
+     });
+   };
+   ```
+
+3. **Light Tool**:
+   ```typescript
+   const placeLight = (position) => {
+     const lightId = `light-${Date.now()}`;
+     addLight({
+       id: lightId,
+       position: snapToGrid(position),
+       range: 120,
+       intensity: 0.8,
+       color: '#ffdd00',
+       shadows: true,
+       objectType: 'light'
+     });
+   };
+   ```
+
+#### 3. Grid System and Snapping
+
+Implementation of grid visualization and coordinate snapping:
+
+```typescript
+// useGridSystem.ts
+export function useGridSystem() {
+  const gridVisible = ref(true);
+  const gridSize = ref(50); // pixels per grid unit
+  const gridColor = ref('rgba(0, 0, 0, 0.2)');
+
+  // Calculate grid dimensions
+  const gridDimensions = computed(() => ({
+    width: window.innerWidth,
+    height: window.innerHeight,
+    offsetX: 0,
+    offsetY: 0
+  }));
+
+  // Configure grid visualization
+  const gridConfig = computed(() => ({
+    x: 0,
+    y: 0,
+    width: gridDimensions.value.width,
+    height: gridDimensions.value.height,
+    stroke: gridColor.value,
+    strokeWidth: 1,
+    visible: gridVisible.value,
+    // Custom shader for drawing grid lines
+    fillPatternImage: createGridPattern(gridSize.value, gridColor.value)
+  }));
+
+  // Snap a position to the grid
+  const snapToGrid = (position) => {
+    return {
+      x: Math.round(position.x / gridSize.value) * gridSize.value,
+      y: Math.round(position.y / gridSize.value) * gridSize.value
+    };
+  };
+
+  // Toggle grid visibility
+  const toggleGrid = () => {
+    gridVisible.value = !gridVisible.value;
+  };
+
+  // Create grid pattern (helper function)
+  const createGridPattern = (size, color) => {
+    // Create canvas with grid pattern
+    // ...
+  };
+
+  return {
+    gridVisible,
+    gridSize,
+    gridColor,
+    gridConfig,
+    snapToGrid,
+    toggleGrid
+  };
+}
+```
+
+#### 4. UVTT Conversion
+
+Converting between editor objects and UVTT format:
+
+```typescript
+// useUVTTConverter.ts
+export function useUVTTConverter() {
+  // Convert editor state to UVTT format
+  const editorStateToUVTT = (editorState, mapMetadata) => {
+    // Process walls
+    const line_of_sight = editorState.walls.flatMap((wall) => {
+      // Convert from canvas pixels to grid units
+      return convertPointsToGridUnits(wall.points, mapMetadata.pixels_per_grid);
+    });
+
+    // Process portals
+    const portals = editorState.portals.map((portal) => ({
+      position: {
+        x: portal.position.x / mapMetadata.pixels_per_grid,
+        y: portal.position.y / mapMetadata.pixels_per_grid
+      },
+      bounds: portal.bounds.map((p) => ({
+        x: p.x / mapMetadata.pixels_per_grid,
+        y: p.y / mapMetadata.pixels_per_grid
+      })),
+      rotation: portal.rotation,
+      closed: portal.closed,
+      freestanding: portal.freestanding
+    }));
+
+    // Process lights
+    const lights = editorState.lights.map((light) => ({
+      position: {
+        x: light.position.x / mapMetadata.pixels_per_grid,
+        y: light.position.y / mapMetadata.pixels_per_grid
+      },
+      range: light.range / mapMetadata.pixels_per_grid,
+      intensity: light.intensity,
+      color: light.color,
+      shadows: light.shadows
+    }));
+
+    // Construct full UVTT object
+    return {
+      format: mapMetadata.format || 1.0,
+      resolution: {
+        map_origin: mapMetadata.map_origin || { x: 0, y: 0 },
+        map_size: mapMetadata.map_size,
+        pixels_per_grid: mapMetadata.pixels_per_grid
+      },
+      line_of_sight,
+      portals,
+      lights,
+      environment: mapMetadata.environment || {
+        baked_lighting: false,
+        ambient_light: '#ffffff'
+      },
+      image: mapMetadata.image
+    };
+  };
+
+  // Helper to convert points from pixels to grid units
+  const convertPointsToGridUnits = (points, pixelsPerGrid) => {
+    const result = [];
+    for (let i = 0; i < points.length; i += 2) {
+      result.push({
+        x: points[i] / pixelsPerGrid,
+        y: points[i + 1] / pixelsPerGrid
+      });
+    }
+    return result;
+  };
+
+  return {
+    editorStateToUVTT
+  };
+}
+```
+
+#### 5. User Interface Components
+
+Key UI components to implement:
+
+1. **EditorToolbar**:
+
+   - Tool selection (Wall, Portal, Light, Selection, Pan, Zoom)
+   - Grid controls (toggle, size adjustment)
+   - Undo/Redo buttons
+   - Save and Export options
+
+2. **EditorPropertiesPanel**:
+
+   - Dynamic property editor based on selected object type
+   - For walls: color, thickness, connection type
+   - For portals: size, state (open/closed), rotation
+   - For lights: color, range, intensity, shadows
+
+3. **Layer Management**:
+   - Toggle visibility of different layers
+   - Lock/unlock layers
+   - Reorder layers
+
+### Saving and Exporting
+
+The final step is to implement saving and exporting functionality:
+
+```typescript
+// Save to database
+const saveMap = async () => {
+  try {
+    const mapData = editorStateToUVTT(editorState, mapMetadata);
+
+    const response = await fetch(`/api/maps/${mapId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(mapData)
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to save map');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error saving map:', error);
+    throw error;
+  }
+};
+
+// Export as UVTT file
+const exportUVTT = () => {
+  const mapData = editorStateToUVTT(editorState, mapMetadata);
+
+  // Convert to JSON string
+  const jsonString = JSON.stringify(mapData, null, 2);
+
+  // Create download link
+  const blob = new Blob([jsonString], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+
+  // Create and trigger download
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${mapMetadata.name || 'dungeon-lab-map'}.uvtt`;
+  document.body.appendChild(a);
+  a.click();
+
+  // Cleanup
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+```
+
+### Implementation Timeline and Dependencies
+
+1. **Phase 1: Basic Editor Setup (1-2 weeks)**
+
+   - Core component structure
+   - Canvas integration with Konva.js
+   - Basic state management
+   - Map loading from image
+
+2. **Phase 2: Drawing Tools (1-2 weeks)**
+
+   - Wall drawing tool
+   - Portal placement tool
+   - Light placement tool
+   - Selection and transformation
+
+3. **Phase 3: Grid and Snapping (1 week)**
+
+   - Grid visualization
+   - Coordinate snapping
+   - Configurable grid settings
+
+4. **Phase 4: UVTT Integration (1 week)**
+
+   - UVTT data structure integration
+   - Import from UVTT files
+   - Export to UVTT format
+
+5. **Phase 5: UI Refinement (1-2 weeks)**
+   - Property editing panels
+   - Tool selection UI
+   - Layer management
+   - Undo/redo functionality
+
+**Dependencies:**
+
+- Vue.js 3
+- Konva.js (^9.0.0)
+- vue-konva (^3.0.0)
+- File system access for import/export
+- API endpoints for map data persistence
+
+### Testing Plan
+
+1. **Unit Tests**
+
+   - Test grid calculations and snapping
+   - Test UVTT conversion accuracy
+   - Test state management
+
+2. **Component Tests**
+
+   - Test rendering of Konva components
+   - Test tool behavior and interactions
+
+3. **Integration Tests**
+
+   - Test full workflow from import to export
+   - Test saving to and loading from database
+
+4. **User Testing**
+   - Test with various map sizes and complexities
+   - Test with different input devices (mouse, touchscreen)
+   - Gather feedback on usability and feature requests
+
+This implementation provides a complete solution for manually editing map features using Konva.js, with a focus on user experience, performance, and integration with the UVTT format. The component architecture allows for easy extension and maintenance as requirements evolve.
+
 ## Sequential Implementation Plan
 
 ### Step 1: User Creates Map Description

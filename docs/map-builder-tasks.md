@@ -110,26 +110,29 @@ This document tracks the tasks for implementing the AI-powered map builder featu
   - Notes: Consolidated from former tasks 2.3 and 6.2
   - Status: Complete - Leveraging Prefect's built-in workflow state tracking and implemented callbacks in workflow.controller.mts to relay state change events to clients
 
-- [ ] **Task 3.4**: Add error handling and retry logic
+- [x] **Task 3.4**: Add error handling and retry logic
   - Priority: High
   - Description: Implement robust error handling and automatic retries in the Prefect flow.
   - Dependencies: 3.1
+  - Status: Complete
   - Notes: Moved from former task 6.3
 
 ## Phase 4: Feature Detection Pipeline
 
-- [ ] **Task 4.1**: Create feature detection Prefect flow
+- [x] **Task 4.1**: Create feature detection Prefect flow
 
   - Priority: High
   - Description: Create a Prefect flow that handles the complete feature detection process.
   - Dependencies: 1.5, 1.6
+  - Status: Complete but needs improvement
   - Notes: Consolidates former tasks from Phases 3 and 7
 
-- [ ] **Task 4.2**: Implement wall detection
+- [x] **Task 4.2**: Implement wall detection
 
   - Priority: High
   - Description: Implement computer vision algorithms to detect walls and barriers in the generated map image.
   - Dependencies: 4.1
+  - Status: Complete - we have a simple implementation that needs a lot of improvement
   - Notes: Consolidated from former tasks 3.1 and 7.3
 
 - [ ] **Task 4.3**: Implement room and area detection

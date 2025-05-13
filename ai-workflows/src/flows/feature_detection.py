@@ -197,7 +197,6 @@ def highlight_portals(image_bytes: bytes) -> bytes:
     Returns:
         Modified image with highlighted portals as bytes
     """
-    # Commented out for now to focus only on wall detection
     logger = get_run_logger()
     logger.info("Using GPT-image-1 to highlight portals and doorways")
 
@@ -212,6 +211,19 @@ def highlight_portals(image_bytes: bytes) -> bytes:
         with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as temp:
             temp_file_path = temp.name
             temp.write(image_bytes)
+
+        # Determine the image size for the API
+        image = Image.open(BytesIO(image_bytes))
+        if image.size == (1024, 1024):
+            api_size = "1024x1024"
+        elif image.size == (1536, 1024):
+            api_size = "1536x1024"
+        elif image.size == (1024, 1536):
+            api_size = "1024x1536"
+        else:
+            # Default to 1024x1024 if size doesn't match OpenAI's supported sizes
+            api_size = "1024x1024"
+            logger.warning(f"Image size {image.size} not directly supported, defaulting to {api_size}")
 
         try:
             # Use the temporary file for API call
@@ -228,7 +240,7 @@ def highlight_portals(image_bytes: bytes) -> bytes:
                     Remove everything else in the image except the black lines.
                     """,
                     n=1,
-                    size="1024x1024",
+                    size=api_size,
                 )
 
             # Decode the response
@@ -385,20 +397,18 @@ def detect_wall_segments(wall_outline_artifact: Artifact) -> List[List[Dict[str,
 
 @task(name="detect_portal_segments", retries=2)
 def detect_portal_segments(
-    image_bytes: bytes,
+    portal_outline_artifact: Artifact,
 ) -> List[Tuple[Tuple[int, int], Tuple[int, int]]]:
     """
     Use OpenCV to detect portal segments from the highlighted portal image.
 
     Args:
-        image_bytes: Image with highlighted portals as bytes
+        portal_outline_artifact: Artifact containing highlighted portal image
 
     Returns:
         List of portal segments as pairs of endpoints
     """
-    # Commented out for now to focus only on wall detection
-    return []
-    """
+    image_bytes = fetch_artifact_data(portal_outline_artifact)
     logger = get_run_logger()
     logger.info("Using CV2 to detect portal segments")
 
@@ -430,7 +440,6 @@ def detect_portal_segments(
     except Exception as e:
         logger.error("Error detecting portal segments: %s", e)
         raise
-    """
 
 
 @task(name="save_features_to_json", retries=2)
@@ -472,14 +481,12 @@ def save_features_to_json(
 
         # Convert the coordinate data
         python_wall_segments = convert_numpy_to_python(wall_segments)
-        # Comment out portal segments since we're focusing only on walls
-        # python_portal_segments = convert_numpy_to_python(portal_segments)
+        python_portal_segments = convert_numpy_to_python(portal_segments)
 
         # Create a dictionary for the JSON data
         feature_data = {
             "walls": python_wall_segments,
-            # Comment out portals
-            # "portals": python_portal_segments,
+            "portals": python_portal_segments,
             "createdAt": datetime.utcnow().isoformat(),
         }
 
@@ -515,7 +522,7 @@ def draw_features_on_image(
     """
     logger = get_run_logger()
     logger.info(
-        f"Drawing features on original image: {len(wall_segments)} wall segments"
+        f"Drawing features on original image: {len(wall_segments)} wall segments, {len(portal_segments)} portal segments"
     )
 
     try:
@@ -579,13 +586,17 @@ def draw_features_on_image(
                         width=line_width,
                     )
 
-        # Portal segments are skipped/commented out for now
-        # for start, end in portal_segments:
-        #     draw.line(
-        #         [start, end],
-        #         fill=(0, 0, 255),  # Blue color for portals
-        #         width=3,
-        #     )
+        # Draw portal segments
+        for start, end in portal_segments:
+            # Scale coordinates
+            scaled_start = (int(start[0] * scale_x), int(start[1] * scale_y))
+            scaled_end = (int(end[0] * scale_x), int(end[1] * scale_y))
+            
+            draw.line(
+                [scaled_start, scaled_end],
+                fill=(0, 0, 255),  # Blue color for portals
+                width=line_width,
+            )
 
         # Convert back to bytes
         img_bytes = BytesIO()
@@ -602,17 +613,132 @@ def draw_features_on_image(
         raise
 
 
+@task(name="create_uvtt_file", retries=2)
+def create_uvtt_file(
+    wall_segments: List[List[Dict[str, int]]],
+    portal_segments: List[Tuple[Tuple[int, int], Tuple[int, int]]],
+    original_image_bytes: bytes,
+    original_size: Tuple[int, int],
+    pixels_per_grid: int = 70,  # Default value, can be overridden
+) -> bytes:
+    """
+    Create a Universal VTT (UVTT) file from detected features.
+    
+    Args:
+        wall_segments: List of wall segments as lists of points
+        portal_segments: List of portal segments as pairs of endpoints
+        original_image_bytes: Original map image as bytes
+        original_size: Original image dimensions (width, height)
+        pixels_per_grid: Number of pixels per grid square
+        
+    Returns:
+        UVTT file as bytes
+    """
+    logger = get_run_logger()
+    logger.info("Creating UVTT file from detected features")
+    
+    try:
+        # Calculate map size in grid units
+        width_in_squares = original_size[0] / pixels_per_grid
+        height_in_squares = original_size[1] / pixels_per_grid
+        
+        # Convert wall segments to line_of_sight format (arrays of x,y points in grid units)
+        line_of_sight = []
+        for wall in wall_segments:
+            # Convert each point to grid units and add to line_of_sight
+            wall_points = []
+            for point in wall:
+                wall_points.append({
+                    "x": point["x"] / pixels_per_grid,
+                    "y": point["y"] / pixels_per_grid
+                })
+            line_of_sight.append(wall_points)
+        
+        # Convert portal segments to portals format
+        portals = []
+        for idx, (start, end) in enumerate(portal_segments):
+            # Calculate center position and bounds
+            center_x = (start[0] + end[0]) / 2 / pixels_per_grid
+            center_y = (start[1] + end[1]) / 2 / pixels_per_grid
+            
+            # Calculate angle
+            dx = end[0] - start[0]
+            dy = end[1] - start[1]
+            rotation = np.arctan2(dy, dx)
+            
+            # Create portal object
+            portal = {
+                "position": {
+                    "x": center_x,
+                    "y": center_y
+                },
+                "bounds": [
+                    {"x": start[0] / pixels_per_grid, "y": start[1] / pixels_per_grid},
+                    {"x": end[0] / pixels_per_grid, "y": end[1] / pixels_per_grid}
+                ],
+                "rotation": float(rotation),
+                "closed": False,
+                "freestanding": False
+            }
+            portals.append(portal)
+        
+        # Create environment settings
+        environment = {
+            "baked_lighting": False,
+            "ambient_light": "#ffffff"
+        }
+        
+        # Encode the image to base64
+        with BytesIO(original_image_bytes) as image_buffer:
+            image = Image.open(image_buffer)
+            # Convert to PNG if not already
+            output_buffer = BytesIO()
+            image.save(output_buffer, format="PNG")
+            base64_image = base64.b64encode(output_buffer.getvalue()).decode('utf-8')
+        
+        # Assemble the UVTT format
+        uvtt_data = {
+            "format": 1.0,  # Version number
+            "resolution": {
+                "map_origin": {
+                    "x": 0.0,
+                    "y": 0.0
+                },
+                "map_size": {
+                    "x": width_in_squares,
+                    "y": height_in_squares
+                },
+                "pixels_per_grid": pixels_per_grid
+            },
+            "line_of_sight": line_of_sight,
+            "portals": portals,
+            "environment": environment,
+            "image": base64_image,
+            "software": "DungeonLab",
+            "creator": "DungeonLab Feature Detection"
+        }
+        
+        # Convert to JSON
+        uvtt_json = json.dumps(uvtt_data)
+        return uvtt_json.encode('utf-8')
+        
+    except Exception as e:
+        logger.error("Error creating UVTT file: %s", e)
+        raise
+
+
 @auto_hook_flow(
     name="detect-map-features",
     timeout_seconds=FEATURE_DETECTION_TIMEOUT,
     persist_result=True,
 )
-def detect_features_flow(image_url: str) -> Dict[str, Any]:
+def detect_features_flow(image_url: str, pixels_per_grid: int = 70) -> Dict[str, Any]:
     """
     Main flow for detecting features in a map image using OpenAI and CV2.
 
     Args:
-        input_data: Dictionary containing feature detection parameters
+        image_url: URL of the image to process
+        pixels_per_grid: Number of pixels per grid square (default: 70)
 
     Returns:
         Dictionary containing detected features and image URL
@@ -662,35 +788,46 @@ def detect_features_flow(image_url: str) -> Dict[str, Any]:
             message=f"Image resized to {resized_size[0]}x{resized_size[1]}",
         )
 
-        # Step 4: Generate wall outline image
+        # Step 4: Generate wall outline and portal highlight images
         timestamp = datetime.now().strftime("%Y%m%dT%H%M%S")
 
         logger.info("Starting wall outline detection")
         send_progress_update(
             status="running", progress=20.0, message="Generating wall outlines"
         )
-
         wall_outline_artifact = outline_impassable_areas(resized_artifact)
 
-        # Skip portal highlight image generation/detection
-        # Empty placeholder for portal segments
-        portal_segments = []
+        logger.info("Starting portal detection")
+        send_progress_update(
+            status="running", progress=30.0, message="Generating portal highlights"
+        )
+        portal_highlight_bytes = highlight_portals(resized_image_bytes)
+        portal_highlight_artifact = create_image_artifact(
+            content=portal_highlight_bytes,
+            key="portal-highlight",
+            content_type="image/png",
+            description="Portal highlight image",
+        )
 
         send_progress_update(
             status="running", progress=45.0, message="Generated outline images"
         )
 
-        # Step 5: Use CV2 to detect wall features
+        # Step 5: Use CV2 to detect features
         send_progress_update(
             status="running", progress=50.0, message="Detecting wall segments"
         )
         wall_segments = detect_wall_segments(wall_outline_artifact)
 
-        # Skip portal detection
+        send_progress_update(
+            status="running", progress=60.0, message="Detecting portal segments"
+        )
+        portal_segments = detect_portal_segments(portal_highlight_artifact)
+
         send_progress_update(
             status="running",
             progress=70.0,
-            message=f"Detected {len(wall_segments)} wall segments",
+            message=f"Detected {len(wall_segments)} wall segments and {len(portal_segments)} portal segments",
         )
 
         # Step 6: Save features as JSON and upload
@@ -709,7 +846,29 @@ def detect_features_flow(image_url: str) -> Dict[str, Any]:
             description=f"JSON file: {json_object_name}",
         )
 
-        # Step 7: Draw features on the original image
+        # Step 7: Create UVTT file
+        send_progress_update(
+            status="running",
+            progress=80.0,
+            message="Creating UVTT file",
+        )
+        uvtt_bytes = create_uvtt_file(
+            wall_segments,
+            portal_segments,
+            original_image_bytes,
+            original_size,
+            pixels_per_grid,
+        )
+        uvtt_object_name = f"maps/map_{timestamp}.uvtt"
+        uvtt_artifact = create_link_artifact(
+            content=uvtt_bytes,
+            key="uvtt-file",
+            object_name=uvtt_object_name,
+            content_type="application/octet-stream",
+            description=f"UVTT file: {uvtt_object_name}",
+        )
+
+        # Step 8: Draw features on the original image
         send_progress_update(
             status="running",
             progress=85.0,
@@ -728,10 +887,14 @@ def detect_features_flow(image_url: str) -> Dict[str, Any]:
             "status": "completed",
             "image_url": final_image_artifact.data,
             "wall_segments_count": len(wall_segments),
+            "portal_segments_count": len(portal_segments),
             "wall_image_url": wall_outline_artifact.data,
+            "portal_image_url": portal_highlight_artifact.data,
             "features_json_url": json_artifact.data,
+            "uvtt_file_url": uvtt_artifact.data,
             "original_size": f"{original_size[0]}x{original_size[1]}",
             "resized_size": f"{resized_size[0]}x{resized_size[1]}",
+            "pixels_per_grid": pixels_per_grid,
             "createdAt": datetime.utcnow().isoformat(),
         }
 
@@ -743,23 +906,32 @@ def detect_features_flow(image_url: str) -> Dict[str, Any]:
             
             **Original Image**: {image_url}
             **Feature-Detected Image**: {final_image_artifact.data}
+            **UVTT File**: {uvtt_artifact.data}
             
             ## Statistics
             
             - **Wall Segments**: {len(wall_segments)}
+            - **Portal Segments**: {len(portal_segments)}
             - **Original Size**: {original_size[0]}x{original_size[1]}
             - **Resized Size**: {resized_size[0]}x{resized_size[1]}
+            - **Pixels Per Grid**: {pixels_per_grid}
             
             ## Process Images
             
             - **Wall Outline Image**: [{wall_outline_artifact.data}]({wall_outline_artifact.data})
+            - **Portal Highlight Image**: [{portal_highlight_artifact.data}]({portal_highlight_artifact.data})
             - **Final Feature Image**: [{final_image_artifact.data}]({final_image_artifact.data})
             - **Features JSON**: [{json_artifact.data}]({json_artifact.data})
+            - **UVTT File**: [{uvtt_artifact.data}]({uvtt_artifact.data})
             
             ## Feature Data Preview
             
             ```json
-            {json.dumps({"wall_segments_count": len(wall_segments)}, indent=2)}
+            {json.dumps({
+                "wall_segments_count": len(wall_segments),
+                "portal_segments_count": len(portal_segments),
+                "pixels_per_grid": pixels_per_grid
+            }, indent=2)}
             ```
             """,
             description="Features detected in map image",
