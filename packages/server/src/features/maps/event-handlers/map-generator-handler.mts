@@ -118,8 +118,7 @@ function setupMapGeneratorHandler(
         'detect-map-features',
         'detect-map-features',
         {
-          image_url: data.imageUrl,
-          parameters: data.parameters
+          image_url: data.imageUrl
         },
         userId
       );

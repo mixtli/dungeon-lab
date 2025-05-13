@@ -42,6 +42,8 @@ def upload_to_minio(object_name, data, content_type="application/octet-stream"):
     """
     bucket = os.environ.get("MINIO_BUCKET_NAME")
     client = get_minio_client()
+    minio_public_url = os.environ.get("MINIO_PUBLIC_URL")
+    minio_bucket = os.environ.get("MINIO_BUCKET_NAME")
     # Ensure bucket exists
     found = client.bucket_exists(bucket)
     if not found:
@@ -56,4 +58,6 @@ def upload_to_minio(object_name, data, content_type="application/octet-stream"):
         length=len(data),
         content_type=content_type,
     )
-    return object_name
+    # Construct the public URL
+    content_url = f"{minio_public_url}/{minio_bucket}/{object_name}"
+    return content_url

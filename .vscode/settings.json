@@ -43,5 +43,12 @@
     ],
     "python.analysis.include": [
         "ai-workflows/src"
-    ]
+    ],
+    "pylint.cwd": "${workspaceFolder}/ai-workflows",
+    "pylint.importStrategy": "fromEnvironment",
+    "python.analysis.fixAll": [
+        "source.unusedImports"
+    ],
+    "ruff.nativeServer": "on",
+    "pylint.enabled": false
 }

@@ -12,44 +12,27 @@ import tempfile
 import json
 import cv2  # type: ignore[reportMissingModuleSource]
 import numpy as np
-import requests
 from PIL import Image, ImageDraw
-
 from prefect import task, get_run_logger
-from prefect.artifacts import create_markdown_artifact, create_link_artifact
+from prefect.artifacts import create_markdown_artifact, Artifact
 from openai import OpenAI
+
+
 
 # Import shared utilities
 from src.utils.callbacks import send_progress_update
-from src.utils.minio_client import upload_to_minio
 from src.utils.flow_wrappers import auto_hook_flow
+from src.utils.artifact_helpers import (
+    create_link_artifact,
+    create_image_artifact,
+    fetch_artifact_data,
+    fetch_image,
+)
+
 
 from src.configs.prefect_config import (
     FEATURE_DETECTION_TIMEOUT,
 )
-
-
-@task(name="fetch_image", retries=2)
-def fetch_image(image_url: str) -> bytes:
-    """
-    Fetch image data from a URL.
-
-    Args:
-        image_url: URL of the image to fetch
-
-    Returns:
-        Image data as bytes
-    """
-    logger = get_run_logger()
-    logger.info("Fetching image from URL: %s", image_url)
-
-    try:
-        response = requests.get(image_url, timeout=30)
-        response.raise_for_status()  # Raise exception for non-200 responses
-        return response.content
-    except Exception as e:
-        logger.error("Error fetching image: %s", e)
-        raise
 
 
 @task(name="resize_image", retries=2)
@@ -75,7 +58,10 @@ def resize_image(image_bytes: bytes) -> Tuple[bytes, str]:
         original_aspect = original_width / original_height
 
         logger.info(
-            f"Original image dimensions: {original_width}x{original_height}, aspect ratio: {original_aspect:.2f}"
+            "Original image dimensions: %dx%d, aspect ratio: %.2f",
+            original_width,
+            original_height,
+            original_aspect,
         )
 
         # Define the OpenAI supported sizes
@@ -91,7 +77,10 @@ def resize_image(image_bytes: bytes) -> Tuple[bytes, str]:
         )
 
         logger.info(
-            f"Selected size: {best_size['name']} ({best_size['width']}x{best_size['height']})"
+            "Selected size: %s (%dx%d)",
+            best_size["name"],
+            best_size["width"],
+            best_size["height"],
         )
 
         # Resize the image
@@ -104,18 +93,22 @@ def resize_image(image_bytes: bytes) -> Tuple[bytes, str]:
         resized_image.save(resized_bytes, format=image.format or "PNG")
         resized_bytes.seek(0)
 
-        return (
-            resized_bytes.getvalue(),
-            f"{best_size['name']} ({best_size['width']}x{best_size['height']})",
+        resized_artifact = create_image_artifact(
+            content=resized_bytes.getvalue(),
+            key="resized-image",
+            content_type="image/png",
+            description=f"Resized image to {best_size['name']} ({best_size['width']}x{best_size['height']})",
         )
 
+        return resized_artifact
+
     except Exception as e:
-        logger.error(f"Error resizing image: {e}")
+        logger.error("Error resizing image: %s", e)
         raise
 
 
 @task(name="outline_impassable_areas", timeout_seconds=300, retries=2)
-def outline_impassable_areas(image_bytes: bytes, size_info: str) -> bytes:
+def outline_impassable_areas(image_artifact: Artifact) -> Artifact:
     """
     Use OpenAI's GPT-image-1 to outline impassable areas in the map.
 
@@ -135,22 +128,25 @@ def outline_impassable_areas(image_bytes: bytes, size_info: str) -> bytes:
         organization=os.environ.get("OPENAI_ORGANIZATION"),
     )
 
+    image_bytes = fetch_artifact_data(image_artifact)
+    image = Image.open(BytesIO(image_bytes))
+    if image.size == (1024, 1024):
+        api_size = "1024x1024"
+    elif image.size == (1536, 1024):
+        api_size = "1536x1024"
+    elif image.size == (1024, 1536):
+        api_size = "1024x1536"
+    else:
+        raise ValueError(f"Unsupported image size: {image.size}")
+
     try:
+        logger.info("Using OpenAI API size: %s", api_size)
         # Create a temporary file to hold the image
         with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as temp:
             temp_file_path = temp.name
             temp.write(image_bytes)
 
         try:
-            # Parse the size info to determine what size to request from OpenAI
-            if "landscape" in size_info:
-                api_size = "1536x1024"
-            elif "portrait" in size_info:
-                api_size = "1024x1536"
-            else:
-                api_size = "1024x1024"  # Default to square
-
-            logger.info(f"Using OpenAI API size: {api_size}")
 
             # Use the temporary file for API call
             with open(temp_file_path, "rb") as image_file:
@@ -173,7 +169,13 @@ def outline_impassable_areas(image_bytes: bytes, size_info: str) -> bytes:
             result_image_base64 = response.data[0].b64_json
             result_image_bytes = base64.b64decode(result_image_base64)
 
-            return result_image_bytes
+            wall_outline_artifact = create_image_artifact(
+                content=result_image_bytes,
+                key="wall-outline",
+            )
+            logger.info("Wall outline artifact: %s", wall_outline_artifact)
+
+            return wall_outline_artifact
         finally:
             # Clean up the temporary file
             if os.path.exists(temp_file_path):
@@ -196,8 +198,6 @@ def highlight_portals(image_bytes: bytes) -> bytes:
         Modified image with highlighted portals as bytes
     """
     # Commented out for now to focus only on wall detection
-    pass
-    '''
     logger = get_run_logger()
     logger.info("Using GPT-image-1 to highlight portals and doorways")
 
@@ -244,11 +244,97 @@ def highlight_portals(image_bytes: bytes) -> bytes:
     except Exception as e:
         logger.error("OpenAI image edit failed for portals: %s", e)
         raise RuntimeError(f"OpenAI image edit failed for portals: {e}") from e
-    '''
+
+
+def detect_lines_with_hough(gray_image: np.ndarray) -> List[List[Dict[str, int]]]:
+    """
+    Detect lines in a grayscale image using Canny edge detection and Hough transform.
+
+    Args:
+        gray_image: Grayscale image as numpy array
+
+    Returns:
+        List of line segments as lists of points
+    """
+    logger = get_run_logger()
+
+    # Apply Canny edge detection
+    edges = cv2.Canny(gray_image, 50, 150, apertureSize=3)  # type: ignore
+
+    # Save edges for debugging
+    cv2.imwrite("debug_edges.png", edges)  # type: ignore
+
+    # Dilate edges to connect nearby lines
+    kernel = np.ones((3, 3), np.uint8)
+    dilated_edges = cv2.dilate(edges, kernel, iterations=1)  # type: ignore
+
+    # Use probabilistic Hough Line Transform
+    line_segments = []
+    lines = cv2.HoughLinesP(  # type: ignore
+        dilated_edges,
+        rho=1,
+        theta=np.pi / 180,
+        threshold=20,
+        minLineLength=20,
+        maxLineGap=10,
+    )
+
+    if lines is not None:
+        for line in lines:
+            x1, y1, x2, y2 = line[0]
+            # Convert to our point format
+            line_coords = [{"x": x1, "y": y1}, {"x": x2, "y": y2}]
+            line_segments.append(line_coords)
+
+    logger.info(
+        f"Detected {len(line_segments) if lines is not None else 0} Hough line segments"
+    )
+
+    return line_segments
+
+
+def detect_contours(binary_image: np.ndarray) -> List[List[Dict[str, int]]]:
+    """
+    Detect contours in a binary image.
+
+    Args:
+        binary_image: Binary image as numpy array
+
+    Returns:
+        List of contour segments as lists of points
+    """
+    logger = get_run_logger()
+
+    # Find ALL contours (including internal ones)
+    contours, _ = cv2.findContours(binary_image, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)  # type: ignore
+
+    logger.info(f"Found {len(contours)} contours in total")
+
+    # Extract wall segments from contours
+    contour_segments = []
+    for cnt in contours:
+        # Skip very small contours
+        area = cv2.contourArea(cnt)  # type: ignore
+        if area < 30:
+            continue
+
+        # Use a reasonable epsilon for approximation
+        epsilon = 0.005 * cv2.arcLength(cnt, True)  # type: ignore
+        approx = cv2.approxPolyDP(cnt, epsilon, True)  # type: ignore
+
+        if (
+            len(approx) >= 3
+        ):  # Ensure there are enough points to form a meaningful shape
+            line_coords = [{"x": int(pt[0][0]), "y": int(pt[0][1])} for pt in approx]
+            contour_segments.append(line_coords)
+
+    logger.info(f"Extracted {len(contour_segments)} contour segments")
+
+    return contour_segments
 
 
 @task(name="detect_wall_segments", retries=2)
-def detect_wall_segments(image_bytes: bytes) -> List[List[Dict[str, int]]]:
+def detect_wall_segments(wall_outline_artifact: Artifact) -> List[List[Dict[str, int]]]:
     """
     Use OpenCV to detect wall segments from the outlined image.
 
@@ -258,6 +344,7 @@ def detect_wall_segments(image_bytes: bytes) -> List[List[Dict[str, int]]]:
     Returns:
         List of wall segments as lists of points
     """
+    image_bytes = fetch_artifact_data(wall_outline_artifact)
     logger = get_run_logger()
     logger.info("Using CV2 to detect wall segments")
 
@@ -266,38 +353,30 @@ def detect_wall_segments(image_bytes: bytes) -> List[List[Dict[str, int]]]:
         nparr = np.frombuffer(image_bytes, np.uint8)
         image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)  # type: ignore
 
-        # Convert image to HSV color space
-        hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)  # type: ignore
+        # Get image dimensions
+        height, width = image.shape[:2]
+        logger.info(f"Image dimensions: {width}x{height}")
 
-        # Define black color range in HSV
-        # Black is low value (brightness) in HSV
-        lower_black = np.array([0, 0, 0])
-        upper_black = np.array([180, 255, 30])  # Adjust the value threshold as needed
+        # Convert to grayscale first for better processing
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)  # type: ignore
 
-        # Create mask for black
-        mask = cv2.inRange(hsv, lower_black, upper_black)  # type: ignore
+        # Create a binary image with adaptive thresholding for better line detection
+        _, binary = cv2.threshold(gray, 25, 255, cv2.THRESH_BINARY_INV)  # type: ignore
 
-        # Find contours of the black lines
-        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)  # type: ignore
+        # Save binary image for debugging
+        cv2.imwrite("debug_binary.png", binary)  # type: ignore
 
-        # Extract simplified coordinate sets (approximate each contour to a polyline)
-        wall_segments = []
-        for cnt in contours:
-            # Skip very small contours
-            if cv2.contourArea(cnt) < 100:  # type: ignore
-                continue
+        # Method 1: Contour detection
+        contour_segments = detect_contours(binary)
 
-            epsilon = 1.0  # Tolerance for contour approximation
-            approx = cv2.approxPolyDP(cnt, epsilon, False)  # type: ignore
+        # Method 2: Edge detection + Hough Lines
+        # line_segments = detect_lines_with_hough(gray)
 
-            if len(approx) >= 2:
-                line_coords = [
-                    {"x": int(pt[0][0]), "y": int(pt[0][1])} for pt in approx
-                ]
-                wall_segments.append(line_coords)
+        # Combine both methods (prioritize contours, then add lines that aren't already covered)
+        all_segments = contour_segments  # + line_segments
+        logger.info(f"Total segments: {len(all_segments)}")
 
-        logger.info("Extracted %d wall segments", len(wall_segments))
-        return wall_segments
+        return all_segments
 
     except Exception as e:
         logger.error("Error detecting wall segments: %s", e)
@@ -413,39 +492,6 @@ def save_features_to_json(
         raise
 
 
-@task(name="upload_json_to_minio", retries=2)
-def upload_json_to_minio(json_bytes: bytes, object_name: str) -> str:
-    """
-    Upload a JSON file to MinIO and return its URL.
-
-    Args:
-        json_bytes: JSON data as bytes
-        object_name: MinIO object name
-
-    Returns:
-        Public URL of the uploaded JSON
-    """
-    logger = get_run_logger()
-    logger.info("Uploading JSON to MinIO: %s", object_name)
-
-    # MinIO config from environment
-    minio_public_url = os.environ.get("MINIO_PUBLIC_URL")
-    minio_bucket = os.environ.get("MINIO_BUCKET_NAME")
-
-    if not all([minio_bucket, minio_public_url]):
-        raise RuntimeError("Missing one or more required MinIO environment variables.")
-
-    try:
-        # Upload to MinIO
-        upload_to_minio(object_name, json_bytes, content_type="application/json")
-        json_url = f"{minio_public_url}/{minio_bucket}/{object_name}"
-        logger.info("JSON uploaded successfully: %s", json_url)
-        return json_url
-    except Exception as e:
-        logger.error("Error uploading JSON to MinIO: %s", e)
-        raise
-
-
 @task(name="draw_features_on_image", retries=1)
 def draw_features_on_image(
     original_image_bytes: bytes,
@@ -468,7 +514,9 @@ def draw_features_on_image(
         Image with drawn features as bytes
     """
     logger = get_run_logger()
-    logger.info("Drawing features on original image")
+    logger.info(
+        f"Drawing features on original image: {len(wall_segments)} wall segments"
+    )
 
     try:
         # Open original image
@@ -481,9 +529,28 @@ def draw_features_on_image(
 
         logger.info(f"Scaling coordinates by factors: x={scale_x:.2f}, y={scale_y:.2f}")
 
-        # Draw wall segments
-        for points in wall_segments:
+        # Define multiple colors for walls to distinguish different segments
+        wall_colors = [
+            (255, 0, 0),  # Red
+            (0, 255, 0),  # Green
+            (0, 0, 255),  # Blue
+            (255, 255, 0),  # Yellow
+            (255, 0, 255),  # Magenta
+            (0, 255, 255),  # Cyan
+            (128, 0, 0),  # Dark Red
+            (0, 128, 0),  # Dark Green
+            (0, 0, 128),  # Dark Blue
+        ]
+
+        line_width = max(2, int(2 * min(scale_x, scale_y)))  # Scale line width
+        logger.info(f"Using line width: {line_width}")
+
+        # Draw wall segments with different colors
+        for idx, points in enumerate(wall_segments):
             if len(points) >= 2:
+                # Choose color based on segment index
+                color = wall_colors[idx % len(wall_colors)]
+
                 # Scale the coordinates to match the original image
                 scaled_points = [
                     {"x": int(p["x"] * scale_x), "y": int(p["y"] * scale_y)}
@@ -497,20 +564,20 @@ def draw_features_on_image(
                             (scaled_points[i]["x"], scaled_points[i]["y"]),
                             (scaled_points[i + 1]["x"], scaled_points[i + 1]["y"]),
                         ],
-                        fill=(255, 0, 0),  # Red color for walls
-                        width=max(
-                            2, int(2 * min(scale_x, scale_y))
-                        ),  # Scale line width
+                        fill=color,
+                        width=line_width,
                     )
-                # Connect last point to first point
-                draw.line(
-                    [
-                        (scaled_points[-1]["x"], scaled_points[-1]["y"]),
-                        (scaled_points[0]["x"], scaled_points[0]["y"]),
-                    ],
-                    fill=(255, 0, 0),  # Red color for walls
-                    width=max(2, int(2 * min(scale_x, scale_y))),  # Scale line width
-                )
+
+                # Connect last point to first point to close the contour
+                if len(scaled_points) > 2:  # Only close if there are at least 3 points
+                    draw.line(
+                        [
+                            (scaled_points[-1]["x"], scaled_points[-1]["y"]),
+                            (scaled_points[0]["x"], scaled_points[0]["y"]),
+                        ],
+                        fill=color,
+                        width=line_width,
+                    )
 
         # Portal segments are skipped/commented out for now
         # for start, end in portal_segments:
@@ -523,43 +590,15 @@ def draw_features_on_image(
         # Convert back to bytes
         img_bytes = BytesIO()
         image.save(img_bytes, format="PNG")
-        return img_bytes.getvalue()
+        return create_image_artifact(
+            content=img_bytes.getvalue(),
+            key="feature-detected-image",
+            content_type="image/png",
+            description="Feature detected map image",
+        )
 
     except Exception as e:
         logger.error("Error drawing features on image: %s", e)
-        raise
-
-
-@task(name="upload_image_to_minio", retries=2)
-def upload_image_to_minio(image_bytes: bytes, object_name: str) -> str:
-    """
-    Upload an image to MinIO and return its URL.
-
-    Args:
-        image_bytes: Image data as bytes
-        object_name: MinIO object name
-
-    Returns:
-        Public URL of the uploaded image
-    """
-    logger = get_run_logger()
-    logger.info("Uploading image to MinIO: %s", object_name)
-
-    # MinIO config from environment
-    minio_public_url = os.environ.get("MINIO_PUBLIC_URL")
-    minio_bucket = os.environ.get("MINIO_BUCKET_NAME")
-
-    if not all([minio_bucket, minio_public_url]):
-        raise RuntimeError("Missing one or more required MinIO environment variables.")
-
-    try:
-        # Upload to MinIO
-        upload_to_minio(object_name, image_bytes, content_type="image/png")
-        image_url = f"{minio_public_url}/{minio_bucket}/{object_name}"
-        logger.info("Image uploaded successfully: %s", image_url)
-        return image_url
-    except Exception as e:
-        logger.error("Error uploading image to MinIO: %s", e)
         raise
 
 
@@ -568,7 +607,7 @@ def upload_image_to_minio(image_bytes: bytes, object_name: str) -> str:
     timeout_seconds=FEATURE_DETECTION_TIMEOUT,
     persist_result=True,
 )
-def detect_features_flow(image_url: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+def detect_features_flow(image_url: str) -> Dict[str, Any]:
     """
     Main flow for detecting features in a map image using OpenAI and CV2.
 
@@ -594,6 +633,12 @@ def detect_features_flow(image_url: str, parameters: Dict[str, Any]) -> Dict[str
 
         # Step 2: Fetch the image
         original_image_bytes = fetch_image(image_url)
+        create_image_artifact(
+            content=original_image_bytes,
+            key="original-image",
+            content_type="image/png",
+            description="Original map image",
+        )
         send_progress_update(
             status="running", progress=10.0, message="Image fetched successfully"
         )
@@ -601,22 +646,20 @@ def detect_features_flow(image_url: str, parameters: Dict[str, Any]) -> Dict[str
         # Get original image dimensions
         original_image = Image.open(BytesIO(original_image_bytes))
         original_size = original_image.size  # (width, height)
-        logger.info(f"Original image size: {original_size[0]}x{original_size[1]}")
+        logger.info("Original image size: %dx%d", original_size[0], original_size[1])
 
         # Step 3: Resize the image
-        resized_image_bytes, resized_size_description = resize_image(
-            original_image_bytes
-        )
-
+        resized_artifact = resize_image(original_image_bytes)
+        resized_image_bytes = fetch_artifact_data(resized_artifact)
         # Get resized dimensions
         resized_image = Image.open(BytesIO(resized_image_bytes))
         resized_size = resized_image.size  # (width, height)
-        logger.info(f"Resized image size: {resized_size[0]}x{resized_size[1]}")
+        logger.info("Resized image size: %dx%d", resized_size[0], resized_size[1])
 
         send_progress_update(
             status="running",
             progress=15.0,
-            message=f"Image resized to {resized_size_description}",
+            message=f"Image resized to {resized_size[0]}x{resized_size[1]}",
         )
 
         # Step 4: Generate wall outline image
@@ -626,23 +669,12 @@ def detect_features_flow(image_url: str, parameters: Dict[str, Any]) -> Dict[str
         send_progress_update(
             status="running", progress=20.0, message="Generating wall outlines"
         )
-        wall_image_bytes = outline_impassable_areas(
-            resized_image_bytes, resized_size_description
-        )
 
-        # Upload wall outline image
-        wall_object_name = f"maps/wall_outline_{timestamp}.png"
-        wall_image_url = upload_image_to_minio(wall_image_bytes, wall_object_name)
-        create_link_artifact(
-            key="wall-image-url",
-            link=wall_image_url,
-            description="Wall outline image",
-        )
+        wall_outline_artifact = outline_impassable_areas(resized_artifact)
 
         # Skip portal highlight image generation/detection
         # Empty placeholder for portal segments
         portal_segments = []
-        portal_image_url = None
 
         send_progress_update(
             status="running", progress=45.0, message="Generated outline images"
@@ -652,7 +684,7 @@ def detect_features_flow(image_url: str, parameters: Dict[str, Any]) -> Dict[str
         send_progress_update(
             status="running", progress=50.0, message="Detecting wall segments"
         )
-        wall_segments = detect_wall_segments(wall_image_bytes)
+        wall_segments = detect_wall_segments(wall_outline_artifact)
 
         # Skip portal detection
         send_progress_update(
@@ -669,12 +701,12 @@ def detect_features_flow(image_url: str, parameters: Dict[str, Any]) -> Dict[str
         )
         json_bytes = save_features_to_json(wall_segments, portal_segments)
         json_object_name = f"maps/map_features_{timestamp}.json"
-        json_url = upload_json_to_minio(json_bytes, json_object_name)
-
-        create_link_artifact(
-            key="features-json-url",
-            link=json_url,
-            description="JSON file with wall coordinates",
+        json_artifact = create_link_artifact(
+            content=json_bytes,
+            key="vtt-json",
+            object_name=json_object_name,
+            content_type="application/json",
+            description=f"JSON file: {json_object_name}",
         )
 
         # Step 7: Draw features on the original image
@@ -683,7 +715,7 @@ def detect_features_flow(image_url: str, parameters: Dict[str, Any]) -> Dict[str
             progress=85.0,
             message="Drawing features on original image",
         )
-        final_image_bytes = draw_features_on_image(
+        final_image_artifact = draw_features_on_image(
             original_image_bytes,
             wall_segments,
             portal_segments,
@@ -691,23 +723,13 @@ def detect_features_flow(image_url: str, parameters: Dict[str, Any]) -> Dict[str
             resized_size,
         )
 
-        # Step 8: Upload final image
-        final_object_name = f"maps/feature_detected_map_{timestamp}.png"
-        final_image_url = upload_image_to_minio(final_image_bytes, final_object_name)
-
-        create_link_artifact(
-            key="final-image-url",
-            link=final_image_url,
-            description="Final feature-detected map image",
-        )
-
         # Prepare final result
         final_result = {
             "status": "completed",
-            "image_url": final_image_url,
+            "image_url": final_image_artifact.data,
             "wall_segments_count": len(wall_segments),
-            "wall_image_url": wall_image_url,
-            "features_json_url": json_url,
+            "wall_image_url": wall_outline_artifact.data,
+            "features_json_url": json_artifact.data,
             "original_size": f"{original_size[0]}x{original_size[1]}",
             "resized_size": f"{resized_size[0]}x{resized_size[1]}",
             "createdAt": datetime.utcnow().isoformat(),
@@ -720,7 +742,7 @@ def detect_features_flow(image_url: str, parameters: Dict[str, Any]) -> Dict[str
             # Detected Map Features
             
             **Original Image**: {image_url}
-            **Feature-Detected Image**: {final_image_url}
+            **Feature-Detected Image**: {final_image_artifact.data}
             
             ## Statistics
             
@@ -730,9 +752,9 @@ def detect_features_flow(image_url: str, parameters: Dict[str, Any]) -> Dict[str
             
             ## Process Images
             
-            - **Wall Outline Image**: [{wall_image_url}]({wall_image_url})
-            - **Final Feature Image**: [{final_image_url}]({final_image_url})
-            - **Features JSON**: [{json_url}]({json_url})
+            - **Wall Outline Image**: [{wall_outline_artifact.data}]({wall_outline_artifact.data})
+            - **Final Feature Image**: [{final_image_artifact.data}]({final_image_artifact.data})
+            - **Features JSON**: [{json_artifact.data}]({json_artifact.data})
             
             ## Feature Data Preview
             
