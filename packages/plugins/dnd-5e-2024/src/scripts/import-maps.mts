@@ -75,7 +75,6 @@ async function importMapsViaAPI() {
         await mapsClient.updateMap(mapId, {
           name: mapData.name,
           description: mapData.description || '',
-          gridColumns: mapData.columns
         });
         updated++;
       } else {

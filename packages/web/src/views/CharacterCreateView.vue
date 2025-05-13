@@ -137,7 +137,7 @@ async function handleSubmit(event: Event) {
 
     // Translate form data to character schema format
     console.log('Validation data:', validation.data);
-    const pluginData = pluginComponent.translateFormData(validation.data) as Record<string, any>;
+    const pluginData = pluginComponent.translateFormData(validation.data) as Record<string, unknown>;
     console.log('Plugin data:', pluginData);
 
     // Create a proper actor request object

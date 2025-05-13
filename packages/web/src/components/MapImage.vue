@@ -3,13 +3,26 @@
 import { ref, onMounted } from 'vue';
 import { ArrowPathIcon, XCircleIcon } from '@heroicons/vue/24/outline';
 
-
-const props = defineProps<{
-  mapId: string;
-  imageUrl?: string;
-  alt: string;
-  className?: string;
-}>();
+const props = defineProps({
+  mapId: {
+    type: String,
+    required: true
+  },
+  imageUrl: {
+    type: String,
+    required: false,
+    default: undefined
+  },
+  alt: {
+    type: String,
+    required: true
+  },
+  className: {
+    type: String,
+    required: false,
+    default: undefined
+  }
+});
 
 const imageError = ref(false);
 const loading = ref(true);

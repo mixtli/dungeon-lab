@@ -108,11 +108,35 @@
 </template>
 
 <script setup lang="ts">
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth.store.mjs';
 import type { IActor } from '@dungeon-lab/shared/types/index.mjs';
 import { InvitesClient, ActorsClient } from '@dungeon-lab/client/index.mjs';
+
+// Define interface for campaign invite structure
+interface Campaign {
+  id: string;
+  name: string;
+  gameSystemId: string;
+}
+
+interface User {
+  id: string;
+  email: string;
+}
+
+// Update interface to match the actual API response
+interface Invite {
+  id: string;
+  status: 'pending' | 'accepted' | 'declined' | 'expired';
+  campaignId: string | Campaign;
+  createdBy?: string | User;
+  updatedBy?: string;
+  expiresAt?: Date;
+  email?: string; // Some invite responses have this field
+}
 
 const invitesClient = new InvitesClient();
 const actorsClient = new ActorsClient();
@@ -121,21 +145,21 @@ const router = useRouter();
 const authStore = useAuthStore();
 const loading = ref(false);
 const error = ref<string | null>(null);
-const invites = ref<any[]>([]);
+const invites = ref<Invite[]>([]);
 const showCharacterSelect = ref(false);
 const loadingCharacters = ref(false);
 const compatibleCharacters = ref<IActor[]>([]);
-const selectedInvite = ref<any>(null);
+const selectedInvite = ref<Invite | null>(null);
 
 // Helper functions to handle both populated and non-populated data structures
-function getCampaignName(invite: any): string {
+function getCampaignName(invite: Invite): string {
   if (typeof invite.campaignId === 'string') {
     return 'Campaign';
   }
   return invite.campaignId?.name || 'Campaign';
 }
 
-function getCreatorEmail(invite: any): string {
+function getCreatorEmail(invite: Invite): string {
   if (typeof invite.createdBy === 'string') {
     return 'User';
   }
@@ -147,10 +171,12 @@ async function fetchInvites() {
   error.value = null;
 
   try {
-    const response = await invitesClient.getMyInvites();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const response = await invitesClient.getMyInvites() as unknown as Invite[];
     invites.value = response;
-  } catch (err: any) {
-    error.value = err.response?.data?.message || err.message || 'Failed to fetch invites';
+  } catch (err: unknown) {
+    const errorObj = err as Error & { response?: { data?: { message?: string } } };
+    error.value = errorObj.response?.data?.message || (errorObj as Error).message || 'Failed to fetch invites';
   } finally {
     loading.value = false;
   }
@@ -168,14 +194,15 @@ async function loadCompatibleCharacters(gameSystemId: string) {
         actor.createdBy === authStore.user?.id &&
         actor.type === 'character'
     );
-  } catch (err: any) {
-    error.value = err.response?.data?.message || err.message || 'Failed to load characters';
+  } catch (err: unknown) {
+    const errorObj = err as Error & { response?: { data?: { message?: string } } };
+    error.value = errorObj.response?.data?.message || (errorObj as Error).message || 'Failed to load characters';
   } finally {
     loadingCharacters.value = false;
   }
 }
 
-async function handleAccept(invite: any) {
+async function handleAccept(invite: Invite) {
   selectedInvite.value = invite;
   const gameSystemId = typeof invite.campaignId === 'string' 
     ? null 
@@ -189,14 +216,15 @@ async function handleAccept(invite: any) {
   }
 }
 
-async function handleDecline(invite: any) {
+async function handleDecline(invite: Invite) {
   try {
     await invitesClient.respondToInvite(invite.id, { status: 'declined' });
 
     // Remove from list
     invites.value = invites.value.filter(i => i.id !== invite.id);
-  } catch (err: any) {
-    error.value = err.response?.data?.message || err.message || 'Failed to decline invite';
+  } catch (err: unknown) {
+    const errorObj = err as Error & { response?: { data?: { message?: string } } };
+    error.value = errorObj.response?.data?.message || (errorObj as Error).message || 'Failed to decline invite';
   }
 }
 
@@ -210,13 +238,13 @@ async function selectCharacter(character: IActor) {
     });
 
     // Remove from list and close modal
-    invites.value = invites.value.filter(i => i.id !== selectedInvite.value.id);
+    invites.value = invites.value.filter(i => i.id !== selectedInvite.value?.id);
     showCharacterSelect.value = false;
 
     // Get campaign ID, handling both object and string formats
-    const campaignId = typeof selectedInvite.value.campaignId === 'string'
+    const campaignId = selectedInvite.value && typeof selectedInvite.value.campaignId === 'string'
       ? selectedInvite.value.campaignId
-      : selectedInvite.value.campaignId.id;
+      : (selectedInvite.value?.campaignId as Campaign)?.id;
 
     // Navigate to campaign
     if (campaignId) {
@@ -224,8 +252,9 @@ async function selectCharacter(character: IActor) {
     } else {
       error.value = "Could not determine campaign ID for navigation.";
     }
-  } catch (err: any) {
-    error.value = err.response?.data?.message || err.message || 'Failed to accept invite';
+  } catch (err: unknown) {
+    const errorObj = err as Error & { response?: { data?: { message?: string } } };
+    error.value = errorObj.response?.data?.message || (errorObj as Error).message || 'Failed to accept invite';
   }
 }
 

@@ -67,8 +67,8 @@ import { CreateActorRequest } from '@dungeon-lab/shared/types/api/index.mjs';
 const router = useRouter();
 
 const selectedGameSystemId = ref<string>('');
-const initialActorData = ref<Record<string, any>>({});
-const actorData = ref<Record<string, any>>({});
+const initialActorData = ref<Record<string, unknown>>({});
+const actorData = ref<Record<string, unknown>>({});
 const errorMessage = ref<string | null>(null);
 const isSubmitting = ref(false);
 
@@ -101,11 +101,11 @@ function proceedToCreation() {
   actorData.value = { ...initialActorData.value };
 }
 
-function updateActorData(data: Record<string, any>) {
+function updateActorData(data: Record<string, unknown>) {
   actorData.value = { ...actorData.value, ...data };
 }
 
-async function handleSubmit(data: Record<string, any>) {
+async function handleSubmit(data: Record<string, unknown>) {
   try {
     isSubmitting.value = true;
     errorMessage.value = null;
@@ -115,7 +115,7 @@ async function handleSubmit(data: Record<string, any>) {
       ...actorData.value,
       ...data,
       gameSystemId: selectedGameSystemId.value,
-      name: actorData.value.name || data.name || '',
+      name: (actorData.value.name as string) || (data.name as string) || '',
       type: 'character',
       data: data
     };

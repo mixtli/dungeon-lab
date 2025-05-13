@@ -32,9 +32,10 @@ async function fetchAsset() {
   try {
     const assetData = await assetClient.getAsset(assetId);
     asset.value = assetData || null;
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Failed to load asset:', err);
-    error.value = err.response?.data?.message || 'Failed to load asset';
+    const errorObj = err as { response?: { data?: { message?: string } } };
+    error.value = errorObj.response?.data?.message || (err as Error).message || 'Failed to load asset';
   } finally {
     loading.value = false;
   }
@@ -50,9 +51,10 @@ async function deleteAsset() {
     await assetClient.deleteAsset(assetId);
     // Navigate back to assets list after successful deletion
     router.push('/assets');
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Failed to delete asset:', err);
-    showToast(err.response?.data?.message || 'Failed to delete asset');
+    const errorObj = err as { response?: { data?: { message?: string } } };
+    showToast(errorObj.response?.data?.message || (err as Error).message || 'Failed to delete asset');
   } finally {
     deleting.value = false;
     showDeleteConfirm.value = false;
@@ -172,7 +174,7 @@ function formatMetadataKey(key: string): string {
 }
 
 // Helper function to format metadata values
-function formatMetadataValue(value: any): string {
+function formatMetadataValue(value: unknown): string {
   if (value === null || value === undefined) return 'None';
   if (typeof value === 'boolean') return value ? 'Yes' : 'No';
   if (typeof value === 'object') return JSON.stringify(value);

@@ -1,0 +1,243 @@
+<template>
+    <div class="properties-panel">
+        <h3 class="panel-title">Properties</h3>
+
+        <div class="panel-content">
+            <template v-if="selectedObjects.length === 1">
+                <!-- Single object selected -->
+                <div class="object-properties">
+                    <!-- Common properties -->
+                    <div class="property-group">
+                        <h4>General</h4>
+                        <div class="property-row">
+                            <label>ID:</label>
+                            <span>{{ selectedObject?.id }}</span>
+                        </div>
+                        <div class="property-row">
+                            <label>Type:</label>
+                            <span>{{ objectTypeLabel }}</span>
+                        </div>
+                    </div>
+
+                    <!-- Type-specific properties -->
+                    <template v-if="selectedObject?.objectType === 'wall'">
+                        <div class="property-group">
+                            <h4>Wall Properties</h4>
+                            <div class="property-row">
+                                <label>Color:</label>
+                                <input type="color" :value="(selectedObject as WallObject).stroke || '#ff3333'"
+                                    @change="updateProperty('stroke', ($event.target as HTMLInputElement).value)" />
+                            </div>
+                            <div class="property-row">
+                                <label>Width:</label>
+                                <input type="number" :value="(selectedObject as WallObject).strokeWidth || 3" min="1"
+                                    max="10"
+                                    @change="updateProperty('strokeWidth', parseInt(($event.target as HTMLInputElement).value))" />
+                            </div>
+                        </div>
+                    </template>
+
+                    <template v-else-if="selectedObject?.objectType === 'portal'">
+                        <div class="property-group">
+                            <h4>Portal Properties</h4>
+                            <div class="property-row">
+                                <label>State:</label>
+                                <select :value="(selectedObject as PortalObject).closed ? 'closed' : 'open'"
+                                    @change="updateProperty('closed', ($event.target as HTMLSelectElement).value === 'closed')">
+                                    <option value="closed">Closed</option>
+                                    <option value="open">Open</option>
+                                </select>
+                            </div>
+                            <div class="property-row">
+                                <label>Rotation:</label>
+                                <input type="number" :value="(selectedObject as PortalObject).rotation" min="0"
+                                    max="359"
+                                    @change="updateProperty('rotation', parseInt(($event.target as HTMLInputElement).value))" />
+                            </div>
+                            <div class="property-row">
+                                <label>Freestanding:</label>
+                                <input type="checkbox" :checked="(selectedObject as PortalObject).freestanding"
+                                    @change="updateProperty('freestanding', ($event.target as HTMLInputElement).checked)" />
+                            </div>
+                        </div>
+                    </template>
+
+                    <template v-else-if="selectedObject?.objectType === 'light'">
+                        <div class="property-group">
+                            <h4>Light Properties</h4>
+                            <div class="property-row">
+                                <label>Color:</label>
+                                <input type="color" :value="(selectedObject as LightObject).color"
+                                    @change="updateProperty('color', ($event.target as HTMLInputElement).value)" />
+                            </div>
+                            <div class="property-row">
+                                <label>Range:</label>
+                                <input type="number" :value="(selectedObject as LightObject).range" min="0" max="500"
+                                    step="10"
+                                    @change="updateProperty('range', parseInt(($event.target as HTMLInputElement).value))" />
+                            </div>
+                            <div class="property-row">
+                                <label>Intensity:</label>
+                                <input type="range" :value="(selectedObject as LightObject).intensity" min="0" max="1"
+                                    step="0.1"
+                                    @input="updateProperty('intensity', parseFloat(($event.target as HTMLInputElement).value))" />
+                                <span class="range-value">{{ ((selectedObject as LightObject).intensity || 0).toFixed(1)
+                                    }}</span>
+                            </div>
+                            <div class="property-row">
+                                <label>Shadows:</label>
+                                <input type="checkbox" :checked="(selectedObject as LightObject).shadows"
+                                    @change="updateProperty('shadows', ($event.target as HTMLInputElement).checked)" />
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </template>
+
+            <template v-else-if="selectedObjects.length > 1">
+                <!-- Multiple objects selected -->
+                <div class="multiple-selection">
+                    <p>{{ selectedObjects.length }} objects selected</p>
+
+                    <!-- Common actions for multiple objects -->
+                    <div class="property-group">
+                        <h4>Bulk Actions</h4>
+                        <button @click="deleteSelected" class="danger-button">Delete All</button>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+</template>
+
+<script setup lang="ts">
+import { computed } from 'vue';
+import type {
+    WallObject,
+    PortalObject,
+    LightObject,
+    AnyEditorObject
+} from '../../../../../shared/src/types/mapEditor.mjs';
+
+// Props and emits
+const props = defineProps<{
+    selectedObjects: AnyEditorObject[];
+}>();
+
+const emit = defineEmits<{
+    (e: 'property-updated', objectId: string, property: string, value: unknown): void;
+    (e: 'delete-objects', objectIds: string[]): void;
+}>();
+
+// Computed properties
+const selectedObject = computed(() => {
+    return props.selectedObjects.length > 0 ? props.selectedObjects[0] : null;
+});
+
+const objectTypeLabel = computed(() => {
+    if (!selectedObject.value) return '';
+
+    switch (selectedObject.value.objectType) {
+        case 'wall': return 'Wall';
+        case 'portal': return 'Portal/Door';
+        case 'light': return 'Light Source';
+        default: return 'Unknown';
+    }
+});
+
+// Methods
+const updateProperty = (property: string, value: unknown) => {
+    if (selectedObject.value) {
+        emit('property-updated', selectedObject.value.id, property, value);
+    }
+};
+
+const deleteSelected = () => {
+    const selectedIds = props.selectedObjects.map(obj => obj.id);
+    if (selectedIds.length > 0) {
+        if (confirm(`Delete ${selectedIds.length} selected objects?`)) {
+            emit('delete-objects', selectedIds);
+        }
+    }
+};
+</script>
+
+<style scoped>
+.properties-panel {
+    padding: 10px;
+    overflow-y: auto;
+}
+
+.panel-title {
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 16px;
+    color: #333;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #ddd;
+}
+
+.property-group {
+    margin-bottom: 15px;
+}
+
+.property-group h4 {
+    font-size: 14px;
+    margin: 5px 0;
+    color: #666;
+}
+
+.property-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.property-row label {
+    flex: 0 0 80px;
+    font-size: 12px;
+}
+
+.property-row input[type="text"],
+.property-row input[type="number"],
+.property-row input[type="range"],
+.property-row select {
+    flex: 1;
+    padding: 4px;
+    font-size: 12px;
+}
+
+.property-row input[type="color"] {
+    width: 40px;
+    height: 20px;
+    padding: 0;
+    border: 1px solid #ccc;
+}
+
+.property-row .range-value {
+    width: 30px;
+    text-align: right;
+    font-size: 12px;
+    margin-left: 5px;
+}
+
+.danger-button {
+    background-color: #ff4d4d;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.danger-button:hover {
+    background-color: #ff0000;
+}
+
+.multiple-selection {
+    color: #666;
+    font-size: 14px;
+    text-align: center;
+}
+</style>

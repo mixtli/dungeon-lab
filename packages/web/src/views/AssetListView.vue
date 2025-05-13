@@ -1,4 +1,5 @@
 <script setup lang="ts">
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { ref, computed, onMounted } from 'vue';
 import { RouterLink } from 'vue-router';
 import { AssetsClient } from '@dungeon-lab/client/index.mjs';
@@ -145,7 +146,7 @@ async function loadAssets() {
   
   try {
     // Build query params
-    const params: Record<string, any> = {
+    const params: Record<string, unknown> = {
       page: currentPage.value,
       limit: pageSize.value
     };
@@ -161,16 +162,17 @@ async function loadAssets() {
       params.order = order;
     }
 
-    const assetsData = await assetsClient.getAssets(params);
+    const assetsData = await assetsClient.getAssets(params as Record<string, string | number | boolean>);
 
     // Handle the response format
     assets.value = assetsData || [];
     // Note: Since our API doesn't return pagination metadata along with the results,
     // we're using the array length as a fallback for total count
     totalAssets.value = assetsData.length;
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Failed to load assets:', err);
-    error.value = err.response?.data?.message || 'Failed to load assets';
+    const errorObj = err as { response?: { data?: { message?: string } } };
+    error.value = errorObj.response?.data?.message || (err as Error).message || 'Failed to load assets';
   } finally {
     loading.value = false;
   }

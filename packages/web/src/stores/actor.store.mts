@@ -44,7 +44,6 @@ export const useActorStore = defineStore(
     };
   },
   {
-    // @ts-ignore - The type definitions for Pinia persist don't include all available options
     persist: {
       key: 'actor-store',
       storage: localStorage,
@@ -68,8 +67,8 @@ export const useActorStore = defineStore(
             }
             return value;
           });
-        },
-      },
-    },
+        }
+      }
+    }
   }
 );
