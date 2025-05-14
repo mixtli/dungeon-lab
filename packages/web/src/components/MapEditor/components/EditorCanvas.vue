@@ -180,9 +180,12 @@ const backgroundImageConfig = computed(() => ({
 const gridSystem = useGridSystem(props.gridConfig);
 
 // Filtered objects by visibility
-const visibleWalls = computed(() =>
-    props.walls.filter(wall => wall.visible !== false)
-);
+const visibleWalls = computed(() => {
+    console.log('All walls:', props.walls.length);
+    const visible = props.walls.filter(wall => wall.visible !== false);
+    console.log('Visible walls:', visible.length);
+    return visible;
+});
 
 const visiblePortals = computed(() =>
     props.portals.filter(portal => portal.visible !== false)
@@ -230,10 +233,23 @@ const transformerConfig = computed(() => ({
 
 // Configure objects based on their data
 const getWallConfig = (wall: WallObject) => {
-    // Ensure all points are valid numbers
-    const validPoints = wall.points.map(p => typeof p === 'number' && !isNaN(p) ? p : 0);
+    console.log('Rendering wall ID:', wall.id);
+    console.log('Wall points type:', typeof wall.points, Array.isArray(wall.points) ? 'is array' : 'not array');
+    console.log('Wall points length:', wall.points.length);
     
-    return {
+    // Ensure all points are valid numbers
+    const validPoints = Array.isArray(wall.points) ? 
+        wall.points.map((p, index) => {
+            const isValid = typeof p === 'number' && !isNaN(p);
+            if (!isValid) {
+                console.warn(`Invalid point at index ${index}, value:`, p);
+            }
+            return isValid ? p : 0;
+        }) : [];
+    
+    console.log('Valid points for rendering:', validPoints.length);
+    
+    const config = {
         points: validPoints,
         stroke: wall.stroke || '#ff3333',
         strokeWidth: wall.strokeWidth || 3,
@@ -242,6 +258,9 @@ const getWallConfig = (wall: WallObject) => {
         draggable: props.currentTool === 'select',
         id: wall.id
     };
+
+    console.log('Wall config:', config);
+    return config;
 };
 
 const getPortalGroupConfig = (portal: PortalObject) => ({

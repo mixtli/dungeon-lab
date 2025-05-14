@@ -10,7 +10,7 @@ packages/
     └── src/
         └── components/
             └── MapEditor/
-                ├── MapEditorView.vue           # Main container component
+                ├── MapEditorComponent.vue           # Main container component
                 ├── components/
                 │   ├── EditorToolbar.vue       # Tool selection and controls
                 │   ├── EditorCanvas.vue        # Konva canvas implementation
@@ -31,10 +31,12 @@ packages/
 ## Key Files and Their Responsibilities
 
 ### Views
-
-- **MapEditorView.vue**: Main container component that coordinates all parts of the editor. Handles routing integration, editor initialization, and high-level operations.
+- **MapEditorView.vue**:  The main view for the map editor.  Contains the component and is responsible for loading data into and out of it. 
 
 ### Components
+
+- **MapEditorComponent.vue**: Main container component that coordinates all parts of the editor. Handles routing integration, editor initialization, and high-level operations.
+
 
 - **EditorToolbar.vue**: Tool selection interface that shows available tools and allows the user to switch between them.
 

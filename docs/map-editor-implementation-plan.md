@@ -10,11 +10,12 @@ This document outlines the step-by-step implementation plan for the AI-powered m
   - [x] Setup directory structure for components and composables
   - [x] Configure necessary dependencies (Konva.js, vue-konva)
 
-- [ ] **Canvas Foundation**
+- [x] **Canvas Foundation**
 
   - [x] Implement basic EditorCanvas component with Konva.js
   - [x] Setup stage, layers, and basic rendering
-  - [ ] Implement zoom and pan functionality
+  - [x] Implement pan functionality
+  - [x] Implement zoom functionality
 
 - [ ] **Map Loading**
 

@@ -50,7 +50,7 @@ import type {
     PortalObject,
     LightObject,
     UVTTData
-} from '../../../../shared/src/types/mapEditor.mjs';
+} from '@dungeon-lab/shared/src/types/mapEditor.mts';
 
 // Import editor components
 import EditorToolbar from './components/EditorToolbar.vue';
@@ -82,6 +82,20 @@ watch(() => props.initialData, (newData) => {
 // Load map data from UVTT
 const loadMapData = (data: UVTTData) => {
     try {
+        console.log('Loading map data:', {
+            format: data.format,
+            resolution: data.resolution,
+            line_of_sight_length: data.line_of_sight?.length || 0,
+            portals_length: data.portals?.length || 0,
+            lights_length: data.lights?.length || 0
+        });
+        
+        // Log the first few line_of_sight entries to understand their structure
+        if (data.line_of_sight && data.line_of_sight.length > 0) {
+            console.log('First line_of_sight entry structure:', JSON.stringify(data.line_of_sight[0]));
+            console.log('line_of_sight sample (first 3 entries):', JSON.stringify(data.line_of_sight.slice(0, 3)));
+        }
+
         // Set the map metadata
         editorState.mapMetadata = {
             ...data,
@@ -95,14 +109,46 @@ const loadMapData = (data: UVTTData) => {
 
         // Load walls
         if (data.line_of_sight) {
-            const wallPoints = convertUVTTPointsToWallPoints(data.line_of_sight);
-            editorState.walls.value = wallPoints.map((points, index) => ({
-                id: `wall-${index}`,
-                objectType: 'wall',
-                points,
-                visible: true,
-                locked: false
-            }));
+            console.log('Loading line_of_sight data:', data.line_of_sight);
+            console.log('line_of_sight type:', typeof data.line_of_sight, Array.isArray(data.line_of_sight));
+            
+            // Ensure line_of_sight is an array
+            if (Array.isArray(data.line_of_sight)) {
+                // Reset the walls array
+                editorState.walls.value = [];
+                
+                // Process each wall
+                data.line_of_sight.forEach((wall, wallIndex) => {
+                    if (Array.isArray(wall)) {
+                        // For nested arrays, each wall is an array of points
+                        console.log(`Processing wall ${wallIndex} with ${wall.length} points`);
+                        
+                        // Convert the points to our internal format
+                        const wallPoints = wall.map(point => {
+                            if (point && typeof point.x === 'number' && typeof point.y === 'number') {
+                                return [point.x, point.y];
+                            }
+                            return null;
+                        }).filter(point => point !== null) as [number, number][];
+                        
+                        if (wallPoints.length >= 2) {
+                            // Create a new wall object
+                            editorState.walls.value.push({
+                                id: `wall-${wallIndex}`,
+                                objectType: 'wall',
+                                points: flattenWallPointsForKonva(wallPoints),
+                                visible: true,
+                                locked: false
+                            });
+                        }
+                    } else if (wall && typeof wall.x === 'number' && typeof wall.y === 'number') {
+                        // For flat arrays, each element is a point
+                        console.warn('Unexpected format: line_of_sight contains individual points, not arrays of points');
+                    }
+                });
+                
+                console.log(`Loaded ${editorState.walls.value.length} walls`);
+            }
         }
 
         // Load portals
@@ -142,15 +188,10 @@ const loadMapData = (data: UVTTData) => {
     }
 };
 
-// Helper for converting UVTT points to wall points array
-const convertUVTTPointsToWallPoints = (points: { x: number; y: number }[]) => {
-    const wallSegments: number[][] = [];
-    // Simple implementation - can be improved for more advanced wall handling
-    if (points.length > 1) {
-        const flatPoints = points.flatMap(p => [p.x, p.y]);
-        wallSegments.push(flatPoints);
-    }
-    return wallSegments;
+// Helper for flattening wall points for Konva
+const flattenWallPointsForKonva = (points: [number, number][]): number[] => {
+    // Konva expects a flat array of numbers [x1, y1, x2, y2, ...]
+    return points.flatMap(point => [point[0], point[1]]);
 };
 
 // Event handlers
@@ -172,6 +213,15 @@ const handleObjectAdded = (object: AnyEditorObject) => {
 };
 
 const handleObjectModified = (id: string, updates: Partial<AnyEditorObject>) => {
+    // Special case for viewport transform
+    if (id === 'viewport' && 'viewportTransform' in updates) {
+        // Update the viewport transform directly
+        const viewportUpdates = updates.viewportTransform as { scale: number; position: { x: number; y: number } };
+        editorState.viewportTransform.scale = viewportUpdates.scale;
+        editorState.viewportTransform.position = viewportUpdates.position;
+        return;
+    }
+
     // Find object to determine its type
     const object = editorState.allObjects.value.find(obj => obj.id === id);
 
@@ -300,21 +350,21 @@ const convertEditorStateToUVTT = (): UVTTData => {
 // Lifecycle hooks
 onMounted(() => {
     // Initialize editor or load map data
-    window.addEventListener('beforeunload', handleBeforeUnload);
+    // Removed event listener for beforeunload
 });
 
 onUnmounted(() => {
-    window.removeEventListener('beforeunload', handleBeforeUnload);
+    // Removed event listener for beforeunload
 });
 
-// Prevent accidental navigation when map is modified
-const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-    if (editorState.isModified.value) {
-        const message = 'You have unsaved changes. Are you sure you want to leave?';
-        e.returnValue = message;
-        return message;
-    }
-};
+// Prevent accidental navigation when map is modified (disabled)
+// const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+//     if (editorState.isModified.value) {
+//         const message = 'You have unsaved changes. Are you sure you want to leave?';
+//         e.returnValue = message;
+//         return message;
+//     }
+// };
 </script>
 
 <style scoped>

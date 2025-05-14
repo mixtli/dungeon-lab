@@ -11,7 +11,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import MapEditorView from '@/components/MapEditor/MapEditorView.vue';
+import MapEditorView from '@/components/MapEditor/MapEditorComponent.vue';
 import axios from 'axios';
 // Import UVTTData type from shared types
 import type { UVTTData } from '@/../../shared/src/types/mapEditor.mjs';

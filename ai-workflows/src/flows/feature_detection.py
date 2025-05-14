@@ -320,7 +320,7 @@ def detect_lines_with_hough(gray_image: np.ndarray) -> List[List[Dict[str, int]]
     return line_segments
 
 
-def detect_contours(binary_image: np.ndarray) -> List[List[Dict[str, int]]]:
+def detect_contours(binary_image: np.ndarray) -> List[List[Tuple[int, int]]]:
     """
     Detect contours in a binary image.
 
@@ -328,7 +328,7 @@ def detect_contours(binary_image: np.ndarray) -> List[List[Dict[str, int]]]:
         binary_image: Binary image as numpy array
 
     Returns:
-        List of contour segments as lists of points
+        List of contour segments as lists of points (each point is a tuple of (x, y) coordinates)
     """
     logger = get_run_logger()
 
@@ -352,7 +352,8 @@ def detect_contours(binary_image: np.ndarray) -> List[List[Dict[str, int]]]:
         if (
             len(approx) >= 3
         ):  # Ensure there are enough points to form a meaningful shape
-            line_coords = [{"x": int(pt[0][0]), "y": int(pt[0][1])} for pt in approx]
+            # Convert NumPy int32 values to Python int
+            line_coords = [(int(pt[0][0]), int(pt[0][1])) for pt in approx]
             contour_segments.append(line_coords)
 
     logger.info(f"Extracted {len(contour_segments)} contour segments")
@@ -361,7 +362,7 @@ def detect_contours(binary_image: np.ndarray) -> List[List[Dict[str, int]]]:
 
 
 @task(name="detect_wall_segments", retries=2)
-def detect_wall_segments(wall_outline_artifact: Artifact) -> List[List[Dict[str, int]]]:
+def detect_wall_segments(wall_outline_artifact: Artifact) -> List[List[Tuple[int, int]]]:
     """
     Use OpenCV to detect wall segments from the outlined image.
 
@@ -446,7 +447,8 @@ def detect_portal_segments(
         portal_segments: List[Tuple[Tuple[int, int], Tuple[int, int]]] = []
         if lines is not None:
             for line in lines:
-                x1, y1, x2, y2 = line[0]
+                # Convert NumPy int32 to Python int
+                x1, y1, x2, y2 = int(line[0][0]), int(line[0][1]), int(line[0][2]), int(line[0][3])
                 portal_segments.append(((x1, y1), (x2, y2)))
 
         logger.info("Detected %d portal segments", len(portal_segments))
@@ -517,7 +519,7 @@ def save_features_to_json(
 @task(name="draw_features_on_image", retries=1)
 def draw_features_on_image(
     original_image_bytes: bytes,
-    wall_segments: List[List[Dict[str, int]]],
+    wall_segments: List[List[Tuple[int, int]]],
     portal_segments: List[Tuple[Tuple[int, int], Tuple[int, int]]],
     original_size: Tuple[int, int],
     resized_size: Tuple[int, int],
@@ -575,7 +577,7 @@ def draw_features_on_image(
 
                 # Scale the coordinates to match the original image
                 scaled_points = [
-                    {"x": int(p["x"] * scale_x), "y": int(p["y"] * scale_y)}
+                    (int(p[0] * scale_x), int(p[1] * scale_y))
                     for p in points
                 ]
 
@@ -583,8 +585,8 @@ def draw_features_on_image(
                 for i in range(len(scaled_points) - 1):
                     draw.line(
                         [
-                            (scaled_points[i]["x"], scaled_points[i]["y"]),
-                            (scaled_points[i + 1]["x"], scaled_points[i + 1]["y"]),
+                            (scaled_points[i][0], scaled_points[i][1]),
+                            (scaled_points[i + 1][0], scaled_points[i + 1][1]),
                         ],
                         fill=color,
                         width=line_width,
@@ -594,8 +596,8 @@ def draw_features_on_image(
                 if len(scaled_points) > 2:  # Only close if there are at least 3 points
                     draw.line(
                         [
-                            (scaled_points[-1]["x"], scaled_points[-1]["y"]),
-                            (scaled_points[0]["x"], scaled_points[0]["y"]),
+                            (scaled_points[-1][0], scaled_points[-1][1]),
+                            (scaled_points[0][0], scaled_points[0][1]),
                         ],
                         fill=color,
                         width=line_width,
@@ -630,7 +632,7 @@ def draw_features_on_image(
 
 @task(name="create_uvtt_file", retries=2)
 def create_uvtt_file(
-    wall_segments: List[List[Dict[str, int]]],
+    wall_segments: List[List[Tuple[int, int]]],
     portal_segments: List[Tuple[Tuple[int, int], Tuple[int, int]]],
     original_image_bytes: bytes,
     original_size: Tuple[int, int],
@@ -654,44 +656,48 @@ def create_uvtt_file(
     
     try:
         # Calculate map size in grid units
-        width_in_squares = original_size[0] / pixels_per_grid
-        height_in_squares = original_size[1] / pixels_per_grid
+        width_in_squares = float(original_size[0] / pixels_per_grid)
+        height_in_squares = float(original_size[1] / pixels_per_grid)
         
-        # Convert wall segments to line_of_sight format (arrays of x,y points in grid units)
+        # Convert wall segments to line_of_sight format (arrays of x,y points)
         line_of_sight = []
         for wall in wall_segments:
-            # Convert each point to grid units and add to line_of_sight
+            # Use absolute coordinates without dividing by pixels_per_grid
             wall_points = []
             for point in wall:
                 wall_points.append({
-                    "x": point["x"] / pixels_per_grid,
-                    "y": point["y"] / pixels_per_grid
+                    "x": int(point[0]),  # Ensure it's a Python int
+                    "y": int(point[1])   # Ensure it's a Python int
                 })
             line_of_sight.append(wall_points)
         
         # Convert portal segments to portals format
         portals = []
         for idx, (start, end) in enumerate(portal_segments):
-            # Calculate center position and bounds
-            center_x = (start[0] + end[0]) / 2 / pixels_per_grid
-            center_y = (start[1] + end[1]) / 2 / pixels_per_grid
+            # Convert coordinates to native Python types
+            start_x, start_y = int(start[0]), int(start[1])
+            end_x, end_y = int(end[0]), int(end[1])
+            
+            # Calculate center position using absolute coordinates
+            center_x = float((start_x + end_x) / 2)
+            center_y = float((start_y + end_y) / 2)
             
             # Calculate angle
-            dx = end[0] - start[0]
-            dy = end[1] - start[1]
-            rotation = np.arctan2(dy, dx)
+            dx = end_x - start_x
+            dy = end_y - start_y
+            rotation = float(np.arctan2(dy, dx))
             
-            # Create portal object
+            # Create portal object with absolute coordinates
             portal = {
                 "position": {
                     "x": center_x,
                     "y": center_y
                 },
                 "bounds": [
-                    {"x": start[0] / pixels_per_grid, "y": start[1] / pixels_per_grid},
-                    {"x": end[0] / pixels_per_grid, "y": end[1] / pixels_per_grid}
+                    {"x": start_x, "y": start_y},
+                    {"x": end_x, "y": end_y}
                 ],
-                "rotation": float(rotation),
+                "rotation": rotation,
                 "closed": False,
                 "freestanding": False
             }
@@ -711,7 +717,7 @@ def create_uvtt_file(
             image.save(output_buffer, format="PNG")
             base64_image = base64.b64encode(output_buffer.getvalue()).decode('utf-8')
         
-        # Assemble the UVTT format
+        # Assemble the UVTT format with native Python types
         uvtt_data = {
             "format": 1.0,  # Version number
             "resolution": {
@@ -723,7 +729,7 @@ def create_uvtt_file(
                     "x": width_in_squares,
                     "y": height_in_squares
                 },
-                "pixels_per_grid": pixels_per_grid
+                "pixels_per_grid": int(pixels_per_grid)
             },
             "line_of_sight": line_of_sight,
             "portals": portals,
@@ -732,6 +738,7 @@ def create_uvtt_file(
             "software": "DungeonLab",
             "creator": "DungeonLab Feature Detection"
         }
+        logger.info(f"UVTT data: {uvtt_data}")
         
         # Convert to JSON
         uvtt_json = json.dumps(uvtt_data).encode('utf-8')
