@@ -34,21 +34,22 @@
             </div>
 
             <div class="map-actions">
-                <button @click="handleSave">Save</button>
-                <button @click="handleExport">Export UVTT</button>
+                <button @click="handleSave" class="save-button">Save</button>
+                <button @click="handleExport" class="export-button">Export UVTT</button>
             </div>
         </div>
     </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted } from 'vue';
+import { onMounted, onUnmounted, watch } from 'vue';
 import { useEditorState } from './composables/useEditorState.mjs';
 import type {
     AnyEditorObject,
     WallObject,
     PortalObject,
-    LightObject
+    LightObject,
+    UVTTData
 } from '../../../../shared/src/types/mapEditor.mjs';
 
 // Import editor components
@@ -57,8 +58,100 @@ import EditorCanvas from './components/EditorCanvas.vue';
 import EditorPropertiesPanel from './components/EditorPropertiesPanel.vue';
 import EditorLayerPanel from './components/EditorLayerPanel.vue';
 
+// Define props
+const props = defineProps<{
+    mapId?: string;
+    initialData?: UVTTData | null;
+}>();
+
+// Define emits
+const emit = defineEmits<{
+    (e: 'save', data: UVTTData): void;
+}>();
+
 // Initialize the editor state
 const editorState = useEditorState();
+
+// Watch for initial data to load
+watch(() => props.initialData, (newData) => {
+    if (newData) {
+        loadMapData(newData);
+    }
+}, { immediate: true });
+
+// Load map data from UVTT
+const loadMapData = (data: UVTTData) => {
+    try {
+        // Set the map metadata
+        editorState.mapMetadata = {
+            ...data,
+            name: 'Untitled Map' // Use default name if not provided
+        };
+        
+        // Update name if it exists in props
+        if (props.mapId) {
+            editorState.mapMetadata.name = `Map ${props.mapId}`;
+        }
+
+        // Load walls
+        if (data.line_of_sight) {
+            const wallPoints = convertUVTTPointsToWallPoints(data.line_of_sight);
+            editorState.walls.value = wallPoints.map((points, index) => ({
+                id: `wall-${index}`,
+                objectType: 'wall',
+                points,
+                visible: true,
+                locked: false
+            }));
+        }
+
+        // Load portals
+        if (data.portals) {
+            editorState.portals.value = data.portals.map((portal, index) => ({
+                id: `portal-${index}`,
+                objectType: 'portal',
+                position: portal.position,
+                rotation: portal.rotation,
+                bounds: portal.bounds,
+                closed: portal.closed,
+                freestanding: portal.freestanding,
+                visible: true,
+                locked: false
+            }));
+        }
+
+        // Load lights
+        if (data.lights) {
+            editorState.lights.value = data.lights.map((light, index) => ({
+                id: `light-${index}`,
+                objectType: 'light',
+                position: light.position,
+                range: light.range,
+                intensity: light.intensity,
+                color: light.color,
+                shadows: light.shadows,
+                visible: true,
+                locked: false
+            }));
+        }
+
+        // Reset modification flag
+        editorState.isModified.value = false;
+    } catch (error) {
+        console.error('Error loading map data:', error);
+    }
+};
+
+// Helper for converting UVTT points to wall points array
+const convertUVTTPointsToWallPoints = (points: { x: number; y: number }[]) => {
+    const wallSegments: number[][] = [];
+    // Simple implementation - can be improved for more advanced wall handling
+    if (points.length > 1) {
+        const flatPoints = points.flatMap(p => [p.x, p.y]);
+        wallSegments.push(flatPoints);
+    }
+    return wallSegments;
+};
 
 // Event handlers
 const handleObjectSelected = (id: string | null, addToSelection = false) => {
@@ -73,6 +166,9 @@ const handleObjectAdded = (object: AnyEditorObject) => {
     } else if (object.objectType === 'light') {
         editorState.addLight(object as LightObject);
     }
+    
+    // Mark as modified
+    editorState.isModified.value = true;
 };
 
 const handleObjectModified = (id: string, updates: Partial<AnyEditorObject>) => {
@@ -88,10 +184,16 @@ const handleObjectModified = (id: string, updates: Partial<AnyEditorObject>) => 
     } else if (object.objectType === 'light') {
         editorState.updateLight(id, updates as Partial<LightObject>);
     }
+    
+    // Mark as modified
+    editorState.isModified.value = true;
 };
 
 const handleObjectRemoved = (id: string) => {
     editorState.removeObject(id);
+    
+    // Mark as modified
+    editorState.isModified.value = true;
 };
 
 const handlePropertyUpdate = (objectId: string, property: string, value: unknown) => {
@@ -114,14 +216,85 @@ const handleLayerVisibility = (layerType: 'walls' | 'portals' | 'lights', visibl
 };
 
 const handleSave = async () => {
-    // Placeholder for save functionality
-    console.log('Save map:', editorState.mapMetadata);
+    // Convert editor state to UVTT format
+    const uvttData = convertEditorStateToUVTT();
+    
+    // Emit save event with the data
+    emit('save', uvttData);
+    
+    // Reset modification flag
     editorState.isModified.value = false;
 };
 
 const handleExport = () => {
-    // Placeholder for UVTT export functionality
-    console.log('Export UVTT');
+    // Convert editor state to UVTT format
+    const uvttData = convertEditorStateToUVTT();
+    
+    // Create a JSON string
+    const jsonString = JSON.stringify(uvttData, null, 2);
+    
+    // Create a blob and trigger download
+    const blob = new Blob([jsonString], { type: 'application/uvtt' });
+    const url = URL.createObjectURL(blob);
+    const filename = `${editorState.mapMetadata.name || 'map'}.uvtt`;
+    
+    // Create download link
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    
+    // Clean up
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+};
+
+// Convert editor state to UVTT format
+const convertEditorStateToUVTT = (): UVTTData => {
+    // Convert walls to line_of_sight
+    const line_of_sight = editorState.walls.value.flatMap(wall => {
+        const points = [];
+        for (let i = 0; i < wall.points.length; i += 2) {
+            points.push({
+                x: wall.points[i],
+                y: wall.points[i + 1]
+            });
+        }
+        return points;
+    });
+    
+    // Convert portals
+    const portals = editorState.portals.value.map(portal => ({
+        position: portal.position,
+        bounds: portal.bounds,
+        rotation: portal.rotation,
+        closed: portal.closed,
+        freestanding: portal.freestanding
+    }));
+    
+    // Convert lights
+    const lights = editorState.lights.value.map(light => ({
+        position: light.position,
+        range: light.range,
+        intensity: light.intensity,
+        color: light.color,
+        shadows: light.shadows
+    }));
+    
+    // Return UVTT data
+    return {
+        format: editorState.mapMetadata.format || 1.0,
+        resolution: editorState.mapMetadata.resolution,
+        line_of_sight,
+        portals,
+        environment: editorState.mapMetadata.environment || {
+            baked_lighting: false,
+            ambient_light: '#ffffff'
+        },
+        lights,
+        image: editorState.mapMetadata.image
+    };
 };
 
 // Lifecycle hooks
@@ -202,5 +375,15 @@ const handleBeforeUnload = (e: BeforeUnloadEvent) => {
 
 .map-actions button:hover {
     background: #e0e0e0;
+}
+
+.save-button {
+    background-color: #4CAF50 !important;
+    color: white !important;
+}
+
+.export-button {
+    background-color: #2196F3 !important;
+    color: white !important;
 }
 </style>

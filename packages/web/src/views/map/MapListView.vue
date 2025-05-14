@@ -135,6 +135,13 @@ onMounted(() => {
               </button>
               <button
                 v-if="map.id"
+                @click="router.push({ name: 'map-edit', params: { id: map.id } })"
+                class="px-3 py-1.5 bg-white border border-green-600 text-green-600 rounded-md hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+              >
+                Edit
+              </button>
+              <button
+                v-if="map.id"
                 @click="confirmDelete(map.id)"
                 class="px-3 py-1.5 bg-white border border-red-600 text-red-600 rounded-md hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
               >

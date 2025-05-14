@@ -35,6 +35,10 @@ from src.configs.prefect_config import (
 )
 
 
+# Extract the href from a markdown link
+def extract_href_from_markdown_link(markdown_link: str) -> str:
+    return markdown_link.split("](")[1].split(")")[0]
+
 @task(name="resize_image", retries=2)
 def resize_image(image_bytes: bytes) -> Tuple[bytes, str]:
     """
@@ -108,7 +112,7 @@ def resize_image(image_bytes: bytes) -> Tuple[bytes, str]:
 
 
 @task(name="outline_impassable_areas", timeout_seconds=300, retries=2)
-def outline_impassable_areas(image_artifact: Artifact) -> Artifact:
+def outline_impassable_areas(image_artifact: Artifact, mock: bool = False) -> Artifact:
     """
     Use OpenAI's GPT-image-1 to outline impassable areas in the map.
 
@@ -147,27 +151,29 @@ def outline_impassable_areas(image_artifact: Artifact) -> Artifact:
             temp.write(image_bytes)
 
         try:
-
+            if not mock:
             # Use the temporary file for API call
-            with open(temp_file_path, "rb") as image_file:
-                response = client.images.edit(
-                    model="gpt-image-1",
-                    image=image_file,
-                    prompt="""Draw thick black lines around all walls and
-                    impassable areas in this map.
-                    Make the lines clear, precise, and very thick (at least 5 pixels wide).
-                    The lines should clearly define the boundaries of walkable and non-walkable areas.
-                    All walls should be outlined with thick black lines.
-                    The lines should be black with 100% opacity.
-                    Remove everything else in the image except the black lines.
-                    """,
-                    n=1,
-                    size=api_size,
-                )
+                with open(temp_file_path, "rb") as image_file:
+                    response = client.images.edit(
+                        model="gpt-image-1",
+                        image=image_file,
+                        prompt="""Draw thick black lines around all walls and
+                        impassable areas in this map.
+                        Make the lines clear, precise, and very thick (at least 5 pixels wide).
+                        The lines should clearly define the boundaries of walkable and non-walkable areas.
+                        All walls should be outlined with thick black lines.
+                        The lines should be black with 100% opacity.
+                        Remove everything else in the image except the black lines.
+                        """,
+                        n=1,
+                        size=api_size,
+                    )
 
-            # Decode the response
-            result_image_base64 = response.data[0].b64_json
-            result_image_bytes = base64.b64decode(result_image_base64)
+                # Decode the response
+                result_image_base64 = response.data[0].b64_json
+                result_image_bytes = base64.b64decode(result_image_base64)
+            else:
+                result_image_bytes = fetch_image("http://localhost:9000/prefect/wall-outline-b86c82f9-9289-46a1-898f-2c51687e7653")
 
             wall_outline_artifact = create_image_artifact(
                 content=result_image_bytes,
@@ -187,7 +193,7 @@ def outline_impassable_areas(image_artifact: Artifact) -> Artifact:
 
 
 @task(name="highlight_portals", timeout_seconds=300, retries=2)
-def highlight_portals(image_bytes: bytes) -> bytes:
+def highlight_portals(image_bytes: bytes, mock: bool = False) -> Artifact:
     """
     Use OpenAI's GPT-image-1 to highlight portals and doors in the map.
 
@@ -226,14 +232,15 @@ def highlight_portals(image_bytes: bytes) -> bytes:
             logger.warning(f"Image size {image.size} not directly supported, defaulting to {api_size}")
 
         try:
-            # Use the temporary file for API call
-            with open(temp_file_path, "rb") as image_file:
-                response = client.images.edit(
-                    model="gpt-image-1",
-                    image=image_file,
-                    prompt="""Draw thick black lines to mark all doorways, portals,
-                    and passages between rooms in this map.
-                    Make the lines clear, precise, and very thick (at least 5 pixels wide).
+            if not mock:
+                # Use the temporary file for API call
+                with open(temp_file_path, "rb") as image_file:
+                    response = client.images.edit(
+                        model="gpt-image-1",
+                        image=image_file,
+                        prompt="""Draw thick black lines to mark all doorways, portals,
+                        and passages between rooms in this map.
+                        Make the lines clear, precise, and very thick (at least 5 pixels wide).
                     The lines should be black with 100% opacity.
                     Each doorway or portal should be marked with a single straight line.
                     Place the black line segment exactly at the transition point between rooms/areas.
@@ -242,12 +249,20 @@ def highlight_portals(image_bytes: bytes) -> bytes:
                     n=1,
                     size=api_size,
                 )
+                # Decode the response
+                result_image_base64 = response.data[0].b64_json
+                result_image_bytes = base64.b64decode(result_image_base64)
+            else:
+                result_image_bytes = fetch_image("http://localhost:9000/prefect/portal-highlight-e0a7e4d3-b28f-42c8-a5d0-e73d65e92eb6")
 
-            # Decode the response
-            result_image_base64 = response.data[0].b64_json
-            result_image_bytes = base64.b64decode(result_image_base64)
 
-            return result_image_bytes
+            portal_highlight_artifact = create_image_artifact(
+                content=result_image_bytes,
+                key="portal-highlight",
+                content_type="image/png",
+                description="Portal highlight image",
+            )
+            return portal_highlight_artifact
         finally:
             # Clean up the temporary file
             if os.path.exists(temp_file_path):
@@ -506,7 +521,7 @@ def draw_features_on_image(
     portal_segments: List[Tuple[Tuple[int, int], Tuple[int, int]]],
     original_size: Tuple[int, int],
     resized_size: Tuple[int, int],
-) -> bytes:
+) -> Artifact:
     """
     Draw detected walls and portals on the original image.
 
@@ -719,8 +734,14 @@ def create_uvtt_file(
         }
         
         # Convert to JSON
-        uvtt_json = json.dumps(uvtt_data)
-        return uvtt_json.encode('utf-8')
+        uvtt_json = json.dumps(uvtt_data).encode('utf-8')
+        uvtt_artifact = create_link_artifact(
+            content=uvtt_json,
+            key="uvtt-file",
+            content_type="application/uvtt",
+            description="UVTT file",
+        )
+        return uvtt_artifact
         
     except Exception as e:
         logger.error("Error creating UVTT file: %s", e)
@@ -743,6 +764,9 @@ def detect_features_flow(image_url: str, pixels_per_grid: int = 70) -> Dict[str,
     Returns:
         Dictionary containing detected features and image URL
     """
+
+    # Temporary for testing
+    image_url = "http://localhost:9000/prefect/original-image-c15b5c33-53e3-47ce-9415-d1d4abe8d660" 
     logger = get_run_logger()
     logger.info("Starting feature detection flow with OpenAI and CV2")
 
@@ -789,25 +813,18 @@ def detect_features_flow(image_url: str, pixels_per_grid: int = 70) -> Dict[str,
         )
 
         # Step 4: Generate wall outline and portal highlight images
-        timestamp = datetime.now().strftime("%Y%m%dT%H%M%S")
 
         logger.info("Starting wall outline detection")
         send_progress_update(
             status="running", progress=20.0, message="Generating wall outlines"
         )
-        wall_outline_artifact = outline_impassable_areas(resized_artifact)
+        wall_outline_artifact = outline_impassable_areas(resized_artifact, mock=True)
 
         logger.info("Starting portal detection")
         send_progress_update(
             status="running", progress=30.0, message="Generating portal highlights"
         )
-        portal_highlight_bytes = highlight_portals(resized_image_bytes)
-        portal_highlight_artifact = create_image_artifact(
-            content=portal_highlight_bytes,
-            key="portal-highlight",
-            content_type="image/png",
-            description="Portal highlight image",
-        )
+        portal_highlight_artifact = highlight_portals(resized_image_bytes, mock=True)
 
         send_progress_update(
             status="running", progress=45.0, message="Generated outline images"
@@ -830,42 +847,18 @@ def detect_features_flow(image_url: str, pixels_per_grid: int = 70) -> Dict[str,
             message=f"Detected {len(wall_segments)} wall segments and {len(portal_segments)} portal segments",
         )
 
-        # Step 6: Save features as JSON and upload
-        send_progress_update(
-            status="running",
-            progress=75.0,
-            message="Saving feature data as JSON",
-        )
-        json_bytes = save_features_to_json(wall_segments, portal_segments)
-        json_object_name = f"maps/map_features_{timestamp}.json"
-        json_artifact = create_link_artifact(
-            content=json_bytes,
-            key="vtt-json",
-            object_name=json_object_name,
-            content_type="application/json",
-            description=f"JSON file: {json_object_name}",
-        )
-
         # Step 7: Create UVTT file
         send_progress_update(
             status="running",
             progress=80.0,
             message="Creating UVTT file",
         )
-        uvtt_bytes = create_uvtt_file(
+        uvtt_artifact = create_uvtt_file(
             wall_segments,
             portal_segments,
             original_image_bytes,
             original_size,
             pixels_per_grid,
-        )
-        uvtt_object_name = f"maps/map_{timestamp}.uvtt"
-        uvtt_artifact = create_link_artifact(
-            content=uvtt_bytes,
-            key="uvtt-file",
-            object_name=uvtt_object_name,
-            content_type="application/octet-stream",
-            description=f"UVTT file: {uvtt_object_name}",
         )
 
         # Step 8: Draw features on the original image
@@ -882,6 +875,7 @@ def detect_features_flow(image_url: str, pixels_per_grid: int = 70) -> Dict[str,
             resized_size,
         )
 
+
         # Prepare final result
         final_result = {
             "status": "completed",
@@ -890,8 +884,7 @@ def detect_features_flow(image_url: str, pixels_per_grid: int = 70) -> Dict[str,
             "portal_segments_count": len(portal_segments),
             "wall_image_url": wall_outline_artifact.data,
             "portal_image_url": portal_highlight_artifact.data,
-            "features_json_url": json_artifact.data,
-            "uvtt_file_url": uvtt_artifact.data,
+            "uvtt_file_url": extract_href_from_markdown_link(uvtt_artifact.data),
             "original_size": f"{original_size[0]}x{original_size[1]}",
             "resized_size": f"{resized_size[0]}x{resized_size[1]}",
             "pixels_per_grid": pixels_per_grid,
@@ -902,38 +895,37 @@ def detect_features_flow(image_url: str, pixels_per_grid: int = 70) -> Dict[str,
         create_markdown_artifact(
             key="detected-features",
             markdown=f"""
-            # Detected Map Features
-            
-            **Original Image**: {image_url}
-            **Feature-Detected Image**: {final_image_artifact.data}
-            **UVTT File**: {uvtt_artifact.data}
-            
-            ## Statistics
-            
-            - **Wall Segments**: {len(wall_segments)}
-            - **Portal Segments**: {len(portal_segments)}
-            - **Original Size**: {original_size[0]}x{original_size[1]}
-            - **Resized Size**: {resized_size[0]}x{resized_size[1]}
-            - **Pixels Per Grid**: {pixels_per_grid}
-            
-            ## Process Images
-            
-            - **Wall Outline Image**: [{wall_outline_artifact.data}]({wall_outline_artifact.data})
-            - **Portal Highlight Image**: [{portal_highlight_artifact.data}]({portal_highlight_artifact.data})
-            - **Final Feature Image**: [{final_image_artifact.data}]({final_image_artifact.data})
-            - **Features JSON**: [{json_artifact.data}]({json_artifact.data})
-            - **UVTT File**: [{uvtt_artifact.data}]({uvtt_artifact.data})
-            
-            ## Feature Data Preview
-            
-            ```json
-            {json.dumps({
-                "wall_segments_count": len(wall_segments),
-                "portal_segments_count": len(portal_segments),
-                "pixels_per_grid": pixels_per_grid
-            }, indent=2)}
-            ```
-            """,
+# Detected Map Features
+
+**Original Image**: {image_url}
+**Feature-Detected Image**: {final_image_artifact.data}
+**UVTT File**: {uvtt_artifact.data}
+
+## Statistics
+
+- **Wall Segments**: {len(wall_segments)}
+- **Portal Segments**: {len(portal_segments)}
+- **Original Size**: {original_size[0]}x{original_size[1]}
+- **Resized Size**: {resized_size[0]}x{resized_size[1]}
+- **Pixels Per Grid**: {pixels_per_grid}
+
+## Process Images
+
+- **Wall Outline Image**: [{wall_outline_artifact.data}]({wall_outline_artifact.data})
+- **Portal Highlight Image**: [{portal_highlight_artifact.data}]({portal_highlight_artifact.data})
+- **Final Feature Image**: [{final_image_artifact.data}]({final_image_artifact.data})
+- **UVTT File**: [{uvtt_artifact.data}]({uvtt_artifact.data})
+
+## Feature Data Preview
+
+```json
+{json.dumps({
+    "wall_segments_count": len(wall_segments),
+    "portal_segments_count": len(portal_segments),
+    "pixels_per_grid": pixels_per_grid
+}, indent=2)}
+```
+""",
             description="Features detected in map image",
         )
 

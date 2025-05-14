@@ -68,14 +68,44 @@ npm install --save konva vue-konva
     }
   };
   ```
+- **Wall Drawing**: Implemented with drag-and-click interface for creating walls
+  - Use guidelines during drawing for visual feedback
+  - Handle both mouse and touch interactions
+  - Properly integrate with layer visibility toggling
 
-### 4. Import/Export
+### 4. Konva Type Interfaces
+
+- **Vue-Konva Type Extensions**: Create TypeScript declarations to properly handle Vue-Konva refs:
+  ```typescript
+  // Type declarations for Vue-Konva
+  declare module "vue-konva" {
+    interface Layer {
+      getNode(): Konva.Layer;
+    }
+    interface Stage {
+      getStage(): Konva.Stage;
+    }
+    interface Transformer {
+      getNode(): Konva.Transformer;
+    }
+    // Add other shapes as needed
+  }
+  ```
+- **Ref Handling**: Remember that Vue-Konva component refs don't directly reference Konva objects:
+  ```typescript
+  // Accessing Konva objects from refs
+  const layer = ref<VueKonva.Layer>(null);
+  // Use getNode() to access the Konva object
+  const konvaLayer = layer.value?.getNode();
+  ```
+
+### 5. Import/Export
 
 - **Data Validation**: Validate UVTT data structure before import/export
 - **Error Handling**: Add robust error handling for malformed UVTT files
 - **Coordinate Systems**: Maintain consistent coordinate system transformations
 
-### 5. Grid System
+### 6. Grid System
 
 - **Performance**: For large grids, consider using efficient drawing techniques
 
@@ -87,7 +117,7 @@ npm install --save konva vue-konva
   - Pixel coordinates ↔ Grid coordinates
   - World coordinates ↔ Screen coordinates
 
-### 6. Editor History
+### 7. Editor History
 
 - **Command Pattern**: Implement the command pattern for history management
 
@@ -102,7 +132,7 @@ npm install --save konva vue-konva
 - **History Stack**: Maintain limited-size stacks for undo/redo operations
 - **Batch Operations**: Group related operations for atomic undo/redo
 
-### 7. Saving and Loading
+### 8. Saving and Loading
 
 - **Optimistic Updates**: Implement optimistic UI updates during save operations
 - **Progress Indicators**: Add progress indicators for long-running operations

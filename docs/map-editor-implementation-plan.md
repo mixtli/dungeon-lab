@@ -13,7 +13,7 @@ This document outlines the step-by-step implementation plan for the AI-powered m
 - [ ] **Canvas Foundation**
 
   - [x] Implement basic EditorCanvas component with Konva.js
-  - [ ] Setup stage, layers, and basic rendering
+  - [x] Setup stage, layers, and basic rendering
   - [ ] Implement zoom and pan functionality
 
 - [ ] **Map Loading**
@@ -37,8 +37,8 @@ This document outlines the step-by-step implementation plan for the AI-powered m
 
 - [ ] **Wall Tool**
 
-  - [ ] Implement wall drawing functionality
-  - [ ] Create wall rendering with proper styling
+  - [x] Implement wall drawing functionality
+  - [x] Create wall rendering with proper styling
   - [ ] Handle wall editing (add/remove points)
   - [ ] Implement wall deletion
 

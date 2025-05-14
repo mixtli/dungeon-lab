@@ -8,6 +8,7 @@ import MapGenerationProgress from '../../components/map/MapGenerationProgress.vu
 import { useWorkflowProgress } from '../../composables/useWorkflowProgress.mjs';
 import { useSocketStore } from '../../stores/socket.store.mts';
 import type { MapGenerationResponse, MapEditResponse, MapFeatureDetectionResponse } from '@dungeon-lab/shared/types/socket/index.mjs';
+import axios from 'axios';
 
 const router = useRouter();
 const socketStore = useSocketStore();
@@ -29,6 +30,9 @@ const editError = ref('');
 const isDetectingFeatures = ref(false);
 const featureDetectionStatus = ref('');
 const featureDetectionError = ref('');
+const uvttUrl = ref(''); // Store the UVTT URL from feature detection
+const creatingMapFromUvtt = ref(false);
+const createMapError = ref('');
 
 // Use the workflow progress composable for map generation and editing
 const {
@@ -254,7 +258,12 @@ function setupSocketListeners() {
         // Handle completed feature detection results
         if (payload.result && typeof payload.result === 'object') {
           console.log('Feature detection results:', payload.result);
-          // Handle features data here - could update UI or store data
+          
+          // Extract UVTT URL if available
+          if (payload.result.uvtt_file_url && typeof payload.result.uvtt_file_url === 'string') {
+            uvttUrl.value = payload.result.uvtt_file_url;
+            console.log('UVTT URL extracted:', uvttUrl.value);
+          }
         }
       } else if (['FAILED', 'Failed', 'CRASHED', 'Crashed', 'ERROR', 'Error'].includes(payload.state)) {
         // Handle all failure states consistently
@@ -402,7 +411,7 @@ const editMap = async () => {
         await socketStore.initSocket();
         setupSocketListeners();
       } catch (error) {
-        throw new Error('Failed to connect to server');
+        throw new Error('Failed to connect to server' + error);
       }
     }
 
@@ -483,7 +492,7 @@ const detectMapFeatures = async () => {
         await socketStore.initSocket();
         setupSocketListeners();
       } catch (error) {
-        throw new Error('Failed to connect to server');
+        throw new Error('Failed to connect to server' + error);
       }
     }
 
@@ -521,6 +530,58 @@ const cancelFeatureDetection = () => {
   featureDetectionError.value = '';
   featureDetectionStatus.value = '';
   resetFeatureDetectionProgress();
+};
+
+// Function to create a map from the generated UVTT file
+const createMapFromUvtt = async () => {
+  if (!uvttUrl.value) {
+    createMapError.value = 'No UVTT file available';
+    return;
+  }
+
+  try {
+    creatingMapFromUvtt.value = true;
+    createMapError.value = '';
+
+    // Fetch the UVTT file content
+    const uvttResponse = await axios.get(uvttUrl.value, { responseType: 'blob' });
+    const uvttBlob = uvttResponse.data;
+    
+    // Create form data with the UVTT file
+    const formData = new FormData();
+    
+    // Create a file object from the blob
+    const file = new File([uvttBlob], 'map.uvtt', { type: 'application/uvtt' });
+    formData.append('file', file);
+    formData.append('name', parameters.name);
+    
+    // Send the UVTT file to the server to create a map
+    const response = await axios.post('/api/maps/import-uvtt', uvttBlob, {
+      headers: {
+        'Content-Type': 'application/uvtt'
+      }
+    });
+
+    if (response.data && response.data.success && response.data.data.id) {
+      // Redirect to the map editor for the newly created map
+      const mapId = response.data.data.id;
+      console.log('Redirecting to map editor for map ID:', mapId);
+      
+      router.push({
+        name: 'map-edit',
+        params: {
+          id: mapId
+        }
+      });
+    } else {
+      throw new Error('Failed to create map: No map ID returned');
+    }
+  } catch (error) {
+    console.error('Error creating map from UVTT:', error);
+    createMapError.value = error instanceof Error ? error.message : 'Failed to create map from UVTT';
+  } finally {
+    creatingMapFromUvtt.value = false;
+  }
 };
 </script>
 
@@ -808,7 +869,19 @@ const cancelFeatureDetection = () => {
             </div>
           </div>
 
-          <div class="flex space-x-3">
+          <!-- Display create map error if present -->
+          <div v-if="createMapError" class="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+            <div class="flex items-center text-red-700">
+              <svg class="h-5 w-5 mr-2 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                  clip-rule="evenodd"></path>
+              </svg>
+              <span>{{ createMapError }}</span>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap gap-3">
             <button @click="detectMapFeatures" :disabled="!previewImage || isDetectingFeatures || isEditing"
               class="px-4 py-2 bg-indigo-600 text-white font-medium rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50">
               <span v-if="isDetectingFeatures">Processing...</span>
@@ -818,6 +891,24 @@ const cancelFeatureDetection = () => {
             <button v-if="isDetectingFeatures" @click="cancelFeatureDetection"
               class="px-4 py-2 bg-gray-200 text-gray-800 font-medium rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500">
               Cancel
+            </button>
+
+            <!-- New button to create map from UVTT -->
+            <button v-if="uvttUrl && !isDetectingFeatures && !creatingMapFromUvtt" @click="createMapFromUvtt"
+              class="px-4 py-2 bg-green-600 text-white font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500">
+              Create Map from Features
+            </button>
+            
+            <!-- Loading state for creating map -->
+            <button v-if="creatingMapFromUvtt" disabled
+              class="px-4 py-2 bg-green-600 text-white font-medium rounded-md opacity-75 cursor-not-allowed flex items-center">
+              <svg class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                </path>
+              </svg>
+              Creating Map...
             </button>
           </div>
         </div>

@@ -74,7 +74,7 @@ def create_link_artifact(
         content_bytes = content
 
     if object_name is None:
-        object_name = f"{key}-{uuid.uuid4()}"
+        object_name = f"{key}-{uuid.uuid4()}.{content_type.split('/')[1]}"
 
     # Upload to MinIO
     content_url = upload_to_minio(object_name, content_bytes, content_type=content_type)

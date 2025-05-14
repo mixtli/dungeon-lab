@@ -33,6 +33,7 @@ const MapListView = () => import('@/views/map/MapListView.vue');
 const MapCreateView = () => import('@/views/map/MapCreateView.vue');
 const MapDetailView = () => import('@/views/map/MapDetailView.vue');
 const MapBuilderView = () => import('@/views/map/MapBuilderView.vue');
+const MapEditorView = () => import('@/views/map/MapEditorView.vue');
 
 // Asset views
 const AssetListView = () => import('@/views/AssetListView.vue');
@@ -251,6 +252,15 @@ const routes: RouteRecordRaw[] = [
         component: MapBuilderView,
         meta: {
           title: 'AI Map Builder',
+          requiresAuth: true
+        }
+      },
+      {
+        path: 'maps/:id/edit',
+        name: 'map-edit',
+        component: MapEditorView,
+        meta: {
+          title: 'Edit Map',
           requiresAuth: true
         }
       },

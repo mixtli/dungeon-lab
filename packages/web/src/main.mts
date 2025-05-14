@@ -8,6 +8,7 @@ import { configureApiClient, ApiClient } from '@dungeon-lab/client/index.mjs';
 import { pluginRegistry } from './services/plugin-registry.service.mjs';
 import { useAuthStore } from './stores/auth.store.mjs';
 import clickOutside from './directives/clickOutside.mjs';
+import { registerVueKonva } from './plugins/vue-konva.mjs';
 
 // Configure ApiClient with base URL
 configureApiClient(import.meta.env.VITE_API_URL || 'http://localhost:3000');
@@ -26,6 +27,9 @@ app.use(router);
 
 // Register the click-outside directive
 app.directive('click-outside', clickOutside);
+
+// Register Vue Konva
+registerVueKonva(app);
 
 // Initialize plugins after Pinia setup
 await pluginRegistry.initialize();

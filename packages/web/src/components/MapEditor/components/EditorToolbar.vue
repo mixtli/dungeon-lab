@@ -2,19 +2,19 @@
     <div class="editor-toolbar">
         <div class="tool-group">
             <button class="tool-button" :class="{ active: currentTool === 'select' }" @click="selectTool('select')"
-                title="Selection Tool">
+                title="Selection Tool: Click to select objects. Shift+click for multiple selection. Drag to select multiple objects in an area.">
                 <span class="tool-icon">◎</span>
                 <span class="tool-label">Select</span>
             </button>
 
             <button class="tool-button" :class="{ active: currentTool === 'pan' }" @click="selectTool('pan')"
-                title="Pan Tool">
+                title="Pan Tool: Click and drag to move around the map.">
                 <span class="tool-icon">✋</span>
                 <span class="tool-label">Pan</span>
             </button>
 
             <button class="tool-button" :class="{ active: currentTool === 'zoom' }" @click="selectTool('zoom')"
-                title="Zoom Tool">
+                title="Zoom Tool: Use mouse wheel to zoom in and out.">
                 <span class="tool-icon">🔍</span>
                 <span class="tool-label">Zoom</span>
             </button>
@@ -24,19 +24,19 @@
 
         <div class="tool-group">
             <button class="tool-button" :class="{ active: currentTool === 'wall' }" @click="selectTool('wall')"
-                title="Wall Tool">
+                title="Wall Tool: Click to start a wall, click again to add points, double-click to finish. DO NOT drag to draw.">
                 <span class="tool-icon">┃</span>
                 <span class="tool-label">Wall</span>
             </button>
 
             <button class="tool-button" :class="{ active: currentTool === 'portal' }" @click="selectTool('portal')"
-                title="Portal Tool">
+                title="Portal Tool: Click to place a door or portal on the map.">
                 <span class="tool-icon">⊏⊐</span>
                 <span class="tool-label">Portal</span>
             </button>
 
             <button class="tool-button" :class="{ active: currentTool === 'light' }" @click="selectTool('light')"
-                title="Light Tool">
+                title="Light Tool: Click to place a light source on the map.">
                 <span class="tool-icon">🔆</span>
                 <span class="tool-label">Light</span>
             </button>
@@ -45,13 +45,14 @@
         <div class="divider"></div>
 
         <div class="tool-group">
-            <button class="tool-button" @click="toggleGrid" :class="{ active: gridVisible }" title="Toggle Grid">
+            <button class="tool-button" @click="toggleGrid" :class="{ active: gridVisible }" 
+                title="Toggle Grid: Show or hide the grid overlay.">
                 <span class="tool-icon">⊞</span>
                 <span class="tool-label">Grid</span>
             </button>
 
             <button class="tool-button" @click="toggleSnap" :class="{ active: snapEnabled }"
-                title="Toggle Snap to Grid">
+                title="Toggle Snap to Grid: Enable or disable snapping objects to the grid.">
                 <span class="tool-icon">⌘</span>
                 <span class="tool-label">Snap</span>
             </button>

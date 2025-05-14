@@ -77,7 +77,7 @@ def generate_image(
         else:
             with open(
                 os.path.join(
-                    os.path.dirname(__file__), "../../data/images/stairs_of_moria.jpg"
+                    os.path.dirname(__file__), "../../data/images/old_ink_pot.png"
                 ),
                 "rb",
             ) as image:
@@ -128,7 +128,7 @@ def generate_map_flow(description: str, parameters: Dict[str, Any]) -> Dict[str,
     try:
 
         # Generate the map image
-        image_artifact = generate_image(description, parameters)
+        image_artifact = generate_image(description, parameters, mock=True)
 
 
         send_progress_update(

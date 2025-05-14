@@ -48,15 +48,47 @@
                 <v-transformer v-if="selectedObjectIds.length > 0" ref="transformer" :config="transformerConfig" />
             </v-layer>
         </v-stage>
+        
+        <!-- Status indicator -->
+        <div v-if="isWallDrawingActive" class="drawing-status">
+            <div class="status-badge">Drawing Wall</div>
+            <div class="instructions">
+                Click to add point, double-click to finish
+            </div>
+        </div>
+        
+        <!-- Tool help overlay -->
+        <div v-if="showWallHelp" class="tool-help-overlay wall-help">
+            <div class="tool-help-content">
+                <h3>Wall Tool Usage</h3>
+                <p>Click to start a wall, click again for each point, double-click to finish.</p>
+                <button @click="hideWallHelp" class="close-help">Got it!</button>
+            </div>
+        </div>
+        
+        <!-- Hidden tools -->
+        <WallTool 
+            ref="wallTool" 
+            :grid-config="gridConfig" 
+            :is-active="currentTool === 'wall'"
+            @wall-created="handleWallCreated" 
+        />
+        <SelectionTool
+            ref="selectionTool"
+            :is-active="currentTool === 'select'"
+            @selection-ended="handleSelectionEnded"
+        />
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, reactive } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, watch, reactive } from 'vue';
 import Konva from 'konva';
 // Import KonvaEventObject as a value, not as a type
 import { type KonvaEventObject } from 'konva/lib/Node.js';
 import { useGridSystem } from '../composables/useGridSystem.mjs';
+import WallTool from './tools/WallTool.vue';
+import SelectionTool from './tools/SelectionTool.vue';
 import type {
     WallObject,
     PortalObject,
@@ -66,6 +98,20 @@ import type {
     Point,
     MapMetadata
 } from '../../../../../shared/src/types/mapEditor.mjs';
+
+
+interface KonvaLayer {
+    getNode(): Konva.Layer
+}
+
+interface KonvaStage {
+    getStage(): Konva.Stage
+}
+
+interface KonvaTransformer {
+    getNode(): Konva.Transformer
+}
+
 
 // Props
 const props = defineProps<{
@@ -89,20 +135,36 @@ const emit = defineEmits<{
 
 // Refs
 const canvasContainer = ref<HTMLDivElement | null>(null);
-const stage = ref<Konva.Stage | null>(null);
-const bgLayer = ref<Konva.Layer | null>(null);
-const gridLayer = ref<Konva.Layer | null>(null);
-const wallLayer = ref<Konva.Layer | null>(null);
-const portalLayer = ref<Konva.Layer | null>(null);
-const lightLayer = ref<Konva.Layer | null>(null);
-const selectionLayer = ref<Konva.Layer | null>(null);
-const transformer = ref<Konva.Transformer | null>(null);
+const stage = ref<KonvaStage | null>(null);
+const bgLayer = ref<KonvaLayer | null>(null);
+const gridLayer = ref<KonvaLayer | null>(null);
+const wallLayer = ref<KonvaLayer | null>(null);
+const portalLayer = ref<KonvaLayer | null>(null);
+const lightLayer = ref<KonvaLayer | null>(null);
+const selectionLayer = ref<KonvaLayer | null>(null);
+const transformer = ref<KonvaTransformer | null>(null);
+const wallTool = ref<InstanceType<typeof WallTool> | null>(null);
+const selectionTool = ref<InstanceType<typeof SelectionTool> | null>(null);
+const selectionRect = ref<Konva.Rect | null>(null);
 
 // Canvas state
 const canvasSize = reactive({
     width: 1000,
     height: 800
 });
+
+// Wall tool UI state
+const isWallDrawingActive = computed(() => {
+    return props.currentTool === 'wall' && wallTool.value?.isDrawing === true;
+});
+
+const showWallHelp = ref(false);
+
+const hideWallHelp = () => {
+    showWallHelp.value = false;
+    // Save this preference to localStorage
+    localStorage.setItem('wall-help-dismissed', 'true');
+};
 
 // Background image
 const backgroundImage = ref<HTMLImageElement | null>(null);
@@ -167,15 +229,20 @@ const transformerConfig = computed(() => ({
 }));
 
 // Configure objects based on their data
-const getWallConfig = (wall: WallObject) => ({
-    points: wall.points,
-    stroke: wall.stroke || '#ff3333',
-    strokeWidth: wall.strokeWidth || 3,
-    lineCap: 'round',
-    lineJoin: 'round',
-    draggable: props.currentTool === 'select',
-    id: wall.id
-});
+const getWallConfig = (wall: WallObject) => {
+    // Ensure all points are valid numbers
+    const validPoints = wall.points.map(p => typeof p === 'number' && !isNaN(p) ? p : 0);
+    
+    return {
+        points: validPoints,
+        stroke: wall.stroke || '#ff3333',
+        strokeWidth: wall.strokeWidth || 3,
+        lineCap: 'round',
+        lineJoin: 'round',
+        draggable: props.currentTool === 'select',
+        id: wall.id
+    };
+};
 
 const getPortalGroupConfig = (portal: PortalObject) => ({
     x: portal.position.x,
@@ -214,42 +281,112 @@ const getLightConfig = (light: LightObject) => ({
 
 // Event handlers
 const handleMouseDown = (e: KonvaEventObject<MouseEvent>) => {
-    // Handle mouse down events based on current tool
-    const konvaStage = stage.value?.getStage();
-    const pos = konvaStage?.getPointerPosition();
-
+    console.log('Mouse down event:', { tool: props.currentTool, pos: e.target.getStage()?.getPointerPosition() });
+    
+    // Get mouse position relative to stage
+    const stage = e.target.getStage();
+    if (!stage) return;
+    
+    const pos = stage.getPointerPosition();
     if (!pos) return;
-
-    // If clicked on stage background and not on an object
-    if (e.target === konvaStage) {
-        // Clear selection
-        emit('object-selected', null, false);
-
-        // Start drawing if in drawing tool mode
-        if (props.currentTool === 'wall') {
-            startWallDrawing(pos);
-        } else if (props.currentTool === 'portal') {
-            placePortal(pos);
-        } else if (props.currentTool === 'light') {
-            placeLight(pos);
-        }
+    
+    // Convert position to world coordinates
+    const worldPos = {
+        x: (pos.x - stage.x()) / stage.scaleX(),
+        y: (pos.y - stage.y()) / stage.scaleY()
+    };
+    
+    // Handle based on current tool
+    switch (props.currentTool) {
+        case 'wall':
+            if (!wallTool.value?.isDrawing) {
+                // Start a new wall only if not already drawing
+                console.log('Starting new wall drawing at:', worldPos);
+                startWallDrawing(worldPos);
+            }
+            // We'll handle extending the wall in handleMouseUp for better click handling
+            break;
+        case 'portal':
+            placePortal(worldPos);
+            break;
+        case 'light':
+            placeLight(worldPos);
+            break;
+        case 'select':
+            startSelection(worldPos);
+            break;
     }
 };
 
-const handleMouseMove = () => {
-    // Handle mouse move for drawing
-    const pos = stage.value?.getStage()?.getPointerPosition();
+const handleMouseMove = (e: KonvaEventObject<MouseEvent>) => {
+    // Get mouse position relative to stage
+    const stage = e.target.getStage();
+    if (!stage) return;
+    
+    const pos = stage.getPointerPosition();
     if (!pos) return;
-
-    // Implement drawing operations
+    
+    // Convert position to world coordinates
+    const worldPos = {
+        x: (pos.x - stage.x()) / stage.scaleX(),
+        y: (pos.y - stage.y()) / stage.scaleY()
+    };
+    
+    // Track mouse position for UI if needed
+// Remove this line for now
+    
+    // Handle based on current tool
+    switch (props.currentTool) {
+        case 'wall':
+            if (wallTool.value?.isDrawing) {
+                console.log('Mouse move: updating wall drawing', { 
+                    pos: worldPos,
+                    isDrawing: wallTool.value.isDrawing,
+                    multiPointMode: wallTool.value.multiPointMode 
+                });
+                wallTool.value.updateDrawing(worldPos);
+                drawTemporaryWall();
+            }
+            break;
+        case 'select':
+            selectionTool.value?.updateSelection(worldPos);
+            updateSelectionRect();
+            break;
+    }
 };
 
-const handleMouseUp = () => {
-    // Handle mouse up for finishing drawing
-    const pos = stage.value?.getStage()?.getPointerPosition();
-    if (!pos) return;
-
-    // Implement drawing operations
+const handleMouseUp = (e: KonvaEventObject<MouseEvent>) => {
+    // Handle based on current tool
+    const stage = e.target.getStage();
+    if (!stage) return;
+    
+    console.log('MouseUp event:', { 
+        detail: e.evt.detail, 
+        tool: props.currentTool, 
+        isDrawing: wallTool.value?.isDrawing 
+    });
+    
+    // If it's a double-click, handle differently
+    if (e.evt.detail === 2) {
+        if (props.currentTool === 'wall' && wallTool.value?.isDrawing) {
+            console.log('Double click detected while drawing wall, finishing...');
+            finishWallDrawing();
+        }
+    } else if (props.currentTool === 'wall' && wallTool.value?.isDrawing) {
+        // For single clicks while drawing a wall, add a point
+        const pos = stage.getPointerPosition();
+        if (pos) {
+            const worldPos = {
+                x: (pos.x - stage.x()) / stage.scaleX(),
+                y: (pos.y - stage.y()) / stage.scaleY()
+            };
+            console.log('Single click while drawing wall, extending...');
+            extendWallDrawing(worldPos);
+        }
+    } else if (props.currentTool === 'select' && selectionTool.value?.isSelecting) {
+        selectionTool.value.endSelection();
+        clearSelectionRect();
+    }
 };
 
 const handleWheel = (e: KonvaEventObject<WheelEvent>) => {
@@ -328,10 +465,100 @@ const handleLightDragEnd = (e: KonvaEventObject<DragEvent>, id: string) => {
     });
 };
 
+// Wall tool status is already defined elsewhere in the file
+
 // Drawing methods
 const startWallDrawing = (pos: Point) => {
-    // Implementation will be added
-    console.log('Start wall drawing at', pos);
+    console.log('=== WALL TOOL DEBUGGING ===');
+    console.log('startWallDrawing called with pos:', pos);
+    console.log('currentTool:', props.currentTool);
+    console.log('wallTool exists:', !!wallTool.value);
+    
+    if (!wallTool.value) {
+        console.error('Wall tool ref is null!');
+        return;
+    }
+    
+    // Check if tool is active
+    if (props.currentTool !== 'wall') {
+        console.warn('Wall tool is not the active tool!');
+        return;
+    }
+    
+    // Show help text if first time using wall tool
+    if (!localStorage.getItem('wall-help-dismissed')) {
+        showWallHelp.value = true;
+    }
+    
+    // Call the start drawing method
+    wallTool.value.startDrawing(pos);
+    console.log('After startDrawing call:');
+    console.log('isDrawing:', wallTool.value.isDrawing);
+    
+    // Debugging info about wallTool
+    console.log('wallTool available:', !!wallTool.value);
+    console.log('Known methods: startDrawing, updateDrawing, extendDrawing, endDrawing, cancelDrawing, toggleMultiPointMode');
+    
+    // Update UI state
+    drawTemporaryWall();
+};
+
+const extendWallDrawing = (pos: Point) => {
+    console.log('extendWallDrawing called with pos:', pos);
+    
+    if (!wallTool.value) {
+        console.error('Wall tool ref is null!');
+        return;
+    }
+    
+    if (props.currentTool !== 'wall') return;
+    
+    wallTool.value.extendDrawing(pos);
+    drawTemporaryWall();
+};
+
+const finishWallDrawing = () => {
+    console.log('finishWallDrawing called');
+    
+    if (!wallTool.value) {
+        console.error('Wall tool ref is null!');
+        return;
+    }
+    
+    if (props.currentTool !== 'wall') return;
+    
+    wallTool.value.endDrawing();
+    clearTemporaryWall();
+    
+    console.log('Wall drawing finished, isDrawing state:', wallTool.value.isDrawing);
+};
+
+const cancelWallDrawing = () => {
+    console.log('cancelWallDrawing called');
+    
+    if (!wallTool.value) return;
+    
+    wallTool.value.cancelDrawing();
+    clearTemporaryWall();
+};
+
+// Handle keyboard events
+const handleKeyDown = (e: KeyboardEvent) => {
+    console.log('Key pressed:', e.key);
+    
+    // Cancel drawing on Escape
+    if (e.key === 'Escape') {
+        if (props.currentTool === 'wall' && wallTool.value?.isDrawing) {
+            cancelWallDrawing();
+        }
+    }
+    
+    // Complete drawing on Enter
+    if (e.key === 'Enter') {
+        if (props.currentTool === 'wall' && wallTool.value?.isDrawing) {
+            finishWallDrawing();
+        }
+    }
 };
 
 const placePortal = (pos: Point) => {
@@ -368,12 +595,215 @@ const placeLight = (pos: Point) => {
     emit('object-added', light);
 };
 
+const drawTemporaryWall = () => {
+    console.log('drawTemporaryWall called');
+    if (!wallTool.value || !wallLayer.value) {
+        console.log('Missing required refs:', { 
+            wallTool: !!wallTool.value, 
+            wallLayer: !!wallLayer.value 
+        });
+        return;
+    }
+    
+    // Clear temporary shapes
+    clearTemporaryWall();
+    
+    // Get the current points from the wall tool
+    const points = wallTool.value.currentPoints;
+    console.log('Current points from wallTool:', points);
+    
+    // Draw temporary wall line
+    if (points && points.length >= 2) {
+        console.log('Drawing temporary wall with points:', points);
+        
+        // Draw a temporary line with the current points
+        const line = new Konva.Line({
+            points: points,
+            stroke: '#ff0000',
+            strokeWidth: 3,
+            name: 'temp-wall',
+            dash: [5, 5]
+        });
+        
+        // Get the Konva layer instance
+        const konvaLayer = wallLayer.value.getNode();
+        
+        // Add the line to the layer
+        konvaLayer.add(line);
+        konvaLayer.batchDraw();
+        console.log('Temporary wall drawn successfully');
+    } else {
+        console.log('Not enough points to draw temporary wall');
+    }
+};
+
+const clearTemporaryWall = () => {
+    if (!wallLayer.value) return;
+    
+    // Get the Konva layer instance
+    const konvaLayer = wallLayer.value.getNode();
+    
+    // Find and remove any temporary walls
+    const tempWalls = konvaLayer.find('.temp-wall');
+    tempWalls.forEach(wall => wall.destroy());
+    konvaLayer.batchDraw();
+    console.log('Temporary walls cleared');
+};
+
+// Handle wall creation from WallTool
+const handleWallCreated = (wall: WallObject) => {
+    emit('object-added', wall);
+    
+    // Clear temporary wall drawing
+    if (wallLayer.value) {
+        const konvaLayer = wallLayer.value.getNode();
+        const tempWalls = konvaLayer.find('.temp-wall');
+        tempWalls.forEach(wall => wall.destroy());
+        konvaLayer.batchDraw();
+    }
+};
+
+// Selection methods
+const startSelection = (pos: Point) => {
+    if (!selectionTool.value) return;
+    
+    selectionTool.value.startSelection(pos);
+    // Initialize selection rectangle
+    createSelectionRect();
+};
+
+const createSelectionRect = () => {
+    if (!selectionLayer.value || !selectionTool.value?.selectionRect) return;
+    
+    // Clear any existing selection rectangle
+    clearSelectionRect();
+    
+    // Create new selection rectangle
+    const rect = new Konva.Rect({
+        x: selectionTool.value.selectionRect.start.x,
+        y: selectionTool.value.selectionRect.start.y,
+        width: 0,
+        height: 0,
+        fill: 'rgba(0, 123, 255, 0.3)',
+        stroke: 'rgba(0, 123, 255, 0.7)',
+        strokeWidth: 1,
+        name: 'selection-rect'
+    });
+    
+    selectionRect.value = rect;
+    // Get the Konva layer instance
+    const konvaLayer = selectionLayer.value.getNode();
+    konvaLayer.add(rect);
+    konvaLayer.batchDraw();
+};
+
+const updateSelectionRect = () => {
+    if (!selectionRect.value || !selectionTool.value?.selectionRect) return;
+    
+    const { start, end } = selectionTool.value.selectionRect;
+    
+    selectionRect.value.setAttrs({
+        x: Math.min(start.x, end.x),
+        y: Math.min(start.y, end.y),
+        width: Math.abs(end.x - start.x),
+        height: Math.abs(end.y - start.y)
+    });
+    
+    if (selectionLayer.value) {
+        selectionLayer.value.getNode().batchDraw();
+    }
+};
+
+const clearSelectionRect = () => {
+    if (!selectionLayer.value) return;
+    
+    if (selectionRect.value) {
+        selectionRect.value.destroy();
+        selectionRect.value = null;
+    }
+    
+    // Get the Konva layer instance
+    const konvaLayer = selectionLayer.value.getNode();
+    
+    // Find and remove any selection rectangles
+    const existingRect = konvaLayer.findOne('.selection-rect');
+    if (existingRect) {
+        existingRect.destroy();
+    }
+    
+    konvaLayer.batchDraw();
+};
+
+// Selection events
+const handleSelectionEnded = (rect: { start: Point; end: Point }) => {
+    // Find all objects that intersect with the selection rectangle
+    const { start, end } = rect;
+    const x = Math.min(start.x, end.x);
+    const y = Math.min(start.y, end.y);
+    const width = Math.abs(end.x - start.x);
+    const height = Math.abs(end.y - start.y);
+    
+    // Get all objects in the selection area
+    const selectedIds: string[] = [];
+    
+    // Check walls
+    for (const wall of props.walls) {
+        if (wall.visible === false) continue;
+        
+        // Check if any point of the wall is inside the selection rectangle
+        for (let i = 0; i < wall.points.length; i += 2) {
+            const pointX = wall.points[i];
+            const pointY = wall.points[i + 1];
+            
+            if (pointX >= x && pointX <= x + width && pointY >= y && pointY <= y + height) {
+                selectedIds.push(wall.id);
+                break;
+            }
+        }
+    }
+    
+    // Check portals
+    for (const portal of props.portals) {
+        if (portal.visible === false) continue;
+        
+        const portalX = portal.position.x;
+        const portalY = portal.position.y;
+        
+        if (portalX >= x && portalX <= x + width && portalY >= y && portalY <= y + height) {
+            selectedIds.push(portal.id);
+        }
+    }
+    
+    // Check lights
+    for (const light of props.lights) {
+        if (light.visible === false) continue;
+        
+        const lightX = light.position.x;
+        const lightY = light.position.y;
+        
+        if (lightX >= x && lightX <= x + width && lightY >= y && lightY <= y + height) {
+            selectedIds.push(light.id);
+        }
+    }
+    
+    // Emit the selected objects (with shift key for multi-selection)
+    if (selectedIds.length > 0) {
+        emit('object-selected', selectedIds[0], false); // Select the first one
+        
+        // Select the rest with multi-selection
+        for (let i = 1; i < selectedIds.length; i++) {
+            emit('object-selected', selectedIds[i], true);
+        }
+    }
+};
+
 // Watch for selected objects to update transformer
 watch(() => props.selectedObjectIds, (newSelectedIds) => {
     if (!transformer.value || !stage.value) return;
 
     if (newSelectedIds.length === 0) {
-        transformer.value.nodes([]);
+        const konvaTransformer = transformer.value.getNode();
+        konvaTransformer.nodes([]);
         return;
     }
 
@@ -388,7 +818,7 @@ watch(() => props.selectedObjectIds, (newSelectedIds) => {
         }
     }
 
-    transformer.value.nodes(selectedNodes);
+    transformer.value.getNode().nodes(selectedNodes);
 }, { immediate: true });
 
 // Resize canvas when container size changes
@@ -422,11 +852,17 @@ watch(() => props.mapMetadata.image, (newImageSrc) => {
 onMounted(() => {
     updateCanvasSize();
     window.addEventListener('resize', updateCanvasSize);
+    window.addEventListener('keydown', handleKeyDown);
 
     // Load map image if available
     if (props.mapMetadata.image) {
         loadMapImage(props.mapMetadata.image);
     }
+});
+
+onBeforeUnmount(() => {
+    window.removeEventListener('resize', updateCanvasSize);
+    window.removeEventListener('keydown', handleKeyDown);
 });
 
 watch(() => [canvasSize.width, canvasSize.height], () => {
@@ -436,6 +872,15 @@ watch(() => [canvasSize.width, canvasSize.height], () => {
         konvaStage?.height(canvasSize.height);
     }
 });
+
+// Watch for tool changes to show help
+let hasShownWallHelp = false;
+watch(() => props.currentTool, (newTool) => {
+    if (newTool === 'wall' && !hasShownWallHelp && !localStorage.getItem('wall-help-dismissed')) {
+        showWallHelp.value = true;
+        hasShownWallHelp = true; // Only show once per session
+    }
+}, { immediate: true });
 </script>
 
 <style scoped>
@@ -445,5 +890,71 @@ watch(() => [canvasSize.width, canvasSize.height], () => {
     overflow: hidden;
     position: relative;
     background-color: #f0f0f0;
+}
+
+.tool-help-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+}
+
+.tool-help-content {
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    max-width: 400px;
+    text-align: center;
+}
+
+.tool-help-content h3 {
+    margin-top: 0;
+    color: #333;
+}
+
+.close-help {
+    margin-top: 15px;
+    padding: 8px 16px;
+    background-color: #4a6da7;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.close-help:hover {
+    background-color: #3a5d97;
+}
+
+.drawing-status {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background-color: rgba(255, 255, 255, 0.9);
+    padding: 10px;
+    border-radius: 5px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.status-badge {
+    display: inline-block;
+    background-color: #f44336;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.instructions {
+    font-size: 14px;
+    color: #333;
 }
 </style>
