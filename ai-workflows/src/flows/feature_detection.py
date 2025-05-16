@@ -8,6 +8,7 @@ from typing import Dict, Any, List, Tuple
 from io import BytesIO
 import base64
 import tempfile
+from skimage.morphology import skeletonize
 
 import json
 import cv2  # type: ignore[reportMissingModuleSource]
@@ -15,6 +16,8 @@ import numpy as np
 from PIL import Image, ImageDraw
 from prefect import task, get_run_logger
 from prefect.artifacts import create_markdown_artifact, Artifact
+from prefect.task_runners import ThreadPoolTaskRunner
+from prefect.futures import wait
 from openai import OpenAI
 
 
@@ -111,8 +114,8 @@ def resize_image(image_bytes: bytes) -> Tuple[bytes, str]:
         raise
 
 
-@task(name="outline_impassable_areas", timeout_seconds=300, retries=2)
-def outline_impassable_areas(image_artifact: Artifact, mock: bool = False) -> Artifact:
+@task(name="highlight_walls", timeout_seconds=300, retries=2)
+def highlight_walls(image_artifact: Artifact, mock: bool = False) -> Artifact:
     """
     Use OpenAI's GPT-image-1 to outline impassable areas in the map.
 
@@ -252,6 +255,8 @@ def highlight_portals(image_artifact: Artifact, mock: bool = False) -> Artifact:
                         Each doorway or portal should be marked with a single straight line.
                         Place the white line segment exactly at the transition point between rooms/areas.
                         Remove everything else in the image except the white lines.  Make everything else pure black.
+                        Do NOT draw the walls or other impassable areas.  Only draw the portals.
+                        The final image should just look like a black background with short white lines where the portals are.
 
                         Please try to mark the portals at the exact location they appear on the original image.
                         I should be able to overlay the original image with the black lines and see the exact location of the portal.
@@ -283,53 +288,6 @@ def highlight_portals(image_artifact: Artifact, mock: bool = False) -> Artifact:
         raise RuntimeError(f"OpenAI image edit failed for portals: {e}") from e
 
 
-def detect_lines_with_hough(gray_image: np.ndarray) -> List[List[Dict[str, int]]]:
-    """
-    Detect lines in a grayscale image using Canny edge detection and Hough transform.
-
-    Args:
-        gray_image: Grayscale image as numpy array
-
-    Returns:
-        List of line segments as lists of points
-    """
-    logger = get_run_logger()
-
-    # Apply Canny edge detection
-    edges = cv2.Canny(gray_image, 50, 150, apertureSize=3)  # type: ignore
-
-    # Save edges for debugging
-    cv2.imwrite("debug_edges.png", edges)  # type: ignore
-
-    # Dilate edges to connect nearby lines
-    kernel = np.ones((3, 3), np.uint8)
-    dilated_edges = cv2.dilate(edges, kernel, iterations=1)  # type: ignore
-
-    # Use probabilistic Hough Line Transform
-    line_segments = []
-    lines = cv2.HoughLinesP(  # type: ignore
-        dilated_edges,
-        rho=1,
-        theta=np.pi / 180,
-        threshold=20,
-        minLineLength=20,
-        maxLineGap=10,
-    )
-
-    if lines is not None:
-        for line in lines:
-            x1, y1, x2, y2 = line[0]
-            # Convert to our point format
-            line_coords = [{"x": x1, "y": y1}, {"x": x2, "y": y2}]
-            line_segments.append(line_coords)
-
-    logger.info(
-        f"Detected {len(line_segments) if lines is not None else 0} Hough line segments"
-    )
-
-    return line_segments
-
-
 def detect_contours(binary_image: np.ndarray) -> List[List[Tuple[int, int]]]:
     """
     Detect contours in a binary image.
@@ -343,8 +301,8 @@ def detect_contours(binary_image: np.ndarray) -> List[List[Tuple[int, int]]]:
     logger = get_run_logger()
 
     # Find ALL contours (including internal ones)
-    gray_image = cv2.cvtColor(binary_image, cv2.COLOR_BGR2GRAY)
-    contours, _ = cv2.findContours(gray_image, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)  # type: ignore
+    #gray_image = cv2.cvtColor(binary_image, cv2.COLOR_BGR2GRAY)
+    contours, _ = cv2.findContours(binary_image, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)  # type: ignore
 
     logger.info(f"Found {len(contours)} contours in total")
 
@@ -383,6 +341,66 @@ def detect_wall_segments(wall_outline_artifact: Artifact) -> List[List[Tuple[int
     Returns:
         List of wall segments as lists of points
     """
+    return detect_segments_with_cv2(wall_outline_artifact)
+
+@task(name="detect_portal_segments", retries=2)
+def detect_portal_segments(portal_highlight_artifact: Artifact) -> List[List[Tuple[int, int]]]:
+    """
+    Use OpenCV to detect portal segments from the highlighted portal image.
+    """
+    return detect_segments_with_hough(portal_highlight_artifact)
+
+def detect_segments_with_hough(image: Artifact) -> List[List[Dict[str, int]]]:
+    """
+    Detect lines in a grayscale image using Canny edge detection and Hough transform.
+
+    Args:
+        image: Image artifact   
+
+    Returns:
+        List of line segments as lists of points
+    """
+    logger = get_run_logger()
+
+    # Apply Canny edge detection
+    image_bytes = fetch_artifact_data(image)
+    gray_image = cv2.imdecode(np.frombuffer(image_bytes, np.uint8), cv2.IMREAD_GRAYSCALE)  # type: ignore
+    edges = cv2.Canny(gray_image, 50, 150, apertureSize=3)  # type: ignore
+
+    # Save edges for debugging
+    cv2.imwrite("debug_edges.png", edges)  # type: ignore
+
+    # Dilate edges to connect nearby lines
+    kernel = np.ones((3, 3), np.uint8)
+    dilated_edges = cv2.dilate(edges, kernel, iterations=1)  # type: ignore
+
+    # Use probabilistic Hough Line Transform
+    line_segments = []
+    lines = cv2.HoughLinesP(  # type: ignore
+        dilated_edges,
+        rho=1,
+        theta=np.pi / 180,
+        threshold=20,
+        minLineLength=20,
+        maxLineGap=10,
+    )
+
+    if lines is not None:
+        for line in lines:
+            x1, y1, x2, y2 = line[0]
+            # Convert to our point format
+            line_coords = [(x1, y1), (x2, y2)]
+            line_segments.append(line_coords)
+
+    logger.info(
+        f"Detected {len(line_segments) if lines is not None else 0} Hough line segments"
+    )
+
+    return line_segments
+
+
+
+def detect_segments_with_cv2(wall_outline_artifact: Artifact) -> List[List[Tuple[int, int]]]:
     image_bytes = fetch_artifact_data(wall_outline_artifact)
     logger = get_run_logger()
     logger.info("Using CV2 to detect wall segments")
@@ -390,23 +408,23 @@ def detect_wall_segments(wall_outline_artifact: Artifact) -> List[List[Tuple[int
     try:
         # Convert bytes to numpy array
         nparr = np.frombuffer(image_bytes, np.uint8)
-        image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)  # type: ignore
+        image = cv2.imdecode(nparr, cv2.IMREAD_GRAYSCALE)  # type: ignore
 
         # Get image dimensions
         height, width = image.shape[:2]
         logger.info(f"Image dimensions: {width}x{height}")
 
         # Convert to grayscale first for better processing
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)  # type: ignore
+        # gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)  # type: ignore
 
         # Create a binary image with adaptive thresholding for better line detection
-        _, binary = cv2.threshold(gray, 25, 255, cv2.THRESH_BINARY_INV)  # type: ignore
+        _, binary = cv2.threshold(image, 25, 255, cv2.THRESH_BINARY_INV)  # type: ignore
 
         # Save binary image for debugging
         cv2.imwrite("debug_binary.png", binary)  # type: ignore
 
         # Method 1: Contour detection
-        contour_segments = detect_contours(binary)
+        contour_segments = detect_contours(image)
 
         # Method 2: Edge detection + Hough Lines
         # line_segments = detect_lines_with_hough(gray)
@@ -421,53 +439,6 @@ def detect_wall_segments(wall_outline_artifact: Artifact) -> List[List[Tuple[int
         logger.error("Error detecting wall segments: %s", e)
         raise
 
-
-@task(name="detect_portal_segments", retries=2)
-def detect_portal_segments(
-    portal_outline_artifact: Artifact,
-) -> List[Tuple[Tuple[int, int], Tuple[int, int]]]:
-    """
-    Use OpenCV to detect portal segments from the highlighted portal image.
-
-    Args:
-        portal_outline_artifact: Artifact containing highlighted portal image
-
-    Returns:
-        List of portal segments as pairs of endpoints
-    """
-    image_bytes = fetch_artifact_data(portal_outline_artifact)
-    logger = get_run_logger()
-    logger.info("Using CV2 to detect portal segments")
-
-    try:
-        # Convert bytes to numpy array
-        nparr = np.frombuffer(image_bytes, np.uint8)
-        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)  # type: ignore
-
-        # Convert to grayscale
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)  # type: ignore
-        
-        # Apply threshold to get binary image, focusing on the black lines
-        _, binary = cv2.threshold(gray, 50, 255, cv2.THRESH_BINARY_INV)  # type: ignore
-
-        # Use HoughLinesP to detect line segments
-        lines = cv2.HoughLinesP(  # type: ignore
-            binary, 1, np.pi / 180, threshold=50, minLineLength=20, maxLineGap=5
-        )
-
-        portal_segments: List[Tuple[Tuple[int, int], Tuple[int, int]]] = []
-        if lines is not None:
-            for line in lines:
-                # Convert NumPy int32 to Python int
-                x1, y1, x2, y2 = int(line[0][0]), int(line[0][1]), int(line[0][2]), int(line[0][3])
-                portal_segments.append(((x1, y1), (x2, y2)))
-
-        logger.info("Detected %d portal segments", len(portal_segments))
-        return portal_segments
-
-    except Exception as e:
-        logger.error("Error detecting portal segments: %s", e)
-        raise
 
 
 @task(name="save_features_to_json", retries=2)
@@ -670,26 +641,26 @@ def create_uvtt_file(
         width_in_squares = float(original_size[0] / pixels_per_grid)
         height_in_squares = float(original_size[1] / pixels_per_grid)
         
-        # Convert wall segments to line_of_sight format (arrays of x,y points)
+        # Convert wall segments to line_of_sight format (arrays of x,y points in grid units)
         line_of_sight = []
         for wall in wall_segments:
-            # Use absolute coordinates without dividing by pixels_per_grid
+            # Convert to grid units by dividing by pixels_per_grid
             wall_points = []
             for point in wall:
                 wall_points.append({
-                    "x": int(point[0]),  # Ensure it's a Python int
-                    "y": int(point[1])   # Ensure it's a Python int
+                    "x": float(point[0] / pixels_per_grid),  # Convert to grid units
+                    "y": float(point[1] / pixels_per_grid)   # Convert to grid units
                 })
             line_of_sight.append(wall_points)
         
-        # Convert portal segments to portals format
+        # Convert portal segments to portals format (in grid units)
         portals = []
         for idx, (start, end) in enumerate(portal_segments):
-            # Convert coordinates to native Python types
-            start_x, start_y = int(start[0]), int(start[1])
-            end_x, end_y = int(end[0]), int(end[1])
+            # Convert coordinates to grid units
+            start_x, start_y = float(start[0] / pixels_per_grid), float(start[1] / pixels_per_grid)
+            end_x, end_y = float(end[0] / pixels_per_grid), float(end[1] / pixels_per_grid)
             
-            # Calculate center position using absolute coordinates
+            # Calculate center position in grid units
             center_x = float((start_x + end_x) / 2)
             center_y = float((start_y + end_y) / 2)
             
@@ -698,7 +669,7 @@ def create_uvtt_file(
             dy = end_y - start_y
             rotation = float(np.arctan2(dy, dx))
             
-            # Create portal object with absolute coordinates
+            # Create portal object with grid unit coordinates
             portal = {
                 "position": {
                     "x": center_x,
@@ -749,7 +720,6 @@ def create_uvtt_file(
             "software": "DungeonLab",
             "creator": "DungeonLab Feature Detection"
         }
-        logger.info(f"UVTT data: {uvtt_data}")
         
         # Convert to JSON
         uvtt_json = json.dumps(uvtt_data).encode('utf-8')
@@ -770,6 +740,7 @@ def create_uvtt_file(
     name="detect-map-features",
     timeout_seconds=FEATURE_DETECTION_TIMEOUT,
     persist_result=True,
+    task_runner=ThreadPoolTaskRunner(max_workers=4)
 )
 def detect_features_flow(image_url: str, pixels_per_grid: int = 70) -> Dict[str, Any]:
     """
@@ -784,7 +755,7 @@ def detect_features_flow(image_url: str, pixels_per_grid: int = 70) -> Dict[str,
     """
 
     # Temporary for testing
-    image_url = "http://localhost:9000/prefect/original-image-c15b5c33-53e3-47ce-9415-d1d4abe8d660" 
+    #image_url = "http://localhost:9000/prefect/original-image-c15b5c33-53e3-47ce-9415-d1d4abe8d660" 
     logger = get_run_logger()
     logger.info("Starting feature detection flow with OpenAI and CV2")
 
@@ -830,22 +801,25 @@ def detect_features_flow(image_url: str, pixels_per_grid: int = 70) -> Dict[str,
             message=f"Image resized to {resized_size[0]}x{resized_size[1]}",
         )
 
-        # Step 4: Generate wall outline and portal highlight images
-
-        logger.info("Starting wall outline detection")
+        # Step 4: Generate wall outline and portal highlight images in parallel
+        logger.info("Starting wall outline and portal detection in parallel")
         send_progress_update(
-            status="running", progress=20.0, message="Generating wall outlines"
+            status="running", progress=20.0, message="Generating wall outlines and portal highlights in parallel"
         )
-        wall_outline_artifact = outline_impassable_areas(resized_artifact, mock=False)
-
-        logger.info("Starting portal detection")
+        
+        # Submit both tasks to run in parallel
+        wall_outline_future = highlight_walls.submit(resized_artifact, mock=False)
+        portal_highlight_future = highlight_portals.submit(resized_artifact, mock=False)
+        
+        # Wait for both tasks to complete
+        wait([wall_outline_future, portal_highlight_future])
+        
+        # Get the results from the futures
+        wall_outline_artifact = wall_outline_future.result()
+        portal_highlight_artifact = portal_highlight_future.result()
+        
         send_progress_update(
-            status="running", progress=30.0, message="Generating portal highlights"
-        )
-        portal_highlight_artifact = highlight_portals(resized_artifact, mock=False)
-
-        send_progress_update(
-            status="running", progress=45.0, message="Generated outline images"
+            status="running", progress=45.0, message="Generated outline and portal images"
         )
 
         # Step 5: Use CV2 to detect features
@@ -873,7 +847,7 @@ def detect_features_flow(image_url: str, pixels_per_grid: int = 70) -> Dict[str,
         )
         uvtt_artifact = create_uvtt_file(
             wall_segments,
-            portal_segments,
+            portal_segments, 
             original_image_bytes,
             original_size,
             pixels_per_grid,
@@ -982,3 +956,29 @@ if __name__ == "__main__":
     # This will fail unless an actual image URL is provided
     # result = detect_features_flow(input_data=example_input)
     # print(json.dumps(result, indent=2))
+
+
+
+def detect_wall_segments_with_hough(wall_outline_artifact):
+    # Get the image data from the artifact
+    image_data = fetch_artifact_data(wall_outline_artifact)
+    np_arr = np.frombuffer(image_data, dtype=np.uint8)
+    image = cv2.imdecode(np_arr, cv2.IMREAD_GRAYSCALE)
+    _, binary = cv2.threshold(image, 200, 255, cv2.THRESH_BINARY)
+
+
+    #skeletonize the image
+    binary_bool = binary > 0
+    skeleton = skeletonize(binary_bool)
+    skel = skeleton.astype(np.uint8) * 255
+
+
+    # Detect lines with hough transform
+    lines = cv2.HoughLinesP(skel, rho=1, theta=np.pi / 180, threshold=30, minLineLength=10, maxLineGap=6)
+    line_segments = []
+    if lines is not None:
+        for x1, y1, x2, y2 in lines[:, 0]:
+            line_segments.append([(x1, y1), (x2, y2)])
+
+    return line_segments
+
