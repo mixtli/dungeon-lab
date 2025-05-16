@@ -204,7 +204,7 @@ onMounted(() => {
               Grid Columns <span class="text-red-500">*</span>
             </label>
             <input
-              v-model="formData.uvtt.resolution.map_size.x"
+              v-model="formData!.uvtt!.resolution!.map_size!.x"
               type="number"
               required
               min="1"

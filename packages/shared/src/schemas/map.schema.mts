@@ -33,7 +33,7 @@ export const resolutionSchema = z.object({
 /**
  * Schema for UVTT portal
  */
-const portalSchema = z.object({
+export const portalSchema = z.object({
   position: coordinateSchema,
   bounds: z.array(coordinateSchema),
   rotation: z.number(), // in radians

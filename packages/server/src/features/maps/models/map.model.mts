@@ -1,10 +1,10 @@
 import mongoose, { ObjectId } from 'mongoose';
 import { mapSchema } from '@dungeon-lab/shared/index.mjs';
-import { zId, zodSchemaRaw } from '@zodyac/zod-mongoose';
+import { zId } from '@zodyac/zod-mongoose';
 import { IMap } from '@dungeon-lab/shared/types/index.mjs';
 import { baseMongooseZodSchema } from '../../../models/base.model.schema.mjs';
 import { createMongoSchema } from '../../../models/zod-to-mongo.mjs';
-import { portalSchema } from '@dungeon-lab/shared/index.mjs';
+import { portalSchema } from '@dungeon-lab/shared/schemas/map.schema.mjs';
 type IPortal = z.infer<typeof portalSchema>;
 import { z } from '../../../utils/zod.mjs';
 
@@ -58,7 +58,7 @@ mongooseSchema.path('uvtt.objects_line_of_sight').set(function (value: {x: numbe
   console.log(result);
   return result;
 });
-mongooseSchema.path('uvtt.portals').get(function (value: IPortal[]) {
+mongooseSchema.path('uvtt.portals').get(function (value: (IPortal & {_id: string})[]) {
   if (!value) return undefined;
   return value.map((portal) => {
     const { _id, ...portalWithoutId } = portal;
@@ -70,7 +70,7 @@ mongooseSchema.path('uvtt.portals').get(function (value: IPortal[]) {
   
 });
 
-mongooseSchema.path('uvtt.portals').set(function (value: IPortal[]) {
+mongooseSchema.path('uvtt.portals').set(function (value: (IPortal & {_id: string})[]) {
   const result = value.map((portal) => {
     const { _id, ...portalWithoutId } = portal;
     portalWithoutId.bounds = portalWithoutId.bounds.map((bound: {x: number, y: number}) => ({x: bound.x, y: bound.y}));
