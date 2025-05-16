@@ -566,6 +566,8 @@ export class MapService {
       const obj = map.toObject();
       const newObj = deepMerge(obj, updateData);
       console.log('newObj', newObj);
+      // @ts-expect-error uvtt exists
+      newObj.uvtt = updateData.uvtt;
       map.set(newObj);
       await map.save();
 

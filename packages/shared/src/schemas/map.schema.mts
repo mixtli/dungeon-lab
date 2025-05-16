@@ -10,7 +10,10 @@ export const coordinateSchema = z.object({
   y: z.number()
 });
 
-const polygonSchema = z.array(coordinateSchema);
+const polygonSchema = z.array(z.object({
+  x: z.number(),
+  y: z.number()
+}));
 
 /**
  * Schema for UVTT resolution

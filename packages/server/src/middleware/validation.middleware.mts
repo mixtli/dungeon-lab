@@ -16,7 +16,7 @@ declare module 'express' {
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB limit
+    fileSize: 100 * 1024 * 1024 // 10MB limit
   }
 });
 

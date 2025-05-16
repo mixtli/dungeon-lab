@@ -138,7 +138,7 @@ export async function createApp(): Promise<express.Application> {
       credentials: true
     })
   );
-  app.use(express.json());
+  app.use(express.json({ limit: '100mb' }));
   app.use(requestLoggerMiddleware());
 
   // Session configuration

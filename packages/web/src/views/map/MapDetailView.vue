@@ -13,7 +13,14 @@ const map = ref<IMap | null>(null);
 const formData = ref<IMapUpdateData>({
   name: '',
   description: '',
-
+  uvtt: {
+    resolution: {
+      map_size: {
+        x: 0,
+        y: 0
+      }
+    }
+  }
 });
 const showDebug = ref(false);
 
@@ -51,7 +58,15 @@ async function fetchMap() {
     if (map.value) {
       formData.value = {
         name: map.value.name,
-        description: map.value.description || ''
+        description: map.value.description || '',
+        uvtt: {
+          resolution: {
+            map_size: {
+              x: map.value.uvtt?.resolution?.map_size?.x || 0,
+              y: map.value.uvtt?.resolution?.map_size?.y || 0
+            }
+          }
+        }
       };
     }
   } catch (error) {
@@ -189,7 +204,7 @@ onMounted(() => {
               Grid Columns <span class="text-red-500">*</span>
             </label>
             <input
-              v-model="formData.uvtt?.resolution?.map_size?.x"
+              v-model="formData.uvtt.resolution.map_size.x"
               type="number"
               required
               min="1"

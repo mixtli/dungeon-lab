@@ -72,6 +72,16 @@ const gridToPixel = (point: Point, resolution: UVTTData['resolution']): Point =>
 
 // Convert pixel coordinates back to grid coordinates
 const pixelToGrid = (point: Point, resolution: UVTTData['resolution']): Point => {
+  // Check if point is valid and has numeric coordinates
+  if (!point || typeof point.x !== 'number' || typeof point.y !== 'number') {
+    console.warn('Invalid point received:', point);
+    // Return a default point to avoid null values
+    return {
+      x: resolution.map_origin.x,
+      y: resolution.map_origin.y
+    };
+  }
+  
   return {
     x: point.x / resolution.pixels_per_grid + resolution.map_origin.x,
     y: point.y / resolution.pixels_per_grid + resolution.map_origin.y
@@ -88,15 +98,20 @@ onMounted(async () => {
   try {
     loading.value = true;
     
-    // First get the JSON version of the map to get its name
+    // Get the map details which already includes uvtt data
     const mapDetails = await mapsClient.getMap(mapId.value);
     
-    // Use MapsClient to get the map and export it as UVTT
-    const uvttBlob = await mapsClient.exportMapAsUVTT(mapId.value);
+    // Use the UVTT data directly from mapDetails with proper type assertion
+    const originalUvttData = (mapDetails.uvtt as unknown) as UVTTData;
     
-    // Parse the UVTT data from the blob
-    const uvttText = await uvttBlob.text();
-    const originalUvttData = JSON.parse(uvttText) as UVTTData;
+    // Make sure we have the image URL from mapDetails
+    if (mapDetails.image && mapDetails.image.url) {
+      console.log('Using image URL from mapDetails:', mapDetails.image.url);
+      // Add the image URL to the UVTT data
+      originalUvttData.image = mapDetails.image.url;
+    } else {
+      console.warn('No image URL found in mapDetails');
+    }
     
     console.log('Original line_of_sight structure:', originalUvttData.line_of_sight);
     
@@ -144,6 +159,7 @@ onMounted(async () => {
         ? transformWallToPixel(portal.bounds as unknown as Wall, originalUvttData.resolution)
         : [];
         
+      console.log("portal", portal);
       return {
         ...portal,
         position: gridToPixel(portal.position as Point, originalUvttData.resolution),
@@ -195,6 +211,15 @@ const handleSave = async (editorData: UVTTData) => {
     
     saving.value = true;
     
+    // Debug the editor data
+    console.log('Editor data structure:', {
+      hasLineOfSight: !!editorData.line_of_sight,
+      lineOfSightType: editorData.line_of_sight ? typeof editorData.line_of_sight : 'undefined',
+      isArray: editorData.line_of_sight ? Array.isArray(editorData.line_of_sight) : false,
+      lineOfSightLength: editorData.line_of_sight ? editorData.line_of_sight.length : 0,
+      resolution: editorData.resolution,
+    });
+    
     // First get the current map data to preserve name
     let mapName = 'Updated Map';
     try {
@@ -204,82 +229,138 @@ const handleSave = async (editorData: UVTTData) => {
       console.warn('Could not fetch current map name:', error);
     }
     
-    console.log('Saving editor data with line_of_sight:', editorData.line_of_sight);
+    console.log('Saving editor data:', editorData);
     
-    // Transform pixel coordinates back to grid coordinates
-    // PRESERVE the array of arrays structure
+    // Validate line_of_sight data
+    if (!editorData.line_of_sight || !Array.isArray(editorData.line_of_sight)) {
+      console.warn('Invalid line_of_sight data structure', editorData.line_of_sight);
+      editorData.line_of_sight = []; // Set to empty array to avoid errors
+    }
     
-    // Process line_of_sight - check if it's flat or already nested
+    // Process line_of_sight - check structure and transform
     let gridLineOfSight: Wall[] = [];
-    if (editorData.line_of_sight && Array.isArray(editorData.line_of_sight)) {
-      // Handle as a flat array and transform back to grid coordinates
-      // The editor component gives us a flat array, so we need to convert to array of arrays
-      const pointsArray = editorData.line_of_sight as unknown as Point[];
-      // Group points by wall segments (assuming points are ordered)
-      const processedWalls: Wall[] = [];
-      let currentWall: Point[] = [];
+    
+    // Check if editor data has appropriate structure and is not empty
+    if (editorData.line_of_sight && Array.isArray(editorData.line_of_sight) && editorData.line_of_sight.length > 0) {
+      console.log('Line of sight data structure:', editorData.line_of_sight);
       
-      // Process all points
-      pointsArray.forEach((point, index) => {
-        // Add point to current wall
-        currentWall.push(pixelToGrid(point, editorData.resolution));
+      // Check if it's already array of arrays or a flat array
+      if (Array.isArray(editorData.line_of_sight[0])) {
+        // It's already array of arrays, process each wall
+        gridLineOfSight = (editorData.line_of_sight as unknown as Wall[]).map(wall => 
+          wall.filter(point => point && typeof point.x === 'number' && typeof point.y === 'number')
+              .map(point => pixelToGrid(point, editorData.resolution))
+        ).filter(wall => wall.length >= 2); // Only keep walls with at least 2 points
+      } else {
+        // It's a flat array, convert to walls
+        const pointsArray = editorData.line_of_sight.filter(
+          point => point && typeof point.x === 'number' && typeof point.y === 'number'
+        ) as Point[];
         
-        // Check if this is the end of a segment
-        const isEndOfSegment = 
-          // End of array
-          (index === pointsArray.length - 1) || 
-          // Large distance to next point suggests a new segment
-          (index < pointsArray.length - 1 && 
-            Math.hypot(
-              pointsArray[index + 1].x - point.x, 
-              pointsArray[index + 1].y - point.y
-            ) > 50); // Threshold for new segment
-            
-        if (isEndOfSegment && currentWall.length > 1) {
-          processedWalls.push([...currentWall]);
-          currentWall = [];
+        // Only process if we have valid points
+        if (pointsArray.length > 0) {
+          // Group points by wall segments (assuming points are ordered)
+          const processedWalls: Wall[] = [];
+          let currentWall: Point[] = [];
+          
+          // Process all points
+          pointsArray.forEach((point, index) => {
+            // Add point to current wall (if valid)
+            if (typeof point.x === 'number' && typeof point.y === 'number') {
+              currentWall.push(pixelToGrid(point, editorData.resolution));
+              
+              // Check if this is the end of a segment
+              const isEndOfSegment = 
+                // End of array
+                (index === pointsArray.length - 1) || 
+                // Large distance to next point suggests a new segment
+                (index < pointsArray.length - 1 && 
+                  Math.hypot(
+                    pointsArray[index + 1].x - point.x, 
+                    pointsArray[index + 1].y - point.y
+                  ) > 50); // Threshold for new segment
+                  
+              if (isEndOfSegment && currentWall.length > 1) {
+                processedWalls.push([...currentWall]);
+                currentWall = [];
+              }
+            }
+          });
+          
+          // Add any remaining points
+          if (currentWall.length > 1) {
+            processedWalls.push(currentWall);
+          }
+          
+          gridLineOfSight = processedWalls;
         }
-      });
-      
-      // Add any remaining points
-      if (currentWall.length > 1) {
-        processedWalls.push(currentWall);
       }
-      
-      gridLineOfSight = processedWalls;
     }
     
-    // Process objects_line_of_sight similarly
+    console.log(`Processed ${gridLineOfSight.length} walls with valid coordinates`);
+    
+    // Filter out any invalid structures before creating clean version
+    gridLineOfSight = gridLineOfSight.filter(wall => 
+      wall && Array.isArray(wall) && wall.length >= 2 && 
+      wall.every(point => point && typeof point.x === 'number' && typeof point.y === 'number')
+    );
+    
+    // Process objects_line_of_sight similarly with the same validation
     let gridObjectsLineOfSight: Wall[] = [];
-    if (editorData.objects_line_of_sight && Array.isArray(editorData.objects_line_of_sight)) {
-      // Same approach as line_of_sight
-      const pointsArray = editorData.objects_line_of_sight as unknown as Point[];
-      const processedWalls: Wall[] = [];
-      let currentWall: Point[] = [];
+    
+    if (editorData.objects_line_of_sight && Array.isArray(editorData.objects_line_of_sight) && 
+        editorData.objects_line_of_sight.length > 0) {
       
-      pointsArray.forEach((point, index) => {
-        currentWall.push(pixelToGrid(point, editorData.resolution));
+      // Check if it's already array of arrays or a flat array
+      if (Array.isArray(editorData.objects_line_of_sight[0])) {
+        // It's already array of arrays, process each wall
+        gridObjectsLineOfSight = (editorData.objects_line_of_sight as unknown as Wall[]).map(wall => 
+          wall.filter(point => point && typeof point.x === 'number' && typeof point.y === 'number')
+              .map(point => pixelToGrid(point, editorData.resolution))
+        ).filter(wall => wall.length >= 2); // Only keep walls with at least 2 points
+      } else {
+        // It's a flat array, so process to walls
+        const pointsArray = editorData.objects_line_of_sight.filter(
+          point => point && typeof point.x === 'number' && typeof point.y === 'number'
+        ) as Point[];
         
-        const isEndOfSegment = 
-          (index === pointsArray.length - 1) || 
-          (index < pointsArray.length - 1 && 
-            Math.hypot(
-              pointsArray[index + 1].x - point.x, 
-              pointsArray[index + 1].y - point.y
-            ) > 50);
-            
-        if (isEndOfSegment && currentWall.length > 1) {
-          processedWalls.push([...currentWall]);
-          currentWall = [];
+        if (pointsArray.length > 0) {
+          const processedWalls: Wall[] = [];
+          let currentWall: Point[] = [];
+          
+          pointsArray.forEach((point, index) => {
+            if (typeof point.x === 'number' && typeof point.y === 'number') {
+              currentWall.push(pixelToGrid(point, editorData.resolution));
+              
+              const isEndOfSegment = 
+                (index === pointsArray.length - 1) || 
+                (index < pointsArray.length - 1 && 
+                  Math.hypot(
+                    pointsArray[index + 1].x - point.x, 
+                    pointsArray[index + 1].y - point.y
+                  ) > 50);
+                  
+              if (isEndOfSegment && currentWall.length > 1) {
+                processedWalls.push([...currentWall]);
+                currentWall = [];
+              }
+            }
+          });
+          
+          if (currentWall.length > 1) {
+            processedWalls.push(currentWall);
+          }
+          
+          gridObjectsLineOfSight = processedWalls;
         }
-      });
-      
-      if (currentWall.length > 1) {
-        processedWalls.push(currentWall);
       }
-      
-      gridObjectsLineOfSight = processedWalls;
     }
+    
+    // Filter out any invalid structures before creating clean version
+    gridObjectsLineOfSight = gridObjectsLineOfSight.filter(wall => 
+      wall && Array.isArray(wall) && wall.length >= 2 && 
+      wall.every(point => point && typeof point.x === 'number' && typeof point.y === 'number')
+    );
     
     // Clean the points to only have x and y properties
     const cleanLineOfSight = gridLineOfSight.map(wall => 
@@ -296,11 +377,29 @@ const handleSave = async (editorData: UVTTData) => {
       }))
     );
     
+    // Log the final line of sight structure
+    console.log('Final line_of_sight structure:', 
+      cleanLineOfSight.length > 0 
+        ? `${cleanLineOfSight.length} walls, first wall has ${cleanLineOfSight[0].length} points` 
+        : 'empty array');
+        
+    if (cleanLineOfSight.length > 0) {
+      console.log('Sample wall points:', cleanLineOfSight[0].slice(0, 2));
+    }
+    
     // Transform portals back to grid coordinates
     const gridPortals = editorData.portals?.map(portal => {
+      if (!portal || !portal.position || typeof portal.position.x !== 'number' || 
+          typeof portal.position.y !== 'number') {
+        console.warn('Invalid portal data:', portal);
+        return null;
+      }
+      
       const portalBounds = portal.bounds as unknown as Point[];
       const gridBounds = portalBounds 
-        ? portalBounds.map(point => pixelToGrid(point, editorData.resolution))
+        ? portalBounds
+            .filter(point => point && typeof point.x === 'number' && typeof point.y === 'number')
+            .map(point => pixelToGrid(point, editorData.resolution))
         : [];
         
       // Convert position to grid coordinates
@@ -319,10 +418,16 @@ const handleSave = async (editorData: UVTTData) => {
         closed: portal.closed,
         freestanding: portal.freestanding
       };
-    });
+    }).filter(Boolean) || [];
     
     // Transform lights back to grid coordinates
     const gridLights = editorData.lights?.map(light => {
+      if (!light || !light.position || typeof light.position.x !== 'number' || 
+          typeof light.position.y !== 'number') {
+        console.warn('Invalid light data:', light);
+        return null;
+      }
+      
       // Convert position to grid coordinates
       const gridPosition = pixelToGrid(light.position as Point, editorData.resolution);
       
@@ -332,12 +437,14 @@ const handleSave = async (editorData: UVTTData) => {
           y: gridPosition.y
         },
         // Convert range from pixels back to grid units
-        range: light.range / editorData.resolution.pixels_per_grid,
+        range: typeof light.range === 'number' 
+          ? light.range / editorData.resolution.pixels_per_grid 
+          : 0,
         intensity: light.intensity,
         color: light.color,
         shadows: light.shadows
       };
-    });
+    }).filter(Boolean) || [];
     
     // Convert format to number if it's a string
     const format = typeof editorData.format === 'string'
@@ -349,12 +456,27 @@ const handleSave = async (editorData: UVTTData) => {
       format,
       resolution: editorData.resolution,
       // Preserve the array of arrays structure for line_of_sight
-      line_of_sight: cleanLineOfSight,
-      objects_line_of_sight: cleanObjectsLineOfSight,
-      portals: gridPortals,
-      lights: gridLights,
-      environment: editorData.environment,
-      image: editorData.image
+      line_of_sight: cleanLineOfSight.length > 0 ? cleanLineOfSight : [],
+      objects_line_of_sight: cleanObjectsLineOfSight.length > 0 ? cleanObjectsLineOfSight : [],
+      portals: gridPortals.filter(portal => portal !== null) as {
+        position: { x: number; y: number };
+        bounds: { x: number; y: number }[];
+        rotation: number;
+        closed: boolean;
+        freestanding: boolean;
+      }[],
+      lights: gridLights.filter(light => light !== null) as {
+        position: { x: number; y: number };
+        range: number;
+        intensity: number;
+        color: string;
+        shadows: boolean;
+      }[],
+      environment: editorData.environment || { 
+        baked_lighting: false, 
+        ambient_light: "#ffffff" 
+      }
+      //image: editorData.image
     };
     
     console.log('Formatted UVTT for saving with line_of_sight structure:', 
