@@ -1,10 +1,27 @@
 <template>
   <div class="map-editor-page">
-    <MapEditorView 
-      :map-id="mapId"
-      :initial-data="mapData"
-      @save="handleSave"
-    />
+    <div v-if="loading" class="loading-overlay">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">Loading map...</div>
+    </div>
+    
+    <div v-else-if="error" class="error-message">
+      <p>{{ error }}</p>
+      <button @click="goBack" class="btn">Go Back</button>
+    </div>
+    
+    <template v-else>
+      <div v-if="saving" class="saving-overlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Saving map...</div>
+      </div>
+      
+      <MapEditorView 
+        :map-id="mapId"
+        :initial-data="mapData"
+        @save="handleSave"
+      />
+    </template>
   </div>
 </template>
 
@@ -12,16 +29,54 @@
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import MapEditorView from '@/components/MapEditor/MapEditorComponent.vue';
-import axios from 'axios';
-// Import UVTTData type from shared types
-import type { UVTTData } from '@/../../shared/src/types/mapEditor.mjs';
+import { MapsClient } from '@/../../client/src/maps.client.mjs';
+import type { UVTTData, Point } from '@/../../shared/src/types/mapEditor.mjs';
+
+// Define a wall as an array of points
+type Wall = Point[];
+
+// Extended UVTTData interface for our specific needs
+// interface ExtendedUVTTData extends Omit<UVTTData, 'line_of_sight' | 'objects_line_of_sight' | 'format'> {
+//   line_of_sight?: Wall[];
+//   objects_line_of_sight?: Wall[];
+//   format?: string | number; // Allow string or number to fix type error with schema
+// }
 
 const route = useRoute();
 const router = useRouter();
 const mapId = ref<string>(route.params.id as string);
 const mapData = ref<UVTTData | null>(null);
 const loading = ref(true);
+const saving = ref(false);
 const error = ref<string | null>(null);
+const mapsClient = new MapsClient();
+
+// Navigation helper
+const goBack = () => {
+  router.push({ name: 'maps' }); // Assuming 'maps' is the name of the maps list route
+};
+
+// Transform a wall (array of points) from grid to pixel coordinates
+const transformWallToPixel = (wall: Wall, resolution: UVTTData['resolution']): Wall => {
+  if (!wall || !Array.isArray(wall)) return [];
+  return wall.map(point => gridToPixel(point, resolution));
+};
+
+// Convert grid coordinates to pixel coordinates based on map resolution
+const gridToPixel = (point: Point, resolution: UVTTData['resolution']): Point => {
+  return {
+    x: (point.x - resolution.map_origin.x) * resolution.pixels_per_grid,
+    y: (point.y - resolution.map_origin.y) * resolution.pixels_per_grid
+  };
+};
+
+// Convert pixel coordinates back to grid coordinates
+const pixelToGrid = (point: Point, resolution: UVTTData['resolution']): Point => {
+  return {
+    x: point.x / resolution.pixels_per_grid + resolution.map_origin.x,
+    y: point.y / resolution.pixels_per_grid + resolution.map_origin.y
+  };
+};
 
 // Load map data on mount
 onMounted(async () => {
@@ -33,15 +88,96 @@ onMounted(async () => {
   try {
     loading.value = true;
     
-    // Fetch the map as UVTT format
-    const response = await axios.get(`/api/maps/${mapId.value}`, {
-      headers: {
-        'Accept': 'application/uvtt'
-      }
-    });
+    // First get the JSON version of the map to get its name
+    const mapDetails = await mapsClient.getMap(mapId.value);
     
-    // Parse the UVTT data
-    mapData.value = response.data;
+    // Use MapsClient to get the map and export it as UVTT
+    const uvttBlob = await mapsClient.exportMapAsUVTT(mapId.value);
+    
+    // Parse the UVTT data from the blob
+    const uvttText = await uvttBlob.text();
+    const originalUvttData = JSON.parse(uvttText) as UVTTData;
+    
+    console.log('Original line_of_sight structure:', originalUvttData.line_of_sight);
+    
+    // Transform line_of_sight - PRESERVE the array of arrays structure
+    // Each element is a wall, which is an array of points
+    let transformedLineOfSight: Wall[] = [];
+    
+    if (originalUvttData.line_of_sight && Array.isArray(originalUvttData.line_of_sight)) {
+      // Checking if the first element is an array to determine if it's already array of arrays
+      if (originalUvttData.line_of_sight.length > 0 && Array.isArray(originalUvttData.line_of_sight[0])) {
+        // It's already array of arrays (wall -> points)
+        transformedLineOfSight = (originalUvttData.line_of_sight as unknown as Wall[]).map(wall => {
+          return transformWallToPixel(wall, originalUvttData.resolution);
+        });
+      } else {
+        // It's a flat array, so we treat it as a single wall
+        transformedLineOfSight = [(originalUvttData.line_of_sight as unknown as Wall).map(point => {
+          return gridToPixel(point, originalUvttData.resolution);
+        })];
+      }
+      
+      console.log(`Transformed ${transformedLineOfSight.length} walls`);
+    }
+    
+    // Transform objects_line_of_sight in the same way
+    let transformedObjectsLineOfSight: Wall[] = [];
+    if (originalUvttData.objects_line_of_sight && Array.isArray(originalUvttData.objects_line_of_sight)) {
+      // Checking if the first element is an array to determine if it's already array of arrays
+      if (originalUvttData.objects_line_of_sight.length > 0 && Array.isArray(originalUvttData.objects_line_of_sight[0])) {
+        // It's already array of arrays (wall -> points)
+        transformedObjectsLineOfSight = (originalUvttData.objects_line_of_sight as unknown as Wall[]).map(wall => {
+          return transformWallToPixel(wall, originalUvttData.resolution);
+        });
+      } else {
+        // It's a flat array, so we treat it as a single wall
+        transformedObjectsLineOfSight = [(originalUvttData.objects_line_of_sight as unknown as Wall).map(point => {
+          return gridToPixel(point, originalUvttData.resolution);
+        })];
+      }
+    }
+    
+    // Transform portals
+    const transformedPortals = originalUvttData.portals?.map(portal => {
+      const bounds = portal.bounds 
+        ? transformWallToPixel(portal.bounds as unknown as Wall, originalUvttData.resolution)
+        : [];
+        
+      return {
+        ...portal,
+        position: gridToPixel(portal.position as Point, originalUvttData.resolution),
+        bounds
+      };
+    }) || [];
+    
+    // Transform lights
+    const transformedLights = originalUvttData.lights?.map(light => ({
+      ...light,
+      position: gridToPixel(light.position as Point, originalUvttData.resolution),
+      // Also convert range from grid units to pixels
+      range: light.range * originalUvttData.resolution.pixels_per_grid
+    })) || [];
+    
+    // Create the transformed data for the editor
+    // Need to cast format to number for compatibility with schema
+    const format = typeof originalUvttData.format === 'string' 
+      ? parseFloat(originalUvttData.format) 
+      : originalUvttData.format;
+      
+    mapData.value = {
+      ...originalUvttData,
+      format,
+      line_of_sight: transformedLineOfSight as unknown as Point[], // Keep array of arrays structure
+      objects_line_of_sight: transformedObjectsLineOfSight as unknown as Point[],
+      portals: transformedPortals,
+      lights: transformedLights
+    };
+    
+    // Store the map name for future use
+    const mapName = mapDetails.name || 'Untitled Map';
+    console.log(`Loaded map: ${mapName} with ${transformedLineOfSight.length} walls`);
+    
     loading.value = false;
   } catch (err) {
     console.error('Error loading map:', err);
@@ -53,21 +189,225 @@ onMounted(async () => {
 // Handle save events from the editor
 const handleSave = async (editorData: UVTTData) => {
   try {
-    // Save the map data
-    await axios.put(`/api/maps/${mapId.value}`, editorData, {
-      headers: {
-        'Content-Type': 'application/uvtt'
+    if (!mapId.value) {
+      throw new Error('No map ID available for saving');
+    }
+    
+    saving.value = true;
+    
+    // First get the current map data to preserve name
+    let mapName = 'Updated Map';
+    try {
+      const currentMap = await mapsClient.getMap(mapId.value);
+      mapName = currentMap.name || mapName;
+    } catch (error) {
+      console.warn('Could not fetch current map name:', error);
+    }
+    
+    console.log('Saving editor data with line_of_sight:', editorData.line_of_sight);
+    
+    // Transform pixel coordinates back to grid coordinates
+    // PRESERVE the array of arrays structure
+    
+    // Process line_of_sight - check if it's flat or already nested
+    let gridLineOfSight: Wall[] = [];
+    if (editorData.line_of_sight && Array.isArray(editorData.line_of_sight)) {
+      // Handle as a flat array and transform back to grid coordinates
+      // The editor component gives us a flat array, so we need to convert to array of arrays
+      const pointsArray = editorData.line_of_sight as unknown as Point[];
+      // Group points by wall segments (assuming points are ordered)
+      const processedWalls: Wall[] = [];
+      let currentWall: Point[] = [];
+      
+      // Process all points
+      pointsArray.forEach((point, index) => {
+        // Add point to current wall
+        currentWall.push(pixelToGrid(point, editorData.resolution));
+        
+        // Check if this is the end of a segment
+        const isEndOfSegment = 
+          // End of array
+          (index === pointsArray.length - 1) || 
+          // Large distance to next point suggests a new segment
+          (index < pointsArray.length - 1 && 
+            Math.hypot(
+              pointsArray[index + 1].x - point.x, 
+              pointsArray[index + 1].y - point.y
+            ) > 50); // Threshold for new segment
+            
+        if (isEndOfSegment && currentWall.length > 1) {
+          processedWalls.push([...currentWall]);
+          currentWall = [];
+        }
+      });
+      
+      // Add any remaining points
+      if (currentWall.length > 1) {
+        processedWalls.push(currentWall);
       }
+      
+      gridLineOfSight = processedWalls;
+    }
+    
+    // Process objects_line_of_sight similarly
+    let gridObjectsLineOfSight: Wall[] = [];
+    if (editorData.objects_line_of_sight && Array.isArray(editorData.objects_line_of_sight)) {
+      // Same approach as line_of_sight
+      const pointsArray = editorData.objects_line_of_sight as unknown as Point[];
+      const processedWalls: Wall[] = [];
+      let currentWall: Point[] = [];
+      
+      pointsArray.forEach((point, index) => {
+        currentWall.push(pixelToGrid(point, editorData.resolution));
+        
+        const isEndOfSegment = 
+          (index === pointsArray.length - 1) || 
+          (index < pointsArray.length - 1 && 
+            Math.hypot(
+              pointsArray[index + 1].x - point.x, 
+              pointsArray[index + 1].y - point.y
+            ) > 50);
+            
+        if (isEndOfSegment && currentWall.length > 1) {
+          processedWalls.push([...currentWall]);
+          currentWall = [];
+        }
+      });
+      
+      if (currentWall.length > 1) {
+        processedWalls.push(currentWall);
+      }
+      
+      gridObjectsLineOfSight = processedWalls;
+    }
+    
+    // Clean the points to only have x and y properties
+    const cleanLineOfSight = gridLineOfSight.map(wall => 
+      wall.map(point => ({
+        x: point.x,
+        y: point.y
+      }))
+    );
+    
+    const cleanObjectsLineOfSight = gridObjectsLineOfSight.map(wall => 
+      wall.map(point => ({
+        x: point.x,
+        y: point.y
+      }))
+    );
+    
+    // Transform portals back to grid coordinates
+    const gridPortals = editorData.portals?.map(portal => {
+      const portalBounds = portal.bounds as unknown as Point[];
+      const gridBounds = portalBounds 
+        ? portalBounds.map(point => pixelToGrid(point, editorData.resolution))
+        : [];
+        
+      // Convert position to grid coordinates
+      const gridPosition = pixelToGrid(portal.position as Point, editorData.resolution);
+        
+      return {
+        position: {
+          x: gridPosition.x,
+          y: gridPosition.y
+        },
+        bounds: gridBounds.map(point => ({
+          x: point.x,
+          y: point.y
+        })),
+        rotation: portal.rotation,
+        closed: portal.closed,
+        freestanding: portal.freestanding
+      };
     });
     
-    // Redirect to map details page
-    router.push({
-      name: 'map-detail',
-      params: { id: mapId.value }
+    // Transform lights back to grid coordinates
+    const gridLights = editorData.lights?.map(light => {
+      // Convert position to grid coordinates
+      const gridPosition = pixelToGrid(light.position as Point, editorData.resolution);
+      
+      return {
+        position: {
+          x: gridPosition.x,
+          y: gridPosition.y
+        },
+        // Convert range from pixels back to grid units
+        range: light.range / editorData.resolution.pixels_per_grid,
+        intensity: light.intensity,
+        color: light.color,
+        shadows: light.shadows
+      };
     });
+    
+    // Convert format to number if it's a string
+    const format = typeof editorData.format === 'string'
+      ? parseFloat(editorData.format)
+      : editorData.format;
+    
+    // Create a properly formatted UVTT object with grid coordinates
+    const formattedUvtt = {
+      format,
+      resolution: editorData.resolution,
+      // Preserve the array of arrays structure for line_of_sight
+      line_of_sight: cleanLineOfSight,
+      objects_line_of_sight: cleanObjectsLineOfSight,
+      portals: gridPortals,
+      lights: gridLights,
+      environment: editorData.environment,
+      image: editorData.image
+    };
+    
+    console.log('Formatted UVTT for saving with line_of_sight structure:', 
+      formattedUvtt.line_of_sight ? `[${formattedUvtt.line_of_sight.length} walls]` : 'undefined');
+    
+    // Create the update data
+    const mapUpdateData = {
+      name: mapName,
+      uvtt: formattedUvtt
+    };
+    
+    try {
+      // Use MapsClient to update the map
+      await mapsClient.updateMap(mapId.value, mapUpdateData);
+      
+      // Show success message
+      alert('Map saved successfully!');
+      
+      // Redirect to map details page if needed
+      router.push({
+        name: 'map-detail',
+        params: { id: mapId.value }
+      });
+    } catch (updateError) {
+      console.error('Error updating map:', updateError);
+      
+      // Try removing any properties that might cause compatibility issues
+      const safeUpdateData = {
+        name: mapName,
+        uvtt: {
+          ...formattedUvtt,
+          format: typeof formattedUvtt.format === 'string' ? parseInt(formattedUvtt.format, 10) : formattedUvtt.format
+        }
+      };
+      
+      console.log('Attempting update with sanitized data...');
+      await mapsClient.updateMap(mapId.value, safeUpdateData);
+      
+      // Show success message
+      alert('Map saved successfully (with format conversion)!');
+      
+      // Redirect to map details page if needed
+      router.push({
+        name: 'map-detail',
+        params: { id: mapId.value }
+      });
+    }
   } catch (err) {
     console.error('Error saving map:', err);
-    // Handle save error
+    // Show error message
+    alert('Failed to save map: ' + (err instanceof Error ? err.message : 'Unknown error'));
+  } finally {
+    saving.value = false;
   }
 };
 </script>
@@ -77,5 +417,75 @@ const handleSave = async (editorData: UVTTData) => {
   height: 100vh;
   width: 100%;
   overflow: hidden;
+  position: relative;
+}
+
+.loading-overlay,
+.saving-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.8);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.saving-overlay {
+  background-color: rgba(255, 255, 255, 0.6);
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 5px solid #f3f3f3;
+  border-top: 5px solid #3498db;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 20px;
+}
+
+.loading-text {
+  font-size: 18px;
+  color: #333;
+}
+
+.error-message {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  text-align: center;
+}
+
+.error-message p {
+  margin-bottom: 20px;
+  color: #e74c3c;
+  font-size: 18px;
+}
+
+.btn {
+  background-color: #3498db;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.btn:hover {
+  background-color: #2980b9;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 </style> 

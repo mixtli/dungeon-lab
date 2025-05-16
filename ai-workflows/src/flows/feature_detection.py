@@ -117,8 +117,8 @@ def outline_impassable_areas(image_artifact: Artifact, mock: bool = False) -> Ar
     Use OpenAI's GPT-image-1 to outline impassable areas in the map.
 
     Args:
-        image_bytes: Resized map image as bytes
-        size_info: Size information string (e.g., "square (1024x1024)")
+        image_artifact: Artifact containing the original map image
+        mock: Whether to use a mock response
 
     Returns:
         Modified image with outlined impassable areas as bytes
@@ -157,13 +157,15 @@ def outline_impassable_areas(image_artifact: Artifact, mock: bool = False) -> Ar
                     response = client.images.edit(
                         model="gpt-image-1",
                         image=image_file,
-                        prompt="""Draw thick black lines around all walls and
+                        prompt="""Draw pure white lines (#FFFFFF) along the edges of all walls and impassable areas in this map.
                         impassable areas in this map.
-                        Make the lines clear, precise, and very thick (at least 5 pixels wide).
+                        We are interested in walls and other large impassable areas (pit of lava, etc).
+                        We are not interested in small objects that may obstruct movement (e.g. boxes, tables, other objects).
+                        Make the lines clear, precise, and 5 pixels wide.  
                         The lines should clearly define the boundaries of walkable and non-walkable areas.
-                        All walls should be outlined with thick black lines.
-                        The lines should be black with 100% opacity.
-                        Remove everything else in the image except the black lines.
+                        All walls should be outlined white lines.
+                        The lines should be white with 100% opacity.
+                        Remove everything else in the image except the white lines. The rest of the image should be pure black.
                         """,
                         n=1,
                         size=api_size,
@@ -193,7 +195,7 @@ def outline_impassable_areas(image_artifact: Artifact, mock: bool = False) -> Ar
 
 
 @task(name="highlight_portals", timeout_seconds=300, retries=2)
-def highlight_portals(image_bytes: bytes, mock: bool = False) -> Artifact:
+def highlight_portals(image_artifact: Artifact, mock: bool = False) -> Artifact:
     """
     Use OpenAI's GPT-image-1 to highlight portals and doors in the map.
 
@@ -205,6 +207,8 @@ def highlight_portals(image_bytes: bytes, mock: bool = False) -> Artifact:
     """
     logger = get_run_logger()
     logger.info("Using GPT-image-1 to highlight portals and doorways")
+
+    image_bytes = fetch_artifact_data(image_artifact)
 
     # Initialize OpenAI client
     client = OpenAI(
@@ -238,17 +242,23 @@ def highlight_portals(image_bytes: bytes, mock: bool = False) -> Artifact:
                     response = client.images.edit(
                         model="gpt-image-1",
                         image=image_file,
-                        prompt="""Draw thick black lines to mark all doorways, portals,
-                        and passages between rooms in this map.
-                        Make the lines clear, precise, and very thick (at least 5 pixels wide).
-                    The lines should be black with 100% opacity.
-                    Each doorway or portal should be marked with a single straight line.
-                    Place the black line segment exactly at the transition point between rooms/areas.
-                    Remove everything else in the image except the black lines.
-                    """,
-                    n=1,
-                    size=api_size,
-                )
+                        prompt="""Draw pure white lines (#FFFFFF) to mark all doorways and portals,
+                        between rooms in this map.  It is only a portal if it can open and close.
+                        Archways are not portals.  Hallways are not portals.  Stairs are not portals.
+                        Doors are portals.  Windows are portals.  Trapdoors are portals.  
+                        Draw one line segment for each portal. A portal can be represented by a single line segment.
+                        Make the lines clear, precise, and 5 pixels wide.
+                        The lines should be white with 100% opacity.
+                        Each doorway or portal should be marked with a single straight line.
+                        Place the white line segment exactly at the transition point between rooms/areas.
+                        Remove everything else in the image except the white lines.  Make everything else pure black.
+
+                        Please try to mark the portals at the exact location they appear on the original image.
+                        I should be able to overlay the original image with the black lines and see the exact location of the portal.
+                        """,
+                        n=1,
+                        size=api_size,
+                    )
                 # Decode the response
                 result_image_base64 = response.data[0].b64_json
                 result_image_bytes = base64.b64decode(result_image_base64)
@@ -333,7 +343,8 @@ def detect_contours(binary_image: np.ndarray) -> List[List[Tuple[int, int]]]:
     logger = get_run_logger()
 
     # Find ALL contours (including internal ones)
-    contours, _ = cv2.findContours(binary_image, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)  # type: ignore
+    gray_image = cv2.cvtColor(binary_image, cv2.COLOR_BGR2GRAY)
+    contours, _ = cv2.findContours(gray_image, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)  # type: ignore
 
     logger.info(f"Found {len(contours)} contours in total")
 
@@ -825,13 +836,13 @@ def detect_features_flow(image_url: str, pixels_per_grid: int = 70) -> Dict[str,
         send_progress_update(
             status="running", progress=20.0, message="Generating wall outlines"
         )
-        wall_outline_artifact = outline_impassable_areas(resized_artifact, mock=True)
+        wall_outline_artifact = outline_impassable_areas(resized_artifact, mock=False)
 
         logger.info("Starting portal detection")
         send_progress_update(
             status="running", progress=30.0, message="Generating portal highlights"
         )
-        portal_highlight_artifact = highlight_portals(resized_image_bytes, mock=True)
+        portal_highlight_artifact = highlight_portals(resized_artifact, mock=False)
 
         send_progress_update(
             status="running", progress=45.0, message="Generated outline images"

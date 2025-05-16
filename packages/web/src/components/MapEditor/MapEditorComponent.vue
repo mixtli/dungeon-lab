@@ -4,25 +4,40 @@
             <!-- Main editor layout with sidebar and canvas -->
             <div class="map-editor-sidebar">
                 <!-- Editor toolbar component -->
-                <EditorToolbar :current-tool="editorState.currentTool.value" @tool-selected="editorState.setTool" />
+                <EditorToolbar 
+                    :current-tool="editorState.currentTool.value" 
+                    :current-wall-type="currentWallType"
+                    @tool-selected="editorState.setTool" 
+                    @wall-type-changed="handleWallTypeChanged"
+                />
 
                 <!-- Properties panel (conditional based on selection) -->
                 <EditorPropertiesPanel v-if="editorState.selectedObjectIds.value.length > 0"
                     :selected-objects="editorState.selectedObjects.value" @property-updated="handlePropertyUpdate" />
 
                 <!-- Layer panel -->
-                <EditorLayerPanel :walls="editorState.walls.value" :portals="editorState.portals.value"
-                    :lights="editorState.lights.value" @visibility-changed="handleLayerVisibility" />
+                <EditorLayerPanel :walls="editorState.walls.value" 
+                    :object-walls="editorState.objectWalls.value"
+                    :portals="editorState.portals.value"
+                    :lights="editorState.lights.value" 
+                    @visibility-changed="handleLayerVisibility" />
             </div>
 
             <!-- Main canvas area -->
             <div class="map-editor-canvas-container">
-                <EditorCanvas :walls="editorState.walls.value" :portals="editorState.portals.value"
-                    :lights="editorState.lights.value" :selected-object-ids="editorState.selectedObjectIds.value"
-                    :current-tool="editorState.currentTool.value" :grid-config="editorState.gridConfig"
-                    :map-metadata="editorState.mapMetadata" :viewport-transform="editorState.viewportTransform"
-                    @object-selected="handleObjectSelected" @object-added="handleObjectAdded"
-                    @object-modified="handleObjectModified" @object-removed="handleObjectRemoved" />
+                <EditorCanvas :walls="editorState.walls.value" 
+                    :object-walls="editorState.objectWalls.value"
+                    :portals="editorState.portals.value"
+                    :lights="editorState.lights.value" 
+                    :selected-object-ids="editorState.selectedObjectIds.value"
+                    :current-tool="editorState.currentTool.value" 
+                    :grid-config="editorState.gridConfig"
+                    :map-metadata="editorState.mapMetadata" 
+                    :viewport-transform="editorState.viewportTransform"
+                    @object-selected="handleObjectSelected" 
+                    @object-added="handleObjectAdded"
+                    @object-modified="handleObjectModified" 
+                    @object-removed="handleObjectRemoved" />
             </div>
         </div>
 
@@ -42,14 +57,15 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, watch } from 'vue';
+import { onMounted, onUnmounted, watch, ref } from 'vue';
 import { useEditorState } from './composables/useEditorState.mjs';
 import type {
-    AnyEditorObject,
     WallObject,
     PortalObject,
     LightObject,
-    UVTTData
+    UVTTData,
+    Point,
+    AnyEditorObject
 } from '@dungeon-lab/shared/src/types/mapEditor.mts';
 
 // Import editor components
@@ -72,12 +88,14 @@ const emit = defineEmits<{
 // Initialize the editor state
 const editorState = useEditorState();
 
-// Watch for initial data to load
-watch(() => props.initialData, (newData) => {
-    if (newData) {
-        loadMapData(newData);
-    }
-}, { immediate: true });
+// Wall type state
+const currentWallType = ref<'regular' | 'object'>('regular');
+
+// Helper for flattening wall points for Konva
+const flattenWallPointsForKonva = (points: [number, number][]): number[] => {
+    // Konva expects a flat array of numbers [x1, y1, x2, y2, ...]
+    return points.flatMap(point => [point[0], point[1]]);
+};
 
 // Load map data from UVTT
 const loadMapData = (data: UVTTData) => {
@@ -86,6 +104,7 @@ const loadMapData = (data: UVTTData) => {
             format: data.format,
             resolution: data.resolution,
             line_of_sight_length: data.line_of_sight?.length || 0,
+            objects_line_of_sight_length: data.objects_line_of_sight?.length || 0,
             portals_length: data.portals?.length || 0,
             lights_length: data.lights?.length || 0
         });
@@ -150,6 +169,51 @@ const loadMapData = (data: UVTTData) => {
                 console.log(`Loaded ${editorState.walls.value.length} walls`);
             }
         }
+        
+        // Load object walls
+        if (data.objects_line_of_sight) {
+            console.log('Loading objects_line_of_sight data:', data.objects_line_of_sight);
+            console.log('objects_line_of_sight type:', typeof data.objects_line_of_sight, Array.isArray(data.objects_line_of_sight));
+            
+            // Ensure objects_line_of_sight is an array
+            if (Array.isArray(data.objects_line_of_sight)) {
+                // Reset the objectWalls array
+                editorState.objectWalls.value = [];
+                
+                // Process each object wall
+                data.objects_line_of_sight.forEach((wall, wallIndex) => {
+                    if (Array.isArray(wall)) {
+                        // For nested arrays, each wall is an array of points
+                        console.log(`Processing object wall ${wallIndex} with ${wall.length} points`);
+                        
+                        // Convert the points to our internal format
+                        const wallPoints = wall.map(point => {
+                            if (point && typeof point.x === 'number' && typeof point.y === 'number') {
+                                return [point.x, point.y];
+                            }
+                            return null;
+                        }).filter(point => point !== null) as [number, number][];
+                        
+                        if (wallPoints.length >= 2) {
+                            // Create a new object wall with blue color
+                            editorState.objectWalls.value.push({
+                                id: `object-wall-${wallIndex}`,
+                                objectType: 'wall',
+                                points: flattenWallPointsForKonva(wallPoints),
+                                visible: true,
+                                locked: false,
+                                stroke: '#3399ff' // Blue color for object walls
+                            });
+                        }
+                    } else if (wall && typeof wall.x === 'number' && typeof wall.y === 'number') {
+                        // For flat arrays, each element is a point
+                        console.warn('Unexpected format: objects_line_of_sight contains individual points, not arrays of points');
+                    }
+                });
+                
+                console.log(`Loaded ${editorState.objectWalls.value.length} object walls`);
+            }
+        }
 
         // Load portals
         if (data.portals) {
@@ -188,11 +252,12 @@ const loadMapData = (data: UVTTData) => {
     }
 };
 
-// Helper for flattening wall points for Konva
-const flattenWallPointsForKonva = (points: [number, number][]): number[] => {
-    // Konva expects a flat array of numbers [x1, y1, x2, y2, ...]
-    return points.flatMap(point => [point[0], point[1]]);
-};
+// Watch for initial data to load
+watch(() => props.initialData, (newData) => {
+    if (newData) {
+        loadMapData(newData);
+    }
+}, { immediate: true });
 
 // Event handlers
 const handleObjectSelected = (id: string | null, addToSelection = false) => {
@@ -201,7 +266,14 @@ const handleObjectSelected = (id: string | null, addToSelection = false) => {
 
 const handleObjectAdded = (object: AnyEditorObject) => {
     if (object.objectType === 'wall') {
-        editorState.addWall(object as WallObject);
+        // Check if this is a regular wall or an object wall
+        if (object.stroke === '#3399ff') {
+            // This is an object wall (blue)
+            editorState.addObjectWall(object as WallObject);
+        } else {
+            // This is a regular wall (red)
+            editorState.addWall(object as WallObject);
+        }
     } else if (object.objectType === 'portal') {
         editorState.addPortal(object as PortalObject);
     } else if (object.objectType === 'light') {
@@ -228,7 +300,12 @@ const handleObjectModified = (id: string, updates: Partial<AnyEditorObject>) => 
     if (!object) return;
 
     if (object.objectType === 'wall') {
-        editorState.updateWall(id, updates as Partial<WallObject>);
+        // Check if it's a regular wall or object wall by ID or stroke color
+        if (id.startsWith('object-wall-') || object.stroke === '#3399ff') {
+            editorState.updateObjectWall(id, updates as Partial<WallObject>);
+        } else {
+            editorState.updateWall(id, updates as Partial<WallObject>);
+        }
     } else if (object.objectType === 'portal') {
         editorState.updatePortal(id, updates as Partial<PortalObject>);
     } else if (object.objectType === 'light') {
@@ -256,9 +333,21 @@ const handlePropertyUpdate = (objectId: string, property: string, value: unknown
     handleObjectModified(objectId, updates);
 };
 
-const handleLayerVisibility = (layerType: 'walls' | 'portals' | 'lights', visible: boolean) => {
+const handleLayerVisibility = (layerType: 'walls' | 'objectWalls' | 'portals' | 'lights', visible: boolean) => {
     // Update visibility for all objects in the layer
-    const collection = editorState[layerType].value;
+    let collection;
+    
+    if (layerType === 'walls') {
+        collection = editorState.walls.value;
+    } else if (layerType === 'objectWalls') {
+        collection = editorState.objectWalls.value;
+    } else if (layerType === 'portals') {
+        collection = editorState.portals.value;
+    } else if (layerType === 'lights') {
+        collection = editorState.lights.value;
+    } else {
+        return; // Unknown layer type
+    }
 
     collection.forEach((obj: AnyEditorObject) => {
         handleObjectModified(obj.id, { visible });
@@ -302,8 +391,8 @@ const handleExport = () => {
 
 // Convert editor state to UVTT format
 const convertEditorStateToUVTT = (): UVTTData => {
-    // Convert walls to line_of_sight
-    const line_of_sight = editorState.walls.value.flatMap(wall => {
+    // Convert walls to line_of_sight - each wall becomes an array of points
+    const line_of_sight = editorState.walls.value.map(wall => {
         const points = [];
         for (let i = 0; i < wall.points.length; i += 2) {
             points.push({
@@ -312,7 +401,19 @@ const convertEditorStateToUVTT = (): UVTTData => {
             });
         }
         return points;
-    });
+    }) as unknown as Point[];
+    
+    // Convert object walls to objects_line_of_sight - each wall becomes an array of points
+    const objects_line_of_sight = editorState.objectWalls.value.map(wall => {
+        const points = [];
+        for (let i = 0; i < wall.points.length; i += 2) {
+            points.push({
+                x: wall.points[i],
+                y: wall.points[i + 1]
+            });
+        }
+        return points;
+    }) as unknown as Point[];
     
     // Convert portals
     const portals = editorState.portals.value.map(portal => ({
@@ -337,6 +438,7 @@ const convertEditorStateToUVTT = (): UVTTData => {
         format: editorState.mapMetadata.format || 1.0,
         resolution: editorState.mapMetadata.resolution,
         line_of_sight,
+        objects_line_of_sight,
         portals,
         environment: editorState.mapMetadata.environment || {
             baked_lighting: false,
@@ -345,6 +447,12 @@ const convertEditorStateToUVTT = (): UVTTData => {
         lights,
         image: editorState.mapMetadata.image
     };
+};
+
+// Handle wall type change
+const handleWallTypeChanged = (type: 'regular' | 'object') => {
+    currentWallType.value = type;
+    console.log('Wall type changed to:', type);
 };
 
 // Lifecycle hooks

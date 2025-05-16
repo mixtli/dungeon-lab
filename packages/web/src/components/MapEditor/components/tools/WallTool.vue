@@ -13,6 +13,7 @@ import { useGridSystem } from '../../composables/useGridSystem.mjs';
 const props = defineProps<{
   gridConfig: GridConfig;
   isActive: boolean;
+  wallType?: 'regular' | 'object'; // Add prop to specify wall type
 }>();
 
 // Emits
@@ -26,6 +27,9 @@ const isDrawing = ref(false);
 const multiPointMode = ref(false);
 const isCurrentlyActive = computed(() => props.isActive);
 
+// Computed props with defaults
+const currentWallType = computed(() => props.wallType || 'regular');
+
 // Use grid system for snapping
 const gridSystem = useGridSystem(props.gridConfig);
 
@@ -33,6 +37,7 @@ const gridSystem = useGridSystem(props.gridConfig);
 const startDrawing = (pos: Point) => {
   console.log('WallTool.startDrawing called with pos:', pos);
   console.log('isActive:', isCurrentlyActive.value);
+  console.log('wallType:', currentWallType.value);
   
   if (!isCurrentlyActive.value) return;
   
@@ -105,13 +110,17 @@ const endDrawing = () => {
   
   // Only finish if we have at least 4 points (2 coordinate pairs)
   if (currentPoints.value.length >= 4) {
+    // Get the ID prefix and stroke color based on wall type
+    const idPrefix = currentWallType.value === 'object' ? 'object-wall' : 'wall';
+    const strokeColor = currentWallType.value === 'object' ? '#3399ff' : '#ff3333';
+    
     // Create the wall object
     const newWall: WallObject = {
-      id: `wall-${Date.now()}`,
+      id: `${idPrefix}-${Date.now()}`,
       objectType: 'wall',
       points: [...currentPoints.value], // Clone points array
-      stroke: '#000000',
-      strokeWidth: 4,
+      stroke: strokeColor,
+      strokeWidth: 3,
       visible: true
     };
     

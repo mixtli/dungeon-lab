@@ -25,8 +25,33 @@
 
             <!-- Wall layer -->
             <v-layer ref="wallLayer">
-                <v-line v-for="wall in visibleWalls" :key="wall.id" :config="getWallConfig(wall)"
+                <v-line v-for="wall in visibleWalls" :key="wall.id" 
+                    :config="getWallConfig(wall.points, wall.id.startsWith('object-wall-'))"
+                    @click="handleObjectClick($event, wall.id)" 
+                    @dragend="handleWallDragEnd($event, wall.id)" />
+            </v-layer>
+            
+            <!-- Object Wall layer -->
+            <v-layer ref="objectWallLayer">
+                <v-line v-for="wall in visibleObjectWalls" :key="wall.id" :config="getObjectWallConfig(wall)"
                     @click="handleObjectClick($event, wall.id)" @dragend="handleWallDragEnd($event, wall.id)" />
+            </v-layer>
+
+            <!-- Add a dedicated vertices layer -->
+            <v-layer ref="verticesLayer">
+                <v-circle v-for="vertex in wallVertices" :key="`vertex-${vertex.wallId}-${vertex.index}`" 
+                    :config="{
+                        x: vertex.x,
+                        y: vertex.y,
+                        radius: 6,
+                        fill: '#09f',
+                        stroke: '#000',
+                        strokeWidth: 1,
+                        draggable: true
+                    }"
+                    @click="handleVertexClick($event, vertex.wallId, vertex.index)"
+                    @dragmove="handleVertexDragMove($event, vertex.wallId, vertex.index)"
+                    @dragend="handleVertexDragEnd($event, vertex.wallId, vertex.index)" />
             </v-layer>
 
             <!-- Portal layer -->
@@ -116,6 +141,7 @@ interface KonvaTransformer {
 // Props
 const props = defineProps<{
     walls: WallObject[];
+    objectWalls?: WallObject[];
     portals: PortalObject[];
     lights: LightObject[];
     selectedObjectIds: string[];
@@ -146,6 +172,8 @@ const transformer = ref<KonvaTransformer | null>(null);
 const wallTool = ref<InstanceType<typeof WallTool> | null>(null);
 const selectionTool = ref<InstanceType<typeof SelectionTool> | null>(null);
 const selectionRect = ref<Konva.Rect | null>(null);
+const verticesLayer = ref<KonvaLayer | null>(null);
+const objectWallLayer = ref<KonvaLayer | null>(null);
 
 // Canvas state
 const canvasSize = reactive({
@@ -185,6 +213,10 @@ const visibleWalls = computed(() => {
     const visible = props.walls.filter(wall => wall.visible !== false);
     console.log('Visible walls:', visible.length);
     return visible;
+});
+
+const visibleObjectWalls = computed(() => {
+    return props.objectWalls?.filter(wall => wall.visible !== false) || [];
 });
 
 const visiblePortals = computed(() =>
@@ -228,39 +260,19 @@ const transformerConfig = computed(() => ({
         return newBox;
     },
     rotateEnabled: true,
-    resizeEnabled: true
+    resizeEnabled: true,
+    enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right', 'middle-left', 'middle-right', 'top-center', 'bottom-center']
 }));
 
-// Configure objects based on their data
-const getWallConfig = (wall: WallObject) => {
-    console.log('Rendering wall ID:', wall.id);
-    console.log('Wall points type:', typeof wall.points, Array.isArray(wall.points) ? 'is array' : 'not array');
-    console.log('Wall points length:', wall.points.length);
-    
-    // Ensure all points are valid numbers
-    const validPoints = Array.isArray(wall.points) ? 
-        wall.points.map((p, index) => {
-            const isValid = typeof p === 'number' && !isNaN(p);
-            if (!isValid) {
-                console.warn(`Invalid point at index ${index}, value:`, p);
-            }
-            return isValid ? p : 0;
-        }) : [];
-    
-    console.log('Valid points for rendering:', validPoints.length);
-    
-    const config = {
-        points: validPoints,
-        stroke: wall.stroke || '#ff3333',
-        strokeWidth: wall.strokeWidth || 3,
+// Function to get wall config with the proper color based on wall type
+const getWallConfig = (points: number[], isObjectWall: boolean = false) => {
+    return {
+        points,
+        stroke: isObjectWall ? '#3399ff' : '#ff3333', // Blue for object walls, red for regular walls
+        strokeWidth: 3,
         lineCap: 'round',
-        lineJoin: 'round',
-        draggable: props.currentTool === 'select',
-        id: wall.id
+        lineJoin: 'round'
     };
-
-    console.log('Wall config:', config);
-    return config;
 };
 
 const getPortalGroupConfig = (portal: PortalObject) => ({
@@ -297,6 +309,34 @@ const getLightConfig = (light: LightObject) => ({
     shadowBlur: 10,
     shadowOpacity: 0.5
 });
+
+// Add config for object walls with blue color
+const getObjectWallConfig = (wall: WallObject) => {
+    console.log('Rendering object wall ID:', wall.id);
+    
+    // Ensure all points are valid numbers
+    const validPoints = Array.isArray(wall.points) ? 
+        wall.points.map((p, index) => {
+            const isValid = typeof p === 'number' && !isNaN(p);
+            if (!isValid) {
+                console.warn(`Invalid point at index ${index}, value:`, p);
+            }
+            return isValid ? p : 0;
+        }) : [];
+    
+    const config = {
+        points: validPoints,
+        stroke: wall.stroke || '#0000ff',
+        strokeWidth: wall.strokeWidth || 10,
+        lineCap: 'round',
+        lineJoin: 'round',
+        draggable: props.currentTool === 'select',
+        id: wall.id
+    };
+    console.log(config)
+
+    return config;
+};
 
 // Event handlers
 const handleMouseDown = (e: KonvaEventObject<MouseEvent>) => {
@@ -576,6 +616,22 @@ const handleKeyDown = (e: KeyboardEvent) => {
     if (e.key === 'Enter') {
         if (props.currentTool === 'wall' && wallTool.value?.isDrawing) {
             finishWallDrawing();
+        }
+    }
+    
+    // Delete selected objects on Delete or Backspace
+    if ((e.key === 'Delete' || e.key === 'Backspace') && props.currentTool === 'select') {
+        // Check if we have a selected vertex
+        if (selectionTool.value?.selectedVertex) {
+            const vertex = selectionTool.value.selectedVertex;
+            handleSegmentDeletion(vertex.objectId, vertex.vertexIndex);
+            selectionTool.value.endVertexMove(); // Clear vertex selection
+        } 
+        // Otherwise delete selected objects
+        else if (props.selectedObjectIds.length > 0) {
+            props.selectedObjectIds.forEach(id => {
+                emit('object-removed', id);
+            });
         }
     }
 };
@@ -869,7 +925,10 @@ watch(() => props.mapMetadata.image, (newImageSrc) => {
 
 // Lifecycle hooks
 onMounted(() => {
+    // Set up canvas size
     updateCanvasSize();
+    
+    // Add event listeners
     window.addEventListener('resize', updateCanvasSize);
     window.addEventListener('keydown', handleKeyDown);
 
@@ -898,6 +957,148 @@ watch(() => props.currentTool, (newTool) => {
     if (newTool === 'wall' && !hasShownWallHelp && !localStorage.getItem('wall-help-dismissed')) {
         showWallHelp.value = true;
         hasShownWallHelp = true; // Only show once per session
+    }
+}, { immediate: true });
+
+// Add computed property for wall vertices
+const wallVertices = computed(() => {
+    // Only show vertices for selected walls when in select mode
+    if (props.currentTool !== 'select') return [];
+    
+    // Get all selected walls
+    const selectedWalls = props.walls.filter(wall => 
+        props.selectedObjectIds.includes(wall.id));
+    
+    // Generate points for each vertex
+    const vertices: { x: number; y: number; wallId: string; index: number; }[] = [];
+    
+    selectedWalls.forEach(wall => {
+        if (!wall.points || wall.points.length < 2) return;
+        
+        // Wall points are stored as flat array [x1, y1, x2, y2, ...]
+        // Convert to separate vertex points
+        for (let i = 0; i < wall.points.length; i += 2) {
+            vertices.push({
+                x: wall.points[i],
+                y: wall.points[i + 1],
+                wallId: wall.id,
+                index: i / 2  // Convert flat index to point index
+            });
+        }
+    });
+    
+    return vertices;
+});
+
+// Handle the selection tool's segment-deleted event directly in the vertex click handler
+const handleVertexClick = (e: KonvaEventObject<MouseEvent>, wallId: string, vertexIndex: number) => {
+    if (props.currentTool !== 'select') return;
+    
+    e.evt.preventDefault();
+    e.cancelBubble = true;
+    
+    // If Shift key is pressed, this is a segment deletion request
+    if (e.evt.shiftKey) {
+        handleSegmentDeletion(wallId, vertexIndex);
+        return;
+    }
+    
+    // Otherwise select the vertex
+    if (selectionTool.value) {
+        selectionTool.value.selectVertex(wallId, vertexIndex);
+    }
+};
+
+// Add a new method to handle segment deletion
+const handleSegmentDeletion = (wallId: string, vertexIndex: number) => {
+    // Find the wall
+    const wall = props.walls.find(w => w.id === wallId);
+    if (!wall || !wall.points) return;
+    
+    // For a segment, we need to remove points from the wall
+    // If the wall has only 2 points, delete the entire wall
+    if (wall.points.length <= 4) {
+        emit('object-removed', wallId);
+        return;
+    }
+    
+    // Determine which segment to delete - we'll delete the segment after this vertex
+    // If this is the last vertex, we'll delete the segment before it
+    const pointCount = wall.points.length / 2;
+    let startIndex = vertexIndex;
+    let endIndex = (vertexIndex + 1) % pointCount;
+    
+    if (startIndex === pointCount - 1) {
+        // If it's the last point, delete segment between last and first
+        startIndex = pointCount - 1;
+        endIndex = 0;
+    }
+    
+    // Create a copy of the points array
+    const updatedPoints = [...wall.points];
+    
+    // Convert vertex indices to flat array indices
+    const flatStartIndex = startIndex * 2;
+    const flatEndIndex = endIndex * 2;
+    
+    // Remove the segment (2 points)
+    // If we're removing the last segment to first, handle differently
+    if (endIndex === 0) {
+        // Remove last segment (last point and first point)
+        updatedPoints.splice(flatStartIndex, 2); // Remove last point
+        updatedPoints.splice(0, 2); // Remove first point
+    } else {
+        // Regular case, remove sequential points
+        updatedPoints.splice(flatEndIndex, 2);
+    }
+    
+    // Emit the update
+    emit('object-modified', wallId, { points: updatedPoints });
+};
+
+// Add these methods for vertex handling 
+const handleVertexDragMove = (e: KonvaEventObject<DragEvent>, wallId: string, vertexIndex: number) => {
+    if (props.currentTool !== 'select') return;
+    
+    const circle = e.target;
+    const newPos = { x: circle.x(), y: circle.y() };
+    
+    // Update the vertex position temporarily during drag
+    if (selectionTool.value) {
+        selectionTool.value.moveVertex(wallId, vertexIndex, newPos);
+    }
+};
+
+const handleVertexDragEnd = (e: KonvaEventObject<DragEvent>, wallId: string, vertexIndex: number) => {
+    if (props.currentTool !== 'select') return;
+    
+    const circle = e.target;
+    const newPos = { x: circle.x(), y: circle.y() };
+    
+    // Find the wall and update its point
+    const wall = props.walls.find(w => w.id === wallId);
+    if (wall && wall.points) {
+        // Create a copy of the points array
+        const updatedPoints = [...wall.points];
+        // Update the specific point (multiply by 2 because points are stored as flat array)
+        updatedPoints[vertexIndex * 2] = newPos.x;
+        updatedPoints[vertexIndex * 2 + 1] = newPos.y;
+        
+        // Emit the update
+        emit('object-modified', wallId, { points: updatedPoints });
+    }
+    
+    // End vertex move mode
+    if (selectionTool.value) {
+        selectionTool.value.endVertexMove();
+    }
+};
+
+// Add event handlers for the SelectionTool events directly
+watch(() => selectionTool.value, (tool) => {
+    if (tool) {
+        // These will be called directly through the vertex click/drag handlers
+        console.log('Selection tool is ready');
     }
 }, { immediate: true });
 </script>

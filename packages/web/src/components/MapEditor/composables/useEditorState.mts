@@ -15,6 +15,7 @@ import type {
 export function useEditorState() {
   // Core editor state
   const walls = ref<WallObject[]>([]);
+  const objectWalls = ref<WallObject[]>([]); // New collection for objects_line_of_sight
   const portals = ref<PortalObject[]>([]);
   const lights = ref<LightObject[]>([]);
   const selectedObjectIds = ref<string[]>([]);
@@ -55,7 +56,7 @@ export function useEditorState() {
 
   // Computed state
   const allObjects = computed<AnyEditorObject[]>(() => {
-    return [...walls.value, ...portals.value, ...lights.value];
+    return [...walls.value, ...objectWalls.value, ...portals.value, ...lights.value];
   });
 
   const selectedObjects = computed(() => {
@@ -72,6 +73,20 @@ export function useEditorState() {
     const index = walls.value.findIndex((w) => w.id === id);
     if (index >= 0) {
       walls.value[index] = { ...walls.value[index], ...updates };
+      isModified.value = true;
+    }
+  };
+
+  // Methods for object walls
+  const addObjectWall = (wall: WallObject) => {
+    objectWalls.value.push(wall);
+    isModified.value = true;
+  };
+
+  const updateObjectWall = (id: string, updates: Partial<WallObject>) => {
+    const index = objectWalls.value.findIndex((w) => w.id === id);
+    if (index >= 0) {
+      objectWalls.value[index] = { ...objectWalls.value[index], ...updates };
       isModified.value = true;
     }
   };
@@ -109,6 +124,12 @@ export function useEditorState() {
     const wallIndex = walls.value.findIndex((w) => w.id === id);
     if (wallIndex >= 0) {
       walls.value.splice(wallIndex, 1);
+      removed = true;
+    }
+
+    const objectWallIndex = objectWalls.value.findIndex((w) => w.id === id);
+    if (objectWallIndex >= 0) {
+      objectWalls.value.splice(objectWallIndex, 1);
       removed = true;
     }
 
@@ -172,6 +193,7 @@ export function useEditorState() {
   // State management methods
   const resetState = () => {
     walls.value = [];
+    objectWalls.value = [];
     portals.value = [];
     lights.value = [];
     selectedObjectIds.value = [];
@@ -191,6 +213,7 @@ export function useEditorState() {
   const loadMap = (
     newMapMetadata: MapMetadata,
     newWalls: WallObject[] = [],
+    newObjectWalls: WallObject[] = [],
     newPortals: PortalObject[] = [],
     newLights: LightObject[] = []
   ) => {
@@ -199,6 +222,7 @@ export function useEditorState() {
 
     // Replace objects
     walls.value = newWalls;
+    objectWalls.value = newObjectWalls;
     portals.value = newPortals;
     lights.value = newLights;
 
@@ -211,6 +235,7 @@ export function useEditorState() {
   return {
     // State
     walls,
+    objectWalls,
     portals,
     lights,
     selectedObjectIds,
@@ -228,6 +253,8 @@ export function useEditorState() {
     // Methods
     addWall,
     updateWall,
+    addObjectWall,
+    updateObjectWall,
     addPortal,
     updatePortal,
     addLight,
