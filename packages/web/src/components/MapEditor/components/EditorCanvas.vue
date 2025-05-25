@@ -320,22 +320,20 @@ const getWallConfig = (points: number[], isObjectWall: boolean = false) => {
 };
 
 const getPortalGroupConfig = (portal: PortalObject) => {
-    // portal.position is now stored in PIXEL coordinates by placePortal.
-    // Use these directly for the Konva Group position.
-    // const ppg = props.mapMetadata.resolution.pixels_per_grid; // No longer needed here
-    // const pixelX = portal.position.x * ppg; // Old logic assuming grid input
-    // const pixelY = portal.position.y * ppg; // Old logic assuming grid input
+    const ppg = props.mapMetadata.resolution.pixels_per_grid;
+    const pixelX = portal.position.x * ppg; // Convert grid to pixel
+    const pixelY = portal.position.y * ppg; // Convert grid to pixel
     
-    console.log('Portal group config (new logic):', {
+    console.log('Portal group config (reverted to grid input logic):', {
         portalId: portal.id,
-        pixelPos_input: portal.position, // Should be pixels already
-        // pixelsPerGrid: ppg, // No longer relevant for this calculation
-        finalPixelPos_group: { x: portal.position.x, y: portal.position.y }
+        gridPos_input: portal.position, // Expecting grid units from props
+        pixelsPerGrid: ppg,
+        finalPixelPos_group: { x: pixelX, y: pixelY }
     });
     
     return {
-        x: portal.position.x, // Use pixel coordinates directly
-        y: portal.position.y, // Use pixel coordinates directly
+        x: pixelX, // Use converted pixel coordinates
+        y: pixelY, // Use converted pixel coordinates
         draggable: props.currentTool === 'select',
         rotation: portal.rotation,
         id: portal.id
@@ -345,42 +343,54 @@ const getPortalGroupConfig = (portal: PortalObject) => {
 const getPortalLineConfig = (portal: PortalObject) => {
     const ppg = props.mapMetadata.resolution.pixels_per_grid;
 
-    // portal.bounds are now relative pixel coordinates: [{x,y}, {x,y}]
-    // If bounds are somehow missing or malformed (shouldn't happen for new portals from placePortal)
-    if (!portal.bounds || portal.bounds.length < 2 || !portal.bounds[0] || !portal.bounds[1]) {
+    // portal.bounds are absolute GRID coordinates: [{x,y}, {x,y}]
+    // portal.position is absolute GRID coordinates for the group's center (already converted to pixels by getPortalGroupConfig for the group itself)
+    // We need to calculate line points relative to the group's center, in PIXELS.
+
+    if (!portal.bounds || portal.bounds.length < 2 || !portal.bounds[0] || !portal.bounds[1] || !portal.position) {
         const halfLengthPixels = 0.5 * ppg; // Default to 1 grid unit wide portal centered in the group
-        console.warn('Portal line (default/malformed bounds):', {
+        console.warn('Portal line (default/malformed bounds or missing position - reverted logic):', {
             portalId: portal.id,
-            portalPos_pixel: portal.position,
+            portalPos_grid_input: portal.position, // This is grid
+            portalBounds_grid_input: portal.bounds, // This is grid
             halfLengthPixels: halfLengthPixels,
             final_points_pixel_relative: [-halfLengthPixels, 0, halfLengthPixels, 0]
         });
         return {
             points: [-halfLengthPixels, 0, halfLengthPixels, 0],
-            stroke: portal.closed ? '#8B4513' : '#D2B48C', // Brown for closed, Tan for open
-            strokeWidth: 20, // Make portals visually distinct
+            stroke: portal.closed ? '#8B4513' : '#D2B48C',
+            strokeWidth: 20,
             lineCap: 'round',
             lineJoin: 'round'
         };
     }
 
-    // For portals with valid bounds (which are relative pixel coordinates)
+    // Calculate relative pixel points for the line within the group
+    // portal.position is the group's center in GRID coordinates.
+    const p0_relative_pixel_x = (portal.bounds[0].x - portal.position.x) * ppg;
+    const p0_relative_pixel_y = (portal.bounds[0].y - portal.position.y) * ppg;
+    const p1_relative_pixel_x = (portal.bounds[1].x - portal.position.x) * ppg;
+    const p1_relative_pixel_y = (portal.bounds[1].y - portal.position.y) * ppg;
+
     const relativePixelPoints = [
-        portal.bounds[0].x, portal.bounds[0].y,
-        portal.bounds[1].x, portal.bounds[1].y
+        p0_relative_pixel_x, p0_relative_pixel_y,
+        p1_relative_pixel_x, p1_relative_pixel_y
     ];
 
-    console.log('Portal line (using relative pixel bounds):', {
+    console.log('Portal line (reverted - calculated from grid bounds relative to grid position):', {
         portalId: portal.id,
-        portalPos_pixel: portal.position,
-        bounds_relative_pixel: portal.bounds,
+        portalPos_grid_input: portal.position,
+        bounds_grid_input: portal.bounds,
+        ppg: ppg,
+        calculated_p0_relative_pixel: {x: p0_relative_pixel_x, y: p0_relative_pixel_y},
+        calculated_p1_relative_pixel: {x: p1_relative_pixel_x, y: p1_relative_pixel_y},
         final_points_pixel_relative: relativePixelPoints
     });
 
     return {
         points: relativePixelPoints,
-        stroke: portal.closed ? '#8B4513' : '#D2B48C', // Brown for closed, Tan for open
-        strokeWidth: 20, // Make portals visually distinct
+        stroke: portal.closed ? '#8B4513' : '#D2B48C',
+        strokeWidth: 20,
         lineCap: 'round',
         lineJoin: 'round'
     };
@@ -842,30 +852,46 @@ const handleKeyDown = (e: KeyboardEvent) => {
 };
 
 const placePortal = (pos: Point) => {
+    console.log('[EditorCanvas] placePortal called with world pixel pos:', JSON.parse(JSON.stringify(pos)), 'Current tool:', props.currentTool);
+
+    if (props.currentTool !== 'portal') {
+        console.warn('[EditorCanvas] placePortal called, but current tool is not portal. Aborting.');
+        return;
+    }
+
     const ppg = props.mapMetadata.resolution.pixels_per_grid;
-    const portalLength = ppg * 2; // Default length of 2 grid units in pixels
+    
+    // 1. Convert the incoming world pixel position to absolute GRID position for the portal's center.
+    // Snap the original pixel pos first if snap is enabled, then convert to grid.
+    const snappedWorldPixelPos = props.gridConfig.snap ? gridSystem.snapToGrid(pos) : pos;
+    const portalCenter_grid_x = snappedWorldPixelPos.x / ppg;
+    const portalCenter_grid_y = snappedWorldPixelPos.y / ppg;
+    const portalCenter_grid: Point = { x: portalCenter_grid_x, y: portalCenter_grid_y };
 
-    const positionToUse = props.gridConfig.snap ? gridSystem.snapToGrid(pos) : pos; // This is in pixels
+    // 2. Define portal length in GRID units. Default to 2 grid units.
+    const portalLength_grid = 2; 
 
-    // Portal bounds are relative to its pixel position
-    const bounds: [Point, Point] = [
-        { x: -portalLength / 2, y: 0 },
-        { x: portalLength / 2, y: 0 }
+    // 3. Calculate ABSOLUTE GRID coordinates for bounds.
+    // Assuming a horizontal portal centered at portalCenter_grid for simplicity upon creation.
+    // The user can then rotate or adjust endpoints.
+    const bounds_grid: [Point, Point] = [
+        { x: portalCenter_grid_x - portalLength_grid / 2, y: portalCenter_grid_y },
+        { x: portalCenter_grid_x + portalLength_grid / 2, y: portalCenter_grid_y }
     ];
 
     const newPortal: PortalObject = {
         id: `portal-${Date.now()}`,
         objectType: 'portal',
-        position: { x: positionToUse.x, y: positionToUse.y }, // Stored in pixels
-        rotation: 0,
-        bounds: bounds, // Stored as relative pixel offsets
-        closed: false,       // Corrected default
-        freestanding: true,  // Corrected default
-        visible: true,     // Ensure visibility
-        locked: false      // Ensure not locked
+        position: portalCenter_grid, // Store position in GRID coordinates
+        rotation: 0, // Default rotation
+        bounds: bounds_grid,     // Store bounds in absolute GRID coordinates
+        closed: false,
+        freestanding: true,
+        visible: true,
+        locked: false
     };
 
-    console.log('Created portal (new logic):', newPortal);
+    console.log('[EditorCanvas] placePortal - Emitting new portal (GRID coordinates):', JSON.parse(JSON.stringify(newPortal)));
     emit('object-added', newPortal);
 };
 
@@ -1327,44 +1353,72 @@ watch(() => selectionTool.value, (tool) => {
 // Add a new method to handle portal endpoint drag
 const handlePortalEndpointDrag = (e: KonvaEventObject<DragEvent>, id: string, endpointIndex: number) => {
     const portal = props.portals.find(p => p.id === id);
-    if (!portal) return;
-
-    const node = e.target; // This is the handle (Konva.Circle)
-    const handleWorldPixelPos = node.absolutePosition(); // Gets position relative to stage, which is world pixels
-
-    // Snap the handle's world pixel position if snap is enabled
-    const snappedHandleWorldPixelPos = props.gridConfig.snap ? gridSystem.snapToGrid(handleWorldPixelPos) : handleWorldPixelPos;
-
-    // Convert the handle's snapped world pixel position to be relative to the portal group's origin (portal.position)
-    // portal.position is also in world pixels.
-    const relativeX = snappedHandleWorldPixelPos.x - portal.position.x;
-    const relativeY = snappedHandleWorldPixelPos.y - portal.position.y;
-    
-    // Create a new bounds array to avoid direct mutation issues with reactivity if any
-    const newBoundsArray: [Point, Point] = portal.bounds ? [{...portal.bounds[0]}, {...portal.bounds[1]}] : [{x:0,y:0},{x:0,y:0}];
-    
-    if (!newBoundsArray[endpointIndex]) {
-        newBoundsArray[endpointIndex] = { x: 0, y: 0 }; // Should not happen with new portal creation logic
+    // Ensure portal and its existing bounds (which should be in grid coords) exist
+    if (!portal || !portal.bounds || !portal.bounds[0] || !portal.bounds[1] || !portal.position) { 
+        console.error('Portal, portal.position, or portal.bounds not found for endpoint drag', {id, portal});
+        return;
     }
-    newBoundsArray[endpointIndex].x = relativeX;
-    newBoundsArray[endpointIndex].y = relativeY;
 
-    console.log('Portal endpoint drag:', {
+    const handleNode = e.target; // This is the handle (Konva.Circle)
+    const ppg = props.mapMetadata.resolution.pixels_per_grid;
+
+    // 1. Get the handle's absolute position on the page (as returned by Konva for a dragged node)
+    const handleAbsPagePos = handleNode.getAbsolutePosition();
+    if (!handleAbsPagePos) {
+      console.error("[EditorCanvas] Could not get absolute page position of handle for portal endpoint drag");
+      return;
+    }
+
+    // 2. Convert absolute page position to world pixel position (accounting for stage pan/zoom)
+    const stageTx = props.viewportTransform.position.x;
+    const stageTy = props.viewportTransform.position.y;
+    const stageScale = props.viewportTransform.scale;
+
+    const handleWorldPixelPos = {
+        x: (handleAbsPagePos.x - stageTx) / stageScale,
+        y: (handleAbsPagePos.y - stageTy) / stageScale
+    };
+
+    // 3. Snap this world pixel position if snap is enabled
+    const snappedHandleWorldPixelPos = props.gridConfig.snap 
+        ? gridSystem.snapToGrid(handleWorldPixelPos) 
+        : handleWorldPixelPos;
+
+    // 4. Convert the snapped world pixel position to an ABSOLUTE GRID coordinate
+    const newEndpoint_grid_x = snappedHandleWorldPixelPos.x / ppg;
+    const newEndpoint_grid_y = snappedHandleWorldPixelPos.y / ppg;
+    const newEndpoint_grid: Point = { x: newEndpoint_grid_x, y: newEndpoint_grid_y };
+
+    // 5. Create a new bounds array with the updated absolute grid coordinate
+    // The portal.bounds from props should already be in absolute grid coordinates.
+    const newBounds_grid: [Point, Point] = [
+        endpointIndex === 0 ? newEndpoint_grid : { ...portal.bounds[0] },
+        endpointIndex === 1 ? newEndpoint_grid : { ...portal.bounds[1] }
+    ];
+    
+    console.log('[EditorCanvas] Portal endpoint drag - GRID focus:', {
         id, endpointIndex,
-        handleWorldPixelPos,
+        handleAbsPagePos,
+        stageTransform: { x: stageTx, y: stageTy, scale: stageScale },
+        calculated_handleWorldPixelPos: handleWorldPixelPos,
         snappedHandleWorldPixelPos,
-        portalPosition_pixel: portal.position,
-        calculatedRelativeToPortal_pixel: { x: relativeX, y: relativeY },
-        newBounds_relative_pixel: newBoundsArray
+        newEndpoint_grid, // This is the new absolute grid coordinate for the dragged endpoint
+        originalPortalBounds_grid: portal.bounds, // Should be grid
+        newBounds_grid_emitted: newBounds_grid // This is what gets emitted
     });
 
+    // Emit the object-modified event with the updated bounds in ABSOLUTE GRID coordinates.
+    // The portal's main `position` (its group center in grid) remains unchanged by this operation.
     emit('object-modified', id, {
-        bounds: newBoundsArray // Bounds are stored as relative pixel offsets
+        bounds: newBounds_grid 
     });
 
-    // After dragging an endpoint, we might need to redraw the stage if Konva doesn't auto-update group based on handle moves
-    // This is often handled by Konva, but if issues persist, a manual redraw might be needed here.
-    // stage.value?.getStage().batchDraw(); 
+    // Redraw the layer containing the portal to ensure the line updates visually.
+    // The portal group's x/y (derived from portal.position) hasn't changed,
+    // but its internal line (derived from portal.bounds relative to portal.position)
+    // and its handles (derived from portal.bounds relative to portal.position) need re-rendering.
+    const portalKonvaNode = handleNode.getParent(); // Get the Konva.Group for the portal
+    portalKonvaNode?.getLayer()?.batchDraw();
 };
 </script>
 

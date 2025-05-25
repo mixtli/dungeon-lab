@@ -306,6 +306,7 @@ const handleObjectAdded = (object: AnyEditorObject) => {
             editorState.addWall(object as WallObject);
         }
     } else if (object.objectType === 'portal') {
+        console.log('[MapEditorComponent] handleObjectAdded for Portal. Received portal object:', JSON.parse(JSON.stringify(object)));
         editorState.addPortal(object as PortalObject);
     } else if (object.objectType === 'light') {
         const light = object as LightObject;

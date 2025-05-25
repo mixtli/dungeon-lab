@@ -92,7 +92,9 @@ export function useEditorState() {
   };
 
   const addPortal = (portal: PortalObject) => {
+    console.log('[useEditorState] addPortal. Received portal object:', JSON.parse(JSON.stringify(portal)));
     portals.value.push(portal);
+    console.log('[useEditorState] addPortal. Portals count after push:', portals.value.length);
     isModified.value = true;
   };
 
