@@ -1,7 +1,7 @@
 <template>
     <div ref="canvasContainer" class="editor-canvas-container">
         <v-stage ref="stage" :config="stageConfig" @mousedown="handleMouseDown" @mousemove="handleMouseMove"
-            @mouseup="handleMouseUp" @wheel="handleWheel">
+            @mouseup="handleMouseUp" @wheel="handleWheel" @dragend="handleStageDragEnd">
             <!-- Background layer with map image -->
             <v-layer ref="bgLayer">
                 <v-image v-if="backgroundImage" :config="backgroundImageConfig" />
@@ -653,6 +653,29 @@ const handleWheel = (e: KonvaEventObject<WheelEvent>) => {
     } as unknown as Partial<WallObject | PortalObject | LightObject>; // Using type assertion to match emit type
 
     // Emit changes for parent component to update viewport transform
+    emit('object-modified', 'viewport', updates);
+};
+
+const handleStageDragEnd = (e: KonvaEventObject<DragEvent>) => {
+    if (props.currentTool !== 'pan') return; // Only act if pan tool was active
+
+    const stageInstance = e.target.getStage();
+    if (!stageInstance) return;
+
+    const newPosition = {
+        x: stageInstance.x(),
+        y: stageInstance.y()
+    };
+
+    // Emit changes for parent component to update viewport transform position
+    // Keep the existing scale
+    const updates = {
+        viewportTransform: {
+            scale: props.viewportTransform.scale, // Keep current scale
+            position: newPosition
+        }
+    } as unknown as Partial<WallObject | PortalObject | LightObject>; // Using type assertion
+
     emit('object-modified', 'viewport', updates);
 };
 
