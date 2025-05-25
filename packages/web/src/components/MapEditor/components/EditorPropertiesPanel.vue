@@ -50,14 +50,70 @@
                             </div>
                             <div class="property-row">
                                 <label>Rotation:</label>
-                                <input type="number" :value="(selectedObject as PortalObject).rotation" min="0"
-                                    max="359"
+                                <input type="number" :value="Math.round((selectedObject as PortalObject).rotation)" min="0"
+                                    max="359" step="1"
                                     @change="updateProperty('rotation', parseInt(($event.target as HTMLInputElement).value))" />
+                                <span class="unit">°</span>
                             </div>
                             <div class="property-row">
                                 <label>Freestanding:</label>
                                 <input type="checkbox" :checked="(selectedObject as PortalObject).freestanding"
                                     @change="updateProperty('freestanding', ($event.target as HTMLInputElement).checked)" />
+                            </div>
+                        </div>
+                        
+                        <div class="property-group">
+                            <h4>Position (Grid Coordinates)</h4>
+                            <div class="property-row">
+                                <label>X:</label>
+                                <input type="number" :value="Number((selectedObject as PortalObject).position.x.toFixed(2))" step="0.1"
+                                    @change="updatePositionProperty('x', parseFloat(($event.target as HTMLInputElement).value))" />
+                            </div>
+                            <div class="property-row">
+                                <label>Y:</label>
+                                <input type="number" :value="Number((selectedObject as PortalObject).position.y.toFixed(2))" step="0.1"
+                                    @change="updatePositionProperty('y', parseFloat(($event.target as HTMLInputElement).value))" />
+                            </div>
+                        </div>
+
+                        <div class="property-group">
+                            <h4>Bounds (Grid Coordinates)</h4>
+                            <div class="bounds-section">
+                                <div class="bounds-point">
+                                    <h5>Start Point</h5>
+                                    <div class="property-row">
+                                        <label>X1:</label>
+                                        <input type="number" 
+                                            :value="(selectedObject as PortalObject).bounds[0]?.x?.toFixed(2) || '0'" 
+                                            step="0.1"
+                                            @change="updateBoundsProperty(0, 'x', parseFloat(($event.target as HTMLInputElement).value))" />
+                                    </div>
+                                    <div class="property-row">
+                                        <label>Y1:</label>
+                                        <input type="number" 
+                                            :value="(selectedObject as PortalObject).bounds[0]?.y?.toFixed(2) || '0'" 
+                                            step="0.1"
+                                            @change="updateBoundsProperty(0, 'y', parseFloat(($event.target as HTMLInputElement).value))" />
+                                    </div>
+                                </div>
+                                
+                                <div class="bounds-point">
+                                    <h5>End Point</h5>
+                                    <div class="property-row">
+                                        <label>X2:</label>
+                                        <input type="number" 
+                                            :value="(selectedObject as PortalObject).bounds[1]?.x?.toFixed(2) || '0'" 
+                                            step="0.1"
+                                            @change="updateBoundsProperty(1, 'x', parseFloat(($event.target as HTMLInputElement).value))" />
+                                    </div>
+                                    <div class="property-row">
+                                        <label>Y2:</label>
+                                        <input type="number" 
+                                            :value="(selectedObject as PortalObject).bounds[1]?.y?.toFixed(2) || '0'" 
+                                            step="0.1"
+                                            @change="updateBoundsProperty(1, 'y', parseFloat(($event.target as HTMLInputElement).value))" />
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </template>
@@ -71,10 +127,13 @@
                                     @change="updateProperty('color', ($event.target as HTMLInputElement).value)" />
                             </div>
                             <div class="property-row">
-                                <label>Range:</label>
-                                <input type="number" :value="(selectedObject as LightObject).range" min="0" max="500"
-                                    step="10"
-                                    @change="updateProperty('range', parseInt(($event.target as HTMLInputElement).value))" />
+                                <label>Range (grid units):</label>
+                                <input type="number" 
+                                    :value="lightRangeInGridUnits" 
+                                    :min="0" 
+                                    :max="props.gridSize > 0 ? 500 / props.gridSize : 10" 
+                                    :step="props.gridSize > 0 ? 10 / props.gridSize : 0.1" 
+                                    @change="updateProperty('range', Math.round(parseFloat(($event.target as HTMLInputElement).value) * props.gridSize))" />
                             </div>
                             <div class="property-row">
                                 <label>Intensity:</label>
@@ -122,6 +181,7 @@ import type {
 // Props and emits
 const props = defineProps<{
     selectedObjects: AnyEditorObject[];
+    gridSize: number;
 }>();
 
 const emit = defineEmits<{
@@ -132,6 +192,13 @@ const emit = defineEmits<{
 // Computed properties
 const selectedObject = computed(() => {
     return props.selectedObjects.length > 0 ? props.selectedObjects[0] : null;
+});
+
+const lightRangeInGridUnits = computed(() => {
+    if (selectedObject.value?.objectType === 'light' && props.gridSize > 0) {
+        return (selectedObject.value as LightObject).range / props.gridSize;
+    }
+    return 0;
 });
 
 const objectTypeLabel = computed(() => {
@@ -149,6 +216,28 @@ const objectTypeLabel = computed(() => {
 const updateProperty = (property: string, value: unknown) => {
     if (selectedObject.value) {
         emit('property-updated', selectedObject.value.id, property, value);
+    }
+};
+
+const updatePositionProperty = (axis: 'x' | 'y', value: number) => {
+    if (selectedObject.value && selectedObject.value.objectType === 'portal') {
+        const currentPosition = (selectedObject.value as PortalObject).position;
+        const newPosition = { ...currentPosition, [axis]: value };
+        emit('property-updated', selectedObject.value.id, 'position', newPosition);
+    }
+};
+
+const updateBoundsProperty = (pointIndex: number, axis: 'x' | 'y', value: number) => {
+    if (selectedObject.value && selectedObject.value.objectType === 'portal') {
+        const currentBounds = [...((selectedObject.value as PortalObject).bounds || [])];
+        
+        // Ensure the bounds array has the right structure
+        if (!currentBounds[pointIndex]) {
+            currentBounds[pointIndex] = { x: 0, y: 0 };
+        }
+        
+        currentBounds[pointIndex] = { ...currentBounds[pointIndex], [axis]: value };
+        emit('property-updated', selectedObject.value.id, 'bounds', currentBounds);
     }
 };
 
@@ -239,5 +328,56 @@ const deleteSelected = () => {
     color: #666;
     font-size: 14px;
     text-align: center;
+}
+
+.property-row select,
+.property-row input[type="color"],
+.property-row input[type="range"] {
+    flex: 1;
+    min-width: 0;
+}
+
+.range-value {
+    margin-left: 8px;
+    font-size: 11px;
+    color: #666;
+}
+
+.danger-button {
+    background: #ff4444;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.danger-button:hover {
+    background: #ff6666;
+}
+
+.bounds-section {
+    margin-top: 8px;
+}
+
+.bounds-point {
+    margin-bottom: 12px;
+    padding: 8px;
+    background: #f9f9f9;
+    border-radius: 4px;
+}
+
+.bounds-point h5 {
+    margin: 0 0 6px 0;
+    font-size: 12px;
+    color: #555;
+    font-weight: 600;
+}
+
+.unit {
+    margin-left: 4px;
+    font-size: 11px;
+    color: #666;
 }
 </style>

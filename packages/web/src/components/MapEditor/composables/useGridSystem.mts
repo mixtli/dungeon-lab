@@ -1,34 +1,24 @@
-import { computed, reactive } from 'vue';
+import { computed } from 'vue';
 import type { GridConfig, Point } from '../../../../../shared/src/types/mapEditor.mjs';
 
 /**
  * Grid system for visualization and coordinate snapping
  */
-export function useGridSystem(initialConfig?: Partial<GridConfig>) {
-  // Grid configuration with defaults
-  const gridConfig = reactive<GridConfig>({
-    visible: true,
-    size: 50,
-    color: 'rgba(0, 0, 0, 0.2)',
-    snap: true,
-    opacity: 0.5,
-    ...(initialConfig || {})
-  });
-
+export function useGridSystem(config: GridConfig) {
   // Computed grid properties for Konva
   const gridLayerConfig = computed(() => ({
-    visible: gridConfig.visible
+    visible: config.visible
   }));
 
   /**
    * Snap a point to the grid
    */
   const snapToGrid = (point: Point): Point => {
-    if (!gridConfig.snap) return { ...point };
+    if (!config.snap) return { ...point };
 
     return {
-      x: Math.round(point.x / gridConfig.size) * gridConfig.size,
-      y: Math.round(point.y / gridConfig.size) * gridConfig.size
+      x: Math.round(point.x / config.size) * config.size,
+      y: Math.round(point.y / config.size) * config.size
     };
   };
 
@@ -37,13 +27,13 @@ export function useGridSystem(initialConfig?: Partial<GridConfig>) {
    * For use with wall points (flat array [x1, y1, x2, y2, ...])
    */
   const snapPointsToGrid = (points: number[]): number[] => {
-    if (!gridConfig.snap) return [...points];
+    if (!config.snap) return [...points];
 
     const result: number[] = [];
 
     for (let i = 0; i < points.length; i += 2) {
-      const x = Math.round(points[i] / gridConfig.size) * gridConfig.size;
-      const y = Math.round(points[i + 1] / gridConfig.size) * gridConfig.size;
+      const x = Math.round(points[i] / config.size) * config.size;
+      const y = Math.round(points[i + 1] / config.size) * config.size;
       result.push(x, y);
     }
 
@@ -55,8 +45,8 @@ export function useGridSystem(initialConfig?: Partial<GridConfig>) {
    */
   const gridToPixel = (gridCoord: Point): Point => {
     return {
-      x: gridCoord.x * gridConfig.size,
-      y: gridCoord.y * gridConfig.size
+      x: gridCoord.x * config.size,
+      y: gridCoord.y * config.size
     };
   };
 
@@ -65,8 +55,8 @@ export function useGridSystem(initialConfig?: Partial<GridConfig>) {
    */
   const pixelToGrid = (pixelCoord: Point): Point => {
     return {
-      x: pixelCoord.x / gridConfig.size,
-      y: pixelCoord.y / gridConfig.size
+      x: pixelCoord.x / config.size,
+      y: pixelCoord.y / config.size
     };
   };
 
@@ -74,35 +64,35 @@ export function useGridSystem(initialConfig?: Partial<GridConfig>) {
    * Toggle grid visibility
    */
   const toggleGridVisibility = () => {
-    gridConfig.visible = !gridConfig.visible;
+    config.visible = !config.visible;
   };
 
   /**
    * Toggle grid snapping
    */
   const toggleGridSnapping = () => {
-    gridConfig.snap = !gridConfig.snap;
+    config.snap = !config.snap;
   };
 
   /**
    * Set grid size
    */
   const setGridSize = (size: number) => {
-    gridConfig.size = size;
+    config.size = size;
   };
 
   /**
    * Set grid color
    */
   const setGridColor = (color: string) => {
-    gridConfig.color = color;
+    config.color = color;
   };
 
   /**
    * Set grid opacity
    */
   const setGridOpacity = (opacity: number) => {
-    gridConfig.opacity = Math.max(0, Math.min(1, opacity));
+    config.opacity = Math.max(0, Math.min(1, opacity));
   };
 
   /**
@@ -115,21 +105,21 @@ export function useGridSystem(initialConfig?: Partial<GridConfig>) {
       horizontal: [] as number[]
     };
 
-    if (!gridConfig.visible) return result;
+    if (!config.visible) return result;
 
     // Calculate grid lines that are visible in the viewport
-    const startX = Math.floor(offsetX / gridConfig.size) * gridConfig.size;
-    const startY = Math.floor(offsetY / gridConfig.size) * gridConfig.size;
+    const startX = Math.floor(offsetX / config.size) * config.size;
+    const startY = Math.floor(offsetY / config.size) * config.size;
     const endX = offsetX + width;
     const endY = offsetY + height;
 
     // Vertical lines
-    for (let x = startX; x <= endX; x += gridConfig.size) {
+    for (let x = startX; x <= endX; x += config.size) {
       result.vertical.push(x);
     }
 
     // Horizontal lines
-    for (let y = startY; y <= endY; y += gridConfig.size) {
+    for (let y = startY; y <= endY; y += config.size) {
       result.horizontal.push(y);
     }
 
@@ -137,7 +127,6 @@ export function useGridSystem(initialConfig?: Partial<GridConfig>) {
   };
 
   return {
-    gridConfig,
     gridLayerConfig,
     snapToGrid,
     snapPointsToGrid,

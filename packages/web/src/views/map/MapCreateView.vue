@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { MapsClient } from '@dungeon-lab/client/index.mjs';
 import { ArrowLeftIcon } from '@heroicons/vue/24/outline';
@@ -27,6 +27,7 @@ const formData = ref({
   pixelsPerGrid: 70
 });
 const mapImageFile = ref<File | UploadedImage | null>(null);
+const originalImagePixelDimensions = ref<{ width: number; height: number } | null>(null);
 
 // UVTT file upload
 const uvttFile = ref<File | null>(null);
@@ -132,6 +133,45 @@ async function handleUvttFileChange(event: Event) {
   // Reset the input so the same file can be selected again if needed
   target.value = '';
 }
+
+function calculateAndSetMapHeight() {
+  if (originalImagePixelDimensions.value && formData.value.width > 0) {
+    const aspectRatio = originalImagePixelDimensions.value.height / originalImagePixelDimensions.value.width;
+    let newHeight = Math.round(formData.value.width * aspectRatio);
+    if (newHeight < 1) newHeight = 1; // Ensure minimum height of 1
+    formData.value.height = newHeight;
+  }
+}
+
+watch(mapImageFile, (newFile) => {
+  if (newFile instanceof File) {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(newFile);
+    img.onload = () => {
+      originalImagePixelDimensions.value = { width: img.naturalWidth, height: img.naturalHeight };
+      calculateAndSetMapHeight();
+      URL.revokeObjectURL(objectUrl);
+    };
+    img.onerror = () => {
+      originalImagePixelDimensions.value = null;
+      URL.revokeObjectURL(objectUrl);
+      console.error('Error loading image for dimension calculation.');
+      // Potentially reset height or allow user input if image fails to load
+    };
+    img.src = objectUrl;
+  } else {
+    originalImagePixelDimensions.value = null;
+    // When image is cleared, height input becomes enabled.
+    // Consider if we should reset height to a default or previous user value.
+    // For now, it will retain its last calculated or UVTT-set value.
+  }
+});
+
+watch(() => formData.value.width, () => {
+  if (originalImagePixelDimensions.value) {
+    calculateAndSetMapHeight();
+  }
+});
 
 async function handleSubmit(event: Event) {
   event.preventDefault();
@@ -294,6 +334,7 @@ async function handleSubmit(event: Event) {
               required
               min="1"
               max="100"
+              :disabled="!!originalImagePixelDimensions"
               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>

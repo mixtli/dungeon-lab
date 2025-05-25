@@ -7,13 +7,18 @@
                 <EditorToolbar 
                     :current-tool="editorState.currentTool.value" 
                     :current-wall-type="currentWallType"
+                    :grid-visible="editorState.gridConfig.visible"
+                    :snap-enabled="editorState.gridConfig.snap"
                     @tool-selected="editorState.setTool" 
                     @wall-type-changed="handleWallTypeChanged"
+                    @toggle-grid="handleToggleGrid"
+                    @toggle-snap="handleToggleSnap"
                 />
 
                 <!-- Properties panel (conditional based on selection) -->
                 <EditorPropertiesPanel v-if="editorState.selectedObjectIds.value.length > 0"
-                    :selected-objects="editorState.selectedObjects.value" @property-updated="handlePropertyUpdate" />
+                    :selected-objects="editorState.selectedObjects.value" @property-updated="handlePropertyUpdate"
+                    :grid-size="editorState.gridConfig.size" />
 
                 <!-- Layer panel -->
                 <EditorLayerPanel :walls="editorState.walls.value" 
@@ -25,6 +30,12 @@
 
             <!-- Main canvas area -->
             <div class="map-editor-canvas-container">
+                <!-- Coordinate display in upper right -->
+                <CoordinateDisplay 
+                    :pixel-coordinates="mousePosition.pixel" 
+                    :grid-coordinates="mousePosition.grid"
+                />
+                
                 <EditorCanvas :walls="editorState.walls.value" 
                     :object-walls="editorState.objectWalls.value"
                     :portals="editorState.portals.value"
@@ -37,7 +48,8 @@
                     @object-selected="handleObjectSelected" 
                     @object-added="handleObjectAdded"
                     @object-modified="handleObjectModified" 
-                    @object-removed="handleObjectRemoved" />
+                    @object-removed="handleObjectRemoved"
+                    @mouse-move="handleMouseMove" />
             </div>
         </div>
 
@@ -73,6 +85,7 @@ import EditorToolbar from './components/EditorToolbar.vue';
 import EditorCanvas from './components/EditorCanvas.vue';
 import EditorPropertiesPanel from './components/EditorPropertiesPanel.vue';
 import EditorLayerPanel from './components/EditorLayerPanel.vue';
+import CoordinateDisplay from './components/CoordinateDisplay.vue';
 
 // Define props
 const props = defineProps<{
@@ -90,6 +103,15 @@ const editorState = useEditorState();
 
 // Wall type state
 const currentWallType = ref<'regular' | 'object'>('regular');
+
+// Mouse position state for coordinate display
+const mousePosition = ref<{
+    pixel: Point | null;
+    grid: Point | null;
+}>({
+    pixel: null,
+    grid: null
+});
 
 // Helper for flattening wall points for Konva
 const flattenWallPointsForKonva = (points: [number, number][]): number[] => {
@@ -124,6 +146,16 @@ const loadMapData = (data: UVTTData) => {
         // Update name if it exists in props
         if (props.mapId) {
             editorState.mapMetadata.name = `Map ${props.mapId}`;
+        }
+
+        // Update grid size from map data, defaulting if not present
+        if (data.resolution && typeof data.resolution.pixels_per_grid === 'number') {
+            editorState.gridConfig.size = data.resolution.pixels_per_grid;
+            console.log(`Grid size set to: ${editorState.gridConfig.size} from map data`);
+        } else {
+            // Default or keep existing if not specified in map data
+            editorState.gridConfig.size = 50; 
+            console.warn(`pixels_per_grid not found in map data, defaulting grid size to ${editorState.gridConfig.size}`);
         }
 
         // Load walls
@@ -260,28 +292,35 @@ watch(() => props.initialData, (newData) => {
 }, { immediate: true });
 
 // Event handlers
-const handleObjectSelected = (id: string | null, addToSelection = false) => {
+const handleObjectSelected = (id: string | null, addToSelection: boolean) => {
     editorState.selectObject(id, addToSelection);
 };
 
 const handleObjectAdded = (object: AnyEditorObject) => {
+    editorState.isModified.value = true;
     if (object.objectType === 'wall') {
-        // Check if this is a regular wall or an object wall
-        if (object.stroke === '#3399ff') {
-            // This is an object wall (blue)
+        // Check if it's a regular wall or an object wall based on currentWallType
+        if (currentWallType.value === 'object') {
             editorState.addObjectWall(object as WallObject);
         } else {
-            // This is a regular wall (red)
             editorState.addWall(object as WallObject);
         }
     } else if (object.objectType === 'portal') {
         editorState.addPortal(object as PortalObject);
     } else if (object.objectType === 'light') {
-        editorState.addLight(object as LightObject);
+        const light = object as LightObject;
+        // Convert range from grid units to pixels before adding to state
+        // The range from placeLight in EditorCanvas is in grid units (e.g., 5)
+        const ppg = editorState.mapMetadata.resolution.pixels_per_grid;
+        const rangeInPixels = light.range * ppg;
+        
+        console.log(`MapEditorComponent: Adding new light. Original range (grid): ${light.range}, Pixels per grid: ${ppg}, Converted range (pixels): ${rangeInPixels}`);
+
+        editorState.addLight({
+            ...light,
+            range: rangeInPixels, // Store range in pixels in the editor state
+        });
     }
-    
-    // Mark as modified
-    editorState.isModified.value = true;
 };
 
 const handleObjectModified = (id: string, updates: Partial<AnyEditorObject>) => {
@@ -453,6 +492,26 @@ const convertEditorStateToUVTT = (): UVTTData => {
 const handleWallTypeChanged = (type: 'regular' | 'object') => {
     currentWallType.value = type;
     console.log('Wall type changed to:', type);
+};
+
+// Handle grid toggle
+const handleToggleGrid = () => {
+    editorState.gridConfig.visible = !editorState.gridConfig.visible;
+    console.log('Grid visibility toggled to:', editorState.gridConfig.visible);
+};
+
+// Handle snap toggle
+const handleToggleSnap = () => {
+    editorState.gridConfig.snap = !editorState.gridConfig.snap;
+    console.log('Grid snap toggled to:', editorState.gridConfig.snap);
+};
+
+// Handle mouse move events from canvas
+const handleMouseMove = (pixelPos: Point, gridPos: Point) => {
+    mousePosition.value = {
+        pixel: pixelPos,
+        grid: gridPos
+    };
 };
 
 // Lifecycle hooks

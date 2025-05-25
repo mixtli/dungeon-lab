@@ -2,16 +2,12 @@ import os
 import argparse
 import logging
 import random
-import json
-import pprint
-from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
 from langchain_chroma import Chroma
 from langchain_ollama import OllamaEmbeddings, ChatOllama
 from langchain.chains import RetrievalQA, ConversationalRetrievalChain
 from langchain.prompts import PromptTemplate
 from langchain.memory import ConversationBufferMemory
-from langchain.schema import Document
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -249,7 +245,7 @@ def show_vector_store_stats(vector_store):
     try:
         collection = vector_store._collection
         count = collection.count()
-        print(f"\n===== Vector Store Statistics =====")
+        print("\n===== Vector Store Statistics =====")
         print(f"Collection name: {collection.name}")
         print(f"Document count: {count}")
         

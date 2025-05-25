@@ -38,15 +38,16 @@ const startDrawing = (pos: Point) => {
   console.log('WallTool.startDrawing called with pos:', pos);
   console.log('isActive:', isCurrentlyActive.value);
   console.log('wallType:', currentWallType.value);
+  console.log('Snap enabled:', props.gridConfig.snap); // Log snap state
   
   if (!isCurrentlyActive.value) return;
   
-  const snappedPos = gridSystem.snapToGrid(pos);
-  console.log('Snapped position:', snappedPos);
+  const pointToUse = props.gridConfig.snap ? gridSystem.snapToGrid(pos) : pos;
+  console.log('Point to use (snapped or raw):', pointToUse);
   
-  // Ensure snapped position values are valid numbers
-  const x = typeof snappedPos.x === 'number' && !isNaN(snappedPos.x) ? snappedPos.x : 0;
-  const y = typeof snappedPos.y === 'number' && !isNaN(snappedPos.y) ? snappedPos.y : 0;
+  // Ensure position values are valid numbers
+  const x = typeof pointToUse.x === 'number' && !isNaN(pointToUse.x) ? pointToUse.x : 0;
+  const y = typeof pointToUse.y === 'number' && !isNaN(pointToUse.y) ? pointToUse.y : 0;
   
   // Start with two identical points - as we move, we'll update the second one
   currentPoints.value = [x, y];
@@ -59,9 +60,9 @@ const updateDrawing = (pos: Point) => {
   if (!isDrawing.value || !isCurrentlyActive.value) return;
   
   console.log('WallTool.updateDrawing called with pos:', pos);
-  const snappedPos = gridSystem.snapToGrid(pos);
-  const x = typeof snappedPos.x === 'number' && !isNaN(snappedPos.x) ? snappedPos.x : 0;
-  const y = typeof snappedPos.y === 'number' && !isNaN(snappedPos.y) ? snappedPos.y : 0;
+  const pointToUse = props.gridConfig.snap ? gridSystem.snapToGrid(pos) : pos;
+  const x = typeof pointToUse.x === 'number' && !isNaN(pointToUse.x) ? pointToUse.x : 0;
+  const y = typeof pointToUse.y === 'number' && !isNaN(pointToUse.y) ? pointToUse.y : 0;
   
   // Create a copy of the current points array
   const updatedPoints = [...currentPoints.value];
@@ -88,9 +89,9 @@ const extendDrawing = (pos: Point) => {
   if (!isDrawing.value || !isCurrentlyActive.value) return;
   
   console.log('WallTool.extendDrawing called with pos:', pos);
-  const snappedPos = gridSystem.snapToGrid(pos);
-  const x = typeof snappedPos.x === 'number' && !isNaN(snappedPos.x) ? snappedPos.x : 0;
-  const y = typeof snappedPos.y === 'number' && !isNaN(snappedPos.y) ? snappedPos.y : 0;
+  const pointToUse = props.gridConfig.snap ? gridSystem.snapToGrid(pos) : pos;
+  const x = typeof pointToUse.x === 'number' && !isNaN(pointToUse.x) ? pointToUse.x : 0;
+  const y = typeof pointToUse.y === 'number' && !isNaN(pointToUse.y) ? pointToUse.y : 0;
   
   // Add the new point to our wall
   currentPoints.value.push(x, y);

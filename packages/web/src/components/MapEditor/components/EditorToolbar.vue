@@ -59,13 +59,13 @@
         <div class="divider"></div>
 
         <div class="tool-group">
-            <button class="tool-button" @click="toggleGrid" :class="{ active: gridVisible }" 
+            <button class="tool-button" @click="toggleGrid" :class="{ active: props.gridVisible }" 
                 title="Toggle Grid: Show or hide the grid overlay.">
                 <span class="tool-icon">⊞</span>
                 <span class="tool-label">Grid</span>
             </button>
 
-            <button class="tool-button" @click="toggleSnap" :class="{ active: snapEnabled }"
+            <button class="tool-button" @click="toggleSnap" :class="{ active: props.snapEnabled }"
                 title="Toggle Snap to Grid: Enable or disable snapping objects to the grid.">
                 <span class="tool-icon">⌘</span>
                 <span class="tool-label">Snap</span>
@@ -94,8 +94,6 @@ const emit = defineEmits<{
 }>();
 
 // Provide default values for optional props
-const gridVisible = ref(props.gridVisible ?? true);
-const snapEnabled = ref(props.snapEnabled ?? true);
 const wallType = ref(props.currentWallType ?? 'regular');
 
 // Methods
@@ -104,12 +102,10 @@ const selectTool = (tool: EditorToolType) => {
 };
 
 const toggleGrid = () => {
-    gridVisible.value = !gridVisible.value;
     emit('toggle-grid');
 };
 
 const toggleSnap = () => {
-    snapEnabled.value = !snapEnabled.value;
     emit('toggle-snap');
 };
 

@@ -27,9 +27,9 @@ export function useEditorState() {
   const gridConfig = reactive<GridConfig>({
     visible: true,
     size: 50,
-    color: 'rgba(0, 0, 0, 0.2)',
+    color: 'rgba(0, 0, 0, 0.6)',
     snap: true,
-    opacity: 0.5
+    opacity: 0.8
   });
 
   // Map metadata with defaults
@@ -202,9 +202,9 @@ export function useEditorState() {
 
     gridConfig.visible = true;
     gridConfig.size = 50;
-    gridConfig.color = 'rgba(0, 0, 0, 0.2)';
+    gridConfig.color = 'rgba(0, 0, 0, 0.6)';
     gridConfig.snap = true;
-    gridConfig.opacity = 0.5;
+    gridConfig.opacity = 0.8;
 
     viewportTransform.scale = 1;
     viewportTransform.position = { x: 0, y: 0 };

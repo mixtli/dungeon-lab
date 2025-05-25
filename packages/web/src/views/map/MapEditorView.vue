@@ -155,15 +155,16 @@ onMounted(async () => {
     
     // Transform portals
     const transformedPortals = originalUvttData.portals?.map(portal => {
-      const bounds = portal.bounds 
-        ? transformWallToPixel(portal.bounds as unknown as Wall, originalUvttData.resolution)
+      // Keep bounds in GRID coordinates. EditorCanvas will handle pixel conversion.
+      const bounds_grid = portal.bounds 
+        ? portal.bounds.map(point => ({ x: point.x, y: point.y })) // Ensure it's a new array of simple points
         : [];
         
-      console.log("portal", portal);
+      console.log("portal from DB (View)", portal, "transformed bounds_grid (View):", bounds_grid);
       return {
         ...portal,
-        position: gridToPixel(portal.position as Point, originalUvttData.resolution),
-        bounds
+        position: portal.position, // Keep position in GRID coordinates
+        bounds: bounds_grid       // Pass GRID coordinate bounds
       };
     }) || [];
     
@@ -387,7 +388,7 @@ const handleSave = async (editorData: UVTTData) => {
       console.log('Sample wall points:', cleanLineOfSight[0].slice(0, 2));
     }
     
-    // Transform portals back to grid coordinates
+    // Transform portals back to grid coordinates (portals are already in grid coordinates in the editor)
     const gridPortals = editorData.portals?.map(portal => {
       if (!portal || !portal.position || typeof portal.position.x !== 'number' || 
           typeof portal.position.y !== 'number') {
@@ -402,13 +403,11 @@ const handleSave = async (editorData: UVTTData) => {
             .map(point => pixelToGrid(point, editorData.resolution))
         : [];
         
-      // Convert position to grid coordinates
-      const gridPosition = pixelToGrid(portal.position as Point, editorData.resolution);
-        
+      // Portal position is already in grid coordinates in the editor
       return {
         position: {
-          x: gridPosition.x,
-          y: gridPosition.y
+          x: portal.position.x,
+          y: portal.position.y
         },
         bounds: gridBounds.map(point => ({
           x: point.x,

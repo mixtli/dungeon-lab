@@ -9,17 +9,25 @@
 
             <!-- Grid layer -->
             <v-layer ref="gridLayer" :config="gridLayerConfig">
-                <v-line v-for="(x, index) in gridLines.vertical" :key="`vgrid-${index}`" :config="{
-                    points: [x, 0, x, canvasSize.height],
+                <v-line v-for="(x, index) in gridDrawingData.verticalLines" :key="`vgrid-${index}`" :config="{
+                    points: [
+                        x, gridDrawingData.worldView.y, 
+                        x, gridDrawingData.worldView.y + gridDrawingData.worldView.height
+                    ],
                     stroke: gridConfig.color,
-                    strokeWidth: 1,
-                    opacity: gridConfig.opacity
+                    strokeWidth: 1 / props.viewportTransform.scale,
+                    opacity: gridConfig.opacity,
+                    listening: false
                 }" />
-                <v-line v-for="(y, index) in gridLines.horizontal" :key="`hgrid-${index}`" :config="{
-                    points: [0, y, canvasSize.width, y],
+                <v-line v-for="(y, index) in gridDrawingData.horizontalLines" :key="`hgrid-${index}`" :config="{
+                    points: [
+                        gridDrawingData.worldView.x, y, 
+                        gridDrawingData.worldView.x + gridDrawingData.worldView.width, y
+                    ],
                     stroke: gridConfig.color,
-                    strokeWidth: 1,
-                    opacity: gridConfig.opacity
+                    strokeWidth: 1 / props.viewportTransform.scale,
+                    opacity: gridConfig.opacity,
+                    listening: false
                 }" />
             </v-layer>
 
@@ -56,16 +64,33 @@
 
             <!-- Portal layer -->
             <v-layer ref="portalLayer">
-                <v-group v-for="portal in visiblePortals" :key="portal.id" :config="getPortalGroupConfig(portal)"
-                    @click="handleObjectClick($event, portal.id)" @dragend="handlePortalDragEnd($event, portal.id)">
-                    <v-rect :config="getPortalRectConfig(portal)" />
-                </v-group>
+                <template v-for="portal in portals" :key="portal.id">
+                    <v-group v-bind="getPortalGroupConfig(portal)" 
+                        @click="(e: KonvaEventObject<MouseEvent>) => handleObjectClick(e, portal.id)"
+                        @dragend="(e: KonvaEventObject<DragEvent>) => handlePortalDragEnd(e, portal.id)">
+                        
+                        <!-- Portal line segment -->
+                        <v-line v-bind="getPortalLineConfig(portal)" />
+                        
+                        <!-- Portal endpoint handles (only show when selected) -->
+                        <template v-if="props.selectedObjectIds.includes(portal.id)">
+                            <v-circle v-bind="getPortalHandleConfig(portal, 0)"
+                                @dragend="(e: KonvaEventObject<DragEvent>) => handlePortalEndpointDrag(e, portal.id, 0)" />
+                            <v-circle v-bind="getPortalHandleConfig(portal, 1)"
+                                @dragend="(e: KonvaEventObject<DragEvent>) => handlePortalEndpointDrag(e, portal.id, 1)" />
+                        </template>
+                    </v-group>
+                </template>
             </v-layer>
 
             <!-- Light layer -->
             <v-layer ref="lightLayer">
-                <v-circle v-for="light in visibleLights" :key="light.id" :config="getLightConfig(light)"
-                    @click="handleObjectClick($event, light.id)" @dragend="handleLightDragEnd($event, light.id)" />
+                <v-group v-for="light in visibleLights" :key="light.id" :config="getLightGroupConfig(light)"
+                    @click="handleObjectClick($event, light.id)" 
+                    @dragend="handleLightDragEnd($event, light.id)">
+                    <v-circle :config="getLightRangeConfig(light)" />
+                    <v-circle :config="getLightMarkerConfig(light)" />
+                </v-group>
             </v-layer>
 
             <!-- Selection layer -->
@@ -157,6 +182,7 @@ const emit = defineEmits<{
     (e: 'object-added', object: WallObject | PortalObject | LightObject): void;
     (e: 'object-modified', id: string, updates: Partial<WallObject | PortalObject | LightObject>): void;
     (e: 'object-removed', id: string): void;
+    (e: 'mouse-move', pixelPos: Point, gridPos: Point): void;
 }>();
 
 // Refs
@@ -204,7 +230,7 @@ const backgroundImageConfig = computed(() => ({
     y: 0
 }));
 
-// Get grid system
+// Initialize grid system for local use (e.g. placing portals/lights)
 const gridSystem = useGridSystem(props.gridConfig);
 
 // Filtered objects by visibility
@@ -218,10 +244,6 @@ const visibleWalls = computed(() => {
 const visibleObjectWalls = computed(() => {
     return props.objectWalls?.filter(wall => wall.visible !== false) || [];
 });
-
-const visiblePortals = computed(() =>
-    props.portals.filter(portal => portal.visible !== false)
-);
 
 const visibleLights = computed(() =>
     props.lights.filter(light => light.visible !== false)
@@ -243,14 +265,36 @@ const gridLayerConfig = computed(() => ({
     visible: props.gridConfig.visible
 }));
 
-// Calculate grid lines for the visible area
-const gridLines = computed(() => {
-    return gridSystem.getGridLines(
-        canvasSize.width,
-        canvasSize.height,
-        0,
-        0
+// Calculate grid lines and the visible world view for drawing
+const gridDrawingData = computed(() => {
+    const stageTransform = props.viewportTransform;
+    const scale = stageTransform.scale || 1;
+
+    // Calculate the world coordinates of the top-left corner of the visible canvas
+    const worldOffsetX = -stageTransform.position.x / scale;
+    const worldOffsetY = -stageTransform.position.y / scale;
+
+    // Calculate the width and height of the visible world area
+    const visibleWorldWidth = canvasSize.width / scale;
+    const visibleWorldHeight = canvasSize.height / scale;
+
+    const lines = gridSystem.getGridLines(
+        visibleWorldWidth,
+        visibleWorldHeight,
+        worldOffsetX,
+        worldOffsetY
     );
+
+    return {
+        verticalLines: lines.vertical,     // These are x-coordinates in world space
+        horizontalLines: lines.horizontal, // These are y-coordinates in world space
+        worldView: {                       // The bounding box in world space for drawing lines
+            x: worldOffsetX,
+            y: worldOffsetY,
+            width: visibleWorldWidth,
+            height: visibleWorldHeight
+        }
+    };
 });
 
 // Transformer configuration
@@ -275,39 +319,161 @@ const getWallConfig = (points: number[], isObjectWall: boolean = false) => {
     };
 };
 
-const getPortalGroupConfig = (portal: PortalObject) => ({
-    x: portal.position.x,
-    y: portal.position.y,
-    draggable: props.currentTool === 'select',
-    rotation: portal.rotation,
-    id: portal.id
-});
-
-const getPortalRectConfig = (portal: PortalObject) => {
-    // Simplified portal representation
+const getPortalGroupConfig = (portal: PortalObject) => {
+    // portal.position is now stored in PIXEL coordinates by placePortal.
+    // Use these directly for the Konva Group position.
+    // const ppg = props.mapMetadata.resolution.pixels_per_grid; // No longer needed here
+    // const pixelX = portal.position.x * ppg; // Old logic assuming grid input
+    // const pixelY = portal.position.y * ppg; // Old logic assuming grid input
+    
+    console.log('Portal group config (new logic):', {
+        portalId: portal.id,
+        pixelPos_input: portal.position, // Should be pixels already
+        // pixelsPerGrid: ppg, // No longer relevant for this calculation
+        finalPixelPos_group: { x: portal.position.x, y: portal.position.y }
+    });
+    
     return {
-        width: 40,
-        height: 10,
-        offsetX: 20,
-        offsetY: 5,
-        fill: portal.closed ? '#8B4513' : '#D2B48C',
-        stroke: '#000000',
-        strokeWidth: 1
+        x: portal.position.x, // Use pixel coordinates directly
+        y: portal.position.y, // Use pixel coordinates directly
+        draggable: props.currentTool === 'select',
+        rotation: portal.rotation,
+        id: portal.id
     };
 };
 
-const getLightConfig = (light: LightObject) => ({
+const getPortalLineConfig = (portal: PortalObject) => {
+    const ppg = props.mapMetadata.resolution.pixels_per_grid;
+
+    // portal.bounds are now relative pixel coordinates: [{x,y}, {x,y}]
+    // If bounds are somehow missing or malformed (shouldn't happen for new portals from placePortal)
+    if (!portal.bounds || portal.bounds.length < 2 || !portal.bounds[0] || !portal.bounds[1]) {
+        const halfLengthPixels = 0.5 * ppg; // Default to 1 grid unit wide portal centered in the group
+        console.warn('Portal line (default/malformed bounds):', {
+            portalId: portal.id,
+            portalPos_pixel: portal.position,
+            halfLengthPixels: halfLengthPixels,
+            final_points_pixel_relative: [-halfLengthPixels, 0, halfLengthPixels, 0]
+        });
+        return {
+            points: [-halfLengthPixels, 0, halfLengthPixels, 0],
+            stroke: portal.closed ? '#8B4513' : '#D2B48C', // Brown for closed, Tan for open
+            strokeWidth: 20, // Make portals visually distinct
+            lineCap: 'round',
+            lineJoin: 'round'
+        };
+    }
+
+    // For portals with valid bounds (which are relative pixel coordinates)
+    const relativePixelPoints = [
+        portal.bounds[0].x, portal.bounds[0].y,
+        portal.bounds[1].x, portal.bounds[1].y
+    ];
+
+    console.log('Portal line (using relative pixel bounds):', {
+        portalId: portal.id,
+        portalPos_pixel: portal.position,
+        bounds_relative_pixel: portal.bounds,
+        final_points_pixel_relative: relativePixelPoints
+    });
+
+    return {
+        points: relativePixelPoints,
+        stroke: portal.closed ? '#8B4513' : '#D2B48C', // Brown for closed, Tan for open
+        strokeWidth: 20, // Make portals visually distinct
+        lineCap: 'round',
+        lineJoin: 'round'
+    };
+};
+
+const getPortalHandleConfig = (portal: PortalObject, endpointIndex: number) => {
+    const ppg = props.mapMetadata.resolution.pixels_per_grid;
+
+    // If bounds are empty or malformed, position handles relative to the group's (0,0)
+    // (which corresponds to portal.position)
+    if (!portal.bounds || portal.bounds.length < 2 || !portal.bounds[0] || !portal.bounds[1]) {
+        const halfLengthPixels = 0.5 * ppg;
+        const handleX_relative = endpointIndex === 0 ? -halfLengthPixels : halfLengthPixels;
+        const handleY_relative = 0;
+
+        console.log('Portal handle (default/new):', {
+            portalId: portal.id,
+            portalPos_grid: portal.position,
+            endpointIndex: endpointIndex,
+            handle_pixel_relative: {x: handleX_relative, y: handleY_relative}
+        });
+
+        return {
+            x: handleX_relative,
+            y: handleY_relative,
+            radius: 6,
+            fill: '#4CAF50',
+            stroke: '#2E7D32',
+            strokeWidth: 2,
+            draggable: true
+        };
+    }
+
+    // For EXISTING portals with bounds:
+    // Calculate handle positions relative to portal.position (group's center).
+    const groupCenterX_grid = portal.position.x;
+    const groupCenterY_grid = portal.position.y;
+
+    const endpoint_grid = portal.bounds[endpointIndex];
+    const handleX_grid_relative = endpoint_grid.x - groupCenterX_grid;
+    const handleY_grid_relative = endpoint_grid.y - groupCenterY_grid;
+
+    const handleX_pixel_relative = handleX_grid_relative * ppg;
+    const handleY_pixel_relative = handleY_grid_relative * ppg;
+    
+    console.log('Portal handle (existing with bounds):', {
+        portalId: portal.id,
+        portalPos_grid: portal.position,
+        endpointIndex: endpointIndex,
+        endpoint_grid: endpoint_grid,
+        groupCenter_grid: { x: groupCenterX_grid, y: groupCenterY_grid },
+        handle_grid_relative: { x: handleX_grid_relative, y: handleY_grid_relative },
+        handle_pixel_relative: {x: handleX_pixel_relative, y: handleY_pixel_relative}
+    });
+
+    return {
+        x: handleX_pixel_relative,
+        y: handleY_pixel_relative,
+        radius: 6,
+        fill: '#4CAF50',
+        stroke: '#2E7D32',
+        strokeWidth: 2,
+        draggable: true
+    };
+};
+
+const getLightGroupConfig = (light: LightObject) => ({
     x: light.position.x,
     y: light.position.y,
-    radius: 10,
-    fill: light.color || '#ffdd00',
+    draggable: props.currentTool === 'select',
+    id: light.id
+});
+
+const getLightRangeConfig = (light: LightObject) => ({
+    x: 0,
+    y: 0,
+    radius: light.range,
+    fill: light.color || '#FFFF00',
+    opacity: (light.intensity || 0.5) * 0.5,
+    stroke: light.color || '#FFFF00',
+    strokeWidth: 1,
+    listening: false,
+    perfectDrawEnabled: false
+});
+
+const getLightMarkerConfig = (light: LightObject) => ({
+    x: 0,
+    y: 0,
+    radius: 5,
+    fill: light.color || '#FFFF00',
     stroke: '#000000',
     strokeWidth: 1,
-    draggable: props.currentTool === 'select',
-    id: light.id,
-    shadowColor: light.color || '#ffdd00',
-    shadowBlur: 10,
-    shadowOpacity: 0.5
+    perfectDrawEnabled: false
 });
 
 // Add config for object walls with blue color
@@ -385,14 +551,20 @@ const handleMouseMove = (e: KonvaEventObject<MouseEvent>) => {
     const pos = stage.getPointerPosition();
     if (!pos) return;
     
-    // Convert position to world coordinates
+    // Convert position to world coordinates (pixel coordinates)
     const worldPos = {
         x: (pos.x - stage.x()) / stage.scaleX(),
         y: (pos.y - stage.y()) / stage.scaleY()
     };
     
-    // Track mouse position for UI if needed
-// Remove this line for now
+    // Convert pixel coordinates to grid coordinates
+    const gridPos = {
+        x: worldPos.x / props.mapMetadata.resolution.pixels_per_grid,
+        y: worldPos.y / props.mapMetadata.resolution.pixels_per_grid
+    };
+    
+    // Emit coordinates for the coordinate display
+    emit('mouse-move', worldPos, gridPos);
     
     // Handle based on current tool
     switch (props.currentTool) {
@@ -506,11 +678,21 @@ const handleWallDragEnd = (e: KonvaEventObject<DragEvent>, id: string) => {
 };
 
 const handlePortalDragEnd = (e: KonvaEventObject<DragEvent>, id: string) => {
-    // Update portal position after drag
     const node = e.target;
+    const newPixelPos = { x: node.x(), y: node.y() };
+
+    // Snap the new pixel position if snap is enabled
+    const positionToUse = props.gridConfig.snap ? gridSystem.snapToGrid(newPixelPos) : newPixelPos;
+
+    console.log('Portal drag end:', {
+        id,
+        originalPixelPos: newPixelPos,
+        snappedPixelPos: positionToUse,
+        snapEnabled: props.gridConfig.snap
+    });
 
     emit('object-modified', id, {
-        position: { x: node.x(), y: node.y() },
+        position: positionToUse, // Position is stored in pixels
         rotation: node.rotation()
     });
 };
@@ -637,37 +819,54 @@ const handleKeyDown = (e: KeyboardEvent) => {
 };
 
 const placePortal = (pos: Point) => {
-    const snappedPos = gridSystem.snapToGrid(pos);
+    const ppg = props.mapMetadata.resolution.pixels_per_grid;
+    const portalLength = ppg * 2; // Default length of 2 grid units in pixels
 
-    // Generate portal data
-    const portal: PortalObject = {
+    const positionToUse = props.gridConfig.snap ? gridSystem.snapToGrid(pos) : pos; // This is in pixels
+
+    // Portal bounds are relative to its pixel position
+    const bounds: [Point, Point] = [
+        { x: -portalLength / 2, y: 0 },
+        { x: portalLength / 2, y: 0 }
+    ];
+
+    const newPortal: PortalObject = {
         id: `portal-${Date.now()}`,
         objectType: 'portal',
-        position: snappedPos,
+        position: { x: positionToUse.x, y: positionToUse.y }, // Stored in pixels
         rotation: 0,
-        bounds: [], // This would be calculated based on portal size
-        closed: true,
-        freestanding: false
+        bounds: bounds, // Stored as relative pixel offsets
+        closed: false,       // Corrected default
+        freestanding: true,  // Corrected default
+        visible: true,     // Ensure visibility
+        locked: false      // Ensure not locked
     };
 
-    emit('object-added', portal);
+    console.log('Created portal (new logic):', newPortal);
+    emit('object-added', newPortal);
 };
 
 const placeLight = (pos: Point) => {
-    const snappedPos = gridSystem.snapToGrid(pos);
+    // const ppg = props.mapMetadata.resolution.pixels_per_grid; // Removed unused variable
+    // Default range in grid units, to be converted to pixels by parent
+    const defaultRangeInGridUnits = 5; 
 
-    // Generate light data
-    const light: LightObject = {
+    const positionToUse = props.gridConfig.snap ? gridSystem.snapToGrid(pos) : pos;
+
+    const newLight: LightObject = {
         id: `light-${Date.now()}`,
         objectType: 'light',
-        position: snappedPos,
-        range: 120,
-        intensity: 0.8,
-        color: '#ffdd00',
+        position: { x: positionToUse.x, y: positionToUse.y },
+        range: defaultRangeInGridUnits, // Emitted as grid units
+        intensity: 0.7,
+        color: '#ffdd00',    // Default color yellow
         shadows: true
     };
 
-    emit('object-added', light);
+    // When emitting, the parent (MapEditorComponent) will be responsible for converting
+    // this grid unit range to pixels if necessary before adding to its state
+    // that eventually feeds back into this component's props.
+    emit('object-added', newLight);
 };
 
 const drawTemporaryWall = () => {
@@ -1101,6 +1300,49 @@ watch(() => selectionTool.value, (tool) => {
         console.log('Selection tool is ready');
     }
 }, { immediate: true });
+
+// Add a new method to handle portal endpoint drag
+const handlePortalEndpointDrag = (e: KonvaEventObject<DragEvent>, id: string, endpointIndex: number) => {
+    const portal = props.portals.find(p => p.id === id);
+    if (!portal) return;
+
+    const node = e.target; // This is the handle (Konva.Circle)
+    const handleWorldPixelPos = node.absolutePosition(); // Gets position relative to stage, which is world pixels
+
+    // Snap the handle's world pixel position if snap is enabled
+    const snappedHandleWorldPixelPos = props.gridConfig.snap ? gridSystem.snapToGrid(handleWorldPixelPos) : handleWorldPixelPos;
+
+    // Convert the handle's snapped world pixel position to be relative to the portal group's origin (portal.position)
+    // portal.position is also in world pixels.
+    const relativeX = snappedHandleWorldPixelPos.x - portal.position.x;
+    const relativeY = snappedHandleWorldPixelPos.y - portal.position.y;
+    
+    // Create a new bounds array to avoid direct mutation issues with reactivity if any
+    const newBoundsArray: [Point, Point] = portal.bounds ? [{...portal.bounds[0]}, {...portal.bounds[1]}] : [{x:0,y:0},{x:0,y:0}];
+    
+    if (!newBoundsArray[endpointIndex]) {
+        newBoundsArray[endpointIndex] = { x: 0, y: 0 }; // Should not happen with new portal creation logic
+    }
+    newBoundsArray[endpointIndex].x = relativeX;
+    newBoundsArray[endpointIndex].y = relativeY;
+
+    console.log('Portal endpoint drag:', {
+        id, endpointIndex,
+        handleWorldPixelPos,
+        snappedHandleWorldPixelPos,
+        portalPosition_pixel: portal.position,
+        calculatedRelativeToPortal_pixel: { x: relativeX, y: relativeY },
+        newBounds_relative_pixel: newBoundsArray
+    });
+
+    emit('object-modified', id, {
+        bounds: newBoundsArray // Bounds are stored as relative pixel offsets
+    });
+
+    // After dragging an endpoint, we might need to redraw the stage if Konva doesn't auto-update group based on handle moves
+    // This is often handled by Konva, but if issues persist, a manual redraw might be needed here.
+    // stage.value?.getStage().batchDraw(); 
+};
 </script>
 
 <style scoped>

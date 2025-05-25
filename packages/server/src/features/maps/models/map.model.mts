@@ -5,8 +5,9 @@ import { IMap } from '@dungeon-lab/shared/types/index.mjs';
 import { baseMongooseZodSchema } from '../../../models/base.model.schema.mjs';
 import { createMongoSchema } from '../../../models/zod-to-mongo.mjs';
 import { portalSchema } from '@dungeon-lab/shared/schemas/map.schema.mjs';
-type IPortal = z.infer<typeof portalSchema>;
 import { z } from '../../../utils/zod.mjs';
+
+type IPortal = z.infer<typeof portalSchema>;
 
 /**
  * Map document interface extending the base Map interface
