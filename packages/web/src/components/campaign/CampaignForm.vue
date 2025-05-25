@@ -123,8 +123,7 @@ async function submitForm() {
         gameSystemId: gameSystemId.value,
         gameMasterId: authStore.user.id,
         startDate: new Date().toISOString(),
-        characterIds: [],
-        members: [],
+        characterIds: []
       };
 
       if (!createData.gameSystemId) {

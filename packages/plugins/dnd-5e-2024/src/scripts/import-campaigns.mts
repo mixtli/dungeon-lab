@@ -124,7 +124,7 @@ async function importCampaigns(): Promise<void> {
           name: campaignData.name,
           description: campaignData.description || '',
           gameSystemId: 'dnd-5e-2024',
-          members: actorIds as string[],
+          characterIds: actorIds as string[],
           status: 'active',
           setting: campaignData.setting || '',
           startDate: campaignData.start_date || new Date().toISOString()

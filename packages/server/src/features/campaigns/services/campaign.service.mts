@@ -79,7 +79,7 @@ export class CampaignService {
   }
 
   async getCampaignUsers(campaignId: string): Promise<IUser[]> {
-    const campaign = await CampaignModel.findById(campaignId).populate('members').exec();
+    const campaign = await CampaignModel.findById(campaignId).populate('characters').exec();
     if (!campaign) {
       throw new Error('Campaign not found');
     }
