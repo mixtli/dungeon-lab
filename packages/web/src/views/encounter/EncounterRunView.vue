@@ -14,12 +14,17 @@ const socketStore = useSocketStore();
 const loadError = ref<string | null>(null);
 const gameSessionClient = new GameSessionsClient();
 onMounted(async () => {
-  const campaignId = route.params.campaignId as string;
   const encounterId = route.params.id as string;
 
   try {
     // First fetch the encounter
     await encounterStore.fetchEncounter(encounterId);
+
+    // Get campaignId from the encounter data
+    const campaignId = encounterStore.currentEncounter?.campaignId;
+    if (!campaignId) {
+      throw new Error('Campaign ID not found in encounter data');
+    }
 
     // Then fetch the game session for the campaign
     const sessions = await gameSessionClient.getGameSessions(campaignId);
@@ -81,7 +86,6 @@ onMounted(async () => {
                 name: 'encounter-detail',
                 params: {
                   id: route.params.id,
-                  campaignId: route.params.campaignId,
                 },
               })
             "

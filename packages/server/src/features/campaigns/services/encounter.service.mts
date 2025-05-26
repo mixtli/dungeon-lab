@@ -9,7 +9,7 @@ import { IActor } from '@dungeon-lab/shared/types/index.mjs';
 export class EncounterService {
   async getEncounters(campaignId: string): Promise<IEncounter[]> {
     try {
-      const encounters = await EncounterModel.find({ campaignId }).lean().exec();
+      const encounters = await EncounterModel.find({ campaignId }).exec();
       return encounters;
     } catch (error) {
       logger.error('Error getting encounters:', error);
@@ -17,16 +17,15 @@ export class EncounterService {
     }
   }
 
-  async getEncounter(id: string, campaignId: string): Promise<IEncounter> {
+  async getEncounter(id: string): Promise<IEncounter> {
     try {
       // First check if the ID is a valid ObjectId to avoid Mongoose casting errors
-      if (!Types.ObjectId.isValid(id) || !Types.ObjectId.isValid(campaignId)) {
+      if (!Types.ObjectId.isValid(id)) {
         throw new Error('Encounter not found');
       }
 
       const encounter = await EncounterModel.findOne({
         _id: id,
-        campaignId
       })
         .lean()
         .exec();

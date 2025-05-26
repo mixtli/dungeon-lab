@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import { NextFunction, Request, Response } from 'express';
 import { EncounterService } from '../services/encounter.service.mjs';
 import { logger } from '../../../utils/logger.mjs';
 import { BaseAPIResponse } from '@dungeon-lab/shared/types/api/index.mjs';
@@ -19,7 +19,8 @@ export class EncounterController {
 
   getEncounters = async (
     req: Request<object, object, object, { campaignId?: string }>,
-    res: Response<BaseAPIResponse<IEncounter[]>>
+    res: Response<BaseAPIResponse<IEncounter[]>>,
+    next: NextFunction
   ): Promise<Response<BaseAPIResponse<IEncounter[]>> | void> => {
     try {
       const campaignId = req.query.campaignId;
@@ -40,31 +41,18 @@ export class EncounterController {
       });
     } catch (error) {
       logger.error('Error getting encounters:', error);
-      return res.status(500).json({
-        success: false,
-        data: [],
-        error: 'Failed to get encounters'
-      });
+      next(error)
     }
   };
 
   getEncounter = async (
     req: Request<{ id: string }, object, object, { campaignId?: string }>,
-    res: Response<BaseAPIResponse<IEncounter>>
+    res: Response<BaseAPIResponse<IEncounter>>,
+    next: NextFunction
   ): Promise<Response<BaseAPIResponse<IEncounter>> | void> => {
     try {
-      // If we have a campaignId in the query params, use it, otherwise we need to handle this case
-      const campaignId = req.query.campaignId;
 
-      if (!campaignId) {
-        return res.status(400).json({
-          success: false,
-          error: 'Campaign ID is required',
-          data: null
-        });
-      }
-
-      const encounter = await this.encounterService.getEncounter(req.params.id, campaignId);
+      const encounter = await this.encounterService.getEncounter(req.params.id);
 
       // Check if user has access to this encounter
       const hasAccess = await this.encounterService.checkUserPermission(
@@ -94,11 +82,7 @@ export class EncounterController {
         });
       }
       logger.error('Error getting encounter:', error);
-      return res.status(500).json({
-        success: false,
-        error: 'An unexpected error occurred',
-        data: null
-      });
+      next(error)
     }
   };
 

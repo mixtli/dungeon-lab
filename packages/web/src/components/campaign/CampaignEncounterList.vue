@@ -23,7 +23,6 @@ async function fetchEncounters() {
 
   try {
     encounters.value = await encounterClient.getEncountersByCampaign(props.campaignId);
-    console.log('Fetched encounters:', encounters.value);
   } catch (err) {
     console.error('Error fetching encounters:', err);
     error.value = 'Failed to load encounters';
@@ -141,7 +140,6 @@ const statusColors = {
                   name: 'encounter-detail',
                   params: {
                     id: encounter.id,
-                    campaignId: props.campaignId,
                   },
                 })
               "

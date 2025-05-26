@@ -190,18 +190,9 @@ const routes: RouteRecordRaw[] = [
           requiresAuth: true
         }
       },
-      // Encounter routes - not exposed in main navigation
+      // Encounter routes - non-nested structure
       {
-        path: 'encounters',
-        name: 'encounters',
-        component: NotFoundView, // Redirect to not found for now
-        meta: {
-          title: 'Page Not Found',
-          requiresAuth: true
-        }
-      },
-      {
-        path: 'campaigns/:campaignId/encounters/create',
+        path: 'encounters/create/:campaignId',
         name: 'encounter-create',
         component: EncounterCreateView,
         meta: {
@@ -210,7 +201,7 @@ const routes: RouteRecordRaw[] = [
         }
       },
       {
-        path: 'campaigns/:campaignId/encounters/:id',
+        path: 'encounters/:id',
         name: 'encounter-detail',
         component: EncounterDetailView,
         meta: {
@@ -219,7 +210,7 @@ const routes: RouteRecordRaw[] = [
         }
       },
       {
-        path: 'campaigns/:campaignId/encounters/:id/run',
+        path: 'encounters/:id/run',
         name: 'encounter-run',
         component: EncounterRunView,
         meta: {

@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import { NextFunction, Request, Response } from 'express';
 import { GameSessionService } from '../services/game-session.service.mjs';
 import {
   BaseAPIResponse,
@@ -42,29 +42,34 @@ export class GameSessionController {
 
   getGameSession = async (
     req: Request<{ id: string }>,
-    res: Response<BaseAPIResponse<IGameSession>>
+    res: Response<BaseAPIResponse<IGameSession>>,
+    next: NextFunction
   ): Promise<Response<BaseAPIResponse<IGameSession>> | void> => {
-    const session = await this.gameSessionService.getGameSession(req.params.id);
+    try {
+      const session = await this.gameSessionService.getGameSession(req.params.id);
 
-    // Check if user has access to this session
-    const hasAccess = await this.gameSessionService.checkUserPermission(
-      req.params.id,
-      req.session.user.id,
-      req.session.user.isAdmin
-    );
+      // Check if user has access to this session
+      const hasAccess = await this.gameSessionService.checkUserPermission(
+        req.params.id,
+        req.session.user.id,
+        req.session.user.isAdmin
+      );
 
-    if (!hasAccess) {
-      return res.status(403).json({
-        success: false,
-        data: null,
-        error: 'Access denied'
+      if (!hasAccess) {
+        return res.status(403).json({
+          success: false,
+          data: null,
+          error: 'Access denied'
+        });
+      }
+
+      return res.json({
+        success: true,
+        data: session
       });
+    } catch (error) {
+      next(error)
     }
-
-    return res.json({
-      success: true,
-      data: session
-    });
   };
 
   getCampaignSessions = async (

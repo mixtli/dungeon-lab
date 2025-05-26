@@ -68,8 +68,7 @@ router.get(
     createPathSchema({
       description: 'Get encounter by ID',
       requestParams: {
-        path: z.object({ id: z.string() }),
-        query: encounterQuerySchema
+        path: z.object({ id: z.string() })
       },
       responses: {
         200: {

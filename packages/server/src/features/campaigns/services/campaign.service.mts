@@ -194,6 +194,8 @@ export class CampaignService {
   }
 
   async isUserCampaignMember(userId: string, campaignId: string): Promise<boolean> {
+    console.log("userId", userId);
+    console.log("campaignId", campaignId);
     const campaign = await CampaignModel.findById(campaignId).exec();
     if (!campaign) {
       throw new Error('Campaign not found');

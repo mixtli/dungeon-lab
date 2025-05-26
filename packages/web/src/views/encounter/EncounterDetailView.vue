@@ -65,11 +65,16 @@ onMounted(async () => {
   console.log('[Debug] Component mounted');
   try {
     const encounterId = route.params.id as string;
-    const campaignId = route.params.campaignId as string;
 
     // First fetch the encounter to get its data
-    console.log('[Debug] Fetching encounter:', { encounterId, campaignId });
+    console.log('[Debug] Fetching encounter:', { encounterId });
     await encounterStore.fetchEncounter(encounterId);
+
+    // Get campaignId from the encounter data
+    const campaignId = encounterStore.currentEncounter?.campaignId;
+    if (!campaignId) {
+      throw new Error('Campaign ID not found in encounter data');
+    }
 
     // Then fetch the game session for the campaign
     console.log('[Debug] Fetching game session for campaign:', campaignId);
@@ -134,7 +139,7 @@ async function handleStartEncounter() {
   }
 
   const encounterId = route.params.id as string;
-  const campaignId = route.params.campaignId as string;
+  const campaignId = encounterStore.currentEncounter.campaignId;
 
   console.log('[Debug] Preparing to emit socket event:', {
     encounterId,
@@ -217,7 +222,7 @@ async function handleStopEncounter() {
   }
 
   const encounterId = route.params.id as string;
-  const campaignId = route.params.campaignId as string;
+  const campaignId = encounterStore.currentEncounter.campaignId;
 
   console.log('[Debug] Preparing to emit socket event:', {
     encounterId,
@@ -318,7 +323,7 @@ async function handleStopEncounter() {
             @click="
               router.push({
                 name: 'encounter-run',
-                params: { id: route.params.id, campaignId: route.params.campaignId },
+                params: { id: route.params.id },
               })
             "
             class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"

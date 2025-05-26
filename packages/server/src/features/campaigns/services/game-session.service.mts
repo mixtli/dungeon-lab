@@ -133,9 +133,10 @@ export class GameSessionService {
       }
 
       const campaignService = new CampaignService();
+      console.log("session.campaignId", session.campaignId);
       const isCampaignMember = await campaignService.isUserCampaignMember(
-        session.campaignId,
-        userId
+        userId,
+        session.campaignId
       );
       // Check if user is GM or participant
       const isGM = session.gameMasterId?.toString() === userId;
