@@ -27,7 +27,11 @@ export class SocketServer {
   constructor(httpServer: HttpServer) {
     this.io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
       cors: {
-        origin: [process.env.CLIENT_URL || 'http://localhost:5173', 'http://localhost:3001'],
+        origin: [
+          process.env.CLIENT_URL || 'http://localhost:5173',
+          'http://localhost:3001',
+          'https://admin.socket.io'
+        ],
         methods: ['GET', 'POST'],
         credentials: true
       }

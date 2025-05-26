@@ -16,6 +16,8 @@ export interface ChatMessage {
   senderName: string;
   timestamp: Date;
   isSystem?: boolean;
+  recipientId?: string;
+  recipientType?: 'user' | 'actor' | 'session' | 'system';
 }
 
 interface ChatStore {
@@ -79,7 +81,9 @@ export const useChatStore = defineStore(
             senderId: metadata.sender.id || 'system',
             senderName: senderName,
             timestamp: metadata.timestamp || new Date(),
-            isSystem: metadata.sender.type === 'system'
+            isSystem: metadata.sender.type === 'system',
+            recipientId: metadata.recipient?.id,
+            recipientType: metadata.recipient?.type
           };
 
           messages.value.push(newMessage);
@@ -195,7 +199,9 @@ export const useChatStore = defineStore(
         senderId: metadata.sender.id || 'unknown',
         senderName: 'You', // Always show "You" for messages sent by the current user/actor
         timestamp: new Date(),
-        isSystem: false
+        isSystem: false,
+        recipientId: metadata.recipient?.id,
+        recipientType: metadata.recipient?.type
       };
 
       messages.value.push(newMessage);

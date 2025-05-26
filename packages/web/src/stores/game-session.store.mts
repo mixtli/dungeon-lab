@@ -57,8 +57,8 @@ export const useGameSessionStore = defineStore(
     // Helper function to attempt joining a session with the current session
     function attemptJoinSession() {
       if (currentSession.value && socketStore.connected) {
-        console.log('Attempting to join session:', currentSession.value.id);
-        joinSession(currentSession.value.id).catch(err => {
+        console.log('Attempting to join session:', currentSession.value.id, 'with character:', currentCharacter.value?.id);
+        joinSession(currentSession.value.id, currentCharacter.value?.id).catch(err => {
           console.error('Failed to join session:', err);
         });
       }
@@ -126,6 +126,10 @@ export const useGameSessionStore = defineStore(
                   const actor = response.data.characters?.find((c) => c.id === actorId);
                   if (actor) {
                     currentCharacter.value = actor;
+                    // Also set the current actor in the actor store
+                    const { useActorStore } = await import('./actor.store.mjs');
+                    const actorStore = useActorStore();
+                    actorStore.currentActor = actor;
                   }
                 }
 

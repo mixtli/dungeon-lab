@@ -29,6 +29,7 @@ function chatSocketHandler(socket: Socket<ClientToServerEvents, ServerToClientEv
       metadata.timestamp = new Date();
     }
 
+    console.log("Sending chat message to room", roomName);
     socket.to(roomName).emit('chat', metadata, message);
   });
 }

@@ -51,6 +51,7 @@ export class ActorController {
         delete queryParams.userCharactersOnly; // Remove this special parameter
       }
 
+      console.log('My queryParams', queryParams);
       // Process query parameters including any nested values
       const searchParams = createSearchParams(queryParams);
 
