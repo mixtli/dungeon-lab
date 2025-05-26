@@ -9,12 +9,13 @@ from langchain.chains import RetrievalQA, ConversationalRetrievalChain
 from langchain.prompts import PromptTemplate
 from langchain.memory import ConversationBufferMemory
 
+# Import configuration
+from config import config, DND_CONTEXT_PROMPT, DEFAULT_EMBED_MODEL, DEFAULT_LLM_MODEL
+
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Import configuration
-from config import config, DND_CONTEXT_PROMPT, DEFAULT_EMBED_MODEL, DEFAULT_LLM_MODEL
 
 # Load environment variables from .env file if it exists
 load_dotenv(verbose=True)

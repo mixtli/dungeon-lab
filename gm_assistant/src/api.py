@@ -19,7 +19,7 @@ from agent import (
     create_conversation_chain, 
     query_rules
 )
-from config import config, DND_CONTEXT_PROMPT
+from config import config
 
 # Configure logging
 logging.basicConfig(

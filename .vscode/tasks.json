@@ -79,6 +79,20 @@
         "cwd": "${workspaceFolder}/ai-workflows"
       },
       "problemMatcher": []
+    },
+    {
+      "label": "GM Assistant: Start Server",
+      "type": "shell",
+      "command": "direnv exec . uvicorn api:app --reload",
+      "isBackground": true,
+      "presentation": {
+        "reveal": "silent",
+        "panel": "new"
+      },
+      "options": {
+        "cwd": "${workspaceFolder}/gm_assistant"
+      },
+      "problemMatcher": []
     }
   ]
 }

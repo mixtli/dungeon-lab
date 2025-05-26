@@ -24,6 +24,17 @@ This dual approach ensures:
 - Each chunk is semantically coherent
 - Better retrieval relevance for the chatbot
 
+## Quick Start
+
+For the fastest setup, run the automated setup script:
+
+```bash
+cd gm_assistant
+./setup.sh
+```
+
+This will install uv (if needed), create a virtual environment, install dependencies, and guide you through the remaining setup steps.
+
 ## Prerequisites
 
 - [Ollama](https://ollama.ai/) installed and running locally
@@ -33,17 +44,51 @@ This dual approach ensures:
 
 ## Setup
 
-1. Install required packages:
-   ```
-   pip install -r requirements.txt
+### Using UV (Recommended)
+
+1. Install [uv](https://docs.astral.sh/uv/) if you haven't already:
+   ```bash
+   curl -LsSf https://astral.sh/uv/install.sh | sh
    ```
 
-2. Ensure Ollama is running:
+2. Create and activate the virtual environment:
+   ```bash
+   cd gm_assistant
+   uv venv
+   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
    ```
+
+3. Install the project and dependencies:
+   ```bash
+   uv pip install -e .
+   ```
+
+4. Ensure Ollama is running:
+   ```bash
    ollama serve
    ```
 
-3. The pipeline will download the PDF automatically. The first run might take longer as it downloads and processes the PDF.
+### Using pip (Alternative)
+
+1. Create a virtual environment:
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+   ```
+
+2. Install required packages:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. Ensure Ollama is running:
+   ```bash
+   ollama serve
+   ```
+
+### Final Setup Steps
+
+The pipeline will download the PDF automatically. The first run might take longer as it downloads and processes the PDF.
 
 ## Usage
 
@@ -51,8 +96,14 @@ This dual approach ensures:
 
 Run the import script to generate the vector database:
 
+#### Using UV (with entry points):
 ```bash
-python import_dnd_rules.py
+gm-assistant-import
+```
+
+#### Using Python directly:
+```bash
+python src/import_dnd_rules.py
 ```
 
 #### Command Line Options for Import
@@ -63,46 +114,51 @@ python import_dnd_rules.py
 
 Example:
 ```bash
-python import_dnd_rules.py --model=nomic-embed-text --test-query="How does combat work?"
+gm-assistant-import --model=nomic-embed-text --test-query="How does combat work?"
+# Or with Python:
+python src/import_dnd_rules.py --model=nomic-embed-text --test-query="How does combat work?"
 ```
 
 ### Step 2: Query the Database
 
-#### Command Line Interface
+#### Interactive Agent
 
-After generating the vector database, you can query it using the query script:
+You can use the interactive agent:
 
+#### Using UV (with entry points):
 ```bash
-python query_dnd_rules.py
+gm-assistant-agent
+```
+
+#### Using Python directly:
+```bash
+python src/agent.py
 ```
 
 This will start an interactive session where you can ask D&D rules questions.
-
-#### Interactive Agent
-
-You can also use the interactive agent:
-
-```bash
-python agent.py
-```
 
 #### FastAPI Web Service
 
 Run the assistant as a web service for integration with other applications:
 
+#### Using UV (with entry points):
 ```bash
-python start_api.py
+gm-assistant-api
+```
+
+#### Using Python directly:
+```bash
+python src/start_api.py
 ```
 
 Or directly:
-
 ```bash
-python api.py
+python src/api.py
 ```
 
 The API will start on `http://localhost:8000` by default.
 
-#### Command Line Options for Querying
+#### Command Line Options for Agent
 
 - `--embed-model`: Ollama embedding model (default: "nomic-embed-text")
 - `--llm-model`: Ollama LLM model for generating answers (default: "llama3")
@@ -112,7 +168,9 @@ The API will start on `http://localhost:8000` by default.
 
 Example:
 ```bash
-python query_dnd_rules.py --llm-model=llama3 --query="What are the rules for spellcasting?"
+gm-assistant-agent --llm-model=llama3 --query="What are the rules for spellcasting?"
+# Or with Python:
+python src/agent.py --llm-model=llama3 --query="What are the rules for spellcasting?"
 ```
 
 ## API Documentation
@@ -152,7 +210,7 @@ curl -X POST http://localhost:8000/chat/session/my-session \
 Run the test script to verify all endpoints work correctly:
 
 ```bash
-python test_api.py
+python src/test_api.py
 ```
 
 ### Configuration

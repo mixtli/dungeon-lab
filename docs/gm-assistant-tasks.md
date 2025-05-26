@@ -1,158 +1,242 @@
-# GM Assistant Integration - Implementation Tasks
+# Chatbot Integration System - Implementation Tasks
 
 ## Overview
 
-This document outlines the implementation tasks for integrating the GM Assistant into DungeonLab as a chat participant. Tasks are organized by phase and component, with clear dependencies and acceptance criteria.
+This document outlines the implementation tasks for creating a generic chatbot integration system in DungeonLab. This system will allow Game Masters to add any compatible chatbot to their campaigns as chat participants. Tasks are organized by phase and component, with clear dependencies and acceptance criteria.
+
+The initial implementation includes the existing GM Assistant (D&D 5e) as the reference implementation, but the architecture supports multiple game systems and custom chatbots.
 
 ## Phase 1: Core Integration
 
-### Task 1: Convert GM Assistant to FastAPI Service
+### Task 1: Convert GM Assistant to FastAPI Service ✅ COMPLETED
 
 **Priority**: High  
 **Dependencies**: None  
 **Estimated Effort**: 2-3 days
 
-**Description**: Convert the existing Python CLI GM Assistant to a FastAPI web service that can be called via HTTP.
+**Description**: Convert the existing Python CLI GM Assistant to a FastAPI web service that implements the standard chatbot API interface.
 
 **Implementation Details**:
-- Create new `ai-workflows/src/gm_assistant/api.py` with FastAPI application
-- Implement health check endpoints (`/health`, `/status`)
-- Create chat endpoint (`POST /chat`) with request/response schemas
-- Add session management for conversation memory
-- Implement proper error handling and logging
-- Add configuration management for Ollama settings
-- Create requirements.txt with FastAPI dependencies
+- ✅ Create new `ai-workflows/src/gm_assistant/api.py` with FastAPI application
+- ✅ Implement health check endpoints (`/health`, `/status`)
+- ✅ Create chat endpoint (`POST /chat`) with request/response schemas
+- ✅ Add session management for conversation memory
+- ✅ Implement proper error handling and logging
+- ✅ Add configuration management for Ollama settings
+- ✅ Create requirements.txt with FastAPI dependencies
+- ✅ Add `/capabilities` endpoint for bot metadata
+- ✅ Ensure compliance with standard chatbot API interface
 
 **Acceptance Criteria**:
-- [ ] FastAPI service starts successfully on port 8000
-- [ ] Health check endpoint returns 200 status
-- [ ] Chat endpoint accepts messages and returns D&D rule responses
-- [ ] Service maintains conversation memory per session
-- [ ] Proper error responses for invalid requests
-- [ ] Service can be started/stopped cleanly
+- [x] FastAPI service starts successfully on port 8000
+- [x] Health check endpoint returns 200 status
+- [x] Chat endpoint accepts messages and returns D&D rule responses
+- [x] Service maintains conversation memory per session
+- [x] Proper error responses for invalid requests
+- [x] Service can be started/stopped cleanly
+- [x] Implements standard chatbot API interface
 
-**Files to Create/Modify**:
-- `ai-workflows/src/gm_assistant/api.py` (new)
-- `ai-workflows/src/gm_assistant/requirements.txt` (update)
-- `ai-workflows/src/gm_assistant/config.py` (new)
+**Files Created/Modified**:
+- ✅ `ai-workflows/src/gm_assistant/api.py` (new)
+- ✅ `ai-workflows/src/gm_assistant/requirements.txt` (update)
+- ✅ `ai-workflows/src/gm_assistant/config.py` (new)
+- ✅ `ai-workflows/src/gm_assistant/start_api.py` (new)
+- ✅ `ai-workflows/src/gm_assistant/test_api.py` (new)
 
 ---
 
-### Task 2: Create GM Assistant Service Layer in Express
+### Task 2: Create Chatbot Management System in Express
 
 **Priority**: High  
 **Dependencies**: Task 1  
-**Estimated Effort**: 2 days
+**Estimated Effort**: 3-4 days
 
-**Description**: Create the Express server service layer to communicate with the FastAPI GM Assistant service.
+**Description**: Create the Express server chatbot management system to handle multiple chatbot services and their configuration.
 
 **Implementation Details**:
-- Create `packages/server/src/features/gm-assistant/` directory structure
-- Implement `service.mts` with HTTP client for FastAPI communication
+- Create `packages/server/src/features/chatbots/` directory structure
+- Implement `service.mts` with HTTP client for chatbot communication
+- Create `bot-manager.mts` for bot registration and health monitoring
+- Implement `config-api.mts` for REST API endpoints
+- Create database models in `models.mts`
 - Create TypeScript interfaces in `types.mts`
-- Add configuration management in `config.mts`
 - Implement retry logic and error handling
-- Add health check integration
+- Add health check integration for multiple bots
 - Create connection pooling for HTTP requests
 
 **Acceptance Criteria**:
-- [ ] Service can successfully communicate with FastAPI GM Assistant
+- [ ] Service can communicate with multiple chatbot services
+- [ ] Bot registration and configuration management works
+- [ ] Health checks work for all registered bots
+- [ ] Database schema supports multiple bots per campaign
+- [ ] REST API for bot configuration is functional
 - [ ] Proper error handling for service unavailable scenarios
-- [ ] Health checks work correctly
 - [ ] Configuration loads from environment variables
-- [ ] Retry logic works for failed requests
 - [ ] TypeScript types are properly defined
 
 **Files to Create/Modify**:
-- `packages/server/src/features/gm-assistant/service.mts` (new)
-- `packages/server/src/features/gm-assistant/types.mts` (new)
-- `packages/server/src/features/gm-assistant/config.mts` (new)
-- `packages/server/src/features/gm-assistant/index.mts` (new)
+- `packages/server/src/features/chatbots/service.mts` (new)
+- `packages/server/src/features/chatbots/bot-manager.mts` (new)
+- `packages/server/src/features/chatbots/config-api.mts` (new)
+- `packages/server/src/features/chatbots/models.mts` (new)
+- `packages/server/src/features/chatbots/types.mts` (new)
+- `packages/server/src/features/chatbots/index.mts` (new)
+- Database migration for chatbots table (new)
 
 ---
 
-### Task 3: Create Shared Types for GM Assistant
+### Task 3: Create Shared Types for Chatbot System
 
 **Priority**: Medium  
 **Dependencies**: None  
-**Estimated Effort**: 1 day
+**Estimated Effort**: 1-2 days
 
-**Description**: Define shared TypeScript types and schemas for GM Assistant functionality.
+**Description**: Define shared TypeScript types and schemas for the chatbot system functionality.
 
 **Implementation Details**:
-- Create `packages/shared/src/types/gm-assistant.mts`
-- Define interfaces for messages, responses, configuration
+- Create `packages/shared/src/types/chatbots.mts`
+- Define interfaces for chatbot configuration, messages, responses
+- Add interfaces for bot capabilities and health status
 - Add Zod schemas for validation
-- Update socket event schemas to include GM Assistant events
+- Update socket event schemas to include chatbot events
 - Export types from shared package index
 
 **Acceptance Criteria**:
-- [ ] All GM Assistant types are properly defined
+- [ ] All chatbot system types are properly defined
+- [ ] Bot configuration and capabilities types are complete
 - [ ] Zod schemas validate correctly
 - [ ] Types are exported and accessible from shared package
-- [ ] Socket event schemas include GM Assistant events
+- [ ] Socket event schemas include chatbot events
 - [ ] No TypeScript compilation errors
 
 **Files to Create/Modify**:
-- `packages/shared/src/types/gm-assistant.mts` (new)
-- `packages/shared/src/schemas/gm-assistant.schema.mts` (new)
+- `packages/shared/src/types/chatbots.mts` (new)
+- `packages/shared/src/schemas/chatbots.schema.mts` (new)
 - `packages/shared/src/types/index.mts` (update)
 - `packages/shared/src/schemas/socket/index.mts` (update)
 
 ---
 
-### Task 4: Implement GM Assistant Chat Handler
+### Task 4: Create Bot Configuration Database Migration
 
 **Priority**: High  
-**Dependencies**: Task 2, Task 3  
-**Estimated Effort**: 2-3 days
+**Dependencies**: Task 3  
+**Estimated Effort**: 1 day
 
-**Description**: Create the chat handler that detects GM Assistant messages and processes them.
+**Description**: Create database migration and models for chatbot configuration storage.
 
 **Implementation Details**:
-- Create `packages/server/src/features/gm-assistant/chat-handler.mts`
+- Create database migration for chatbots table
+- Add indexes for performance (campaign_id, enabled, health_status)
+- Create Prisma/database models
+- Add seed data for default D&D 5e bot (optional)
+- Update database schema documentation
+
+**Acceptance Criteria**:
+- [ ] Database migration runs successfully
+- [ ] Chatbots table created with proper schema
+- [ ] Foreign key constraints work correctly
+- [ ] Indexes are created for performance
+- [ ] Database models are properly typed
+
+**Files to Create/Modify**:
+- Database migration file (new)
+- `packages/server/src/features/chatbots/models.mts` (new)
+- Database schema documentation (update)
+
+---
+
+### Task 5: Implement Chatbot Chat Handler
+
+**Priority**: High  
+**Dependencies**: Task 2, Task 4  
+**Estimated Effort**: 3-4 days
+
+**Description**: Create the chat handler that detects chatbot messages and routes them to appropriate bots.
+
+**Implementation Details**:
+- Create `packages/server/src/features/chatbots/chat-handler.mts`
 - Implement message detection logic (direct messages, mentions)
+- Add bot routing based on campaign configuration
 - Add response routing for different message types
 - Integrate with existing socket handler
 - Implement typing indicators during processing
 - Add error handling and fallback messages
-- Create constants for GM Assistant ID and name
+- Support multiple bots per campaign
 
 **Acceptance Criteria**:
-- [ ] Detects direct messages to GM Assistant
-- [ ] Detects @mentions of GM Assistant in group chats
+- [ ] Detects direct messages to configured chatbots
+- [ ] Detects @mentions of chatbots in group chats
+- [ ] Routes messages to correct bot based on campaign config
 - [ ] Routes responses correctly (private vs room)
 - [ ] Shows typing indicators during processing
 - [ ] Handles errors gracefully with user-friendly messages
+- [ ] Supports multiple bots in same campaign
 - [ ] Integrates seamlessly with existing chat flow
 
 **Files to Create/Modify**:
-- `packages/server/src/features/gm-assistant/chat-handler.mts` (new)
+- `packages/server/src/features/chatbots/chat-handler.mts` (new)
 - `packages/server/src/features/chat/socket-handler.mts` (update)
 
 ---
 
-### Task 5: Update Chat Socket Handler Integration
+### Task 6: Create Bot Configuration REST API
 
 **Priority**: High  
-**Dependencies**: Task 4  
-**Estimated Effort**: 1 day
+**Dependencies**: Task 4, Task 5  
+**Estimated Effort**: 2-3 days
 
-**Description**: Integrate GM Assistant processing into the existing chat socket handler.
+**Description**: Create REST API endpoints for managing chatbot configurations.
+
+**Implementation Details**:
+- Create `packages/server/src/features/chatbots/config-api.mts`
+- Implement CRUD endpoints for bot configuration
+- Add bot connection testing endpoint
+- Add bot health check endpoints
+- Implement proper authentication and authorization
+- Add validation for bot configurations
+- Add endpoints for bot capabilities retrieval
+
+**Acceptance Criteria**:
+- [ ] CRUD operations for bot configurations work
+- [ ] Bot connection testing works correctly
+- [ ] Health check endpoints return proper status
+- [ ] Authentication and authorization are enforced
+- [ ] Input validation prevents invalid configurations
+- [ ] API documentation is complete
+- [ ] Error handling provides useful feedback
+
+**Files to Create/Modify**:
+- `packages/server/src/features/chatbots/config-api.mts` (new)
+- API route registration (update)
+- API documentation (update)
+
+---
+
+### Task 7: Update Chat Socket Handler Integration
+
+**Priority**: High  
+**Dependencies**: Task 5  
+**Estimated Effort**: 1-2 days
+
+**Description**: Integrate chatbot processing into the existing chat socket handler.
 
 **Implementation Details**:
 - Update `packages/server/src/features/chat/socket-handler.mts`
-- Add GM Assistant handler instantiation
-- Integrate async GM Assistant processing (non-blocking)
+- Add chatbot handler instantiation
+- Integrate async chatbot processing (non-blocking)
+- Load campaign-specific bot configurations
 - Ensure existing chat functionality remains unchanged
-- Add proper error handling for GM Assistant failures
+- Add proper error handling for chatbot failures
 
 **Acceptance Criteria**:
-- [ ] GM Assistant processing doesn't block regular chat
+- [ ] Chatbot processing doesn't block regular chat
 - [ ] Existing chat functionality works unchanged
-- [ ] GM Assistant responses appear in correct chat rooms
+- [ ] Chatbot responses appear in correct chat rooms
+- [ ] Campaign-specific bots are loaded correctly
 - [ ] Error handling prevents chat system crashes
 - [ ] Socket events are properly typed
+- [ ] Multiple bots can operate simultaneously
 
 **Files to Create/Modify**:
 - `packages/server/src/features/chat/socket-handler.mts` (update)

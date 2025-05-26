@@ -1,8 +1,10 @@
-# GM Assistant Integration Design Document
+# Chatbot Integration System Design Document
 
 ## Overview
 
-This document outlines the design for integrating the existing GM Assistant (D&D 5e rules chatbot) into the main DungeonLab application as a chat participant. The GM Assistant will appear as a special system user that can respond to direct messages and mentions in game session chats, providing D&D rules assistance to players and game masters.
+This document outlines the design for integrating external chatbots into the main DungeonLab application as chat participants. This system will allow Game Masters to add any compatible chatbot (D&D 5e, Pathfinder, homebrew systems, etc.) to their campaigns. Chatbots will appear as special system users that can respond to direct messages and mentions in game session chats, providing rules assistance and other game-specific support to players and game masters.
+
+The initial implementation will include the existing GM Assistant (D&D 5e rules chatbot) as the first supported bot, but the architecture is designed to support multiple game systems and custom chatbots.
 
 ## Current State
 
@@ -11,21 +13,27 @@ The GM Assistant currently exists as a standalone Python application (`ai-workfl
 - Maintains a Chroma vector database of D&D 5e SRD content
 - Provides a command-line interface for querying D&D rules
 - Supports conversation memory for contextual responses
+- Now includes a FastAPI service interface (Task 1 completed)
+
+This will serve as the reference implementation and first chatbot in the new system.
 
 ## Goals
 
 ### Primary Goals
-1. **Seamless Chat Integration**: GM Assistant appears as a chat participant alongside users and characters
-2. **Multiple Communication Modes**: Support both direct messages and @mentions in group chats
-3. **Consistent User Experience**: Leverage existing chat infrastructure and UI patterns
-4. **Reliable Service**: Graceful degradation when AI service is unavailable
-5. **Scalable Architecture**: Foundation for adding more AI assistants in the future
+1. **Generic Chatbot Integration**: Support any chatbot that implements the standard API interface
+2. **Campaign-Specific Bots**: Allow GMs to add/configure chatbots per campaign
+3. **Multiple Communication Modes**: Support both direct messages and @mentions in group chats
+4. **Consistent User Experience**: Leverage existing chat infrastructure and UI patterns
+5. **Reliable Service**: Graceful degradation when chatbot services are unavailable
+6. **Extensible Architecture**: Easy addition of new game systems and custom chatbots
 
 ### Secondary Goals
 1. **Performance**: Reasonable response times (< 30 seconds for complex queries)
 2. **Context Awareness**: Maintain conversation context within chat sessions
 3. **Access Control**: Respect existing authentication and session permissions
-4. **Monitoring**: Health checks and error reporting for the AI service
+4. **Monitoring**: Health checks and error reporting for chatbot services
+5. **Bot Management**: Easy configuration, testing, and management of chatbots
+6. **Multi-System Support**: Support for different game systems (D&D 5e, Pathfinder, etc.)
 
 ## Architecture Overview
 
@@ -33,17 +41,22 @@ The GM Assistant currently exists as a standalone Python application (`ai-workfl
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Web Client    │    │  Express Server │    │  GM Assistant   │
-│                 │    │                 │    │   FastAPI       │
+│   Web Client    │    │  Express Server │    │   Chatbot       │
+│                 │    │                 │    │   Services      │
 │ ┌─────────────┐ │    │ ┌─────────────┐ │    │ ┌─────────────┐ │
-│ │ Chat        │ │◄──►│ │ Chat Socket │ │    │ │ LangChain   │ │
-│ │ Component   │ │    │ │ Handler     │ │    │ │ + Ollama    │ │
+│ │ Chat        │ │◄──►│ │ Chat Socket │ │    │ │ D&D 5e Bot  │ │
+│ │ Component   │ │    │ │ Handler     │ │    │ │ (FastAPI)   │ │
 │ └─────────────┘ │    │ └─────────────┘ │    │ └─────────────┘ │
-│                 │    │        │        │    │        │        │
-│                 │    │ ┌─────────────┐ │    │ ┌─────────────┐ │
-│                 │    │ │ GM Assistant│ │◄──►│ │ Chroma      │ │
-│                 │    │ │ Service     │ │    │ │ Vector DB   │ │
-│                 │    │ └─────────────┘ │    │ └─────────────┘ │
+│ ┌─────────────┐ │    │        │        │    │ ┌─────────────┐ │
+│ │ Bot Config  │ │    │ ┌─────────────┐ │    │ │ Pathfinder  │ │
+│ │ UI          │ │◄──►│ │ Chatbot     │ │◄──►│ │ Bot         │ │
+│ └─────────────┘ │    │ │ Service     │ │    │ └─────────────┘ │
+│                 │    │ └─────────────┘ │    │ ┌─────────────┐ │
+│                 │    │        │        │    │ │ Custom Bot  │ │
+│                 │    │ ┌─────────────┐ │    │ │ (3rd Party) │ │
+│                 │    │ │ Bot Config  │ │    │ └─────────────┘ │
+│                 │    │ │ API         │ │    │                 │
+│                 │    │ └─────────────┘ │    │                 │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
@@ -51,15 +64,33 @@ The GM Assistant currently exists as a standalone Python application (`ai-workfl
 
 1. **User sends message** → Web Client → Socket.IO → Express Server
 2. **Message routing** → Chat Socket Handler processes message
-3. **AI detection** → GM Assistant Service detects relevant messages
-4. **AI processing** → HTTP request to FastAPI GM Assistant
+3. **Bot detection** → Chatbot Service detects relevant messages for configured bots
+4. **Bot processing** → HTTP request to appropriate chatbot service
 5. **Response routing** → Back through Socket.IO to appropriate chat room(s)
+
+### Bot Management Flow
+
+1. **GM configures bot** → Bot Config UI → Express Server → Database
+2. **Bot registration** → Chatbot Service validates and registers bot
+3. **Health monitoring** → Periodic health checks to registered bots
+4. **Campaign association** → Bots are linked to specific campaigns
 
 ## Detailed Design
 
-### 1. GM Assistant FastAPI Service
+### 1. Chatbot API Standard
 
-#### 1.1 Service Architecture
+#### 1.1 Standard Chatbot Interface
+
+All chatbots must implement a standardized API interface to be compatible with DungeonLab:
+
+**Required Endpoints**:
+- `GET /health` - Health check
+- `GET /status` - Detailed status and capabilities
+- `POST /chat` - Main chat endpoint
+- `POST /chat/session/{session_id}` - Session-aware chat
+- `POST /chat/session/{session_id}/clear` - Clear session memory
+
+#### 1.2 Reference Implementation (D&D 5e Bot)
 
 **Location**: `ai-workflows/src/gm_assistant/api.py`
 
@@ -67,26 +98,30 @@ The GM Assistant currently exists as a standalone Python application (`ai-workfl
 - FastAPI application with async support
 - Conversation session management
 - Health monitoring endpoints
+- D&D 5e specific knowledge base
 - Streaming response support (future)
 
-#### 1.2 API Endpoints
+#### 1.3 Standard API Endpoints
 
 ```python
-# Health and status
+# Health and status (Required)
 GET  /health                    # Service health check
-GET  /status                    # Detailed service status
+GET  /status                    # Detailed service status with capabilities
 
-# Chat functionality  
+# Chat functionality (Required)
 POST /chat                      # Single message processing
-POST /chat/stream              # Streaming responses (future)
 POST /chat/session/{session_id} # Session-aware chat
 
-# Management
+# Session management (Required)
 POST /chat/session/{session_id}/clear  # Clear session memory
+
+# Optional endpoints
+POST /chat/stream              # Streaming responses (future)
 GET  /chat/sessions             # List active sessions
+GET  /capabilities             # Bot capabilities and metadata
 ```
 
-#### 1.3 Request/Response Schemas
+#### 1.4 Standard Request/Response Schemas
 
 ```python
 # Chat Request
@@ -123,6 +158,25 @@ GET  /chat/sessions             # List active sessions
   "error_code": "SERVICE_UNAVAILABLE",
   "retry_after": 30
 }
+
+# Bot Capabilities Response
+{
+  "name": "D&D 5e Assistant",
+  "description": "Provides D&D 5th Edition rules assistance",
+  "version": "1.0.0",
+  "game_systems": ["dnd5e"],
+  "features": {
+    "conversation_memory": true,
+    "source_citations": true,
+    "streaming_responses": false
+  },
+  "supported_languages": ["en"],
+  "max_session_duration": 3600,
+  "rate_limits": {
+    "requests_per_minute": 60,
+    "concurrent_sessions": 100
+  }
+}
 ```
 
 #### 1.4 Session Management
@@ -133,28 +187,64 @@ GET  /chat/sessions             # List active sessions
 
 ### 2. Express Server Integration
 
-#### 2.1 GM Assistant Service Layer
+#### 2.1 Chatbot Management System
 
-**Location**: `packages/server/src/features/gm-assistant/`
+**Location**: `packages/server/src/features/chatbots/`
 
 **Files**:
-- `service.mts` - HTTP client for FastAPI service
+- `service.mts` - HTTP client for chatbot services
 - `chat-handler.mts` - Socket.IO message processing
+- `bot-manager.mts` - Bot registration and health monitoring
+- `config-api.mts` - Bot configuration REST API
 - `types.mts` - TypeScript interfaces
-- `config.mts` - Configuration management
+- `models.mts` - Database models for bot configuration
 
-#### 2.2 Service Implementation
+#### 2.2 Database Schema
+
+**Chatbot Configuration Table**:
+```sql
+CREATE TABLE chatbots (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  campaign_id UUID NOT NULL REFERENCES campaigns(id),
+  name VARCHAR(255) NOT NULL,
+  description TEXT,
+  endpoint_url VARCHAR(500) NOT NULL,
+  api_key VARCHAR(255), -- Optional for authenticated bots
+  game_system VARCHAR(100),
+  enabled BOOLEAN DEFAULT true,
+  health_status VARCHAR(50) DEFAULT 'unknown',
+  last_health_check TIMESTAMP,
+  capabilities JSONB,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  created_by UUID REFERENCES users(id)
+);
+```
+
+#### 2.3 Service Implementation
 
 ```typescript
-export class GMAssistantService {
-  private baseUrl: string;
-  private timeout: number;
-  private retryAttempts: number;
+export class ChatbotService {
+  private registeredBots: Map<string, ChatbotConfig>;
+  private httpClients: Map<string, HttpClient>;
 
-  async sendMessage(request: ChatRequest): Promise<ChatResponse>
-  async isHealthy(): Promise<boolean>
-  async getServiceStatus(): Promise<ServiceStatus>
-  async clearSession(sessionId: string): Promise<void>
+  async sendMessage(botId: string, request: ChatRequest): Promise<ChatResponse>
+  async registerBot(config: ChatbotConfig): Promise<void>
+  async unregisterBot(botId: string): Promise<void>
+  async isHealthy(botId: string): Promise<boolean>
+  async getServiceStatus(botId: string): Promise<ServiceStatus>
+  async clearSession(botId: string, sessionId: string): Promise<void>
+  async getBotCapabilities(botId: string): Promise<BotCapabilities>
+  async performHealthCheck(botId: string): Promise<HealthStatus>
+}
+
+export class BotManager {
+  async loadBotsForCampaign(campaignId: string): Promise<ChatbotConfig[]>
+  async addBotToCampaign(campaignId: string, config: ChatbotConfig): Promise<string>
+  async removeBotFromCampaign(campaignId: string, botId: string): Promise<void>
+  async updateBotConfig(botId: string, config: Partial<ChatbotConfig>): Promise<void>
+  async testBotConnection(config: ChatbotConfig): Promise<TestResult>
+  async scheduleHealthChecks(): Promise<void>
 }
 ```
 
@@ -191,32 +281,63 @@ function chatSocketHandler(socket: Socket) {
 
 #### 3.1 Chat Context Updates
 
-**GM Assistant as Chat Participant**:
-- Appears in chat sidebar as "GM Assistant"
+**Chatbots as Chat Participants**:
+- Each configured bot appears in chat sidebar with custom name
 - Special system user type with distinctive icon/styling
-- Available in all game sessions
+- Available based on campaign configuration
+- Multiple bots can be active in a single campaign
 
-#### 3.2 UI Enhancements
+#### 3.2 Bot Configuration UI
+
+**Campaign Settings Integration**:
+- New "Chatbots" section in campaign settings
+- Add/edit/remove bot configurations
+- Test bot connections before saving
+- Enable/disable bots per campaign
+- View bot health status and capabilities
+
+#### 3.3 UI Enhancements
 
 **Chat Component Updates**:
 ```typescript
-// Add GM Assistant to chat contexts
+// Add configured chatbots to chat contexts
 const contexts: ChatContext[] = [
   {
     id: 'campaign',
     name: 'Campaign Room',
     type: 'campaign'
   },
-  {
-    id: 'system:gm-assistant',
-    name: 'GM Assistant',
+  // Dynamically loaded chatbots for this campaign
+  ...campaignChatbots.map(bot => ({
+    id: `system:chatbot:${bot.id}`,
+    name: bot.name,
     type: 'system',
-    participantId: 'gm-assistant',
-    icon: 'robot', // Special icon
-    description: 'D&D 5e Rules Assistant'
-  },
+    participantId: bot.id,
+    icon: bot.game_system === 'dnd5e' ? 'dragon' : 'robot',
+    description: bot.description,
+    gameSystem: bot.game_system,
+    healthStatus: bot.health_status
+  })),
   // ... other contexts
 ];
+```
+
+**Bot Configuration Component**:
+```typescript
+interface BotConfigForm {
+  name: string;
+  description: string;
+  endpointUrl: string;
+  apiKey?: string;
+  gameSystem: string;
+  enabled: boolean;
+}
+
+const BotConfigModal = () => {
+  // Form for adding/editing bot configuration
+  // Test connection functionality
+  // Validation and error handling
+};
 ```
 
 **Message Styling**:
@@ -241,13 +362,49 @@ const contexts: ChatContext[] = [
 
 #### 4.1 Shared Types
 
-**Location**: `packages/shared/src/types/gm-assistant.mts`
+**Location**: `packages/shared/src/types/chatbots.mts`
 
 ```typescript
-export interface GMAssistantMessage {
+export interface ChatbotConfig {
+  id: string;
+  campaignId: string;
+  name: string;
+  description: string;
+  endpointUrl: string;
+  apiKey?: string;
+  gameSystem: string;
+  enabled: boolean;
+  healthStatus: 'healthy' | 'unhealthy' | 'unknown';
+  lastHealthCheck?: Date;
+  capabilities?: BotCapabilities;
+  createdAt: Date;
+  updatedAt: Date;
+  createdBy: string;
+}
+
+export interface BotCapabilities {
+  name: string;
+  description: string;
+  version: string;
+  gameSystem: string[];
+  features: {
+    conversationMemory: boolean;
+    sourceCitations: boolean;
+    streamingResponses: boolean;
+  };
+  supportedLanguages: string[];
+  maxSessionDuration: number;
+  rateLimits: {
+    requestsPerMinute: number;
+    concurrentSessions: number;
+  };
+}
+
+export interface ChatbotMessage {
   id: string;
   content: string;
   sessionId: string;
+  botId: string;
   userId?: string;
   timestamp: Date;
   processingTime?: number;
@@ -261,16 +418,11 @@ export interface MessageSource {
   url?: string;
 }
 
-export interface GMAssistantConfig {
-  enabled: boolean;
-  responseTimeout: number;
-  maxRetries: number;
-  serviceUrl: string;
-  features: {
-    directMessages: boolean;
-    mentions: boolean;
-    autoRespond: boolean;
-  };
+export interface BotTestResult {
+  success: boolean;
+  responseTime: number;
+  capabilities?: BotCapabilities;
+  error?: string;
 }
 ```
 
@@ -299,21 +451,22 @@ export const serverToClientEvents = z.object({
 #### 5.1 Environment Configuration
 
 ```bash
-# GM Assistant Service
-GM_ASSISTANT_ENABLED=true
-GM_ASSISTANT_URL=http://localhost:8000
-GM_ASSISTANT_TIMEOUT=30000
-GM_ASSISTANT_MAX_RETRIES=3
+# Chatbot System Configuration
+CHATBOTS_ENABLED=true
+CHATBOTS_DEFAULT_TIMEOUT=30000
+CHATBOTS_MAX_RETRIES=3
+CHATBOTS_HEALTH_CHECK_INTERVAL=300000  # 5 minutes
+CHATBOTS_MAX_CONCURRENT_REQUESTS=100
 
-# Ollama Configuration
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_EMBED_MODEL=nomic-embed-text
-OLLAMA_LLM_MODEL=llama3
+# Default D&D 5e Bot Configuration (Optional)
+DND5E_BOT_ENABLED=true
+DND5E_BOT_URL=http://localhost:8000
+DND5E_BOT_NAME="D&D 5e Assistant"
 
 # Feature Flags
-GM_ASSISTANT_DIRECT_MESSAGES=true
-GM_ASSISTANT_MENTIONS=true
-GM_ASSISTANT_AUTO_RESPOND=false
+CHATBOTS_DIRECT_MESSAGES=true
+CHATBOTS_MENTIONS=true
+CHATBOTS_AUTO_REGISTER_DEFAULT=true
 ```
 
 #### 5.2 Service Dependencies
