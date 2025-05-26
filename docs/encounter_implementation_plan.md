@@ -860,10 +860,547 @@ watch(() => sceneStore.currentScene, (newScene) => {
 </template>
 ```
 
+## HUD Interface Architecture
+
+The encounter system will use a full-screen HUD (Heads Up Display) interface similar to Foundry VTT, where the map serves as the primary canvas and all tools and information panels float as semi-transparent overlays.
+
+### Full-Screen Encounter Mode
+
+#### Window Management
+- Encounters open in a new browser window/tab for dedicated focus
+- Full-screen mode available for immersive gameplay
+- Window can be resized but maintains aspect ratio for map consistency
+- Support for multiple monitor setups (map on one screen, tools on another)
+
+#### Layout Structure
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Scene Navigation Bar (Top)                                  │
+├─┬───────────────────────────────────────────────────────┬───┤
+│T│                                                       │ S │
+│o│                                                       │ c │
+│o│                    Map Canvas                         │ e │
+│l│                  (Full Background)                    │ n │
+│b│                                                       │ e │
+│a│                                                       │   │
+│r│                                                       │ B │
+│ │                                                       │ r │
+│ │                                                       │ o │
+│ │                                                       │ w │
+│ │                                                       │ s │
+│ │                                                       │ e │
+│ │                                                       │ r │
+├─┴───────────────────────────────────────────────────────┴───┤
+│ Player Tokens & Hotbar (Bottom)                            │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Panel System Architecture
+
+#### Panel Types and Positioning
+
+```typescript
+interface HUDPanel {
+  id: string;
+  type: 'initiative' | 'character-sheet' | 'chat' | 'spells' | 'inventory' | 'notes' | 'settings';
+  title: string;
+  position: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+  state: 'expanded' | 'collapsed' | 'minimized' | 'hidden';
+  isMovable: boolean;
+  isResizable: boolean;
+  opacity: number; // 0.7-0.95 for semi-transparency
+  zIndex: number;
+  dockable: boolean; // Can snap to screen edges
+  alwaysOnTop: boolean;
+}
+```
+
+#### Core HUD Panels
+
+1. **Initiative Tracker Panel**
+   - Default position: Top-right corner
+   - Shows turn order, current actor, round counter
+   - Collapsible to show only current turn
+   - Drag to reorder initiative
+
+2. **Character Sheet Panel**
+   - Opens when token is selected
+   - Shows stats, abilities, conditions
+   - Can pin multiple character sheets
+   - Tabbed interface for multiple characters
+
+3. **Chat Panel**
+   - Default position: Bottom-right
+   - Dice rolls, actions, GM messages
+   - Collapsible to show only recent messages
+   - Filter by message type
+
+4. **Spell/Ability Panel**
+   - Default position: Right side, middle
+   - Quick access to character abilities
+   - Drag-and-drop to hotbar
+   - Search and filter capabilities
+
+5. **Scene Browser Panel**
+   - Default position: Right side (as shown in screenshot)
+   - Navigate between scenes/maps
+   - Scene thumbnails and quick switching
+   - Collapsible to icon-only view
+
+#### Toolbar System
+
+```typescript
+interface ToolbarConfig {
+  position: 'left' | 'right' | 'top' | 'bottom';
+  orientation: 'horizontal' | 'vertical';
+  tools: ToolbarItem[];
+  collapsible: boolean;
+  autoHide: boolean; // Hide when not in use
+}
+
+interface ToolbarItem {
+  id: string;
+  icon: string;
+  tooltip: string;
+  action: () => void;
+  isActive: boolean;
+  hasSubmenu: boolean;
+  submenuItems?: ToolbarItem[];
+}
+```
+
+**Left Toolbar** (Primary Tools):
+- Select/Move tool
+- Measure distance tool
+- Area of effect templates
+- Lighting tools
+- Fog of war tools
+- Drawing tools
+- Note/pin tools
+
+**Top Navigation Bar**:
+- Scene tabs/navigation
+- Scene controls (play/pause)
+- View controls (zoom, center)
+- Settings access
+
+**Bottom Hotbar**:
+- Numbered slots (1-0 keys)
+- Drag abilities/spells from panels
+- Quick access to common actions
+- Player-specific customization
+
+### Component Architecture
+
+#### Core HUD Components
+
+```typescript
+// src/components/hud/EncounterHUD.vue
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue';
+import { useHUDStore } from '@/stores/hudStore';
+import { useSceneStore } from '@/stores/sceneStore';
+import MapCanvas from './MapCanvas.vue';
+import HUDPanel from './HUDPanel.vue';
+import Toolbar from './Toolbar.vue';
+import SceneNavigation from './SceneNavigation.vue';
+import Hotbar from './Hotbar.vue';
+
+const hudStore = useHUDStore();
+const sceneStore = useSceneStore();
+
+// Panel management
+const panels = computed(() => hudStore.visiblePanels);
+const activeTool = computed(() => hudStore.activeTool);
+
+// Full-screen management
+const isFullscreen = ref(false);
+const toggleFullscreen = () => {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen();
+    isFullscreen.value = true;
+  } else {
+    document.exitFullscreen();
+    isFullscreen.value = false;
+  }
+};
+</script>
+
+<template>
+  <div class="encounter-hud" :class="{ 'fullscreen': isFullscreen }">
+    <!-- Map Canvas (Full Background) -->
+    <MapCanvas class="map-background" />
+    
+    <!-- Scene Navigation (Top) -->
+    <SceneNavigation class="scene-nav" />
+    
+    <!-- Left Toolbar -->
+    <Toolbar 
+      position="left" 
+      :tools="hudStore.leftToolbarTools"
+      class="left-toolbar"
+    />
+    
+    <!-- Dynamic HUD Panels -->
+    <HUDPanel
+      v-for="panel in panels"
+      :key="panel.id"
+      :panel="panel"
+      @move="hudStore.movePanel"
+      @resize="hudStore.resizePanel"
+      @toggle="hudStore.togglePanel"
+      @close="hudStore.closePanel"
+    />
+    
+    <!-- Scene Browser (Right) -->
+    <div class="scene-browser">
+      <!-- Scene thumbnails and navigation -->
+    </div>
+    
+    <!-- Bottom Hotbar -->
+    <Hotbar class="bottom-hotbar" />
+    
+    <!-- Context Menus and Tooltips -->
+    <div class="overlay-layer">
+      <!-- Dynamic overlays -->
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.encounter-hud {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: #000;
+  overflow: hidden;
+  font-family: 'Roboto', sans-serif;
+}
+
+.map-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+.scene-nav {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(4px);
+}
+
+.left-toolbar {
+  position: absolute;
+  left: 8px;
+  top: 50px;
+  z-index: 90;
+}
+
+.scene-browser {
+  position: absolute;
+  right: 8px;
+  top: 50px;
+  bottom: 60px;
+  width: 200px;
+  z-index: 90;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(4px);
+  border-radius: 8px;
+}
+
+.bottom-hotbar {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 90;
+}
+
+.overlay-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 200;
+  pointer-events: none;
+}
+</style>
+```
+
+#### Movable Panel Component
+
+```typescript
+// src/components/hud/HUDPanel.vue
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue';
+import { useDraggable } from '@vueuse/core';
+
+interface Props {
+  panel: HUDPanel;
+}
+
+const props = defineProps<Props>();
+const emit = defineEmits<{
+  move: [id: string, position: { x: number; y: number }];
+  resize: [id: string, size: { width: number; height: number }];
+  toggle: [id: string];
+  close: [id: string];
+}>();
+
+const panelRef = ref<HTMLElement>();
+const headerRef = ref<HTMLElement>();
+
+// Make panel draggable by header
+const { x, y, isDragging } = useDraggable(panelRef, {
+  initialValue: { x: props.panel.position.x, y: props.panel.position.y },
+  handle: headerRef,
+  onEnd: () => {
+    emit('move', props.panel.id, { x: x.value, y: y.value });
+  }
+});
+
+const isExpanded = computed(() => props.panel.state === 'expanded');
+const isCollapsed = computed(() => props.panel.state === 'collapsed');
+</script>
+
+<template>
+  <div
+    ref="panelRef"
+    class="hud-panel"
+    :class="{
+      'is-dragging': isDragging,
+      'is-expanded': isExpanded,
+      'is-collapsed': isCollapsed
+    }"
+    :style="{
+      left: `${x}px`,
+      top: `${y}px`,
+      width: `${panel.position.width}px`,
+      height: isCollapsed ? 'auto' : `${panel.position.height}px`,
+      opacity: panel.opacity,
+      zIndex: panel.zIndex
+    }"
+  >
+    <!-- Panel Header -->
+    <div ref="headerRef" class="panel-header">
+      <h3 class="panel-title">{{ panel.title }}</h3>
+      <div class="panel-controls">
+        <button @click="emit('toggle', panel.id)" class="toggle-btn">
+          {{ isExpanded ? '−' : '+' }}
+        </button>
+        <button @click="emit('close', panel.id)" class="close-btn">×</button>
+      </div>
+    </div>
+    
+    <!-- Panel Content -->
+    <div v-show="isExpanded" class="panel-content">
+      <slot />
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.hud-panel {
+  position: absolute;
+  background: rgba(20, 20, 20, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  min-width: 200px;
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow: hidden;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: move;
+  user-select: none;
+}
+
+.panel-title {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.panel-controls {
+  display: flex;
+  gap: 4px;
+}
+
+.toggle-btn,
+.close-btn {
+  background: none;
+  border: none;
+  color: #ccc;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.toggle-btn:hover,
+.close-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.panel-content {
+  padding: 12px;
+  color: #fff;
+  overflow-y: auto;
+  max-height: calc(90vh - 40px);
+}
+
+.is-dragging {
+  transform: rotate(2deg);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.7);
+}
+</style>
+```
+
+### HUD State Management
+
+```typescript
+// src/stores/hudStore.mts
+export const useHUDStore = defineStore('hud', {
+  state: () => ({
+    panels: new Map<string, HUDPanel>(),
+    activeTool: 'select' as string,
+    isFullscreen: false,
+    hotbarSlots: Array(10).fill(null) as (Action | null)[],
+    userPreferences: {
+      panelOpacity: 0.9,
+      autoHidePanels: false,
+      snapToGrid: true,
+      showTooltips: true
+    }
+  }),
+
+  getters: {
+    visiblePanels: (state) => 
+      Array.from(state.panels.values()).filter(p => p.state !== 'hidden'),
+    
+    leftToolbarTools: () => [
+      { id: 'select', icon: 'cursor-arrow', tooltip: 'Select/Move' },
+      { id: 'measure', icon: 'ruler', tooltip: 'Measure Distance' },
+      { id: 'template', icon: 'circle', tooltip: 'Area Templates' },
+      { id: 'light', icon: 'lightbulb', tooltip: 'Lighting' },
+      { id: 'fog', icon: 'eye-slash', tooltip: 'Fog of War' },
+      { id: 'draw', icon: 'pencil', tooltip: 'Drawing Tools' },
+      { id: 'note', icon: 'map-pin', tooltip: 'Notes' }
+    ]
+  },
+
+  actions: {
+    openPanel(type: HUDPanel['type'], config?: Partial<HUDPanel>) {
+      const defaultConfig = this.getDefaultPanelConfig(type);
+      const panel: HUDPanel = {
+        ...defaultConfig,
+        ...config,
+        id: config?.id || `${type}-${Date.now()}`
+      };
+      
+      this.panels.set(panel.id, panel);
+      this.bringToFront(panel.id);
+    },
+
+    closePanel(id: string) {
+      this.panels.delete(id);
+    },
+
+    togglePanel(id: string) {
+      const panel = this.panels.get(id);
+      if (panel) {
+        panel.state = panel.state === 'expanded' ? 'collapsed' : 'expanded';
+      }
+    },
+
+    movePanel(id: string, position: { x: number; y: number }) {
+      const panel = this.panels.get(id);
+      if (panel) {
+        panel.position.x = position.x;
+        panel.position.y = position.y;
+        this.saveUserPreferences();
+      }
+    },
+
+    bringToFront(id: string) {
+      const maxZ = Math.max(...Array.from(this.panels.values()).map(p => p.zIndex));
+      const panel = this.panels.get(id);
+      if (panel) {
+        panel.zIndex = maxZ + 1;
+      }
+    },
+
+    setActiveTool(tool: string) {
+      this.activeTool = tool;
+    },
+
+    saveUserPreferences() {
+      // Save panel positions and preferences to localStorage
+      const preferences = {
+        panels: Object.fromEntries(this.panels),
+        userPreferences: this.userPreferences
+      };
+      localStorage.setItem('hud-preferences', JSON.stringify(preferences));
+    },
+
+    loadUserPreferences() {
+      // Load saved preferences
+      const saved = localStorage.getItem('hud-preferences');
+      if (saved) {
+        const preferences = JSON.parse(saved);
+        // Restore panel positions and settings
+      }
+    }
+  }
+});
+```
+
+### Mobile and Responsive Considerations
+
+#### Adaptive Panel Layout
+- On mobile/tablet, panels automatically dock to screen edges
+- Swipe gestures to show/hide panels
+- Touch-friendly panel headers and controls
+- Simplified toolbar with essential tools only
+
+#### Performance Optimizations
+- Panel content virtualization for large lists
+- Lazy loading of panel components
+- Reduced transparency effects on low-en:w
+d devices
+- Simplified animations on mobile
+
 ## Implementation Phases
 
-### Phase 1: Core Scene System
-
+### Phase 1: Basic Foundations
 1. Define base Scene model and specialized scene type models
 2. Create REST API endpoints for general scene management
 3. Implement basic server-side controllers and services
