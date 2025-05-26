@@ -13,31 +13,11 @@ from langchain.memory import ConversationBufferMemory
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+# Import configuration
+from config import config, DND_CONTEXT_PROMPT, DEFAULT_EMBED_MODEL, DEFAULT_LLM_MODEL
+
 # Load environment variables from .env file if it exists
 load_dotenv(verbose=True)
-
-# Paths
-CHROMA_PERSIST_DIR = os.path.join(os.path.dirname(__file__), "../../data/chroma_db")
-
-# Default Ollama models
-DEFAULT_EMBED_MODEL = "nomic-embed-text"
-DEFAULT_LLM_MODEL = "llama3"  # or "mistral" as an alternative
-
-# Default D&D context prompt
-DND_CONTEXT_PROMPT = """
-You are a knowledgeable Dungeons & Dragons 5th Edition Dungeon Master's assistant. 
-Use the provided D&D rule information to answer questions accurately and helpfully.
-If the answer isn't in the provided context, say you don't have that specific information
-but offer general D&D knowledge if possible.
-
-Previous conversation:
-{chat_history}
-
-Context information from the D&D 5e rules:
-{context}
-
-Current Question: {question}
-"""
 
 def load_vector_store(model_name=None, base_url=None):
     """Load the Chroma vector store with Ollama embeddings."""
@@ -49,11 +29,11 @@ def load_vector_store(model_name=None, base_url=None):
     )
     
     # Load existing Chroma database
-    logger.info(f"Loading Chroma vector store from {CHROMA_PERSIST_DIR}")
+    logger.info(f"Loading Chroma vector store from {config.chroma_persist_dir}")
     
     # Create the client with explicit include parameters
     import chromadb
-    client = chromadb.PersistentClient(path=CHROMA_PERSIST_DIR)
+    client = chromadb.PersistentClient(path=config.chroma_persist_dir)
     
     # Configure Chroma with embedding function and make sure searches include embeddings
     vector_store = Chroma(

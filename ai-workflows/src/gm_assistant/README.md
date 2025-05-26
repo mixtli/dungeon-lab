@@ -68,6 +68,8 @@ python import_dnd_rules.py --model=nomic-embed-text --test-query="How does comba
 
 ### Step 2: Query the Database
 
+#### Command Line Interface
+
 After generating the vector database, you can query it using the query script:
 
 ```bash
@@ -75,6 +77,30 @@ python query_dnd_rules.py
 ```
 
 This will start an interactive session where you can ask D&D rules questions.
+
+#### Interactive Agent
+
+You can also use the interactive agent:
+
+```bash
+python agent.py
+```
+
+#### FastAPI Web Service
+
+Run the assistant as a web service for integration with other applications:
+
+```bash
+python start_api.py
+```
+
+Or directly:
+
+```bash
+python api.py
+```
+
+The API will start on `http://localhost:8000` by default.
 
 #### Command Line Options for Querying
 
@@ -88,6 +114,68 @@ Example:
 ```bash
 python query_dnd_rules.py --llm-model=llama3 --query="What are the rules for spellcasting?"
 ```
+
+## API Documentation
+
+### Endpoints
+
+- `GET /health` - Health check endpoint
+- `GET /status` - Detailed status with metrics and active sessions
+- `POST /chat` - Main chat endpoint for D&D questions
+- `POST /chat/session/{session_id}` - Chat with specific session ID
+- `POST /chat/session/{session_id}/clear` - Clear conversation memory for session
+- `GET /chat/sessions` - List all active sessions
+
+### API Usage Examples
+
+#### Health Check
+```bash
+curl http://localhost:8000/health
+```
+
+#### Chat Request
+```bash
+curl -X POST http://localhost:8000/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "What are spell slots?", "session_id": "my-session"}'
+```
+
+#### Session-specific Chat
+```bash
+curl -X POST http://localhost:8000/chat/session/my-session \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Tell me more about spell slot recovery"}'
+```
+
+### Test the API
+
+Run the test script to verify all endpoints work correctly:
+
+```bash
+python test_api.py
+```
+
+### Configuration
+
+The API can be configured using environment variables. Copy `env.example` to `.env` and modify as needed:
+
+```bash
+cp env.example .env
+```
+
+Available configuration options:
+
+- `GM_ASSISTANT_HOST`: API host (default: "0.0.0.0")
+- `GM_ASSISTANT_PORT`: API port (default: 8000)
+- `GM_ASSISTANT_TEMPERATURE`: LLM temperature (default: 0.0)
+- `GM_ASSISTANT_MAX_TOKENS`: Maximum tokens per response (default: 4096)
+- `GM_ASSISTANT_SESSION_TIMEOUT`: Session timeout in seconds (default: 3600)
+- `GM_ASSISTANT_MAX_SESSIONS`: Maximum concurrent sessions (default: 100)
+- `GM_ASSISTANT_ENABLE_SOURCES`: Enable source citations (default: true)
+- `GM_ASSISTANT_ENABLE_MEMORY`: Enable conversation memory (default: true)
+- `OLLAMA_BASE_URL`: Ollama API URL (default: "http://localhost:11434")
+- `OLLAMA_EMBED_MODEL`: Embedding model (default: "nomic-embed-text")
+- `OLLAMA_LLM_MODEL`: LLM model (default: "llama3")
 
 ## Directory Structure
 
