@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import * as socketTypes from '../../schemas/socket/index.mjs';
 
+export type MessageParticipant = z.infer<typeof socketTypes.messageParticipantSchema>;
+export type ChatMetadata = z.infer<typeof socketTypes.messageMetadataSchema>;
 export type JoinCallback = z.infer<typeof socketTypes.joinCallbackSchema>;
 export type PluginActionCallback = z.infer<typeof socketTypes.pluginActionCallbackSchema>;
 export type MapGenerationResponse = z.infer<typeof socketTypes.mapGenerationResponseSchema>;

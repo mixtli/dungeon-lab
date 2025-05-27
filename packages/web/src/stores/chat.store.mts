@@ -8,6 +8,14 @@ import type {
 } from '@dungeon-lab/shared/types/socket/index.mjs';
 import { useGameSessionStore } from './game-session.store.mts';
 import { useActorStore } from './actor.store.mts';
+import type { ParsedMessage, Mention } from '@dungeon-lab/shared/types/chat.mjs';
+
+export interface ChatContext {
+  id: string;
+  name: string;
+  type: 'campaign' | 'user' | 'actor' | 'bot';
+  participantId?: string;
+}
 
 export interface ChatMessage {
   id: string;
@@ -17,12 +25,14 @@ export interface ChatMessage {
   timestamp: Date;
   isSystem?: boolean;
   recipientId?: string;
-  recipientType?: 'user' | 'actor' | 'session' | 'system';
+  recipientType?: 'user' | 'actor' | 'session' | 'system' | 'bot';
+  mentions?: ParsedMessage['mentions'];
+  hasMentions?: boolean;
 }
 
 interface ChatStore {
   messages: ChatMessage[];
-  sendMessage: (message: string, recipientId?: string) => void;
+  sendMessage: (message: string, recipientId?: string, chatContexts?: ChatContext[]) => void;
   clearMessages: () => void;
 }
 
@@ -107,6 +117,7 @@ export const useChatStore = defineStore(
     // Get the name of a sender based on their ID and type
     function getSenderName(senderId?: string, senderType?: string): string {
       if (senderType === 'system') return 'System';
+      if (senderType === 'bot') return senderId || 'Bot'; // For bots, use the bot ID as name for now
       if (!senderId) return 'Unknown';
       
       // If sender is the current user
@@ -138,8 +149,39 @@ export const useChatStore = defineStore(
       return 'Unknown User';
     }
 
+    // Extract mentions from message content
+    function extractMentions(content: string, chatContexts: ChatContext[]): Mention[] {
+      const mentions: Mention[] = [];
+      const mentionRegex = /@"([^"]+)"|@(\S+)/g;
+      let match;
+
+      while ((match = mentionRegex.exec(content)) !== null) {
+        const mentionText = match[1] || match[2]; // Quoted or unquoted mention
+        const startIndex = match.index;
+        const endIndex = match.index + match[0].length;
+
+        // Find matching participant
+        const participant = chatContexts.find((ctx: ChatContext) => 
+          ctx.name.toLowerCase() === mentionText.toLowerCase()
+        );
+
+        if (participant) {
+          mentions.push({
+            id: participant.id,
+            name: participant.name,
+            type: participant.type as 'user' | 'actor' | 'bot',
+            participantId: participant.participantId || participant.id,
+            startIndex,
+            endIndex
+          });
+        }
+      }
+
+      return mentions;
+    }
+
     // Send a message
-    function sendMessage(content: string, recipientId?: string) {
+    function sendMessage(content: string, recipientId?: string, chatContexts: ChatContext[] = []) {
       if (!socketStore.socket) {
         console.error('Socket not connected, cannot send message');
         return;
@@ -155,21 +197,25 @@ export const useChatStore = defineStore(
       // Use the current actor if set in actor store (unless user is game master)
       const currentActor = !isGameMaster ? (actorStore.currentActor || gameSessionStore.currentCharacter) : null;
       
+      // Extract mentions from the message content
+      const mentions = extractMentions(content, chatContexts);
+
       // Create the metadata object
       const metadata = {
         sender: {
           // If user is game master, always send as user type
-          type: isGameMaster ? 'user' as 'user' | 'system' | 'actor' | 'session' : 
-                currentActor ? 'actor' as 'user' | 'system' | 'actor' | 'session' : 
-                'user' as 'user' | 'system' | 'actor' | 'session',
+          type: isGameMaster ? 'user' as 'user' | 'system' | 'actor' | 'session' | 'bot' : 
+                currentActor ? 'actor' as 'user' | 'system' | 'actor' | 'session' | 'bot' : 
+                'user' as 'user' | 'system' | 'actor' | 'session' | 'bot',
           id: isGameMaster ? (socketStore.userId || undefined) : 
               (currentActor?.id || socketStore.userId || undefined)
         },
         recipient: {
-          type: 'session' as 'user' | 'system' | 'actor' | 'session',
+          type: 'session' as 'user' | 'system' | 'actor' | 'session' | 'bot',
           id: currentSessionId.value || gameSessionStore.currentSession?.id || undefined
         },
-        timestamp: new Date()
+        timestamp: new Date(),
+        mentions: mentions.length > 0 ? mentions : undefined
       };
 
       // If recipientId is provided, parse it to determine type
@@ -177,7 +223,7 @@ export const useChatStore = defineStore(
         const parts = recipientId.split(':');
         if (parts.length === 2) {
           const recipientType = parts[0];
-          if (recipientType === 'user' || recipientType === 'actor' || recipientType === 'session' || recipientType === 'system') {
+          if (recipientType === 'user' || recipientType === 'actor' || recipientType === 'session' || recipientType === 'system' || recipientType === 'bot') {
             metadata.recipient.type = recipientType;
             metadata.recipient.id = parts[1];
           }

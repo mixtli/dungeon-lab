@@ -23,4 +23,11 @@ export const config = {
   session: {
     secret: process.env.SESSION_SECRET || 'your-session-secret',
   },
+  chatbots: {
+    defaultTimeout: parseInt(process.env.CHATBOT_DEFAULT_TIMEOUT || '30000'),
+    maxRetries: parseInt(process.env.CHATBOT_MAX_RETRIES || '3'),
+    retryDelay: parseInt(process.env.CHATBOT_RETRY_DELAY || '1000'),
+    maxConcurrentRequests: parseInt(process.env.CHATBOT_MAX_CONCURRENT_REQUESTS || '10'),
+    healthCheckInterval: parseInt(process.env.CHATBOT_HEALTH_CHECK_INTERVAL || '300000'), // 5 minutes
+  },
 }; 

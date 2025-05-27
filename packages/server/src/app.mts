@@ -17,6 +17,7 @@ import {
 } from './features/campaigns/index.mjs';
 import { documentRoutes } from './features/documents/index.mjs';
 import assetRoutes from './features/assets/index.mjs';
+import { chatbotRoutes } from './features/chatbots/index.mjs';
 import { oapi } from './oapi.mjs';
 import userRoutes from './features/users/routes/user.routes.mjs';
 import { errorHandler } from './middleware/error.middleware.mjs';
@@ -174,6 +175,7 @@ export async function createApp(): Promise<express.Application> {
   app.use('/api/health', healthRoutes);
   app.use('/api/users', userRoutes);
   app.use('/api/workflows', workflowRoutes);
+  app.use('/api', chatbotRoutes);
 
   // Validation error handler for non-fatal validation errors
   app.use(validationErrorHandler);

@@ -107,3 +107,7 @@ export type IVTTDocumentCreateData = z.infer<typeof vttDocumentCreateSchema>;
 export type IVTTDocumentUpdateData = z.infer<typeof vttDocumentUpdateSchema>;
 
 export type IToken = z.infer<typeof tokenSchema>;
+
+// Chatbot Types
+export * from './chatbots.mjs';
+export * from './chat.mjs';

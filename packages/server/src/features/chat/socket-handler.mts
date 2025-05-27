@@ -5,13 +5,18 @@ import {
   ClientToServerEvents,
   ServerToClientEvents
 } from '@dungeon-lab/shared/types/socket/index.mjs';
+import { ChatbotChatHandler } from '../chatbots/chat-handler.mjs';
+import { botManager } from '../chatbots/routes.mjs';
+
+// Create chatbot handler instance
+const chatbotHandler = new ChatbotChatHandler(botManager);
 
 /**
  * Socket handler for chat functionality
  * @param socket The client socket connection
  */
 function chatSocketHandler(socket: Socket<ClientToServerEvents, ServerToClientEvents>) {
-  socket.on('chat', (metadata, message) => {
+  socket.on('chat', async (metadata, message) => {
     const recipient = metadata.recipient;
     
     // Construct room name by concatenating type and id (except for 'system')
@@ -31,6 +36,10 @@ function chatSocketHandler(socket: Socket<ClientToServerEvents, ServerToClientEv
 
     console.log("Sending chat message to room", roomName);
     socket.to(roomName).emit('chat', metadata, message);
+
+    // Process message for chatbots (async, non-blocking)
+    chatbotHandler.handleMessage(socket, metadata, message)
+      .catch(error => logger.error('Chatbot handler error:', error));
   });
 }
 

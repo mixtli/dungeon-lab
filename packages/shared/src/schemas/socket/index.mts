@@ -1,15 +1,26 @@
 import { z } from 'zod';
 import { gameSessionResponseSchema } from '../game-session.schema.mjs';
 
+// Mention schema for structured mention data
+export const mentionSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  type: z.enum(['user', 'actor', 'bot']),
+  participantId: z.string(),
+  startIndex: z.number(),
+  endIndex: z.number()
+});
+
 export const messageParticipantSchema = z.object({
-  type: z.enum(['user', 'system', 'actor', 'session']),
+  type: z.enum(['user', 'system', 'actor', 'session', 'bot']),
   id: z.string().optional()
 });
 
 export const messageMetadataSchema = z.object({
   sender: messageParticipantSchema,
   recipient: messageParticipantSchema,
-  timestamp: z.date().optional()
+  timestamp: z.date().optional(),
+  mentions: z.array(mentionSchema).optional()
 });
 
 export const joinCallbackSchema = z.object({
@@ -180,6 +191,56 @@ export const serverToClientEvents = z.object({
         userId: z.string(),
         state: z.string(),
         result: z.record(z.string(), z.unknown()).optional()
+      })
+    )
+    .returns(z.void()),
+  'chatbot:typing': z
+    .function()
+    .args(
+      z.object({
+        botId: z.string(),
+        botName: z.string(),
+        sessionId: z.string().optional()
+      })
+    )
+    .returns(z.void()),
+  'chatbot:typing-stop': z
+    .function()
+    .args(
+      z.object({
+        botId: z.string(),
+        sessionId: z.string().optional()
+      })
+    )
+    .returns(z.void()),
+  'chatbot:response': z
+    .function()
+    .args(
+      z.object({
+        botId: z.string(),
+        botName: z.string(),
+        response: z.string(),
+        processingTime: z.number(),
+        sources: z.array(z.object({
+          title: z.string(),
+          page: z.number().optional(),
+          section: z.string().optional(),
+          url: z.string().optional()
+        })).optional(),
+        sessionId: z.string().optional(),
+        messageType: z.enum(['direct', 'mention'])
+      })
+    )
+    .returns(z.void()),
+  'chatbot:error': z
+    .function()
+    .args(
+      z.object({
+        botId: z.string(),
+        botName: z.string(),
+        error: z.string(),
+        sessionId: z.string().optional(),
+        messageType: z.enum(['direct', 'mention'])
       })
     )
     .returns(z.void())

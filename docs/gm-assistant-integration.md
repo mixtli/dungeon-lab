@@ -46,15 +46,16 @@ This will serve as the reference implementation and first chatbot in the new sys
 │ ┌─────────────┐ │    │ ┌─────────────┐ │    │ ┌─────────────┐ │
 │ │ Chat        │ │◄──►│ │ Chat Socket │ │    │ │ D&D 5e Bot  │ │
 │ │ Component   │ │    │ │ Handler     │ │    │ │ (FastAPI)   │ │
-│ └─────────────┘ │    │ └─────────────┘ │    │ └─────────────┘ │
-│ ┌─────────────┐ │    │        │        │    │ ┌─────────────┐ │
-│ │ Bot Config  │ │    │ ┌─────────────┐ │    │ │ Pathfinder  │ │
-│ │ UI          │ │◄──►│ │ Chatbot     │ │◄──►│ │ Bot         │ │
-│ └─────────────┘ │    │ │ Service     │ │    │ └─────────────┘ │
-│                 │    │ └─────────────┘ │    │ ┌─────────────┐ │
-│                 │    │        │        │    │ │ Custom Bot  │ │
-│                 │    │ ┌─────────────┐ │    │ │ (3rd Party) │ │
-│                 │    │ │ Bot Config  │ │    │ └─────────────┘ │
+│ │ (bot type)  │ │    │ │ (bot detect)│ │    │ └─────────────┘ │
+│ └─────────────┘ │    │ └─────────────┘ │    │ ┌─────────────┐ │
+│ ┌─────────────┐ │    │        │        │    │ │ Pathfinder  │ │
+│ │ Bot Config  │ │    │ ┌─────────────┐ │    │ │ Bot         │ │
+│ │ UI          │ │◄──►│ │ Chatbot     │ │◄──►│ └─────────────┘ │
+│ └─────────────┘ │    │ │ Service     │ │    │ ┌─────────────┐ │
+│                 │    │ └─────────────┘ │    │ │ Custom Bot  │ │
+│                 │    │        │        │    │ │ (3rd Party) │ │
+│                 │    │ ┌─────────────┐ │    │ └─────────────┘ │
+│                 │    │ │ Bot Config  │ │    │                 │
 │                 │    │ │ API         │ │    │                 │
 │                 │    │ └─────────────┘ │    │                 │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
@@ -65,8 +66,26 @@ This will serve as the reference implementation and first chatbot in the new sys
 1. **User sends message** → Web Client → Socket.IO → Express Server
 2. **Message routing** → Chat Socket Handler processes message
 3. **Bot detection** → Chatbot Service detects relevant messages for configured bots
+   - Direct messages: `recipient.type === 'bot'` and `recipient.id` matches bot
+   - Mentions: Message contains `@botname` patterns
 4. **Bot processing** → HTTP request to appropriate chatbot service
 5. **Response routing** → Back through Socket.IO to appropriate chat room(s)
+
+### Participant Type Architecture
+
+The system uses distinct participant types to ensure clear separation of concerns:
+
+- **`'user'`**: Human users (players, game masters)
+- **`'actor'`**: Player characters and NPCs
+- **`'session'`**: Game session-wide messages
+- **`'system'`**: Server-generated informational messages
+- **`'bot'`**: AI chatbot participants (NEW)
+
+This separation allows:
+- Clear visual distinction in the UI
+- Proper message routing logic
+- Different styling and behavior for each type
+- Future extensibility for additional participant types
 
 ### Bot Management Flow
 
@@ -131,6 +150,7 @@ GET  /capabilities             # Bot capabilities and metadata
   "user_id": "user-456",             # Optional
   "context": {                       # Optional
     "game_session_id": "session-123",
+    "message_type": "direct",        # "direct" or "mention"
     "character_level": 5,
     "character_class": "wizard"
   }
@@ -251,8 +271,8 @@ export class BotManager {
 #### 2.3 Chat Handler Integration
 
 **Message Detection Logic**:
-1. **Direct Messages**: `recipient.id === 'gm-assistant'`
-2. **Mentions**: Message contains `@gm assistant` or `@assistant`
+1. **Direct Messages**: `recipient.type === 'bot'` and `recipient.id` matches bot ID
+2. **Mentions**: Message contains `@botname` patterns (e.g., `@gm assistant`, `@assistant`)
 3. **Question Patterns**: Messages ending with `?` in game sessions (configurable)
 
 **Response Routing**:
@@ -283,9 +303,10 @@ function chatSocketHandler(socket: Socket) {
 
 **Chatbots as Chat Participants**:
 - Each configured bot appears in chat sidebar with custom name
-- Special system user type with distinctive icon/styling
+- Special 'bot' participant type with distinctive icon/styling
 - Available based on campaign configuration
 - Multiple bots can be active in a single campaign
+- Clear distinction from 'system' messages (server notifications)
 
 #### 3.2 Bot Configuration UI
 
@@ -309,9 +330,9 @@ const contexts: ChatContext[] = [
   },
   // Dynamically loaded chatbots for this campaign
   ...campaignChatbots.map(bot => ({
-    id: `system:chatbot:${bot.id}`,
+    id: `bot:${bot.id}`,
     name: bot.name,
-    type: 'system',
+    type: 'bot',
     participantId: bot.id,
     icon: bot.game_system === 'dnd5e' ? 'dragon' : 'robot',
     description: bot.description,
@@ -341,17 +362,27 @@ const BotConfigModal = () => {
 ```
 
 **Message Styling**:
-- Distinctive styling for GM Assistant messages
+- Distinctive styling for bot messages (different from system messages)
 - Loading indicators during processing
 - Error state handling
 - Source citations (future enhancement)
+- Clear visual distinction between 'bot' and 'system' message types
 
 #### 3.3 User Experience Features
 
-**Mention Support**:
-- Auto-complete for `@gm assistant`
-- Visual indication when GM Assistant is mentioned
-- Typing indicators during processing
+**Universal Mention Support**:
+- Auto-complete for all participants (`@gm assistant`, `@character name`, `@game master`)
+- Case-insensitive matching against sidebar display names
+- Visual indication when any participant is mentioned
+- Typing indicators during bot processing
+- Support for various mention formats (@name, @"name with spaces")
+
+**Notification System**:
+- Sidebar highlighting for unread direct messages
+- Sidebar highlighting for mentions in campaign room
+- Visual distinction between notification highlights and selected context
+- Persistent notification state across page reloads
+- Automatic clearing when context is viewed
 
 **Help Integration**:
 - `/help gm` command for GM Assistant usage
@@ -432,15 +463,37 @@ export interface BotTestResult {
 // Add to socket events schema
 export const serverToClientEvents = z.object({
   // ... existing events
-  'gm-assistant:typing': z.function()
-    .args(z.object({ sessionId: z.string() }))
+  'chatbot:typing': z.function()
+    .args(z.object({ 
+      botId: z.string(),
+      botName: z.string(),
+      sessionId: z.string().optional() 
+    }))
     .returns(z.void()),
-  'gm-assistant:response': z.function()
+  'chatbot:typing-stop': z.function()
+    .args(z.object({ 
+      botId: z.string(),
+      sessionId: z.string().optional() 
+    }))
+    .returns(z.void()),
+  'chatbot:response': z.function()
     .args(z.object({
-      messageId: z.string(),
+      botId: z.string(),
+      botName: z.string(),
       response: z.string(),
       processingTime: z.number(),
-      sources: z.array(messageSourceSchema).optional()
+      sources: z.array(messageSourceSchema).optional(),
+      sessionId: z.string().optional(),
+      messageType: z.enum(['direct', 'mention'])
+    }))
+    .returns(z.void()),
+  'chatbot:error': z.function()
+    .args(z.object({
+      botId: z.string(),
+      botName: z.string(),
+      error: z.string(),
+      sessionId: z.string().optional(),
+      messageType: z.enum(['direct', 'mention'])
     }))
     .returns(z.void()),
 });

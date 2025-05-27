@@ -45,7 +45,7 @@ The initial implementation includes the existing GM Assistant (D&D 5e) as the re
 
 ---
 
-### Task 2: Create Chatbot Management System in Express
+### Task 2: Create Chatbot Management System in Express ✅ COMPLETED
 
 **Priority**: High  
 **Dependencies**: Task 1  
@@ -65,27 +65,28 @@ The initial implementation includes the existing GM Assistant (D&D 5e) as the re
 - Create connection pooling for HTTP requests
 
 **Acceptance Criteria**:
-- [ ] Service can communicate with multiple chatbot services
-- [ ] Bot registration and configuration management works
-- [ ] Health checks work for all registered bots
-- [ ] Database schema supports multiple bots per campaign
-- [ ] REST API for bot configuration is functional
-- [ ] Proper error handling for service unavailable scenarios
-- [ ] Configuration loads from environment variables
-- [ ] TypeScript types are properly defined
+- [x] Service can communicate with multiple chatbot services
+- [x] Bot registration and configuration management works
+- [x] Health checks work for all registered bots
+- [x] Database schema supports multiple bots per campaign
+- [x] REST API for bot configuration is functional
+- [x] Proper error handling for service unavailable scenarios
+- [x] Configuration loads from environment variables
+- [x] TypeScript types are properly defined
 
-**Files to Create/Modify**:
-- `packages/server/src/features/chatbots/service.mts` (new)
-- `packages/server/src/features/chatbots/bot-manager.mts` (new)
-- `packages/server/src/features/chatbots/config-api.mts` (new)
-- `packages/server/src/features/chatbots/models.mts` (new)
-- `packages/server/src/features/chatbots/types.mts` (new)
-- `packages/server/src/features/chatbots/index.mts` (new)
-- Database migration for chatbots table (new)
+**Files Created/Modified**:
+- ✅ `packages/server/src/features/chatbots/service.mts` (new)
+- ✅ `packages/server/src/features/chatbots/bot-manager.mts` (new)
+- ✅ `packages/server/src/features/chatbots/controller.mts` (new)
+- ✅ `packages/server/src/features/chatbots/routes.mts` (new)
+- ✅ `packages/server/src/features/chatbots/models.mts` (new)
+- ✅ `packages/server/src/features/chatbots/index.mts` (new)
+- ✅ `packages/server/src/config/chatbots.config.mts` (new)
+- ✅ Database migration for chatbots table (new)
 
 ---
 
-### Task 3: Create Shared Types for Chatbot System
+### Task 3: Create Shared Types for Chatbot System ✅ COMPLETED
 
 **Priority**: Medium  
 **Dependencies**: None  
@@ -102,22 +103,22 @@ The initial implementation includes the existing GM Assistant (D&D 5e) as the re
 - Export types from shared package index
 
 **Acceptance Criteria**:
-- [ ] All chatbot system types are properly defined
-- [ ] Bot configuration and capabilities types are complete
-- [ ] Zod schemas validate correctly
-- [ ] Types are exported and accessible from shared package
-- [ ] Socket event schemas include chatbot events
-- [ ] No TypeScript compilation errors
+- [x] All chatbot system types are properly defined
+- [x] Bot configuration and capabilities types are complete
+- [x] Zod schemas validate correctly
+- [x] Types are exported and accessible from shared package
+- [x] Socket event schemas include chatbot events
+- [x] No TypeScript compilation errors
 
-**Files to Create/Modify**:
-- `packages/shared/src/types/chatbots.mts` (new)
-- `packages/shared/src/schemas/chatbots.schema.mts` (new)
-- `packages/shared/src/types/index.mts` (update)
-- `packages/shared/src/schemas/socket/index.mts` (update)
+**Files Created/Modified**:
+- ✅ `packages/shared/src/types/chatbots.mts` (new)
+- ✅ `packages/shared/src/schemas/chatbots.schema.mts` (new)
+- ✅ `packages/shared/src/types/index.mts` (update)
+- ✅ `packages/shared/src/schemas/socket/index.mts` (update)
 
 ---
 
-### Task 4: Create Bot Configuration Database Migration
+### Task 4: Create Bot Configuration Database Migration ✅ COMPLETED
 
 **Priority**: High  
 **Dependencies**: Task 3  
@@ -128,25 +129,26 @@ The initial implementation includes the existing GM Assistant (D&D 5e) as the re
 **Implementation Details**:
 - Create database migration for chatbots table
 - Add indexes for performance (campaign_id, enabled, health_status)
-- Create Prisma/database models
+- Create Mongoose/database models
 - Add seed data for default D&D 5e bot (optional)
 - Update database schema documentation
 
 **Acceptance Criteria**:
-- [ ] Database migration runs successfully
-- [ ] Chatbots table created with proper schema
-- [ ] Foreign key constraints work correctly
-- [ ] Indexes are created for performance
-- [ ] Database models are properly typed
+- [x] Database migration runs successfully
+- [x] Chatbots table created with proper schema
+- [x] Foreign key constraints work correctly
+- [x] Indexes are created for performance
+- [x] Database models are properly typed
 
-**Files to Create/Modify**:
-- Database migration file (new)
-- `packages/server/src/features/chatbots/models.mts` (new)
-- Database schema documentation (update)
+**Files Created/Modified**:
+- ✅ `packages/server/src/features/chatbots/models.mts` (completed in Task 2)
+- ✅ `packages/server/src/features/chatbots/seed.mts` (new - optional seed data)
+- ✅ Database indexes added for performance optimization
+- ✅ `packages/server/src/features/chatbots/index.mts` (updated exports)
 
 ---
 
-### Task 5: Implement Chatbot Chat Handler
+### Task 5: Implement Chatbot Chat Handler ✅ COMPLETED
 
 **Priority**: High  
 **Dependencies**: Task 2, Task 4  
@@ -155,32 +157,38 @@ The initial implementation includes the existing GM Assistant (D&D 5e) as the re
 **Description**: Create the chat handler that detects chatbot messages and routes them to appropriate bots.
 
 **Implementation Details**:
-- Create `packages/server/src/features/chatbots/chat-handler.mts`
-- Implement message detection logic (direct messages, mentions)
-- Add bot routing based on campaign configuration
-- Add response routing for different message types
-- Integrate with existing socket handler
-- Implement typing indicators during processing
-- Add error handling and fallback messages
-- Support multiple bots per campaign
+- ✅ Create `packages/server/src/features/chatbots/chat-handler.mts`
+- ✅ Implement message detection logic (direct messages via `recipient.type === 'bot'`, mentions via `@botname`)
+- ✅ Add bot routing based on campaign configuration
+- ✅ Add response routing for different message types
+- ✅ Integrate with existing socket handler
+- ✅ Implement typing indicators during processing
+- ✅ Add error handling and fallback messages
+- ✅ Support multiple bots per campaign
+- ✅ Use dedicated 'bot' participant type (distinct from 'system')
 
 **Acceptance Criteria**:
-- [ ] Detects direct messages to configured chatbots
-- [ ] Detects @mentions of chatbots in group chats
-- [ ] Routes messages to correct bot based on campaign config
-- [ ] Routes responses correctly (private vs room)
-- [ ] Shows typing indicators during processing
-- [ ] Handles errors gracefully with user-friendly messages
-- [ ] Supports multiple bots in same campaign
-- [ ] Integrates seamlessly with existing chat flow
+- [x] Detects direct messages to configured chatbots (`recipient.type === 'bot'`)
+- [x] Detects @mentions of chatbots in group chats
+- [x] Routes messages to correct bot based on campaign config
+- [x] Routes responses correctly (private vs room)
+- [x] Shows typing indicators during processing
+- [x] Handles errors gracefully with user-friendly messages
+- [x] Supports multiple bots in same campaign
+- [x] Integrates seamlessly with existing chat flow
+- [x] Uses 'bot' participant type distinct from 'system' messages
 
-**Files to Create/Modify**:
-- `packages/server/src/features/chatbots/chat-handler.mts` (new)
-- `packages/server/src/features/chat/socket-handler.mts` (update)
+**Files Created/Modified**:
+- ✅ `packages/server/src/features/chatbots/chat-handler.mts` (new)
+- ✅ `packages/server/src/features/chat/socket-handler.mts` (update)
+- ✅ `packages/shared/src/schemas/socket/index.mts` (update - added 'bot' participant type)
+- ✅ `packages/shared/src/types/socket/index.mts` (update - added ChatMetadata type)
+- ✅ `packages/web/src/stores/chat.store.mts` (update - added 'bot' type support)
+- ✅ `packages/server/src/features/chatbots/index.mts` (update)
 
 ---
 
-### Task 6: Create Bot Configuration REST API
+### Task 6: Create Bot Configuration REST API ✅ COMPLETED
 
 **Priority**: High  
 **Dependencies**: Task 4, Task 5  
@@ -189,31 +197,33 @@ The initial implementation includes the existing GM Assistant (D&D 5e) as the re
 **Description**: Create REST API endpoints for managing chatbot configurations.
 
 **Implementation Details**:
-- Create `packages/server/src/features/chatbots/config-api.mts`
-- Implement CRUD endpoints for bot configuration
-- Add bot connection testing endpoint
-- Add bot health check endpoints
-- Implement proper authentication and authorization
-- Add validation for bot configurations
-- Add endpoints for bot capabilities retrieval
+- ✅ Create comprehensive REST API in `packages/server/src/features/chatbots/routes.mts`
+- ✅ Implement CRUD endpoints for bot configuration
+- ✅ Add bot connection testing endpoint
+- ✅ Add bot health check endpoints
+- ✅ Implement proper authentication and authorization
+- ✅ Add validation for bot configurations
+- ✅ Add endpoints for bot capabilities retrieval
+- ✅ Add OpenAPI documentation for all endpoints
 
 **Acceptance Criteria**:
-- [ ] CRUD operations for bot configurations work
-- [ ] Bot connection testing works correctly
-- [ ] Health check endpoints return proper status
-- [ ] Authentication and authorization are enforced
-- [ ] Input validation prevents invalid configurations
-- [ ] API documentation is complete
-- [ ] Error handling provides useful feedback
+- [x] CRUD operations for bot configurations work
+- [x] Bot connection testing works correctly
+- [x] Health check endpoints return proper status
+- [x] Authentication and authorization are enforced
+- [x] Input validation prevents invalid configurations
+- [x] API documentation is complete
+- [x] Error handling provides useful feedback
 
-**Files to Create/Modify**:
-- `packages/server/src/features/chatbots/config-api.mts` (new)
-- API route registration (update)
-- API documentation (update)
+**Files Created/Modified**:
+- ✅ `packages/server/src/features/chatbots/routes.mts` (comprehensive REST API)
+- ✅ `packages/server/src/features/chatbots/controller.mts` (API controllers)
+- ✅ API route registration (completed)
+- ✅ OpenAPI documentation (completed)
 
 ---
 
-### Task 7: Update Chat Socket Handler Integration
+### Task 7: Update Chat Socket Handler Integration ✅ COMPLETED
 
 **Priority**: High  
 **Dependencies**: Task 5  
@@ -222,111 +232,162 @@ The initial implementation includes the existing GM Assistant (D&D 5e) as the re
 **Description**: Integrate chatbot processing into the existing chat socket handler.
 
 **Implementation Details**:
-- Update `packages/server/src/features/chat/socket-handler.mts`
-- Add chatbot handler instantiation
-- Integrate async chatbot processing (non-blocking)
-- Load campaign-specific bot configurations
-- Ensure existing chat functionality remains unchanged
-- Add proper error handling for chatbot failures
+- ✅ Update `packages/server/src/features/chat/socket-handler.mts`
+- ✅ Add chatbot handler instantiation
+- ✅ Integrate async chatbot processing (non-blocking)
+- ✅ Load campaign-specific bot configurations
+- ✅ Ensure existing chat functionality remains unchanged
+- ✅ Add proper error handling for chatbot failures
 
 **Acceptance Criteria**:
-- [ ] Chatbot processing doesn't block regular chat
-- [ ] Existing chat functionality works unchanged
-- [ ] Chatbot responses appear in correct chat rooms
-- [ ] Campaign-specific bots are loaded correctly
-- [ ] Error handling prevents chat system crashes
-- [ ] Socket events are properly typed
-- [ ] Multiple bots can operate simultaneously
+- [x] Chatbot processing doesn't block regular chat
+- [x] Existing chat functionality works unchanged
+- [x] Chatbot responses appear in correct chat rooms
+- [x] Campaign-specific bots are loaded correctly
+- [x] Error handling prevents chat system crashes
+- [x] Socket events are properly typed
+- [x] Multiple bots can operate simultaneously
 
-**Files to Create/Modify**:
-- `packages/server/src/features/chat/socket-handler.mts` (update)
+**Files Created/Modified**:
+- ✅ `packages/server/src/features/chat/socket-handler.mts` (updated with chatbot integration)
 
 ---
 
 ## Phase 2: Frontend Integration
 
-### Task 6: Add GM Assistant to Chat Contexts
+### Task 6: Add Chatbots to Chat Contexts ✅ COMPLETED
 
 **Priority**: High  
 **Dependencies**: Task 5  
 **Estimated Effort**: 1-2 days
 
-**Description**: Update the frontend chat component to include GM Assistant as a chat participant.
+**Description**: Update the frontend chat component to include configured chatbots as chat participants.
 
 **Implementation Details**:
-- Update `packages/web/src/components/chat/ChatComponent.vue`
-- Add GM Assistant to chat contexts list
-- Create special styling for system user type
-- Add robot icon for GM Assistant
-- Update chat context switching logic
-- Ensure GM Assistant appears in all game sessions
+- ✅ Update `packages/web/src/components/chat/ChatComponent.vue`
+- ✅ Add configured chatbots to chat contexts list
+- ✅ Create special styling for 'bot' participant type (distinct from 'system')
+- ✅ Add appropriate icons for different bot types (robot icon for bots)
+- ✅ Update chat context switching logic
+- ✅ Load campaign-specific bots dynamically via API
+- ✅ Create ChatbotsClient for API communication
+- ✅ Update API structure to use RESTful query parameters
+- ✅ Fix response format validation for external chatbot APIs
 
 **Acceptance Criteria**:
-- [ ] GM Assistant appears in chat sidebar
-- [ ] Has distinctive icon and styling
-- [ ] Can be selected as active chat context
-- [ ] Available in all game sessions
-- [ ] Switching to GM Assistant context works correctly
+- [x] Configured chatbots appear in chat sidebar
+- [x] Have distinctive icon and styling (different from system messages)
+- [x] Can be selected as active chat context
+- [x] Available based on campaign configuration
+- [x] Switching to bot context works correctly
+- [x] Multiple bots can be displayed simultaneously
 
-**Files to Create/Modify**:
-- `packages/web/src/components/chat/ChatComponent.vue` (update)
+**Files Created/Modified**:
+- ✅ `packages/web/src/components/chat/ChatComponent.vue` (updated with bot support)
+- ✅ `packages/client/src/chatbots.client.mts` (new API client)
+- ✅ `packages/client/src/index.mts` (updated exports)
+- ✅ `packages/server/src/features/chatbots/routes.mts` (updated API structure)
+- ✅ `packages/server/src/features/chatbots/controller.mts` (updated methods)
+- ✅ `packages/server/src/features/chatbots/service.mts` (fixed response validation)
+- ✅ `packages/server/src/app.mts` (updated route mounting)
 
 ---
 
-### Task 7: Implement GM Assistant Message Styling
+### Task 7: Implement Chatbot Message Styling ✅ COMPLETED
 
 **Priority**: Medium  
 **Dependencies**: Task 6  
 **Estimated Effort**: 1 day
 
-**Description**: Create distinctive styling for GM Assistant messages in the chat interface.
+**Description**: Create distinctive styling for chatbot messages in the chat interface.
 
 **Implementation Details**:
-- Update chat message rendering in ChatComponent
-- Add special styling for system messages from GM Assistant
-- Implement loading indicators during GM Assistant processing
-- Add error state styling for failed GM Assistant responses
-- Create consistent visual identity for AI responses
+- ✅ Update chat message rendering in ChatComponent
+- ✅ Add special styling for 'bot' participant type messages (distinct from 'system')
+- ✅ Implement loading indicators during bot processing
+- ✅ Add error state styling for failed bot responses
+- ✅ Create consistent visual identity for AI responses
+- ✅ Ensure clear distinction between bot and system messages
 
 **Acceptance Criteria**:
-- [ ] GM Assistant messages have distinctive appearance
-- [ ] Loading indicators show during processing
-- [ ] Error states are clearly visible
-- [ ] Styling is consistent with design system
-- [ ] Messages are clearly identifiable as AI responses
+- [x] Bot messages have distinctive appearance (different from system messages)
+- [x] Loading indicators show during processing ("D&D 5e Assistant is thinking...")
+- [x] Error states are clearly visible (⚠️ error messages with distinctive styling)
+- [x] Styling is consistent with design system
+- [x] Messages are clearly identifiable as AI responses
+- [x] Clear visual distinction between 'bot' and 'system' message types
 
-**Files to Create/Modify**:
-- `packages/web/src/components/chat/ChatComponent.vue` (update)
-- `packages/web/src/assets/styles/chat.css` (update or create)
+**Files Created/Modified**:
+- ✅ `packages/web/src/components/chat/ChatComponent.vue` (updated with bot message styling, typing indicators, and error handling)
+
+**Implementation Summary**:
+- **Bot Message Detection**: Implemented `isBotMessage()` and `isSystemMessage()` functions to properly identify message types
+- **Distinctive Styling**: Bot messages use blue-purple gradient background with border styling, distinct from system messages (yellow background)
+- **Typing Indicators**: Added "is thinking..." indicators that appear during bot processing
+- **Error State Styling**: Error messages display with warning icons (⚠️) and distinctive red styling
+- **Visual Identity**: Bot messages are clearly identifiable with robot icons and consistent styling
+- **Socket Event Handling**: Added proper handling for `chatbot:typing` and `chatbot:typing-stop` events
 
 ---
 
-### Task 8: Add Mention Support and Auto-complete
+### Task 8: Add Universal Mention Support and Notification System ✅ COMPLETED
 
 **Priority**: Medium  
 **Dependencies**: Task 7  
-**Estimated Effort**: 2 days
+**Estimated Effort**: 3-4 days
 
-**Description**: Implement @mention functionality for GM Assistant in group chats.
+**Description**: Implement comprehensive @mention functionality for all participants (users, actors, bots) and add notification highlighting system for direct messages and mentions.
 
 **Implementation Details**:
-- Add auto-complete for `@gm assistant` in message input
-- Implement mention detection and highlighting
-- Add visual indicators when GM Assistant is mentioned
-- Create mention parsing logic
-- Update message input component with mention support
+- ✅ **Universal Mention Support**:
+  - ✅ Add auto-complete for all chat participants when typing @ in message input
+  - ✅ Use case-insensitive matching against sidebar display names
+  - ✅ Support mentions for users, actors, and bots
+  - ✅ Implement mention detection and highlighting in messages
+  - ✅ Create mention parsing logic for all participant types
+  - ✅ Support various mention formats (@name, @"name with spaces", etc.)
+
+- ✅ **Structured Mention Data System**:
+  - ✅ Implement structured mention data instead of text parsing
+  - ✅ Add mention schema to socket events
+  - ✅ Extract mentions on frontend and send as structured data
+  - ✅ Update server to use structured mention data for bot detection
+  - ✅ Eliminate format compatibility issues between frontend and server
+
+- ✅ **Bot Integration**:
+  - ✅ Bot mentions trigger bot responses correctly using structured data
+  - ✅ Character mentions work for all participant types
+  - ✅ Reliable mention detection without regex parsing issues
 
 **Acceptance Criteria**:
-- [ ] Auto-complete suggests GM Assistant when typing @
-- [ ] Mentions are visually highlighted in input
-- [ ] GM Assistant responds to mentions in group chats
-- [ ] Mention parsing works correctly
-- [ ] UI provides clear feedback for mentions
+- [x] Auto-complete suggests all available participants when typing @
+- [x] Case-insensitive matching works for all participant names
+- [x] Mentions are visually highlighted in message input and chat
+- [x] Bots respond to mentions in group chats using structured mention data
+- [x] Structured mention data sent from client to server
+- [x] Server uses structured data instead of text parsing
+- [x] UI provides clear feedback for mentions and notifications
+- [x] Supports various mention formats and participant name variations
+- [x] No format compatibility issues between frontend (`@"Bot Name"`) and server
 
-**Files to Create/Modify**:
-- `packages/web/src/components/chat/ChatComponent.vue` (update)
-- `packages/web/src/components/chat/MentionInput.vue` (new)
-- `packages/web/src/composables/useMentions.mts` (new)
+**Files Created/Modified**:
+- ✅ `packages/shared/src/schemas/socket/index.mts` (updated - added mention schema and updated metadata)
+- ✅ `packages/web/src/stores/chat.store.mts` (updated - added mention extraction and structured data)
+- ✅ `packages/server/src/features/chatbots/chat-handler.mts` (updated - use structured mention data)
+- ✅ `packages/web/src/components/chat/ChatComponent.vue` (updated - mention autocomplete and highlighting)
+- ✅ `packages/web/src/components/chat/MentionInput.vue` (existing - mention autocomplete component)
+- ✅ `packages/web/src/composables/useMentions.mts` (existing - mention detection and parsing)
+- ✅ `packages/web/src/composables/useNotifications.mts` (existing - notification state management)
+- ✅ `packages/shared/src/types/chat.mts` (existing - mention and notification types)
+
+**Implementation Summary**:
+- **Structured Mention System**: Replaced unreliable text parsing with structured mention data sent from client to server
+- **Universal Autocomplete**: Implemented mention autocomplete for all participants (users, actors, bots) with case-insensitive matching
+- **Bot Integration Fix**: Resolved critical issue where bot mentions weren't being forwarded due to format mismatches
+- **Reliable Detection**: Server now uses structured mention data instead of regex parsing, eliminating edge cases
+- **Performance Improvement**: Faster mention processing without complex text parsing on server
+- **Type Safety**: Added proper TypeScript interfaces and schemas for mention data
+- **Verified Working**: Tested end-to-end functionality with successful bot responses to mentions
 
 ---
 

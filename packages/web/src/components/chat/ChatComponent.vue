@@ -3,8 +3,12 @@ import { ref, onMounted, onUnmounted, nextTick, computed, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useGameSessionStore } from '../../stores/game-session.store.mjs';
 import { useSocketStore } from '../../stores/socket.store.mjs';
-import { useChatStore } from '../../stores/chat.store.mts';
+import { useChatStore, type ChatMessage } from '../../stores/chat.store.mts';
 import { useActorStore } from '../../stores/actor.store.mts';
+import { ChatbotsClient } from '@dungeon-lab/client/index.mjs';
+import { useMentions } from '../../composables/useMentions.mjs';
+import { useNotifications } from '../../composables/useNotifications.mjs';
+import MentionInput from './MentionInput.vue';
 
 interface Props {
   showHeader?: boolean;
@@ -23,9 +27,22 @@ withDefaults(defineProps<Props>(), {
 interface ChatContext {
   id: string;
   name: string;
-  type: 'campaign' | 'user' | 'actor';
+  type: 'campaign' | 'user' | 'actor' | 'bot';
   participantId?: string;
   unreadCount?: number;
+}
+
+interface BotTypingState {
+  botId: string;
+  botName: string;
+  isTyping: boolean;
+}
+
+interface BotErrorState {
+  botId: string;
+  botName: string;
+  error: string;
+  timestamp: Date;
 }
 
 const route = useRoute();
@@ -34,9 +51,21 @@ const socketStore = useSocketStore();
 const chatStore = useChatStore();
 const actorStore = useActorStore();
 
+const chatbotsClient = new ChatbotsClient();
 const messageInput = ref('');
 const chatContexts = ref<ChatContext[]>([]);
 const activeChatContext = ref<ChatContext | null>(null);
+
+// Initialize mention and notification systems
+const { highlightMentions } = useMentions(chatContexts);
+const {
+  setActiveContext,
+  getNotificationClasses
+} = useNotifications();
+
+// Bot state tracking
+const botTypingStates = ref<Map<string, BotTypingState>>(new Map());
+const botErrors = ref<Map<string, BotErrorState>>(new Map());
 
 // Track messages from the store
 const messages = computed(() => {
@@ -99,6 +128,131 @@ const currentChatName = computed(() => {
   return activeChatContext.value?.name || 'Select a conversation';
 });
 
+// Check if a message is from a bot
+function isBotMessage(message: ChatMessage): boolean {
+  return message.recipientType === 'bot' || 
+         (message.isSystem === false && chatContexts.value.some(ctx => 
+           ctx.type === 'bot' && ctx.participantId === message.senderId
+         ));
+}
+
+// Check if a message is a system message
+function isSystemMessage(message: ChatMessage): boolean {
+  return message.isSystem === true || message.recipientType === 'system';
+}
+
+// Get message styling classes
+function getMessageClasses(message: ChatMessage): string[] {
+  const isOwnMessage = message.senderId === socketStore.userId || message.senderId === actorStore.currentActor?.id;
+  
+  if (isBotMessage(message)) {
+    return [
+      'bg-gradient-to-r from-blue-500 to-purple-600 text-white',
+      'border-l-4 border-blue-300',
+      'shadow-lg'
+    ];
+  } else if (isSystemMessage(message)) {
+    return [
+      'bg-yellow-50 text-yellow-800 border border-yellow-200',
+      'italic'
+    ];
+  } else if (isOwnMessage) {
+    return [
+      'bg-green-500 text-white'
+    ];
+  } else {
+    return [
+      'bg-gray-100 text-gray-800'
+    ];
+  }
+}
+
+// Get sender name styling classes
+function getSenderNameClasses(message: ChatMessage): string[] {
+  const isOwnMessage = message.senderId === socketStore.userId || message.senderId === actorStore.currentActor?.id;
+  
+  if (isBotMessage(message)) {
+    return ['text-blue-100 font-semibold'];
+  } else if (isSystemMessage(message)) {
+    return ['text-yellow-700 font-medium'];
+  } else if (isOwnMessage) {
+    return ['text-green-100'];
+  } else {
+    return ['text-gray-900'];
+  }
+}
+
+// Get timestamp styling classes
+function getTimestampClasses(message: ChatMessage): string[] {
+  const isOwnMessage = message.senderId === socketStore.userId || message.senderId === actorStore.currentActor?.id;
+  
+  if (isBotMessage(message)) {
+    return ['text-blue-200'];
+  } else if (isSystemMessage(message)) {
+    return ['text-yellow-600'];
+  } else if (isOwnMessage) {
+    return ['text-green-200'];
+  } else {
+    return ['text-gray-500'];
+  }
+}
+
+// Setup chatbot socket listeners
+function setupChatbotListeners() {
+  if (!socketStore.socket) return;
+
+  // Listen for bot typing indicators
+  socketStore.socket.on('chatbot:typing', (data) => {
+    botTypingStates.value.set(data.botId, {
+      botId: data.botId,
+      botName: data.botName,
+      isTyping: true
+    });
+    
+    // Clear any existing errors for this bot
+    botErrors.value.delete(data.botId);
+  });
+
+  // Listen for bot typing stop
+  socketStore.socket.on('chatbot:typing-stop', (data) => {
+    botTypingStates.value.delete(data.botId);
+  });
+
+  // Listen for bot errors
+  socketStore.socket.on('chatbot:error', (data) => {
+    botErrors.value.set(data.botId, {
+      botId: data.botId,
+      botName: data.botName,
+      error: data.error,
+      timestamp: new Date()
+    });
+    
+    // Clear typing state for this bot
+    botTypingStates.value.delete(data.botId);
+    
+    // Auto-clear error after 10 seconds
+    setTimeout(() => {
+      botErrors.value.delete(data.botId);
+    }, 10000);
+  });
+
+  // Listen for bot responses (to clear typing state)
+  socketStore.socket.on('chatbot:response', (data) => {
+    botTypingStates.value.delete(data.botId);
+    botErrors.value.delete(data.botId);
+  });
+}
+
+// Cleanup chatbot listeners
+function cleanupChatbotListeners() {
+  if (!socketStore.socket) return;
+  
+  socketStore.socket.off('chatbot:typing');
+  socketStore.socket.off('chatbot:typing-stop');
+  socketStore.socket.off('chatbot:error');
+  socketStore.socket.off('chatbot:response');
+}
+
 // Handle roll command
 function handleRollCommand(formula: string) {
   if (!socketStore.socket) return;
@@ -141,7 +295,7 @@ function sendMessage() {
   });
 
   // Use the chat store to send the message
-  chatStore.sendMessage(messageInput.value, recipientId);
+  chatStore.sendMessage(messageInput.value, recipientId, chatContexts.value);
   messageInput.value = '';
 }
 
@@ -150,6 +304,9 @@ function switchChatContext(context: ChatContext) {
   activeChatContext.value = context;
   // Reset unread count for this context
   context.unreadCount = 0;
+  
+  // Update notification system
+  setActiveContext(context.id);
   
   // Auto-scroll to bottom when switching contexts
   nextTick(() => {
@@ -194,6 +351,24 @@ async function updateChatContexts() {
         }
       }
     }
+
+    // Add Chatbots for this campaign
+    try {
+      const campaignBots = await chatbotsClient.getCampaignBots(gameSessionStore.currentSession.campaignId);
+      for (const bot of campaignBots) {
+        if (bot.enabled && bot.healthStatus === 'healthy') {
+          contexts.push({
+            id: `bot:${bot.id}`,
+            name: bot.name,
+            type: 'bot',
+            participantId: bot.id
+          });
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to load campaign bots:', error);
+      // Continue without bots if there's an error
+    }
   }
 
   chatContexts.value = contexts;
@@ -207,6 +382,9 @@ async function updateChatContexts() {
 onMounted(async () => {
   // Get chat contexts
   updateChatContexts();
+
+  // Setup chatbot listeners
+  setupChatbotListeners();
 
   // Auto-scroll when new messages arrive
   watch(
@@ -229,10 +407,23 @@ onMounted(async () => {
     },
     { deep: true }
   );
+
+  // Watch for socket changes to re-setup listeners
+  watch(
+    () => socketStore.socket,
+    (newSocket, oldSocket) => {
+      if (oldSocket) {
+        cleanupChatbotListeners();
+      }
+      if (newSocket) {
+        setupChatbotListeners();
+      }
+    }
+  );
 });
 
 onUnmounted(() => {
-  // No need to manually remove socket listeners - the chat store handles this
+  cleanupChatbotListeners();
 });
 </script>
 
@@ -254,9 +445,7 @@ onUnmounted(() => {
             @click="switchChatContext(context)"
             :class="[
               'w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors',
-              activeChatContext?.id === context.id
-                ? 'bg-blue-100 text-blue-900'
-                : 'text-gray-700 hover:bg-gray-100'
+              ...getNotificationClasses(context.id, activeChatContext?.id === context.id)
             ]"
           >
             <div class="flex items-center justify-between">
@@ -269,11 +458,23 @@ onUnmounted(() => {
                   <svg v-else-if="context.type === 'user'" class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
                   </svg>
+                  <svg v-else-if="context.type === 'bot'" class="h-4 w-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"/>
+                  </svg>
                   <svg v-else class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M10 2a4 4 0 00-4 4v1H5a1 1 0 00-.994.89l-1 9A1 1 0 004 18h12a1 1 0 00.994-1.11l-1-9A1 1 0 0015 7h-1V6a4 4 0 00-4-4zm2 5V6a2 2 0 10-4 0v1h4z" clip-rule="evenodd" />
                   </svg>
                 </div>
                 <span class="truncate">{{ context.name }}</span>
+                <!-- Bot typing indicator in sidebar -->
+                <div v-if="context.type === 'bot' && botTypingStates.has(context.participantId || '')" 
+                     class="ml-2 flex items-center">
+                  <div class="flex space-x-1">
+                    <div class="w-1 h-1 bg-blue-500 rounded-full animate-bounce"></div>
+                    <div class="w-1 h-1 bg-blue-500 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+                    <div class="w-1 h-1 bg-blue-500 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                  </div>
+                </div>
               </div>
               <!-- Unread count badge -->
               <span v-if="context.unreadCount && context.unreadCount > 0" 
@@ -295,6 +496,7 @@ onUnmounted(() => {
           <span v-if="activeChatContext?.type === 'campaign'">Group conversation with all participants</span>
           <span v-else-if="activeChatContext?.type === 'user'">Private conversation with Game Master</span>
           <span v-else-if="activeChatContext?.type === 'actor'">Private conversation with {{ activeChatContext?.name }}</span>
+          <span v-else-if="activeChatContext?.type === 'bot'">Chat with AI Assistant: {{ activeChatContext?.name }}</span>
           <span v-else>Select a conversation from the sidebar</span>
         </p>
       </div>
@@ -309,41 +511,82 @@ onUnmounted(() => {
               : 'justify-start'
           ]">
             <div :class="[
-              'p-3 rounded-lg max-w-[80%] shadow-sm',
-              message.senderId === socketStore.userId || message.senderId === actorStore.currentActor?.id
-                ? 'bg-green-500 text-white' 
-                : 'bg-gray-100 text-gray-800'
+              'p-3 rounded-lg max-w-[80%] shadow-sm transition-all duration-200',
+              ...getMessageClasses(message)
             ]">
               <div class="flex items-start">
                 <div class="flex-1">
                   <div class="flex items-center gap-2">
+                    <!-- Bot icon for bot messages -->
+                    <div v-if="isBotMessage(message)" class="flex items-center">
+                      <svg class="h-4 w-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"/>
+                      </svg>
+                    </div>
+                    <!-- System icon for system messages -->
+                    <div v-else-if="isSystemMessage(message)" class="flex items-center">
+                      <svg class="h-4 w-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                      </svg>
+                    </div>
                     <span :class="[
                       'font-medium text-sm',
-                      message.senderId === socketStore.userId || message.senderId === actorStore.currentActor?.id
-                        ? 'text-green-100' 
-                        : 'text-gray-900'
+                      ...getSenderNameClasses(message)
                     ]">
                       {{ message.senderName }}
                     </span>
                     <span :class="[
                       'text-xs',
-                      message.senderId === socketStore.userId || message.senderId === actorStore.currentActor?.id
-                        ? 'text-green-200' 
-                        : 'text-gray-500'
+                      ...getTimestampClasses(message)
                     ]">
                       {{ new Date(message.timestamp).toLocaleTimeString() }}
                     </span>
                   </div>
-                  <p class="mt-1">{{ message.content }}</p>
+                  <div class="mt-1 leading-relaxed" v-html="highlightMentions(message.content)"></div>
                 </div>
               </div>
             </div>
           </div>
         </template>
-        <div v-else-if="!activeChatContext" class="text-center text-gray-500">
+
+        <!-- Bot typing indicators -->
+        <div v-for="[botId, typingState] in botTypingStates" :key="`typing-${botId}`" 
+             class="flex justify-start">
+          <div class="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-3 rounded-lg max-w-[80%] shadow-sm border-l-4 border-blue-300">
+            <div class="flex items-center gap-2">
+              <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"/>
+              </svg>
+              <span class="text-blue-100 font-semibold text-sm">{{ typingState.botName }}</span>
+              <span class="text-blue-200 text-xs">is thinking...</span>
+            </div>
+            <div class="mt-2 flex items-center space-x-1">
+              <div class="w-2 h-2 bg-blue-200 rounded-full animate-bounce"></div>
+              <div class="w-2 h-2 bg-blue-200 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+              <div class="w-2 h-2 bg-blue-200 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bot error indicators -->
+        <div v-for="[botId, errorState] in botErrors" :key="`error-${botId}`" 
+             class="flex justify-start">
+          <div class="bg-red-100 border text-red-800 p-3 rounded-lg max-w-[80%] shadow-sm border-l-4 border-red-500">
+            <div class="flex items-center gap-2">
+              <svg class="h-4 w-4 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+              </svg>
+              <span class="text-red-700 font-semibold text-sm">{{ errorState.botName }}</span>
+              <span class="text-red-600 text-xs">Error</span>
+            </div>
+            <p class="mt-1 text-sm">{{ errorState.error }}</p>
+          </div>
+        </div>
+
+        <div v-if="!messages.length && !activeChatContext" class="text-center text-gray-500">
           Select a conversation from the sidebar to start chatting
         </div>
-        <div v-else class="text-center text-gray-500">
+        <div v-else-if="!messages.length" class="text-center text-gray-500">
           No messages yet in this conversation
         </div>
       </div>
@@ -351,12 +594,11 @@ onUnmounted(() => {
       <!-- Message Input -->
       <div v-if="activeChatContext" class="p-4 border-t border-gray-200">
         <div class="relative">
-          <input 
-            v-model="messageInput" 
-            @keyup.enter="sendMessage" 
-            type="text"
+          <MentionInput
+            v-model="messageInput"
+            :chat-contexts="chatContexts"
             :placeholder="`Type your message to ${currentChatName}...`"
-            class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+            @submit="sendMessage"
           />
           <button @click="sendMessage"
             class="absolute right-2 top-1/2 transform -translate-y-1/2 px-4 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
@@ -385,5 +627,59 @@ onUnmounted(() => {
 .chat-messages::-webkit-scrollbar-thumb {
   background-color: rgba(156, 163, 175, 0.5);
   border-radius: 3px;
+}
+
+/* Custom animations for bot typing indicators */
+@keyframes bounce {
+  0%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-0.25rem);
+  }
+}
+
+.animate-bounce {
+  animation: bounce 1s infinite;
+}
+
+/* Smooth transitions for message appearance */
+.transition-all {
+  transition: all 0.2s ease-in-out;
+}
+
+/* Bot message gradient animation */
+.bg-gradient-to-r.from-blue-500.to-purple-600 {
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+}
+
+/* Hover effects for interactive elements */
+.chat-component button:hover {
+  transform: translateY(-1px);
+  transition: transform 0.1s ease-in-out;
+}
+
+/* Mention highlighting styles */
+:deep(.mention) {
+  background-color: #dbeafe;
+  color: #1e40af;
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.25rem;
+  font-weight: 500;
+}
+
+:deep(.mention-user) {
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+
+:deep(.mention-actor) {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+:deep(.mention-bot) {
+  background-color: #e0e7ff;
+  color: #5b21b6;
 }
 </style> 
