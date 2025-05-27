@@ -13,8 +13,9 @@ A Virtual Table Top (VTT) system for Table Top Role Playing Games (TTRPGs) with 
 
 This project uses npm workspaces to organize the codebase:
 
-- `packages/client`: Vue.js frontend application
+- `packages/web`: Vue.js frontend application
 - `packages/server`: Express backend server
+- `packages/client`: API client library for server communication
 - `packages/shared`: Shared code and types between client and server
 - `packages/plugins`: Game system plugins
 
@@ -46,7 +47,7 @@ This project uses npm workspaces to organize the codebase:
    npm run dev
    ```
 
-This will start both the client and server in development mode.
+This will start both the web client and server in development mode.
 
 ### Building for Production
 

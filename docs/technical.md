@@ -1,10 +1,20 @@
 # Technical Patterns
 
-## Mongo structure
+## Database Structure
 
 We use Mongoose to interface with MongoDB. In order to make validation and various runtime checks available we define the schemas using zod.
-The schemas are defined in the shared package (shared/src/schemas).
-Some of the classes are generic and have a data attribute which may have its own schema defined by a plugin. For example, the VTTDocument class has a generic data attribute and which schema is used depends on the documentType and plugin. For example, the dnd-5e-2024 plugin defines documents of type 'characterClass', 'species', 'background', etc. The schema for the data attribute in these cases is usually stored in the plugin's shared folder.
+
+### Schema Organization
+
+- Base schemas are defined in the shared package (`shared/src/schemas`)
+- Plugin-specific schemas are defined in each plugin's shared folder
+- All schemas use zod for runtime validation and TypeScript type generation
+
+### Generic Document Pattern
+
+Some classes are generic and have a `data` attribute which may have its own schema defined by a plugin. For example, the VTTDocument class has a generic data attribute where the schema depends on the `documentType` and plugin. 
+
+Example: The dnd-5e-2024 plugin defines documents of type 'characterClass', 'species', 'background', etc. The schema for the data attribute in these cases is stored in `packages/plugins/dnd-5e-2024/src/shared/schemas/`.
 
 # Validation and Typing
 

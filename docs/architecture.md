@@ -18,6 +18,9 @@ The packages are:
 - web:  
   Vue 3 application.
 
+- client:  
+  API client library that provides a typed interface for communicating with the server. Used by plugins and potentially external tools.
+
 - shared:  
   Code shared by both the client server. Mainly types, some abstract base classes, and some helper functions.
 
@@ -79,11 +82,14 @@ We want to maintain careful control of which way build time dependencies go. The
 
 web -> shared
 server -> shared
+client -> shared
 plugin/web -> shared
 plugin/server -> shared
 plugin/web -> plugin/shared
 plugin/server -> plugin/shared
 plugin/shared -> shared
+plugin/web -> client
+plugin/server -> client
 
 #### Allowed Run Time Dependencies
 
@@ -110,3 +116,32 @@ At run time, the web and server will load plugins dynamically, but only depend u
    The D&D Plugin is designed to use vanilla typescript with no framework to work as an example implementation.  
     _ Typescript ES6 modules
    _ Vanilla CSS \* Handlebars for templates
+
+## Development & Build
+
+### Workspace Structure
+
+The project uses npm workspaces to manage dependencies and build processes across packages. The root `package.json` defines the workspace structure and common scripts.
+
+### Build Dependencies
+
+The build system respects the dependency hierarchy:
+- Shared package builds first (foundational types and utilities)
+- Client package builds after shared (API client library)
+- Server and web packages can build in parallel after shared
+- Plugin packages build after their dependencies
+
+### Development Workflow
+
+1. Install all dependencies: `npm install` (from root)
+2. Build shared dependencies: `npm run build --workspace=@dungeon-lab/shared`
+3. Start development servers: `npm run dev` (starts both web and server)
+4. Build for production: `npm run build` (builds all packages)
+
+### Environment Configuration
+
+Key environment variables:
+- `MONGODB_URI`: MongoDB connection string
+- `SESSION_SECRET`: Session encryption key
+- `NODE_ENV`: Environment mode (development/production)
+- Plugin-specific variables as defined in plugin documentation
