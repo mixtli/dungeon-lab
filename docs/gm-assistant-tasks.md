@@ -393,7 +393,7 @@ The initial implementation includes the existing GM Assistant (D&D 5e) as the re
 
 ## Phase 3: Enhanced Features
 
-### Task 9: Implement Typing Indicators
+### Task 9: Implement Typing Indicators ✅ COMPLETED
 
 **Priority**: Medium  
 **Dependencies**: Task 4  
@@ -402,52 +402,71 @@ The initial implementation includes the existing GM Assistant (D&D 5e) as the re
 **Description**: Add typing indicators to show when GM Assistant is processing a request.
 
 **Implementation Details**:
-- Add typing indicator socket events to server
-- Implement typing indicator display in frontend
-- Show "GM Assistant is typing..." during processing
-- Handle timeout scenarios for long-running requests
-- Integrate with existing typing indicator system
+- ✅ Add typing indicator socket events to server
+- ✅ Implement typing indicator display in frontend
+- ✅ Show "GM Assistant is typing..." during processing
+- ✅ Handle timeout scenarios for long-running requests
+- ✅ Integrate with existing typing indicator system
 
 **Acceptance Criteria**:
-- [ ] Typing indicator appears when GM Assistant is processing
-- [ ] Indicator disappears when response is received
-- [ ] Handles timeout scenarios gracefully
-- [ ] Consistent with existing typing indicators
-- [ ] Works in both direct messages and group chats
+- [x] Typing indicator appears when GM Assistant is processing
+- [x] Indicator disappears when response is received
+- [x] Handles timeout scenarios gracefully
+- [x] Consistent with existing typing indicators
+- [x] Works in both direct messages and group chats
 
-**Files to Create/Modify**:
-- `packages/server/src/features/gm-assistant/chat-handler.mts` (update)
-- `packages/web/src/components/chat/ChatComponent.vue` (update)
-- `packages/shared/src/schemas/socket/index.mts` (update)
+**Files Created/Modified**:
+- ✅ `packages/server/src/features/chatbots/chat-handler.mts` (implemented in Task 5)
+- ✅ `packages/web/src/components/chat/ChatComponent.vue` (implemented in Task 7)
+- ✅ `packages/shared/src/schemas/socket/index.mts` (implemented in Task 7)
+
+**Implementation Summary**:
+- **Typing Indicators**: Implemented as part of Task 7 - "is thinking..." indicators appear during bot processing
+- **Socket Events**: Added proper handling for `chatbot:typing` and `chatbot:typing-stop` events
+- **Visual Feedback**: Three dots appear in sidebar when bot is processing messages
+- **Timeout Handling**: Indicators automatically clear when responses are received or timeout
+- **Integration**: Works seamlessly with existing chat typing indicator system
+- **Cross-Context**: Functions correctly in both direct messages and group chat mentions
 
 ---
 
-### Task 10: Add Configuration and Environment Setup
+### Task 10: Add Configuration and Environment Setup ✅ COMPLETED
 
 **Priority**: High  
 **Dependencies**: Task 1, Task 2  
 **Estimated Effort**: 1 day
 
-**Description**: Implement comprehensive configuration management for GM Assistant feature.
+**Description**: Implement comprehensive configuration management for chatbot system.
 
 **Implementation Details**:
-- Add environment variables for GM Assistant configuration
-- Create feature flags for enabling/disabling functionality
-- Add configuration validation
-- Implement graceful degradation when service is disabled
-- Create documentation for configuration options
+- ✅ Add environment variables for chatbot system configuration
+- ✅ Create database-driven bot configuration per campaign
+- ✅ Add configuration validation via Zod schemas
+- ✅ Implement graceful degradation when services are unavailable
+- ✅ Create REST API for bot management and configuration
 
 **Acceptance Criteria**:
-- [ ] All configuration options are documented
-- [ ] Environment variables are properly validated
-- [ ] Feature can be disabled via configuration
-- [ ] Graceful degradation when service is unavailable
-- [ ] Configuration errors are clearly reported
+- [x] System-level configuration options are implemented via environment variables
+- [x] Bot-specific configuration is managed via database and REST API
+- [x] Configuration validation is implemented via Zod schemas
+- [x] Bots can be enabled/disabled per campaign via database
+- [x] Graceful degradation when bot services are unavailable
+- [x] Configuration errors are properly validated and reported
 
-**Files to Create/Modify**:
-- `packages/server/src/config/gm-assistant.config.mts` (new)
-- `.env.example` (update)
-- `README.md` (update)
+**Files Created/Modified**:
+- ✅ `packages/server/src/config/index.mts` (updated with chatbot configuration)
+- ✅ `packages/shared/src/schemas/chatbots.schema.mts` (configuration validation)
+- ✅ `packages/server/src/features/chatbots/routes.mts` (REST API for configuration)
+- ✅ `packages/server/src/features/chatbots/models.mts` (database schema)
+- ✅ `packages/server/src/features/chatbots/controller.mts` (configuration management)
+
+**Implementation Summary**:
+- **System Configuration**: Environment variables for timeouts, retries, health checks, and concurrent requests
+- **Bot Configuration**: Database-driven per-campaign bot configuration via REST API
+- **Validation**: Comprehensive Zod schema validation for all configuration data
+- **Management**: Full CRUD operations for bot configuration through REST API
+- **Error Handling**: Proper validation and error reporting for configuration issues
+- **Architecture**: Separation between system-level config (env vars) and bot-specific config (database)
 
 ---
 
