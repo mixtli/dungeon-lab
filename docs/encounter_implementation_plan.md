@@ -1,1509 +1,667 @@
-# Scene System Implementation Plan
+# Encounter System Implementation Plan
 
 ## Overview
 
 The encounter system will provide turn-based combat between player characters and NPCs/monsters on a shared map. Players will be able to control their characters during their turns, performing game-system-specific actions while the Game Master manages NPCs and monsters. All actions and movements will be synchronized across all connected clients.
 
-## Scene-Based Architecture
+This implementation focuses on **desktop and tablet platforms** with a rich HUD interface, while providing a simplified companion experience for phone users.
 
-This implementation plan adopts a more flexible scene-based architecture, where an encounter is just one type of scene. The scene system will support various interaction modes:
+## Architecture Philosophy
 
-- **Encounter Scenes**: Turn-based combat with initiative tracking and combat actions
-- **Social Scenes**: Conversation and social interaction spaces with dialogue systems
-- **Exploration Scenes**: Areas for exploration with points of interest and measurements
-- **Custom read()**: Extensible framework for plugin-specific scene types
+This implementation adopts a **focused, incremental approach**:
 
-All scene types share a common foundation for map rendering, token placement, and synchronization, with specialized behaviors for each type. This approach allows seamless transitions between different modes of play (e.g., moving from exploration to combat) while maintaining the same map and token positions.
+- **Phase 1**: Core encounter functionality with basic UI
+- **Later phases**: Enhanced UI, additional scene types, and advanced features
+- **Platform strategy**: Desktop-first, tablet-adapted, phone-companion
+- **Scope management**: Build encounters well before expanding to other scene types
 
-## Core Components
+The foundation is designed to be extensible, allowing future expansion to social scenes, exploration scenes, and custom scene types, but the initial implementation focuses exclusively on encounter/combat functionality.
 
-### 1. Data Models
+## Target Platforms
 
-#### Base Scene Model
+### **Primary Platforms (Full HUD Experience)**
+- **Desktop**: Full-featured HUD with complex panel management
+- **Tablet**: Touch-optimized HUD with gesture support (10"+ recommended)
 
+### **Secondary Platform (Companion Experience)**
+- **Phone**: Simplified companion interface for players and spectators
+
+### **Platform Detection Strategy**
 ```typescript
-interface Scene {
-  id: string;
-  campaignId: string;
-  mapId: string;
-  name: string;
-  description?: string;
-  sceneType: 'encounter' | 'social' | 'exploration' | 'custom';
-  status: 'active' | 'paused' | 'archived';
-  tokens: Token[];
-
-  // Common visual and grid settings (shared by all scene types)
-  viewportSettings?: {
-    centerX: number; // Last saved viewport center X
-    centerY: number; // Last saved viewport center Y
-    zoom: number; // Last saved zoom level
-    bounds: {
-      // Map boundaries
-      minX: number;
-      minY: number;
-      maxX: number;
-      maxY: number;
-    };
-  };
-
-  gridSettings: {
-    type: 'square' | 'hex' | 'none';
-    size: number;
-    color: string;
-    opacity: number;
-    offsetX?: number;
-    offsetY?: number;
-    showGrid: boolean;
-  };
-
-  visualSettings?: {
-    theme: 'light' | 'dark' | 'custom';
-    tokenAnimations: boolean;
-    effectsLevel: 'high' | 'medium' | 'low' | 'off';
-    fogOfWar: boolean;
-    ambientLight?: {
-      color: string;
-      intensity: number;
-    };
-    background?: {
-      color: string;
-      imageUrl?: string;
-    };
-  };
-
-  performanceSettings?: {
-    maxFPS?: number;
-    cullingEnabled: boolean;
-    textureQuality: 'high' | 'medium' | 'low';
-  };
-
-  // For plugin-specific data
-  systemSpecificData?: Record<string, any>;
-
-  createdAt: Date;
-  updatedAt: Date;
-}
+const deviceStrategy = {
+  desktop: { minWidth: 1200, input: 'mouse' }, // Full HUD
+  tablet: { minWidth: 768, maxWidth: 1199, input: 'touch' }, // Touch HUD
+  phone: { maxWidth: 767, input: 'touch' } // Companion mode
+};
 ```
 
-#### Encounter Scene Model
+## Server-Side Architecture
+
+### **Core Components**
+
+#### **EncounterController**
+
+- **CRUD operations** for encounters within campaigns
+- **Status management** (active, paused, completed)
+- **Permission validation** using existing auth middleware
+- **Input sanitization** and data validation
 
 ```typescript
-interface EncounterScene extends Scene {
-  sceneType: 'encounter'; // Always 'encounter' for this type
-
-  // Combat-specific properties
-  currentRound: number;
-  currentTurnActorId: string | null;
-  initiative: InitiativeTracker;
-  activeEffects: Effect[];
-
-  // Combat-specific settings
-  combatSettings?: {
-    turnTimeLimit?: number; // Optional time limit for turns in seconds
-    autoEndTurn: boolean; // Automatically end turn when time expires
-    showDamageNumbers: boolean;
-    showAttackAnimations: boolean;
-    highlightActiveToken: boolean;
-  };
-}
-```
-
-#### Social Scene Model
-
-```typescript
-interface SocialScene extends Scene {
-  sceneType: 'social';
-
-  // Social interaction specific properties
-  activeConversation?: {
-    speakingTokenId: string | null;
-    listeners: string[]; // Token IDs of listeners
-    mood?: string; // Current conversation mood
-  };
-
-  dialogueOptions?: {
-    showSpeechBubbles: boolean;
-    showNameLabels: boolean;
-    usePortraits: boolean;
-  };
-}
-```
-
-#### Exploration Scene Model
-
-```typescript
-interface ExplorationScene extends Scene {
-  sceneType: 'exploration';
-
-  // Exploration-specific properties
-  pointsOfInterest?: Array<{
-    id: string;
-    position: { x: number; y: number };
-    name: string;
-    description?: string;
-    iconUrl?: string;
-    isRevealed: boolean;
-  }>;
-
-  explorationSettings?: {
-    showMeasurementTools: boolean;
-    enableTerrainEffects: boolean;
-    revealFogOnTokenMovement: boolean;
-    autoDiscoverPOIs: boolean; // Auto-discover Points of Interest
-  };
-}
-```
-
-#### Token Model
-
-```typescript
-interface Token {
-  id: string;
-  sceneId: string; // Reference to the parent scene
-  actorId: string;
-  actorType: 'character' | 'npc' | 'monster';
-  name: string;
-  isVisible: boolean;
-  position: {
-    x: number;
-    y: number;
-    rotation?: number;
-  };
-  size: {
-    width: number;
-    height: number;
-  };
-  // For NPCs/monsters (not propagated back to original actor)
-  tempStats?: Record<string, any>;
-  // For tracking state within scene
-  currentHp?: number;
-  maxHp?: number;
-  conditions?: string[];
-  // Other game-system-specific properties
-  systemSpecificData?: Record<string, any>;
-  visual: {
-    tokenImageUrl: string;
-    borderColor?: string;
-    borderWidth?: number;
-    scale?: number;
-    tint?: string;
-    effectIds?: string[];
-    auraRadius?: number;
-    auraColor?: string;
-    lightRadius?: number;
-    lightColor?: string;
-    lightIntensity?: number;
-    elevation?: number;
-  };
-  animation?: {
-    enabled: boolean;
-    idleAnimation?: string;
-    moveAnimation?: string;
-    attackAnimation?: string;
-    hitAnimation?: string;
-    customAnimations?: Record<string, string>;
-  };
-  lastPosition?: {
-    x: number;
-    y: number;
-    rotation?: number;
-  };
-}
-```
-
-#### InitiativeTracker Model
-
-```typescript
-interface InitiativeTracker {
-  order: Array<{
-    tokenId: string;
-    initiative: number;
-    hasActed: boolean;
-  }>;
-  // Plugin can implement custom initiative logic
-  systemSpecificData?: Record<string, any>;
-  visual?: {
-    highlightCurrentTurn: boolean;
-    displayMode: 'sidebar' | 'top' | 'bottom' | 'overlay';
-    compactMode: boolean;
-    showPortraits: boolean;
-  };
-}
-```
-
-#### Effect Model
-
-```typescript
-interface Effect {
-  id: string;
-  name: string;
-  description?: string;
-  duration: {
-    type: 'rounds' | 'minutes' | 'hours' | 'permanent';
-    value: number;
-  };
-  affectedTokenIds: string[];
-  creatorTokenId?: string;
-  // Plugin-specific effect data
-  systemSpecificData?: Record<string, any>;
-  visual?: {
-    effectType: 'aura' | 'light' | 'particle' | 'animation' | 'area';
-    texture?: string;
-    color?: string;
-    secondaryColor?: string;
-    scale?: number;
-    opacity?: number;
-    animationSpeed?: number;
-    particleCount?: number;
-    blendMode?: string;
-    shape?: 'circle' | 'rectangle' | 'cone' | 'line';
-    dimensions?: {
-      width?: number;
-      height?: number;
-      radius?: number;
-      angle?: number;
-    };
-  };
-  mobileOptimization?: {
-    simplifiedOnMobile: boolean;
-    disableOnLowPerformance: boolean;
-  };
-}
-```
-
-### Scene Transitions
-
-A key advantage of the scene system is the ability to transition between different scene types while preserving the map state. This allows for seamless gameplay flow as the narrative moves between different interaction modes:
-
-#### Example: Exploration to Encounter Transition
-
-```typescript
-// Function to convert an exploration scene to an encounter
-async function transitionToEncounter(explorationSceneId: string): Promise<EncounterScene> {
-  // 1. Retrieve the exploration scene
-  const explorationScene = await getScene(explorationSceneId);
-
-  // 2. Create a new encounter based on the exploration scene
-  const encounter: EncounterScene = {
-    ...explorationScene,
-    id: generateId(), // New ID for the encounter
-    sceneType: 'encounter',
-    status: 'paused', // Start paused so GM can set up
-    currentRound: 0,
-    currentTurnActorId: null,
-    initiative: {
-      order: []
-      // Initialize with system-specific calculations if needed
-    },
-    activeEffects: [],
-    combatSettings: {
-      autoEndTurn: false,
-      showDamageNumbers: true,
-      showAttackAnimations: true,
-      highlightActiveToken: true
-    }
-    // Maintain all tokens, positions, and visual settings
-  };
-
-  // 3. Save the new encounter
-  return saveScene(encounter);
-}
-```
-
-#### Example: Encounter to Social Transition
-
-```typescript
-// Function to convert an encounter scene to a social scene (e.g., after combat)
-async function transitionToSocialScene(encounterId: string): Promise<SocialScene> {
-  // 1. Retrieve the encounter scene
-  const encounterScene = await getScene(encounterId);
-
-  // 2. Create a new social scene based on the encounter
-  const socialScene: SocialScene = {
-    ...encounterScene,
-    id: generateId(),
-    sceneType: 'social',
-    status: 'active',
-    // Remove encounter-specific properties
-    activeEffects: undefined,
-    currentRound: undefined,
-    currentTurnActorId: undefined,
-    initiative: undefined,
-
-    // Add social-specific properties
-    activeConversation: undefined, // No active conversation initially
-    dialogueOptions: {
-      showSpeechBubbles: true,
-      showNameLabels: true,
-      usePortraits: true
-    },
-
-    // Update token states as needed
-    tokens: encounterScene.tokens.map((token) => ({
-      ...token,
-      // Clear combat-specific conditions
-      conditions: token.conditions?.filter((c) => !COMBAT_CONDITIONS.includes(c)) || []
-    }))
-  };
-
-  // 3. Save the new social scene
-  return saveScene(socialScene);
-}
-```
-
-These transitions preserve the spatial relationships and visual state while changing the interaction rules and available actions. The UI will adapt to show the appropriate controls for the current scene type, and the server will validate actions according to the scene type's rules.
-
-### 2. Server-Side Components
-
-#### SceneController
-
-- Create, read, update, delete scenes of any type
-- Associate scenes with maps and campaigns
-- Manage scene status (active, paused, archived)
-- Handle transitions between scene types
-
-#### SceneService
-
-- Core business logic for scenes
-- Token placement and management
-- State tracking based on scene type
-- Validation of moves and actions
-- Scene-specific behavior delegation
-
-#### Specialized Scene Services
-
-- **EncounterService**: Combat-specific logic, initiative tracking, and turn management
-- **SocialService**: Conversation tracking, dialogue management, and mood handling
-- **ExplorationService**: Point of interest management, discovery mechanics, and measurement tools
-
-#### WebSocket Handlers
-
-- `sceneHandler.mts` - Manage real-time scene events common to all types
-- `tokenHandler.mts` - Manage token movements and updates
-- `encounterHandler.mts` - Handle combat-specific events
-- `socialHandler.mts` - Handle conversation and dialogue events
-- `explorationHandler.mts` - Handle exploration and discovery events
-
-#### Plugin Integration
-
-- Define interfaces for game system plugins to implement:
-  - Scene type handlers
-  - Scene-specific validation and behavior
-  - Token actions by scene type
-  - Scene transition hooks
-
-### 3. Client-Side Components
-
-#### SceneStore (Pinia)
-
-```typescript
-// stores/sceneStore.mts
-export const useSceneStore = defineStore('scene', {
-  state: () => ({
-    currentScene: null as Scene | null,
-    tokens: [] as Token[],
-    selectedTokenId: null as string | null,
-    hoveredTokenId: null as string | null,
-    pendingAction: null as Action | null
-  }),
-  getters: {
-    isEncounterScene: (state) => state.currentScene?.sceneType === 'encounter',
-    isSocialScene: (state) => state.currentScene?.sceneType === 'social',
-    isExplorationScene: (state) => state.currentScene?.sceneType === 'exploration',
-    currentEncounter: (state) =>
-      state.isEncounterScene ? (state.currentScene as EncounterScene) : null,
-    activeConversation: (state) =>
-      state.isSocialScene ? (state.currentScene as SocialScene).activeConversation : null,
-    pointsOfInterest: (state) =>
-      state.isExplorationScene ? (state.currentScene as ExplorationScene).pointsOfInterest : []
-  },
-  actions: {
-    // Common actions for all scene types
-    async fetchScene(id: string) {
-      /* ... */
-    },
-    async updateScene(updates: Partial<Scene>) {
-      /* ... */
-    },
-    setSelectedToken(tokenId: string | null) {
-      /* ... */
-    },
-    moveToken(tokenId: string, position: Position) {
-      /* ... */
-    },
-
-    // Scene transitions
-    async transitionToEncounter() {
-      /* ... */
-    },
-    async transitionToSocial() {
-      /* ... */
-    },
-    async transitionToExploration() {
-      /* ... */
-    },
-
-    // Encounter-specific actions
-    async startEncounter() {
-      /* ... */
-    },
-    async endTurn() {
-      /* ... */
-    },
-
-    // Social-specific actions
-    async startConversation(tokenId: string, listenerIds: string[]) {
-      /* ... */
-    },
-    async sendDialogue(tokenId: string, text: string) {
-      /* ... */
-    },
-
-    // Exploration-specific actions
-    async revealPointOfInterest(poiId: string) {
-      /* ... */
-    },
-    async measureDistance(fromTokenId: string, toTokenId: string) {
-      /* ... */
-    }
+// src/features/encounters/encounter.controller.mts
+class EncounterController {
+  async createEncounter(req: AuthenticatedRequest, res: Response) {
+    // Validate user permissions (GM of campaign)
+    // Sanitize and validate input
+    // Create encounter with audit fields
   }
-});
-```
 
-#### UI Components
+  async updateEncounter(req: AuthenticatedRequest, res: Response) {
+    // Optimistic locking with version field
+    // Audit trail logging
+    // Real-time sync via WebSocket
+  }
 
-- `SceneView.vue` - Base component for all scene types
-- Scene-specific views:
-  - `EncounterView.vue` - Combat-specific UI
-  - `SocialView.vue` - Dialogue and interaction UI
-  - `ExplorationView.vue` - Exploration tools and POI display
-- Common components:
-  - `TokenContextMenu.vue` - Context menu with scene-specific options
-  - `SceneControls.vue` - Shared controls for all scenes (pan, zoom, etc.)
-  - `SceneTransitionMenu.vue` - Interface for changing scene types
-
-#### Map Integration
-
-- Extend existing map component to support all scene types:
-- Token placement and movement (common to all scenes)
-- Scene-specific overlays and visualizations
-- Visual indicators for the current scene type
-- Adaptive interaction modes based on scene type
-
-### 4. WebSocket Events
-
-All real-time communication in the scene system will use Socket.IO with zod-validated message schemas. The events will be defined in the shared package to ensure type safety between client and server. The events are hierarchical, with base scene events common to all types and specialized events for each scene type.
-
-#### Type Definitions in Shared Package
-
-```typescript
-// packages/shared/src/types/socket/scene.mts
-import { z } from 'zod';
-
-// Base models
-export const position = z.object({
-  x: z.number(),
-  y: z.number(),
-  rotation: z.number().optional()
-});
-
-export const tokenIdentifier = z.object({
-  sceneId: z.string(),
-  tokenId: z.string()
-});
-
-// Base scene events - common to all scene types
-export const sceneEvents = {
-  // Scene events
-  'scene:started': z.object({
-    sceneId: z.string(),
-    sceneType: z.enum(['encounter', 'social', 'exploration', 'custom']),
-    scene: z.any() // Will be validated based on sceneType
-  }),
-
-  'scene:updated': z.object({
-    sceneId: z.string(),
-    updates: z.object({
-      name: z.string().optional(),
-      description: z.string().optional(),
-      status: z.enum(['active', 'paused', 'archived']).optional()
-      // Other common properties...
-    })
-  }),
-
-  'scene:transitioned': z.object({
-    fromSceneId: z.string(),
-    toSceneId: z.string(),
-    newSceneType: z.enum(['encounter', 'social', 'exploration', 'custom'])
-  }),
-
-  // Token events (common to all scene types)
-  'token:added': z.object({
-    sceneId: z.string(),
-    token: z.object({
-      id: z.string(),
-      sceneId: z.string(),
-      actorId: z.string(),
-      actorType: z.enum(['character', 'npc', 'monster']),
-      name: z.string(),
-      isVisible: z.boolean(),
-      position: position
-      // Other token properties...
-    })
-  }),
-
-  'token:moved': z.object({
-    sceneId: z.string(),
-    tokenId: z.string(),
-    position: position,
-    path: z.array(position).optional()
-  }),
-
-  'token:updated': z.object({
-    sceneId: z.string(),
-    tokenId: z.string(),
-    updates: z.object({
-      name: z.string().optional(),
-      isVisible: z.boolean().optional()
-      // Other updatable token properties...
-    })
-  }),
-
-  'token:removed': z.object({
-    sceneId: z.string(),
-    tokenId: z.string()
-  }),
-
-  // Scene attendance events
-  'scene:join': z.object({
-    sceneId: z.string()
-  }),
-
-  'scene:leave': z.object({
-    sceneId: z.string()
-  })
-};
-
-// Encounter-specific events extend the base scene events
-export const encounterEvents = {
-  ...sceneEvents,
-
-  'encounter:turn:changed': z.object({
-    sceneId: z.string(),
-    currentTurnActorId: z.string().nullable(),
-    initiative: z.object({
-      order: z.array(
-        z.object({
-          tokenId: z.string(),
-          initiative: z.number(),
-          hasActed: z.boolean()
-        })
-      )
-    }),
-    round: z.number()
-  }),
-
-  'encounter:effect:added': z.object({
-    sceneId: z.string(),
-    effect: z.object({
-      id: z.string(),
-      name: z.string()
-      // Other effect properties...
-    })
-  })
-
-  // Other encounter-specific events...
-};
-
-// Social scene events extend the base scene events
-export const socialEvents = {
-  ...sceneEvents,
-
-  'social:conversation:started': z.object({
-    sceneId: z.string(),
-    speakingTokenId: z.string(),
-    listenerTokenIds: z.array(z.string())
-  }),
-
-  'social:dialogue:sent': z.object({
-    sceneId: z.string(),
-    tokenId: z.string(),
-    text: z.string(),
-    mood: z.string().optional()
-  })
-
-  // Other social-specific events...
-};
-
-// Exploration scene events extend the base scene events
-export const explorationEvents = {
-  ...sceneEvents,
-
-  'exploration:poi:revealed': z.object({
-    sceneId: z.string(),
-    poiId: z.string(),
-    revealedBy: z.string() // tokenId that discovered it
-  }),
-
-  'exploration:measurement:created': z.object({
-    sceneId: z.string(),
-    id: z.string(),
-    fromPosition: position,
-    toPosition: position,
-    distance: z.number()
-  })
-
-  // Other exploration-specific events...
-};
-```
-
-### Scene Transitions
-
-A key advantage of the scene system is the ability to transition between different scene types while preserving the map state:
-
-```typescript
-// Function to convert an exploration scene to an encounter
-async function transitionToEncounter(explorationSceneId: string): Promise<EncounterScene> {
-  // 1. Retrieve the exploration scene
-  const explorationScene = await getScene(explorationSceneId);
-
-  // 2. Create a new encounter based on the exploration scene
-  const encounter: EncounterScene = {
-    ...explorationScene,
-    id: generateId(), // New ID for the encounter
-    sceneType: 'encounter',
-    status: 'paused', // Start paused so GM can set up
-    currentRound: 0,
-    currentTurnActorId: null,
-    initiative: {
-      order: []
-      // Initialize with system-specific calculations if needed
-    },
-    activeEffects: [],
-    combatSettings: {
-      autoEndTurn: false,
-      showDamageNumbers: true,
-      showAttackAnimations: true,
-      highlightActiveToken: true
-    }
-    // Maintain all tokens, positions, and visual settings
-  };
-
-  // 3. Save the new encounter
-  return saveScene(encounter);
+  async getEncounter(req: AuthenticatedRequest, res: Response) {
+    // Permission check (campaign member)
+    // Return filtered data based on user role
+  }
 }
 ```
 
-### Data Flow Examples
+#### **EncounterService**
 
-#### Example 1: Player Moves Token (Common for All Scene Types)
+- **Business logic** for encounter management
+- **Token placement** and validation
+- **Initiative calculation** and turn management
+- **Combat action processing**
+- **Effect management**
 
-1. Player drags their token on the map UI
-2. Client validates the move is within allowed range (preview UI feedback)
-3. On drop, client sends `token:move` event
-4. Server:
-   - Validates player owns the token
-   - Validates if token can move (depends on scene type)
-   - Updates token position in database
-   - Emits `token:moved` to all clients
-5. All clients (including sender) update token position in their SceneStore
-6. Map component re-renders with new token position
+```typescript
+// src/features/encounters/encounter.service.mts
+class EncounterService {
+  async addToken(encounterId: string, tokenData: CreateTokenData, userId: string) {
+    // Validate encounter exists and user has permission
+    // Create token with proper audit fields
+    // Emit real-time update
+    // Return created token
+  }
 
-#### Example 2: Player Attacks (Encounter Scene)
+  async moveToken(encounterId: string, tokenId: string, position: Position, userId: string) {
+    // Validate token ownership or GM permission
+    // Check movement constraints
+    // Update position with optimistic locking
+    // Emit token:moved event
+  }
 
-1. Player selects their token, then selects target token for attack
-2. Client sends `token:action` with type 'attack'
-3. Server:
-   - Validates scene is an encounter
-   - Validates player owns the token
-   - Validates it's the token's turn
-   - Validates target is in range and line of sight
-   - Calls game system plugin to resolve attack
-   - Updates target token HP based on damage
-   - Emits `action:result` with attack outcome
-   - Emits `token:updated` with new target HP
-4. All clients show attack animation and result
-5. All clients update target token's HP in their SceneStore
+  async nextTurn(encounterId: string, userId: string) {
+    // Validate GM permission
+    // Update initiative tracker
+    // Handle end-of-round effects
+    // Emit turn:changed event
+  }
+}
+```
 
-#### Example 3: Starting a Conversation (Social Scene)
+#### **WebSocket Event Handlers**
 
-1. GM selects an NPC token and a player character token
-2. GM initiates conversation through UI
-3. Client sends `conversation:start` event
-4. Server:
-   - Validates scene is a social scene
-   - Validates GM permission
-   - Creates conversation state
-   - Emits `conversation:started` to all clients
-5. All clients update UI to show conversation state
-6. Active conversation participants get UI for dialogue
+```typescript
+// src/features/encounters/encounter.socket.mts
+export function setupEncounterSocketHandlers(io: SocketIOServer) {
+  io.on('connection', (socket) => {
+    // Join encounter room
+    socket.on('encounter:join', async (data) => {
+      const { encounterId } = validateEncounterJoin.parse(data);
+      // Validate user permission to view encounter
+      await socket.join(`encounter:${encounterId}`);
+    });
+
+    // Token movement
+    socket.on('token:move', async (data) => {
+      const { encounterId, tokenId, position } = validateTokenMove.parse(data);
+      // Validate and process move
+      // Emit to all clients in encounter room
+      socket.to(`encounter:${encounterId}`).emit('token:moved', result);
+    });
+
+    // Combat actions
+    socket.on('encounter:action', async (data) => {
+      // Validate action based on game system plugin
+      // Process action and effects
+      // Emit action result to room
+    });
+  });
+}
+```
+
+### **Security and Validation**
+
+#### **Permission System**
+
+```typescript
+// Enhanced permission validation
+interface EncounterPermissions {
+  canView: boolean;    // Campaign member
+  canControl: boolean; // GM or token owner
+  canModify: boolean;  // GM only
+  canDelete: boolean;  // GM only
+}
+
+async function validateEncounterPermission(
+  userId: string, 
+  encounterId: string, 
+  action: keyof EncounterPermissions
+): Promise<boolean> {
+  // Check campaign membership
+  // Check GM status
+  // Check token ownership for control actions
+  // Return permission result
+}
+```
+
+#### **Input Sanitization and Rate Limiting**
+
+```typescript
+// Rate limiting configuration
+const rateLimits = {
+  tokenMoves: { maxPerMinute: 30 },
+  actions: { maxPerTurn: 10 },
+  encounterUpdates: { maxPerMinute: 20 }
+};
+
+// Input validation with zod
+const moveTokenSchema = z.object({
+  encounterId: z.string().uuid(),
+  tokenId: z.string().uuid(),
+  position: z.object({
+    x: z.number().min(0).max(10000),
+    y: z.number().min(0).max(10000)
+  })
+});
+```
+
+### **Database Integration**
+
+#### **MongoDB Schema with Proper Indexing**
+
+```typescript
+// Optimized database queries
+const encounterIndexes = [
+  { campaignId: 1, status: 1 }, // Find active encounters
+  { 'tokens.actorId': 1 },      // Find tokens by actor
+  { createdAt: -1 },            // Recent encounters
+  { updatedAt: -1 }             // Recently modified
+];
+
+// Transaction handling for complex operations
+async function updateEncounterWithTokens(
+  encounterId: string, 
+  updates: EncounterUpdate
+) {
+  const session = await mongoose.startSession();
+  try {
+    await session.withTransaction(async () => {
+      // Update encounter
+      // Update related tokens
+      // Emit real-time events
+    });
+  } finally {
+    await session.endSession();
+  }
+}
+```
 
 ## Map Implementation with Pixi.js
 
-The map component is central to the scene system, as it's where all the visual interaction happens. This section provides a focused implementation plan using Pixi.js as our rendering engine for all scene types, with special consideration for mobile and future native app deployment.
+The map component is central to the encounter system, providing the visual foundation for all token interactions. The implementation uses Pixi.js for high-performance rendering optimized for desktop and tablet platforms.
 
-### Scene-Specific Rendering Adaptations
-
-The basic Pixi.js architecture will be extended to handle different scene types:
+### **Encounter-Specific Map Features**
 
 ```typescript
-// src/composables/useSceneRenderer.mts
-export function useSceneRenderer(callbacks: SceneCallbacks = {}) {
-  // ... base renderer setup as described previously ...
-
-  // Scene type specific setup
-  function setupSceneByType(scene: Scene) {
-    // Clear any previous scene-specific elements
-    clearSceneSpecificElements();
-
-    // Setup based on scene type
-    switch (scene.sceneType) {
-      case 'encounter':
-        setupEncounterElements(scene as EncounterScene);
-        break;
-      case 'social':
-        setupSocialElements(scene as SocialScene);
-        break;
-      case 'exploration':
-        setupExplorationElements(scene as ExplorationScene);
-        break;
-      case 'custom':
-        // Handle plugin-provided custom scenes
-        setupCustomSceneElements(scene);
-        break;
+// src/composables/useEncounterMap.mts
+export function useEncounterMap() {
+  const encounterStore = useEncounterStore();
+  const { interfaceMode } = useDeviceAdaptation();
+  
+  // Platform-specific rendering optimizations
+  const mapConfig = computed(() => ({
+    // Desktop: High quality, all effects
+    desktop: {
+      antialias: true,
+      resolution: window.devicePixelRatio,
+      powerPreference: 'high-performance',
+      backgroundColor: 0x1a1a1a
+    },
+    // Tablet: Balanced quality and performance  
+    tablet: {
+      antialias: true,
+      resolution: Math.min(window.devicePixelRatio, 2),
+      powerPreference: 'default',
+      backgroundColor: 0x1a1a1a
+    },
+    // Phone: Optimized for performance
+    phone: {
+      antialias: false,
+      resolution: 1,
+      powerPreference: 'low-power',
+      backgroundColor: 0x1a1a1a
     }
-  }
+  }[interfaceMode.value]));
 
-  function setupEncounterElements(scene: EncounterScene) {
-    // Create initiative display
-    // Setup combat-specific UI elements
-    // Add turn indicators
-    // Create combat effect visualizations
-  }
-
-  function setupSocialElements(scene: SocialScene) {
-    // Setup speech bubbles
-    // Add conversation indicators
-    // Create mood visualizations
-    // Setup dialogue UI elements
-  }
-
-  function setupExplorationElements(scene: ExplorationScene) {
-    // Add points of interest markers
-    // Setup measurement tools
-    // Create discovery indicators
-    // Setup terrain effect visualizations
-  }
-
-  // ... rest of renderer implementation ...
+  // Token interaction optimized for platform
+  const tokenInteraction = computed(() => ({
+    desktop: {
+      hoverEffects: true,
+      selectionHighlight: true,
+      dragPreview: true,
+      contextMenus: true
+    },
+    tablet: {
+      hoverEffects: false, // No hover on touch
+      selectionHighlight: true,
+      dragPreview: true,
+      contextMenus: true, // Long press
+      touchFeedback: true
+    },
+    phone: {
+      hoverEffects: false,
+      selectionHighlight: true,
+      dragPreview: false, // Simplified
+      contextMenus: false, // Too complex
+      touchFeedback: true
+    }
+  }[interfaceMode.value]));
 
   return {
-    // ... existing return values ...
-    setupSceneByType
+    mapConfig,
+    tokenInteraction,
+    // ... other map utilities
   };
 }
 ```
 
-### Common Interactive Elements Across Scene Types
+### **Performance Optimizations**
 
-While each scene type has specific behavior, many interactive elements are shared:
+#### **Rendering Optimizations**
+- **Culling**: Only render tokens visible in viewport
+- **Level of Detail**: Reduce token complexity at high zoom levels
+- **Batch Rendering**: Group similar visual elements
+- **Texture Atlas**: Combine token images to reduce draw calls
+
+#### **Platform-Specific Optimizations**
+- **Desktop**: Full quality rendering with all effects
+- **Tablet**: Balanced approach with reduced particle effects
+- **Phone**: Minimal effects, optimized for battery life
+
+#### **Memory Management**
+- Automatic texture cleanup for off-screen tokens
+- Sprite pooling for frequently used elements
+- Lazy loading of token assets
+- Progressive image loading based on viewport
+
+## Plugin Integration Strategy
+
+The encounter system provides extension points for game system plugins to customize combat behavior while maintaining core functionality.
+
+### **Plugin Interface for Encounters**
 
 ```typescript
-// src/components/scene/SceneView.vue
-<script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
-import { useSceneRenderer } from '@/composables/useSceneRenderer';
-import { useSceneStore } from '@/stores/sceneStore';
-import EncounterControls from './EncounterControls.vue';
-import SocialControls from './SocialControls.vue';
-import ExplorationControls from './ExplorationControls.vue';
+// packages/shared/src/base/plugin.mts
+export interface EncounterPlugin {
+  // Initiative system customization
+  calculateInitiative?(actor: Actor, modifiers?: Record<string, number>): number;
+  
+  // Available actions for tokens
+  getAvailableActions?(token: Token, encounter: Encounter): CombatAction[];
+  
+  // Action validation and processing
+  validateAction?(action: CombatAction, context: ActionContext): ValidationResult;
+  processAction?(action: CombatAction, context: ActionContext): ActionResult;
+  
+  // Effect system integration
+  createEffect?(effectData: EffectData): Effect;
+  applyEffect?(effect: Effect, target: Token): EffectApplication;
+  removeEffect?(effectId: string, target: Token): void;
+  
+  // Turn management hooks
+  onTurnStart?(token: Token, encounter: Encounter): void;
+  onTurnEnd?(token: Token, encounter: Encounter): void;
+  onRoundStart?(encounter: Encounter): void;
+  onRoundEnd?(encounter: Encounter): void;
+}
+```
 
-const sceneStore = useSceneStore();
-const currentScene = computed(() => sceneStore.currentScene);
-const sceneType = computed(() => currentScene.value?.sceneType || 'encounter');
+### **D&D 5e Plugin Integration**
 
-const {
-  renderer,
-  initialize,
-  updateTokens,
-  setupSceneByType,
-  // ... other methods ...
-} = useSceneRenderer({
-  onTokenSelect: (tokenId) => sceneStore.setSelectedToken(tokenId),
-  onTokenMove: (tokenId, position) => sceneStore.moveToken(tokenId, position),
-  // ... other callbacks ...
-});
-
-// Setup the scene when it changes
-watch(() => sceneStore.currentScene, (newScene) => {
-  if (newScene) {
-    updateTokens(newScene.tokens);
-    setupSceneByType(newScene);
+```typescript
+// packages/plugins/dnd-5e-2024/server/encounter.plugin.mts
+export class DnD5eEncounterPlugin implements EncounterPlugin {
+  calculateInitiative(actor: Actor, modifiers: Record<string, number> = {}): number {
+    const dexMod = Math.floor((actor.stats.dexterity - 10) / 2);
+    const initiativeBonus = actor.stats.initiativeBonus || 0;
+    const roll = Math.floor(Math.random() * 20) + 1;
+    
+    return roll + dexMod + initiativeBonus + (modifiers.initiative || 0);
   }
-}, { immediate: true, deep: true });
 
-// ... rest of component implementation ...
-</script>
-
-<template>
-  <div class="scene-view">
-    <div ref="mapRef" class="scene-map"></div>
-
-    <!-- Scene-specific controls -->
-    <EncounterControls v-if="sceneType === 'encounter'" />
-    <SocialControls v-else-if="sceneType === 'social'" />
-    <ExplorationControls v-else-if="sceneType === 'exploration'" />
-
-    <!-- Common controls -->
-    <SceneControls />
-  </div>
-</template>
-```
-
-## HUD Interface Architecture
-
-The encounter system will use a full-screen HUD (Heads Up Display) interface similar to Foundry VTT, where the map serves as the primary canvas and all tools and information panels float as semi-transparent overlays.
-
-### Full-Screen Encounter Mode
-
-#### Window Management
-- Encounters open in a new browser window/tab for dedicated focus
-- Full-screen mode available for immersive gameplay
-- Window can be resized but maintains aspect ratio for map consistency
-- Support for multiple monitor setups (map on one screen, tools on another)
-
-#### Layout Structure
-```
-┌─────────────────────────────────────────────────────────────┐
-│ Scene Navigation Bar (Top)                                  │
-├─┬───────────────────────────────────────────────────────┬───┤
-│T│                                                       │ S │
-│o│                                                       │ c │
-│o│                    Map Canvas                         │ e │
-│l│                  (Full Background)                    │ n │
-│b│                                                       │ e │
-│a│                                                       │   │
-│r│                                                       │ B │
-│ │                                                       │ r │
-│ │                                                       │ o │
-│ │                                                       │ w │
-│ │                                                       │ s │
-│ │                                                       │ e │
-│ │                                                       │ r │
-├─┴───────────────────────────────────────────────────────┴───┤
-│ Player Tokens & Hotbar (Bottom)                            │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Panel System Architecture
-
-#### Panel Types and Positioning
-
-```typescript
-interface HUDPanel {
-  id: string;
-  type: 'initiative' | 'character-sheet' | 'chat' | 'spells' | 'inventory' | 'notes' | 'settings';
-  title: string;
-  position: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  };
-  state: 'expanded' | 'collapsed' | 'minimized' | 'hidden';
-  isMovable: boolean;
-  isResizable: boolean;
-  opacity: number; // 0.7-0.95 for semi-transparency
-  zIndex: number;
-  dockable: boolean; // Can snap to screen edges
-  alwaysOnTop: boolean;
-}
-```
-
-#### Core HUD Panels
-
-1. **Initiative Tracker Panel**
-   - Default position: Top-right corner
-   - Shows turn order, current actor, round counter
-   - Collapsible to show only current turn
-   - Drag to reorder initiative
-
-2. **Character Sheet Panel**
-   - Opens when token is selected
-   - Shows stats, abilities, conditions
-   - Can pin multiple character sheets
-   - Tabbed interface for multiple characters
-
-3. **Chat Panel**
-   - Default position: Bottom-right
-   - Dice rolls, actions, GM messages
-   - Collapsible to show only recent messages
-   - Filter by message type
-
-4. **Spell/Ability Panel**
-   - Default position: Right side, middle
-   - Quick access to character abilities
-   - Drag-and-drop to hotbar
-   - Search and filter capabilities
-
-5. **Scene Browser Panel**
-   - Default position: Right side (as shown in screenshot)
-   - Navigate between scenes/maps
-   - Scene thumbnails and quick switching
-   - Collapsible to icon-only view
-
-#### Toolbar System
-
-```typescript
-interface ToolbarConfig {
-  position: 'left' | 'right' | 'top' | 'bottom';
-  orientation: 'horizontal' | 'vertical';
-  tools: ToolbarItem[];
-  collapsible: boolean;
-  autoHide: boolean; // Hide when not in use
-}
-
-interface ToolbarItem {
-  id: string;
-  icon: string;
-  tooltip: string;
-  action: () => void;
-  isActive: boolean;
-  hasSubmenu: boolean;
-  submenuItems?: ToolbarItem[];
-}
-```
-
-**Left Toolbar** (Primary Tools):
-- Select/Move tool
-- Measure distance tool
-- Area of effect templates
-- Lighting tools
-- Fog of war tools
-- Drawing tools
-- Note/pin tools
-
-**Top Navigation Bar**:
-- Scene tabs/navigation
-- Scene controls (play/pause)
-- View controls (zoom, center)
-- Settings access
-
-**Bottom Hotbar**:
-- Numbered slots (1-0 keys)
-- Drag abilities/spells from panels
-- Quick access to common actions
-- Player-specific customization
-
-### Component Architecture
-
-#### Core HUD Components
-
-```typescript
-// src/components/hud/EncounterHUD.vue
-<script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
-import { useHUDStore } from '@/stores/hudStore';
-import { useSceneStore } from '@/stores/sceneStore';
-import MapCanvas from './MapCanvas.vue';
-import HUDPanel from './HUDPanel.vue';
-import Toolbar from './Toolbar.vue';
-import SceneNavigation from './SceneNavigation.vue';
-import Hotbar from './Hotbar.vue';
-
-const hudStore = useHUDStore();
-const sceneStore = useSceneStore();
-
-// Panel management
-const panels = computed(() => hudStore.visiblePanels);
-const activeTool = computed(() => hudStore.activeTool);
-
-// Full-screen management
-const isFullscreen = ref(false);
-const toggleFullscreen = () => {
-  if (!document.fullscreenElement) {
-    document.documentElement.requestFullscreen();
-    isFullscreen.value = true;
-  } else {
-    document.exitFullscreen();
-    isFullscreen.value = false;
-  }
-};
-</script>
-
-<template>
-  <div class="encounter-hud" :class="{ 'fullscreen': isFullscreen }">
-    <!-- Map Canvas (Full Background) -->
-    <MapCanvas class="map-background" />
+  getAvailableActions(token: Token, encounter: Encounter): CombatAction[] {
+    const actor = this.getActor(token.actorId);
+    const actions: CombatAction[] = [];
     
-    <!-- Scene Navigation (Top) -->
-    <SceneNavigation class="scene-nav" />
+    // Basic actions
+    actions.push(
+      { type: 'attack', name: 'Attack', category: 'action' },
+      { type: 'dodge', name: 'Dodge', category: 'action' },
+      { type: 'dash', name: 'Dash', category: 'action' },
+      { type: 'help', name: 'Help', category: 'action' }
+    );
     
-    <!-- Left Toolbar -->
-    <Toolbar 
-      position="left" 
-      :tools="hudStore.leftToolbarTools"
-      class="left-toolbar"
-    />
-    
-    <!-- Dynamic HUD Panels -->
-    <HUDPanel
-      v-for="panel in panels"
-      :key="panel.id"
-      :panel="panel"
-      @move="hudStore.movePanel"
-      @resize="hudStore.resizePanel"
-      @toggle="hudStore.togglePanel"
-      @close="hudStore.closePanel"
-    />
-    
-    <!-- Scene Browser (Right) -->
-    <div class="scene-browser">
-      <!-- Scene thumbnails and navigation -->
-    </div>
-    
-    <!-- Bottom Hotbar -->
-    <Hotbar class="bottom-hotbar" />
-    
-    <!-- Context Menus and Tooltips -->
-    <div class="overlay-layer">
-      <!-- Dynamic overlays -->
-    </div>
-  </div>
-</template>
-
-<style scoped>
-.encounter-hud {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: #000;
-  overflow: hidden;
-  font-family: 'Roboto', sans-serif;
-}
-
-.map-background {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 1;
-}
-
-.scene-nav {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 40px;
-  z-index: 100;
-  background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(4px);
-}
-
-.left-toolbar {
-  position: absolute;
-  left: 8px;
-  top: 50px;
-  z-index: 90;
-}
-
-.scene-browser {
-  position: absolute;
-  right: 8px;
-  top: 50px;
-  bottom: 60px;
-  width: 200px;
-  z-index: 90;
-  background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(4px);
-  border-radius: 8px;
-}
-
-.bottom-hotbar {
-  position: absolute;
-  bottom: 8px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 90;
-}
-
-.overlay-layer {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 200;
-  pointer-events: none;
-}
-</style>
-```
-
-#### Movable Panel Component
-
-```typescript
-// src/components/hud/HUDPanel.vue
-<script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
-import { useDraggable } from '@vueuse/core';
-
-interface Props {
-  panel: HUDPanel;
-}
-
-const props = defineProps<Props>();
-const emit = defineEmits<{
-  move: [id: string, position: { x: number; y: number }];
-  resize: [id: string, size: { width: number; height: number }];
-  toggle: [id: string];
-  close: [id: string];
-}>();
-
-const panelRef = ref<HTMLElement>();
-const headerRef = ref<HTMLElement>();
-
-// Make panel draggable by header
-const { x, y, isDragging } = useDraggable(panelRef, {
-  initialValue: { x: props.panel.position.x, y: props.panel.position.y },
-  handle: headerRef,
-  onEnd: () => {
-    emit('move', props.panel.id, { x: x.value, y: y.value });
-  }
-});
-
-const isExpanded = computed(() => props.panel.state === 'expanded');
-const isCollapsed = computed(() => props.panel.state === 'collapsed');
-</script>
-
-<template>
-  <div
-    ref="panelRef"
-    class="hud-panel"
-    :class="{
-      'is-dragging': isDragging,
-      'is-expanded': isExpanded,
-      'is-collapsed': isCollapsed
-    }"
-    :style="{
-      left: `${x}px`,
-      top: `${y}px`,
-      width: `${panel.position.width}px`,
-      height: isCollapsed ? 'auto' : `${panel.position.height}px`,
-      opacity: panel.opacity,
-      zIndex: panel.zIndex
-    }"
-  >
-    <!-- Panel Header -->
-    <div ref="headerRef" class="panel-header">
-      <h3 class="panel-title">{{ panel.title }}</h3>
-      <div class="panel-controls">
-        <button @click="emit('toggle', panel.id)" class="toggle-btn">
-          {{ isExpanded ? '−' : '+' }}
-        </button>
-        <button @click="emit('close', panel.id)" class="close-btn">×</button>
-      </div>
-    </div>
-    
-    <!-- Panel Content -->
-    <div v-show="isExpanded" class="panel-content">
-      <slot />
-    </div>
-  </div>
-</template>
-
-<style scoped>
-.hud-panel {
-  position: absolute;
-  background: rgba(20, 20, 20, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
-  backdrop-filter: blur(8px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-  min-width: 200px;
-  max-width: 90vw;
-  max-height: 90vh;
-  overflow: hidden;
-}
-
-.panel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 12px;
-  background: rgba(0, 0, 0, 0.3);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  cursor: move;
-  user-select: none;
-}
-
-.panel-title {
-  color: #fff;
-  font-size: 14px;
-  font-weight: 600;
-  margin: 0;
-}
-
-.panel-controls {
-  display: flex;
-  gap: 4px;
-}
-
-.toggle-btn,
-.close-btn {
-  background: none;
-  border: none;
-  color: #ccc;
-  cursor: pointer;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 14px;
-  line-height: 1;
-}
-
-.toggle-btn:hover,
-.close-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-}
-
-.panel-content {
-  padding: 12px;
-  color: #fff;
-  overflow-y: auto;
-  max-height: calc(90vh - 40px);
-}
-
-.is-dragging {
-  transform: rotate(2deg);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.7);
-}
-</style>
-```
-
-### HUD State Management
-
-```typescript
-// src/stores/hudStore.mts
-export const useHUDStore = defineStore('hud', {
-  state: () => ({
-    panels: new Map<string, HUDPanel>(),
-    activeTool: 'select' as string,
-    isFullscreen: false,
-    hotbarSlots: Array(10).fill(null) as (Action | null)[],
-    userPreferences: {
-      panelOpacity: 0.9,
-      autoHidePanels: false,
-      snapToGrid: true,
-      showTooltips: true
+    // Spell actions if caster
+    if (actor.spellcasting) {
+      const spells = this.getAvailableSpells(actor);
+      actions.push(...spells.map(spell => ({
+        type: 'spell',
+        name: spell.name,
+        category: 'action',
+        data: { spellId: spell.id }
+      })));
     }
-  }),
-
-  getters: {
-    visiblePanels: (state) => 
-      Array.from(state.panels.values()).filter(p => p.state !== 'hidden'),
     
-    leftToolbarTools: () => [
-      { id: 'select', icon: 'cursor-arrow', tooltip: 'Select/Move' },
-      { id: 'measure', icon: 'ruler', tooltip: 'Measure Distance' },
-      { id: 'template', icon: 'circle', tooltip: 'Area Templates' },
-      { id: 'light', icon: 'lightbulb', tooltip: 'Lighting' },
-      { id: 'fog', icon: 'eye-slash', tooltip: 'Fog of War' },
-      { id: 'draw', icon: 'pencil', tooltip: 'Drawing Tools' },
-      { id: 'note', icon: 'map-pin', tooltip: 'Notes' }
-    ]
-  },
+    return actions;
+  }
 
-  actions: {
-    openPanel(type: HUDPanel['type'], config?: Partial<HUDPanel>) {
-      const defaultConfig = this.getDefaultPanelConfig(type);
-      const panel: HUDPanel = {
-        ...defaultConfig,
-        ...config,
-        id: config?.id || `${type}-${Date.now()}`
-      };
+  async processAction(action: CombatAction, context: ActionContext): Promise<ActionResult> {
+    switch (action.type) {
+      case 'attack':
+        return this.processAttack(action, context);
+      case 'spell':
+        return this.processSpell(action, context);
+      case 'dodge':
+        return this.processDodge(action, context);
+      default:
+        throw new Error(`Unknown action type: ${action.type}`);
+    }
+  }
+  
+  private async processAttack(action: CombatAction, context: ActionContext): Promise<ActionResult> {
+    // D&D 5e specific attack resolution
+    const attacker = context.actor;
+    const target = context.target;
+    
+    // Roll attack
+    const attackRoll = this.rollD20() + attacker.stats.attackBonus;
+    const targetAC = target.stats.armorClass;
+    
+    if (attackRoll >= targetAC) {
+      // Hit - roll damage
+      const damage = this.rollDamage(attacker.weapon);
       
-      this.panels.set(panel.id, panel);
-      this.bringToFront(panel.id);
-    },
-
-    closePanel(id: string) {
-      this.panels.delete(id);
-    },
-
-    togglePanel(id: string) {
-      const panel = this.panels.get(id);
-      if (panel) {
-        panel.state = panel.state === 'expanded' ? 'collapsed' : 'expanded';
-      }
-    },
-
-    movePanel(id: string, position: { x: number; y: number }) {
-      const panel = this.panels.get(id);
-      if (panel) {
-        panel.position.x = position.x;
-        panel.position.y = position.y;
-        this.saveUserPreferences();
-      }
-    },
-
-    bringToFront(id: string) {
-      const maxZ = Math.max(...Array.from(this.panels.values()).map(p => p.zIndex));
-      const panel = this.panels.get(id);
-      if (panel) {
-        panel.zIndex = maxZ + 1;
-      }
-    },
-
-    setActiveTool(tool: string) {
-      this.activeTool = tool;
-    },
-
-    saveUserPreferences() {
-      // Save panel positions and preferences to localStorage
-      const preferences = {
-        panels: Object.fromEntries(this.panels),
-        userPreferences: this.userPreferences
+      return {
+        success: true,
+        description: `${attacker.name} hits ${target.name} for ${damage} damage`,
+        effects: [{
+          type: 'damage',
+          target: target.id,
+          value: damage
+        }]
       };
-      localStorage.setItem('hud-preferences', JSON.stringify(preferences));
-    },
-
-    loadUserPreferences() {
-      // Load saved preferences
-      const saved = localStorage.getItem('hud-preferences');
-      if (saved) {
-        const preferences = JSON.parse(saved);
-        // Restore panel positions and settings
-      }
+    } else {
+      return {
+        success: false,
+        description: `${attacker.name} misses ${target.name}`,
+        effects: []
+      };
     }
   }
-});
-```
-
-### Mobile and Responsive Considerations
-
-#### Adaptive Panel Layout
-- On mobile/tablet, panels automatically dock to screen edges
-- Swipe gestures to show/hide panels
-- Touch-friendly panel headers and controls
-- Simplified toolbar with essential tools only
-
-#### Performance Optimizations
-- Panel content virtualization for large lists
-- Lazy loading of panel components
-- Reduced transparency effects on low-en:w
-d devices
-- Simplified animations on mobile
-
-## Implementation Phases
-
-### Phase 1: Basic Foundations
-1. Define base Scene model and specialized scene type models
-2. Create REST API endpoints for general scene management
-3. Implement basic server-side controllers and services
-4. Set up scene transition mechanisms
-
-### Phase 2: Map and Token Framework
-
-1. Extend map component to support the scene system
-2. Implement token placement and movement common to all scenes
-3. Create base token context menu with scene-type adapters
-4. Set up synchronization of scene state via WebSockets
-
-### Phase 3: Encounter Scene Implementation
-
-1. Implement initiative tracker
-2. Develop turn management system
-3. Create UI for combat-specific elements
-4. Implement combat actions and effects
-
-### Phase 4: Social Scene Implementation
-
-1. Implement conversation system
-2. Develop dialogue UI
-3. Create speech bubble and mood visualizations
-4. Implement social interactions
-
-### Phase 5: Exploration Scene Implementation
-
-1. Implement points of interest system
-2. Develop measurement tools
-3. Create discovery and revelation mechanics
-4. Implement terrain interactions
-
-### Phase 6: Integration and Transitions
-
-1. Implement scene transition mechanics
-2. Create scene switching UI
-3. Develop conversion utilities between scene types
-4. Ensure consistent state management across transitions
-
-## Plugin Integration
-
-Plugins can extend the scene system by implementing specific interfaces:
-
-```typescript
-interface GameSystemPlugin {
-  // Base scene handling functions
-  validateToken(token: Token, scene: Scene): ValidationResult;
-
-  // Encounter-specific functions
-  calculateInitiative?(actor: Actor, modifiers?: any): number;
-  getAvailableActions?(token: Token, scene: EncounterScene): Action[];
-  validateAction?(action: Action, token: Token, scene: EncounterScene): ValidationResult;
-  executeAction?(action: Action, token: Token, scene: EncounterScene): ActionResult;
-
-  // Social-specific functions
-  getMoodOptions?(scene: SocialScene): string[];
-  getDialogueOptions?(token: Token, scene: SocialScene): DialogueOption[];
-
-  // Exploration-specific functions
-  calculateMovementCost?(
-    token: Token,
-    fromPos: Position,
-    toPos: Position,
-    scene: ExplorationScene
-  ): number;
-  handlePOIDiscovery?(token: Token, poi: PointOfInterest, scene: ExplorationScene): DiscoveryResult;
 }
 ```
 
-## Security Considerations
+## Conclusion
 
-1. **Permission Validation**:
+This revised implementation plan provides a **practical, incremental approach** to building a robust encounter system that serves the needs of both players and GMs across desktop and tablet platforms.
 
-   - Scene-specific permissions (GM for most scene management)
-   - Players can only control their tokens based on scene rules
-   - Scene type specific validations (e.g., turn order in encounters)
+### **Key Improvements from Original Plan**:
 
-2. **Data Integrity**:
+1. **Focused Scope**: Concentrates on encounters first, not a full scene system
+2. **Platform Strategy**: Desktop + tablet focus with phone companion
+3. **Incremental Delivery**: Each phase delivers working functionality
+4. **Practical Architecture**: Simplified data models and state management
+5. **Performance Focused**: Optimizations built in from the start
 
-   - Validate all actions server-side based on scene type
-   - Prevent illegal interactions based on scene constraints
-   - Ensure action outcomes follow game system rules
+### **Success Factors**:
 
-3. **Synchronization**:
-   - Handle disconnections gracefully with scene state preservation
-   - Resolve conflicts in scene state
-   - Ensure all clients have consistent state for the current scene type
+- **Start Simple**: Phase 1 delivers basic but working encounter functionality
+- **Build Incrementally**: Each phase adds value without breaking existing features
+- **User-Centered**: Regular testing and feedback integration
+- **Platform-Aware**: Optimized experience for each target platform
+- **Extensible Foundation**: Ready for future expansion to scene system
 
-## Technical Implementation Guidelines
+### **Next Steps**:
 
-1. Use TypeScript interfaces with generics for scene type handling
-2. Implement real-time updates using Socket.IO with scene-specific channels
-3. Store scene data with type discrimination in MongoDB
-4. Use Pinia for client-side state management with scene type awareness
-5. Implement plugin system for scene type extensions
-6. Use Vue's reactivity system for scene-based UI updates
+1. **Validate Technical Approach**: Review with development team
+2. **Prototype Phase 1**: Build core data models and basic UI
+3. **User Testing**: Early feedback on basic encounter functionality
+4. **Iterate and Refine**: Adjust based on real-world usage
 
-## Future Enhancements
+This plan balances ambition with practicality, ensuring a successful implementation that can grow over time into the full vision while delivering immediate value to users.
 
-1. Advanced scene transitions with animations
-2. Custom scene types for specialized gameplay
-3. Scene templates and presets
-4. Scene history and playback
-5. Multi-scene management (picture-in-picture)
-6. Cross-scene interactions
+## Revised Implementation Phases
+
+### **Phase 1: Core Infrastructure (4-6 weeks)**
+
+**Goal**: Establish basic encounter functionality with simple UI
+
+#### **Deliverables**:
+- Basic Encounter and Token data models
+- MongoDB schemas and indexing
+- Core REST API endpoints (`/api/encounters`)
+- Basic encounter controller and service
+- Simple WebSocket connection and room management
+- Basic token placement and movement
+- Simple desktop UI (no HUD yet)
+
+#### **Technical Tasks**:
+1. Set up encounter data models in shared package
+2. Create encounter controller with CRUD operations
+3. Implement basic encounter service with token management
+4. Set up WebSocket event handling for token movement
+5. Create simple Vue component for encounter view
+6. Implement basic map integration (existing map component)
+7. Add permission validation using existing auth middleware
+
+#### **Success Criteria**:
+- GMs can create and manage encounters
+- Tokens can be placed and moved on map
+- Real-time synchronization working for token movement
+- Basic permission system in place
+
+### **Phase 2: Combat Mechanics (4-6 weeks)**
+
+**Goal**: Add initiative tracking, turn management, and basic combat actions
+
+#### **Deliverables**:
+- Initiative tracker system
+- Turn management and round progression
+- Basic combat actions framework
+- Effect system foundation
+- Enhanced WebSocket events for combat
+- Simple initiative UI component
+
+#### **Technical Tasks**:
+1. Implement initiative calculation and tracking
+2. Add turn management logic to encounter service
+3. Create combat action processing framework
+4. Implement basic effect system
+5. Add combat-specific WebSocket events
+6. Create initiative tracker UI component
+7. Add turn-based permission validation
+
+#### **Success Criteria**:
+- Initiative can be calculated and displayed
+- Turn order is maintained and progresses correctly
+- Basic combat actions can be performed
+- Effects can be applied and tracked
+
+### **Phase 3: Desktop HUD System (3-4 weeks)**
+
+**Goal**: Implement the rich HUD interface for desktop users
+
+#### **Deliverables**:
+- Full HUD panel system for desktop
+- Draggable, resizable panels
+- Toolbar system with common tools
+- Enhanced initiative tracker panel
+- Character sheet integration
+- Panel state persistence
+
+#### **Technical Tasks**:
+1. Create HUD store and panel management system
+2. Implement draggable/resizable panel component
+3. Build toolbar component with tool selection
+4. Create enhanced initiative tracker panel
+5. Integrate character sheet display
+6. Add panel position persistence
+7. Implement desktop-specific interactions
+
+#### **Success Criteria**:
+- Rich desktop HUD interface is functional
+- Panels can be moved, resized, and customized
+- User preferences are saved and restored
+- Interface is intuitive and efficient for GMs
+
+### **Phase 4: Tablet Adaptation (3-4 weeks)**
+
+**Goal**: Adapt HUD system for touch devices and tablets
+
+#### **Deliverables**:
+- Touch-optimized panel system
+- Gesture support for common actions
+- Tablet-specific UI adaptations
+- Auto-layout for different screen sizes
+- Touch-friendly controls throughout
+
+#### **Technical Tasks**:
+1. Implement device detection and adaptive routing
+2. Create touch-optimized panel variants
+3. Add gesture support using VueUse
+4. Implement tablet-specific toolbar (bottom-oriented)
+5. Add touch-friendly sizing and spacing
+6. Create swipe gestures for panel management
+7. Optimize performance for tablet devices
+
+#### **Success Criteria**:
+- HUD system works well on tablets (10"+ screens)
+- Touch interactions are smooth and intuitive
+- Interface adapts automatically to screen size
+- Performance is acceptable on tablet hardware
+
+### **Phase 5: Enhanced Features (4-5 weeks)**
+
+**Goal**: Add advanced features and polish the system
+
+#### **Deliverables**:
+- Advanced combat actions and effects
+- Improved visual feedback and animations
+- Sound effects and notifications
+- Advanced GM tools
+- Plugin system foundation
+- Performance optimizations
+
+#### **Technical Tasks**:
+1. Expand combat action system
+2. Add visual effects and animations
+3. Implement sound system
+4. Create advanced GM tools (quick actions, shortcuts)
+5. Build plugin system foundation
+6. Optimize rendering and real-time performance
+7. Add comprehensive error handling
+
+#### **Success Criteria**:
+- Combat system feels polished and responsive
+- Visual and audio feedback enhances experience
+- Advanced tools improve GM efficiency
+- System performs well under load
+
+### **Phase 6: Phone Companion & Polish (2-3 weeks)**
+
+**Goal**: Add phone companion interface and final polish
+
+#### **Deliverables**:
+- Simple phone companion interface
+- Cross-device synchronization
+- Final bug fixes and optimizations
+- User documentation
+- Deployment preparation
+
+#### **Technical Tasks**:
+1. Create phone companion component
+2. Implement basic player actions on phone
+3. Add spectator mode for phone users
+4. Final testing and bug fixes
+5. Performance optimization
+6. Create user documentation
+7. Prepare for production deployment
+
+#### **Success Criteria**:
+- Phone users have useful companion experience
+- All platforms work together seamlessly
+- System is ready for production use
+- Documentation is complete
+
+## Future Expansion Phases
+
+### **Phase 7: Scene System (Later)**
+- Expand to support social and exploration scenes
+- Scene transitions and management
+- Enhanced scene-specific features
+
+### **Phase 8: Advanced Features (Later)**
+- Advanced effects and spell systems
+- Custom scene types
+- Automation and scripting
+- Advanced plugin system
+
+## Risk Mitigation Strategies
+
+### **Technical Risks**:
+1. **Performance Issues**: Regular performance testing, especially on tablets
+2. **WebSocket Reliability**: Implement reconnection and state sync
+3. **Cross-Device Compatibility**: Test on multiple devices throughout
+4. **Data Synchronization**: Careful conflict resolution and optimistic updates
+
+### **Scope Risks**:
+1. **Feature Creep**: Strict adherence to phase deliverables
+2. **Platform Complexity**: Focus on desktop first, then adapt
+3. **Integration Issues**: Regular integration testing with existing system
+
+### **User Experience Risks**:
+1. **Interface Complexity**: User testing after each major phase
+2. **Learning Curve**: Provide good defaults and progressive disclosure
+3. **Mobile Usability**: Test early and often on actual devices
+
+## Success Metrics
+
+### **Phase 1 Metrics**:
+- Basic encounters can be created and used
+- Real-time token movement works reliably
+- No major performance issues
+
+### **Phase 2 Metrics**:
+- Combat flows smoothly through initiative order
+- Turn-based actions work correctly
+- GM can manage combat effectively
+
+### **Phase 3 Metrics**:
+- Desktop users prefer HUD to simple interface
+- Panel system is intuitive and customizable
+- GM productivity improves significantly
+
+### **Phase 4 Metrics**:
+- Tablet interface gets positive user feedback
+- Touch interactions feel natural
+- Performance acceptable on target tablets
+
+### **Overall Success**:
+- System is adopted by existing user base
+- Combat encounters run smoothly
+- Real-time collaboration works reliably
+- Users report improved gaming experience
