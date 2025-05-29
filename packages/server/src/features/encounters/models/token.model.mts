@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import { IToken } from '@dungeon-lab/shared/types/index.mjs';
-import { tokenSchema } from '@dungeon-lab/shared/schemas/token.schema.mjs';
+import { tokenSchema } from '@dungeon-lab/shared/schemas/tokens.schema.mjs';
 import { baseMongooseZodSchema } from '../../../models/base.model.schema.mjs';
 import { createMongoSchema } from '../../../models/zod-to-mongo.mjs';
 

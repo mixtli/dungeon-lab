@@ -5,6 +5,11 @@ import { CampaignModel } from '../models/campaign.model.mjs';
 import { ActorModel } from '../../actors/models/actor.model.mjs';
 import { logger } from '../../../utils/logger.mjs';
 import { IActor } from '@dungeon-lab/shared/types/index.mjs';
+import { createEncounterSchema } from '@dungeon-lab/shared/schemas/encounters.schema.mjs';
+import { z } from 'zod';
+
+// Type for create encounter input data
+type CreateEncounterData = z.infer<typeof createEncounterSchema>;
 
 export class EncounterService {
   async getEncounters(campaignId: string): Promise<IEncounter[]> {
@@ -46,7 +51,7 @@ export class EncounterService {
   }
 
   async createEncounter(
-    data: Omit<IEncounter, 'id'>,
+    data: CreateEncounterData,
     campaignId: string,
     userId: string
   ): Promise<IEncounter> {

@@ -34,6 +34,16 @@ export {
   assetHelpers
 } from './schemas/asset.schema.mjs';
 
+// Token schemas for server-side validation
+export {
+  TokenSizeEnum,
+  tokenSchema,
+  createTokenSchema,
+  updateTokenSchema,
+  tokenStatsSchema,
+  tokenConditionSchema
+} from './schemas/tokens.schema.mjs';
+
 // Plugin system interfaces and base classes
 export type {
   IPlugin,
@@ -62,7 +72,11 @@ export { baseAPIResponseSchema } from './types/api/base.mjs';
 export { GameSessionStatus } from './schemas/game-session.schema.mjs';
 export { UserTheme } from './schemas/user.schema.mjs';
 
-// Token types
+// Encounter system exports
+export { 
+  encounterSchema,
+  EncounterStatusEnum
+} from './schemas/encounters.schema.mjs';
 
-// Token schema and enums
-export { TokenSizeEnum, tokenSchema } from './schemas/token.schema.mjs';
+// Export all types
+export * from './types/index.mjs';

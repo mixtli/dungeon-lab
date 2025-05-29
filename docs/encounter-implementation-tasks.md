@@ -25,12 +25,12 @@ Tasks are organized by phase with clear dependencies and acceptance criteria. Th
 - Export types from shared package index
 
 **Acceptance Criteria**:
-- [ ] All encounter system types are properly defined
-- [ ] Zod schemas validate correctly
-- [ ] Types are exported and accessible from shared package
-- [ ] WebSocket event schemas include encounter events
-- [ ] No TypeScript compilation errors
-- [ ] Includes audit fields (createdBy, lastModifiedBy, version)
+- [x] All encounter system types are properly defined
+- [x] Zod schemas validate correctly
+- [x] Types are exported and accessible from shared package
+- [x] WebSocket event schemas include encounter events
+- [x] No TypeScript compilation errors
+- [x] Includes audit fields (createdBy, lastModifiedBy, version)
 
 **Files to Create/Modify**:
 - `packages/shared/src/types/encounters.mts` (new)

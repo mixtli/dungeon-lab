@@ -15,7 +15,7 @@ import {
   campaignPatchSchema
 } from '@dungeon-lab/shared/schemas/campaign.schema.mjs';
 import { gameSessionSchema } from '@dungeon-lab/shared/schemas/game-session.schema.mjs';
-import { encounterSchema } from '@dungeon-lab/shared/schemas/encounter.schema.mjs';
+import { encounterSchema } from '@dungeon-lab/shared/schemas/encounters.schema.mjs';
 
 // Initialize services and controllers
 const campaignController = new CampaignController();

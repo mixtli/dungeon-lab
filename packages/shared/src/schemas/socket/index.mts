@@ -1,249 +1,124 @@
 import { z } from 'zod';
-import { gameSessionResponseSchema } from '../game-session.schema.mjs';
 
-// Mention schema for structured mention data
-export const mentionSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  type: z.enum(['user', 'actor', 'bot']),
-  participantId: z.string(),
-  startIndex: z.number(),
-  endIndex: z.number()
-});
+// Import all socket schemas from separate files
+import {
+  mentionSchema,
+  messageParticipantSchema,
+  messageMetadataSchema,
+  joinCallbackSchema,
+  chatbotTypingSchema,
+  chatbotTypingStopSchema,
+  chatbotResponseSchema,
+  chatbotErrorSchema,
+  userJoinedSessionSchema,
+  userLeftSessionSchema
+} from './chat.mjs';
 
-export const messageParticipantSchema = z.object({
-  type: z.enum(['user', 'system', 'actor', 'session', 'bot']),
-  id: z.string().optional()
-});
+import {
+  rollResultSchema,
+  diceRollRequestSchema,
+  diceRollResponseSchema,
+  rollRequestSchema,
+  rollResponseSchema,
+  rollCallbackSchema
+} from './dice.mjs';
 
-export const messageMetadataSchema = z.object({
-  sender: messageParticipantSchema,
-  recipient: messageParticipantSchema,
-  timestamp: z.date().optional(),
-  mentions: z.array(mentionSchema).optional()
-});
+import {
+  moveMessageSchema
+} from './movement.mjs';
 
-export const joinCallbackSchema = z.object({
-  success: z.boolean(),
-  data: gameSessionResponseSchema.optional(),
-  error: z.string().optional()
-});
+import {
+  pluginActionCallbackSchema,
+  pluginStateUpdateSchema
+} from './plugins.mjs';
 
-export const pluginActionCallbackSchema = z.object({
-  success: z.boolean(),
-  data: z.any(),
-  error: z.string().optional()
-});
+import {
+  mapGenerationResponseSchema,
+  mapEditResponseSchema,
+  mapFeatureDetectionResponseSchema,
+  workflowProgressCallbackSchema,
+  workflowStateSchema,
+  mapGenerationRequestSchema,
+  mapEditRequestSchema,
+  mapFeatureDetectionRequestSchema
+} from './workflows.mjs';
 
-export const mapGenerationResponseSchema = z.object({
-  success: z.boolean(),
-  flowRunId: z.string(),
-  error: z.string().optional()
-});
+import {
+  encounterEventSchema,
+  encounterStartRequestSchema,
+  encounterStopRequestSchema
+} from './encounter-events.mjs';
 
-export const mapEditResponseSchema = z.object({
-  success: z.boolean(),
-  flowRunId: z.string(),
-  error: z.string().optional()
-});
+// Re-export all schemas for backwards compatibility
+export {
+  // Chat schemas
+  mentionSchema,
+  messageParticipantSchema,
+  messageMetadataSchema,
+  joinCallbackSchema,
+  chatbotTypingSchema,
+  chatbotTypingStopSchema,
+  chatbotResponseSchema,
+  chatbotErrorSchema,
+  userJoinedSessionSchema,
+  userLeftSessionSchema,
+  
+  // Dice schemas
+  rollResultSchema,
+  diceRollRequestSchema,
+  diceRollResponseSchema,
+  rollRequestSchema,
+  rollResponseSchema,
+  rollCallbackSchema,
+  
+  // Movement schemas
+  moveMessageSchema,
+  
+  // Plugin schemas
+  pluginActionCallbackSchema,
+  pluginStateUpdateSchema,
+  
+  // Workflow schemas
+  mapGenerationResponseSchema,
+  mapEditResponseSchema,
+  mapFeatureDetectionResponseSchema,
+  workflowProgressCallbackSchema,
+  workflowStateSchema,
+  mapGenerationRequestSchema,
+  mapEditRequestSchema,
+  mapFeatureDetectionRequestSchema,
+  
+  // Encounter event schemas
+  encounterEventSchema,
+  encounterStartRequestSchema,
+  encounterStopRequestSchema
+};
 
-export const mapFeatureDetectionResponseSchema = z.object({
-  success: z.boolean(),
-  flowRunId: z.string(),
-  error: z.string().optional()
-});
-
-export const workflowProgressCallbackSchema = z
-  .function()
-  .args(
-    z.object({
-      flow: z.string(),
-      flowRun: z.string(),
-      userId: z.string(),
-      status: z.string(),
-      progress: z.number(),
-      message: z.string(),
-      metadata: z.record(z.string(), z.unknown()).optional()
-    })
-  )
-  .returns(z.void());
-
-export const rollResultSchema = z.object({
-  formula: z.string(),
-  rolls: z.array(
-    z.object({
-      die: z.number(),
-      result: z.number()
-    })
-  ),
-  total: z.number(),
-  modifier: z.number().optional(),
-  userId: z.string()
-});
-
-export const moveMessageSchema = z.object({
-  gameSessionId: z.string(),
-  position: z.object({
-    x: z.number(),
-    y: z.number(),
-    z: z.number().optional()
-  }),
-  actorId: z.string()
-});
-
-export const encounterEventSchema = z.object({
-  encounterId: z.string(),
-  campaignId: z.string(),
-  timestamp: z.date()
-});
+// ============================================================================
+// SOCKET.IO EVENT DEFINITIONS
+// ============================================================================
 
 export const serverToClientEvents = z.object({
   chat: z.function().args(messageMetadataSchema, z.string(/* message */)).returns(z.void()),
   error: z.function().args(z.string()).returns(z.void()),
-  diceRoll: z
-    .function()
-    .args(
-      z.object({
-        formula: z.string(),
-        gameSessionId: z.string().optional(),
-        result: rollResultSchema,
-        userId: z.string()
-      })
-    )
-    .returns(z.void()),
-  'roll-result': z
-    .function()
-    .args(
-      z.object({
-        type: z.literal('roll-result'),
-        result: rollResultSchema,
-        gameSessionId: z.string()
-      })
-    )
-    .returns(z.void()),
+  diceRoll: z.function().args(diceRollResponseSchema).returns(z.void()),
+  'roll-result': z.function().args(rollResponseSchema).returns(z.void()),
   move: z.function().args(moveMessageSchema).returns(z.void()),
-  pluginStateUpdate: z
-    .function()
-    .args(
-      z.object({
-        pluginId: z.string(),
-        type: z.string(),
-        state: z.record(z.string(), z.unknown())
-      })
-    )
-    .returns(z.void()),
+  pluginStateUpdate: z.function().args(pluginStateUpdateSchema).returns(z.void()),
   'encounter:start': z.function().args(encounterEventSchema).returns(z.void()),
   'encounter:stop': z.function().args(encounterEventSchema).returns(z.void()),
-  userJoinedSession: z
-    .function()
-    .args(
-      z.object({
-        userId: z.string(),
-        sessionId: z.string(),
-        actorId: z.string().optional()
-      })
-    )
-    .returns(z.void()),
-  userLeftSession: z
-    .function()
-    .args(
-      z.object({
-        userId: z.string(),
-        sessionId: z.string(),
-        actorIds: z.array(z.string()),
-        characterNames: z.array(z.string())
-      })
-    )
-    .returns(z.void()),
+  userJoinedSession: z.function().args(userJoinedSessionSchema).returns(z.void()),
+  userLeftSession: z.function().args(userLeftSessionSchema).returns(z.void()),
   'workflow:progress:generate-map': workflowProgressCallbackSchema,
-  'workflow:state:generate-map': z
-    .function()
-    .args(
-      z.object({
-        flow: z.string(),
-        flowRun: z.string(),
-        userId: z.string(),
-        state: z.string(),
-        result: z.record(z.string(), z.unknown()).optional()
-      })
-    )
-    .returns(z.void()),
+  'workflow:state:generate-map': z.function().args(workflowStateSchema).returns(z.void()),
   'workflow:progress:edit-map': workflowProgressCallbackSchema,
-  'workflow:state:edit-map': z
-    .function()
-    .args(
-      z.object({
-        flow: z.string(),
-        flowRun: z.string(),
-        userId: z.string(),
-        state: z.string(),
-        result: z.record(z.string(), z.unknown()).optional()
-      })
-    )
-    .returns(z.void()),
+  'workflow:state:edit-map': z.function().args(workflowStateSchema).returns(z.void()),
   'workflow:progress:detect-map-features': workflowProgressCallbackSchema,
-  'workflow:state:detect-map-features': z
-    .function()
-    .args(
-      z.object({
-        flow: z.string(),
-        flowRun: z.string(),
-        userId: z.string(),
-        state: z.string(),
-        result: z.record(z.string(), z.unknown()).optional()
-      })
-    )
-    .returns(z.void()),
-  'chatbot:typing': z
-    .function()
-    .args(
-      z.object({
-        botId: z.string(),
-        botName: z.string(),
-        sessionId: z.string().optional()
-      })
-    )
-    .returns(z.void()),
-  'chatbot:typing-stop': z
-    .function()
-    .args(
-      z.object({
-        botId: z.string(),
-        sessionId: z.string().optional()
-      })
-    )
-    .returns(z.void()),
-  'chatbot:response': z
-    .function()
-    .args(
-      z.object({
-        botId: z.string(),
-        botName: z.string(),
-        response: z.string(),
-        processingTime: z.number(),
-        sources: z.array(z.object({
-          title: z.string(),
-          page: z.number().optional(),
-          section: z.string().optional(),
-          url: z.string().optional()
-        })).optional(),
-        sessionId: z.string().optional(),
-        messageType: z.enum(['direct', 'mention'])
-      })
-    )
-    .returns(z.void()),
-  'chatbot:error': z
-    .function()
-    .args(
-      z.object({
-        botId: z.string(),
-        botName: z.string(),
-        error: z.string(),
-        sessionId: z.string().optional(),
-        messageType: z.enum(['direct', 'mention'])
-      })
-    )
-    .returns(z.void())
+  'workflow:state:detect-map-features': z.function().args(workflowStateSchema).returns(z.void()),
+  'chatbot:typing': z.function().args(chatbotTypingSchema).returns(z.void()),
+  'chatbot:typing-stop': z.function().args(chatbotTypingStopSchema).returns(z.void()),
+  'chatbot:response': z.function().args(chatbotResponseSchema).returns(z.void()),
+  'chatbot:error': z.function().args(chatbotErrorSchema).returns(z.void())
 });
 
 export const clientToServerEvents = z.object({
@@ -265,92 +140,35 @@ export const clientToServerEvents = z.object({
       z.function().args(pluginActionCallbackSchema)
     )
     .returns(z.void()),
-  diceRoll: z
-    .function()
-    .args(
-      z.object({
-        formula: z.string(),
-        gameSessionId: z.string().optional()
-      })
-    )
-    .returns(z.void()),
+  diceRoll: z.function().args(diceRollRequestSchema).returns(z.void()),
   roll: z
     .function()
     .args(
-      z.object({
-        formula: z.string(),
-        gameSessionId: z.string()
-      }),
-      z.function().args(z.object({ success: z.boolean(), error: z.string().optional() }))
+      rollRequestSchema,
+      z.function().args(rollCallbackSchema)
     )
     .returns(z.void()),
   move: z.function().args(moveMessageSchema).returns(z.void()),
-  'encounter:start': z
-    .function()
-    .args(
-      z.object({
-        sessionId: z.string(),
-        encounterId: z.string(),
-        campaignId: z.string()
-      })
-    )
-    .returns(z.void()),
-  'encounter:stop': z
-    .function()
-    .args(
-      z.object({
-        sessionId: z.string(),
-        encounterId: z.string(),
-        campaignId: z.string()
-      })
-    )
-    .returns(z.void()),
+  'encounter:start': z.function().args(encounterStartRequestSchema).returns(z.void()),
+  'encounter:stop': z.function().args(encounterStopRequestSchema).returns(z.void()),
   'map:generate': z
     .function()
     .args(
-      z.object({
-        description: z.string(),
-        parameters: z.object({
-          width: z.number(),
-          height: z.number(),
-          style: z.string(),
-          pixelsPerGrid: z.number(),
-          name: z.string()
-        })
-      }),
+      mapGenerationRequestSchema,
       z.function().args(mapGenerationResponseSchema)
     )
     .returns(z.void()),
   'map:edit': z
     .function()
     .args(
-      z.object({
-        originalImageUrl: z.string(),
-        editPrompt: z.string(),
-        parameters: z.object({
-          width: z.number(),
-          height: z.number(),
-          style: z.string(),
-          pixelsPerGrid: z.number(),
-          name: z.string()
-        })
-      }),
+      mapEditRequestSchema,
       z.function().args(mapEditResponseSchema)
     )
     .returns(z.void()),
   'map:detect-features': z
     .function()
     .args(
-      z.object({
-        imageUrl: z.string(),
-        parameters: z.object({
-          width: z.number(),
-          height: z.number(),
-          style: z.string(),
-          pixelsPerGrid: z.number(),
-          name: z.string()
-        })
-      }),
+      mapFeatureDetectionRequestSchema,
       z.function().args(mapFeatureDetectionResponseSchema)
     )
     .returns(z.void())

@@ -7,9 +7,9 @@ import { z } from '../../../utils/zod.mjs';
 import { createPathSchema, oapi } from '../../../oapi.mjs';
 import {
   encounterSchema,
-  encounterCreateSchema,
-  encounterPatchSchema
-} from '@dungeon-lab/shared/schemas/encounter.schema.mjs';
+  createEncounterSchema,
+  updateEncounterSchema
+} from '@dungeon-lab/shared/schemas/encounters.schema.mjs';
 import {
   baseAPIResponseSchema,
   deleteAPIResponseSchema
@@ -96,7 +96,7 @@ router.post(
       requestBody: {
         content: {
           'application/json': {
-            schema: encounterCreateSchema.openapi({
+            schema: createEncounterSchema.openapi({
               description: 'Create encounter request'
             })
           }
@@ -116,7 +116,7 @@ router.post(
       }
     })
   ),
-  validateRequest(encounterCreateSchema),
+  validateRequest(createEncounterSchema),
   encounterController.createEncounter
 );
 
@@ -132,7 +132,7 @@ router.patch(
       requestBody: {
         content: {
           'application/json': {
-            schema: encounterPatchSchema.openapi({
+            schema: updateEncounterSchema.openapi({
               description: 'Patch encounter request'
             })
           }
@@ -152,7 +152,7 @@ router.patch(
       }
     })
   ),
-  validateRequest(encounterPatchSchema),
+  validateRequest(updateEncounterSchema),
   encounterController.updateEncounter
 );
 

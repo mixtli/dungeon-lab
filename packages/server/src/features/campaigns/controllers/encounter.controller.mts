@@ -6,13 +6,13 @@ import { IEncounter } from '@dungeon-lab/shared/types/index.mjs';
 import { z } from 'zod';
 import { isErrorWithMessage } from '../../../utils/error.mjs';
 import {
-  encounterCreateSchema,
-  encounterPatchSchema
-} from '@dungeon-lab/shared/schemas/encounter.schema.mjs';
+  createEncounterSchema,
+  updateEncounterSchema
+} from '@dungeon-lab/shared/schemas/encounters.schema.mjs';
 
 // Define encounter creation type
-type IEncounterCreateData = z.infer<typeof encounterCreateSchema>;
-type IEncounterPatchData = z.infer<typeof encounterPatchSchema>;
+type IEncounterCreateData = z.infer<typeof createEncounterSchema>;
+type IEncounterPatchData = z.infer<typeof updateEncounterSchema>;
 
 export class EncounterController {
   constructor(private encounterService: EncounterService) {}
@@ -91,7 +91,7 @@ export class EncounterController {
     res: Response<BaseAPIResponse<IEncounter>>
   ): Promise<Response<BaseAPIResponse<IEncounter>> | void> => {
     try {
-      const validatedData = await encounterCreateSchema.parseAsync(req.body);
+      const validatedData = await createEncounterSchema.parseAsync(req.body);
       const campaignId = req.body.campaignId;
 
       if (!campaignId) {
@@ -150,7 +150,7 @@ export class EncounterController {
     res: Response<BaseAPIResponse<IEncounter>>
   ): Promise<Response<BaseAPIResponse<IEncounter>> | void> => {
     try {
-      const validatedData = await encounterPatchSchema.parseAsync(req.body);
+      const validatedData = await updateEncounterSchema.parseAsync(req.body);
 
       // Check if user has permission to update
       const hasAccess = await this.encounterService.checkUserPermission(
