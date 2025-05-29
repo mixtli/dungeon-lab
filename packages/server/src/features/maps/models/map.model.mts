@@ -1,10 +1,10 @@
 import mongoose, { ObjectId } from 'mongoose';
-import { mapSchema } from '@dungeon-lab/shared/index.mjs';
+import { mapSchema } from '@dungeon-lab/shared/schemas/index.mjs';
 import { zId } from '@zodyac/zod-mongoose';
 import { IMap } from '@dungeon-lab/shared/types/index.mjs';
 import { baseMongooseZodSchema } from '../../../models/base.model.schema.mjs';
 import { createMongoSchema } from '../../../models/zod-to-mongo.mjs';
-import { portalSchema } from '@dungeon-lab/shared/schemas/map.schema.mjs';
+import { portalSchema } from '@dungeon-lab/shared/schemas/index.mjs';
 import { z } from '../../../utils/zod.mjs';
 
 type IPortal = z.infer<typeof portalSchema>;

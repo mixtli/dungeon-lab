@@ -5,11 +5,11 @@ alwaysApply: true
 ---
 ## MANDATORY TOOL USAGE
 - Sequential Thinking must be used for all multi-step problems or research tasks
-- Brave Search must be used for any fact-finding or research queries
+- If you need up to date information from the web, use perplexity.
 - Use the playwright mcp to test the web page, look at browser logs, etc.
 - Use mongodb mcp if you need to examine data in the database
 - REPL/Analysis must be used for any data processing or calculations
-- Knowledge Graph should store important findings that might be relevant across conversations
+- Use the memento knowledge graph to look up or  store important findings that might be relevant across conversations
 - Artifacts must be created for all substantial code, visualizations, or long-form content
 
 ## Site login

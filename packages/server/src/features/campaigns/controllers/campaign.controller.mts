@@ -16,7 +16,7 @@ import { SearchCampaignsQuery } from '@dungeon-lab/shared/types/api/index.mjs';
 import {
   campaignCreateSchema,
   campaignPatchSchema
-} from '@dungeon-lab/shared/schemas/campaign.schema.mjs';
+} from '@dungeon-lab/shared/schemas/index.mjs';
 import { QueryValue } from '@dungeon-lab/shared/types/index.mjs';
 import mongoose from 'mongoose';
 

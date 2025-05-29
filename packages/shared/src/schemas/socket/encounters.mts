@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import {
-  gridPositionSchema,
   encounterSchema,
   initiativeEntrySchema,
   combatActionSchema,
@@ -8,6 +7,7 @@ import {
   effectSchema,
   effectApplicationSchema
 } from '../../schemas/encounters.schema.mjs';
+import { gridPositionSchema } from '../../schemas/position.schema.mjs';
 import { tokenSchema } from '../../schemas/tokens.schema.mjs';
 
 // ============================================================================

@@ -7,7 +7,7 @@ import {
 } from '../../../middleware/validation.middleware.mjs';
 import { createPathSchema, oapi } from '../../../oapi.mjs';
 import { z } from '../../../utils/zod.mjs';
-import { assetSchema, assetUpdateSchema } from '@dungeon-lab/shared/schemas/asset.schema.mjs';
+import { assetSchema, assetUpdateSchema } from '@dungeon-lab/shared/schemas/index.mjs';
 import {
   baseAPIResponseSchema,
   deleteAPIResponseSchema

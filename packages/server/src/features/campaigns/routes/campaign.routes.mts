@@ -9,13 +9,13 @@ import {
   deleteAPIResponseSchema,
   baseAPIResponseSchema
 } from '@dungeon-lab/shared/types/api/index.mjs';
-import { campaignSchema } from '@dungeon-lab/shared/schemas/campaign.schema.mjs';
 import {
+  campaignSchema,
   campaignCreateSchema,
-  campaignPatchSchema
-} from '@dungeon-lab/shared/schemas/campaign.schema.mjs';
-import { gameSessionSchema } from '@dungeon-lab/shared/schemas/game-session.schema.mjs';
-import { encounterSchema } from '@dungeon-lab/shared/schemas/encounters.schema.mjs';
+  campaignPatchSchema,
+  gameSessionSchema,
+  encounterSchema
+} from '@dungeon-lab/shared/schemas/index.mjs';
 
 // Initialize services and controllers
 const campaignController = new CampaignController();

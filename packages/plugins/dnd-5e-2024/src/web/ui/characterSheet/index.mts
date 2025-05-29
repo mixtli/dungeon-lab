@@ -5,7 +5,7 @@ import template from './template.hbs?raw';
 import styles from './styles.css?raw';
 import { registerHelpers } from '../../../web/helpers/handlebars.mjs';
 import { ICharacter } from '../../../shared/types/character.mjs';
-import { deepMerge } from '@dungeon-lab/shared/utils/deepMerge.mjs';
+import { deepMerge } from '@dungeon-lab/shared/utils/index.mjs';
 // Define component state interface
 interface CharacterSheetState {
   character: ICharacter | null;

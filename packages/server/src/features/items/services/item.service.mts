@@ -2,7 +2,7 @@ import { Types } from 'mongoose';
 import type { IItem } from '@dungeon-lab/shared/types/index.mjs';
 import { ItemModel } from '../models/item.model.mjs';
 import { logger } from '../../../utils/logger.mjs';
-import { deepMerge } from '@dungeon-lab/shared/utils/deepMerge.mjs';
+import { deepMerge } from '@dungeon-lab/shared/utils/index.mjs';
 import { createAsset } from '../../../utils/asset-upload.utils.mjs';
 import { AssetModel } from '../../../features/assets/models/asset.model.mjs';
 

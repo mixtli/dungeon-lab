@@ -1,4 +1,4 @@
-import { vttDocumentSchema } from '@dungeon-lab/shared/schemas/vtt-document.schema.mjs';
+import { vttDocumentSchema } from '@dungeon-lab/shared/schemas/index.mjs';
 import type { IVTTDocument } from '@dungeon-lab/shared/types/index.mjs';
 import mongoose from 'mongoose';
 import { pluginRegistry } from '../../../services/plugin-registry.service.mjs';

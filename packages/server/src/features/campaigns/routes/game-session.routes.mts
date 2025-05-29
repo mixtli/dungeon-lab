@@ -12,7 +12,7 @@ import {
   createGameSessionSchema,
   updateGameSessionSchema
 } from '@dungeon-lab/shared/types/api/index.mjs';
-import { gameSessionSchema } from '@dungeon-lab/shared/schemas/game-session.schema.mjs';
+import { gameSessionSchema } from '@dungeon-lab/shared/schemas/index.mjs';
 
 // Initialize services and controller
 const gameSessionService = new GameSessionService();

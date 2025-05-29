@@ -1,6 +1,6 @@
 import mongoose, { ObjectId } from 'mongoose';
 import { IActor } from '@dungeon-lab/shared/types/index.mjs';
-import { actorSchema } from '@dungeon-lab/shared/schemas/actor.schema.mjs';
+import { actorSchema } from '@dungeon-lab/shared/schemas/index.mjs';
 import { baseMongooseZodSchema } from '../../../models/base.model.schema.mjs';
 import { createMongoSchema } from '../../../models/zod-to-mongo.mjs';
 import { zId } from '@zodyac/zod-mongoose';

@@ -179,3 +179,9 @@ export * from './encounters.mjs';
 
 // Socket Types
 export * from './socket/index.mjs';
+
+// Map Editor types
+export * from './mapEditor.mjs';
+
+// Plugin types
+export * from './plugin.mjs';

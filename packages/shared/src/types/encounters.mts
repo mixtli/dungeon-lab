@@ -34,7 +34,7 @@ import {
 } from '../schemas/encounters.schema.mjs';
 
 // Import token types from separate file
-import { Token } from './tokens.mjs';
+import { IToken } from './tokens.mjs';
 export * from './tokens.mjs';
 
 // ============================================================================
@@ -65,16 +65,16 @@ export type ActionResult = z.infer<typeof actionResultSchema>;
 
 export type EncounterStatus = z.infer<typeof EncounterStatusEnum>;
 export type EncounterSettings = z.infer<typeof encounterSettingsSchema>;
-export type Encounter = z.infer<typeof encounterSchema>;
+export type IEncounter = z.infer<typeof encounterSchema>;
 export type CreateEncounterData = z.infer<typeof createEncounterSchema>;
 export type UpdateEncounterData = z.infer<typeof updateEncounterSchema>;
 export type EncounterEvent = z.infer<typeof encounterEventSchema>;
 
-// Additional context type that's not directly schema-based (defined after Encounter type)
+// Additional context type that's not directly schema-based (defined after IEncounter type)
 export interface ActionContext {
-  actor: Token;
-  target?: Token;
-  encounter: Encounter;
+  actor: IToken;
+  target?: IToken;
+  encounter: IEncounter;
   round: number;
   turn: number;
 }

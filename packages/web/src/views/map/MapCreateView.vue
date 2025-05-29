@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router';
 import { MapsClient } from '@dungeon-lab/client/index.mjs';
 import { ArrowLeftIcon } from '@heroicons/vue/24/outline';
 import ImageUpload from '../../components/common/ImageUpload.vue';
-import type { UVTTData } from '@dungeon-lab/shared/src/types/mapEditor.mts';
+import type { UVTTData } from '@dungeon-lab/shared/types/index.mjs';
 
 interface UploadedImage {
   url: string;

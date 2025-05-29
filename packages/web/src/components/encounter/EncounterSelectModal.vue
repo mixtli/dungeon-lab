@@ -58,6 +58,8 @@
 </template>
 
 <script setup lang="ts">
+// LEGACY FILE: This will be rewritten as part of the new Encounter Implementation
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { EncountersClient } from '@dungeon-lab/client/index.mjs';

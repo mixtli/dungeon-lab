@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
-import { userSchema } from '@dungeon-lab/shared/index.mjs';
+import { userSchema } from '@dungeon-lab/shared/schemas/index.mjs';
 import { baseMongooseZodSchema } from './base.model.schema.mjs';
 import { createMongoSchema } from './zod-to-mongo.mjs';
 import { IUser } from '@dungeon-lab/shared/types/index.mjs';

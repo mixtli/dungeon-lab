@@ -12,9 +12,9 @@ import { actorRoutes } from './features/actors/index.mjs';
 import {
   campaignRoutes,
   gameSessionRoutes,
-  inviteRoutes,
-  encounterRoutes
+  inviteRoutes
 } from './features/campaigns/index.mjs';
+import { encounterRoutes } from './features/encounters/index.mjs';
 import { documentRoutes } from './features/documents/index.mjs';
 import assetRoutes from './features/assets/index.mjs';
 import { chatbotRoutes } from './features/chatbots/index.mjs';

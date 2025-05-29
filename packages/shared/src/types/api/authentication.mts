@@ -1,4 +1,4 @@
-import { userSchema } from '../../index.mjs';
+import { userSchema } from '../../schemas/user.schema.mjs';
 import { z } from 'zod';
 import { baseAPIResponseSchema } from './base.mjs';
 

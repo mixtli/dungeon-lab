@@ -1,4 +1,4 @@
-import { IGameSystemPlugin } from '@dungeon-lab/shared/index.mjs';
+import { IGameSystemPlugin } from '@dungeon-lab/shared/types/index.mjs';
 import { ServerPlugin } from '@dungeon-lab/shared/base/server.mjs';
 import { validateActorData, validateItemData, validateVTTDocumentData } from '../shared/validation.mjs';
 import config from '../../manifest.json' with { type: 'json' };

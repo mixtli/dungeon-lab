@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { characterClassDataSchema } from './character-class.mjs';
-import { vttDocumentSchema } from '@dungeon-lab/shared/schemas/vtt-document.schema.mjs';
+import { vttDocumentSchema } from '@dungeon-lab/shared/schemas/index.mjs';
 // These schemas represent the data field of the documents in the mongoose model VTTDocument which is returned by the API
 // Background schema
 export const backgroundDataSchema = z.object({

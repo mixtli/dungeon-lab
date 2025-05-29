@@ -8,11 +8,11 @@ import { AssetDocument } from '../../../features/assets/services/asset.service.m
 import { AssetModel } from '../../../features/assets/models/asset.model.mjs';
 import { backgroundJobService } from '../../../services/background-job.service.mjs';
 import { MAP_IMAGE_GENERATION_JOB, MAP_THUMBNAIL_GENERATION_JOB } from '../jobs/map-image.job.mjs';
-import { deepMerge } from '@dungeon-lab/shared/utils/deepMerge.mjs';
+import { deepMerge } from '@dungeon-lab/shared/utils/index.mjs';
 import { Types } from 'mongoose';
 import { UserModel } from '../../../models/user.model.mjs';
 import { IMapCreateData, IMapUpdateData } from '@dungeon-lab/shared/types/index.mjs';
-import { uvttSchema } from '@dungeon-lab/shared/schemas/map.schema.mjs';
+import { uvttSchema } from '@dungeon-lab/shared/schemas/index.mjs';
 
 // Define a type for map query values
 export type QueryValue = string | number | boolean | RegExp | Date | object;

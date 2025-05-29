@@ -1,7 +1,7 @@
 import type { IVTTDocument } from '@dungeon-lab/shared/types/index.mjs';
 import { VTTDocument } from '../models/vtt-document.model.mjs';
 import { logger } from '../../../utils/logger.mjs';
-import { deepMerge } from '@dungeon-lab/shared/utils/deepMerge.mjs';
+import { deepMerge } from '@dungeon-lab/shared/utils/index.mjs';
 import { Types } from 'mongoose';
 // Define a type for document query values
 export type QueryValue = string | number | boolean | RegExp | Date | object;

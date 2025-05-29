@@ -1,17 +1,14 @@
 import { Types } from 'mongoose';
-import { ICampaign, ICampaignPatchData, IUser } from '@dungeon-lab/shared/types/index.mjs';
+import { ICampaign, ICampaignPatchData, IUser, IGameSession, IEncounter } from '@dungeon-lab/shared/types/index.mjs';
 import { CampaignModel } from '../models/campaign.model.mjs';
 import { ActorModel } from '../../actors/models/actor.model.mjs';
 import { logger } from '../../../utils/logger.mjs';
 import { pluginRegistry } from '../../../services/plugin-registry.service.mjs';
-import { deepMerge } from '@dungeon-lab/shared/utils/deepMerge.mjs';
+import { deepMerge } from '@dungeon-lab/shared/utils/index.mjs';
 import { UserModel } from '../../../models/user.model.mjs';
 import { GameSessionModel } from '../models/game-session.model.mjs';
-import { EncounterModel } from '../models/encounter.model.mjs';
-import { IGameSession } from '@dungeon-lab/shared/types/index.mjs';
-import { IEncounter } from '@dungeon-lab/shared/types/index.mjs';
 import { QueryValue } from '@dungeon-lab/shared/types/index.mjs';
-import { campaignStatusSchema } from '@dungeon-lab/shared/schemas/campaign.schema.mjs';
+import { campaignStatusSchema } from '@dungeon-lab/shared/schemas/index.mjs';
 import { z } from '../../../utils/zod.mjs';
 
 export const campaignQuerySchema = z.object({
@@ -315,26 +312,16 @@ export class CampaignService {
 
   /**
    * Get the active encounter for a campaign
-   * There is only one active encounter per campaign
    */
   async getActiveCampaignEncounter(campaignId: string): Promise<IEncounter | null> {
-    try {
-      // First check if the campaign exists
-      const campaign = await CampaignModel.findById(campaignId).exec();
-      if (!campaign) {
-        throw new Error('Campaign not found');
-      }
-
-      // Find an active encounter for this campaign (in_progress status)
-      const activeEncounter = await EncounterModel.findOne({
-        campaignId,
-        status: 'in_progress'
-      }).exec();
-
-      return activeEncounter;
-    } catch (error) {
-      logger.error('Error getting active campaign encounter:', error);
-      throw new Error('Failed to get active campaign encounter');
+    // First check if the campaign exists
+    const campaign = await CampaignModel.findById(campaignId).exec();
+    if (!campaign) {
+      throw new Error('Campaign not found');
     }
+    
+    // For now, return null as the campaign model doesn't have active encounter tracking yet
+    // This can be implemented when the encounter management feature is added
+    return null;
   }
 }

@@ -78,7 +78,7 @@ import type {
     UVTTData,
     Point,
     AnyEditorObject
-} from '@dungeon-lab/shared/src/types/mapEditor.mts';
+} from '@dungeon-lab/shared/types/index.mjs';
 
 // Import editor components
 import EditorToolbar from './components/EditorToolbar.vue';

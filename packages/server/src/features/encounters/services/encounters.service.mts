@@ -1,0 +1,624 @@
+import { Types } from 'mongoose';
+import { logger } from '../../../utils/logger.mjs';
+import { IEncounter, IToken, EncounterStatusType } from '@dungeon-lab/shared/types/index.mjs';
+import { EncounterModel } from '../models/encounter.model.mjs';
+import { TokenModel } from '../models/token.model.mjs';
+import { CampaignModel } from '../../campaigns/models/campaign.model.mjs';
+import { MapModel } from '../../maps/models/map.model.mjs';
+import { ActorModel } from '../../actors/models/actor.model.mjs';
+import { z } from 'zod';
+import {
+  createEncounterSchema,
+  updateEncounterSchema,
+  EncounterStatusEnum
+} from '@dungeon-lab/shared/schemas/encounters.schema.mjs';
+import {
+  createTokenSchema,
+  updateTokenSchema
+} from '@dungeon-lab/shared/schemas/tokens.schema.mjs';
+
+// Type definitions for service methods
+type CreateEncounterData = z.infer<typeof createEncounterSchema>;
+type UpdateEncounterData = z.infer<typeof updateEncounterSchema>;
+type CreateTokenData = z.infer<typeof createTokenSchema>;
+type UpdateTokenData = z.infer<typeof updateTokenSchema>;
+
+export class EncounterService {
+  // ============================================================================
+  // ENCOUNTER CRUD OPERATIONS
+  // ============================================================================
+
+  /**
+   * Get encounters accessible to a user
+   */
+  async getEncounters(
+    userId: string,
+    isAdmin: boolean,
+    campaignId?: string
+  ): Promise<IEncounter[]> {
+    try {
+      const query: Record<string, unknown> = {};
+
+      if (campaignId) {
+        // If campaignId is provided, filter by campaign and check permissions
+        const campaignObjectId = new Types.ObjectId(campaignId);
+        query.campaignId = campaignObjectId;
+
+        // Check if user has access to this campaign
+        const hasAccess = await this.checkCampaignAccess(userId, campaignId, isAdmin);
+        if (!hasAccess) {
+          return [];
+        }
+      } else if (!isAdmin) {
+        // If no campaignId and not admin, get encounters from campaigns user has access to
+        const accessibleCampaigns = await this.getAccessibleCampaigns(userId);
+        query.campaignId = { $in: accessibleCampaigns };
+      }
+
+      const encounters = await EncounterModel.find(query)
+        .populate('tokens')
+        .sort({ updatedAt: -1 })
+        .exec();
+
+      return encounters.map(encounter => encounter.toObject());
+    } catch (error) {
+      logger.error('Error getting encounters:', error);
+      throw new Error('Failed to get encounters');
+    }
+  }
+
+  /**
+   * Get a specific encounter by ID
+   */
+  async getEncounter(
+    encounterId: string,
+    userId: string,
+    isAdmin: boolean
+  ): Promise<IEncounter> {
+    try {
+      if (!Types.ObjectId.isValid(encounterId)) {
+        throw new Error('Encounter not found');
+      }
+
+      const encounter = await EncounterModel.findById(encounterId)
+        .populate('tokens')
+        .lean()
+        .exec();
+
+      if (!encounter) {
+        throw new Error('Encounter not found');
+      }
+
+      // Check permissions
+      const hasAccess = await this.checkEncounterAccess(encounterId, userId, isAdmin);
+      if (!hasAccess) {
+        throw new Error('Access denied');
+      }
+
+      return encounter;
+    } catch (error) {
+      if (error instanceof Error && 
+          (error.message === 'Encounter not found' || error.message === 'Access denied')) {
+        throw error;
+      }
+      logger.error('Error getting encounter:', error);
+      throw new Error('Failed to get encounter');
+    }
+  }
+
+  /**
+   * Create a new encounter
+   */
+  async createEncounter(
+    data: CreateEncounterData,
+    userId: string
+  ): Promise<IEncounter> {
+    try {
+      const userObjectId = new Types.ObjectId(userId);
+      const campaignObjectId = new Types.ObjectId(data.campaignId);
+      const mapObjectId = new Types.ObjectId(data.mapId);
+
+      // Verify campaign exists and user is GM
+      const campaign = await CampaignModel.findById(campaignObjectId).exec();
+      if (!campaign) {
+        throw new Error('Campaign not found');
+      }
+
+      if (campaign.gameMasterId?.toString() !== userId) {
+        throw new Error('Only the game master can create encounters');
+      }
+
+      // Verify map exists
+      const map = await MapModel.findById(mapObjectId).exec();
+      if (!map) {
+        throw new Error('Map not found');
+      }
+
+      // Create encounter
+      const encounterData = {
+        ...data,
+        campaignId: campaignObjectId,
+        mapId: mapObjectId,
+        createdBy: userObjectId,
+        updatedBy: userObjectId,
+        tokens: [],
+        initiative: {
+          entries: [],
+          currentTurn: 0,
+          currentRound: 1,
+          isActive: false
+        },
+        effects: [],
+        version: 1
+      };
+
+      const encounter = new EncounterModel(encounterData);
+      await encounter.save();
+
+      return encounter.toObject();
+    } catch (error) {
+      if (error instanceof Error && 
+          ['Campaign not found', 'Only the game master can create encounters', 'Map not found'].includes(error.message)) {
+        throw error;
+      }
+      logger.error('Error creating encounter:', error);
+      throw new Error('Failed to create encounter');
+    }
+  }
+
+  /**
+   * Update an encounter
+   */
+  async updateEncounter(
+    encounterId: string,
+    data: UpdateEncounterData,
+    userId: string,
+    isAdmin: boolean
+  ): Promise<IEncounter> {
+    try {
+      if (!Types.ObjectId.isValid(encounterId)) {
+        throw new Error('Encounter not found');
+      }
+
+      // Check permissions
+      const hasAccess = await this.checkEncounterModifyAccess(encounterId, userId, isAdmin);
+      if (!hasAccess) {
+        throw new Error('Access denied');
+      }
+
+      const userObjectId = new Types.ObjectId(userId);
+      const updateData = {
+        ...data,
+        updatedBy: userObjectId
+      };
+
+      // Handle optimistic locking if version is provided
+      const query: Record<string, unknown> = { _id: encounterId };
+      if (data.version) {
+        query.version = data.version;
+        updateData.version = data.version + 1;
+      }
+
+      const updatedEncounter = await EncounterModel.findOneAndUpdate(
+        query,
+        updateData,
+        { new: true }
+      ).populate('tokens').exec();
+      //const updatedEncounter = await EncounterModel.findByIdAndUpdate(encounterId, updateData, { new: true }).exec();
+
+      if (!updatedEncounter) {
+        if (data.version) {
+          throw new Error('Version conflict');
+        }
+        throw new Error('Encounter not found');
+      }
+
+      return updatedEncounter;
+    } catch (error) {
+      if (error instanceof Error && 
+          ['Encounter not found', 'Access denied', 'Version conflict'].includes(error.message)) {
+        throw error;
+      }
+      logger.error('Error updating encounter:', error);
+      throw new Error('Failed to update encounter');
+    }
+  }
+
+  /**
+   * Delete an encounter
+   */
+  async deleteEncounter(
+    encounterId: string,
+    userId: string,
+    isAdmin: boolean
+  ): Promise<void> {
+    try {
+      if (!Types.ObjectId.isValid(encounterId)) {
+        throw new Error('Encounter not found');
+      }
+
+      // Check permissions
+      const hasAccess = await this.checkEncounterModifyAccess(encounterId, userId, isAdmin);
+      if (!hasAccess) {
+        throw new Error('Access denied');
+      }
+
+      // Delete all tokens first
+      await TokenModel.deleteMany({ encounterId }).exec();
+
+      // Delete the encounter
+      const deletedEncounter = await EncounterModel.findByIdAndDelete(encounterId).exec();
+      if (!deletedEncounter) {
+        throw new Error('Encounter not found');
+      }
+    } catch (error) {
+      if (error instanceof Error && 
+          ['Encounter not found', 'Access denied'].includes(error.message)) {
+        throw error;
+      }
+      logger.error('Error deleting encounter:', error);
+      throw new Error('Failed to delete encounter');
+    }
+  }
+
+  // ============================================================================
+  // ENCOUNTER STATUS MANAGEMENT
+  // ============================================================================
+
+  /**
+   * Update encounter status
+   */
+  async updateEncounterStatus(
+    encounterId: string,
+    status: string,
+    userId: string,
+    isAdmin: boolean
+  ): Promise<IEncounter> {
+    try {
+      // Validate status
+      const validStatuses = EncounterStatusEnum.options;
+      if (!validStatuses.includes(status as EncounterStatusType)) {
+        throw new Error('Invalid status');
+      }
+
+      return await this.updateEncounter(
+        encounterId,
+        { status: status as EncounterStatusType, updatedBy: userId },
+        userId,
+        isAdmin
+      );
+    } catch (error) {
+      if (error instanceof Error && error.message === 'Invalid status') {
+        throw error;
+      }
+      throw error; // Re-throw other errors from updateEncounter
+    }
+  }
+
+  // ============================================================================
+  // TOKEN MANAGEMENT
+  // ============================================================================
+
+  /**
+   * Get all tokens for an encounter
+   */
+  async getTokens(
+    encounterId: string,
+    userId: string,
+    isAdmin: boolean
+  ): Promise<IToken[]> {
+    try {
+      // Check encounter access
+      const hasAccess = await this.checkEncounterAccess(encounterId, userId, isAdmin);
+      if (!hasAccess) {
+        throw new Error('Access denied');
+      }
+
+      const tokens = await TokenModel.find({ encounterId })
+        .sort({ createdAt: 1 })
+        .lean()
+        .exec();
+
+      return tokens;
+    } catch (error) {
+      if (error instanceof Error && 
+          ['Encounter not found', 'Access denied'].includes(error.message)) {
+        throw error;
+      }
+      logger.error('Error getting tokens:', error);
+      throw new Error('Failed to get tokens');
+    }
+  }
+
+  /**
+   * Create a new token
+   */
+  async createToken(
+    encounterId: string,
+    data: CreateTokenData,
+    userId: string,
+    isAdmin: boolean
+  ): Promise<IToken> {
+    try {
+      // Check encounter access
+      const hasAccess = await this.checkEncounterModifyAccess(encounterId, userId, isAdmin);
+      if (!hasAccess) {
+        throw new Error('Access denied');
+      }
+
+      // Validate position (basic validation - can be enhanced)
+      if (data.position.x < 0 || data.position.y < 0) {
+        throw new Error('Invalid position');
+      }
+
+      const userObjectId = new Types.ObjectId(userId);
+      const encounterObjectId = new Types.ObjectId(encounterId);
+
+      const tokenData = {
+        ...data,
+        encounterId: encounterObjectId,
+        createdBy: userObjectId,
+        updatedBy: userObjectId,
+        version: 1
+      };
+
+      const token = new TokenModel(tokenData);
+      await token.save();
+
+      return token.toObject();
+    } catch (error) {
+      if (error instanceof Error && 
+          ['Encounter not found', 'Access denied', 'Invalid position'].includes(error.message)) {
+        throw error;
+      }
+      logger.error('Error creating token:', error);
+      throw new Error('Failed to create token');
+    }
+  }
+
+  /**
+   * Update a token
+   */
+  async updateToken(
+    encounterId: string,
+    tokenId: string,
+    data: UpdateTokenData,
+    userId: string,
+    isAdmin: boolean
+  ): Promise<IToken> {
+    try {
+      if (!Types.ObjectId.isValid(tokenId)) {
+        throw new Error('Token not found');
+      }
+
+      // Check encounter access
+      const hasAccess = await this.checkTokenControlAccess(encounterId, tokenId, userId, isAdmin);
+      if (!hasAccess) {
+        throw new Error('Access denied');
+      }
+
+      // Validate position if provided
+      if (data.position && (data.position.x < 0 || data.position.y < 0)) {
+        throw new Error('Invalid position');
+      }
+
+      const userObjectId = new Types.ObjectId(userId);
+      const updateData = {
+        ...data,
+        updatedBy: userObjectId
+      };
+
+      const updatedToken = await TokenModel.findOneAndUpdate(
+        { _id: tokenId, encounterId },
+        updateData,
+        { new: true, lean: true }
+      ).exec();
+
+      if (!updatedToken) {
+        throw new Error('Token not found');
+      }
+
+      return updatedToken;
+    } catch (error) {
+      if (error instanceof Error && 
+          ['Token not found', 'Access denied', 'Invalid position'].includes(error.message)) {
+        throw error;
+      }
+      logger.error('Error updating token:', error);
+      throw new Error('Failed to update token');
+    }
+  }
+
+  /**
+   * Delete a token
+   */
+  async deleteToken(
+    encounterId: string,
+    tokenId: string,
+    userId: string,
+    isAdmin: boolean
+  ): Promise<void> {
+    try {
+      if (!Types.ObjectId.isValid(tokenId)) {
+        throw new Error('Token not found');
+      }
+
+      // Check encounter access
+      const hasAccess = await this.checkEncounterModifyAccess(encounterId, userId, isAdmin);
+      if (!hasAccess) {
+        throw new Error('Access denied');
+      }
+
+      const deletedToken = await TokenModel.findOneAndDelete({
+        _id: tokenId,
+        encounterId
+      }).exec();
+
+      if (!deletedToken) {
+        throw new Error('Token not found');
+      }
+    } catch (error) {
+      if (error instanceof Error && 
+          ['Token not found', 'Access denied'].includes(error.message)) {
+        throw error;
+      }
+      logger.error('Error deleting token:', error);
+      throw new Error('Failed to delete token');
+    }
+  }
+
+  // ============================================================================
+  // PERMISSION CHECKING METHODS
+  // ============================================================================
+
+  /**
+   * Check if user has access to view an encounter
+   */
+  private async checkEncounterAccess(
+    encounterId: string,
+    userId: string,
+    isAdmin: boolean
+  ): Promise<boolean> {
+    try {
+      if (isAdmin) return true;
+
+      const encounter = await EncounterModel.findById(encounterId).exec();
+      if (!encounter) {
+        throw new Error('Encounter not found');
+      }
+
+      return await this.checkCampaignAccess(userId, encounter.campaignId.toString(), isAdmin);
+    } catch (error) {
+      logger.error('Error checking encounter access:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Check if user has access to modify an encounter
+   */
+  private async checkEncounterModifyAccess(
+    encounterId: string,
+    userId: string,
+    isAdmin: boolean
+  ): Promise<boolean> {
+    try {
+      if (isAdmin) return true;
+
+      const encounter = await EncounterModel.findById(encounterId).exec();
+      if (!encounter) {
+        throw new Error('Encounter not found');
+      }
+
+      const campaign = await CampaignModel.findById(encounter.campaignId).exec();
+      if (!campaign) {
+        throw new Error('Campaign not found');
+      }
+
+      // Only GM can modify encounters
+      return campaign.gameMasterId?.toString() === userId;
+    } catch (error) {
+      logger.error('Error checking encounter modify access:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Check if user has access to control a specific token
+   */
+  private async checkTokenControlAccess(
+    encounterId: string,
+    tokenId: string,
+    userId: string,
+    isAdmin: boolean
+  ): Promise<boolean> {
+    try {
+      if (isAdmin) return true;
+
+      const token = await TokenModel.findOne({ _id: tokenId, encounterId }).exec();
+      if (!token) {
+        throw new Error('Token not found');
+      }
+
+      // Check if user is GM
+      const hasModifyAccess = await this.checkEncounterModifyAccess(encounterId, userId, isAdmin);
+      if (hasModifyAccess) return true;
+
+      // Check if token is player-controlled and user owns the associated actor
+      if (token.isPlayerControlled && token.actorId) {
+        const actor = await ActorModel.findById(token.actorId).exec();
+        return actor?.createdBy?.toString() === userId;
+      }
+
+      return false;
+    } catch (error) {
+      logger.error('Error checking token control access:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Check if user has access to a campaign
+   */
+  private async checkCampaignAccess(
+    userId: string,
+    campaignId: string,
+    isAdmin: boolean
+  ): Promise<boolean> {
+    try {
+      if (isAdmin) return true;
+
+      const campaign = await CampaignModel.findById(campaignId).exec();
+      if (!campaign) {
+        return false;
+      }
+
+      // Check if user is GM
+      if (campaign.gameMasterId?.toString() === userId) {
+        return true;
+      }
+
+      // Check if user has a character in the campaign
+      const userObjectId = new Types.ObjectId(userId);
+      const userActors = await ActorModel.find({ createdBy: userObjectId }).exec();
+      const actorIds = userActors.map(actor => actor._id.toString());
+
+      return campaign.characterIds.some(characterId =>
+        actorIds.includes(characterId.toString())
+      );
+    } catch (error) {
+      logger.error('Error checking campaign access:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Get campaigns accessible to a user
+   */
+  private async getAccessibleCampaigns(userId: string): Promise<Types.ObjectId[]> {
+    try {
+      const userObjectId = new Types.ObjectId(userId);
+
+      // Get campaigns where user is GM
+      const gmCampaigns = await CampaignModel.find({ gameMasterId: userObjectId }).exec();
+
+      // Get user's actors
+      const userActors = await ActorModel.find({ createdBy: userObjectId }).exec();
+      const actorIds = userActors.map(actor => actor._id);
+
+      // Get campaigns where user has characters
+      const playerCampaigns = await CampaignModel.find({
+        characterIds: { $in: actorIds }
+      }).exec();
+
+      // Combine and deduplicate
+      const allCampaigns = [...gmCampaigns, ...playerCampaigns];
+      const uniqueCampaignIds = [...new Set(allCampaigns.map(c => c._id))];
+
+      return uniqueCampaignIds;
+    } catch (error) {
+      logger.error('Error getting accessible campaigns:', error);
+      return [];
+    }
+  }
+} 

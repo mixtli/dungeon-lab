@@ -5,7 +5,7 @@ import { useAuthStore } from '../../stores/auth.store.mjs';
 import { useGameSessionStore } from '../../stores/game-session.store.mjs';
 import { formatDate } from '../../utils/date-utils.mjs';
 import { CalendarIcon, ClockIcon } from '@heroicons/vue/24/outline';
-import { GameSessionStatus } from '@dungeon-lab/shared/src/schemas/game-session.schema.mjs';
+import { GameSessionStatus } from '@dungeon-lab/shared/schemas/index.mjs';
 import type { z } from 'zod';
 import type { IGameSession } from '@dungeon-lab/shared/types/index.mjs';
 import { GameSessionsClient } from '@dungeon-lab/client/index.mjs';
@@ -95,7 +95,7 @@ async function handleDeleteSession(sessionId: string, sessionName: string) {
     await gameSessionClient.deleteGameSession(sessionId);
     // Update the sessions list after deletion
     sessions.value = sessions.value.filter(session => session.id !== sessionId);
-  } catch (err) {
+  } catch {
     error.value = 'Failed to delete game session';
   } finally {
     loading.value = false;
@@ -113,8 +113,8 @@ async function handleUpdateSessionStatus(sessionId: string, status: SessionStatu
     if (index !== -1 && updatedSession) {
       sessions.value[index] = updatedSession;
     }
-  } catch (err: any) {
-    error.value = err.response?.data?.message || 'Failed to update session status';
+  } catch (err: unknown) {
+    error.value = err instanceof Error ? err.message : 'Failed to update session status';
   } finally {
     loading.value = false;
   }

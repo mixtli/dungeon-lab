@@ -10,7 +10,7 @@ import {
   patchActorRequestSchema,
   searchActorsQuerySchema
 } from '@dungeon-lab/shared/types/api/index.mjs';
-import { actorSchema } from '@dungeon-lab/shared/schemas/actor.schema.mjs';
+import { actorSchema } from '@dungeon-lab/shared/schemas/index.mjs';
 import { baseAPIResponseSchema } from '@dungeon-lab/shared/types/api/base.mjs';
 
 /**

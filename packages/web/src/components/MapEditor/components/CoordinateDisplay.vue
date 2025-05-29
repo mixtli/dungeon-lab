@@ -12,7 +12,7 @@
 </template>
 
 <script setup lang="ts">
-import type { Point } from '@dungeon-lab/shared/src/types/mapEditor.mts';
+import type { Point } from '@dungeon-lab/shared/types/index.mjs';
 
 // Props
 defineProps<{

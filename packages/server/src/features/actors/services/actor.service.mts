@@ -9,7 +9,7 @@ import {
   ACTOR_AVATAR_GENERATION_JOB,
   ACTOR_TOKEN_GENERATION_JOB
 } from '../jobs/actor-image.job.mjs';
-import { deepMerge } from '@dungeon-lab/shared/utils/deepMerge.mjs';
+import { deepMerge } from '@dungeon-lab/shared/utils/index.mjs';
 import { UserModel } from '../../../models/user.model.mjs';
 import { IActorPatchData } from '@dungeon-lab/shared/types/index.mjs';
 import mongoose from 'mongoose';

@@ -16,7 +16,7 @@ import {
   importUVTTRequestSchema,
   importUVTTResponseSchema
 } from '@dungeon-lab/shared/types/api/index.mjs';
-import { mapSchema } from '@dungeon-lab/shared/schemas/map.schema.mjs';
+import { mapSchema } from '@dungeon-lab/shared/schemas/index.mjs';
 import { Request, Response, NextFunction } from 'express';
 
 // Initialize controller

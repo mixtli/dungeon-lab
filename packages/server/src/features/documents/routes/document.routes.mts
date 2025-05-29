@@ -12,7 +12,7 @@ import {
   baseAPIResponseSchema,
   deleteAPIResponseSchema
 } from '@dungeon-lab/shared/types/api/index.mjs';
-import { vttDocumentSchema } from '@dungeon-lab/shared/schemas/vtt-document.schema.mjs';
+import { vttDocumentSchema } from '@dungeon-lab/shared/schemas/index.mjs';
 
 // Initialize controller
 const documentController = new DocumentController();

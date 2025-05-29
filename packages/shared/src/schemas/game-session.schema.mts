@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { baseSchema } from './base.schema.mjs';
 import { userSchema } from './user.schema.mjs';
 import { campaignSchema } from './campaign.schema.mjs';
-import { actorSchema } from '../index.mjs';
+import { actorSchema } from './actor.schema.mjs';
 // Game Session Status enum
 export const GameSessionStatus = z.enum(['active', 'paused', 'ended', 'scheduled']);
 

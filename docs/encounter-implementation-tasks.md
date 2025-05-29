@@ -58,16 +58,19 @@ Tasks are organized by phase with clear dependencies and acceptance criteria. Th
 - Add seed data for testing (optional)
 
 **Acceptance Criteria**:
-- [ ] Database migration runs successfully
-- [ ] Encounters and tokens tables created with proper schema
-- [ ] Foreign key constraints work correctly
-- [ ] Indexes are created for performance optimization
-- [ ] Database models are properly typed
-- [ ] Supports optimistic locking with version field
+- [x] Database migration runs successfully
+- [x] Encounters and tokens tables created with proper schema
+- [x] Foreign key constraints work correctly
+- [x] Indexes are created for performance optimization
+- [x] Database models are properly typed
+- [x] Supports optimistic locking with version field
 
 **Files to Create/Modify**:
-- `packages/server/src/features/encounters/models.mts` (new)
-- Database migration files (new)
+- `packages/server/src/features/encounters/models/encounter.model.mts` (new)
+- `packages/server/src/features/encounters/models/token.model.mts` (updated)
+- `packages/server/src/features/encounters/models/initiative.model.mts` (new)
+- `packages/server/src/features/encounters/models/effect.model.mts` (new)
+- `packages/server/src/features/encounters/models/index.mts` (new)
 - `packages/server/src/features/encounters/index.mts` (new)
 
 ---
@@ -90,18 +93,21 @@ Tasks are organized by phase with clear dependencies and acceptance criteria. Th
 - Add OpenAPI documentation
 
 **Acceptance Criteria**:
-- [ ] CRUD operations for encounters work correctly
-- [ ] Permission validation enforces campaign membership/GM status
-- [ ] Input validation prevents invalid data
-- [ ] Token management endpoints are functional
-- [ ] Error handling provides useful feedback
-- [ ] API documentation is complete
-- [ ] Authentication and authorization are enforced
+- [x] CRUD operations for encounters work correctly
+- [x] Permission validation enforces campaign membership/GM status
+- [x] Input validation prevents invalid data
+- [x] Token management endpoints are functional
+- [x] Error handling provides useful feedback
+- [x] API documentation is complete
+- [x] Authentication and authorization are enforced
 
-**Files to Create/Modify**:
+**Files Created/Modified**:
 - `packages/server/src/features/encounters/controller.mts` (new)
 - `packages/server/src/features/encounters/routes.mts` (new)
 - `packages/server/src/features/encounters/validation.mts` (new)
+- `packages/server/src/features/encounters/service.mts` (new)
+- `packages/server/src/features/encounters/index.mts` (updated)
+- `packages/server/src/app.mts` (updated to use new encounter routes)
 
 ---
 
@@ -123,12 +129,12 @@ Tasks are organized by phase with clear dependencies and acceptance criteria. Th
 - Add error handling and validation
 
 **Acceptance Criteria**:
-- [ ] Encounter creation and management works correctly
-- [ ] Token placement validation prevents invalid positions
-- [ ] Permission system correctly identifies token ownership
-- [ ] Optimistic locking prevents conflict issues
+- [x] Encounter creation and management works correctly
+- [x] Token placement validation prevents invalid positions
+- [x] Permission system correctly identifies token ownership
+- [x] Optimistic locking prevents conflict issues
 - [ ] Transaction handling ensures data consistency
-- [ ] Audit trail tracks all changes
+- [x] Audit trail tracks all changes
 - [ ] Service methods are properly tested
 
 **Files to Create/Modify**:

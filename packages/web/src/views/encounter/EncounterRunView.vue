@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// LEGACY FILE: This will be rewritten as part of the new Encounter Implementation
 import { onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useEncounterStore } from '../../stores/encounter.store.mjs';
