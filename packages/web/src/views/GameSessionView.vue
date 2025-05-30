@@ -4,7 +4,6 @@ import { useRoute, useRouter } from 'vue-router';
 import { useGameSessionStore } from '../stores/game-session.store.mjs';
 import { useSocketStore } from '../stores/socket.store.mjs';
 import { useAuthStore } from '../stores/auth.store.mjs';
-import EncounterSelectModal from '../components/encounter/EncounterSelectModal.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -13,7 +12,6 @@ const socketStore = useSocketStore();
 const authStore = useAuthStore();
 const loading = ref(false);
 const error = ref<string | null>(null);
-const showEncounterModal = ref(false);
 
 const sessionId = route.params.id;
 const isGameMaster = computed(() => {
@@ -49,23 +47,19 @@ function goToChat() {
 }
 
 function handleStartEncounter() {
-  showEncounterModal.value = true;
+  // TODO: Implement encounter selection when EncounterSelectModal is recreated
+  console.log('Start encounter clicked - encounter selection not yet implemented');
 }
 
-function handleEncounterSelect(encounterId: string) {
-  showEncounterModal.value = false;
-
-  // Emit socket event to start encounter
-  // if (socketStore.socket) {
-  //   socketStore.socket.emit('encounter:start', {
-  //     sessionId,
-  //     encounterId,
-  //   });
-  // }
-
-  // Navigate to encounter page
-  router.push(`/encounter/${encounterId}`);
-}
+// function handleEncounterSelect(encounterId: string) {
+//   // showEncounterModal.value = false;
+//   
+//   // Emit socket event to start encounter
+//   socketStore.emit('encounter:start', {
+//     sessionId: sessionId,
+//     encounterId: encounterId
+//   });
+// }
 </script>
 
 <template>
@@ -144,13 +138,13 @@ function handleEncounterSelect(encounterId: string) {
     </template>
 
     <!-- Encounter Selection Modal -->
-    <EncounterSelectModal
+    <!-- <EncounterSelectModal
       v-if="gameSessionStore.currentSession"
       :show="showEncounterModal"
       :campaign-id="gameSessionStore.currentSession.campaignId.toString()"
       @close="showEncounterModal = false"
       @select="handleEncounterSelect"
-    />
+    /> -->
   </div>
 </template>
 
