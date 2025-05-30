@@ -44,8 +44,13 @@ function formatDate(date: Date | string) {
 }
 
 // Get game system name
-function getGameSystemName(gameSystemId: string | any) {
-  const systemId = typeof gameSystemId === 'object' ? String(gameSystemId) : gameSystemId;
+function getGameSystemName(gameSystemId: string | unknown) {
+  let systemId: string;
+  if (typeof gameSystemId === 'string') {
+    systemId = gameSystemId;
+  } else {
+    systemId = String(gameSystemId);
+  }
   const plugin = pluginRegistry.getGameSystemPlugin(systemId);
   return plugin?.config?.name || 'Unknown Game System';
 }

@@ -79,7 +79,8 @@ async function handleSubmit(event: Event) {
 
   try {
     // Remove confirmPassword before sending to API
-    const { confirmPassword, ...registerData } = form;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { confirmPassword: _confirmPassword, ...registerData } = form;
 
     const success = await authStore.register(registerData);
 

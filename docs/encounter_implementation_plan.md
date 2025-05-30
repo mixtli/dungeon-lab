@@ -212,91 +212,218 @@ async function updateEncounterWithTokens(
 
 ## Map Implementation with Pixi.js
 
-The map component is central to the encounter system, providing the visual foundation for all token interactions. The implementation uses Pixi.js for high-performance rendering optimized for desktop and tablet platforms.
+The map component is central to the encounter system, providing the visual foundation for all token interactions. The implementation uses **Pixi.js for high-performance encounter gameplay**, while the existing map editor continues to use Konva.js for editing functionality.
 
-### **Encounter-Specific Map Features**
+### **Dual Architecture Approach**
+
+**Map Editor (Konva.js)**: Complex interaction, editing tools, precise manipulation  
+**Encounter Viewer (Pixi.js)**: High performance, real-time gameplay, smooth animations
+
+This architectural decision leverages the strengths of each library:
+- **Konva.js**: Superior for complex editing with rich interaction models
+- **Pixi.js**: Optimized for real-time performance with many animated objects
+
+**Both systems read the same UVTT data directly from MongoDB** - no conversion or bridge needed.
+
+### **Map Components Clarification**
+
+**Important**: DungeonLab has three distinct map-related components that serve different purposes:
+
+1. **MapDetailView.vue** (`packages/web/src/views/map/MapDetailView.vue`)
+   - **Purpose**: Simple admin page for viewing/editing map metadata
+   - **Functionality**: Displays map image, edits name/description/grid size, debug view
+   - **Technology**: Basic Vue component with form controls
+   - **Scope**: Map metadata management only
+   - **⚠️ NOT part of encounter system** - should remain unchanged
+
+2. **Map Editor** (`packages/web/src/components/MapEditor/`)
+   - **Purpose**: Complex map creation and editing tools
+   - **Functionality**: Draw walls, place portals/lights, UVTT editing
+   - **Technology**: Konva.js for precise editing interactions
+   - **Scope**: Map content creation and modification
+   - **Status**: Already implemented
+
+3. **Encounter Map Viewer** (Task 5.5 - to be created)
+   - **Purpose**: High-performance encounter gameplay
+   - **Functionality**: Display maps with tokens, real-time interactions
+   - **Technology**: Pixi.js for performance and animations
+   - **Scope**: Encounter/combat visualization and interaction
+   - **Status**: To be implemented
+
+**All three components read the same UVTT data from MongoDB but serve completely different use cases.**
+
+### **Encounter-Specific Map Features with Pixi.js**
 
 ```typescript
-// src/composables/useEncounterMap.mts
-export function useEncounterMap() {
-  const encounterStore = useEncounterStore();
-  const { interfaceMode } = useDeviceAdaptation();
+// src/services/encounter/PixiMapRenderer.mts
+export class EncounterMapRenderer {
+  private app: PIXI.Application;
+  private mapContainer: PIXI.Container;
+  private tokenContainer: PIXI.Container;
+  private backgroundSprite: PIXI.Sprite;
   
   // Platform-specific rendering optimizations
-  const mapConfig = computed(() => ({
-    // Desktop: High quality, all effects
-    desktop: {
-      antialias: true,
-      resolution: window.devicePixelRatio,
-      powerPreference: 'high-performance',
-      backgroundColor: 0x1a1a1a
-    },
-    // Tablet: Balanced quality and performance  
-    tablet: {
-      antialias: true,
-      resolution: Math.min(window.devicePixelRatio, 2),
-      powerPreference: 'default',
-      backgroundColor: 0x1a1a1a
-    },
-    // Phone: Optimized for performance
-    phone: {
-      antialias: false,
-      resolution: 1,
-      powerPreference: 'low-power',
-      backgroundColor: 0x1a1a1a
+  private renderConfig: PixiRenderConfig;
+  
+  // Token management systems
+  private tokenPool: Map<string, PIXI.Sprite>;
+  private tokenAnimator: TokenAnimator;
+  private viewportManager: ViewportManager;
+  
+  constructor(canvas: HTMLCanvasElement, config: EncounterMapConfig) {
+    this.app = new PIXI.Application({
+      view: canvas,
+      ...this.getPlatformRenderConfig(config.platform)
+    });
+    
+    this.setupContainers();
+    this.initializeTokenSystem();
+    this.setupEventHandlers();
+  }
+  
+  /**
+   * Load map directly from UVTT data (same format as Konva editor uses)
+   */
+  async loadMapFromUVTT(uvttData: UVTTData): Promise<void> {
+    // Load background image
+    this.backgroundSprite = await PIXI.Sprite.from(uvttData.image);
+    this.mapContainer.addChild(this.backgroundSprite);
+    
+    // Render walls from line_of_sight data
+    if (uvttData.line_of_sight) {
+      this.renderWalls(uvttData.line_of_sight, uvttData.resolution);
     }
-  }[interfaceMode.value]));
-
-  // Token interaction optimized for platform
-  const tokenInteraction = computed(() => ({
-    desktop: {
-      hoverEffects: true,
-      selectionHighlight: true,
-      dragPreview: true,
-      contextMenus: true
-    },
-    tablet: {
-      hoverEffects: false, // No hover on touch
-      selectionHighlight: true,
-      dragPreview: true,
-      contextMenus: true, // Long press
-      touchFeedback: true
-    },
-    phone: {
-      hoverEffects: false,
-      selectionHighlight: true,
-      dragPreview: false, // Simplified
-      contextMenus: false, // Too complex
-      touchFeedback: true
-    }
-  }[interfaceMode.value]));
-
-  return {
-    mapConfig,
-    tokenInteraction,
-    // ... other map utilities
-  };
+    
+    // Render portals and lights if present
+    if (uvttData.portals) this.renderPortals(uvttData.portals, uvttData.resolution);
+    if (uvttData.lights) this.renderLights(uvttData.lights, uvttData.resolution);
+  }
+  
+  private renderWalls(walls: Point[][], resolution: UVTTResolution): void {
+    walls.forEach(wall => {
+      const graphics = new PIXI.Graphics();
+      graphics.lineStyle(2, 0x000000, 0.8);
+      
+      if (wall.length > 0) {
+        const startPoint = this.gridToPixel(wall[0], resolution);
+        graphics.moveTo(startPoint.x, startPoint.y);
+        
+        wall.slice(1).forEach(point => {
+          const pixelPoint = this.gridToPixel(point, resolution);
+          graphics.lineTo(pixelPoint.x, pixelPoint.y);
+        });
+      }
+      
+      this.mapContainer.addChild(graphics);
+    });
+  }
+  
+  private gridToPixel(gridPos: Point, resolution: UVTTResolution): Point {
+    return {
+      x: (gridPos.x - resolution.map_origin.x) * resolution.pixels_per_grid,
+      y: (gridPos.y - resolution.map_origin.y) * resolution.pixels_per_grid
+    };
+  }
+  
+  private getPlatformRenderConfig(platform: Platform): PIXI.ApplicationOptions {
+    const configs = {
+      desktop: {
+        antialias: true,
+        resolution: window.devicePixelRatio,
+        powerPreference: 'high-performance',
+        backgroundColor: 0x1a1a1a
+      },
+      tablet: {
+        antialias: true,
+        resolution: Math.min(window.devicePixelRatio, 2),
+        powerPreference: 'default', 
+        backgroundColor: 0x1a1a1a
+      },
+      phone: {
+        antialias: false,
+        resolution: 1,
+        powerPreference: 'low-power',
+        backgroundColor: 0x1a1a1a
+      }
+    };
+    return configs[platform];
+  }
 }
 ```
 
-### **Performance Optimizations**
+### **Simplified Data Flow**
+
+The architecture is clean and straightforward:
+
+```
+Database (MongoDB)
+    ↓
+UVTT Data (Universal Format)
+    ↓           ↓
+Konva Editor   Pixi Viewer
+(Map Editing)  (Encounters)
+```
+
+**Key Points**:
+- **Single Source of Truth**: UVTT data in MongoDB
+- **No Data Conversion**: Both systems read the same format
+- **Library Agnostic**: UVTT format works with any rendering library
+- **Simple Integration**: Pixi.js reads existing map data directly
+
+### **Performance Optimizations for Pixi.js**
 
 #### **Rendering Optimizations**
-- **Culling**: Only render tokens visible in viewport
+- **Viewport Culling**: Only render tokens visible in viewport using Pixi.js culling
+- **Sprite Pooling**: Reuse token sprites to minimize garbage collection
+- **Batch Rendering**: Group similar visual elements using Pixi.js batching
+- **Texture Atlas**: Combine token images using PIXI.BaseTexture management
 - **Level of Detail**: Reduce token complexity at high zoom levels
-- **Batch Rendering**: Group similar visual elements
-- **Texture Atlas**: Combine token images to reduce draw calls
 
 #### **Platform-Specific Optimizations**
-- **Desktop**: Full quality rendering with all effects
-- **Tablet**: Balanced approach with reduced particle effects
-- **Phone**: Minimal effects, optimized for battery life
+- **Desktop**: Full quality rendering with particle effects and shadows
+- **Tablet**: Balanced approach with selective effects and medium quality
+- **Phone**: Minimal effects, optimized for battery life and performance
 
 #### **Memory Management**
 - Automatic texture cleanup for off-screen tokens
-- Sprite pooling for frequently used elements
+- Sprite pooling for frequently used elements  
 - Lazy loading of token assets
 - Progressive image loading based on viewport
+- Efficient removal from display lists when not needed
+
+```typescript
+// Performance optimization example
+export class TokenRenderer {
+  private tokenPool: PIXI.Sprite[] = [];
+  private activeTokens: Map<string, PIXI.Sprite> = new Map();
+  
+  acquireToken(tokenData: TokenData): PIXI.Sprite {
+    let sprite = this.tokenPool.pop();
+    if (!sprite) {
+      sprite = new PIXI.Sprite();
+      sprite.interactive = true;
+      this.setupTokenEvents(sprite);
+    }
+    
+    // Configure sprite for this token
+    sprite.texture = PIXI.Texture.from(tokenData.imageUrl);
+    sprite.x = tokenData.position.x;
+    sprite.y = tokenData.position.y;
+    
+    this.activeTokens.set(tokenData.id, sprite);
+    return sprite;
+  }
+  
+  releaseToken(tokenId: string): void {
+    const sprite = this.activeTokens.get(tokenId);
+    if (sprite) {
+      sprite.parent?.removeChild(sprite);
+      this.tokenPool.push(sprite);
+      this.activeTokens.delete(tokenId);
+    }
+  }
+}
+```
 
 ## Plugin Integration Strategy
 

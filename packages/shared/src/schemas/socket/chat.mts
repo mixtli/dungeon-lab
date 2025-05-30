@@ -86,4 +86,23 @@ export const userLeftSessionSchema = z.object({
   sessionId: z.string(),
   actorIds: z.array(z.string()),
   characterNames: z.array(z.string())
-}); 
+});
+
+// ============================================================================
+// CLIENT-TO-SERVER EVENT SCHEMAS
+// ============================================================================
+
+export const joinSessionArgsSchema = z.tuple([
+  z.string(/*sessionId*/),
+  z.string(/*actorId*/).optional(),
+  z.function().args(joinCallbackSchema)
+]);
+
+export const leaveSessionArgsSchema = z.tuple([
+  z.string(/*sessionId*/)
+]);
+
+export const chatMessageArgsSchema = z.tuple([
+  messageMetadataSchema, 
+  z.string(/*message*/)
+]); 

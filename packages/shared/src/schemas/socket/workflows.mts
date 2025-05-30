@@ -22,6 +22,16 @@ export const mapFeatureDetectionResponseSchema = z.object({
   error: z.string().optional()
 });
 
+export const workflowProgressArgsSchema = z.object({
+  flow: z.string(),
+  flowRun: z.string(),
+  userId: z.string(),
+  status: z.string(),
+  progress: z.number(),
+  message: z.string(),
+  metadata: z.record(z.string(), z.unknown()).optional()
+});
+
 export const workflowProgressCallbackSchema = z
   .function()
   .args(
@@ -77,4 +87,23 @@ export const mapFeatureDetectionRequestSchema = z.object({
     pixelsPerGrid: z.number(),
     name: z.string()
   })
-}); 
+});
+
+// ============================================================================
+// CLIENT-TO-SERVER EVENT SCHEMAS
+// ============================================================================
+
+export const mapGenerateArgsSchema = z.tuple([
+  mapGenerationRequestSchema,
+  z.function().args(mapGenerationResponseSchema)
+]);
+
+export const mapEditArgsSchema = z.tuple([
+  mapEditRequestSchema,
+  z.function().args(mapEditResponseSchema)
+]);
+
+export const mapDetectFeaturesArgsSchema = z.tuple([
+  mapFeatureDetectionRequestSchema,
+  z.function().args(mapFeatureDetectionResponseSchema)
+]); 

@@ -40,10 +40,6 @@ export type MapGenerationRequest = z.infer<typeof socketTypes.mapGenerationReque
 export type MapEditRequest = z.infer<typeof socketTypes.mapEditRequestSchema>;
 export type MapFeatureDetectionRequest = z.infer<typeof socketTypes.mapFeatureDetectionRequestSchema>;
 
-export type SocketEncounterEvent = z.infer<typeof socketTypes.encounterEventSchema>;
-export type EncounterStartRequest = z.infer<typeof socketTypes.encounterStartRequestSchema>;
-export type EncounterStopRequest = z.infer<typeof socketTypes.encounterStopRequestSchema>;
-
 // Export encounter socket types
 export type EncounterJoin = z.infer<typeof encounterSocketSchemas.encounterJoinSchema>;
 export type EncounterLeave = z.infer<typeof encounterSocketSchemas.encounterLeaveSchema>;

@@ -43,4 +43,13 @@ export const rollResponseSchema = z.object({
 export const rollCallbackSchema = z.object({
   success: z.boolean(),
   error: z.string().optional()
-}); 
+});
+
+// ============================================================================
+// CLIENT-TO-SERVER EVENT SCHEMAS
+// ============================================================================
+
+export const rollArgsSchema = z.tuple([
+  rollRequestSchema,
+  z.function().args(rollCallbackSchema)
+]); 

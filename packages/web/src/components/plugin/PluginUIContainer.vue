@@ -21,12 +21,12 @@ import { IGameSystemPluginWeb, IPluginComponent } from '@dungeon-lab/shared/type
 const props = defineProps<{
   pluginId: string;
   componentId: string;
-  initialData?: Record<string, any>;
+  initialData?: Record<string, unknown>;
 }>();
 
 const emit = defineEmits<{
-  'update:data': [data: Record<string, any>];
-  submit: [data: Record<string, any>];
+  'update:data': [data: Record<string, unknown>];
+  submit: [data: Record<string, unknown>];
   cancel: [];
   error: [error: string];
 }>();

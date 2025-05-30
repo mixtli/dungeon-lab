@@ -17,6 +17,7 @@ import { GameSessionService } from '../features/campaigns/services/game-session.
 interface SessionWithUser {
   user?: {
     id: string;
+    isAdmin?: boolean;
   };
 }
 
@@ -64,7 +65,8 @@ export class SocketServer {
 
       if (session?.user?.id) {
         socket.userId = session.user.id;
-        logger.debug(`Socket authenticated for user: ${session.user.id}`);
+        socket.isAdmin = session.user.isAdmin || false;
+        logger.debug(`Socket authenticated for user: ${session.user.id} (admin: ${socket.isAdmin})`);
         next();
       } else {
         logger.debug('Socket authentication failed: No user in session');

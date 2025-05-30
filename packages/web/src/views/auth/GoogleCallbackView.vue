@@ -27,7 +27,7 @@ onMounted(async () => {
     } else {
       router.push('/auth/login');
     }
-  } catch (error) {
+  } catch {
     router.push('/auth/login');
   } finally {
     isLoading.value = false;

@@ -105,8 +105,9 @@ function setupSocketListeners() {
     const receivedFlowRunId = payload.flowRun;
 
     if (receivedFlowRunId === flowRunId.value) {
-      // Use optional chaining and type assertion to safely access message
-      statusMessage.value = (payload as any).message || payload.status || 'Processing';
+      // Use proper typing for the payload
+      const typedPayload = payload as unknown as { message?: string; status?: string };
+      statusMessage.value = typedPayload.message || typedPayload.status || 'Processing';
       generationProgress.value = payload.progress;
 
       // If we get image URL in metadata, update the preview
@@ -153,8 +154,9 @@ function setupSocketListeners() {
     const receivedFlowRunId = payload.flowRun;
 
     if (receivedFlowRunId === flowRunId.value) {
-      // Use optional chaining and type assertion to safely access message
-      editStatus.value = (payload as any).message || payload.status || 'Processing Edit';
+      // Use proper typing for the payload
+      const typedPayload = payload as unknown as { message?: string; status?: string };
+      editStatus.value = typedPayload.message || typedPayload.status || 'Processing Edit';
       editProgress.value = payload.progress;
 
       // If we get image URL in metadata, update the preview
@@ -226,7 +228,8 @@ function setupSocketListeners() {
     const receivedFlowRunId = payload.flowRun;
 
     if (receivedFlowRunId === flowRunId.value) {
-      featureDetectionStatus.value = (payload as any).message || payload.status || 'Processing';
+      const typedPayload = payload as unknown as { message?: string; status?: string };
+      featureDetectionStatus.value = typedPayload.message || typedPayload.status || 'Processing';
       featureDetectionProgress.value = payload.progress;
 
       // If we get detected features data in metadata, we can handle it here

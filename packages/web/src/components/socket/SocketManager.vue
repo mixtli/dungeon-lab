@@ -77,5 +77,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <!-- This component doesn't render anything -->
+  <div style="display: none;">
+    <!-- This component doesn't render anything -->
+  </div>
 </template>

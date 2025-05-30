@@ -467,6 +467,291 @@ export class EncounterService {
     }
   }
 
+  /**
+   * Add a token to an encounter (alias for createToken for socket compatibility)
+   */
+  async addToken(
+    encounterId: string,
+    data: CreateTokenData,
+    userId: string,
+    isAdmin: boolean = false
+  ): Promise<IToken> {
+    return this.createToken(encounterId, data, userId, isAdmin);
+  }
+
+  /**
+   * Remove a token from an encounter (alias for deleteToken for socket compatibility)
+   */
+  async removeToken(
+    encounterId: string,
+    tokenId: string,
+    userId: string,
+    isAdmin: boolean = false
+  ): Promise<void> {
+    return this.deleteToken(encounterId, tokenId, userId, isAdmin);
+  }
+
+  // ============================================================================
+  // REAL-TIME OPERATIONS
+  // ============================================================================
+
+  /**
+   * Move a token to a new position (optimized for real-time updates)
+   */
+  async moveToken(
+    encounterId: string,
+    tokenId: string,
+    position: { x: number; y: number },
+    userId: string
+  ): Promise<IToken> {
+    try {
+      if (!Types.ObjectId.isValid(tokenId)) {
+        throw new Error('Token not found');
+      }
+
+      // Check token control permissions
+      const hasAccess = await this.checkTokenControlAccess(encounterId, tokenId, userId, false);
+      if (!hasAccess) {
+        throw new Error('Access denied');
+      }
+
+      // Validate position
+      if (!this.validateTokenPosition(position)) {
+        throw new Error('Invalid position');
+      }
+
+      const userObjectId = new Types.ObjectId(userId);
+      const updateData = {
+        position,
+        updatedBy: userObjectId,
+        updatedAt: new Date()
+      };
+
+      const updatedToken = await TokenModel.findOneAndUpdate(
+        { _id: tokenId, encounterId },
+        updateData,
+        { new: true, lean: true }
+      ).exec();
+
+      if (!updatedToken) {
+        throw new Error('Token not found');
+      }
+
+      return updatedToken;
+    } catch (error) {
+      if (error instanceof Error && 
+          ['Token not found', 'Access denied', 'Invalid position'].includes(error.message)) {
+        throw error;
+      }
+      logger.error('Error moving token:', error);
+      throw new Error('Failed to move token');
+    }
+  }
+
+  /**
+   * Validate token position
+   */
+  private validateTokenPosition(position: { x: number; y: number }): boolean {
+    // Basic validation - can be enhanced with map boundaries, collision detection, etc.
+    return position.x >= 0 && position.y >= 0 && 
+           Number.isFinite(position.x) && Number.isFinite(position.y);
+  }
+
+  /**
+   * Get complete encounter state for real-time synchronization
+   */
+  async getEncounterState(
+    encounterId: string,
+    userId: string,
+    isAdmin: boolean
+  ): Promise<{
+    encounter: IEncounter;
+    tokens: IToken[];
+    permissions: {
+      canView: boolean;
+      canModify: boolean;
+      canControl: string[]; // Array of token IDs user can control
+    };
+  }> {
+    try {
+      // Get encounter data
+      const encounter = await this.getEncounter(encounterId, userId, isAdmin);
+      
+      // Get all tokens
+      const tokens = await this.getTokens(encounterId, userId, isAdmin);
+
+      // Calculate permissions
+      const permissions = await this.calculateUserPermissions(encounterId, userId, isAdmin, tokens);
+
+      return {
+        encounter,
+        tokens,
+        permissions
+      };
+    } catch (error) {
+      logger.error('Error getting encounter state:', error);
+      throw error; // Re-throw to preserve specific error messages
+    }
+  }
+
+  /**
+   * Calculate user permissions for an encounter
+   */
+  private async calculateUserPermissions(
+    encounterId: string,
+    userId: string,
+    isAdmin: boolean,
+    tokens: IToken[]
+  ): Promise<{
+    canView: boolean;
+    canModify: boolean;
+    canControl: string[];
+  }> {
+    try {
+      const canView = await this.checkEncounterAccess(encounterId, userId, isAdmin);
+      const canModify = await this.checkEncounterModifyAccess(encounterId, userId, isAdmin);
+      
+      // Check which tokens user can control
+      const canControl: string[] = [];
+      for (const token of tokens) {
+        const hasControl = await this.checkTokenControlAccess(
+          encounterId, 
+          token.id, 
+          userId, 
+          isAdmin
+        );
+        if (hasControl) {
+          canControl.push(token.id);
+        }
+      }
+
+      return {
+        canView,
+        canModify,
+        canControl
+      };
+    } catch (error) {
+      logger.error('Error calculating user permissions:', error);
+      return {
+        canView: false,
+        canModify: false,
+        canControl: []
+      };
+    }
+  }
+
+  /**
+   * Batch update multiple tokens (for performance optimization)
+   */
+  async batchUpdateTokens(
+    encounterId: string,
+    updates: Array<{
+      tokenId: string;
+      data: Partial<UpdateTokenData>;
+    }>,
+    userId: string,
+    isAdmin: boolean
+  ): Promise<IToken[]> {
+    try {
+      const updatedTokens: IToken[] = [];
+      
+      // Process updates sequentially to maintain data consistency
+      for (const update of updates) {
+        try {
+          // Ensure updatedBy is set for each update
+          const updateData = {
+            ...update.data,
+            updatedBy: userId
+          };
+          
+          const updatedToken = await this.updateToken(
+            encounterId,
+            update.tokenId,
+            updateData,
+            userId,
+            isAdmin
+          );
+          updatedTokens.push(updatedToken);
+        } catch (error) {
+          logger.warn(`Failed to update token ${update.tokenId}:`, error);
+          // Continue with other updates even if one fails
+        }
+      }
+
+      return updatedTokens;
+    } catch (error) {
+      logger.error('Error in batch token update:', error);
+      throw new Error('Failed to batch update tokens');
+    }
+  }
+
+  /**
+   * Add participant to encounter (for room management)
+   */
+  async addParticipant(
+    encounterId: string,
+    userId: string,
+    isAdmin: boolean
+  ): Promise<void> {
+    try {
+      // Verify user has access to the encounter
+      const hasAccess = await this.checkEncounterAccess(encounterId, userId, isAdmin);
+      if (!hasAccess) {
+        throw new Error('Access denied');
+      }
+
+      // For now, this is just a permission check
+      // In the future, we might track active participants in the database
+      logger.info(`User ${userId} added as participant to encounter ${encounterId}`);
+    } catch (error) {
+      logger.error('Error adding participant:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Remove participant from encounter (for room management)
+   */
+  async removeParticipant(
+    encounterId: string,
+    userId: string
+  ): Promise<void> {
+    try {
+      // For now, this is just logging
+      // In the future, we might track active participants in the database
+      logger.info(`User ${userId} removed as participant from encounter ${encounterId}`);
+    } catch (error) {
+      logger.error('Error removing participant:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Validate if user can perform a specific action on a token
+   */
+  async validateTokenAction(
+    encounterId: string,
+    tokenId: string,
+    _action: string,
+    userId: string,
+    isAdmin: boolean
+  ): Promise<boolean> {
+    try {
+      // Check basic token control access
+      const hasControl = await this.checkTokenControlAccess(encounterId, tokenId, userId, isAdmin);
+      if (!hasControl) {
+        return false;
+      }
+
+      // For now, all actions are allowed if user has control
+      // In the future, this could check turn-based restrictions, action points, etc.
+      return true;
+    } catch (error) {
+      logger.error('Error validating token action:', error);
+      return false;
+    }
+  }
+
   // ============================================================================
   // PERMISSION CHECKING METHODS
   // ============================================================================

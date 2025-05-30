@@ -7,7 +7,7 @@
     "dev": "vite -d",
     "build": "vue-tsc && vite build",
     "preview": "vite preview",
-    "lint": "vue-tsc --noEmit",
+    "lint": "eslint src;  vue-tsc --noEmit",
     "eslint": "eslint src/**/*.{mts,vue}",
     "test": "vitest run",
     "check": "npm run build --workspace=@dungeon-lab/shared && npm run build --workspace=@dungeon-lab/client && vue-tsc --noEmit",

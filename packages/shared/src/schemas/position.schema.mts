@@ -13,7 +13,7 @@ export const positionSchema = z.object({
 export const gridPositionSchema = z.object({
   x: z.number().int(),
   y: z.number().int(),
-  elevation: z.number().default(0)
+  elevation: z.number()
 });
 
 export const movementConstraintsSchema = z.object({

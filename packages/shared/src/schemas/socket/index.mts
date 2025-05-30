@@ -11,7 +11,11 @@ import {
   chatbotResponseSchema,
   chatbotErrorSchema,
   userJoinedSessionSchema,
-  userLeftSessionSchema
+  userLeftSessionSchema,
+  // New client-to-server schemas
+  joinSessionArgsSchema,
+  leaveSessionArgsSchema,
+  chatMessageArgsSchema
 } from './chat.mjs';
 
 import {
@@ -20,7 +24,9 @@ import {
   diceRollResponseSchema,
   rollRequestSchema,
   rollResponseSchema,
-  rollCallbackSchema
+  rollCallbackSchema,
+  // New client-to-server schemas
+  rollArgsSchema
 } from './dice.mjs';
 
 import {
@@ -29,7 +35,9 @@ import {
 
 import {
   pluginActionCallbackSchema,
-  pluginStateUpdateSchema
+  pluginStateUpdateSchema,
+  // New client-to-server schemas
+  pluginActionArgsSchema
 } from './plugins.mjs';
 
 import {
@@ -37,17 +45,75 @@ import {
   mapEditResponseSchema,
   mapFeatureDetectionResponseSchema,
   workflowProgressCallbackSchema,
+  workflowProgressArgsSchema,
   workflowStateSchema,
   mapGenerationRequestSchema,
   mapEditRequestSchema,
-  mapFeatureDetectionRequestSchema
+  mapFeatureDetectionRequestSchema,
+  // New client-to-server schemas
+  mapGenerateArgsSchema,
+  mapEditArgsSchema,
+  mapDetectFeaturesArgsSchema
 } from './workflows.mjs';
 
 import {
-  encounterEventSchema,
-  encounterStartRequestSchema,
-  encounterStopRequestSchema
-} from './encounter-events.mjs';
+  // Room management
+  encounterJoinSchema,
+  encounterLeaveSchema,
+  encounterJoinCallbackSchema,
+  // Token events
+  tokenMoveSchema,
+  tokenMovedSchema,
+  tokenMoveCallbackSchema,
+  tokenCreateSchema,
+  tokenCreatedSchema,
+  tokenUpdateSchema,
+  tokenUpdatedSchema,
+  tokenDeleteSchema,
+  tokenDeletedSchema,
+  // Initiative events
+  initiativeRollSchema,
+  initiativeRolledSchema,
+  initiativeUpdateSchema,
+  initiativeUpdatedSchema,
+  initiativeReorderSchema,
+  initiativeReorderedSchema,
+  // Turn management
+  turnNextSchema,
+  turnChangedSchema,
+  turnSkipSchema,
+  turnSkippedSchema,
+  turnDelaySchema,
+  turnDelayedSchema,
+  // Action events
+  actionExecuteSchema,
+  actionExecutedSchema,
+  actionValidateSchema,
+  actionValidatedSchema,
+  // Effect events
+  effectApplySchema,
+  effectAppliedSchema,
+  effectRemoveSchema,
+  effectRemovedSchema,
+  effectExpiredSchema,
+  // Encounter state
+  encounterStartSchema,
+  encounterStartedSchema,
+  encounterPauseSchema,
+  encounterPausedSchema,
+  encounterEndSchema,
+  encounterEndedSchema,
+  // Error events
+  encounterErrorSchema,
+  encounterCallbackSchema,
+  // Client-to-server args schemas
+  encounterJoinArgsSchema,
+  encounterLeaveArgsSchema,
+  tokenMoveArgsSchema,
+  tokenCreateArgsSchema,
+  tokenUpdateArgsSchema,
+  tokenDeleteArgsSchema
+} from './encounters.mjs';
 
 // Re-export all schemas for backwards compatibility
 export {
@@ -62,6 +128,9 @@ export {
   chatbotErrorSchema,
   userJoinedSessionSchema,
   userLeftSessionSchema,
+  joinSessionArgsSchema,
+  leaveSessionArgsSchema,
+  chatMessageArgsSchema,
   
   // Dice schemas
   rollResultSchema,
@@ -70,6 +139,7 @@ export {
   rollRequestSchema,
   rollResponseSchema,
   rollCallbackSchema,
+  rollArgsSchema,
   
   // Movement schemas
   moveMessageSchema,
@@ -77,21 +147,70 @@ export {
   // Plugin schemas
   pluginActionCallbackSchema,
   pluginStateUpdateSchema,
+  pluginActionArgsSchema,
   
   // Workflow schemas
   mapGenerationResponseSchema,
   mapEditResponseSchema,
   mapFeatureDetectionResponseSchema,
   workflowProgressCallbackSchema,
+  workflowProgressArgsSchema,
   workflowStateSchema,
   mapGenerationRequestSchema,
   mapEditRequestSchema,
   mapFeatureDetectionRequestSchema,
+  mapGenerateArgsSchema,
+  mapEditArgsSchema,
+  mapDetectFeaturesArgsSchema,
   
   // Encounter event schemas
-  encounterEventSchema,
-  encounterStartRequestSchema,
-  encounterStopRequestSchema
+  encounterJoinSchema,
+  encounterLeaveSchema,
+  encounterJoinCallbackSchema,
+  tokenMoveSchema,
+  tokenMovedSchema,
+  tokenMoveCallbackSchema,
+  tokenCreateSchema,
+  tokenCreatedSchema,
+  tokenUpdateSchema,
+  tokenUpdatedSchema,
+  tokenDeleteSchema,
+  tokenDeletedSchema,
+  initiativeRollSchema,
+  initiativeRolledSchema,
+  initiativeUpdateSchema,
+  initiativeUpdatedSchema,
+  initiativeReorderSchema,
+  initiativeReorderedSchema,
+  turnNextSchema,
+  turnChangedSchema,
+  turnSkipSchema,
+  turnSkippedSchema,
+  turnDelaySchema,
+  turnDelayedSchema,
+  actionExecuteSchema,
+  actionExecutedSchema,
+  actionValidateSchema,
+  actionValidatedSchema,
+  effectApplySchema,
+  effectAppliedSchema,
+  effectRemoveSchema,
+  effectRemovedSchema,
+  effectExpiredSchema,
+  encounterStartSchema,
+  encounterStartedSchema,
+  encounterPauseSchema,
+  encounterPausedSchema,
+  encounterEndSchema,
+  encounterEndedSchema,
+  encounterErrorSchema,
+  encounterCallbackSchema,
+  encounterJoinArgsSchema,
+  encounterLeaveArgsSchema,
+  tokenMoveArgsSchema,
+  tokenCreateArgsSchema,
+  tokenUpdateArgsSchema,
+  tokenDeleteArgsSchema
 };
 
 // ============================================================================
@@ -105,71 +224,48 @@ export const serverToClientEvents = z.object({
   'roll-result': z.function().args(rollResponseSchema).returns(z.void()),
   move: z.function().args(moveMessageSchema).returns(z.void()),
   pluginStateUpdate: z.function().args(pluginStateUpdateSchema).returns(z.void()),
-  'encounter:start': z.function().args(encounterEventSchema).returns(z.void()),
-  'encounter:stop': z.function().args(encounterEventSchema).returns(z.void()),
+  'encounter:start': z.function().args(encounterJoinSchema).returns(z.void()),
+  'encounter:stop': z.function().args(encounterLeaveSchema).returns(z.void()),
   userJoinedSession: z.function().args(userJoinedSessionSchema).returns(z.void()),
   userLeftSession: z.function().args(userLeftSessionSchema).returns(z.void()),
-  'workflow:progress:generate-map': workflowProgressCallbackSchema,
+  'workflow:progress:generate-map': z.function().args(workflowProgressArgsSchema).returns(z.void()),
   'workflow:state:generate-map': z.function().args(workflowStateSchema).returns(z.void()),
-  'workflow:progress:edit-map': workflowProgressCallbackSchema,
+  'workflow:progress:edit-map': z.function().args(workflowProgressArgsSchema).returns(z.void()),
   'workflow:state:edit-map': z.function().args(workflowStateSchema).returns(z.void()),
-  'workflow:progress:detect-map-features': workflowProgressCallbackSchema,
+  'workflow:progress:detect-map-features': z.function().args(workflowProgressArgsSchema).returns(z.void()),
   'workflow:state:detect-map-features': z.function().args(workflowStateSchema).returns(z.void()),
   'chatbot:typing': z.function().args(chatbotTypingSchema).returns(z.void()),
   'chatbot:typing-stop': z.function().args(chatbotTypingStopSchema).returns(z.void()),
   'chatbot:response': z.function().args(chatbotResponseSchema).returns(z.void()),
-  'chatbot:error': z.function().args(chatbotErrorSchema).returns(z.void())
+  'chatbot:error': z.function().args(chatbotErrorSchema).returns(z.void()),
+  // Encounter events
+  'encounter:error': z.function().args(encounterErrorSchema).returns(z.void()),
+  'user:joined': z.function().args(userJoinedSessionSchema).returns(z.void()),
+  'user:left': z.function().args(userLeftSessionSchema).returns(z.void()),
+  'token:moved': z.function().args(tokenMovedSchema).returns(z.void()),
+  'token:created': z.function().args(tokenCreatedSchema).returns(z.void()),
+  'token:updated': z.function().args(tokenUpdatedSchema).returns(z.void()),
+  'token:deleted': z.function().args(tokenDeletedSchema).returns(z.void())
 });
 
 export const clientToServerEvents = z.object({
-  chat: z.function().args(messageMetadataSchema, z.string(/*message*/)).returns(z.void()),
-  joinSession: z
-    .function()
-    .args(
-      z.string(/*sessionId*/),
-      z.string(/*actorId*/).optional(),
-      z.function().args(joinCallbackSchema)
-    )
-    .returns(z.void()),
-  leaveSession: z.function().args(z.string(/*sessionId*/)).returns(z.void()),
-  pluginAction: z
-    .function()
-    .args(
-      z.string(/*pluginId*/),
-      z.record(z.string(), z.unknown()),
-      z.function().args(pluginActionCallbackSchema)
-    )
-    .returns(z.void()),
+  chat: z.function().args(...chatMessageArgsSchema.items).returns(z.void()),
+  joinSession: z.function().args(...joinSessionArgsSchema.items).returns(z.void()),
+  leaveSession: z.function().args(...leaveSessionArgsSchema.items).returns(z.void()),
+  pluginAction: z.function().args(...pluginActionArgsSchema.items).returns(z.void()),
   diceRoll: z.function().args(diceRollRequestSchema).returns(z.void()),
-  roll: z
-    .function()
-    .args(
-      rollRequestSchema,
-      z.function().args(rollCallbackSchema)
-    )
-    .returns(z.void()),
+  roll: z.function().args(...rollArgsSchema.items).returns(z.void()),
   move: z.function().args(moveMessageSchema).returns(z.void()),
-  'encounter:start': z.function().args(encounterStartRequestSchema).returns(z.void()),
-  'encounter:stop': z.function().args(encounterStopRequestSchema).returns(z.void()),
-  'map:generate': z
-    .function()
-    .args(
-      mapGenerationRequestSchema,
-      z.function().args(mapGenerationResponseSchema)
-    )
-    .returns(z.void()),
-  'map:edit': z
-    .function()
-    .args(
-      mapEditRequestSchema,
-      z.function().args(mapEditResponseSchema)
-    )
-    .returns(z.void()),
-  'map:detect-features': z
-    .function()
-    .args(
-      mapFeatureDetectionRequestSchema,
-      z.function().args(mapFeatureDetectionResponseSchema)
-    )
-    .returns(z.void())
+  'encounter:start': z.function().args(encounterStartSchema).returns(z.void()),
+  'encounter:stop': z.function().args(encounterEndSchema).returns(z.void()),
+  'map:generate': z.function().args(...mapGenerateArgsSchema.items).returns(z.void()),
+  'map:edit': z.function().args(...mapEditArgsSchema.items).returns(z.void()),
+  'map:detect-features': z.function().args(...mapDetectFeaturesArgsSchema.items).returns(z.void()),
+  // Encounter events
+  'encounter:join': z.function().args(...encounterJoinArgsSchema.items).returns(z.void()),
+  'encounter:leave': z.function().args(...encounterLeaveArgsSchema.items).returns(z.void()),
+  'token:move': z.function().args(...tokenMoveArgsSchema.items).returns(z.void()),
+  'token:create': z.function().args(...tokenCreateArgsSchema.items).returns(z.void()),
+  'token:update': z.function().args(...tokenUpdateArgsSchema.items).returns(z.void()),
+  'token:delete': z.function().args(...tokenDeleteArgsSchema.items).returns(z.void())
 });

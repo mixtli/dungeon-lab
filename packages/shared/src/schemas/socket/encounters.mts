@@ -74,8 +74,8 @@ export const tokenCreateSchema = z.object({
     size: z.enum(['tiny', 'small', 'medium', 'large', 'huge', 'gargantuan']),
     position: gridPositionSchema,
     actorId: z.string().optional(),
-    isVisible: z.boolean().default(true),
-    isPlayerControlled: z.boolean().default(false)
+    isVisible: z.boolean(),
+    isPlayerControlled: z.boolean()
   }),
   userId: z.string()
 });
@@ -96,10 +96,10 @@ export const tokenUpdateSchema = z.object({
     size: z.enum(['tiny', 'small', 'medium', 'large', 'huge', 'gargantuan']).optional(),
     isVisible: z.boolean().optional(),
     stats: z.object({
-      hitPoints: z.number().optional(),
-      maxHitPoints: z.number().optional(),
-      armorClass: z.number().optional(),
-      speed: z.number().optional(),
+      hitPoints: z.number(),
+      maxHitPoints: z.number(),
+      armorClass: z.number(),
+      speed: z.number(),
       temporaryHitPoints: z.number().optional()
     }).optional()
   }),
@@ -350,6 +350,36 @@ export const encounterCallbackSchema = z.object({
   data: z.unknown().optional(),
   error: z.string().optional()
 });
+
+// ============================================================================
+// CLIENT-TO-SERVER EVENT ARGS SCHEMAS
+// ============================================================================
+
+export const encounterJoinArgsSchema = z.tuple([
+  encounterJoinSchema,
+  z.function().args(encounterJoinCallbackSchema).optional()
+]);
+
+export const encounterLeaveArgsSchema = z.tuple([
+  encounterLeaveSchema
+]);
+
+export const tokenMoveArgsSchema = z.tuple([
+  tokenMoveSchema,
+  z.function().args(tokenMoveCallbackSchema).optional()
+]);
+
+export const tokenCreateArgsSchema = z.tuple([
+  tokenCreateSchema
+]);
+
+export const tokenUpdateArgsSchema = z.tuple([
+  tokenUpdateSchema
+]);
+
+export const tokenDeleteArgsSchema = z.tuple([
+  tokenDeleteSchema
+]);
 
 // ============================================================================
 // TYPE EXPORTS

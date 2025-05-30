@@ -39,8 +39,17 @@ async function handleSubmit() {
     email.value = '';
     emit('invited');
     emit('close');
-  } catch (err: any) {
-    error.value = err.response?.data?.message || err.message || 'Failed to send invite';
+  } catch (err: unknown) {
+    let errorMessage = 'Failed to send invite';
+    
+    if (err instanceof Error) {
+      errorMessage = err.message;
+    } else if (typeof err === 'object' && err !== null && 'response' in err) {
+      const response = (err as { response?: { data?: { message?: string } } }).response;
+      errorMessage = response?.data?.message || errorMessage;
+    }
+    
+    error.value = errorMessage;
     console.error('Error sending invite:', err);
   } finally {
     loading.value = false;
