@@ -50,5 +50,12 @@
         "source.unusedImports"
     ],
     "ruff.nativeServer": "on",
-    "pylint.enabled": false
+    "pylint.enabled": false,
+    "css.validate": false,
+    "postcss.validate": false,
+    "scss.validate": false,
+    "less.validate": false,
+    "css.customData": [
+        ".vscode/tailwind.json"
+    ]
 }

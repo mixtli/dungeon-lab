@@ -43,6 +43,7 @@ export default defineConfig({
   },
   css: {
     devSourcemap: true,
+    postcss: "./packages/web/postcss.config.js",
   },
 });
 
