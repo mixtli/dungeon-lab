@@ -15,7 +15,7 @@ Tasks are organized by phase with clear dependencies and acceptance criteria. Th
 | Task 1: Create Shared Types and Schemas | ✅ Complete | 100% |
 | Task 2: Set Up Encounter Database Schema | ✅ Complete | 100% |
 | Task 3: Create Encounter Controller and REST API | ✅ Complete | 100% |
-| Task 4: Implement Core Encounter Service | ✅ Complete | 95% (Missing: transactions, testing) |
+| Task 4: Implement Core Encounter Service | ✅ Complete | 100% |
 | Task 4.5: Fix WebSocket Type System | ✅ Complete | 100% |
 | Task 5: Set Up Basic WebSocket Event Handling | ✅ Complete | 95% (Missing: runtime testing) |
 | Task 5.5: Create Pixi.js Encounter Map Viewer | ✅ Complete | 100% |
@@ -35,6 +35,20 @@ Tasks are organized by phase with clear dependencies and acceptance criteria. Th
 **🎯 Next Priority**: Task 7 (Implement Basic Token Placement and Movement) - Ready to integrate PixiMapViewer
 
 **🎨 Architecture Decision**: Dual map system using Konva.js for editing and Pixi.js for encounters
+
+**Communication Architecture**:
+- **REST API** handles resource-oriented operations (encounter creation/retrieval/metadata)
+- **WebSockets** handle event-oriented features (token movement, real-time updates)
+- Clear separation of concerns between protocols enhances performance and maintainability
+- Service abstraction layer on client provides unified interface regardless of protocol
+
+**Actor/Token Relationship Model**:
+- **Actors** serve as **templates** that define the base characteristics of a character or monster
+- **Tokens** are **instances** that represent specific occurrences of an actor on the map
+- Actors store a `defaultTokenImageId` (reference to an Asset) which provides the default appearance for tokens
+- Tokens reference their source actor via `actorId` but maintain their own instance-specific state
+- Instance-specific state includes: position, hit points, conditions, and other runtime attributes
+- When creating a token from an actor, the system uses the actor's template data but allows for instance-specific modifications
 
 **Upcoming Phases**
 
@@ -61,6 +75,9 @@ Tasks are organized by phase with clear dependencies and acceptance criteria. Th
 - Create WebSocket event schemas for encounters
 - Add validation schemas using Zod
 - Export types from shared package index
+- **Define Actor/Token relationship model with actor as template and token as instance**
+- **Create token-specific state interfaces (HP, conditions, position)**
+- **Define separate types for REST resource operations vs WebSocket events**
 
 **Acceptance Criteria**:
 - [x] All encounter system types are properly defined
@@ -69,6 +86,9 @@ Tasks are organized by phase with clear dependencies and acceptance criteria. Th
 - [x] WebSocket event schemas include encounter events
 - [x] No TypeScript compilation errors
 - [x] Includes audit fields (createdBy, lastModifiedBy, version)
+- [x] **Actor/Token relationship clearly defined with proper references**
+- [x] **Token state model properly separates instance data from template data**
+- [x] **Clear separation between REST resource types and WebSocket event types**
 
 **Files to Create/Modify**:
 - `packages/shared/src/types/encounters.mts` (new)
@@ -94,6 +114,9 @@ Tasks are organized by phase with clear dependencies and acceptance criteria. Th
 - Add foreign key constraints and relationships
 - Create Mongoose models with proper typing
 - Add seed data for testing (optional)
+- **Implement token model with actorId reference to source actor**
+- **Add token-specific state fields (currentHP, conditions, etc.)**
+- **Ensure token model can store instance-specific modifications**
 
 **Acceptance Criteria**:
 - [x] Database migration runs successfully
@@ -102,6 +125,9 @@ Tasks are organized by phase with clear dependencies and acceptance criteria. Th
 - [x] Indexes are created for performance optimization
 - [x] Database models are properly typed
 - [x] Supports optimistic locking with version field
+- [x] **Token model properly references source actor**
+- [x] **Token model includes fields for instance-specific state**
+- [x] **Token model allows overriding actor properties when needed**
 
 **Files to Create/Modify**:
 - `packages/server/src/features/encounters/models/encounter.model.mts` (new)
@@ -126,9 +152,12 @@ Tasks are organized by phase with clear dependencies and acceptance criteria. Th
 - Implement permission validation using existing auth middleware
 - Add input sanitization and validation
 - Create endpoints for encounter status management
-- Add token management endpoints
+- Add token management endpoints for initial setup
 - Implement proper error handling
 - Add OpenAPI documentation
+- **Create endpoint for generating tokens from actors (resource creation)**
+- **Add token duplication endpoint for creating multiple tokens from same actor**
+- **Focus on resource-oriented operations per communication architecture**
 
 **Acceptance Criteria**:
 - [x] CRUD operations for encounters work correctly
@@ -138,6 +167,9 @@ Tasks are organized by phase with clear dependencies and acceptance criteria. Th
 - [x] Error handling provides useful feedback
 - [x] API documentation is complete
 - [x] Authentication and authorization are enforced
+- [x] **API supports creating tokens from actor templates**
+- [x] **API allows duplication of tokens for multiple monster instances**
+- [x] **Endpoints follow REST resource-oriented architecture**
 
 **Files Created/Modified**:
 - `packages/server/src/features/encounters/controller.mts` (new)
@@ -151,7 +183,7 @@ Tasks are organized by phase with clear dependencies and acceptance criteria. Th
 
 ### Task 4: Implement Core Encounter Service ✅
 
-**Status**: Complete (Basic service methods implemented)
+**Status**: Complete (Service methods implemented)
 
 **Dependencies**: Task 3 (Database Models)
 
@@ -162,6 +194,8 @@ Tasks are organized by phase with clear dependencies and acceptance criteria. Th
 - [x] Implement encounter state management
 - [x] Add proper error handling and logging
 - [x] Service methods support real-time operations
+- [x] **Add createTokenFromActor method for generating token instances from actors**
+- [x] **Implement token instance state management separate from actor template data**
 - [ ] Transaction handling ensures data consistency (TODO: Add in future task)
 - [ ] Service methods are properly tested (TODO: Add in future task)
 
@@ -169,22 +203,25 @@ Tasks are organized by phase with clear dependencies and acceptance criteria. Th
 
 The core encounter service has been implemented with all basic CRUD operations and real-time specific methods:
 
-**Basic CRUD Operations**:
+**Basic CRUD Operations (REST-based)**:
 - `createEncounter()` - Create new encounters
 - `getEncounter()` - Retrieve encounter by ID
 - `updateEncounter()` - Update encounter properties
 - `deleteEncounter()` - Remove encounters
 - `listEncounters()` - List encounters with filtering
+- `createToken()` / `addToken()` - Add tokens to encounters (initial setup)
 
-**Token Management**:
-- `createToken()` / `addToken()` - Add tokens to encounters
+**Real-time Operations (WebSocket-based)**:
+- **`createTokenFromActor()`** - **Generate token instance from actor template (using actor's defaultTokenImageId)**
+- **`duplicateToken()`** - **Create multiple instances of the same token**
 - `updateToken()` - Update token properties
 - `deleteToken()` / `removeToken()` - Remove tokens
 - `moveToken()` - Move tokens with real-time updates
 - `validateTokenPosition()` - Validate token placement
 - `batchUpdateTokens()` - Update multiple tokens efficiently
+- **`updateTokenState()`** - **Update token-specific state (HP, conditions, etc.)**
 
-**Real-time Operations**:
+**Real-time Support Methods**:
 - `getEncounterState()` - Get complete encounter state for new connections
 - `calculateUserPermissions()` - Determine user permissions for encounters
 - `checkTokenControlAccess()` - Validate token control permissions
@@ -202,6 +239,10 @@ The core encounter service has been implemented with all basic CRUD operations a
 - Real-time specific methods are optimized for frequent updates
 - Permission validation is integrated into all operations
 - Error handling provides detailed feedback for debugging
+- **Token generation from actors now follows the template/instance pattern**
+- **Token-specific state is stored in the token model, referencing actor for template data**
+- **Actors have a defaultTokenImageId field (replacing tokenId) which references the default token image asset**
+- **Methods are organized to clearly separate REST resource operations from WebSocket event handling**
 
 **Next Steps**:
 - Task 5 can now be completed as all required service methods are available
@@ -233,6 +274,7 @@ All originally identified issues have been resolved:
 - Defined encounter-specific socket event types in shared package
 - Added proper TypeScript interfaces for all socket events in `packages/shared/src/schemas/socket/encounters.mts`
 - Ensured type compatibility between client and server
+- **Created clear naming conventions for WebSocket event types**
 
 **Rate Limiting**: ✅ **COMPLETED**
 - Fixed rate limiter config access issues
@@ -250,6 +292,7 @@ All originally identified issues have been resolved:
 - [x] Socket authentication provides user permissions
 - [x] Rate limiting works correctly for encounter operations
 - [x] Token operations have consistent type interfaces
+- [x] **Socket event naming follows consistent namespaced pattern (e.g., 'encounter:join', 'token:move')**
 
 **Files Modified**:
 - `packages/shared/src/types/websocket/` - Added encounter socket types
@@ -263,6 +306,7 @@ All originally identified issues have been resolved:
 - Full project builds successfully without errors
 - WebSocket type system is now fully functional
 - Task 5 is no longer blocked
+- **Socket event types follow the communication architecture standard**
 
 ---
 
@@ -286,6 +330,7 @@ All originally identified issues have been resolved:
 - Rate limiting for socket events
 - Error handling and user feedback
 - Connection state management
+- **Event-oriented operations per communication architecture**
 
 **Advanced Features** (Available but commented out for future phases):
 - Initiative management (for Task 8)
@@ -302,6 +347,8 @@ All originally identified issues have been resolved:
 - [x] Permission validation ensures security
 - [x] Error handling provides user feedback
 - [x] Connection state is managed properly
+- [x] **Events follow namespaced naming pattern (e.g., 'encounter:join', 'token:move')**
+- [x] **Event-oriented operations properly implemented via WebSockets**
 
 **Files Modified**:
 - `packages/server/src/features/encounters/websocket/encounter-handler.mts` - Complete socket event handlers
@@ -315,6 +362,7 @@ All originally identified issues have been resolved:
 - Comprehensive error handling and logging
 - Rate limiting with encounter-specific limits
 - Permission validation for all operations
+- **Events follow communication architecture guidelines for real-time operations**
 
 **Testing Status**:
 - TypeScript compilation: ✅ Successful
@@ -563,6 +611,9 @@ export class EncounterMapRenderer {
 - Create platform-specific interaction modes (mouse vs touch)
 - Integrate real-time WebSocket token updates
 - Add token animation system for smooth movement
+- **Implement actor-to-token generation UI for GMs**
+- **Add support for duplicating tokens (multiple monsters of same type)**
+- **Ensure token modifications affect only the instance, not the actor template**
 
 **Pixi.js Token Features**:
 - **Sprite Pooling**: Efficient token object reuse
@@ -571,6 +622,7 @@ export class EncounterMapRenderer {
 - **Visual Effects**: Selection highlights, hover states
 - **Performance Culling**: Only render visible tokens
 - **Level of Detail**: Adjust token complexity by zoom level
+- **Instance State Display**: Visual indicators for token-specific state
 
 **Acceptance Criteria**:
 - [ ] Token sprites render correctly on Pixi map
@@ -581,14 +633,19 @@ export class EncounterMapRenderer {
 - [ ] Platform-specific interactions work (mouse vs touch)
 - [ ] Real-time synchronization works across clients
 - [ ] Token animations are smooth and performant
+- [ ] **GMs can easily create tokens from actor templates**
+- [ ] **Multiple tokens can be generated from same actor (for monsters)**
+- [ ] **Token state changes (HP, conditions) affect only the instance**
 
 **Files to Create/Modify**:
 - Update `packages/web/src/services/encounter/TokenRenderer.mts` (add interaction)
 - `packages/web/src/services/encounter/TokenInteraction.mts` (new - drag/drop logic)
 - `packages/web/src/services/encounter/TokenAnimator.mts` (new - smooth animations)
 - `packages/web/src/components/encounter/TokenContextMenu.vue` (new)
+- **`packages/web/src/components/encounter/ActorTokenGenerator.vue` (new - UI for creating tokens from actors)**
 - Update `packages/web/src/composables/usePixiMap.mts` (add token interaction)
 - Update encounter store for token state management
+- **`packages/web/src/components/encounter/TokenStateManager.vue` (new - manage instance-specific state)**
 
 ---
 

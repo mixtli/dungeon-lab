@@ -29,28 +29,30 @@ export function downloadBlob(blob: Blob, filename: string): void {
 }
 
 /**
- * Download a map as a UVTT file
+ * Download a map as a UVTT/DD2VTT file
  *
  * @param mapId - The ID of the map
  * @param mapName - The name of the map (used for the filename)
  * @param mapsClient - Instance of the MapsClient
+ * @param format - The format to download as ('uvtt' or 'dd2vtt', defaults to 'uvtt')
  */
 export async function downloadMapAsUVTT(
   mapId: string,
   mapName: string,
-  mapsClient: { exportMapAsUVTT: (mapId: string) => Promise<Blob> }
+  mapsClient: { exportMapAsUVTT: (mapId: string, format?: 'uvtt' | 'dd2vtt') => Promise<Blob> },
+  format: 'uvtt' | 'dd2vtt' = 'uvtt'
 ): Promise<void> {
   try {
     // Get the UVTT blob
-    const blob = await mapsClient.exportMapAsUVTT(mapId);
+    const blob = await mapsClient.exportMapAsUVTT(mapId, format);
 
     // Sanitize the filename
-    const filename = `${mapName.replace(/[^\w\s-]/gi, '')}.uvtt`;
+    const filename = `${mapName.replace(/[^\w\s-]/gi, '')}.${format}`;
 
     // Download the file
     downloadBlob(blob, filename);
   } catch (error) {
-    console.error('Error downloading UVTT file:', error);
+    console.error(`Error downloading ${format.toUpperCase()} file:`, error);
     throw error;
   }
 }

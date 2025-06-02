@@ -105,7 +105,7 @@ export class ActorService {
         const tokenAsset = await createAsset(tokenFile, 'actors/tokens', userId);
 
         // Update the actor with the token ID
-        actor.tokenId = tokenAsset.id;
+        actor.defaultTokenImageId = tokenAsset.id;
         await actor.save();
       } else {
         this.generateActorToken(actor.id, userId);
@@ -178,20 +178,20 @@ export class ActorService {
         const newTokenAsset = await createAsset(tokenFile, 'actors/tokens', userId);
 
         // Delete the old token asset if it exists and is different
-        if (actor.tokenId && actor.tokenId.toString() !== newTokenAsset.id.toString()) {
+        if (actor.defaultTokenImageId && actor.defaultTokenImageId.toString() !== newTokenAsset.id.toString()) {
           try {
-            const oldAsset = await AssetModel.findById(actor.tokenId);
+            const oldAsset = await AssetModel.findById(actor.defaultTokenImageId);
             if (oldAsset) {
               await oldAsset.deleteOne();
-              logger.info(`Deleted old token asset ${actor.tokenId} for actor ${id}`);
+              logger.info(`Deleted old token asset ${actor.defaultTokenImageId} for actor ${id}`);
             }
           } catch (deleteError) {
-            logger.warn(`Could not delete old token asset ${actor.tokenId}:`, deleteError);
+            logger.warn(`Could not delete old token asset ${actor.defaultTokenImageId}:`, deleteError);
           }
         }
 
         // Update token ID in actor data
-        updateData.tokenId = newTokenAsset.id;
+        updateData.defaultTokenImageId = newTokenAsset.id;
       }
 
       // Set the entire actor data (full replacement)
@@ -264,20 +264,20 @@ export class ActorService {
         const newTokenAsset = await createAsset(tokenFile, 'actors/tokens', userId);
 
         // Delete the old token asset if it exists and is different
-        if (actor.tokenId && actor.tokenId.toString() !== newTokenAsset.id.toString()) {
+        if (actor.defaultTokenImageId && actor.defaultTokenImageId.toString() !== newTokenAsset.id.toString()) {
           try {
-            const oldAsset = await AssetModel.findById(actor.tokenId);
+            const oldAsset = await AssetModel.findById(actor.defaultTokenImageId);
             if (oldAsset) {
               await oldAsset.deleteOne();
-              logger.info(`Deleted old token asset ${actor.tokenId} for actor ${id}`);
+              logger.info(`Deleted old token asset ${actor.defaultTokenImageId} for actor ${id}`);
             }
           } catch (deleteError) {
-            logger.warn(`Could not delete old token asset ${actor.tokenId}:`, deleteError);
+            logger.warn(`Could not delete old token asset ${actor.defaultTokenImageId}:`, deleteError);
           }
         }
 
         // Update token ID in actor data
-        updateData.tokenId = newTokenAsset.id;
+        updateData.defaultTokenImageId = newTokenAsset.id;
       }
 
       // Use deepMerge to only update the specified fields
@@ -373,17 +373,17 @@ export class ActorService {
 
       // Delete the old token asset if it exists and is different
       if (
-        existingActor.tokenId &&
-        existingActor.tokenId.toString() !== newTokenAsset.id.toString()
+        existingActor.defaultTokenImageId &&
+        existingActor.defaultTokenImageId.toString() !== newTokenAsset.id.toString()
       ) {
         try {
-          const oldAsset = await AssetModel.findById(existingActor.tokenId);
+          const oldAsset = await AssetModel.findById(existingActor.defaultTokenImageId);
           if (oldAsset) {
             await oldAsset.deleteOne();
-            logger.info(`Deleted old token asset ${existingActor.tokenId} for actor ${id}`);
+            logger.info(`Deleted old token asset ${existingActor.defaultTokenImageId} for actor ${id}`);
           }
         } catch (deleteError) {
-          logger.warn(`Could not delete old token asset ${existingActor.tokenId}:`, deleteError);
+          logger.warn(`Could not delete old token asset ${existingActor.defaultTokenImageId}:`, deleteError);
         }
       }
 
@@ -391,7 +391,7 @@ export class ActorService {
       const updatedActor = await ActorModel.findByIdAndUpdate(
         id,
         {
-          tokenId: newTokenAsset.id,
+          defaultTokenImageId: newTokenAsset.id,
           updatedBy: userId
         },
         { new: true }

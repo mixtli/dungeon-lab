@@ -480,6 +480,192 @@ export class EncounterService {
   }
 
   /**
+   * Create a token from an existing actor
+   * This generates a token instance from an actor template using the actor's defaultTokenImageId
+   */
+  async createTokenFromActor(
+    encounterId: string,
+    actorId: string,
+    position: { x: number; y: number },
+    userId: string,
+    isAdmin: boolean = false
+  ): Promise<IToken> {
+    try {
+      if (!Types.ObjectId.isValid(encounterId)) {
+        throw new Error('Encounter not found');
+      }
+      
+      if (!Types.ObjectId.isValid(actorId)) {
+        throw new Error('Actor not found');
+      }
+
+      // Check encounter access
+      const hasAccess = await this.checkEncounterModifyAccess(encounterId, userId, isAdmin);
+      if (!hasAccess) {
+        throw new Error('Access denied');
+      }
+
+      // Validate position
+      if (!this.validateTokenPosition(position)) {
+        throw new Error('Invalid position');
+      }
+
+      // Get the actor to access its properties
+      const actor = await ActorModel.findById(actorId).lean().exec();
+      
+      if (!actor) {
+        throw new Error('Actor not found');
+      }
+
+      const userObjectId = new Types.ObjectId(userId);
+      const encounterObjectId = new Types.ObjectId(encounterId);
+      const actorObjectId = new Types.ObjectId(actorId);
+
+      // Create token data from actor
+      // @ts-ignore - Using any type for token data creation
+      const tokenData: any = {
+        name: actor.name,
+        imageUrl: actor.defaultTokenImageId ? `api/assets/${actor.defaultTokenImageId}` : '',
+        size: actor.size || 'medium',
+        encounterId: encounterObjectId,
+        position,
+        actorId: actorObjectId,
+        isVisible: true,
+        isPlayerControlled: actor.isPlayerOwned || false,
+        createdBy: userObjectId,
+        updatedBy: userObjectId,
+        // Set basic stats if available in actor data
+        stats: {
+          hitPoints: actor.data?.stats?.hitPoints || 10,
+          maxHitPoints: actor.data?.stats?.maxHitPoints || 10,
+          armorClass: actor.data?.stats?.armorClass || 10,
+          speed: actor.data?.stats?.speed || 30
+        },
+        conditions: [],
+        version: 1
+      };
+
+      // Create and save token
+      const token = new TokenModel(tokenData);
+      await token.save();
+
+      // Add token to encounter's tokens array
+      await EncounterModel.findByIdAndUpdate(
+        encounterObjectId,
+        { $push: { tokens: token._id } }
+      ).exec();
+
+      return token.toObject();
+    } catch (error) {
+      if (error instanceof Error && 
+          ['Encounter not found', 'Actor not found', 'Access denied', 'Invalid position'].includes(error.message)) {
+        throw error;
+      }
+      logger.error('Error creating token from actor:', error);
+      throw new Error('Failed to create token from actor');
+    }
+  }
+
+  /**
+   * Duplicate an existing token multiple times
+   * Creates multiple instances of the same token with offset positions
+   */
+  async duplicateToken(
+    encounterId: string,
+    tokenId: string,
+    count: number = 1,
+    offsetX: number = 1,
+    offsetY: number = 0,
+    userId: string,
+    isAdmin: boolean = false
+  ): Promise<IToken[]> {
+    try {
+      if (!Types.ObjectId.isValid(encounterId)) {
+        throw new Error('Encounter not found');
+      }
+      
+      if (!Types.ObjectId.isValid(tokenId)) {
+        throw new Error('Token not found');
+      }
+
+      // Validate count
+      if (count < 1 || count > 20) { // Limit to prevent abuse
+        throw new Error('Invalid duplication count (must be between 1 and 20)');
+      }
+
+      // Check encounter access
+      const hasAccess = await this.checkEncounterModifyAccess(encounterId, userId, isAdmin);
+      if (!hasAccess) {
+        throw new Error('Access denied');
+      }
+
+      // Get the original token
+      const originalToken = await TokenModel.findOne({ 
+        _id: tokenId, 
+        encounterId 
+      }).lean().exec();
+      
+      if (!originalToken) {
+        throw new Error('Token not found');
+      }
+
+      const userObjectId = new Types.ObjectId(userId);
+      const encounterObjectId = new Types.ObjectId(encounterId);
+      const createdTokens: IToken[] = [];
+
+      // Create the specified number of duplicates
+      for (let i = 0; i < count; i++) {
+        // Calculate new position with offset
+        const position = {
+          x: originalToken.position.x + (offsetX * (i + 1)),
+          y: originalToken.position.y + (offsetY * (i + 1))
+        };
+
+        // Validate the new position
+        if (!this.validateTokenPosition(position)) {
+          logger.warn(`Skipping token duplicate at position (${position.x}, ${position.y}) - invalid position`);
+          continue;
+        }
+
+        // Create a new token based on the original
+        const tokenData = {
+          ...originalToken,
+          _id: new Types.ObjectId(), // Generate new ID
+          position,
+          name: `${originalToken.name} ${i + 1}`, // Append number to name
+          createdBy: userObjectId,
+          updatedBy: userObjectId,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+
+        delete tokenData.id; // Remove string ID if present
+
+        // Create and save token
+        const token = new TokenModel(tokenData);
+        await token.save();
+
+        // Add token to encounter's tokens array
+        await EncounterModel.findByIdAndUpdate(
+          encounterObjectId,
+          { $push: { tokens: token._id } }
+        ).exec();
+
+        createdTokens.push(token.toObject());
+      }
+
+      return createdTokens;
+    } catch (error) {
+      if (error instanceof Error && 
+          ['Encounter not found', 'Token not found', 'Access denied', 'Invalid duplication count (must be between 1 and 20)'].includes(error.message)) {
+        throw error;
+      }
+      logger.error('Error duplicating token:', error);
+      throw new Error('Failed to duplicate token');
+    }
+  }
+
+  /**
    * Remove a token from an encounter (alias for deleteToken for socket compatibility)
    */
   async removeToken(

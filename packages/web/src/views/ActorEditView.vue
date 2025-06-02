@@ -59,12 +59,12 @@ onMounted(async () => {
             type: (actor.avatarId as unknown as IAsset).type,
           }
         : null,
-      tokenImage: actor.tokenId
+      tokenImage: actor.defaultTokenImageId
         ? {
-            url: (actor.tokenId as unknown as IAsset).url,
-            path: (actor.tokenId as unknown as IAsset).path,
-            size: (actor.tokenId as unknown as IAsset).size,
-            type: (actor.tokenId as unknown as IAsset).type,
+            url: (actor.defaultTokenImageId as unknown as IAsset).url,
+            path: (actor.defaultTokenImageId as unknown as IAsset).path,
+            size: (actor.defaultTokenImageId as unknown as IAsset).size,
+            type: (actor.defaultTokenImageId as unknown as IAsset).type,
           }
         : null,
     };
@@ -104,12 +104,12 @@ async function generateNewImage(type: 'avatar' | 'token') {
       }
     } else {
       const updatedActor = await actorClient.generateActorToken(actorId);
-      if (updatedActor && updatedActor.tokenId) {
+      if (updatedActor && updatedActor.defaultTokenImageId) {
         basicInfo.value.tokenImage = {
-          url: (updatedActor.tokenId as unknown as IAsset).url,
-          path: (updatedActor.tokenId as unknown as IAsset).path,
-          size: (updatedActor.tokenId as unknown as IAsset).size,
-          type: (updatedActor.tokenId as unknown as IAsset).type,
+          url: (updatedActor.defaultTokenImageId as unknown as IAsset).url,
+          path: (updatedActor.defaultTokenImageId as unknown as IAsset).path,
+          size: (updatedActor.defaultTokenImageId as unknown as IAsset).size,
+          type: (updatedActor.defaultTokenImageId as unknown as IAsset).type,
         };
       }
     }

@@ -27,6 +27,77 @@ The packages are:
 - plugins/dnd-5e-2024:  
   Game systems and other features can be implemented in plugins which can have both a client and server component. Each plugin has three subfolders for web, server, and shared.
 
+## Communication Architecture
+
+DungeonLab uses a hybrid communication architecture with clearly defined responsibilities for REST APIs and WebSockets:
+
+### Communication Protocol Selection
+
+| Operation Type | Protocol | Examples |
+|---------------|----------|----------|
+| Resource Creation | REST | Create encounter, Upload map |
+| Resource Retrieval | REST | Get encounter data, Get monster stats |
+| Resource Updates (metadata) | REST | Update encounter name, Change map |
+| Resource Deletion | REST | Delete encounter |
+| Real-time Actions | WebSocket | Move token, Roll dice, Update HP |
+| User Presence | WebSocket | Join/leave encounter, Online status |
+| Notifications | WebSocket | Combat alerts, Turn changes |
+
+### REST API (Resource-Oriented)
+
+The REST API handles operations that align with traditional resource management:
+
+- **CRUD operations** for persistent resources (create/read/update/delete)
+- **Authentication/Authorization** flows
+- **Static data retrieval** (rulebooks, monster stats, spells)
+- **File uploads/downloads** (maps, images, PDFs)
+
+REST endpoints follow standard HTTP methods with resource-oriented URLs:
+```
+GET /campaigns/:id - Retrieve campaign data
+POST /encounters - Create a new encounter
+PUT /maps/:id - Replace a map
+DELETE /assets/:id - Delete an asset
+```
+
+### WebSockets (Event-Oriented)
+
+WebSockets handle real-time interactive features:
+
+- **Real-time state changes** (all in-game actions)
+- **Notifications** (alerts, messages)
+- **Collaborative features** (anything synchronous between users)
+- **Streaming updates** (continuous data like chat, dice rolls)
+
+WebSocket events follow a namespaced pattern:
+```
+encounter:join - Join an encounter room
+token:move - Move a token on the map
+encounter:roll-initiative - Roll initiative for tokens
+chat:message - Send a chat message
+```
+
+### Service Abstraction
+
+Client code uses service abstractions that handle the protocol details internally:
+
+```typescript
+// Service encapsulates both REST and WebSocket operations
+class EncounterService {
+  // REST operations
+  async create(data: CreateEncounterData): Promise<IEncounter> {
+    return api.post('/encounters', data);
+  }
+  
+  // WebSocket operations
+  moveToken(tokenId: string, position: Position): void {
+    socket.emit('token:move', { tokenId, position });
+  }
+}
+```
+
+This approach provides a unified interface for feature development while maintaining the appropriate protocol selection behind the scenes.
+
 ## Plugins
 
 ### Overview

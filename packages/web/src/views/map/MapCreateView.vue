@@ -118,7 +118,9 @@ async function handleUvttFileChange(event: Event) {
     
     // Set a default name if not already set
     if (!formData.value.name && file.name) {
-      formData.value.name = file.name.replace('.uvtt', '').replace(/[_-]/g, ' ');
+      formData.value.name = file.name
+        .replace(/\.(uvtt|dd2vtt)$/i, '')
+        .replace(/[_-]/g, ' ');
     }
     
   } catch (err) {
@@ -360,12 +362,12 @@ async function handleSubmit(event: Event) {
         <div class="space-y-4">
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">
-              Import from UVTT
+              Import from UVTT/DD2VTT
             </label>
             <div class="flex items-center">
               <input 
                 type="file"
-                accept=".uvtt"
+                accept=".uvtt,.dd2vtt"
                 @change="handleUvttFileChange"
                 class="block w-full text-sm text-gray-500
                       file:mr-4 file:py-2 file:px-4
@@ -382,7 +384,7 @@ async function handleSubmit(event: Event) {
               UVTT file loaded: {{ uvttFile.name }}
             </div>
             <p class="text-gray-500 text-sm mt-2">
-              Upload a Universal VTT (UVTT) file to automatically fill map settings. Will also extract any embedded image.
+              Upload a Universal VTT (UVTT/DD2VTT) file to automatically fill map settings. Will also extract any embedded image.
             </p>
           </div>
 

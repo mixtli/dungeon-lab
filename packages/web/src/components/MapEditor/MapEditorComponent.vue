@@ -62,7 +62,8 @@
 
             <div class="map-actions">
                 <button @click="handleSave" class="save-button">Save</button>
-                <button @click="handleExport" class="export-button">Export UVTT</button>
+                <button @click="() => handleExport('uvtt')" class="export-button">Export UVTT</button>
+                <button @click="() => handleExport('dd2vtt')" class="export-button export-dd2vtt-button">Export DD2VTT</button>
             </div>
         </div>
     </div>
@@ -405,7 +406,7 @@ const handleSave = async () => {
     editorState.isModified.value = false;
 };
 
-const handleExport = () => {
+const handleExport = (format: 'uvtt' | 'dd2vtt' = 'uvtt') => {
     // Convert editor state to UVTT format
     const uvttData = convertEditorStateToUVTT();
     
@@ -415,7 +416,7 @@ const handleExport = () => {
     // Create a blob and trigger download
     const blob = new Blob([jsonString], { type: 'application/uvtt' });
     const url = URL.createObjectURL(blob);
-    const filename = `${editorState.mapMetadata.name || 'map'}.uvtt`;
+    const filename = `${editorState.mapMetadata.name || 'map'}.${format}`;
     
     // Create download link
     const link = document.createElement('a');
@@ -603,5 +604,9 @@ onUnmounted(() => {
 .export-button {
     background-color: #2196F3 !important;
     color: white !important;
+}
+
+.export-dd2vtt-button {
+    background-color: #673AB7 !important;
 }
 </style>

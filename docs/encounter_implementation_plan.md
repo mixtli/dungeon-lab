@@ -65,6 +65,19 @@ class EncounterController {
     // Permission check (campaign member)
     // Return filtered data based on user role
   }
+  
+  // New methods for Actor/Token relationship
+  async createTokenFromActor(req: AuthenticatedRequest, res: Response) {
+    // Create a new token instance based on an actor template
+    // Allow customization of token-specific properties
+    // Add the token to an encounter
+  }
+  
+  async duplicateToken(req: AuthenticatedRequest, res: Response) {
+    // Create additional instances of the same token
+    // Useful for creating multiple monsters of same type
+    // Preserve token-specific state in each instance
+  }
 }
 ```
 
@@ -85,12 +98,36 @@ class EncounterService {
     // Emit real-time update
     // Return created token
   }
+  
+  async createTokenFromActor(encounterId: string, actorId: string, tokenOptions: TokenOptions, userId: string) {
+    // Fetch the actor template data
+    // Create a new token instance with reference to actor
+    // Apply token-specific overrides (position, name, etc)
+    // Add token to encounter
+    // Emit token:created event
+    // Return the new token instance
+  }
+  
+  async duplicateToken(encounterId: string, tokenId: string, count: number, userId: string) {
+    // Fetch existing token
+    // Create specified number of duplicates
+    // Position duplicates appropriately
+    // Add unique identifiers to duplicates
+    // Return array of new token instances
+  }
 
   async moveToken(encounterId: string, tokenId: string, position: Position, userId: string) {
     // Validate token ownership or GM permission
     // Check movement constraints
     // Update position with optimistic locking
     // Emit token:moved event
+  }
+  
+  async updateTokenState(encounterId: string, tokenId: string, stateUpdate: TokenStateUpdate, userId: string) {
+    // Update token-specific state (HP, conditions, etc.)
+    // Ensures changes affect only this token instance, not the actor template
+    // Validate permissions and state constraints
+    // Emit token:updated event with state changes
   }
 
   async nextTurn(encounterId: string, userId: string) {
@@ -101,6 +138,62 @@ class EncounterService {
   }
 }
 ```
+
+### **Data Models**
+
+#### **Actor/Token Relationship Model**
+
+The encounter system implements a template/instance pattern for actors and tokens:
+
+```typescript
+// Actors serve as templates
+interface Actor {
+  id: string;
+  name: string;
+  type: 'pc' | 'npc' | 'monster';
+  stats: ActorStats;
+  abilities: Ability[];
+  tokenId?: string; // Default token appearance (reference to asset)
+  // Other actor template data
+}
+
+// Tokens are instances with actor references
+interface Token {
+  id: string;
+  actorId: string; // Reference to source actor template
+  encounterId: string;
+  name?: string; // Optional override of actor name
+  position: Position;
+  
+  // Token-specific state (instance data)
+  currentHP?: number;
+  maxHP?: number; // Optional override
+  conditions: Condition[];
+  isHidden: boolean;
+  
+  // Visual properties
+  scale?: number;
+  rotation?: number;
+  tint?: string;
+  
+  // Runtime state
+  selected?: boolean;
+  controlledBy?: string; // User ID
+  
+  // Audit fields
+  createdBy: string;
+  updatedBy: string;
+  version: number;
+}
+```
+
+This model provides several key advantages:
+
+1. **Memory efficiency**: Store actor data once, regardless of how many tokens use it
+2. **Template pattern**: Actors serve as templates for creating token instances
+3. **Instance state**: Tokens store only instance-specific state and overrides
+4. **Multiple monsters**: Create many tokens from a single monster actor
+5. **Selective overrides**: Override specific actor properties on a per-token basis
 
 #### **WebSocket Event Handlers**
 
@@ -122,6 +215,23 @@ export function setupEncounterSocketHandlers(io: SocketIOServer) {
       // Emit to all clients in encounter room
       socket.to(`encounter:${encounterId}`).emit('token:moved', result);
     });
+    
+    // Create token from actor
+    socket.on('token:createFromActor', async (data) => {
+      const { encounterId, actorId, options } = validateTokenCreate.parse(data);
+      // Create token instance from actor template
+      // Add to encounter
+      // Emit to all clients in encounter room
+      io.to(`encounter:${encounterId}`).emit('token:created', result);
+    });
+    
+    // Update token state
+    socket.on('token:updateState', async (data) => {
+      const { encounterId, tokenId, stateUpdate } = validateTokenStateUpdate.parse(data);
+      // Update token-specific state
+      // Emit to all clients in encounter room
+      io.to(`encounter:${encounterId}`).emit('token:updated', result);
+    });
 
     // Combat actions
     socket.on('encounter:action', async (data) => {
@@ -130,83 +240,6 @@ export function setupEncounterSocketHandlers(io: SocketIOServer) {
       // Emit action result to room
     });
   });
-}
-```
-
-### **Security and Validation**
-
-#### **Permission System**
-
-```typescript
-// Enhanced permission validation
-interface EncounterPermissions {
-  canView: boolean;    // Campaign member
-  canControl: boolean; // GM or token owner
-  canModify: boolean;  // GM only
-  canDelete: boolean;  // GM only
-}
-
-async function validateEncounterPermission(
-  userId: string, 
-  encounterId: string, 
-  action: keyof EncounterPermissions
-): Promise<boolean> {
-  // Check campaign membership
-  // Check GM status
-  // Check token ownership for control actions
-  // Return permission result
-}
-```
-
-#### **Input Sanitization and Rate Limiting**
-
-```typescript
-// Rate limiting configuration
-const rateLimits = {
-  tokenMoves: { maxPerMinute: 30 },
-  actions: { maxPerTurn: 10 },
-  encounterUpdates: { maxPerMinute: 20 }
-};
-
-// Input validation with zod
-const moveTokenSchema = z.object({
-  encounterId: z.string().uuid(),
-  tokenId: z.string().uuid(),
-  position: z.object({
-    x: z.number().min(0).max(10000),
-    y: z.number().min(0).max(10000)
-  })
-});
-```
-
-### **Database Integration**
-
-#### **MongoDB Schema with Proper Indexing**
-
-```typescript
-// Optimized database queries
-const encounterIndexes = [
-  { campaignId: 1, status: 1 }, // Find active encounters
-  { 'tokens.actorId': 1 },      // Find tokens by actor
-  { createdAt: -1 },            // Recent encounters
-  { updatedAt: -1 }             // Recently modified
-];
-
-// Transaction handling for complex operations
-async function updateEncounterWithTokens(
-  encounterId: string, 
-  updates: EncounterUpdate
-) {
-  const session = await mongoose.startSession();
-  try {
-    await session.withTransaction(async () => {
-      // Update encounter
-      // Update related tokens
-      // Emit real-time events
-    });
-  } finally {
-    await session.endSession();
-  }
 }
 ```
 
@@ -391,49 +424,283 @@ Konva Editor   Pixi Viewer
 - Progressive image loading based on viewport
 - Efficient removal from display lists when not needed
 
+### **Token Management System**
+
+The token renderer component handles the display and interaction with token instances:
+
 ```typescript
-// Performance optimization example
+// src/services/encounter/TokenRenderer.mts
 export class TokenRenderer {
   private tokenPool: PIXI.Sprite[] = [];
   private activeTokens: Map<string, PIXI.Sprite> = new Map();
+  private tokenState: Map<string, TokenState> = new Map();
   
-  acquireToken(tokenData: TokenData): PIXI.Sprite {
-    let sprite = this.tokenPool.pop();
-    if (!sprite) {
-      sprite = new PIXI.Sprite();
-      sprite.interactive = true;
-      this.setupTokenEvents(sprite);
-    }
+  // Create token sprite from token data
+  createTokenSprite(token: Token, actorData: Actor): PIXI.Sprite {
+    let sprite = this.tokenPool.pop() || new PIXI.Sprite();
     
-    // Configure sprite for this token
-    sprite.texture = PIXI.Texture.from(tokenData.imageUrl);
-    sprite.x = tokenData.position.x;
-    sprite.y = tokenData.position.y;
+    // Use token visual properties, fallback to actor properties
+    const imageUrl = token.imageUrl || actorData.tokenImageUrl;
+    sprite.texture = PIXI.Texture.from(imageUrl);
     
-    this.activeTokens.set(tokenData.id, sprite);
+    // Apply token-specific visual properties
+    sprite.x = token.position.x;
+    sprite.y = token.position.y;
+    sprite.scale.set(token.scale || 1);
+    sprite.rotation = token.rotation || 0;
+    
+    // Store token state for future updates
+    this.tokenState.set(token.id, {
+      hp: token.currentHP || actorData.hp,
+      maxHp: token.maxHP || actorData.hp,
+      conditions: [...token.conditions],
+      isHidden: token.isHidden
+    });
+    
+    // Apply visual indicators for token state
+    this.updateTokenStateVisuals(token.id, sprite);
+    
+    this.activeTokens.set(token.id, sprite);
     return sprite;
   }
   
-  releaseToken(tokenId: string): void {
+  // Update token state visuals (HP indicators, condition icons, etc.)
+  updateTokenStateVisuals(tokenId: string, sprite: PIXI.Sprite): void {
+    const state = this.tokenState.get(tokenId);
+    if (!state) return;
+    
+    // Clear existing state visuals
+    this.clearStateVisuals(sprite);
+    
+    // Add HP indicator if damaged
+    if (state.hp < state.maxHp) {
+      this.addHPIndicator(sprite, state.hp, state.maxHp);
+    }
+    
+    // Add condition icons
+    if (state.conditions.length > 0) {
+      this.addConditionIcons(sprite, state.conditions);
+    }
+    
+    // Apply hidden state if needed
+    sprite.alpha = state.isHidden ? 0.5 : 1.0;
+  }
+  
+  // Update token state and refresh visuals
+  updateTokenState(tokenId: string, newState: Partial<TokenState>): void {
+    const state = this.tokenState.get(tokenId);
+    if (!state) return;
+    
+    // Update state with new values
+    Object.assign(state, newState);
+    this.tokenState.set(tokenId, state);
+    
+    // Refresh visuals
     const sprite = this.activeTokens.get(tokenId);
     if (sprite) {
-      sprite.parent?.removeChild(sprite);
-      this.tokenPool.push(sprite);
-      this.activeTokens.delete(tokenId);
+      this.updateTokenStateVisuals(tokenId, sprite);
     }
   }
 }
+```
+
+### **Actor-to-Token UI Components**
+
+```typescript
+// src/components/encounter/ActorTokenGenerator.vue
+<script setup lang="ts">
+import { ref, computed } from 'vue';
+import { useEncounterStore } from '@/stores/encounter';
+import { useActorsStore } from '@/stores/actors';
+
+const props = defineProps<{
+  encounterId: string;
+}>();
+
+const encounterStore = useEncounterStore();
+const actorsStore = useActorsStore();
+const selectedActorId = ref<string | null>(null);
+const tokenCount = ref(1);
+const tokenOptions = ref({
+  name: '',
+  scale: 1,
+  randomizeHP: false
+});
+
+// Filter actors by type (monsters for duplication)
+const monsterActors = computed(() => {
+  return actorsStore.actors.filter(actor => actor.type === 'monster');
+});
+
+// Create tokens from selected actor
+async function createTokens() {
+  if (!selectedActorId.value) return;
+  
+  try {
+    // Create specified number of tokens
+    await encounterStore.createTokensFromActor({
+      encounterId: props.encounterId,
+      actorId: selectedActorId.value,
+      count: tokenCount.value,
+      options: tokenOptions.value
+    });
+    
+    // Reset form
+    selectedActorId.value = null;
+    tokenCount.value = 1;
+  } catch (error) {
+    console.error('Failed to create tokens:', error);
+  }
+}
+</script>
+
+<template>
+  <div class="actor-token-generator">
+    <h3>Add Tokens</h3>
+    
+    <div class="form-group">
+      <label for="actor-select">Select Actor:</label>
+      <select id="actor-select" v-model="selectedActorId">
+        <option disabled value="">Choose an actor</option>
+        <optgroup label="Monsters">
+          <option v-for="actor in monsterActors" :key="actor.id" :value="actor.id">
+            {{ actor.name }}
+          </option>
+        </optgroup>
+      </select>
+    </div>
+    
+    <div class="form-group">
+      <label for="token-count">Number of Tokens:</label>
+      <input id="token-count" type="number" v-model="tokenCount" min="1" max="10" />
+    </div>
+    
+    <div class="form-group">
+      <label for="token-name">Custom Name:</label>
+      <input id="token-name" type="text" v-model="tokenOptions.name" placeholder="Optional" />
+    </div>
+    
+    <div class="form-group">
+      <label>
+        <input type="checkbox" v-model="tokenOptions.randomizeHP" />
+        Randomize HP
+      </label>
+    </div>
+    
+    <button @click="createTokens" :disabled="!selectedActorId">
+      Create Tokens
+    </button>
+  </div>
+</template>
+```
+
+### **Token State Management Component**
+
+```typescript
+// src/components/encounter/TokenStateManager.vue
+<script setup lang="ts">
+import { ref, computed } from 'vue';
+import { useEncounterStore } from '@/stores/encounter';
+
+const props = defineProps<{
+  tokenId: string;
+}>();
+
+const encounterStore = useEncounterStore();
+
+const token = computed(() => {
+  return encounterStore.getTokenById(props.tokenId);
+});
+
+const actor = computed(() => {
+  if (!token.value) return null;
+  return encounterStore.getActorById(token.value.actorId);
+});
+
+// Current HP with fallback to actor max HP
+const currentHP = ref(token.value?.currentHP ?? actor.value?.maxHP ?? 0);
+const maxHP = computed(() => token.value?.maxHP ?? actor.value?.maxHP ?? 0);
+
+// Update token HP
+async function updateHP(amount: number) {
+  const newHP = Math.max(0, Math.min(currentHP.value + amount, maxHP.value));
+  
+  if (newHP !== currentHP.value) {
+    currentHP.value = newHP;
+    
+    await encounterStore.updateTokenState({
+      tokenId: props.tokenId,
+      stateUpdate: {
+        currentHP: newHP
+      }
+    });
+  }
+}
+
+// Add/remove conditions
+async function toggleCondition(condition: string) {
+  const hasCondition = token.value?.conditions.includes(condition);
+  
+  await encounterStore.updateTokenState({
+    tokenId: props.tokenId,
+    stateUpdate: {
+      conditions: hasCondition
+        ? token.value?.conditions.filter(c => c !== condition)
+        : [...(token.value?.conditions || []), condition]
+    }
+  });
+}
+</script>
+
+<template>
+  <div class="token-state-manager" v-if="token && actor">
+    <h3>{{ token.name || actor.name }}</h3>
+    
+    <div class="hp-tracker">
+      <span>HP: {{ currentHP }} / {{ maxHP }}</span>
+      <div class="hp-controls">
+        <button @click="updateHP(-1)">-1</button>
+        <button @click="updateHP(-5)">-5</button>
+        <button @click="updateHP(1)">+1</button>
+        <button @click="updateHP(5)">+5</button>
+      </div>
+    </div>
+    
+    <div class="conditions">
+      <div class="condition-list">
+        <div 
+          v-for="condition in ['Prone', 'Stunned', 'Poisoned', 'Charmed']" 
+          :key="condition"
+          class="condition"
+          :class="{ active: token.conditions.includes(condition) }"
+          @click="toggleCondition(condition)"
+        >
+          {{ condition }}
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
 ```
 
 ## Plugin Integration Strategy
 
 The encounter system provides extension points for game system plugins to customize combat behavior while maintaining core functionality.
 
-### **Plugin Interface for Encounters**
+### **Actor-Token Template System for Plugins**
 
 ```typescript
 // packages/shared/src/base/plugin.mts
 export interface EncounterPlugin {
+  // Token generation from actor templates
+  createTokenFromActor?(actor: Actor, options?: TokenOptions): Token;
+  
+  // Token state modification methods
+  modifyTokenState?(token: Token, modification: StateModification): TokenUpdate;
+  
+  // Default token settings for actor types
+  getDefaultTokenSettings?(actorType: string): TokenSettings;
+  
   // Initiative system customization
   calculateInitiative?(actor: Actor, modifiers?: Record<string, number>): number;
   
@@ -462,6 +729,55 @@ export interface EncounterPlugin {
 ```typescript
 // packages/plugins/dnd-5e-2024/server/encounter.plugin.mts
 export class DnD5eEncounterPlugin implements EncounterPlugin {
+  // Actor to Token conversion
+  createTokenFromActor(actor: Actor, options?: TokenOptions): Token {
+    // Create token instance from actor template
+    const token: Token = {
+      id: generateId(),
+      actorId: actor.id,
+      name: options?.name || actor.name,
+      position: options?.position || { x: 0, y: 0 },
+      
+      // Set token-specific state
+      currentHP: options?.randomizeHP 
+        ? this.rollRandomHP(actor)
+        : actor.stats.hp.value,
+      conditions: [],
+      isHidden: options?.isHidden || false,
+      
+      // Visual properties
+      scale: options?.scale || 1,
+      rotation: options?.rotation || 0,
+      
+      // Audit fields
+      createdBy: options?.userId || 'system',
+      updatedBy: options?.userId || 'system',
+      version: 1
+    };
+    
+    return token;
+  }
+  
+  // Roll random HP for monsters
+  private rollRandomHP(actor: Actor): number {
+    if (!actor.stats.hp.formula) return actor.stats.hp.value;
+    
+    // Parse HP formula (e.g., "3d8+6")
+    const match = actor.stats.hp.formula.match(/(\d+)d(\d+)([+-]\d+)?/);
+    if (!match) return actor.stats.hp.value;
+    
+    const [_, count, sides, modifier] = match;
+    const modValue = modifier ? parseInt(modifier) : 0;
+    
+    // Roll dice
+    let total = modValue;
+    for (let i = 0; i < parseInt(count); i++) {
+      total += Math.floor(Math.random() * parseInt(sides)) + 1;
+    }
+    
+    return Math.max(1, total); // Minimum 1 HP
+  }
+
   calculateInitiative(actor: Actor, modifiers: Record<string, number> = {}): number {
     const dexMod = Math.floor((actor.stats.dexterity - 10) / 2);
     const initiativeBonus = actor.stats.initiativeBonus || 0;
@@ -792,3 +1108,203 @@ This plan balances ambition with practicality, ensuring a successful implementat
 - Combat encounters run smoothly
 - Real-time collaboration works reliably
 - Users report improved gaming experience
+
+## Overall Architecture
+
+The encounter system will be built with a clear separation between resource-oriented operations (handled via REST API) and event-oriented operations (handled via WebSockets), following the project's communication architecture strategy.
+
+### Components
+
+1. **Database Models**
+   - Encounter model (MongoDB)
+   - Token model (MongoDB)
+   - Initiative tracking model
+   - Effect tracking model
+
+2. **Server Components**
+   - **REST API** (resource-oriented operations)
+     - Encounter CRUD operations
+     - Initial token setup
+     - Batch operations
+     - Asset/resource management
+   
+   - **WebSocket Handlers** (event-oriented operations)
+     - Real-time token movement
+     - Turn management
+     - Combat actions
+     - State synchronization
+     - Notifications
+
+3. **Client Components**
+   - Encounter service (abstracts API/WebSocket communication)
+   - PixiJS map renderer
+   - Token management UI
+   - Combat UI
+   - Initiative tracker
+
+## Implementation Strategy
+
+The implementation will follow a phased approach, starting with the core functionality and progressively adding more features.
+
+### Phase 1: Core Infrastructure
+
+1. Create shared types and schemas
+2. Set up encounter database schema
+3. Create encounter controller and REST API for resource operations
+4. Implement core encounter service
+5. Set up WebSocket event handling for real-time operations
+6. Create basic Vue encounter component
+7. Implement basic token placement and movement
+
+### Phase 2: Combat Mechanics
+
+8. Add initiative tracking
+9. Implement turn management
+10. Create action system
+11. Add effect system
+12. Implement combat log
+13. Create condition tracking
+
+### Phase 3: Desktop HUD System
+
+14. Create desktop HUD system
+15. Implement character sheet integration
+16. Add spell and ability management
+17. Create dice rolling integration
+18. Add map annotation tools
+19. Implement fog of war system
+
+### Phase 4: Tablet Adaptation
+
+20. Create tablet-specific UI
+21. Implement touch controls
+22. Add gesture recognition
+23. Create simplified HUD for tablet
+24. Optimize performance for tablets
+25. Add offline mode support
+
+### Phase 5: Enhanced Features
+
+26. Create measurement tools
+27. Implement vision and lighting system
+28. Add environmental effects
+29. Create area of effect visualization
+30. Implement advanced pathfinding
+31. Add animated spell effects
+
+### Phase 6: Phone Companion & Polish
+
+32. Create phone companion app
+33. Implement character sheet viewer
+34. Add dice roller for phone
+35. Create chat integration
+36. Implement notifications
+37. Add final polish and optimization
+
+## Communication Architecture
+
+### REST API Endpoints (Resource-Oriented)
+
+The following REST endpoints will be implemented for resource-oriented operations:
+
+- `GET /api/encounters` - List encounters
+- `POST /api/encounters` - Create encounter
+- `GET /api/encounters/:id` - Get encounter details
+- `PUT /api/encounters/:id` - Update encounter
+- `DELETE /api/encounters/:id` - Delete encounter
+- `POST /api/encounters/:id/tokens` - Add tokens to encounter
+- `GET /api/encounters/:id/tokens` - Get all tokens in encounter
+- `PUT /api/encounters/:id/tokens/:tokenId` - Update token details (non-real-time)
+- `DELETE /api/encounters/:id/tokens/:tokenId` - Remove token from encounter
+- `POST /api/encounters/:id/start` - Start encounter
+- `POST /api/encounters/:id/end` - End encounter
+- `POST /api/encounters/:id/pause` - Pause encounter
+- `POST /api/encounters/:id/resume` - Resume encounter
+
+### WebSocket Events (Event-Oriented)
+
+The following WebSocket events will be implemented for event-oriented operations:
+
+- `encounter:join` - Join encounter room
+- `encounter:leave` - Leave encounter room
+- `encounter:state` - Get full encounter state
+- `encounter:status` - Encounter status update
+- `token:add` - Add token to encounter (real-time notification)
+- `token:move` - Move token on map
+- `token:update` - Update token properties (real-time)
+- `token:remove` - Remove token from encounter (real-time)
+- `token:highlight` - Highlight token
+- `initiative:roll` - Roll initiative
+- `initiative:update` - Update initiative order
+- `initiative:next` - Move to next turn
+- `initiative:previous` - Move to previous turn
+- `combat:action` - Perform combat action
+- `combat:reaction` - Perform reaction
+- `effect:add` - Add effect to token
+- `effect:update` - Update effect
+- `effect:remove` - Remove effect from token
+- `map:ping` - Ping location on map
+- `map:measure` - Measure distance
+- `map:draw` - Draw on map
+- `map:clear` - Clear drawings
+- `fog:update` - Update fog of war
+
+## Actor-Token Relationship
+
+The system will implement a clear template-instance relationship between actors and tokens:
+
+- **Actors** serve as **templates** with base stats, abilities, and characteristics
+- **Tokens** are **instances** of actors placed on the encounter map
+- Actors will store a `defaultTokenImageId` that references the default token image asset
+- Tokens will reference their source actor via `actorId` but maintain instance-specific state
+- Instance-specific state includes position, current HP, conditions, effects, etc.
+- Tokens can override specific actor properties when needed
+
+## Client Implementation
+
+The client implementation will use a service abstraction layer to handle the dual protocol approach:
+
+```typescript
+// Example encounter service abstracting protocol details
+class EncounterService {
+  // REST resource operations
+  async createEncounter(data) { /* REST API call */ }
+  async getEncounter(id) { /* REST API call */ }
+  async updateEncounter(id, data) { /* REST API call */ }
+  async deleteEncounter(id) { /* REST API call */ }
+  
+  // WebSocket event operations
+  moveToken(encounterId, tokenId, position) { /* WebSocket emit */ }
+  highlightToken(encounterId, tokenId) { /* WebSocket emit */ }
+  performAction(encounterId, tokenId, action) { /* WebSocket emit */ }
+  
+  // Event listeners
+  onTokenMove(callback) { /* WebSocket event listener */ }
+  onInitiativeChange(callback) { /* WebSocket event listener */ }
+  onCombatAction(callback) { /* WebSocket event listener */ }
+}
+```
+
+This service layer will hide the protocol details from the rest of the application, providing a unified API for all encounter operations regardless of the underlying protocol.
+
+## Map Renderer Architecture
+
+The map renderer will use PixiJS for high-performance rendering:
+
+1. Base map layer (background)
+2. Grid layer
+3. Token layer (with container-based hierarchy)
+4. Effect layer (visual effects)
+5. Annotation layer (drawings, measurements)
+6. UI layer (selection indicators, highlights)
+
+## Implementation Timeline
+
+- Phase 1: 4-6 weeks
+- Phase 2: 3-4 weeks
+- Phase 3: 4-5 weeks
+- Phase 4: 3-4 weeks
+- Phase 5: 4-6 weeks
+- Phase 6: 3-4 weeks
+
+Total: 21-29 weeks (~5-7 months)

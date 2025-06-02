@@ -7,7 +7,7 @@ import { zId } from '@zodyac/zod-mongoose';
 
 const actorSchemaMongoose = actorSchema.merge(baseMongooseZodSchema).extend({
   avatarId: zId('Asset').optional(),
-  tokenId: zId('Asset').optional()
+  defaultTokenImageId: zId('Asset').optional()
 });
 
 /**
@@ -20,7 +20,7 @@ const actorSchemaMongoose = actorSchema.merge(baseMongooseZodSchema).extend({
  */
 const mongooseSchema = createMongoSchema<IActor>(actorSchemaMongoose);
 
-mongooseSchema.path('tokenId').get(function (value: ObjectId | undefined) {
+mongooseSchema.path('defaultTokenImageId').get(function (value: ObjectId | undefined) {
   return value?.toString();
 });
 mongooseSchema.path('avatarId').get(function (value: ObjectId | undefined) {
@@ -42,7 +42,7 @@ mongooseSchema.virtual('avatar', {
 
 mongooseSchema.virtual('token', {
   ref: 'Asset',
-  localField: 'tokenId',
+  localField: 'defaultTokenImageId',
   foreignField: '_id',
   justOne: true
 });

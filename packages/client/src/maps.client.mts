@@ -254,11 +254,12 @@ export class MapsClient extends ApiClient {
   }
 
   /**
-   * Export a map as UVTT file
+   * Export a map as UVTT/DD2VTT file
    * @param mapId ID of the map to export
-   * @returns A Blob containing the UVTT file data
+   * @param format The format to export as ('uvtt' or 'dd2vtt', defaults to 'uvtt')
+   * @returns A Blob containing the map data
    */
-  async exportMapAsUVTT(mapId: string): Promise<Blob> {
+  async exportMapAsUVTT(mapId: string, format: 'uvtt' | 'dd2vtt' = 'uvtt'): Promise<Blob> {
     const response = await this.api.get(`/api/maps/${mapId}`, {
       headers: {
         'Accept': 'application/uvtt'
@@ -268,9 +269,10 @@ export class MapsClient extends ApiClient {
     
     // The response should be a blob with the UVTT data
     if (response.status !== 200) {
-      throw new Error('Failed to export map as UVTT');
+      throw new Error(`Failed to export map as ${format.toUpperCase()}`);
     }
     
+    // The content type remains the same, but the extension changes based on format
     return new Blob([response.data], { type: 'application/uvtt' });
   }
 }

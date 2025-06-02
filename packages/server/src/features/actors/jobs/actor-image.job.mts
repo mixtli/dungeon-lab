@@ -83,7 +83,7 @@ export async function registerActorImageJobs(): Promise<void> {
         const tokenAsset = await createAsset(tokenFile, 'actors/tokens', userId);
         
         // Update the actor with the token ID
-        actor.tokenId = tokenAsset.id;
+        actor.defaultTokenImageId = tokenAsset.id;
         actor.updatedBy = userId;
         await actor.save();
         

@@ -543,4 +543,125 @@ router.delete(
   encounterController.deleteToken
 );
 
+/**
+ * POST /encounters/:encounterId/tokens/from-actor - Create a token from an actor
+ */
+router.post(
+  '/:encounterId/tokens/from-actor',
+  authenticate,
+  oapi.validPath(
+    createPathSchema({
+      description: 'Create a new token from an existing actor template',
+      requestParams: {
+        path: z.object({ encounterId: z.string() })
+      },
+      requestBody: {
+        content: {
+          'application/json': {
+            schema: z.object({
+              actorId: z.string().describe('ID of the actor to create token from'),
+              position: z.object({
+                x: z.number().min(0).describe('X position on the grid'),
+                y: z.number().min(0).describe('Y position on the grid')
+              }).describe('Position on the encounter map')
+            }).openapi({
+              description: 'Create token from actor request'
+            })
+          }
+        }
+      },
+      responses: {
+        201: {
+          description: 'Token created successfully from actor',
+          content: {
+            'application/json': {
+              schema: getTokenResponseSchema.openapi({
+                description: 'Create token from actor response'
+              })
+            }
+          }
+        },
+        400: {
+          description: 'Invalid request data or position'
+        },
+        401: {
+          description: 'Unauthorized'
+        },
+        403: {
+          description: 'Access denied'
+        },
+        404: {
+          description: 'Encounter or actor not found'
+        },
+        500: {
+          description: 'Internal server error'
+        }
+      }
+    })
+  ),
+  encounterController.createTokenFromActor
+);
+
+/**
+ * POST /encounters/:encounterId/tokens/:tokenId/duplicate - Duplicate a token
+ */
+router.post(
+  '/:encounterId/tokens/:tokenId/duplicate',
+  authenticate,
+  oapi.validPath(
+    createPathSchema({
+      description: 'Duplicate an existing token multiple times',
+      requestParams: {
+        path: z.object({
+          encounterId: z.string(),
+          tokenId: z.string()
+        })
+      },
+      requestBody: {
+        content: {
+          'application/json': {
+            schema: z.object({
+              count: z.number().int().min(1).max(20).optional().describe('Number of duplicates to create (1-20)'),
+              offsetX: z.number().optional().describe('X position offset for each duplicate'),
+              offsetY: z.number().optional().describe('Y position offset for each duplicate')
+            }).openapi({
+              description: 'Duplicate token request'
+            })
+          }
+        }
+      },
+      responses: {
+        201: {
+          description: 'Token(s) duplicated successfully',
+          content: {
+            'application/json': {
+              schema: baseAPIResponseSchema.extend({
+                data: z.array(tokenSchema)
+              }).openapi({
+                description: 'Duplicate token response'
+              })
+            }
+          }
+        },
+        400: {
+          description: 'Invalid request data or count'
+        },
+        401: {
+          description: 'Unauthorized'
+        },
+        403: {
+          description: 'Access denied'
+        },
+        404: {
+          description: 'Encounter or token not found'
+        },
+        500: {
+          description: 'Internal server error'
+        }
+      }
+    })
+  ),
+  encounterController.duplicateToken
+);
+
 export const encounterRoutes = router; 

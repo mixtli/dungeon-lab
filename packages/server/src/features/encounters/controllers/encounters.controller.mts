@@ -551,4 +551,158 @@ export class EncounterController {
       next(error);
     }
   };
+
+  /**
+   * Create a token from an actor
+   */
+  createTokenFromActor = async (
+    req: Request<
+      { encounterId: string },
+      object,
+      { actorId: string; position: { x: number; y: number } }
+    >,
+    res: Response<BaseAPIResponse<IToken>>
+  ): Promise<Response<BaseAPIResponse<IToken>> | void> => {
+    try {
+      const { encounterId } = req.params;
+      const { actorId, position } = req.body;
+      const userId = req.session.user.id;
+      const isAdmin = req.session.user.isAdmin;
+
+      const token = await this.encounterService.createTokenFromActor(
+        encounterId,
+        actorId,
+        position,
+        userId,
+        isAdmin
+      );
+
+      return res.status(201).json({
+        success: true,
+        data: token
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          success: false,
+          error: error.errors.map((e) => e.message).join(', '),
+          data: null
+        });
+      }
+      if (isErrorWithMessage(error)) {
+        if (error.message === 'Encounter not found') {
+          return res.status(404).json({
+            success: false,
+            error: 'Encounter not found',
+            data: null
+          });
+        }
+        if (error.message === 'Actor not found') {
+          return res.status(404).json({
+            success: false,
+            error: 'Actor not found',
+            data: null
+          });
+        }
+        if (error.message === 'Access denied') {
+          return res.status(403).json({
+            success: false,
+            error: 'Access denied',
+            data: null
+          });
+        }
+        if (error.message === 'Invalid position') {
+          return res.status(400).json({
+            success: false,
+            error: 'Invalid token position',
+            data: null
+          });
+        }
+      }
+      logger.error('Error creating token from actor:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to create token from actor',
+        data: null
+      });
+    }
+  };
+
+  /**
+   * Duplicate a token multiple times
+   */
+  duplicateToken = async (
+    req: Request<
+      { encounterId: string; tokenId: string },
+      object,
+      { count?: number; offsetX?: number; offsetY?: number }
+    >,
+    res: Response<BaseAPIResponse<IToken[]>>
+  ): Promise<Response<BaseAPIResponse<IToken[]>> | void> => {
+    try {
+      const { encounterId, tokenId } = req.params;
+      const { count = 1, offsetX = 1, offsetY = 0 } = req.body;
+      const userId = req.session.user.id;
+      const isAdmin = req.session.user.isAdmin;
+
+      const tokens = await this.encounterService.duplicateToken(
+        encounterId,
+        tokenId,
+        count,
+        offsetX,
+        offsetY,
+        userId,
+        isAdmin
+      );
+
+      return res.status(201).json({
+        success: true,
+        data: tokens
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          success: false,
+          error: error.errors.map((e) => e.message).join(', '),
+          data: null
+        });
+      }
+      if (isErrorWithMessage(error)) {
+        if (error.message === 'Encounter not found') {
+          return res.status(404).json({
+            success: false,
+            error: 'Encounter not found',
+            data: null
+          });
+        }
+        if (error.message === 'Token not found') {
+          return res.status(404).json({
+            success: false,
+            error: 'Token not found',
+            data: null
+          });
+        }
+        if (error.message === 'Access denied') {
+          return res.status(403).json({
+            success: false,
+            error: 'Access denied',
+            data: null
+          });
+        }
+        if (error.message === 'Invalid duplication count (must be between 1 and 20)') {
+          return res.status(400).json({
+            success: false,
+            error: 'Invalid duplication count (must be between 1 and 20)',
+            data: null
+          });
+        }
+      }
+      logger.error('Error duplicating token:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to duplicate token',
+        data: null
+      });
+    }
+  };
 } 

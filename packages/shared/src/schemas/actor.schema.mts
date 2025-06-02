@@ -11,7 +11,7 @@ export const actorSchema = baseSchema.extend({
 
   // Direct asset references using string IDs (will be ObjectId in server models via zId)
   avatarId: z.string().optional(),
-  tokenId: z.string().optional(),
+  defaultTokenImageId: z.string().optional(),
 
   description: z.string().optional(),
   gameSystemId: z.string().min(1),
@@ -29,7 +29,7 @@ export const actorCreateSchema = actorSchema
   })
   .omit({
     avatarId: true,
-    tokenId: true,
+    defaultTokenImageId: true,
     id: true
   });
 
