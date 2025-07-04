@@ -13,6 +13,8 @@
         ref="canvasRef"
         class="pixi-canvas"
         @contextmenu.prevent
+        @click="handleCanvasClick"
+        @mousedown="handleCanvasMouseDown"
       />
     </div>
 
@@ -99,7 +101,7 @@ interface Emits {
   (e: 'token-selected', tokenId: string): void;
   (e: 'token-moved', tokenId: string, x: number, y: number): void;
   (e: 'viewport-changed', viewport: { x: number; y: number; scale: number }): void;
-  (e: 'canvas-click', x: number, y: number): void;
+  (e: 'canvas-click', x: number, y: number, event: MouseEvent): void;
   (e: 'canvas-right-click', x: number, y: number): void;
 }
 
@@ -120,6 +122,7 @@ const {
   isLoaded,
   isInitialized,
   viewportState,
+  selectedTokenId,
   initializeMap,
   loadMap,
   addToken,
@@ -127,6 +130,7 @@ const {
   removeToken,
   moveToken,
   clearAllTokens,
+  enableTokenDragging,
   panTo,
   zoomTo,
   zoomAt,
@@ -296,6 +300,40 @@ defineExpose({
   currentMap
 });
 
+// New canvas event handlers
+const handleCanvasClick = (event: MouseEvent) => {
+  if (!isInitialized.value || isLoading.value) return;
+  
+  // Convert screen coordinates to world coordinates
+  const { x, y } = screenToWorld(event.offsetX, event.offsetY);
+  
+  // Emit canvas click event with the original MouseEvent
+  emit('canvas-click', x, y, event);
+};
+
+const handleCanvasMouseDown = (event: MouseEvent) => {
+  if (!isInitialized.value || isLoading.value) return;
+  
+  // Right click
+  if (event.button === 2) {
+    const { x, y } = screenToWorld(event.offsetX, event.offsetY);
+    emit('canvas-right-click', x, y);
+  }
+};
+
+// Set up token interaction
+const setupTokenInteractions = () => {
+  // Enable token dragging by default
+  enableTokenDragging(true);
+  
+  // Set up token selection watcher
+  watch(selectedTokenId, (newTokenId) => {
+    if (newTokenId) {
+      emit('token-selected', newTokenId);
+    }
+  });
+};
+
 // Watchers
 watch(() => props.mapId, async (newMapId) => {
   if (newMapId && isInitialized.value) {
@@ -345,6 +383,9 @@ onMounted(async () => {
   if (props.autoResize) {
     window.addEventListener('resize', handleResize);
   }
+  
+  // Set up token interactions
+  setupTokenInteractions();
 });
 
 onUnmounted(() => {

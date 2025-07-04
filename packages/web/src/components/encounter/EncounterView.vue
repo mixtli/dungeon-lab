@@ -29,6 +29,12 @@
           <p class="text-sm text-gray-300">Status: {{ encounter.status }}</p>
         </div>
         <div class="flex gap-2">
+          <router-link
+            :to="{ name: 'encounter-run', params: { id: encounter.id }}"
+            class="px-3 py-1 bg-green-600 hover:bg-green-500 rounded text-sm"
+          >
+            Run Encounter
+          </router-link>
           <button 
             @click="toggleFullscreen"
             class="px-3 py-1 bg-gray-600 hover:bg-gray-500 rounded text-sm"
@@ -36,7 +42,7 @@
             {{ isFullscreen ? 'Exit Fullscreen' : 'Fullscreen' }}
           </button>
           <button 
-            @click="goBack"
+            @click="$router.go(-1)"
             class="px-3 py-1 bg-gray-600 hover:bg-gray-500 rounded text-sm"
           >
             Back
@@ -45,7 +51,7 @@
       </div>
 
       <!-- Main Content Area -->
-      <div class="encounter-content flex-1 relative">
+      <div class="encounter-content flex-1 relative" ref="mapContainerRef">
         <!-- Pixi Map Viewer -->
         <PixiMapViewer
           v-if="encounter.mapId"
@@ -56,7 +62,8 @@
           @token-selected="handleTokenSelection"
           @token-moved="handleTokenMoved"
           @viewport-changed="handleViewportChange"
-          @map-clicked="handleMapClick"
+          @canvas-click="handleMapClick"
+          @canvas-right-click="handleMapRightClick"
           class="w-full h-full"
         />
         
@@ -65,8 +72,14 @@
           <div>Encounter ID: {{ encounter.id }}</div>
           <div>Map ID: {{ encounter.mapId || 'None' }}</div>
           <div>Tokens: {{ encounterTokens.length }}</div>
-          <div>Loading: {{ loading }}</div>
-          <div>Error: {{ error || 'None' }}</div>
+          <div>Selected Token: {{ selectedToken?.name || 'None' }}</div>
+          <div>Socket: {{ isSocketConnected ? 'Connected' : 'Disconnected' }}</div>
+          <button 
+            @click="showTokenGenerator = true; lastClickPosition = { x: 100, y: 100, elevation: 0 }"
+            class="mt-2 px-2 py-1 bg-blue-600 text-white rounded text-xs"
+          >
+            Test Add Token
+          </button>
         </div>
 
         <!-- Fallback when no map -->
@@ -87,6 +100,43 @@
           >
             <h4 class="font-bold">{{ selectedToken.name }}</h4>
             <p class="text-sm text-gray-600">Position: {{ selectedToken.position.x }}, {{ selectedToken.position.y }}</p>
+            <div class="mt-2">
+              <button 
+                @click="deselectToken" 
+                class="text-xs bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded"
+              >
+                Deselect
+              </button>
+            </div>
+          </div>
+
+          <!-- Token Context Menu -->
+          <div
+            v-if="contextMenuToken"
+            class="absolute bg-white rounded-lg shadow-lg p-2 pointer-events-auto z-30"
+            :style="tokenGeneratorStyle"
+          >
+            <div class="text-sm font-semibold border-b pb-1 mb-1">{{ contextMenuToken.name }}</div>
+            <div class="space-y-1">
+              <button 
+                @click="handleTokenAction('move')" 
+                class="block w-full text-left px-2 py-1 text-sm hover:bg-blue-100 rounded"
+              >
+                Move
+              </button>
+              <button 
+                @click="handleTokenAction('select')" 
+                class="block w-full text-left px-2 py-1 text-sm hover:bg-blue-100 rounded"
+              >
+                Select
+              </button>
+              <button 
+                @click="handleTokenAction('remove')" 
+                class="block w-full text-left px-2 py-1 text-sm text-red-600 hover:bg-red-50 rounded"
+              >
+                Remove
+              </button>
+            </div>
           </div>
 
           <!-- Connection Status -->
@@ -111,6 +161,32 @@
               >
                 {{ participant }}
               </div>
+            </div>
+          </div>
+
+          <!-- Map Context Menu -->
+          <div
+            v-if="showMapContextMenu"
+            class="absolute bg-white rounded-lg shadow-lg p-2 pointer-events-auto z-30"
+            :style="{
+              top: `${contextMenuPosition.y}px`,
+              left: `${contextMenuPosition.x}px`
+            }"
+          >
+            <div class="text-sm font-semibold border-b pb-1 mb-1">Map Options</div>
+            <div class="space-y-1">
+              <button 
+                @click="handleMapContextMenuAction('add-token')" 
+                class="block w-full text-left px-2 py-1 text-sm hover:bg-blue-100 rounded"
+              >
+                Add Token
+              </button>
+              <button 
+                @click="handleMapContextMenuAction('center-view')" 
+                class="block w-full text-left px-2 py-1 text-sm hover:bg-blue-100 rounded"
+              >
+                Center View
+              </button>
             </div>
           </div>
         </div>
@@ -144,17 +220,29 @@
         <p>The requested encounter could not be found.</p>
       </div>
     </div>
+
+    <!-- Actor Token Generator -->
+    <ActorTokenGenerator
+      v-if="showTokenGenerator"
+      :encounter-id="currentEncounterId"
+      :actors="encounter?.participants || []"
+      :initial-position="lastClickPosition"
+      @tokens-created="handleTokensCreated"
+      @cancel="showTokenGenerator = false"
+      class="actor-token-generator-modal"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useRoute } from 'vue-router';
 import { useEncounterStore } from '../../stores/encounter.store.mjs';
 import { useDeviceAdaptation } from '../../composables/useDeviceAdaptation.mjs';
 import { useEncounterSocket } from '../../composables/useEncounterSocket.mjs';
 import PixiMapViewer from './PixiMapViewer.vue';
-import type { IToken } from '@dungeon-lab/shared/types/encounters.mjs';
+import ActorTokenGenerator from './ActorTokenGenerator.vue';
+import type { IToken } from '@dungeon-lab/shared/types/tokens.mjs';
 
 // Props
 interface Props {
@@ -167,7 +255,6 @@ const props = withDefaults(defineProps<Props>(), {
 
 // Composables
 const route = useRoute();
-const router = useRouter();
 const encounterStore = useEncounterStore();
 const { deviceConfig, deviceClass } = useDeviceAdaptation();
 
@@ -181,7 +268,9 @@ const {
   isConnected, 
   joinEncounter, 
   leaveEncounter,
-  moveToken 
+  moveToken,
+  deleteToken,
+  createToken
 } = useEncounterSocket(currentEncounterId.value);
 
 // State
@@ -189,6 +278,13 @@ const loading = ref(true);
 const error = ref<string | null>(null);
 const isFullscreen = ref(false);
 const selectedToken = ref<IToken | null>(null);
+const showTokenGenerator = ref(false);
+
+// Position tracking for token placement
+const mapContainerRef = ref<HTMLElement | null>(null);
+const lastClickPosition = ref<{ x: number; y: number; elevation: number } | undefined>(undefined);
+
+// Viewport state
 const viewport = ref({
   x: 0,
   y: 0,
@@ -266,37 +362,39 @@ const retryLoad = () => {
   loadEncounter();
 };
 
-const goBack = () => {
-  router.push({ 
-    name: 'encounter-detail', 
-    params: { id: route.params.id } 
-  });
-};
-
 const toggleFullscreen = () => {
   isFullscreen.value = !isFullscreen.value;
-  // TODO: Implement actual fullscreen API
+  if (isFullscreen.value) {
+    mapContainerRef.value?.requestFullscreen();
+  } else {
+    document.exitFullscreen();
+  }
 };
 
 // Event handlers - matching PixiMapViewer emit signatures
 const handleTokenSelection = (tokenId: string) => {
-  // Find the token by ID
-  const token = encounterTokens.value.find(t => t.id === tokenId);
-  selectedToken.value = token || null;
-  console.log('Token selected:', tokenId, token);
+  if (!encounter.value) return;
+  
+  // Find the token in the encounter
+  selectedToken.value = encounter.value.tokens.find(t => t.id === tokenId) || null;
+  
+  // Close context menu if open
+  contextMenuToken.value = null;
 };
 
-const handleTokenMoved = (tokenId: string, x: number, y: number) => {
-  console.log('Token moved:', { tokenId, x, y });
+const handleTokenMoved = (tokenId: string, x: number, y: number, elevation: number = 0) => {
+  if (!encounter.value) return;
   
-  // Update local state
-  if (selectedToken.value?.id === tokenId) {
-    selectedToken.value.position.x = x;
-    selectedToken.value.position.y = y;
+  // Update token position in local state
+  const token = encounter.value.tokens.find(t => t.id === tokenId);
+  if (token) {
+    token.position.x = x;
+    token.position.y = y;
+    token.position.elevation = elevation;
+    
+    // Send update via socket
+    moveToken(tokenId, { x, y, elevation });
   }
-  
-  // Send movement to server via socket
-  moveToken(tokenId, { x, y, elevation: 0 });
 };
 
 const handleViewportChange = (newViewport: { x: number; y: number; scale: number }) => {
@@ -307,11 +405,163 @@ const handleViewportChange = (newViewport: { x: number; y: number; scale: number
   };
 };
 
-const handleMapClick = (x: number, y: number) => {
-  console.log('Map clicked:', { x, y });
-  // Clear selection when clicking empty space
+// Handle right-click for context menu
+const handleMapRightClick = (x: number, y: number) => {
+  // Store click position for context menu
+  contextMenuPosition.value = { 
+    x: lastClientX.value,
+    y: lastClientY.value 
+  };
+  
+  // Close any existing context menu
+  contextMenuToken.value = null;
+  
+  // Store position for token placement
+  lastClickPosition.value = { x, y, elevation: 0 }; // Default elevation to 0
+  
+  // For desktop/tablet, show map context menu
+  if (deviceConfig.value.type !== 'phone') {
+    showMapContextMenu.value = true;
+  }
+};
+
+// Close all menus when clicking on map
+const handleMapClick = (x: number, y: number, event?: MouseEvent) => {
+  // Store the click position for token placement
+  lastClickPosition.value = { x, y, elevation: 0 }; // Default elevation to 0
+  
+  // Close all context menus
+  showMapContextMenu.value = false;
+  contextMenuToken.value = null;
+  
+  // Track mouse position for context menus if event is available
+  if (event) {
+    lastClientX.value = event.clientX;
+    lastClientY.value = event.clientY;
+  }
+  
+  // Optionally open token generator
+  if (deviceConfig.value.type !== 'phone') {
+    showTokenGenerator.value = true;
+  }
+};
+
+// Track last mouse position for context menus
+const lastClientX = ref(0);
+const lastClientY = ref(0);
+const showMapContextMenu = ref(false);
+
+// Deselect the current token
+const deselectToken = () => {
   selectedToken.value = null;
 };
+
+// Handle token action from context menu
+const handleTokenAction = (action: string) => {
+  if (!contextMenuToken.value) return;
+  
+  const tokenId = contextMenuToken.value.id;
+  
+  switch (action) {
+    case 'move':
+      // Set token as selected and enable movement
+      handleTokenSelection(tokenId);
+      break;
+    case 'select':
+      // Just select the token
+      handleTokenSelection(tokenId);
+      break;
+    case 'remove':
+      // Remove token from encounter
+      if (confirm(`Remove token "${contextMenuToken.value.name}"?`)) {
+        removeTokenFromEncounter(tokenId);
+      }
+      break;
+  }
+  
+  // Close context menu
+  contextMenuToken.value = null;
+};
+
+// Remove token from encounter
+const removeTokenFromEncounter = (tokenId: string) => {
+  if (!encounter.value) return;
+  
+  // Update local state
+  encounter.value.tokens = encounter.value.tokens.filter(t => t.id !== tokenId);
+  
+  // If this was the selected token, deselect it
+  if (selectedToken.value?.id === tokenId) {
+    selectedToken.value = null;
+  }
+  
+  // Send update via socket
+  deleteToken(tokenId);
+};
+
+// Handle tokens created from ActorTokenGenerator
+const handleTokensCreated = async (tokens: IToken[]) => {
+  if (!encounter.value) return;
+  
+  try {
+    // Add tokens to the local state first for immediate feedback
+    encounter.value.tokens = [...encounter.value.tokens, ...tokens];
+    
+    // Create tokens on the server via socket
+    for (const token of tokens) {
+      createToken(token);
+    }
+    
+    // Close the token generator
+    showTokenGenerator.value = false;
+  } catch (error) {
+    console.error('Failed to create tokens:', error);
+    // Remove the tokens from local state if server creation failed
+    if (encounter.value) {
+      encounter.value.tokens = encounter.value.tokens.filter(t => 
+        !tokens.some(newToken => newToken.id === t.id)
+      );
+    }
+  }
+};
+
+// Handle map context menu action
+const handleMapContextMenuAction = (action: string) => {
+  switch (action) {
+    case 'add-token':
+      console.log('[Debug] Add token action triggered');
+      console.log('[Debug] Encounter data:', encounter.value);
+      
+      // Set lastClickPosition if needed and show token generator
+      if (!lastClickPosition.value && encounter.value?.mapId) {
+        // Default to center of map if no position is set
+        lastClickPosition.value = { x: 100, y: 100, elevation: 0 };
+      }
+      
+      showTokenGenerator.value = true;
+      break;
+    case 'center-view':
+      // If we had a mapViewer ref, we could call centerOn here
+      break;
+  }
+  
+  // Close context menu
+  showMapContextMenu.value = false;
+};
+
+// Properly position the token generator
+const tokenGeneratorStyle = computed(() => {
+  // Position next to the context menu or click position
+  const x = contextMenuPosition.value.x + 10; 
+  const y = contextMenuPosition.value.y;
+  
+  return {
+    position: 'absolute' as const,
+    top: `${y}px`,
+    left: `${x}px`,
+    zIndex: 1000
+  };
+});
 
 // Lifecycle
 onMounted(() => {
@@ -337,6 +587,10 @@ watch(isConnected, (connected) => {
     joinEncounter(currentEncounterId.value);
   }
 });
+
+// UI State
+const contextMenuToken = ref<IToken | null>(null);
+const contextMenuPosition = ref({ x: 0, y: 0 });
 </script>
 
 <style scoped>

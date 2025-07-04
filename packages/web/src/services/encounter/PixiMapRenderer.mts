@@ -238,28 +238,53 @@ export class EncounterMapRenderer {
     if (!resolution.pixels_per_grid) return;
     
     lights.forEach((light, index) => {
-      const lightGraphic = new PIXI.Graphics();
-      lightGraphic.name = `light-${index}`;
-      
-      // Convert light position to pixels
-      const pixelPos = this.gridToPixel(light.position, resolution);
-      const pixelRange = light.range * (resolution.pixels_per_grid || 50);
-      
-      // Parse color (assuming hex string format)
-      const color = parseInt(light.color.replace('#', ''), 16);
-      
-      // Draw light as a circle with gradient effect
-      lightGraphic.beginFill(color, light.intensity * 0.3);
-      lightGraphic.drawCircle(pixelPos.x, pixelPos.y, pixelRange);
-      lightGraphic.endFill();
-      
-      // Add a bright center
-      lightGraphic.beginFill(color, light.intensity * 0.8);
-      lightGraphic.drawCircle(pixelPos.x, pixelPos.y, pixelRange * 0.1);
-      lightGraphic.endFill();
-      
-      this.mapContainer.addChild(lightGraphic);
-      this.lightGraphics.push(lightGraphic);
+      try {
+        const lightGraphic = new PIXI.Graphics();
+        lightGraphic.name = `light-${index}`;
+        
+        // Convert light position to pixels
+        const pixelPos = this.gridToPixel(light.position, resolution);
+        const pixelRange = light.range * (resolution.pixels_per_grid || 50);
+        
+        // Parse color safely with fallback
+        let color;
+        try {
+          // Try to parse as hex string first
+          if (typeof light.color === 'string' && light.color.startsWith('#')) {
+            color = parseInt(light.color.replace('#', ''), 16);
+          } 
+          // Try to parse as number if it's not a string
+          else if (typeof light.color === 'number') {
+            // Convert number to hex string first to ensure valid format
+            const hexColor = (light.color as number).toString(16).padStart(6, '0');
+            color = parseInt(hexColor, 16);
+          }
+          // If all else fails, use a default color
+          else {
+            console.warn(`Invalid light color format for light ${index}, using default`);
+            color = 0xFFFFFF; // Default to white
+          }
+        } catch (colorError) {
+          console.warn(`Error parsing light color for light ${index}, using default:`, colorError);
+          color = 0xFFFFFF; // Default to white
+        }
+        
+        // Draw light as a circle with gradient effect
+        lightGraphic.beginFill(color, light.intensity * 0.3);
+        lightGraphic.drawCircle(pixelPos.x, pixelPos.y, pixelRange);
+        lightGraphic.endFill();
+        
+        // Add a bright center
+        lightGraphic.beginFill(color, light.intensity * 0.8);
+        lightGraphic.drawCircle(pixelPos.x, pixelPos.y, pixelRange * 0.1);
+        lightGraphic.endFill();
+        
+        this.mapContainer.addChild(lightGraphic);
+        this.lightGraphics.push(lightGraphic);
+      } catch (error) {
+        console.error(`Failed to render light ${index}:`, error);
+        // Continue to next light instead of breaking the entire map
+      }
     });
   }
   

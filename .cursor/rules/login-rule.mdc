@@ -1,0 +1,15 @@
+---
+description: Use this rule when logging into the app.
+globs: 
+alwaysApply: false
+---
+If you need to log in as a user, use these credentials:
+user: test1@dungeonlab.com
+password:  password
+
+If you need admin access, log in as 
+user: admin@dungeonlab.com
+password: password
+
+
+Only log in as admin if you are specifically testing admin functionality.

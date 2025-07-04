@@ -59,7 +59,7 @@ const canStopEncounter = computed(() => {
 });
 
 const canRun = computed(() => {
-  return encounterStore.currentEncounter?.status === 'in_progress';
+  return !!encounterStore.currentEncounter;
 });
 
 onMounted(async () => {

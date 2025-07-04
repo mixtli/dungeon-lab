@@ -2,6 +2,8 @@
 
 ## Overview
 
+The overall plan and architecture for encounters is documented in docs/encounter_implementation_plan.md
+
 This document outlines the implementation tasks for creating the encounter system in DungeonLab. The system provides turn-based combat between player characters and NPCs/monsters on a shared map, with real-time synchronization across desktop, tablet, and phone platforms.
 
 Tasks are organized by phase with clear dependencies and acceptance criteria. The implementation focuses on encounters first, with foundation for future scene system expansion.

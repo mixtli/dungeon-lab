@@ -4,7 +4,6 @@ import type { IToken } from '@dungeon-lab/shared/types/tokens.mjs';
 import { EncounterMapRenderer, type Platform, type EncounterMapConfig } from '@/services/encounter/PixiMapRenderer.mjs';
 import { TokenRenderer } from '@/services/encounter/TokenRenderer.mjs';
 import { ViewportManager, type ViewportState } from '@/services/encounter/ViewportManager.mjs';
-import type * as PIXI from 'pixi.js';
 
 export interface UsePixiMapOptions {
   platform?: Platform;
@@ -18,6 +17,7 @@ export interface UsePixiMapReturn {
   isLoaded: Ref<boolean>;
   isInitialized: Ref<boolean>;
   viewportState: Ref<ViewportState | null>;
+  selectedTokenId: Ref<string | null>;
   
   // Methods
   initializeMap: (canvas: HTMLCanvasElement, options?: UsePixiMapOptions) => Promise<void>;
@@ -27,6 +27,11 @@ export interface UsePixiMapReturn {
   removeToken: (tokenId: string) => void;
   moveToken: (tokenId: string, x: number, y: number, animate?: boolean) => void;
   clearAllTokens: () => void;
+  
+  // Token selection and interaction
+  selectToken: (tokenId: string) => void;
+  deselectToken: (tokenId?: string) => void;
+  enableTokenDragging: (enabled: boolean) => void;
   
   // Viewport controls
   panTo: (x: number, y: number) => void;
@@ -52,6 +57,7 @@ export function usePixiMap(): UsePixiMapReturn {
   const isLoaded = ref(false);
   const isInitialized = ref(false);
   const viewportState = ref<ViewportState | null>(null);
+  const selectedTokenId = ref<string | null>(null);
   
   // Service instances
   let mapRenderer: EncounterMapRenderer | null = null;
@@ -252,34 +258,74 @@ export function usePixiMap(): UsePixiMapReturn {
   };
   
   /**
-   * Set up token event listeners
+   * Set up token event listeners to connect token events to Vue state
    */
-  const setupTokenEventListeners = (): void => {
-    if (!tokenRenderer || !mapRenderer) return;
+  const setupTokenEventListeners = () => {
+    if (!tokenRenderer) return;
     
-    const tokenContainer = mapRenderer.getTokenContainer();
-    
-    // Listen for token events and emit them for the component to handle
-    tokenContainer.on('token:pointerdown', (data: { tokenId: string; event: PIXI.FederatedPointerEvent }) => {
-      // Component can listen to these events
-      console.log('Token pointer down:', data.tokenId);
+    tokenRenderer.setEventHandlers({
+      // Token selection events
+      select: (tokenId) => {
+        selectedTokenId.value = tokenId;
+      },
+      deselect: () => {
+        selectedTokenId.value = null;
+      },
+      
+      // Token drag events
+      dragStart: (tokenId) => {
+        // Could add additional state tracking here if needed
+        console.log('Token drag started:', tokenId);
+      },
+      dragMove: () => {
+        // Update any reactive state for token dragging if needed
+      },
+      dragEnd: (tokenId, finalPosition) => {
+        console.log('Token drag ended:', tokenId, finalPosition);
+        // Here you might want to emit an event to the parent component
+        // or call an API to persist the token position
+      },
+      
+      // Token click events
+      click: (tokenId) => {
+        // Handle token clicks
+        console.log('Token clicked:', tokenId);
+      },
+      rightClick: (tokenId) => {
+        // Handle token right clicks (e.g., for context menu)
+        console.log('Token right-clicked:', tokenId);
+      }
     });
+  };
+  
+  /**
+   * Select a specific token
+   */
+  const selectToken = (tokenId: string): void => {
+    if (!tokenRenderer) return;
+    tokenRenderer.selectToken(tokenId);
+    // selectedTokenId is updated via the event handler
+  };
+  
+  /**
+   * Deselect the currently selected token or a specific token
+   */
+  const deselectToken = (tokenId?: string): void => {
+    if (!tokenRenderer) return;
     
-    tokenContainer.on('token:pointerup', (data: { tokenId: string; event: PIXI.FederatedPointerEvent }) => {
-      console.log('Token pointer up:', data.tokenId);
-    });
-    
-    tokenContainer.on('token:pointermove', (data: { tokenId: string; event: PIXI.FederatedPointerEvent }) => {
-      console.log('Token pointer move:', data.tokenId);
-    });
-    
-    tokenContainer.on('token:pointerover', (data: { tokenId: string; event: PIXI.FederatedPointerEvent }) => {
-      console.log('Token hover start:', data.tokenId);
-    });
-    
-    tokenContainer.on('token:pointerout', (data: { tokenId: string; event: PIXI.FederatedPointerEvent }) => {
-      console.log('Token hover end:', data.tokenId);
-    });
+    if (tokenId) {
+      tokenRenderer.deselectToken(tokenId);
+    } else if (selectedTokenId.value) {
+      tokenRenderer.deselectToken(selectedTokenId.value);
+    }
+  };
+  
+  /**
+   * Enable or disable token dragging
+   */
+  const enableTokenDragging = (enabled: boolean): void => {
+    if (!tokenRenderer) return;
+    tokenRenderer.setDragEnabled(enabled);
   };
   
   /**
@@ -305,65 +351,60 @@ export function usePixiMap(): UsePixiMapReturn {
   };
   
   /**
-   * Clean up all resources
+   * Clean up resources when unmounting
    */
   const destroy = (): void => {
-    // Clean up resize observer
-    if (mapRenderer) {
-      const canvas = mapRenderer.getApp().view as HTMLCanvasElement;
-      interface CanvasWithObserver extends HTMLCanvasElement {
-        _resizeObserver?: ResizeObserver;
-      }
-      const observer = (canvas as CanvasWithObserver)._resizeObserver;
-      if (observer) {
-        observer.disconnect();
-        delete (canvas as CanvasWithObserver)._resizeObserver;
-      }
-    }
-    
-    // Destroy services in reverse order
-    if (viewportManager) {
-      viewportManager.destroy();
-      viewportManager = null;
-    }
-    
+    // Remove event listeners
     if (tokenRenderer) {
-      tokenRenderer.destroy();
-      tokenRenderer = null;
+      tokenRenderer.setEventHandlers({});
     }
     
+    // Clear tokens
+    clearAllTokens();
+    
+    // Destroy renderers
     if (mapRenderer) {
       mapRenderer.destroy();
       mapRenderer = null;
+    }
+    
+    if (viewportManager) {
+      viewportManager.destroy();
+      viewportManager = null;
     }
     
     // Reset state
     isLoaded.value = false;
     isInitialized.value = false;
     viewportState.value = null;
+    selectedTokenId.value = null;
   };
   
-  // Cleanup on unmount
+  // Clean up when component unmounts
   onUnmounted(() => {
     destroy();
   });
   
   return {
-    // Reactive state
+    // State
     isLoaded,
     isInitialized,
     viewportState,
+    selectedTokenId,
     
-    // Initialization
+    // Methods
     initializeMap,
     loadMap,
-    
-    // Token management
     addToken,
     updateToken,
     removeToken,
     moveToken,
     clearAllTokens,
+    
+    // Token interaction
+    selectToken,
+    deselectToken,
+    enableTokenDragging,
     
     // Viewport controls
     panTo,
