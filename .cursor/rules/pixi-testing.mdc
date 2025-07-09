@@ -1,9 +1,7 @@
 ---
-description: Testing limitations and guidelines for PIXI canvas interactions
-globs: packages/web/src/components/encounter/*, packages/web/src/services/encounter/*, packages/web/src/composables/usePixiMap.mts
-alwaysApply: true
+description: Testing limitations and guidelines for PIXI canvas interactions (When working on encounter runner)
+alwaysApply: false
 ---
-
 # PIXI Canvas Testing Guidelines
 
 ## **Testing Limitations with PIXI Canvas**

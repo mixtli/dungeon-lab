@@ -141,8 +141,8 @@ const initializeViewer = async () => {
     error.value = null;
     
     const rect = containerRef.value.getBoundingClientRect();
-    const width = props.width || rect.width || 800;
-    const height = props.height || rect.height || 600;
+    const width = rect.width || 800;
+    const height = rect.height || 600;
 
     const options: UsePixiMapOptions = {
       platform: props.platform,
@@ -253,11 +253,21 @@ const retryLoad = async () => {
   }
 };
 
-const handleResize = () => {
+const handleResize = async () => {
   if (!props.autoResize || !containerRef.value || !isInitialized.value) return;
   
-  // Reinitialize with new dimensions
-  initializeViewer();
+  console.log('Window resize detected - viewport management will handle this');
+  
+  // The ResizeObserver set up in usePixiMap should handle this automatically
+  // We don't need to do anything here as the ResizeObserver will call mapRenderer.resize()
+  // when the container size changes
+  
+  // Optional: If we want to explicitly trigger a resize, we can do it properly
+  // without destroying the app (but this is usually not necessary)
+  // const rect = containerRef.value.getBoundingClientRect();
+  // if (rect.width > 0 && rect.height > 0) {
+  //   // The ResizeObserver will handle this automatically
+  // }
 };
 
 // Expose methods for parent components

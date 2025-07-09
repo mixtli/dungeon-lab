@@ -21,7 +21,7 @@
     </div>
 
     <!-- Main Encounter View -->
-    <div v-else-if="encounter" class="encounter-view h-screen flex flex-col">
+    <div v-else-if="encounter" class="encounter-view h-screen flex flex-col" :class="{ 'theater-mode': isTheaterMode }">
       <!-- Header -->
       <div class="encounter-header bg-gray-800 text-white p-4 flex justify-between items-center">
         <div>
@@ -39,7 +39,7 @@
             @click="toggleFullscreen"
             class="px-3 py-1 bg-gray-600 hover:bg-gray-500 rounded text-sm"
           >
-            {{ isFullscreen ? 'Exit Fullscreen' : 'Fullscreen' }}
+            {{ isTheaterMode ? 'Exit Theater' : 'Theater' }}
           </button>
           <button 
             @click="$router.go(-1)"
@@ -103,6 +103,32 @@
 
         <!-- UI Overlays (will be expanded in later tasks) -->
         <div class="encounter-overlays absolute inset-0 pointer-events-none">
+          <!-- Theater Mode Exit Button -->
+          <div 
+            v-if="isTheaterMode"
+            class="absolute top-4 right-4 z-50 pointer-events-auto"
+          >
+            <button
+              @click="isTheaterMode = false"
+              class="bg-black bg-opacity-75 hover:bg-opacity-90 text-white p-2 rounded-full transition-all duration-200 shadow-lg"
+              title="Exit Theater Mode"
+            >
+              <svg 
+                class="w-6 h-6" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path 
+                  stroke-linecap="round" 
+                  stroke-linejoin="round" 
+                  stroke-width="2" 
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
+          
           <!-- Selected Token Info -->
           <div 
             v-if="selectedToken" 
@@ -309,7 +335,7 @@ const currentEncounterId = computed(() =>
 // State
 const loading = ref(true);
 const error = ref<string | null>(null);
-const isFullscreen = ref(false);
+const isTheaterMode = ref(false);
 const selectedToken = ref<Token | null>(null);
 const showTokenGenerator = ref(false);
 const showDebugInfo = ref(false);
@@ -404,12 +430,14 @@ const retryLoad = () => {
   loadEncounter();
 };
 
-const toggleFullscreen = () => {
-  isFullscreen.value = !isFullscreen.value;
-  if (isFullscreen.value) {
-    mapContainerRef.value?.requestFullscreen();
-  } else {
-    document.exitFullscreen();
+const toggleFullscreen = async () => {
+  try {
+    // Toggle theater mode instead of true fullscreen
+    isTheaterMode.value = !isTheaterMode.value;
+    console.log('Theater mode toggled:', isTheaterMode.value);
+  } catch (err) {
+    console.error('Theater mode error:', err);
+    isTheaterMode.value = false;
   }
 };
 
@@ -637,7 +665,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-  // Cleanup is now handled automatically via session rooms
+  // No cleanup needed for theater mode
 });
 
 // Watch for encounter ID changes
@@ -713,5 +741,18 @@ const handleTokenUpdate = (updatedToken: Token) => {
 
 .full-motion * {
   @apply transition-all duration-200;
+}
+
+/* Theater Mode Styles */
+.theater-mode {
+  @apply fixed top-0 left-0 w-full h-full bg-black z-50;
+}
+
+.theater-mode .encounter-header {
+  @apply hidden;
+}
+
+.theater-mode .encounter-content {
+  @apply h-full;
 }
 </style> 
