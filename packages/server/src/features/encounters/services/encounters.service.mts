@@ -990,6 +990,7 @@ export class EncounterService {
       }
 
       // Only GM can modify encounters
+      console.log(`Checking for modify access: campaign.gameMasterId: ${campaign.gameMasterId}`, `userId: ${userId}`);
       return campaign.gameMasterId?.toString() === userId;
     } catch (error) {
       logger.error('Error checking encounter modify access:', error);

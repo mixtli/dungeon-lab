@@ -6,7 +6,7 @@ import { MapsClient } from '@dungeon-lab/client/index.mjs';
 
 const router = useRouter();
 const maps = ref<IMap[]>([]);
-const loading = ref(false);
+const loading = ref(true);
 const showDeleteModal = ref(false);
 const mapToDelete = ref<string | null>(null);
 const mapClient = new MapsClient();
