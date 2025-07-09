@@ -61,9 +61,15 @@ export class CampaignService {
 
   async getCampaign(id: string): Promise<ICampaign> {
     try {
-      //const campaign = await CampaignModel.findById(id).populate('gameMaster').exec();
       const campaign = await CampaignModel.findById(id)
-        .populate('gameMaster', 'username displayName').populate('characters')
+        .populate('gameMaster', 'username displayName')
+        .populate({
+          path: 'characters',
+          populate: [
+            { path: 'token' },
+            { path: 'avatar' }
+          ]
+        })
         .exec();
       if (!campaign) {
         throw new Error('Campaign not found');

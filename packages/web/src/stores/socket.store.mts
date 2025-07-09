@@ -16,6 +16,7 @@ interface SocketStore {
   initSocket: () => Promise<void>;
   setUserId: (id: string) => void;
   disconnect: () => void;
+  emit: <T extends keyof ClientToServerEvents>(event: T, ...args: Parameters<ClientToServerEvents[T]>) => void;
 }
 
 export const useSocketStore = defineStore(
@@ -148,13 +149,22 @@ export const useSocketStore = defineStore(
       userId.value = null;
     }
 
+    function emit<T extends keyof ClientToServerEvents>(event: T, ...args: Parameters<ClientToServerEvents[T]>) {
+      if (!socket.value) {
+        console.warn('Socket not initialized, cannot emit event:', event);
+        return;
+      }
+      socket.value.emit(event, ...args);
+    }
+
     return {
       socket,
       connected,
       userId,
       initSocket,
       setUserId,
-      disconnect
+      disconnect,
+      emit
     };
   },
   { persist: false } // Don't persist socket state as it can't be serialized

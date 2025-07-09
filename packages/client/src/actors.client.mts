@@ -280,7 +280,7 @@ export class ActorsClient extends ApiClient {
    * Search for actors based on given parameters
    */
   async searchActors(params: Record<string, string>): Promise<IActor[]> {
-    const response = await this.api.get<BaseAPIResponse<IActor[]>>('/api/actors/search', {
+    const response = await this.api.get<BaseAPIResponse<IActor[]>>('/api/actors/', {
       params
     });
 

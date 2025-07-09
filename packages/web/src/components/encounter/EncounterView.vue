@@ -58,29 +58,40 @@
           :map-id="encounter.mapId"
           :tokens="encounterTokens"
           :platform="deviceConfig.type"
-          :show-debug-info="true"
           @token-selected="handleTokenSelection"
           @token-moved="handleTokenMoved"
           @viewport-changed="handleViewportChange"
           @canvas-click="handleMapClick"
           @canvas-right-click="handleMapRightClick"
+          @mousemove="handleMouseMove"
           class="w-full h-full"
         />
         
-        <!-- Debug info for encounter -->
-        <div v-if="encounter" class="absolute top-16 left-4 bg-black bg-opacity-75 text-white p-2 rounded text-xs z-20">
-          <div>Encounter ID: {{ encounter.id }}</div>
-          <div>Map ID: {{ encounter.mapId || 'None' }}</div>
-          <div>Tokens: {{ encounterTokens.length }}</div>
-          <div>Selected Token: {{ selectedToken?.name || 'None' }}</div>
-          <div>Socket: {{ isSocketConnected ? 'Connected' : 'Disconnected' }}</div>
-          <button 
-            @click="showTokenGenerator = true; lastClickPosition = { x: 100, y: 100, elevation: 0 }"
-            class="mt-2 px-2 py-1 bg-blue-600 text-white rounded text-xs"
-          >
-            Test Add Token
-          </button>
-        </div>
+        <!-- Consolidated Debug Info -->
+        <EncounterDebugInfo
+          v-if="encounter"
+          :visible="showDebugInfo"
+          :encounter-info="{
+            id: encounter.id,
+            mapId: encounter.mapId,
+            tokenCount: encounterTokens.length,
+            selectedToken: selectedToken?.name,
+            isConnected: isSocketConnected
+          }"
+          :viewport-info="{
+            x: Math.round(viewport.x),
+            y: Math.round(viewport.y),
+            scale: Math.round(viewport.zoom * 100),
+            platform: deviceConfig.type,
+            mapName: encounter.mapId || 'None'
+          }"
+          :mouse-info="{
+            screenX: Math.round(mousePosition.screenX),
+            screenY: Math.round(mousePosition.screenY),
+            worldX: Math.round(mousePosition.worldX),
+            worldY: Math.round(mousePosition.worldY)
+          }"
+        />
 
         <!-- Fallback when no map -->
         <div v-else class="flex items-center justify-center h-full bg-gray-100">
@@ -167,7 +178,7 @@
           <!-- Map Context Menu -->
           <div
             v-if="showMapContextMenu"
-            class="absolute bg-white rounded-lg shadow-lg p-2 pointer-events-auto z-30"
+            class="fixed bg-white rounded-lg shadow-lg p-2 pointer-events-auto z-[9999]"
             :style="{
               top: `${contextMenuPosition.y}px`,
               left: `${contextMenuPosition.x}px`
@@ -186,6 +197,12 @@
                 class="block w-full text-left px-2 py-1 text-sm hover:bg-blue-100 rounded"
               >
                 Center View
+              </button>
+              <button 
+                @click="handleMapContextMenuAction('toggle-debug')" 
+                class="block w-full text-left px-2 py-1 text-sm hover:bg-blue-100 rounded"
+              >
+                {{ showDebugInfo ? 'Hide Debug Info' : 'Show Debug Info' }}
               </button>
             </div>
           </div>
@@ -225,11 +242,30 @@
     <ActorTokenGenerator
       v-if="showTokenGenerator"
       :encounter-id="currentEncounterId"
-      :actors="encounter?.participants || []"
-      :initial-position="lastClickPosition"
-      @tokens-created="handleTokensCreated"
-      @cancel="showTokenGenerator = false"
+      @tokensCreated="handleTokensCreated"
+      @close="showTokenGenerator = false"
       class="actor-token-generator-modal"
+    />
+    
+    <!-- Token Context Menu -->
+    <TokenContextMenu
+      v-if="contextMenuToken"
+      :visible="!!contextMenuToken"
+      :token="contextMenuToken"
+      :position="contextMenuPosition"
+      @close="contextMenuToken = null"
+      @action="handleTokenAction"
+    />
+    
+    <!-- Token State Manager -->
+    <TokenStateManager
+      v-if="showTokenManager"
+      :visible="showTokenManager"
+      :token="selectedToken"
+      :mode="tokenManagerMode"
+      :action="tokenManagerAction"
+      @close="showTokenManager = false"
+      @updateToken="handleTokenUpdate"
     />
   </div>
 </template>
@@ -242,7 +278,11 @@ import { useDeviceAdaptation } from '../../composables/useDeviceAdaptation.mjs';
 import { useEncounterSocket } from '../../composables/useEncounterSocket.mjs';
 import PixiMapViewer from './PixiMapViewer.vue';
 import ActorTokenGenerator from './ActorTokenGenerator.vue';
-import type { IToken } from '@dungeon-lab/shared/types/tokens.mjs';
+import TokenContextMenu from './TokenContextMenu.vue';
+import TokenStateManager from './TokenStateManager.vue';
+import EncounterDebugInfo from './EncounterDebugInfo.vue';
+import type { Token } from '@dungeon-lab/shared/types/tokens.mjs';
+import { useAuthStore } from '../../stores/auth.store.mjs';
 
 // Props
 interface Props {
@@ -257,6 +297,7 @@ const props = withDefaults(defineProps<Props>(), {
 const route = useRoute();
 const encounterStore = useEncounterStore();
 const { deviceConfig, deviceClass } = useDeviceAdaptation();
+const authStore = useAuthStore();
 
 // Get encounter ID from props or route
 const currentEncounterId = computed(() => 
@@ -269,16 +310,29 @@ const {
   joinEncounter, 
   leaveEncounter,
   moveToken,
-  deleteToken,
-  createToken
+  deleteToken
 } = useEncounterSocket(currentEncounterId.value);
 
 // State
 const loading = ref(true);
 const error = ref<string | null>(null);
 const isFullscreen = ref(false);
-const selectedToken = ref<IToken | null>(null);
+const selectedToken = ref<Token | null>(null);
 const showTokenGenerator = ref(false);
+const showDebugInfo = ref(false);
+
+// Mouse tracking state
+const mousePosition = ref({
+  screenX: 0,
+  screenY: 0,
+  worldX: 0,
+  worldY: 0
+});
+
+// Context menu and overlay state
+const showTokenManager = ref(false);
+const tokenManagerMode = ref<'health' | 'conditions' | 'properties'>('health');
+const tokenManagerAction = ref<'damage' | 'heal'>();
 
 // Position tracking for token placement
 const mapContainerRef = ref<HTMLElement | null>(null);
@@ -300,9 +354,7 @@ const encounter = computed(() => encounterStore.currentEncounter);
 
 // Convert encounter tokens to format expected by PixiMapViewer
 const encounterTokens = computed(() => {
-  if (!encounter.value?.tokens) return [];
-  
-  return encounter.value.tokens.map(token => ({
+  return encounterStore.encounterTokens.map(token => ({
     id: token.id,
     name: token.name,
     imageUrl: token.imageUrl,
@@ -322,7 +374,7 @@ const encounterTokens = computed(() => {
     actorId: token.actorId,
     itemId: token.itemId,
     notes: token.notes,
-    stats: token.stats
+    data: token.data || {}
   }));
 });
 
@@ -406,11 +458,11 @@ const handleViewportChange = (newViewport: { x: number; y: number; scale: number
 };
 
 // Handle right-click for context menu
-const handleMapRightClick = (x: number, y: number) => {
+const handleMapRightClick = (x: number, y: number, event?: MouseEvent) => {
   // Store click position for context menu
   contextMenuPosition.value = { 
-    x: lastClientX.value,
-    y: lastClientY.value 
+    x: event?.clientX || 0,
+    y: event?.clientY || 0 
   };
   
   // Close any existing context menu
@@ -423,6 +475,27 @@ const handleMapRightClick = (x: number, y: number) => {
   if (deviceConfig.value.type !== 'phone') {
     showMapContextMenu.value = true;
   }
+};
+
+// Handle mouse movement for coordinate tracking
+const handleMouseMove = (event: MouseEvent, worldX: number, worldY: number) => {
+  if (!encounter.value) return;
+  
+  // Get the canvas element to calculate screen coordinates
+  const canvas = event.target as HTMLCanvasElement;
+  if (!canvas) return;
+  
+  const rect = canvas.getBoundingClientRect();
+  const screenX = event.clientX - rect.left;
+  const screenY = event.clientY - rect.top;
+  
+  // Update mouse position with both screen and world coordinates
+  mousePosition.value = {
+    screenX: Math.round(screenX),
+    screenY: Math.round(screenY),
+    worldX: Math.round(worldX),
+    worldY: Math.round(worldY)
+  };
 };
 
 // Close all menus when clicking on map
@@ -439,17 +512,16 @@ const handleMapClick = (x: number, y: number, event?: MouseEvent) => {
     lastClientX.value = event.clientX;
     lastClientY.value = event.clientY;
   }
-  
-  // Optionally open token generator
-  if (deviceConfig.value.type !== 'phone') {
-    showTokenGenerator.value = true;
-  }
 };
 
 // Track last mouse position for context menus
 const lastClientX = ref(0);
 const lastClientY = ref(0);
 const showMapContextMenu = ref(false);
+
+// Context menu state
+const contextMenuToken = ref<Token | null>(null);
+const contextMenuPosition = ref({ x: 0, y: 0 });
 
 // Deselect the current token
 const deselectToken = () => {
@@ -500,28 +572,31 @@ const removeTokenFromEncounter = (tokenId: string) => {
 };
 
 // Handle tokens created from ActorTokenGenerator
-const handleTokensCreated = async (tokens: IToken[]) => {
-  if (!encounter.value) return;
+const handleTokensCreated = async (tokenIds: string[]) => {
+  if (!encounter.value || !lastClickPosition.value) return;
   
   try {
-    // Add tokens to the local state first for immediate feedback
-    encounter.value.tokens = [...encounter.value.tokens, ...tokens];
-    
-    // Create tokens on the server via socket
-    for (const token of tokens) {
-      createToken(token);
+    // Update the position of each created token
+    for (const tokenId of tokenIds) {
+      const token = encounterTokens.value.find(t => t.id === tokenId);
+      if (token) {
+        // Update token position and emit socket event
+        handleTokenMoved(
+          tokenId,
+          lastClickPosition.value.x,
+          lastClickPosition.value.y,
+          lastClickPosition.value.elevation
+        );
+      }
     }
     
     // Close the token generator
     showTokenGenerator.value = false;
+    
+    // Clear the last click position
+    lastClickPosition.value = undefined;
   } catch (error) {
-    console.error('Failed to create tokens:', error);
-    // Remove the tokens from local state if server creation failed
-    if (encounter.value) {
-      encounter.value.tokens = encounter.value.tokens.filter(t => 
-        !tokens.some(newToken => newToken.id === t.id)
-      );
-    }
+    console.error('Failed to place tokens:', error);
   }
 };
 
@@ -542,6 +617,9 @@ const handleMapContextMenuAction = (action: string) => {
       break;
     case 'center-view':
       // If we had a mapViewer ref, we could call centerOn here
+      break;
+    case 'toggle-debug':
+      showDebugInfo.value = !showDebugInfo.value;
       break;
   }
   
@@ -588,9 +666,26 @@ watch(isConnected, (connected) => {
   }
 });
 
-// UI State
-const contextMenuToken = ref<IToken | null>(null);
-const contextMenuPosition = ref({ x: 0, y: 0 });
+// Handle token update from TokenStateManager
+const handleTokenUpdate = (updatedToken: Token) => {
+  if (!encounter.value) return;
+  if (!authStore.user?.id) return;
+  
+  // Update token in encounter store
+  // Include all required fields from CreateTokenData
+  const { name, imageUrl, size, position, isVisible, isPlayerControlled, conditions } = updatedToken;
+  encounterStore.updateToken(updatedToken.id, {
+    name,
+    imageUrl,
+    size,
+    encounterId: encounter.value.id,
+    position,
+    isVisible,
+    isPlayerControlled,
+    conditions,
+    data: updatedToken.data || {} // Ensure data is never undefined
+  });
+};
 </script>
 
 <style scoped>

@@ -572,9 +572,11 @@ export class EncounterController {
       const token = await this.encounterService.createTokenFromActor(
         encounterId,
         actorId,
-        position,
-        userId,
-        isAdmin
+        {
+          userId,
+          isAdmin,
+          position
+        }
       );
 
       return res.status(201).json({

@@ -1,13 +1,30 @@
-import mongoose from 'mongoose';
+import mongoose, { ObjectId } from 'mongoose';
 import { IEncounter } from '@dungeon-lab/shared/types/index.mjs';
 import { encounterSchema } from '@dungeon-lab/shared/schemas/encounters.schema.mjs';
 import { baseMongooseZodSchema } from '../../../models/base.model.schema.mjs';
 import { createMongoSchema } from '../../../models/zod-to-mongo.mjs';
+import { zId } from '@zodyac/zod-mongoose';
 
 /**
  * Create Mongoose schema with base configuration
  */
-const mongooseSchema = createMongoSchema<IEncounter>(encounterSchema.merge(baseMongooseZodSchema));
+const encounterSchemaMongoose = encounterSchema.merge(baseMongooseZodSchema).extend({
+  campaignId: zId('Campaign')
+});
+
+const mongooseSchema = createMongoSchema<IEncounter>(encounterSchemaMongoose);
+
+// Set Mixed type for both the token's data field and the tokens array's data field
+mongooseSchema.path('tokens').schema.path('data', mongoose.Schema.Types.Mixed);
+mongooseSchema.path('data', mongoose.Schema.Types.Mixed);
+
+// Add getters and setters for campaignId to handle ObjectId conversion
+mongooseSchema.path('campaignId').set(function (value: string) {
+  return new mongoose.Types.ObjectId(value);
+});
+mongooseSchema.path('campaignId').get(function (value: ObjectId) {
+  return value.toString();
+});
 
 // Add indexes for performance optimization
 mongooseSchema.index({ campaignId: 1, status: 1 }); // Find active encounters by campaign
@@ -29,7 +46,7 @@ mongooseSchema.set('versionKey', 'version');
  * manage temporary effects, and maintain turn-based state.
  * 
  * Key fields explained:
- * - campaignId: Links to the parent campaign this encounter belongs to
+ * - campaignId: Links to the parent campaign this encounter belongs to (stored as ObjectId)
  * - mapId: References the map/scene where this encounter takes place
  * - status: Lifecycle state (draft -> ready -> in_progress -> paused/completed)
  * - tokens: Array of all tokens (characters, NPCs, objects) in this encounter

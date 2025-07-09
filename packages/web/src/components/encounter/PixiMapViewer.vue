@@ -15,6 +15,7 @@
         @contextmenu.prevent
         @click="handleCanvasClick"
         @mousedown="handleCanvasMouseDown"
+        @mousemove="handleCanvasMouseMove"
       />
     </div>
 
@@ -37,31 +38,7 @@
       </div>
     </div>
 
-    <!-- Debug info (development only) -->
-    <div v-if="showDebugInfo && isInitialized" class="debug-info">
-      <div class="debug-panel">
-        <h4>Debug Info</h4>
-        <div class="debug-item">
-          <span>Viewport:</span>
-          <span v-if="viewportState">
-            {{ Math.round(viewportState.x) }}, {{ Math.round(viewportState.y) }} 
-            ({{ (viewportState.scale * 100).toFixed(0) }}%)
-          </span>
-        </div>
-        <div class="debug-item">
-          <span>Platform:</span>
-          <span>{{ platform }}</span>
-        </div>
-        <div class="debug-item">
-          <span>Tokens:</span>
-          <span>{{ tokenCount }}</span>
-        </div>
-        <div class="debug-item">
-          <span>Map:</span>
-          <span>{{ currentMap?.name || 'None' }}</span>
-        </div>
-      </div>
-    </div>
+    <!-- Debug info removed - now consolidated in EncounterDebugInfo component -->
   </div>
 </template>
 
@@ -69,29 +46,30 @@
 import { ref, onMounted, onUnmounted, watch, computed, nextTick } from 'vue';
 import { usePixiMap, type UsePixiMapOptions } from '@/composables/usePixiMap.mjs';
 import type { IMapResponse } from '@dungeon-lab/shared/types/api/maps.mjs';
-import type { IToken } from '@dungeon-lab/shared/types/tokens.mjs';
+import type { Token } from '@dungeon-lab/shared/types/tokens.mjs';
 import type { Platform } from '@/services/encounter/PixiMapRenderer.mjs';
 import { MapsClient } from '@dungeon-lab/client/index.mjs';
+import { useEncounterStore } from '@/stores/encounter.store.mjs';
 
-// Initialize maps client
+// Initialize maps client and stores
 const mapsClient = new MapsClient();
+const encounterStore = useEncounterStore();
 
 // Props
 interface Props {
   mapId?: string;
   mapData?: IMapResponse;
-  tokens?: IToken[];
+  tokens?: Token[];
   platform?: Platform;
   width?: number;
   height?: number;
   autoResize?: boolean;
-  showDebugInfo?: boolean;
+
 }
 
 const props = withDefaults(defineProps<Props>(), {
   platform: 'desktop',
-  autoResize: true,
-  showDebugInfo: false
+  autoResize: true
 });
 
 // Emits
@@ -102,7 +80,8 @@ interface Emits {
   (e: 'token-moved', tokenId: string, x: number, y: number): void;
   (e: 'viewport-changed', viewport: { x: number; y: number; scale: number }): void;
   (e: 'canvas-click', x: number, y: number, event: MouseEvent): void;
-  (e: 'canvas-right-click', x: number, y: number): void;
+  (e: 'canvas-right-click', x: number, y: number, event: MouseEvent): void;
+  (e: 'mousemove', event: MouseEvent, worldX: number, worldY: number): void;
 }
 
 const emit = defineEmits<Emits>();
@@ -131,6 +110,7 @@ const {
   moveToken,
   clearAllTokens,
   enableTokenDragging,
+  getGridSize,
   panTo,
   zoomTo,
   zoomAt,
@@ -140,6 +120,11 @@ const {
   worldToScreen,
   destroy
 } = usePixiMap();
+
+// Add new state for drag tracking
+const isDragging = ref(false);
+const dragStartPos = ref<{ x: number; y: number } | null>(null);
+const draggedTokenId = ref<string | null>(null);
 
 // Computed
 const loadingText = computed(() => {
@@ -155,7 +140,6 @@ const initializeViewer = async () => {
   try {
     error.value = null;
     
-    // Get container dimensions
     const rect = containerRef.value.getBoundingClientRect();
     const width = props.width || rect.width || 800;
     const height = props.height || rect.height || 600;
@@ -164,10 +148,16 @@ const initializeViewer = async () => {
       platform: props.platform,
       width,
       height,
-      autoResize: props.autoResize
+      autoResize: props.autoResize,
+      onTokenDragStart: handleTokenDragStart,
+      onTokenDragMove: handleTokenDragMove,
+      onTokenDragEnd: handleTokenDragEnd
     };
 
     await initializeMap(canvasRef.value, options);
+    
+    // Enable token dragging after initialization
+    enableTokenDragging(true);
     
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : 'Failed to initialize map viewer';
@@ -232,7 +222,7 @@ const fetchAndLoadMap = async (mapId: string) => {
   }
 };
 
-const loadTokens = async (tokens: IToken[]) => {
+const loadTokens = async (tokens: Token[]) => {
   if (!isInitialized.value || !tokens) return;
 
   try {
@@ -317,8 +307,18 @@ const handleCanvasMouseDown = (event: MouseEvent) => {
   // Right click
   if (event.button === 2) {
     const { x, y } = screenToWorld(event.offsetX, event.offsetY);
-    emit('canvas-right-click', x, y);
+    emit('canvas-right-click', x, y, event);
   }
+};
+
+const handleCanvasMouseMove = (event: MouseEvent) => {
+  if (!isInitialized.value || isLoading.value) return;
+  
+  // Convert screen coordinates to world coordinates
+  const { x, y } = screenToWorld(event.offsetX, event.offsetY);
+  
+  // Emit mousemove event with both screen and world coordinates
+  emit('mousemove', event, x, y);
 };
 
 // Set up token interaction
@@ -331,6 +331,138 @@ const setupTokenInteractions = () => {
     if (newTokenId) {
       emit('token-selected', newTokenId);
     }
+  });
+};
+
+// Add drag handler methods
+const handleTokenDragStart = (tokenId: string, position: { x: number; y: number }) => {
+  console.log('[PixiMapViewer] handleTokenDragStart called with:', tokenId, position);
+  isDragging.value = true;
+  dragStartPos.value = position;
+  draggedTokenId.value = tokenId;
+  emit('token-selected', tokenId);
+  console.log('[PixiMapViewer] handleTokenDragStart completed, isDragging:', isDragging.value, 'draggedTokenId:', draggedTokenId.value);
+};
+
+const handleTokenDragMove = (tokenId: string, position: { x: number; y: number }) => {
+  if (!isDragging.value || !draggedTokenId.value || draggedTokenId.value !== tokenId) return;
+  
+  // Get grid size from map data
+  const gridSize = currentMap.value?.uvtt?.resolution?.pixels_per_grid || 50;
+  
+  // Snap to grid
+  const snappedPosition = {
+    x: Math.round(position.x / gridSize) * gridSize,
+    y: Math.round(position.y / gridSize) * gridSize
+  };
+  
+  // Don't move token locally during drag - let the TokenRenderer handle the visual movement
+  // moveToken(tokenId, snappedPosition.x, snappedPosition.y);
+  
+  // Emit move event for parent components
+  emit('token-moved', tokenId, snappedPosition.x, snappedPosition.y);
+};
+
+const handleTokenDragEnd = async (tokenId: string, position: { x: number; y: number }) => {
+  console.log('[PixiMapViewer] handleTokenDragEnd called with:', tokenId, position);
+  console.log('[PixiMapViewer] Current state - isDragging:', isDragging.value, 'draggedTokenId:', draggedTokenId.value);
+  
+  if (!isDragging.value || !draggedTokenId.value || draggedTokenId.value !== tokenId) {
+    console.log('[PixiMapViewer] handleTokenDragEnd returning early due to guard clause');
+    return;
+  }
+  
+  // Get grid size from map data
+  const gridSize = currentMap.value?.uvtt?.resolution?.pixels_per_grid || 50;
+  console.log('[PixiMapViewer] Grid size:', gridSize);
+  console.log('[PixiMapViewer] Full map data:', currentMap.value);
+  console.log('[PixiMapViewer] UVTT resolution:', currentMap.value?.uvtt?.resolution);
+  console.log('[PixiMapViewer] Raw position:', position);
+  
+  // Snap final position to grid
+  const snappedPosition = {
+    x: Math.round(position.x / gridSize) * gridSize,
+    y: Math.round(position.y / gridSize) * gridSize
+  };
+  
+  console.log('[PixiMapViewer] Snap calculation:');
+  console.log('  - x: Math.round(' + position.x + ' / ' + gridSize + ') * ' + gridSize + ' = ' + Math.round(position.x / gridSize) + ' * ' + gridSize + ' = ' + snappedPosition.x);
+  console.log('  - y: Math.round(' + position.y + ' / ' + gridSize + ') * ' + gridSize + ' = ' + Math.round(position.y / gridSize) + ' * ' + gridSize + ' = ' + snappedPosition.y);
+  console.log('[PixiMapViewer] Snapped position:', snappedPosition);
+  
+  // Get current token elevation
+  const token = encounterStore.encounterTokens.find(t => t.id === tokenId);
+  if (!token) {
+    console.log('[PixiMapViewer] Token not found in store:', tokenId);
+    return;
+  }
+  
+  console.log('[PixiMapViewer] Moving token through store...');
+  // Move token through store (this will emit the socket event)
+  // TEMPORARILY DISABLE SNAP-TO-GRID - use raw position instead
+  await encounterStore.moveToken(tokenId, {
+    x: position.x, // Use raw position instead of snappedPosition.x
+    y: position.y, // Use raw position instead of snappedPosition.y
+    elevation: token.position.elevation
+  });
+  
+  // Reset drag state
+  isDragging.value = false;
+  dragStartPos.value = null;
+  draggedTokenId.value = null;
+  console.log('[PixiMapViewer] handleTokenDragEnd completed');
+};
+
+// Arrow key handling for token movement
+const handleKeyDown = async (event: KeyboardEvent) => {
+  // Only handle arrow keys
+  if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
+    return;
+  }
+  
+  // Must have a selected token
+  if (!selectedTokenId.value) {
+    return;
+  }
+  
+  // Prevent default browser behavior
+  event.preventDefault();
+  
+  // Get current token from store
+  const token = encounterStore.encounterTokens.find(t => t.id === selectedTokenId.value);
+  if (!token) {
+    return;
+  }
+  
+  // Get grid size
+  const gridSize = getGridSize();
+  
+  // Calculate new position based on arrow key
+  let newX = token.position.x;
+  let newY = token.position.y;
+  
+  switch (event.key) {
+    case 'ArrowUp':
+      newY -= gridSize;
+      break;
+    case 'ArrowDown':
+      newY += gridSize;
+      break;
+    case 'ArrowLeft':
+      newX -= gridSize;
+      break;
+    case 'ArrowRight':
+      newX += gridSize;
+      break;
+  }
+  
+  console.log(`[PixiMapViewer] Keyboard move: ${event.key} from: {x: ${token.position.x}, y: ${token.position.y}} to: {x: ${newX}, y: ${newY}}`);
+  
+  // Move token through store (same as drag end)
+  await encounterStore.moveToken(selectedTokenId.value, {
+    x: newX,
+    y: newY,
+    elevation: token.position.elevation
   });
 };
 
@@ -348,10 +480,10 @@ watch(() => props.mapData, async (newMapData) => {
 }, { immediate: false });
 
 watch(() => props.tokens, async (newTokens) => {
-  if (newTokens && isInitialized.value) {
-    await loadTokens(newTokens);
-  }
-}, { immediate: false, deep: true });
+  if (!newTokens) return;
+  console.log('Tokens updated:', newTokens);
+  await loadTokens(newTokens);
+}, { deep: true });
 
 watch(viewportState, (newViewport) => {
   if (newViewport) {
@@ -386,6 +518,9 @@ onMounted(async () => {
   
   // Set up token interactions
   setupTokenInteractions();
+
+  // Set up keydown listener for arrow key movement
+  window.addEventListener('keydown', handleKeyDown);
 });
 
 onUnmounted(() => {
@@ -394,6 +529,9 @@ onUnmounted(() => {
   }
   
   destroy();
+
+  // Remove keydown listener
+  window.removeEventListener('keydown', handleKeyDown);
 });
 </script>
 
@@ -405,6 +543,11 @@ onUnmounted(() => {
   overflow: hidden;
   background-color: #1a1a1a;
   border-radius: 8px;
+  cursor: default;
+}
+
+.pixi-map-viewer.dragging {
+  cursor: grabbing;
 }
 
 .canvas-container {

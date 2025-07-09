@@ -28,7 +28,6 @@ import {
   tokenSchema,
   createTokenSchema,
   updateTokenSchema,
-  tokenStatsSchema,
   tokenConditionSchema
 } from '../schemas/tokens.schema.mjs';
 
@@ -108,7 +107,6 @@ export type IToken = z.infer<typeof tokenSchema>;
 export type ITokenCreateData = z.infer<typeof createTokenSchema>;
 export type ITokenUpdateData = z.infer<typeof updateTokenSchema>;
 export type TokenSizeType = z.infer<typeof TokenSizeEnum>;
-export type ITokenStats = z.infer<typeof tokenStatsSchema>;
 export type ITokenCondition = z.infer<typeof tokenConditionSchema>;
 
 // Encounter Types
@@ -172,7 +170,13 @@ export * from './chatbots.mjs';
 export * from './chat.mjs';
 
 // Token System Types
-export * from './tokens.mjs';
+export {
+  type Token,
+  type CreateTokenData,
+  type UpdateTokenData,
+  type TokenCondition,
+  type TokenSize
+} from './tokens.mjs';
 
 // Encounter System Types
 export * from './encounters.mjs';

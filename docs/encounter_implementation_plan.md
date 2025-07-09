@@ -165,11 +165,14 @@ interface Token {
   name?: string; // Optional override of actor name
   position: Position;
   
-  // Token-specific state (instance data)
-  currentHP?: number;
-  maxHP?: number; // Optional override
-  conditions: Condition[];
-  isHidden: boolean;
+  // Generic data field for plugin flexibility
+  // Each game system plugin can define its own data structure
+  data: Record<string, any>; // e.g., { hp: 25, maxHP: 50, ac: 15, conditions: [...] }
+  
+  // Universal token state
+  conditions: TokenCondition[];
+  isVisible: boolean;
+  isPlayerControlled: boolean;
   
   // Visual properties
   scale?: number;
@@ -193,7 +196,40 @@ This model provides several key advantages:
 2. **Template pattern**: Actors serve as templates for creating token instances
 3. **Instance state**: Tokens store only instance-specific state and overrides
 4. **Multiple monsters**: Create many tokens from a single monster actor
-5. **Selective overrides**: Override specific actor properties on a per-token basis
+5. **Plugin flexibility**: Generic `data` field allows each game system to define its own structure
+6. **Selective overrides**: Override specific actor properties on a per-token basis
+
+### **🚨 Key Architectural Decision: Generic Data Field**
+
+The token data model uses a **generic `data` field** instead of specific fields like `currentHP`, `maxHP`, etc. This architectural decision provides:
+
+- **Plugin Flexibility**: Each game system can define its own data structure
+- **Extensibility**: New game systems can add custom fields without schema changes
+- **Type Safety**: Plugins can provide their own type definitions for the data field
+- **Migration Path**: Easy to add new properties without database migrations
+
+**Example for D&D 5e:**
+```typescript
+interface DnD5eTokenData {
+  hp: number;
+  maxHP: number;
+  tempHP: number;
+  ac: number;
+  speed: number;
+  conditions: DnD5eCondition[];
+  // ... other D&D 5e specific fields
+}
+
+// Token data field contains this structure
+token.data = {
+  hp: 25,
+  maxHP: 50,
+  tempHP: 5,
+  ac: 15,
+  speed: 30,
+  conditions: [{ name: 'Poisoned', duration: 3 }]
+};
+```
 
 #### **WebSocket Event Handlers**
 
@@ -738,12 +774,22 @@ export class DnD5eEncounterPlugin implements EncounterPlugin {
       name: options?.name || actor.name,
       position: options?.position || { x: 0, y: 0 },
       
-      // Set token-specific state
-      currentHP: options?.randomizeHP 
-        ? this.rollRandomHP(actor)
-        : actor.stats.hp.value,
+      // Set D&D 5e specific data in generic data field
+      data: {
+        hp: options?.randomizeHP 
+          ? this.rollRandomHP(actor)
+          : actor.stats.hp.value,
+        maxHP: actor.stats.hp.value,
+        tempHP: 0,
+        ac: actor.stats.ac,
+        speed: actor.stats.speed,
+        conditions: []
+      },
+      
+      // Universal token state
       conditions: [],
-      isHidden: options?.isHidden || false,
+      isVisible: !options?.isHidden,
+      isPlayerControlled: actor.type === 'pc',
       
       // Visual properties
       scale: options?.scale || 1,
@@ -858,6 +904,53 @@ export class DnD5eEncounterPlugin implements EncounterPlugin {
 }
 ```
 
+## Implementation Status Update
+
+### **Phase 1: COMPLETE (Exceeded Scope)**
+
+**Status**: ✅ **100% Complete** - All 8 core tasks finished with production-ready implementation
+
+**Significant Scope Expansion**: Phase 1 evolved beyond basic functionality to include:
+- **Complete Token Management System**: 5 comprehensive UI components (2,440 lines total)
+- **Device-Adaptive Design**: Originally planned for Phase 4, implemented in Phase 1
+- **Production-Ready Features**: Advanced error handling, loading states, real-time collaboration
+- **Generic Data Model**: Architectural decision to use `data` field for plugin flexibility
+
+**Key Components Implemented**:
+- **ActorTokenGenerator.vue** (436 lines): Complete token creation workflow
+- **TokenContextMenu.vue** (333 lines): Advanced context menu system
+- **TokenStateManager.vue** (571 lines): D&D 5e condition management
+- **EncounterDebugInfo.vue** (166 lines): Consolidated debug tools
+- **EncounterView.vue** (734 lines): Device-adaptive encounter interface
+
+**Impact on Future Phases**:
+- Phase 2 (Combat Mechanics): Ready to begin immediately
+- Phase 3 (Desktop HUD): May need scope reduction due to existing advanced UI
+- Phase 4 (Tablet Adaptation): Partially complete with device-adaptive design
+- Phase 5 (Enhanced Features): Some features already implemented
+
+### **Key Architectural Decisions Made**
+
+**1. Generic Data Model**
+- **Decision**: Use `data: Record<string, any>` instead of specific fields like `currentHP`, `maxHP`
+- **Rationale**: Support multiple game systems without schema changes
+- **Impact**: Improved plugin flexibility but requires plugin-specific type definitions
+
+**2. Device-Adaptive UI Architecture**
+- **Decision**: Implement device detection and adaptive components in Phase 1
+- **Rationale**: Better user experience across platforms from the start
+- **Impact**: Reduced scope needed for Phase 4 (Tablet Adaptation)
+
+**3. Production-Ready Component System**
+- **Decision**: Build comprehensive UI components beyond basic requirements
+- **Rationale**: Provide better user experience and reduce technical debt
+- **Impact**: Significantly exceeded Phase 1 scope but created solid foundation
+
+**4. Consolidated Debug Architecture**
+- **Decision**: Create unified debug component instead of scattered debug tools
+- **Rationale**: Better developer experience and easier maintenance
+- **Impact**: Improved debugging capabilities for future development
+
 ## Conclusion
 
 This revised implementation plan provides a **practical, incremental approach** to building a robust encounter system that serves the needs of both players and GMs across desktop and tablet platforms.
@@ -869,6 +962,7 @@ This revised implementation plan provides a **practical, incremental approach** 
 3. **Incremental Delivery**: Each phase delivers working functionality
 4. **Practical Architecture**: Simplified data models and state management
 5. **Performance Focused**: Optimizations built in from the start
+6. **🆕 Plugin Flexibility**: Generic data model supports multiple game systems
 
 ### **Success Factors**:
 

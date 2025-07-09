@@ -1,6 +1,6 @@
 import { ref, onUnmounted, type Ref } from 'vue';
+import type { Token } from '@dungeon-lab/shared/types/tokens.mjs';
 import type { IMapResponse } from '@dungeon-lab/shared/types/api/maps.mjs';
-import type { IToken } from '@dungeon-lab/shared/types/tokens.mjs';
 import { EncounterMapRenderer, type Platform, type EncounterMapConfig } from '@/services/encounter/PixiMapRenderer.mjs';
 import { TokenRenderer } from '@/services/encounter/TokenRenderer.mjs';
 import { ViewportManager, type ViewportState } from '@/services/encounter/ViewportManager.mjs';
@@ -10,6 +10,9 @@ export interface UsePixiMapOptions {
   width?: number;
   height?: number;
   autoResize?: boolean;
+  onTokenDragStart?: (tokenId: string, position: { x: number; y: number }) => void;
+  onTokenDragMove?: (tokenId: string, position: { x: number; y: number }) => void;
+  onTokenDragEnd?: (tokenId: string, position: { x: number; y: number }) => void;
 }
 
 export interface UsePixiMapReturn {
@@ -22,8 +25,8 @@ export interface UsePixiMapReturn {
   // Methods
   initializeMap: (canvas: HTMLCanvasElement, options?: UsePixiMapOptions) => Promise<void>;
   loadMap: (mapData: IMapResponse) => Promise<void>;
-  addToken: (token: IToken) => Promise<void>;
-  updateToken: (token: IToken) => Promise<void>;
+  addToken: (token: Token) => Promise<void>;
+  updateToken: (token: Token) => Promise<void>;
   removeToken: (tokenId: string) => void;
   moveToken: (tokenId: string, x: number, y: number, animate?: boolean) => void;
   clearAllTokens: () => void;
@@ -32,6 +35,11 @@ export interface UsePixiMapReturn {
   selectToken: (tokenId: string) => void;
   deselectToken: (tokenId?: string) => void;
   enableTokenDragging: (enabled: boolean) => void;
+  
+  // Grid controls
+  enableSnapToGrid: (enabled: boolean) => void;
+  setGridSize: (size: number) => void;
+  getGridSize: () => number;
   
   // Viewport controls
   panTo: (x: number, y: number) => void;
@@ -72,11 +80,16 @@ export function usePixiMap(): UsePixiMapReturn {
     return 'phone';
   };
   
+  // Store the options for later use
+  let pixiMapOptions: UsePixiMapOptions | undefined;
+  
   /**
    * Initialize the Pixi.js map with a canvas element
    */
   const initializeMap = async (canvas: HTMLCanvasElement, options: UsePixiMapOptions = {}): Promise<void> => {
     try {
+      pixiMapOptions = options;
+      
       // Detect platform if not provided
       const platform = options.platform || detectPlatform();
       
@@ -94,11 +107,15 @@ export function usePixiMap(): UsePixiMapReturn {
       // Initialize map renderer
       mapRenderer = new EncounterMapRenderer(canvas, config);
       
-      // Initialize token renderer
-      tokenRenderer = new TokenRenderer(mapRenderer.getTokenContainer());
-      
       // Initialize viewport manager
       viewportManager = new ViewportManager(mapRenderer.getApp(), mapRenderer.getMapContainer());
+      
+      // Initialize token renderer with scale provider
+      tokenRenderer = new TokenRenderer(
+        mapRenderer.getTokenContainer(),
+        undefined, // options
+        () => viewportManager?.getCurrentScale() || 1 // scale provider
+      );
       
       // Set up viewport change listener
       mapRenderer.getApp().stage.on('viewport:changed', (state: ViewportState) => {
@@ -132,6 +149,13 @@ export function usePixiMap(): UsePixiMapReturn {
     try {
       await mapRenderer.loadMapFromDatabase(mapData);
       
+      // Configure grid size for token renderer based on map data
+      if (tokenRenderer && mapData.uvtt?.resolution?.pixels_per_grid) {
+        const gridSize = mapData.uvtt.resolution.pixels_per_grid;
+        console.log('[usePixiMap] Setting grid size to:', gridSize);
+        tokenRenderer.setGridSize(gridSize);
+      }
+      
       // Set map bounds for viewport constraints
       if (viewportManager && mapData.uvtt?.resolution) {
         const bounds = {
@@ -154,7 +178,7 @@ export function usePixiMap(): UsePixiMapReturn {
   /**
    * Add a token to the map
    */
-  const addToken = async (token: IToken): Promise<void> => {
+  const addToken = async (token: Token): Promise<void> => {
     if (!tokenRenderer) {
       throw new Error('Token renderer not initialized');
     }
@@ -165,7 +189,7 @@ export function usePixiMap(): UsePixiMapReturn {
   /**
    * Update an existing token
    */
-  const updateToken = async (token: IToken): Promise<void> => {
+  const updateToken = async (token: Token): Promise<void> => {
     if (!tokenRenderer) {
       throw new Error('Token renderer not initialized');
     }
@@ -258,7 +282,39 @@ export function usePixiMap(): UsePixiMapReturn {
   };
   
   /**
-   * Set up token event listeners to connect token events to Vue state
+   * Enable token dragging
+   */
+  const enableTokenDragging = (enabled: boolean): void => {
+    if (!tokenRenderer) return;
+    tokenRenderer.setDragEnabled(enabled);
+  };
+  
+  /**
+   * Enable or disable snap-to-grid
+   */
+  const enableSnapToGrid = (enabled: boolean): void => {
+    if (!tokenRenderer) return;
+    tokenRenderer.setSnapToGrid(enabled);
+  };
+  
+  /**
+   * Set grid size for token snap-to-grid
+   */
+  const setGridSize = (size: number): void => {
+    if (!tokenRenderer) return;
+    tokenRenderer.setGridSize(size);
+  };
+  
+  /**
+   * Get current grid size
+   */
+  const getGridSize = (): number => {
+    if (!tokenRenderer) return 50;
+    return tokenRenderer.getGridSize();
+  };
+  
+  /**
+   * Setup token event listeners to connect token events to Vue state
    */
   const setupTokenEventListeners = () => {
     if (!tokenRenderer) return;
@@ -273,26 +329,21 @@ export function usePixiMap(): UsePixiMapReturn {
       },
       
       // Token drag events
-      dragStart: (tokenId) => {
-        // Could add additional state tracking here if needed
-        console.log('Token drag started:', tokenId);
-      },
-      dragMove: () => {
-        // Update any reactive state for token dragging if needed
-      },
-      dragEnd: (tokenId, finalPosition) => {
-        console.log('Token drag ended:', tokenId, finalPosition);
-        // Here you might want to emit an event to the parent component
-        // or call an API to persist the token position
-      },
+      dragStart: pixiMapOptions?.onTokenDragStart || ((tokenId, position) => {
+        console.log('Token drag started:', tokenId, position);
+      }),
+      dragMove: pixiMapOptions?.onTokenDragMove || (() => {
+        // Default: do nothing
+      }),
+      dragEnd: pixiMapOptions?.onTokenDragEnd || ((tokenId, position) => {
+        console.log('Token drag ended:', tokenId, position);
+      }),
       
       // Token click events
       click: (tokenId) => {
-        // Handle token clicks
         console.log('Token clicked:', tokenId);
       },
       rightClick: (tokenId) => {
-        // Handle token right clicks (e.g., for context menu)
         console.log('Token right-clicked:', tokenId);
       }
     });
@@ -318,14 +369,6 @@ export function usePixiMap(): UsePixiMapReturn {
     } else if (selectedTokenId.value) {
       tokenRenderer.deselectToken(selectedTokenId.value);
     }
-  };
-  
-  /**
-   * Enable or disable token dragging
-   */
-  const enableTokenDragging = (enabled: boolean): void => {
-    if (!tokenRenderer) return;
-    tokenRenderer.setDragEnabled(enabled);
   };
   
   /**
@@ -405,6 +448,11 @@ export function usePixiMap(): UsePixiMapReturn {
     selectToken,
     deselectToken,
     enableTokenDragging,
+    
+    // Grid controls
+    enableSnapToGrid,
+    setGridSize,
+    getGridSize,
     
     // Viewport controls
     panTo,

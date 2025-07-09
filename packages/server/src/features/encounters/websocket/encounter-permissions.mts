@@ -85,15 +85,7 @@ export class EncounterPermissionValidator {
         return false;
       }
 
-      const token = await TokenModel.findById(tokenId)
-        .populate({
-          path: 'encounterId',
-          populate: {
-            path: 'campaignId'
-          }
-        })
-        .lean()
-        .exec();
+      const token = await TokenModel.findById(tokenId).lean().exec();
 
       if (!token) {
         return false;
@@ -104,12 +96,15 @@ export class EncounterPermissionValidator {
         return true;
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const encounter = token.encounterId as any;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const campaign = encounter?.campaignId as any;
+      // Get the encounter and campaign manually (population wasn't working)
+      const encounter = await EncounterModel.findById(token.encounterId).lean().exec();
+      if (!encounter) {
+        return false;
+      }
 
-      if (!encounter || !campaign) {
+      const CampaignModel = (await import('../../../features/campaigns/models/campaign.model.mjs')).CampaignModel;
+      const campaign = await CampaignModel.findById(encounter.campaignId).lean().exec();
+      if (!campaign) {
         return false;
       }
 

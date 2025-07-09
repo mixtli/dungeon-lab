@@ -1,6 +1,6 @@
 import { ref, computed, watch } from 'vue';
 import { useSocketStore } from '../stores/socket.store.mjs';
-import type { IToken } from '@dungeon-lab/shared/types/encounters.mjs';
+import type { Token } from '@dungeon-lab/shared/types/tokens.mjs';
 
 export function useEncounterSocket(encounterId?: string) {
   const socketStore = useSocketStore();
@@ -68,7 +68,7 @@ export function useEncounterSocket(encounterId?: string) {
   };
   
   // Create token
-  const createToken = (tokenData: Partial<IToken>) => {
+  const createToken = (tokenData: Partial<Token>) => {
     if (!socketStore.socket || !currentEncounterId.value) return;
     
     // TODO: Implement proper token creation when server supports it
@@ -76,7 +76,7 @@ export function useEncounterSocket(encounterId?: string) {
   };
   
   // Update token
-  const updateToken = (tokenId: string, updates: Partial<IToken>) => {
+  const updateToken = (tokenId: string, updates: Partial<Token>) => {
     if (!socketStore.socket || !currentEncounterId.value) return;
     
     // TODO: Implement proper token updates when server supports it

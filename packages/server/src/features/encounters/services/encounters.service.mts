@@ -23,6 +23,17 @@ type UpdateEncounterData = z.infer<typeof updateEncounterSchema>;
 type CreateTokenData = z.infer<typeof createTokenSchema>;
 type UpdateTokenData = z.infer<typeof updateTokenSchema>;
 
+// Options type for createTokenFromActor method
+type CreateTokenOptions = {
+  userId: string;
+  isAdmin: boolean;
+  position?: { x: number; y: number; elevation?: number };
+  name?: string;
+  size?: 'tiny' | 'small' | 'medium' | 'large' | 'huge' | 'gargantuan';
+  isVisible?: boolean;
+  isPlayerControlled?: boolean;
+};
+
 export class EncounterService {
   // ============================================================================
   // ENCOUNTER CRUD OPERATIONS
@@ -82,7 +93,6 @@ export class EncounterService {
 
       const encounter = await EncounterModel.findById(encounterId)
         .populate('tokens')
-        .lean()
         .exec();
 
       if (!encounter) {
@@ -95,7 +105,7 @@ export class EncounterService {
         throw new Error('Access denied');
       }
 
-      return encounter;
+      return encounter.toObject();
     } catch (error) {
       if (error instanceof Error && 
           (error.message === 'Encounter not found' || error.message === 'Access denied')) {
@@ -486,9 +496,7 @@ export class EncounterService {
   async createTokenFromActor(
     encounterId: string,
     actorId: string,
-    position: { x: number; y: number },
-    userId: string,
-    isAdmin: boolean = false
+    options: CreateTokenOptions
   ): Promise<IToken> {
     try {
       if (!Types.ObjectId.isValid(encounterId)) {
@@ -500,49 +508,39 @@ export class EncounterService {
       }
 
       // Check encounter access
-      const hasAccess = await this.checkEncounterModifyAccess(encounterId, userId, isAdmin);
+      const hasAccess = await this.checkEncounterModifyAccess(encounterId, options.userId, options.isAdmin);
       if (!hasAccess) {
         throw new Error('Access denied');
       }
 
       // Validate position
+      const position = { 
+        x: options.position?.x || 0, 
+        y: options.position?.y || 0, 
+        elevation: options.position?.elevation || 0 
+      };
       if (!this.validateTokenPosition(position)) {
         throw new Error('Invalid position');
       }
 
       // Get the actor to access its properties
-      const actor = await ActorModel.findById(actorId).lean().exec();
+      const actor = await ActorModel.findById(actorId).populate('token').exec();
       
       if (!actor) {
         throw new Error('Actor not found');
       }
 
-      const userObjectId = new Types.ObjectId(userId);
-      const encounterObjectId = new Types.ObjectId(encounterId);
-      const actorObjectId = new Types.ObjectId(actorId);
-
-      // Create token data from actor
-      // @ts-ignore - Using any type for token data creation
-      const tokenData: any = {
-        name: actor.name,
-        imageUrl: actor.defaultTokenImageId ? `api/assets/${actor.defaultTokenImageId}` : '',
-        size: actor.size || 'medium',
-        encounterId: encounterObjectId,
-        position,
-        actorId: actorObjectId,
-        isVisible: true,
-        isPlayerControlled: actor.isPlayerOwned || false,
-        createdBy: userObjectId,
-        updatedBy: userObjectId,
-        // Set basic stats if available in actor data
-        stats: {
-          hitPoints: actor.data?.stats?.hitPoints || 10,
-          maxHitPoints: actor.data?.stats?.maxHitPoints || 10,
-          armorClass: actor.data?.stats?.armorClass || 10,
-          speed: actor.data?.stats?.speed || 30
-        },
-        conditions: [],
-        version: 1
+      const tokenData: CreateTokenData = {
+        name: options.name || actor.name,
+        imageUrl: actor.token?.url || actor.avatar?.url || '',
+        size: options.size || 'medium',
+        encounterId,
+        position: position,
+        actorId: actor.id,
+        isVisible: options.isVisible ?? true,
+        isPlayerControlled: options.isPlayerControlled ?? false,
+        data: actor.data || {}, // Copy the actor's data field
+        conditions: []
       };
 
       // Create and save token
@@ -551,7 +549,7 @@ export class EncounterService {
 
       // Add token to encounter's tokens array
       await EncounterModel.findByIdAndUpdate(
-        encounterObjectId,
+        encounterId,
         { $push: { tokens: token._id } }
       ).exec();
 
@@ -639,7 +637,9 @@ export class EncounterService {
           updatedAt: new Date()
         };
 
-        delete tokenData.id; // Remove string ID if present
+        if ('id' in tokenData) {
+          delete (tokenData as { id?: string }).id;
+        }
 
         // Create and save token
         const token = new TokenModel(tokenData);

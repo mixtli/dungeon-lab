@@ -392,9 +392,10 @@ export class EncounterMapRenderer {
   
   /**
    * Get the token container for external token management
+   * Returns mapContainer so tokens pan/zoom with the map
    */
   public getTokenContainer(): PIXI.Container {
-    return this.tokenContainer;
+    return this.mapContainer;
   }
   
   /**

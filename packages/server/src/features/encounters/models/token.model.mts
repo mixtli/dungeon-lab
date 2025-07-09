@@ -16,7 +16,7 @@ mongooseSchema.index({ itemId: 1 }); // Find tokens representing a specific item
 mongooseSchema.index({ 'position.x': 1, 'position.y': 1 }); // Spatial queries for map interactions
 mongooseSchema.index({ isVisible: 1 }); // Filter tokens by visibility (hidden vs visible to players)
 mongooseSchema.index({ updatedAt: -1 }); // Recently modified tokens for real-time sync
-
+mongooseSchema.path('data', mongoose.Schema.Types.Mixed);
 /**
  * Token model
  * 

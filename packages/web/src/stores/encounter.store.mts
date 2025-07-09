@@ -1,9 +1,17 @@
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
-import type { IEncounter } from '@dungeon-lab/shared/types/index.mjs';
-import type { IActor } from '@dungeon-lab/shared/types/index.mjs';
-import { EncountersClient } from '@dungeon-lab/client/index.mjs';
-import { ActorsClient } from '@dungeon-lab/client/index.mjs';
+import { ref, computed, watch } from 'vue';
+import type { 
+  IEncounter, 
+  IToken, 
+  TokenSize,
+  TokenMoveCallback,
+  EncounterCallback,
+  IActor,
+  CreateTokenData
+} from '@dungeon-lab/shared/types/index.mjs';
+import { EncountersClient, ActorsClient } from '@dungeon-lab/client/index.mjs';
+import { useSocketStore } from './socket.store.mjs';
+import { useAuthStore } from './auth.store.mjs';
 
 const encounterClient = new EncountersClient();
 const actorClient = new ActorsClient();
@@ -13,9 +21,375 @@ export interface IEncounterWithActors extends Omit<IEncounter, 'participants'> {
 }
 
 export const useEncounterStore = defineStore('encounter', () => {
+  const socketStore = useSocketStore();
+  const authStore = useAuthStore();
   const currentEncounter = ref<IEncounterWithActors | null>(null);
+  const encounterTokens = ref<IToken[]>([]);
   const loading = ref(false);
   const error = ref<string | null>(null);
+
+  // Computed property for getting a token by ID
+  const getTokenById = computed(() => (tokenId: string) => {
+    return encounterTokens.value.find(token => token.id === tokenId);
+  });
+
+  // Token Management Methods
+  async function createToken(tokenData: {
+    name: string;
+    imageUrl: string;
+    size: TokenSize;
+    position: { x: number; y: number; elevation: number };
+    actorId?: string;
+    isVisible: boolean;
+    isPlayerControlled: boolean;
+    data?: Record<string, unknown>;
+  }): Promise<void> {
+    if (!currentEncounter.value) throw new Error('No active encounter');
+    if (!authStore.user?.id) throw new Error('User not authenticated');
+    
+    loading.value = true;
+    error.value = null;
+
+    try {
+      // Emit socket event for token creation
+      socketStore.emit('token:create', {
+        encounterId: currentEncounter.value.id,
+        userId: authStore.user.id,
+        tokenData: {
+          name: tokenData.name,
+          imageUrl: tokenData.imageUrl,
+          size: tokenData.size,
+          position: tokenData.position,
+          actorId: tokenData.actorId,
+          isVisible: tokenData.isVisible,
+          isPlayerControlled: tokenData.isPlayerControlled,
+          data: tokenData.data || {}
+        }
+      });
+
+      // Note: The actual token will be added to the state when we receive the 'token:created' event
+    } catch (err) {
+      console.error('Failed to create token:', err);
+      error.value = err instanceof Error ? err.message : 'Failed to create token';
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function createTokenFromActor(tokenData: {
+    actorId: string;
+    name: string;
+    isVisible: boolean;
+    position?: { x: number; y: number; elevation: number };
+  }): Promise<void> {
+    if (!currentEncounter.value) throw new Error('No active encounter');
+    if (!authStore.user?.id) throw new Error('User not authenticated');
+    
+    loading.value = true;
+    error.value = null;
+
+    try {
+      // Fetch the actor to get its stats and details
+      const actor = await actorClient.getActor(tokenData.actorId);
+      if (!actor) throw new Error('Actor not found');
+
+      // Get the image URL from either token or avatar
+      const imageUrl = actor.token?.url || actor.avatar?.url;
+      if (!imageUrl) throw new Error('No token or avatar image available for this actor');
+
+      // Get the actor's size (default to medium if not specified)
+      const size = actor.data?.size?.toLowerCase() || 'medium';
+      if (!['tiny', 'small', 'medium', 'large', 'huge', 'gargantuan'].includes(size)) {
+        throw new Error('Invalid token size');
+      }
+
+      // Default position if not provided
+      const position = tokenData.position || { x: 0, y: 0, elevation: 0 };
+
+      // Determine if the token is player controlled based on actor type
+      const isPlayerControlled = actor.type === 'character';
+
+      // Create the token data object that matches CreateTokenData type
+      const createData = {
+        name: tokenData.name,
+        imageUrl,
+        size: size as TokenSize,
+        encounterId: currentEncounter.value.id,
+        position,
+        actorId: tokenData.actorId,
+        isVisible: tokenData.isVisible,
+        isPlayerControlled,
+        data: actor.data || {}, // Copy the entire actor data field
+        conditions: []
+      } as const;
+
+      // Emit socket event for token creation
+      socketStore.emit('token:create', {
+        encounterId: currentEncounter.value.id,
+        userId: authStore.user.id,
+        tokenData: createData
+      });
+
+      // Note: The actual token will be added to the state when we receive the 'token:created' event
+    } catch (err) {
+      console.error('Failed to create token from actor:', err);
+      error.value = err instanceof Error ? err.message : 'Failed to create token from actor';
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  // Socket event handlers
+  function setupSocketHandlers() {
+    const socket = socketStore.socket;
+    if (!socket) {
+      console.log('[Encounter Store] No socket available, skipping handler setup');
+      return;
+    }
+
+    console.log('[Encounter Store] Setting up socket handlers. Socket connected:', socket.connected);
+    console.log('[Encounter Store] Current encounter:', currentEncounter.value?.id);
+    console.log('[Encounter Store] Current tokens:', encounterTokens.value);
+
+    // Clean up any existing listeners to prevent duplicates
+    socket.off('token:created');
+    socket.off('token:moved');
+    socket.off('token:updated');
+    socket.off('token:deleted');
+
+    socket.on('token:created', (data) => {
+      console.log('[Encounter Store] Token created event received:', data);
+      console.log('[Encounter Store] Current encounter:', currentEncounter.value?.id);
+      console.log('[Encounter Store] Encounter tokens before:', encounterTokens.value);
+      
+      if (data.encounterId === currentEncounter.value?.id) {
+        console.log('[Encounter Store] Adding token to encounter:', data.token);
+        encounterTokens.value.push(data.token);
+        console.log('[Encounter Store] Encounter tokens after:', encounterTokens.value);
+      } else {
+        console.log('[Encounter Store] Token not added - encounter ID mismatch');
+      }
+    });
+
+    socket.on('token:moved', (data) => {
+      console.log('Token moved:', data);
+      if (data.encounterId === currentEncounter.value?.id) {
+        const token = encounterTokens.value.find(t => t.id === data.tokenId);
+        if (token) {
+          token.position = data.position;
+        }
+      }
+    });
+
+    socket.on('token:updated', (data) => {
+      console.log('Token updated:', data);
+      if (data.encounterId === currentEncounter.value?.id) {
+        const index = encounterTokens.value.findIndex(t => t.id === data.tokenId);
+        if (index !== -1) {
+          encounterTokens.value[index] = data.token;
+        }
+      }
+    });
+
+    socket.on('token:deleted', (data) => {
+      console.log('Token deleted:', data);
+      if (data.encounterId === currentEncounter.value?.id) {
+        encounterTokens.value = encounterTokens.value.filter(t => t.id !== data.tokenId);
+      }
+    });
+
+    console.log('[Encounter Store] Socket handlers setup complete');
+  }
+
+  // Watch for socket changes
+  watch(
+    () => socketStore.socket,
+    (newSocket, oldSocket) => {
+      console.log('[Encounter Store] Socket changed:', {
+        newSocketConnected: newSocket?.connected,
+        oldSocketConnected: oldSocket?.connected
+      });
+      setupSocketHandlers();
+    },
+    { immediate: true }
+  );
+
+  // Watch for socket connection status
+  watch(
+    () => socketStore.connected,
+    (isConnected) => {
+      console.log('[Encounter Store] Socket connection status changed:', isConnected);
+      if (isConnected) {
+        setupSocketHandlers();
+      }
+    }
+  );
+
+  async function updateToken(tokenId: string, updates: CreateTokenData) {
+    if (!currentEncounter.value) throw new Error('No active encounter');
+    if (!authStore.user?.id) throw new Error('User not authenticated');
+    
+    loading.value = true;
+    error.value = null;
+
+    try {
+      // Update token through API
+      const updatedToken = await encounterClient.updateToken(currentEncounter.value.id, tokenId, {
+        ...updates,
+        updatedBy: authStore.user.id
+      });
+      
+      // Update local state
+      const index = encounterTokens.value.findIndex(t => t.id === tokenId);
+      if (index !== -1) {
+        encounterTokens.value[index] = updatedToken;
+      }
+
+      // Emit socket event
+      socketStore.emit('token:update', {
+        encounterId: currentEncounter.value.id,
+        tokenId,
+        userId: authStore.user.id,
+        updates: {
+          name: updates.name,
+          imageUrl: updates.imageUrl,
+          size: updates.size,
+          isVisible: updates.isVisible,
+          data: updates.data
+        }
+      }, (response: EncounterCallback) => {
+        if (!response.success) {
+          console.error('Socket token update failed:', response.error);
+        }
+      });
+
+      return updatedToken;
+    } catch (err) {
+      console.error('Failed to update token:', err);
+      error.value = err instanceof Error ? err.message : 'Failed to update token';
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function deleteToken(tokenId: string) {
+    if (!currentEncounter.value) throw new Error('No active encounter');
+    if (!authStore.user?.id) throw new Error('User not authenticated');
+    
+    loading.value = true;
+    error.value = null;
+
+    try {
+      // Delete through API
+      await encounterClient.deleteToken(currentEncounter.value.id, tokenId);
+      
+      // Update local state
+      encounterTokens.value = encounterTokens.value.filter(t => t.id !== tokenId);
+      
+      // Emit socket event
+      socketStore.emit('token:delete', {
+        encounterId: currentEncounter.value.id,
+        tokenId,
+        userId: authStore.user.id
+      }, (response: EncounterCallback) => {
+        if (!response.success) {
+          console.error('Socket token deletion failed:', response.error);
+        }
+      });
+    } catch (err) {
+      console.error('Failed to delete token:', err);
+      error.value = err instanceof Error ? err.message : 'Failed to delete token';
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function moveToken(tokenId: string, position: { x: number; y: number; elevation: number }) {
+    if (!currentEncounter.value) throw new Error('No active encounter');
+    if (!authStore.user?.id) throw new Error('User not authenticated');
+    
+    try {
+      // Update local state immediately for responsiveness
+      const token = encounterTokens.value.find(t => t.id === tokenId);
+      if (token) {
+        token.position = position;
+      }
+
+      // Emit socket event (we'll handle the actual movement through sockets)
+      socketStore.emit('token:move', {
+        encounterId: currentEncounter.value.id,
+        tokenId,
+        userId: authStore.user.id,
+        position
+      }, (response: TokenMoveCallback) => {
+        if (!response.success) {
+          console.error('Socket token movement failed:', response.error);
+          // Revert local state on failure
+          if (token && response.position) {
+            token.position = response.position;
+          }
+        }
+      });
+    } catch (err) {
+      console.error('Failed to move token:', err);
+      error.value = err instanceof Error ? err.message : 'Failed to move token';
+      throw err;
+    }
+  }
+
+  // Modified fetchEncounter to also fetch tokens
+  async function fetchEncounter(encounterId: string) {
+    loading.value = true;
+    error.value = null;
+
+    try {
+      const encounter = await encounterClient.getEncounter(encounterId);
+      const tokens = await encounterClient.getTokens(encounterId);
+
+      // Initialize with empty participants array in case participants don't exist
+      let participants: IActor[] = [];
+
+      if (encounter && Array.isArray(encounter.participants) && encounter.participants.length > 0) {
+        const participantPromises = encounter.participants.map(async (participantId: string) => {
+          if (!participantId) return null;
+          try {
+            const actor = await actorClient.getActor(participantId);
+            return actor;
+          } catch (error) {
+            console.error(`Failed to fetch actor ${participantId}:`, error);
+            return null;
+          }
+        });
+
+        const participantResults = await Promise.all(participantPromises);
+        participants = participantResults.filter((p): p is IActor => p !== null);
+      }
+
+      currentEncounter.value = {
+        ...encounter,
+        participants
+      };
+      
+      // Set tokens
+      encounterTokens.value = tokens
+        .map(token => {
+          const hasUnderscoreId = typeof (token as unknown as { _id?: unknown })._id === 'string';
+          const id = token.id || (hasUnderscoreId ? (token as unknown as { _id: string })._id : undefined);
+          return id ? { ...token, id } : undefined;
+        })
+        .filter((token): token is typeof tokens[number] & { id: string } => !!token);
+    } catch (err) {
+      console.error('Failed to fetch encounter:', err);
+      error.value = err instanceof Error ? err.message : 'Failed to fetch encounter';
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
 
   async function updateEncounterStatus(
     encounterId: string,
@@ -32,49 +406,6 @@ export const useEncounterStore = defineStore('encounter', () => {
     } catch (err) {
       console.error('Failed to update encounter status:', err);
       error.value = err instanceof Error ? err.message : 'Failed to update encounter status';
-      throw err;
-    } finally {
-      loading.value = false;
-    }
-  }
-
-  async function fetchEncounter(encounterId: string) {
-    loading.value = true;
-    error.value = null;
-
-    try {
-      const encounter = await encounterClient.getEncounter(encounterId);
-
-      // Initialize with empty participants array in case participants don't exist
-      let participants: IActor[] = [];
-
-      // Only try to fetch participants if the encounter has a participants array
-      if (encounter && Array.isArray(encounter.participants) && encounter.participants.length > 0) {
-        // Fetch actor details for each participant
-        const participantPromises = encounter.participants.map(async (participantId: string) => {
-          if (!participantId) return null;
-          try {
-            const actor = await actorClient.getActor(participantId);
-            return actor;
-          } catch (error) {
-            console.error(`Failed to fetch actor ${participantId}:`, error);
-            return null;
-          }
-        });
-
-        // Filter out null values from participants
-        const participantResults = await Promise.all(participantPromises);
-        participants = participantResults.filter((p) => p !== null && p !== undefined);
-      }
-
-      // Set current encounter with participants
-      currentEncounter.value = {
-        ...encounter,
-        participants
-      };
-    } catch (err) {
-      console.error('Failed to fetch encounter:', err);
-      error.value = err instanceof Error ? err.message : 'Failed to fetch encounter';
       throw err;
     } finally {
       loading.value = false;
@@ -125,14 +456,21 @@ export const useEncounterStore = defineStore('encounter', () => {
 
   return {
     currentEncounter,
+    encounterTokens,
     loading,
     error,
+    getTokenById,
+    createToken,
+    updateToken,
+    deleteToken,
+    moveToken,
     createEncounter,
     getEncounter,
     updateEncounter,
     deleteEncounter,
     addParticipant,
     fetchEncounter,
-    updateEncounterStatus
+    updateEncounterStatus,
+    createTokenFromActor
   };
 });

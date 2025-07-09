@@ -75,7 +75,8 @@ export const tokenCreateSchema = z.object({
     position: gridPositionSchema,
     actorId: z.string().optional(),
     isVisible: z.boolean(),
-    isPlayerControlled: z.boolean()
+    isPlayerControlled: z.boolean(),
+    data: z.record(z.string(), z.unknown())
   }),
   userId: z.string()
 });
@@ -95,13 +96,7 @@ export const tokenUpdateSchema = z.object({
     imageUrl: z.string().optional(),
     size: z.enum(['tiny', 'small', 'medium', 'large', 'huge', 'gargantuan']).optional(),
     isVisible: z.boolean().optional(),
-    stats: z.object({
-      hitPoints: z.number(),
-      maxHitPoints: z.number(),
-      armorClass: z.number(),
-      speed: z.number(),
-      temporaryHitPoints: z.number().optional()
-    }).optional()
+    data: z.record(z.string(), z.unknown()).optional()
   }),
   userId: z.string()
 });

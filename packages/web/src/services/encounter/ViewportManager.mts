@@ -198,6 +198,13 @@ export class ViewportManager {
   }
   
   /**
+   * Get the current scale value
+   */
+  getCurrentScale(): number {
+    return this.currentScale;
+  }
+
+  /**
    * Zoom by a delta amount
    */
   zoom(delta: number): void {

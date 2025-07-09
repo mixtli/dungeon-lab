@@ -34,8 +34,7 @@ import {
 } from '../schemas/encounters.schema.mjs';
 
 // Import token types from separate file
-import { IToken } from './tokens.mjs';
-export * from './tokens.mjs';
+import { Token } from './tokens.mjs';
 
 // ============================================================================
 // POSITION AND MOVEMENT TYPES
@@ -72,8 +71,8 @@ export type EncounterEvent = z.infer<typeof encounterEventSchema>;
 
 // Additional context type that's not directly schema-based (defined after IEncounter type)
 export interface ActionContext {
-  actor: IToken;
-  target?: IToken;
+  actor: Token;
+  target?: Token;
   encounter: IEncounter;
   round: number;
   turn: number;
@@ -99,4 +98,6 @@ export type EncounterPermissions = z.infer<typeof encounterPermissionsSchema>;
 
 export type ValidationResult = z.infer<typeof validationResultSchema>;
 export type ActionValidation = z.infer<typeof actionValidationSchema>;
-export type MovementValidation = z.infer<typeof movementValidationSchema>; 
+export type MovementValidation = z.infer<typeof movementValidationSchema>;
+
+ 
