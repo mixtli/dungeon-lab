@@ -122,8 +122,8 @@ function handleCreate() {
         <div class="flex items-center">
           <div class="w-10 h-10 rounded-full overflow-hidden bg-gray-200 mr-3">
             <img
-              v-if="character.avatarId && typeof character.avatarId === 'object'"
-              :src="(character.avatarId as unknown as IAsset).url"
+              v-if="character.avatar && typeof character.avatar === 'object'"
+              :src="(character.avatar as unknown as IAsset).url"
               :alt="character.name"
               class="w-full h-full object-cover"
             />

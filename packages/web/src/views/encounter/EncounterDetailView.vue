@@ -390,14 +390,28 @@ async function handleStopEncounter() {
       <!-- Map info if available -->
       <div v-if="encounterStore.currentEncounter.mapId" class="mt-6 p-4 bg-gray-50 rounded-lg">
         <h2 class="text-lg font-medium">Map</h2>
-        <p>
+        <router-link
+          :to="{ name: 'map-edit', params: { id: typeof encounterStore.currentEncounter.mapId === 'object' ? (encounterStore.currentEncounter.mapId as any).id : encounterStore.currentEncounter.mapId } }"
+          class="text-blue-600 hover:text-blue-800 hover:underline"
+        >
           {{
             typeof encounterStore.currentEncounter.mapId === 'object' &&
             'name' in (encounterStore.currentEncounter.mapId as any)
               ? (encounterStore.currentEncounter.mapId as any).name
               : 'Map loaded'
           }}
-        </p>
+        </router-link>
+      </div>
+
+      <!-- Campaign link -->
+      <div v-if="encounterStore.currentEncounter.campaignId" class="mt-6 p-4 bg-gray-50 rounded-lg">
+        <h2 class="text-lg font-medium">Campaign</h2>
+        <router-link
+          :to="{ name: 'campaign-detail', params: { id: encounterStore.currentEncounter.campaignId } }"
+          class="text-blue-600 hover:text-blue-800 hover:underline"
+        >
+          View Campaign
+        </router-link>
       </div>
 
       <!-- Participants section -->
