@@ -52,6 +52,11 @@ function selectCharacter(actor: IActor) {
 function close() {
   emit('close');
 }
+
+function joinWithoutCharacter() {
+  gameSessionStore.joinSession(props.sessionId);
+  emit('close');
+}
 </script>
 
 <template>
@@ -118,7 +123,7 @@ function close() {
           Cancel
         </button>
         <button
-          @click="() => gameSessionStore.joinSession(props.sessionId)"
+          @click="joinWithoutCharacter"
           class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
         >
           Join Without Character

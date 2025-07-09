@@ -57,10 +57,6 @@ import {
 } from './workflows.mjs';
 
 import {
-  // Room management
-  encounterJoinSchema,
-  encounterLeaveSchema,
-  encounterJoinCallbackSchema,
   // Token events
   tokenMoveSchema,
   tokenMovedSchema,
@@ -107,8 +103,6 @@ import {
   encounterErrorSchema,
   encounterCallbackSchema,
   // Client-to-server args schemas
-  encounterJoinArgsSchema,
-  encounterLeaveArgsSchema,
   tokenMoveArgsSchema,
   tokenCreateArgsSchema,
   tokenUpdateArgsSchema,
@@ -163,10 +157,7 @@ export {
   mapEditArgsSchema,
   mapDetectFeaturesArgsSchema,
   
-  // Encounter event schemas
-  encounterJoinSchema,
-  encounterLeaveSchema,
-  encounterJoinCallbackSchema,
+  // Encounter event schemas  
   tokenMoveSchema,
   tokenMovedSchema,
   tokenMoveCallbackSchema,
@@ -205,8 +196,6 @@ export {
   encounterEndedSchema,
   encounterErrorSchema,
   encounterCallbackSchema,
-  encounterJoinArgsSchema,
-  encounterLeaveArgsSchema,
   tokenMoveArgsSchema,
   tokenCreateArgsSchema,
   tokenUpdateArgsSchema,
@@ -224,8 +213,7 @@ export const serverToClientEvents = z.object({
   'roll-result': z.function().args(rollResponseSchema).returns(z.void()),
   move: z.function().args(moveMessageSchema).returns(z.void()),
   pluginStateUpdate: z.function().args(pluginStateUpdateSchema).returns(z.void()),
-  'encounter:start': z.function().args(encounterJoinSchema).returns(z.void()),
-  'encounter:stop': z.function().args(encounterLeaveSchema).returns(z.void()),
+  // Encounter management now handled via session rooms
   userJoinedSession: z.function().args(userJoinedSessionSchema).returns(z.void()),
   userLeftSession: z.function().args(userLeftSessionSchema).returns(z.void()),
   'workflow:progress:generate-map': z.function().args(workflowProgressArgsSchema).returns(z.void()),
@@ -261,9 +249,7 @@ export const clientToServerEvents = z.object({
   'map:generate': z.function().args(...mapGenerateArgsSchema.items).returns(z.void()),
   'map:edit': z.function().args(...mapEditArgsSchema.items).returns(z.void()),
   'map:detect-features': z.function().args(...mapDetectFeaturesArgsSchema.items).returns(z.void()),
-  // Encounter events
-  'encounter:join': z.function().args(...encounterJoinArgsSchema.items).returns(z.void()),
-  'encounter:leave': z.function().args(...encounterLeaveArgsSchema.items).returns(z.void()),
+  // Encounter events - room management now handled via session rooms
   'token:move': z.function().args(...tokenMoveArgsSchema.items).returns(z.void()),
   'token:create': z.function().args(...tokenCreateArgsSchema.items).returns(z.void()),
   'token:update': z.function().args(...tokenUpdateArgsSchema.items).returns(z.void()),

@@ -2,12 +2,8 @@ import { z } from 'zod';
 import * as encounterSocketSchemas from '../../schemas/socket/encounters.mjs';
 
 // ============================================================================
-// ENCOUNTER ROOM EVENT TYPES
+// ENCOUNTER ROOM EVENT TYPES - REMOVED (using session-based architecture)
 // ============================================================================
-
-export type EncounterJoin = z.infer<typeof encounterSocketSchemas.encounterJoinSchema>;
-export type EncounterLeave = z.infer<typeof encounterSocketSchemas.encounterLeaveSchema>;
-export type EncounterJoinCallback = z.infer<typeof encounterSocketSchemas.encounterJoinCallbackSchema>;
 
 // ============================================================================
 // TOKEN MOVEMENT TYPES

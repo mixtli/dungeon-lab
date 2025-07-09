@@ -1,0 +1,94 @@
+---
+description: Testing limitations and guidelines for PIXI canvas interactions
+globs: packages/web/src/components/encounter/*, packages/web/src/services/encounter/*, packages/web/src/composables/usePixiMap.mts
+alwaysApply: true
+---
+
+# PIXI Canvas Testing Guidelines
+
+## **Testing Limitations with PIXI Canvas**
+
+- **DO NOT attempt to test PIXI canvas interactions directly** using Playwright MCP tools
+- **Canvas elements are not accessible** to browser automation tools due to:
+  - Canvas renders as bitmap, not DOM elements
+  - Coordinate system mismatches between world and screen coordinates
+  - Event handling differences between PIXI and DOM events
+  - No semantic HTML structure for automation tools to target
+
+## **What You CAN Do**
+
+### **✅ Allowed Browser Interactions:**
+- **Take screenshots/snapshots** to observe visual state
+- **Check console logs** for PIXI events and errors
+- **Monitor network requests** related to encounter data
+- **Navigate to pages** and wait for loading
+- **Interact with non-canvas UI elements** (buttons, menus outside the canvas)
+
+### **✅ Code Analysis:**
+- Review PIXI-related code for logic errors
+- Analyze event handlers and coordinate transformations
+- Check data flow between components and stores
+- Validate API calls and WebSocket events
+
+## **What You CANNOT Do**
+
+### **❌ Prohibited Interactions:**
+- **DO NOT click on tokens** within the canvas
+- **DO NOT attempt to drag tokens** or canvas elements  
+- **DO NOT try to right-click** for context menus on canvas
+- **DO NOT test canvas-specific interactions** like:
+  - Token selection
+  - Token movement/dragging
+  - Context menu interactions
+  - Canvas zooming/panning
+  - Grid snapping behavior
+
+## **Testing Protocol**
+
+When testing encounter functionality:
+
+1. **Navigate to the encounter page** and wait for loading
+2. **Take screenshots** to confirm visual state
+3. **Check console logs** for errors or relevant events
+4. **ASK THE USER to perform manual tests** such as:
+   - "Please click on a token to select it"
+   - "Please right-click on the map to test the context menu"
+   - "Please drag a token to a new position"
+   - "Please test [specific interaction]"
+5. **Wait for user confirmation** before proceeding with analysis
+6. **Check logs again** after user actions to analyze results
+
+## **Example Testing Flow**
+
+```typescript
+// ✅ GOOD: Observe and analyze
+await takeScreenshot();
+await checkConsoleLogs();
+await askUserToTest("Please click on the blue token to select it");
+await waitForUserConfirmation();
+await checkConsoleLogs(); // Check for selection events
+
+// ❌ BAD: Direct canvas interaction
+await clickOnToken(); // This won't work with PIXI canvas
+await dragToken(); // This won't work with PIXI canvas
+```
+
+## **User Interaction Requests**
+
+When requesting user testing, be specific:
+
+- **Good**: "Please click on the character token in the center of the map"
+- **Good**: "Please right-click on an empty area of the map to test the context menu"
+- **Good**: "Please drag the orc token to the doorway"
+- **Bad**: "Please test the map" (too vague)
+
+## **Why This Approach Works**
+
+- **User provides ground truth** for complex canvas interactions
+- **Automation handles** data validation and error checking
+- **Efficient workflow** that leverages strengths of both human and automation testing
+- **Reliable results** without fighting canvas accessibility limitations
+
+---
+
+*This rule ensures efficient testing of PIXI canvas features while working within the constraints of browser automation tools.*

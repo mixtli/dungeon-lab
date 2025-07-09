@@ -275,7 +275,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useEncounterStore } from '../../stores/encounter.store.mjs';
 import { useDeviceAdaptation } from '../../composables/useDeviceAdaptation.mjs';
-import { useEncounterSocket } from '../../composables/useEncounterSocket.mjs';
+// Encounter socket functionality removed - using session-based architecture
 import PixiMapViewer from './PixiMapViewer.vue';
 import ActorTokenGenerator from './ActorTokenGenerator.vue';
 import TokenContextMenu from './TokenContextMenu.vue';
@@ -304,14 +304,7 @@ const currentEncounterId = computed(() =>
   props.encounterId || (route.params.id as string)
 );
 
-const { 
-  isJoined, 
-  isConnected, 
-  joinEncounter, 
-  leaveEncounter,
-  moveToken,
-  deleteToken
-} = useEncounterSocket(currentEncounterId.value);
+// Encounter socket functionality removed - using session-based architecture through encounter store
 
 // State
 const loading = ref(true);
@@ -397,10 +390,7 @@ const loadEncounter = async () => {
       return;
     }
     
-    // Join the encounter socket room
-    if (isConnected.value) {
-      await joinEncounter(currentEncounterId.value);
-    }
+    // Socket events are now handled automatically via session rooms
     
   } catch (err) {
     console.error('Error loading encounter:', err);
@@ -445,7 +435,7 @@ const handleTokenMoved = (tokenId: string, x: number, y: number, elevation: numb
     token.position.elevation = elevation;
     
     // Send update via socket
-    moveToken(tokenId, { x, y, elevation });
+    encounterStore.moveToken(tokenId, { x, y, elevation });
   }
 };
 
@@ -568,7 +558,7 @@ const removeTokenFromEncounter = (tokenId: string) => {
   }
   
   // Send update via socket
-  deleteToken(tokenId);
+  encounterStore.deleteToken(tokenId);
 };
 
 // Handle tokens created from ActorTokenGenerator
@@ -647,9 +637,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-  if (isJoined.value) {
-    leaveEncounter();
-  }
+  // Cleanup is now handled automatically via session rooms
 });
 
 // Watch for encounter ID changes
@@ -659,12 +647,7 @@ watch(currentEncounterId, (newId) => {
   }
 });
 
-// Watch for socket connection changes
-watch(isConnected, (connected) => {
-  if (connected && currentEncounterId.value && !isJoined.value) {
-    joinEncounter(currentEncounterId.value);
-  }
-});
+// Socket connection management is now handled automatically via session rooms
 
 // Handle token update from TokenStateManager
 const handleTokenUpdate = (updatedToken: Token) => {

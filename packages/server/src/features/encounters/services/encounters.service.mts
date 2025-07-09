@@ -688,17 +688,20 @@ export class EncounterService {
     encounterId: string,
     tokenId: string,
     position: { x: number; y: number },
-    userId: string
+    userId: string,
+    skipPermissionCheck = false
   ): Promise<IToken> {
     try {
       if (!Types.ObjectId.isValid(tokenId)) {
         throw new Error('Token not found');
       }
 
-      // Check token control permissions
-      const hasAccess = await this.checkTokenControlAccess(encounterId, tokenId, userId, false);
-      if (!hasAccess) {
-        throw new Error('Access denied');
+      // Check token control permissions (can be skipped if already validated at socket layer)
+      if (!skipPermissionCheck) {
+        const hasAccess = await this.checkTokenControlAccess(encounterId, tokenId, userId, false);
+        if (!hasAccess) {
+          throw new Error('Access denied');
+        }
       }
 
       // Validate position

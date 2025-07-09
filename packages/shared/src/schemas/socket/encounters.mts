@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import {
-  encounterSchema,
   initiativeEntrySchema,
   combatActionSchema,
   actionResultSchema,
@@ -11,36 +10,11 @@ import { gridPositionSchema } from '../../schemas/position.schema.mjs';
 import { tokenSchema } from '../../schemas/tokens.schema.mjs';
 
 // ============================================================================
-// ENCOUNTER ROOM EVENTS
-// ============================================================================
-
-export const encounterJoinSchema = z.object({
-  encounterId: z.string(),
-  userId: z.string()
-});
-
-export const encounterLeaveSchema = z.object({
-  encounterId: z.string(),
-  userId: z.string()
-});
-
-export const encounterJoinCallbackSchema = z.object({
-  success: z.boolean(),
-  encounter: encounterSchema.optional(),
-  permissions: z.object({
-    canView: z.boolean(),
-    canControl: z.boolean(),
-    canModify: z.boolean(),
-    canDelete: z.boolean()
-  }).optional(),
-  error: z.string().optional()
-});
-
-// ============================================================================
 // TOKEN MOVEMENT EVENTS
 // ============================================================================
 
 export const tokenMoveSchema = z.object({
+  sessionId: z.string(),
   encounterId: z.string(),
   tokenId: z.string(),
   position: gridPositionSchema,
@@ -67,6 +41,7 @@ export const tokenMoveCallbackSchema = z.object({
 // ============================================================================
 
 export const tokenCreateSchema = z.object({
+  sessionId: z.string(),
   encounterId: z.string(),
   tokenData: z.object({
     name: z.string(),
@@ -89,6 +64,7 @@ export const tokenCreatedSchema = z.object({
 });
 
 export const tokenUpdateSchema = z.object({
+  sessionId: z.string(),
   encounterId: z.string(),
   tokenId: z.string(),
   updates: z.object({
@@ -110,6 +86,7 @@ export const tokenUpdatedSchema = z.object({
 });
 
 export const tokenDeleteSchema = z.object({
+  sessionId: z.string(),
   encounterId: z.string(),
   tokenId: z.string(),
   userId: z.string()
@@ -350,14 +327,7 @@ export const encounterCallbackSchema = z.object({
 // CLIENT-TO-SERVER EVENT ARGS SCHEMAS
 // ============================================================================
 
-export const encounterJoinArgsSchema = z.tuple([
-  encounterJoinSchema,
-  z.function().args(encounterJoinCallbackSchema).optional()
-]);
-
-export const encounterLeaveArgsSchema = z.tuple([
-  encounterLeaveSchema
-]);
+// Encounter room events removed - using session-based architecture
 
 export const tokenMoveArgsSchema = z.tuple([
   tokenMoveSchema,
@@ -380,9 +350,7 @@ export const tokenDeleteArgsSchema = z.tuple([
 // TYPE EXPORTS
 // ============================================================================
 
-export type EncounterJoin = z.infer<typeof encounterJoinSchema>;
-export type EncounterLeave = z.infer<typeof encounterLeaveSchema>;
-export type EncounterJoinCallback = z.infer<typeof encounterJoinCallbackSchema>;
+// Encounter room types removed - using session-based architecture
 
 export type TokenMove = z.infer<typeof tokenMoveSchema>;
 export type TokenMoved = z.infer<typeof tokenMovedSchema>;

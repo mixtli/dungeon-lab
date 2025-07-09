@@ -165,8 +165,9 @@ interface Token {
   name?: string; // Optional override of actor name
   position: Position;
   
-  // Generic data field for plugin flexibility
+  // Generic data field for plugin flexibility (IMPLEMENTED)
   // Each game system plugin can define its own data structure
+  // This follows the same pattern as VTTDocument in technical.md
   data: Record<string, any>; // e.g., { hp: 25, maxHP: 50, ac: 15, conditions: [...] }
   
   // Universal token state
@@ -208,6 +209,8 @@ The token data model uses a **generic `data` field** instead of specific fields 
 - **Type Safety**: Plugins can provide their own type definitions for the data field
 - **Migration Path**: Easy to add new properties without database migrations
 
+**✅ IMPLEMENTATION STATUS**: This generic data field approach has been successfully implemented and is working in production. The D&D 5e plugin uses this pattern to store HP, AC, conditions, and other game-specific data.
+
 **Example for D&D 5e:**
 ```typescript
 interface DnD5eTokenData {
@@ -234,47 +237,72 @@ token.data = {
 #### **WebSocket Event Handlers**
 
 ```typescript
-// src/features/encounters/encounter.socket.mts
-export function setupEncounterSocketHandlers(io: SocketIOServer) {
-  io.on('connection', (socket) => {
-    // Join encounter room
-    socket.on('encounter:join', async (data) => {
-      const { encounterId } = validateEncounterJoin.parse(data);
-      // Validate user permission to view encounter
-      await socket.join(`encounter:${encounterId}`);
-    });
-
-    // Token movement
-    socket.on('token:move', async (data) => {
-      const { encounterId, tokenId, position } = validateTokenMove.parse(data);
-      // Validate and process move
-      // Emit to all clients in encounter room
-      socket.to(`encounter:${encounterId}`).emit('token:moved', result);
-    });
+// src/features/encounters/websocket/encounter-handler.mts
+export function encounterHandler(socket: Socket): void {
+  // No encounter room joining - users join session rooms via game session handler
+  
+  // Token movement
+  socket.on('token:move', async (data) => {
+    const { sessionId, encounterId, tokenId, position } = validateTokenMove.parse(data);
     
-    // Create token from actor
-    socket.on('token:createFromActor', async (data) => {
-      const { encounterId, actorId, options } = validateTokenCreate.parse(data);
-      // Create token instance from actor template
-      // Add to encounter
-      // Emit to all clients in encounter room
-      io.to(`encounter:${encounterId}`).emit('token:created', result);
-    });
+    // Validate session membership (simplified permission check)
+    if (!(await isUserInSession(sessionId))) {
+      const response: TokenMoveCallback = {
+        success: false,
+        error: 'Access denied: not in session'
+      };
+      callback?.(response);
+      return;
+    }
     
-    // Update token state
-    socket.on('token:updateState', async (data) => {
-      const { encounterId, tokenId, stateUpdate } = validateTokenStateUpdate.parse(data);
-      // Update token-specific state
-      // Emit to all clients in encounter room
-      io.to(`encounter:${encounterId}`).emit('token:updated', result);
-    });
+    // Process move and emit to session room
+    await encounterService.moveToken(encounterId, tokenId, position, userId, true);
+    socket.to(`session:${sessionId}`).emit('token:moved', result);
+  });
+  
+  // Create token from actor
+  socket.on('token:create', async (data) => {
+    const { sessionId, encounterId, tokenData } = validateTokenCreate.parse(data);
+    
+    // Validate session membership
+    if (!(await isUserInSession(sessionId))) {
+      emitError(encounterId, 'Access denied: not in session');
+      return;
+    }
+    
+    // Create token and emit to session room
+    const token = await encounterService.addToken(encounterId, tokenData, userId);
+    socket.to(`session:${sessionId}`).emit('token:created', result);
+  });
+  
+  // Update token state
+  socket.on('token:update', async (data) => {
+    const { sessionId, encounterId, tokenId, updates } = validateTokenUpdate.parse(data);
+    
+    // Validate session membership
+    if (!(await isUserInSession(sessionId))) {
+      emitError(encounterId, 'Access denied: not in session');
+      return;
+    }
+    
+    // Update token and emit to session room
+    const token = await encounterService.updateToken(encounterId, tokenId, updates, userId);
+    socket.to(`session:${sessionId}`).emit('token:updated', result);
+  });
 
-    // Combat actions
-    socket.on('encounter:action', async (data) => {
-      // Validate action based on game system plugin
-      // Process action and effects
-      // Emit action result to room
-    });
+  // Delete token
+  socket.on('token:delete', async (data) => {
+    const { sessionId, encounterId, tokenId } = validateTokenDelete.parse(data);
+    
+    // Validate session membership
+    if (!(await isUserInSession(sessionId))) {
+      emitError(encounterId, 'Access denied: not in session');
+      return;
+    }
+    
+    // Delete token and emit to session room
+    await encounterService.deleteToken(encounterId, tokenId, userId);
+    socket.to(`session:${sessionId}`).emit('token:deleted', { encounterId, tokenId });
   });
 }
 ```
@@ -1317,17 +1345,16 @@ The following REST endpoints will be implemented for resource-oriented operation
 
 ### WebSocket Events (Event-Oriented)
 
-The following WebSocket events will be implemented for event-oriented operations:
+The following WebSocket events will be implemented for event-oriented operations. All events include `sessionId` and are broadcast to session rooms (`session:${sessionId}`):
 
-- `encounter:join` - Join encounter room
-- `encounter:leave` - Leave encounter room
-- `encounter:state` - Get full encounter state
-- `encounter:status` - Encounter status update
-- `token:add` - Add token to encounter (real-time notification)
-- `token:move` - Move token on map
-- `token:update` - Update token properties (real-time)
-- `token:remove` - Remove token from encounter (real-time)
-- `token:highlight` - Highlight token
+- `token:move` - Move token on map (includes sessionId, encounterId, tokenId, position)
+- `token:moved` - Token movement notification (broadcast to session)
+- `token:create` - Add token to encounter (includes sessionId, encounterId, tokenData)
+- `token:created` - Token creation notification (broadcast to session)
+- `token:update` - Update token properties (includes sessionId, encounterId, tokenId, updates)
+- `token:updated` - Token update notification (broadcast to session)
+- `token:delete` - Remove token from encounter (includes sessionId, encounterId, tokenId)
+- `token:deleted` - Token deletion notification (broadcast to session)
 - `initiative:roll` - Roll initiative
 - `initiative:update` - Update initiative order
 - `initiative:next` - Move to next turn
@@ -1343,6 +1370,8 @@ The following WebSocket events will be implemented for event-oriented operations
 - `map:clear` - Clear drawings
 - `fog:update` - Update fog of war
 
+**Note**: No encounter-specific rooms are used. All real-time events are broadcast within game session rooms for simplified authorization.
+
 ## Actor-Token Relationship
 
 The system will implement a clear template-instance relationship between actors and tokens:
@@ -1356,30 +1385,50 @@ The system will implement a clear template-instance relationship between actors 
 
 ## Client Implementation
 
-The client implementation will use a service abstraction layer to handle the dual protocol approach:
+The client implementation uses Pinia stores to handle socket communication and state management:
 
 ```typescript
-// Example encounter service abstracting protocol details
-class EncounterService {
+// packages/web/src/stores/encounter.store.mts
+export const useEncounterStore = defineStore('encounter', () => {
   // REST resource operations
-  async createEncounter(data) { /* REST API call */ }
-  async getEncounter(id) { /* REST API call */ }
-  async updateEncounter(id, data) { /* REST API call */ }
-  async deleteEncounter(id) { /* REST API call */ }
+  async function createEncounter(data) { /* REST API call via encounterClient */ }
+  async function getEncounter(id) { /* REST API call via encounterClient */ }
+  async function updateEncounter(id, data) { /* REST API call via encounterClient */ }
+  async function deleteEncounter(id) { /* REST API call via encounterClient */ }
   
-  // WebSocket event operations
-  moveToken(encounterId, tokenId, position) { /* WebSocket emit */ }
-  highlightToken(encounterId, tokenId) { /* WebSocket emit */ }
-  performAction(encounterId, tokenId, action) { /* WebSocket emit */ }
+  // WebSocket event operations (include sessionId from gameSessionStore)
+  async function moveToken(tokenId, position) {
+    const sessionId = gameSessionStore.currentSession?.id;
+    socketStore.emit('token:move', {
+      sessionId,
+      encounterId: currentEncounter.value.id,
+      tokenId,
+      position,
+      userId: authStore.user.id
+    }, (response) => {
+      if (!response.success) {
+        // Revert token position on error
+        token.position = originalPosition;
+      }
+    });
+  }
   
-  // Event listeners
-  onTokenMove(callback) { /* WebSocket event listener */ }
-  onInitiativeChange(callback) { /* WebSocket event listener */ }
-  onCombatAction(callback) { /* WebSocket event listener */ }
-}
+  async function createToken(tokenData) {
+    const sessionId = gameSessionStore.currentSession?.id;
+    socketStore.emit('token:create', {
+      sessionId,
+      encounterId: currentEncounter.value.id,
+      tokenData,
+      userId: authStore.user.id
+    });
+  }
+  
+  // Socket event listeners are handled in the socket store
+  // with automatic state updates when token:moved, token:created, etc. are received
+});
 ```
 
-This service layer will hide the protocol details from the rest of the application, providing a unified API for all encounter operations regardless of the underlying protocol.
+This approach eliminates the need for encounter-specific room management and provides a clean separation between REST operations (resource management) and WebSocket operations (real-time events), all unified through the session-based authorization model.
 
 ## Map Renderer Architecture
 

@@ -15,23 +15,24 @@ DungeonLab uses Socket.io for real-time communication between the web client and
      1. `currentGameSession` is set in Pinia store
      2. Client emits `join-session` event with session ID
      3. Server validates user authorization for the session
-     4. Server calls `socket.join(sessionId)` to add user to room
+     4. Server calls `socket.join(`session:${sessionId}`)` to add user to session room
 
 ## Message Patterns
 
-### Room-based Messages
-For messages that should be broadcast to all users in a game session:
+### Session-based Messages
+All real-time messages are broadcast within game session rooms:
 
-1. Client sends message with room context
-2. Server validates room authorization
+1. Client sends message with `sessionId` included in event data
+2. Server validates session authorization (checks if user is in session)
 3. Server processes any server-side logic
-4. Server broadcasts to room using `socket.to(roomId).emit(event, data)`
+4. Server broadcasts to session room using `socket.to(`session:${sessionId}`).emit(event, data)`
 
 **Example Events:**
 - `chat-message`: Chat messages within a session
-- `actor-update`: Character/NPC updates
-- `map-update`: Map changes
-- `initiative-update`: Combat initiative changes
+- `token:move`: Token movement in encounters
+- `token:create`: Token creation
+- `token:update`: Token property updates
+- `token:delete`: Token removal
 
 ### Direct Messages
 For messages between client and server without room broadcasting:
@@ -54,18 +55,20 @@ For messages between client and server without room broadcasting:
 ## Authentication & Authorization
 
 - WebSocket connections inherit session authentication from HTTP
-- Room authorization is checked on every room-based operation
-- Users are automatically removed from rooms when they disconnect
+- Session authorization is checked on every session-based operation
+- Users are automatically removed from session rooms when they disconnect
+- Authorization is simplified: users must be members of the game session (participantIds) or be the game master
 
 ## Error Handling
 
-- Server emits `error` events for validation failures
+- Server emits callback responses with success/error status for token operations
 - Client should handle connection failures and implement reconnection logic
-- Room authorization failures result in disconnection from the room
+- Session authorization failures result in error callbacks and potential disconnection
 
 ## Implementation Notes
 
 - Uses Socket.io v4.x
-- Client implementation in `packages/web/src/composables/useSocket.ts`
-- Server implementation in `packages/server/src/websocket/`
-- Room management handled by Socket.io's built-in room system
+- Client implementation uses Pinia stores for socket management
+- Server implementation in `packages/server/src/websocket/` and feature-specific handlers
+- Session room management handled by Socket.io's built-in room system
+- No encounter-specific rooms - all real-time events use session rooms

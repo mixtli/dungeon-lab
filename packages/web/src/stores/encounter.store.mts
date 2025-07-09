@@ -12,6 +12,7 @@ import type {
 import { EncountersClient, ActorsClient } from '@dungeon-lab/client/index.mjs';
 import { useSocketStore } from './socket.store.mjs';
 import { useAuthStore } from './auth.store.mjs';
+import { useGameSessionStore } from './game-session.store.mjs';
 
 const encounterClient = new EncountersClient();
 const actorClient = new ActorsClient();
@@ -23,6 +24,7 @@ export interface IEncounterWithActors extends Omit<IEncounter, 'participants'> {
 export const useEncounterStore = defineStore('encounter', () => {
   const socketStore = useSocketStore();
   const authStore = useAuthStore();
+  const gameSessionStore = useGameSessionStore();
   const currentEncounter = ref<IEncounterWithActors | null>(null);
   const encounterTokens = ref<IToken[]>([]);
   const loading = ref(false);
@@ -52,7 +54,12 @@ export const useEncounterStore = defineStore('encounter', () => {
 
     try {
       // Emit socket event for token creation
+      if (!gameSessionStore.currentSession?.id) {
+        throw new Error('No active game session');
+      }
+      
       socketStore.emit('token:create', {
+        sessionId: gameSessionStore.currentSession.id,
         encounterId: currentEncounter.value.id,
         userId: authStore.user.id,
         tokenData: {
@@ -125,7 +132,12 @@ export const useEncounterStore = defineStore('encounter', () => {
       } as const;
 
       // Emit socket event for token creation
+      if (!gameSessionStore.currentSession?.id) {
+        throw new Error('No active game session');
+      }
+      
       socketStore.emit('token:create', {
+        sessionId: gameSessionStore.currentSession.id,
         encounterId: currentEncounter.value.id,
         userId: authStore.user.id,
         tokenData: createData
@@ -248,7 +260,12 @@ export const useEncounterStore = defineStore('encounter', () => {
       }
 
       // Emit socket event
+      if (!gameSessionStore.currentSession?.id) {
+        throw new Error('No active game session');
+      }
+      
       socketStore.emit('token:update', {
+        sessionId: gameSessionStore.currentSession.id,
         encounterId: currentEncounter.value.id,
         tokenId,
         userId: authStore.user.id,
@@ -290,7 +307,12 @@ export const useEncounterStore = defineStore('encounter', () => {
       encounterTokens.value = encounterTokens.value.filter(t => t.id !== tokenId);
       
       // Emit socket event
+      if (!gameSessionStore.currentSession?.id) {
+        throw new Error('No active game session');
+      }
+      
       socketStore.emit('token:delete', {
+        sessionId: gameSessionStore.currentSession.id,
         encounterId: currentEncounter.value.id,
         tokenId,
         userId: authStore.user.id
@@ -313,14 +335,24 @@ export const useEncounterStore = defineStore('encounter', () => {
     if (!authStore.user?.id) throw new Error('User not authenticated');
     
     try {
-      // Update local state immediately for responsiveness
+      // Find the token and store original position for potential revert
       const token = encounterTokens.value.find(t => t.id === tokenId);
-      if (token) {
-        token.position = position;
+      if (!token) {
+        throw new Error('Token not found');
       }
+      
+      const originalPosition = { ...token.position }; // Store original position
+      
+      // Update local state immediately for responsiveness
+      token.position = position;
 
       // Emit socket event (we'll handle the actual movement through sockets)
+      if (!gameSessionStore.currentSession?.id) {
+        throw new Error('No active game session');
+      }
+      
       socketStore.emit('token:move', {
+        sessionId: gameSessionStore.currentSession.id,
         encounterId: currentEncounter.value.id,
         tokenId,
         userId: authStore.user.id,
@@ -328,10 +360,8 @@ export const useEncounterStore = defineStore('encounter', () => {
       }, (response: TokenMoveCallback) => {
         if (!response.success) {
           console.error('Socket token movement failed:', response.error);
-          // Revert local state on failure
-          if (token && response.position) {
-            token.position = response.position;
-          }
+          // Revert to original position on failure
+          token.position = originalPosition;
         }
       });
     } catch (err) {

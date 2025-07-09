@@ -3,14 +3,9 @@ import { socketHandlerRegistry } from '../../../websocket/handler-registry.mjs';
 import { logger } from '../../../utils/logger.mjs';
 import { EncounterService } from '../services/encounters.service.mjs';
 import { encounterRateLimiters } from '../../../websocket/utils/rate-limiter.mjs';
-import { encounterPermissionValidator } from './encounter-permissions.mjs';
 import type {
   ServerToClientEvents,
   ClientToServerEvents,
-  // Room management
-  EncounterJoin,
-  EncounterLeave,
-  EncounterJoinCallback,
   // Token events
   TokenMove,
   TokenMoved,
@@ -55,84 +50,33 @@ function encounterHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
   };
 
   // ============================================================================
-  // ROOM MANAGEMENT
+  // SESSION-BASED PERMISSIONS
   // ============================================================================
 
-  socket.on('encounter:join', async (data: EncounterJoin, callback?: (response: EncounterJoinCallback) => void) => {
+  // Helper function to check if user is in session
+  const isUserInSession = async (sessionId: string): Promise<boolean> => {
+    logger.info('Checking if user is in session:', { sessionId, userId, isAdmin });
     try {
-      const { encounterId } = data;
-      
-      if (!checkRateLimit('general', encounterId)) return;
-
-      // Validate permissions
-      const permissions = await encounterPermissionValidator.getEncounterPermissions(
-        encounterId, userId, isAdmin
-      );
-
-      if (!permissions.canView) {
-        const response: EncounterJoinCallback = {
-          success: false,
-          error: 'Access denied: insufficient permissions to view encounter'
-        };
-        callback?.(response);
-        return;
+      logger.info('Finding session by sessionId:', sessionId);
+      const GameSessionModel = (await import('../../../features/campaigns/models/game-session.model.mjs')).GameSessionModel;
+      logger.info('GameSessionModel:', GameSessionModel);
+      const session = await GameSessionModel.findById(sessionId).exec();
+      logger.info('Session found:', session);
+      if (!session) {
+        logger.error('Session not found for sessionId:', sessionId);
+        return false;
       }
-
-      // Get encounter data
-      const encounter = await encounterService.getEncounter(encounterId, userId, isAdmin);
-
-      // Join encounter room
-      await socket.join(`encounter:${encounterId}`);
       
-      logger.info(`User ${userId} joined encounter ${encounterId}`);
-
-      // Send success response with encounter data
-      const response: EncounterJoinCallback = {
-        success: true,
-        encounter,
-        permissions
-      };
-      callback?.(response);
-
-      // Notify other participants
-      socket.to(`encounter:${encounterId}`).emit('userJoinedSession', {
-        userId,
-        sessionId: encounterId,
-        actorId: undefined
-      });
-
+      // Check if user is in session participantIds or is admin
+      console.log('userId', userId);
+      console.log('session.participantIds', session.participantIds);
+      console.log('session.gameMasterId', session.gameMasterId);
+      return isAdmin || session.participantIds.includes(userId) || session.gameMasterId === userId;
     } catch (error) {
-      logger.error('Error joining encounter:', error);
-      const response: EncounterJoinCallback = {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to join encounter'
-      };
-      callback?.(response);
+      logger.error('Error checking session membership:', error);
+      return false;
     }
-  });
-
-  socket.on('encounter:leave', async (data: EncounterLeave) => {
-    try {
-      const { encounterId } = data;
-      
-      // Leave encounter room
-      await socket.leave(`encounter:${encounterId}`);
-      
-      logger.info(`User ${userId} left encounter ${encounterId}`);
-
-      // Notify other participants
-      socket.to(`encounter:${encounterId}`).emit('userLeftSession', {
-        userId,
-        sessionId: encounterId,
-        actorIds: [],
-        characterNames: []
-      });
-
-    } catch (error) {
-      logger.error('Error leaving encounter:', error);
-      emitError(data.encounterId, 'Failed to leave encounter');
-    }
-  });
+  };
 
   // ============================================================================
   // TOKEN MOVEMENT
@@ -140,17 +84,27 @@ function encounterHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
 
   socket.on('token:move', async (data: TokenMove, callback?: (response: TokenMoveCallback) => void) => {
     try {
-      const { encounterId, tokenId, position } = data;
+      const { sessionId, encounterId, tokenId, position } = data;
+      logger.info('Token move event received:', { sessionId, encounterId, tokenId, position });
       
       if (!checkRateLimit('tokenMove', encounterId)) return;
+      logger.info('Token move rate limit check passed');
 
-      // Validate token control permissions
-      await encounterPermissionValidator.validateTokenControl(tokenId, userId, isAdmin);
+      // Check session permissions (simple and fast)
+      if (!(await isUserInSession(sessionId))) {
+        logger.info('Token move session permission check failed');
+        const response: TokenMoveCallback = {
+          success: false,
+          error: 'Access denied: not in session'
+        };
+        callback?.(response);
+        return;
+      }
 
-      // Move token using service
-      await encounterService.moveToken(encounterId, tokenId, position, userId);
+      // Move token using service (skip permission check since we validated session membership)
+      await encounterService.moveToken(encounterId, tokenId, position, userId, true);
 
-      // Emit success to all participants
+      // Emit success to all session participants
       const moveEvent: TokenMoved = {
         encounterId,
         tokenId,
@@ -159,7 +113,7 @@ function encounterHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
         timestamp: new Date()
       };
 
-      socket.to(`encounter:${encounterId}`).emit('token:moved', moveEvent);
+      socket.to(`session:${sessionId}`).emit('token:moved', moveEvent);
       socket.emit('token:moved', moveEvent);
 
       // Send callback response
@@ -189,14 +143,15 @@ function encounterHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
 
   socket.on('token:create', async (data: TokenCreate) => {
     try {
-      const { encounterId, tokenData } = data;
+      const { sessionId, encounterId, tokenData } = data;
       
       if (!checkRateLimit('encounterUpdates', encounterId)) return;
 
-      // Validate encounter modify permissions
-      await encounterPermissionValidator.validateEncounterAccess(
-        encounterId, userId, 'canModify', isAdmin
-      );
+      // Check session permissions (simple and fast)
+      if (!(await isUserInSession(sessionId))) {
+        emitError(encounterId, 'Access denied: not in session');
+        return;
+      }
 
       // Create token using service
       const tokenDataWithDefaults = {
@@ -206,7 +161,7 @@ function encounterHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
       };
       const token = await encounterService.addToken(encounterId, tokenDataWithDefaults, userId);
 
-      // Emit to all participants
+      // Emit to all session participants
       const createEvent: TokenCreated = {
         encounterId,
         token,
@@ -214,7 +169,7 @@ function encounterHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
         timestamp: new Date()
       };
 
-      socket.to(`encounter:${encounterId}`).emit('token:created', createEvent);
+      socket.to(`session:${sessionId}`).emit('token:created', createEvent);
       socket.emit('token:created', createEvent);
 
     } catch (error) {
@@ -225,12 +180,15 @@ function encounterHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
 
   socket.on('token:update', async (data: TokenUpdate) => {
     try {
-      const { encounterId, tokenId, updates } = data;
+      const { sessionId, encounterId, tokenId, updates } = data;
       
       if (!checkRateLimit('encounterUpdates', encounterId)) return;
 
-      // Validate token control permissions
-      await encounterPermissionValidator.validateTokenControl(tokenId, userId, isAdmin);
+      // Check session permissions (simple and fast)
+      if (!(await isUserInSession(sessionId))) {
+        emitError(encounterId, 'Access denied: not in session');
+        return;
+      }
 
       // Update token using service
       const updatesWithUserId = {
@@ -239,7 +197,7 @@ function encounterHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
       };
       const token = await encounterService.updateToken(encounterId, tokenId, updatesWithUserId, userId, isAdmin);
 
-      // Emit success to all participants
+      // Emit success to all session participants
       const updateEvent: TokenUpdated = {
         encounterId,
         tokenId,
@@ -248,7 +206,7 @@ function encounterHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
         timestamp: new Date()
       };
 
-      socket.to(`encounter:${encounterId}`).emit('token:updated', updateEvent);
+      socket.to(`session:${sessionId}`).emit('token:updated', updateEvent);
       socket.emit('token:updated', updateEvent);
 
     } catch (error) {
@@ -259,17 +217,20 @@ function encounterHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
 
   socket.on('token:delete', async (data: TokenDelete) => {
     try {
-      const { encounterId, tokenId } = data;
+      const { sessionId, encounterId, tokenId } = data;
       
       if (!checkRateLimit('encounterUpdates', encounterId)) return;
 
-      // Validate token control permissions
-      await encounterPermissionValidator.validateTokenControl(tokenId, userId, isAdmin);
+      // Check session permissions (simple and fast)
+      if (!(await isUserInSession(sessionId))) {
+        emitError(encounterId, 'Access denied: not in session');
+        return;
+      }
 
       // Delete token using service
       await encounterService.removeToken(encounterId, tokenId, userId, isAdmin);
 
-      // Emit success to all participants
+      // Emit success to all session participants
       const deleteEvent: TokenDeleted = {
         encounterId,
         tokenId,
@@ -277,7 +238,7 @@ function encounterHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
         timestamp: new Date()
       };
 
-      socket.to(`encounter:${encounterId}`).emit('token:deleted', deleteEvent);
+      socket.to(`session:${sessionId}`).emit('token:deleted', deleteEvent);
       socket.emit('token:deleted', deleteEvent);
 
     } catch (error) {
