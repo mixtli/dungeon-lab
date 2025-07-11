@@ -80,6 +80,7 @@ import type {
     Point,
     AnyEditorObject
 } from '@dungeon-lab/shared/types/index.mjs';
+import { MapsClient } from '@dungeon-lab/client/index.mjs';
 
 // Import editor components
 import EditorToolbar from './components/EditorToolbar.vue';
@@ -87,6 +88,7 @@ import EditorCanvas from './components/EditorCanvas.vue';
 import EditorPropertiesPanel from './components/EditorPropertiesPanel.vue';
 import EditorLayerPanel from './components/EditorLayerPanel.vue';
 import CoordinateDisplay from './components/CoordinateDisplay.vue';
+const mapsClient = new MapsClient();
 
 // Define props
 const props = defineProps<{
@@ -119,6 +121,24 @@ const flattenWallPointsForKonva = (points: [number, number][]): number[] => {
     // Konva expects a flat array of numbers [x1, y1, x2, y2, ...]
     return points.flatMap(point => [point[0], point[1]]);
 };
+
+// Helper: fetch image as base64
+async function fetchImageAsBase64(url: string): Promise<string> {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            if (typeof reader.result === 'string') {
+                resolve(reader.result);
+            } else {
+                reject(new Error('Failed to convert image to base64'));
+            }
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
+}
 
 // Load map data from UVTT
 const loadMapData = (data: UVTTData) => {
@@ -389,7 +409,7 @@ const handleLayerVisibility = (layerType: 'walls' | 'objectWalls' | 'portals' | 
 
 const handleSave = async () => {
     // Convert editor state to UVTT format
-    const uvttData = convertEditorStateToUVTT();
+    const uvttData = await convertEditorStateToUVTT();
     
     // Emit save event with the data
     emit('save', uvttData);
@@ -398,32 +418,55 @@ const handleSave = async () => {
     editorState.isModified.value = false;
 };
 
-const handleExport = (format: 'uvtt' | 'dd2vtt' = 'uvtt') => {
-    // Convert editor state to UVTT format
-    const uvttData = convertEditorStateToUVTT();
-    
-    // Create a JSON string
-    const jsonString = JSON.stringify(uvttData, null, 2);
-    
-    // Create a blob and trigger download
-    const blob = new Blob([jsonString], { type: 'application/uvtt' });
-    const url = URL.createObjectURL(blob);
-    const filename = `${editorState.mapMetadata.name || 'map'}.${format}`;
-    
-    // Create download link
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    
-    // Clean up
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+const handleExport = async (format: 'uvtt' | 'dd2vtt' = 'uvtt') => {
+    if (!props.mapId) {
+        alert('No mapId provided. Cannot export.');
+        return;
+    }
+    try {
+        // Fetch the latest map from the server
+        const mapData = await mapsClient.getMap(props.mapId);
+        let uvttData = mapData.uvtt;
+        if (!uvttData) {
+            alert('No UVTT data found for this map.');
+            return;
+        }
+        // Handle image: fetch and encode as base64 if it's a URL
+        let image = mapData.image?.url || '';
+        if (typeof image === 'string' && image.length > 0) {
+            if (!image.startsWith('data:')) {
+                try {
+                    image = await fetchImageAsBase64(image);
+                } catch (err) {
+                    console.warn('Failed to fetch/encode image as base64:', err);
+                    image = '';
+                }
+            }
+        }
+        // Clone the UVTT data and set the image field
+        const exportData = { ...uvttData, image };
+        // Create a JSON string
+        const jsonString = JSON.stringify(exportData, null, 2);
+        // Create a blob and trigger download
+        const blob = new Blob([jsonString], { type: 'application/uvtt' });
+        const url = URL.createObjectURL(blob);
+        const filename = `${mapData.name || 'map'}.${format}`;
+        // Create download link
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        // Clean up
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    } catch (err) {
+        alert('Failed to export map: ' + (err instanceof Error ? err.message : String(err)));
+    }
 };
 
-// Convert editor state to UVTT format
-const convertEditorStateToUVTT = (): UVTTData => {
+// Convert editor state to UVTT format (async for image base64)
+const convertEditorStateToUVTT = async (): Promise<UVTTData> => {
     // Convert walls to line_of_sight - each wall becomes an array of points
     const line_of_sight = editorState.walls.value.map(wall => {
         const points = [];
@@ -460,6 +503,20 @@ const convertEditorStateToUVTT = (): UVTTData => {
     // Convert lights
     const lights = editorState.saveLightsToUVTT();
     
+    // Handle image: fetch and encode as base64 if it's a URL
+    let image = editorState.mapMetadata.image;
+    if (typeof image === 'string' && image.length > 0) {
+        // If already base64 (data URL), leave as-is
+        if (!image.startsWith('data:')) {
+            try {
+                image = await fetchImageAsBase64(image);
+            } catch (err) {
+                console.warn('Failed to fetch/encode image as base64:', err);
+                // Optionally, leave as original URL or set to empty string
+                image = '';
+            }
+        }
+    }
     // Return UVTT data
     return {
         format: editorState.mapMetadata.format || 1.0,
@@ -472,7 +529,7 @@ const convertEditorStateToUVTT = (): UVTTData => {
             ambient_light: '#ffffff'
         },
         lights,
-        image: editorState.mapMetadata.image
+        image
     };
 };
 
