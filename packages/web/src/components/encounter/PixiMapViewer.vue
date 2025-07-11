@@ -68,6 +68,7 @@ interface Props {
   showWalls?: boolean;
   showObjects?: boolean;
   showPortals?: boolean;
+  showLights?: boolean; // <-- Add this line
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -75,7 +76,8 @@ const props = withDefaults(defineProps<Props>(), {
   autoResize: true,
   showWalls: false,
   showObjects: false,
-  showPortals: false
+  showPortals: false,
+  showLights: false // <-- Add this line
 });
 
 // Emits
@@ -127,6 +129,7 @@ const {
   setWallHighlights,
   setObjectHighlights,
   setPortalHighlights,
+  setLightHighlights, // <-- Add this line
   destroy
 } = usePixiMap();
 
@@ -573,6 +576,11 @@ watch(() => props.showPortals, (newValue) => {
   if (isInitialized.value) {
     setPortalHighlights(newValue || false);
   }
+}, { immediate: true });
+
+// Watch for showLights prop changes and update light visibility
+watch(() => props.showLights, (visible) => {
+  setLightHighlights(!!visible);
 }, { immediate: true });
 
 // Lifecycle

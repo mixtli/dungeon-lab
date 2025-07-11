@@ -61,6 +61,7 @@
           :show-walls="showWalls"
           :show-objects="showObjects"
           :show-portals="showPortals"
+          :show-lights="showLights"
           @token-selected="handleTokenSelection"
           @token-moved="handleTokenMoved"
           @viewport-changed="handleViewportChange"
@@ -244,6 +245,12 @@
               class="block w-full text-left px-2 py-1 text-sm hover:bg-blue-100 rounded"
             >
               {{ showPortals ? 'Hide Portals' : 'Show Portals' }}
+            </button>
+            <button 
+              @click="handleMapContextMenuAction('toggle-lights')" 
+              class="block w-full text-left px-2 py-1 text-sm hover:bg-blue-100 rounded"
+            >
+              {{ showLights ? 'Hide Lights' : 'Show Lights' }}
             </button>
             <button 
               @click="handleMapContextMenuAction('toggle-debug')" 
@@ -566,6 +573,8 @@ const contextMenuPosition = ref({ x: 0, y: 0 });
 const showWalls = ref(false);
 const showObjects = ref(false);
 const showPortals = ref(false);
+// Light highlighting state
+const showLights = ref(false); // Default: lights hidden
 
 // Deselect the current token
 const deselectToken = () => {
@@ -670,6 +679,9 @@ const handleMapContextMenuAction = (action: string) => {
       break;
     case 'toggle-portals':
       showPortals.value = !showPortals.value;
+      break;
+    case 'toggle-lights':
+      showLights.value = !showLights.value;
       break;
     case 'toggle-debug':
       showDebugInfo.value = !showDebugInfo.value;

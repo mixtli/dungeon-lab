@@ -224,6 +224,7 @@ export class EncounterMapRenderer {
       try {
         const lightGraphic = new PIXI.Graphics();
         lightGraphic.name = `light-${index}`;
+        lightGraphic.visible = false; // Hide lights by default
         
         // Convert light position to pixels
         const pixelPos = this.gridToPixel(light.position, resolution);
@@ -243,20 +244,23 @@ export class EncounterMapRenderer {
               alpha = Math.max(alpha, MIN_ALPHA);
               // Optionally combine with light.intensity
               alpha = alpha * (light.intensity ?? 1);
+              console.log(`[PixiMapRenderer] Light ${index}: 8-char hex`, { original: light.color, color, alpha });
             } else if (light.color.startsWith('#')) {
               color = parseInt(light.color.replace('#', ''), 16);
               alpha = (light.intensity ?? 1) * 0.3;
               // Clamp to minimum alpha for visibility
               const MIN_ALPHA = 0.2;
               alpha = Math.max(alpha, MIN_ALPHA);
+              console.log(`[PixiMapRenderer] Light ${index}: #RRGGBB`, { original: light.color, color, alpha });
             } else if (/^[0-9a-fA-F]{6}$/.test(light.color)) {
               color = parseInt(light.color, 16);
               alpha = (light.intensity ?? 1) * 0.3;
               // Clamp to minimum alpha for visibility
               const MIN_ALPHA = 0.2;
               alpha = Math.max(alpha, MIN_ALPHA);
+              console.log(`[PixiMapRenderer] Light ${index}: 6-char hex`, { original: light.color, color, alpha });
             } else {
-              console.warn(`Invalid light color format for light ${index}, using default`);
+              console.warn(`[PixiMapRenderer] Invalid light color format for light ${index}, using default`, { original: light.color });
               color = 0xFFFFFF;
               alpha = (light.intensity ?? 1) * 0.3;
               // Clamp to minimum alpha for visibility
@@ -271,8 +275,9 @@ export class EncounterMapRenderer {
             // Clamp to minimum alpha for visibility
             const MIN_ALPHA = 0.2;
             alpha = Math.max(alpha, MIN_ALPHA);
+            console.log(`[PixiMapRenderer] Light ${index}: numeric color`, { original: light.color, color, alpha });
           } else {
-            console.warn(`Invalid light color format for light ${index}, using default`);
+            console.warn(`[PixiMapRenderer] Invalid light color format for light ${index}, using default`, { original: light.color });
             color = 0xFFFFFF;
             alpha = (light.intensity ?? 1) * 0.3;
             // Clamp to minimum alpha for visibility
@@ -473,6 +478,15 @@ export class EncounterMapRenderer {
    */
   public setPortalHighlights(visible: boolean): void {
     this.portalGraphics.forEach(graphic => {
+      graphic.visible = visible;
+    });
+  }
+  
+  /**
+   * Set visibility of light highlights
+   */
+  public setLightHighlights(visible: boolean): void {
+    this.lightGraphics.forEach(graphic => {
       graphic.visible = visible;
     });
   }

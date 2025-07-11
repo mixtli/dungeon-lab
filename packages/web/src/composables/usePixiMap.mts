@@ -56,6 +56,7 @@ export interface UsePixiMapReturn {
   setWallHighlights: (visible: boolean) => void;
   setObjectHighlights: (visible: boolean) => void;
   setPortalHighlights: (visible: boolean) => void;
+  setLightHighlights: (visible: boolean) => void;
   
   // Cleanup
   destroy: () => void;
@@ -349,6 +350,14 @@ export function usePixiMap(): UsePixiMapReturn {
   };
   
   /**
+   * Set visibility of light highlights
+   */
+  const setLightHighlights = (visible: boolean): void => {
+    if (!mapRenderer) return;
+    mapRenderer.setLightHighlights(visible);
+  };
+  
+  /**
    * Setup token event listeners to connect token events to Vue state
    */
   const setupTokenEventListeners = () => {
@@ -504,6 +513,7 @@ export function usePixiMap(): UsePixiMapReturn {
     setWallHighlights,
     setObjectHighlights,
     setPortalHighlights,
+    setLightHighlights,
     
     // Cleanup
     destroy
