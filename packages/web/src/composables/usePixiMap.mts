@@ -52,6 +52,11 @@ export interface UsePixiMapReturn {
   screenToWorld: (screenX: number, screenY: number) => { x: number; y: number };
   worldToScreen: (worldX: number, worldY: number) => { x: number; y: number };
   
+  // Wall controls
+  setWallHighlights: (visible: boolean) => void;
+  setObjectHighlights: (visible: boolean) => void;
+  setPortalHighlights: (visible: boolean) => void;
+  
   // Cleanup
   destroy: () => void;
 }
@@ -314,6 +319,30 @@ export function usePixiMap(): UsePixiMapReturn {
   };
   
   /**
+   * Set visibility of wall highlights
+   */
+  const setWallHighlights = (visible: boolean): void => {
+    if (!mapRenderer) return;
+    mapRenderer.setWallHighlights(visible);
+  };
+  
+  /**
+   * Set visibility of object highlights
+   */
+  const setObjectHighlights = (visible: boolean): void => {
+    if (!mapRenderer) return;
+    mapRenderer.setObjectHighlights(visible);
+  };
+  
+  /**
+   * Set visibility of portal highlights
+   */
+  const setPortalHighlights = (visible: boolean): void => {
+    if (!mapRenderer) return;
+    mapRenderer.setPortalHighlights(visible);
+  };
+  
+  /**
    * Setup token event listeners to connect token events to Vue state
    */
   const setupTokenEventListeners = () => {
@@ -464,6 +493,11 @@ export function usePixiMap(): UsePixiMapReturn {
     // Coordinate conversion
     screenToWorld,
     worldToScreen,
+    
+    // Wall controls
+    setWallHighlights,
+    setObjectHighlights,
+    setPortalHighlights,
     
     // Cleanup
     destroy

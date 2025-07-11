@@ -58,6 +58,9 @@
           :map-id="encounter.mapId"
           :tokens="encounterTokens"
           :platform="deviceConfig.type"
+          :show-walls="showWalls"
+          :show-objects="showObjects"
+          :show-portals="showPortals"
           @token-selected="handleTokenSelection"
           @token-moved="handleTokenMoved"
           @viewport-changed="handleViewportChange"
@@ -211,26 +214,44 @@
             }"
           >
             <div class="text-sm font-semibold border-b pb-1 mb-1">Map Options</div>
-            <div class="space-y-1">
-              <button 
-                @click="handleMapContextMenuAction('add-token')" 
-                class="block w-full text-left px-2 py-1 text-sm hover:bg-blue-100 rounded"
-              >
-                Add Token
-              </button>
-              <button 
-                @click="handleMapContextMenuAction('center-view')" 
-                class="block w-full text-left px-2 py-1 text-sm hover:bg-blue-100 rounded"
-              >
-                Center View
-              </button>
-              <button 
-                @click="handleMapContextMenuAction('toggle-debug')" 
-                class="block w-full text-left px-2 py-1 text-sm hover:bg-blue-100 rounded"
-              >
-                {{ showDebugInfo ? 'Hide Debug Info' : 'Show Debug Info' }}
-              </button>
-            </div>
+                      <div class="space-y-1">
+            <button 
+              @click="handleMapContextMenuAction('add-token')" 
+              class="block w-full text-left px-2 py-1 text-sm hover:bg-blue-100 rounded"
+            >
+              Add Token
+            </button>
+            <button 
+              @click="handleMapContextMenuAction('center-view')" 
+              class="block w-full text-left px-2 py-1 text-sm hover:bg-blue-100 rounded"
+            >
+              Center View
+            </button>
+            <button 
+              @click="handleMapContextMenuAction('toggle-walls')" 
+              class="block w-full text-left px-2 py-1 text-sm hover:bg-blue-100 rounded"
+            >
+              {{ showWalls ? 'Hide Walls' : 'Show Walls' }}
+            </button>
+            <button 
+              @click="handleMapContextMenuAction('toggle-objects')" 
+              class="block w-full text-left px-2 py-1 text-sm hover:bg-blue-100 rounded"
+            >
+              {{ showObjects ? 'Hide Objects' : 'Show Objects' }}
+            </button>
+            <button 
+              @click="handleMapContextMenuAction('toggle-portals')" 
+              class="block w-full text-left px-2 py-1 text-sm hover:bg-blue-100 rounded"
+            >
+              {{ showPortals ? 'Hide Portals' : 'Show Portals' }}
+            </button>
+            <button 
+              @click="handleMapContextMenuAction('toggle-debug')" 
+              class="block w-full text-left px-2 py-1 text-sm hover:bg-blue-100 rounded"
+            >
+              {{ showDebugInfo ? 'Hide Debug Info' : 'Show Debug Info' }}
+            </button>
+          </div>
           </div>
         </div>
       </div>
@@ -541,6 +562,11 @@ const showMapContextMenu = ref(false);
 const contextMenuToken = ref<Token | null>(null);
 const contextMenuPosition = ref({ x: 0, y: 0 });
 
+// Wall highlighting state
+const showWalls = ref(false);
+const showObjects = ref(false);
+const showPortals = ref(false);
+
 // Deselect the current token
 const deselectToken = () => {
   selectedToken.value = null;
@@ -635,6 +661,15 @@ const handleMapContextMenuAction = (action: string) => {
       break;
     case 'center-view':
       // If we had a mapViewer ref, we could call centerOn here
+      break;
+    case 'toggle-walls':
+      showWalls.value = !showWalls.value;
+      break;
+    case 'toggle-objects':
+      showObjects.value = !showObjects.value;
+      break;
+    case 'toggle-portals':
+      showPortals.value = !showPortals.value;
       break;
     case 'toggle-debug':
       showDebugInfo.value = !showDebugInfo.value;

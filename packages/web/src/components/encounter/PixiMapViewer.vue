@@ -50,6 +50,7 @@ import type { Token } from '@dungeon-lab/shared/types/tokens.mjs';
 import type { Platform } from '@/services/encounter/PixiMapRenderer.mjs';
 import { MapsClient } from '@dungeon-lab/client/index.mjs';
 import { useEncounterStore } from '@/stores/encounter.store.mjs';
+import { checkWallCollision, pixelsToGrid } from '@/utils/collision-detection.mjs';
 
 // Initialize maps client and stores
 const mapsClient = new MapsClient();
@@ -64,12 +65,17 @@ interface Props {
   width?: number;
   height?: number;
   autoResize?: boolean;
-
+  showWalls?: boolean;
+  showObjects?: boolean;
+  showPortals?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   platform: 'desktop',
-  autoResize: true
+  autoResize: true,
+  showWalls: false,
+  showObjects: false,
+  showPortals: false
 });
 
 // Emits
@@ -118,6 +124,9 @@ const {
   centerOn,
   screenToWorld,
   worldToScreen,
+  setWallHighlights,
+  setObjectHighlights,
+  setPortalHighlights,
   destroy
 } = usePixiMap();
 
@@ -185,6 +194,11 @@ const loadMapData = async (mapData: IMapResponse) => {
     // Fit map to screen after loading
     await nextTick();
     fitToScreen();
+    
+    // Set initial wall, object, and portal highlights visibility
+    setWallHighlights(props.showWalls || false);
+    setObjectHighlights(props.showObjects || false);
+    setPortalHighlights(props.showPortals || false);
     
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : 'Failed to load map';
@@ -407,7 +421,26 @@ const handleTokenDragEnd = async (tokenId: string, position: { x: number; y: num
     return;
   }
   
-  console.log('[PixiMapViewer] Moving token through store...');
+  // Check for wall collision before allowing movement
+  const currentGridPos = pixelsToGrid(token.position.x, token.position.y, gridSize);
+  const targetGridPos = pixelsToGrid(position.x, position.y, gridSize);
+  
+  // Use grid coordinates with center offset (0.5, 0.5) to represent cell centers
+  const currentCenter = { x: currentGridPos.x + 0.5, y: currentGridPos.y + 0.5 };
+  const targetCenter = { x: targetGridPos.x + 0.5, y: targetGridPos.y + 0.5 };
+  
+  console.log('[PixiMapViewer] Collision check - Current:', currentCenter, 'Target:', targetCenter);
+  
+  if (checkWallCollision(currentCenter, targetCenter, currentMap.value)) {
+    console.log('[PixiMapViewer] Movement blocked by wall collision');
+    // Reset drag state without moving token
+    isDragging.value = false;
+    dragStartPos.value = null;
+    draggedTokenId.value = null;
+    return;
+  }
+  
+  console.log('[PixiMapViewer] No wall collision detected, allowing movement');
   // Move token through store (this will emit the socket event)
   // TEMPORARILY DISABLE SNAP-TO-GRID - use raw position instead
   await encounterStore.moveToken(tokenId, {
@@ -468,6 +501,22 @@ const handleKeyDown = async (event: KeyboardEvent) => {
   
   console.log(`[PixiMapViewer] Keyboard move: ${event.key} from: {x: ${token.position.x}, y: ${token.position.y}} to: {x: ${newX}, y: ${newY}}`);
   
+  // Check for wall collision before allowing movement
+  const currentGridPos = pixelsToGrid(token.position.x, token.position.y, gridSize);
+  const targetGridPos = pixelsToGrid(newX, newY, gridSize);
+  
+  // Use grid coordinates with center offset (0.5, 0.5) to represent cell centers
+  const currentCenter = { x: currentGridPos.x + 0.5, y: currentGridPos.y + 0.5 };
+  const targetCenter = { x: targetGridPos.x + 0.5, y: targetGridPos.y + 0.5 };
+  
+  console.log('[PixiMapViewer] Keyboard collision check - Current:', currentCenter, 'Target:', targetCenter);
+  
+  if (checkWallCollision(currentCenter, targetCenter, currentMap.value)) {
+    console.log('[PixiMapViewer] Keyboard movement blocked by wall collision');
+    return;
+  }
+  
+  console.log('[PixiMapViewer] No wall collision detected, allowing keyboard movement');
   // Move token through store (same as drag end)
   await encounterStore.moveToken(selectedTokenId.value, {
     x: newX,
@@ -504,6 +553,27 @@ watch(viewportState, (newViewport) => {
     });
   }
 }, { deep: true });
+
+// Watch for changes to wall highlights prop
+watch(() => props.showWalls, (newValue) => {
+  if (isInitialized.value) {
+    setWallHighlights(newValue || false);
+  }
+}, { immediate: true });
+
+// Watch for changes to object highlights prop
+watch(() => props.showObjects, (newValue) => {
+  if (isInitialized.value) {
+    setObjectHighlights(newValue || false);
+  }
+}, { immediate: true });
+
+// Watch for changes to portal highlights prop
+watch(() => props.showPortals, (newValue) => {
+  if (isInitialized.value) {
+    setPortalHighlights(newValue || false);
+  }
+}, { immediate: true });
 
 // Lifecycle
 onMounted(async () => {

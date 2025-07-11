@@ -358,8 +358,8 @@ const getPortalLineConfig = (portal: PortalObject) => {
         });
         return {
             points: [-halfLengthPixels, 0, halfLengthPixels, 0],
-            stroke: portal.closed ? '#8B4513' : '#D2B48C',
-            strokeWidth: 20,
+            stroke: '#00FF00', // Bright green for all portals
+            strokeWidth: 10, // Match object wall thickness
             lineCap: 'round',
             lineJoin: 'round'
         };
@@ -389,8 +389,8 @@ const getPortalLineConfig = (portal: PortalObject) => {
 
     return {
         points: relativePixelPoints,
-        stroke: portal.closed ? '#8B4513' : '#D2B48C',
-        strokeWidth: 20,
+        stroke: '#00FF00', // Bright green for all portals
+        strokeWidth: 10, // Match object wall thickness
         lineCap: 'round',
         lineJoin: 'round'
     };
@@ -715,17 +715,26 @@ const handlePortalDragEnd = (e: KonvaEventObject<DragEvent>, id: string) => {
     const newPixelPos = { x: node.x(), y: node.y() };
 
     // Snap the new pixel position if snap is enabled
-    const positionToUse = props.gridConfig.snap ? gridSystem.snapToGrid(newPixelPos) : newPixelPos;
+    const snappedPixelPos = props.gridConfig.snap ? gridSystem.snapToGrid(newPixelPos) : newPixelPos;
+    
+    // Convert back to grid coordinates since portal positions are stored in grid coordinates
+    const ppg = props.mapMetadata.resolution.pixels_per_grid;
+    const positionToUse = {
+        x: snappedPixelPos.x / ppg,
+        y: snappedPixelPos.y / ppg
+    };
 
     console.log('Portal drag end:', {
         id,
         originalPixelPos: newPixelPos,
-        snappedPixelPos: positionToUse,
-        snapEnabled: props.gridConfig.snap
+        snappedPixelPos: snappedPixelPos,
+        finalGridPos: positionToUse,
+        snapEnabled: props.gridConfig.snap,
+        ppg: ppg
     });
 
     emit('object-modified', id, {
-        position: positionToUse, // Position is stored in pixels
+        position: positionToUse, // Position is stored in grid coordinates
         rotation: node.rotation()
     });
 };

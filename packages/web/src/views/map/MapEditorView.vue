@@ -388,7 +388,7 @@ const handleSave = async (editorData: UVTTData) => {
       console.log('Sample wall points:', cleanLineOfSight[0].slice(0, 2));
     }
     
-    // Transform portals back to grid coordinates (portals are already in grid coordinates in the editor)
+    // Transform portals (portals are already in grid coordinates from the editor)
     const gridPortals = editorData.portals?.map(portal => {
       if (!portal || !portal.position || typeof portal.position.x !== 'number' || 
           typeof portal.position.y !== 'number') {
@@ -400,19 +400,17 @@ const handleSave = async (editorData: UVTTData) => {
       const gridBounds = portalBounds 
         ? portalBounds
             .filter(point => point && typeof point.x === 'number' && typeof point.y === 'number')
-            .map(point => pixelToGrid(point, editorData.resolution))
+            // Portal bounds are already in grid coordinates from the editor, don't convert
+            .map(point => ({ x: point.x, y: point.y }))
         : [];
         
-      // Portal position is already in grid coordinates in the editor
-      return {
-        position: {
-          x: portal.position.x,
-          y: portal.position.y
-        },
-        bounds: gridBounds.map(point => ({
-          x: point.x,
-          y: point.y
-        })),
+              // Portal position and bounds are already in grid coordinates from the editor
+        return {
+          position: {
+            x: portal.position.x,
+            y: portal.position.y
+          },
+          bounds: gridBounds,
         rotation: portal.rotation,
         closed: portal.closed,
         freestanding: portal.freestanding
@@ -492,13 +490,13 @@ const handleSave = async (editorData: UVTTData) => {
       await mapsClient.updateMap(mapId.value, mapUpdateData);
       
       // Show success message
-      alert('Map saved successfully!');
+      console.log('Map saved successfully!');
       
       // Redirect to map details page if needed
-      router.push({
-        name: 'map-detail',
-        params: { id: mapId.value }
-      });
+      // router.push({
+      //   name: 'map-detail',
+      //   params: { id: mapId.value }
+      // });
     } catch (updateError) {
       console.error('Error updating map:', updateError);
       
@@ -515,18 +513,18 @@ const handleSave = async (editorData: UVTTData) => {
       await mapsClient.updateMap(mapId.value, safeUpdateData);
       
       // Show success message
-      alert('Map saved successfully (with format conversion)!');
+      console.log('Map saved successfully (with format conversion)!');
       
       // Redirect to map details page if needed
-      router.push({
-        name: 'map-detail',
-        params: { id: mapId.value }
-      });
+      // router.push({
+      //   name: 'map-detail',
+      //   params: { id: mapId.value }
+      // });
     }
   } catch (err) {
     console.error('Error saving map:', err);
     // Show error message
-    alert('Failed to save map: ' + (err instanceof Error ? err.message : 'Unknown error'));
+    console.error('Failed to save map: ' + (err instanceof Error ? err.message : 'Unknown error'));
   } finally {
     saving.value = false;
   }

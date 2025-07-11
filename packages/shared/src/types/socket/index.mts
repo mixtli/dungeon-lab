@@ -41,9 +41,7 @@ export type MapEditRequest = z.infer<typeof socketTypes.mapEditRequestSchema>;
 export type MapFeatureDetectionRequest = z.infer<typeof socketTypes.mapFeatureDetectionRequestSchema>;
 
 // Export encounter socket types
-export type EncounterJoin = z.infer<typeof encounterSocketSchemas.encounterJoinSchema>;
-export type EncounterLeave = z.infer<typeof encounterSocketSchemas.encounterLeaveSchema>;
-export type EncounterJoinCallback = z.infer<typeof encounterSocketSchemas.encounterJoinCallbackSchema>;
+// Note: EncounterJoin, EncounterLeave, and EncounterJoinCallback removed - using session-based architecture
 
 export type TokenMove = z.infer<typeof encounterSocketSchemas.tokenMoveSchema>;
 export type TokenMoved = z.infer<typeof encounterSocketSchemas.tokenMovedSchema>;

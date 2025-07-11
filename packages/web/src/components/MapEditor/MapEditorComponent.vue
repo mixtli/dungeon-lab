@@ -252,7 +252,7 @@ const loadMapData = (data: UVTTData) => {
         if (data.portals) {
             editorState.portals.value = data.portals.map((portal, index) => ({
                 id: `portal-${index}`,
-                objectType: 'portal',
+                objectType: 'portal' as const,
                 position: portal.position,
                 rotation: portal.rotation,
                 bounds: portal.bounds,

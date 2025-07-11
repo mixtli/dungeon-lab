@@ -55,6 +55,7 @@ export class EncounterMapRenderer {
   private tokenContainer!: PIXI.Container;
   private backgroundSprite: PIXI.Sprite | null = null;
   private wallGraphics: PIXI.Graphics[] = [];
+  private objectGraphics: PIXI.Graphics[] = [];
   private portalGraphics: PIXI.Graphics[] = [];
   private lightGraphics: PIXI.Graphics[] = [];
   
@@ -122,11 +123,21 @@ export class EncounterMapRenderer {
       if (mapData.uvtt) {
         const uvtt = mapData.uvtt;
         
-        // Render walls from line_of_sight data
-        if (uvtt.line_of_sight && uvtt.resolution) {
-          uvtt.line_of_sight.forEach(wall => {
-            this.renderWalls(wall, uvtt.resolution!);
-          });
+        // Render walls from line_of_sight data (blue) and objects_line_of_sight (black)
+        if (uvtt.resolution) {
+          // Render line_of_sight walls in blue
+          if (uvtt.line_of_sight) {
+            uvtt.line_of_sight.forEach(wall => {
+              this.renderWallSegment(wall, uvtt.resolution!, 0x0000FF, 'walls');
+            });
+          }
+          
+          // Render objects_line_of_sight walls in red
+          if (uvtt.objects_line_of_sight) {
+            uvtt.objects_line_of_sight.forEach(wall => {
+              this.renderWallSegment(wall, uvtt.resolution!, 0xFF0000, 'objects');
+            });
+          }
         }
         
         // Render portals
@@ -167,35 +178,7 @@ export class EncounterMapRenderer {
     }
   }
   
-  /**
-   * Render walls from UVTT line_of_sight data
-   */
-  private renderWalls(walls: Point[], resolution: Resolution): void {
-    if (walls.length < 2 || !resolution.pixels_per_grid) return;
-    
-    // Create graphics object for walls
-    const wallGraphic = new PIXI.Graphics();
-    wallGraphic.name = 'walls';
-    
-    // Set wall style
-    wallGraphic.lineStyle({
-      width: 2,
-      color: 0x000000,
-      alpha: 0.8
-    });
-    
-    // Draw wall segments
-    for (let i = 0; i < walls.length - 1; i++) {
-      const startPoint = this.gridToPixel(walls[i], resolution);
-      const endPoint = this.gridToPixel(walls[i + 1], resolution);
-      
-      wallGraphic.moveTo(startPoint.x, startPoint.y);
-      wallGraphic.lineTo(endPoint.x, endPoint.y);
-    }
-    
-    this.mapContainer.addChild(wallGraphic);
-    this.wallGraphics.push(wallGraphic);
-  }
+
   
   /**
    * Render portals from UVTT data
@@ -207,12 +190,12 @@ export class EncounterMapRenderer {
       const portalGraphic = new PIXI.Graphics();
       portalGraphic.name = `portal-${index}`;
       
-      // Set portal style (different color for open/closed)
-      const color = portal.closed ? 0x8B4513 : 0x4169E1; // Brown for closed, blue for open
+      // Set portal style (bright green for highlighting)
+      const color = 0x00FF00; // Bright green
       portalGraphic.lineStyle({
-        width: 3,
+        width: 4,
         color: color,
-        alpha: 0.8
+        alpha: 1.0
       });
       
       // Draw portal bounds
@@ -361,6 +344,10 @@ export class EncounterMapRenderer {
     this.wallGraphics.forEach(graphic => graphic.destroy());
     this.wallGraphics = [];
     
+    // Clear objects
+    this.objectGraphics.forEach(graphic => graphic.destroy());
+    this.objectGraphics = [];
+    
     // Clear portals
     this.portalGraphics.forEach(graphic => graphic.destroy());
     this.portalGraphics = [];
@@ -424,6 +411,100 @@ export class EncounterMapRenderer {
    */
   public resize(width: number, height: number): void {
     this.app.renderer.resize(width, height);
+  }
+  
+  /**
+   * Set visibility of wall highlights
+   */
+  public setWallHighlights(visible: boolean): void {
+    this.wallGraphics.forEach(graphic => {
+      graphic.visible = visible;
+    });
+  }
+  
+  /**
+   * Set visibility of object highlights
+   */
+  public setObjectHighlights(visible: boolean): void {
+    this.objectGraphics.forEach(graphic => {
+      graphic.visible = visible;
+    });
+  }
+  
+  /**
+   * Set visibility of portal highlights
+   */
+  public setPortalHighlights(visible: boolean): void {
+    this.portalGraphics.forEach(graphic => {
+      graphic.visible = visible;
+    });
+  }
+  
+  /**
+   * Update wall rendering styles and colors
+   */
+  public updateWallStyles(lineOfSightColor: number = 0x0000FF, objectsLineOfSightColor: number = 0xFF0000): void {
+    if (!this.currentMapData?.uvtt?.resolution) return;
+    
+    const resolution = this.currentMapData.uvtt.resolution;
+    
+    // Clear existing wall graphics
+    this.wallGraphics.forEach(graphic => graphic.destroy());
+    this.wallGraphics = [];
+    
+    // Clear existing object graphics
+    this.objectGraphics.forEach(graphic => graphic.destroy());
+    this.objectGraphics = [];
+    
+    // Re-render line_of_sight walls in blue
+    if (this.currentMapData.uvtt.line_of_sight) {
+      this.currentMapData.uvtt.line_of_sight.forEach(wall => {
+        this.renderWallSegment(wall, resolution, lineOfSightColor, 'walls');
+      });
+    }
+    
+    // Re-render objects_line_of_sight walls in red
+    if (this.currentMapData.uvtt.objects_line_of_sight) {
+      this.currentMapData.uvtt.objects_line_of_sight.forEach(wall => {
+        this.renderWallSegment(wall, resolution, objectsLineOfSightColor, 'objects');
+      });
+    }
+  }
+  
+  /**
+   * Render a single wall segment with specified color
+   */
+  private renderWallSegment(walls: Point[], resolution: Resolution, color: number, type: 'walls' | 'objects' = 'walls'): void {
+    if (walls.length < 2 || !resolution.pixels_per_grid) return;
+    
+    // Create graphics object for walls
+    const wallGraphic = new PIXI.Graphics();
+    wallGraphic.name = type;
+    
+    // Set wall style with specified color
+    wallGraphic.lineStyle({
+      width: 4,
+      color: color,
+      alpha: 1.0
+    });
+    
+    // Draw wall segments
+    for (let i = 0; i < walls.length - 1; i++) {
+      const startPoint = this.gridToPixel(walls[i], resolution);
+      const endPoint = this.gridToPixel(walls[i + 1], resolution);
+      
+      wallGraphic.moveTo(startPoint.x, startPoint.y);
+      wallGraphic.lineTo(endPoint.x, endPoint.y);
+    }
+    
+    this.mapContainer.addChild(wallGraphic);
+    
+    // Store in appropriate array based on type
+    if (type === 'walls') {
+      this.wallGraphics.push(wallGraphic);
+    } else {
+      this.objectGraphics.push(wallGraphic);
+    }
   }
   
   /**
