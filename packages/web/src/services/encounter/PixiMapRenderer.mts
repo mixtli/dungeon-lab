@@ -52,7 +52,6 @@ interface Light {
 export class EncounterMapRenderer {
   private app: PIXI.Application;
   private mapContainer!: PIXI.Container;
-  private tokenContainer!: PIXI.Container;
   private backgroundSprite: PIXI.Sprite | null = null;
   private wallGraphics: PIXI.Graphics[] = [];
   private objectGraphics: PIXI.Graphics[] = [];
@@ -90,10 +89,7 @@ export class EncounterMapRenderer {
     this.mapContainer.name = 'mapContainer';
     this.app.stage.addChild(this.mapContainer);
     
-    // Token container holds all dynamic tokens (rendered on top)
-    this.tokenContainer = new PIXI.Container();
-    this.tokenContainer.name = 'tokenContainer';
-    this.app.stage.addChild(this.tokenContainer);
+    // Token container removed
   }
   
   /**
@@ -398,9 +394,8 @@ export class EncounterMapRenderer {
     this.lightGraphics.forEach(graphic => graphic.destroy());
     this.lightGraphics = [];
     
-    // Clear containers
+    // Clear containers - only mapContainer now
     this.mapContainer.removeChildren();
-    this.tokenContainer.removeChildren();
   }
   
   /**
