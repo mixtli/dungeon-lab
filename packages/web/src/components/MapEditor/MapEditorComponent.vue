@@ -265,17 +265,8 @@ const loadMapData = (data: UVTTData) => {
 
         // Load lights
         if (data.lights) {
-            editorState.lights.value = data.lights.map((light, index) => ({
-                id: `light-${index}`,
-                objectType: 'light',
-                position: light.position,
-                range: light.range,
-                intensity: light.intensity,
-                color: light.color,
-                shadows: light.shadows,
-                visible: true,
-                locked: false
-            }));
+            console.log('[MapEditorComponent] Converting UVTT lights to EditorLightObject using loadLightsFromUVTT');
+            editorState.loadLightsFromUVTT(data.lights);
         }
 
         // Reset modification flag
@@ -321,6 +312,7 @@ const handleObjectAdded = (object: AnyEditorObject) => {
         editorState.addLight({
             ...light,
             range: rangeInPixels, // Store range in pixels in the editor state
+            opacity: 0.5 // Default semi-transparent
         });
     }
 };
@@ -466,13 +458,7 @@ const convertEditorStateToUVTT = (): UVTTData => {
     }));
     
     // Convert lights
-    const lights = editorState.lights.value.map(light => ({
-        position: light.position,
-        range: light.range,
-        intensity: light.intensity,
-        color: light.color,
-        shadows: light.shadows
-    }));
+    const lights = editorState.saveLightsToUVTT();
     
     // Return UVTT data
     return {

@@ -8,6 +8,78 @@ import type {
   MapMetadata,
   AnyEditorObject
 } from '../../../../../shared/src/types/mapEditor.mjs';
+import type { UVTTLight } from '../../../../../shared/src/types/maps.mts';
+import { v4 as uuidv4 } from 'uuid';
+
+/**
+ * Utility: Convert { color: #RRGGBB, opacity } to 8-char hex (RRGGBBAA)
+ */
+function toUVTTColor(color: string, opacity: number): string {
+  // Remove # if present
+  const rgb = color.replace('#', '');
+  const a = Math.round(Math.max(0, Math.min(1, opacity)) * 255).toString(16).padStart(2, '0');
+  return `${rgb}${a}`;
+}
+
+/**
+ * Extend LightObject for editor UI to include opacity
+ */
+export interface EditorLightObject extends LightObject {
+  opacity: number;
+}
+
+/**
+ * Convert UVTTLight to LightObject for editor state
+ */
+function uvttLightToEditorLight(uvtt: UVTTLight): EditorLightObject {
+  const { color, opacity } = parseUVTTColor(uvtt.color);
+  console.log('[uvttLightToEditorLight] Original UVTT color:', uvtt.color, 'Parsed color:', color, 'Opacity:', opacity);
+  return {
+    id: uuidv4(),
+    objectType: 'light',
+    position: uvtt.position,
+    range: uvtt.range,
+    intensity: uvtt.intensity,
+    color, // UI color (#RRGGBB)
+    opacity, // UI opacity
+    shadows: uvtt.shadows,
+    name: undefined,
+    visible: true,
+    locked: false,
+    selected: false,
+  };
+}
+
+/**
+ * Convert LightObject to UVTTLight for DB/UVTT export
+ */
+function editorLightToUVTTLight(light: EditorLightObject): UVTTLight {
+  return {
+    position: light.position,
+    range: light.range,
+    intensity: light.intensity,
+    color: toUVTTColor(light.color, light.opacity),
+    shadows: light.shadows
+  };
+}
+
+/**
+ * Utility: Convert 8-char hex (RRGGBBAA) to { color: #RRGGBB, opacity }
+ */
+export function parseUVTTColor(hex: string): { color: string; opacity: number } {
+  if (/^[0-9a-fA-F]{8}$/.test(hex)) {
+    const rgb = hex.slice(0, 6);
+    const a = hex.slice(6, 8);
+    let opacity = parseInt(a, 16) / 255;
+    opacity = Math.max(opacity, 0.2); // Clamp to minimum 0.2
+    return {
+      color: `#${rgb}`,
+      opacity
+    };
+  }
+  // fallback: treat as solid white
+  return { color: '#ffffff', opacity: 1 };
+}
 
 /**
  * Core state management for the map editor
@@ -17,7 +89,8 @@ export function useEditorState() {
   const walls = ref<WallObject[]>([]);
   const objectWalls = ref<WallObject[]>([]); // New collection for objects_line_of_sight
   const portals = ref<PortalObject[]>([]);
-  const lights = ref<LightObject[]>([]);
+  // Use EditorLightObject for lights
+  const lights = ref<EditorLightObject[]>([]);
   const selectedObjectIds = ref<string[]>([]);
   const currentTool = ref<EditorToolType>('select');
   const isDrawing = ref(false);
@@ -106,18 +179,37 @@ export function useEditorState() {
     }
   };
 
-  const addLight = (light: LightObject) => {
-    lights.value.push(light);
+  // When adding a light, ensure color/opacity is stored for UI and DB
+  const addLight = (light: Omit<EditorLightObject, 'id' | 'objectType'>) => {
+    lights.value.push({
+      ...light,
+      id: uuidv4(),
+      objectType: 'light',
+    });
     isModified.value = true;
   };
 
-  const updateLight = (id: string, updates: Partial<LightObject>) => {
+  // When updating a light, ensure color/opacity is handled
+  const updateLight = (id: string, updates: Partial<Omit<EditorLightObject, 'id' | 'objectType'>>) => {
     const index = lights.value.findIndex((l) => l.id === id);
     if (index >= 0) {
-      lights.value[index] = { ...lights.value[index], ...updates };
+      lights.value[index] = {
+        ...lights.value[index],
+        ...updates,
+      };
       isModified.value = true;
     }
   };
+
+  // When loading from DB/UVTT, convert UVTTLight[] to EditorLightObject[]
+  function loadLightsFromUVTT(uvttLights: UVTTLight[]) {
+    lights.value = uvttLights.map(uvttLightToEditorLight);
+  }
+
+  // When saving to DB/UVTT, convert EditorLightObject[] to UVTTLight[]
+  function saveLightsToUVTT(): UVTTLight[] {
+    return lights.value.map(editorLightToUVTTLight);
+  }
 
   const removeObject = (id: string) => {
     // Try to remove from each collection
@@ -217,7 +309,7 @@ export function useEditorState() {
     newWalls: WallObject[] = [],
     newObjectWalls: WallObject[] = [],
     newPortals: PortalObject[] = [],
-    newLights: LightObject[] = []
+    newLights: UVTTLight[] = []
   ) => {
     // Update map metadata
     Object.assign(mapMetadata, newMapMetadata);
@@ -226,7 +318,7 @@ export function useEditorState() {
     walls.value = newWalls;
     objectWalls.value = newObjectWalls;
     portals.value = newPortals;
-    lights.value = newLights;
+    lights.value = newLights.map(light => uvttLightToEditorLight(light));
 
     // Reset selection and modified state
     selectedObjectIds.value = [];
@@ -266,6 +358,8 @@ export function useEditorState() {
     selectObjects,
     setTool,
     resetState,
-    loadMap
+    loadMap,
+    loadLightsFromUVTT,
+    saveLightsToUVTT
   };
 }

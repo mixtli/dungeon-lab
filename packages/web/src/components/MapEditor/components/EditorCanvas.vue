@@ -142,12 +142,13 @@ import SelectionTool from './tools/SelectionTool.vue';
 import type {
     WallObject,
     PortalObject,
-    LightObject,
+    // LightObject,
     EditorToolType,
     GridConfig,
     Point,
     MapMetadata
 } from '../../../../../shared/src/types/mapEditor.mjs';
+import type { EditorLightObject } from '../composables/useEditorState.mjs';
 
 
 interface KonvaLayer {
@@ -168,7 +169,7 @@ const props = defineProps<{
     walls: WallObject[];
     objectWalls?: WallObject[];
     portals: PortalObject[];
-    lights: LightObject[];
+    lights: EditorLightObject[];
     selectedObjectIds: string[];
     currentTool: EditorToolType;
     gridConfig: GridConfig;
@@ -179,8 +180,8 @@ const props = defineProps<{
 // Emits
 const emit = defineEmits<{
     (e: 'object-selected', id: string | null, addToSelection: boolean): void;
-    (e: 'object-added', object: WallObject | PortalObject | LightObject): void;
-    (e: 'object-modified', id: string, updates: Partial<WallObject | PortalObject | LightObject>): void;
+    (e: 'object-added', object: WallObject | PortalObject | EditorLightObject): void;
+    (e: 'object-modified', id: string, updates: Partial<WallObject | PortalObject | EditorLightObject>): void;
     (e: 'object-removed', id: string): void;
     (e: 'mouse-move', pixelPos: Point, gridPos: Point): void;
 }>();
@@ -457,30 +458,31 @@ const getPortalHandleConfig = (portal: PortalObject, endpointIndex: number) => {
     };
 };
 
-const getLightGroupConfig = (light: LightObject) => ({
+const getLightGroupConfig = (light: EditorLightObject) => ({
     x: light.position.x,
     y: light.position.y,
     draggable: props.currentTool === 'select',
     id: light.id
 });
 
-const getLightRangeConfig = (light: LightObject) => ({
+const getLightRangeConfig = (light: EditorLightObject) => ({
     x: 0,
     y: 0,
     radius: light.range,
     fill: light.color || '#FFFF00',
-    opacity: (light.intensity || 0.5) * 0.5,
+    opacity: typeof light.opacity === 'number' ? light.opacity : (light.intensity || 0.5) * 0.5,
     stroke: light.color || '#FFFF00',
     strokeWidth: 1,
     listening: false,
     perfectDrawEnabled: false
 });
 
-const getLightMarkerConfig = (light: LightObject) => ({
+const getLightMarkerConfig = (light: EditorLightObject) => ({
     x: 0,
     y: 0,
     radius: 5,
     fill: light.color || '#FFFF00',
+    opacity: typeof light.opacity === 'number' ? light.opacity : 1,
     stroke: '#000000',
     strokeWidth: 1,
     perfectDrawEnabled: false
@@ -660,7 +662,7 @@ const handleWheel = (e: KonvaEventObject<WheelEvent>) => {
                 y: pointer.y - mousePointTo.y * newScale
             }
         }
-    } as unknown as Partial<WallObject | PortalObject | LightObject>; // Using type assertion to match emit type
+    } as unknown as Partial<WallObject | PortalObject | EditorLightObject>; // Using type assertion to match emit type
 
     // Emit changes for parent component to update viewport transform
     emit('object-modified', 'viewport', updates);
@@ -684,7 +686,7 @@ const handleStageDragEnd = (e: KonvaEventObject<DragEvent>) => {
             scale: props.viewportTransform.scale, // Keep current scale
             position: newPosition
         }
-    } as unknown as Partial<WallObject | PortalObject | LightObject>; // Using type assertion
+    } as unknown as Partial<WallObject | PortalObject | EditorLightObject>; // Using type assertion
 
     emit('object-modified', 'viewport', updates);
 };
@@ -911,14 +913,15 @@ const placeLight = (pos: Point) => {
 
     const positionToUse = props.gridConfig.snap ? gridSystem.snapToGrid(pos) : pos;
 
-    const newLight: LightObject = {
+    const newLight: EditorLightObject = {
         id: `light-${Date.now()}`,
         objectType: 'light',
         position: { x: positionToUse.x, y: positionToUse.y },
         range: defaultRangeInGridUnits, // Emitted as grid units
         intensity: 0.7,
         color: '#ffdd00',    // Default color yellow
-        shadows: true
+        shadows: true,
+        opacity: 1 // Default opacity
     };
 
     // When emitting, the parent (MapEditorComponent) will be responsible for converting
@@ -1193,7 +1196,12 @@ onMounted(() => {
     if (props.mapMetadata.image) {
         loadMapImage(props.mapMetadata.image);
     }
+    console.log('[EditorCanvas] Mounted. Initial lights:', JSON.parse(JSON.stringify(props.lights)));
 });
+
+watch(() => props.lights, (newLights) => {
+    console.log('[EditorCanvas] Lights prop changed:', JSON.parse(JSON.stringify(newLights)));
+}, { deep: true });
 
 onBeforeUnmount(() => {
     window.removeEventListener('resize', updateCanvasSize);

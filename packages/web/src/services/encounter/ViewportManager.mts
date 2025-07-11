@@ -422,11 +422,22 @@ export class ViewportManager {
    * Clean up event handlers
    */
   destroy(): void {
-    this.stage.removeAllListeners();
-    const canvas = this.app.view as HTMLCanvasElement;
-    if (canvas && canvas.removeEventListener) {
-      canvas.removeEventListener('wheel', this.boundWheelHandler);
+    // Check if stage exists before trying to remove listeners
+    if (this.stage) {
+      this.stage.removeAllListeners();
     }
-    this.app.renderer.off('resize', this.onResize.bind(this));
+    
+    // Check if app and view exist before trying to remove wheel event listener
+    if (this.app && this.app.view) {
+      const canvas = this.app.view as HTMLCanvasElement;
+      if (canvas && canvas.removeEventListener) {
+        canvas.removeEventListener('wheel', this.boundWheelHandler);
+      }
+    }
+    
+    // Check if renderer exists before trying to remove event listener
+    if (this.app && this.app.renderer) {
+      this.app.renderer.off('resize', this.onResize.bind(this));
+    }
   }
 } 

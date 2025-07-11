@@ -108,6 +108,14 @@ export interface LightObject extends EditorObject {
   position: Point;
   range: number;
   intensity: number;
+  /**
+   * Opacity for UI editing (0.2–1.0, not saved in UVTT, but used for color conversion)
+   */
+  opacity: number;
+  /**
+   * Color as 8-character hex string: RRGGBBAA (6 for RGB, 2 for alpha channel, no #)
+   * Example: 'ff575112' (RGB: ff5751, Alpha: 12)
+   */
   color: string;
   shadows: boolean;
   name?: string;
@@ -191,6 +199,10 @@ export interface UVTTLight {
   position: Point;
   range: number;
   intensity: number;
+  /**
+   * Color as 8-character hex string: RRGGBBAA (6 for RGB, 2 for alpha channel, no #)
+   * Example: 'ff575112' (RGB: ff5751, Alpha: 12)
+   */
   color: string;
   shadows: boolean;
 }

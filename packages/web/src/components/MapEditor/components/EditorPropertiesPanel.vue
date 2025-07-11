@@ -144,6 +144,15 @@
                                     }}</span>
                             </div>
                             <div class="property-row">
+                                <label>Opacity:</label>
+                                <input type="range"
+                                    :value="(selectedObject as LightObject).opacity ?? 0.5"
+                                    min="0.2" max="1" step="0.01"
+                                    @input="updateProperty('opacity', parseFloat(($event.target as HTMLInputElement).value))"
+                                />
+                                <span class="range-value">{{ Math.round(((selectedObject as LightObject).opacity ?? 0.5) * 100) }}%</span>
+                            </div>
+                            <div class="property-row">
                                 <label>Shadows:</label>
                                 <input type="checkbox" :checked="(selectedObject as LightObject).shadows"
                                     @change="updateProperty('shadows', ($event.target as HTMLInputElement).checked)" />

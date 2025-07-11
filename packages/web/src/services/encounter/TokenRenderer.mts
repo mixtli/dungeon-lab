@@ -1,6 +1,8 @@
 import * as PIXI from 'pixi.js';
 import type { Token, TokenSize } from '@dungeon-lab/shared/types/tokens.mjs';
+import type { IMapResponse } from '@dungeon-lab/shared/types/api/maps.mjs';
 import defaultTokenUrl from '@/assets/images/default_token.svg';
+import { isPositionWithinBounds, clampPositionToBounds } from '../../utils/bounds-validation.mjs';
 
 export interface TokenSpriteData {
   id: string;
@@ -86,6 +88,9 @@ export class TokenRenderer {
   private _dragStartPosition: { x: number; y: number } | null = null;
   private _dragStartGlobal: { x: number; y: number } | null = null;
   
+  // Map data for bounds checking
+  private _mapData: IMapResponse | null = null;
+  
   constructor(tokenContainer: PIXI.Container, options?: TokenRendererOptions, scaleProvider?: () => number) {
     this.tokenContainer = tokenContainer;
     this._onTokenClick = options?.onTokenSelect;
@@ -129,6 +134,13 @@ export class TokenRenderer {
    */
   getGridSize(): number {
     return this._gridSize;
+  }
+  
+  /**
+   * Set map data for bounds checking
+   */
+  setMapData(mapData: IMapResponse | null): void {
+    this._mapData = mapData;
   }
   
   /**
@@ -687,15 +699,33 @@ export class TokenRenderer {
         console.log('[TokenRenderer] Final drag position before snap:', currentPos);
         console.log('[TokenRenderer] Final drag position after snap:', snappedPosition);
         
-        // Update sprite to snapped position
-        sprite.x = snappedPosition.x;
-        sprite.y = snappedPosition.y;
-        
-        // Emit drag end event with snapped position
-        if (this.eventHandlers.dragEnd) {
-          console.log('[TokenRenderer] Calling dragEnd handler with snapped position:', sprite.tokenId, snappedPosition);
-          this.eventHandlers.dragEnd(sprite.tokenId, snappedPosition);
-          console.log('[TokenRenderer] dragEnd handler called');
+        // Check if the snapped position is within map bounds
+        if (!isPositionWithinBounds(snappedPosition, this._mapData)) {
+          console.log('[TokenRenderer] Position is outside map bounds, clamping to bounds');
+          const clampedPosition = clampPositionToBounds(snappedPosition, this._mapData);
+          console.log('[TokenRenderer] Clamped position:', clampedPosition);
+          
+          // Update sprite to clamped position
+          sprite.x = clampedPosition.x;
+          sprite.y = clampedPosition.y;
+          
+          // Emit drag end event with clamped position
+          if (this.eventHandlers.dragEnd) {
+            console.log('[TokenRenderer] Calling dragEnd handler with clamped position:', sprite.tokenId, clampedPosition);
+            this.eventHandlers.dragEnd(sprite.tokenId, clampedPosition);
+            console.log('[TokenRenderer] dragEnd handler called');
+          }
+        } else {
+          // Position is within bounds, use snapped position
+          sprite.x = snappedPosition.x;
+          sprite.y = snappedPosition.y;
+          
+          // Emit drag end event with snapped position
+          if (this.eventHandlers.dragEnd) {
+            console.log('[TokenRenderer] Calling dragEnd handler with snapped position:', sprite.tokenId, snappedPosition);
+            this.eventHandlers.dragEnd(sprite.tokenId, snappedPosition);
+            console.log('[TokenRenderer] dragEnd handler called');
+          }
         }
       } else {
         // Token didn't actually move, reset to original position

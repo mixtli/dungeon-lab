@@ -161,6 +161,12 @@ export function usePixiMap(): UsePixiMapReturn {
         tokenRenderer.setGridSize(gridSize);
       }
       
+      // Set map data for bounds checking
+      if (tokenRenderer) {
+        console.log('[usePixiMap] Setting map data for bounds checking');
+        tokenRenderer.setMapData(mapData);
+      }
+      
       // Set map bounds for viewport constraints
       if (viewportManager && mapData.uvtt?.resolution) {
         const bounds = {

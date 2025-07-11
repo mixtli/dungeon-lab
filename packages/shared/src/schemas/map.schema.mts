@@ -44,11 +44,16 @@ export const portalSchema = z.object({
 /**
  * Schema for UVTT light
  */
-const lightSchema = z.object({
+export const lightSchema = z.object({
   position: coordinateSchema,
   range: z.number(),
   intensity: z.number(),
-  color: z.string(), // hex color code
+  /**
+   * Color as 8-character hex string: RRGGBBAA (6 for RGB, 2 for alpha channel, no #)
+   * Example: 'ff575112' (RGB: ff5751, Alpha: 12)
+   * This is the format used in the database. Convert to/from other formats as needed for UI libraries.
+   */
+  color: z.string(),
   shadows: z.boolean()
 });
 

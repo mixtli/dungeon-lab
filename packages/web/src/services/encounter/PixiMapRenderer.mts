@@ -231,34 +231,71 @@ export class EncounterMapRenderer {
         
         // Parse color safely with fallback
         let color;
+        let alpha;
         try {
-          // Try to parse as hex string first
-          if (typeof light.color === 'string' && light.color.startsWith('#')) {
-            color = parseInt(light.color.replace('#', ''), 16);
-          } 
-          // Try to parse as number if it's not a string
-          else if (typeof light.color === 'number') {
+          if (typeof light.color === 'string') {
+            // Handle 8-character hex (RRGGBBAA)
+            if (/^[0-9a-fA-F]{8}$/.test(light.color)) {
+              color = parseInt(light.color.slice(0, 6), 16);
+              alpha = parseInt(light.color.slice(6, 8), 16) / 255;
+              // Clamp to minimum alpha for visibility
+              const MIN_ALPHA = 0.2;
+              alpha = Math.max(alpha, MIN_ALPHA);
+              // Optionally combine with light.intensity
+              alpha = alpha * (light.intensity ?? 1);
+            } else if (light.color.startsWith('#')) {
+              color = parseInt(light.color.replace('#', ''), 16);
+              alpha = (light.intensity ?? 1) * 0.3;
+              // Clamp to minimum alpha for visibility
+              const MIN_ALPHA = 0.2;
+              alpha = Math.max(alpha, MIN_ALPHA);
+            } else if (/^[0-9a-fA-F]{6}$/.test(light.color)) {
+              color = parseInt(light.color, 16);
+              alpha = (light.intensity ?? 1) * 0.3;
+              // Clamp to minimum alpha for visibility
+              const MIN_ALPHA = 0.2;
+              alpha = Math.max(alpha, MIN_ALPHA);
+            } else {
+              console.warn(`Invalid light color format for light ${index}, using default`);
+              color = 0xFFFFFF;
+              alpha = (light.intensity ?? 1) * 0.3;
+              // Clamp to minimum alpha for visibility
+              const MIN_ALPHA = 0.2;
+              alpha = Math.max(alpha, MIN_ALPHA);
+            }
+          } else if (typeof light.color === 'number') {
             // Convert number to hex string first to ensure valid format
             const hexColor = (light.color as number).toString(16).padStart(6, '0');
             color = parseInt(hexColor, 16);
-          }
-          // If all else fails, use a default color
-          else {
+            alpha = (light.intensity ?? 1) * 0.3;
+            // Clamp to minimum alpha for visibility
+            const MIN_ALPHA = 0.2;
+            alpha = Math.max(alpha, MIN_ALPHA);
+          } else {
             console.warn(`Invalid light color format for light ${index}, using default`);
-            color = 0xFFFFFF; // Default to white
+            color = 0xFFFFFF;
+            alpha = (light.intensity ?? 1) * 0.3;
+            // Clamp to minimum alpha for visibility
+            const MIN_ALPHA = 0.2;
+            alpha = Math.max(alpha, MIN_ALPHA);
           }
         } catch (colorError) {
           console.warn(`Error parsing light color for light ${index}, using default:`, colorError);
-          color = 0xFFFFFF; // Default to white
+          color = 0xFFFFFF;
+          alpha = (light.intensity ?? 1) * 0.3;
+          // Clamp to minimum alpha for visibility
+          const MIN_ALPHA = 0.2;
+          alpha = Math.max(alpha, MIN_ALPHA);
         }
         
         // Draw light as a circle with gradient effect
-        lightGraphic.beginFill(color, light.intensity * 0.3);
+        lightGraphic.beginFill(color, alpha);
         lightGraphic.drawCircle(pixelPos.x, pixelPos.y, pixelRange);
         lightGraphic.endFill();
         
-        // Add a bright center
-        lightGraphic.beginFill(color, light.intensity * 0.8);
+        // Add a bright center (use higher alpha, but clamp to 1)
+        const centerAlpha = Math.min(alpha * 2.5, 1);
+        lightGraphic.beginFill(color, centerAlpha);
         lightGraphic.drawCircle(pixelPos.x, pixelPos.y, pixelRange * 0.1);
         lightGraphic.endFill();
         
