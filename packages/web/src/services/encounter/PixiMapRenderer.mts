@@ -1,5 +1,6 @@
 import * as PIXI from 'pixi.js';
 import type { IMapResponse } from '@dungeon-lab/shared/types/api/maps.mjs';
+import { initDevtools } from '@pixi/devtools';
 
 export type Platform = 'desktop' | 'tablet' | 'phone';
 
@@ -75,6 +76,8 @@ export class EncounterMapRenderer {
       height: config.height,
       ...this.renderConfig
     });
+
+    initDevtools({ app: this.app });
     
     this.setupContainers();
     this.setupEventHandlers();
@@ -88,8 +91,7 @@ export class EncounterMapRenderer {
     this.mapContainer = new PIXI.Container();
     this.mapContainer.name = 'mapContainer';
     this.app.stage.addChild(this.mapContainer);
-    
-    // Token container removed
+    // Removed tokenContainer creation - tokens go directly in mapContainer
   }
   
   /**
@@ -374,28 +376,20 @@ export class EncounterMapRenderer {
   private clearMap(): void {
     // Remove background
     if (this.backgroundSprite) {
+      this.mapContainer.removeChild(this.backgroundSprite);
       this.backgroundSprite.destroy();
       this.backgroundSprite = null;
     }
-    
-    // Clear walls
-    this.wallGraphics.forEach(graphic => graphic.destroy());
+    // Remove all wall, object, portal, and light graphics
+    for (const g of this.wallGraphics) this.mapContainer.removeChild(g);
+    for (const g of this.objectGraphics) this.mapContainer.removeChild(g);
+    for (const g of this.portalGraphics) this.mapContainer.removeChild(g);
+    for (const g of this.lightGraphics) this.mapContainer.removeChild(g);
     this.wallGraphics = [];
-    
-    // Clear objects
-    this.objectGraphics.forEach(graphic => graphic.destroy());
     this.objectGraphics = [];
-    
-    // Clear portals
-    this.portalGraphics.forEach(graphic => graphic.destroy());
     this.portalGraphics = [];
-    
-    // Clear lights
-    this.lightGraphics.forEach(graphic => graphic.destroy());
     this.lightGraphics = [];
-    
-    // Clear containers - only mapContainer now
-    this.mapContainer.removeChildren();
+    // Tokens are managed by TokenRenderer, which uses mapContainer
   }
   
   /**
@@ -419,6 +413,7 @@ export class EncounterMapRenderer {
    * Returns mapContainer so tokens pan/zoom with the map
    */
   public getTokenContainer(): PIXI.Container {
+    // For compatibility, always return mapContainer
     return this.mapContainer;
   }
   

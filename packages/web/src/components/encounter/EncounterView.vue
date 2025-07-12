@@ -68,6 +68,8 @@
           @canvas-click="handleMapClick"
           @canvas-right-click="handleMapRightClick"
           @mousemove="handleMouseMove"
+          @show-token-context-menu="onShowTokenContextMenu"
+          @show-encounter-context-menu="onShowEncounterContextMenu"
           class="w-full h-full"
         />
         
@@ -206,60 +208,16 @@
           </div>
 
           <!-- Map Context Menu -->
-          <div
-            v-if="showMapContextMenu"
-            class="fixed bg-white rounded-lg shadow-lg p-2 pointer-events-auto z-[9999]"
-            :style="{
-              top: `${contextMenuPosition.y}px`,
-              left: `${contextMenuPosition.x}px`
-            }"
-          >
-            <div class="text-sm font-semibold border-b pb-1 mb-1">Map Options</div>
-                      <div class="space-y-1">
-            <button 
-              @click="handleMapContextMenuAction('add-token')" 
-              class="block w-full text-left px-2 py-1 text-sm hover:bg-blue-100 rounded"
-            >
-              Add Token
-            </button>
-            <button 
-              @click="handleMapContextMenuAction('center-view')" 
-              class="block w-full text-left px-2 py-1 text-sm hover:bg-blue-100 rounded"
-            >
-              Center View
-            </button>
-            <button 
-              @click="handleMapContextMenuAction('toggle-walls')" 
-              class="block w-full text-left px-2 py-1 text-sm hover:bg-blue-100 rounded"
-            >
-              {{ showWalls ? 'Hide Walls' : 'Show Walls' }}
-            </button>
-            <button 
-              @click="handleMapContextMenuAction('toggle-objects')" 
-              class="block w-full text-left px-2 py-1 text-sm hover:bg-blue-100 rounded"
-            >
-              {{ showObjects ? 'Hide Objects' : 'Show Objects' }}
-            </button>
-            <button 
-              @click="handleMapContextMenuAction('toggle-portals')" 
-              class="block w-full text-left px-2 py-1 text-sm hover:bg-blue-100 rounded"
-            >
-              {{ showPortals ? 'Hide Portals' : 'Show Portals' }}
-            </button>
-            <button 
-              @click="handleMapContextMenuAction('toggle-lights')" 
-              class="block w-full text-left px-2 py-1 text-sm hover:bg-blue-100 rounded"
-            >
-              {{ showLights ? 'Hide Lights' : 'Show Lights' }}
-            </button>
-            <button 
-              @click="handleMapContextMenuAction('toggle-debug')" 
-              class="block w-full text-left px-2 py-1 text-sm hover:bg-blue-100 rounded"
-            >
-              {{ showDebugInfo ? 'Hide Debug Info' : 'Show Debug Info' }}
-            </button>
-          </div>
-          </div>
+          <MapContextMenu
+            :visible="showMapContextMenu"
+            :position="contextMenuPosition"
+            :show-walls="showWalls"
+            :show-objects="showObjects"
+            :show-portals="showPortals"
+            :show-lights="showLights"
+            :show-debug-info="showDebugInfo"
+            @action="handleMapContextMenuAction"
+          />
         </div>
       </div>
 
@@ -337,6 +295,8 @@ import TokenStateManager from './TokenStateManager.vue';
 import EncounterDebugInfo from './EncounterDebugInfo.vue';
 import type { Token } from '@dungeon-lab/shared/types/tokens.mjs';
 import { useAuthStore } from '../../stores/auth.store.mjs';
+// Add import for MapContextMenu
+import MapContextMenu from './MapContextMenu.vue';
 
 // Props
 interface Props {
@@ -744,6 +704,18 @@ const handleTokenUpdate = (updatedToken: Token) => {
     data: updatedToken.data || {} // Ensure data is never undefined
   });
 };
+
+function onShowTokenContextMenu({ token, position }: { token: Token; position: { x: number; y: number } }) {
+  contextMenuToken.value = token;
+  contextMenuPosition.value = position;
+  showMapContextMenu.value = false;
+}
+
+function onShowEncounterContextMenu({ position }: { position: { x: number; y: number } }) {
+  contextMenuToken.value = null;
+  contextMenuPosition.value = position;
+  showMapContextMenu.value = true;
+}
 </script>
 
 <style scoped>

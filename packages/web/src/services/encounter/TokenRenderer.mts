@@ -527,10 +527,16 @@ export class TokenRenderer {
     // sprite.on('pointermove', this.handlePointerMove.bind(this, sprite));
     sprite.on('pointerup', this.handlePointerUp.bind(this, sprite));
     sprite.on('pointerupoutside', this.handlePointerUp.bind(this, sprite));
-    
     // Hover effects
     sprite.on('pointerover', this.handlePointerOver.bind(this, sprite));
     sprite.on('pointerout', this.handlePointerOut.bind(this, sprite));
+    // Add rightdown event for right-click context menu
+    sprite.on('rightdown', (event: PIXI.FederatedPointerEvent) => {
+      if (sprite.tokenId && this.eventHandlers.rightClick) {
+        console.log('[TokenRenderer] rightdown event detected for token', sprite.tokenId, event);
+        this.eventHandlers.rightClick(sprite.tokenId, event);
+      }
+    });
   }
 
   /**
@@ -559,25 +565,15 @@ export class TokenRenderer {
   private handlePointerDown(sprite: TokenSprite, event: PIXI.FederatedPointerEvent): void {
     console.log('[TokenRenderer] pointerdown', sprite.tokenId, event);
     if (!sprite.tokenId) return;
-    
     // Store original position before any potential drag
     sprite.originalPosition = { x: sprite.x, y: sprite.y };
-    
-    // Right click (context menu)
-    if (event.button === 2) {
-      if (this.eventHandlers.rightClick) {
-        this.eventHandlers.rightClick(sprite.tokenId, event);
-      }
-      return;
-    }
-    
+    // Remove right-click logic from here; handled by rightdown event
     // Left click - prepare for potential drag (but don't start dragging yet)
-    if (this.dragEnabled) {
+    if (event.button === 0 && this.dragEnabled) {
       // Store drag start information but don't mark as dragging yet
       this._dragTarget = sprite;
       this._dragStartPosition = { x: sprite.x, y: sprite.y };
       this._dragStartGlobal = { x: event.global.x, y: event.global.y };
-      
       // Set up stage-level listeners to detect if this becomes a drag
       const stage = this.tokenContainer.parent;
       if (stage) {
@@ -585,18 +581,15 @@ export class TokenRenderer {
         stage.on('pointerup', this.handleStageDragEnd, this);
         stage.on('pointerupoutside', this.handleStageDragEnd, this);
       }
-      
       console.log('[TokenRenderer] prepared for potential drag', sprite.tokenId, {
         spritePos: { x: sprite.x, y: sprite.y },
         globalPos: { x: event.global.x, y: event.global.y }
       });
     }
-    
     // Always emit click event for external handlers
     if (this.eventHandlers.click) {
       this.eventHandlers.click(sprite.tokenId, event);
     }
-    
     // Call the legacy click handler
     if (this._onTokenClick) {
       this._onTokenClick(sprite.tokenId);

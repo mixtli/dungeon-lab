@@ -1441,18 +1441,14 @@ PIXI.Application.stage
     ├── wallGraphics[] (PIXI.Graphics) - Line of sight walls (blue)
     ├── objectGraphics[] (PIXI.Graphics) - Object walls (red) 
     ├── portalGraphics[] (PIXI.Graphics) - Portal boundaries (green)
-    ├── lightGraphics[] (PIXI.Graphics) - Light sources (hidden by default)
-    └── tokenSprites[] (PIXI.Sprite) - All tokens (characters, monsters, etc.)
+    ├── lightGraphics[] (PIXI.Graphics) - Dynamic lighting overlays
+    └── tokenSprites[] (PIXI.Sprite) - Tokens (player/monster/objects)
 ```
 
-**Current Implementation:**
-- All map and token elements are children of a single `mapContainer`.
-- The previously planned `tokenContainer` has been removed for simplicity and performance.
+**Note:**
+- The previously planned `tokenContainer` has been removed for simplicity and performance. All tokens are added directly to `mapContainer`.
 - This approach ensures that tokens naturally pan/zoom with the map and keeps the rendering pipeline efficient.
-
-**Future Expansion:**
-- As the HUD, effects, and floating UI features are implemented, the architecture will expand to use multiple containers (e.g., for effects, HUD panels, and UI overlays) to support complex layering and event handling.
-- The current single-container approach is intentionally simple and performant for encounter gameplay, and is designed to evolve as new requirements emerge.
+- **Future expansion:** As the HUD, effects, and floating UI windows are added, we plan to introduce a multi-container system to better manage z-order, event routing, and UI overlays. For now, the single-container approach is intentionally simple and performant for encounter gameplay.
 
 ## Implementation Timeline
 

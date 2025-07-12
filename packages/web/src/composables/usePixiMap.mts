@@ -13,6 +13,7 @@ export interface UsePixiMapOptions {
   onTokenDragStart?: (tokenId: string, position: { x: number; y: number }) => void;
   onTokenDragMove?: (tokenId: string, position: { x: number; y: number }) => void;
   onTokenDragEnd?: (tokenId: string, position: { x: number; y: number }) => void;
+  onTokenRightClick?: (tokenId: string) => void; // <-- Added
 }
 
 export interface UsePixiMapReturn {
@@ -387,9 +388,9 @@ export function usePixiMap(): UsePixiMapReturn {
       click: (tokenId) => {
         console.log('Token clicked:', tokenId);
       },
-      rightClick: (tokenId) => {
+      rightClick: pixiMapOptions?.onTokenRightClick || ((tokenId) => {
         console.log('Token right-clicked:', tokenId);
-      }
+      })
     });
   };
   

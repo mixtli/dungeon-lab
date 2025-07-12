@@ -74,6 +74,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
     "@heroicons/vue": "^2.2.0",
+    "@pixi/devtools": "^2.0.1",
     "@types/minio": "^7.1.0",
     "@zodyac/zod-mongoose": "^3.2.0",
     "boxen": "^8.0.1",

@@ -51,6 +51,7 @@ import type { Platform } from '@/services/encounter/PixiMapRenderer.mjs';
 import { MapsClient } from '@dungeon-lab/client/index.mjs';
 import { useEncounterStore } from '@/stores/encounter.store.mjs';
 import { checkWallCollision, pixelsToGrid } from '@/utils/collision-detection.mjs';
+import type { TokenRenderer } from '@/services/encounter/TokenRenderer.mts';
 
 // Initialize maps client and stores
 const mapsClient = new MapsClient();
@@ -90,6 +91,8 @@ interface Emits {
   (e: 'canvas-click', x: number, y: number, event: MouseEvent): void;
   (e: 'canvas-right-click', x: number, y: number, event: MouseEvent): void;
   (e: 'mousemove', event: MouseEvent, worldX: number, worldY: number): void;
+  (e: 'show-token-context-menu', contextMenuData: { token: Token; position: { x: number; y: number } }): void;
+  (e: 'show-encounter-context-menu', contextMenuData: { position: { x: number; y: number } }): void;
 }
 
 const emit = defineEmits<Emits>();
@@ -103,6 +106,7 @@ const isLoading = ref(false);
 const error = ref<string | null>(null);
 const currentMap = ref<IMapResponse | null>(null);
 const tokenCount = ref(0);
+const suppressNextMapContextMenu = ref(false);
 
 // Pixi map composable
 const {
@@ -117,7 +121,6 @@ const {
   removeToken,
   moveToken,
   clearAllTokens,
-  enableTokenDragging,
   getGridSize,
   panTo,
   zoomTo,
@@ -129,7 +132,7 @@ const {
   setWallHighlights,
   setObjectHighlights,
   setPortalHighlights,
-  setLightHighlights, // <-- Add this line
+  setLightHighlights,
   destroy
 } = usePixiMap();
 
@@ -163,14 +166,21 @@ const initializeViewer = async () => {
       autoResize: props.autoResize,
       onTokenDragStart: handleTokenDragStart,
       onTokenDragMove: handleTokenDragMove,
-      onTokenDragEnd: handleTokenDragEnd
+      onTokenDragEnd: handleTokenDragEnd,
+      onTokenRightClick: (tokenId: string) => {
+        const token = props.tokens?.find(t => t.id === tokenId) || null;
+        if (token && lastMouseEvent.value) {
+          emit('show-token-context-menu', {
+            token,
+            position: { x: lastMouseEvent.value.clientX, y: lastMouseEvent.value.clientY }
+          });
+          suppressNextMapContextMenu.value = true;
+        }
+      }
     };
 
     await initializeMap(canvasRef.value, options);
-    
-    // Enable token dragging after initialization
-    enableTokenDragging(true);
-    
+    // enableTokenDragging(true); // This line was removed from destructuring
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : 'Failed to initialize map viewer';
     error.value = errorMessage;
@@ -333,12 +343,16 @@ const handleCanvasMouseDown = (event: MouseEvent) => {
   
   // Right click
   if (event.button === 2) {
-    const { x, y } = screenToWorld(event.offsetX, event.offsetY);
-    emit('canvas-right-click', x, y, event);
+    if (suppressNextMapContextMenu.value) {
+      suppressNextMapContextMenu.value = false;
+      return;
+    }
+    emit('show-encounter-context-menu', { position: { x: event.clientX, y: event.clientY } });
   }
 };
 
 const handleCanvasMouseMove = (event: MouseEvent) => {
+  lastMouseEvent.value = event;
   if (!isInitialized.value || isLoading.value) return;
   
   // Convert screen coordinates to world coordinates
@@ -351,7 +365,7 @@ const handleCanvasMouseMove = (event: MouseEvent) => {
 // Set up token interaction
 const setupTokenInteractions = () => {
   // Enable token dragging by default
-  enableTokenDragging(true);
+  // enableTokenDragging(true); // This line was removed from destructuring
   
   // Set up token selection watcher
   watch(selectedTokenId, (newTokenId) => {
@@ -584,6 +598,8 @@ watch(() => props.showLights, (visible) => {
 }, { immediate: true });
 
 // Lifecycle
+let tokenRendererInstance: TokenRenderer | null = null;
+
 onMounted(async () => {
   await nextTick();
   await initializeViewer();
@@ -609,6 +625,22 @@ onMounted(async () => {
 
   // Set up keydown listener for arrow key movement
   window.addEventListener('keydown', handleKeyDown);
+
+  // TODO: Refactor usePixiMap to expose tokenRenderer directly for hit testing
+  tokenRendererInstance = (usePixiMap() as { tokenRenderer?: TokenRenderer }).tokenRenderer || null;
+  if (!tokenRendererInstance) {
+    // fallback: try to access via window for debug
+    tokenRendererInstance = (window as unknown as { tokenRenderer?: TokenRenderer }).tokenRenderer || null;
+  }
+  if (canvasRef.value) {
+    // Suppress browser context menu so Pixi rightdown events fire
+    const preventContextMenu = (e: MouseEvent) => e.preventDefault();
+    canvasRef.value.addEventListener('contextmenu', preventContextMenu);
+    // Store cleanup for onUnmounted
+    onUnmounted(() => {
+      canvasRef.value?.removeEventListener('contextmenu', preventContextMenu);
+    });
+  }
 });
 
 onUnmounted(() => {
@@ -620,7 +652,20 @@ onUnmounted(() => {
 
   // Remove keydown listener
   window.removeEventListener('keydown', handleKeyDown);
+
+  if (canvasRef.value) {
+    canvasRef.value.removeEventListener('contextmenu', handleCanvasContextMenu);
+  }
 });
+
+const lastMouseEvent = ref<MouseEvent | null>(null);
+
+function handleCanvasContextMenu(event: MouseEvent) {
+  event.preventDefault();
+  if (!isInitialized.value || isLoading.value) return;
+  // Only emit show-encounter-context-menu if the right-click was not on a token (handled by onTokenRightClick)
+  emit('show-encounter-context-menu', { position: { x: event.clientX, y: event.clientY } });
+}
 </script>
 
 <style scoped>
