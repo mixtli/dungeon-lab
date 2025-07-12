@@ -1,10 +1,77 @@
 # DungeonLab Mobile Optimization Plan
 
-> **Note:** GM-only tools are only required to be supported on desktop and tablets. We will not attempt to implement GM-only tools on mobile/phone devices. All GM management and advanced encounter controls are desktop/tablet only.
+> **Update (2024-06): DungeonLab will be a PWA with a native-app look and feel on mobile.**
+> - **Mobile app = PWA**: No separate native app; we use Progressive Web App features for installability and app-like UX.
+> - **Bottom navigation bar**: On mobile, players get a bottom tab bar for quick switching between main views.
+> - **Player-only on mobile**: Only player features are supported on mobile/phone. GM tools are desktop/tablet only.
+
+---
 
 ## Executive Summary
 
-This document outlines a comprehensive strategy for optimizing DungeonLab's virtual tabletop system for mobile devices. The plan addresses both standard application pages and the specialized encounter runner that uses Pixi.js for real-time gaming.
+DungeonLab will deliver a mobile experience via a Progressive Web App (PWA) that looks and feels like a native app. The mobile UI will feature a bottom navigation bar for players, providing fast access to the most important views: Character Sheet, Encounter Runner, Chat, and Settings. All GM/administrative tools will remain desktop/tablet only, greatly simplifying the mobile experience and focusing on player needs.
+
+## Mobile PWA Approach
+
+- **PWA installability**: Users can add DungeonLab to their home screen on iOS/Android for a full-screen, app-like experience.
+- **No offline requirement**: The app is real-time and requires an internet connection; offline support is not a priority.
+- **Native look and feel**: Mobile UI will use touch-friendly controls, large tap targets, and a bottom navigation bar for primary navigation.
+- **No app store release (for now)**: All users access the app via the browser or PWA install. (Capacitor/Cordova can be considered later if true native features or app store presence is needed.)
+
+## Mobile Navigation & Main Views
+
+### **Bottom Navigation Bar (Mobile Only)**
+- **Character Sheet**: View and interact with your character (stats, inventory, abilities, etc.)
+- **Encounter Runner**: Access the Pixi.js encounter viewer, optimized for mobile controls
+- **Chat**: Real-time chat with other players and the GM
+- **Settings**: User preferences, account management, and app info
+
+> **Note:** Only these four main views are available on mobile. GM/administrative features are not accessible on phones.
+
+### **GM Tools**
+- **Desktop/Tablet Only**: All GM management, campaign admin, and advanced encounter controls are only available on larger screens.
+- **No GM UI on mobile**: The mobile app will not show or allow access to GM tools, simplifying the code and UX.
+
+## Implementation Plan (Simplified)
+
+### **1. PWA Setup**
+- Ensure manifest.json, icons, and meta tags are present for installability
+- Test "Add to Home Screen" on iOS and Android
+- Use `display: standalone` and appropriate theme colors
+
+### **2. Mobile-First UI/UX**
+- Implement a bottom navigation bar that appears only on mobile breakpoints
+- Each main view (Character Sheet, Encounter, Chat, Settings) is a top-level route/tab
+- Use touch-friendly, accessible controls throughout
+- Optimize modals, popups, and overlays for mobile (full-screen, slide-up, etc.)
+
+### **3. Responsive Design**
+- Use Tailwind CSS and existing breakpoints for mobile layouts
+- Hide or disable any GM/admin features on mobile
+- Ensure all forms, lists, and data displays are thumb-friendly
+
+### **4. Encounter Runner Mobile Optimization**
+- Ensure Pixi.js canvas is touch-optimized (pinch, pan, tap)
+- Mobile HUD and controls for encounter actions
+- Performance tuning for mobile devices
+
+### **5. Testing & QA**
+- Test on iOS Safari, Android Chrome, and PWA installed mode
+- Validate navigation, touch targets, and performance
+- Confirm GM/admin features are not accessible on mobile
+
+## Success Criteria
+- Users can install DungeonLab as a PWA and use it like a native app on their phone
+- Players can easily switch between Character Sheet, Encounter, Chat, and Settings via the bottom nav bar
+- All mobile UI is touch-optimized and accessible
+- No GM/admin features are present on mobile
+- GM/admin tools work fully on desktop/tablet
+
+---
+
+## (Legacy/Reference) Previous Plan
+
+> The following sections are retained for reference but are superseded by the new PWA-first, player-only mobile approach. See above for the current plan.
 
 ## Current Mobile Support Assessment
 

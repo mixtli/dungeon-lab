@@ -58,9 +58,12 @@ async function startServer() {
     console.log('Socket.IO server initialized');
 
     // Start listening
-    httpServer.listen(PORT, () => {
-      logger.info(`Server is running on port ${PORT}`);
-    });
+    httpServer.listen(
+      { port: PORT, host: '0.0.0.0' },
+      () => {
+        logger.info(`Server is running on port ${PORT}`);
+      }
+    );
 
     // Handle shutdown
     process.on('SIGTERM', async () => {
