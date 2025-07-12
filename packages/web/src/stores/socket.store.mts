@@ -7,6 +7,7 @@ import {
   ClientToServerEvents,
   ServerToClientEvents
 } from '@dungeon-lab/shared/types/socket/index.mjs';
+import { getApiBaseUrl } from '../utils/getApiBaseUrl.mts';
 
 // Define a type for the socket store
 interface SocketStore {
@@ -63,7 +64,7 @@ export const useSocketStore = defineStore(
         return;
       }
 
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      const apiUrl = getApiBaseUrl();
 
       console.log('Connecting to socket at', apiUrl);
       

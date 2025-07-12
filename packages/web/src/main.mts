@@ -5,12 +5,13 @@ import piniaPluginPersistedstate from 'pinia-plugin-persistedstate';
 import App from './App.vue';
 import router from './router/index.mjs';
 import { configureApiClient, ApiClient } from '@dungeon-lab/client/index.mjs';
+import { getApiBaseUrl } from './utils/getApiBaseUrl.mts';
 import { useAuthStore } from './stores/auth.store.mjs';
 import clickOutside from './directives/clickOutside.mjs';
 import { registerVueKonva } from './plugins/vue-konva.mjs';
 
 // Configure ApiClient with base URL
-configureApiClient(import.meta.env.VITE_API_URL || 'http://localhost:3000');
+configureApiClient(getApiBaseUrl());
 
 const apiClient = new ApiClient();
 const app = createApp(App);
