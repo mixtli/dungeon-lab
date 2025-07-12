@@ -17,17 +17,24 @@ function toggleMenu() {
   isMenuOpen.value = !isMenuOpen.value;
 }
 
+function closeMenu() {
+  isMenuOpen.value = false;
+}
+
 function handleLoginClick() {
+  closeMenu();
   console.log('Login clicked');
   router.push('/auth/login');
 }
 
 function logout() {
+  closeMenu();
   authStore.logout();
   router.push('/auth/login');
 }
 
 function goToChat() {
+  closeMenu();
   if (gameSessionStore.currentSession) {
     router.push({
       name: 'chat'
@@ -35,6 +42,11 @@ function goToChat() {
   } else {
     router.push({ name: 'game-sessions' });
   }
+}
+
+function handleThemeToggle() {
+  closeMenu();
+  toggleTheme();
 }
 </script>
 
@@ -244,6 +256,7 @@ function goToChat() {
         <RouterLink
           to="/"
           class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700"
+          @click="closeMenu"
         >
           Home
         </RouterLink>
@@ -251,6 +264,7 @@ function goToChat() {
           v-if="authStore.isAuthenticated"
           to="/campaigns"
           class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700"
+          @click="closeMenu"
         >
           Campaigns
         </RouterLink>
@@ -258,6 +272,7 @@ function goToChat() {
           v-if="authStore.isAuthenticated"
           to="/maps"
           class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700"
+          @click="closeMenu"
         >
           Maps
         </RouterLink>
@@ -265,6 +280,7 @@ function goToChat() {
           v-if="authStore.isAuthenticated"
           to="/games"
           class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700"
+          @click="closeMenu"
         >
           Games
         </RouterLink>
@@ -272,6 +288,7 @@ function goToChat() {
           v-if="authStore.isAuthenticated"
           to="/characters"
           class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700"
+          @click="closeMenu"
         >
           Characters
         </RouterLink>
@@ -279,6 +296,7 @@ function goToChat() {
           v-if="authStore.isAuthenticated"
           to="/assets"
           class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700"
+          @click="closeMenu"
         >
           Asset Library
         </RouterLink>
@@ -303,15 +321,9 @@ function goToChat() {
         </button>
         <RouterLink
           v-if="authStore.isAuthenticated"
-          to="/file-upload-demo"
-          class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700"
-        >
-          File Upload
-        </RouterLink>
-        <RouterLink
-          v-if="authStore.isAuthenticated"
           to="/invites"
           class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700"
+          @click="closeMenu"
         >
           Invites
         </RouterLink>
@@ -333,6 +345,7 @@ function goToChat() {
           <RouterLink
             to="/admin/plugins"
             class="block pl-6 px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700"
+            @click="closeMenu"
           >
             Plugin Manager
           </RouterLink>
@@ -340,7 +353,7 @@ function goToChat() {
 
         <!-- Theme Toggle -->
         <button
-          @click="toggleTheme"
+          @click="handleThemeToggle"
           class="flex w-full items-center px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700"
         >
           <MoonIcon v-if="isDarkMode" class="text-yellow-400 w-5 h-5 mr-2" />
@@ -359,6 +372,7 @@ function goToChat() {
           <RouterLink
             to="/auth/register"
             class="block px-3 py-2 rounded-md text-base font-medium bg-primary-600 text-white hover:bg-primary-700"
+            @click="closeMenu"
           >
             Register
           </RouterLink>
