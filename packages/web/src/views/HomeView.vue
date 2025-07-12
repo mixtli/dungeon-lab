@@ -1,10 +1,21 @@
 <script setup lang="ts">
-import { RouterLink } from 'vue-router';
+import { RouterLink, useRouter } from 'vue-router';
+import { onMounted } from 'vue';
+import { useAuthStore } from '../stores/auth.store.mjs';
+
+const authStore = useAuthStore();
+const router = useRouter();
+
+onMounted(() => {
+  if (authStore.isAuthenticated) {
+    router.replace('/campaigns');
+  }
+});
 // Home view component
 </script>
 
 <template>
-  <div class="home-view">
+  <div v-if="!authStore.isAuthenticated" class="home-view">
     <div class="hero-section">
       <div class="container mx-auto px-4 py-16 md:py-24">
         <div class="text-center">

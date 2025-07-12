@@ -3,14 +3,26 @@ import { RouterView } from 'vue-router';
 import NotificationToast from './components/common/NotificationToast.vue';
 import AppHeader from './components/layout/AppHeader.vue';
 
-import { useSocketStore } from './stores/socket.store.mjs';
-import { onMounted } from 'vue';
+import { useSocketStore } from './stores/socket.store.mts';
+import { useAuthStore } from './stores/auth.store.mts';
+import { watch } from 'vue';
+import { registerAllPlugins } from './services/plugin-registry.service.mts';
 const store = useSocketStore();
+const authStore = useAuthStore();
 
-onMounted(() => {
-  store.initSocket();
-});
-
+// Only initialize socket and plugins if authenticated
+watch(
+  () => authStore.isAuthenticated,
+  (isAuthenticated) => {
+    if (isAuthenticated) {
+      store.initSocket();
+      registerAllPlugins();
+    } else {
+      store.disconnect();
+    }
+  },
+  { immediate: true }
+);
 </script>
 
 <template>

@@ -29,10 +29,12 @@ export const useSocketStore = defineStore(
     
     onMounted(async() => {
       console.log('Socket store mounted, auth user:', authStore.user?.id);
-      if (authStore.user) {
-        userId.value = authStore.user.id;
-        await initSocket();
+      if (!authStore.user) {
+        // Not authenticated, do not connect socket
+        return;
       }
+      userId.value = authStore.user.id;
+      await initSocket();
     });
 
     // Watch for auth store changes

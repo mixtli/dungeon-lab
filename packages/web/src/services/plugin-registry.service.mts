@@ -205,3 +205,8 @@ export class PluginRegistryService {
 
 // Create a singleton instance
 export const pluginRegistry = new PluginRegistryService();
+
+// Export a function to register all plugins (initialize the registry)
+export async function registerAllPlugins() {
+  await pluginRegistry.initialize();
+}

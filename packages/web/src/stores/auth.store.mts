@@ -3,6 +3,8 @@ import { ref, computed } from 'vue';
 import type { IUser } from '@dungeon-lab/shared/types/index.mjs';
 import { AuthClient } from '@dungeon-lab/client/auth.client.mjs';
 import { LoginRequest, RegisterRequest } from '@dungeon-lab/shared/types/api/authentication.mjs';
+// Import the game session store
+import { useGameSessionStore } from './game-session.store.mts';
 
 // Create a more specific client for auth methods
 // Note: This would normally be part of the client library, but we're creating it temporarily
@@ -79,6 +81,13 @@ export const useAuthStore = defineStore(
     }
 
     async function logout() {
+      // Leave the active session if in one
+      try {
+        const gameSessionStore = useGameSessionStore();
+        gameSessionStore.leaveSession();
+      } catch (err) {
+        console.warn('Error leaving session on logout:', err);
+      }
       try {
         await authClient.logout();
       } catch (err: unknown) {

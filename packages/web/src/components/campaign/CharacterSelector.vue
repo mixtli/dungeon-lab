@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import type { IActor } from '@dungeon-lab/shared/types/index.mjs';
 import { ActorsClient } from '@dungeon-lab/client/index.mjs';
-import { useGameSessionStore } from '../../stores/game-session.store.mjs';
+import { useGameSessionStore } from '../../stores/game-session.store.mts';
+import { useAuthStore } from '../../stores/auth.store.mts';
+import { GameSessionsClient } from '@dungeon-lab/client/game-sessions.client.mts';
 
 const props = defineProps<{
   campaignId: string;
@@ -17,17 +19,39 @@ const emit = defineEmits<{
 
 const actorsClient = new ActorsClient();
 const gameSessionStore = useGameSessionStore();
+const authStore = useAuthStore();
+const gameSessionsClient = new GameSessionsClient();
 
 const loading = ref(false);
 const error = ref<string | null>(null);
 const characters = ref<IActor[]>([]);
+const sessionGameMasterId = ref<string | null>(null);
 
 // Fetch characters for this campaign
 onMounted(async () => {
   if (props.show && props.campaignId) {
     await fetchCharacters();
   }
+  if (props.sessionId) {
+    await fetchSessionGameMaster();
+  }
 });
+
+watch(() => props.sessionId, async (newSessionId) => {
+  if (newSessionId) {
+    await fetchSessionGameMaster();
+  }
+});
+
+async function fetchSessionGameMaster() {
+  try {
+    const session = await gameSessionsClient.getGameSession(props.sessionId);
+    sessionGameMasterId.value = session.gameMasterId;
+  } catch {
+    sessionGameMasterId.value = null;
+    // Optionally log error
+  }
+}
 
 async function fetchCharacters() {
   loading.value = true;
@@ -57,6 +81,10 @@ function joinWithoutCharacter() {
   gameSessionStore.joinSession(props.sessionId);
   emit('close');
 }
+
+const isGameMasterForSession = computed(() => {
+  return sessionGameMasterId.value && authStore.user?.id && sessionGameMasterId.value === authStore.user.id;
+});
 </script>
 
 <template>
@@ -123,10 +151,11 @@ function joinWithoutCharacter() {
           Cancel
         </button>
         <button
+          v-if="isGameMasterForSession"
           @click="joinWithoutCharacter"
           class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
         >
-          Join Without Character
+          Join as Game Master
         </button>
       </div>
     </div>

@@ -30,12 +30,14 @@ export const useGameSessionStore = defineStore(
     // Initialize socket and join session when component mounts
     onMounted(async () => {
       console.log('gameSessionStore mounted, attempting to initialize socket');
-      
+      if (!authStore.user) {
+        // Not authenticated, do not connect socket
+        return;
+      }
       if (!socketStore.socket) {
         console.log('Socket not initialized, calling initSocket');
         await socketStore.initSocket();
       }
-      
       if (currentSession.value) {
         console.log('Existing session found on mount, waiting for socket connection');
         attemptJoinSession();
@@ -77,6 +79,9 @@ export const useGameSessionStore = defineStore(
 
       try {
         // Ensure socket is connected before proceeding
+        if (!authStore.user) {
+          throw new Error('User not authenticated');
+        }
         if (!socketStore.socket) {
           console.log('Socket not initialized, initializing now');
           await socketStore.initSocket();
