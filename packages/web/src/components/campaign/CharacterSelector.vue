@@ -5,6 +5,7 @@ import { ActorsClient } from '@dungeon-lab/client/index.mjs';
 import { useGameSessionStore } from '../../stores/game-session.store.mts';
 import { useAuthStore } from '../../stores/auth.store.mts';
 import { GameSessionsClient } from '@dungeon-lab/client/game-sessions.client.mts';
+import { useAssetUrl } from '../../composables/useAssetUrl.mts';
 
 const props = defineProps<{
   campaignId: string;
@@ -21,6 +22,7 @@ const actorsClient = new ActorsClient();
 const gameSessionStore = useGameSessionStore();
 const authStore = useAuthStore();
 const gameSessionsClient = new GameSessionsClient();
+const { transformAssetUrl } = useAssetUrl();
 
 const loading = ref(false);
 const error = ref<string | null>(null);
@@ -129,7 +131,7 @@ const isGameMasterForSession = computed(() => {
         >
           <img
             v-if="actor.avatar"
-            :src="actor.avatar.url"
+            :src="transformAssetUrl(actor.avatar.url)"
             :alt="actor.name"
             class="w-12 h-12 rounded-full object-cover mr-3"
           />

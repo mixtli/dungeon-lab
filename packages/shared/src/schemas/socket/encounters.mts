@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+  encounterSchema,
   initiativeEntrySchema,
   combatActionSchema,
   actionResultSchema,
@@ -266,14 +267,14 @@ export const effectExpiredSchema = z.object({
 // ============================================================================
 
 export const encounterStartSchema = z.object({
-  encounterId: z.string(),
-  userId: z.string()
+  sessionId: z.string(),
+  encounterId: z.string()
 });
 
 export const encounterStartedSchema = z.object({
+  sessionId: z.string(),
   encounterId: z.string(),
-  status: z.literal('in_progress'),
-  userId: z.string(),
+  encounter: encounterSchema,
   timestamp: z.date().default(() => new Date())
 });
 

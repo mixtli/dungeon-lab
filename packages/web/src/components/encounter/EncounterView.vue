@@ -286,6 +286,8 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useEncounterStore } from '../../stores/encounter.store.mjs';
+import { useGameSessionStore } from '../../stores/game-session.store.mts';
+import { useSocketStore } from '../../stores/socket.store.mjs';
 import { useDeviceAdaptation } from '../../composables/useDeviceAdaptation.mjs';
 // Encounter socket functionality removed - using session-based architecture
 import PixiMapViewer from './PixiMapViewer.vue';
@@ -310,6 +312,8 @@ const props = withDefaults(defineProps<Props>(), {
 // Composables
 const route = useRoute();
 const encounterStore = useEncounterStore();
+const gameSessionStore = useGameSessionStore();
+const socketStore = useSocketStore();
 const { deviceConfig, deviceClass } = useDeviceAdaptation();
 const authStore = useAuthStore();
 
@@ -317,6 +321,11 @@ const authStore = useAuthStore();
 const currentEncounterId = computed(() => 
   props.encounterId || (route.params.id as string)
 );
+
+// Check if current user is GM
+const isGameMaster = computed(() => {
+  return gameSessionStore.isGameMaster;
+});
 
 // Encounter socket functionality removed - using session-based architecture through encounter store
 
@@ -402,6 +411,15 @@ const loadEncounter = async () => {
     if (!encounter.value) {
       error.value = 'Encounter not found';
       return;
+    }
+    
+    // If GM is opening the encounter runner, emit encounter:start to set it as current encounter
+    if (isGameMaster.value && gameSessionStore.currentSession && socketStore.socket) {
+      console.log('[Debug] GM opened encounter runner, emitting encounter:start event');
+      socketStore.socket.emit('encounter:start', {
+        sessionId: gameSessionStore.currentSession.id,
+        encounterId: currentEncounterId.value
+      });
     }
     
     // Socket events are now handled automatically via session rooms

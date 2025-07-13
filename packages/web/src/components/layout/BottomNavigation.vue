@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { useAuthStore } from '../../stores/auth.store.mts';
+// import { useAuthStore } from '../../stores/auth.store.mts';
 import { useGameSessionStore } from '../../stores/game-session.store.mts';
+import { useNotificationStore } from '../../stores/notification.store.mts';
 import { 
   ChatBubbleLeftRightIcon, 
   ShieldCheckIcon, 
@@ -16,10 +17,21 @@ import {
   Cog6ToothIcon as Cog6ToothIconSolid
 } from '@heroicons/vue/24/solid';
 
+import type { FunctionalComponent } from 'vue';
+type TabType = {
+  id: string;
+  label: string;
+  icon: FunctionalComponent;
+  iconSolid: FunctionalComponent;
+  isActive: { value: boolean };
+  navigate: () => void;
+};
+
 const router = useRouter();
 const route = useRoute();
-const authStore = useAuthStore();
+// const authStore = useAuthStore();
 const gameSessionStore = useGameSessionStore();
+const notificationStore = useNotificationStore();
 
 // Navigation tabs configuration
 const tabs = computed(() => [
@@ -51,17 +63,22 @@ const tabs = computed(() => [
              route.name === 'game-table';
     }),
     navigate: () => {
-      if (gameSessionStore.currentSession) {
-        // If there's a current session, go to the game session view
+      console.log('[BottomNav] Encounter button clicked');
+      console.log('[BottomNav] Current session:', gameSessionStore.currentSession);
+      console.log('[BottomNav] Current encounter ID:', gameSessionStore.currentSession?.currentEncounterId);
+      
+      if (gameSessionStore.currentSession?.currentEncounterId) {
         router.push({ 
-          name: 'game-session', 
+          name: 'encounter-run', 
           params: { 
-            campaignId: gameSessionStore.currentSession.campaignId,
-            id: gameSessionStore.currentSession._id 
+            id: gameSessionStore.currentSession.currentEncounterId 
           } 
         });
       } else {
-        router.push({ name: 'game-sessions' });
+        notificationStore.addNotification({
+          message: 'No active encounter found.',
+          type: 'warning',
+        });
       }
     }
   },
@@ -78,12 +95,12 @@ const tabs = computed(() => [
     }),
     navigate: () => {
       // Try to get current character from game session or auth store
-      const currentCharacter = gameSessionStore.currentCharacter || authStore.user?.currentCharacter;
+      const currentCharacter = gameSessionStore.currentCharacter;
       
       if (currentCharacter) {
         router.push({ 
           name: 'character-sheet', 
-          params: { id: currentCharacter._id || currentCharacter.id } 
+          params: { id: currentCharacter.id } 
         });
       } else {
         router.push({ name: 'character-list' });
@@ -104,7 +121,7 @@ const tabs = computed(() => [
   }
 ]);
 
-function handleTabClick(tab: any) {
+function handleTabClick(tab: TabType) {
   tab.navigate();
 }
 </script>

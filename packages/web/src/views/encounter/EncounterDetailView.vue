@@ -182,11 +182,10 @@ async function handleStartEncounter() {
 
       // Now emit the start event
       console.log('[Debug] Emitting encounter:start event');
-      // socketStore.socket.emit('encounter:start', {
-      //   sessionId: gameSessionStore.currentSession.id,
-      //   encounterId,
-      //   campaignId,
-      // });
+      socketStore.socket.emit('encounter:start', {
+        sessionId: gameSessionStore.currentSession.id,
+        encounterId
+      });
       console.log('[Debug] Event emitted successfully');
     } else {
       console.error('[Debug] Socket not available');

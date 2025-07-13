@@ -170,6 +170,7 @@ export const useEncounterStore = defineStore('encounter', () => {
     socket.off('token:moved');
     socket.off('token:updated');
     socket.off('token:deleted');
+    socket.off('encounter:started');
 
     socket.on('token:created', (data) => {
       console.log('[Encounter Store] Token created event received:', data);
@@ -209,6 +210,26 @@ export const useEncounterStore = defineStore('encounter', () => {
       console.log('Token deleted:', data);
       if (data.encounterId === currentEncounter.value?.id) {
         encounterTokens.value = encounterTokens.value.filter(t => t.id !== data.tokenId);
+      }
+    });
+
+    socket.on('encounter:started', (data) => {
+      console.log('[Encounter Store] Encounter started event received:', data);
+      
+      // Set this encounter as the current encounter
+      if (data.encounter) {
+        // The encounter from the socket has participants as string[], 
+        // but we need IActor[], so we'll fetch them separately
+        currentEncounter.value = {
+          ...data.encounter,
+          participants: [] // We'll populate this later via fetchEncounter if needed
+        };
+        
+        // Reset tokens for the new encounter
+        encounterTokens.value = data.encounter.tokens || [];
+        
+        console.log('[Encounter Store] Set current encounter:', currentEncounter.value?.id);
+        console.log('[Encounter Store] Set encounter tokens:', encounterTokens.value);
       }
     });
 

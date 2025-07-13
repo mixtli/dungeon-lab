@@ -15,6 +15,7 @@ export const gameSessionSchema = baseSchema.extend({
   participantIds: z.array(z.string()).default([]), // User IDs of the participants in the game session.
   characterIds: z.array(z.string()).default([]), // Character IDs of the participants in the game session.
   gameMasterId: z.string(),
+  currentEncounterId: z.string().optional(), // Currently active encounter ID
   settings: z.record(z.string(), z.unknown()).optional()
 });
 

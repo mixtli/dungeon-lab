@@ -190,6 +190,7 @@ export const useGameSessionStore = defineStore(
       // Remove any existing listeners to prevent duplicates
       socketStore.socket.off('userJoinedSession');
       socketStore.socket.off('userLeftSession');
+      socketStore.socket.off('encounter:started');
       // Commented out events that aren't in the socket type definitions yet
       // socketStore.socket.off('gameSession:update');
       // socketStore.socket.off('gameSession:end');
@@ -248,6 +249,23 @@ export const useGameSessionStore = defineStore(
           if (data.userId === authStore.user?.id) {
             currentCharacter.value = null;
           }
+        }
+      });
+
+      // Handle encounter started events
+      socketStore.socket.on('encounter:started', (data: { sessionId: string, encounterId: string, encounter: any, timestamp?: Date }) => {
+        console.log('[Socket] Received encounter:started event:', data);
+        
+        if (data.sessionId === sessionId) {
+          // Update the current session with the new encounter ID
+          if (currentSession.value) {
+            currentSession.value.currentEncounterId = data.encounterId;
+            console.log('[GameSession Store] Updated currentEncounterId:', data.encounterId);
+            console.log('[GameSession Store] Current session now:', currentSession.value);
+          }
+          
+          // Notify in chat that an encounter has started
+          chatStore.sendMessage(`Encounter "${data.encounter.name}" has started!`, sessionId);
         }
       });
 

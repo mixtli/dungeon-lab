@@ -203,7 +203,20 @@ export class CampaignService {
     if (!campaign) {
       throw new Error('Campaign not found');
     }
-    return campaign.characterIds.some((characterId) => characterId.toString() === userId);
+    
+    // Check if user is the game master
+    if (campaign.gameMasterId === userId) {
+      return true;
+    }
+    
+    // Check if user has any characters in this campaign by looking at the actors
+    const { ActorModel } = await import('../../actors/models/actor.model.mjs');
+    const userCharactersInCampaign = await ActorModel.find({
+      _id: { $in: campaign.characterIds },
+      createdBy: userId
+    }).exec();
+    
+    return userCharactersInCampaign.length > 0;
   }
 
   async isActorCampaignMember(actorId: string, campaignId: string): Promise<boolean> {

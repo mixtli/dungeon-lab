@@ -3,6 +3,7 @@ import { socketHandlerRegistry } from '../../../websocket/handler-registry.mjs';
 import { logger } from '../../../utils/logger.mjs';
 import { EncounterService } from '../services/encounters.service.mjs';
 import { encounterRateLimiters } from '../../../websocket/utils/rate-limiter.mjs';
+import { GameSessionModel } from '../../campaigns/models/game-session.model.mjs';
 import type {
   ServerToClientEvents,
   ClientToServerEvents,
@@ -16,6 +17,9 @@ import type {
   TokenUpdated,
   TokenDelete,
   TokenDeleted,
+  // Encounter events
+  EncounterStart,
+  EncounterStarted,
   EncounterError
 } from '@dungeon-lab/shared/types/socket/index.mjs';
 
@@ -58,8 +62,6 @@ function encounterHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
     logger.info('Checking if user is in session:', { sessionId, userId, isAdmin });
     try {
       logger.info('Finding session by sessionId:', sessionId);
-      const GameSessionModel = (await import('../../../features/campaigns/models/game-session.model.mjs')).GameSessionModel;
-      logger.info('GameSessionModel:', GameSessionModel);
       const session = await GameSessionModel.findById(sessionId).exec();
       logger.info('Session found:', session);
       if (!session) {
@@ -248,14 +250,64 @@ function encounterHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
   });
 
   // ============================================================================
-  // ENCOUNTER STATE MANAGEMENT (TODO: Implement in later tasks)
+  // ENCOUNTER STATE MANAGEMENT
   // ============================================================================
 
-  /*
   socket.on('encounter:start', async (data: EncounterStart) => {
-    // Implementation for later tasks
+    try {
+      const { sessionId, encounterId } = data;
+      logger.info('Encounter start event received:', { sessionId, encounterId, userId });
+
+      // Check session permissions - only GM can start encounters
+      const session = await GameSessionModel.findById(sessionId).exec();
+      
+      if (!session) {
+        emitError(encounterId, 'Session not found');
+        return;
+      }
+
+      // Only GM or admin can start encounters
+      if (!isAdmin && session.gameMasterId !== userId) {
+        emitError(encounterId, 'Access denied: only game master can start encounters');
+        return;
+      }
+
+      // Verify encounter exists and belongs to the campaign
+      const encounter = await encounterService.getEncounter(encounterId, userId, isAdmin);
+      if (!encounter) {
+        emitError(encounterId, 'Encounter not found');
+        return;
+      }
+
+      if (encounter.campaignId !== session.campaignId) {
+        emitError(encounterId, 'Encounter does not belong to this campaign');
+        return;
+      }
+
+      // Update game session with current encounter
+      session.currentEncounterId = encounterId;
+      await session.save();
+
+      // Emit to all session participants
+      const startEvent: EncounterStarted = {
+        sessionId,
+        encounterId,
+        encounter,
+        timestamp: new Date()
+      };
+
+      socket.to(`session:${sessionId}`).emit('encounter:started', startEvent);
+      socket.emit('encounter:started', startEvent);
+
+      logger.info('Encounter started successfully:', { sessionId, encounterId });
+
+    } catch (error) {
+      logger.error('Error starting encounter:', error);
+      emitError(data.encounterId, error instanceof Error ? error.message : 'Failed to start encounter');
+    }
   });
 
+  /*
   socket.on('encounter:pause', async (data: EncounterPause) => {
     // Implementation for later tasks
   });

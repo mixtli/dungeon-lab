@@ -23,6 +23,10 @@ const gameSessionSchemaMongoose = gameSessionSchema.merge(baseMongooseZodSchema)
  */
 const mongooseSchema = createMongoSchema<IGameSession>(gameSessionSchemaMongoose);
 
+mongooseSchema.path('campaignId').get(function (value: ObjectId | undefined) {
+  return value?.toString();
+});
+
 mongooseSchema.path('gameMasterId').get(function (value: ObjectId | undefined) {
   return value?.toString();
 });

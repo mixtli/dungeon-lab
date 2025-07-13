@@ -227,6 +227,7 @@ export const serverToClientEvents = z.object({
   'chatbot:response': z.function().args(chatbotResponseSchema).returns(z.void()),
   'chatbot:error': z.function().args(chatbotErrorSchema).returns(z.void()),
   // Encounter events
+  'encounter:started': z.function().args(encounterStartedSchema).returns(z.void()),
   'encounter:error': z.function().args(encounterErrorSchema).returns(z.void()),
   'user:joined': z.function().args(userJoinedSessionSchema).returns(z.void()),
   'user:left': z.function().args(userLeftSessionSchema).returns(z.void()),

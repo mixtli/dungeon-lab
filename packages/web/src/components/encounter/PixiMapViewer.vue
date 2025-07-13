@@ -52,6 +52,7 @@ import { MapsClient } from '@dungeon-lab/client/index.mjs';
 import { useEncounterStore } from '@/stores/encounter.store.mjs';
 import { checkWallCollision, pixelsToGrid } from '@/utils/collision-detection.mjs';
 import type { TokenRenderer } from '@/services/encounter/TokenRenderer.mts';
+import { getAssetUrl } from '@/utils/getAssetUrl.mjs';
 
 // Initialize maps client and stores
 const mapsClient = new MapsClient();
@@ -199,9 +200,24 @@ const loadMapData = async (mapData: IMapResponse) => {
     isLoading.value = true;
     error.value = null;
     
+    console.log('[PixiMapViewer] Loading map:', mapData.name);
+    
+    // Test image loading separately
+    if (mapData.image?.url) {
+      const transformedImageUrl = getAssetUrl(mapData.image.url);
+      
+      try {
+        await testImageLoad(transformedImageUrl);
+      } catch (imageErr) {
+        console.error('[PixiMapViewer] Image loading failed:', imageErr);
+        throw new Error(`Image loading failed: ${imageErr instanceof Error ? imageErr.message : 'Unknown image error'} (URL: ${transformedImageUrl})`);
+      }
+    }
+    
     await loadMap(mapData);
     currentMap.value = mapData;
     
+    console.log('[PixiMapViewer] Map loaded successfully');
     emit('map-loaded', mapData);
     
     // Fit map to screen after loading
@@ -214,13 +230,56 @@ const loadMapData = async (mapData: IMapResponse) => {
     setPortalHighlights(props.showPortals || false);
     
   } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : 'Failed to load map';
+    const errorDetails = {
+      message: err instanceof Error ? err.message : 'Unknown error',
+      stack: err instanceof Error ? err.stack : 'No stack trace',
+      mapId: mapData.id,
+      mapName: mapData.name,
+      imageUrl: mapData.image?.url,
+      timestamp: new Date().toISOString(),
+      userAgent: navigator.userAgent,
+      canvasReady: !!canvasRef.value,
+      canvasSize: canvasRef.value ? `${canvasRef.value.width}x${canvasRef.value.height}` : 'n/a',
+      containerSize: containerRef.value ? `${containerRef.value.offsetWidth}x${containerRef.value.offsetHeight}` : 'n/a'
+    };
+    
+    console.error('[PixiMapViewer] Detailed map load error:', errorDetails);
+    
+    const errorMessage = `Map load failed: ${errorDetails.message} (Map: ${mapData.name}, Canvas: ${errorDetails.canvasSize}, Time: ${errorDetails.timestamp})`;
     error.value = errorMessage;
     emit('map-error', errorMessage);
-    console.error('Failed to load map:', err);
   } finally {
     isLoading.value = false;
   }
+};
+
+// Helper function to test image loading
+const testImageLoad = (imageUrl: string): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous'; // Handle CORS
+    
+    img.onload = () => {
+      console.log('[PixiMapViewer] Image loaded successfully:', {
+        url: imageUrl,
+        size: `${img.naturalWidth}x${img.naturalHeight}`,
+        complete: img.complete
+      });
+      resolve();
+    };
+    
+    img.onerror = (event) => {
+      console.error('[PixiMapViewer] Image load error:', {
+        url: imageUrl,
+        event,
+        networkState: navigator.onLine ? 'online' : 'offline'
+      });
+      reject(new Error(`Failed to load image from ${imageUrl}`));
+    };
+    
+    console.log('[PixiMapViewer] Starting image load test for:', imageUrl);
+    img.src = imageUrl;
+  });
 };
 
 const fetchAndLoadMap = async (mapId: string) => {
@@ -233,17 +292,29 @@ const fetchAndLoadMap = async (mapId: string) => {
     isLoading.value = true;
     error.value = null;
     
-    console.log('Fetching map data for ID:', mapId);
+    console.log('[PixiMapViewer] Fetching map data for ID:', mapId);
+    
     const mapData = await mapsClient.getMap(mapId);
-    console.log('Map data fetched:', mapData);
+    console.log('[PixiMapViewer] Map data fetched successfully for:', mapData.name);
     
     await loadMapData(mapData);
     
   } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : 'Failed to fetch map';
+    const errorDetails = {
+      message: err instanceof Error ? err.message : 'Unknown error',
+      stack: err instanceof Error ? err.stack : 'No stack trace',
+      mapId,
+      timestamp: new Date().toISOString(),
+      userAgent: navigator.userAgent,
+      url: window.location.href,
+      networkState: navigator.onLine ? 'online' : 'offline'
+    };
+    
+    console.error('[PixiMapViewer] Detailed fetch error:', errorDetails);
+    
+    const errorMessage = `Map fetch failed: ${errorDetails.message} (MapID: ${mapId}, Network: ${navigator.onLine ? 'online' : 'offline'}, Time: ${errorDetails.timestamp})`;
     error.value = errorMessage;
     emit('map-error', errorMessage);
-    console.error('Failed to fetch map:', err);
   } finally {
     isLoading.value = false;
   }
