@@ -3,13 +3,15 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { type IActor, type IAsset } from '@dungeon-lab/shared/types/index.mjs';
 import { ActorsClient } from '@dungeon-lab/client/index.mjs';
-import { PlusIcon, PencilIcon, TrashIcon } from '@heroicons/vue/24/outline';
+import { PlusIcon, EyeIcon, TrashIcon } from '@heroicons/vue/24/outline';
+import { useDeviceAdaptation } from '@/composables/useDeviceAdaptation.mts';
 
 const router = useRouter();
 const actorClient = new ActorsClient();
 const characters = ref<IActor[]>([]);
 const isLoading = ref(true);
 const error = ref<string | null>(null);
+const { isMobile } = useDeviceAdaptation();
 
 // Computed property to get the avatar URL for a character
 const getAvatarUrl = (character: IActor): string | undefined => {
@@ -62,8 +64,14 @@ function handleCreate() {
 </script>
 
 <template>
-  <div class="p-6">
-    <div class="max-w-7xl mx-auto">
+  <div :class="isMobile ? '' : 'p-6'">
+    <!-- Mobile header -->
+    <div v-if="isMobile" class="text-center py-4 border-b border-gray-200 bg-white">
+      <h1 class="text-xl font-semibold">My Characters</h1>
+    </div>
+    
+    <!-- Desktop header -->
+    <div v-else class="max-w-7xl mx-auto">
       <div class="flex justify-between items-center mb-6">
         <h1 class="text-3xl font-bold text-gray-900">My Characters</h1>
         <button
@@ -74,7 +82,10 @@ function handleCreate() {
           Create Character
         </button>
       </div>
+    </div>
 
+    <!-- Content Container -->
+    <div :class="isMobile ? 'p-4' : 'max-w-7xl mx-auto'">
       <!-- Error State -->
       <div v-if="error" class="mb-6 bg-red-50 border border-red-200 rounded-md p-4">
         <p class="text-red-700">{{ error }}</p>
@@ -101,7 +112,7 @@ function handleCreate() {
       </div>
 
       <!-- Character Grid -->
-      <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div v-else :class="isMobile ? 'grid grid-cols-1 gap-4' : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'">
         <div
           v-for="character in characters"
           :key="character.id || ''"
@@ -133,9 +144,9 @@ function handleCreate() {
                   v-if="character.id"
                   @click="handleEdit(character.id)"
                   class="p-2 text-gray-400 hover:text-blue-500 focus:outline-none"
-                  title="Edit character"
+                  title="View character"
                 >
-                  <PencilIcon class="h-5 w-5" />
+                  <EyeIcon class="h-5 w-5" />
                 </button>
                 <button
                   v-if="character.id"

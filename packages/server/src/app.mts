@@ -95,7 +95,7 @@ export const sessionMiddleware = session({
     ttl: 14 * 24 * 60 * 60 // 14 days
   }),
   cookie: {
-    sameSite: 'none',
+    sameSite: 'lax',
     //secure: process.env.NODE_ENV === 'production',
     secure: false,
     httpOnly: true,
@@ -144,6 +144,7 @@ export async function createApp(): Promise<express.Application> {
         if (origin === 'http://localhost:8080') return callback(null, true);
         // Allow any 172.20.10.*:8080 (local network, iPhone, etc.)
         if (/^http:\/\/172\.20\.10\.[0-9]+:8080$/.test(origin)) return callback(null, true);
+        if (/^http:\/\/10\.0\.0\.[0-9]+:8080$/.test(origin)) return callback(null, true);
         // Otherwise, block
         return callback(new Error('Not allowed by CORS'), false);
       },

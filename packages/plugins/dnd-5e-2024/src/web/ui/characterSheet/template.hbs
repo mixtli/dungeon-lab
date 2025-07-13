@@ -20,26 +20,40 @@
 
     <!-- Character Header Section -->
     <div class="character-header">
-      <div class="character-info">
+      <!-- Character Name and Edit Button Row -->
+      <div class="character-name-row">
         <div class="character-name">
           {{#if isEditing}}
-            <input type="text" name="data.name" value="{{character.data.name}}" class="form-control">
+            <input type="text" name="data.name" value="{{character.name}}" class="form-control">
           {{else}}
-            <h1>{{character.data.name}}</h1>
+            <h1>{{character.name}}</h1>
           {{/if}}
-        </div>
-        <div class="character-details">
-          <span class="character-class">
-            {{classLevelString character.data.classes}}
-          </span>
-          <span class="character-race">{{character.data.species}}</span>
-          <span class="character-background">{{character.data.background}}</span>
-          <span class="character-alignment">{{character.data.alignment}}</span>
         </div>
       </div>
       
-      <div class="character-vitals">
-        <div class="vital-stat">
+      <!-- Character Stats Grid -->
+      <div class="character-stats-grid">
+        <div class="stat-box">
+          <label>Classes</label>
+          <span>{{{classLevelString character.data.classes}}}</span>
+        </div>
+        
+        <div class="stat-box">
+          <label>Species</label>
+          <span>{{capitalize character.data.species}}</span>
+        </div>
+        
+        <div class="stat-box">
+          <label>Background</label>
+          <span>{{capitalize character.data.background}}</span>
+        </div>
+        
+        <div class="stat-box">
+          <label>Alignment</label>
+          <span>{{capitalize character.data.alignment}}</span>
+        </div>
+        
+        <div class="stat-box">
           <label>Hit Points</label>
           <div class="hp-container">
             {{#if isEditing}}
@@ -52,7 +66,7 @@
           </div>
         </div>
         
-        <div class="vital-stat">
+        <div class="stat-box">
           <label>Armor Class</label>
           {{#if isEditing}}
             <input type="number" name="data.armorClass" value="{{character.data.armorClass}}" class="form-control">
@@ -61,12 +75,12 @@
           {{/if}}
         </div>
         
-        <div class="vital-stat">
+        <div class="stat-box">
           <label>Initiative</label>
           <span>{{formatBonus character.data.initiative}}</span>
         </div>
         
-        <div class="vital-stat">
+        <div class="stat-box">
           <label>Speed</label>
           {{#if isEditing}}
             <input type="number" name="data.speed" value="{{character.data.speed}}" class="form-control">
@@ -75,7 +89,7 @@
           {{/if}}
         </div>
 
-        <div class="vital-stat">
+        <div class="stat-box">
           <label>Proficiency</label>
           <span>{{formatBonus character.data.proficiencyBonus}}</span>
         </div>

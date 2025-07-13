@@ -65,12 +65,12 @@ export function registerHelpers(handlebars: typeof Handlebars): void {
     return classes.reduce((sum, cls) => sum + cls.level, 0);
   });
 
-  // Format class and level string
+  // Format class and level string with line breaks
   handlebars.registerHelper('classLevelString', function(classes: Array<{name: string, level: number}> | undefined) {
     if (!classes || !Array.isArray(classes)) {
       return '';
     }
-    return classes.map(cls => `${cls.name} ${cls.level}`).join(', ');
+    return classes.map(cls => `${cls.name.charAt(0).toUpperCase() + cls.name.slice(1)} Level ${cls.level}`).join('<br>');
   });
 
   //
