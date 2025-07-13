@@ -33,7 +33,7 @@
             :to="{ name: 'encounter-run', params: { id: encounter.id }}"
             class="px-3 py-1 bg-green-600 hover:bg-green-500 rounded text-sm"
           >
-            Run Encounter
+            Start Encounter
           </router-link>
           <button 
             @click="toggleFullscreen"

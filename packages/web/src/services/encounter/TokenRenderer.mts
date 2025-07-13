@@ -3,6 +3,7 @@ import type { Token, TokenSize } from '@dungeon-lab/shared/types/tokens.mjs';
 import type { IMapResponse } from '@dungeon-lab/shared/types/api/maps.mjs';
 import defaultTokenUrl from '@/assets/images/default_token.svg';
 import { isPositionWithinBounds, clampPositionToBounds } from '../../utils/bounds-validation.mjs';
+import { getAssetUrl } from '@/utils/getAssetUrl.mjs';
 
 export interface TokenSpriteData {
   id: string;
@@ -493,26 +494,35 @@ export class TokenRenderer {
    * Get texture for token
    */
   private async getTokenTexture(token: Token): Promise<PIXI.Texture> {
-    // Check cache first
-    if (token.imageUrl && this.textureCache.has(token.imageUrl)) {
-      return this.textureCache.get(token.imageUrl)!;
-    }
-    
     // No image URL, use default
     if (!token.imageUrl) {
       return PIXI.Texture.from(defaultTokenUrl);
     }
     
+    // Transform localhost URLs for LAN access
+    const transformedUrl = getAssetUrl(token.imageUrl);
+    
+    // Check cache first (use transformed URL as cache key)
+    if (this.textureCache.has(transformedUrl)) {
+      return this.textureCache.get(transformedUrl)!;
+    }
+    
     // Load texture
     try {
-      const texture = await PIXI.Texture.fromURL(token.imageUrl);
+      console.log('[TokenRenderer] Loading token texture:', {
+        original: token.imageUrl,
+        transformed: transformedUrl,
+        tokenName: token.name
+      });
       
-      // Cache for reuse
-      this.textureCache.set(token.imageUrl, texture);
+      const texture = await PIXI.Texture.fromURL(transformedUrl);
+      
+      // Cache for reuse (use transformed URL as cache key)
+      this.textureCache.set(transformedUrl, texture);
       
       return texture;
     } catch (error) {
-      console.error(`Failed to load token texture: ${token.imageUrl}`, error);
+      console.error(`Failed to load token texture: ${transformedUrl}`, error);
       return PIXI.Texture.from(defaultTokenUrl);
     }
   }

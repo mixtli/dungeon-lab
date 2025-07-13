@@ -34,6 +34,11 @@ export class ViewportManager {
   private isDragging = false;
   private lastPointerPosition: { x: number; y: number } | null = null;
   
+  // Multi-touch gesture state
+  private activeTouches = new Map<number, { x: number; y: number }>();
+  private lastPinchDistance: number | null = null;
+  private lastPinchCenter: { x: number; y: number } | null = null;
+  
   // Bounds constraints
   private mapBounds: ViewportBounds | null = null;
   private constrainToBounds = true;
@@ -77,7 +82,7 @@ export class ViewportManager {
   }
   
   /**
-   * Handle pointer down (start panning)
+   * Handle pointer down (start panning or multi-touch gesture)
    */
   private onPointerDown(event: PIXI.FederatedPointerEvent): void {
     // Only start panning if not clicking on a token
@@ -86,52 +91,85 @@ export class ViewportManager {
       return; // Clicked on a token or other interactive element
     }
     
-    this.isDragging = true;
-    this.lastPointerPosition = {
-      x: event.global.x,
-      y: event.global.y
-    };
+    const pointerId = event.pointerId;
+    const position = { x: event.global.x, y: event.global.y };
     
-    // Change cursor to indicate dragging
-    const canvas = this.app.view as HTMLCanvasElement;
-    if (canvas && canvas.style) {
-      canvas.style.cursor = 'grabbing';
+    // Track this touch
+    this.activeTouches.set(pointerId, position);
+    
+    // Handle different gesture types based on touch count
+    if (this.activeTouches.size === 1) {
+      // Single touch - start panning
+      this.isDragging = true;
+      this.lastPointerPosition = position;
+      
+      // Change cursor to indicate dragging (desktop)
+      const canvas = this.app.view as HTMLCanvasElement;
+      if (canvas && canvas.style) {
+        canvas.style.cursor = 'grabbing';
+      }
+    } else if (this.activeTouches.size === 2) {
+      // Two touches - start pinch gesture
+      this.isDragging = false; // Stop panning
+      this.initializePinchGesture();
     }
   }
   
   /**
-   * Handle pointer move (panning)
+   * Handle pointer move (panning or pinch gesture)
    */
   private onPointerMove(event: PIXI.FederatedPointerEvent): void {
-    if (!this.isDragging || !this.lastPointerPosition) return;
+    const pointerId = event.pointerId;
+    const position = { x: event.global.x, y: event.global.y };
     
-    const currentPosition = {
-      x: event.global.x,
-      y: event.global.y
-    };
+    // Update touch position
+    if (this.activeTouches.has(pointerId)) {
+      this.activeTouches.set(pointerId, position);
+    }
     
-    // Calculate delta
-    const deltaX = (currentPosition.x - this.lastPointerPosition.x) * this.panSpeed;
-    const deltaY = (currentPosition.y - this.lastPointerPosition.y) * this.panSpeed;
-    
-    // Apply pan
-    this.pan(deltaX, deltaY);
-    
-    // Update last position
-    this.lastPointerPosition = currentPosition;
+    // Handle different gesture types
+    if (this.activeTouches.size === 1 && this.isDragging && this.lastPointerPosition) {
+      // Single touch panning
+      const deltaX = (position.x - this.lastPointerPosition.x) * this.panSpeed;
+      const deltaY = (position.y - this.lastPointerPosition.y) * this.panSpeed;
+      
+      this.pan(deltaX, deltaY);
+      this.lastPointerPosition = position;
+    } else if (this.activeTouches.size === 2) {
+      // Two touch pinch gesture
+      this.handlePinchGesture();
+    }
   }
   
   /**
-   * Handle pointer up (stop panning)
+   * Handle pointer up (stop panning or pinch gesture)
    */
-  private onPointerUp(): void {
-    this.isDragging = false;
-    this.lastPointerPosition = null;
+  private onPointerUp(event: PIXI.FederatedPointerEvent): void {
+    const pointerId = event.pointerId;
     
-    // Reset cursor
-    const canvas = this.app.view as HTMLCanvasElement;
-    if (canvas && canvas.style) {
-      canvas.style.cursor = 'default';
+    // Remove this touch
+    this.activeTouches.delete(pointerId);
+    
+    // Handle gesture state changes
+    if (this.activeTouches.size === 0) {
+      // No more touches - stop all gestures
+      this.isDragging = false;
+      this.lastPointerPosition = null;
+      this.resetPinchGesture();
+      
+      // Reset cursor
+      const canvas = this.app.view as HTMLCanvasElement;
+      if (canvas && canvas.style) {
+        canvas.style.cursor = 'default';
+      }
+    } else if (this.activeTouches.size === 1) {
+      // One touch remaining - switch from pinch to pan
+      this.resetPinchGesture();
+      
+      // Start panning with remaining touch
+      const remainingTouch = Array.from(this.activeTouches.values())[0];
+      this.isDragging = true;
+      this.lastPointerPosition = remainingTouch;
     }
   }
   
@@ -166,6 +204,74 @@ export class ViewportManager {
     if (this.constrainToBounds && this.mapBounds) {
       this.constrainViewport();
     }
+  }
+  
+  /**
+   * Initialize pinch gesture tracking
+   */
+  private initializePinchGesture(): void {
+    if (this.activeTouches.size !== 2) return;
+    
+    const touches = Array.from(this.activeTouches.values());
+    const touch1 = touches[0];
+    const touch2 = touches[1];
+    
+    // Calculate initial distance and center
+    this.lastPinchDistance = this.calculateDistance(touch1, touch2);
+    this.lastPinchCenter = this.calculateCenter(touch1, touch2);
+  }
+  
+  /**
+   * Handle ongoing pinch gesture
+   */
+  private handlePinchGesture(): void {
+    if (this.activeTouches.size !== 2 || !this.lastPinchDistance || !this.lastPinchCenter) return;
+    
+    const touches = Array.from(this.activeTouches.values());
+    const touch1 = touches[0];
+    const touch2 = touches[1];
+    
+    // Calculate current distance and center
+    const currentDistance = this.calculateDistance(touch1, touch2);
+    const currentCenter = this.calculateCenter(touch1, touch2);
+    
+    // Calculate zoom delta based on distance change
+    const distanceRatio = currentDistance / this.lastPinchDistance;
+    const zoomDelta = (distanceRatio - 1) * this.currentScale * 0.5; // Sensitivity factor
+    
+    // Apply zoom at pinch center
+    this.zoomAt(currentCenter.x, currentCenter.y, zoomDelta);
+    
+    // Update tracking values
+    this.lastPinchDistance = currentDistance;
+    this.lastPinchCenter = currentCenter;
+  }
+  
+  /**
+   * Reset pinch gesture state
+   */
+  private resetPinchGesture(): void {
+    this.lastPinchDistance = null;
+    this.lastPinchCenter = null;
+  }
+  
+  /**
+   * Calculate distance between two points
+   */
+  private calculateDistance(point1: { x: number; y: number }, point2: { x: number; y: number }): number {
+    const dx = point2.x - point1.x;
+    const dy = point2.y - point1.y;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+  
+  /**
+   * Calculate center point between two points
+   */
+  private calculateCenter(point1: { x: number; y: number }, point2: { x: number; y: number }): { x: number; y: number } {
+    return {
+      x: (point1.x + point2.x) / 2,
+      y: (point1.y + point2.y) / 2
+    };
   }
   
   /**
@@ -419,7 +525,7 @@ export class ViewportManager {
   }
   
   /**
-   * Clean up event handlers
+   * Clean up event handlers and state
    */
   destroy(): void {
     // Check if stage exists before trying to remove listeners
@@ -439,5 +545,11 @@ export class ViewportManager {
     if (this.app && this.app.renderer) {
       this.app.renderer.off('resize', this.onResize.bind(this));
     }
+    
+    // Clean up touch tracking state
+    this.activeTouches.clear();
+    this.resetPinchGesture();
+    this.isDragging = false;
+    this.lastPointerPosition = null;
   }
 } 

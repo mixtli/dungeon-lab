@@ -340,7 +340,7 @@ async function handleStopEncounter() {
                 clip-rule="evenodd"
               />
             </svg>
-            Run Encounter
+            Start Encounter
           </button>
 
           <!-- Stop Encounter Button (Game Master Only, In Progress Status) -->
