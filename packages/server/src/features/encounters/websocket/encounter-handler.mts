@@ -20,7 +20,8 @@ import type {
   // Encounter events
   EncounterStart,
   EncounterStarted,
-  EncounterError
+  EncounterError,
+  EncounterStopped
 } from '@dungeon-lab/shared/types/socket/index.mjs';
 
 /**
@@ -304,6 +305,48 @@ function encounterHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
     } catch (error) {
       logger.error('Error starting encounter:', error);
       emitError(data.encounterId, error instanceof Error ? error.message : 'Failed to start encounter');
+    }
+  });
+
+  socket.on('encounter:stop', async (data) => {
+    try {
+      const { sessionId, encounterId } = data;
+      logger.info('Encounter stop event received:', { sessionId, encounterId, userId });
+
+      // Check session permissions - only GM or admin can stop encounters
+      const session = await GameSessionModel.findById(sessionId).exec();
+      if (!session) {
+        emitError(encounterId, 'Session not found');
+        return;
+      }
+      if (!isAdmin && session.gameMasterId !== userId) {
+        emitError(encounterId, 'Access denied: only game master can stop encounters');
+        return;
+      }
+
+      // Only stop if the encounter is currently active
+      if (session.currentEncounterId !== encounterId) {
+        emitError(encounterId, 'Encounter is not currently active in this session');
+        return;
+      }
+
+      // Set currentEncounterId to undefined and save
+      session.currentEncounterId = undefined;
+      await session.save();
+
+      // Emit to all session participants
+      const stopEvent: EncounterStopped = {
+        sessionId,
+        encounterId,
+        timestamp: new Date()
+      };
+      socket.to(`session:${sessionId}`).emit('encounter:stopped', stopEvent);
+      socket.emit('encounter:stopped', stopEvent);
+
+      logger.info('Encounter stopped successfully:', { sessionId, encounterId });
+    } catch (error) {
+      logger.error('Error stopping encounter:', error);
+      emitError(data.encounterId, error instanceof Error ? error.message : 'Failed to stop encounter');
     }
   });
 

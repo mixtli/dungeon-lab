@@ -20,6 +20,21 @@
       </div>
     </div>
 
+    <!-- No Active Encounter State -->
+    <div v-else-if="!isActiveEncounter" class="flex justify-center items-center h-screen">
+      <div class="text-center text-gray-500">
+        <h2 class="text-xl font-bold mb-2">No Active Encounter</h2>
+        <p>The encounter is not currently active in this session.</p>
+        <button
+          v-if="isGameMaster"
+          @click="startOrStopEncounter"
+          class="mt-4 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+        >
+          Start Encounter
+        </button>
+      </div>
+    </div>
+
     <!-- Main Encounter View -->
     <div v-else-if="encounter" class="encounter-view h-screen flex flex-col" :class="{ 'theater-mode': isTheaterMode }">
       <!-- Header -->
@@ -29,12 +44,13 @@
           <p class="text-sm text-gray-300">Status: {{ encounter.status }}</p>
         </div>
         <div class="flex gap-2">
-          <router-link
-            :to="{ name: 'encounter-run', params: { id: encounter.id }}"
+          <button
+            v-if="isGameMaster"
+            @click="startOrStopEncounter"
             class="px-3 py-1 bg-green-600 hover:bg-green-500 rounded text-sm"
           >
-            Start Encounter
-          </router-link>
+            {{ isActiveEncounter ? 'Stop Encounter' : 'Start Encounter' }}
+          </button>
           <button 
             @click="toggleFullscreen"
             class="px-3 py-1 bg-gray-600 hover:bg-gray-500 rounded text-sm"
@@ -734,6 +750,29 @@ function onShowEncounterContextMenu({ position }: { position: { x: number; y: nu
   contextMenuPosition.value = position;
   showMapContextMenu.value = true;
 }
+
+const startOrStopEncounter = () => {
+  const session = gameSessionStore.currentSession;
+  if (!session) return;
+  if (session.currentEncounterId === currentEncounterId.value) {
+    // Stop encounter
+    socketStore.emit('encounter:stop', {
+      sessionId: session.id,
+      encounterId: currentEncounterId.value
+    });
+  } else {
+    // Start encounter
+    socketStore.emit('encounter:start', {
+      sessionId: session.id,
+      encounterId: currentEncounterId.value
+    });
+  }
+};
+
+const isActiveEncounter = computed(() => {
+  const session = gameSessionStore.currentSession;
+  return session && session.currentEncounterId === currentEncounterId.value;
+});
 </script>
 
 <style scoped>

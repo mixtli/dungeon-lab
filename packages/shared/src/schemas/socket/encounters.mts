@@ -278,6 +278,12 @@ export const encounterStartedSchema = z.object({
   timestamp: z.date().default(() => new Date())
 });
 
+export const encounterStoppedSchema = z.object({
+  sessionId: z.string(),
+  encounterId: z.string(),
+  timestamp: z.date().default(() => new Date())
+});
+
 export const encounterPauseSchema = z.object({
   encounterId: z.string(),
   userId: z.string()
@@ -391,6 +397,7 @@ export type EffectExpired = z.infer<typeof effectExpiredSchema>;
 
 export type EncounterStart = z.infer<typeof encounterStartSchema>;
 export type EncounterStarted = z.infer<typeof encounterStartedSchema>;
+export type EncounterStopped = z.infer<typeof encounterStoppedSchema>;
 export type EncounterPause = z.infer<typeof encounterPauseSchema>;
 export type EncounterPaused = z.infer<typeof encounterPausedSchema>;
 export type EncounterEnd = z.infer<typeof encounterEndSchema>;
