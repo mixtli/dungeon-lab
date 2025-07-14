@@ -1,13 +1,13 @@
 import { defineStore } from 'pinia';
 import { ref, computed, watch, onMounted } from 'vue';
-import type { IGameSession } from '@dungeon-lab/shared/types/index.mjs';
-import type { IActor } from '@dungeon-lab/shared/types/index.mjs';
+import type { IGameSession, IActor } from '@dungeon-lab/shared/src/types/index.mts';
 import { useAuthStore } from './auth.store.mts';
 import { useSocketStore } from './socket.store.mjs';
 import { useCampaignStore } from './campaign.store.mts';
 import { CampaignsClient, ActorsClient } from '@dungeon-lab/client/index.mjs';
 import type { JoinCallback } from '@dungeon-lab/shared/types/socket/index.mjs';
 import { useChatStore } from './chat.store.mts';
+import { useEncounterStore } from './encounter.store.mts';
 
 export const useGameSessionStore = defineStore(
   'gameSession',
@@ -253,7 +253,7 @@ export const useGameSessionStore = defineStore(
       });
 
       // Handle encounter started events
-      socketStore.socket.on('encounter:started', (data: { sessionId: string, encounterId: string, encounter: any, timestamp?: Date }) => {
+      socketStore.socket.on('encounter:started', (data: { sessionId: string, encounterId: string, encounter: unknown, timestamp?: Date }) => {
         console.log('[Socket] Received encounter:started event:', data);
         
         if (data.sessionId === sessionId) {
@@ -263,9 +263,11 @@ export const useGameSessionStore = defineStore(
             console.log('[GameSession Store] Updated currentEncounterId:', data.encounterId);
             console.log('[GameSession Store] Current session now:', currentSession.value);
           }
-          
+          // Save the encounter to the encounter store
+          const encounterStore = useEncounterStore();
+          encounterStore.currentEncounter = data.encounter as typeof encounterStore.currentEncounter;
           // Notify in chat that an encounter has started
-          chatStore.sendMessage(`Encounter "${data.encounter.name}" has started!`, sessionId);
+          chatStore.sendMessage(`Encounter "${(data.encounter as { name?: string })?.name}" has started!`, sessionId);
         }
       });
 

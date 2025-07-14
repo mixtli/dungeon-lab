@@ -1,5 +1,5 @@
 import { computed } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useRoute, useRouter, type RouteLocationRaw } from 'vue-router';
 
 export interface RouteParent {
   name: string;
@@ -90,19 +90,19 @@ export function useBackNavigation() {
 
   // Navigate back to parent route
   function goBack() {
-    const currentRoute = route.name as string;
+    // const currentRoute = route.name as string;
     const parentRoute = getParentRoute();
     
     if (parentRoute) {
       // Build route object for parent
-      const routeObject: any = { name: parentRoute.name };
+      const routeObject: RouteLocationRaw = { name: parentRoute.name };
       
       // Preserve specified params from current route
       if (parentRoute.preserveParams && route.params) {
-        routeObject.params = {};
+        if (!routeObject.params) routeObject.params = {};
         parentRoute.preserveParams.forEach(paramName => {
           if (route.params[paramName]) {
-            routeObject.params[paramName] = route.params[paramName];
+            (routeObject.params as Record<string, string>)[paramName] = route.params[paramName] as string;
           }
         });
       }

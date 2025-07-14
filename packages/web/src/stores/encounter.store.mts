@@ -220,10 +220,13 @@ export const useEncounterStore = defineStore('encounter', () => {
       if (data.encounter) {
         // The encounter from the socket has participants as string[], 
         // but we need IActor[], so we'll fetch them separately
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { participants, ...encounterWithoutParticipants } = data.encounter;
         currentEncounter.value = {
-          ...data.encounter,
-          participants: [] // We'll populate this later via fetchEncounter if needed
-        };
+          ...encounterWithoutParticipants,
+          status: data.encounter.status || 'draft', // Provide default status
+          participants: [] as IActor[] // We'll populate this later via fetchEncounter if needed
+        } as IEncounterWithActors;
         
         // Reset tokens for the new encounter
         encounterTokens.value = data.encounter.tokens || [];

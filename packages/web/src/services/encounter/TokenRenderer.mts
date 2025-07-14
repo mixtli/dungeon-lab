@@ -96,7 +96,7 @@ export class TokenRenderer {
     this.tokenContainer = tokenContainer;
     this._onTokenClick = options?.onTokenSelect;
     this.scaleProvider = scaleProvider;
-    console.log('[TokenRenderer] initialized with container:', tokenContainer.name);
+    console.log('[TokenRenderer] initialized with container:', tokenContainer.label || 'unnamed');
   }
 
   /**
@@ -515,7 +515,7 @@ export class TokenRenderer {
         tokenName: token.name
       });
       
-      const texture = await PIXI.Texture.fromURL(transformedUrl);
+      const texture = await PIXI.Assets.load(transformedUrl);
       
       // Cache for reuse (use transformed URL as cache key)
       this.textureCache.set(transformedUrl, texture);
@@ -813,9 +813,9 @@ export class TokenRenderer {
    */
   private applyHoverVisual(sprite: PIXI.Sprite): void {
     // Create hover effect if it doesn't exist
-    if (!sprite.children.find(child => child.name === 'hover-effect')) {
+    if (!sprite.children.find(child => child.label === 'hover-effect')) {
       const hoverEffect = new PIXI.Graphics();
-      hoverEffect.name = 'hover-effect';
+      hoverEffect.label = 'hover-effect';
       
       // Get the world coordinate radius (compensating for sprite scale)
       // The token should fill a grid square, so its radius should be gridSize/2
@@ -827,8 +827,8 @@ export class TokenRenderer {
       const circleRadius = hoverWorldRadius / spriteScale;
       
       // Draw orange hover effect (different from red selection)
-      hoverEffect.lineStyle(2, 0xFF8800, 0.8);
-      hoverEffect.drawCircle(0, 0, circleRadius);
+      hoverEffect.circle(0, 0, circleRadius)
+        .stroke({ width: 2, color: 0xFF8800, alpha: 0.8 });
       
       // Add to sprite
       sprite.addChild(hoverEffect);
@@ -842,7 +842,7 @@ export class TokenRenderer {
    */
   private removeHoverVisual(sprite: PIXI.Sprite): void {
     // Find and remove hover effect
-    const effect = sprite.children.find(child => child.name === 'hover-effect');
+    const effect = sprite.children.find(child => child.label === 'hover-effect');
     if (effect) {
       sprite.removeChild(effect);
       effect.destroy();
@@ -896,7 +896,7 @@ export class TokenRenderer {
     if (!sprite.tokenId) return;
     
     // Remove existing selection visual
-    const existingSelection = sprite.getChildByName('selection');
+    const existingSelection = sprite.children.find(child => child.label === 'selection');
     if (existingSelection) {
       sprite.removeChild(existingSelection);
     }
@@ -907,7 +907,7 @@ export class TokenRenderer {
       
       // Create red circle around the token
       const selectionCircle = new PIXI.Graphics();
-      selectionCircle.name = 'selection';
+      selectionCircle.label = 'selection';
       
       // Get the world coordinate radius (compensating for sprite scale)
       // The token should fill a grid square, so its radius should be gridSize/2
@@ -919,8 +919,8 @@ export class TokenRenderer {
       const circleRadius = selectionWorldRadius / spriteScale;
       
       // Draw red circle at the compensated radius
-      selectionCircle.lineStyle(5, 0xff0000); // Red color, 5px width (thicker)
-      selectionCircle.drawCircle(0, 0, circleRadius);
+      selectionCircle.circle(0, 0, circleRadius)
+        .stroke({ width: 5, color: 0xff0000 }); // Red color, 5px width (thicker)
       
       // Position the circle at the center of the token
       selectionCircle.x = 0;

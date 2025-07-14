@@ -12,7 +12,7 @@ const offsetX = ref(0);
 const revealed = ref(false);
 const { direction, isSwiping, lengthX } = useSwipe(rowRef, {
   threshold: 30,
-  onSwipeEnd(e, dir) {
+  onSwipeEnd(_, dir) {
     if (dir === 'left' && Math.abs(lengthX.value) > 50) {
       offsetX.value = -80;
       revealed.value = true;

@@ -297,6 +297,7 @@ export const encounterPausedSchema = z.object({
 });
 
 export const encounterEndSchema = z.object({
+  sessionId: z.string(),
   encounterId: z.string(),
   userId: z.string()
 });

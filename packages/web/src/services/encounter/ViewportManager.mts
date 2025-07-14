@@ -62,7 +62,7 @@ export class ViewportManager {
    */
   private setupEventHandlers(): void {
     // Make stage interactive
-    this.stage.interactive = true;
+    this.stage.eventMode = 'static';
     this.stage.hitArea = new PIXI.Rectangle(0, 0, this.app.screen.width, this.app.screen.height);
     
     // Mouse/touch events for panning
@@ -72,7 +72,7 @@ export class ViewportManager {
     this.stage.on('pointerupoutside', this.onPointerUp.bind(this));
     
     // Wheel event for zooming
-    const canvas = this.app.view as HTMLCanvasElement;
+    const canvas = this.app.canvas as HTMLCanvasElement;
     if (canvas && canvas.addEventListener) {
       canvas.addEventListener('wheel', this.boundWheelHandler, { passive: false });
     }
@@ -104,7 +104,7 @@ export class ViewportManager {
       this.lastPointerPosition = position;
       
       // Change cursor to indicate dragging (desktop)
-      const canvas = this.app.view as HTMLCanvasElement;
+      const canvas = this.app.canvas as HTMLCanvasElement;
       if (canvas && canvas.style) {
         canvas.style.cursor = 'grabbing';
       }
@@ -158,7 +158,7 @@ export class ViewportManager {
       this.resetPinchGesture();
       
       // Reset cursor
-      const canvas = this.app.view as HTMLCanvasElement;
+      const canvas = this.app.canvas as HTMLCanvasElement;
       if (canvas && canvas.style) {
         canvas.style.cursor = 'default';
       }
@@ -181,7 +181,7 @@ export class ViewportManager {
     wheelEvent.preventDefault();
     
     // Get mouse position relative to canvas
-    const canvas = this.app.view as HTMLCanvasElement;
+    const canvas = this.app.canvas as HTMLCanvasElement;
     const rect = canvas.getBoundingClientRect();
     const mouseX = wheelEvent.clientX - rect.left;
     const mouseY = wheelEvent.clientY - rect.top;
@@ -533,9 +533,9 @@ export class ViewportManager {
       this.stage.removeAllListeners();
     }
     
-    // Check if app and view exist before trying to remove wheel event listener
-    if (this.app && this.app.view) {
-      const canvas = this.app.view as HTMLCanvasElement;
+    // Check if app and canvas exist before trying to remove wheel event listener
+    if (this.app && this.app.canvas) {
+      const canvas = this.app.canvas as HTMLCanvasElement;
       if (canvas && canvas.removeEventListener) {
         canvas.removeEventListener('wheel', this.boundWheelHandler);
       }

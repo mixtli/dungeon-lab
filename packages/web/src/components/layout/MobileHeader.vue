@@ -37,15 +37,6 @@ function logout() {
   router.push('/auth/login');
 }
 
-function goToChat() {
-  closeMenu();
-  if (gameSessionStore.currentSession) {
-    router.push({ name: 'chat' });
-  } else {
-    router.push({ name: 'game-sessions' });
-  }
-}
-
 function handleThemeToggle() {
   closeMenu();
   toggleTheme();

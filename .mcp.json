@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "task-master-ai": {
+      "command": "task-master-mcp",
+      "env": {
+        "MODEL": "claude-3-7-sonnet-20250219",
+        "PERPLEXITY_MODEL": "sonar-pro",
+        "MAX_TOKENS": "64000",
+        "TEMPERATURE": "0.2",
+        "DEFAULT_SUBTASKS": "5",
+        "DEFAULT_PRIORITY": "medium"
+      }
+    },
+    "memory-bank-mcp": {
+      "command": "npx",
+      "args": ["-y", "@movibe/memory-bank-mcp", "--mode", "code"]
+    }
+  }
+
+}

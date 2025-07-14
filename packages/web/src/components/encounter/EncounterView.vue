@@ -758,7 +758,8 @@ const startOrStopEncounter = () => {
     // Stop encounter
     socketStore.emit('encounter:stop', {
       sessionId: session.id,
-      encounterId: currentEncounterId.value
+      encounterId: currentEncounterId.value,
+      userId: authStore.user?.id || ''
     });
   } else {
     // Start encounter

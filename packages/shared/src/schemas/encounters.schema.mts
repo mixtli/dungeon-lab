@@ -164,7 +164,7 @@ export const encounterSchema = baseSchema.extend({
   tokens: z.array(tokenSchema).default([]),
   initiative: initiativeTrackerSchema.default({}),
   effects: z.array(effectSchema).default([]),
-  settings: encounterSettingsSchema.default({}),
+  settings: encounterSettingsSchema.optional(),
   participants: z.array(z.string()).default([]),
   version: z.number().int().min(1).default(1)
 });

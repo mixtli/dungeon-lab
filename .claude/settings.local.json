@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:docs.anthropic.com)",
+      "Bash(npm run check:*)",
+      "Bash(npm run build:*)",
+      "Bash(npx vue-tsc:*)",
+      "Bash(npm run lint)",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_console_messages",
+      "mcp__playwright__browser_wait_for"
+    ]
+  },
+  "enabledMcpjsonServers": [
+    "task-master-ai",
+    "memory-bank-mcp"
+  ]
+}

@@ -114,6 +114,9 @@ export function usePixiMap(): UsePixiMapReturn {
       // Initialize map renderer
       mapRenderer = new EncounterMapRenderer(canvas, config);
       
+      // Wait for async initialization to complete
+      await mapRenderer.initializeApp(canvas, config);
+      
       // Initialize viewport manager
       viewportManager = new ViewportManager(mapRenderer.getApp(), mapRenderer.getMapContainer());
       

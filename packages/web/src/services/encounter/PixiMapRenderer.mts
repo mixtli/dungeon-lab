@@ -15,7 +15,7 @@ export interface EncounterMapConfig {
 export interface PixiRenderConfig {
   antialias: boolean;
   resolution: number;
-  powerPreference: 'default' | 'high-performance' | 'low-power';
+  powerPreference?: GPUPowerPreference;
   backgroundColor: number;
 }
 
@@ -66,13 +66,30 @@ export class EncounterMapRenderer {
   // Map data
   private currentMapData: IMapResponse | null = null;
   private isLoaded = false;
+  private isInitialized = false;
   
   constructor(canvas: HTMLCanvasElement, config: EncounterMapConfig) {
     this.renderConfig = this.getPlatformRenderConfig(config.platform);
     
-    // Initialize Pixi.js application
-    this.app = new PIXI.Application({
-      view: canvas,
+    // Initialize Pixi.js application - will be initialized async
+    this.app = new PIXI.Application();
+    
+    // Don't initialize here - let the caller handle async initialization
+    // This prevents double initialization in usePixiMap
+  }
+  
+  /**
+   * Initialize the Pixi application asynchronously
+   * Only call this once per instance to avoid "Cannot redefine property" errors
+   */
+  public async initializeApp(canvas: HTMLCanvasElement, config: EncounterMapConfig): Promise<void> {
+    // Check if already initialized to prevent double initialization
+    if (this.isInitialized) {
+      console.warn('PixiMapRenderer already initialized, skipping re-initialization');
+      return;
+    }
+    await this.app.init({
+      canvas: canvas,
       width: config.width,
       height: config.height,
       ...this.renderConfig
@@ -82,6 +99,9 @@ export class EncounterMapRenderer {
     
     this.setupContainers();
     this.setupEventHandlers();
+    
+    // Mark as initialized to prevent double initialization
+    this.isInitialized = true;
   }
   
   /**
@@ -90,7 +110,7 @@ export class EncounterMapRenderer {
   private setupContainers(): void {
     // Map container holds the background and static elements
     this.mapContainer = new PIXI.Container();
-    this.mapContainer.name = 'mapContainer';
+    this.mapContainer.label = 'mapContainer';
     this.app.stage.addChild(this.mapContainer);
     // Removed tokenContainer creation - tokens go directly in mapContainer
   }
@@ -168,11 +188,11 @@ export class EncounterMapRenderer {
       console.log('[PixiMapRenderer] Loading background image:', transformedUrl);
       
       // Create texture from transformed URL
-      const texture = await PIXI.Texture.fromURL(transformedUrl);
+      const texture = await PIXI.Assets.load(transformedUrl);
       
       // Create sprite and add to map container
       this.backgroundSprite = new PIXI.Sprite(texture);
-      this.backgroundSprite.name = 'background';
+      this.backgroundSprite.label = 'background';
       this.mapContainer.addChild(this.backgroundSprite);
       
     } catch (error) {
@@ -191,11 +211,11 @@ export class EncounterMapRenderer {
     
     portals.forEach((portal, index) => {
       const portalGraphic = new PIXI.Graphics();
-      portalGraphic.name = `portal-${index}`;
+      portalGraphic.label = `portal-${index}`;
       
       // Set portal style (bright green for highlighting)
       const color = 0x00FF00; // Bright green
-      portalGraphic.lineStyle({
+      portalGraphic.stroke({
         width: 4,
         color: color,
         alpha: 1.0
@@ -226,7 +246,7 @@ export class EncounterMapRenderer {
     lights.forEach((light, index) => {
       try {
         const lightGraphic = new PIXI.Graphics();
-        lightGraphic.name = `light-${index}`;
+        lightGraphic.label = `light-${index}`;
         lightGraphic.visible = false; // Hide lights by default
         
         // Convert light position to pixels
@@ -297,15 +317,13 @@ export class EncounterMapRenderer {
         }
         
         // Draw light as a circle with gradient effect
-        lightGraphic.beginFill(color, alpha);
-        lightGraphic.drawCircle(pixelPos.x, pixelPos.y, pixelRange);
-        lightGraphic.endFill();
+        lightGraphic.circle(pixelPos.x, pixelPos.y, pixelRange)
+          .fill({ color: color, alpha: alpha });
         
         // Add a bright center (use higher alpha, but clamp to 1)
         const centerAlpha = Math.min(alpha * 2.5, 1);
-        lightGraphic.beginFill(color, centerAlpha);
-        lightGraphic.drawCircle(pixelPos.x, pixelPos.y, pixelRange * 0.1);
-        lightGraphic.endFill();
+        lightGraphic.circle(pixelPos.x, pixelPos.y, pixelRange * 0.1)
+          .fill({ color: color, alpha: centerAlpha });
         
         this.mapContainer.addChild(lightGraphic);
         this.lightGraphics.push(lightGraphic);
@@ -361,7 +379,7 @@ export class EncounterMapRenderer {
       tablet: {
         antialias: true,
         resolution: Math.min(window.devicePixelRatio, 2),
-        powerPreference: 'default',
+        powerPreference: undefined, // 'default' is not a valid GPUPowerPreference value
         backgroundColor: 0x1a1a1a
       },
       phone: {
@@ -525,10 +543,10 @@ export class EncounterMapRenderer {
     
     // Create graphics object for walls
     const wallGraphic = new PIXI.Graphics();
-    wallGraphic.name = type;
+    wallGraphic.label = type;
     
     // Set wall style with specified color
-    wallGraphic.lineStyle({
+    wallGraphic.stroke({
       width: 4,
       color: color,
       alpha: 1.0
@@ -559,6 +577,6 @@ export class EncounterMapRenderer {
   public destroy(): void {
     window.removeEventListener('resize', this.handleResize.bind(this));
     this.clearMap();
-    this.app.destroy(true, { children: true, texture: true, baseTexture: true });
+    this.app.destroy(true, { children: true, texture: true });
   }
 } 

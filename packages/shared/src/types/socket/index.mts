@@ -89,8 +89,3 @@ export type EncounterEnded = z.infer<typeof encounterSocketSchemas.encounterEnde
 
 export type EncounterError = z.infer<typeof encounterSocketSchemas.encounterErrorSchema>;
 export type EncounterCallback = z.infer<typeof encounterSocketSchemas.encounterCallbackSchema>;
-
-export interface ServerToClientEvents {
-  'encounter:started': (event: EncounterStarted) => void;
-  'encounter:stopped': (event: EncounterStopped) => void;
-}

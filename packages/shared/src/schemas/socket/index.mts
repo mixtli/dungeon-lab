@@ -95,6 +95,7 @@ import {
   // Encounter state
   encounterStartSchema,
   encounterStartedSchema,
+  encounterStoppedSchema,
   encounterPauseSchema,
   encounterPausedSchema,
   encounterEndSchema,
@@ -228,6 +229,7 @@ export const serverToClientEvents = z.object({
   'chatbot:error': z.function().args(chatbotErrorSchema).returns(z.void()),
   // Encounter events
   'encounter:started': z.function().args(encounterStartedSchema).returns(z.void()),
+  'encounter:stopped': z.function().args(encounterStoppedSchema).returns(z.void()),
   'encounter:error': z.function().args(encounterErrorSchema).returns(z.void()),
   'user:joined': z.function().args(userJoinedSessionSchema).returns(z.void()),
   'user:left': z.function().args(userLeftSessionSchema).returns(z.void()),
