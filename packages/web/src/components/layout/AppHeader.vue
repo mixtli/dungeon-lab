@@ -51,17 +51,17 @@ function handleThemeToggle() {
 </script>
 
 <template>
-  <header class="fixed top-0 left-0 right-0 z-50 bg-white dark:bg-gray-800 shadow-sm">
+  <header class="fixed top-0 left-0 right-0 z-50 bg-parchment dark:bg-obsidian shadow-lg border-b border-stone-400 dark:border-stone-600">
     <div class="container mx-auto px-4">
       <div class="flex justify-between items-center h-16">
         <!-- Logo -->
         <RouterLink to="/" class="flex items-center">
           <img
-            src="@/assets/images/logo.svg"
+            src="/images/dungeonlab-icon.png"
             alt="Dungeon Lab Logo"
             class="h-8 w-8 object-contain"
           />
-          <span class="ml-2 text-xl font-bold text-primary-600 dark:text-primary-400"
+          <span class="ml-2 text-xl font-bold text-dragon"
             >Dungeon Lab</span
           >
         </RouterLink>
@@ -71,7 +71,7 @@ function handleThemeToggle() {
           <!-- Menu Dropdown -->
           <div class="relative group">
             <button
-              class="flex items-center px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700"
+              class="flex items-center px-3 py-2 rounded-md text-sm font-medium nav-text hover:bg-stone-100 dark:hover:bg-stone-700"
             >
               <span>Menu</span>
               <svg
@@ -88,46 +88,46 @@ function handleThemeToggle() {
               </svg>
             </button>
             <div
-              class="absolute left-0 w-48 mt-2 py-1 bg-white dark:bg-gray-700 rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200"
+              class="absolute left-0 w-48 mt-2 py-1 bg-white dark:bg-stone border border-stone-300 dark:border-stone-600 rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200"
             >
               <RouterLink
                 to="/"
-                class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600"
+                class="block px-4 py-2 text-sm nav-text hover:bg-stone-100 dark:hover:bg-stone-600"
               >
                 Home
               </RouterLink>
               <RouterLink
                 v-if="authStore.isAuthenticated"
                 to="/campaigns"
-                class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600"
+                class="block px-4 py-2 text-sm nav-text hover:bg-stone-100 dark:hover:bg-stone-600"
               >
                 Campaigns
               </RouterLink>
               <RouterLink
                 v-if="authStore.isAuthenticated"
                 to="/maps"
-                class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600"
+                class="block px-4 py-2 text-sm nav-text hover:bg-stone-100 dark:hover:bg-stone-600"
               >
                 Maps
               </RouterLink>
               <RouterLink
                 v-if="authStore.isAuthenticated"
                 to="/games"
-                class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600"
+                class="block px-4 py-2 text-sm nav-text hover:bg-stone-100 dark:hover:bg-stone-600"
               >
                 Games
               </RouterLink>
               <RouterLink
                 v-if="authStore.isAuthenticated"
                 to="/characters"
-                class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600"
+                class="block px-4 py-2 text-sm nav-text hover:bg-stone-100 dark:hover:bg-stone-600"
               >
                 Characters
               </RouterLink>
               <RouterLink
                 v-if="authStore.isAuthenticated"
                 to="/assets"
-                class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600"
+                class="block px-4 py-2 text-sm nav-text hover:bg-stone-100 dark:hover:bg-stone-600"
               >
                 Asset Library
               </RouterLink>
@@ -135,7 +135,7 @@ function handleThemeToggle() {
                 <div class="border-t border-gray-200 dark:border-gray-600 my-1"></div>
                 <RouterLink
                   to="/admin/plugins"
-                  class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600"
+                  class="block px-4 py-2 text-sm nav-text hover:bg-stone-100 dark:hover:bg-stone-600"
                 >
                   Plugin Manager
                 </RouterLink>
@@ -155,7 +155,7 @@ function handleThemeToggle() {
           <button
             v-if="authStore.isAuthenticated"
             @click="goToChat"
-            class="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+            class="px-3 py-2 rounded-md text-sm font-medium nav-text hover:bg-stone-100 dark:hover:bg-stone-700 flex items-center"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -175,10 +175,10 @@ function handleThemeToggle() {
           <!-- Theme Toggle -->
           <button
             @click="toggleTheme"
-            class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+            class="p-2 rounded-md nav-text hover:bg-stone-100 dark:hover:bg-stone-700"
           >
-            <MoonIcon v-if="isDarkMode" class="text-yellow-400 w-5 h-5" />
-            <SunIcon v-else class="text-yellow-500 w-5 h-5" />
+            <MoonIcon v-if="isDarkMode" class="text-gold w-5 h-5" />
+            <SunIcon v-else class="text-gold w-5 h-5" />
           </button>
 
           <!-- User Menu -->
@@ -192,32 +192,32 @@ function handleThemeToggle() {
                 alt="User Avatar"
                 class="h-8 w-8 rounded-full object-cover"
               />
-              <span class="text-sm font-medium">{{ authStore.user?.username }}</span>
+              <span class="text-sm font-medium nav-text">{{ authStore.user?.username }}</span>
             </button>
             <div
-              class="absolute right-0 w-48 mt-2 py-1 bg-white dark:bg-gray-700 rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200"
+              class="absolute right-0 w-48 mt-2 py-1 bg-white dark:bg-stone border border-stone-300 dark:border-stone-600 rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200"
             >
               <RouterLink
                 to="/profile"
-                class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600"
+                class="block px-4 py-2 text-sm nav-text hover:bg-stone-100 dark:hover:bg-stone-600"
               >
                 Profile
               </RouterLink>
               <RouterLink
                 to="/invites"
-                class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600"
+                class="block px-4 py-2 text-sm nav-text hover:bg-stone-100 dark:hover:bg-stone-600"
               >
                 Invites
               </RouterLink>
               <RouterLink
                 to="/settings"
-                class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600"
+                class="block px-4 py-2 text-sm nav-text hover:bg-stone-100 dark:hover:bg-stone-600"
               >
                 Settings
               </RouterLink>
               <button
                 @click="logout"
-                class="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 dark:hover:bg-gray-600"
+                class="block w-full text-left px-4 py-2 text-sm text-error-700 hover:bg-stone-100 dark:hover:bg-stone-600"
               >
                 Logout
               </button>
@@ -228,13 +228,13 @@ function handleThemeToggle() {
           <template v-else>
             <button
               @click="handleLoginClick"
-              class="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700"
+              class="px-3 py-2 rounded-md text-sm font-medium nav-text hover:bg-stone-100 dark:hover:bg-stone-700"
             >
               Login
             </button>
             <RouterLink
               to="/auth/register"
-              class="px-3 py-2 rounded-md text-sm font-medium bg-primary-600 text-white hover:bg-primary-700"
+              class="btn btn-primary"
             >
               Register
             </RouterLink>
@@ -244,7 +244,7 @@ function handleThemeToggle() {
         <!-- Mobile menu button -->
         <button
           @click="toggleMenu"
-          class="md:hidden p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+          class="md:hidden p-2 rounded-md nav-text hover:bg-stone-100 dark:hover:bg-stone-700"
         >
           <XMarkIcon v-if="isMenuOpen" class="w-5 h-5" />
           <Bars3Icon v-else class="w-5 h-5" />
@@ -255,7 +255,7 @@ function handleThemeToggle() {
       <div v-if="isMenuOpen" class="md:hidden py-3 space-y-1">
         <RouterLink
           to="/"
-          class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700"
+          class="block px-3 py-2 rounded-md text-base font-medium nav-text hover:bg-stone-100 dark:hover:bg-stone-700"
           @click="closeMenu"
         >
           Home
@@ -263,7 +263,7 @@ function handleThemeToggle() {
         <RouterLink
           v-if="authStore.isAuthenticated"
           to="/campaigns"
-          class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700"
+          class="block px-3 py-2 rounded-md text-base font-medium nav-text hover:bg-stone-100 dark:hover:bg-stone-700"
           @click="closeMenu"
         >
           Campaigns
@@ -271,7 +271,7 @@ function handleThemeToggle() {
         <RouterLink
           v-if="authStore.isAuthenticated"
           to="/maps"
-          class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700"
+          class="block px-3 py-2 rounded-md text-base font-medium nav-text hover:bg-stone-100 dark:hover:bg-stone-700"
           @click="closeMenu"
         >
           Maps
@@ -279,7 +279,7 @@ function handleThemeToggle() {
         <RouterLink
           v-if="authStore.isAuthenticated"
           to="/games"
-          class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700"
+          class="block px-3 py-2 rounded-md text-base font-medium nav-text hover:bg-stone-100 dark:hover:bg-stone-700"
           @click="closeMenu"
         >
           Games
@@ -287,7 +287,7 @@ function handleThemeToggle() {
         <RouterLink
           v-if="authStore.isAuthenticated"
           to="/characters"
-          class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700"
+          class="block px-3 py-2 rounded-md text-base font-medium nav-text hover:bg-stone-100 dark:hover:bg-stone-700"
           @click="closeMenu"
         >
           Characters
@@ -295,7 +295,7 @@ function handleThemeToggle() {
         <RouterLink
           v-if="authStore.isAuthenticated"
           to="/assets"
-          class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700"
+          class="block px-3 py-2 rounded-md text-base font-medium nav-text hover:bg-stone-100 dark:hover:bg-stone-700"
           @click="closeMenu"
         >
           Asset Library
@@ -303,7 +303,7 @@ function handleThemeToggle() {
         <button
           v-if="authStore.isAuthenticated"
           @click="goToChat"
-          class="w-full text-left px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+          class="w-full text-left px-3 py-2 rounded-md text-base font-medium nav-text hover:bg-stone-100 dark:hover:bg-stone-700 flex items-center"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -322,7 +322,7 @@ function handleThemeToggle() {
         <RouterLink
           v-if="authStore.isAuthenticated"
           to="/invites"
-          class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700"
+          class="block px-3 py-2 rounded-md text-base font-medium nav-text hover:bg-stone-100 dark:hover:bg-stone-700"
           @click="closeMenu"
         >
           Invites
@@ -335,16 +335,16 @@ function handleThemeToggle() {
 
         <!-- Character Selector for Mobile -->
         <div v-if="authStore.isAuthenticated && gameSessionStore.currentSession" class="px-3 py-2">
-          <div class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Your Character</div>
+          <div class="text-sm font-medium nav-text-light mb-1">Your Character</div>
           <CharacterSelector />
         </div>
 
         <!-- Admin Tools Section (for admin users only) -->
         <template v-if="authStore.isAuthenticated && authStore.user?.isAdmin">
-          <div class="px-3 py-2 font-medium text-gray-500 dark:text-gray-400">Admin Tools</div>
+          <div class="px-3 py-2 font-medium nav-text-light">Admin Tools</div>
           <RouterLink
             to="/admin/plugins"
-            class="block pl-6 px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700"
+            class="block pl-6 px-3 py-2 rounded-md text-base font-medium nav-text hover:bg-stone-100 dark:hover:bg-stone-700"
             @click="closeMenu"
           >
             Plugin Manager
@@ -354,10 +354,10 @@ function handleThemeToggle() {
         <!-- Theme Toggle -->
         <button
           @click="handleThemeToggle"
-          class="flex w-full items-center px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700"
+          class="flex w-full items-center px-3 py-2 rounded-md text-base font-medium nav-text hover:bg-stone-100 dark:hover:bg-stone-700"
         >
-          <MoonIcon v-if="isDarkMode" class="text-yellow-400 w-5 h-5 mr-2" />
-          <SunIcon v-else class="text-yellow-500 w-5 h-5 mr-2" />
+          <MoonIcon v-if="isDarkMode" class="text-gold w-5 h-5 mr-2" />
+          <SunIcon v-else class="text-gold w-5 h-5 mr-2" />
           {{ isDarkMode ? 'Light Mode' : 'Dark Mode' }}
         </button>
 
@@ -365,13 +365,13 @@ function handleThemeToggle() {
         <template v-if="!authStore.isAuthenticated">
           <button
             @click="handleLoginClick"
-            class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700"
+            class="block px-3 py-2 rounded-md text-base font-medium nav-text hover:bg-stone-100 dark:hover:bg-stone-700"
           >
             Login
           </button>
           <RouterLink
             to="/auth/register"
-            class="block px-3 py-2 rounded-md text-base font-medium bg-primary-600 text-white hover:bg-primary-700"
+            class="btn btn-primary block text-center"
             @click="closeMenu"
           >
             Register

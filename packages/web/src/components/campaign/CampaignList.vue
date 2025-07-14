@@ -72,21 +72,26 @@ async function confirmDeleteCampaign(campaign: ICampaign) {
 
 <template>
   <div class="campaign-list overflow-x-hidden relative">
-    <div v-if="error" class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
-      {{ error }}
+    <div v-if="error" class="bg-error-50 border border-error-200 text-error-700 px-4 py-3 rounded-lg mb-4 shadow-sm">
+      <div class="flex items-center">
+        <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+        </svg>
+        {{ error }}
+      </div>
     </div>
     <div
       v-if="campaigns.length === 0 && !loading"
-      class="mt-4 p-8 bg-white rounded-lg shadow text-center"
+      class="mt-4 p-8 bg-stone dark:bg-stone-700 rounded-lg shadow-lg text-center border border-stone-300 dark:border-stone-600"
     >
-      <div class="text-gray-500 mb-4">You don't have any campaigns yet</div>
+      <div class="text-ash dark:text-stone-300 mb-4">⚔️ No campaigns found</div>
     </div>
     <div v-else-if="loading" class="flex justify-center items-center p-8">
-      <div class="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+      <div class="animate-spin rounded-full h-12 w-12 border-4 border-dragon border-t-transparent shadow-lg"></div>
     </div>
     <div v-else>
       <!-- Mobile: Native iOS-style list -->
-      <div v-if="isMobile" class="bg-white">
+      <div v-if="isMobile" class="bg-stone dark:bg-stone-700 rounded-lg shadow-lg border border-stone-300 dark:border-stone-600">
         <CampaignListItemMobile
           v-for="campaign in campaigns"
           :key="campaign.id || ''"
@@ -95,18 +100,18 @@ async function confirmDeleteCampaign(campaign: ICampaign) {
           @delete="confirmDeleteCampaign"
         />
       </div>
-      <div v-else class="bg-white shadow rounded-lg overflow-hidden">
-        <table class="min-w-full divide-y divide-gray-200">
-          <thead class="bg-gray-50">
+      <div v-else class="bg-stone dark:bg-stone-700 shadow-xl rounded-lg overflow-hidden border border-stone-300 dark:border-stone-600">
+        <table class="min-w-full divide-y divide-stone-300 dark:divide-stone-600">
+          <thead class="bg-obsidian dark:bg-stone-800">
             <tr>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Game System</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-              <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              <th class="px-6 py-4 text-left text-xs font-bold text-gold uppercase tracking-wider">⚔️ Campaign Name</th>
+              <th class="px-6 py-4 text-left text-xs font-bold text-gold uppercase tracking-wider">🎲 Game System</th>
+              <th class="px-6 py-4 text-left text-xs font-bold text-gold uppercase tracking-wider">📊 Status</th>
+              <th class="px-6 py-4 text-left text-xs font-bold text-gold uppercase tracking-wider">📅 Created</th>
+              <th class="px-6 py-4 text-right text-xs font-bold text-gold uppercase tracking-wider">⚙️ Actions</th>
             </tr>
           </thead>
-          <tbody class="bg-white divide-y divide-gray-200">
+          <tbody class="bg-stone dark:bg-stone-700 divide-y divide-stone-300 dark:divide-stone-600">
             <CampaignListItem
               v-for="campaign in campaigns"
               :key="campaign.id || ''"

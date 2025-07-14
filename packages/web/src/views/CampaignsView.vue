@@ -18,36 +18,51 @@ function updateHasCampaigns(count: number) {
 </script>
 
 <template>
-  <div :class="isMobile ? '' : 'max-w-7xl mx-auto px-5 py-6'">
+  <div class="bg-parchment dark:bg-obsidian min-h-screen">
     <!-- Mobile header -->
-    <div v-if="isMobile" class="text-center py-4 border-b border-gray-200 bg-white">
-      <h1 class="text-xl font-semibold">My Campaigns</h1>
+    <div v-if="isMobile" class="text-center py-4 border-b border-stone dark:border-stone-600 bg-stone dark:bg-stone-800">
+      <h1 class="text-xl font-semibold text-onyx dark:text-parchment">My Campaigns</h1>
     </div>
     
     <!-- Desktop header -->
-    <div v-else class="flex justify-between items-center mb-6">
-      <h1 class="text-2xl font-semibold">My Campaigns</h1>
+    <div v-else class="flex justify-between items-center px-6 py-6">
+      <h1 class="text-3xl font-bold text-dragon">My Campaigns</h1>
       <button
         v-if="hasCampaigns"
         @click="createCampaign"
-        class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+        class="btn btn-primary shadow-lg"
       >
-        Create Campaign
+        <span class="flex items-center">
+          <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+          </svg>
+          Create Campaign
+        </span>
       </button>
     </div>
 
     <!-- Campaign List -->
-    <div :class="isMobile ? '' : ''">
+    <div class="px-6">
       <CampaignList @update:campaigns="updateHasCampaigns($event)" />
     </div>
 
-    <div v-if="!hasCampaigns" class="mt-4 text-center">
-      <button
-        @click="createCampaign"
-        class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-      >
-        Create Your First Campaign
-      </button>
+    <div v-if="!hasCampaigns" class="px-6 py-8 text-center">
+      <div class="bg-stone dark:bg-stone-700 rounded-lg p-8 shadow-lg border border-gold">
+        <div class="text-ash dark:text-stone-300 mb-6 text-lg">
+          🏰 Ready to begin your adventure?
+        </div>
+        <button
+          @click="createCampaign"
+          class="btn btn-primary text-lg px-8 py-3 shadow-lg"
+        >
+          <span class="flex items-center">
+            <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+            </svg>
+            Create Your First Campaign
+          </span>
+        </button>
+      </div>
     </div>
   </div>
 </template>

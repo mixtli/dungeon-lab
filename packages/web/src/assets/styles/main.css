@@ -4,15 +4,82 @@
 
 @layer base {
   :root {
-    --color-primary: 14 165 233;
-    --color-secondary: 139 92 246;
+    /* Light Mode - Dungeon Lab Fantasy Theme */
+    --color-primary: 139 30 30; /* Dragon Red */
+    --color-secondary: 59 107 165; /* Arcane Blue */
+    --color-accent: 212 175 55; /* Gold Sigil */
+    --color-nature: 60 110 71; /* Elven Leaf */
+    --color-error: 178 34 34; /* Blood Warning */
+    --color-success: 46 139 87; /* Potion Green */
+    
+    /* Backgrounds */
+    --bg-primary: 245 241 232; /* Scroll Parchment */
+    --bg-secondary: 255 255 255; /* White */
+    --bg-card: 192 185 164; /* Stone Gray */
+    --bg-panel: 192 185 164; /* Stone Gray */
+    
+    /* Text Colors */
+    --text-primary: 17 17 17; /* Onyx Ink */
+    --text-secondary: 102 102 102; /* Ash Gray */
+    --text-muted: 102 102 102; /* Ash Gray */
+    
+    /* Border Colors */
+    --border-primary: 192 185 164; /* Stone Gray */
+    --border-secondary: 212 175 55; /* Gold Sigil */
+  }
+
+  .dark {
+    /* Dark Mode - Dungeon Lab Fantasy Theme */
+    --color-primary: 139 30 30; /* Dragon Red */
+    --color-secondary: 59 107 165; /* Arcane Blue */
+    --color-accent: 212 175 55; /* Gold Sigil */
+    --color-nature: 60 110 71; /* Elven Leaf */
+    --color-error: 178 34 34; /* Blood Warning */
+    --color-success: 46 139 87; /* Potion Green */
+    
+    /* Backgrounds - Inverted for dark mode */
+    --bg-primary: 30 30 30; /* Obsidian Black */
+    --bg-secondary: 41 41 41; /* Lighter Obsidian */
+    --bg-card: 55 55 55; /* Dark Stone */
+    --bg-panel: 55 55 55; /* Dark Stone */
+    
+    /* Text Colors - Inverted for dark mode */
+    --text-primary: 245 241 232; /* Light Parchment */
+    --text-secondary: 192 185 164; /* Stone Gray */
+    --text-muted: 156 156 156; /* Lighter Ash */
+    
+    /* Border Colors */
+    --border-primary: 75 75 75; /* Dark border */
+    --border-secondary: 212 175 55; /* Gold Sigil accent */
   }
 
   html {
     font-family: 'Inter', system-ui, sans-serif;
+    background-color: rgb(var(--bg-card));
+    color: rgb(var(--text-primary));
   }
 
-  /* Improve form element contrast in dark mode */
+  body {
+    background-color: rgb(var(--bg-card));
+    color: rgb(var(--text-primary));
+  }
+
+  /* Improve form element contrast in both light and dark modes */
+  input[type='text'],
+  input[type='email'],
+  input[type='password'],
+  input[type='number'],
+  input[type='tel'],
+  input[type='url'],
+  input[type='search'],
+  input[type='date'],
+  textarea,
+  select {
+    background-color: white;
+    color: rgb(var(--text-primary));
+    border-color: rgb(var(--border-primary));
+  }
+
   .dark input[type='text'],
   .dark input[type='email'],
   .dark input[type='password'],
@@ -23,8 +90,9 @@
   .dark input[type='date'],
   .dark textarea,
   .dark select {
-    color: #1f2937 !important; /* text-gray-800 - dark text */
-    background-color: #e5e7eb !important; /* bg-gray-200 - light bg */
+    background-color: rgb(var(--bg-card)) !important;
+    color: rgb(var(--text-primary)) !important;
+    border-color: rgb(var(--border-primary)) !important;
   }
 
   /* For white background inputs that might be using custom classes */
@@ -34,106 +102,194 @@
     ):not(.bg-transparent),
   .dark textarea:not(.bg-transparent),
   .dark select:not(.bg-transparent) {
-    color: #1f2937 !important; /* text-gray-800 - dark text */
-    background-color: #e5e7eb !important; /* bg-gray-200 - light bg */
+    background-color: rgb(var(--bg-card)) !important;
+    color: rgb(var(--text-primary)) !important;
+    border-color: rgb(var(--border-primary)) !important;
   }
 
-  /* Fix text contrast in modals with white backgrounds in dark mode */
+  /* Fix text contrast in modals with backgrounds */
+  .modal-bg {
+    background-color: white;
+  }
+
   .dark .modal-bg {
-    /* Keep the white background but add a very subtle gray tint for better contrast */
-    background-color: #f9fafb !important; /* bg-gray-50 */
+    background-color: rgb(var(--bg-secondary)) !important;
   }
 
-  /* Force dark text for all text elements in modals in dark mode to ensure readability, excluding header */
-  .dark .fixed.inset-0 .bg-white label:not(header *),
-  .dark .fixed.inset-0 .bg-white span:not(header *),
-  .dark .fixed.inset-0 .bg-white h3:not(header *),
-  .dark .fixed.inset-0 .bg-white p:not([class*='text-']):not(header *),
-  .dark
-    .fixed.inset-0
-    .bg-white
-    div:not([class*='text-']):not(header *)
-    > span:not([class*='text-']):not(header *) {
-    color: #1f2937 !important; /* text-gray-800 - dark text */
+  /* Modal text colors */
+  .fixed.inset-0 .bg-white label,
+  .fixed.inset-0 .bg-white span,
+  .fixed.inset-0 .bg-white h3,
+  .fixed.inset-0 .bg-white p:not([class*='text-']),
+  .fixed.inset-0 .bg-white div:not([class*='text-']) > span:not([class*='text-']) {
+    color: rgb(var(--text-primary)) !important;
   }
 
   /* Fix for headings in modals specifically */
-  .dark .fixed.inset-0 [id='modal-title']:not(header *),
-  .dark .fixed.inset-0 .text-gray-900:not(header *) {
-    color: #1f2937 !important; /* text-gray-800 - dark text */
+  .fixed.inset-0 [id='modal-title'],
+  .fixed.inset-0 .text-gray-900 {
+    color: rgb(var(--text-primary)) !important;
   }
 
-  /* Fix for gray text labels in modals */
-  .dark .fixed.inset-0 .text-gray-700:not(header *),
-  .dark .fixed.inset-0 .text-gray-600:not(header *),
-  .dark .fixed.inset-0 .text-gray-500:not(header *) {
-    color: #374151 !important; /* text-gray-700 - darker than default */
+  /* Fix for secondary text labels in modals */
+  .fixed.inset-0 .text-gray-700,
+  .fixed.inset-0 .text-gray-600,
+  .fixed.inset-0 .text-gray-500 {
+    color: rgb(var(--text-secondary)) !important;
   }
 
-  /* Restore navbar colors in dark mode */
-  .dark header .text-gray-200,
-  .dark header .text-gray-300,
-  .dark header .text-gray-400 {
-    color: var(--tw-text-opacity) !important;
+  /* Navbar colors */
+  header .text-gray-200,
+  header .text-gray-300,
+  header .text-gray-400 {
+    color: rgb(var(--text-secondary)) !important;
   }
 }
 
 @layer components {
   .btn {
-    @apply px-4 py-2 rounded-md font-medium transition-colors;
+    @apply px-4 py-2 rounded-md font-medium transition-colors shadow-sm;
   }
 
   .btn-primary {
-    @apply bg-primary-600 text-white hover:bg-primary-700;
+    background-color: rgb(var(--color-primary));
+    color: rgb(var(--bg-primary));
+    @apply hover:opacity-90 active:opacity-80;
   }
 
   .btn-secondary {
-    @apply bg-secondary-600 text-white hover:bg-secondary-700;
+    background-color: rgb(var(--color-secondary));
+    color: white;
+    @apply hover:opacity-90 active:opacity-80;
+  }
+
+  .btn-accent {
+    background-color: rgb(var(--color-accent));
+    color: rgb(var(--text-primary));
+    @apply hover:opacity-90 active:opacity-80;
   }
 
   .btn-outline {
-    @apply border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800;
+    background-color: transparent;
+    color: rgb(var(--text-primary));
+    border: 1px solid rgb(var(--border-primary));
+    @apply hover:bg-stone-100 dark:hover:bg-stone-800;
+  }
+
+  .btn-success {
+    background-color: rgb(var(--color-success));
+    color: white;
+    @apply hover:opacity-90 active:opacity-80;
+  }
+
+  .btn-error {
+    background-color: rgb(var(--color-error));
+    color: white;
+    @apply hover:opacity-90 active:opacity-80;
   }
 
   .card {
-    @apply bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden;
+    background-color: white;
+    color: rgb(var(--text-primary));
+    border: 1px solid rgb(var(--border-primary));
+    @apply rounded-lg shadow-md overflow-hidden;
+  }
+
+  .dark .card {
+    background-color: rgb(var(--bg-card));
+    border-color: rgb(var(--border-primary));
   }
 
   /* Modal specific classes */
   .modal-bg {
-    @apply bg-white dark:bg-gray-100;
+    background-color: white;
+  }
+
+  .dark .modal-bg {
+    background-color: rgb(var(--bg-secondary));
   }
 
   .modal-header {
-    @apply text-lg font-medium text-gray-900 dark:text-gray-800;
+    color: rgb(var(--text-primary));
+    @apply text-lg font-medium;
   }
 
   .modal-label {
-    @apply block text-sm font-medium text-gray-700 dark:text-gray-800;
+    color: rgb(var(--text-primary));
+    @apply block text-sm font-medium;
   }
 
   .modal-text {
-    @apply text-gray-500 dark:text-gray-700;
+    color: rgb(var(--text-secondary));
   }
 
   .modal-footer {
-    @apply bg-gray-50 dark:bg-gray-200;
+    background-color: rgb(var(--bg-primary));
   }
 
   .modal-button-secondary {
-    @apply text-gray-700 dark:text-gray-800;
+    color: rgb(var(--text-secondary));
   }
 
   /* Navbar text classes */
   .nav-text {
-    @apply text-gray-700 dark:text-gray-200;
+    color: rgb(var(--text-primary));
   }
 
   .nav-text-light {
-    @apply text-gray-500 dark:text-gray-400;
+    color: rgb(var(--text-secondary));
   }
 
   .nav-text-primary {
-    @apply text-primary-600 dark:text-primary-400;
+    color: rgb(var(--color-primary));
+  }
+
+  /* Fantasy-themed utility classes */
+  .bg-parchment {
+    background-color: rgb(var(--bg-primary));
+  }
+
+  .bg-obsidian {
+    background-color: rgb(30 30 30);
+  }
+
+  .bg-stone {
+    background-color: rgb(var(--bg-card));
+  }
+
+  .text-dragon {
+    color: rgb(var(--color-primary));
+  }
+
+  .text-arcane {
+    color: rgb(var(--color-secondary));
+  }
+
+  .text-gold {
+    color: rgb(var(--color-accent));
+  }
+
+  .text-nature {
+    color: rgb(var(--color-nature));
+  }
+
+  .text-onyx {
+    color: rgb(var(--text-primary));
+  }
+
+  .text-ash {
+    color: rgb(var(--text-secondary));
+  }
+
+  .border-gold {
+    border-color: rgb(var(--color-accent));
+  }
+
+  .border-dragon {
+    border-color: rgb(var(--color-primary));
+  }
+
+  .border-stone {
+    border-color: rgb(var(--border-primary));
   }
 }
