@@ -112,6 +112,7 @@ export const useHUDStore = defineStore('hud', () => {
     toolbarPosition: { x: 20, y: 100 },
     lastActiveTab: 'chat',
     hiddenTabs: [],
+    floatingWindows: {},
     theme: 'dark',
     opacity: 0.9
   });
@@ -126,7 +127,7 @@ export const useHUDStore = defineStore('hud', () => {
       allowPopOut: true
     },
     toolbar: {
-      defaultPosition: { x: 20, y: 100 },
+      defaultPosition: { x: 20, y: 80 }, // Margin from top of container
       orientation: 'vertical',
       iconSize: 40
     },
@@ -417,6 +418,8 @@ export const useHUDStore = defineStore('hud', () => {
     const window = floatingWindows.value[windowId];
     if (window) {
       window.position = position;
+      // Immediately save to localStorage so position persists on reload
+      savePreferences();
     }
   }
 
@@ -427,6 +430,8 @@ export const useHUDStore = defineStore('hud', () => {
     const window = floatingWindows.value[windowId];
     if (window) {
       window.size = size;
+      // Immediately save to localStorage so size persists on reload
+      savePreferences();
     }
   }
 
@@ -465,6 +470,12 @@ export const useHUDStore = defineStore('hud', () => {
       const stored = localStorage.getItem('dungeon-lab-hud-preferences');
       if (stored) {
         const parsed = JSON.parse(stored);
+        
+        // Ensure floatingWindows field exists for backward compatibility
+        if (!parsed.floatingWindows) {
+          parsed.floatingWindows = {};
+        }
+        
         preferences.value = { ...preferences.value, ...parsed };
         
         // Apply preferences to state
@@ -474,10 +485,27 @@ export const useHUDStore = defineStore('hud', () => {
         sidebar.value.activeTab = preferences.value.lastActiveTab;
         toolbar.value.position = preferences.value.toolbarPosition;
         
-        // Hide tabs that were hidden
+        // Restore floating windows
+        Object.entries(preferences.value.floatingWindows).forEach(([windowId, windowData]) => {
+          floatingWindows.value[windowId] = windowData;
+        });
+        
+        // Defensive logic: Only hide tabs if they have corresponding floating windows
+        // This prevents orphaned hidden tabs
         preferences.value.hiddenTabs.forEach(tabType => {
-          if (sidebar.value.tabs[tabType]) {
+          const hasFloatingWindow = Object.values(floatingWindows.value).some(
+            window => window.tabType === tabType
+          );
+          
+          if (hasFloatingWindow && sidebar.value.tabs[tabType]) {
+            // Tab has a floating window, so hide it from sidebar
             sidebar.value.tabs[tabType].visible = false;
+          } else if (sidebar.value.tabs[tabType]) {
+            // No floating window found - this is an orphaned hidden tab
+            // Show it in the sidebar and remove from hiddenTabs
+            console.warn(`[HUD] Restoring orphaned hidden tab: ${tabType}`);
+            sidebar.value.tabs[tabType].visible = true;
+            preferences.value.hiddenTabs = preferences.value.hiddenTabs.filter(t => t !== tabType);
           }
         });
       }
@@ -491,6 +519,9 @@ export const useHUDStore = defineStore('hud', () => {
    */
   function savePreferences(): void {
     try {
+      // Update floating windows in preferences before saving
+      preferences.value.floatingWindows = { ...floatingWindows.value };
+      
       localStorage.setItem('dungeon-lab-hud-preferences', JSON.stringify(preferences.value));
     } catch (error) {
       console.warn('Failed to save HUD preferences:', error);

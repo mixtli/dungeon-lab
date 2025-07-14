@@ -1,4 +1,4 @@
-import { ref, onUnmounted, type Ref } from 'vue';
+import { ref, onUnmounted, readonly, type Ref } from 'vue';
 import type { Token } from '@dungeon-lab/shared/types/tokens.mjs';
 import type { IMapResponse } from '@dungeon-lab/shared/types/api/maps.mjs';
 import { EncounterMapRenderer, type Platform, type EncounterMapConfig } from '@/services/encounter/PixiMapRenderer.mjs';
@@ -22,6 +22,7 @@ export interface UsePixiMapReturn {
   isInitialized: Ref<boolean>;
   viewportState: Ref<ViewportState | null>;
   selectedTokenId: Ref<string | null>;
+  tokenRenderer: Readonly<Ref<TokenRenderer | null>>;
   
   // Methods
   initializeMap: (canvas: HTMLCanvasElement, options?: UsePixiMapOptions) => Promise<void>;
@@ -482,6 +483,9 @@ export function usePixiMap(): UsePixiMapReturn {
     isInitialized,
     viewportState,
     selectedTokenId,
+    
+    // Instance access (for advanced use cases)
+    tokenRenderer: readonly(ref(tokenRenderer)),
     
     // Methods
     initializeMap,

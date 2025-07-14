@@ -123,7 +123,7 @@ function popOutTab(tabId: string): void {
 
 <style scoped>
 .hud-sidebar {
-  position: fixed;
+  position: absolute;
   top: 0;
   bottom: 0;
   z-index: 1000;

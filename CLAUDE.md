@@ -152,7 +152,7 @@ Strict dependency rules are enforced:
 
 ## Important Notes
 
-- Always start servers from workspace root with `npm run dev`
+- You do not need to restart vite or the node server.  They restart automatically on changes.
 - Plugins build automatically before server starts
 - Use TypeScript checking: `npm run check` before commits
 - Follow mobile-first design principles

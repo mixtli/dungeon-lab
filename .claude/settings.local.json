@@ -10,7 +10,8 @@
       "mcp__playwright__browser_console_messages",
       "mcp__playwright__browser_wait_for",
       "Bash(find:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(ls:*)"
     ]
   },
   "enabledMcpjsonServers": [

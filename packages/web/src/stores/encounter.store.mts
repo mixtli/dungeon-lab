@@ -401,8 +401,11 @@ export const useEncounterStore = defineStore('encounter', () => {
     error.value = null;
 
     try {
+      console.log('[Encounter Store] Starting fetchEncounter for:', encounterId);
       const encounter = await encounterClient.getEncounter(encounterId);
+      console.log('[Encounter Store] Fetched encounter:', encounter?.title);
       const tokens = await encounterClient.getTokens(encounterId);
+      console.log('[Encounter Store] Fetched tokens:', tokens.length);
 
       // Initialize with empty participants array in case participants don't exist
       let participants: IActor[] = [];
@@ -429,13 +432,17 @@ export const useEncounterStore = defineStore('encounter', () => {
       };
       
       // Set tokens
-      encounterTokens.value = tokens
+      const processedTokens = tokens
         .map(token => {
           const hasUnderscoreId = typeof (token as unknown as { _id?: unknown })._id === 'string';
           const id = token.id || (hasUnderscoreId ? (token as unknown as { _id: string })._id : undefined);
           return id ? { ...token, id } : undefined;
         })
         .filter((token): token is typeof tokens[number] & { id: string } => !!token);
+      
+      console.log('[Encounter Store] Setting encounterTokens to:', processedTokens.length, 'tokens');
+      encounterTokens.value = processedTokens;
+      console.log('[Encounter Store] encounterTokens.value is now:', encounterTokens.value.length);
     } catch (err) {
       console.error('Failed to fetch encounter:', err);
       error.value = err instanceof Error ? err.message : 'Failed to fetch encounter';

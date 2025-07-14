@@ -34,43 +34,13 @@
         </button>
       </div>
     </div>
-
-    <!-- Main Encounter View -->
-    <div v-else-if="encounter" class="encounter-view h-screen flex flex-col" :class="{ 'theater-mode': isTheaterMode }" :style="hudLayoutStyle">
-      <!-- Header -->
-      <div class="encounter-header bg-gray-800 text-white p-4 flex justify-between items-center">
-        <div>
-          <h1 class="text-xl font-bold">{{ encounter.name }}</h1>
-          <p class="text-sm text-gray-300">Status: {{ encounter.status }}</p>
-        </div>
-        <div class="flex gap-2">
-          <button
-            v-if="isGameMaster"
-            @click="startOrStopEncounter"
-            class="px-3 py-1 bg-green-600 hover:bg-green-500 rounded text-sm"
-          >
-            {{ isActiveEncounter ? 'Stop Encounter' : 'Start Encounter' }}
-          </button>
-          <button 
-            @click="toggleFullscreen"
-            class="px-3 py-1 bg-gray-600 hover:bg-gray-500 rounded text-sm"
-          >
-            {{ isTheaterMode ? 'Exit Theater' : 'Theater' }}
-          </button>
-          <button 
-            @click="$router.go(-1)"
-            class="px-3 py-1 bg-gray-600 hover:bg-gray-500 rounded text-sm"
-          >
-            Back
-          </button>
-        </div>
-      </div>
-
-      <!-- Main Content Area -->
-      <div class="encounter-content flex-1 relative" ref="mapContainerRef">
+    <!-- Main Encounter View - Fullscreen with AppHeader -->
+    <div v-else-if="encounter" class="encounter-view-fullscreen" :style="hudLayoutStyle">
+        <!-- Main Content Area - Canvas -->
+        <div class="encounter-content" ref="mapContainerRef">
         <!-- Pixi Map Viewer -->
         <PixiMapViewer
-          v-if="encounter.mapId"
+          v-if="encounter.mapId && !encounterStore.loading"
           :map-id="encounter.mapId"
           :tokens="encounterTokens"
           :platform="deviceConfig.type"
@@ -123,33 +93,8 @@
           </div>
         </div>
 
-        <!-- UI Overlays (will be expanded in later tasks) -->
+        <!-- UI Overlays -->
         <div class="encounter-overlays absolute inset-0 pointer-events-none">
-          <!-- Theater Mode Exit Button -->
-          <div 
-            v-if="isTheaterMode"
-            class="absolute top-4 right-4 z-50 pointer-events-auto"
-          >
-            <button
-              @click="isTheaterMode = false"
-              class="bg-black bg-opacity-75 hover:bg-opacity-90 text-white p-2 rounded-full transition-all duration-200 shadow-lg"
-              title="Exit Theater Mode"
-            >
-              <svg 
-                class="w-6 h-6" 
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
-              >
-                <path 
-                  stroke-linecap="round" 
-                  stroke-linejoin="round" 
-                  stroke-width="2" 
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
-          </div>
           
           <!-- Selected Token Info -->
           <div 
@@ -235,32 +180,11 @@
             @action="handleMapContextMenuAction"
           />
         </div>
-      </div>
-
-      <!-- Mobile Bottom Controls -->
-      <div 
-        v-if="deviceConfig.type === 'phone'"
-        class="encounter-mobile-controls bg-gray-800 text-white p-2"
-      >
-        <div class="flex justify-between items-center">
-          <div v-if="selectedToken" class="text-sm">
-            <span class="font-medium">{{ selectedToken.name }}</span>
-          </div>
-          <div class="flex gap-2">
-            <button class="px-2 py-1 bg-gray-600 rounded text-xs">
-              Tokens
-            </button>
-            <button class="px-2 py-1 bg-gray-600 rounded text-xs">
-              Menu
-            </button>
-          </div>
-        </div>
+        
+        <!-- HUD System overlays the encounter container -->
+        <HUD v-if="deviceConfig.type !== 'phone'" />
       </div>
     </div>
-
-    <!-- HUD System (Desktop/Tablet only) -->
-    <HUD v-if="deviceConfig.type !== 'phone'" />
-
     <!-- Not Found State -->
     <div v-else class="flex justify-center items-center h-screen">
       <div class="text-center text-gray-500">
@@ -308,7 +232,6 @@ import { useEncounterStore } from '../../stores/encounter.store.mjs';
 import { useGameSessionStore } from '../../stores/game-session.store.mts';
 import { useSocketStore } from '../../stores/socket.store.mjs';
 import { useDeviceAdaptation } from '../../composables/useDeviceAdaptation.mjs';
-import { useHUD } from '../../composables/useHUD.mjs';
 // Encounter socket functionality removed - using session-based architecture
 import PixiMapViewer from './PixiMapViewer.vue';
 import HUD from '../hud/HUD.vue';
@@ -337,7 +260,6 @@ const gameSessionStore = useGameSessionStore();
 const socketStore = useSocketStore();
 const { deviceConfig, deviceClass } = useDeviceAdaptation();
 const authStore = useAuthStore();
-const hud = useHUD();
 
 // Get encounter ID from props or route
 const currentEncounterId = computed(() => 
@@ -354,7 +276,6 @@ const isGameMaster = computed(() => {
 // State
 const loading = ref(true);
 const error = ref<string | null>(null);
-const isTheaterMode = ref(false);
 const selectedToken = ref<Token | null>(null);
 const showTokenGenerator = ref(false);
 const showDebugInfo = ref(false);
@@ -392,7 +313,9 @@ const encounter = computed(() => encounterStore.currentEncounter);
 
 // Convert encounter tokens to format expected by PixiMapViewer
 const encounterTokens = computed(() => {
-  return encounterStore.encounterTokens.map(token => ({
+  const tokens = encounterStore.encounterTokens;
+  console.log('[EncounterView] encounterTokens computed, count:', tokens.length);
+  return tokens.map(token => ({
     id: token.id,
     name: token.name,
     imageUrl: token.imageUrl,
@@ -456,17 +379,6 @@ const loadEncounter = async () => {
 
 const retryLoad = () => {
   loadEncounter();
-};
-
-const toggleFullscreen = async () => {
-  try {
-    // Toggle theater mode instead of true fullscreen
-    isTheaterMode.value = !isTheaterMode.value;
-    console.log('Theater mode toggled:', isTheaterMode.value);
-  } catch (err) {
-    console.error('Theater mode error:', err);
-    isTheaterMode.value = false;
-  }
 };
 
 // Event handlers - matching PixiMapViewer emit signatures
@@ -781,28 +693,42 @@ const isActiveEncounter = computed(() => {
   return session && session.currentEncounterId === currentEncounterId.value;
 });
 
-// HUD layout adjustments
+// HUD layout adjustments - no longer needed as HUD overlays the content
 const hudLayoutStyle = computed(() => {
-  if (!hud.store.sidebar.visible || hud.store.sidebar.collapsed || deviceConfig.value.type === 'phone') {
-    return {};
-  }
-  
-  const sidebarWidth = hud.store.sidebar.width;
-  const position = hud.store.sidebar.position;
-  
-  return {
-    [position === 'left' ? 'marginLeft' : 'marginRight']: `${sidebarWidth}px`
-  };
+  return {};
 });
 </script>
 
 <style scoped>
-.encounter-container {
-  @apply w-full h-screen overflow-hidden;
+
+.encounter-view-fullscreen {
+  position: fixed;
+  top: 64px; /* Below AppHeader */
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: calc(100vh - 64px);
+  background: #000;
+  margin: 0;
+  padding: 0;
+  z-index: 50; /* Above normal content but below modals */
 }
 
-.encounter-view {
-  @apply relative;
+.encounter-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.encounter-content {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  margin: 0;
+  padding: 0;
 }
 
 .encounter-overlays {
@@ -840,16 +766,5 @@ const hudLayoutStyle = computed(() => {
   @apply transition-all duration-200;
 }
 
-/* Theater Mode Styles */
-.theater-mode {
-  @apply fixed top-0 left-0 w-full h-full bg-black z-50;
-}
-
-.theater-mode .encounter-header {
-  @apply hidden;
-}
-
-.theater-mode .encounter-content {
-  @apply h-full;
-}
+/* Fullscreen encounter experience */
 </style> 

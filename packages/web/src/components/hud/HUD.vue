@@ -48,7 +48,7 @@ onUnmounted(() => {
 
 <style scoped>
 .hud-container {
-  position: fixed;
+  position: absolute;
   top: 0;
   left: 0;
   right: 0;
@@ -62,7 +62,7 @@ onUnmounted(() => {
 }
 
 .sidebar-expand-button {
-  position: fixed;
+  position: absolute;
   top: 50%;
   transform: translateY(-50%);
   width: 32px;

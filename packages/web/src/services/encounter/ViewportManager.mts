@@ -533,12 +533,20 @@ export class ViewportManager {
       this.stage.removeAllListeners();
     }
     
-    // Check if app and canvas exist before trying to remove wheel event listener
-    if (this.app && this.app.canvas) {
-      const canvas = this.app.canvas as HTMLCanvasElement;
-      if (canvas && canvas.removeEventListener) {
-        canvas.removeEventListener('wheel', this.boundWheelHandler);
+    // Check if app exists and try to access canvas safely
+    try {
+      if (this.app) {
+        try {
+          const canvas = this.app.canvas as HTMLCanvasElement;
+          if (canvas?.removeEventListener) {
+            canvas.removeEventListener('wheel', this.boundWheelHandler);
+          }
+        } catch (canvasError) {
+          // Canvas access failed - this is normal during PIXI teardown
+        }
       }
+    } catch (error) {
+      // App access failed - also normal during teardown
     }
     
     // Check if renderer exists before trying to remove event listener

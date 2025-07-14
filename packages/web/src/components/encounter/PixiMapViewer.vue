@@ -115,6 +115,7 @@ const {
   isInitialized,
   viewportState,
   selectedTokenId,
+  tokenRenderer,
   initializeMap,
   loadMap,
   addToken,
@@ -626,9 +627,24 @@ watch(() => props.mapData, async (newMapData) => {
   }
 }, { immediate: false });
 
-watch(() => props.tokens, async (newTokens) => {
-  if (!newTokens) return;
-  console.log('Tokens updated:', newTokens);
+watch(() => props.tokens, async (newTokens, oldTokens) => {
+  console.log('[PixiMapViewer] Tokens watcher triggered:', { 
+    newCount: newTokens?.length || 0, 
+    oldCount: oldTokens?.length || 0,
+    isInitialized: isInitialized.value 
+  });
+  
+  if (!newTokens || newTokens.length === 0) {
+    console.log('[PixiMapViewer] No tokens to load');
+    return;
+  }
+  
+  if (!isInitialized.value) {
+    console.log('[PixiMapViewer] Not initialized yet, skipping token load');
+    return;
+  }
+  
+  console.log('[PixiMapViewer] Loading tokens:', newTokens);
   await loadTokens(newTokens);
 }, { deep: true });
 
@@ -670,6 +686,7 @@ watch(() => props.showLights, (visible) => {
 
 // Lifecycle
 let tokenRendererInstance: TokenRenderer | null = null;
+let preventContextMenu: ((e: MouseEvent) => void) | null = null;
 
 onMounted(async () => {
   await nextTick();
@@ -682,8 +699,11 @@ onMounted(async () => {
     await fetchAndLoadMap(props.mapId);
   }
   
-  if (props.tokens) {
+  if (props.tokens && props.tokens.length > 0) {
+    console.log('[PixiMapViewer] Loading initial tokens in onMounted:', props.tokens);
     await loadTokens(props.tokens);
+  } else {
+    console.log('[PixiMapViewer] No initial tokens to load in onMounted, count:', props.tokens?.length || 0);
   }
   
   // Set up resize listener
@@ -697,20 +717,12 @@ onMounted(async () => {
   // Set up keydown listener for arrow key movement
   window.addEventListener('keydown', handleKeyDown);
 
-  // TODO: Refactor usePixiMap to expose tokenRenderer directly for hit testing
-  tokenRendererInstance = (usePixiMap() as { tokenRenderer?: TokenRenderer }).tokenRenderer || null;
-  if (!tokenRendererInstance) {
-    // fallback: try to access via window for debug
-    tokenRendererInstance = (window as unknown as { tokenRenderer?: TokenRenderer }).tokenRenderer || null;
-  }
+  // Access tokenRenderer from the properly exposed usePixiMap instance
+  tokenRendererInstance = tokenRenderer.value;
   if (canvasRef.value) {
     // Suppress browser context menu so Pixi rightdown events fire
-    const preventContextMenu = (e: MouseEvent) => e.preventDefault();
+    preventContextMenu = (e: MouseEvent) => e.preventDefault();
     canvasRef.value.addEventListener('contextmenu', preventContextMenu);
-    // Store cleanup for onUnmounted
-    onUnmounted(() => {
-      canvasRef.value?.removeEventListener('contextmenu', preventContextMenu);
-    });
   }
 });
 
@@ -724,19 +736,14 @@ onUnmounted(() => {
   // Remove keydown listener
   window.removeEventListener('keydown', handleKeyDown);
 
-  if (canvasRef.value) {
-    canvasRef.value.removeEventListener('contextmenu', handleCanvasContextMenu);
+  // Clean up context menu listener
+  if (preventContextMenu && canvasRef.value) {
+    canvasRef.value.removeEventListener('contextmenu', preventContextMenu);
   }
 });
 
 const lastMouseEvent = ref<MouseEvent | null>(null);
 
-function handleCanvasContextMenu(event: MouseEvent) {
-  event.preventDefault();
-  if (!isInitialized.value || isLoading.value) return;
-  // Only emit show-encounter-context-menu if the right-click was not on a token (handled by onTokenRightClick)
-  emit('show-encounter-context-menu', { position: { x: event.clientX, y: event.clientY } });
-}
 </script>
 
 <style scoped>
