@@ -36,7 +36,7 @@
     </div>
 
     <!-- Main Encounter View -->
-    <div v-else-if="encounter" class="encounter-view h-screen flex flex-col" :class="{ 'theater-mode': isTheaterMode }">
+    <div v-else-if="encounter" class="encounter-view h-screen flex flex-col" :class="{ 'theater-mode': isTheaterMode }" :style="hudLayoutStyle">
       <!-- Header -->
       <div class="encounter-header bg-gray-800 text-white p-4 flex justify-between items-center">
         <div>
@@ -258,6 +258,9 @@
       </div>
     </div>
 
+    <!-- HUD System (Desktop/Tablet only) -->
+    <HUD v-if="deviceConfig.type !== 'phone'" />
+
     <!-- Not Found State -->
     <div v-else class="flex justify-center items-center h-screen">
       <div class="text-center text-gray-500">
@@ -305,8 +308,10 @@ import { useEncounterStore } from '../../stores/encounter.store.mjs';
 import { useGameSessionStore } from '../../stores/game-session.store.mts';
 import { useSocketStore } from '../../stores/socket.store.mjs';
 import { useDeviceAdaptation } from '../../composables/useDeviceAdaptation.mjs';
+import { useHUD } from '../../composables/useHUD.mjs';
 // Encounter socket functionality removed - using session-based architecture
 import PixiMapViewer from './PixiMapViewer.vue';
+import HUD from '../hud/HUD.vue';
 import ActorTokenGenerator from './ActorTokenGenerator.vue';
 import TokenContextMenu from './TokenContextMenu.vue';
 import TokenStateManager from './TokenStateManager.vue';
@@ -332,6 +337,7 @@ const gameSessionStore = useGameSessionStore();
 const socketStore = useSocketStore();
 const { deviceConfig, deviceClass } = useDeviceAdaptation();
 const authStore = useAuthStore();
+const hud = useHUD();
 
 // Get encounter ID from props or route
 const currentEncounterId = computed(() => 
@@ -773,6 +779,20 @@ const startOrStopEncounter = () => {
 const isActiveEncounter = computed(() => {
   const session = gameSessionStore.currentSession;
   return session && session.currentEncounterId === currentEncounterId.value;
+});
+
+// HUD layout adjustments
+const hudLayoutStyle = computed(() => {
+  if (!hud.store.sidebar.visible || hud.store.sidebar.collapsed || deviceConfig.value.type === 'phone') {
+    return {};
+  }
+  
+  const sidebarWidth = hud.store.sidebar.width;
+  const position = hud.store.sidebar.position;
+  
+  return {
+    [position === 'left' ? 'marginLeft' : 'marginRight']: `${sidebarWidth}px`
+  };
 });
 </script>
 

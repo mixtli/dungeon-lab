@@ -1,4 +1,5 @@
 import './assets/styles/main.css';
+import '@mdi/font/css/materialdesignicons.css';
 import { createApp } from 'vue';
 import { createPinia } from 'pinia';
 import piniaPluginPersistedstate from 'pinia-plugin-persistedstate';
