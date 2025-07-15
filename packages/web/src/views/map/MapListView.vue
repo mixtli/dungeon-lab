@@ -69,39 +69,46 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="p-6">
+  <div class="min-h-screen bg-parchment dark:bg-obsidian p-6">
     <div class="flex justify-between items-center mb-6">
-      <h1 class="text-2xl font-bold text-gray-900">My Maps</h1>
+      <h1 class="text-3xl font-bold text-dragon">🗺️ My Maps</h1>
       <div class="flex space-x-3">
         <button
           @click="router.push({ name: 'map-builder' })"
-          class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 flex items-center"
+          class="btn btn-secondary shadow-lg flex items-center"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1.5" viewBox="0 0 20 20" fill="currentColor">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5v1.5H5a1 1 0 00-1 1v10a1 1 0 001 1h10a1 1 0 001-1v-10a1 1 0 00-1-1h-.5V5.5A4.5 4.5 0 0010 1zm3 6v-.5a3 3 0 10-6 0V7h6zm-6 2h6v8H7V9z" clip-rule="evenodd" />
           </svg>
-          AI Map Builder
+          🤖 AI Map Builder
         </button>
         <button
           @click="router.push({ name: 'map-create' })"
-          class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          class="btn btn-success shadow-lg"
         >
-          Create New Map
+          ➕ Create New Map
         </button>
       </div>
     </div>
 
-    <div class="bg-white rounded-lg shadow">
+    <div class="bg-stone dark:bg-stone-700 rounded-lg shadow-xl border border-stone-300 dark:border-stone-600">
       <!-- Loading State -->
       <div v-if="loading" class="flex justify-center items-center min-h-[400px]">
         <div
-          class="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"
+          class="animate-spin rounded-full h-12 w-12 border-4 border-dragon border-t-transparent shadow-lg"
         ></div>
       </div>
 
       <!-- Empty State -->
       <div v-else-if="maps.length === 0" class="text-center py-12">
-        <p class="text-gray-500 text-lg">No maps found. Create your first map!</p>
+        <h3 class="text-xl font-bold text-dragon mb-4">🗺️ No Maps Found</h3>
+        <p class="text-ash dark:text-stone-300 text-lg mb-6">Create your first map to begin your adventure!</p>
+        <button
+          @click="router.push({ name: 'map-create' })"
+          class="btn btn-success shadow-lg"
+        >
+          ➕ Create Your First Map
+        </button>
       </div>
 
       <!-- Maps Grid -->
@@ -109,43 +116,50 @@ onMounted(() => {
         <div
           v-for="map in maps"
           :key="map.id || ''"
-          class="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 hover:-translate-y-1"
+          class="bg-parchment dark:bg-obsidian rounded-lg shadow-xl hover:shadow-2xl transition-all duration-200 hover:-translate-y-1 border border-stone-300 dark:border-stone-600 flex flex-col h-full"
         >
-          <div class="aspect-w-16 aspect-h-9 relative">
+          <!-- Map Name at Top -->
+          <div class="px-4 pt-4">
+            <h3 class="text-lg font-bold text-onyx dark:text-parchment mb-2 text-center truncate">{{ map.name }}</h3>
+          </div>
+          <!-- Map Image in Middle -->
+          <div class="aspect-w-16 aspect-h-9 relative flex-1 flex items-center justify-center">
             <img
               v-if="getThumbnailUrl(map)"
               :src="getThumbnailUrl(map)"
               :alt="map.name"
-              class="object-cover rounded-t-lg w-full h-full"
+              class="object-cover rounded-lg w-full h-full border-b border-stone-300 dark:border-stone-600"
             />
-            <div v-else class="w-full h-full flex items-center justify-center bg-gray-200 rounded-t-lg">
-              <span class="text-gray-400">No Image</span>
+            <div v-else class="w-full h-full flex items-center justify-center bg-stone-200 dark:bg-stone-600 rounded-lg border-b border-stone-300 dark:border-stone-600">
+              <span class="text-ash dark:text-stone-300 font-medium">🗺️ No Image</span>
             </div>
           </div>
-          <div class="p-4">
-            <h3 class="text-lg font-semibold text-gray-900 mb-2">{{ map.name }}</h3>
-            <p class="text-gray-600 text-sm mb-4">{{ map.description }}</p>
-            <div class="flex justify-end space-x-2">
+          <!-- Action Icons at Bottom -->
+          <div class="p-4 flex justify-between items-center">
+            <div class="flex space-x-2 mx-auto">
               <button
                 v-if="map.id"
                 @click="router.push({ name: 'map-detail', params: { id: map.id } })"
-                class="px-3 py-1.5 bg-white border border-blue-600 text-blue-600 rounded-md hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                class="inline-flex items-center p-2 rounded-md text-arcane hover:text-secondary-700 hover:bg-secondary-50 dark:hover:bg-secondary-900 focus:outline-none transition-all duration-200 shadow-sm"
+                title="View Map"
               >
-                View
+                👁️
               </button>
               <button
                 v-if="map.id"
                 @click="router.push({ name: 'map-edit', params: { id: map.id } })"
-                class="px-3 py-1.5 bg-white border border-green-600 text-green-600 rounded-md hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                class="inline-flex items-center p-2 rounded-md text-gold hover:text-accent-700 hover:bg-accent-50 dark:hover:bg-accent-900 focus:outline-none transition-all duration-200 shadow-sm"
+                title="Edit Map"
               >
-                Edit
+                ✏️
               </button>
               <button
                 v-if="map.id"
                 @click="confirmDelete(map.id)"
-                class="px-3 py-1.5 bg-white border border-red-600 text-red-600 rounded-md hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                class="inline-flex items-center p-2 rounded-md text-dragon hover:text-error-700 hover:bg-error-50 dark:hover:bg-error-900 focus:outline-none transition-all duration-200 shadow-sm"
+                title="Delete Map"
               >
-                Delete
+                🗑️
               </button>
             </div>
           </div>
@@ -167,22 +181,22 @@ onMounted(() => {
     >
       <!-- Background overlay -->
       <div
-        class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+        class="fixed inset-0 bg-obsidian bg-opacity-75 transition-opacity"
         aria-hidden="true"
       ></div>
 
       <!-- Modal panel -->
       <div
-        class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full"
+        class="inline-block align-bottom bg-stone dark:bg-stone-700 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-stone-300 dark:border-stone-600"
       >
-        <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+        <div class="bg-stone dark:bg-stone-700 px-6 pt-6 pb-4">
           <div class="sm:flex sm:items-start">
             <div
-              class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10"
+              class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-error-100 border border-error-300 sm:mx-0 sm:h-10 sm:w-10"
             >
               <!-- Warning icon -->
               <svg
-                class="h-6 w-6 text-red-600"
+                class="h-6 w-6 text-error-600"
                 xmlns="http://www.w3.org/2000/svg"
                 fill="none"
                 viewBox="0 0 24 24"
@@ -197,28 +211,28 @@ onMounted(() => {
               </svg>
             </div>
             <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
-              <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
-                Delete Map
+              <h3 class="text-lg leading-6 font-bold text-dragon" id="modal-title">
+                🗑️ Delete Map
               </h3>
               <div class="mt-2">
-                <p class="text-sm text-gray-500">
+                <p class="text-sm text-ash dark:text-stone-300">
                   Are you sure you want to delete this map? This action cannot be undone.
                 </p>
               </div>
             </div>
           </div>
         </div>
-        <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+        <div class="bg-parchment dark:bg-obsidian px-6 py-4 border-t border-stone-300 dark:border-stone-600 sm:flex sm:flex-row-reverse">
           <button
             type="button"
-            class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm"
+            class="btn btn-error shadow-lg sm:ml-3"
             @click="mapToDelete && deleteMap(mapToDelete)"
           >
-            Delete
+            🗑️ Delete
           </button>
           <button
             type="button"
-            class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+            class="btn btn-outline shadow-lg mt-3 sm:mt-0"
             @click="showDeleteModal = false"
           >
             Cancel

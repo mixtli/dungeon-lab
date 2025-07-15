@@ -60,81 +60,90 @@ onMounted(() => {
 
 // Status badge color mapping
 const statusColors = {
-  draft: 'bg-gray-100 text-gray-800',
-  ready: 'bg-blue-100 text-blue-800',
-  in_progress: 'bg-green-100 text-green-800',
-  paused: 'bg-yellow-100 text-yellow-800',
-  completed: 'bg-purple-100 text-purple-800',
+  draft: 'bg-stone-200 text-stone-700 border-stone-300 dark:bg-stone-600 dark:text-stone-200 dark:border-stone-500',
+  ready: 'bg-arcane-100 text-arcane-800 border-arcane-300 dark:bg-arcane-900 dark:text-arcane-200',
+  in_progress: 'bg-success-100 text-success-800 border-success-300',
+  paused: 'bg-accent-100 text-accent-800 border-accent-300',
+  completed: 'bg-nature-100 text-nature-800 border-nature-300',
 } as const;
 </script>
 
 <template>
-  <div class="encounters-section">
-    <div class="px-4 py-5 sm:px-6 flex justify-between items-center border-b border-gray-200">
+  <div class="encounters-section bg-stone dark:bg-stone-700">
+    <div class="px-6 py-5 flex justify-between items-center border-b border-stone-300 dark:border-stone-600">
       <div>
-        <h3 class="text-lg leading-6 font-medium text-gray-900">Encounters</h3>
-        <p class="mt-1 max-w-2xl text-sm text-gray-500">Manage your campaign encounters</p>
+        <h3 class="text-xl font-bold text-gold">⚔️ Encounters</h3>
+        <p class="mt-1 max-w-2xl text-sm text-ash dark:text-stone-300">Manage your campaign encounters</p>
       </div>
       <button
         @click="createEncounter"
-        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+        class="inline-flex items-center p-2 rounded-md text-gold hover:text-accent-700 hover:bg-accent-50 dark:hover:bg-accent-900 focus:outline-none transition-all duration-200 shadow-sm"
+        title="Create Encounter"
       >
-        Create Encounter
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+        </svg>
       </button>
     </div>
 
     <!-- Loading State -->
     <div v-if="loading" class="flex justify-center items-center py-12">
       <div
-        class="animate-spin rounded-full h-8 w-8 border-4 border-blue-500 border-t-transparent"
+        class="animate-spin rounded-full h-8 w-8 border-4 border-dragon border-t-transparent shadow-lg"
       ></div>
     </div>
 
     <!-- Error State -->
-    <div v-else-if="error" class="px-4 py-5 sm:px-6 text-center">
-      <p class="text-red-600">{{ error }}</p>
-      <button @click="fetchEncounters" class="mt-2 text-blue-600 hover:text-blue-500">
+    <div v-else-if="error" class="px-6 py-5 text-center">
+      <p class="text-error-700">{{ error }}</p>
+      <button @click="fetchEncounters" class="mt-2 text-dragon hover:text-dragon-700 font-medium">
         Try Again
       </button>
     </div>
 
     <!-- Empty State -->
-    <div v-else-if="encounters.length === 0" class="px-4 py-12 sm:px-6 text-center">
-      <p class="text-gray-500">No encounters created yet</p>
-      <button @click="createEncounter" class="mt-2 text-blue-600 hover:text-blue-500">
-        Create your first encounter
+    <div v-else-if="encounters.length === 0" class="px-6 py-12 text-center">
+      <p class="text-ash dark:text-stone-300 mb-4">⚔️ No encounters created yet</p>
+      <button 
+        @click="createEncounter" 
+        class="inline-flex items-center p-2 rounded-md text-gold hover:text-accent-700 hover:bg-accent-50 dark:hover:bg-accent-900 focus:outline-none transition-all duration-200 shadow-sm"
+        title="Create your first encounter"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+        </svg>
       </button>
     </div>
 
     <!-- Encounters List -->
-    <div v-else class="divide-y divide-gray-200">
+    <div v-else class="bg-parchment dark:bg-obsidian divide-y divide-stone-300 dark:divide-stone-600">
       <div
         v-for="encounter in encounters"
         :key="encounter.id"
-        class="px-4 py-4 sm:px-6 hover:bg-gray-50 transition-colors duration-150 ease-in-out"
+        class="px-6 py-4 hover:bg-stone-100 dark:hover:bg-stone-600 transition-all duration-200"
       >
         <div class="flex items-center justify-between">
           <div class="min-w-0 flex-1">
             <div class="flex items-center space-x-3">
-              <h4 class="text-sm font-medium text-gray-900 truncate">
+              <h4 class="text-sm font-bold text-onyx dark:text-parchment truncate">
                 {{ encounter.name }}
               </h4>
               <span
                 :class="[
                   statusColors[encounter.status],
-                  'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize',
+                  'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold capitalize border',
                 ]"
               >
                 {{ encounter.status.replace('_', ' ') }}
               </span>
             </div>
             <div class="mt-2">
-              <p v-if="encounter.description" class="text-sm text-gray-500 line-clamp-2">
+              <p v-if="encounter.description" class="text-sm text-ash dark:text-stone-300 line-clamp-2">
                 {{ encounter.description }}
               </p>
             </div>
           </div>
-          <div class="ml-6 flex items-center space-x-4">
+          <div class="ml-6 flex items-center space-x-2">
             <button
               @click="
                 router.push({
@@ -144,7 +153,7 @@ const statusColors = {
                   },
                 })
               "
-              class="inline-flex items-center p-2 border border-transparent rounded-full shadow-sm text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              class="inline-flex items-center p-2 rounded-md text-arcane hover:text-secondary-700 hover:bg-secondary-50 dark:hover:bg-secondary-900 focus:outline-none transition-all duration-200 shadow-sm"
               title="View encounter"
             >
               <svg
@@ -163,7 +172,7 @@ const statusColors = {
             <button
               v-if="encounter.id"
               @click="deleteEncounter(encounter.id, encounter.name || 'Untitled Encounter')"
-              class="inline-flex items-center p-2 border border-transparent rounded-full shadow-sm text-red-500 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+              class="inline-flex items-center p-2 rounded-md text-dragon hover:text-error-700 hover:bg-error-50 dark:hover:bg-error-900 focus:outline-none transition-all duration-200 shadow-sm"
               title="Delete encounter"
             >
               <svg

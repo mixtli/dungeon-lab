@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useCampaignStore } from '../stores/campaign.store.mjs';
 import { pluginRegistry } from '../services/plugin-registry.service.mjs';
@@ -21,6 +21,7 @@ const error = ref<string | null>(null);
 const showDeleteModal = ref(false);
 const showInviteModal = ref(false);
 const showScheduleModal = ref(false);
+const showStatusDropdown = ref(false);
 const campaignData = ref<ICampaign | null>(null);
 
 const campaignId = route.params.id as string;
@@ -57,22 +58,29 @@ const gameSystem = computed(() => {
     : null;
 });
 
-const statusClass = computed(() => {
-  if (!campaign.value) return '';
+const statusConfig = computed(() => {
+  if (!campaign.value) return { text: '', emoji: '', class: '' };
 
   switch (campaign.value.status) {
     case 'active':
-      return 'text-green-500';
+      return { text: 'active', emoji: '🟢', class: 'bg-success-100 text-success-800 border-success-300' };
     case 'paused':
-      return 'text-yellow-500';
+      return { text: 'paused', emoji: '⏸️', class: 'bg-accent-100 text-accent-800 border-accent-300' };
     case 'completed':
-      return 'text-purple-500';
+      return { text: 'completed', emoji: '📁', class: 'bg-stone-200 text-stone-700 border-stone-300 dark:bg-stone-600 dark:text-stone-200 dark:border-stone-500' };
     case 'archived':
-      return 'text-gray-500';
+      return { text: 'archived', emoji: '📁', class: 'bg-stone-200 text-stone-700 border-stone-300 dark:bg-stone-600 dark:text-stone-200 dark:border-stone-500' };
     default:
-      return '';
+      return { text: campaign.value.status, emoji: '', class: 'bg-stone-200 text-stone-700 border-stone-300' };
   }
 });
+
+const statusOptions = [
+  { value: 'active', label: 'Active', emoji: '🟢' },
+  { value: 'paused', label: 'Paused', emoji: '⏸️' },
+  { value: 'completed', label: 'Completed', emoji: '📁' },
+  { value: 'archived', label: 'Archived', emoji: '📁' }
+];
 
 // Actions
 function editCampaign() {
@@ -118,6 +126,41 @@ async function refreshCampaign() {
     console.error('Error refreshing campaign:', err);
   }
 }
+
+async function updateStatus(newStatus: string) {
+  if (!campaign.value) return;
+  
+  try {
+    await campaignClient.updateCampaign(campaignId, { status: newStatus });
+    campaignData.value = { ...campaign.value, status: newStatus };
+    showStatusDropdown.value = false;
+    showNotification('Campaign status updated successfully');
+  } catch (err) {
+    console.error('Error updating campaign status:', err);
+    showNotification('Failed to update campaign status');
+  }
+}
+
+function formatDateOnly(dateString: string) {
+  const date = new Date(dateString);
+  return date.toLocaleDateString();
+}
+
+// Close dropdown when clicking outside
+function handleClickOutside(event: Event) {
+  const target = event.target as HTMLElement;
+  if (!target.closest('.status-dropdown')) {
+    showStatusDropdown.value = false;
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside);
+});
 </script>
 
 <template>
@@ -145,60 +188,82 @@ async function refreshCampaign() {
       <div class="mb-8">
         <div class="flex justify-between items-start">
           <div>
-            <h1 class="text-3xl font-semibold text-gray-900">{{ campaign.name }}</h1>
-            <p v-if="campaign.description" class="mt-2 text-gray-500">
+            <div class="flex items-center gap-3 mb-2">
+              <h1 class="text-3xl font-semibold text-dragon">{{ campaign.name }}</h1>
+              <div class="relative status-dropdown">
+                <button
+                  @click="showStatusDropdown = !showStatusDropdown"
+                  :class="[
+                    'px-3 py-1 text-xs font-bold rounded-full shadow-sm border cursor-pointer transition-all duration-200 hover:shadow-md',
+                    statusConfig.class
+                  ]"
+                >
+                  {{ statusConfig.emoji }} {{ statusConfig.text }}
+                </button>
+                <div
+                  v-if="showStatusDropdown"
+                  class="absolute top-full left-0 mt-1 bg-white dark:bg-stone-700 border border-stone-300 dark:border-stone-600 rounded-md shadow-lg z-10 min-w-32"
+                >
+                  <button
+                    v-for="option in statusOptions"
+                    :key="option.value"
+                    @click="updateStatus(option.value)"
+                    class="block w-full text-left px-3 py-2 text-sm hover:bg-stone-100 dark:hover:bg-stone-600 transition-colors"
+                    :class="{
+                      'bg-stone-100 dark:bg-stone-600': campaign.status === option.value
+                    }"
+                  >
+                    {{ option.emoji }} {{ option.label }}
+                  </button>
+                </div>
+              </div>
+            </div>
+            <p v-if="campaign.description" class="mt-2 text-ash dark:text-stone-300">
               {{ campaign.description }}
             </p>
           </div>
 
           <div class="flex space-x-3">
             <button
-              @click="showScheduleModal = true"
-              class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+              @click="showInviteModal = true"
+              class="btn btn-success shadow-lg"
             >
-              Schedule Session
+              👥 Invite Players
             </button>
             <button
               @click="editCampaign"
-              class="px-4 py-2 bg-white border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              class="inline-flex items-center p-2 rounded-md text-gold hover:text-accent-700 hover:bg-accent-50 dark:hover:bg-accent-900 focus:outline-none transition-all duration-200 shadow-sm"
+              title="Edit Campaign"
             >
-              Edit
+              ✏️
             </button>
             <button
               @click="showDeleteModal = true"
-              class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+              class="inline-flex items-center p-2 rounded-md text-dragon hover:text-error-700 hover:bg-error-50 dark:hover:bg-error-900 focus:outline-none transition-all duration-200 shadow-sm"
+              title="Delete Campaign"
             >
-              Delete
+              🗑️
             </button>
           </div>
         </div>
 
         <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div class="bg-gray-50 p-4 rounded-lg shadow-sm">
-            <h3 class="text-sm uppercase text-gray-500 font-medium">Game System</h3>
-            <p class="mt-1 text-gray-900">{{ gameSystem?.name || 'Unknown' }}</p>
+          <div class="bg-stone dark:bg-stone-700 p-4 rounded-lg shadow-sm border border-stone-300 dark:border-stone-600">
+            <h3 class="text-sm uppercase text-gold font-bold">🎲 Game System</h3>
+            <p class="mt-1 text-onyx dark:text-parchment font-medium">{{ gameSystem?.name || 'Unknown' }}</p>
           </div>
 
-          <div class="bg-gray-50 p-4 rounded-lg shadow-sm">
-            <h3 class="text-sm uppercase text-gray-500 font-medium">Status</h3>
-            <p class="mt-1" :class="statusClass">
-              {{ campaign.status.charAt(0).toUpperCase() + campaign.status.slice(1) }}
-            </p>
-          </div>
-
-          <div class="bg-gray-50 p-4 rounded-lg shadow-sm">
-            <h3 class="text-sm uppercase text-gray-500 font-medium">Created</h3>
-            <p class="mt-1 text-gray-900">
-              {{ (campaign as any).createdAt ? formatDate((campaign as any).createdAt) : '' }}
-            </p>
-          </div>
-        </div>
-
-        <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div class="bg-gray-50 p-4 rounded-lg shadow-sm">
-            <h3 class="text-sm uppercase text-gray-500 font-medium">Game Master</h3>
-            <p class="mt-1 text-gray-900">
+          <div class="bg-stone dark:bg-stone-700 p-4 rounded-lg shadow-sm border border-stone-300 dark:border-stone-600">
+            <h3 class="text-sm uppercase text-gold font-bold">🎭 Game Master</h3>
+            <p class="mt-1 text-onyx dark:text-parchment font-medium">
               {{ (campaign as any).gameMaster?.username || 'Unknown' }}
+            </p>
+          </div>
+
+          <div class="bg-stone dark:bg-stone-700 p-4 rounded-lg shadow-sm border border-stone-300 dark:border-stone-600">
+            <h3 class="text-sm uppercase text-gold font-bold">📅 Created</h3>
+            <p class="mt-1 text-onyx dark:text-parchment font-medium">
+              {{ (campaign as any).createdAt ? formatDateOnly((campaign as any).createdAt) : '' }}
             </p>
           </div>
         </div>
@@ -207,45 +272,23 @@ async function refreshCampaign() {
       <!-- Campaign Content -->
       <div class="space-y-8">
         <!-- Game Sessions Section -->
-        <div class="bg-white rounded-lg shadow-sm overflow-hidden">
-          <CampaignSessionList :campaignId="campaignId" />
+        <div class="bg-obsidian dark:bg-stone-800 rounded-lg shadow-xl overflow-hidden border border-stone-300 dark:border-stone-600">
+          <CampaignSessionList :campaignId="campaignId" @schedule-session="showScheduleModal = true" />
         </div>
 
-        <!-- Characters Section -->
-        <div class="bg-white rounded-lg shadow-sm overflow-hidden">
-          <CampaignCharacterList :campaignId="campaignId" />
-        </div>
+        <!-- Characters and Encounters Section - Side by Side on Desktop -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <!-- Characters Section -->
+          <div class="bg-obsidian dark:bg-stone-800 rounded-lg shadow-xl overflow-hidden border border-stone-300 dark:border-stone-600">
+            <CampaignCharacterList :campaignId="campaignId" />
+          </div>
 
-        <!-- Encounters Section -->
-        <div class="bg-white rounded-lg shadow-sm overflow-hidden">
-          <CampaignEncounterList :campaignId="campaignId" />
-        </div>
-
-        <!-- Getting Started Section -->
-        <div>
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">Getting Started</h2>
-
-          <div class="space-y-4">
-            <!-- Invite Players Card -->
-            <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-              <div class="px-4 py-3 border-b border-gray-200 flex justify-between items-center">
-                <h3 class="text-lg font-medium text-gray-900">Invite Players</h3>
-                <button
-                  @click="showInviteModal = true"
-                  class="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                >
-                  Send Invites
-                </button>
-              </div>
-              <div class="px-4 py-3">
-                <p class="text-gray-600">
-                  Invite players to join your campaign. They will receive an email with a link to
-                  join.
-                </p>
-              </div>
-            </div>
+          <!-- Encounters Section -->
+          <div class="bg-obsidian dark:bg-stone-800 rounded-lg shadow-xl overflow-hidden border border-stone-300 dark:border-stone-600">
+            <CampaignEncounterList :campaignId="campaignId" />
           </div>
         </div>
+
       </div>
     </template>
 

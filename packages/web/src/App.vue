@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { RouterView } from 'vue-router';
 import NotificationToast from './components/common/NotificationToast.vue';
-import AppHeader from './components/layout/AppHeader.vue';
 import MobileApp from './components/layout/MobileApp.vue';
 
 import { useSocketStore } from './stores/socket.store.mts';
@@ -36,12 +35,9 @@ watch(
   <MobileApp v-if="isPhone" />
   
   <!-- Desktop/Tablet Layout -->
-  <div v-else class="app min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-    <AppHeader />
+  <div v-else class="app min-h-screen bg-parchment dark:bg-obsidian text-onyx dark:text-parchment">
     <NotificationToast />
-    <main class="container mx-auto px-4 py-8">
-      <RouterView />
-    </main>
+    <RouterView />
   </div>
 </template>
 

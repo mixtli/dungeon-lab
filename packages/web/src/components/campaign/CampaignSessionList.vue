@@ -17,6 +17,10 @@ const props = defineProps<{
   campaignId: string;
 }>();
 
+const emit = defineEmits<{
+  'schedule-session': []
+}>();
+
 const authStore = useAuthStore();
 const gameSessionStore = useGameSessionStore();
 
@@ -122,70 +126,75 @@ async function handleUpdateSessionStatus(sessionId: string, status: SessionStatu
 </script>
 
 <template>
-  <div class="campaign-session-list">
-    <div class="border-b border-gray-200 pb-5 mb-5">
-      <h3 class="text-lg font-medium leading-6 text-gray-900">Game Sessions</h3>
+  <div class="campaign-session-list bg-stone dark:bg-stone-700 p-6">
+    <div class="border-b border-stone-300 dark:border-stone-600 pb-5 mb-6 flex justify-between items-center">
+      <h3 class="text-xl font-bold text-gold">🎲 Game Sessions</h3>
+      <button
+        @click="$emit('schedule-session')"
+        class="btn btn-success shadow-lg"
+      >
+        🎯 Schedule Session
+      </button>
     </div>
 
     <!-- Loading State -->
-    <div v-if="loading" class="flex justify-center py-4">
+    <div v-if="loading" class="flex justify-center py-8">
       <div
-        class="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent"
+        class="animate-spin rounded-full h-12 w-12 border-4 border-dragon border-t-transparent shadow-lg"
       ></div>
     </div>
 
     <!-- Error State -->
-    <div v-else-if="error" class="text-center py-4">
-      <p class="text-red-600">{{ error }}</p>
+    <div v-else-if="error" class="text-center py-8">
+      <p class="text-error-700 font-medium">{{ error }}</p>
     </div>
 
     <div v-else>
       <!-- Active Sessions -->
       <div v-if="activeSessions.length > 0" class="mb-8">
-        <h4 class="text-sm font-medium text-gray-500 uppercase tracking-wider mb-4">
-          Active Sessions
+        <h4 class="text-sm font-bold text-gold uppercase tracking-wider mb-4">
+          🟢 Active Sessions
         </h4>
         <div class="space-y-3">
           <div
             v-for="session in activeSessions"
             :key="session.id"
-            class="bg-white shadow-sm rounded-lg border border-green-200 p-4"
+            class="bg-parchment dark:bg-obsidian shadow-xl rounded-lg border border-success-300 p-6 transition-all duration-200 hover:shadow-2xl"
           >
             <div class="flex justify-between items-start">
               <div>
-                <h5 class="text-lg font-medium text-gray-900">{{ session.name }}</h5>
-                <p v-if="session.description" class="text-sm text-gray-500 mt-1">
-                  {{ session.description }}
-                </p>
+                <h5 class="text-lg font-bold text-onyx dark:text-parchment">{{ session.name }}</h5>
               </div>
               <div class="flex space-x-2">
                 <button
                   v-if="session.id !== gameSessionStore.currentSession?.id"
                   @click="joinSession(session.id!)"
-                  class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                  class="btn btn-success text-sm shadow-lg"
                 >
-                  Join Session
+                  🎮 Join Session
                 </button>
                 <button
                   v-else
                   @click="gameSessionStore.leaveSession()"
-                  class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                  class="btn btn-error text-sm shadow-lg"
                 >
-                  Leave Session
+                  🚪 Leave Session
                 </button>
                 <button
                   v-if="isGameMaster(session)"
                   @click="handleUpdateSessionStatus(session.id!, 'paused')"
-                  class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-yellow-700 bg-yellow-100 hover:bg-yellow-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
+                  class="inline-flex items-center p-2 rounded-md shadow-sm text-accent-700 hover:bg-accent-100 focus:outline-none transition-all duration-200"
+                  title="Pause Session"
                 >
-                  Pause
+                  ⏸️
                 </button>
                 <button
                   v-if="isGameMaster(session)"
                   @click="handleUpdateSessionStatus(session.id!, 'ended')"
-                  class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                  class="inline-flex items-center p-2 rounded-md shadow-sm text-error-700 hover:bg-error-100 focus:outline-none transition-all duration-200"
+                  title="End Session"
                 >
-                  End
+                  🛑
                 </button>
               </div>
             </div>
@@ -195,28 +204,28 @@ async function handleUpdateSessionStatus(sessionId: string, status: SessionStatu
 
       <!-- Scheduled Sessions -->
       <div v-if="scheduledSessions.length > 0" class="mb-8">
-        <h4 class="text-sm font-medium text-gray-500 uppercase tracking-wider mb-4">
-          Scheduled Sessions
+        <h4 class="text-sm font-bold text-gold uppercase tracking-wider mb-4">
+          📅 Scheduled Sessions
         </h4>
         <div class="space-y-3">
           <div
             v-for="session in scheduledSessions"
             :key="session.id"
-            class="bg-white shadow-sm rounded-lg border border-gray-200 p-4"
+            class="bg-parchment dark:bg-obsidian shadow-xl rounded-lg border border-stone-300 dark:border-stone-600 p-6 transition-all duration-200 hover:shadow-2xl"
           >
             <div class="flex justify-between items-start">
               <div>
-                <h5 class="text-lg font-medium text-gray-900">{{ session.name }}</h5>
-                <p v-if="session.description" class="text-sm text-gray-500 mt-1">
+                <h5 class="text-lg font-bold text-onyx dark:text-parchment">{{ session.name }}</h5>
+                <p v-if="session.description" class="text-sm text-ash dark:text-stone-300 mt-1">
                   {{ session.description }}
                 </p>
                 <div class="flex items-center space-x-4 mt-2">
-                  <div class="flex items-center text-sm text-gray-500">
-                    <CalendarIcon class="h-4 w-4 mr-1" />
+                  <div class="flex items-center text-sm text-ash dark:text-stone-300">
+                    <CalendarIcon class="h-4 w-4 mr-1 text-gold" />
                     {{ formatDate(session.settings?.scheduledStart as string) }}
                   </div>
-                  <div class="flex items-center text-sm text-gray-500">
-                    <ClockIcon class="h-4 w-4 mr-1" />
+                  <div class="flex items-center text-sm text-ash dark:text-stone-300">
+                    <ClockIcon class="h-4 w-4 mr-1 text-gold" />
                     {{ formatTime(session.settings?.scheduledStart as string) }}
                   </div>
                 </div>
@@ -225,14 +234,14 @@ async function handleUpdateSessionStatus(sessionId: string, status: SessionStatu
                 <button
                   v-if="isGameMaster(session) && !activeSessions.length"
                   @click="handleUpdateSessionStatus(session.id!, 'active')"
-                  class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                  class="btn btn-success text-sm shadow-lg"
                 >
-                  Start Session
+                  🚀 Start Session
                 </button>
                 <button
                   v-if="isGameMaster(session)"
                   @click="handleDeleteSession(session.id!, session.name)"
-                  class="inline-flex items-center px-2 py-1.5 border border-transparent text-sm font-medium rounded-md text-red-600 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                  class="inline-flex items-center p-2 rounded-md text-dragon hover:text-error-700 hover:bg-error-50 dark:hover:bg-error-900 focus:outline-none transition-all duration-200 shadow-sm"
                   title="Delete session"
                 >
                   <svg
@@ -256,19 +265,19 @@ async function handleUpdateSessionStatus(sessionId: string, status: SessionStatu
 
       <!-- Paused Sessions -->
       <div v-if="pausedSessions.length > 0" class="mb-8">
-        <h4 class="text-sm font-medium text-gray-500 uppercase tracking-wider mb-4">
-          Paused Sessions
+        <h4 class="text-sm font-bold text-gold uppercase tracking-wider mb-4">
+          ⏸️ Paused Sessions
         </h4>
         <div class="space-y-3">
           <div
             v-for="session in pausedSessions"
             :key="session.id"
-            class="bg-white shadow-sm rounded-lg border border-yellow-200 p-4"
+            class="bg-parchment dark:bg-obsidian shadow-xl rounded-lg border border-accent-300 p-6 transition-all duration-200 hover:shadow-2xl"
           >
             <div class="flex justify-between items-start">
               <div>
-                <h5 class="text-lg font-medium text-gray-900">{{ session.name }}</h5>
-                <p v-if="session.description" class="text-sm text-gray-500 mt-1">
+                <h5 class="text-lg font-bold text-onyx dark:text-parchment">{{ session.name }}</h5>
+                <p v-if="session.description" class="text-sm text-ash dark:text-stone-300 mt-1">
                   {{ session.description }}
                 </p>
               </div>
@@ -276,21 +285,22 @@ async function handleUpdateSessionStatus(sessionId: string, status: SessionStatu
                 <button
                   v-if="isGameMaster(session) && !activeSessions.length"
                   @click="handleUpdateSessionStatus(session.id!, 'active')"
-                  class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                  class="btn btn-success text-sm shadow-lg"
                 >
-                  Resume Session
+                  ▶️ Resume Session
                 </button>
                 <button
                   v-if="isGameMaster(session)"
                   @click="handleUpdateSessionStatus(session.id!, 'ended')"
-                  class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                  class="inline-flex items-center p-2 rounded-md shadow-sm text-error-700 hover:bg-error-100 focus:outline-none transition-all duration-200"
+                  title="End Session"
                 >
-                  End
+                  🛑
                 </button>
                 <button
                   v-if="isGameMaster(session)"
                   @click="handleDeleteSession(session.id!, session.name)"
-                  class="inline-flex items-center px-2 py-1.5 border border-transparent text-sm font-medium rounded-md text-red-600 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                  class="inline-flex items-center p-2 rounded-md text-dragon hover:text-error-700 hover:bg-error-50 dark:hover:bg-error-900 focus:outline-none transition-all duration-200 shadow-sm"
                   title="Delete session"
                 >
                   <svg
@@ -319,9 +329,10 @@ async function handleUpdateSessionStatus(sessionId: string, status: SessionStatu
           scheduledSessions.length === 0 &&
           pausedSessions.length === 0
         "
-        class="text-center py-8 bg-gray-50 rounded-lg"
+        class="text-center py-12 bg-parchment dark:bg-obsidian rounded-lg border border-stone-300 dark:border-stone-600"
       >
-        <p class="text-gray-500">No active or scheduled sessions</p>
+        <p class="text-ash dark:text-stone-300 text-lg">🎲 No active or scheduled sessions</p>
+        <p class="text-ash dark:text-stone-300 text-sm mt-2">Create a session to begin your adventure!</p>
       </div>
     </div>
 
