@@ -87,15 +87,31 @@ const toggleLayerVisibility = (layerType: 'walls' | 'objectWalls' | 'portals' | 
 <style scoped>
 .layer-panel {
     padding: 10px;
+    background-color: white;
+    color: black;
+}
+
+@media (prefers-color-scheme: dark) {
+    .layer-panel {
+        background-color: var(--stone-700, #44403c);
+        color: var(--parchment, #f5f5dc);
+    }
 }
 
 .panel-title {
     margin-top: 0;
     margin-bottom: 10px;
     font-size: 16px;
-    color: #333;
+    color: var(--onyx, #333);
     padding-bottom: 5px;
-    border-bottom: 1px solid #ddd;
+    border-bottom: 1px solid var(--stone-300, #ddd);
+}
+
+@media (prefers-color-scheme: dark) {
+    .panel-title {
+        color: var(--parchment, #f5f5dc);
+        border-bottom-color: var(--stone-600, #57534e);
+    }
 }
 
 .layers-list {
@@ -105,10 +121,17 @@ const toggleLayerVisibility = (layerType: 'walls' | 'objectWalls' | 'portals' | 
 }
 
 .layer-item {
-    background-color: #f9f9f9;
-    border: 1px solid #eaeaea;
+    background-color: var(--stone, #f5f5f4);
+    border: 1px solid var(--stone-300, #eaeaea);
     border-radius: 4px;
     padding: 8px;
+}
+
+@media (prefers-color-scheme: dark) {
+    .layer-item {
+        background-color: var(--obsidian, #1c1917);
+        border-color: var(--stone-600, #57534e);
+    }
 }
 
 .layer-header {
@@ -120,6 +143,13 @@ const toggleLayerVisibility = (layerType: 'walls' | 'objectWalls' | 'portals' | 
 .layer-name {
     font-weight: bold;
     font-size: 14px;
+    color: var(--onyx, #333);
+}
+
+@media (prefers-color-scheme: dark) {
+    .layer-name {
+        color: var(--parchment, #f5f5dc);
+    }
 }
 
 .layer-color {
@@ -132,7 +162,13 @@ const toggleLayerVisibility = (layerType: 'walls' | 'objectWalls' | 'portals' | 
 .layer-info {
     margin-top: 4px;
     font-size: 12px;
-    color: #666;
+    color: var(--ash, #666);
+}
+
+@media (prefers-color-scheme: dark) {
+    .layer-info {
+        color: var(--stone-300, #d6d3d1);
+    }
 }
 
 .layer-count {

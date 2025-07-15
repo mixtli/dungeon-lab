@@ -1,7 +1,7 @@
 <template>
   <div class="hud-container">
     <!-- Sidebar -->
-    <Sidebar />
+    <HudSidebar />
     
     <!-- Sidebar Expand Button (when collapsed) -->
     <div
@@ -17,7 +17,7 @@
     </div>
     
     <!-- Floating Toolbar -->
-    <Toolbar />
+    <HudToolbar />
     
     <!-- Floating Windows (when tabs are popped out) -->
     <FloatingWindow
@@ -31,8 +31,8 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted } from 'vue';
 import { useHUD } from '../../composables/useHUD.mjs';
-import Sidebar from './Sidebar.vue';
-import Toolbar from './Toolbar.vue';
+import HudSidebar from './HudSidebar.vue';
+import HudToolbar from './HudToolbar.vue';
 import FloatingWindow from './FloatingWindow.vue';
 
 const hud = useHUD();

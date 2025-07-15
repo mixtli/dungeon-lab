@@ -113,7 +113,7 @@ export function usePixiMap(): UsePixiMapReturn {
       };
       
       // Initialize map renderer
-      mapRenderer = new EncounterMapRenderer(canvas, config);
+      mapRenderer = new EncounterMapRenderer(config);
       
       // Wait for async initialization to complete
       await mapRenderer.initializeApp(canvas, config);

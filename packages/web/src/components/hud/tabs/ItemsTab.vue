@@ -107,6 +107,17 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 
+// Define a simple Item interface for type safety
+interface Item {
+  id: string;
+  name: string;
+  type: string;
+  rarity: string;
+  description: string;
+  icon: string;
+  properties: string[];
+}
+
 const searchQuery = ref('');
 const activeFilter = ref('all');
 
@@ -199,22 +210,22 @@ const filteredItems = computed(() => {
   return filtered;
 });
 
-function selectItem(item: any): void {
+function selectItem(item: Item): void {
   console.log('Selected item:', item);
   // TODO: Implement item selection
 }
 
-function giveToPlayer(item: any): void {
+function giveToPlayer(item: Item): void {
   console.log('Giving to player:', item);
   // TODO: Implement give to player
 }
 
-function editItem(item: any): void {
+function editItem(item: Item): void {
   console.log('Editing item:', item);
   // TODO: Implement item editing
 }
 
-function duplicateItem(item: any): void {
+function duplicateItem(item: Item): void {
   console.log('Duplicating item:', item);
   // TODO: Implement item duplication
 }

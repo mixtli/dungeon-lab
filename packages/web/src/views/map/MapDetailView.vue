@@ -3,7 +3,6 @@ import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import type { IMap, IAsset, IMapUpdateData } from '@dungeon-lab/shared/types/index.mjs';
 import { MapsClient } from '@dungeon-lab/client/index.mjs';
-import { ArrowLeftIcon } from '@heroicons/vue/24/outline';
 
 const route = useRoute();
 const router = useRouter();
@@ -22,7 +21,6 @@ const formData = ref<IMapUpdateData>({
     }
   }
 });
-const showDebug = ref(false);
 
 const mapClient = new MapsClient();
 
@@ -92,9 +90,6 @@ async function handleUpdate() {
   }
 }
 
-function toggleDebug() {
-  showDebug.value = !showDebug.value;
-}
 
 onMounted(() => {
   fetchMap();
@@ -102,137 +97,136 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="p-6">
-    <div class="flex items-center mb-6">
-      <button
-        @click="router.back()"
-        class="flex items-center px-4 py-2 mr-4 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-      >
-        <ArrowLeftIcon class="w-5 h-5 mr-2" />
-        Back
-      </button>
-      <h1 class="text-2xl font-bold">Map Details</h1>
-    </div>
-
-    <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-md overflow-hidden">
+  <div class="min-h-screen bg-parchment dark:bg-obsidian p-6">
+    <div class="max-w-4xl mx-auto">
       <!-- Loading State -->
       <div v-if="loading" class="flex justify-center items-center min-h-[400px]">
         <div
-          class="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"
+          class="animate-spin rounded-full h-12 w-12 border-4 border-dragon border-t-transparent shadow-lg"
         ></div>
       </div>
 
-      <div v-else-if="map" class="p-6">
-        <div class="mb-6">
+      <div v-else-if="map">
+        <!-- Map Name - Centered -->
+        <div class="text-center mb-8">
+          <h1 class="text-4xl font-bold text-dragon">{{ map.name }}</h1>
+        </div>
+
+        <!-- Map Image -->
+        <div class="mb-8 bg-stone dark:bg-stone-700 rounded-lg shadow-xl overflow-hidden border border-stone-300 dark:border-stone-600">
           <img
             v-if="getMapImageUrl(map)"
             :src="getMapImageUrl(map)"
             :alt="map.name"
-            class="w-full rounded shadow-lg object-cover"
+            class="w-full object-cover"
           />
-          <div v-else class="w-full h-64 bg-gray-200 rounded shadow-lg flex items-center justify-center">
-            <span class="text-gray-500">No image available</span>
+          <div v-else class="w-full h-64 bg-stone-200 dark:bg-stone-600 flex items-center justify-center">
+            <span class="text-ash dark:text-stone-300 text-lg">🗺️ No image available</span>
           </div>
         </div>
 
-        <div v-if="!editing" class="space-y-4">
-          <div>
-            <h2 class="text-xl font-semibold">{{ map.name }}</h2>
-            <p class="text-gray-600 mt-2">{{ map.description || 'No description' }}</p>
-          </div>
-
-          <div class="grid grid-cols-2 gap-4 text-sm">
+        <!-- Details Box -->
+        <div class="bg-stone dark:bg-stone-700 rounded-lg shadow-xl border border-stone-300 dark:border-stone-600 p-6">
+          <h2 class="text-2xl font-bold text-dragon mb-4">📋 Map Details</h2>
+          
+          <div class="space-y-4">
+            <!-- Description -->
             <div>
-              <span class="font-medium">Grid Size:</span>
-              {{ map.uvtt?.resolution?.map_size?.x }} x {{ map.uvtt?.resolution?.map_size?.y }}
+              <h3 class="text-sm uppercase text-gold font-bold mb-2">📝 Description</h3>
+              <p class="text-onyx dark:text-parchment">{{ map.description || 'No description provided' }}</p>
             </div>
-            <div>
-              <span class="font-medium">Aspect Ratio:</span>
-              {{ map.aspectRatio?.toFixed(2) }}
+
+            <!-- Grid and Aspect Ratio -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="bg-parchment dark:bg-obsidian p-4 rounded-lg border border-stone-300 dark:border-stone-600">
+                <h3 class="text-sm uppercase text-gold font-bold mb-2">📐 Grid Size</h3>
+                <p class="text-onyx dark:text-parchment font-medium">
+                  {{ map.uvtt?.resolution?.map_size?.x || 0 }} x {{ map.uvtt?.resolution?.map_size?.y || 0 }}
+                </p>
+              </div>
+
+              <div class="bg-parchment dark:bg-obsidian p-4 rounded-lg border border-stone-300 dark:border-stone-600">
+                <h3 class="text-sm uppercase text-gold font-bold mb-2">📏 Aspect Ratio</h3>
+                <p class="text-onyx dark:text-parchment font-medium">
+                  {{ map.aspectRatio?.toFixed(2) || 'Unknown' }}
+                </p>
+              </div>
             </div>
           </div>
 
-          <!-- Debug section -->
-          <div class="mt-8 border-t pt-4">
-            <button 
-              @click="toggleDebug"
-              class="text-sm text-gray-500 hover:text-gray-700"
-            >
-              {{ showDebug ? 'Hide' : 'Show' }} Debug Info
-            </button>
-            <div v-if="showDebug" class="mt-2 bg-gray-100 p-4 rounded overflow-auto max-h-96">
-              <pre class="text-xs">{{ JSON.stringify(map, null, 2) }}</pre>
-            </div>
-          </div>
-
-          <div class="flex justify-end">
+          <!-- Edit Button -->
+          <div class="flex justify-end mt-6">
             <button
               @click="editing = true"
-              class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              class="btn btn-success shadow-lg"
             >
-              Edit Map
+              ✏️ Edit Map
             </button>
           </div>
         </div>
 
-        <form v-else @submit.prevent="handleUpdate" class="space-y-6">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-              Name <span class="text-red-500">*</span>
-            </label>
-            <input
-              v-model="formData.name"
-              type="text"
-              required
-              placeholder="Enter map name"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
+        <!-- Edit Form -->
+        <div v-if="editing" class="mt-8 bg-stone dark:bg-stone-700 rounded-lg shadow-xl border border-stone-300 dark:border-stone-600 p-6">
+          <h2 class="text-2xl font-bold text-dragon mb-6">✏️ Edit Map</h2>
+          
+            <form @submit.prevent="handleUpdate" class="space-y-6">
+              <div>
+                <label class="block text-sm uppercase text-gold font-bold mb-2">
+                  📝 Name <span class="text-dragon">*</span>
+                </label>
+                <input
+                  v-model="formData.name"
+                  type="text"
+                  required
+                  placeholder="Enter map name"
+                  class="w-full px-4 py-3 bg-parchment dark:bg-obsidian border border-stone-300 dark:border-stone-600 rounded-lg text-onyx dark:text-parchment focus:outline-none focus:ring-2 focus:ring-gold focus:border-gold"
+                />
+              </div>
 
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1"> Description </label>
-            <textarea
-              v-model="formData.description"
-              rows="4"
-              placeholder="Enter map description"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            ></textarea>
-          </div>
+              <div>
+                <label class="block text-sm uppercase text-gold font-bold mb-2">📖 Description</label>
+                <textarea
+                  v-model="formData.description"
+                  rows="4"
+                  placeholder="Enter map description"
+                  class="w-full px-4 py-3 bg-parchment dark:bg-obsidian border border-stone-300 dark:border-stone-600 rounded-lg text-onyx dark:text-parchment focus:outline-none focus:ring-2 focus:ring-gold focus:border-gold"
+                ></textarea>
+              </div>
 
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-              Grid Columns <span class="text-red-500">*</span>
-            </label>
-            <input
-              v-model="formData!.uvtt!.resolution!.map_size!.x"
-              type="number"
-              required
-              min="1"
-              max="100"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-            <div class="text-gray-500 text-sm mt-1">
-              Number of columns in the grid. Rows will be calculated based on the image aspect
-              ratio.
-            </div>
-          </div>
+              <div>
+                <label class="block text-sm uppercase text-gold font-bold mb-2">
+                  📐 Grid Columns <span class="text-dragon">*</span>
+                </label>
+                <input
+                  v-model="formData!.uvtt!.resolution!.map_size!.x"
+                  type="number"
+                  required
+                  min="1"
+                  max="100"
+                  class="w-full px-4 py-3 bg-parchment dark:bg-obsidian border border-stone-300 dark:border-stone-600 rounded-lg text-onyx dark:text-parchment focus:outline-none focus:ring-2 focus:ring-gold focus:border-gold"
+                />
+                <div class="text-ash dark:text-stone-300 text-sm mt-1">
+                  Number of columns in the grid. Rows will be calculated based on the image aspect ratio.
+                </div>
+              </div>
 
-          <div class="flex justify-end space-x-2">
-            <button
-              type="button"
-              @click="editing = false"
-              class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            >
-              Save Changes
-            </button>
+              <div class="flex justify-end space-x-3">
+                <button
+                  type="button"
+                  @click="editing = false"
+                  class="btn btn-outline shadow-lg"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  class="btn btn-success shadow-lg"
+                >
+                  💾 Save Changes
+                </button>
+              </div>
+            </form>
           </div>
-        </form>
       </div>
     </div>
   </div>

@@ -264,15 +264,31 @@ const deleteSelected = () => {
 .properties-panel {
     padding: 10px;
     overflow-y: auto;
+    background-color: var(--stone, #f5f5f4);
+    color: var(--onyx, #333);
+}
+
+@media (prefers-color-scheme: dark) {
+    .properties-panel {
+        background-color: var(--stone-700, #44403c);
+        color: var(--parchment, #f5f5dc);
+    }
 }
 
 .panel-title {
     margin-top: 0;
     margin-bottom: 10px;
     font-size: 16px;
-    color: #333;
+    color: var(--onyx, #333);
     padding-bottom: 5px;
-    border-bottom: 1px solid #ddd;
+    border-bottom: 1px solid var(--stone-300, #ddd);
+}
+
+@media (prefers-color-scheme: dark) {
+    .panel-title {
+        color: var(--parchment, #f5f5dc);
+        border-bottom-color: var(--stone-600, #57534e);
+    }
 }
 
 .property-group {

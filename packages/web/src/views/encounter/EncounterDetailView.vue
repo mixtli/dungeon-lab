@@ -6,10 +6,12 @@ import { useEncounterStore } from '../../stores/encounter.store.mjs';
 import { useSocketStore } from '../../stores/socket.store.mjs';
 import { useAuthStore } from '../../stores/auth.store.mjs';
 import { useGameSessionStore } from '../../stores/game-session.store.mjs';
-import { IGameSession } from '@dungeon-lab/shared/types/index.mjs';
-import { GameSessionsClient } from '@dungeon-lab/client/index.mjs';
+import { IGameSession, IMap, IAsset } from '@dungeon-lab/shared/types/index.mjs';
+import { GameSessionsClient, CampaignsClient, MapsClient } from '@dungeon-lab/client/index.mjs';
 
 const gameSessionClient = new GameSessionsClient();
+const campaignsClient = new CampaignsClient();
+const mapsClient = new MapsClient();
 const route = useRoute();
 const router = useRouter();
 const encounterStore = useEncounterStore();
@@ -17,6 +19,24 @@ const socketStore = useSocketStore();
 const authStore = useAuthStore();
 const gameSessionStore = useGameSessionStore();
 const loadError = ref<string | null>(null);
+const campaignName = ref<string>('');
+const mapData = ref<IMap | null>(null);
+
+// Function to get thumbnail URL from map
+const getThumbnailUrl = (map: IMap): string | undefined => {
+  if (map.thumbnailId) {
+    // Handle populated ObjectId reference
+    if (typeof map.thumbnailId === 'object') {
+      const asset = map.thumbnailId as unknown as IAsset;
+      return asset.url;
+    }
+  }
+  // Fallback for legacy data structure
+  if ('thumbnail' in map && typeof map.thumbnail === 'object' && map.thumbnail !== null && 'url' in map.thumbnail) {
+    return map.thumbnail.url as string;
+  }
+  return undefined;
+};
 
 const isGameMaster = computed(() => {
   const result = encounterStore.currentEncounter?.createdBy === authStore.user?.id;
@@ -75,6 +95,26 @@ onMounted(async () => {
     const campaignId = encounterStore.currentEncounter?.campaignId;
     if (!campaignId) {
       throw new Error('Campaign ID not found in encounter data');
+    }
+
+    // Fetch campaign name
+    try {
+      const campaign = await campaignsClient.getCampaign(campaignId);
+      campaignName.value = campaign.name;
+    } catch (error) {
+      console.error('[Debug] Failed to fetch campaign name:', error);
+    }
+
+    // Fetch map data if mapId exists
+    const mapId = encounterStore.currentEncounter?.mapId;
+    if (mapId) {
+      try {
+        const mapIdString = typeof mapId === 'object' ? (mapId as any).id : mapId;
+        const map = await mapsClient.getMap(mapIdString);
+        mapData.value = map;
+      } catch (error) {
+        console.error('[Debug] Failed to fetch map data:', error);
+      }
     }
 
     // Then fetch the game session for the campaign
@@ -386,31 +426,40 @@ async function handleStopEncounter() {
         {{ encounterStore.currentEncounter.description }}
       </p>
 
-      <!-- Map info if available -->
-      <div v-if="encounterStore.currentEncounter.mapId" class="mt-6 p-4 bg-gray-50 rounded-lg">
-        <h2 class="text-lg font-medium">Map</h2>
+      <!-- Campaign link -->
+      <div v-if="encounterStore.currentEncounter.campaignId" class="mt-6 bg-stone dark:bg-stone-700 p-4 rounded-lg shadow-sm border border-stone-300 dark:border-stone-600">
+        <h3 class="text-sm uppercase text-gold font-bold">⚔️ Campaign</h3>
         <router-link
-          :to="{ name: 'map-edit', params: { id: typeof encounterStore.currentEncounter.mapId === 'object' ? (encounterStore.currentEncounter.mapId as any).id : encounterStore.currentEncounter.mapId } }"
-          class="text-blue-600 hover:text-blue-800 hover:underline"
+          :to="{ name: 'campaign-detail', params: { id: encounterStore.currentEncounter.campaignId } }"
+          class="mt-1 text-onyx dark:text-parchment font-medium hover:text-gold hover:underline block"
         >
-          {{
-            typeof encounterStore.currentEncounter.mapId === 'object' &&
-            'name' in (encounterStore.currentEncounter.mapId as any)
-              ? (encounterStore.currentEncounter.mapId as any).name
-              : 'Map loaded'
-          }}
+          {{ campaignName || 'View Campaign' }}
         </router-link>
       </div>
 
-      <!-- Campaign link -->
-      <div v-if="encounterStore.currentEncounter.campaignId" class="mt-6 p-4 bg-gray-50 rounded-lg">
-        <h2 class="text-lg font-medium">Campaign</h2>
-        <router-link
-          :to="{ name: 'campaign-detail', params: { id: encounterStore.currentEncounter.campaignId } }"
-          class="text-blue-600 hover:text-blue-800 hover:underline"
-        >
-          View Campaign
-        </router-link>
+      <!-- Map info if available -->
+      <div v-if="encounterStore.currentEncounter.mapId" class="mt-6 bg-stone dark:bg-stone-700 rounded-lg shadow-sm border border-stone-300 dark:border-stone-600 overflow-hidden">
+        <div class="p-4 border-b border-stone-300 dark:border-stone-600">
+          <h3 class="text-sm uppercase text-gold font-bold">🗺️ Map</h3>
+          <router-link
+            :to="{ name: 'map-edit', params: { id: typeof encounterStore.currentEncounter.mapId === 'object' ? (encounterStore.currentEncounter.mapId as any).id : encounterStore.currentEncounter.mapId } }"
+            class="text-onyx dark:text-parchment font-medium hover:text-gold hover:underline"
+          >
+            {{ mapData?.name || 'Map loaded' }}
+          </router-link>
+        </div>
+        <!-- Full map image -->
+        <div class="aspect-w-16 aspect-h-9 bg-stone-200 dark:bg-stone-600">
+          <img
+            v-if="mapData && getThumbnailUrl(mapData)"
+            :src="getThumbnailUrl(mapData)"
+            :alt="mapData.name"
+            class="w-full h-full object-cover"
+          />
+          <div v-else class="w-full h-full flex items-center justify-center">
+            <span class="text-ash dark:text-stone-300 text-lg">🗺️ No Image</span>
+          </div>
+        </div>
       </div>
 
       <!-- Participants section -->
@@ -441,3 +490,20 @@ async function handleStopEncounter() {
     <div v-else class="text-center text-gray-500">Encounter not found</div>
   </div>
 </template>
+
+<style scoped>
+.aspect-w-16 {
+  position: relative;
+  padding-bottom: 56.25%; /* 16:9 */
+}
+
+.aspect-w-16 > * {
+  position: absolute;
+  height: 100%;
+  width: 100%;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+}
+</style>

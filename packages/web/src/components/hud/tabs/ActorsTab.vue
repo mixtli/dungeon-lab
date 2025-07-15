@@ -104,6 +104,18 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 
+// Define a simple Actor interface for type safety
+interface Actor {
+  id: string;
+  name: string;
+  type: string;
+  hitPoints: number;
+  armorClass: number;
+  icon: string;
+  imageUrl: string | null;
+  challengeRating: string | null;
+}
+
 const searchQuery = ref('');
 const activeFilter = ref('all');
 
@@ -188,22 +200,22 @@ const filteredActors = computed(() => {
   return filtered;
 });
 
-function selectActor(actor: any): void {
+function selectActor(actor: Actor): void {
   console.log('Selected actor:', actor);
   // TODO: Implement actor selection
 }
 
-function addToEncounter(actor: any): void {
+function addToEncounter(actor: Actor): void {
   console.log('Adding to encounter:', actor);
   // TODO: Implement add to encounter
 }
 
-function editActor(actor: any): void {
+function editActor(actor: Actor): void {
   console.log('Editing actor:', actor);
   // TODO: Implement actor editing
 }
 
-function duplicateActor(actor: any): void {
+function duplicateActor(actor: Actor): void {
   console.log('Duplicating actor:', actor);
   // TODO: Implement actor duplication
 }

@@ -596,10 +596,18 @@ onUnmounted(() => {
 
 .map-editor-sidebar {
     width: 300px;
-    border-right: 1px solid #ddd;
+    border-right: 1px solid var(--stone-300, #ddd);
     display: flex;
     flex-direction: column;
     overflow-y: auto;
+    background-color: var(--stone, #f5f5f4);
+}
+
+@media (prefers-color-scheme: dark) {
+    .map-editor-sidebar {
+        border-right-color: var(--stone-600, #57534e);
+        background-color: var(--stone-700, #44403c);
+    }
 }
 
 .map-editor-canvas-container {
@@ -610,16 +618,30 @@ onUnmounted(() => {
 
 .map-editor-footer {
     height: 40px;
-    border-top: 1px solid #ddd;
+    border-top: 1px solid var(--stone-300, #ddd);
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 0 16px;
+    background-color: var(--stone, #f5f5f4);
+}
+
+@media (prefers-color-scheme: dark) {
+    .map-editor-footer {
+        border-top-color: var(--stone-600, #57534e);
+        background-color: var(--stone-700, #44403c);
+    }
 }
 
 .map-info {
     font-size: 14px;
-    color: #333;
+    color: var(--onyx, #333);
+}
+
+@media (prefers-color-scheme: dark) {
+    .map-info {
+        color: var(--parchment, #f5f5dc);
+    }
 }
 
 .map-actions {
@@ -629,14 +651,29 @@ onUnmounted(() => {
 
 .map-actions button {
     padding: 4px 12px;
-    background: #f0f0f0;
-    border: 1px solid #ccc;
+    background: var(--stone-100, #f0f0f0);
+    border: 1px solid var(--stone-300, #ccc);
     border-radius: 4px;
     cursor: pointer;
+    color: var(--onyx, #333);
+}
+
+@media (prefers-color-scheme: dark) {
+    .map-actions button {
+        background: var(--stone-600, #57534e);
+        border-color: var(--stone-500, #78716c);
+        color: var(--parchment, #f5f5dc);
+    }
 }
 
 .map-actions button:hover {
-    background: #e0e0e0;
+    background: var(--stone-200, #e0e0e0);
+}
+
+@media (prefers-color-scheme: dark) {
+    .map-actions button:hover {
+        background: var(--stone-500, #78716c);
+    }
 }
 
 .save-button {

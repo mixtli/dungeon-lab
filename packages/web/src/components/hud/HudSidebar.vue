@@ -67,6 +67,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useHUD } from '../../composables/useHUD.mjs';
+import type { SidebarTabType } from '../../types/hud.mjs';
 import ChatTab from './tabs/ChatTab.vue';
 import CombatTab from './tabs/CombatTab.vue';
 import ActorsTab from './tabs/ActorsTab.vue';
@@ -117,7 +118,7 @@ function stopResize(): void {
 }
 
 function popOutTab(tabId: string): void {
-  hud.popOutTab(tabId as any);
+  hud.popOutTab(tabId as SidebarTabType);
 }
 </script>
 

@@ -41,6 +41,7 @@ export default defineConfig(({ mode, command }) => {
     },
     server: {
       port: port,
+      host: true, // Allow external connections
       proxy: {
         '/api': {
           target: apiUrl,

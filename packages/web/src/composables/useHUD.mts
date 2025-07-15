@@ -203,6 +203,7 @@ export function useHUD() {
     setSidebarPosition: hudStore.setSidebarPosition,
     setActiveTool: hudStore.setActiveTool,
     toggleTool: hudStore.toggleTool,
+    setToolbarPosition: hudStore.setToolbarPosition,
     toggleToolbar: hudStore.toggleToolbar,
     popOutTab: hudStore.popOutTab,
     dockWindow: hudStore.dockWindow,

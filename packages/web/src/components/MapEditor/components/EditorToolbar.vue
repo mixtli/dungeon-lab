@@ -121,8 +121,17 @@ const changeWallType = (type: 'regular' | 'object') => {
     flex-direction: column;
     padding: 10px;
     gap: 10px;
-    background-color: #f5f5f5;
-    border-bottom: 1px solid #ddd;
+    background-color: var(--stone, #f5f5f5);
+    border-bottom: 1px solid var(--stone-300, #ddd);
+    color: var(--onyx, #333);
+}
+
+@media (prefers-color-scheme: dark) {
+    .editor-toolbar {
+        background-color: var(--stone-700, #44403c);
+        border-bottom-color: var(--stone-600, #57534e);
+        color: var(--parchment, #f5f5dc);
+    }
 }
 
 .tool-group {
@@ -133,8 +142,14 @@ const changeWallType = (type: 'regular' | 'object') => {
 
 .divider {
     height: 1px;
-    background-color: #ddd;
+    background-color: var(--stone-300, #ddd);
     margin: 5px 0;
+}
+
+@media (prefers-color-scheme: dark) {
+    .divider {
+        background-color: var(--stone-600, #57534e);
+    }
 }
 
 .tool-button {
@@ -148,15 +163,29 @@ const changeWallType = (type: 'regular' | 'object') => {
     cursor: pointer;
     transition: all 0.2s ease;
     text-align: left;
+    color: inherit;
 }
 
 .tool-button:hover {
-    background-color: #e0e0e0;
+    background-color: var(--stone-200, #e0e0e0);
+}
+
+@media (prefers-color-scheme: dark) {
+    .tool-button:hover {
+        background-color: var(--stone-600, #57534e);
+    }
 }
 
 .tool-button.active {
-    background-color: #e0e0e0;
-    border-color: #bbb;
+    background-color: var(--stone-200, #e0e0e0);
+    border-color: var(--stone-400, #bbb);
+}
+
+@media (prefers-color-scheme: dark) {
+    .tool-button.active {
+        background-color: var(--stone-600, #57534e);
+        border-color: var(--stone-500, #78716c);
+    }
 }
 
 .tool-icon {
@@ -186,10 +215,18 @@ const changeWallType = (type: 'regular' | 'object') => {
     align-items: center;
     gap: 4px;
     padding: 4px 8px;
-    border: 1px solid #ddd;
-    background-color: #f9f9f9;
+    border: 1px solid var(--stone-300, #ddd);
+    background-color: var(--stone-100, #f9f9f9);
     cursor: pointer;
     font-size: 12px;
+    color: inherit;
+}
+
+@media (prefers-color-scheme: dark) {
+    .wall-type-button {
+        border-color: var(--stone-600, #57534e);
+        background-color: var(--stone-800, #292524);
+    }
 }
 
 .wall-type-button:first-child {
@@ -201,8 +238,15 @@ const changeWallType = (type: 'regular' | 'object') => {
 }
 
 .wall-type-button.active {
-    background-color: #e0e0e0;
-    border-color: #bbb;
+    background-color: var(--stone-200, #e0e0e0);
+    border-color: var(--stone-400, #bbb);
+}
+
+@media (prefers-color-scheme: dark) {
+    .wall-type-button.active {
+        background-color: var(--stone-600, #57534e);
+        border-color: var(--stone-500, #78716c);
+    }
 }
 
 .color-dot {

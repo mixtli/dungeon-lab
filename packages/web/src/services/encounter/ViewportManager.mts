@@ -541,11 +541,11 @@ export class ViewportManager {
           if (canvas?.removeEventListener) {
             canvas.removeEventListener('wheel', this.boundWheelHandler);
           }
-        } catch (canvasError) {
+        } catch {
           // Canvas access failed - this is normal during PIXI teardown
         }
       }
-    } catch (error) {
+    } catch {
       // App access failed - also normal during teardown
     }
     
