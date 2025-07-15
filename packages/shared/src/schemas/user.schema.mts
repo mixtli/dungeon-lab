@@ -22,7 +22,17 @@ export const userSchema = z.object({
   preferences: userPreferencesSchema.default({}),
   isAdmin: z.boolean().default(false),
   googleId: z.string().optional(),
-  apiKey: z.string().optional()
+  apiKey: z.string().optional(),
+  profile: z.object({
+    biography: z.string().max(1000).optional(),
+    website: z.string().url().optional(),
+    twitter: z.string().url().optional(),
+    github: z.string().url().optional(),
+    linkedin: z.string().url().optional(),
+    discord: z.string().optional(),
+    location: z.string().max(100).optional(),
+    // Add more social/profile fields as needed
+  }).default({})
 });
 
 // Create data schema (for manual registration)

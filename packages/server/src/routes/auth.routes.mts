@@ -14,6 +14,7 @@ import {
   getApiKeyResponseSchema
 } from '@dungeon-lab/shared/types/api/index.mjs';
 import { createSchema } from 'zod-openapi';
+import { updateCurrentUserProfile } from '../controllers/auth.controller.mjs';
 
 const router = Router();
 //router.use(errorHandler);
@@ -135,6 +136,13 @@ router.get(
     }
   }),
   authController.getCurrentUser
+);
+
+// PATCH /me - update current user's profile
+router.patch(
+  '/me',
+  authenticate,
+  updateCurrentUserProfile
 );
 
 // Get API key

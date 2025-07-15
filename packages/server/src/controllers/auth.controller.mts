@@ -28,7 +28,8 @@ function formatUserResponse(user: IUser): LoginResponse['user'] {
     displayName: user.displayName,
     avatar: user.avatar,
     isAdmin: user.isAdmin,
-    preferences: user.preferences
+    preferences: user.preferences,
+    profile: user.profile || {}
   };
 }
 
@@ -67,7 +68,8 @@ export async function register(
       username: user.username,
       email: user.email,
       isAdmin: user.isAdmin,
-      preferences: user.preferences
+      preferences: user.preferences,
+      profile: user.profile || {}
     };
 
     res.status(201).json({ success: true, message: 'User created successfully', data: user });
@@ -120,7 +122,8 @@ export async function login(
       username: user.username,
       email: user.email,
       isAdmin: user.isAdmin,
-      preferences: user.preferences
+      preferences: user.preferences,
+      profile: user.profile || {}
     };
 
     res.json({
@@ -173,7 +176,8 @@ export async function googleCallback(
       username: user.username,
       email: user.email,
       isAdmin: user.isAdmin,
-      preferences: user.preferences
+      preferences: user.preferences,
+      profile: user.profile || {}
     };
 
     // Get the full user from the database to include all fields
@@ -245,6 +249,31 @@ export async function getCurrentUser(req: Request, res: Response<GetCurrentUserR
       success: false,
       error: 'An error occurred while fetching user data'
     });
+  }
+}
+
+/**
+ * Update current user's profile (displayName, profile fields only)
+ */
+export async function updateCurrentUserProfile(req: Request, res: Response) {
+  try {
+    if (!req.session || !req.session.user) {
+      return res.status(401).json({ success: false, error: 'Not authenticated' });
+    }
+    const userId = req.session.user.id;
+    const { displayName, profile } = req.body;
+    // Only allow updating displayName and profile fields
+    const update: Record<string, unknown> = {};
+    if (typeof displayName === 'string') update.displayName = displayName;
+    if (profile && typeof profile === 'object') update.profile = profile;
+    const user = await UserModel.findByIdAndUpdate(userId, update, { new: true }).select('-password');
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+    return res.status(200).json({ success: true, data: user });
+  } catch (error) {
+    logger.error('Error updating current user profile:', error);
+    return res.status(500).json({ success: false, error: 'Failed to update profile' });
   }
 }
 

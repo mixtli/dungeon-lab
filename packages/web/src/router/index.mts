@@ -19,6 +19,7 @@ const NotFoundView = () => import('@/views/NotFoundView.vue');
 const PluginManagerView = () => import('@/views/plugin/PluginManagerView.vue');
 const ChatView = () => import('@/views/ChatView.vue');
 const SettingsView = () => import('@/views/SettingsView.vue');
+const ProfileView = () => import('@/views/ProfileView.vue');
 
 // Campaign views
 const CampaignsView = () => import('@/views/CampaignsView.vue');
@@ -289,6 +290,16 @@ const routes: RouteRecordRaw[] = [
         component: ActorEditView,
         meta: {
           title: 'Edit Actor',
+          requiresAuth: true
+        }
+      },
+      // Profile route
+      {
+        path: 'profile',
+        name: 'profile',
+        component: ProfileView,
+        meta: {
+          title: 'Profile',
           requiresAuth: true
         }
       }
