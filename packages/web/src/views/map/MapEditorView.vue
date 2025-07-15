@@ -1,27 +1,33 @@
 <template>
   <div class="map-editor-page">
-    <div v-if="loading" class="loading-overlay">
-      <div class="loading-spinner"></div>
-      <div class="loading-text">Loading map...</div>
-    </div>
+    <!-- App Header -->
+    <AppHeader />
     
-    <div v-else-if="error" class="error-message">
-      <p>{{ error }}</p>
-      <button @click="goBack" class="btn">Go Back</button>
-    </div>
-    
-    <template v-else>
-      <div v-if="saving" class="saving-overlay">
+    <!-- Main Editor Content -->
+    <div class="editor-content">
+      <div v-if="loading" class="loading-overlay">
         <div class="loading-spinner"></div>
-        <div class="loading-text">Saving map...</div>
+        <div class="loading-text">Loading map...</div>
       </div>
       
-      <MapEditorView 
-        :map-id="mapId"
-        :initial-data="mapData"
-        @save="handleSave"
-      />
-    </template>
+      <div v-else-if="error" class="error-message">
+        <p>{{ error }}</p>
+        <button @click="goBack" class="btn">Go Back</button>
+      </div>
+      
+      <template v-else>
+        <div v-if="saving" class="saving-overlay">
+          <div class="loading-spinner"></div>
+          <div class="loading-text">Saving map...</div>
+        </div>
+        
+        <MapEditorView 
+          :map-id="mapId"
+          :initial-data="mapData"
+          @save="handleSave"
+        />
+      </template>
+    </div>
   </div>
 </template>
 
@@ -29,6 +35,7 @@
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import MapEditorView from '@/components/MapEditor/MapEditorComponent.vue';
+import AppHeader from '@/components/layout/AppHeader.vue';
 import { MapsClient } from '@/../../client/src/maps.client.mjs';
 import type { UVTTData, Point } from '@/../../shared/src/types/mapEditor.mjs';
 
@@ -534,9 +541,23 @@ const handleSave = async (editorData: UVTTData) => {
 <style scoped>
 .map-editor-page {
   height: 100vh;
-  width: 100%;
+  width: 100vw;
+  overflow: hidden;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+}
+
+.editor-content {
+  flex: 1;
   overflow: hidden;
   position: relative;
+  padding-top: 64px; /* Account for header height */
 }
 
 .loading-overlay,

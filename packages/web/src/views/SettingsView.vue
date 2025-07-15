@@ -1,13 +1,27 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, onMounted } from 'vue';
 import { pluginRegistry } from '@/services/plugin-registry.service.mjs';
+import { PluginsClient } from '@dungeon-lab/client/plugins.client.mjs';
 
 const selectedGameSystem = ref<string>(localStorage.getItem('activeGameSystem') || '');
 const previousGameSystem = ref<string>('');
-const gameSystemPlugins = computed(() => pluginRegistry.getGameSystemPlugins());
+const loading = ref(true);
+const gameSystemPluginOptions = ref<{ id: string; name: string }[]>([]);
 
-onMounted(() => {
-  previousGameSystem.value = selectedGameSystem.value;
+onMounted(async () => {
+  try {
+    // Fetch plugin list directly from API
+    const pluginsClient = new PluginsClient();
+    const plugins = await pluginsClient.getPlugins();
+    gameSystemPluginOptions.value = plugins
+      .filter((p) => p.config.type === 'gameSystem')
+      .map((p) => ({ id: p.config.id, name: p.config.name }));
+    previousGameSystem.value = selectedGameSystem.value;
+  } catch (error) {
+    console.error('Failed to fetch plugin list:', error);
+  } finally {
+    loading.value = false;
+  }
 });
 
 async function handleGameSystemChange(event: Event) {
@@ -23,7 +37,8 @@ async function handleGameSystemChange(event: Event) {
   }
 
   // Call onLoad handler for the new game system
-  const newPlugin = pluginRegistry.getGameSystemPlugin(newGameSystemId);
+  // Only load the selected plugin now
+  const newPlugin = await pluginRegistry.loadGameSystemPlugin(newGameSystemId);
   if (newPlugin?.onLoad) {
     await newPlugin.onLoad();
   }
@@ -36,30 +51,34 @@ async function handleGameSystemChange(event: Event) {
 
 <template>
   <div class="max-w-3xl mx-auto p-6">
-    <h1 class="text-2xl font-bold mb-6">Settings</h1>
+    <h1 class="text-2xl font-bold mb-6 text-dragon">Settings</h1>
 
-    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-      <div class="border-b pb-4 mb-4">
-        <h2 class="text-xl font-semibold">Game System</h2>
+    <div class="bg-stone dark:bg-stone-700 rounded-lg shadow-xl border border-stone-300 dark:border-stone-600 p-6 mb-6">
+      <div class="border-b border-stone-300 dark:border-stone-600 pb-4 mb-4">
+        <h2 class="text-xl font-semibold text-dragon dark:text-gold">Game System</h2>
       </div>
 
       <div class="game-system-settings">
-        <label for="gameSystem" class="block text-sm font-medium text-gray-700 mb-2">
+        <label for="gameSystem" class="block text-sm font-medium text-onyx dark:text-parchment mb-2">
           Active Game System
         </label>
+        <div v-if="loading" class="flex items-center justify-center py-8">
+          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-dragon"></div>
+        </div>
         <select
+          v-else
           id="gameSystem"
           v-model="selectedGameSystem"
           @change="handleGameSystemChange"
-          class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          class="block w-full px-3 py-2 bg-parchment dark:bg-stone-600 border border-stone-300 dark:border-stone-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-dragon focus:border-dragon text-onyx dark:text-parchment"
         >
           <option value="" disabled>Select a game system</option>
           <option
-            v-for="plugin in gameSystemPlugins"
-            :key="plugin.config.id"
-            :value="plugin.config.id"
+            v-for="plugin in gameSystemPluginOptions"
+            :key="plugin.id"
+            :value="plugin.id"
           >
-            {{ plugin.config.name }}
+            {{ plugin.name }}
           </option>
         </select>
       </div>

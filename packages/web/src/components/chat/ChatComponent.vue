@@ -147,22 +147,22 @@ function getMessageClasses(message: ChatMessage): string[] {
   
   if (isBotMessage(message)) {
     return [
-      'bg-gradient-to-r from-blue-500 to-purple-600 text-white',
-      'border-l-4 border-blue-300',
+      'bg-gradient-to-r from-secondary-600 to-primary-600 text-white',
+      'border-l-4 border-secondary-300',
       'shadow-lg'
     ];
   } else if (isSystemMessage(message)) {
     return [
-      'bg-yellow-50 text-yellow-800 border border-yellow-200',
+      'bg-accent-50 text-accent-800 border border-accent-200 dark:bg-accent-900 dark:text-accent-100 dark:border-accent-700',
       'italic'
     ];
   } else if (isOwnMessage) {
     return [
-      'bg-green-500 text-white'
+      'bg-nature-600 text-white dark:bg-nature-700'
     ];
   } else {
     return [
-      'bg-gray-100 text-gray-800'
+      'bg-stone-100 text-stone-800 dark:bg-stone-600 dark:text-stone-100'
     ];
   }
 }
@@ -172,13 +172,13 @@ function getSenderNameClasses(message: ChatMessage): string[] {
   const isOwnMessage = message.senderId === socketStore.userId || message.senderId === actorStore.currentActor?.id;
   
   if (isBotMessage(message)) {
-    return ['text-blue-100 font-semibold'];
+    return ['text-secondary-100 font-semibold'];
   } else if (isSystemMessage(message)) {
-    return ['text-yellow-700 font-medium'];
+    return ['text-accent-700 font-medium dark:text-accent-200'];
   } else if (isOwnMessage) {
-    return ['text-green-100'];
+    return ['text-nature-100'];
   } else {
-    return ['text-gray-900'];
+    return ['text-stone-900 dark:text-stone-100'];
   }
 }
 
@@ -187,13 +187,13 @@ function getTimestampClasses(message: ChatMessage): string[] {
   const isOwnMessage = message.senderId === socketStore.userId || message.senderId === actorStore.currentActor?.id;
   
   if (isBotMessage(message)) {
-    return ['text-blue-200'];
+    return ['text-secondary-200'];
   } else if (isSystemMessage(message)) {
-    return ['text-yellow-600'];
+    return ['text-accent-600 dark:text-accent-300'];
   } else if (isOwnMessage) {
-    return ['text-green-200'];
+    return ['text-nature-200'];
   } else {
-    return ['text-gray-500'];
+    return ['text-stone-500 dark:text-stone-300'];
   }
 }
 
@@ -428,12 +428,12 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div :class="['chat-component flex bg-white', height]">
+  <div :class="['chat-component flex bg-stone dark:bg-stone-700', height]">
     <!-- Chat Sidebar -->
-    <div class="w-64 border-r border-gray-200 flex flex-col">
+    <div class="w-64 border-r border-stone-300 dark:border-stone-600 flex flex-col">
       <!-- Sidebar Header -->
-      <div class="p-4 border-b border-gray-200">
-        <h3 class="text-lg font-semibold text-gray-900">Conversations</h3>
+      <div class="p-4 border-b border-stone-300 dark:border-stone-600">
+        <h3 class="text-lg font-semibold text-onyx dark:text-parchment">Conversations</h3>
       </div>
       
       <!-- Chat Context List -->
@@ -458,7 +458,7 @@ onUnmounted(() => {
                   <svg v-else-if="context.type === 'user'" class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
                   </svg>
-                  <svg v-else-if="context.type === 'bot'" class="h-4 w-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                  <svg v-else-if="context.type === 'bot'" class="h-4 w-4 text-secondary-600" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"/>
                   </svg>
                   <svg v-else class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
@@ -470,15 +470,15 @@ onUnmounted(() => {
                 <div v-if="context.type === 'bot' && botTypingStates.has(context.participantId || '')" 
                      class="ml-2 flex items-center">
                   <div class="flex space-x-1">
-                    <div class="w-1 h-1 bg-blue-500 rounded-full animate-bounce"></div>
-                    <div class="w-1 h-1 bg-blue-500 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
-                    <div class="w-1 h-1 bg-blue-500 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                    <div class="w-1 h-1 bg-secondary-500 rounded-full animate-bounce"></div>
+                    <div class="w-1 h-1 bg-secondary-500 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+                    <div class="w-1 h-1 bg-secondary-500 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
                   </div>
                 </div>
               </div>
               <!-- Unread count badge -->
               <span v-if="context.unreadCount && context.unreadCount > 0" 
-                    class="bg-blue-600 text-white text-xs rounded-full px-2 py-1 min-w-[1.25rem] text-center">
+                    class="bg-secondary-600 text-white text-xs rounded-full px-2 py-1 min-w-[1.25rem] text-center">
                 {{ context.unreadCount }}
               </span>
             </div>
@@ -490,9 +490,9 @@ onUnmounted(() => {
     <!-- Chat Content -->
     <div class="flex-1 flex flex-col">
       <!-- Chat Header -->
-      <div v-if="showHeader" class="p-4 border-b border-gray-200">
-        <h1 class="text-xl font-semibold text-gray-900">{{ currentChatName }}</h1>
-        <p class="text-sm text-gray-500">
+      <div v-if="showHeader" class="p-4 border-b border-stone-300 dark:border-stone-600">
+        <h1 class="text-xl font-semibold text-onyx dark:text-parchment">{{ currentChatName }}</h1>
+        <p class="text-sm text-ash dark:text-stone-300">
           <span v-if="activeChatContext?.type === 'campaign'">Group conversation with all participants</span>
           <span v-else-if="activeChatContext?.type === 'user'">Private conversation with Game Master</span>
           <span v-else-if="activeChatContext?.type === 'actor'">Private conversation with {{ activeChatContext?.name }}</span>
@@ -552,18 +552,18 @@ onUnmounted(() => {
         <!-- Bot typing indicators -->
         <div v-for="[botId, typingState] in botTypingStates" :key="`typing-${botId}`" 
              class="flex justify-start">
-          <div class="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-3 rounded-lg max-w-[80%] shadow-sm border-l-4 border-blue-300">
+          <div class="bg-gradient-to-r from-secondary-600 to-primary-600 text-white p-3 rounded-lg max-w-[80%] shadow-sm border-l-4 border-secondary-300">
             <div class="flex items-center gap-2">
               <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"/>
               </svg>
-              <span class="text-blue-100 font-semibold text-sm">{{ typingState.botName }}</span>
-              <span class="text-blue-200 text-xs">is thinking...</span>
+              <span class="text-secondary-100 font-semibold text-sm">{{ typingState.botName }}</span>
+              <span class="text-secondary-200 text-xs">is thinking...</span>
             </div>
             <div class="mt-2 flex items-center space-x-1">
-              <div class="w-2 h-2 bg-blue-200 rounded-full animate-bounce"></div>
-              <div class="w-2 h-2 bg-blue-200 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
-              <div class="w-2 h-2 bg-blue-200 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+              <div class="w-2 h-2 bg-secondary-200 rounded-full animate-bounce"></div>
+              <div class="w-2 h-2 bg-secondary-200 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+              <div class="w-2 h-2 bg-secondary-200 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
             </div>
           </div>
         </div>
@@ -571,28 +571,28 @@ onUnmounted(() => {
         <!-- Bot error indicators -->
         <div v-for="[botId, errorState] in botErrors" :key="`error-${botId}`" 
              class="flex justify-start">
-          <div class="bg-red-100 border text-red-800 p-3 rounded-lg max-w-[80%] shadow-sm border-l-4 border-red-500">
+          <div class="bg-error-100 border text-error-800 p-3 rounded-lg max-w-[80%] shadow-sm border-l-4 border-error-500 dark:bg-error-900 dark:text-error-100 dark:border-error-700">
             <div class="flex items-center gap-2">
-              <svg class="h-4 w-4 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+              <svg class="h-4 w-4 text-error-600 dark:text-error-400" fill="currentColor" viewBox="0 0 20 20">
                 <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
               </svg>
-              <span class="text-red-700 font-semibold text-sm">{{ errorState.botName }}</span>
-              <span class="text-red-600 text-xs">Error</span>
+              <span class="text-error-700 font-semibold text-sm dark:text-error-200">{{ errorState.botName }}</span>
+              <span class="text-error-600 text-xs dark:text-error-300">Error</span>
             </div>
             <p class="mt-1 text-sm">{{ errorState.error }}</p>
           </div>
         </div>
 
-        <div v-if="!messages.length && !activeChatContext" class="text-center text-gray-500">
+        <div v-if="!messages.length && !activeChatContext" class="text-center text-ash dark:text-stone-300">
           Select a conversation from the sidebar to start chatting
         </div>
-        <div v-else-if="!messages.length" class="text-center text-gray-500">
+        <div v-else-if="!messages.length" class="text-center text-ash dark:text-stone-300">
           No messages yet in this conversation
         </div>
       </div>
 
       <!-- Message Input -->
-      <div v-if="activeChatContext" class="p-4 border-t border-gray-200">
+      <div v-if="activeChatContext" class="p-4 border-t border-stone-300 dark:border-stone-600">
         <div class="relative">
           <MentionInput
             v-model="messageInput"
@@ -601,7 +601,7 @@ onUnmounted(() => {
             @submit="sendMessage"
           />
           <button @click="sendMessage"
-            class="absolute right-2 top-1/2 transform -translate-y-1/2 px-4 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+            class="absolute right-2 top-1/2 transform -translate-y-1/2 btn btn-secondary">
             Send
           </button>
         </div>
@@ -649,8 +649,8 @@ onUnmounted(() => {
 }
 
 /* Bot message gradient animation */
-.bg-gradient-to-r.from-blue-500.to-purple-600 {
-  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+.bg-gradient-to-r.from-secondary-600.to-primary-600 {
+  background: linear-gradient(135deg, rgb(var(--color-secondary)) 0%, rgb(var(--color-primary)) 100%);
 }
 
 /* Hover effects for interactive elements */
@@ -661,25 +661,25 @@ onUnmounted(() => {
 
 /* Mention highlighting styles */
 :deep(.mention) {
-  background-color: #dbeafe;
-  color: #1e40af;
+  background-color: rgb(var(--color-secondary) / 0.1);
+  color: rgb(var(--color-secondary));
   padding: 0.125rem 0.25rem;
   border-radius: 0.25rem;
   font-weight: 500;
 }
 
 :deep(.mention-user) {
-  background-color: #dbeafe;
-  color: #1e40af;
+  background-color: rgb(var(--color-secondary) / 0.1);
+  color: rgb(var(--color-secondary));
 }
 
 :deep(.mention-actor) {
-  background-color: #fef3c7;
-  color: #92400e;
+  background-color: rgb(var(--color-accent) / 0.1);
+  color: rgb(var(--color-accent));
 }
 
 :deep(.mention-bot) {
-  background-color: #e0e7ff;
-  color: #5b21b6;
+  background-color: rgb(var(--color-primary) / 0.1);
+  color: rgb(var(--color-primary));
 }
 </style> 

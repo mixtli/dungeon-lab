@@ -1,37 +1,37 @@
 <template>
   <div class="container mx-auto px-4 py-8">
-    <h1 class="text-2xl font-bold mb-6">Campaign Invites</h1>
+    <h1 class="text-2xl font-bold mb-6 text-dragon">Campaign Invites</h1>
 
     <div v-if="loading" class="flex justify-center">
-      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-dragon"></div>
     </div>
 
-    <div v-else-if="error" class="text-red-600">
+    <div v-else-if="error" class="text-error-700 dark:text-error-400">
       {{ error }}
     </div>
 
-    <div v-else-if="!invites.length" class="text-center text-gray-600">
+    <div v-else-if="!invites.length" class="text-center text-ash dark:text-stone-300">
       No pending invites found.
     </div>
 
     <div v-else class="grid gap-6">
-      <div v-for="invite in invites" :key="invite.id" class="bg-white rounded-lg shadow p-6">
-        <h2 class="text-xl font-semibold mb-2">
+      <div v-for="invite in invites" :key="invite.id" class="bg-stone dark:bg-stone-700 rounded-lg shadow-xl border border-stone-300 dark:border-stone-600 p-6">
+        <h2 class="text-xl font-semibold mb-2 text-dragon dark:text-gold">
           {{ getCampaignName(invite) }}
         </h2>
-        <p class="text-sm text-gray-500 mb-4">
+        <p class="text-sm text-ash dark:text-stone-300 mb-4">
           Invited by {{ getCreatorEmail(invite) }}
         </p>
 
         <div class="flex gap-4">
           <button
-            class="px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-opacity-50"
+            class="btn btn-primary"
             @click="handleAccept(invite)"
           >
             Accept
           </button>
           <button
-            class="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50"
+            class="btn btn-outline"
             @click="handleDecline(invite)"
           >
             Decline
@@ -45,20 +45,20 @@
       v-if="showCharacterSelect"
       class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4"
     >
-      <div class="bg-white rounded-lg shadow-xl w-full max-w-lg">
+      <div class="bg-stone dark:bg-stone-700 rounded-lg shadow-xl w-full max-w-lg border border-stone-300 dark:border-stone-600">
         <div class="p-6">
-          <h2 class="text-xl font-semibold mb-4">Select Character</h2>
+          <h2 class="text-xl font-semibold mb-4 text-dragon dark:text-gold">Select Character</h2>
 
           <div v-if="loadingCharacters" class="flex justify-center py-8">
-            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-dragon"></div>
           </div>
 
-          <div v-else-if="!compatibleCharacters.length" class="text-center py-8">
+          <div v-else-if="!compatibleCharacters.length" class="text-center py-8 text-onyx dark:text-parchment">
             <p class="mb-4">
               You don't have any characters compatible with this campaign's game system.
             </p>
             <button
-              class="px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-opacity-50"
+              class="btn btn-primary"
               @click="createNewCharacter"
             >
               Create New Character
@@ -69,7 +69,7 @@
             <div
               v-for="character in compatibleCharacters"
               :key="character.id"
-              class="p-4 border rounded-lg cursor-pointer hover:bg-gray-50"
+              class="p-4 border border-stone-300 dark:border-stone-600 rounded-lg cursor-pointer hover:bg-stone-100 dark:hover:bg-stone-600 transition-colors"
               @click="selectCharacter(character)"
             >
               <div class="flex items-center gap-4">
@@ -81,13 +81,13 @@
                 />
                 <div
                   v-else
-                  class="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center"
+                  class="w-12 h-12 rounded-full bg-stone-200 dark:bg-stone-600 flex items-center justify-center text-onyx dark:text-parchment"
                 >
                   <span class="text-xl">{{ character.name[0] }}</span>
                 </div>
                 <div>
-                  <h3 class="font-semibold">{{ character.name }}</h3>
-                  <p class="text-sm text-gray-600">{{ character.type }}</p>
+                  <h3 class="font-semibold text-dragon dark:text-gold">{{ character.name }}</h3>
+                  <p class="text-sm text-ash dark:text-stone-300">{{ character.type }}</p>
                 </div>
               </div>
             </div>
@@ -95,7 +95,7 @@
 
           <div class="mt-6 flex justify-end">
             <button
-              class="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50"
+              class="btn btn-outline"
               @click="showCharacterSelect = false"
             >
               Cancel

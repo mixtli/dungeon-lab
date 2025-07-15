@@ -1462,41 +1462,81 @@ const handlePortalEndpointDrag = (e: KonvaEventObject<DragEvent>, id: string, en
 }
 
 .tool-help-content {
-    background-color: white;
+    background-color: var(--stone, #f5f5f4);
     padding: 20px;
     border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     max-width: 400px;
     text-align: center;
+    border: 1px solid var(--stone-300, #d6d3d1);
+    color: var(--onyx, #333);
+}
+
+@media (prefers-color-scheme: dark) {
+    .tool-help-content {
+        background-color: var(--stone-700, #44403c);
+        border-color: var(--stone-600, #57534e);
+        color: var(--parchment, #f5f5dc);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
 }
 
 .tool-help-content h3 {
     margin-top: 0;
-    color: #333;
+    color: var(--dragon, #8b4513);
+}
+
+@media (prefers-color-scheme: dark) {
+    .tool-help-content h3 {
+        color: var(--gold, #ffd700);
+    }
 }
 
 .close-help {
     margin-top: 15px;
     padding: 8px 16px;
-    background-color: #4a6da7;
+    background-color: var(--success, #4a6da7);
     color: white;
     border: none;
     border-radius: 4px;
     cursor: pointer;
+    transition: background-color 0.2s ease;
 }
 
 .close-help:hover {
-    background-color: #3a5d97;
+    background-color: var(--success-700, #3a5d97);
+}
+
+@media (prefers-color-scheme: dark) {
+    .close-help {
+        background-color: var(--gold, #ffd700);
+        color: var(--onyx, #333);
+    }
+    
+    .close-help:hover {
+        background-color: var(--gold-600, #e6c200);
+    }
 }
 
 .drawing-status {
     position: absolute;
     top: 15px;
     right: 15px;
-    background-color: rgba(255, 255, 255, 0.9);
+    background-color: var(--stone, rgba(245, 245, 244, 0.9));
     padding: 10px;
     border-radius: 5px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    border: 1px solid var(--stone-300, #d6d3d1);
+    color: var(--onyx, #333);
+}
+
+@media (prefers-color-scheme: dark) {
+    .drawing-status {
+        background-color: var(--stone-700, rgba(68, 64, 60, 0.9));
+        border-color: var(--stone-600, #57534e);
+        color: var(--parchment, #f5f5dc);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    }
 }
 
 .status-badge {

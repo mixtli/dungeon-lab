@@ -112,13 +112,6 @@ function handleThemeToggle() {
               </RouterLink>
               <RouterLink
                 v-if="authStore.isAuthenticated"
-                to="/games"
-                class="block px-4 py-2 text-sm nav-text hover:bg-stone-100 dark:hover:bg-stone-600"
-              >
-                Games
-              </RouterLink>
-              <RouterLink
-                v-if="authStore.isAuthenticated"
                 to="/characters"
                 class="block px-4 py-2 text-sm nav-text hover:bg-stone-100 dark:hover:bg-stone-600"
               >
@@ -275,14 +268,6 @@ function handleThemeToggle() {
           @click="closeMenu"
         >
           Maps
-        </RouterLink>
-        <RouterLink
-          v-if="authStore.isAuthenticated"
-          to="/games"
-          class="block px-3 py-2 rounded-md text-base font-medium nav-text hover:bg-stone-100 dark:hover:bg-stone-700"
-          @click="closeMenu"
-        >
-          Games
         </RouterLink>
         <RouterLink
           v-if="authStore.isAuthenticated"

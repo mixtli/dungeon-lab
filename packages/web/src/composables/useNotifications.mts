@@ -175,13 +175,13 @@ export function useNotifications() {
     const classes: string[] = [];
 
     if (isActive) {
-      classes.push('bg-blue-100', 'text-blue-900');
+      classes.push('bg-secondary-100', 'text-secondary-900', 'dark:bg-secondary-800', 'dark:text-secondary-100');
     } else if (state.hasMention) {
-      classes.push('bg-red-100', 'text-red-900', 'border-l-4', 'border-red-500');
+      classes.push('bg-error-100', 'text-error-900', 'border-l-4', 'border-error-500', 'dark:bg-error-900', 'dark:text-error-100', 'dark:border-error-400');
     } else if (state.hasUnread) {
-      classes.push('bg-yellow-50', 'text-yellow-900', 'border-l-4', 'border-yellow-400');
+      classes.push('bg-accent-50', 'text-accent-900', 'border-l-4', 'border-accent-400', 'dark:bg-accent-900', 'dark:text-accent-100', 'dark:border-accent-500');
     } else {
-      classes.push('text-gray-700', 'hover:bg-gray-100');
+      classes.push('text-onyx', 'hover:bg-stone-100', 'dark:text-parchment', 'dark:hover:bg-stone-600');
     }
 
     return classes;
