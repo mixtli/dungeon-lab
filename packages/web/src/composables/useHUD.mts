@@ -327,6 +327,10 @@ export function useFloatingWindow(windowId: string) {
     hudStore.updateFloatingWindowSize(windowId, { width, height });
   }
 
+  function toggleMinimized(): void {
+    hudStore.toggleFloatingWindowMinimized(windowId);
+  }
+
   return {
     window,
     isVisible,
@@ -335,6 +339,7 @@ export function useFloatingWindow(windowId: string) {
     close,
     bringToFront,
     updatePosition,
-    updateSize
+    updateSize,
+    toggleMinimized
   };
 }

@@ -1,3 +1,5 @@
+import forms from '@tailwindcss/forms';
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{vue,js,ts,jsx,tsx}'],
@@ -109,7 +111,11 @@ export default {
         onyx: '#111111',
         ash: '#666666',
       },
+      fontFamily: {
+        heading: ['"MedievalSharp"', 'cursive'],
+        body: ['"Merriweather"', 'serif'],
+      },
     },
   },
-  plugins: [require('@tailwindcss/forms')],
+  plugins: [forms],
 };

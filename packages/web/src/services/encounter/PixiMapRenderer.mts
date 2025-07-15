@@ -68,7 +68,7 @@ export class EncounterMapRenderer {
   private isLoaded = false;
   private isInitialized = false;
   
-  constructor(canvas: HTMLCanvasElement, config: EncounterMapConfig) {
+  constructor(config: EncounterMapConfig) {
     this.renderConfig = this.getPlatformRenderConfig(config.platform);
     
     // Initialize Pixi.js application - will be initialized async

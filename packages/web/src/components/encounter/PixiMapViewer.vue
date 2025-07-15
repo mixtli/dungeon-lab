@@ -51,7 +51,6 @@ import type { Platform } from '@/services/encounter/PixiMapRenderer.mjs';
 import { MapsClient } from '@dungeon-lab/client/index.mjs';
 import { useEncounterStore } from '@/stores/encounter.store.mjs';
 import { checkWallCollision, pixelsToGrid } from '@/utils/collision-detection.mjs';
-import type { TokenRenderer } from '@/services/encounter/TokenRenderer.mts';
 import { getAssetUrl } from '@/utils/getAssetUrl.mjs';
 
 // Initialize maps client and stores
@@ -115,7 +114,6 @@ const {
   isInitialized,
   viewportState,
   selectedTokenId,
-  tokenRenderer,
   initializeMap,
   loadMap,
   addToken,
@@ -685,7 +683,6 @@ watch(() => props.showLights, (visible) => {
 }, { immediate: true });
 
 // Lifecycle
-let tokenRendererInstance: TokenRenderer | null = null;
 let preventContextMenu: ((e: MouseEvent) => void) | null = null;
 
 onMounted(async () => {
@@ -718,7 +715,6 @@ onMounted(async () => {
   window.addEventListener('keydown', handleKeyDown);
 
   // Access tokenRenderer from the properly exposed usePixiMap instance
-  tokenRendererInstance = tokenRenderer.value;
   if (canvasRef.value) {
     // Suppress browser context menu so Pixi rightdown events fire
     preventContextMenu = (e: MouseEvent) => e.preventDefault();

@@ -17,10 +17,6 @@ const props = defineProps<{
   campaignId: string;
 }>();
 
-const emit = defineEmits<{
-  'schedule-session': []
-}>();
-
 const authStore = useAuthStore();
 const gameSessionStore = useGameSessionStore();
 

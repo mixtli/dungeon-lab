@@ -132,9 +132,9 @@ export const useHUDStore = defineStore('hud', () => {
       iconSize: 40
     },
     theme: {
-      sidebarBackground: 'rgba(26, 26, 26, 0.9)',
-      toolbarBackground: 'rgba(26, 26, 26, 0.8)',
-      opacity: 0.9,
+      sidebarBackground: 'rgba(26, 26, 26, 0.4)',
+      toolbarBackground: 'rgba(26, 26, 26, 0.3)',
+      opacity: 0.4,
       borderRadius: 8
     }
   });
@@ -445,6 +445,17 @@ export const useHUDStore = defineStore('hud', () => {
     }
   }
 
+  /**
+   * Toggle floating window minimized state
+   */
+  function toggleFloatingWindowMinimized(windowId: string): void {
+    const window = floatingWindows.value[windowId];
+    if (window) {
+      window.minimized = !window.minimized;
+      savePreferences();
+    }
+  }
+
   // Utility Functions
 
   /**
@@ -598,6 +609,7 @@ export const useHUDStore = defineStore('hud', () => {
     updateFloatingWindowPosition,
     updateFloatingWindowSize,
     bringWindowToFront,
+    toggleFloatingWindowMinimized,
 
     // Utilities
     resetToDefaults,

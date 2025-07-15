@@ -30,7 +30,7 @@ function updateHasCampaigns(count: number) {
       <button
         v-if="hasCampaigns"
         @click="createCampaign"
-        class="btn btn-primary shadow-lg"
+        class="btn btn-success shadow-lg"
       >
         <span class="flex items-center">
           <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -53,7 +53,7 @@ function updateHasCampaigns(count: number) {
         </div>
         <button
           @click="createCampaign"
-          class="btn btn-primary text-lg px-8 py-3 shadow-lg"
+          class="btn btn-success text-lg px-8 py-3 shadow-lg"
         >
           <span class="flex items-center">
             <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

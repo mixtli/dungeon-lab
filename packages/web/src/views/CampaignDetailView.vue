@@ -3,7 +3,6 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useCampaignStore } from '../stores/campaign.store.mjs';
 import { pluginRegistry } from '../services/plugin-registry.service.mjs';
-import { formatDate } from '../utils/date-utils.mjs';
 import type { ICampaign } from '@dungeon-lab/shared/types/index.mjs';
 import CampaignCharacterList from '../components/campaign/CampaignCharacterList.vue';
 import CampaignEncounterList from '../components/campaign/CampaignEncounterList.vue';
@@ -75,7 +74,7 @@ const statusConfig = computed(() => {
   }
 });
 
-const statusOptions = [
+const statusOptions: { value: ICampaign['status']; label: string; emoji: string }[] = [
   { value: 'active', label: 'Active', emoji: '🟢' },
   { value: 'paused', label: 'Paused', emoji: '⏸️' },
   { value: 'completed', label: 'Completed', emoji: '📁' },
@@ -127,7 +126,7 @@ async function refreshCampaign() {
   }
 }
 
-async function updateStatus(newStatus: string) {
+async function updateStatus(newStatus: ICampaign['status']) {
   if (!campaign.value) return;
   
   try {

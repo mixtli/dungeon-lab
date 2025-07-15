@@ -61,7 +61,7 @@ function handleThemeToggle() {
             alt="Dungeon Lab Logo"
             class="h-8 w-8 object-contain"
           />
-          <span class="ml-2 text-xl font-bold text-dragon"
+          <span class="ml-2 text-4xl font-bold text-dragon font-heading leading-none flex items-center h-16"
             >Dungeon Lab</span
           >
         </RouterLink>

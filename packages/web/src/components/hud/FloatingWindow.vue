@@ -8,7 +8,7 @@
     <!-- Window Header -->
     <div class="window-header" @mousedown="startDrag">
       <div class="window-title">
-        <i :class="tabIcon" class="title-icon"></i>
+        <i :class="`mdi ${tabIcon} title-icon`"></i>
         <span>{{ floatingWindow.window.value?.title || 'Window' }}</span>
       </div>
       
@@ -16,8 +16,13 @@
         <button class="control-button" title="Dock to Sidebar" @click="floatingWindow.dock">
           <i class="mdi mdi-dock-window"></i>
         </button>
-        <button class="control-button" title="Minimize" @click="toggleMinimize">
-          <i class="mdi mdi-window-minimize"></i>
+        <button 
+          class="control-button" 
+          :title="floatingWindow.isMinimized ? 'Restore' : 'Minimize'" 
+          @click="toggleMinimize"
+        >
+          <!-- Debug: {{ floatingWindow.isMinimized }} -->
+          <i :class="minimizeIcon"></i>
         </button>
         <button class="control-button" title="Close" @click="floatingWindow.close">
           <i class="mdi mdi-close"></i>
@@ -40,17 +45,17 @@
       <ItemsTab v-else-if="floatingWindow.window.value?.tabType === 'items'" />
     </div>
 
-    <!-- Resize Handles -->
-    <template v-if="!floatingWindow.isMinimized && floatingWindow.window.value?.resizable">
-      <div class="resize-handle resize-n" @mousedown="startResize('n')"></div>
-      <div class="resize-handle resize-ne" @mousedown="startResize('ne')"></div>
-      <div class="resize-handle resize-e" @mousedown="startResize('e')"></div>
-      <div class="resize-handle resize-se" @mousedown="startResize('se')"></div>
-      <div class="resize-handle resize-s" @mousedown="startResize('s')"></div>
-      <div class="resize-handle resize-sw" @mousedown="startResize('sw')"></div>
-      <div class="resize-handle resize-w" @mousedown="startResize('w')"></div>
-      <div class="resize-handle resize-nw" @mousedown="startResize('nw')"></div>
-    </template>
+    <!-- Resize Handle -->
+    <div 
+      v-if="!floatingWindow.isMinimized"
+      class="floating-window-resize-handle" 
+      @mousedown="startResize"
+      title="Drag to resize"
+    >
+      <svg width="12" height="12" viewBox="0 0 12 12" class="resize-lines">
+        <path d="M9 3L3 9M11 5L5 11M11 3L9 5" stroke="currentColor" stroke-width="1" opacity="0.5" />
+      </svg>
+    </div>
   </div>
 </template>
 
@@ -72,6 +77,11 @@ const props = defineProps<Props>();
 const hudStore = useHUDStore();
 const floatingWindow = useFloatingWindow(props.windowId);
 
+// Debug: log initial state
+console.log('FloatingWindow mounted for windowId:', props.windowId);
+console.log('Initial window state:', floatingWindow.window.value);
+console.log('Initial isMinimized:', floatingWindow.isMinimized.value);
+
 // Computed properties
 const windowStyle = computed(() => {
   if (!floatingWindow.window.value) return {};
@@ -80,8 +90,8 @@ const windowStyle = computed(() => {
   return {
     left: `${window.position.x}px`,
     top: `${window.position.y}px`,
-    width: window.minimized ? '250px' : `${window.size.width}px`,
-    height: window.minimized ? '40px' : `${window.size.height}px`,
+    width: `${window.size.width}px`,
+    height: floatingWindow.isMinimized.value ? '48px' : `${window.size.height}px`,
     zIndex: window.zIndex,
     backgroundColor: hudStore.configuration.theme.sidebarBackground,
     borderRadius: `${hudStore.configuration.theme.borderRadius}px`,
@@ -92,6 +102,13 @@ const tabIcon = computed(() => {
   if (!floatingWindow.window.value) return '';
   const tabType = floatingWindow.window.value.tabType;
   return hudStore.sidebar.tabs[tabType]?.icon || 'mdi-window';
+});
+
+// Debug computed for minimize icon
+const minimizeIcon = computed(() => {
+  const isMin = floatingWindow.isMinimized.value;
+  console.log('Computing minimize icon - isMinimized:', isMin);
+  return isMin ? 'mdi mdi-window-restore' : 'mdi mdi-minus';
 });
 
 // Drag functionality
@@ -133,16 +150,25 @@ function stopDrag(): void {
   document.body.style.cursor = '';
 }
 
-// Resize functionality
+// Resize functionality - simplified
 const isResizing = ref(false);
-const resizeHandle = ref<string>('');
 const resizeStartPos = ref({ x: 0, y: 0 });
 const resizeStartSize = ref({ width: 0, height: 0 });
-const resizeStartWindowPos = ref({ x: 0, y: 0 });
 
-function startResize(handle: string): void {
-  return;
-  // TODO: Implement resize functionality
+function startResize(event: MouseEvent): void {
+  console.log('Starting resize...'); // Debug log
+  if (!floatingWindow.window.value) return;
+  
+  isResizing.value = true;
+  resizeStartPos.value = { x: event.clientX, y: event.clientY };
+  resizeStartSize.value = { ...floatingWindow.window.value.size };
+  
+  document.addEventListener('mousemove', handleResize);
+  document.addEventListener('mouseup', stopResize);
+  
+  document.body.style.cursor = 'nw-resize';
+  event.preventDefault();
+  event.stopPropagation();
 }
 
 function handleResize(event: MouseEvent): void {
@@ -151,77 +177,41 @@ function handleResize(event: MouseEvent): void {
   const deltaX = event.clientX - resizeStartPos.value.x;
   const deltaY = event.clientY - resizeStartPos.value.y;
   
-  let newWidth = resizeStartSize.value.width;
-  let newHeight = resizeStartSize.value.height;
-  let newX = resizeStartWindowPos.value.x;
-  let newY = resizeStartWindowPos.value.y;
-  
-  // Handle different resize directions
-  if (resizeHandle.value.includes('e')) {
-    newWidth = Math.max(250, resizeStartSize.value.width + deltaX);
-  }
-  if (resizeHandle.value.includes('w')) {
-    const widthChange = -deltaX;
-    newWidth = Math.max(250, resizeStartSize.value.width + widthChange);
-    newX = resizeStartWindowPos.value.x - widthChange;
-  }
-  if (resizeHandle.value.includes('s')) {
-    newHeight = Math.max(200, resizeStartSize.value.height + deltaY);
-  }
-  if (resizeHandle.value.includes('n')) {
-    const heightChange = -deltaY;
-    newHeight = Math.max(200, resizeStartSize.value.height + heightChange);
-    newY = resizeStartWindowPos.value.y - heightChange;
-  }
-  
-  // Constrain to viewport
-  newX = Math.max(0, Math.min(window.innerWidth - newWidth, newX));
-  newY = Math.max(0, Math.min(window.innerHeight - newHeight, newY));
+  const newWidth = Math.max(250, resizeStartSize.value.width + deltaX);
+  const newHeight = Math.max(200, resizeStartSize.value.height + deltaY);
   
   floatingWindow.updateSize(newWidth, newHeight);
-  floatingWindow.updatePosition(newX, newY);
 }
 
 function stopResize(): void {
+  console.log('Stopping resize...'); // Debug log
   isResizing.value = false;
-  resizeHandle.value = '';
   document.removeEventListener('mousemove', handleResize);
   document.removeEventListener('mouseup', stopResize);
   document.body.style.cursor = '';
 }
 
-function getResizeCursor(handle: string): string {
-  const cursors: Record<string, string> = {
-    'n': 'ns-resize',
-    'ne': 'nesw-resize',
-    'e': 'ew-resize',
-    'se': 'nwse-resize',
-    's': 'ns-resize',
-    'sw': 'nesw-resize',
-    'w': 'ew-resize',
-    'nw': 'nwse-resize'
-  };
-  return cursors[handle] || 'default';
-}
-
 function toggleMinimize(): void {
-  // TODO: Implement minimize functionality
-  console.log('Toggle minimize');
+  console.log('Before toggle - isMinimized:', floatingWindow.isMinimized.value);
+  console.log('Before toggle - window.minimized:', floatingWindow.window.value?.minimized);
+  floatingWindow.toggleMinimized();
+  console.log('After toggle - isMinimized:', floatingWindow.isMinimized.value);
+  console.log('After toggle - window.minimized:', floatingWindow.window.value?.minimized);
 }
 </script>
 
 <style scoped>
 .floating-window {
   position: fixed;
-  background: rgba(26, 26, 26, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(26, 26, 26, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 8px;
-  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(12px);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.2);
   display: flex;
   flex-direction: column;
   min-width: 250px;
-  min-height: 200px;
+  min-height: 48px;
+  overflow: hidden;
   transition: all 0.2s ease;
 }
 
@@ -230,7 +220,7 @@ function toggleMinimize(): void {
   align-items: center;
   justify-content: space-between;
   padding: 8px 12px;
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.1);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px 8px 0 0;
   cursor: grab;
@@ -287,80 +277,69 @@ function toggleMinimize(): void {
   flex-direction: column;
 }
 
-/* Resize Handles */
+/* Resize Handles: increase hit area, z-index, and add hover for visibility */
 .resize-handle {
   position: absolute;
   background: transparent;
+  z-index: 10;
   transition: background-color 0.2s ease;
 }
-
 .resize-handle:hover {
   background: rgba(59, 130, 246, 0.3);
+  outline: 1px solid #3b82f6;
 }
-
+/* Edges */
 .resize-n {
   top: 0;
-  left: 8px;
-  right: 8px;
-  height: 4px;
+  left: 12px;
+  right: 12px;
+  height: 8px;
   cursor: ns-resize;
 }
-
+.resize-e {
+  top: 12px;
+  right: 0;
+  bottom: 12px;
+  width: 8px;
+  cursor: ew-resize;
+}
+.resize-s {
+  bottom: 0;
+  left: 12px;
+  right: 12px;
+  height: 8px;
+  cursor: ns-resize;
+}
+.resize-w {
+  top: 12px;
+  left: 0;
+  bottom: 12px;
+  width: 8px;
+  cursor: ew-resize;
+}
+/* Corners */
 .resize-ne {
   top: 0;
   right: 0;
-  width: 8px;
-  height: 8px;
+  width: 16px;
+  height: 16px;
   cursor: nesw-resize;
 }
-
-.resize-e {
-  top: 8px;
-  right: 0;
-  bottom: 8px;
-  width: 4px;
-  cursor: ew-resize;
-}
-
-.resize-se {
-  bottom: 0;
-  right: 0;
-  width: 8px;
-  height: 8px;
-  cursor: nwse-resize;
-}
-
-.resize-s {
-  bottom: 0;
-  left: 8px;
-  right: 8px;
-  height: 4px;
-  cursor: ns-resize;
-}
-
 .resize-sw {
   bottom: 0;
   left: 0;
-  width: 8px;
-  height: 8px;
+  width: 16px;
+  height: 16px;
   cursor: nesw-resize;
 }
-
-.resize-w {
-  top: 8px;
-  left: 0;
-  bottom: 8px;
-  width: 4px;
-  cursor: ew-resize;
-}
-
 .resize-nw {
   top: 0;
   left: 0;
-  width: 8px;
-  height: 8px;
+  width: 16px;
+  height: 16px;
   cursor: nwse-resize;
 }
+/* Comment: Handles have a larger hit area for usability, but remain mostly transparent except on hover. */
 
 /* Animation for opening */
 @keyframes windowFadeIn {
@@ -376,5 +355,36 @@ function toggleMinimize(): void {
 
 .floating-window {
   animation: windowFadeIn 0.2s ease-out;
+}
+
+/* Subtle resize handle like the example */
+.floating-window-resize-handle {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: nw-resize;
+  z-index: 100;
+  color: rgba(255, 255, 255, 0.3);
+  transition: all 0.2s ease;
+  border-radius: 0 0 6px 0;
+}
+
+.floating-window-resize-handle:hover {
+  color: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.floating-window-resize-handle:active {
+  color: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.resize-lines {
+  pointer-events: none;
 }
 </style>

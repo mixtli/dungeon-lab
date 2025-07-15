@@ -93,6 +93,13 @@ The implementation has exceeded original planning scope with production-ready fe
 
 **Strategic Success**: HUD-first approach delivered comprehensive UI framework, ready for combat mechanics integration with visual testing capabilities.
 
+**✅ Recent HUD System Improvements (July 2025)**:
+- **Floating Window Fixes**: Corrected broken resizing functionality with visible resize handles
+- **Complete Minimize Feature**: Implemented proper minimize that collapses windows to title bar only
+- **Icon System Fix**: Restored proper Material Design Icons display in floating window headers  
+- **Enhanced Transparency**: Increased transparency to 40% opacity across all HUD elements for better map visibility
+- **Improved User Experience**: Floating windows now have proper drag, resize, and minimize workflows with state persistence
+
 ## Phase 1: Core Infrastructure (4-6 weeks)
 
 ### Task 1: Create Shared Types and Schemas
@@ -787,7 +794,7 @@ TODO:
 
 **Major Components Delivered**:
 - ✅ **HUD Store** (606 lines): Complete state management with persistence
-- ✅ **Floating Windows** (379 lines): Draggable, resizable panels with Z-index management
+- ✅ **Floating Windows** (379 lines): Draggable, resizable panels with Z-index management, complete minimize/restore functionality
 - ✅ **Sidebar System** (324 lines): Multi-tab interface with professional styling
 - ✅ **Tab Components** (1,781 lines): Chat, Combat, Actors, and Items tabs
 - ✅ **Toolbar** (253 lines): Interactive tool selection with drag-and-drop
@@ -799,6 +806,7 @@ TODO:
 - ✅ **Professional Interface**: Desktop-class encounter management
 - ✅ **State Persistence**: User preferences and layout saved
 - ✅ **Extensible Architecture**: Ready for additional panels and tools
+- ✅ **Recent Enhancements**: Fixed floating window resizing, complete minimize functionality, enhanced transparency
 
 **Ready for Phase 3**: Combat mechanics can now integrate with complete UI framework
 

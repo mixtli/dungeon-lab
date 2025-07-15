@@ -34,6 +34,8 @@
 - ✅ **Window Management**: Pop-out functionality and Z-index management
 - ✅ **Responsive Design**: Desktop-optimized with mobile fallback
 - ✅ **Theme Support**: Configurable styling and layout persistence
+- ✅ **Floating Windows**: Complete minimize/restore functionality with icon display
+- ✅ **Enhanced Transparency**: Optimized opacity (40%) for better map visibility
 
 ---
 
@@ -62,10 +64,15 @@ This implementation focuses on **desktop and tablet platforms** with a rich HUD 
 
 ## 🏗️ **Major Architectural Decisions Made**
 
-### **7. Comprehensive HUD Architecture** ✅ **NEW - COMPLETE**
+### **7. Comprehensive HUD Architecture** ✅ **COMPLETE WITH ENHANCEMENTS**
 **Decision**: Build full-featured HUD system with panels, tabs, and tools
 **Rationale**: Provide desktop-class interface for complex encounter management
 **Implementation**: 3,930 lines across 11 components with complete state management
+**Recent Enhancements**: 
+- Fixed floating window resizing with visible handles and proper event handling
+- Implemented complete minimize functionality (collapse to title bar only)
+- Enhanced transparency (40% opacity) for better map visibility through HUD elements
+- Fixed icon display in floating window title bars to match sidebar tabs
 **Impact**: Professional UI foundation ready for combat integration, enhanced user experience
 
 ### **1. Generic Token Data Model** ✅

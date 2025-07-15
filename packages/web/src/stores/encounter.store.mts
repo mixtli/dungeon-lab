@@ -403,7 +403,7 @@ export const useEncounterStore = defineStore('encounter', () => {
     try {
       console.log('[Encounter Store] Starting fetchEncounter for:', encounterId);
       const encounter = await encounterClient.getEncounter(encounterId);
-      console.log('[Encounter Store] Fetched encounter:', encounter?.title);
+      console.log('[Encounter Store] Fetched encounter:', encounter?.name);
       const tokens = await encounterClient.getTokens(encounterId);
       console.log('[Encounter Store] Fetched tokens:', tokens.length);
 
