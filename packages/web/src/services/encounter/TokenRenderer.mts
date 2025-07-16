@@ -215,6 +215,15 @@ export class TokenRenderer {
       // Configure sprite
       this.configureTokenSprite(sprite, token);
 
+      // Position the tokenRoot container at world coordinates
+      let position = { x: token.position.x, y: token.position.y };
+      if (this._snapToGrid) {
+        position = this.snapToGrid(position);
+      }
+      tokenRoot.x = position.x;
+      tokenRoot.y = position.y;
+      console.log('[TokenRenderer] positioned tokenRoot at world coordinates:', position, 'for token:', token.id);
+
       // Add the sprite to the container
       tokenRoot.addChild(sprite);
 
@@ -251,6 +260,16 @@ export class TokenRenderer {
     
     // Update sprite configuration
     this.configureTokenSprite(tokenData.sprite, token);
+    
+    // Position the tokenRoot container at world coordinates
+    let position = { x: token.position.x, y: token.position.y };
+    if (this._snapToGrid) {
+      position = this.snapToGrid(position);
+    }
+    const tokenRoot = tokenData.root as TokenContainer;
+    tokenRoot.x = position.x;
+    tokenRoot.y = position.y;
+    console.log('[TokenRenderer] updateToken: positioned tokenRoot at world coordinates:', position, 'for token:', token.id);
     
     // Update stored token data
     tokenData.token = token;
@@ -465,11 +484,12 @@ export class TokenRenderer {
       console.log('[TokenRenderer] snapped position to grid:', position);
     }
     
-    // Set position - tokens are now children of mapContainer so we use world coordinates directly
-    console.log('[TokenRenderer] configureTokenSprite setting position', token.id, position);
-    sprite.x = position.x;
-    sprite.y = position.y;
-    console.log('[TokenRenderer] using world coordinates directly:', position);
+    // Set sprite position relative to its parent container (tokenRoot)
+    // The tokenRoot will be positioned at world coordinates, so sprite should be at (0, 0)
+    console.log('[TokenRenderer] configureTokenSprite setting sprite position to (0, 0) relative to tokenRoot', token.id);
+    sprite.x = 0;
+    sprite.y = 0;
+    console.log('[TokenRenderer] sprite positioned at (0, 0) relative to tokenRoot, tokenRoot will be positioned at world coordinates:', position);
     
     // Calculate size based on grid size and token size
     const size = this.getGridBasedTokenSize(token.size || 'medium');
@@ -834,19 +854,18 @@ export class TokenRenderer {
     if (!tokenRoot.children.find(child => child.label === 'hover-effect')) {
       const hoverEffect = new PIXI.Graphics();
       hoverEffect.label = 'hover-effect';
-      // Get the world coordinate radius (compensating for sprite scale)
-      // The token should fill a grid square, so its radius should be gridSize/2
-      const worldTokenRadius = this._gridSize / 2; // 60 for gridSize 120
-      const hoverWorldRadius = worldTokenRadius + 3; // Add 3 world units padding (smaller than selection)
-      // Compensate for sprite scaling: if sprite is scaled down, we need to scale the circle up
-      const spriteScale = sprite.scale.x; // Assuming uniform scaling
-      const circleRadius = hoverWorldRadius / spriteScale;
+      // Get the actual rendered sprite size (after scaling)
+      const tokenData = this.activeTokens.get(tokenRoot.tokenId);
+      if (!tokenData) return;
+      
+      // Use the actual sprite dimensions (which are already scaled to the target size)
+      const spriteRadius = Math.max(sprite.width, sprite.height) / 2;
+      const circleRadius = spriteRadius;
       // Draw orange hover effect (different from red selection)
       hoverEffect.circle(0, 0, circleRadius)
         .stroke({ width: 2, color: 0xFF8800, alpha: 0.8 });
       // Add to token root container
       tokenRoot.addChild(hoverEffect);
-      console.log('[TokenRenderer] Added hover effect to token - hoverWorldRadius:', hoverWorldRadius, 'spriteScale:', spriteScale, 'circleRadius:', circleRadius);
     }
   }
   
@@ -911,13 +930,13 @@ export class TokenRenderer {
       // Create red circle around the token
       const selectionCircle = new PIXI.Graphics();
       selectionCircle.label = 'selection';
-      // Get the world coordinate radius (compensating for sprite scale)
-      // The token should fill a grid square, so its radius should be gridSize/2
-      const worldTokenRadius = this._gridSize / 2; // 60 for gridSize 120
-      const selectionWorldRadius = worldTokenRadius + 8; // Add 8 world units padding
-      // Compensate for sprite scaling: if sprite is scaled down, we need to scale the circle up
-      const spriteScale = sprite.scale.x; // Assuming uniform scaling
-      const circleRadius = selectionWorldRadius / spriteScale;
+      // Get the actual rendered sprite size (after scaling)
+      const tokenData = this.activeTokens.get(tokenRoot.tokenId);
+      if (!tokenData) return;
+      
+      // Use the actual sprite dimensions (which are already scaled to the target size)
+      const spriteRadius = Math.max(sprite.width, sprite.height) / 2;
+      const circleRadius = spriteRadius;
       // Draw red circle at the compensated radius
       selectionCircle.circle(0, 0, circleRadius)
         .stroke({ width: 5, color: 0xff0000 }); // Red color, 5px width (thicker)
@@ -926,15 +945,9 @@ export class TokenRenderer {
       selectionCircle.y = 0;
       // Add the selection circle as a child of the token root
       tokenRoot.addChild(selectionCircle);
-      console.log('[TokenRenderer] Added red selection circle to token:', tokenRoot.tokenId, 
-        'worldTokenRadius:', worldTokenRadius, 
-        'selectionWorldRadius:', selectionWorldRadius,
-        'spriteScale:', spriteScale,
-        'circleRadius:', circleRadius);
     } else {
       // When deselecting, restore hover effect if mouse is still over the token
       // (This will be handled by the hover event handlers)
-      console.log('[TokenRenderer] Removed selection visual from token:', tokenRoot.tokenId);
     }
   }
 } 

@@ -96,23 +96,6 @@
         <!-- UI Overlays -->
         <div class="encounter-overlays absolute inset-0 pointer-events-none">
           
-          <!-- Selected Token Info -->
-          <div 
-            v-if="selectedToken" 
-            class="absolute top-4 left-4 bg-white rounded-lg shadow-lg p-4 pointer-events-auto"
-            :class="{ 'hidden': deviceConfig.type === 'phone' }"
-          >
-            <h4 class="font-bold">{{ selectedToken.name }}</h4>
-            <p class="text-sm text-gray-600">Position: {{ selectedToken.position.x }}, {{ selectedToken.position.y }}</p>
-            <div class="mt-2">
-              <button 
-                @click="deselectToken" 
-                class="text-xs bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded"
-              >
-                Deselect
-              </button>
-            </div>
-          </div>
 
           <!-- Token Context Menu -->
           <TokenContextMenu
@@ -285,8 +268,7 @@ const encounter = computed(() => encounterStore.currentEncounter);
 // Convert encounter tokens to format expected by PixiMapViewer
 const encounterTokens = computed(() => {
   const tokens = encounterStore.encounterTokens;
-  console.log('[EncounterView] encounterTokens computed, count:', tokens.length);
-  return tokens.map(token => ({
+  return tokens.map((token: Token) => ({
     id: token.id,
     name: token.name,
     imageUrl: token.imageUrl,
@@ -357,7 +339,7 @@ const handleTokenSelection = (tokenId: string) => {
   if (!encounter.value) return;
   
   // Find the token in the encounter
-  selectedToken.value = encounter.value.tokens.find(t => t.id === tokenId) || null;
+  selectedToken.value = encounterStore.encounterTokens.find((t: Token) => t.id === tokenId) || null;
   
   // Close context menu if open
   contextMenuToken.value = null;
@@ -367,7 +349,7 @@ const handleTokenMoved = (tokenId: string, x: number, y: number, elevation: numb
   if (!encounter.value) return;
   
   // Update token position in local state
-  const token = encounter.value.tokens.find(t => t.id === tokenId);
+  const token = encounterStore.encounterTokens.find((t: Token) => t.id === tokenId);
   if (token) {
     token.position.x = x;
     token.position.y = y;
@@ -459,10 +441,6 @@ const showPortals = ref(false);
 // Light highlighting state
 const showLights = ref(false); // Default: lights hidden
 
-// Deselect the current token
-const deselectToken = () => {
-  selectedToken.value = null;
-};
 
 // Handle token action from context menu
 const handleTokenAction = (action: string) => {
@@ -495,8 +473,8 @@ const handleTokenAction = (action: string) => {
 const removeTokenFromEncounter = (tokenId: string) => {
   if (!encounter.value) return;
   
-  // Update local state
-  encounter.value.tokens = encounter.value.tokens.filter(t => t.id !== tokenId);
+  // Update local state - tokens are managed by the store
+  encounterStore.encounterTokens = encounterStore.encounterTokens.filter((t: Token) => t.id !== tokenId);
   
   // If this was the selected token, deselect it
   if (selectedToken.value?.id === tokenId) {
@@ -538,6 +516,8 @@ const handleTokensCreated = async (tokenIds: string[]) => {
 
 // Handle map context menu action
 const handleMapContextMenuAction = (action: string) => {
+  console.log('[Debug] Map context menu action triggered:', action);
+  
   switch (action) {
     case 'add-token':
       console.log('[Debug] Add token action triggered');
@@ -552,22 +532,33 @@ const handleMapContextMenuAction = (action: string) => {
       showTokenGenerator.value = true;
       break;
     case 'center-view':
+      console.log('[Debug] Center view action triggered');
       // If we had a mapViewer ref, we could call centerOn here
       break;
     case 'toggle-walls':
+      console.log('[Debug] Toggle walls action triggered, current value:', showWalls.value);
       showWalls.value = !showWalls.value;
+      console.log('[Debug] Show walls is now:', showWalls.value);
       break;
     case 'toggle-objects':
+      console.log('[Debug] Toggle objects action triggered, current value:', showObjects.value);
       showObjects.value = !showObjects.value;
+      console.log('[Debug] Show objects is now:', showObjects.value);
       break;
     case 'toggle-portals':
+      console.log('[Debug] Toggle portals action triggered, current value:', showPortals.value);
       showPortals.value = !showPortals.value;
+      console.log('[Debug] Show portals is now:', showPortals.value);
       break;
     case 'toggle-lights':
+      console.log('[Debug] Toggle lights action triggered, current value:', showLights.value);
       showLights.value = !showLights.value;
+      console.log('[Debug] Show lights is now:', showLights.value);
       break;
     case 'toggle-debug':
+      console.log('[Debug] Toggle debug action triggered, current value:', showDebugInfo.value);
       showDebugInfo.value = !showDebugInfo.value;
+      console.log('[Debug] Show debug info is now:', showDebugInfo.value);
       break;
   }
   

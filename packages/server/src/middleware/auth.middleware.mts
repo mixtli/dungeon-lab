@@ -39,7 +39,8 @@ export async function authenticate(
           username: user.username,
           email: user.email,
           isAdmin: user.isAdmin,
-          preferences: user.preferences
+          preferences: user.preferences,
+          profile: user.profile || {}
         };
         return next();
       }

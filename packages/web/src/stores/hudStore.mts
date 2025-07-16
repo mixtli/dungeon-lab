@@ -494,9 +494,10 @@ export const useHUDStore = defineStore('hud', () => {
         });
         
         // Clean up deprecated hiddenTabs if it exists in old preferences
-        if (preferences.value.hiddenTabs) {
+        const deprecatedPrefs = preferences.value as HUDPreferences & { hiddenTabs?: unknown };
+        if (deprecatedPrefs.hiddenTabs) {
           console.log('[HUD] Cleaning up deprecated hiddenTabs preference');
-          delete preferences.value.hiddenTabs;
+          delete deprecatedPrefs.hiddenTabs;
           savePreferences();
         }
       }

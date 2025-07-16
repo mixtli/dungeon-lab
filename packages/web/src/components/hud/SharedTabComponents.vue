@@ -35,7 +35,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, onMounted, watch } from 'vue';
+import { nextTick, ref, onMounted, watch } from 'vue';
 import { useHUDStore } from '../../stores/hudStore.mjs';
 import type { SidebarTabType } from '../../types/hud.mjs';
 import ChatTab from './tabs/ChatTab.vue';

@@ -38,6 +38,7 @@ import MapEditorView from '@/components/MapEditor/MapEditorComponent.vue';
 import AppHeader from '@/components/layout/AppHeader.vue';
 import { MapsClient } from '@/../../client/src/maps.client.mjs';
 import type { UVTTData, Point } from '@/../../shared/src/types/mapEditor.mjs';
+import { getAssetUrl } from '@/utils/getAssetUrl.mjs';
 
 // Define a wall as an array of points
 type Wall = Point[];
@@ -115,7 +116,7 @@ onMounted(async () => {
     if (mapDetails.image && mapDetails.image.url) {
       console.log('Using image URL from mapDetails:', mapDetails.image.url);
       // Add the image URL to the UVTT data
-      originalUvttData.image = mapDetails.image.url;
+      originalUvttData.image = getAssetUrl(mapDetails.image.url);
     } else {
       console.warn('No image URL found in mapDetails');
     }

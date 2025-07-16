@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import type { IMap, IAsset, IMapUpdateData } from '@dungeon-lab/shared/types/index.mjs';
 import { MapsClient } from '@dungeon-lab/client/index.mjs';
+import { getAssetUrl } from '@/utils/getAssetUrl.mjs';
 
 const route = useRoute();
 const loading = ref(false);
@@ -31,12 +32,12 @@ const getMapImageUrl = (map: IMap | null): string | undefined => {
     // Handle populated ObjectId reference
     if (typeof map.imageId === 'object') {
       const asset = map.imageId as unknown as IAsset;
-      return asset.url;
+      return getAssetUrl(asset.url);
     }
   }
   // Fallback for legacy data structure
   if ('image' in map && typeof map.image === 'object' && map.image !== null && 'url' in map.image) {
-    return map.image.url as string;
+    return getAssetUrl(map.image.url as string);
   }
   return undefined;
 };

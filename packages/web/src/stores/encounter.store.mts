@@ -214,9 +214,6 @@ export const useEncounterStore = defineStore('encounter', () => {
     });
 
     socket.on('encounter:started', (data) => {
-      console.log('[Encounter Store] Encounter started event received:', data);
-      console.log('[Encounter Store] Socket encounter tokens received:', data.encounter?.tokens?.length || 0, 'tokens');
-      console.log('[Encounter Store] Current encounterTokens before overwrite:', encounterTokens.value.length, 'tokens');
       
       // Set this encounter as the current encounter
       if (data.encounter) {
@@ -230,13 +227,19 @@ export const useEncounterStore = defineStore('encounter', () => {
           participants: [] as IActor[] // We'll populate this later via fetchEncounter if needed
         } as IEncounterWithActors;
         
-        // Reset tokens for the new encounter
-        const socketTokens = data.encounter.tokens || [];
-        console.log('[Encounter Store] OVERWRITING encounterTokens from', encounterTokens.value.length, 'to', socketTokens.length, 'tokens');
-        encounterTokens.value = socketTokens;
+        // Reset tokens for the new encounter - tokens are now fetched via data.encounter.tokens
+        const rawSocketTokens = (data.encounter as IEncounter & { tokens?: IToken[] }).tokens || [];
         
-        console.log('[Encounter Store] Set current encounter:', currentEncounter.value?.id);
-        console.log('[Encounter Store] Set encounter tokens:', encounterTokens.value.length, 'tokens');
+        // Process socket tokens the same way as fetchEncounter does
+        const processedSocketTokens = rawSocketTokens
+          .map((token: IToken) => {
+            const hasUnderscoreId = typeof (token as unknown as { _id?: unknown })._id === 'string';
+            const id = token.id || (hasUnderscoreId ? (token as unknown as { _id: string })._id : undefined);
+            return id ? { ...token, id } : undefined;
+          })
+          .filter((token: IToken | undefined): token is IToken => !!token && !!token.id);
+        
+        encounterTokens.value = processedSocketTokens;
       }
     });
 
@@ -405,11 +408,8 @@ export const useEncounterStore = defineStore('encounter', () => {
     error.value = null;
 
     try {
-      console.log('[Encounter Store] Starting fetchEncounter for:', encounterId);
       const encounter = await encounterClient.getEncounter(encounterId);
-      console.log('[Encounter Store] Fetched encounter:', encounter?.name);
       const tokens = await encounterClient.getTokens(encounterId);
-      console.log('[Encounter Store] Fetched tokens:', tokens.length);
 
       // Initialize with empty participants array in case participants don't exist
       let participants: IActor[] = [];
@@ -444,9 +444,7 @@ export const useEncounterStore = defineStore('encounter', () => {
         })
         .filter((token): token is typeof tokens[number] & { id: string } => !!token);
       
-      console.log('[Encounter Store] Setting encounterTokens to:', processedTokens.length, 'tokens');
       encounterTokens.value = processedTokens;
-      console.log('[Encounter Store] encounterTokens.value is now:', encounterTokens.value.length);
     } catch (err) {
       console.error('Failed to fetch encounter:', err);
       error.value = err instanceof Error ? err.message : 'Failed to fetch encounter';

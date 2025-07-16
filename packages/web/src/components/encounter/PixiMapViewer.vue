@@ -223,10 +223,11 @@ const loadMapData = async (mapData: IMapResponse) => {
     await nextTick();
     fitToScreen();
     
-    // Set initial wall, object, and portal highlights visibility
+    // Set initial wall, object, portal, and light highlights visibility
     setWallHighlights(props.showWalls || false);
     setObjectHighlights(props.showObjects || false);
     setPortalHighlights(props.showPortals || false);
+    setLightHighlights(props.showLights || false);
     
   } catch (err) {
     const errorDetails = {
@@ -678,8 +679,10 @@ watch(() => props.showPortals, (newValue) => {
 }, { immediate: true });
 
 // Watch for showLights prop changes and update light visibility
-watch(() => props.showLights, (visible) => {
-  setLightHighlights(!!visible);
+watch(() => props.showLights, (newValue) => {
+  if (isInitialized.value) {
+    setLightHighlights(newValue || false);
+  }
 }, { immediate: true });
 
 // Lifecycle

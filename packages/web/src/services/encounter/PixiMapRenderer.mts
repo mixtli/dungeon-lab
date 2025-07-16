@@ -146,6 +146,7 @@ export class EncounterMapRenderer {
         if (uvtt.resolution) {
           // Render line_of_sight walls in blue
           if (uvtt.line_of_sight) {
+            console.log(`[PixiMapRenderer] Loading ${uvtt.line_of_sight.length} line_of_sight walls`);
             uvtt.line_of_sight.forEach(wall => {
               this.renderWallSegment(wall, uvtt.resolution!, 0x0000FF, 'walls');
             });
@@ -153,6 +154,7 @@ export class EncounterMapRenderer {
           
           // Render objects_line_of_sight walls in red
           if (uvtt.objects_line_of_sight) {
+            console.log(`[PixiMapRenderer] Loading ${uvtt.objects_line_of_sight.length} objects_line_of_sight walls`);
             uvtt.objects_line_of_sight.forEach(wall => {
               this.renderWallSegment(wall, uvtt.resolution!, 0xFF0000, 'objects');
             });
@@ -161,6 +163,7 @@ export class EncounterMapRenderer {
         
         // Render portals
         if (uvtt.portals && uvtt.resolution) {
+          console.log(`[PixiMapRenderer] Loading ${uvtt.portals.length} portals`);
           this.renderPortals(uvtt.portals, uvtt.resolution);
         }
         
@@ -212,14 +215,7 @@ export class EncounterMapRenderer {
     portals.forEach((portal, index) => {
       const portalGraphic = new PIXI.Graphics();
       portalGraphic.label = `portal-${index}`;
-      
-      // Set portal style (bright green for highlighting)
-      const color = 0x00FF00; // Bright green
-      portalGraphic.stroke({
-        width: 4,
-        color: color,
-        alpha: 1.0
-      });
+      portalGraphic.visible = false; // Hide portals by default
       
       // Draw portal bounds
       if (portal.bounds && portal.bounds.length > 0) {
@@ -229,6 +225,14 @@ export class EncounterMapRenderer {
         portal.bounds.slice(1).forEach(point => {
           const pixelPoint = this.gridToPixel(point, resolution);
           portalGraphic.lineTo(pixelPoint.x, pixelPoint.y);
+        });
+        
+        // Apply stroke style after drawing - this is required in PIXI.js v8
+        const color = 0x00FF00; // Bright green
+        portalGraphic.stroke({
+          width: 4,
+          color: color,
+          alpha: 1.0
         });
       }
       
@@ -267,7 +271,7 @@ export class EncounterMapRenderer {
               alpha = Math.max(alpha, MIN_ALPHA);
               // Optionally combine with light.intensity
               alpha = alpha * (light.intensity ?? 1);
-              console.log(`[PixiMapRenderer] Light ${index}: 8-char hex`, { original: light.color, color, alpha });
+              //console.log(`[PixiMapRenderer] Light ${index}: 8-char hex`, { original: light.color, color, alpha });
             } else if (light.color.startsWith('#')) {
               color = parseInt(light.color.replace('#', ''), 16);
               alpha = (light.intensity ?? 1) * 0.3;
@@ -472,6 +476,7 @@ export class EncounterMapRenderer {
    * Set visibility of wall highlights
    */
   public setWallHighlights(visible: boolean): void {
+    console.log('[PixiMapRenderer] setWallHighlights called with:', visible, 'wallGraphics count:', this.wallGraphics.length);
     this.wallGraphics.forEach(graphic => {
       graphic.visible = visible;
     });
@@ -481,8 +486,19 @@ export class EncounterMapRenderer {
    * Set visibility of object highlights
    */
   public setObjectHighlights(visible: boolean): void {
-    this.objectGraphics.forEach(graphic => {
+    console.log('[PixiMapRenderer] setObjectHighlights called with:', visible, 'objectGraphics count:', this.objectGraphics.length);
+    this.objectGraphics.forEach((graphic, index) => {
+      console.log(`[PixiMapRenderer] Object graphic ${index}:`, {
+        visible: graphic.visible,
+        width: graphic.width,
+        height: graphic.height,
+        x: graphic.x,
+        y: graphic.y,
+        alpha: graphic.alpha,
+        parent: graphic.parent?.label || 'no parent'
+      });
       graphic.visible = visible;
+      console.log(`[PixiMapRenderer] Object graphic ${index} after setting visible:`, graphic.visible);
     });
   }
   
@@ -490,6 +506,7 @@ export class EncounterMapRenderer {
    * Set visibility of portal highlights
    */
   public setPortalHighlights(visible: boolean): void {
+    console.log('[PixiMapRenderer] setPortalHighlights called with:', visible, 'portalGraphics count:', this.portalGraphics.length);
     this.portalGraphics.forEach(graphic => {
       graphic.visible = visible;
     });
@@ -499,6 +516,7 @@ export class EncounterMapRenderer {
    * Set visibility of light highlights
    */
   public setLightHighlights(visible: boolean): void {
+    console.log('[PixiMapRenderer] setLightHighlights called with:', visible, 'lightGraphics count:', this.lightGraphics.length);
     this.lightGraphics.forEach(graphic => {
       graphic.visible = visible;
     });
@@ -541,27 +559,34 @@ export class EncounterMapRenderer {
   private renderWallSegment(walls: Point[], resolution: Resolution, color: number, type: 'walls' | 'objects' = 'walls'): void {
     if (walls.length < 2 || !resolution.pixels_per_grid) return;
     
+    console.log(`[PixiMapRenderer] renderWallSegment called for ${type} with ${walls.length} points, color: 0x${color.toString(16)}`);
+    
     // Create graphics object for walls
     const wallGraphic = new PIXI.Graphics();
     wallGraphic.label = type;
-    
-    // Set wall style with specified color
-    wallGraphic.stroke({
-      width: 4,
-      color: color,
-      alpha: 1.0
-    });
+    wallGraphic.visible = false; // Hide walls/objects by default
     
     // Draw wall segments
     for (let i = 0; i < walls.length - 1; i++) {
       const startPoint = this.gridToPixel(walls[i], resolution);
       const endPoint = this.gridToPixel(walls[i + 1], resolution);
       
+      console.log(`[PixiMapRenderer] Drawing line from (${startPoint.x}, ${startPoint.y}) to (${endPoint.x}, ${endPoint.y})`);
+      
       wallGraphic.moveTo(startPoint.x, startPoint.y);
       wallGraphic.lineTo(endPoint.x, endPoint.y);
     }
     
+    // Apply stroke style after drawing - this is required in PIXI.js v8
+    wallGraphic.stroke({
+      width: 4,
+      color: color,
+      alpha: 1.0
+    });
+    
     this.mapContainer.addChild(wallGraphic);
+    
+    console.log(`[PixiMapRenderer] Added ${type} graphic to mapContainer, bounds:`, wallGraphic.getBounds());
     
     // Store in appropriate array based on type
     if (type === 'walls') {

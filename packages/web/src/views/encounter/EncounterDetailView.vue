@@ -109,7 +109,7 @@ onMounted(async () => {
     const mapId = encounterStore.currentEncounter?.mapId;
     if (mapId) {
       try {
-        const mapIdString = typeof mapId === 'object' ? (mapId as any).id : mapId;
+        const mapIdString = typeof mapId === 'object' ? (mapId as { id: string }).id : mapId;
         const map = await mapsClient.getMap(mapIdString);
         mapData.value = map;
       } catch (error) {
