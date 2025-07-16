@@ -7,6 +7,7 @@ import { getAssetUrl } from '@/utils/getAssetUrl.mjs';
 
 export interface TokenSpriteData {
   id: string;
+  root: PIXI.Container;
   sprite: PIXI.Sprite;
   token: Token;
 }
@@ -20,6 +21,11 @@ interface TokenSprite extends PIXI.Sprite {
   originalPosition?: { x: number; y: number };
   dragStartGlobal?: { x: number; y: number };
   worldPosition?: { x: number; y: number };
+}
+
+// Extended container interface for token root
+interface TokenContainer extends PIXI.Container {
+  tokenId: string;
 }
 
 // Token position for Pixi (2D only)
@@ -196,25 +202,31 @@ export class TokenRenderer {
       if (this.activeTokens.has(token.id)) {
         this.removeToken(token.id);
       }
-      
+
+      // Create a container for the token (tokenRoot)
+      const tokenRoot = new PIXI.Container() as TokenContainer;
+      tokenRoot.tokenId = token.id; // custom property for tracking
+
       // Get sprite from pool or create new one
       const sprite = this.acquireSprite();
-      
       // Load texture for token
       const texture = await this.getTokenTexture(token);
       sprite.texture = texture;
-      
       // Configure sprite
       this.configureTokenSprite(sprite, token);
-      
-      // Add to container and tracking
-      this.tokenContainer.addChild(sprite);
+
+      // Add the sprite to the container
+      tokenRoot.addChild(sprite);
+
+      // Add the container to the main tokenContainer
+      this.tokenContainer.addChild(tokenRoot);
+      // Track both root and sprite for this token
       this.activeTokens.set(token.id, {
         id: token.id,
+        root: tokenRoot,
         sprite,
         token
       });
-      
     } catch (error) {
       console.error(`Failed to add token ${token.id}:`, error);
     }
@@ -252,7 +264,7 @@ export class TokenRenderer {
     if (!tokenData) return;
     
     // Remove from container
-    this.tokenContainer.removeChild(tokenData.sprite);
+    this.tokenContainer.removeChild(tokenData.root);
     
     // Return sprite to pool
     this.releaseSprite(tokenData.sprite);
@@ -272,22 +284,18 @@ export class TokenRenderer {
   moveToken(tokenId: string, newPosition: TokenPosition, animate = true): void {
     const tokenData = this.activeTokens.get(tokenId);
     if (!tokenData) return;
-    
-    const sprite = tokenData.sprite;
-    
+    const tokenRoot = tokenData.root as TokenContainer;
     // Snap position to grid if enabled
     const finalPosition = this.snapToGrid(newPosition);
     console.log('[TokenRenderer] moveToken - original position:', newPosition, 'snapped position:', finalPosition);
-    
     if (animate) {
       // Smooth animation to new position
-      this.animateTokenMovement(sprite, finalPosition);
+      this.animateTokenMovement(tokenRoot, finalPosition);
     } else {
       // Instant movement
-      sprite.x = finalPosition.x;
-      sprite.y = finalPosition.y;
+      tokenRoot.x = finalPosition.x;
+      tokenRoot.y = finalPosition.y;
     }
-    
     // Update token data (convert to grid position with elevation)
     tokenData.token.position = {
       x: Math.round(finalPosition.x),
@@ -317,7 +325,7 @@ export class TokenRenderer {
   clearAllTokens(): void {
     // Remove all sprites from container
     this.activeTokens.forEach((tokenData) => {
-      this.tokenContainer.removeChild(tokenData.sprite);
+      this.tokenContainer.removeChild(tokenData.root);
       this.releaseSprite(tokenData.sprite);
     });
     
@@ -339,7 +347,7 @@ export class TokenRenderer {
     if (!tokenData) return;
     
     // Apply selection visual
-    this.updateSelectionVisual(tokenData.sprite, true);
+    this.updateSelectionVisual(tokenData.root as TokenContainer, tokenData.sprite, true);
     
     // Set as selected
     this.selectedTokenId = tokenId;
@@ -358,7 +366,7 @@ export class TokenRenderer {
     if (!tokenData) return;
     
     // Remove selection visual
-    this.updateSelectionVisual(tokenData.sprite, false);
+    this.updateSelectionVisual(tokenData.root as TokenContainer, tokenData.sprite, false);
     
     // Clear selected token
     if (this.selectedTokenId === tokenId) {
@@ -483,8 +491,11 @@ export class TokenRenderer {
     this.setupSpriteEvents(sprite);
     
     // Apply visual state
-    if (this.selectedTokenId === token.id) {
-      this.updateSelectionVisual(sprite, true);
+    if (token.id && this.selectedTokenId === token.id) {
+      const tokenData = this.activeTokens.get(token.id);
+      if (tokenData) {
+        this.updateSelectionVisual(tokenData.root as TokenContainer, sprite, true);
+      }
     }
   }
   
@@ -555,8 +566,11 @@ export class TokenRenderer {
    */
   private handlePointerOver(sprite: TokenSprite): void {
     // Add hover effect if not selected
-    if (sprite.tokenId !== this.selectedTokenId) {
-      this.applyHoverVisual(sprite);
+    if (sprite.tokenId && sprite.tokenId !== this.selectedTokenId) {
+      const tokenData = this.activeTokens.get(sprite.tokenId);
+      if (tokenData) {
+        this.applyHoverVisual(tokenData.root as TokenContainer, sprite);
+      }
     }
   }
 
@@ -565,8 +579,11 @@ export class TokenRenderer {
    */
   private handlePointerOut(sprite: TokenSprite): void {
     // Remove hover effect if not selected
-    if (sprite.tokenId !== this.selectedTokenId) {
-      this.removeHoverVisual(sprite);
+    if (sprite.tokenId && sprite.tokenId !== this.selectedTokenId) {
+      const tokenData = this.activeTokens.get(sprite.tokenId);
+      if (tokenData) {
+        this.removeHoverVisual(tokenData.root as TokenContainer);
+      }
     }
   }
 
@@ -812,28 +829,23 @@ export class TokenRenderer {
   /**
    * Apply hover visual effect to token
    */
-  private applyHoverVisual(sprite: PIXI.Sprite): void {
+  private applyHoverVisual(tokenRoot: TokenContainer, sprite: PIXI.Sprite): void {
     // Create hover effect if it doesn't exist
-    if (!sprite.children.find(child => child.label === 'hover-effect')) {
+    if (!tokenRoot.children.find(child => child.label === 'hover-effect')) {
       const hoverEffect = new PIXI.Graphics();
       hoverEffect.label = 'hover-effect';
-      
       // Get the world coordinate radius (compensating for sprite scale)
       // The token should fill a grid square, so its radius should be gridSize/2
       const worldTokenRadius = this._gridSize / 2; // 60 for gridSize 120
       const hoverWorldRadius = worldTokenRadius + 3; // Add 3 world units padding (smaller than selection)
-      
       // Compensate for sprite scaling: if sprite is scaled down, we need to scale the circle up
       const spriteScale = sprite.scale.x; // Assuming uniform scaling
       const circleRadius = hoverWorldRadius / spriteScale;
-      
       // Draw orange hover effect (different from red selection)
       hoverEffect.circle(0, 0, circleRadius)
         .stroke({ width: 2, color: 0xFF8800, alpha: 0.8 });
-      
-      // Add to sprite
-      sprite.addChild(hoverEffect);
-      
+      // Add to token root container
+      tokenRoot.addChild(hoverEffect);
       console.log('[TokenRenderer] Added hover effect to token - hoverWorldRadius:', hoverWorldRadius, 'spriteScale:', spriteScale, 'circleRadius:', circleRadius);
     }
   }
@@ -841,11 +853,11 @@ export class TokenRenderer {
   /**
    * Remove hover visual effect from token
    */
-  private removeHoverVisual(sprite: PIXI.Sprite): void {
+  private removeHoverVisual(tokenRoot: TokenContainer): void {
     // Find and remove hover effect
-    const effect = sprite.children.find(child => child.label === 'hover-effect');
+    const effect = tokenRoot.children.find(child => child.label === 'hover-effect');
     if (effect) {
-      sprite.removeChild(effect);
+      tokenRoot.removeChild(effect);
       effect.destroy();
     }
   }
@@ -855,37 +867,30 @@ export class TokenRenderer {
   /**
    * Animate token movement
    */
-  private animateTokenMovement(sprite: PIXI.Sprite, newPosition: TokenPosition): void {
+  private animateTokenMovement(tokenRoot: TokenContainer, newPosition: TokenPosition): void {
     // Store starting position
-    const startX = sprite.x;
-    const startY = sprite.y;
-    
+    const startX = tokenRoot.x;
+    const startY = tokenRoot.y;
     // Distance to move
     const dx = newPosition.x - startX;
     const dy = newPosition.y - startY;
-    
     // Animation duration (ms)
     const duration = 200;
     const startTime = Date.now();
-    
     // Animate movement
     const animate = () => {
       const elapsed = Date.now() - startTime;
       const progress = Math.min(elapsed / duration, 1);
-      
       // Easing function (ease-out)
       const easeProgress = 1 - Math.pow(1 - progress, 2);
-      
       // Calculate new position
-      sprite.x = startX + dx * easeProgress;
-      sprite.y = startY + dy * easeProgress;
-      
+      tokenRoot.x = startX + dx * easeProgress;
+      tokenRoot.y = startY + dy * easeProgress;
       // Continue animation if not complete
       if (progress < 1) {
         requestAnimationFrame(animate);
       }
     };
-    
     // Start animation
     animate();
   }
@@ -893,44 +898,35 @@ export class TokenRenderer {
   /**
    * Update selection visual for a token
    */
-  private updateSelectionVisual(sprite: TokenSprite, selected: boolean): void {
-    if (!sprite.tokenId) return;
-    
+  private updateSelectionVisual(tokenRoot: TokenContainer, sprite: PIXI.Sprite, selected: boolean): void {
+    if (!tokenRoot.tokenId) return;
     // Remove existing selection visual
-    const existingSelection = sprite.children.find(child => child.label === 'selection');
+    const existingSelection = tokenRoot.children.find(child => child.label === 'selection');
     if (existingSelection) {
-      sprite.removeChild(existingSelection);
+      tokenRoot.removeChild(existingSelection);
     }
-    
     if (selected) {
       // Remove hover effect when selecting (to avoid conflict with orange circle)
-      this.removeHoverVisual(sprite);
-      
+      this.removeHoverVisual(tokenRoot);
       // Create red circle around the token
       const selectionCircle = new PIXI.Graphics();
       selectionCircle.label = 'selection';
-      
       // Get the world coordinate radius (compensating for sprite scale)
       // The token should fill a grid square, so its radius should be gridSize/2
       const worldTokenRadius = this._gridSize / 2; // 60 for gridSize 120
       const selectionWorldRadius = worldTokenRadius + 8; // Add 8 world units padding
-      
       // Compensate for sprite scaling: if sprite is scaled down, we need to scale the circle up
       const spriteScale = sprite.scale.x; // Assuming uniform scaling
       const circleRadius = selectionWorldRadius / spriteScale;
-      
       // Draw red circle at the compensated radius
       selectionCircle.circle(0, 0, circleRadius)
         .stroke({ width: 5, color: 0xff0000 }); // Red color, 5px width (thicker)
-      
       // Position the circle at the center of the token
       selectionCircle.x = 0;
       selectionCircle.y = 0;
-      
-      // Add the selection circle as a child of the token sprite
-      sprite.addChild(selectionCircle);
-      
-      console.log('[TokenRenderer] Added red selection circle to token:', sprite.tokenId, 
+      // Add the selection circle as a child of the token root
+      tokenRoot.addChild(selectionCircle);
+      console.log('[TokenRenderer] Added red selection circle to token:', tokenRoot.tokenId, 
         'worldTokenRadius:', worldTokenRadius, 
         'selectionWorldRadius:', selectionWorldRadius,
         'spriteScale:', spriteScale,
@@ -938,7 +934,7 @@ export class TokenRenderer {
     } else {
       // When deselecting, restore hover effect if mouse is still over the token
       // (This will be handled by the hover event handlers)
-      console.log('[TokenRenderer] Removed selection visual from token:', sprite.tokenId);
+      console.log('[TokenRenderer] Removed selection visual from token:', tokenRoot.tokenId);
     }
   }
 } 
