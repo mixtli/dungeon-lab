@@ -23,8 +23,7 @@ const actorStore = useActorStore();
 const activeGameSystemId = ref<string>(localStorage.getItem('activeGameSystem') || '');
 const isLoading = ref(true);
 const error = ref<string | null>(null);
-
-const plugin = pluginRegistry.getGameSystemPlugin(activeGameSystemId.value) as IGameSystemPluginWeb;
+const plugin = ref<IGameSystemPluginWeb | null>(null);
 // Step management
 const currentStep = ref(1);
 const isSubmitting = ref(false);
@@ -107,7 +106,31 @@ onMounted(async () => {
     isLoading.value = false;
     return;
   }
-  isLoading.value = false;
+
+  try {
+    // Try to get the plugin from the registry first
+    plugin.value = pluginRegistry.getGameSystemPlugin(activeGameSystemId.value) as IGameSystemPluginWeb;
+    
+    if (!plugin.value) {
+      console.log('Plugin not found in registry, attempting to load it...');
+      // Initialize plugin registry and load the plugin if it's not already loaded
+      await pluginRegistry.initialize();
+      plugin.value = await pluginRegistry.loadGameSystemPlugin(activeGameSystemId.value) as IGameSystemPluginWeb;
+    }
+
+    if (!plugin.value) {
+      error.value = `Plugin ${activeGameSystemId.value} not found`;
+      isLoading.value = false;
+      return;
+    }
+
+    console.log('Plugin loaded successfully:', plugin.value.config.name);
+  } catch (err) {
+    console.error('Failed to load plugin:', err);
+    error.value = `Failed to load plugin ${activeGameSystemId.value}`;
+  } finally {
+    isLoading.value = false;
+  }
 });
 
 // Handle form submission
@@ -116,12 +139,12 @@ async function handleSubmit(event: Event) {
     isSubmitting.value = true;
 
     // Check if plugin is available
-    if (!plugin) return;
+    if (!plugin.value) return;
 
     // Get the form data
     const form = event.target as HTMLFormElement;
     // Get the plugin component instance
-    const pluginComponent = plugin.loadComponent('characterCreation');
+    const pluginComponent = plugin.value.loadComponent('characterCreation');
     if (!pluginComponent) {
       console.error('Plugin component not found');
       return;
@@ -144,7 +167,7 @@ async function handleSubmit(event: Event) {
     const actorData: CreateActorRequest = {
       name: basicInfo.value.name,
       type: 'character',
-      gameSystemId: plugin.config.id,
+      gameSystemId: plugin.value.config.id,
       data: pluginData,
       description: basicInfo.value.description || undefined,
       avatar: basicInfo.value.avatarImage instanceof File ? basicInfo.value.avatarImage : undefined,
@@ -186,15 +209,15 @@ function handleError(errorMessage: string) {
 
 <template>
   <div class="max-w-3xl mx-auto p-6">
-    <div class="bg-white rounded-lg shadow-md p-6">
-      <h1 class="text-2xl font-bold text-gray-900 mb-6">Create New Character</h1>
+    <div class="bg-stone dark:bg-stone-700 rounded-lg shadow-xl border border-stone-300 dark:border-stone-600 p-6">
+      <h1 class="text-2xl font-bold text-dragon mb-6">Create New Character</h1>
 
       <!-- Loading & Error States -->
       <div v-if="isLoading" class="flex justify-center items-center p-8">
-        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-700"></div>
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-dragon"></div>
       </div>
 
-      <div v-else-if="error" class="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
+      <div v-else-if="error" class="bg-error-50 border border-error-200 rounded-md p-4 mb-6 dark:bg-error-900 dark:border-error-700">
         <div class="flex">
           <div class="flex-shrink-0">
             <svg
@@ -212,42 +235,42 @@ function handleError(errorMessage: string) {
             </svg>
           </div>
           <div class="ml-3">
-            <p class="text-sm text-red-700">{{ error }}</p>
+            <p class="text-sm text-error-700 dark:text-error-200">{{ error }}</p>
           </div>
         </div>
       </div>
 
       <!-- No Active Game System -->
       <div v-else-if="!activeGameSystemId" class="text-center py-6">
-        <p class="text-gray-700 mb-4">
+        <p class="text-onyx dark:text-parchment mb-4">
           You need to select an active game system before creating a character.
         </p>
         <button
           @click="router.push('/settings')"
-          class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          class="btn btn-primary"
         >
           Go to Settings
         </button>
       </div>
 
       <!-- Character Creation Steps -->
-      <div v-else>
+      <div v-else-if="plugin">
         <!-- Step Indicator -->
         <div class="mb-6">
           <div class="flex items-center">
             <div
               class="w-8 h-8 rounded-full flex items-center justify-center"
-              :class="currentStep === 1 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'"
+              :class="currentStep === 1 ? 'bg-dragon text-white' : 'bg-stone-200 text-stone-700 dark:bg-stone-600 dark:text-stone-200'"
             >
               1
             </div>
             <div
               class="flex-1 h-1 mx-2"
-              :class="currentStep === 1 ? 'bg-gray-200' : 'bg-blue-600'"
+              :class="currentStep === 1 ? 'bg-stone-200 dark:bg-stone-600' : 'bg-dragon'"
             ></div>
             <div
               class="w-8 h-8 rounded-full flex items-center justify-center"
-              :class="currentStep === 2 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'"
+              :class="currentStep === 2 ? 'bg-dragon text-white' : 'bg-stone-200 text-stone-700 dark:bg-stone-600 dark:text-stone-200'"
             >
               2
             </div>
@@ -281,9 +304,9 @@ function handleError(errorMessage: string) {
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 my-6">
               <div class="form-group">
-                <label class="block text-sm font-medium text-gray-700 mb-2">Avatar</label>
+                <label class="block text-sm font-medium text-onyx dark:text-parchment mb-2">Avatar</label>
                 <ImageUpload v-model="basicInfo.avatarImage" type="avatar" />
-                <div v-if="basicInfo.avatarImage" class="mt-1 text-xs text-gray-500">
+                <div v-if="basicInfo.avatarImage" class="mt-1 text-xs text-ash dark:text-stone-300">
                   {{
                     typeof basicInfo.avatarImage === 'object' &&
                     'lastModified' in basicInfo.avatarImage
@@ -294,9 +317,9 @@ function handleError(errorMessage: string) {
               </div>
 
               <div class="form-group">
-                <label class="block text-sm font-medium text-gray-700 mb-2">Token</label>
+                <label class="block text-sm font-medium text-onyx dark:text-parchment mb-2">Token</label>
                 <ImageUpload v-model="basicInfo.tokenImage" type="token" />
-                <div v-if="basicInfo.tokenImage" class="mt-1 text-xs text-gray-500">
+                <div v-if="basicInfo.tokenImage" class="mt-1 text-xs text-ash dark:text-stone-300">
                   {{
                     typeof basicInfo.tokenImage === 'object' &&
                     'lastModified' in basicInfo.tokenImage
@@ -355,7 +378,7 @@ function handleError(errorMessage: string) {
 }
 
 .character-create-form {
-  background: white;
+  background: rgb(var(--bg-card));
   padding: 2rem;
   border-radius: 0.5rem;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -373,14 +396,17 @@ function handleError(errorMessage: string) {
   display: block;
   margin-bottom: 0.5rem;
   font-weight: 500;
+  color: rgb(var(--text-primary));
 }
 
 .form-input,
 .form-textarea {
   width: 100%;
   padding: 0.5rem;
-  border: 1px solid #ddd;
+  border: 1px solid rgb(var(--border-primary));
   border-radius: 0.25rem;
+  background-color: rgb(var(--bg-primary));
+  color: rgb(var(--text-primary));
 }
 
 .form-textarea {
@@ -393,7 +419,7 @@ function handleError(errorMessage: string) {
   justify-content: space-between;
   margin-top: 2rem;
   padding-top: 1rem;
-  border-top: 1px solid #eee;
+  border-top: 1px solid rgb(var(--border-primary));
 }
 
 .btn {

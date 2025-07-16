@@ -2,7 +2,6 @@
 import { ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { MapsClient } from '@dungeon-lab/client/index.mjs';
-import { ArrowLeftIcon } from '@heroicons/vue/24/outline';
 import ImageUpload from '../../components/common/ImageUpload.vue';
 import type { UVTTData } from '@dungeon-lab/shared/types/index.mjs';
 
@@ -227,20 +226,13 @@ async function handleSubmit(event: Event) {
 
 <template>
   <div class="p-6">
-    <div class="flex items-center mb-6">
-      <button
-        @click="router.back()"
-        class="flex items-center px-4 py-2 mr-4 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-      >
-        <ArrowLeftIcon class="h-5 w-5 mr-1" />
-        Back
-      </button>
-      <h1 class="text-2xl font-bold">Create New Map</h1>
+    <div class="text-center mb-8">
+      <h1 class="text-4xl font-bold text-dragon">Create New Map</h1>
     </div>
 
-    <div class="bg-white rounded-lg shadow-md max-w-2xl mx-auto p-6">
+    <div class="bg-stone dark:bg-stone-700 rounded-lg shadow-xl border border-stone-300 dark:border-stone-600 max-w-2xl mx-auto p-6">
       <!-- Error State -->
-      <div v-if="error" class="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
+      <div v-if="error" class="bg-error-50 border border-error-200 rounded-md p-4 mb-6 dark:bg-error-900 dark:border-error-700">
         <div class="flex">
           <div class="flex-shrink-0">
             <svg
@@ -258,13 +250,13 @@ async function handleSubmit(event: Event) {
             </svg>
           </div>
           <div class="ml-3">
-            <p class="text-sm text-red-700">{{ error }}</p>
+            <p class="text-sm text-error-700 dark:text-error-200">{{ error }}</p>
           </div>
         </div>
       </div>
 
       <!-- UVTT Error State -->
-      <div v-if="uvttError" class="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
+      <div v-if="uvttError" class="bg-error-50 border border-error-200 rounded-md p-4 mb-6 dark:bg-error-900 dark:border-error-700">
         <div class="flex">
           <div class="flex-shrink-0">
             <svg
@@ -282,39 +274,39 @@ async function handleSubmit(event: Event) {
             </svg>
           </div>
           <div class="ml-3">
-            <p class="text-sm text-red-700">{{ uvttError }}</p>
+            <p class="text-sm text-error-700 dark:text-error-200">{{ uvttError }}</p>
           </div>
         </div>
       </div>
 
       <form @submit="handleSubmit" class="space-y-6">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">
-            Name <span class="text-red-500">*</span>
+          <label class="block text-sm font-medium text-onyx dark:text-parchment mb-1">
+            Name <span class="text-error-700">*</span>
           </label>
           <input
             v-model="formData.name"
             type="text"
             required
             placeholder="Enter map name"
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            class="w-full px-3 py-2 border border-stone-300 dark:border-stone-600 rounded-md focus:outline-none focus:ring-2 focus:ring-dragon bg-parchment dark:bg-stone-600 text-onyx dark:text-parchment"
           />
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1"> Description </label>
+          <label class="block text-sm font-medium text-onyx dark:text-parchment mb-1"> Description </label>
           <textarea
             v-model="formData.description"
             rows="3"
             placeholder="Enter map description"
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            class="w-full px-3 py-2 border border-stone-300 dark:border-stone-600 rounded-md focus:outline-none focus:ring-2 focus:ring-dragon bg-parchment dark:bg-stone-600 text-onyx dark:text-parchment"
           ></textarea>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-              Map Width (Squares) <span class="text-red-500">*</span>
+            <label class="block text-sm font-medium text-onyx dark:text-parchment mb-1">
+              Map Width (Squares) <span class="text-error-700">*</span>
             </label>
             <input
               v-model="formData.width"
@@ -322,13 +314,13 @@ async function handleSubmit(event: Event) {
               required
               min="1"
               max="100"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              class="w-full px-3 py-2 border border-stone-300 dark:border-stone-600 rounded-md focus:outline-none focus:ring-2 focus:ring-dragon bg-parchment dark:bg-stone-600 text-onyx dark:text-parchment"
             />
           </div>
           
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-              Map Height (Squares) <span class="text-red-500">*</span>
+            <label class="block text-sm font-medium text-onyx dark:text-parchment mb-1">
+              Map Height (Squares) <span class="text-error-700">*</span>
             </label>
             <input
               v-model="formData.height"
@@ -337,14 +329,14 @@ async function handleSubmit(event: Event) {
               min="1"
               max="100"
               :disabled="!!originalImagePixelDimensions"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              class="w-full px-3 py-2 border border-stone-300 dark:border-stone-600 rounded-md focus:outline-none focus:ring-2 focus:ring-dragon bg-parchment dark:bg-stone-600 text-onyx dark:text-parchment disabled:opacity-50"
             />
           </div>
         </div>
         
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">
-            Pixels Per Grid <span class="text-red-500">*</span>
+          <label class="block text-sm font-medium text-onyx dark:text-parchment mb-1">
+            Pixels Per Grid <span class="text-error-700">*</span>
           </label>
           <input
             v-model="formData.pixelsPerGrid"
@@ -352,16 +344,16 @@ async function handleSubmit(event: Event) {
             required
             min="10"
             max="200"
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            class="w-full px-3 py-2 border border-stone-300 dark:border-stone-600 rounded-md focus:outline-none focus:ring-2 focus:ring-dragon bg-parchment dark:bg-stone-600 text-onyx dark:text-parchment"
           />
-          <p class="text-gray-500 text-sm mt-1">
+          <p class="text-ash dark:text-stone-300 text-sm mt-1">
             Number of pixels per grid square. Higher values result in higher resolution maps.
           </p>
         </div>
 
         <div class="space-y-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
+            <label class="block text-sm font-medium text-onyx dark:text-parchment mb-1">
               Import from UVTT/DD2VTT
             </label>
             <div class="flex items-center">
@@ -369,34 +361,34 @@ async function handleSubmit(event: Event) {
                 type="file"
                 accept=".uvtt,.dd2vtt"
                 @change="handleUvttFileChange"
-                class="block w-full text-sm text-gray-500
+                class="block w-full text-sm text-ash dark:text-stone-300
                       file:mr-4 file:py-2 file:px-4
                       file:rounded-md file:border-0
                       file:text-sm file:font-semibold
-                      file:bg-blue-50 file:text-blue-700
-                      hover:file:bg-blue-100"
+                      file:bg-secondary-50 file:text-secondary-700
+                      hover:file:bg-secondary-100 dark:file:bg-secondary-800 dark:file:text-secondary-200"
               />
             </div>
-            <div v-if="uvttFile" class="mt-2 text-sm text-green-600 flex items-center">
+            <div v-if="uvttFile" class="mt-2 text-sm text-nature-600 dark:text-nature-400 flex items-center">
               <svg class="h-4 w-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
                 <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
               </svg>
               UVTT file loaded: {{ uvttFile.name }}
             </div>
-            <p class="text-gray-500 text-sm mt-2">
+            <p class="text-ash dark:text-stone-300 text-sm mt-2">
               Upload a Universal VTT (UVTT/DD2VTT) file to automatically fill map settings. Will also extract any embedded image.
             </p>
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
+            <label class="block text-sm font-medium text-onyx dark:text-parchment mb-1">
               Map Image
             </label>
             <ImageUpload v-model="mapImageFile" type="map" />
-            <p class="text-gray-500 text-sm mt-2">
+            <p class="text-ash dark:text-stone-300 text-sm mt-2">
               Upload a JPG/PNG image of your map. If no image is provided, one will be generated by AI.
             </p>
-            <div v-if="mapImageFile" class="text-xs text-gray-500 mt-2">
+            <div v-if="mapImageFile" class="text-xs text-ash dark:text-stone-300 mt-2">
               {{
                 typeof mapImageFile === 'object' && 'lastModified' in mapImageFile
                   ? 'File selected'
@@ -410,7 +402,7 @@ async function handleSubmit(event: Event) {
           <button
             type="submit"
             :disabled="!formData.name || loading"
-            class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            class="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {{ loading ? 'Creating...' : 'Create Map' }}
           </button>

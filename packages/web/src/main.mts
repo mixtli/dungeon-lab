@@ -10,6 +10,7 @@ import { getApiBaseUrl } from './utils/getApiBaseUrl.mts';
 import { useAuthStore } from './stores/auth.store.mjs';
 import clickOutside from './directives/clickOutside.mjs';
 import { registerVueKonva } from './plugins/vue-konva.mjs';
+import { pluginRegistry } from './services/plugin-registry.service.mjs';
 
 // Configure ApiClient with base URL
 configureApiClient(getApiBaseUrl());
@@ -32,6 +33,23 @@ app.directive('click-outside', clickOutside);
 // Register Vue Konva
 registerVueKonva(app);
 
+// Initialize plugin registry and load active game system
+async function initializeApp() {
+  try {
+    // Initialize plugin registry
+    await pluginRegistry.initialize();
+    
+    // Load the active game system if one is set
+    const activeGameSystem = localStorage.getItem('activeGameSystem');
+    if (activeGameSystem) {
+      console.log('Loading active game system:', activeGameSystem);
+      await pluginRegistry.loadGameSystemPlugin(activeGameSystem);
+    }
+  } catch (error) {
+    console.error('Failed to initialize plugins:', error);
+  }
+}
+
 // Initialize auth state
 const authStore = useAuthStore();
 
@@ -41,4 +59,11 @@ if (localStorage.getItem('isAuthenticated')) {
   });
 }
 
-app.mount('#app');
+// Initialize app with plugins
+initializeApp().then(() => {
+  app.mount('#app');
+}).catch(error => {
+  console.error('Failed to initialize app:', error);
+  // Mount app anyway
+  app.mount('#app');
+});

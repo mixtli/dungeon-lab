@@ -128,7 +128,7 @@ def generate_map_flow(description: str, parameters: Dict[str, Any]) -> Dict[str,
     try:
 
         # Generate the map image
-        image_artifact = generate_image(description, parameters, mock=True)
+        image_artifact = generate_image(description, parameters, mock=False)
 
 
         send_progress_update(

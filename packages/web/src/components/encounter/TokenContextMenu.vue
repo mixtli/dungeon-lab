@@ -213,13 +213,12 @@ const handleAction = (action: string) => {
 
 <style scoped>
 .token-context-menu {
-  @apply bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700;
-  @apply min-w-64 max-w-80 max-h-96 overflow-y-auto;
+  @apply bg-neutral-900 text-white border border-gray-700 rounded-lg shadow-xl min-w-64 max-w-80 max-h-96 overflow-y-auto z-50;
   user-select: none;
 }
 
 .menu-header {
-  @apply flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-700;
+  @apply flex items-center justify-between p-3 border-b border-gray-700 font-heading font-semibold text-base;
 }
 
 .token-info {
@@ -227,15 +226,15 @@ const handleAction = (action: string) => {
 }
 
 .token-name {
-  @apply font-semibold text-gray-900 dark:text-white;
+  @apply font-heading font-semibold text-white;
 }
 
 .token-type {
-  @apply text-xs text-gray-500 dark:text-gray-400;
+  @apply text-xs text-gray-400;
 }
 
 .close-button {
-  @apply text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-xl font-bold leading-none ml-2;
+  @apply text-gray-400 hover:text-gray-200 text-xl font-bold leading-none ml-2 focus:outline-none;
 }
 
 .menu-actions {
@@ -247,16 +246,15 @@ const handleAction = (action: string) => {
 }
 
 .action-group h4 {
-  @apply text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-1 px-2;
+  @apply text-xs font-semibold text-gray-300 uppercase tracking-wide mb-1 px-2 font-heading;
 }
 
 .menu-item {
-  @apply w-full flex items-center space-x-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300;
-  @apply hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors cursor-pointer;
+  @apply block w-full text-left px-3 py-2 text-sm rounded transition-colors hover:bg-gray-800 focus:bg-gray-800 focus:outline-none;
 }
 
 .menu-item.danger {
-  @apply text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20;
+  @apply text-red-400 hover:bg-red-900;
 }
 
 .menu-item i {

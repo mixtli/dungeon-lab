@@ -92,22 +92,22 @@ const examples = [
 </script>
 
 <template>
-  <div class="map-description-input bg-white rounded-lg shadow p-4">
+  <div class="map-description-input bg-stone dark:bg-stone-700 rounded-lg shadow-xl border border-stone-300 dark:border-stone-600 p-4">
     <div class="flex justify-between items-center mb-2">
-      <label class="block text-sm font-medium text-gray-700">
-        Map Description <span class="text-red-500">*</span>
+      <label class="block text-sm font-medium text-onyx dark:text-parchment">
+        Map Description <span class="text-error-700">*</span>
       </label>
       <button
         type="button"
         @click="showSuggestions = !showSuggestions"
-        class="text-xs px-2 py-1 bg-blue-50 text-blue-600 rounded hover:bg-blue-100"
+        class="text-xs px-2 py-1 bg-secondary-50 text-secondary-600 rounded hover:bg-secondary-100 dark:bg-secondary-800 dark:text-secondary-200 dark:hover:bg-secondary-700"
       >
         {{ showSuggestions ? 'Hide Tips' : 'Show Tips' }}
       </button>
     </div>
 
     <!-- Error message -->
-    <div v-if="props.error" class="mb-2 text-sm text-red-600">{{ props.error }}</div>
+    <div v-if="props.error" class="mb-2 text-sm text-error-700 dark:text-error-200">{{ props.error }}</div>
 
     <!-- Text area for map description -->
     <textarea
@@ -115,20 +115,20 @@ const examples = [
       rows="5"
       :placeholder="placeholder"
       @keydown="handleKeyDown"
-      class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+      class="w-full p-3 border border-stone-300 dark:border-stone-600 rounded-md focus:outline-none focus:ring-2 focus:ring-dragon bg-parchment dark:bg-stone-600 text-onyx dark:text-parchment"
     ></textarea>
     
-    <div class="mt-1 text-xs text-gray-500 flex justify-between">
+    <div class="mt-1 text-xs text-ash dark:text-stone-300 flex justify-between">
       <span>Press Ctrl+Enter to submit</span>
       <span>{{ description.length }} characters</span>
     </div>
 
     <!-- Helper suggestions panel -->
-    <div v-if="showSuggestions" class="mt-4 bg-blue-50 rounded-md p-4">
-      <h3 class="text-sm font-medium text-blue-800 mb-2">Description Tips</h3>
+    <div v-if="showSuggestions" class="mt-4 bg-secondary-50 dark:bg-secondary-900 rounded-md p-4">
+      <h3 class="text-sm font-medium text-secondary-800 dark:text-secondary-200 mb-2">Description Tips</h3>
       
       <!-- Category tabs -->
-      <div class="flex flex-wrap gap-1 mb-3 border-b border-blue-200 pb-2">
+      <div class="flex flex-wrap gap-1 mb-3 border-b border-secondary-200 dark:border-secondary-700 pb-2">
         <button
           v-for="category in categories"
           :key="category.id"
@@ -136,8 +136,8 @@ const examples = [
           :class="[
             'px-3 py-1 text-xs rounded-t-md',
             selectedCategory === category.id 
-              ? 'bg-blue-200 text-blue-800 font-medium' 
-              : 'bg-blue-100 text-blue-600 hover:bg-blue-200'
+              ? 'bg-secondary-200 text-secondary-800 font-medium dark:bg-secondary-700 dark:text-secondary-100' 
+              : 'bg-secondary-100 text-secondary-600 hover:bg-secondary-200 dark:bg-secondary-800 dark:text-secondary-300 dark:hover:bg-secondary-700'
           ]"
         >
           {{ category.label }}
@@ -145,17 +145,17 @@ const examples = [
       </div>
       
       <!-- Suggestions for selected category -->
-      <ul class="text-sm text-blue-700 space-y-1 mb-3">
+      <ul class="text-sm text-secondary-700 dark:text-secondary-200 space-y-1 mb-3">
         <li 
           v-for="(suggestion, index) in suggestions[selectedCategory as keyof typeof suggestions]" 
           :key="index"
           class="flex items-start"
         >
-          <span class="inline-block w-2 h-2 bg-blue-500 rounded-full mt-1.5 mr-2"></span>
+          <span class="inline-block w-2 h-2 bg-secondary-500 rounded-full mt-1.5 mr-2"></span>
           <span>{{ suggestion }}</span>
           <button 
             @click="insertSuggestion(suggestion)"
-            class="ml-2 text-xs text-blue-600 hover:text-blue-800"
+            class="ml-2 text-xs text-secondary-600 hover:text-secondary-800 dark:text-secondary-300 dark:hover:text-secondary-100"
             title="Add to description"
           >
             + Add
@@ -164,12 +164,12 @@ const examples = [
       </ul>
       
       <!-- Examples section -->
-      <div class="mt-4 pt-3 border-t border-blue-200">
-        <h4 class="text-sm font-medium text-blue-800 mb-2">Examples for Inspiration</h4>
+      <div class="mt-4 pt-3 border-t border-secondary-200 dark:border-secondary-700">
+        <h4 class="text-sm font-medium text-secondary-800 dark:text-secondary-200 mb-2">Examples for Inspiration</h4>
         <div class="space-y-2">
           <div v-for="(example, index) in examples" :key="index" class="text-xs">
-            <p class="font-medium text-blue-700">{{ example.title }}:</p>
-            <p class="text-blue-600 italic">{{ example.description }}</p>
+            <p class="font-medium text-secondary-700 dark:text-secondary-200">{{ example.title }}:</p>
+            <p class="text-secondary-600 dark:text-secondary-300 italic">{{ example.description }}</p>
           </div>
         </div>
       </div>

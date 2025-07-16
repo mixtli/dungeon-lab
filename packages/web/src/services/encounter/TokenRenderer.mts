@@ -531,6 +531,7 @@ export class TokenRenderer {
    * Setup interactive events for token sprite
    */
   private setupSpriteEvents(sprite: TokenSprite): void {
+    sprite.removeAllListeners(); // Prevent duplicate event handlers
     // Click/tap handler
     sprite.on('pointerdown', this.handlePointerDown.bind(this, sprite));
     // Remove pointermove from individual sprites - we'll use stage-level listeners during drag

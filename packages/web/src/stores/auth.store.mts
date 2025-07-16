@@ -132,5 +132,5 @@ export const useAuthStore = defineStore(
       updateUser
     };
   },
-  { persist: { storage: sessionStorage } }
+  { persist: { storage: localStorage } }
 );

@@ -9,7 +9,7 @@
     </div>
 
     <!-- Plugin container will be rendered here -->
-    <div ref="pluginMountPoint" class="plugin-mount-point"></div>
+    <div ref="pluginMountPoint" class="plugin-mount-point-isolated"></div>
   </div>
 </template>
 
@@ -113,15 +113,33 @@ function cleanupComponent() {
 </script>
 
 <style scoped>
-.plugin-mount-point {
+/* Isolated plugin mount point with CSS reset */
+.plugin-mount-point-isolated {
+  all: initial;
+  display: block;
   width: 100%;
   min-height: 200px;
-  padding: 1rem;
-  background-color: #ffffff;
-  border-radius: 0.375rem;
-  box-shadow:
-    0 1px 3px 0 rgba(0, 0, 0, 0.1),
-    0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  color: inherit;
+  position: static;
+  top: auto;
+  left: auto;
+  right: auto;
+  bottom: auto;
+  transform: none;
+  box-shadow: none;
+  text-shadow: none;
+  list-style: none;
+  border-collapse: collapse;
+  border-spacing: 0;
 }
 
 .plugin-loading {

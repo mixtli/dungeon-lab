@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, onUnmounted, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { ArrowLeftIcon } from '@heroicons/vue/24/outline';
 import MapDescriptionInput from '../../components/map/MapDescriptionInput.vue';
 import MapEditInput from '../../components/map/MapEditInput.vue';
 import MapGenerationProgress from '../../components/map/MapGenerationProgress.vue';
@@ -9,9 +8,11 @@ import { useWorkflowProgress } from '../../composables/useWorkflowProgress.mjs';
 import { useSocketStore } from '../../stores/socket.store.mts';
 import type { MapGenerationResponse, MapEditResponse, MapFeatureDetectionResponse } from '@dungeon-lab/shared/types/socket/index.mjs';
 import axios from 'axios';
+import { MapsClient } from '@dungeon-lab/client/maps.client.mjs';
 
 const router = useRouter();
 const socketStore = useSocketStore();
+const mapsClient = new MapsClient();
 
 // Flow ID for tracking progress
 const flowRunId = ref('');
@@ -454,14 +455,51 @@ const regenerateMap = async () => {
 };
 
 // Function to proceed to edit the generated map
-const proceedToEdit = () => {
-  const mapId = localStorage.getItem('lastGeneratedMapId');
-  router.push({
-    name: 'map-edit',
-    params: {
-      id: mapId || 'new'
-    }
-  });
+const proceedToEdit = async () => {
+  if (!previewImage.value) {
+    console.error('No preview image available');
+    return;
+  }
+
+  try {
+    creatingMapFromUvtt.value = true;
+    createMapError.value = '';
+
+    // Download the image from the URL and convert to File
+    const imageResponse = await fetch(previewImage.value);
+    const imageBlob = await imageResponse.blob();
+    const imageFile = new File([imageBlob], `${parameters.name}.png`, { type: imageBlob.type });
+
+    // Create the map using the MapsClient
+    const map = await mapsClient.createMap({
+      name: parameters.name,
+      width: parameters.width,
+      height: parameters.height,
+      pixelsPerGrid: parameters.pixelsPerGrid,
+      grid: {
+        enabled: true,
+        size: parameters.pixelsPerGrid,
+        color: '#000000',
+        opacity: 0.3
+      }
+    }, imageFile);
+
+    // Store the map ID for future reference
+    localStorage.setItem('lastGeneratedMapId', map.id);
+
+    // Redirect to the map editor
+    router.push({
+      name: 'map-edit',
+      params: {
+        id: map.id
+      }
+    });
+  } catch (error) {
+    console.error('Error creating map:', error);
+    createMapError.value = error instanceof Error ? error.message : 'Failed to create map';
+  } finally {
+    creatingMapFromUvtt.value = false;
+  }
 };
 
 // Function to reset edit state and return to original image
@@ -590,19 +628,14 @@ const createMapFromUvtt = async () => {
 
 <template>
   <div class="p-6">
-    <div class="flex items-center mb-6">
-      <button @click="router.back()"
-        class="flex items-center px-4 py-2 mr-4 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
-        <ArrowLeftIcon class="h-5 w-5 mr-1" />
-        Back
-      </button>
-      <h1 class="text-2xl font-bold">AI Map Builder</h1>
+    <div class="text-center mb-8">
+      <h1 class="text-4xl font-bold text-dragon font-heading">AI Map Builder</h1>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <!-- Left Column: Input Form -->
       <div class="space-y-6">
-        <div v-if="descriptionError" class="bg-red-50 border border-red-200 rounded-md p-4">
+        <div v-if="descriptionError" class="bg-error-50 border border-error-200 rounded-md p-4 dark:bg-error-900 dark:border-error-700">
           <div class="flex">
             <div class="flex-shrink-0">
               <!-- Error icon -->
@@ -614,17 +647,17 @@ const createMapFromUvtt = async () => {
               </svg>
             </div>
             <div class="ml-3">
-              <p class="text-sm text-red-700">{{ descriptionError }}</p>
+              <p class="text-sm text-error-700 dark:text-error-200">{{ descriptionError }}</p>
             </div>
           </div>
         </div>
 
         <!-- Status Message Display -->
-        <div v-if="statusMessage" class="bg-blue-50 border border-blue-200 rounded-md p-4">
+        <div v-if="statusMessage" class="bg-secondary-50 border border-secondary-200 rounded-md p-4 dark:bg-secondary-900 dark:border-secondary-700">
           <div class="flex">
             <div class="flex-shrink-0">
               <!-- Info icon -->
-              <svg class="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"
+              <svg class="h-5 w-5 text-secondary-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"
                 fill="currentColor" aria-hidden="true">
                 <path fill-rule="evenodd"
                   d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1V9z"
@@ -632,7 +665,7 @@ const createMapFromUvtt = async () => {
               </svg>
             </div>
             <div class="ml-3">
-              <p class="text-sm text-blue-700">{{ statusMessage }}</p>
+              <p class="text-sm text-secondary-700 dark:text-secondary-200">{{ statusMessage }}</p>
             </div>
           </div>
         </div>
@@ -646,34 +679,34 @@ const createMapFromUvtt = async () => {
           placeholder="Describe your map in detail..." @submit="generateMap" />
 
         <!-- Map Parameters -->
-        <div class="bg-white rounded-lg shadow p-4">
-          <h2 class="text-lg font-medium text-gray-800 mb-4">Map Parameters</h2>
+        <div class="bg-stone dark:bg-stone-700 rounded-lg shadow-xl border border-stone-300 dark:border-stone-600 p-4">
+          <h2 class="text-lg font-medium text-dragon dark:text-gold mb-4 font-heading">Map Parameters</h2>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
+              <label class="block text-sm font-medium text-onyx dark:text-parchment mb-1">
                 Map Width (Squares)
               </label>
               <input v-model="parameters.width" type="number" min="10" max="100"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                class="w-full px-3 py-2 border border-stone-300 dark:border-stone-600 rounded-md focus:outline-none focus:ring-2 focus:ring-dragon bg-parchment dark:bg-stone-600 text-onyx dark:text-parchment" />
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
+              <label class="block text-sm font-medium text-onyx dark:text-parchment mb-1">
                 Map Height (Squares)
               </label>
               <input v-model="parameters.height" type="number" min="10" max="100"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                class="w-full px-3 py-2 border border-stone-300 dark:border-stone-600 rounded-md focus:outline-none focus:ring-2 focus:ring-dragon bg-parchment dark:bg-stone-600 text-onyx dark:text-parchment" />
             </div>
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
+              <label class="block text-sm font-medium text-onyx dark:text-parchment mb-1">
                 Art Style
               </label>
               <select v-model="parameters.style"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                class="w-full px-3 py-2 border border-stone-300 dark:border-stone-600 rounded-md focus:outline-none focus:ring-2 focus:ring-dragon bg-parchment dark:bg-stone-600 text-onyx dark:text-parchment">
                 <option v-for="option in styleOptions" :key="option.value" :value="option.value">
                   {{ option.label }}
                 </option>
@@ -681,27 +714,27 @@ const createMapFromUvtt = async () => {
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
+              <label class="block text-sm font-medium text-onyx dark:text-parchment mb-1">
                 Pixels Per Grid
               </label>
               <input v-model="parameters.pixelsPerGrid" type="number" min="50" max="200" step="10"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                class="w-full px-3 py-2 border border-stone-300 dark:border-stone-600 rounded-md focus:outline-none focus:ring-2 focus:ring-dragon bg-parchment dark:bg-stone-600 text-onyx dark:text-parchment" />
             </div>
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
+            <label class="block text-sm font-medium text-onyx dark:text-parchment mb-1">
               Map Name
             </label>
             <input v-model="parameters.name" type="text" placeholder="Enter a name for your map"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              class="w-full px-3 py-2 border border-stone-300 dark:border-stone-600 rounded-md focus:outline-none focus:ring-2 focus:ring-dragon bg-parchment dark:bg-stone-600 text-onyx dark:text-parchment" />
           </div>
         </div>
 
         <!-- Generate Button -->
         <div class="flex justify-end">
           <button @click="generateMap" :disabled="generationComplete || !description || isEditing"
-            class="px-6 py-3 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
+            class="btn btn-success disabled:opacity-50 disabled:cursor-not-allowed">
             <span v-if="generationComplete">
               Regenerate Map
             </span>
@@ -714,36 +747,49 @@ const createMapFromUvtt = async () => {
 
       <!-- Right Column: Preview & Results -->
       <div v-if="previewReady" class="space-y-6">
-        <div class="bg-white rounded-lg shadow p-4">
-          <h2 class="text-lg font-medium text-gray-800 mb-2">Preview</h2>
+        <div class="bg-stone dark:bg-stone-700 rounded-lg shadow-xl border border-stone-300 dark:border-stone-600 p-4">
+          <h2 class="text-lg font-medium text-dragon dark:text-gold mb-2 font-heading">Preview</h2>
 
           <div class="relative rounded-lg overflow-hidden">
             <img :src="previewImage" :alt="parameters.name" class="w-full h-auto" />
           </div>
 
+          <!-- Display create map error if present -->
+          <div v-if="createMapError" class="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
+            <div class="flex items-center text-red-700">
+              <svg class="h-5 w-5 mr-2 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                  clip-rule="evenodd"></path>
+              </svg>
+              <span>{{ createMapError }}</span>
+            </div>
+          </div>
+
           <div class="mt-4 flex justify-between">
             <button @click="regenerateMap" :disabled="generationComplete || isEditing"
-              class="px-4 py-2 bg-gray-200 text-gray-800 font-medium rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 disabled:opacity-50">
+              class="btn btn-outline-500 disabled:opacity-50">
               Regenerate
             </button>
 
-            <button @click="proceedToEdit" :disabled="isEditing"
-              class="px-4 py-2 bg-green-600 text-white font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50">
-              Proceed to Editor
+            <button @click="proceedToEdit" :disabled="isEditing || creatingMapFromUvtt"
+              class="btn btn-secondary disabled:opacity-50">
+              <span v-if="creatingMapFromUvtt">Creating Map...</span>
+              <span v-else>Proceed to Editor</span>
             </button>
           </div>
         </div>
 
         <!-- Map Editing Form -->
-        <div class="bg-white rounded-lg shadow p-4">
-          <h2 class="text-lg font-medium text-gray-800 mb-2">Edit Map</h2>
-          <p class="text-sm text-gray-600 mb-4">Describe the changes you'd like to make to the map</p>
+        <div class="bg-stone dark:bg-stone-700 rounded-lg shadow-xl border border-stone-300 dark:border-stone-600 p-4">
+          <h2 class="text-lg font-medium text-dragon dark:text-gold mb-2 font-heading">Edit Map</h2>
+          <p class="text-sm text-ash dark:text-stone-300 mb-4">Describe the changes you'd like to make to the map</p>
 
           <!-- Edit Status and Progress -->
           <div v-if="editStatus" class="mb-4 p-3 rounded-md border" :class="{
-            'bg-blue-50 border-blue-200 text-blue-700': isEditing && !editError,
-            'bg-green-50 border-green-200 text-green-700': editComplete && !editError,
-            'bg-red-50 border-red-200 text-red-700': editError
+            'bg-secondary-50 border-secondary-200 text-secondary-700 dark:bg-secondary-900 dark:border-secondary-700 dark:text-secondary-200': isEditing && !editError,
+            'bg-nature-50 border-nature-200 text-nature-700 dark:bg-nature-900 dark:border-nature-700 dark:text-nature-200': editComplete && !editError,
+            'bg-error-50 border-error-200 text-error-700 dark:bg-error-900 dark:border-error-700 dark:text-error-200': editError
           }">
             <div class="flex items-center">
               <!-- Loading spinner when editing and not in error state -->
@@ -799,12 +845,12 @@ const createMapFromUvtt = async () => {
 
             <div class="flex space-x-2">
               <button v-if="isEditing" @click="cancelEdit"
-                class="px-4 py-2 bg-gray-200 text-gray-800 font-medium rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500">
+                class="btn btn-outline-500">
                 Cancel
               </button>
 
               <button @click="editMap" :disabled="!editPrompt || isEditing"
-                class="px-4 py-2 bg-purple-600 text-white font-medium rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50">
+                class="btn btn-primary-500 disabled:opacity-50">
                 <span v-if="isEditing">Processing...</span>
                 <span v-else>Apply Changes</span>
               </button>
@@ -813,16 +859,16 @@ const createMapFromUvtt = async () => {
         </div>
 
         <!-- Feature Detection UI -->
-        <div class="bg-white rounded-lg shadow p-4">
-          <h2 class="text-lg font-medium text-gray-800 mb-2">Detect Map Features</h2>
-          <p class="text-sm text-gray-600 mb-4">Automatically detect rooms, corridors, and other features in your map
+        <div class="bg-stone dark:bg-stone-700 rounded-lg shadow-xl border border-stone-300 dark:border-stone-600 p-4">
+          <h2 class="text-lg font-medium text-dragon dark:text-gold mb-2 font-heading">Detect Map Features</h2>
+          <p class="text-sm text-ash dark:text-stone-300 mb-4">Automatically detect rooms, corridors, and other features in your map
           </p>
 
           <!-- Feature Detection Status and Progress -->
           <div v-if="featureDetectionStatus" class="mb-4 p-3 rounded-md border" :class="{
-            'bg-blue-50 border-blue-200 text-blue-700': isDetectingFeatures && !featureDetectionError,
-            'bg-green-50 border-green-200 text-green-700': featureDetectionComplete && !featureDetectionError,
-            'bg-red-50 border-red-200 text-red-700': featureDetectionError
+            'bg-secondary-50 border-secondary-200 text-secondary-700 dark:bg-secondary-900 dark:border-secondary-700 dark:text-secondary-200': isDetectingFeatures && !featureDetectionError,
+            'bg-nature-50 border-nature-200 text-nature-700 dark:bg-nature-900 dark:border-nature-700 dark:text-nature-200': featureDetectionComplete && !featureDetectionError,
+            'bg-error-50 border-error-200 text-error-700 dark:bg-error-900 dark:border-error-700 dark:text-error-200': featureDetectionError
           }">
             <div class="flex items-center">
               <!-- Loading spinner when detecting features and not in error state -->
@@ -886,19 +932,19 @@ const createMapFromUvtt = async () => {
 
           <div class="flex flex-wrap gap-3">
             <button @click="detectMapFeatures" :disabled="!previewImage || isDetectingFeatures || isEditing"
-              class="px-4 py-2 bg-indigo-600 text-white font-medium rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50">
+              class="btn btn-primary-500 disabled:opacity-50">
               <span v-if="isDetectingFeatures">Processing...</span>
               <span v-else>Detect Features</span>
             </button>
 
             <button v-if="isDetectingFeatures" @click="cancelFeatureDetection"
-              class="px-4 py-2 bg-gray-200 text-gray-800 font-medium rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500">
+              class="btn btn-outline-500">
               Cancel
             </button>
 
             <!-- New button to create map from UVTT -->
             <button v-if="uvttUrl && !isDetectingFeatures && !creatingMapFromUvtt" @click="createMapFromUvtt"
-              class="px-4 py-2 bg-green-600 text-white font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500">
+              class="btn btn-secondary">
               Create Map from Features
             </button>
             

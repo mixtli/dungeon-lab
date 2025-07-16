@@ -115,33 +115,14 @@
           </div>
 
           <!-- Token Context Menu -->
-          <div
+          <TokenContextMenu
             v-if="contextMenuToken"
-            class="absolute bg-white rounded-lg shadow-lg p-2 pointer-events-auto z-30"
-            :style="tokenGeneratorStyle"
-          >
-            <div class="text-sm font-semibold border-b pb-1 mb-1">{{ contextMenuToken.name }}</div>
-            <div class="space-y-1">
-              <button 
-                @click="handleTokenAction('move')" 
-                class="block w-full text-left px-2 py-1 text-sm hover:bg-blue-100 rounded"
-              >
-                Move
-              </button>
-              <button 
-                @click="handleTokenAction('select')" 
-                class="block w-full text-left px-2 py-1 text-sm hover:bg-blue-100 rounded"
-              >
-                Select
-              </button>
-              <button 
-                @click="handleTokenAction('remove')" 
-                class="block w-full text-left px-2 py-1 text-sm text-red-600 hover:bg-red-50 rounded"
-              >
-                Remove
-              </button>
-            </div>
-          </div>
+            :visible="!!contextMenuToken"
+            :token="contextMenuToken"
+            :position="contextMenuPosition"
+            @close="contextMenuToken = null"
+            @action="handleTokenAction"
+          />
 
           <!-- Connection Status -->
           <div 
@@ -200,16 +181,6 @@
       @tokensCreated="handleTokensCreated"
       @close="showTokenGenerator = false"
       class="actor-token-generator-modal"
-    />
-    
-    <!-- Token Context Menu -->
-    <TokenContextMenu
-      v-if="contextMenuToken"
-      :visible="!!contextMenuToken"
-      :token="contextMenuToken"
-      :position="contextMenuPosition"
-      @close="contextMenuToken = null"
-      @action="handleTokenAction"
     />
     
     <!-- Token State Manager -->
@@ -603,20 +574,6 @@ const handleMapContextMenuAction = (action: string) => {
   // Close context menu
   showMapContextMenu.value = false;
 };
-
-// Properly position the token generator
-const tokenGeneratorStyle = computed(() => {
-  // Position next to the context menu or click position
-  const x = contextMenuPosition.value.x + 10; 
-  const y = contextMenuPosition.value.y;
-  
-  return {
-    position: 'absolute' as const,
-    top: `${y}px`,
-    left: `${x}px`,
-    zIndex: 1000
-  };
-});
 
 // Lifecycle
 onMounted(() => {
