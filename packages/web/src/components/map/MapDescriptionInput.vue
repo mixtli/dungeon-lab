@@ -94,7 +94,7 @@ const examples = [
 <template>
   <div class="map-description-input bg-stone dark:bg-stone-700 rounded-lg shadow-xl border border-stone-300 dark:border-stone-600 p-4">
     <div class="flex justify-between items-center mb-2">
-      <label class="block text-sm font-medium text-onyx dark:text-parchment">
+      <label class="block text-lg font-medium text-dragon dark:text-gold font-heading">
         Map Description <span class="text-error-700">*</span>
       </label>
       <button

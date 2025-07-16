@@ -17,7 +17,9 @@ const mapsClient = new MapsClient();
 // Flow ID for tracking progress
 const flowRunId = ref('');
 
-// Map description
+// Map name and description
+const mapName = ref('');
+const mapNameError = ref('');
 const description = ref('');
 const descriptionError = ref('');
 
@@ -72,8 +74,7 @@ const parameters = reactive({
   width: 30,
   height: 30,
   style: 'fantasy',
-  pixelsPerGrid: 70,
-  name: 'AI Generated Map'
+  pixelsPerGrid: 70
 });
 
 // Style options
@@ -336,6 +337,10 @@ onUnmounted(() => {
 
 // Map generation function using socket.io
 const generateMap = async () => {
+  if (!mapName.value.trim()) {
+    mapNameError.value = 'Please provide a name for your map';
+    return;
+  }
   if (!description.value.trim()) {
     descriptionError.value = 'Please provide a description of your map';
     return;
@@ -363,6 +368,7 @@ const generateMap = async () => {
 
   try {
     resetGenerationProgress();
+    mapNameError.value = '';
     descriptionError.value = '';
     statusMessage.value = 'Map Generation Started';
 
@@ -468,19 +474,26 @@ const proceedToEdit = async () => {
     // Download the image from the URL and convert to File
     const imageResponse = await fetch(previewImage.value);
     const imageBlob = await imageResponse.blob();
-    const imageFile = new File([imageBlob], `${parameters.name}.png`, { type: imageBlob.type });
+    const imageFile = new File([imageBlob], `${mapName.value}.png`, { type: imageBlob.type });
 
-    // Create the map using the MapsClient
+    // Create the map using the MapsClient with proper UVTT structure
     const map = await mapsClient.createMap({
-      name: parameters.name,
-      width: parameters.width,
-      height: parameters.height,
-      pixelsPerGrid: parameters.pixelsPerGrid,
-      grid: {
-        enabled: true,
-        size: parameters.pixelsPerGrid,
-        color: '#000000',
-        opacity: 0.3
+      name: mapName.value,
+      description: description.value || `AI Generated Map: ${parameters.style} style`,
+      uvtt: {
+        format: 1.0,
+        resolution: {
+          map_origin: { x: 0, y: 0 },
+          map_size: { 
+            x: parameters.width, 
+            y: parameters.height 
+          },
+          pixels_per_grid: parameters.pixelsPerGrid
+        },
+        environment: {
+          baked_lighting: false,
+          ambient_light: '#ffffff'
+        }
       }
     }, imageFile);
 
@@ -584,39 +597,33 @@ const createMapFromUvtt = async () => {
     creatingMapFromUvtt.value = true;
     createMapError.value = '';
 
-    // Fetch the UVTT file content
-    const uvttResponse = await axios.get(uvttUrl.value, { responseType: 'blob' });
-    const uvttBlob = uvttResponse.data;
+    // Fetch the UVTT file content and parse it
+    const uvttResponse = await axios.get(uvttUrl.value, { responseType: 'text' });
+    const uvttData = JSON.parse(uvttResponse.data);
     
-    // Create form data with the UVTT file
-    const formData = new FormData();
-    
-    // Create a file object from the blob
-    const file = new File([uvttBlob], 'map.uvtt', { type: 'application/uvtt' });
-    formData.append('file', file);
-    formData.append('name', parameters.name);
-    
-    // Send the UVTT file to the server to create a map
-    const response = await axios.post('/api/maps/import-uvtt', uvttBlob, {
-      headers: {
-        'Content-Type': 'application/uvtt'
+    // Download the original generated image to use as the map image
+    const imageResponse = await fetch(previewImage.value);
+    const imageBlob = await imageResponse.blob();
+    const imageFile = new File([imageBlob], `${mapName.value}.png`, { type: imageBlob.type });
+
+    // Create the map using the MapsClient with the UVTT data and original image
+    const map = await mapsClient.createMap({
+      name: mapName.value,
+      description: description.value || `AI Generated Map with detected features: ${parameters.style} style`,
+      uvtt: uvttData
+    }, imageFile);
+
+    // Store the map ID for future reference
+    localStorage.setItem('lastGeneratedMapId', map.id);
+
+    // Redirect to the map editor
+    console.log('Redirecting to map editor for map ID:', map.id);
+    router.push({
+      name: 'map-edit',
+      params: {
+        id: map.id
       }
     });
-
-    if (response.data && response.data.success && response.data.data.id) {
-      // Redirect to the map editor for the newly created map
-      const mapId = response.data.data.id;
-      console.log('Redirecting to map editor for map ID:', mapId);
-      
-      router.push({
-        name: 'map-edit',
-        params: {
-          id: mapId
-        }
-      });
-    } else {
-      throw new Error('Failed to create map: No map ID returned');
-    }
   } catch (error) {
     console.error('Error creating map from UVTT:', error);
     createMapError.value = error instanceof Error ? error.message : 'Failed to create map from UVTT';
@@ -635,6 +642,23 @@ const createMapFromUvtt = async () => {
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <!-- Left Column: Input Form -->
       <div class="space-y-6">
+        <div v-if="mapNameError" class="bg-error-50 border border-error-200 rounded-md p-4 dark:bg-error-900 dark:border-error-700">
+          <div class="flex">
+            <div class="flex-shrink-0">
+              <!-- Error icon -->
+              <svg class="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"
+                fill="currentColor" aria-hidden="true">
+                <path fill-rule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                  clip-rule="evenodd" />
+              </svg>
+            </div>
+            <div class="ml-3">
+              <p class="text-sm text-error-700 dark:text-error-200">{{ mapNameError }}</p>
+            </div>
+          </div>
+        </div>
+
         <div v-if="descriptionError" class="bg-error-50 border border-error-200 rounded-md p-4 dark:bg-error-900 dark:border-error-700">
           <div class="flex">
             <div class="flex-shrink-0">
@@ -673,6 +697,21 @@ const createMapFromUvtt = async () => {
         <!-- Map Generation Progress Tracker -->
         <MapGenerationProgress v-if="generationProgress > 0" :step="statusMessage" :progress="generationProgress"
           :start-time="generationStartTime" />
+
+        <!-- Map Name Input -->
+        <div class="bg-stone dark:bg-stone-700 rounded-lg shadow-xl border border-stone-300 dark:border-stone-600 p-4">
+          <label for="mapName" class="block text-lg font-medium text-dragon dark:text-gold mb-2 font-heading">
+            Map Name *
+          </label>
+          <input 
+            id="mapName"
+            v-model="mapName" 
+            type="text" 
+            required
+            placeholder="Enter a name for your map"
+            class="w-full px-3 py-2 border border-stone-300 dark:border-stone-600 rounded-md focus:outline-none focus:ring-2 focus:ring-dragon bg-parchment dark:bg-stone-600 text-onyx dark:text-parchment" 
+          />
+        </div>
 
         <!-- Map Description Input Component -->
         <MapDescriptionInput v-model="description" :error="descriptionError"
@@ -721,19 +760,11 @@ const createMapFromUvtt = async () => {
                 class="w-full px-3 py-2 border border-stone-300 dark:border-stone-600 rounded-md focus:outline-none focus:ring-2 focus:ring-dragon bg-parchment dark:bg-stone-600 text-onyx dark:text-parchment" />
             </div>
           </div>
-
-          <div>
-            <label class="block text-sm font-medium text-onyx dark:text-parchment mb-1">
-              Map Name
-            </label>
-            <input v-model="parameters.name" type="text" placeholder="Enter a name for your map"
-              class="w-full px-3 py-2 border border-stone-300 dark:border-stone-600 rounded-md focus:outline-none focus:ring-2 focus:ring-dragon bg-parchment dark:bg-stone-600 text-onyx dark:text-parchment" />
-          </div>
         </div>
 
         <!-- Generate Button -->
         <div class="flex justify-end">
-          <button @click="generateMap" :disabled="generationComplete || !description || isEditing"
+          <button @click="generateMap" :disabled="generationComplete || !description || !mapName || isEditing"
             class="btn btn-success disabled:opacity-50 disabled:cursor-not-allowed">
             <span v-if="generationComplete">
               Regenerate Map
@@ -850,7 +881,7 @@ const createMapFromUvtt = async () => {
               </button>
 
               <button @click="editMap" :disabled="!editPrompt || isEditing"
-                class="btn btn-primary-500 disabled:opacity-50">
+                class="btn btn-secondary disabled:opacity-50 disabled:cursor-not-allowed">
                 <span v-if="isEditing">Processing...</span>
                 <span v-else>Apply Changes</span>
               </button>
@@ -932,7 +963,7 @@ const createMapFromUvtt = async () => {
 
           <div class="flex flex-wrap gap-3">
             <button @click="detectMapFeatures" :disabled="!previewImage || isDetectingFeatures || isEditing"
-              class="btn btn-primary-500 disabled:opacity-50">
+              class="btn btn-secondary disabled:opacity-50 disabled:cursor-not-allowed">
               <span v-if="isDetectingFeatures">Processing...</span>
               <span v-else>Detect Features</span>
             </button>
