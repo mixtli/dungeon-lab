@@ -25,6 +25,9 @@
       :key="window.id"
       :window-id="window.id"
     />
+    
+    <!-- Shared Tab Components (teleported to appropriate locations) -->
+    <SharedTabComponents />
   </div>
 </template>
 
@@ -34,6 +37,7 @@ import { useHUD } from '../../composables/useHUD.mjs';
 import HudSidebar from './HudSidebar.vue';
 import HudToolbar from './HudToolbar.vue';
 import FloatingWindow from './FloatingWindow.vue';
+import SharedTabComponents from './SharedTabComponents.vue';
 
 const hud = useHUD();
 

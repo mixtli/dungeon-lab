@@ -289,16 +289,27 @@ function encounterHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
       session.currentEncounterId = encounterId;
       await session.save();
 
+      // Fetch tokens for the encounter
+      const tokens = await encounterService.getTokens(encounterId, userId, isAdmin);
+      
+      // Create encounter object with tokens included
+      const encounterWithTokens = {
+        ...encounter,
+        tokens
+      };
+
       // Emit to all session participants
       const startEvent: EncounterStarted = {
         sessionId,
         encounterId,
-        encounter,
+        encounter: encounterWithTokens,
         timestamp: new Date()
       };
 
       socket.to(`session:${sessionId}`).emit('encounter:started', startEvent);
       socket.emit('encounter:started', startEvent);
+      
+      logger.info('Encounter started with tokens:', { sessionId, encounterId, tokenCount: tokens.length });
 
       logger.info('Encounter started successfully:', { sessionId, encounterId });
 

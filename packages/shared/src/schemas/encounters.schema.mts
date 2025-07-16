@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import { baseSchema } from './base.schema.mjs';
-import { tokenSchema } from './tokens.schema.mjs';
 import { positionSchema } from './position.schema.mjs';
 
 // ============================================================================
@@ -161,7 +160,6 @@ export const encounterSchema = baseSchema.extend({
   campaignId: z.string(),
   mapId: z.string(),
   status: EncounterStatusEnum.default('draft'),
-  tokens: z.array(tokenSchema).default([]),
   initiative: initiativeTrackerSchema.default({}),
   effects: z.array(effectSchema).default([]),
   settings: encounterSettingsSchema.optional(),
@@ -173,7 +171,6 @@ export const createEncounterSchema = encounterSchema.omit({
   id: true,
   createdBy: true,
   updatedBy: true,
-  tokens: true,
   initiative: true,
   effects: true,
   version: true
@@ -184,7 +181,6 @@ export const updateEncounterSchema = encounterSchema
     id: true,
     createdBy: true,
     campaignId: true,
-    tokens: true,
     initiative: true,
     effects: true
   })

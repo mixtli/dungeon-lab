@@ -135,7 +135,6 @@ export interface HUDPreferences {
   sidebarCollapsed: boolean;
   toolbarPosition: Position;
   lastActiveTab: SidebarTabType;
-  hiddenTabs: SidebarTabType[];
   floatingWindows: Record<string, FloatingWindow>;
   theme: 'light' | 'dark' | 'auto';
   opacity: number;

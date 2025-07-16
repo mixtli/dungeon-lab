@@ -67,7 +67,6 @@ export class EncounterService {
       }
 
       const encounters = await EncounterModel.find(query)
-        .populate('tokens')
         .sort({ updatedAt: -1 })
         .exec();
 
@@ -92,7 +91,6 @@ export class EncounterService {
       }
 
       const encounter = await EncounterModel.findById(encounterId)
-        .populate('tokens')
         .exec();
 
       if (!encounter) {
@@ -213,7 +211,7 @@ export class EncounterService {
         query,
         updateData,
         { new: true }
-      ).populate('tokens').exec();
+      ).exec();
       //const updatedEncounter = await EncounterModel.findByIdAndUpdate(encounterId, updateData, { new: true }).exec();
 
       if (!updatedEncounter) {

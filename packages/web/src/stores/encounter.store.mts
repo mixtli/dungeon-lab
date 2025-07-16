@@ -215,6 +215,8 @@ export const useEncounterStore = defineStore('encounter', () => {
 
     socket.on('encounter:started', (data) => {
       console.log('[Encounter Store] Encounter started event received:', data);
+      console.log('[Encounter Store] Socket encounter tokens received:', data.encounter?.tokens?.length || 0, 'tokens');
+      console.log('[Encounter Store] Current encounterTokens before overwrite:', encounterTokens.value.length, 'tokens');
       
       // Set this encounter as the current encounter
       if (data.encounter) {
@@ -229,10 +231,12 @@ export const useEncounterStore = defineStore('encounter', () => {
         } as IEncounterWithActors;
         
         // Reset tokens for the new encounter
-        encounterTokens.value = data.encounter.tokens || [];
+        const socketTokens = data.encounter.tokens || [];
+        console.log('[Encounter Store] OVERWRITING encounterTokens from', encounterTokens.value.length, 'to', socketTokens.length, 'tokens');
+        encounterTokens.value = socketTokens;
         
         console.log('[Encounter Store] Set current encounter:', currentEncounter.value?.id);
-        console.log('[Encounter Store] Set encounter tokens:', encounterTokens.value);
+        console.log('[Encounter Store] Set encounter tokens:', encounterTokens.value.length, 'tokens');
       }
     });
 

@@ -111,7 +111,6 @@ export const useHUDStore = defineStore('hud', () => {
     sidebarCollapsed: false,
     toolbarPosition: { x: 20, y: 100 },
     lastActiveTab: 'chat',
-    hiddenTabs: [],
     floatingWindows: {},
     theme: 'dark',
     opacity: 0.9
@@ -141,9 +140,13 @@ export const useHUDStore = defineStore('hud', () => {
 
   // Getters
   const visibleTabs = computed(() => 
-    Object.values(sidebar.value.tabs).filter(tab => 
-      tab.visible && !preferences.value.hiddenTabs.includes(tab.id)
-    )
+    Object.values(sidebar.value.tabs).filter(tab => {
+      // Tab is visible if it's enabled AND not currently floating
+      const isFloating = Object.values(floatingWindows.value).some(
+        window => window.tabType === tab.id
+      );
+      return tab.visible && !isFloating;
+    })
   );
 
   const activeTabData = computed(() => 
@@ -254,26 +257,17 @@ export const useHUDStore = defineStore('hud', () => {
   }
 
   /**
-   * Show/hide a tab
+   * Show/hide a tab (for enabling/disabling tabs entirely)
    */
   function setTabVisibility(tabType: SidebarTabType, visible: boolean): void {
     if (sidebar.value.tabs[tabType]) {
       sidebar.value.tabs[tabType].visible = visible;
       
-      // Update hidden tabs preference
-      if (visible) {
-        preferences.value.hiddenTabs = preferences.value.hiddenTabs.filter(t => t !== tabType);
-      } else {
-        if (!preferences.value.hiddenTabs.includes(tabType)) {
-          preferences.value.hiddenTabs.push(tabType);
-        }
-        
-        // Switch to another tab if this was active
-        if (sidebar.value.activeTab === tabType) {
-          const nextTab = visibleTabs.value.find(t => t.id !== tabType);
-          if (nextTab) {
-            setActiveTab(nextTab.id);
-          }
+      // Switch to another tab if this was active and being hidden
+      if (!visible && sidebar.value.activeTab === tabType) {
+        const nextTab = visibleTabs.value.find(t => t.id !== tabType);
+        if (nextTab) {
+          setActiveTab(nextTab.id);
         }
       }
       
@@ -376,8 +370,8 @@ export const useHUDStore = defineStore('hud', () => {
 
     floatingWindows.value[windowId] = window;
     
-    // Hide the tab from sidebar
-    setTabVisibility(tabType, false);
+    // Tab will automatically be hidden from sidebar due to visibleTabs computed property
+    savePreferences();
 
     return windowId;
   }
@@ -389,12 +383,12 @@ export const useHUDStore = defineStore('hud', () => {
     const window = floatingWindows.value[windowId];
     if (!window) return;
 
-    // Show the tab in sidebar
-    setTabVisibility(window.tabType, true);
-    setActiveTab(window.tabType);
-
-    // Remove floating window
+    // Remove floating window (tab will automatically show in sidebar)
     delete floatingWindows.value[windowId];
+    
+    // Set as active tab
+    setActiveTab(window.tabType);
+    savePreferences();
   }
 
   /**
@@ -404,11 +398,9 @@ export const useHUDStore = defineStore('hud', () => {
     const window = floatingWindows.value[windowId];
     if (!window) return;
 
-    // Show the tab in sidebar
-    setTabVisibility(window.tabType, true);
-
-    // Remove floating window
+    // Remove floating window (tab will automatically show in sidebar)
     delete floatingWindows.value[windowId];
+    savePreferences();
   }
 
   /**
@@ -501,24 +493,12 @@ export const useHUDStore = defineStore('hud', () => {
           floatingWindows.value[windowId] = windowData;
         });
         
-        // Defensive logic: Only hide tabs if they have corresponding floating windows
-        // This prevents orphaned hidden tabs
-        preferences.value.hiddenTabs.forEach(tabType => {
-          const hasFloatingWindow = Object.values(floatingWindows.value).some(
-            window => window.tabType === tabType
-          );
-          
-          if (hasFloatingWindow && sidebar.value.tabs[tabType]) {
-            // Tab has a floating window, so hide it from sidebar
-            sidebar.value.tabs[tabType].visible = false;
-          } else if (sidebar.value.tabs[tabType]) {
-            // No floating window found - this is an orphaned hidden tab
-            // Show it in the sidebar and remove from hiddenTabs
-            console.warn(`[HUD] Restoring orphaned hidden tab: ${tabType}`);
-            sidebar.value.tabs[tabType].visible = true;
-            preferences.value.hiddenTabs = preferences.value.hiddenTabs.filter(t => t !== tabType);
-          }
-        });
+        // Clean up deprecated hiddenTabs if it exists in old preferences
+        if (preferences.value.hiddenTabs) {
+          console.log('[HUD] Cleaning up deprecated hiddenTabs preference');
+          delete preferences.value.hiddenTabs;
+          savePreferences();
+        }
       }
     } catch (error) {
       console.warn('Failed to load HUD preferences:', error);
@@ -550,14 +530,14 @@ export const useHUDStore = defineStore('hud', () => {
     toolbar.value.position = configuration.value.toolbar.defaultPosition;
     toolbar.value.activeTool = null;
     
-    // Show all tabs
-    Object.keys(sidebar.value.tabs).forEach(tabType => {
-      setTabVisibility(tabType as SidebarTabType, true);
-    });
-
-    // Close all floating windows
+    // Close all floating windows (tabs will automatically show in sidebar)
     Object.keys(floatingWindows.value).forEach(windowId => {
-      dockWindow(windowId);
+      delete floatingWindows.value[windowId];
+    });
+    
+    // Ensure all tabs are visible (reset any manual hiding)
+    Object.keys(sidebar.value.tabs).forEach(tabType => {
+      sidebar.value.tabs[tabType as SidebarTabType].visible = true;
     });
 
     savePreferences();

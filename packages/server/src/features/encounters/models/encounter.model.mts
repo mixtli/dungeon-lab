@@ -14,8 +14,7 @@ const encounterSchemaMongoose = encounterSchema.merge(baseMongooseZodSchema).ext
 
 const mongooseSchema = createMongoSchema<IEncounter>(encounterSchemaMongoose);
 
-// Set Mixed type for both the token's data field and the tokens array's data field
-mongooseSchema.path('tokens').schema.path('data', mongoose.Schema.Types.Mixed);
+// Set Mixed type for the encounter data field
 mongooseSchema.path('data', mongoose.Schema.Types.Mixed);
 
 // Add getters and setters for campaignId to handle ObjectId conversion

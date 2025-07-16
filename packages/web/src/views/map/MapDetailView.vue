@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useRoute } from 'vue-router';
 import type { IMap, IAsset, IMapUpdateData } from '@dungeon-lab/shared/types/index.mjs';
 import { MapsClient } from '@dungeon-lab/client/index.mjs';
 
 const route = useRoute();
-const router = useRouter();
 const loading = ref(false);
 const editing = ref(false);
 const map = ref<IMap | null>(null);

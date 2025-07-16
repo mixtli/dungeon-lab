@@ -41,17 +41,11 @@
 
     <!-- Tab Content -->
     <div v-if="!hud.store.sidebar.collapsed" class="sidebar-content">
-      <!-- Chat Tab -->
-      <ChatTab v-if="hud.store.sidebar.activeTab === 'chat'" />
-      
-      <!-- Combat Tab -->
-      <CombatTab v-else-if="hud.store.sidebar.activeTab === 'combat'" />
-      
-      <!-- Actors Tab -->
-      <ActorsTab v-else-if="hud.store.sidebar.activeTab === 'actors'" />
-      
-      <!-- Items Tab -->
-      <ItemsTab v-else-if="hud.store.sidebar.activeTab === 'items'" />
+      <!-- Teleport targets for shared tab components -->
+      <div id="chat-sidebar-target" v-show="hud.store.sidebar.activeTab === 'chat' && !isTabFloating('chat')"></div>
+      <div id="combat-sidebar-target" v-show="hud.store.sidebar.activeTab === 'combat' && !isTabFloating('combat')"></div>
+      <div id="actors-sidebar-target" v-show="hud.store.sidebar.activeTab === 'actors' && !isTabFloating('actors')"></div>
+      <div id="items-sidebar-target" v-show="hud.store.sidebar.activeTab === 'items' && !isTabFloating('items')"></div>
     </div>
 
     <!-- Resize Handle -->
@@ -68,10 +62,6 @@
 import { computed, ref } from 'vue';
 import { useHUD } from '../../composables/useHUD.mjs';
 import type { SidebarTabType } from '../../types/hud.mjs';
-import ChatTab from './tabs/ChatTab.vue';
-import CombatTab from './tabs/CombatTab.vue';
-import ActorsTab from './tabs/ActorsTab.vue';
-import ItemsTab from './tabs/ItemsTab.vue';
 
 const hud = useHUD();
 
@@ -119,6 +109,12 @@ function stopResize(): void {
 
 function popOutTab(tabId: string): void {
   hud.popOutTab(tabId as SidebarTabType);
+}
+
+function isTabFloating(tabType: SidebarTabType): boolean {
+  return Object.values(hud.store.floatingWindows).some(
+    window => window.tabType === tabType
+  );
 }
 </script>
 
@@ -278,6 +274,16 @@ function popOutTab(tabId: string): void {
 .sidebar-content {
   flex: 1;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Teleport targets should take full space */
+#chat-sidebar-target,
+#combat-sidebar-target,
+#actors-sidebar-target,
+#items-sidebar-target {
+  height: 100%;
   display: flex;
   flex-direction: column;
 }

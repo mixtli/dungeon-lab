@@ -1,6 +1,6 @@
 <template>
   <div
-    v-if="floatingWindow.window && floatingWindow.isVisible"
+    v-if="floatingWindow.window.value && floatingWindow.isVisible.value"
     class="floating-window"
     :style="windowStyle"
     @mousedown="floatingWindow.bringToFront"
@@ -30,19 +30,20 @@
       </div>
     </div>
 
+    <!-- Teleport target - always exists but only visible when not minimized -->
+    <div 
+      v-if="floatingWindow.window.value?.tabType"
+      :id="getFloatingTargetId()" 
+      class="floating-tab-container"
+      :style="containerStyle"
+    ></div>
+
     <!-- Window Content -->
     <div v-if="!floatingWindow.isMinimized" class="window-content">
-      <!-- Chat Tab -->
-      <ChatTab v-if="floatingWindow.window.value?.tabType === 'chat'" />
-      
-      <!-- Combat Tab -->
-      <CombatTab v-else-if="floatingWindow.window.value?.tabType === 'combat'" />
-      
-      <!-- Actors Tab -->
-      <ActorsTab v-else-if="floatingWindow.window.value?.tabType === 'actors'" />
-      
-      <!-- Items Tab -->
-      <ItemsTab v-else-if="floatingWindow.window.value?.tabType === 'items'" />
+      <!-- Fallback for unknown tab types -->
+      <div v-if="!floatingWindow.window.value?.tabType" class="fallback-content" style="background: yellow; padding: 10px;">
+        <p>No matching tab component for: "{{ floatingWindow.window.value?.tabType }}"</p>
+      </div>
     </div>
 
     <!-- Resize Handle -->
@@ -63,10 +64,6 @@
 import { computed, ref } from 'vue';
 import { useFloatingWindow } from '../../composables/useHUD.mjs';
 import { useHUDStore } from '../../stores/hudStore.mjs';
-import ChatTab from './tabs/ChatTab.vue';
-import CombatTab from './tabs/CombatTab.vue';
-import ActorsTab from './tabs/ActorsTab.vue';
-import ItemsTab from './tabs/ItemsTab.vue';
 
 interface Props {
   windowId: string;
@@ -77,10 +74,11 @@ const props = defineProps<Props>();
 const hudStore = useHUDStore();
 const floatingWindow = useFloatingWindow(props.windowId);
 
-// Debug: log initial state
-console.log('FloatingWindow mounted for windowId:', props.windowId);
-console.log('Initial window state:', floatingWindow.window.value);
-console.log('Initial isMinimized:', floatingWindow.isMinimized.value);
+
+function getFloatingTargetId(): string {
+  const tabType = floatingWindow.window.value?.tabType;
+  return `${tabType}-floating-target`;
+}
 
 // Computed properties
 const windowStyle = computed(() => {
@@ -104,11 +102,15 @@ const tabIcon = computed(() => {
   return hudStore.sidebar.tabs[tabType]?.icon || 'mdi-window';
 });
 
-// Debug computed for minimize icon
 const minimizeIcon = computed(() => {
-  const isMin = floatingWindow.isMinimized.value;
-  console.log('Computing minimize icon - isMinimized:', isMin);
-  return isMin ? 'mdi mdi-window-restore' : 'mdi mdi-minus';
+  return floatingWindow.isMinimized.value ? 'mdi mdi-window-restore' : 'mdi mdi-minus';
+});
+
+const containerStyle = computed(() => {
+  const isMinimized = floatingWindow.isMinimized.value;
+  return {
+    display: isMinimized ? 'none' : 'flex'
+  };
 });
 
 // Drag functionality
@@ -156,7 +158,6 @@ const resizeStartPos = ref({ x: 0, y: 0 });
 const resizeStartSize = ref({ width: 0, height: 0 });
 
 function startResize(event: MouseEvent): void {
-  console.log('Starting resize...'); // Debug log
   if (!floatingWindow.window.value) return;
   
   isResizing.value = true;
@@ -184,7 +185,6 @@ function handleResize(event: MouseEvent): void {
 }
 
 function stopResize(): void {
-  console.log('Stopping resize...'); // Debug log
   isResizing.value = false;
   document.removeEventListener('mousemove', handleResize);
   document.removeEventListener('mouseup', stopResize);
@@ -192,11 +192,7 @@ function stopResize(): void {
 }
 
 function toggleMinimize(): void {
-  console.log('Before toggle - isMinimized:', floatingWindow.isMinimized.value);
-  console.log('Before toggle - window.minimized:', floatingWindow.window.value?.minimized);
   floatingWindow.toggleMinimized();
-  console.log('After toggle - isMinimized:', floatingWindow.isMinimized.value);
-  console.log('After toggle - window.minimized:', floatingWindow.window.value?.minimized);
 }
 </script>
 
@@ -276,6 +272,13 @@ function toggleMinimize(): void {
   display: flex;
   flex-direction: column;
 }
+
+.floating-tab-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
 
 /* Resize Handles: increase hit area, z-index, and add hover for visibility */
 .resize-handle {
