@@ -9,7 +9,8 @@ import { zId } from '@zodyac/zod-mongoose';
  * Create Mongoose schema with base configuration
  */
 const encounterSchemaMongoose = encounterSchema.merge(baseMongooseZodSchema).extend({
-  campaignId: zId('Campaign')
+  campaignId: zId('Campaign'),
+  mapId: zId('Map')
 });
 
 const mongooseSchema = createMongoSchema<IEncounter>(encounterSchemaMongoose);
@@ -22,6 +23,12 @@ mongooseSchema.path('campaignId').set(function (value: string) {
   return new mongoose.Types.ObjectId(value);
 });
 mongooseSchema.path('campaignId').get(function (value: ObjectId) {
+  return value.toString();
+});
+mongooseSchema.path('mapId').set(function (value: string) {
+  return new mongoose.Types.ObjectId(value);
+});
+mongooseSchema.path('mapId').get(function (value: ObjectId) {
   return value.toString();
 });
 
