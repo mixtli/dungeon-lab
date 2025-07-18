@@ -4,6 +4,8 @@ import { logger } from '../../../utils/logger.mjs';
 import { EncounterService } from '../services/encounters.service.mjs';
 import { encounterRateLimiters } from '../../../websocket/utils/rate-limiter.mjs';
 import { GameSessionModel } from '../../campaigns/models/game-session.model.mjs';
+import { sendSystemMessage } from '../../../utils/system-messages.mjs';
+import { getSocketServer } from '../../../websocket/socket-server.mjs';
 import type {
   ServerToClientEvents,
   ClientToServerEvents,
@@ -309,6 +311,10 @@ function encounterHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
       socket.to(`session:${sessionId}`).emit('encounter:started', startEvent);
       socket.emit('encounter:started', startEvent);
       
+      // Send system message about encounter starting
+      const socketServer = getSocketServer();
+      sendSystemMessage(socketServer.socketIo, sessionId, `Encounter "${encounter.name}" has started!`);
+      
       logger.info('Encounter started with tokens:', { sessionId, encounterId, tokenCount: tokens.length });
 
       logger.info('Encounter started successfully:', { sessionId, encounterId });
@@ -341,6 +347,9 @@ function encounterHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
         return;
       }
 
+      // Get encounter details for system message
+      const encounter = await encounterService.getEncounter(encounterId, userId, isAdmin);
+      
       // Set currentEncounterId to undefined and save
       session.currentEncounterId = undefined;
       await session.save();
@@ -353,6 +362,10 @@ function encounterHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
       };
       socket.to(`session:${sessionId}`).emit('encounter:stopped', stopEvent);
       socket.emit('encounter:stopped', stopEvent);
+
+      // Send system message about encounter stopping
+      const socketServer = getSocketServer();
+      sendSystemMessage(socketServer.socketIo, sessionId, `Encounter "${encounter?.name || 'Unknown'}" has stopped.`);
 
       logger.info('Encounter stopped successfully:', { sessionId, encounterId });
     } catch (error) {

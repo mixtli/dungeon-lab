@@ -11,7 +11,10 @@
       "mcp__playwright__browser_wait_for",
       "Bash(find:*)",
       "Bash(grep:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "mcp__sequential-thinking__sequentialthinking",
+      "Bash(git remote get-url:*)",
+      "Bash(zsh:*)"
     ]
   },
   "enabledMcpjsonServers": [

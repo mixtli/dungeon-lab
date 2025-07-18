@@ -10,23 +10,17 @@
     </div>
 
     <div class="chat-messages">
-      <div class="message-list">
-        <!-- Sample messages for demonstration -->
-        <div class="message message-system">
-          <span class="message-text">Welcome to the encounter chat!</span>
-          <span class="message-time">12:30</span>
+      <div class="message-list" ref="messageList">
+        <!-- Real chat messages -->
+        <div v-for="message in filteredMessages" :key="message.id" :class="getMessageClass(message)">
+          <span v-if="!message.isSystem" class="message-sender">{{ message.senderName }}</span>
+          <span class="message-text">{{ message.content }}</span>
+          <span class="message-time">{{ formatTime(message.timestamp) }}</span>
         </div>
         
-        <div class="message message-gm">
-          <span class="message-sender">GM</span>
-          <span class="message-text">Roll for initiative!</span>
-          <span class="message-time">12:31</span>
-        </div>
-        
-        <div class="message message-player">
-          <span class="message-sender">Player</span>
-          <span class="message-text">I rolled a 15!</span>
-          <span class="message-time">12:32</span>
+        <!-- No messages state -->
+        <div v-if="filteredMessages.length === 0" class="message message-system">
+          <span class="message-text">No messages yet. Start the conversation!</span>
         </div>
       </div>
     </div>
@@ -61,17 +55,84 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed, watch, nextTick } from 'vue';
+import { useChatStore, type ChatMessage } from '../../../stores/chat.store.mts';
+import { useSocketStore } from '../../../stores/socket.store.mts';
+import { useActorStore } from '../../../stores/actor.store.mts';
+import { useGameSessionStore } from '../../../stores/game-session.store.mts';
+
+const chatStore = useChatStore();
+const socketStore = useSocketStore();
+const actorStore = useActorStore();
+const gameSessionStore = useGameSessionStore();
 
 const currentMessage = ref('');
+const messageList = ref<HTMLElement>();
 
+// Filter messages to show only session-wide messages (no private messages)
+const filteredMessages = computed(() => {
+  return chatStore.messages.filter(message => 
+    !message.recipientType || 
+    message.recipientType === 'session'
+  );
+});
+
+// Determine message class based on sender type
+function getMessageClass(message: ChatMessage): string {
+  if (message.isSystem) {
+    return 'message message-system';
+  }
+  
+  // Check if message is from current user
+  const isOwnMessage = message.senderId === socketStore.userId || 
+                      message.senderId === actorStore.currentActor?.id;
+  
+  if (isOwnMessage) {
+    return 'message message-player-own';
+  }
+  
+  // Check if message is from GM
+  if (gameSessionStore.currentSession?.gameMasterId === message.senderId) {
+    return 'message message-gm';
+  }
+  
+  // Default to player message
+  return 'message message-player';
+}
+
+// Format timestamp
+function formatTime(timestamp: Date): string {
+  return new Date(timestamp).toLocaleTimeString([], { 
+    hour: '2-digit', 
+    minute: '2-digit' 
+  });
+}
+
+// Send message using chat store
 function sendMessage(): void {
   if (!currentMessage.value.trim()) return;
   
-  // TODO: Implement actual message sending
-  console.log('Sending message:', currentMessage.value);
+  // Send to session (all players)
+  chatStore.sendMessage(currentMessage.value);
   currentMessage.value = '';
 }
+
+// Auto-scroll to bottom when new messages arrive
+function scrollToBottom() {
+  nextTick(() => {
+    if (messageList.value) {
+      messageList.value.scrollTop = messageList.value.scrollHeight;
+    }
+  });
+}
+
+// Watch for new messages and auto-scroll
+watch(
+  () => filteredMessages.value.length,
+  () => {
+    scrollToBottom();
+  }
+);
 </script>
 
 <style scoped>
@@ -159,6 +220,11 @@ function sendMessage(): void {
 .message-player {
   border-left-color: #3b82f6;
   background: rgba(59, 130, 246, 0.1);
+}
+
+.message-player-own {
+  border-left-color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
 }
 
 .message-sender {

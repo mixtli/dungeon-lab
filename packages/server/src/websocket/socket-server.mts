@@ -12,6 +12,7 @@ import { logger } from '../utils/logger.mjs';
 import { socketHandlerRegistry } from './handler-registry.mjs';
 import { CampaignService } from '../features/campaigns/index.mjs';
 import { GameSessionService } from '../features/campaigns/services/game-session.service.mjs';
+import { sendSystemMessage } from '../utils/system-messages.mjs';
 
 // Define a type for the session with user information
 interface SessionWithUser {
@@ -126,6 +127,21 @@ export class SocketServer {
         actorId
       });
 
+      // Send system message if user joined with an actor
+      if (actorId) {
+        try {
+          const updatedSession = await GameSessionModel.findById(sessionId)
+            .populate('characters');
+          
+          const actor = updatedSession?.characters?.find(c => c.id === actorId);
+          if (actor) {
+            sendSystemMessage(this.io, sessionId, `${actor.name} has joined the session.`);
+          }
+        } catch (error) {
+          logger.error('Error sending join system message:', error);
+        }
+      }
+
       // Fetch the most up-to-date session with populated data
       const updatedSession = await GameSessionModel.findById(sessionId)
         .populate('campaign')
@@ -204,6 +220,11 @@ export class SocketServer {
         actorIds: userActorIds,
         characterNames
       });
+
+      // Send system message for each character that left
+      for (const characterName of characterNames) {
+        sendSystemMessage(this.io, sessionId, `${characterName} has left the session.`);
+      }
       
       // Leave the session room
       socket.leave(`session:${sessionId}`);

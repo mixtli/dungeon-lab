@@ -214,8 +214,7 @@ export const useGameSessionStore = defineStore(
                 }
               }
               
-              // Notify in chat
-              chatStore.sendMessage(`${actor.name} has joined the session.`, sessionId);
+              // System message is now sent from server, no need to send from client
             }
           } catch (err) {
             console.error('Error fetching actor for joined user:', err);
@@ -240,10 +239,7 @@ export const useGameSessionStore = defineStore(
             );
           }
           
-          // Notify in chat about each character that left
-          data.characterNames.forEach(name => {
-            chatStore.sendMessage(`${name} has left the session.`, sessionId);
-          });
+          // System message is now sent from server, no need to send from client
           
           // If this was the current user who left, clear the current character
           if (data.userId === authStore.user?.id) {
@@ -266,8 +262,7 @@ export const useGameSessionStore = defineStore(
           // Save the encounter to the encounter store
           const encounterStore = useEncounterStore();
           encounterStore.currentEncounter = data.encounter as typeof encounterStore.currentEncounter;
-          // Notify in chat that an encounter has started
-          chatStore.sendMessage(`Encounter "${(data.encounter as { name?: string })?.name}" has started!`, sessionId);
+          // System message is now sent from server, no need to send from client
         }
       });
 
