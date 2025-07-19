@@ -144,12 +144,12 @@ export class ActorController {
     const result = plugin.validateActorData(validatedData.type, data);
 
     if (!result.success) {
-      console.log(result.error.message);
+      console.log(result.error?.message || 'Validation failed');
       return res.status(422).json({
         success: false,
         data: null,
-        error: result.error.message,
-        error_details: result.error.issues
+        error: result.error?.message || 'Validation failed',
+        error_details: (result.error as any)?.issues || []
       });
     }
 

@@ -4,7 +4,6 @@ import mongoose from 'mongoose';
 import { createApp } from './app.mjs';
 import { config } from './config/index.mjs';
 import { configurePassport } from './config/passport.mjs';
-import { pluginRegistry } from './services/plugin-registry.service.mjs';
 import { backgroundJobService } from './services/background-job.service.mjs';
 import { initializeJobs } from './jobs/index.mjs';
 import { logger } from './utils/logger.mjs';
@@ -40,8 +39,6 @@ async function startServer() {
     // Create and configure Express app
     const app = await createApp();
 
-    // Initialize plugins
-    await pluginRegistry.initialize();
 
     // Initialize background job service
     await backgroundJobService.initialize();
@@ -69,7 +66,6 @@ async function startServer() {
     process.on('SIGTERM', async () => {
       logger.info('SIGTERM received. Shutting down...');
       await backgroundJobService.shutdown();
-      await pluginRegistry.cleanupAll();
       await mongoose.disconnect();
       socketServer.close();
       console.log('Socket.IO server closed');

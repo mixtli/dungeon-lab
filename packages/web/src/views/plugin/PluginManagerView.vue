@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import PluginManager from '@/components/plugin/PluginManager.vue';
+// Plugin manager component integration pending
 </script>
 
 <template>
   <div class="plugin-manager-view">
-    <PluginManager />
+    <div class="text-center text-gray-500 py-8">
+      Plugin Manager component integration pending.
+    </div>
   </div>
 </template>
 

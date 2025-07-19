@@ -14,7 +14,10 @@
       "Bash(ls:*)",
       "mcp__sequential-thinking__sequentialthinking",
       "Bash(git remote get-url:*)",
-      "Bash(zsh:*)"
+      "Bash(zsh:*)",
+      "Bash(rm:*)",
+      "Bash(mkdir:*)",
+      "Bash(npm run plugins:build:*)"
     ]
   },
   "enabledMcpjsonServers": [

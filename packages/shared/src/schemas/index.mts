@@ -119,4 +119,7 @@ export {
 } from './vtt-document.schema.mjs';
 
 // Socket schemas
-export * from './socket/index.mjs'; 
+export * from './socket/index.mjs';
+
+// Game system schemas
+export * from './game-system-schemas.mjs'; 

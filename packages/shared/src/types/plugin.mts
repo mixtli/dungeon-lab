@@ -1,157 +1,188 @@
-import { Router } from 'express';
-import { z } from 'zod';
-import { IPluginComponent } from './plugin-component.mjs';
-import { IPluginAPI } from './plugin-api.mjs';
+import { ComponentRegistry } from './component-registry.mjs';
+import { MechanicsRegistry } from './mechanics-registry.mjs';
 
 /**
- * Interface for plugin script API
- * Defines the structure of the script module exports
+ * Plugin store interface for reactive state management
  */
-export interface IPluginScript {
-  // Initialize the UI component and return a cleanup function if needed
-  init: (container: HTMLElement, api: unknown, data?: unknown) => (() => void) | void;
-  // Any additional exported functions from the script
-  [key: string]: unknown;
+export interface PluginStore {
+  get<T>(key: string): T | undefined;
+  set<T>(key: string, value: T): void;
+  subscribe<T>(key: string, callback: (value: T) => void): () => void;
 }
 
 /**
- * Interface for plugin UI asset paths
- * Defines the paths to UI assets for a context (e.g., characterCreation)
+ * Plugin event system interface
  */
-export interface IPluginUIAssetPaths {
-  template: string; // Path to Handlebars template file
-  styles: string; // Path to CSS file
-  script: string; // Path to JavaScript/TypeScript module file
-  partials?: Record<string, string>; // Map of partial name to path
-  assets?: {
-    baseDir: string; // Base directory for assets
-    files: string[]; // Array of file paths or glob patterns
-  };
+export interface PluginEventSystem {
+  emit<T = unknown>(event: string, data?: T): void;
+  on<T = unknown>(event: string, handler: (data: T) => void): () => void;
 }
 
 /**
- * Interface for loaded plugin UI assets
- * Defines the structure of loaded UI assets for a context
+ * Actors API interface
  */
-export interface IPluginUIAssets {
-  template: string; // Handlebars template string
-  styles: string; // CSS string
-  script: IPluginScript; // JavaScript module with exported functions
-  partials?: Record<string, string>; // Map of partial name to template string
-  assetUrls?: Record<string, string>; // Map of asset path to resolved URL
+export interface ActorsAPI {
+  create(data: CreateActorData): Promise<ActorData>;
+  get(id: string): Promise<ActorData>;
+  update(id: string, data: Partial<ActorData>): Promise<ActorData>;
+  delete(id: string): Promise<void>;
+  list(filters?: ActorFilters): Promise<ActorData[]>;
 }
 
 /**
- * Plugin Configuration interface
- * This defines the metadata and configuration of a plugin
+ * Items API interface
  */
-export interface IPluginConfiguration {
-  id: string;
+export interface ItemsAPI {
+  create(data: CreateItemData): Promise<ItemData>;
+  get(id: string): Promise<ItemData>;
+  update(id: string, data: Partial<ItemData>): Promise<ItemData>;
+  delete(id: string): Promise<void>;
+  list(filters?: ItemFilters): Promise<ItemData[]>;
+}
+
+/**
+ * Documents API interface
+ */
+export interface DocumentsAPI {
+  create(data: CreateDocumentData): Promise<DocumentData>;
+  get(id: string): Promise<DocumentData>;
+  update(id: string, data: Partial<DocumentData>): Promise<DocumentData>;
+  delete(id: string): Promise<void>;
+  search(query: DocumentSearchQuery): Promise<DocumentData[]>;
+}
+
+/**
+ * Base data types
+ */
+export interface CreateActorData {
   name: string;
-  version: string;
-  description?: string;
-  author?: string;
-  website?: string;
-  type: 'gameSystem' | 'extension' | 'theme';
-  enabled?: boolean;
+  type: string;
+  gameSystemId: string;
+  data: Record<string, unknown>;
 }
 
-export interface PluginActionResult {
-  stateUpdate?: {
-    type: string;
-    state: Record<string, unknown>;
+export interface ActorData extends CreateActorData {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ActorFilters {
+  type?: string;
+  gameSystemId?: string;
+  name?: string;
+}
+
+export interface CreateItemData {
+  name: string;
+  type: string;
+  gameSystemId: string;
+  data: Record<string, unknown>;
+}
+
+export interface ItemData extends CreateItemData {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ItemFilters {
+  type?: string;
+  gameSystemId?: string;
+  name?: string;
+}
+
+export interface CreateDocumentData {
+  name: string;
+  type: string;
+  content: Record<string, unknown>;
+  pluginId: string;
+}
+
+export interface DocumentData extends CreateDocumentData {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DocumentSearchQuery {
+  type?: string;
+  pluginId?: string;
+  name?: string;
+  slug?: string;
+}
+
+/**
+ * Plugin context provides access to the application context
+ */
+export interface PluginContext {
+  /** Application API endpoints */
+  api: {
+    actors: ActorsAPI;
+    items: ItemsAPI;
+    documents: DocumentsAPI;
   };
-  forward?: boolean;
+  
+  /** Reactive store for plugin state */
+  store: PluginStore;
+  
+  /** Event system for communication */
+  events: PluginEventSystem;
 }
 
 /**
- * Base Plugin interface
- * This defines the core functionality that all plugins must implement
+ * Core plugin interface that all plugins must implement
  */
-export interface IPlugin {
-  // Plugin configuration
-  config: IPluginConfiguration;
-  type: 'gameSystem' | 'extension' | 'theme' | undefined;
-
-  // Lifecycle hooks
-  onLoad(): Promise<void>; // Called when the plugin is loaded
-  onUnload(): Promise<void>; // Called when the plugin is unloaded
-  onRegister(): Promise<void>; // Called when the plugin is registered with the system
+export interface Plugin {
+  /** Unique plugin identifier */
+  readonly id: string;
+  
+  /** Display name of the plugin */
+  readonly name: string;
+  
+  /** Plugin version */
+  readonly version: string;
+  
+  /** Plugin description */
+  readonly description?: string;
+  
+  /** Plugin author */
+  readonly author?: string;
+  
+  /**
+   * Called when the plugin is loaded into the system
+   * @param context Plugin context with access to APIs and services
+   */
+  onLoad(context: PluginContext): Promise<void>;
+  
+  /**
+   * Called when the plugin is unloaded from the system
+   */
+  onUnload(): Promise<void>;
+  
+  /**
+   * Register Vue 3 components with the component registry
+   * @param registry Component registry to register components with
+   */
+  registerComponents(registry: ComponentRegistry): void;
+  
+  /**
+   * Register game mechanics and rules with the mechanics registry
+   * @param registry Mechanics registry to register mechanics with
+   */
+  registerMechanics(registry: MechanicsRegistry): void;
 }
 
 /**
- * Base Game System Plugin interface
- * This defines the core functionality that all game system plugins must implement
+ * Game system specific plugin interface
  */
-export interface IGameSystemPlugin extends IPlugin {
-  type: 'gameSystem';
-  validateActorData: (actorType: string, data: unknown) => z.SafeParseReturnType<unknown, unknown>;
-  validateItemData: (itemType: string, data: unknown) => z.SafeParseReturnType<unknown, unknown>;
-  validateVTTDocumentData: (
-    documentType: string,
-    data: unknown
-  ) => z.SafeParseReturnType<unknown, unknown>;
+export interface GameSystemPlugin extends Plugin {
+  /** Game system type identifier */
+  readonly gameSystem: string;
+  
+  /** Supported character types */
+  readonly characterTypes: string[];
+  
+  /** Supported item types */
+  readonly itemTypes: string[];
 }
-
-/**
- * Web Game System Plugin interface
- * This extends the base Game System Plugin interface with web-specific functionality
- */
-export interface IGameSystemPluginWeb extends IGameSystemPlugin, IWebPlugin {
-  type: 'gameSystem';
-  loadComponent: (componentId: string) => IPluginComponent | undefined;
-}
-
-/**
- * Server Game System Plugin interface
- * This extends the base Game System Plugin interface with server-specific functionality
- */
-export interface IGameSystemPluginServer extends IGameSystemPlugin {
-  router?: Router; // Optional Express router for plugin-specific routes
-}
-
-/**
- * Server Plugin interface
- * Extends the base Plugin interface with server-specific functionality
- */
-export interface IServerPlugin extends IPlugin {
-  router?: Router; // Optional Express router for plugin-specific routes
-}
-
-/**
- * Web Plugin interface
- * Extends the base Plugin interface with web-specific functionality
- */
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface IWebPlugin extends IPlugin {}
-
-/**
- * Plugin Registry interface
- * This defines the functionality for a plugin registry
- */
-export interface IPluginRegistry {
-  initialize(): Promise<void>;
-  getPlugin(pluginId: string): IPlugin | undefined;
-  getGameSystemPlugin(pluginId: string): IGameSystemPlugin | undefined;
-  getAllPlugins(): IPlugin[];
-  getAllGameSystemPlugins(): IGameSystemPlugin[];
-  getEnabledPlugins(): IPlugin[];
-}
-
-/**
- * Plugin Manager interface
- * This defines the functionality for managing plugins
- */
-export interface IPluginManager {
-  registerPlugin(plugin: IPlugin): Promise<string>;
-  unregisterPlugin(pluginId: string): Promise<void>;
-  enablePlugin(pluginId: string): Promise<void>;
-  disablePlugin(pluginId: string): Promise<void>;
-  getPlugin(pluginId: string): Promise<IPlugin | undefined>;
-  getGameSystemPlugin(pluginId: string): Promise<IGameSystemPlugin | undefined>;
-  getAllPlugins(): Promise<IPlugin[]>;
-  getAllGameSystemPlugins(): Promise<IGameSystemPlugin[]>;
-}
-
-// Export types
-export type { IPluginComponent, IPluginAPI };

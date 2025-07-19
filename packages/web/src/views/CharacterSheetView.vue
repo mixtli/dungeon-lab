@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
-import PluginUIContainer from '@/components/plugin/PluginUIContainer.vue';
-import { pluginRegistry } from '@/services/plugin-registry.service.mts';
+import { pluginRegistry } from '@/services/plugin-registry.mts';
 import type { IActor } from '@dungeon-lab/shared/types/index.mjs';
 import { ActorsClient } from '@dungeon-lab/client/index.mjs';
 import { useActorStore } from '../stores/actor.store.mjs';
@@ -20,9 +19,7 @@ const pluginId = ref('');
 const isPluginLoaded = ref(false);
 
 // Function to handle errors from the plugin component
-const handleError = (errorMessage: string) => {
-  error.value = errorMessage;
-};
+// Removed unused handleError function
 
 onMounted(async () => {
   try {
@@ -46,7 +43,7 @@ onMounted(async () => {
         } else {
           // Try to load the plugin
           try {
-            await pluginRegistry.loadPlugin(pluginId.value);
+            await pluginRegistry.loadGameSystemPlugin(pluginId.value);
             isPluginLoaded.value = true;
           } catch (e) {
             console.error('Failed to load plugin:', e);
@@ -91,12 +88,9 @@ onMounted(async () => {
     </div>
 
     <div v-else class="character-container">
-      <PluginUIContainer
-        :plugin-id="pluginId"
-        component-id="characterSheet"
-        :initial-data="{ character }"
-        @error="handleError"
-      />
+      <div class="text-center text-gray-500 py-8">
+        Plugin UI component integration pending for character sheet.
+      </div>
     </div>
   </div>
 </template>

@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useCampaignStore } from '../stores/campaign.store.mjs';
-import { pluginRegistry } from '../services/plugin-registry.service.mjs';
+import { pluginRegistry } from '../services/plugin-registry.mts';
 import type { ICampaign } from '@dungeon-lab/shared/types/index.mjs';
 import CampaignCharacterList from '../components/campaign/CampaignCharacterList.vue';
 import CampaignEncounterList from '../components/campaign/CampaignEncounterList.vue';
@@ -51,8 +51,8 @@ const gameSystem = computed(() => {
   const plugin = pluginRegistry.getGameSystemPlugin(String(campaign.value.gameSystemId));
   return plugin
     ? {
-        name: plugin.config.name,
-        description: plugin.config.description,
+        name: plugin.name,
+        description: plugin.description,
       }
     : null;
 });

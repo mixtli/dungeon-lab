@@ -9,7 +9,7 @@ packages/*/dist
 packages/**/dist */
 dist
 
-packages/plugins/dnd-5e-2024/submodules
+packages/plugins/dnd-5e-2024-old/submodules
 
 tsconfig.tsbuildinfo
 

@@ -1,7 +1,9 @@
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
+import { ref, watch, onMounted } from 'vue';
 import type { IActor } from '@dungeon-lab/shared/types/index.mjs';
 import { ActorsClient } from '@dungeon-lab/client/index.mjs';
+import { useSocketStore } from './socket.store.mjs';
+import type { CreateActorRequest, PatchActorRequest } from '@dungeon-lab/shared/types/api/index.mjs';
 
 const actorClient = new ActorsClient();
 

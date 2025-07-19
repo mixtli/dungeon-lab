@@ -187,5 +187,44 @@ export * from './socket/index.mjs';
 // Map Editor types
 export * from './mapEditor.mjs';
 
-// Plugin types
+// New Plugin Architecture
 export * from './plugin.mjs';
+export * from './component-registry.mjs';
+export * from './mechanics-registry.mjs';
+
+// Game Data Structures (selective exports to avoid conflicts)
+export type { 
+  BaseGameEntity,
+  AbilityScores,
+  SkillSystem,
+  Skill,
+  InventorySystem,
+  InventoryItem,
+  EncumbranceLevel,
+  Item,
+  ItemProperty,
+  ItemRequirement,
+  ItemEffect,
+  SpellSystem,
+  SpellSlot,
+  Spell,
+  SpellEffect,
+  CombatSystem,
+  SavingThrow,
+  CombatAction,
+  FeatureSystem,
+  Feature,
+  FeatureEffect,
+  CharacterData,
+  CharacterClass,
+  ClassResource,
+  CharacterRace,
+  CharacterBackground,
+  CharacterBiography,
+  CharacterAppearance,
+  CampaignData,
+  CampaignParticipant,
+  CampaignSession,
+  CampaignRules,
+  CampaignResource
+} from './game-data.mjs';

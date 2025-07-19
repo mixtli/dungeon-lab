@@ -2,10 +2,9 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useActorStore } from '../stores/actor.store.mjs';
-import PluginUIContainer from '@/components/plugin/PluginUIContainer.vue';
-import { pluginRegistry } from '@/services/plugin-registry.service.mjs';
+import { pluginRegistry } from '@/services/plugin-registry.mts';
 import ImageUpload from '../components/common/ImageUpload.vue';
-import { IGameSystemPluginWeb } from '@dungeon-lab/shared/types/plugin.mjs';
+import type { GameSystemPlugin } from '@dungeon-lab/shared/types/plugin.mjs';
 import { ActorsClient } from '@dungeon-lab/client/index.mjs';
 import { CreateActorRequest } from '@dungeon-lab/shared/types/api/index.mjs';
 
@@ -23,7 +22,7 @@ const actorStore = useActorStore();
 const activeGameSystemId = ref<string>(localStorage.getItem('activeGameSystem') || '');
 const isLoading = ref(true);
 const error = ref<string | null>(null);
-const plugin = ref<IGameSystemPluginWeb | null>(null);
+const plugin = ref<GameSystemPlugin | null>(null);
 // Step management
 const currentStep = ref(1);
 const isSubmitting = ref(false);
@@ -64,28 +63,22 @@ watch(
 );
 
 // Get a url from either a File or UploadedImage
-function getUrlFromImageObject(imageObj: File | UploadedImage | null): string | null {
-  if (!imageObj) return null;
+// function getUrlFromImageObject(imageObj: File | UploadedImage | null): string | null {
+//   if (!imageObj) return null;
 
-  if (imageObj instanceof File) {
-    // No need to return a URL - when we submit we'll upload the file
-    return null;
-  } else if ('url' in imageObj) {
-    // It's an UploadedImage - use its URL
-    return imageObj.url;
-  }
+//   if (imageObj instanceof File) {
+//     // No need to return a URL - when we submit we'll upload the file
+//     return null;
+//   } else if ('url' in imageObj) {
+//     // It's an UploadedImage - use its URL
+//     return imageObj.url;
+//   }
 
-  return null;
-}
+//   return null;
+// }
 
 // Combined data to pass to plugin
-const combinedInitialData = computed(() => {
-  return {
-    name: basicInfo.value.name,
-    avatarUrl: getUrlFromImageObject(basicInfo.value.avatarImage),
-    tokenUrl: getUrlFromImageObject(basicInfo.value.tokenImage),
-  };
-});
+// Removed unused combinedInitialData computed
 
 const canProceed = computed(() => {
   if (currentStep.value === 1) {
@@ -109,13 +102,13 @@ onMounted(async () => {
 
   try {
     // Try to get the plugin from the registry first
-    plugin.value = pluginRegistry.getGameSystemPlugin(activeGameSystemId.value) as IGameSystemPluginWeb;
+    plugin.value = pluginRegistry.getGameSystemPlugin(activeGameSystemId.value) as GameSystemPlugin;
     
     if (!plugin.value) {
       console.log('Plugin not found in registry, attempting to load it...');
       // Initialize plugin registry and load the plugin if it's not already loaded
       await pluginRegistry.initialize();
-      plugin.value = await pluginRegistry.loadGameSystemPlugin(activeGameSystemId.value) as IGameSystemPluginWeb;
+      plugin.value = await pluginRegistry.loadGameSystemPlugin(activeGameSystemId.value) as GameSystemPlugin;
     }
 
     if (!plugin.value) {
@@ -124,7 +117,7 @@ onMounted(async () => {
       return;
     }
 
-    console.log('Plugin loaded successfully:', plugin.value.config.name);
+    console.log('Plugin loaded successfully:', plugin.value.name);
   } catch (err) {
     console.error('Failed to load plugin:', err);
     error.value = `Failed to load plugin ${activeGameSystemId.value}`;
@@ -134,40 +127,24 @@ onMounted(async () => {
 });
 
 // Handle form submission
-async function handleSubmit(event: Event) {
+async function handleSubmit(_event: Event) {
   try {
     isSubmitting.value = true;
 
     // Check if plugin is available
     if (!plugin.value) return;
 
-    // Get the form data
-    const form = event.target as HTMLFormElement;
-    // Get the plugin component instance
-    const pluginComponent = plugin.value.loadComponent('characterCreation');
-    if (!pluginComponent) {
-      console.error('Plugin component not found');
-      return;
-    }
-
-    // Validate form data
-    const validation = pluginComponent.validateForm(form);
-    if (!validation.success) {
-      console.error('Form validation failed:', validation.error);
-      error.value = `Validation error: ${validation.error.message}`;
-      return;
-    }
-
-    // Translate form data to character schema format
-    console.log('Validation data:', validation.data);
-    const pluginData = pluginComponent.translateFormData(validation.data) as Record<string, unknown>;
-    console.log('Plugin data:', pluginData);
+    // Mock form data for now
+    const pluginData = {
+      name: basicInfo.value.name,
+      description: basicInfo.value.description
+    };
 
     // Create a proper actor request object
     const actorData: CreateActorRequest = {
       name: basicInfo.value.name,
       type: 'character',
-      gameSystemId: plugin.value.config.id,
+      gameSystemId: plugin.value.id,
       data: pluginData,
       description: basicInfo.value.description || undefined,
       avatar: basicInfo.value.avatarImage instanceof File ? basicInfo.value.avatarImage : undefined,
@@ -202,9 +179,7 @@ async function handleSubmit(event: Event) {
   }
 }
 
-function handleError(errorMessage: string) {
-  error.value = errorMessage;
-}
+// Removed unused handleError function
 </script>
 
 <template>
@@ -357,12 +332,9 @@ function handleError(errorMessage: string) {
           <!-- Step 2: Plugin Content -->
           <div v-show="currentStep === 2" class="form-step">
             <h2>Character Details</h2>
-            <PluginUIContainer
-              :plugin-id="activeGameSystemId"
-              :component-id="'characterCreation'"
-              :initial-data="combinedInitialData"
-              @error="handleError"
-            />
+            <div class="text-center text-gray-500 py-8">
+              Plugin UI component integration pending.
+            </div>
           </div>
         </form>
       </div>

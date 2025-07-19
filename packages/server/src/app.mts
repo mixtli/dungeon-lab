@@ -18,6 +18,7 @@ import { encounterRoutes } from './features/encounters/index.mjs';
 import { documentRoutes } from './features/documents/index.mjs';
 import assetRoutes from './features/assets/index.mjs';
 import { chatbotRoutes } from './features/chatbots/index.mjs';
+import pluginsRoutes from './features/plugins/routes/plugins.routes.mjs';
 import { oapi } from './oapi.mjs';
 import userRoutes from './features/users/routes/user.routes.mjs';
 import { errorHandler } from './middleware/error.middleware.mjs';
@@ -31,7 +32,6 @@ import './features/chat/socket-handler.mjs';
 // Route handlers and middleware
 let authRoutes: Router;
 let storageRoutes: Router;
-let pluginRoutes: Router;
 let healthRoutes: Router;
 
 type ValidationError = {
@@ -111,13 +111,11 @@ async function initializeRoutes() {
     // Dynamic imports for ES modules
     const authRoutesModule = await import('./routes/auth.routes.mjs');
     const storageRoutesModule = await import('./routes/storage.routes.mjs');
-    const pluginRoutesModule = await import('./routes/plugin.routes.mjs');
     const healthRoutesModule = await import('./routes/health.routes.mjs');
 
     // Get the router instances from each module
     authRoutes = authRoutesModule.default;
     storageRoutes = storageRoutesModule.storageRoutes;
-    pluginRoutes = pluginRoutesModule.pluginRoutes;
     healthRoutes = healthRoutesModule.default;
   } catch (error) {
     logger.error('Error initializing routes:', error);
@@ -175,7 +173,6 @@ export async function createApp(): Promise<express.Application> {
   app.use('/api/items', itemRoutes);
   app.use('/api/auth', authRoutes);
   app.use('/api/storage', storageRoutes);
-  app.use('/api/plugins', pluginRoutes);
   app.use('/api/campaigns', campaignRoutes);
   app.use('/api', inviteRoutes);
   app.use('/api/game-sessions', gameSessionRoutes);
@@ -187,6 +184,7 @@ export async function createApp(): Promise<express.Application> {
   app.use('/api/health', healthRoutes);
   app.use('/api/users', userRoutes);
   app.use('/api/workflows', workflowRoutes);
+  app.use('/api/plugins', pluginsRoutes);
   app.use('/api', chatbotRoutes);
 
   // Validation error handler for non-fatal validation errors

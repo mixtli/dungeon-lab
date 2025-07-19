@@ -9,13 +9,13 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div
             v-for="system in availableGameSystems"
-            :key="system.config.id"
+            :key="system.id"
             class="border rounded-lg p-4 hover:border-blue-500 cursor-pointer transition-colors"
-            :class="{ 'border-blue-500 bg-blue-50': system.config.id === selectedGameSystemId }"
-            @click="selectGameSystem(system.config.id)"
+            :class="{ 'border-blue-500 bg-blue-50': system.id === selectedGameSystemId }"
+            @click="selectGameSystem(system.id)"
           >
-            <h3 class="font-semibold text-lg">{{ system.config.name }}</h3>
-            <p class="text-gray-600 text-sm mt-1">{{ system.config.description }}</p>
+            <h3 class="font-semibold text-lg">{{ system.name }}</h3>
+            <p class="text-gray-600 text-sm mt-1">{{ system.description }}</p>
           </div>
         </div>
 
@@ -41,15 +41,9 @@
           <p class="text-red-700">{{ errorMessage }}</p>
         </div>
 
-        <PluginUIContainer
-          :plugin-id="selectedGameSystemId"
-          component-id="characterCreation"
-          :initial-data="initialActorData"
-          @update:data="updateActorData"
-          @submit="handleSubmit"
-          @cancel="goBack"
-          @error="handlePluginError"
-        />
+        <div class="text-center text-gray-500 py-8">
+          Plugin UI component integration pending for {{ selectedGameSystemId }}.
+        </div>
       </div>
     </div>
   </div>
@@ -58,11 +52,10 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import { pluginRegistry } from '@/services/plugin-registry.service.mjs';
-import PluginUIContainer from '@/components/plugin/PluginUIContainer.vue';
-import type { IGameSystemPluginWeb } from '@dungeon-lab/shared/types/plugin.mjs';
-import { ActorsClient } from '@dungeon-lab/client/index.mjs';
-import { CreateActorRequest } from '@dungeon-lab/shared/types/api/index.mjs';
+import { pluginRegistry } from '@/services/plugin-registry.mts';
+// import type { GameSystemPlugin } from '@dungeon-lab/shared/types/plugin.mjs';
+// import { ActorsClient } from '@dungeon-lab/client/index.mjs';
+// import { CreateActorRequest } from '@dungeon-lab/shared/types/api/index.mjs';
 
 const router = useRouter();
 
@@ -70,17 +63,13 @@ const selectedGameSystemId = ref<string>('');
 const initialActorData = ref<Record<string, unknown>>({});
 const actorData = ref<Record<string, unknown>>({});
 const errorMessage = ref<string | null>(null);
-const isSubmitting = ref(false);
+// const isSubmitting = ref(false);
 
-const actorClient = new ActorsClient();
+// const actorClient = new ActorsClient();
 
 // Get all available game systems that support character creation
 const availableGameSystems = computed(() => {
-  return pluginRegistry.getGameSystemPlugins().filter(plugin => {
-    const gameSystemPlugin = plugin as IGameSystemPluginWeb;
-    // Check if this plugin has a character creation component
-    return gameSystemPlugin.loadComponent?.('characterCreation') !== undefined;
-  });
+  return pluginRegistry.getPlugins();
 });
 
 function selectGameSystem(systemId: string) {
@@ -101,41 +90,39 @@ function proceedToCreation() {
   actorData.value = { ...initialActorData.value };
 }
 
-function updateActorData(data: Record<string, unknown>) {
-  actorData.value = { ...actorData.value, ...data };
-}
+// Removed unused updateActorData function
 
-async function handleSubmit(data: Record<string, unknown>) {
-  try {
-    isSubmitting.value = true;
-    errorMessage.value = null;
+// async function handleSubmit(_data: Record<string, unknown>) {
+//   try {
+//     isSubmitting.value = true;
+//     errorMessage.value = null;
 
-    // Merge the final data
-    const finalActorData: CreateActorRequest = {
-      ...actorData.value,
-      ...data,
-      gameSystemId: selectedGameSystemId.value,
-      name: (actorData.value.name as string) || (data.name as string) || '',
-      type: 'character',
-      data: data
-    };
+//     // Merge the final data
+//     const finalActorData: CreateActorRequest = {
+//       ...actorData.value,
+//       ..._data,
+//       gameSystemId: selectedGameSystemId.value,
+//       name: (actorData.value.name as string) || (_data.name as string) || '',
+//       type: 'character',
+//       data: _data
+//     };
 
-    // Call API to create actor with the actorClient
-    const response = await actorClient.createActor(finalActorData);
+//     // Call API to create actor with the actorClient
+//     const response = await actorClient.createActor(finalActorData);
 
-    // Navigate to the character sheet
-    if (response) {
-      router.push(`/character/${response.id}`);
-    } else {
-      errorMessage.value = 'Failed to create actor: No response from server';
-    }
-  } catch (error) {
-    console.error('Failed to create actor:', error);
-    errorMessage.value = error instanceof Error ? error.message : String(error);
-  } finally {
-    isSubmitting.value = false;
-  }
-}
+//     // Navigate to the character sheet
+//     if (response) {
+//       router.push(`/character/${response.id}`);
+//     } else {
+//       errorMessage.value = 'Failed to create actor: No response from server';
+//     }
+//   } catch (error) {
+//     console.error('Failed to create actor:', error);
+//     errorMessage.value = error instanceof Error ? error.message : String(error);
+//   } finally {
+//     isSubmitting.value = false;
+//   }
+// }
 
 function goBack() {
   if (selectedGameSystemId.value) {
@@ -146,7 +133,5 @@ function goBack() {
   }
 }
 
-function handlePluginError(error: string) {
-  errorMessage.value = error;
-}
+// Removed unused handlePluginError function
 </script>

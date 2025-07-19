@@ -4,7 +4,6 @@
 // Import handlers (the order doesn't matter as they register themselves)
 import './dice-handler.mjs';
 import './move-handler.mjs';
-import './plugin-handler.mjs';
 import './roll-command.handler.mjs';
 import '../../features/encounters/websocket/encounter-handler.mjs';
 import '../../features/maps/event-handlers/map-generator-handler.mjs';

@@ -13,3 +13,4 @@ export * from './base/index.mjs';
 // For types and schemas, consumers should import from specific barrel files:
 // - @dungeon-lab/shared/types/index.mjs
 // - @dungeon-lab/shared/schemas/index.mjs
+// - @dungeon-lab/shared/validation/index.mjs

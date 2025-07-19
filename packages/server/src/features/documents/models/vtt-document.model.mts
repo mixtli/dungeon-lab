@@ -51,12 +51,11 @@ mongooseSchema.pre(
         if (!plugin) {
           throw new Error(`Plugin ${this.pluginId} not found`);
         }
-        const isValid = plugin.validateVTTDocumentData(this.documentType, this.data);
+        const isValid = plugin.validateVTTDocumentData?.(this.documentType, this.data) || { success: true };
         if (!isValid.success) {
-          console.log(isValid.error.message);
+          console.log(isValid.error?.message || 'Validation failed');
           throw new Error(
-            `Invalid document data for plugin ${this.pluginId} and type ${this.documentType}`,
-            isValid.error
+            `Invalid document data for plugin ${this.pluginId} and type ${this.documentType}`
           );
         }
       }

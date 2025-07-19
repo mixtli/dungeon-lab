@@ -10,7 +10,7 @@ import { getApiBaseUrl } from './utils/getApiBaseUrl.mts';
 import { useAuthStore } from './stores/auth.store.mjs';
 import clickOutside from './directives/clickOutside.mjs';
 import { registerVueKonva } from './plugins/vue-konva.mjs';
-import { pluginRegistry } from './services/plugin-registry.service.mjs';
+import { pluginRegistry } from './services/plugin-registry.mjs';
 
 // Configure ApiClient with base URL
 configureApiClient(getApiBaseUrl());
@@ -33,20 +33,33 @@ app.directive('click-outside', clickOutside);
 // Register Vue Konva
 registerVueKonva(app);
 
-// Initialize plugin registry and load active game system
+// Initialize app with new plugin system
 async function initializeApp() {
   try {
+    console.log('🚀 Initializing Dungeon Lab with new plugin architecture...');
+    
     // Initialize plugin registry
     await pluginRegistry.initialize();
+    console.log('✅ Plugin registry initialized');
     
-    // Load the active game system if one is set
-    const activeGameSystem = localStorage.getItem('activeGameSystem');
-    if (activeGameSystem) {
-      console.log('Loading active game system:', activeGameSystem);
-      await pluginRegistry.loadGameSystemPlugin(activeGameSystem);
+    // Load development tools in dev mode
+    if (import.meta.env.DEV) {
+      await import('./utils/plugin-dev-tools.mjs');
+      console.log('🔧 Plugin development tools loaded');
     }
+    
+    // Auto-load plugins from environment variable if specified
+    // Note: Plugin loading is now handled by server auto-discovery
+    const autoLoadPlugins = import.meta.env.VITE_AUTO_LOAD_PLUGINS;
+    if (autoLoadPlugins) {
+      console.log('⚠️ VITE_AUTO_LOAD_PLUGINS is deprecated - plugins are now loaded via server auto-discovery');
+    }
+    
+    console.log('🎉 Application initialization complete');
+    
   } catch (error) {
-    console.error('Failed to initialize plugins:', error);
+    console.error('❌ Failed to initialize plugin system:', error);
+    // Continue with app startup even if plugins fail
   }
 }
 

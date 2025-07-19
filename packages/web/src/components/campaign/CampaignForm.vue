@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useCampaignStore } from '../../stores/campaign.store.mjs';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/auth.store.mjs';
-import { pluginRegistry } from '../../services/plugin-registry.service.mjs';
+import { pluginRegistry } from '../../services/plugin-registry.mts';
 import { CampaignsClient } from '@dungeon-lab/client/index.mjs';
 import type { ICampaign } from '@dungeon-lab/shared/types/index.mjs';
 
@@ -47,8 +47,8 @@ const isCreateForm = computed(() => !isEditMode.value);
 const gameSystems = computed(() => {
   return pluginRegistry
     .getPlugins()
-    .filter(plugin => plugin.config.type === 'gameSystem' && !!plugin.config.enabled)
-    .map(plugin => ({
+    .filter((plugin: any) => plugin.config.type === 'gameSystem' && !!plugin.config.enabled)
+    .map((plugin: any) => ({
       id: plugin.config.id,
       name: plugin.config.name,
       description: plugin.config.description || '',

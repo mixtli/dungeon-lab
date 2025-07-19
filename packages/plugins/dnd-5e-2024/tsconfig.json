@@ -1,27 +1,30 @@
 {
   "extends": "../../../tsconfig.json",
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
     "outDir": "./dist",
     "rootDir": "./src",
-    "allowJs": true,
     "composite": true,
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "noUnusedLocals": true,
-    "paths": {
-      "@dungeon-lab/shared": ["../../shared/src"],
-      "@dungeon-lab/shared/*": ["../../shared/src/*"],
-      "@dungeon-lab/client": ["../../client/src"],
-      "@dungeon-lab/client/*": ["../../client/src/*"]
-    }
+    "lib": ["DOM", "ES2022"],
+    "jsx": "preserve",
+    "jsxImportSource": "vue"
   },
-  "include": ["src/**/*.d.ts", "src/**/*.mts", "src/**/*.ts", "src/**/*.js", "src/**/*.mjs"],
-  "references": [{ "path": "../../shared" }, { "path": "../../client" }],
-  "ts-node": {
-    "esm": true
-  }
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.mts",
+    "src/**/*.vue"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.test.*",
+    "**/*.spec.*"
+  ],
+  "references": [
+    {
+      "path": "../../shared"
+    }
+  ]
 }

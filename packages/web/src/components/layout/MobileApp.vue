@@ -7,7 +7,7 @@ import BottomNavigation from './BottomNavigation.vue';
 import { useSocketStore } from '../../stores/socket.store.mts';
 import { useAuthStore } from '../../stores/auth.store.mts';
 import { watch } from 'vue';
-import { registerAllPlugins } from '../../services/plugin-registry.service.mts';
+import { pluginRegistry } from '../../services/plugin-registry.mts';
 
 const store = useSocketStore();
 const authStore = useAuthStore();
@@ -18,7 +18,7 @@ watch(
   (isAuthenticated) => {
     if (isAuthenticated) {
       store.initSocket();
-      registerAllPlugins();
+      pluginRegistry.initializePlugins();
     } else {
       store.disconnect();
     }

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { pluginRegistry } from '@/services/plugin-registry.service.mjs';
+import { pluginRegistry } from '@/services/plugin-registry.mts';
 import { PluginsClient } from '@dungeon-lab/client/plugins.client.mjs';
 
 const selectedGameSystem = ref<string>(localStorage.getItem('activeGameSystem') || '');
@@ -40,7 +40,35 @@ async function handleGameSystemChange(event: Event) {
   // Only load the selected plugin now
   const newPlugin = await pluginRegistry.loadGameSystemPlugin(newGameSystemId);
   if (newPlugin?.onLoad) {
-    await newPlugin.onLoad();
+    // Mock context for now
+    const mockContext = {
+      api: { 
+        actors: {
+          create: async () => ({ id: '', name: '', type: '', gameSystemId: '', data: {}, createdAt: '', updatedAt: '' }),
+          get: async () => ({ id: '', name: '', type: '', gameSystemId: '', data: {}, createdAt: '', updatedAt: '' }),
+          update: async () => ({ id: '', name: '', type: '', gameSystemId: '', data: {}, createdAt: '', updatedAt: '' }),
+          delete: async () => {},
+          list: async () => []
+        }, 
+        items: {
+          create: async () => ({ id: '', name: '', type: '', gameSystemId: '', data: {}, createdAt: '', updatedAt: '' }),
+          get: async () => ({ id: '', name: '', type: '', gameSystemId: '', data: {}, createdAt: '', updatedAt: '' }),
+          update: async () => ({ id: '', name: '', type: '', gameSystemId: '', data: {}, createdAt: '', updatedAt: '' }),
+          delete: async () => {},
+          list: async () => []
+        }, 
+        documents: {
+          create: async () => ({ id: '', name: '', type: '', content: {}, pluginId: '', createdAt: '', updatedAt: '' }),
+          get: async () => ({ id: '', name: '', type: '', content: {}, pluginId: '', createdAt: '', updatedAt: '' }),
+          update: async () => ({ id: '', name: '', type: '', content: {}, pluginId: '', createdAt: '', updatedAt: '' }),
+          delete: async () => {},
+          search: async () => []
+        } 
+      },
+      store: { get: () => undefined, set: () => {}, subscribe: () => () => {} },
+      events: { emit: () => {}, on: () => () => {} }
+    };
+    await newPlugin.onLoad(mockContext);
   }
 
   // Update localStorage and previous game system reference

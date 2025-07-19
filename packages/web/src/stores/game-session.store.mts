@@ -6,7 +6,7 @@ import { useSocketStore } from './socket.store.mjs';
 import { useCampaignStore } from './campaign.store.mts';
 import { CampaignsClient, ActorsClient } from '@dungeon-lab/client/index.mjs';
 import type { JoinCallback } from '@dungeon-lab/shared/types/socket/index.mjs';
-import { useChatStore } from './chat.store.mts';
+// import { useChatStore } from './chat.store.mts';
 import { useEncounterStore } from './encounter.store.mts';
 
 export const useGameSessionStore = defineStore(
@@ -15,7 +15,7 @@ export const useGameSessionStore = defineStore(
     const authStore = useAuthStore();
     const socketStore = useSocketStore();
     const campaignStore = useCampaignStore();
-    const chatStore = useChatStore();
+    // const _chatStore = useChatStore();
     const campaignClient = new CampaignsClient();
     const actorClient = new ActorsClient();
 

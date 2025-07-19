@@ -1,59 +1,32 @@
 {
   "name": "@dungeon-lab/plugin-dnd-5e-2024",
-  "version": "0.1.0",
-  "description": "D&D 5e (2024) Game System Plugin for Dungeon Lab",
-  "author": "Mixtli Dorantes",
-  "license": "MIT",
+  "version": "2.0.0",
+  "description": "D&D 5th Edition (2024) Plugin",
+  "author": "Dungeon Lab Team",
   "type": "module",
-  "main": "dist/index.mjs",
-  "types": "dist/index.d.mts",
-  "exports": {
-    ".": {
-      "import": "./dist/index.mjs",
-      "types": "./dist/index.d.mts"
-    },
-    "./server": {
-      "import": "./dist/server/index.mjs",
-      "types": "./dist/server/index.d.mts"
-    },
-    "./web": {
-      "import": "./dist/web/index.mjs",
-      "types": "./dist/web/index.d.mts"
-    },
-    "./package.json": "./package.json"
+  "dungeonLab": {
+    "pluginId": "dnd-5e-2024",
+    "displayName": "D&D 5e (2024)",
+    "gameSystem": "dnd-5e-2024"
   },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsc -b --force",
-    "check": "tsc --noEmit",
-    "lint": "eslint src",
-    "clean": "rimraf dist",
-    "test": "vitest run",
-    "import:classes": "tsx ./src/scripts/import-character-classes.mts",
-    "import:species": "tsx ./src/scripts/import-species.mts",
-    "import:backgrounds": "tsx ./src/scripts/import-backgrounds.mts",
-    "import:items": "tsx ./src/scripts/import-items.mts",
-    "import:monsters": "tsx ./src/scripts/import-monsters.mts",
-    "import:spells": "tsx ./src/scripts/import-spells.mts",
-    "import:feats": "tsx ./src/scripts/import-feats.mts",
-    "import:characters": "tsx --inspect=9222 ./src/scripts/import-characters.mts",
-    "import:maps": "tsx ./src/scripts/import-maps.mts",
-    "import:campaigns": "tsx ./src/scripts/import-campaigns.mts",
-    "import:all": "npm run import:classes && npm run import:species && npm run import:backgrounds && npm run import:items && npm run import:monsters && npm run import:spells && npm run import:feats && npm run import:characters && npm run import:maps && npm run import:campaigns"
+    "build": "echo 'Plugin build completed - runtime discovery used'",
+    "clean": "rm -rf dist tsconfig.tsbuildinfo",
+    "dev": "echo 'Plugin dev mode - runtime discovery used'",
+    "check": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "@dungeon-lab/client": "file:../../client",
-    "@dungeon-lab/shared": "file:../../shared",
-    "flat": "^6.0.1",
-    "handlebars-helpers": "^0.10.0",
-    "node-fetch": "^3.3.2",
-    "sprintf-js": "^1.1.3",
-    "zod": "^3.22.4"
+    "@dungeon-lab/shared": "workspace:*",
+    "vue": "^3.3.4"
   },
   "devDependencies": {
-    "@types/handlebars": "^4.0.40",
-    "@types/mime-types": "^2.1.4",
-    "@types/node": "^22.13.11",
-    "typescript": "^5.8.2",
-    "vitest": "^1.6.1"
-  }
+    "@types/node": "^20.4.0",
+    "typescript": "^5.1.6"
+  },
+  "files": [
+    "dist/**/*",
+    "data/**/*"
+  ]
 }
