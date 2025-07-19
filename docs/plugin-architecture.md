@@ -27,7 +27,7 @@ The plugin system consists of several key components:
   - Additional properties: gameSystem, characterTypes, itemTypes
 
 - **PluginContext**: Provides plugins with application access
-  - socket: Socket.io event system for all communication
+  - socket: Socket.io event system for all real-time communication
   - store: Key-value storage for plugin state
   - events: Plugin-specific event emission and subscription
 
@@ -40,7 +40,7 @@ The plugin system consists of several key components:
 ### Client-Side Classes
 
 - **PluginRegistryService**: Main client-side registry
-  - Fetches plugins from server
+  - Loads plugins via socket communication
   - Manages plugin lifecycle
   - Provides plugin access to app
 
@@ -54,7 +54,7 @@ The plugin system consists of several key components:
 - **ServerPluginRegistry**: Auto-discovers plugins
   - Scans filesystem for plugins
   - Validates plugin metadata
-  - Provides plugin list via API
+  - Manages plugin lifecycle and metadata
 
 ## Class Diagram
 
@@ -233,9 +233,9 @@ graph TB
     
     subgraph "Server Side"
         subgraph "Server Package"
-            API[REST API]
+            SS[Socket Server]
             SPR[ServerPluginRegistry]
-            PC2[PluginsController]
+            SH[Socket Handlers]
         end
         
         subgraph "File System"
@@ -262,13 +262,13 @@ graph TB
     PM --> MR
     
     %% Server connections
-    API --> PC2
-    PC2 --> SPR
+    SS --> SH
+    SH --> SPR
     SPR --> PD
     SPR --> PJ
     
     %% Client-Server connection
-    PRS -.->|WebSocket| API
+    PRS -.->|WebSocket| SS
     
     %% Shared connections
     PRS --> SI
@@ -563,12 +563,47 @@ context.socket.on('plugin:my-game:response', (response) => {
 });
 ```
 
+## Socket Event Infrastructure
+
+### Current Implementation
+
+The plugin system uses Socket.io for all real-time communication with the following event patterns:
+
+#### Actor Management Events
+- `actor:list` - Get filtered list of actors with callback
+- `actor:get` - Get single actor by ID with callback  
+- `actor:update` - Update actor data with callback
+- `actor:delete` - Delete actor with callback
+- `actor:created` - Broadcast when actor is created
+- `actor:updated` - Broadcast when actor is updated
+- `actor:deleted` - Broadcast when actor is deleted
+
+#### Item Management Events
+- `item:list` - Get filtered list of items with callback
+- `item:get` - Get single item by ID with callback
+- `item:create` - Create new item with callback
+- `item:update` - Update item data with callback
+- `item:delete` - Delete item with callback
+- `item:created` - Broadcast when item is created
+- `item:updated` - Broadcast when item is updated
+- `item:deleted` - Broadcast when item is deleted
+
+#### Authentication and Permissions
+- All socket connections require valid session authentication
+- Events are filtered by user permissions and game system access
+- GMs see all items for their game system, users see only their own
+
+#### TypeScript Integration
+- Proper typing for all socket events with Zod schemas
+- Callback patterns for request/response communication
+- No usage of `any` types - all events are strongly typed
+
 A proper implementation includes:
 
-1. Create a PluginContextProvider service with socket integration
-2. Provide isolated socket event namespaces per plugin
-3. Implement plugin-specific stores with reactive updates
-4. Handle event routing and permission management
+1. Socket-based PluginContextProvider service with real-time communication
+2. Isolated socket event namespaces per plugin
+3. Reactive plugin-specific stores updated via socket events
+4. Event routing and permission management through socket middleware
 
 ## Future Enhancements
 

@@ -53,8 +53,8 @@ export const BaseCharacterSheetComponent = defineComponent({
   },
   
   emits: {
-    'update': (character: any) => true,
-    'error': (error: string) => true
+    'update': (_character: Record<string, unknown>) => true,
+    'error': (_error: string) => true
   },
   
   setup(props, { emit }) {
@@ -118,8 +118,8 @@ export const BaseMechanicsComponent = defineComponent({
   },
   
   emits: {
-    'result': (result: any) => true,
-    'error': (error: string) => true
+    'result': (_result: Record<string, unknown>) => true,
+    'error': (_error: string) => true
   },
   
   setup(props, { emit }) {

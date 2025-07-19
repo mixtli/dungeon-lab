@@ -185,7 +185,7 @@ export class PluginLifecycleManager {
     return entry;
   }
   
-  private async createPluginContext(plugin: Plugin): Promise<PluginContext> {
+  private async createPluginContext(_plugin: Plugin): Promise<PluginContext> {
     // This would be implemented with actual API clients and services
     // For now, we create a mock context
     return {
@@ -213,23 +213,23 @@ export class PluginLifecycleManager {
         } as DocumentsAPI
       },
       store: {
-        get: <T,>(key: string): T | undefined => {
+        get: <T,>(_key: string): T | undefined => {
           // Would be implemented with actual store
           return undefined;
         },
-        set: <T,>(key: string, value: T): void => {
+        set: <T,>(_key: string, _value: T): void => {
           // Would be implemented with actual store
         },
-        subscribe: (key: string, callback: (value: any) => void): (() => void) => {
+        subscribe: (_key: string, _callback: (value: unknown) => void): (() => void) => {
           // Would be implemented with actual store
           return () => {};
         }
       },
       events: {
-        emit: (event: string, data?: any): void => {
+        emit: (_event: string, _data?: unknown): void => {
           // Would be implemented with actual event system
         },
-        on: (event: string, handler: (data: any) => void): (() => void) => {
+        on: (_event: string, _handler: (data: unknown) => void): (() => void) => {
           // Would be implemented with actual event system
           return () => {};
         }

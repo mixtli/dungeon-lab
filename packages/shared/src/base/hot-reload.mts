@@ -110,7 +110,7 @@ export class HotReloadManager {
     
     try {
       // Preserve state if configured
-      let preservedState: any = null;
+      let preservedState: Record<string, unknown> | null = null;
       if (this.config.preserveState) {
         preservedState = await this.preservePluginState(pluginId);
       }
@@ -147,7 +147,7 @@ export class HotReloadManager {
   /**
    * Preserve plugin state before reload
    */
-  private async preservePluginState(pluginId: string): Promise<Record<string, unknown> | null> {
+  private async preservePluginState(_pluginId: string): Promise<Record<string, unknown> | null> {
     // In a real implementation, this would extract state from:
     // - Component instances
     // - Plugin store
@@ -159,7 +159,7 @@ export class HotReloadManager {
   /**
    * Restore plugin state after reload
    */
-  private async restorePluginState(pluginId: string, state: Record<string, unknown> | null): Promise<void> {
+  private async restorePluginState(_pluginId: string, _state: Record<string, unknown> | null): Promise<void> {
     // In a real implementation, this would restore state to:
     // - New component instances
     // - Plugin store
@@ -170,7 +170,7 @@ export class HotReloadManager {
   /**
    * Clear module cache for a plugin
    */
-  private clearModuleCache(pluginPath: string): void {
+  private clearModuleCache(_pluginPath: string): void {
     // In a Node.js environment, this would clear require.cache
     // In a browser environment with Vite, this would trigger HMR
     // For now, this is a placeholder
@@ -179,7 +179,7 @@ export class HotReloadManager {
   /**
    * Load plugin module from path
    */
-  private async loadPluginModule(pluginPath: string): Promise<Plugin> {
+  private async loadPluginModule(_pluginPath: string): Promise<Plugin> {
     // In a real implementation, this would:
     // - Use dynamic import() to load the module
     // - Handle different module formats (ESM, CJS)
@@ -190,7 +190,7 @@ export class HotReloadManager {
   /**
    * Create file watcher for plugin directory
    */
-  private createFileWatcher(pluginPath: string, onChange: () => void): { close?: () => void } {
+  private createFileWatcher(_pluginPath: string, _onChange: () => void): { close?: () => void } {
     // In a real implementation, this would use:
     // - chokidar for Node.js
     // - Vite's file watcher for browser
@@ -203,7 +203,7 @@ export class HotReloadManager {
   /**
    * Emit hot reload event
    */
-  private emitHotReloadEvent(event: string, data: Record<string, unknown>): void {
+  private emitHotReloadEvent(_event: string, _data: Record<string, unknown>): void {
     // In a real implementation, this would emit to:
     // - Event system
     // - WebSocket clients
@@ -247,7 +247,7 @@ export class HotReloadDevUtils {
   /**
    * Wrap component for hot reload
    */
-  static wrapComponentForHotReload(component: Record<string, unknown>, pluginId: string): Record<string, unknown> {
+  static wrapComponentForHotReload(component: Record<string, unknown>, _pluginId: string): Record<string, unknown> {
     // In a real implementation, this would:
     // - Add hot reload boundaries
     // - Preserve component state

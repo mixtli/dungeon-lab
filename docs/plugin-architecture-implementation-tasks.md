@@ -94,13 +94,14 @@ Remove all legacy plugin infrastructure to create a clean slate for the new arch
 
 **Key Achievements**:
 - ✅ Plugin auto-discovery from filesystem
-- ✅ Server-side plugin registry with REST API endpoints
-- ✅ Client-side plugin registry fetching from server
+- ✅ Socket-based plugin communication infrastructure
+- ✅ Real-time actor and item management via socket events
 - ✅ Vue 3 component architecture with TypeScript
 - ✅ D&D 5e plugin fully functional with character sheets and mechanics
 - ✅ Hot reload development environment
 - ✅ Complete plugin lifecycle management
-- ✅ Authentication-protected plugin endpoints
+- ✅ Session-based socket authentication
+- ✅ TypeScript socket event schemas with callback patterns
 - ✅ Error handling and fallback mechanisms
 
 ### Week 1: Foundation Setup
@@ -302,8 +303,9 @@ class DnD5eInitiativeSystem implements InitiativeSystem {
 - [x] Plugin loading/unloading testing
 - [x] Component registration verification
 - [x] Error handling implementation
-- [x] Server-side plugin discovery and API endpoints
-- [x] Client-server plugin communication bridge
+- [x] Server-side plugin discovery via filesystem scanning
+- [x] Socket-based client-server plugin communication
+- [x] Real-time actor and item event handling
 
 **Technical Details**:
 - Test plugin lifecycle (load/unload/reload)
@@ -311,8 +313,9 @@ class DnD5eInitiativeSystem implements InitiativeSystem {
 - Test hot reload functionality
 - Implement error boundaries
 - Server-side plugin auto-discovery via filesystem scanning
-- REST API endpoints for plugin management
-- Client-side plugin registry fetching from server
+- Socket-based real-time communication for plugin operations
+- Actor and item management through socket events with callbacks
+- Session-based socket authentication
 
 **Success Criteria**:
 - [x] Plugin loads without errors
@@ -320,8 +323,9 @@ class DnD5eInitiativeSystem implements InitiativeSystem {
 - [x] Error handling prevents crashes
 - [x] Clean separation from any legacy systems
 - [x] Server auto-discovers plugins from packages/plugins directory
-- [x] Client successfully fetches and loads plugins from server API
+- [x] Client successfully loads plugins via socket communication
 - [x] Plugin appears in settings dropdown and functions correctly
+- [x] Socket events for actors and items work with proper callbacks
 
 #### Task 4.2: User Interface Testing
 **Estimated Time**: 2 days
@@ -662,12 +666,13 @@ The plugin architecture implementation is now complete and functional. The syste
 
 ### What's Working
 - ✅ Server-side plugin auto-discovery via filesystem scanning
-- ✅ REST API endpoints for plugin management (`/api/plugins`)
-- ✅ Client-side plugin registry fetching from server
+- ✅ Socket-based real-time communication for all plugin operations
+- ✅ Actor and item management via socket events with callbacks
 - ✅ Vue 3 component architecture with TypeScript
 - ✅ D&D 5e plugin with character sheets and mechanics
 - ✅ Hot reload development environment
-- ✅ Authentication-protected endpoints
+- ✅ Session-based socket authentication
+- ✅ TypeScript socket event schemas and handlers
 - ✅ Error handling and fallback mechanisms
 - ✅ Plugin metadata system via package.json
 - ✅ Complete plugin lifecycle management
@@ -675,11 +680,12 @@ The plugin architecture implementation is now complete and functional. The syste
 ### Implementation Details
 - **Server Plugin Discovery**: Scans `packages/plugins` directory for valid plugins
 - **Plugin Metadata**: Uses `dungeonLab` field in package.json for plugin configuration
-- **API Endpoints**: 
-  - `GET /api/plugins` - List all plugins
-  - `GET /api/plugins/:id` - Get specific plugin
-- **Client Integration**: Web app fetches plugins from server and populates settings dropdown
-- **Authentication**: All plugin endpoints require valid session or API key
+- **Socket Communication**: Real-time bidirectional communication via Socket.io events
+  - `actor:list`, `actor:get`, `actor:update`, `actor:delete` with callbacks
+  - `item:list`, `item:get`, `item:create`, `item:update`, `item:delete` with callbacks
+- **Client Integration**: Web app loads plugins and communicates via socket events
+- **Authentication**: Socket connections require valid session authentication
+- **TypeScript Integration**: Proper typing for socket events without `any` usage
 
 ### Ready for Phase 2
 The project is now ready to move into Phase 2 (Market Entry) with the implementation of additional game systems like Basic Fantasy RPG and Old School Essentials.
