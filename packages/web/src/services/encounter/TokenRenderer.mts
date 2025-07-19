@@ -3,7 +3,7 @@ import type { Token, TokenSize } from '@dungeon-lab/shared/types/tokens.mjs';
 import type { IMapResponse } from '@dungeon-lab/shared/types/api/maps.mjs';
 import defaultTokenUrl from '@/assets/images/default_token.svg';
 import { isPositionWithinBounds, clampPositionToBounds } from '../../utils/bounds-validation.mjs';
-import { getAssetUrl } from '@/utils/getAssetUrl.mjs';
+import { transformAssetUrl } from '@/utils/asset-utils.mjs';
 
 export interface TokenSpriteData {
   id: string;
@@ -531,7 +531,7 @@ export class TokenRenderer {
     }
     
     // Transform localhost URLs for LAN access
-    const transformedUrl = getAssetUrl(token.imageUrl);
+    const transformedUrl = transformAssetUrl(token.imageUrl);
     
     // Check cache first (use transformed URL as cache key)
     if (this.textureCache.has(transformedUrl)) {

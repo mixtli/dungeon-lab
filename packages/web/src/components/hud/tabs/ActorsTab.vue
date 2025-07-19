@@ -67,9 +67,6 @@
           <button class="action-button" title="Edit Actor" @click.stop="editActor(actor)">
             <i class="mdi mdi-pencil"></i>
           </button>
-          <button class="action-button" title="Duplicate" @click.stop="duplicateActor(actor)">
-            <i class="mdi mdi-content-copy"></i>
-          </button>
         </div>
       </div>
     </div>
@@ -115,13 +112,13 @@ const filteredActors = computed(() => {
 
   // Filter by type
   if (activeFilter.value !== 'all') {
-    filtered = filtered.filter(actor => actor.type === activeFilter.value);
+    filtered = filtered.filter((actor: { type: string; }) => actor.type === activeFilter.value);
   }
 
   // Filter by search query
   if (searchQuery.value.trim()) {
     const query = searchQuery.value.toLowerCase();
-    filtered = filtered.filter(actor => 
+    filtered = filtered.filter((actor: { name: string; type: string; }) => 
       actor.name.toLowerCase().includes(query) ||
       actor.type.toLowerCase().includes(query)
     );
@@ -162,19 +159,6 @@ async function editActor(actor: IActor): Promise<void> {
   // router.push(`/actors/${actor.id}/edit`);
 }
 
-async function duplicateActor(actor: IActor): Promise<void> {
-  try {
-    const duplicatedData = {
-      ...actor,
-      name: `${actor.name} (Copy)`,
-      id: undefined // Let server generate new ID
-    };
-    await actorStore.createActorSocket(duplicatedData);
-    console.log('Duplicated actor:', actor.name);
-  } catch (error) {
-    console.error('Failed to duplicate actor:', error);
-  }
-}
 </script>
 
 <style scoped>

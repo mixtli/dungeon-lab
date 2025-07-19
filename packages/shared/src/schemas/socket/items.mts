@@ -19,12 +19,14 @@ export const itemCallbackSchema = z.object({
 export const itemListArgsSchema = z.tuple([
   z.object({
     gameSystemId: z.string()
-  }).optional() // filters object is optional for backward compatibility
+  }).optional(), // filters object is optional for backward compatibility
+  z.function().args(itemCallbackSchema) // callback function is required for data retrieval
 ]);
 
 // Get single item by ID
 export const itemGetArgsSchema = z.tuple([
-  z.string() // itemId
+  z.string(), // itemId
+  z.function().args(itemCallbackSchema) // callback function is required for data retrieval
 ]);
 
 // Create new item
@@ -40,7 +42,8 @@ export const itemCreateArgsSchema = z.tuple([
     cost: z.number().optional(),
     data: z.any(),
     image: z.instanceof(File).optional()
-  })
+  }),
+  z.function().args(itemCallbackSchema) // callback function is required for error handling
 ]);
 
 // Update existing item
@@ -57,12 +60,14 @@ export const itemUpdateArgsSchema = z.tuple([
     cost: z.number().optional(),
     data: z.any().optional(),
     image: z.instanceof(File).optional()
-  })
+  }),
+  z.function().args(itemCallbackSchema) // callback function is required for error handling
 ]);
 
 // Delete item
 export const itemDeleteArgsSchema = z.tuple([
-  z.string() // itemId
+  z.string(), // itemId
+  z.function().args(itemCallbackSchema) // callback function is required for error handling
 ]);
 
 // ============================================================================
@@ -80,11 +85,7 @@ export const itemCreatedSchema = z.object({
   pluginId: z.string(),
   weight: z.number().optional(),
   cost: z.number().optional(),
-  data: z.any(),
-  createdBy: z.string(),
-  updatedBy: z.string().optional(),
-  createdAt: z.date(),
-  updatedAt: z.date()
+  data: z.any()
 });
 
 // Item updated broadcast

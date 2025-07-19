@@ -9,7 +9,7 @@ import { useSocketStore } from '../../stores/socket.store.mts';
 import type { MapGenerationResponse, MapEditResponse, MapFeatureDetectionResponse } from '@dungeon-lab/shared/types/socket/index.mjs';
 import axios from 'axios';
 import { MapsClient } from '@dungeon-lab/client/maps.client.mjs';
-import { getAssetUrl } from '@/utils/getAssetUrl.mjs';
+import { transformAssetUrl } from '@/utils/asset-utils.mjs';
 
 const router = useRouter();
 const socketStore = useSocketStore();
@@ -268,7 +268,7 @@ function setupSocketListeners() {
           
           // Extract UVTT URL if available
           if (payload.result.uvtt_file_url && typeof payload.result.uvtt_file_url === 'string') {
-            uvttUrl.value = getAssetUrl(payload.result.uvtt_file_url);
+            uvttUrl.value = transformAssetUrl(payload.result.uvtt_file_url);
             console.log('UVTT URL extracted:', uvttUrl.value);
           }
         }
@@ -474,7 +474,7 @@ const proceedToEdit = async () => {
     createMapError.value = '';
 
     // Download the image from the URL and convert to File
-    const imageResponse = await fetch(getAssetUrl(previewImage.value));
+    const imageResponse = await fetch(transformAssetUrl(previewImage.value));
     const imageBlob = await imageResponse.blob();
     const imageFile = new File([imageBlob], `${mapName.value}.png`, { type: imageBlob.type });
 
@@ -604,7 +604,7 @@ const createMapFromUvtt = async () => {
     const uvttData = JSON.parse(uvttResponse.data);
     
     // Download the original generated image to use as the map image
-    const imageResponse = await fetch(getAssetUrl(previewImage.value));
+    const imageResponse = await fetch(transformAssetUrl(previewImage.value));
     const imageBlob = await imageResponse.blob();
     const imageFile = new File([imageBlob], `${mapName.value}.png`, { type: imageBlob.type });
 
@@ -784,7 +784,7 @@ const createMapFromUvtt = async () => {
           <h2 class="text-lg font-medium text-dragon dark:text-gold mb-2 font-heading">Preview</h2>
 
           <div class="relative rounded-lg overflow-hidden">
-            <img :src="getAssetUrl(previewImage)" :alt="parameters.name" class="w-full h-auto" />
+            <img :src="transformAssetUrl(previewImage)" :alt="parameters.name" class="w-full h-auto" />
           </div>
 
           <!-- Display create map error if present -->

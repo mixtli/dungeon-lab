@@ -1,8 +1,11 @@
+import '../../types/socket-io.d.ts';
 import { Socket } from 'socket.io';
 import { socketHandlerRegistry } from '../handler-registry.mjs';
 import { ActorService } from '../../features/actors/services/actor.service.mjs';
+import { GameSessionModel } from '../../features/campaigns/models/game-session.model.mjs';
+import { CampaignModel } from '../../features/campaigns/models/campaign.model.mjs';
 import type { ClientToServerEvents, ServerToClientEvents } from '@dungeon-lab/shared/types/socket/index.mjs';
-import type { IActorCreateData, IActorPatchData } from '@dungeon-lab/shared/types/index.mjs';
+import type { IActor } from '@dungeon-lab/shared/types/index.mjs';
 
 /**
  * Socket handler for actor operations
@@ -35,14 +38,11 @@ function actorHandler(socket: Socket<ClientToServerEvents, ServerToClientEvents>
         gameSystemId: gameSystemId 
       });
 
-      let campaignActors: any[] = [];
+      let campaignActors: IActor[] = [];
       
       // If user is in a game session, also get actors from the current campaign
       if (socket.gameSessionId) {
         try {
-          const { GameSessionModel } = await import('../../features/campaigns/models/game-session.model.mjs');
-          const { CampaignModel } = await import('../../features/campaigns/models/campaign.model.mjs');
-          
           const gameSession = await GameSessionModel.findById(socket.gameSessionId);
           if (gameSession?.campaignId) {
             const campaign = await CampaignModel.findById(gameSession.campaignId);
@@ -113,32 +113,6 @@ function actorHandler(socket: Socket<ClientToServerEvents, ServerToClientEvents>
     }
   });
 
-  // Create new actor
-  socket.on('actor:create', async (actorData, callback) => {
-    try {
-      console.log('[Actor Handler] actor:create request from user:', socket.userId, 'data:', actorData);
-      
-      if (!socket.userId) {
-        callback({ success: false, error: 'User not authenticated' });
-        return;
-      }
-
-      const actor = await actorService.createActor(actorData, socket.userId);
-      console.log('[Actor Handler] Created actor:', actor.id);
-      
-      // Broadcast to other users who can see this actor
-      // For now, broadcast to all users in the same campaigns
-      socket.broadcast.emit('actor:created', actor);
-      
-      callback({ success: true, data: actor });
-    } catch (error) {
-      console.error('[Actor Handler] Error in actor:create:', error);
-      callback({ 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Failed to create actor' 
-      });
-    }
-  });
 
   // Update existing actor
   socket.on('actor:update', async (updateData, callback) => {

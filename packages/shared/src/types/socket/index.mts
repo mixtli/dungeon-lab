@@ -89,3 +89,10 @@ export type EncounterEnded = z.infer<typeof encounterSocketSchemas.encounterEnde
 
 export type EncounterError = z.infer<typeof encounterSocketSchemas.encounterErrorSchema>;
 export type EncounterCallback = z.infer<typeof encounterSocketSchemas.encounterCallbackSchema>;
+
+// Export actor and item socket types
+import * as actorSocketSchemas from '../../schemas/socket/actors.mjs';
+import * as itemSocketSchemas from '../../schemas/socket/items.mjs';
+
+export type ActorCallback = z.infer<typeof actorSocketSchemas.actorCallbackSchema>;
+export type ItemCallback = z.infer<typeof itemSocketSchemas.itemCallbackSchema>;

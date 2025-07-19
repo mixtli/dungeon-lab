@@ -344,6 +344,24 @@ export const useItemStore = defineStore('item', () => {
     }
   }
 
+  async function setCurrentItem(itemId: string) {
+    loading.value = true;
+    error.value = null;
+    try {
+      const item = await itemClient.getItem(itemId);
+      if (item) {
+        currentItem.value = item;
+      }
+      return currentItem.value;
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : `Failed to fetch item ${itemId}`;
+      console.error(`Error fetching item ${itemId}:`, err);
+      return null;
+    } finally {
+      loading.value = false;
+    }
+  }
+
   return {
     // State
     items,
@@ -365,6 +383,7 @@ export const useItemStore = defineStore('item', () => {
     // Legacy REST Actions
     fetchItems,
     fetchItem,
+    setCurrentItem,
     createItem,
     updateItem,
     deleteItem,

@@ -15,7 +15,6 @@
     }
   },
   "references": [{ "path": "../shared" }],
-  "typeRoots": ["./src/types"],
   "include": ["src/**/*.ts", "src/**/*.mts", "src/**/*.d.ts"],
   "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.test.mts"]
 }

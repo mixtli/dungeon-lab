@@ -19,27 +19,16 @@ export const actorCallbackSchema = z.object({
 export const actorListArgsSchema = z.tuple([
   z.object({
     gameSystemId: z.string()
-  }).optional() // filters object is optional for backward compatibility
+  }).optional(), // filters object is optional for backward compatibility
+  z.function().args(actorCallbackSchema) // callback function is required for data retrieval
 ]);
 
 // Get single actor by ID
 export const actorGetArgsSchema = z.tuple([
-  z.string() // actorId
+  z.string(), // actorId
+  z.function().args(actorCallbackSchema) // callback function is required for data retrieval
 ]);
 
-// Create new actor
-export const actorCreateArgsSchema = z.tuple([
-  z.object({
-    name: z.string(),
-    type: z.string(),
-    gameSystemId: z.string(),
-    userData: z.record(z.any()).optional(),
-    description: z.string().optional(),
-    data: z.record(z.string(), z.any()).optional(),
-    token: z.instanceof(File).optional(),
-    avatar: z.instanceof(File).optional()
-  })
-]);
 
 // Update existing actor
 export const actorUpdateArgsSchema = z.tuple([
@@ -53,12 +42,14 @@ export const actorUpdateArgsSchema = z.tuple([
     data: z.record(z.string(), z.any()).optional(),
     token: z.instanceof(File).optional(),
     avatar: z.instanceof(File).optional()
-  })
+  }),
+  z.function().args(actorCallbackSchema) // callback function is required for error handling
 ]);
 
 // Delete actor
 export const actorDeleteArgsSchema = z.tuple([
-  z.string() // actorId
+  z.string(), // actorId
+  z.function().args(actorCallbackSchema) // callback function is required for error handling
 ]);
 
 // ============================================================================
@@ -71,7 +62,7 @@ export const actorCreatedSchema = z.object({
   name: z.string(),
   type: z.string(),
   gameSystemId: z.string(),
-  createdBy: z.string(),
+  createdBy: z.string().optional(),
   updatedBy: z.string().optional(),
   userData: z.record(z.any()).optional(),
   avatarId: z.string().optional(),
@@ -107,9 +98,7 @@ export const actorCreatedSchema = z.object({
     createdBy: z.string(),
     createdAt: z.date().optional(),
     updatedAt: z.date().optional()
-  }).optional(),
-  createdAt: z.date(),
-  updatedAt: z.date()
+  }).optional()
 });
 
 // Actor updated broadcast

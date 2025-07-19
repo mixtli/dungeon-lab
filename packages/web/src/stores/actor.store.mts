@@ -1,10 +1,10 @@
 import { defineStore } from 'pinia';
-import { ref, watch, onMounted, computed } from 'vue';
+import { ref, watch, computed } from 'vue';
 import type { IActor } from '@dungeon-lab/shared/types/index.mjs';
 import { ActorsClient } from '@dungeon-lab/client/index.mjs';
 import { useSocketStore } from './socket.store.mjs';
 import { useCampaignStore } from './campaign.store.mjs';
-import type { CreateActorRequest, PatchActorRequest } from '@dungeon-lab/shared/types/api/index.mjs';
+import type { PatchActorRequest } from '@dungeon-lab/shared/types/api/index.mjs';
 
 const actorClient = new ActorsClient();
 
@@ -63,29 +63,7 @@ export const useActorStore = defineStore(
       });
     }
 
-    async function createActor(actorData: CreateActorRequest): Promise<IActor> {
-      return new Promise((resolve, reject) => {
-        loading.value = true;
-        error.value = null;
 
-        if (!socketStore.socket) {
-          reject(new Error('Socket not connected'));
-          return;
-        }
-
-        socketStore.emit('actor:create', actorData, (response: { success: boolean; data?: IActor; error?: string }) => {
-          if (response.success && response.data) {
-            // Note: Actor will be added to local state via broadcast event
-            resolve(response.data);
-          } else {
-            const errorMsg = response.error || 'Failed to create actor';
-            error.value = errorMsg;
-            reject(new Error(errorMsg));
-          }
-          loading.value = false;
-        });
-      });
-    }
 
     async function updateActor(actorId: string, updateData: PatchActorRequest): Promise<IActor> {
       return new Promise((resolve, reject) => {
@@ -188,16 +166,10 @@ export const useActorStore = defineStore(
       console.log('[Actor Store] Setting up socket handlers. Socket connected:', socket.connected);
 
       // Clean up any existing listeners to prevent duplicates
-      socket.off('actor:created');
       socket.off('actor:updated');
       socket.off('actor:deleted');
 
-      socket.on('actor:created', (actor: IActor) => {
-        console.log('[Actor Store] Actor created event received:', actor);
-        actors.value.push(actor);
-      });
-
-      socket.on('actor:updated', (updatedActor: IActor) => {
+      socket.on('actor:updated', (updatedActor) => {
         console.log('[Actor Store] Actor updated event received:', updatedActor);
         const index = actors.value.findIndex(a => a.id === updatedActor.id);
         if (index !== -1) {
@@ -210,7 +182,7 @@ export const useActorStore = defineStore(
 
       socket.on('actor:deleted', (actorId: string) => {
         console.log('[Actor Store] Actor deleted event received:', actorId);
-        actors.value = actors.value.filter(a => a.id !== actorId);
+        actors.value = actors.value.filter((a: { id: string; }) => a.id !== actorId);
         if (currentActor.value?.id === actorId) {
           currentActor.value = null;
         }
@@ -253,7 +225,6 @@ export const useActorStore = defineStore(
       // Actions
       setCurrentActor,
       fetchActors,
-      createActor,
       updateActor,
       deleteActor,
       ensureActorsLoaded

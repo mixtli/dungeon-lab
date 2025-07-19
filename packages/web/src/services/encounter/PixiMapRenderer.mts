@@ -1,7 +1,7 @@
 import * as PIXI from 'pixi.js';
 import type { IMapResponse } from '@dungeon-lab/shared/types/api/maps.mjs';
 import { initDevtools } from '@pixi/devtools';
-import { getAssetUrl } from '@/utils/getAssetUrl.mjs';
+import { transformAssetUrl } from '@/utils/asset-utils.mjs';
 
 export type Platform = 'desktop' | 'tablet' | 'phone';
 
@@ -187,7 +187,7 @@ export class EncounterMapRenderer {
   private async loadBackground(imageUrl: string): Promise<void> {
     try {
       // Transform localhost URLs for LAN access
-      const transformedUrl = getAssetUrl(imageUrl);
+      const transformedUrl = transformAssetUrl(imageUrl);
       console.log('[PixiMapRenderer] Loading background image:', transformedUrl);
       
       // Create texture from transformed URL

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, onBeforeUnmount } from 'vue';
-import { getAssetUrl } from '@/utils/getAssetUrl.mjs';
+import { transformAssetUrl } from '@/utils/asset-utils.mjs';
 
 // Define the interface for uploaded assets
 interface UploadedImage {
@@ -109,7 +109,7 @@ function clearImage() {
 <template>
   <div>
     <div v-if="previewUrl" class="mb-2">
-      <img :src="getAssetUrl(previewUrl)" class="h-32 w-32 object-cover rounded-md" alt="Image preview" />
+      <img :src="transformAssetUrl(previewUrl)" class="h-32 w-32 object-cover rounded-md" alt="Image preview" />
       <button @click="clearImage" class="text-red-600 text-sm mt-1" type="button">Remove</button>
     </div>
 

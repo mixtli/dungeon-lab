@@ -1,8 +1,9 @@
+import '../../types/socket-io.d.ts';
 import { Socket } from 'socket.io';
 import { socketHandlerRegistry } from '../handler-registry.mjs';
-import { ItemService } from '../../features/items/services/item.service.mjs';
+import { ItemService, QueryValue } from '../../features/items/services/item.service.mjs';
+import { GameSessionModel } from '../../features/campaigns/models/game-session.model.mjs';
 import type { ClientToServerEvents, ServerToClientEvents } from '@dungeon-lab/shared/types/socket/index.mjs';
-import type { IItemCreateData } from '@dungeon-lab/shared/types/index.mjs';
 
 /**
  * Socket handler for item operations
@@ -32,13 +33,12 @@ function itemHandler(socket: Socket<ClientToServerEvents, ServerToClientEvents>)
       // Check if user is GM for current session
       let isGM = false;
       if (socket.gameSessionId) {
-        const { GameSessionModel } = await import('../../features/campaigns/models/game-session.model.mjs');
         const gameSession = await GameSessionModel.findById(socket.gameSessionId);
         isGM = gameSession?.gameMasterId?.toString() === socket.userId;
       }
 
       // Build search query
-      const searchQuery: Record<string, any> = {
+      const searchQuery: Record<string, QueryValue> = {
         gameSystemId: gameSystemId
       };
 
@@ -158,7 +158,7 @@ function itemHandler(socket: Socket<ClientToServerEvents, ServerToClientEvents>)
         return;
       }
 
-      await itemService.deleteItem(itemId, socket.userId);
+      await itemService.deleteItem(itemId);
       console.log('[Item Handler] Deleted item:', itemId);
       
       // Broadcast deletion to other users

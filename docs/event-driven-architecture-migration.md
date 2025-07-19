@@ -186,11 +186,6 @@ import { z } from 'zod';
 // Request/Response schemas
 export const actorListArgsSchema = z.tuple([]);
 export const actorGetArgsSchema = z.tuple([z.string()]);
-export const actorCreateArgsSchema = z.tuple([z.object({
-  name: z.string(),
-  type: z.enum(['character', 'npc', 'monster']),
-  // ... other actor fields
-})]);
 
 // Callback response schema
 export const actorCallbackSchema = z.object({
@@ -348,18 +343,6 @@ async function editActor(actor: IActor): Promise<void> {
   router.push(`/actors/${actor.id}/edit`);
 }
 
-async function duplicateActor(actor: IActor): Promise<void> {
-  try {
-    const duplicatedData = {
-      ...actor,
-      name: `${actor.name} (Copy)`,
-      id: undefined // Let server generate new ID
-    };
-    await actorStore.createActor(duplicatedData);
-  } catch (error) {
-    console.error('Failed to duplicate actor:', error);
-  }
-}
 </script>
 ```
 

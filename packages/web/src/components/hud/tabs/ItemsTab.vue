@@ -48,7 +48,7 @@
         @click="selectItem(item)"
       >
         <div class="item-icon">
-          <img v-if="item.image?.url" :src="item.image.url" :alt="item.name" />
+          <img v-if="item.imageId && itemImageUrls[item.imageId]" :src="itemImageUrls[item.imageId]" :alt="item.name" />
           <i v-else :class="getItemIcon(item.type)"></i>
         </div>
         
@@ -108,11 +108,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useItemStore } from '../../../stores/item.store.mjs';
+import { getAssetUrl } from '../../../utils/asset-utils.mjs';
 import type { IItem } from '@dungeon-lab/shared/types/index.mjs';
 
 const itemStore = useItemStore();
 const searchQuery = ref('');
 const activeFilter = ref('all');
+const itemImageUrls = ref<Record<string, string>>({});
 
 const filterOptions = [
   { id: 'all', label: 'All' },
@@ -151,10 +153,26 @@ const filteredItems = computed(() => {
 onMounted(async () => {
   try {
     await itemStore.ensureItemsLoaded();
+    // Preload image URLs for items with images
+    await loadItemImageUrls();
   } catch (error) {
     console.error('Failed to load items:', error);
   }
 });
+
+// Watch for items changes and load new image URLs
+const loadItemImageUrls = async () => {
+  for (const item of items.value) {
+    if (item.imageId && !itemImageUrls.value[item.imageId]) {
+      try {
+        const url = await getAssetUrl(item.imageId);
+        itemImageUrls.value[item.imageId] = url;
+      } catch (error) {
+        console.error(`Failed to load image for item ${item.id}:`, error);
+      }
+    }
+  }
+};
 
 // Helper function to get appropriate icon for item type
 function getItemIcon(type: string): string {

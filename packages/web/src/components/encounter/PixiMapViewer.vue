@@ -51,7 +51,7 @@ import type { Platform } from '@/services/encounter/PixiMapRenderer.mjs';
 import { MapsClient } from '@dungeon-lab/client/index.mjs';
 import { useEncounterStore } from '@/stores/encounter.store.mjs';
 import { checkWallCollision, pixelsToGrid } from '@/utils/collision-detection.mjs';
-import { getAssetUrl } from '@/utils/getAssetUrl.mjs';
+import { transformAssetUrl } from '@/utils/asset-utils.mjs';
 
 // Initialize maps client and stores
 const mapsClient = new MapsClient();
@@ -203,7 +203,7 @@ const loadMapData = async (mapData: IMapResponse) => {
     
     // Test image loading separately
     if (mapData.image?.url) {
-      const transformedImageUrl = getAssetUrl(mapData.image.url);
+      const transformedImageUrl = transformAssetUrl(mapData.image.url);
       
       try {
         await testImageLoad(transformedImageUrl);

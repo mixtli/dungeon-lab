@@ -5,7 +5,7 @@ import { type IActor, type IAsset } from '@dungeon-lab/shared/types/index.mjs';
 import { ActorsClient } from '@dungeon-lab/client/index.mjs';
 import { PlusIcon, EyeIcon, TrashIcon } from '@heroicons/vue/24/outline';
 import { useDeviceAdaptation } from '@/composables/useDeviceAdaptation.mts';
-import { getAssetUrl } from '@/utils/getAssetUrl.mjs';
+import { transformAssetUrl } from '@/utils/asset-utils.mjs';
 
 const router = useRouter();
 const actorClient = new ActorsClient();
@@ -20,7 +20,7 @@ const getAvatarUrl = (character: IActor): string | undefined => {
     // Handle populated ObjectId reference
     if (typeof character.avatar === 'object') {
       const asset = character.avatar as unknown as IAsset;
-      return getAssetUrl(asset.url as string);
+      return transformAssetUrl(asset.url as string);
     }
   }
   return undefined;

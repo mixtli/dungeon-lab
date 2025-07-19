@@ -3,7 +3,7 @@ import { ref, onMounted, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { AssetsClient } from '@dungeon-lab/client/index.mjs';
 import { type IAsset } from '@dungeon-lab/shared/types/index.mjs';
-import { getAssetUrl } from '@/utils/getAssetUrl.mjs';
+import { transformAssetUrl } from '@/utils/asset-utils.mjs';
 
 const router = useRouter();
 const route = useRoute();
@@ -211,7 +211,7 @@ function formatMetadataValue(value: unknown): string {
         <!-- Image Preview -->
         <div v-if="isImage" class="flex justify-center items-center p-4">
           <img 
-            :src="getAssetUrl(asset.url)" 
+            :src="transformAssetUrl(asset.url)" 
             :alt="getAssetName(asset)" 
             class="max-w-full max-h-[60vh] object-contain"
           />
@@ -220,7 +220,7 @@ function formatMetadataValue(value: unknown): string {
         <!-- Video Preview -->
         <div v-else-if="isVideo" class="flex justify-center items-center p-4">
           <video 
-            :src="getAssetUrl(asset.url)" 
+            :src="transformAssetUrl(asset.url)" 
             controls 
             class="max-w-full max-h-[60vh]"
           >
@@ -231,7 +231,7 @@ function formatMetadataValue(value: unknown): string {
         <!-- Audio Preview -->
         <div v-else-if="isAudio" class="flex justify-center items-center p-4">
           <audio 
-            :src="getAssetUrl(asset.url)" 
+            :src="transformAssetUrl(asset.url)" 
             controls 
             class="w-full"
           >
@@ -242,7 +242,7 @@ function formatMetadataValue(value: unknown): string {
         <!-- PDF Preview -->
         <div v-else-if="isPdf" class="flex justify-center items-center p-4">
           <iframe 
-            :src="getAssetUrl(asset.url)" 
+            :src="transformAssetUrl(asset.url)" 
             class="w-full h-[60vh]"
             frameborder="0"
           ></iframe>

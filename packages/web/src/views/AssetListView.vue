@@ -5,7 +5,7 @@ import { RouterLink } from 'vue-router';
 import { AssetsClient } from '@dungeon-lab/client/index.mjs';
 import AssetUpload from '../components/common/AssetUpload.vue';
 import type { IAsset } from '@dungeon-lab/shared/types/index.mjs';
-import { getAssetUrl } from '@/utils/getAssetUrl.mjs';
+import { transformAssetUrl } from '@/utils/asset-utils.mjs';
 
 const assetsClient = new AssetsClient();
 
@@ -393,7 +393,7 @@ function changePage(page: number) {
             <!-- Image files -->
             <img 
               v-if="isImageType(asset.type)"
-              :src="getAssetUrl(asset.url)" 
+              :src="transformAssetUrl(asset.url)" 
               :alt="asset.metadata?.filename || 'Asset preview'" 
               class="w-full h-full object-cover"
             />

@@ -115,7 +115,6 @@ import {
   actorCallbackSchema,
   actorListArgsSchema,
   actorGetArgsSchema,
-  actorCreateArgsSchema,
   actorUpdateArgsSchema,
   actorDeleteArgsSchema,
   actorCreatedSchema,
@@ -232,7 +231,6 @@ export {
   actorCallbackSchema,
   actorListArgsSchema,
   actorGetArgsSchema,
-  actorCreateArgsSchema,
   actorUpdateArgsSchema,
   actorDeleteArgsSchema,
   actorCreatedSchema,
@@ -316,7 +314,6 @@ export const clientToServerEvents = z.object({
   // Actor events (with callbacks)
   'actor:list': z.function().args(...actorListArgsSchema.items).returns(z.void()),
   'actor:get': z.function().args(...actorGetArgsSchema.items).returns(z.void()),
-  'actor:create': z.function().args(...actorCreateArgsSchema.items).returns(z.void()),
   'actor:update': z.function().args(...actorUpdateArgsSchema.items).returns(z.void()),
   'actor:delete': z.function().args(...actorDeleteArgsSchema.items).returns(z.void()),
   // Item events (with callbacks)

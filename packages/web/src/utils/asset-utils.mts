@@ -1,3 +1,12 @@
+import { AssetsClient } from '@dungeon-lab/client/assets.client.mjs';
+
+const assetsClient = new AssetsClient();
+
+export async function getAssetUrl(assetId: string): Promise<string> {
+  const asset = await assetsClient.getAsset(assetId);
+  return transformAssetUrl(asset.url);
+}
+
 /**
  * Transform asset URLs to work correctly across different network environments
  * 
@@ -9,7 +18,7 @@
  * @param url - Original asset URL from database (may contain localhost:9000)
  * @returns Transformed URL using current hostname for network accessibility
  */
-export function getAssetUrl(url: string): string {
+export function transformAssetUrl(url: string): string {
   // If the URL is empty or not a string, return as-is
   if (!url || typeof url !== 'string') {
     return url;

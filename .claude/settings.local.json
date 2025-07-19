@@ -17,7 +17,8 @@
       "Bash(zsh:*)",
       "Bash(rm:*)",
       "Bash(mkdir:*)",
-      "Bash(npm run plugins:build:*)"
+      "Bash(npm run plugins:build:*)",
+      "Bash(tsc:*)"
     ]
   },
   "enabledMcpjsonServers": [

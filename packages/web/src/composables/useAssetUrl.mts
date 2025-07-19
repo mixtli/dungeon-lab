@@ -1,4 +1,4 @@
-import { getAssetUrl } from '@/utils/getAssetUrl.mjs';
+import { getAssetUrl, transformAssetUrl } from '@/utils/asset-utils.mjs';
 
 /**
  * Vue composable for transforming asset URLs
@@ -10,12 +10,9 @@ export function useAssetUrl() {
    * @param url - Original asset URL from database
    * @returns Transformed URL that works on current hostname
    */
-  const transformAssetUrl = (url: string | undefined | null): string => {
-    if (!url) return '';
-    return getAssetUrl(url);
-  };
 
   return {
-    transformAssetUrl
+    transformAssetUrl,
+    getAssetUrl
   };
 }
