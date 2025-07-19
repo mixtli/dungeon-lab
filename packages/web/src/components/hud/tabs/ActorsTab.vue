@@ -48,25 +48,15 @@
         @click="selectActor(actor)"
       >
         <div class="actor-avatar">
-          <img v-if="actor.imageUrl" :src="actor.imageUrl" :alt="actor.name" />
-          <i v-else :class="actor.icon"></i>
+          <img v-if="actor.avatar?.url" :src="actor.avatar.url" :alt="actor.name" />
+          <img v-else-if="actor.token?.url" :src="actor.token.url" :alt="actor.name" />
+          <i v-else class="mdi mdi-account-circle"></i>
         </div>
         
         <div class="actor-info">
           <div class="actor-name">{{ actor.name }}</div>
           <div class="actor-details">
             <span class="actor-type">{{ actor.type }}</span>
-            <span class="actor-cr" v-if="actor.challengeRating">CR {{ actor.challengeRating }}</span>
-          </div>
-          <div class="actor-stats">
-            <span class="stat-item">
-              <i class="mdi mdi-heart"></i>
-              {{ actor.hitPoints }}
-            </span>
-            <span class="stat-item">
-              <i class="mdi mdi-shield"></i>
-              {{ actor.armorClass }}
-            </span>
           </div>
         </div>
 
@@ -102,20 +92,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
+import { useActorStore } from '../../../stores/actor.store.mjs';
+import type { IActor } from '@dungeon-lab/shared/types/index.mjs';
 
-// Define a simple Actor interface for type safety
-interface Actor {
-  id: string;
-  name: string;
-  type: string;
-  hitPoints: number;
-  armorClass: number;
-  icon: string;
-  imageUrl: string | null;
-  challengeRating: string | null;
-}
-
+const actorStore = useActorStore();
 const searchQuery = ref('');
 const activeFilter = ref('all');
 
@@ -126,59 +107,8 @@ const filterOptions = [
   { id: 'npc', label: 'NPCs' }
 ];
 
-// Sample actor data
-const actors = ref([
-  {
-    id: '1',
-    name: 'Thorin Ironforge',
-    type: 'character',
-    hitPoints: 45,
-    armorClass: 18,
-    icon: 'mdi mdi-account-circle',
-    imageUrl: null,
-    challengeRating: null
-  },
-  {
-    id: '2',
-    name: 'Elara Moonwhisper',
-    type: 'character',
-    hitPoints: 32,
-    armorClass: 14,
-    icon: 'mdi mdi-account-circle',
-    imageUrl: null,
-    challengeRating: null
-  },
-  {
-    id: '3',
-    name: 'Goblin Warrior',
-    type: 'monster',
-    hitPoints: 7,
-    armorClass: 15,
-    icon: 'mdi mdi-sword',
-    imageUrl: null,
-    challengeRating: '1/4'
-  },
-  {
-    id: '4',
-    name: 'Orc Berserker',
-    type: 'monster',
-    hitPoints: 15,
-    armorClass: 13,
-    icon: 'mdi mdi-sword',
-    imageUrl: null,
-    challengeRating: '1'
-  },
-  {
-    id: '5',
-    name: 'Merchant Aldric',
-    type: 'npc',
-    hitPoints: 10,
-    armorClass: 11,
-    icon: 'mdi mdi-account',
-    imageUrl: null,
-    challengeRating: null
-  }
-]);
+// Use real data from store instead of hardcoded
+const actors = computed(() => actorStore.actors);
 
 const filteredActors = computed(() => {
   let filtered = actors.value;
@@ -200,24 +130,50 @@ const filteredActors = computed(() => {
   return filtered;
 });
 
-function selectActor(actor: Actor): void {
-  console.log('Selected actor:', actor);
-  // TODO: Implement actor selection
+// Load actors when component mounts
+onMounted(async () => {
+  try {
+    await actorStore.ensureActorsLoaded();
+  } catch (error) {
+    console.error('Failed to load actors:', error);
+  }
+});
+
+// Implement real functionality
+async function selectActor(actor: IActor): Promise<void> {
+  try {
+    await actorStore.setCurrentActor(actor.id);
+    console.log('Selected actor:', actor.name);
+  } catch (error) {
+    console.error('Failed to select actor:', error);
+  }
 }
 
-function addToEncounter(actor: Actor): void {
+async function addToEncounter(actor: IActor): Promise<void> {
   console.log('Adding to encounter:', actor);
-  // TODO: Implement add to encounter
+  // TODO: Use encounter store to add actor
+  // const encounterStore = useEncounterStore();
+  // await encounterStore.addParticipant(encounterStore.currentEncounter?.id, actor.id);
 }
 
-function editActor(actor: Actor): void {
+async function editActor(actor: IActor): Promise<void> {
   console.log('Editing actor:', actor);
-  // TODO: Implement actor editing
+  // TODO: Navigate to actor edit view or open modal
+  // router.push(`/actors/${actor.id}/edit`);
 }
 
-function duplicateActor(actor: Actor): void {
-  console.log('Duplicating actor:', actor);
-  // TODO: Implement actor duplication
+async function duplicateActor(actor: IActor): Promise<void> {
+  try {
+    const duplicatedData = {
+      ...actor,
+      name: `${actor.name} (Copy)`,
+      id: undefined // Let server generate new ID
+    };
+    await actorStore.createActorSocket(duplicatedData);
+    console.log('Duplicated actor:', actor.name);
+  } catch (error) {
+    console.error('Failed to duplicate actor:', error);
+  }
 }
 </script>
 
@@ -411,31 +367,12 @@ function duplicateActor(actor: Actor): void {
 .actor-details {
   display: flex;
   gap: 8px;
-  margin-bottom: 4px;
 }
 
 .actor-type {
   color: rgba(255, 255, 255, 0.6);
   font-size: 12px;
   text-transform: capitalize;
-}
-
-.actor-cr {
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 12px;
-}
-
-.actor-stats {
-  display: flex;
-  gap: 12px;
-}
-
-.stat-item {
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 12px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
 }
 
 .actor-actions {

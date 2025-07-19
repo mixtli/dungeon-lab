@@ -44,23 +44,24 @@
         v-for="item in filteredItems"
         :key="item.id"
         class="item-card"
-        :class="`item-${item.rarity}`"
+        :class="`item-${item.data?.rarity || 'common'}`"
         @click="selectItem(item)"
       >
         <div class="item-icon">
-          <i :class="item.icon"></i>
+          <img v-if="item.image?.url" :src="item.image.url" :alt="item.name" />
+          <i v-else :class="getItemIcon(item.type)"></i>
         </div>
         
         <div class="item-info">
           <div class="item-name">{{ item.name }}</div>
           <div class="item-details">
             <span class="item-type">{{ item.type }}</span>
-            <span class="item-rarity" :class="`rarity-${item.rarity}`">{{ item.rarity }}</span>
+            <span v-if="item.data?.rarity" class="item-rarity" :class="`rarity-${item.data.rarity}`">{{ item.data.rarity }}</span>
           </div>
-          <div class="item-description">{{ item.description }}</div>
-          <div class="item-properties" v-if="item.properties.length">
+          <div v-if="item.description" class="item-description">{{ item.description }}</div>
+          <div class="item-properties" v-if="item.data?.properties?.length">
             <span
-              v-for="property in item.properties"
+              v-for="property in item.data.properties"
               :key="property"
               class="property-tag"
             >
@@ -105,19 +106,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
+import { useItemStore } from '../../../stores/item.store.mjs';
+import type { IItem } from '@dungeon-lab/shared/types/index.mjs';
 
-// Define a simple Item interface for type safety
-interface Item {
-  id: string;
-  name: string;
-  type: string;
-  rarity: string;
-  description: string;
-  icon: string;
-  properties: string[];
-}
-
+const itemStore = useItemStore();
 const searchQuery = ref('');
 const activeFilter = ref('all');
 
@@ -130,63 +123,8 @@ const filterOptions = [
   { id: 'tool', label: 'Tools' }
 ];
 
-// Sample item data
-const items = ref([
-  {
-    id: '1',
-    name: 'Longsword +1',
-    type: 'weapon',
-    rarity: 'uncommon',
-    description: 'A magical longsword that grants a +1 bonus to attack and damage rolls.',
-    icon: 'mdi mdi-sword',
-    properties: ['Versatile', 'Finesse']
-  },
-  {
-    id: '2',
-    name: 'Chain Mail',
-    type: 'armor',
-    rarity: 'common',
-    description: 'Made of interlocking metal rings, chain mail includes a layer of quilted fabric worn underneath.',
-    icon: 'mdi mdi-shield',
-    properties: ['Heavy Armor', 'AC 16']
-  },
-  {
-    id: '3',
-    name: 'Potion of Healing',
-    type: 'potion',
-    rarity: 'common',
-    description: 'A character who drinks the magical red fluid in this vial regains 2d4 + 2 hit points.',
-    icon: 'mdi mdi-flask',
-    properties: ['Consumable', 'Healing']
-  },
-  {
-    id: '4',
-    name: 'Cloak of Elvenkind',
-    type: 'magic',
-    rarity: 'rare',
-    description: 'While wearing this cloak, you have advantage on Dexterity (Stealth) checks.',
-    icon: 'mdi mdi-coat-rack',
-    properties: ['Wondrous Item', 'Attunement']
-  },
-  {
-    id: '5',
-    name: 'Thieves\' Tools',
-    type: 'tool',
-    rarity: 'common',
-    description: 'This set of tools includes a small file, a set of lock picks, a small mirror, and more.',
-    icon: 'mdi mdi-wrench',
-    properties: ['Tool Kit']
-  },
-  {
-    id: '6',
-    name: 'Flame Tongue',
-    type: 'weapon',
-    rarity: 'rare',
-    description: 'This magic sword\'s blade is wreathed in flame. As a bonus action, you can ignite or extinguish the blade.',
-    icon: 'mdi mdi-sword',
-    properties: ['Magical', 'Fire Damage']
-  }
-]);
+// Use real data from store instead of hardcoded
+const items = computed(() => itemStore.items);
 
 const filteredItems = computed(() => {
   let filtered = items.value;
@@ -202,32 +140,70 @@ const filteredItems = computed(() => {
     filtered = filtered.filter(item => 
       item.name.toLowerCase().includes(query) ||
       item.type.toLowerCase().includes(query) ||
-      item.rarity.toLowerCase().includes(query) ||
-      item.description.toLowerCase().includes(query)
+      item.description?.toLowerCase().includes(query)
     );
   }
 
   return filtered;
 });
 
-function selectItem(item: Item): void {
-  console.log('Selected item:', item);
-  // TODO: Implement item selection
+// Load items when component mounts
+onMounted(async () => {
+  try {
+    await itemStore.ensureItemsLoaded();
+  } catch (error) {
+    console.error('Failed to load items:', error);
+  }
+});
+
+// Helper function to get appropriate icon for item type
+function getItemIcon(type: string): string {
+  const iconMap: Record<string, string> = {
+    weapon: 'mdi mdi-sword',
+    armor: 'mdi mdi-shield',
+    potion: 'mdi mdi-flask',
+    consumable: 'mdi mdi-flask',
+    magic: 'mdi mdi-auto-fix',
+    tool: 'mdi mdi-wrench',
+    gear: 'mdi mdi-bag-personal',
+    spell: 'mdi mdi-book-open-variant',
+    default: 'mdi mdi-package-variant'
+  };
+  return iconMap[type] || iconMap.default;
 }
 
-function giveToPlayer(item: Item): void {
+// Implement real functionality
+async function selectItem(item: IItem): Promise<void> {
+  try {
+    await itemStore.setCurrentItem(item.id);
+    console.log('Selected item:', item.name);
+  } catch (error) {
+    console.error('Failed to select item:', error);
+  }
+}
+
+async function giveToPlayer(item: IItem): Promise<void> {
   console.log('Giving to player:', item);
   // TODO: Implement give to player
 }
 
-function editItem(item: Item): void {
+async function editItem(item: IItem): Promise<void> {
   console.log('Editing item:', item);
-  // TODO: Implement item editing
+  // TODO: Navigate to item edit view or open modal
 }
 
-function duplicateItem(item: Item): void {
-  console.log('Duplicating item:', item);
-  // TODO: Implement item duplication
+async function duplicateItem(item: IItem): Promise<void> {
+  try {
+    const duplicatedData = {
+      ...item,
+      name: `${item.name} (Copy)`,
+      id: undefined // Let server generate new ID
+    };
+    await itemStore.createItemSocket(duplicatedData);
+    console.log('Duplicated item:', item.name);
+  } catch (error) {
+    console.error('Failed to duplicate item:', error);
+  }
 }
 </script>
 

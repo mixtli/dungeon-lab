@@ -110,6 +110,32 @@ import {
   tokenDeleteArgsSchema
 } from './encounters.mjs';
 
+import {
+  // Actor event schemas
+  actorCallbackSchema,
+  actorListArgsSchema,
+  actorGetArgsSchema,
+  actorCreateArgsSchema,
+  actorUpdateArgsSchema,
+  actorDeleteArgsSchema,
+  actorCreatedSchema,
+  actorUpdatedSchema,
+  actorDeletedSchema
+} from './actors.mjs';
+
+import {
+  // Item event schemas
+  itemCallbackSchema,
+  itemListArgsSchema,
+  itemGetArgsSchema,
+  itemCreateArgsSchema,
+  itemUpdateArgsSchema,
+  itemDeleteArgsSchema,
+  itemCreatedSchema,
+  itemUpdatedSchema,
+  itemDeletedSchema
+} from './items.mjs';
+
 // Re-export all schemas for backwards compatibility
 export {
   // Chat schemas
@@ -200,7 +226,29 @@ export {
   tokenMoveArgsSchema,
   tokenCreateArgsSchema,
   tokenUpdateArgsSchema,
-  tokenDeleteArgsSchema
+  tokenDeleteArgsSchema,
+  
+  // Actor schemas
+  actorCallbackSchema,
+  actorListArgsSchema,
+  actorGetArgsSchema,
+  actorCreateArgsSchema,
+  actorUpdateArgsSchema,
+  actorDeleteArgsSchema,
+  actorCreatedSchema,
+  actorUpdatedSchema,
+  actorDeletedSchema,
+  
+  // Item schemas
+  itemCallbackSchema,
+  itemListArgsSchema,
+  itemGetArgsSchema,
+  itemCreateArgsSchema,
+  itemUpdateArgsSchema,
+  itemDeleteArgsSchema,
+  itemCreatedSchema,
+  itemUpdatedSchema,
+  itemDeletedSchema
 };
 
 // ============================================================================
@@ -236,7 +284,15 @@ export const serverToClientEvents = z.object({
   'token:moved': z.function().args(tokenMovedSchema).returns(z.void()),
   'token:created': z.function().args(tokenCreatedSchema).returns(z.void()),
   'token:updated': z.function().args(tokenUpdatedSchema).returns(z.void()),
-  'token:deleted': z.function().args(tokenDeletedSchema).returns(z.void())
+  'token:deleted': z.function().args(tokenDeletedSchema).returns(z.void()),
+  // Actor events
+  'actor:created': z.function().args(actorCreatedSchema).returns(z.void()),
+  'actor:updated': z.function().args(actorUpdatedSchema).returns(z.void()),
+  'actor:deleted': z.function().args(actorDeletedSchema).returns(z.void()),
+  // Item events
+  'item:created': z.function().args(itemCreatedSchema).returns(z.void()),
+  'item:updated': z.function().args(itemUpdatedSchema).returns(z.void()),
+  'item:deleted': z.function().args(itemDeletedSchema).returns(z.void())
 });
 
 export const clientToServerEvents = z.object({
@@ -256,5 +312,17 @@ export const clientToServerEvents = z.object({
   'token:move': z.function().args(...tokenMoveArgsSchema.items).returns(z.void()),
   'token:create': z.function().args(...tokenCreateArgsSchema.items).returns(z.void()),
   'token:update': z.function().args(...tokenUpdateArgsSchema.items).returns(z.void()),
-  'token:delete': z.function().args(...tokenDeleteArgsSchema.items).returns(z.void())
+  'token:delete': z.function().args(...tokenDeleteArgsSchema.items).returns(z.void()),
+  // Actor events (with callbacks)
+  'actor:list': z.function().args(...actorListArgsSchema.items).returns(z.void()),
+  'actor:get': z.function().args(...actorGetArgsSchema.items).returns(z.void()),
+  'actor:create': z.function().args(...actorCreateArgsSchema.items).returns(z.void()),
+  'actor:update': z.function().args(...actorUpdateArgsSchema.items).returns(z.void()),
+  'actor:delete': z.function().args(...actorDeleteArgsSchema.items).returns(z.void()),
+  // Item events (with callbacks)
+  'item:list': z.function().args(...itemListArgsSchema.items).returns(z.void()),
+  'item:get': z.function().args(...itemGetArgsSchema.items).returns(z.void()),
+  'item:create': z.function().args(...itemCreateArgsSchema.items).returns(z.void()),
+  'item:update': z.function().args(...itemUpdateArgsSchema.items).returns(z.void()),
+  'item:delete': z.function().args(...itemDeleteArgsSchema.items).returns(z.void())
 });

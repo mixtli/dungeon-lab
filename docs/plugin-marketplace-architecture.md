@@ -1,4 +1,5 @@
 # Plugin Marketplace Architecture
+NOTE:  Important:  This is for later.  We are not doing this now.  Disregard the rest off this file
 
 ## Executive Summary
 

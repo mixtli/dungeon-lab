@@ -1,8 +1,9 @@
 import { defineStore } from 'pinia';
-import { ref, watch, onMounted } from 'vue';
+import { ref, watch, onMounted, computed } from 'vue';
 import type { IActor } from '@dungeon-lab/shared/types/index.mjs';
 import { ActorsClient } from '@dungeon-lab/client/index.mjs';
 import { useSocketStore } from './socket.store.mjs';
+import { useCampaignStore } from './campaign.store.mjs';
 import type { CreateActorRequest, PatchActorRequest } from '@dungeon-lab/shared/types/api/index.mjs';
 
 const actorClient = new ActorsClient();
@@ -11,9 +12,150 @@ export const useActorStore = defineStore(
   'actor',
   () => {
     // State
+    const actors = ref<IActor[]>([]);
     const currentActor = ref<IActor | null>(null);
     const loading = ref(false);
     const error = ref<string | null>(null);
+    const lastFetched = ref<Date | null>(null);
+    
+    // Socket store for real-time communication
+    const socketStore = useSocketStore();
+    const campaignStore = useCampaignStore();
+
+    // Constants
+    const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+    // Get current game system ID
+    const currentGameSystemId = computed(() => {
+      return campaignStore.currentCampaign?.gameSystemId || null;
+    });
+
+    // Socket-based methods
+    async function fetchActors(): Promise<IActor[]> {
+      return new Promise((resolve, reject) => {
+        loading.value = true;
+        error.value = null;
+
+        if (!socketStore.socket) {
+          reject(new Error('Socket not connected'));
+          return;
+        }
+
+        const gameSystemId = currentGameSystemId.value;
+        if (!gameSystemId) {
+          reject(new Error('No active game system'));
+          return;
+        }
+
+        const filters = { gameSystemId };
+        socketStore.emit('actor:list', filters, (response: { success: boolean; data?: IActor[]; error?: string }) => {
+          if (response.success && response.data) {
+            actors.value = response.data;
+            lastFetched.value = new Date();
+            resolve(response.data);
+          } else {
+            const errorMsg = response.error || 'Failed to fetch actors';
+            error.value = errorMsg;
+            reject(new Error(errorMsg));
+          }
+          loading.value = false;
+        });
+      });
+    }
+
+    async function createActor(actorData: CreateActorRequest): Promise<IActor> {
+      return new Promise((resolve, reject) => {
+        loading.value = true;
+        error.value = null;
+
+        if (!socketStore.socket) {
+          reject(new Error('Socket not connected'));
+          return;
+        }
+
+        socketStore.emit('actor:create', actorData, (response: { success: boolean; data?: IActor; error?: string }) => {
+          if (response.success && response.data) {
+            // Note: Actor will be added to local state via broadcast event
+            resolve(response.data);
+          } else {
+            const errorMsg = response.error || 'Failed to create actor';
+            error.value = errorMsg;
+            reject(new Error(errorMsg));
+          }
+          loading.value = false;
+        });
+      });
+    }
+
+    async function updateActor(actorId: string, updateData: PatchActorRequest): Promise<IActor> {
+      return new Promise((resolve, reject) => {
+        loading.value = true;
+        error.value = null;
+
+        if (!socketStore.socket) {
+          reject(new Error('Socket not connected'));
+          return;
+        }
+
+        socketStore.emit('actor:update', { id: actorId, ...updateData }, (response: { success: boolean; data?: IActor; error?: string }) => {
+          if (response.success && response.data) {
+            // Note: Actor will be updated in local state via broadcast event
+            resolve(response.data);
+          } else {
+            const errorMsg = response.error || 'Failed to update actor';
+            error.value = errorMsg;
+            reject(new Error(errorMsg));
+          }
+          loading.value = false;
+        });
+      });
+    }
+
+    async function deleteActor(actorId: string): Promise<void> {
+      return new Promise((resolve, reject) => {
+        loading.value = true;
+        error.value = null;
+
+        if (!socketStore.socket) {
+          reject(new Error('Socket not connected'));
+          return;
+        }
+
+        socketStore.emit('actor:delete', actorId, (response: { success: boolean; error?: string }) => {
+          if (response.success) {
+            // Note: Actor will be removed from local state via broadcast event
+            resolve();
+          } else {
+            const errorMsg = response.error || 'Failed to delete actor';
+            error.value = errorMsg;
+            reject(new Error(errorMsg));
+          }
+          loading.value = false;
+        });
+      });
+    }
+
+    async function ensureActorsLoaded(forceRefresh = false): Promise<IActor[]> {
+      const now = new Date();
+      const shouldRefresh = forceRefresh || 
+        actors.value.length === 0 || 
+        !lastFetched.value || 
+        (now.getTime() - lastFetched.value.getTime()) > CACHE_DURATION;
+
+      if (shouldRefresh) {
+        try {
+          await fetchActors();
+        } catch (error) {
+          console.warn('Failed to fetch actors via socket, using existing cache:', error);
+          // If we have cached data, use it; otherwise rethrow
+          if (actors.value.length === 0) {
+            throw error;
+          }
+        }
+      }
+      
+      return actors.value;
+    }
 
     // Actions
     async function setCurrentActor(actorId: string) {
@@ -35,16 +177,86 @@ export const useActorStore = defineStore(
       }
     }
 
+    // Socket event handlers for reactive updates
+    function setupSocketHandlers() {
+      const socket = socketStore.socket;
+      if (!socket) {
+        console.log('[Actor Store] No socket available, skipping handler setup');
+        return;
+      }
 
+      console.log('[Actor Store] Setting up socket handlers. Socket connected:', socket.connected);
+
+      // Clean up any existing listeners to prevent duplicates
+      socket.off('actor:created');
+      socket.off('actor:updated');
+      socket.off('actor:deleted');
+
+      socket.on('actor:created', (actor: IActor) => {
+        console.log('[Actor Store] Actor created event received:', actor);
+        actors.value.push(actor);
+      });
+
+      socket.on('actor:updated', (updatedActor: IActor) => {
+        console.log('[Actor Store] Actor updated event received:', updatedActor);
+        const index = actors.value.findIndex(a => a.id === updatedActor.id);
+        if (index !== -1) {
+          actors.value[index] = updatedActor;
+        }
+        if (currentActor.value?.id === updatedActor.id) {
+          currentActor.value = updatedActor;
+        }
+      });
+
+      socket.on('actor:deleted', (actorId: string) => {
+        console.log('[Actor Store] Actor deleted event received:', actorId);
+        actors.value = actors.value.filter(a => a.id !== actorId);
+        if (currentActor.value?.id === actorId) {
+          currentActor.value = null;
+        }
+      });
+
+      console.log('[Actor Store] Socket handlers setup complete');
+    }
+
+    // Watch for socket changes and setup handlers
+    watch(
+      () => socketStore.socket,
+      (newSocket, oldSocket) => {
+        console.log('[Actor Store] Socket changed:', {
+          newSocketConnected: newSocket?.connected,
+          oldSocketConnected: oldSocket?.connected
+        });
+        setupSocketHandlers();
+      },
+      { immediate: true }
+    );
+
+    // Watch for socket connection status
+    watch(
+      () => socketStore.connected,
+      (isConnected) => {
+        console.log('[Actor Store] Socket connection status changed:', isConnected);
+        if (isConnected) {
+          setupSocketHandlers();
+        }
+      }
+    );
 
     return {
       // State
+      actors,
       currentActor,
       loading,
       error,
 
       // Actions
-      setCurrentActor
+      setCurrentActor,
+      fetchActors,
+      createActor,
+      updateActor,
+      deleteActor,
+      ensureActorsLoaded
     };
   },
   {
@@ -54,7 +266,11 @@ export const useActorStore = defineStore(
       serializer: {
         serialize: (state) => {
           // Custom serializer that properly handles Date objects
-          return JSON.stringify(state, (_, value) => {
+          // Only persist actors and currentActor, not socket-related state
+          return JSON.stringify({
+            actors: state.actors,
+            currentActor: state.currentActor
+          }, (_, value) => {
             // Convert Date objects to a special format with a type marker
             if (value instanceof Date) {
               return { __type: 'Date', value: value.toISOString() };

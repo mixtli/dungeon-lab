@@ -290,9 +290,10 @@ export class ItemService {
   async searchItems(query: Record<string, QueryValue>): Promise<IItem[]> {
     try {
       // Convert query to case-insensitive regex for string values
-      // Only convert simple string values, not nested paths
+      // Only convert simple string values, not nested paths or ObjectId fields
+      const objectIdFields = ['createdBy', 'updatedBy', 'imageId', 'campaignId'];
       const mongoQuery = Object.entries(query).reduce((acc, [key, value]) => {
-        if (typeof value === 'string' && !key.includes('.')) {
+        if (typeof value === 'string' && !key.includes('.') && !objectIdFields.includes(key)) {
           acc[key] = new RegExp(value, 'i');
         } else {
           acc[key] = value;
