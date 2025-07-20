@@ -32,14 +32,12 @@
     "noImplicitAny": true
   },
   "include": [
-    "src/index.mts",
-    "src/web/**/*.mts",
-    "src/web/**/*.vue"
+    "src/**/*.mts",
+    "src/**/*.vue"
   ],
   "exclude": [
     "node_modules",
     "dist",
-    "src/shared/**/*",
     "**/*.test.*",
     "**/*.spec.*"
   ],

@@ -19,7 +19,7 @@ process.stdout.write = function (
   return originalStdoutWrite(
     buffer, 
     encoding as BufferEncoding | undefined, 
-    cb as ((err?: Error) => void) | undefined
+    cb as ((err?: Error | null) => void) | undefined
   );
 };
 
@@ -33,6 +33,6 @@ process.stderr.write = function (
   return originalStderrWrite(
     buffer, 
     encoding as BufferEncoding | undefined, 
-    cb as ((err?: Error) => void) | undefined
+    cb as ((err?: Error | null) => void) | undefined
   );
 };

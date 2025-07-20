@@ -4,12 +4,12 @@
     <header class="sheet-header">
       <div class="character-info">
         <div class="character-portrait">
-          {{ character.name.charAt(0) }}
+          {{ characterData.name.charAt(0) }}
         </div>
         <div class="character-details">
-          <h1 class="character-name">{{ character.name }}</h1>
+          <h1 class="character-name">{{ characterData.name }}</h1>
           <p class="character-subtitle">
-            Level {{ character.level }} {{ character.race.name }} {{ character.classes[0]?.name }}
+            Level {{ characterData.level }} {{ characterData.race.name }} {{ characterData.classes[0]?.name }}
           </p>
         </div>
       </div>
@@ -68,7 +68,7 @@
           </div>
         </div>
         
-        <div v-if="character.inspiration" class="inspiration-section">
+        <div v-if="characterData.inspiration" class="inspiration-section">
           <div class="inspiration-indicator">
             ⭐ Inspiration
           </div>
@@ -79,7 +79,7 @@
       <div v-if="activeTab === 'abilities'" class="tab-pane abilities-tab">
         <div class="abilities-grid">
           <div 
-            v-for="(ability, abilityName) in character.abilities" 
+            v-for="(ability, abilityName) in characterData.abilities" 
             :key="abilityName"
             class="ability-card"
             @click="rollAbilityCheck(abilityName)"
@@ -95,7 +95,7 @@
           <h3>Saving Throws</h3>
           <div class="saves-grid">
             <div 
-              v-for="(save, abilityName) in character.savingThrows" 
+              v-for="(save, abilityName) in characterData.savingThrows" 
               :key="abilityName"
               class="save-item"
               @click="rollSavingThrow(abilityName)"
@@ -115,7 +115,7 @@
       <div v-if="activeTab === 'skills'" class="tab-pane skills-tab">
         <div class="skills-list">
           <div 
-            v-for="(skill, skillName) in character.skills.skills" 
+            v-for="(skill, skillName) in characterData.skills" 
             :key="skillName"
             class="skill-item"
             @click="rollSkillCheck(skillName)"
@@ -172,142 +172,96 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
+import type { DnD5eCharacterData } from './character.mjs';
+import { DEFAULT_SKILLS } from './character.mjs';
+import type { IActor } from '@dungeon-lab/shared/types/index.mjs';
 
-// D&D 5e specific character data interface
-interface DnD5eCharacterData {
-  id: string;
-  name: string;
-  level: number;
-  experience: {
-    current: number;
-    next: number;
+// Transform IActor to DnD5eCharacterData
+const characterData = computed((): DnD5eCharacterData => {
+  const actor = props.character;
+  
+  return {
+    id: actor.id,
+    name: actor.name,
+    level: actor.data?.level || 1,
+    experience: {
+      current: actor.data?.experience?.current || 0,
+      next: actor.data?.experience?.next || 300,
+    },
+    race: {
+      name: actor.data?.race?.name || actor.data?.species || 'Human',
+      size: actor.data?.race?.size || 'medium',
+    },
+    classes: actor.data?.classes || [
+      { name: 'Fighter', level: 1, hitDie: 10 }
+    ],
+    background: {
+      name: actor.data?.background?.name || actor.data?.background || 'Folk Hero',
+    },
+    abilities: actor.data?.abilities || {
+      strength: { value: 10 },
+      dexterity: { value: 10 },
+      constitution: { value: 10 },
+      intelligence: { value: 10 },
+      wisdom: { value: 10 },
+      charisma: { value: 10 },
+    },
+    savingThrows: actor.data?.savingThrows || {
+      strength: { proficient: false, bonus: 0 },
+      dexterity: { proficient: false, bonus: 0 },
+      constitution: { proficient: false, bonus: 0 },
+      intelligence: { proficient: false, bonus: 0 },
+      wisdom: { proficient: false, bonus: 0 },
+      charisma: { proficient: false, bonus: 0 },
+    },
+    skills: actor.data?.skills || DEFAULT_SKILLS,
+    hitPoints: {
+      current: actor.data?.hitPoints?.current || 8,
+      maximum: actor.data?.hitPoints?.maximum || 8,
+      temporary: actor.data?.hitPoints?.temporary || 0,
+    },
+    armorClass: {
+      total: actor.data?.armorClass || 10,
+      base: 10,
+      modifiers: [],
+    },
+    initiative: {
+      bonus: actor.data?.initiative || 0,
+    },
+    combat: {
+      speed: {
+        walking: actor.data?.speed || 30,
+      },
+    },
+    inspiration: actor.data?.inspiration || false,
+    deathSaves: {
+      successes: actor.data?.deathSaves?.successes || 0,
+      failures: actor.data?.deathSaves?.failures || 0,
+    },
+    hitDice: {
+      current: actor.data?.hitDice?.current || 1,
+      maximum: actor.data?.hitDice?.maximum || 1,
+      type: actor.data?.hitDice?.type || 'd10',
+    },
+    spells: actor.data?.spells || {
+      spellcastingAbility: 'intelligence',
+      spellAttackBonus: 0,
+      spellSaveDC: 8,
+      slots: {},
+      known: [],
+    },
+    equipment: actor.data?.equipment || {
+      weapons: [],
+      armor: [],
+      items: [],
+      currency: { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 },
+    },
   };
-  race: {
-    name: string;
-    size: string;
-    features?: Array<{
-      name: string;
-      description: string;
-    }>;
-  };
-  classes: Array<{
-    name: string;
-    level: number;
-    hitDie: number;
-    features?: Array<{
-      name: string;
-      description: string;
-    }>;
-  }>;
-  background: {
-    name: string;
-    personalityTraits?: string;
-    ideals?: string;
-    bonds?: string;
-    flaws?: string;
-  };
-  abilities: {
-    strength: { value: number };
-    dexterity: { value: number };
-    constitution: { value: number };
-    intelligence: { value: number };
-    wisdom: { value: number };
-    charisma: { value: number };
-  };
-  savingThrows: {
-    strength: { proficient: boolean; bonus: number };
-    dexterity: { proficient: boolean; bonus: number };
-    constitution: { proficient: boolean; bonus: number };
-    intelligence: { proficient: boolean; bonus: number };
-    wisdom: { proficient: boolean; bonus: number };
-    charisma: { proficient: boolean; bonus: number };
-  };
-  skills: {
-    skills: Record<string, {
-      ability: string;
-      proficiency: 'none' | 'proficient' | 'expertise' | 'half';
-      modifiers: number[];
-    }>;
-  };
-  hitPoints: {
-    current: number;
-    maximum: number;
-    temporary: number;
-  };
-  armorClass: {
-    total: number;
-    base: number;
-    modifiers: number[];
-  };
-  initiative: {
-    bonus: number;
-  };
-  combat: {
-    speed: {
-      walking: number;
-    };
-  };
-  inspiration: boolean;
-  deathSaves: {
-    successes: number;
-    failures: number;
-  };
-  hitDice: {
-    current: number;
-    maximum: number;
-    type: string;
-  };
-  spells: {
-    spellcastingAbility: string;
-    spellAttackBonus: number;
-    spellSaveDC: number;
-    slots: Record<string, { current: number; maximum: number }>;
-    known: Array<{
-      id: string;
-      name: string;
-      level: number;
-      school: string;
-      description: string;
-    }>;
-  };
-  equipment: {
-    weapons: Array<{
-      name: string;
-      damage: string;
-      damageType: string;
-      properties: string[];
-    }>;
-    armor: Array<{
-      name: string;
-      ac: number;
-      type: string;
-    }>;
-    items: Array<{
-      name: string;
-      quantity: number;
-      weight: number;
-    }>;
-    currency: {
-      cp: number;
-      sp: number;
-      ep: number;
-      gp: number;
-      pp: number;
-    };
-  };
-  // Additional character properties
-  otherFeatures?: Array<{
-    name: string;
-    description: string;
-  }>;
-  notes?: string;
-  alliesAndOrganizations?: string;
-  additionalFeatures?: string;
-}
+});
 
 // Props
 interface Props {
-  character: DnD5eCharacterData;
+  character: IActor;
   readonly?: boolean;
 }
 
@@ -317,8 +271,8 @@ const props = withDefaults(defineProps<Props>(), {
 
 // Emits
 const emit = defineEmits<{
-  'update:character': [character: DnD5eCharacterData];
-  'save': [character: DnD5eCharacterData];
+  'update:character': [character: IActor];
+  'save': [character: IActor];
   'roll': [rollType: string, data: Record<string, unknown>];
   'close': [];
 }>();
@@ -343,19 +297,19 @@ const tabs = [
 // Computed properties for D&D 5e mechanics
 const abilityModifiers = computed(() => {
   const modifiers: Record<string, number> = {};
-  for (const [abilityName, ability] of Object.entries(props.character.abilities)) {
+  for (const [abilityName, ability] of Object.entries(characterData.value.abilities)) {
     modifiers[abilityName] = Math.floor((ability.value - 10) / 2);
   }
   return modifiers;
 });
 
 const proficiencyBonus = computed(() => {
-  return Math.ceil(props.character.level / 4) + 1;
+  return Math.ceil(characterData.value.level / 4) + 1;
 });
 
 const savingThrowBonuses = computed(() => {
   const bonuses: Record<string, number> = {};
-  for (const [abilityName, savingThrow] of Object.entries(props.character.savingThrows)) {
+  for (const [abilityName, savingThrow] of Object.entries(characterData.value.savingThrows)) {
     const abilityMod = abilityModifiers.value[abilityName] || 0;
     const profBonus = savingThrow.proficient ? proficiencyBonus.value : 0;
     bonuses[abilityName] = abilityMod + profBonus + savingThrow.bonus;
@@ -365,7 +319,8 @@ const savingThrowBonuses = computed(() => {
 
 const skillBonuses = computed(() => {
   const bonuses: Record<string, number> = {};
-  for (const [skillName, skill] of Object.entries(props.character.skills.skills)) {
+  const skillsData = characterData.value.skills || {};
+  for (const [skillName, skill] of Object.entries(skillsData)) {
     const abilityMod = abilityModifiers.value[skill.ability] || 0;
     let profBonus = 0;
     
@@ -388,27 +343,27 @@ const passivePerception = computed(() => {
 });
 
 const armorClassDisplay = computed(() => {
-  return props.character.armorClass.total;
+  return characterData.value.armorClass.total;
 });
 
 const hitPointsDisplay = computed(() => {
-  return `${props.character.hitPoints.current}/${props.character.hitPoints.maximum}`;
+  return `${characterData.value.hitPoints.current}/${characterData.value.hitPoints.maximum}`;
 });
 
 const speedDisplay = computed(() => {
-  return `${props.character.combat.speed.walking} ft`;
+  return `${characterData.value.combat.speed.walking} ft`;
 });
 
 const initiativeBonus = computed(() => {
   const dexMod = abilityModifiers.value.dexterity || 0;
-  const bonus = dexMod + (props.character.initiative?.bonus || 0);
+  const bonus = dexMod + (characterData.value.initiative?.bonus || 0);
   return bonus >= 0 ? `+${bonus}` : `${bonus}`;
 });
 
 // Reactive notes for textarea editing
 const characterNotes = computed({
   get() {
-    return props.character.notes || '';
+    return characterData.value.notes || '';
   },
   set(value: string) {
     updateCharacter({ notes: value });
@@ -444,7 +399,7 @@ const rollSavingThrow = (ability: string) => {
 
 const rollSkillCheck = (skill: string) => {
   const bonus = skillBonuses.value[skill] || 0;
-  const ability = props.character.skills.skills[skill]?.ability || '';
+  const ability = characterData.value.skills?.[skill]?.ability || '';
   emit('roll', 'skill-check', {
     type: 'skill-check',
     skill,
@@ -457,7 +412,7 @@ const rollSkillCheck = (skill: string) => {
 
 const rollInitiative = () => {
   const dexModifier = abilityModifiers.value.dexterity || 0;
-  const totalBonus = dexModifier + (props.character.initiative?.bonus || 0);
+  const totalBonus = dexModifier + (characterData.value.initiative?.bonus || 0);
   emit('roll', 'initiative', {
     type: 'initiative',
     modifier: totalBonus,
@@ -471,7 +426,7 @@ const switchTab = (tabId: string) => {
 };
 
 const updateCharacter = (updates: Partial<DnD5eCharacterData>) => {
-  const updatedCharacter = { ...props.character, ...updates };
+  const updatedCharacter = { ...props.character, data: { ...props.character.data, ...updates } };
   isDirty.value = true;
   emit('update:character', updatedCharacter);
 };
@@ -933,7 +888,7 @@ h3 {
 onMounted(() => {
   injectStyles();
   document.addEventListener('keydown', handleKeyDown);
-  console.log('D&D 5e Character Sheet mounted for character:', props.character.name);
+  console.log('D&D 5e Character Sheet mounted for character:', characterData.value.name);
 });
 
 onUnmounted(() => {

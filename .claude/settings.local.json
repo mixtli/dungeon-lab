@@ -22,7 +22,8 @@
       "Bash(touch:*)",
       "Bash(npm run:*)",
       "Bash(npx tsc:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(cp:*)"
     ]
   },
   "enabledMcpjsonServers": [

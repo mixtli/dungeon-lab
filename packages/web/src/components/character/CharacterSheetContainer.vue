@@ -94,110 +94,13 @@ const characterSheetComponent = computed(() => {
   return null;
 });
 
-// Convert IActor to the format expected by the character sheet
+// Pass the raw character data directly to the plugin component
+// The plugin is responsible for interpreting and providing fallbacks for its own data structure
 const characterSheetData = computed(() => {
   if (!props.character) return null;
-
-  // Transform the IActor data to match DnD5eCharacterData interface
-  // This is a simplified transformation - in a real app you'd have proper data mapping
-  return {
-    id: props.character.id,
-    name: props.character.name,
-    level: props.character.data?.level || 1,
-    experience: {
-      current: props.character.data?.experience?.current || 0,
-      next: props.character.data?.experience?.next || 300,
-    },
-    race: {
-      name: props.character.data?.race?.name || props.character.data?.species || 'Human',
-      size: props.character.data?.race?.size || 'medium',
-    },
-    classes: props.character.data?.classes || [
-      { name: 'Fighter', level: 1, hitDie: 10 }
-    ],
-    background: {
-      name: props.character.data?.background?.name || props.character.data?.background || 'Folk Hero',
-    },
-    abilities: props.character.data?.abilities || {
-      strength: { value: 10 },
-      dexterity: { value: 10 },
-      constitution: { value: 10 },
-      intelligence: { value: 10 },
-      wisdom: { value: 10 },
-      charisma: { value: 10 },
-    },
-    savingThrows: props.character.data?.savingThrows || {
-      strength: { proficient: false, bonus: 0 },
-      dexterity: { proficient: false, bonus: 0 },
-      constitution: { proficient: false, bonus: 0 },
-      intelligence: { proficient: false, bonus: 0 },
-      wisdom: { proficient: false, bonus: 0 },
-      charisma: { proficient: false, bonus: 0 },
-    },
-    skills: props.character.data?.skills || {
-      skills: {
-        athletics: { ability: 'strength', proficiency: 'none', modifiers: [] },
-        acrobatics: { ability: 'dexterity', proficiency: 'none', modifiers: [] },
-        'sleight-of-hand': { ability: 'dexterity', proficiency: 'none', modifiers: [] },
-        stealth: { ability: 'dexterity', proficiency: 'none', modifiers: [] },
-        arcana: { ability: 'intelligence', proficiency: 'none', modifiers: [] },
-        history: { ability: 'intelligence', proficiency: 'none', modifiers: [] },
-        investigation: { ability: 'intelligence', proficiency: 'none', modifiers: [] },
-        nature: { ability: 'intelligence', proficiency: 'none', modifiers: [] },
-        religion: { ability: 'intelligence', proficiency: 'none', modifiers: [] },
-        'animal-handling': { ability: 'wisdom', proficiency: 'none', modifiers: [] },
-        insight: { ability: 'wisdom', proficiency: 'none', modifiers: [] },
-        medicine: { ability: 'wisdom', proficiency: 'none', modifiers: [] },
-        perception: { ability: 'wisdom', proficiency: 'none', modifiers: [] },
-        survival: { ability: 'wisdom', proficiency: 'none', modifiers: [] },
-        deception: { ability: 'charisma', proficiency: 'none', modifiers: [] },
-        intimidation: { ability: 'charisma', proficiency: 'none', modifiers: [] },
-        performance: { ability: 'charisma', proficiency: 'none', modifiers: [] },
-        persuasion: { ability: 'charisma', proficiency: 'none', modifiers: [] },
-      }
-    },
-    hitPoints: {
-      current: props.character.data?.hitPoints?.current || 8,
-      maximum: props.character.data?.hitPoints?.maximum || 8,
-      temporary: props.character.data?.hitPoints?.temporary || 0,
-    },
-    armorClass: {
-      total: props.character.data?.armorClass || 10,
-      base: 10,
-      modifiers: [],
-    },
-    initiative: {
-      bonus: props.character.data?.initiative || 0,
-    },
-    combat: {
-      speed: {
-        walking: props.character.data?.speed || 30,
-      },
-    },
-    inspiration: props.character.data?.inspiration || false,
-    deathSaves: {
-      successes: props.character.data?.deathSaves?.successes || 0,
-      failures: props.character.data?.deathSaves?.failures || 0,
-    },
-    hitDice: {
-      current: props.character.data?.hitDice?.current || 1,
-      maximum: props.character.data?.hitDice?.maximum || 1,
-      type: props.character.data?.hitDice?.type || 'd10',
-    },
-    spells: props.character.data?.spells || {
-      spellcastingAbility: 'intelligence',
-      spellAttackBonus: 0,
-      spellSaveDC: 8,
-      slots: {},
-      known: [],
-    },
-    equipment: props.character.data?.equipment || {
-      weapons: [],
-      armor: [],
-      items: [],
-      currency: { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 },
-    },
-  };
+  
+  // Just pass the raw IActor - the plugin component should handle its own data transformation
+  return props.character;
 });
 
 function handleCharacterUpdate(updatedCharacter: Record<string, unknown>) {

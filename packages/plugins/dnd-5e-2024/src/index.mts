@@ -10,7 +10,7 @@ import type { ComponentRegistry } from '@dungeon-lab/shared/types/component-regi
 import type { MechanicsRegistry } from '@dungeon-lab/shared/types/mechanics-registry.mjs';
 
 // Import the full featured character sheet component
-import DnD5eCharacterSheet from './web/components/character-sheet.vue';
+import DnD5eCharacterSheet from './character-sheet.vue';
 
 /**
  * D&D 5th Edition (2024) Plugin Implementation - Minimal Version

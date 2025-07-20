@@ -87,7 +87,7 @@ onMounted(() => {
           @click="router.push({ name: 'map-create' })"
           class="btn btn-success shadow-lg"
         >
-          ➕ Create New Map
+          ➕ Create New Map2
         </button>
       </div>
     </div>
