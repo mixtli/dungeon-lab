@@ -87,6 +87,7 @@ class ComponentRegistryImpl implements ComponentRegistry {
 export class PluginRegistryService {
   private clientPlugins: Map<string, GameSystemPlugin> = new Map();
   private loadedPlugins: Map<string, GameSystemPlugin> = new Map();
+  private pluginContexts: Map<string, PluginContext> = new Map();
   private initialized = false;
   private componentRegistry = new ComponentRegistryImpl();
   private mechanicsRegistry = new MechanicsRegistryImpl();
@@ -233,6 +234,13 @@ export class PluginRegistryService {
   }
   
   /**
+   * Get plugin context by plugin ID
+   */
+  getPluginContext(pluginId: string): PluginContext | undefined {
+    return this.pluginContexts.get(pluginId);
+  }
+  
+  /**
    * Force re-initialization of a plugin (for debugging)
    */
   async forceReinitializePlugin(gameSystemId: string): Promise<void> {
@@ -283,6 +291,9 @@ export class PluginRegistryService {
       
       // Create plugin context
       const context = this.createPluginContext(plugin);
+      
+      // Store context for later retrieval
+      this.pluginContexts.set(plugin.id, context);
       
       // Call plugin onLoad
       await plugin.onLoad(context);

@@ -3,7 +3,7 @@ import vue from '@vitejs/plugin-vue';
 import path from 'path';
 import tailwindcss from 'tailwindcss';
 import autoprefixer from 'autoprefixer';
-import { pluginHMR } from './src/vite-plugins/plugin-hmr.mjs';
+// import { pluginHMR } from './src/vite-plugins/plugin-hmr.mjs';
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode, command }) => {
@@ -23,8 +23,8 @@ export default defineConfig(({ mode, command }) => {
       // Vue plugin
       vue(),
       
-      // Plugin hot module reload support
-      ...(isDev ? [pluginHMR()] : [])
+      // Plugin hot module reload support  
+      // ...(isDev ? [pluginHMR()] : [])
     ],
     resolve: {
       alias: {

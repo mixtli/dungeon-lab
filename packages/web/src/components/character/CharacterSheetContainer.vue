@@ -2,8 +2,8 @@
   <div v-if="show" class="character-sheet-container">
     <!-- Plugin Container with Style Isolation -->
     <PluginContainer
-      :width="576"
-      :height="384"
+      width="100%"
+      height="100%"
       background-color="#ffffff"
     >
       <!-- D&D 5e Character Sheet Component -->
@@ -11,6 +11,7 @@
         :is="characterSheetComponent"
         v-if="characterSheetComponent && character"
         :character="characterSheetData"
+        :context="pluginContext"
         :readonly="readonly"
         @update:character="handleCharacterUpdate"
         @save="handleSave"
@@ -103,6 +104,19 @@ const characterSheetData = computed(() => {
   return props.character;
 });
 
+// Get plugin context for event communication
+const pluginContext = computed(() => {
+  if (!props.character?.gameSystemId) return null;
+  
+  // Map game system ID to plugin ID
+  let pluginId = props.character.gameSystemId;
+  if (pluginId === 'dnd5e-2024' || pluginId === 'dnd-5e-2024') {
+    pluginId = 'dnd-5e-2024';
+  }
+  
+  return pluginRegistry.getPluginContext(pluginId);
+});
+
 function handleCharacterUpdate(updatedCharacter: Record<string, unknown>) {
   if (!props.character) return;
   
@@ -147,8 +161,6 @@ function getActiveGameSystem() {
 .character-sheet-container {
   width: 100%;
   height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: block;
 }
 </style>

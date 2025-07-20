@@ -21,8 +21,8 @@ const props = defineProps<{
 
 // Convert dimensions to consistent units (pixels)
 const containerStyle = computed(() => {
-  const width = typeof props.width === 'number' ? `${props.width}px` : props.width || '576px';
-  const height = typeof props.height === 'number' ? `${props.height}px` : props.height || '384px';
+  const width = typeof props.width === 'number' ? `${props.width}px` : props.width || '100%';
+  const height = typeof props.height === 'number' ? `${props.height}px` : props.height || '100%';
   const backgroundColor = props.backgroundColor || '#ffffff';
   
   return {
@@ -38,6 +38,8 @@ const containerStyle = computed(() => {
   /* Ensure plugin container doesn't inherit styles */
   position: relative;
   display: block;
+  width: 100%;
+  height: 100%;
   
   /* Create a containing block for the plugin */
   contain: layout style paint;
@@ -130,7 +132,7 @@ const containerStyle = computed(() => {
   
   /* Ensure plugins can't escape this container */
   contain: layout style;
-  overflow: hidden;
+  overflow: auto;
 }
 
 /* Reset common element styles within the plugin container */

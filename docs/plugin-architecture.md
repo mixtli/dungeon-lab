@@ -29,7 +29,7 @@ The plugin system consists of several key components:
 - **PluginContext**: Provides plugins with application access
   - socket: Socket.io event system for all real-time communication
   - store: Key-value storage for plugin state
-  - events: Plugin-specific event emission and subscription
+  - events: Plugin-specific event emission and subscription for framework communication
 
 - **ComponentRegistry**: Manages Vue 3 components
   - register(), get(), getByPlugin(), unregister()
@@ -41,8 +41,8 @@ The plugin system consists of several key components:
 
 - **PluginRegistryService**: Main client-side registry
   - Loads plugins via socket communication
-  - Manages plugin lifecycle
-  - Provides plugin access to app
+  - Manages plugin lifecycle and context storage
+  - Provides plugin access to app and context retrieval
 
 - **ComponentRegistryImpl**: Concrete component registry
 - **MechanicsRegistryImpl**: Concrete mechanics registry
@@ -132,12 +132,14 @@ classDiagram
     %% Client-Side Implementations
     class PluginRegistryService {
         -clientPlugins: Map
+        -pluginContexts: Map
         -initialized: boolean
         +initialize(): Promise~void~
         +getPlugins(): GameSystemPlugin[]
         +getGameSystemPlugin(id: string): GameSystemPlugin
         +loadGameSystemPlugin(id: string): Promise~GameSystemPlugin~
         +loadPluginsFromServer(): Promise~void~
+        +getPluginContext(pluginId: string): PluginContext
     }
 
     class ComponentRegistryImpl {
@@ -495,6 +497,21 @@ export default {
 
 ### Plugin Package Structure
 
+Plugins can use either a simple flat structure or organized subdirectories based on complexity:
+
+#### Simple Structure (Recommended for most plugins)
+```
+packages/plugins/my-game/
+├── package.json          # Plugin metadata
+├── src/
+│   ├── index.mts        # Plugin entry point
+│   ├── component.vue    # Main Vue component
+│   ├── types.mts        # Plugin-specific types
+│   └── mechanics.mts    # Game mechanics
+└── dist/                # Built output
+```
+
+#### Complex Structure (For large, multi-faceted plugins)
 ```
 packages/plugins/my-game/
 ├── package.json          # Plugin metadata
@@ -503,7 +520,7 @@ packages/plugins/my-game/
 │   ├── web/             # Client-side code
 │   │   ├── components/  # Vue components
 │   │   └── mechanics/   # Client mechanics
-│   ├── server/          # Server-side code
+│   ├── server/          # Server-side code (if needed)
 │   └── shared/          # Shared types/utils
 └── dist/                # Built output
 ```
@@ -529,6 +546,75 @@ The PluginContext provides plugins with controlled access to the application:
 1. **Socket Communication**: Real-time bidirectional communication via Socket.io events
 2. **State Management**: Plugin-specific reactive store
 3. **Event System**: Communication with other plugins and the main app
+
+## Plugin-Framework Communication Patterns
+
+### Window Management Events
+
+Plugins can emit special events to communicate with the framework for window management:
+
+```typescript
+// Plugin emits window events
+context.events.emit('window:close');              // Request window closure
+context.events.emit('window:drag-start', {        // Request drag operation
+  startX: event.clientX,
+  startY: event.clientY
+});
+context.events.emit('window:minimize');           // Request minimize/restore
+```
+
+### Framework Event Listening
+
+The framework listens for plugin events and handles window management accordingly:
+
+```typescript
+// Framework listens for plugin window events
+context.events.on('window:close', () => {
+  // Close the floating window
+  windowStore.closeWindow(windowId);
+});
+
+context.events.on('window:drag-start', (data) => {
+  // Start drag operation for the window
+  startWindowDrag(data.startX, data.startY);
+});
+```
+
+### Plugin Component Props
+
+Plugin components receive the PluginContext as an optional prop for framework communication:
+
+```typescript
+// Plugin component receives context
+interface Props {
+  character: IActor;
+  context?: PluginContext;  // Optional for backwards compatibility
+  readonly?: boolean;
+}
+
+// Usage in plugin component
+const closeSheet = () => {
+  if (props.context?.events) {
+    props.context.events.emit('window:close');
+  }
+  // Fallback to regular event emission
+  emit('close');
+};
+```
+
+### Fallback Support
+
+The framework provides fallback UI if plugins don't implement event communication:
+
+```typescript
+// Framework shows fallback chrome if no plugin events received
+setTimeout(() => {
+  const hasPluginContext = pluginRegistry.getPluginContext(pluginId);
+  if (!hasPluginContext) {
+    showFrameworkChrome.value = true; // Show framework-provided controls
+  }
+}, 1000);
+```
 
 ### Socket API Usage Examples
 
@@ -605,6 +691,48 @@ A proper implementation includes:
 3. Reactive plugin-specific stores updated via socket events
 4. Event routing and permission management through socket middleware
 
+## Implementation Lessons Learned
+
+### Real-World Plugin Development
+
+The D&D 5e 2024 plugin implementation revealed several important architectural insights:
+
+#### 1. **Flexible Directory Structure**
+- Simple flat structures work well for most plugins
+- Complex web/server/shared separation only needed for large, multi-faceted plugins
+- Plugin complexity should drive structure choice, not rigid templates
+
+#### 2. **Event-Based UI Framework Integration**
+- Plugin events enable clean separation between plugin UI and framework concerns
+- Window management through events allows plugins complete control over their appearance
+- Fallback mechanisms ensure functionality even without event implementation
+
+#### 3. **Context Storage and Retrieval**
+- Framework needs to store and provide access to plugin contexts
+- Components need access to plugin context for framework communication
+- Optional context props maintain backwards compatibility
+
+#### 4. **Progressive Enhancement Pattern**
+- Plugins can work with basic Vue events
+- Adding context enables advanced framework integration
+- Framework provides fallbacks for missing plugin features
+
+#### 5. **Component Flexibility**
+- Plugins benefit from controlling their own UI styling and layout
+- Framework should provide window management without constraining plugin design
+- Event delegation allows for sophisticated UI interactions
+
+### Architectural Validation
+
+Our implementation successfully validated these core architectural principles:
+
+✅ **Plugin Isolation**: No direct imports between plugin and main app  
+✅ **Interface-Based Communication**: All communication through defined contracts  
+✅ **Event-Driven Architecture**: UI management through event system  
+✅ **Registry Pattern**: Component and mechanics registration works effectively  
+✅ **Vue 3 Integration**: Modern reactive patterns with TypeScript support  
+✅ **Backwards Compatibility**: Incremental adoption of framework features  
+
 ## Future Enhancements
 
 1. **Hot Module Replacement**: Development-time plugin reloading via socket events
@@ -615,3 +743,5 @@ A proper implementation includes:
 6. **Event Sandboxing**: Isolate plugin socket events for security and performance
 7. **Event Middleware**: Plugin-specific event processing and validation
 8. **Real-time Plugin Collaboration**: Multi-user plugin interactions via shared socket rooms
+9. **Advanced Window Management**: Support for modal dialogs, multi-window plugins, and workspace layouts
+10. **Plugin Testing Framework**: Automated testing tools for plugin component and event validation

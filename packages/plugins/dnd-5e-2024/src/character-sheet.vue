@@ -1,7 +1,7 @@
 <template>
   <div class="dnd5e-character-sheet">
     <!-- Header -->
-    <header class="sheet-header">
+    <header class="sheet-header" @mousedown="startDrag">
       <div class="character-info">
         <div class="character-portrait">
           {{ characterData.name.charAt(0) }}
@@ -174,7 +174,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import type { DnD5eCharacterData } from './character.mjs';
 import { DEFAULT_SKILLS } from './character.mjs';
-import type { IActor } from '@dungeon-lab/shared/types/index.mjs';
+import type { IActor, PluginContext } from '@dungeon-lab/shared/types/index.mjs';
 
 // Transform IActor to DnD5eCharacterData
 const characterData = computed((): DnD5eCharacterData => {
@@ -262,6 +262,7 @@ const characterData = computed((): DnD5eCharacterData => {
 // Props
 interface Props {
   character: IActor;
+  context?: PluginContext;
   readonly?: boolean;
 }
 
@@ -437,7 +438,31 @@ const saveCharacter = () => {
 };
 
 const closeSheet = () => {
+  // Emit window event via plugin context if available
+  if (props.context?.events) {
+    props.context.events.emit('window:close');
+  }
+  // Also emit the regular close event for backwards compatibility
   emit('close');
+};
+
+// Window drag functionality
+const startDrag = (event: MouseEvent) => {
+  // Don't start drag if clicking on buttons or other interactive elements
+  const target = event.target as HTMLElement;
+  if (target.tagName === 'BUTTON' || target.closest('button')) {
+    return;
+  }
+  
+  // Emit drag start event via plugin context if available
+  if (props.context?.events) {
+    props.context.events.emit('window:drag-start', {
+      startX: event.clientX,
+      startY: event.clientY
+    });
+  }
+  
+  event.preventDefault();
 };
 
 // Keyboard navigation
@@ -480,8 +505,10 @@ const injectStyles = () => {
 
 /* Main Container */
 .dnd5e-character-sheet {
-  width: 576px;
-  height: 384px;
+  width: 100%;
+  height: 100%;
+  min-width: 900px;
+  min-height: 600px;
   background: var(--dnd-parchment);
   border: 2px solid var(--dnd-brown);
   border-radius: 12px;

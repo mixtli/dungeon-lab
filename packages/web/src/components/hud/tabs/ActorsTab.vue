@@ -89,32 +89,19 @@
         Create NPC
       </button>
     </div>
-
-    <!-- Character Sheet Container -->
-    <CharacterSheetContainer
-      :show="showCharacterSheet"
-      :character="selectedCharacter"
-      @close="closeCharacterSheet"
-      @update:character="handleCharacterUpdate"
-      @save="handleCharacterSave"
-      @roll="handleDiceRoll"
-    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useActorStore } from '../../../stores/actor.store.mjs';
+import { useCharacterSheetStore } from '../../../stores/character-sheet.store.mjs';
 import type { IActor } from '@dungeon-lab/shared/types/index.mjs';
-import CharacterSheetContainer from '../../character/CharacterSheetContainer.vue';
 
 const actorStore = useActorStore();
+const characterSheetStore = useCharacterSheetStore();
 const searchQuery = ref('');
 const activeFilter = ref('all');
-
-// Character sheet modal state
-const showCharacterSheet = ref(false);
-const selectedCharacter = ref<IActor | null>(null);
 
 const filterOptions = [
   { id: 'all', label: 'All' },
@@ -180,46 +167,9 @@ async function editActor(actor: IActor): Promise<void> {
 
 // Character sheet functions
 function openCharacterSheet(actor: IActor): void {
-  selectedCharacter.value = actor;
-  showCharacterSheet.value = true;
+  characterSheetStore.openCharacterSheet(actor);
 }
 
-function closeCharacterSheet(): void {
-  showCharacterSheet.value = false;
-  selectedCharacter.value = null;
-}
-
-async function handleCharacterUpdate(updatedCharacter: IActor): Promise<void> {
-  try {
-    await actorStore.updateActor(updatedCharacter.id, {
-      name: updatedCharacter.name,
-      data: updatedCharacter.data
-    });
-    console.log('Character updated:', updatedCharacter.name);
-  } catch (error) {
-    console.error('Failed to update character:', error);
-  }
-}
-
-async function handleCharacterSave(character: IActor): Promise<void> {
-  try {
-    await actorStore.updateActor(character.id, {
-      name: character.name,
-      data: character.data
-    });
-    console.log('Character saved:', character.name);
-    closeCharacterSheet();
-  } catch (error) {
-    console.error('Failed to save character:', error);
-  }
-}
-
-function handleDiceRoll(rollType: string, data: Record<string, unknown>): void {
-  console.log('Dice roll requested:', rollType, data);
-  // TODO: Integrate with dice rolling system
-  // const diceStore = useDiceStore();
-  // diceStore.roll(data.expression, { title: data.title });
-}
 
 </script>
 
