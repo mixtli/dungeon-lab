@@ -9,21 +9,21 @@
     "displayName": "D&D 5e (2024)",
     "gameSystem": "dnd-5e-2024"
   },
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
   "scripts": {
-    "build": "echo 'Plugin build completed - runtime discovery used'",
+    "build": "npm run clean && vue-tsc --project tsconfig.json",
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
-    "dev": "echo 'Plugin dev mode - runtime discovery used'",
     "check": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "@dungeon-lab/shared": "workspace:*",
-    "vue": "^3.3.4"
+    "@dungeon-lab/shared": "file:../../shared/src",
+    "vue": "^3.5.13"
   },
   "devDependencies": {
     "@types/node": "^20.4.0",
-    "typescript": "^5.1.6"
+    "typescript": "^5.8.3",
+    "vue-tsc": "^3.0.3"
   },
   "files": [
     "dist/**/*",

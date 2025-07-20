@@ -1,190 +1,98 @@
 import type { 
   GameSystemPlugin, 
-  PluginContext,
-  PluginStore,
-  PluginEventSystem
+  PluginContext
 } from '@dungeon-lab/shared/types/plugin.mjs';
-import type { ComponentRegistry, ComponentMetadata, PluginComponent } from '@dungeon-lab/shared/types/component-registry.mjs';
-import type { MechanicsRegistry, GameMechanic, MechanicMetadata } from '@dungeon-lab/shared/types/mechanics-registry.mjs';
-import { PluginComponentUtils } from '@dungeon-lab/shared/base/vue-component.mjs';
+import type { ComponentRegistry, ComponentMetadata } from '@dungeon-lab/shared/types/component-registry.mjs';
+import type { Component } from 'vue';
+import { MechanicsRegistryImpl } from './plugin-implementations/mechanics-registry-impl.mjs';
+import { PluginContextImpl } from './plugin-implementations/plugin-context-impl.mjs';
+
+// Static import for D&D 5e plugin using package dependency
+import DnD5ePlugin from '@dungeon-lab/plugin-dnd-5e-2024';
 
 /**
  * Component registry implementation
  */
 class ComponentRegistryImpl implements ComponentRegistry {
-  private components = new Map<string, { component: PluginComponent; metadata: ComponentMetadata }>();
+  private components = new Map<string, { component: Component; metadata: ComponentMetadata }>();
   
-  register(id: string, component: PluginComponent, metadata?: ComponentMetadata): void {
+  register(id: string, component: Component, metadata?: ComponentMetadata): void {
     if (this.components.has(id)) {
-      console.warn(`Component ${id} is already registered, overwriting`);
+      console.warn(`Component with id '${id}' already exists, overwriting`);
     }
     
-    const fullMetadata: ComponentMetadata = {
-      pluginId: metadata?.pluginId || 'unknown',
-      name: metadata?.name || id,
-      description: metadata?.description,
-      category: metadata?.category,
-      props: metadata?.props,
-      events: metadata?.events,
-      hotReloadable: metadata?.hotReloadable ?? true
+    const meta: ComponentMetadata = metadata || {
+      pluginId: 'unknown',
+      name: id
     };
     
-    this.components.set(id, { component, metadata: fullMetadata });
+    this.components.set(id, { component, metadata: meta });
+    console.log(`[ComponentRegistry] Registered component '${id}' for plugin '${meta.pluginId}'`);
   }
   
-  get(id: string): PluginComponent | undefined {
-    return this.components.get(id)?.component;
+  get(id: string): Component | undefined {
+    const entry = this.components.get(id);
+    return entry?.component;
   }
   
   getByPlugin(pluginId: string) {
-    const result = [];
-    for (const [id, { component, metadata }] of this.components) {
+    const entries = [];
+    for (const [id, { component, metadata }] of this.components.entries()) {
       if (metadata.pluginId === pluginId) {
-        result.push({ id, component, metadata });
+        entries.push({ id, component, metadata });
       }
     }
-    return result;
+    return entries;
   }
   
-  unregister(id: string): boolean {
-    return this.components.delete(id);
-  }
-  
-  list(): Array<{ id: string; component: PluginComponent; metadata: ComponentMetadata }> {
-    const result = [];
-    for (const [id, { component, metadata }] of this.components) {
-      result.push({ id, component, metadata });
+  unregister(id: string): void {
+    const entry = this.components.get(id);
+    if (entry) {
+      this.components.delete(id);
+      console.log(`[ComponentRegistry] Unregistered component '${id}' from plugin '${entry.metadata.pluginId}'`);
     }
-    return result;
   }
-
+  
   unregisterByPlugin(pluginId: string): void {
-    for (const [id, { metadata }] of this.components) {
+    const componentsToRemove: string[] = [];
+    
+    for (const [id, { metadata }] of this.components.entries()) {
       if (metadata.pluginId === pluginId) {
-        this.components.delete(id);
+        componentsToRemove.push(id);
       }
-    }
-  }
-}
-
-/**
- * Mechanics registry implementation
- */
-class MechanicsRegistryImpl implements MechanicsRegistry {
-  private mechanics = new Map<string, { mechanic: GameMechanic; metadata: MechanicMetadata }>();
-  
-  register(id: string, mechanic: GameMechanic, metadata?: MechanicMetadata): void {
-    if (this.mechanics.has(id)) {
-      console.warn(`Mechanic ${id} is already registered, overwriting`);
     }
     
-    const fullMetadata: MechanicMetadata = {
-      pluginId: metadata?.pluginId || 'unknown',
-      name: metadata?.name || id,
-      description: metadata?.description,
-      category: metadata?.category,
-      version: metadata?.version || '1.0.0'
-    };
+    for (const id of componentsToRemove) {
+      this.components.delete(id);
+    }
     
-    this.mechanics.set(id, { mechanic, metadata: fullMetadata });
+    console.log(`[ComponentRegistry] Unregistered ${componentsToRemove.length} components for plugin '${pluginId}'`);
   }
   
-  get(id: string): GameMechanic | undefined {
-    return this.mechanics.get(id)?.mechanic;
-  }
-  
-  getByPlugin(pluginId: string) {
-    const result = [];
-    for (const [id, { mechanic, metadata }] of this.mechanics) {
-      if (metadata.pluginId === pluginId) {
-        result.push({ id, mechanic, metadata });
-      }
+  list() {
+    const entries = [];
+    for (const [id, { component, metadata }] of this.components.entries()) {
+      entries.push({ id, component, metadata });
     }
-    return result;
-  }
-  
-  unregister(id: string): boolean {
-    return this.mechanics.delete(id);
-  }
-  
-  list(): Array<{ id: string; mechanic: GameMechanic; metadata: MechanicMetadata }> {
-    const result = [];
-    for (const [id, { mechanic, metadata }] of this.mechanics) {
-      result.push({ id, mechanic, metadata });
-    }
-    return result;
-  }
-
-  unregisterByPlugin(pluginId: string): void {
-    for (const [id, { metadata }] of this.mechanics) {
-      if (metadata.pluginId === pluginId) {
-        this.mechanics.delete(id);
-      }
-    }
+    return entries;
   }
 }
 
-/**
- * Plugin store implementation
- */
-export class PluginStoreImpl implements PluginStore {
-  private store = new Map<string, unknown>();
-  
-  set<T>(key: string, value: T): void {
-    this.store.set(key, value);
-  }
-  
-  get<T>(key: string): T | undefined {
-    return this.store.get(key) as T | undefined;
-  }
-  
-  has(key: string): boolean {
-    return this.store.has(key);
-  }
-  
-  delete(key: string): boolean {
-    return this.store.delete(key);
-  }
-  
-  clear(): void {
-    this.store.clear();
-  }
-  
-  keys(): string[] {
-    return Array.from(this.store.keys());
-  }
 
-  subscribe<T>(_key: string, _callback: (value: T) => void): () => void {
-    // Simple implementation - could be enhanced with proper subscription management
-    // For now, just return a no-op unsubscribe function
-    return () => {};
-  }
-}
 
-/**
- * Plugin event system implementation
- */
-export class PluginEventSystemImpl implements PluginEventSystem {
-  private events = PluginComponentUtils.createEventEmitter();
-  
-  emit<T = unknown>(event: string, data?: T): void {
-    this.events.emit(event, data);
-  }
-  
-  on<T = unknown>(event: string, handler: (data: T) => void): () => void {
-    return this.events.on(event, handler as (data: unknown) => void);
-  }
-}
 
 /**
  * Main plugin registry service
  */
 export class PluginRegistryService {
   private clientPlugins: Map<string, GameSystemPlugin> = new Map();
+  private loadedPlugins: Map<string, GameSystemPlugin> = new Map();
   private initialized = false;
+  private componentRegistry = new ComponentRegistryImpl();
+  private mechanicsRegistry = new MechanicsRegistryImpl();
   
   constructor() {
-    // Component and mechanics registries are available as exports but not used in this simplified version
+    // Initialize with real registries
   }
   
   /**
@@ -216,7 +124,10 @@ export class PluginRegistryService {
    * Initialize plugins method for compatibility
    */
   async initializePlugins(): Promise<void> {
-    return this.initialize();
+    await this.initialize();
+    
+    // After loading plugins from server, also try to load the D&D plugin directly
+    await this.loadDnD5ePlugin();
   }
   
   /**
@@ -255,16 +166,16 @@ export class PluginRegistryService {
           version: serverPlugin.config.version || '1.0.0',
           description: serverPlugin.config.description,
           author: serverPlugin.config.author,
-          async onLoad(_context: PluginContext) {
+          async onLoad() {
             console.log(`Loading ${serverPlugin.config.name} plugin`);
           },
           async onUnload() {
             console.log(`Unloading ${serverPlugin.config.name} plugin`);
           },
-          registerComponents(_registry: ComponentRegistry) {
+          registerComponents() {
             console.log(`Registering ${serverPlugin.config.name} components`);
           },
-          registerMechanics(_registry: MechanicsRegistry) {
+          registerMechanics() {
             console.log(`Registering ${serverPlugin.config.name} mechanics`);
           }
         };
@@ -275,40 +186,10 @@ export class PluginRegistryService {
       console.log(`Loaded ${this.clientPlugins.size} plugins from server`);
     } catch (error) {
       console.error('Failed to load plugins from server:', error);
-      // Fall back to hardcoded plugin
-      this.loadFallbackPlugin();
+      console.log('No fallback plugin available - will try direct plugin loading');
     }
   }
   
-  /**
-   * Load fallback plugin if server loading fails
-   */
-  private loadFallbackPlugin(): void {
-    const fallbackPlugin: GameSystemPlugin = {
-      gameSystem: 'dnd-5e-2024',
-      characterTypes: ['character', 'npc'],
-      itemTypes: ['weapon', 'armor', 'consumable', 'tool'],
-      id: 'dnd-5e-2024',
-      name: 'D&D 5e (2024)',
-      version: '1.0.0',
-      description: 'Dungeons & Dragons 5th Edition (2024 Rules)',
-      author: 'Dungeon Lab Team',
-      async onLoad(_context: PluginContext) {
-        console.log('Loading D&D 5e plugin');
-      },
-      async onUnload() {
-        console.log('Unloading D&D 5e plugin');
-      },
-      registerComponents(_registry: ComponentRegistry) {
-        console.log('Registering D&D 5e components');
-      },
-      registerMechanics(_registry: MechanicsRegistry) {
-        console.log('Registering D&D 5e mechanics');
-      }
-    };
-    
-    this.clientPlugins.set(fallbackPlugin.id, fallbackPlugin);
-  }
   
   /**
    * Get a specific game system plugin
@@ -321,7 +202,167 @@ export class PluginRegistryService {
    * Load a game system plugin
    */
   async loadGameSystemPlugin(id: string): Promise<GameSystemPlugin | null> {
-    return this.getGameSystemPlugin(id);
+    const plugin = this.getGameSystemPlugin(id);
+    if (plugin && !this.loadedPlugins.has(id)) {
+      await this.initializePlugin(plugin);
+    }
+    return plugin;
+  }
+  
+  /**
+   * Get a component by game system and component type
+   */
+  async getComponent(gameSystemId: string, componentType: string): Promise<Component | null> {
+    console.log(`[PluginRegistry] Getting component: ${gameSystemId}-${componentType}`);
+    await this.ensurePluginLoaded(gameSystemId);
+    
+    const componentId = `${gameSystemId}-${componentType}`;
+    const component = this.componentRegistry.get(componentId);
+    
+    console.log(`[PluginRegistry] Component found:`, !!component);
+    console.log(`[PluginRegistry] Available components:`, this.componentRegistry.list().map(c => c.id));
+    
+    return component || null;
+  }
+  
+  /**
+   * Get component by direct ID
+   */
+  getComponentById(componentId: string): Component | null {
+    return this.componentRegistry.get(componentId) || null;
+  }
+  
+  /**
+   * Force re-initialization of a plugin (for debugging)
+   */
+  async forceReinitializePlugin(gameSystemId: string): Promise<void> {
+    console.log(`[PluginRegistry] Force re-initializing plugin: ${gameSystemId}`);
+    
+    // Remove from loaded plugins to force re-init
+    this.loadedPlugins.delete(gameSystemId);
+    
+    // Clear any existing components for this plugin
+    this.componentRegistry.unregisterByPlugin(gameSystemId);
+    this.mechanicsRegistry.unregisterByPlugin(gameSystemId);
+    
+    // Force reload
+    await this.ensurePluginLoaded(gameSystemId);
+  }
+  
+  /**
+   * Get all components for a game system
+   */
+  getComponentsForGameSystem(gameSystemId: string): Array<{ id: string; component: Component; metadata: ComponentMetadata }> {
+    return this.componentRegistry.getByPlugin(gameSystemId);
+  }
+  
+  /**
+   * Ensure a plugin is loaded and initialized
+   */
+  private async ensurePluginLoaded(gameSystemId: string): Promise<GameSystemPlugin | null> {
+    console.log(`[PluginRegistry] Ensuring plugin loaded: ${gameSystemId}`);
+    console.log(`[PluginRegistry] Currently loaded plugins:`, Array.from(this.loadedPlugins.keys()));
+    
+    if (!this.loadedPlugins.has(gameSystemId)) {
+      console.log(`[PluginRegistry] Plugin not loaded, loading now...`);
+      const plugin = await this.loadGameSystemPlugin(gameSystemId);
+      if (plugin) {
+        await this.initializePlugin(plugin);
+      }
+      return plugin;
+    }
+    return this.loadedPlugins.get(gameSystemId) || null;
+  }
+  
+  /**
+   * Initialize a plugin with context and register its components
+   */
+  private async initializePlugin(plugin: GameSystemPlugin): Promise<void> {
+    try {
+      console.log(`[PluginRegistry] Initializing plugin: ${plugin.name}`);
+      
+      // Create plugin context
+      const context = this.createPluginContext(plugin);
+      
+      // Call plugin onLoad
+      await plugin.onLoad(context);
+      
+      // Register components
+      console.log(`[PluginRegistry] Calling registerComponents for ${plugin.name}`);
+      plugin.registerComponents(this.componentRegistry);
+      console.log(`[PluginRegistry] Components registered, now have:`, this.componentRegistry.list().length);
+      
+      // Register mechanics
+      console.log(`[PluginRegistry] Calling registerMechanics for ${plugin.name}`);
+      plugin.registerMechanics(this.mechanicsRegistry);
+      console.log(`[PluginRegistry] Mechanics registered, now have:`, this.mechanicsRegistry.list().length);
+      
+      // Mark as loaded
+      this.loadedPlugins.set(plugin.id, plugin);
+      
+      console.log(`[PluginRegistry] Plugin ${plugin.name} initialized successfully`);
+    } catch (error) {
+      console.error(`[PluginRegistry] Failed to initialize plugin ${plugin.name}:`, error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Load the D&D 5e plugin using static import
+   */
+  private async loadDnD5ePlugin(): Promise<void> {
+    try {
+      console.log('[PluginRegistry] Loading D&D 5e plugin via static import...');
+      
+      if (DnD5ePlugin) {
+        console.log('[PluginRegistry] Plugin imported successfully:', DnD5ePlugin.name);
+        console.log('[PluginRegistry] Plugin ID:', DnD5ePlugin.id);
+        
+        // Add to client plugins
+        this.clientPlugins.set(DnD5ePlugin.id, DnD5ePlugin);
+        
+        // Initialize if not already loaded
+        if (!this.loadedPlugins.has(DnD5ePlugin.id)) {
+          console.log('[PluginRegistry] Initializing D&D 5e plugin...');
+          await this.initializePlugin(DnD5ePlugin);
+        } else {
+          console.log('[PluginRegistry] D&D 5e plugin already loaded');
+        }
+      } else {
+        console.error('[PluginRegistry] DnD5ePlugin import returned null/undefined');
+      }
+      
+      console.log('[PluginRegistry] D&D 5e plugin loading completed');
+    } catch (error) {
+      console.error('[PluginRegistry] Failed to load D&D 5e plugin:', error);
+    }
+  }
+  
+  /**
+   * Create plugin context for a plugin
+   */
+  private createPluginContext(plugin: GameSystemPlugin): PluginContext {
+    // TODO: Get real socket connection from socket store
+    // For now, create a mock socket connection that implements SocketConnection interface
+    const mockSocket = {
+      emit: (event: string, ...args: unknown[]) => {
+        console.log(`[Plugin ${plugin.id}] Socket emit:`, event, args);
+        // If last arg is a callback, call it with success
+        const lastArg = args[args.length - 1];
+        if (typeof lastArg === 'function') {
+          lastArg({ success: true });
+        }
+      },
+      on: (event: string) => {
+        console.log(`[Plugin ${plugin.id}] Socket on:`, event);
+      },
+      off: (event: string) => {
+        console.log(`[Plugin ${plugin.id}] Socket off:`, event);
+      }
+    };
+    
+    // Use the real PluginContextImpl
+    return new PluginContextImpl(mockSocket, plugin.id);
   }
   
 }

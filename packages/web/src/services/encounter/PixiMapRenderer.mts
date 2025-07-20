@@ -487,18 +487,18 @@ export class EncounterMapRenderer {
    */
   public setObjectHighlights(visible: boolean): void {
     console.log('[PixiMapRenderer] setObjectHighlights called with:', visible, 'objectGraphics count:', this.objectGraphics.length);
-    this.objectGraphics.forEach((graphic, index) => {
-      console.log(`[PixiMapRenderer] Object graphic ${index}:`, {
-        visible: graphic.visible,
-        width: graphic.width,
-        height: graphic.height,
-        x: graphic.x,
-        y: graphic.y,
-        alpha: graphic.alpha,
-        parent: graphic.parent?.label || 'no parent'
-      });
+    this.objectGraphics.forEach((graphic) => {
+     // console.log(`[PixiMapRenderer] Object graphic ${index}:`, {
+      //   visible: graphic.visible,
+      //   width: graphic.width,
+      //   height: graphic.height,
+      //   x: graphic.x,
+      //   y: graphic.y,
+      //   alpha: graphic.alpha,
+      //   parent: graphic.parent?.label || 'no parent'
+      // });
       graphic.visible = visible;
-      console.log(`[PixiMapRenderer] Object graphic ${index} after setting visible:`, graphic.visible);
+      //console.log(`[PixiMapRenderer] Object graphic ${index} after setting visible:`, graphic.visible);
     });
   }
   
@@ -559,7 +559,7 @@ export class EncounterMapRenderer {
   private renderWallSegment(walls: Point[], resolution: Resolution, color: number, type: 'walls' | 'objects' = 'walls'): void {
     if (walls.length < 2 || !resolution.pixels_per_grid) return;
     
-    console.log(`[PixiMapRenderer] renderWallSegment called for ${type} with ${walls.length} points, color: 0x${color.toString(16)}`);
+    //console.log(`[PixiMapRenderer] renderWallSegment called for ${type} with ${walls.length} points, color: 0x${color.toString(16)}`);
     
     // Create graphics object for walls
     const wallGraphic = new PIXI.Graphics();
@@ -571,7 +571,7 @@ export class EncounterMapRenderer {
       const startPoint = this.gridToPixel(walls[i], resolution);
       const endPoint = this.gridToPixel(walls[i + 1], resolution);
       
-      console.log(`[PixiMapRenderer] Drawing line from (${startPoint.x}, ${startPoint.y}) to (${endPoint.x}, ${endPoint.y})`);
+      // console.log(`[PixiMapRenderer] Drawing line from (${startPoint.x}, ${startPoint.y}) to (${endPoint.x}, ${endPoint.y})`);
       
       wallGraphic.moveTo(startPoint.x, startPoint.y);
       wallGraphic.lineTo(endPoint.x, endPoint.y);
@@ -586,7 +586,7 @@ export class EncounterMapRenderer {
     
     this.mapContainer.addChild(wallGraphic);
     
-    console.log(`[PixiMapRenderer] Added ${type} graphic to mapContainer, bounds:`, wallGraphic.getBounds());
+    //console.log(`[PixiMapRenderer] Added ${type} graphic to mapContainer, bounds:`, wallGraphic.getBounds());
     
     // Store in appropriate array based on type
     if (type === 'walls') {

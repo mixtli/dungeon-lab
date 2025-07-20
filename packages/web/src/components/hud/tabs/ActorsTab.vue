@@ -46,6 +46,7 @@
         class="actor-card"
         :class="`actor-${actor.type}`"
         @click="selectActor(actor)"
+        @dblclick="openCharacterSheet(actor)"
       >
         <div class="actor-avatar">
           <img v-if="actor.avatar?.url" :src="actor.avatar.url" :alt="actor.name" />
@@ -61,6 +62,9 @@
         </div>
 
         <div class="actor-actions">
+          <button class="action-button" title="Character Sheet" @click.stop="openCharacterSheet(actor)">
+            <i class="mdi mdi-file-document"></i>
+          </button>
           <button class="action-button" title="Add to Encounter" @click.stop="addToEncounter(actor)">
             <i class="mdi mdi-plus-circle"></i>
           </button>
@@ -85,6 +89,16 @@
         Create NPC
       </button>
     </div>
+
+    <!-- Character Sheet Container -->
+    <CharacterSheetContainer
+      :show="showCharacterSheet"
+      :character="selectedCharacter"
+      @close="closeCharacterSheet"
+      @update:character="handleCharacterUpdate"
+      @save="handleCharacterSave"
+      @roll="handleDiceRoll"
+    />
   </div>
 </template>
 
@@ -92,10 +106,15 @@
 import { ref, computed, onMounted } from 'vue';
 import { useActorStore } from '../../../stores/actor.store.mjs';
 import type { IActor } from '@dungeon-lab/shared/types/index.mjs';
+import CharacterSheetContainer from '../../character/CharacterSheetContainer.vue';
 
 const actorStore = useActorStore();
 const searchQuery = ref('');
 const activeFilter = ref('all');
+
+// Character sheet modal state
+const showCharacterSheet = ref(false);
+const selectedCharacter = ref<IActor | null>(null);
 
 const filterOptions = [
   { id: 'all', label: 'All' },
@@ -157,6 +176,49 @@ async function editActor(actor: IActor): Promise<void> {
   console.log('Editing actor:', actor);
   // TODO: Navigate to actor edit view or open modal
   // router.push(`/actors/${actor.id}/edit`);
+}
+
+// Character sheet functions
+function openCharacterSheet(actor: IActor): void {
+  selectedCharacter.value = actor;
+  showCharacterSheet.value = true;
+}
+
+function closeCharacterSheet(): void {
+  showCharacterSheet.value = false;
+  selectedCharacter.value = null;
+}
+
+async function handleCharacterUpdate(updatedCharacter: IActor): Promise<void> {
+  try {
+    await actorStore.updateActor(updatedCharacter.id, {
+      name: updatedCharacter.name,
+      data: updatedCharacter.data
+    });
+    console.log('Character updated:', updatedCharacter.name);
+  } catch (error) {
+    console.error('Failed to update character:', error);
+  }
+}
+
+async function handleCharacterSave(character: IActor): Promise<void> {
+  try {
+    await actorStore.updateActor(character.id, {
+      name: character.name,
+      data: character.data
+    });
+    console.log('Character saved:', character.name);
+    closeCharacterSheet();
+  } catch (error) {
+    console.error('Failed to save character:', error);
+  }
+}
+
+function handleDiceRoll(rollType: string, data: Record<string, unknown>): void {
+  console.log('Dice roll requested:', rollType, data);
+  // TODO: Integrate with dice rolling system
+  // const diceStore = useDiceStore();
+  // diceStore.roll(data.expression, { title: data.title });
 }
 
 </script>

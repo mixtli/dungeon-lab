@@ -434,48 +434,49 @@ dl-plugin test
 
 ## Phase 2: Market Entry (Weeks 7-12)
 
-### Week 7-8: Basic Fantasy RPG Implementation
+### Week 7-8: D&D 2024 SRD Implementation
 
-#### Task 7.1: Basic Fantasy Game System
+#### Task 7.1: D&D 2024 SRD Game System
 **Estimated Time**: 3 days
 **Dependencies**: Phase 1 completion
 **Deliverables**:
-- [ ] Basic Fantasy character sheet
-- [ ] Ability score system (3d6 method)
-- [ ] Class and race selection
-- [ ] Equipment and spell systems
+- [ ] D&D 2024 character sheet (SRD content only)
+- [ ] Ability score system (standard array/point buy)
+- [ ] SRD class and species selection
+- [ ] Equipment and spell systems (SRD content)
 
 **Technical Details**:
 ```typescript
-class BasicFantasyCharacter {
+class DnD2024Character {
   abilities: AbilityScores;
   characterClass: CharacterClass;
-  race: Race;
+  species: Species;
   level: number;
   hitPoints: number;
   equipment: Equipment[];
   spells?: Spell[];
+  features: ClassFeature[];
 }
 ```
 
 **Success Criteria**:
 - [ ] Character creation fully functional
-- [ ] All Basic Fantasy rules implemented
+- [ ] All D&D 2024 SRD rules implemented
 - [ ] Character sheet UX optimized
 
-#### Task 7.2: Basic Fantasy Integration
+#### Task 7.2: D&D 2024 SRD Integration
 **Estimated Time**: 2 days
 **Dependencies**: Task 7.1
 **Deliverables**:
 - [ ] Plugin integration testing
-- [ ] Game data import/export
+- [ ] SRD game data import/export
 - [ ] Session management features
 - [ ] User onboarding flow
 
 **Success Criteria**:
 - [ ] Plugin loads correctly
-- [ ] No conflicts with D&D plugin
-- [ ] User can switch between systems
+- [ ] No conflicts with existing D&D 5e plugin
+- [ ] User can choose between D&D 5e and D&D 2024 systems
 
 #### Task 7.3: User Testing and Feedback
 **Estimated Time**: 2 days

@@ -18,7 +18,11 @@
       "Bash(rm:*)",
       "Bash(mkdir:*)",
       "Bash(npm run plugins:build:*)",
-      "Bash(tsc:*)"
+      "Bash(tsc:*)",
+      "Bash(touch:*)",
+      "Bash(npm run:*)",
+      "Bash(npx tsc:*)",
+      "Bash(python3:*)"
     ]
   },
   "enabledMcpjsonServers": [

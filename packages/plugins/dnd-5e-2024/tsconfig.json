@@ -7,18 +7,39 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "lib": ["DOM", "ES2022"],
+    "lib": [
+      "DOM",
+      "ES2022"
+    ],
     "jsx": "preserve",
-    "jsxImportSource": "vue"
+    "jsxImportSource": "vue",
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ],
+      "@dungeon-lab/shared": [
+        "../../shared/src"
+      ],
+      "@dungeon-lab/shared/*": [
+        "../../shared/src/*"
+      ]
+    },
+    "strict": true,
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "noUnusedLocals": true,
+    "noImplicitAny": true
   },
   "include": [
-    "src/**/*.ts",
-    "src/**/*.mts",
-    "src/**/*.vue"
+    "src/index.mts",
+    "src/web/**/*.mts",
+    "src/web/**/*.vue"
   ],
   "exclude": [
     "node_modules",
     "dist",
+    "src/shared/**/*",
     "**/*.test.*",
     "**/*.spec.*"
   ],

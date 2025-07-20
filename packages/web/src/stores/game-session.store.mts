@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, computed, watch, onMounted } from 'vue';
-import type { IGameSession, IActor } from '@dungeon-lab/shared/src/types/index.mts';
+import type { IGameSession, IActor } from '@dungeon-lab/shared/types/index.mjs';
 import { useAuthStore } from './auth.store.mts';
 import { useSocketStore } from './socket.store.mjs';
 import { useCampaignStore } from './campaign.store.mts';

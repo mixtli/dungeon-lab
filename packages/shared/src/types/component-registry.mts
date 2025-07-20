@@ -1,9 +1,10 @@
-import { DefineComponent } from 'vue';
+//import { DefineComponent } from 'vue';
+import type { Component } from 'vue';
 
 /**
  * Vue 3 component definition for plugin components
  */
-export type PluginComponent = DefineComponent<Record<string, unknown>, Record<string, unknown>, unknown>;
+//export type PluginComponent = DefineComponent<Record<string, unknown>, Record<string, unknown>, unknown>;
 
 /**
  * Component registry for managing plugin components
@@ -17,7 +18,7 @@ export interface ComponentRegistry {
    */
   register(
     id: string, 
-    component: PluginComponent,
+    component: Component,
     metadata?: ComponentMetadata
   ): void;
   
@@ -26,7 +27,7 @@ export interface ComponentRegistry {
    * @param id Component identifier
    * @returns Component definition or undefined if not found
    */
-  get(id: string): PluginComponent | undefined;
+  get(id: string): Component | undefined;
   
   /**
    * Get all registered components for a plugin
@@ -79,6 +80,6 @@ export interface ComponentMetadata {
  */
 export interface ComponentEntry {
   id: string;
-  component: PluginComponent;
+  component: Component;
   metadata: ComponentMetadata;
 }

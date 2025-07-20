@@ -27,7 +27,11 @@ export const useActorStore = defineStore(
 
     // Get current game system ID
     const currentGameSystemId = computed(() => {
-      return campaignStore.currentCampaign?.gameSystemId || null;
+      // Try campaign first, then fall back to localStorage
+      return campaignStore.currentCampaign?.gameSystemId || 
+             localStorage.getItem('activeGameSystem') || 
+             localStorage.getItem('activeGameSession') || 
+             null;
     });
 
     // Socket-based methods

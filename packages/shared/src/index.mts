@@ -10,7 +10,11 @@ export * from './utils/index.mjs';
 // Re-export base classes (no conflicts)  
 export * from './base/index.mjs';
 
+// Re-export component implementations
+export * from './components/index.mjs';
+
 // For types and schemas, consumers should import from specific barrel files:
 // - @dungeon-lab/shared/types/index.mjs
 // - @dungeon-lab/shared/schemas/index.mjs
 // - @dungeon-lab/shared/validation/index.mjs
+// - @dungeon-lab/shared/components/index.mjs

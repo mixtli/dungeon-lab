@@ -14,7 +14,7 @@
     "clean:test": "rimraf dist-test"
   },
   "dependencies": {
-    "@dungeon-lab/plugins": "file:../plugins",
+    "@dungeon-lab/plugin-dnd-5e-2024": "file:../plugins/dnd-5e-2024",
     "@dungeon-lab/shared": "file:../shared",
     "@headlessui/vue": "^1.7.16",
     "@heroicons/vue": "^2.2.0",

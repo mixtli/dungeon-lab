@@ -142,7 +142,7 @@ export const BaseMechanicsComponent = defineComponent({
         // Execute the mechanic with parameters
         const mechanicResult = await mechanic.execute(props.parameters);
         result.value = mechanicResult;
-        emit('result', mechanicResult);
+        emit('result', mechanicResult as Record<string, unknown>);
         
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Unknown error';

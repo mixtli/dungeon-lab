@@ -44,7 +44,6 @@ export interface PluginMetadata {
  */
 export class VitePluginLoader implements PluginLoader {
   private loadedModules = new Map<string, Plugin>();
-  private hotReloadCallbacks = new Map<string, Set<(plugin: Plugin) => void>>();
   
   async loadPlugin(pluginPath: string): Promise<Plugin> {
     try {
@@ -62,11 +61,6 @@ export class VitePluginLoader implements PluginLoader {
       
       // Cache the loaded plugin
       this.loadedModules.set(pluginPath, plugin);
-      
-      // Set up hot reload if in development
-      if (import.meta.env.DEV && import.meta.hot) {
-        this.setupHotReload(pluginPath, plugin);
-      }
       
       return plugin;
       
@@ -112,21 +106,6 @@ export class VitePluginLoader implements PluginLoader {
   }
   
   /**
-   * Subscribe to hot reload events for a plugin
-   */
-  onHotReload(pluginPath: string, callback: (plugin: Plugin) => void): () => void {
-    if (!this.hotReloadCallbacks.has(pluginPath)) {
-      this.hotReloadCallbacks.set(pluginPath, new Set());
-    }
-    
-    this.hotReloadCallbacks.get(pluginPath)!.add(callback);
-    
-    return () => {
-      this.hotReloadCallbacks.get(pluginPath)?.delete(callback);
-    };
-  }
-  
-  /**
    * Validate plugin interface
    */
   private validatePlugin(plugin: Plugin): void {
@@ -155,50 +134,6 @@ export class VitePluginLoader implements PluginLoader {
     }
   }
   
-  /**
-   * Set up hot reload for plugin in development
-   */
-  private setupHotReload(pluginPath: string, plugin: Plugin): void {
-    if (!import.meta.hot) return;
-    
-    // Accept hot updates for this plugin
-    import.meta.hot.accept(pluginPath, async (newModule) => {
-      if (!newModule?.default) {
-        console.error(`Hot reload failed: Plugin at ${pluginPath} has no default export`);
-        return;
-      }
-      
-      try {
-        const newPlugin = newModule.default as Plugin;
-        this.validatePlugin(newPlugin);
-        
-        // Update cached plugin
-        this.loadedModules.set(pluginPath, newPlugin);
-        
-        // Notify hot reload callbacks
-        const callbacks = this.hotReloadCallbacks.get(pluginPath);
-        if (callbacks) {
-          callbacks.forEach(callback => {
-            try {
-              callback(newPlugin);
-            } catch (error) {
-              console.error('Hot reload callback failed:', error);
-            }
-          });
-        }
-        
-        console.log(`🔥 Plugin hot reloaded: ${newPlugin.id}`);
-        
-      } catch (error) {
-        console.error(`Hot reload validation failed for ${pluginPath}:`, error);
-      }
-    });
-    
-    // Handle hot reload invalidation
-    import.meta.hot.on('vite:beforeUpdate', () => {
-      console.log(`🔄 Preparing hot reload for plugin: ${plugin.id}`);
-    });
-  }
 }
 
 /**
