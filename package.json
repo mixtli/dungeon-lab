@@ -13,7 +13,7 @@
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:web\"",
     "build": "npm run build --workspaces",
     "clean:build": "npx rimraf \"**/dist\" \"**/tsconfig.tsbuildinfo\" \"**/.vite\" \"**/coverage\" \"**/.turbo\"",
-    "clean:deps": "npx rimraf node_modules \"**/node_modules\"", 
+    "clean:deps": "npx rimraf node_modules \"**/node_modules\"",
     "clean:cache": "npm cache clean --force",
     "clean:full": "npm run clean:build && npm run clean:deps",
     "reset": "npm run clean:full && npm install",
