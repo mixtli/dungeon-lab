@@ -4,11 +4,6 @@
  */
 
 import type { Schema } from '../validation/game-data-validator.mjs';
-import type { 
-  CharacterData,
-  Item,
-  Spell
-} from '../types/game-data.mjs';
 
 /**
  * Game system configuration
@@ -30,7 +25,7 @@ export interface GameSystemConfig {
   entityTypes: string[];
   
   /** Data schemas */
-  schemas: Record<string, Schema<any>>;
+  schemas: Record<string, Schema<unknown>>;
   
   /** Validation rules */
   validationRules: ValidationRuleConfig[];
@@ -288,7 +283,7 @@ export const DND5E2024_CONFIG: GameSystemConfig = {
         race: { type: 'object' },
         abilities: { type: 'object' }
       }
-    } as Schema<CharacterData>,
+    } as unknown as Schema<unknown>,
     
     item: {
       type: 'object',
@@ -302,7 +297,7 @@ export const DND5E2024_CONFIG: GameSystemConfig = {
         value: { type: 'object' },
         rarity: { type: 'string' }
       }
-    } as Schema<Item>,
+    } as unknown as Schema<unknown>,
     
     spell: {
       type: 'object',
@@ -320,7 +315,7 @@ export const DND5E2024_CONFIG: GameSystemConfig = {
         concentration: { type: 'boolean' },
         ritual: { type: 'boolean' }
       }
-    } as Schema<Spell>
+    } as unknown as Schema<unknown>
   },
   
   validationRules: [
@@ -553,7 +548,7 @@ export const GENERIC_CONFIG: GameSystemConfig = {
         skills: { type: 'object' },
         inventory: { type: 'object' }
       }
-    } as Schema<CharacterData>,
+    } as unknown as Schema<unknown>,
     
     item: {
       type: 'object',
@@ -565,7 +560,7 @@ export const GENERIC_CONFIG: GameSystemConfig = {
         weight: { type: 'number', minimum: 0 },
         value: { type: 'number', minimum: 0 }
       }
-    } as Schema<Item>,
+    } as unknown as Schema<unknown>,
     
     spell: {
       type: 'object',
@@ -578,7 +573,7 @@ export const GENERIC_CONFIG: GameSystemConfig = {
         school: { type: 'string' },
         description: { type: 'string' }
       }
-    } as Schema<Spell>
+    } as unknown as Schema<unknown>
   },
   
   validationRules: [
@@ -715,8 +710,8 @@ export const GENERIC_CONFIG: GameSystemConfig = {
         featOption: false
       },
       hitPoints: {
-        calculation: 'custom' as any,
-        firstLevel: 'custom' as any
+        calculation: 'custom',
+        firstLevel: 'roll'
       }
     },
     

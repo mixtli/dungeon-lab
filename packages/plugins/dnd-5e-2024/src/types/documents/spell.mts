@@ -22,7 +22,7 @@ export const spellDataSchema = z.object({
   materials: z.object({
     value: z.string().default(''),
     consumed: z.boolean().default(false),
-    cost: z.number().min(0).default(0),
+    cost: z.number().min(0).nullable().default(0), // Allow null for spells without material costs
     supply: z.number().min(0).default(0)
   }),
   
@@ -34,7 +34,7 @@ export const spellDataSchema = z.object({
   
   // Casting details
   activation: z.object({
-    type: z.enum(['action', 'bonus', 'reaction', 'minute', 'hour']),
+    type: z.enum(['action', 'bonus', 'reaction', 'minute', 'hour', 'special']), // Added 'special' for unique activation conditions
     condition: z.string().default(''),
     value: z.number().nullable()
   }),
@@ -42,7 +42,7 @@ export const spellDataSchema = z.object({
   // Duration
   duration: z.object({
     value: z.string(), // Can be number or string like "10" 
-    units: z.enum(['inst', 'turn', 'round', 'minute', 'hour', 'day', 'month', 'year', 'perm', 'spec'])
+    units: z.enum(['inst', 'turn', 'round', 'minute', 'hour', 'day', 'month', 'year', 'perm', 'spec', 'disp', 'dstr']) // Added 'disp' for dispel, 'dstr' for destroy duration
   }),
   
   // Range
@@ -55,8 +55,8 @@ export const spellDataSchema = z.object({
   target: z.object({
     affects: z.object({
       choice: z.boolean(),
-      count: z.string(),
-      type: z.string(),
+      count: z.string().optional(), // Allow undefined for spells without specific counts
+      type: z.string().optional(), // Allow undefined for spells without specific target types
       special: z.string().default('')
     }),
     template: z.object({
@@ -70,7 +70,11 @@ export const spellDataSchema = z.object({
   uses: z.object({
     max: z.string().default(''),
     spent: z.number().default(0),
-    recovery: z.array(z.string()).default([])
+    recovery: z.array(z.object({
+      period: z.string(), // "lr" (long rest), "sr" (short rest), etc.
+      type: z.string(), // "recoverAll", "formula", etc.
+      formula: z.string().optional() // only present when type is "formula"
+    })).default([])
   }),
   
   // Activities (Foundry's complex spell effects system)

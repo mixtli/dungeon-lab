@@ -16,7 +16,8 @@ import {
   backgroundDataSchema,
   raceDataSchema,
   featDataSchema,
-  subclassDataSchema
+  subclassDataSchema,
+  conditionDataSchema
 } from './documents/index.mjs';
 
 /**
@@ -44,7 +45,8 @@ export type DocumentData =
   | { documentType: 'background'; data: z.infer<typeof backgroundDataSchema> }
   | { documentType: 'race'; data: z.infer<typeof raceDataSchema> }
   | { documentType: 'feat'; data: z.infer<typeof featDataSchema> }
-  | { documentType: 'subclass'; data: z.infer<typeof subclassDataSchema> };
+  | { documentType: 'subclass'; data: z.infer<typeof subclassDataSchema> }
+  | { documentType: 'condition'; data: z.infer<typeof conditionDataSchema> };
 
 /**
  * Validation result type
@@ -63,21 +65,23 @@ export type ValidationResult<T = unknown> = {
 export function validateActorData(type: string, data: unknown): ValidationResult {
   try {
     switch (type) {
-      case 'character':
+      case 'character': {
         const characterResult = characterDataSchema.safeParse(data);
         if (characterResult.success) {
           return { success: true, data: characterResult.data };
         } else {
           return { success: false, error: new Error(`Character validation failed: ${characterResult.error.message}`) };
         }
+      }
       
-      case 'npc':
+      case 'npc': {
         const npcResult = npcDataSchema.safeParse(data);
         if (npcResult.success) {
           return { success: true, data: npcResult.data };
         } else {
           return { success: false, error: new Error(`NPC validation failed: ${npcResult.error.message}`) };
         }
+      }
       
       default:
         return { success: false, error: new Error(`Unknown actor type: ${type}`) };
@@ -93,53 +97,59 @@ export function validateActorData(type: string, data: unknown): ValidationResult
 export function validateItemData(type: string, data: unknown): ValidationResult {
   try {
     switch (type) {
-      case 'weapon':
+      case 'weapon': {
         const weaponResult = weaponDataSchema.safeParse(data);
         if (weaponResult.success) {
           return { success: true, data: weaponResult.data };
         } else {
           return { success: false, error: new Error(`Weapon validation failed: ${weaponResult.error.message}`) };
         }
+      }
       
-      case 'equipment':
+      case 'equipment': {
         const equipmentResult = equipmentDataSchema.safeParse(data);
         if (equipmentResult.success) {
           return { success: true, data: equipmentResult.data };
         } else {
           return { success: false, error: new Error(`Equipment validation failed: ${equipmentResult.error.message}`) };
         }
+      }
       
-      case 'consumable':
+      case 'consumable': {
         const consumableResult = consumableDataSchema.safeParse(data);
         if (consumableResult.success) {
           return { success: true, data: consumableResult.data };
         } else {
           return { success: false, error: new Error(`Consumable validation failed: ${consumableResult.error.message}`) };
         }
+      }
       
-      case 'tool':
+      case 'tool': {
         const toolResult = toolDataSchema.safeParse(data);
         if (toolResult.success) {
           return { success: true, data: toolResult.data };
         } else {
           return { success: false, error: new Error(`Tool validation failed: ${toolResult.error.message}`) };
         }
+      }
       
-      case 'loot':
+      case 'loot': {
         const lootResult = lootDataSchema.safeParse(data);
         if (lootResult.success) {
           return { success: true, data: lootResult.data };
         } else {
           return { success: false, error: new Error(`Loot validation failed: ${lootResult.error.message}`) };
         }
+      }
       
-      case 'container':
+      case 'container': {
         const containerResult = containerDataSchema.safeParse(data);
         if (containerResult.success) {
           return { success: true, data: containerResult.data };
         } else {
           return { success: false, error: new Error(`Container validation failed: ${containerResult.error.message}`) };
         }
+      }
       
       default:
         return { success: false, error: new Error(`Unknown item type: ${type}`) };
@@ -155,53 +165,68 @@ export function validateItemData(type: string, data: unknown): ValidationResult 
 export function validateDocumentData(documentType: string, data: unknown): ValidationResult {
   try {
     switch (documentType) {
-      case 'spell':
+      case 'spell': {
         const spellResult = spellDataSchema.safeParse(data);
         if (spellResult.success) {
           return { success: true, data: spellResult.data };
         } else {
           return { success: false, error: new Error(`Spell validation failed: ${spellResult.error.message}`) };
         }
+      }
       
-      case 'class':
+      case 'class': {
         const classResult = classDataSchema.safeParse(data);
         if (classResult.success) {
           return { success: true, data: classResult.data };
         } else {
           return { success: false, error: new Error(`Class validation failed: ${classResult.error.message}`) };
         }
+      }
       
-      case 'background':
+      case 'background': {
         const backgroundResult = backgroundDataSchema.safeParse(data);
         if (backgroundResult.success) {
           return { success: true, data: backgroundResult.data };
         } else {
           return { success: false, error: new Error(`Background validation failed: ${backgroundResult.error.message}`) };
         }
+      }
       
-      case 'race':
+      case 'race': {
         const raceResult = raceDataSchema.safeParse(data);
         if (raceResult.success) {
           return { success: true, data: raceResult.data };
         } else {
           return { success: false, error: new Error(`Race validation failed: ${raceResult.error.message}`) };
         }
+      }
       
-      case 'feat':
+      case 'feat': {
         const featResult = featDataSchema.safeParse(data);
         if (featResult.success) {
           return { success: true, data: featResult.data };
         } else {
           return { success: false, error: new Error(`Feat validation failed: ${featResult.error.message}`) };
         }
+      }
       
-      case 'subclass':
+      case 'subclass': {
         const subclassResult = subclassDataSchema.safeParse(data);
         if (subclassResult.success) {
           return { success: true, data: subclassResult.data };
         } else {
           return { success: false, error: new Error(`Subclass validation failed: ${subclassResult.error.message}`) };
         }
+      }
+      
+      case 'condition': {
+        const conditionResult = conditionDataSchema.safeParse(data);
+        if (conditionResult.success) {
+          return { success: true, data: conditionResult.data };
+        } else {
+          return { success: false, error: new Error(`Condition validation failed: ${conditionResult.error.message}`) };
+        }
+      }
       
       default:
         return { success: false, error: new Error(`Unknown document type: ${documentType}`) };

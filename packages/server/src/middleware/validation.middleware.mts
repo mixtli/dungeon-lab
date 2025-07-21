@@ -16,7 +16,23 @@ declare module 'express' {
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 100 * 1024 * 1024 // 10MB limit
+    fileSize: 100 * 1024 * 1024 // 100MB limit
+  }
+});
+
+// Larger upload limits for ZIP files
+const uploadZip = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 500 * 1024 * 1024 // 500MB limit for ZIP files
+  },
+  fileFilter: (_req, file, cb) => {
+    // Only allow ZIP files
+    if (file.mimetype === 'application/zip' || file.mimetype === 'application/x-zip-compressed' || file.originalname.endsWith('.zip')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only ZIP files are allowed'));
+    }
   }
 });
 
@@ -173,6 +189,67 @@ export function validateMultipartRequest(
           res.status(400).json({
             success: false,
             error: err instanceof Error ? err.message : 'Invalid request data'
+          });
+        }
+      }
+    }
+  ];
+}
+
+/**
+ * Middleware specifically for ZIP file uploads (compendium imports)
+ * Uses larger file size limits and ZIP-specific validation
+ */
+export function validateZipUpload(
+  schema: z.ZodSchema,
+  fileField: string = 'zipFile'
+) {
+  const multerMiddleware = uploadZip.single(fileField);
+
+  return [
+    multerMiddleware,
+    async (req: Request, res: Response<BaseAPIResponse<unknown>>, next: NextFunction) => {
+      try {
+        // Build validated data object
+        const bodyData: Record<string, unknown> = { ...req.body };
+
+        // Add the ZIP file if present
+        if (req.file) {
+          const file = new File([req.file.buffer], req.file.originalname, { 
+            type: req.file.mimetype 
+          });
+          bodyData[fileField] = file;
+        }
+
+        // Parse JSON fields if they exist
+        Object.keys(bodyData).forEach(key => {
+          if (typeof bodyData[key] === 'string' && key !== fileField) {
+            try {
+              bodyData[key] = JSON.parse(bodyData[key] as string);
+            } catch {
+              // Keep as string if not valid JSON
+            }
+          }
+        });
+
+        // Validate against schema
+        const validatedData = await schema.parseAsync(bodyData);
+        req.body = validatedData;
+        next();
+      } catch (err) {
+        if (err instanceof z.ZodError) {
+          res.locals.validationErrors = err.errors;
+          console.log('ZIP Upload Validation errors', err.errors, err.message);
+          res.status(422).json({
+            success: false,
+            error: 'ZIP Upload Validation error: ' + err.message,
+            error_details: err.issues
+          });
+        } else {
+          res.locals.error = err;
+          res.status(400).json({
+            success: false,
+            error: err instanceof Error ? err.message : 'Invalid ZIP upload data'
           });
         }
       }

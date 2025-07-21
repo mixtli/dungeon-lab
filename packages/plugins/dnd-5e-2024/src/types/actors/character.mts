@@ -4,9 +4,7 @@ import {
   currencySchema, 
   skillsSchema, 
   movementSchema, 
-  creatureSizeSchema,
-  sourceSchema,
-  descriptionSchema 
+  creatureSizeSchema
 } from '../common/index.mjs';
 
 /**

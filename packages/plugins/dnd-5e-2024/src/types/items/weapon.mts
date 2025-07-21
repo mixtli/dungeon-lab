@@ -8,7 +8,7 @@ import { baseItemSchema } from './base-item.mjs';
 export const weaponDataSchema = baseItemSchema.extend({
   // Weapon-specific type
   type: z.object({
-    value: z.enum(['simpleM', 'simpleR', 'martialM', 'martialR', 'siege']),
+    value: z.enum(['', 'simpleM', 'simpleR', 'martialM', 'martialR', 'siege', 'natural']),
     baseItem: z.string().default('')
   }),
   
@@ -16,32 +16,32 @@ export const weaponDataSchema = baseItemSchema.extend({
   damage: z.object({
     base: z.object({
       number: z.number().nullable(),
-      denomination: z.number().min(0), // die size (d6 = 6, d20 = 20)
+      denomination: z.number().nullable(), // die size (d6 = 6, d20 = 20)
       types: z.array(z.string()),
       custom: z.object({
         enabled: z.boolean().default(false)
       }),
       scaling: z.object({
-        number: z.number().default(1)
+        number: z.number().nullable()
       }),
       bonus: z.string().default('')
-    }),
+    }).optional(),
     versatile: z.object({
       number: z.number().nullable(),
-      denomination: z.number().min(0),
+      denomination: z.number().nullable(),
       types: z.array(z.string()),
       custom: z.object({
         enabled: z.boolean().default(false)
       }),
       scaling: z.object({
-        number: z.number().default(1)
+        number: z.number().nullable()
       }),
       bonus: z.string().default('')
-    })
-  }),
+    }).optional()
+  }).optional(),
   
   // Weapon properties and bonuses
-  magicalBonus: z.number().default(0),
+  magicalBonus: z.number().nullable().default(0),
   properties: z.array(z.string()).default([]), // ['finesse', 'light', 'versatile', etc.]
   proficient: z.number().nullable().default(null),
   

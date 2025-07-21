@@ -92,6 +92,7 @@ The system uses a hybrid approach:
 - Use `.mts` extension for TypeScript files
 - Import statements should reference `.mjs` files (not `.mts`)
 - Use lowercase with dashes for directories (e.g., `auth-wizard`)
+- Don't use explicit any types.  Prefer a more specific type or unknown.
 
 ### Code Style
 - All code must be TypeScript (no JavaScript)

@@ -8,9 +8,12 @@ import { baseItemSchema } from './base-item.mjs';
 export const lootDataSchema = baseItemSchema.extend({
   // Loot type
   type: z.object({
-    value: z.enum(['treasure', 'trade-good', 'gem', 'art', 'component', 'other']),
+    value: z.union([
+      z.enum(['treasure', 'trade-good', 'gem', 'art', 'component', 'gear', 'other']),
+      z.literal('') // Allow empty string for unspecified loot type
+    ]),
     baseItem: z.string().default('')
-  }),
+  }).optional(),
   
   // Loot-specific properties
   properties: z.array(z.string()).default([]),

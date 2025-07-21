@@ -4,10 +4,16 @@ import mongoose from 'mongoose';
 import { pluginRegistry } from '../../../services/plugin-registry.service.mjs';
 import { baseMongooseZodSchema } from '../../../models/base.model.schema.mjs';
 import { createMongoSchema } from '../../../models/zod-to-mongo.mjs';
+import { zId } from '@zodyac/zod-mongoose';
+
+// Create server-specific schema with ObjectId references
+const serverVTTDocumentSchema = vttDocumentSchema.extend({
+  compendiumId: zId('Compendium').optional()
+});
 
 // Create mongoose schema using the base schema creator to handle _id to id transformation
 const mongooseSchema = createMongoSchema<IVTTDocument>(
-  vttDocumentSchema.merge(baseMongooseZodSchema)
+  serverVTTDocumentSchema.merge(baseMongooseZodSchema)
 );
 
 // Add compound unique index for slug within plugin and document type context
@@ -83,6 +89,14 @@ mongooseSchema.pre(
   }
 );
 
+// Add virtual property for compendium
+mongooseSchema.virtual('compendium', {
+  ref: 'Compendium',
+  localField: 'compendiumId',
+  foreignField: '_id',
+  justOne: true
+});
+
 /**
  * VTT Document interface extending the base IVTTDocument
  */
@@ -90,3 +104,6 @@ mongooseSchema.pre(
 
 // Create and export model
 export const VTTDocument = mongoose.model<IVTTDocument>('VTTDocument', mongooseSchema);
+
+// Export with consistent naming for new code
+export const VTTDocumentModel = VTTDocument;

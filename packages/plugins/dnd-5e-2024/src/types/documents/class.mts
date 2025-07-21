@@ -7,9 +7,9 @@ import { sourceSchema, descriptionSchema } from '../common/index.mjs';
  */
 export const classDataSchema = z.object({
   // Basic class info
-  identifier: z.string(), // unique class identifier like 'barbarian'
-  description: descriptionSchema,
-  source: sourceSchema,
+  identifier: z.string().optional(), // unique class identifier like 'barbarian'
+  description: descriptionSchema.optional(),
+  source: sourceSchema.optional(),
   
   // Class progression
   levels: z.number().min(1).max(20).default(1),
@@ -17,12 +17,22 @@ export const classDataSchema = z.object({
   
   // Hit dice and health
   hd: z.object({
-    faces: z.number().min(4).max(12), // d4, d6, d8, d10, d12
-    number: z.number().min(1).default(1)
+    // Handle both Foundry format (denomination: "d12") and direct format (faces: 12)
+    denomination: z.string().optional(), // Foundry format like "d12"
+    faces: z.number().min(4).max(12).optional(), // d4, d6, d8, d10, d12
+    number: z.number().min(1).default(1),
+    spent: z.number().default(0).optional(),
+    additional: z.string().default('').optional()
   }).optional(),
   
-  // Core abilities and saves
-  primaryAbility: z.array(z.enum(['str', 'dex', 'con', 'int', 'wis', 'cha'])).default([]),
+  // Core abilities and saves - handle both array and Foundry's object structure
+  primaryAbility: z.union([
+    z.array(z.enum(['str', 'dex', 'con', 'int', 'wis', 'cha'])), // Direct array format
+    z.object({
+      value: z.array(z.enum(['str', 'dex', 'con', 'int', 'wis', 'cha'])),
+      all: z.boolean().optional()
+    }) // Foundry format
+  ]).default([]),
   saves: z.array(z.enum(['str', 'dex', 'con', 'int', 'wis', 'cha'])).default([]),
   
   // Skills
@@ -35,9 +45,15 @@ export const classDataSchema = z.object({
   // Spellcasting
   spellcasting: z.object({
     progression: z.enum(['none', 'full', 'half', 'third', 'pact', 'artificer']).default('none'),
-    ability: z.enum(['int', 'wis', 'cha']).optional(),
+    ability: z.union([
+      z.enum(['int', 'wis', 'cha']), // Valid spellcasting abilities
+      z.literal('') // Allow empty string for non-spellcasters
+    ]).optional(),
     ritual: z.boolean().default(false),
-    focus: z.boolean().default(false)
+    focus: z.boolean().default(false),
+    preparation: z.object({
+      formula: z.string().default('')
+    }).optional()
   }).optional(),
   
   // Starting equipment and wealth

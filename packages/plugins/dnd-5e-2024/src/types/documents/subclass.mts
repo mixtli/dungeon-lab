@@ -18,7 +18,10 @@ export const subclassDataSchema = z.object({
   // Spellcasting (if subclass grants it)
   spellcasting: z.object({
     progression: z.enum(['none', 'full', 'half', 'third', 'pact', 'artificer']).default('none'),
-    ability: z.enum(['int', 'wis', 'cha']).optional(),
+    ability: z.union([
+      z.enum(['int', 'wis', 'cha']), // Valid spellcasting abilities
+      z.literal('') // Allow empty string for non-spellcasting subclasses
+    ]).optional(),
     ritual: z.boolean().default(false),
     focus: z.boolean().default(false)
   }).optional(),

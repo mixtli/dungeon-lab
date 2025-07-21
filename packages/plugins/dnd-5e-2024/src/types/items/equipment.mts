@@ -8,23 +8,23 @@ import { baseItemSchema } from './base-item.mjs';
 export const equipmentDataSchema = baseItemSchema.extend({
   // Equipment type
   type: z.object({
-    value: z.enum(['light', 'medium', 'heavy', 'shield', 'clothing', 'trinket', 'vehicle', 'other']),
+    value: z.enum(['', 'light', 'medium', 'heavy', 'shield', 'clothing', 'trinket', 'wand', 'wondrous', 'ring', 'rod', 'vehicle', 'other']),
     baseItem: z.string().default('')
-  }),
+  }).optional(),
   
   // Armor properties
   armor: z.object({
     value: z.number().nullable().default(null), // base AC value
     magicalBonus: z.number().nullable().default(null),
     dex: z.number().nullable().default(null) // max dex bonus
-  }),
+  }).optional(),
   
   // Additional equipment properties
   properties: z.array(z.string()).default([]),
   speed: z.object({
     value: z.number().nullable().default(null),
     conditions: z.string().default('')
-  }),
+  }).optional(),
   strength: z.number().nullable().default(null), // strength requirement
   proficient: z.number().nullable().default(null)
 });

@@ -2,13 +2,14 @@ import { z } from 'zod';
 
 /**
  * Movement speeds for creatures
+ * Made nullable to handle Foundry VTT data where these can be null
  */
 export const movementSchema = z.object({
-  walk: z.number().min(0).default(30),
-  fly: z.number().min(0).default(0),
-  swim: z.number().min(0).default(0),
-  climb: z.number().min(0).default(0),
-  burrow: z.number().min(0).default(0),
+  walk: z.number().min(0).nullable().default(30),
+  fly: z.number().min(0).nullable().default(0),
+  swim: z.number().min(0).nullable().default(0),
+  climb: z.number().min(0).nullable().default(0),
+  burrow: z.number().min(0).nullable().default(0),
   hover: z.boolean().default(false) // Can hover when flying
 });
 

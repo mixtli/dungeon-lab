@@ -204,7 +204,7 @@ export const PluginComponentUtils = {
       },
       
       set<K extends keyof T>(key: K, value: T[K]) {
-        (store as any)[key] = value;
+        (store as Record<string, unknown>)[key as string] = value;
         const keySubscribers = subscribers.get(key as string) || [];
         keySubscribers.forEach(callback => callback(value));
       },

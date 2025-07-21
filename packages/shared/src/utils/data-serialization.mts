@@ -110,9 +110,10 @@ export class GameDataSerializer {
       case 'binary':
         return this.toBinary(data);
         
-      case 'compressed':
+      case 'compressed': {
         const json = JSON.stringify(data);
         return this.compress(json);
+      }
         
       default:
         throw new Error(`Unsupported serialization format: ${options.format}`);
@@ -149,10 +150,11 @@ export class GameDataSerializer {
         parsed = this.fromBinary(data);
         break;
         
-      case 'compressed':
+      case 'compressed': {
         const decompressed = this.decompress(data);
         parsed = JSON.parse(decompressed);
         break;
+      }
         
       default:
         throw new Error(`Unsupported deserialization format: ${format}`);
@@ -290,7 +292,7 @@ export class GameDataSerializer {
     entityType: string
   ): Promise<Record<string, unknown>> {
     const currentVersion = this.getCurrentVersion();
-    const dataVersion = (data._metadata as any)?.version || '1.0.0';
+    const dataVersion = ((data._metadata as Record<string, unknown>)?.version as string) || '1.0.0';
     
     if (dataVersion === currentVersion) {
       return data;
@@ -456,7 +458,7 @@ export class GameDataSerializer {
   /**
    * Convert to YAML (placeholder)
    */
-  private toYaml(data: Record<string, unknown>): string {
+  private toYaml(_data: Record<string, unknown>): string {
     // This would use a YAML library like js-yaml
     throw new Error('YAML serialization not implemented');
   }
@@ -464,7 +466,7 @@ export class GameDataSerializer {
   /**
    * Convert from YAML (placeholder)
    */
-  private fromYaml(data: string): Record<string, unknown> {
+  private fromYaml(_data: string): Record<string, unknown> {
     // This would use a YAML library like js-yaml
     throw new Error('YAML deserialization not implemented');
   }
@@ -472,7 +474,7 @@ export class GameDataSerializer {
   /**
    * Convert to XML (placeholder)
    */
-  private toXml(data: Record<string, unknown>): string {
+  private toXml(_data: Record<string, unknown>): string {
     // Basic XML conversion (would be more sophisticated in practice)
     throw new Error('XML serialization not implemented');
   }
@@ -480,7 +482,7 @@ export class GameDataSerializer {
   /**
    * Convert from XML (placeholder)
    */
-  private fromXml(data: string): Record<string, unknown> {
+  private fromXml(_data: string): Record<string, unknown> {
     // Basic XML parsing (would be more sophisticated in practice)
     throw new Error('XML deserialization not implemented');
   }
@@ -488,7 +490,7 @@ export class GameDataSerializer {
   /**
    * Convert to binary (placeholder)
    */
-  private toBinary(data: Record<string, unknown>): string {
+  private toBinary(_data: Record<string, unknown>): string {
     // This would use MessagePack or similar
     throw new Error('Binary serialization not implemented');
   }
@@ -496,7 +498,7 @@ export class GameDataSerializer {
   /**
    * Convert from binary (placeholder)
    */
-  private fromBinary(data: string): Record<string, unknown> {
+  private fromBinary(_data: string): Record<string, unknown> {
     // This would use MessagePack or similar
     throw new Error('Binary deserialization not implemented');
   }
@@ -504,7 +506,7 @@ export class GameDataSerializer {
   /**
    * Compress data (placeholder)
    */
-  private compress(data: string): string {
+  private compress(_data: string): string {
     // This would use a compression library like pako
     throw new Error('Compression not implemented');
   }
@@ -512,7 +514,7 @@ export class GameDataSerializer {
   /**
    * Decompress data (placeholder)
    */
-  private decompress(data: string): string {
+  private decompress(_data: string): string {
     // This would use a compression library like pako
     throw new Error('Decompression not implemented');
   }

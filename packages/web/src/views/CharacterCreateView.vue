@@ -127,7 +127,7 @@ onMounted(async () => {
 });
 
 // Handle form submission
-async function handleSubmit(_event: Event) {
+async function handleSubmit() {
   try {
     isSubmitting.value = true;
 

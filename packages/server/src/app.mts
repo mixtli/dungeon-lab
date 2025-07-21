@@ -18,6 +18,7 @@ import { encounterRoutes } from './features/encounters/index.mjs';
 import { documentRoutes } from './features/documents/index.mjs';
 import assetRoutes from './features/assets/index.mjs';
 import { chatbotRoutes } from './features/chatbots/index.mjs';
+import { compendiumRoutes } from './features/compendiums/index.mjs';
 import pluginsRoutes from './features/plugins/routes/plugins.routes.mjs';
 import { oapi } from './oapi.mjs';
 import userRoutes from './features/users/routes/user.routes.mjs';
@@ -180,6 +181,7 @@ export async function createApp(): Promise<express.Application> {
   app.use('/api/invites', inviteRoutes);
   app.use('/api/maps', mapRoutes);
   app.use('/api/documents', documentRoutes);
+  app.use('/api/compendiums', compendiumRoutes);
   app.use('/api/assets', assetRoutes);
   app.use('/api/health', healthRoutes);
   app.use('/api/users', userRoutes);

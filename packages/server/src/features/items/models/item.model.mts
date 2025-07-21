@@ -15,7 +15,8 @@ import { createMongoSchema } from '../../../models/zod-to-mongo.mjs';
  */
 const serverItemSchema = itemSchema.extend({
   // Convert string IDs to ObjectIds for asset references
-  imageId: zId('Asset').optional()
+  imageId: zId('Asset').optional(),
+  compendiumId: zId('Compendium').optional()
 });
 
 /**
@@ -27,6 +28,14 @@ const mongooseSchema = createMongoSchema<IItem>(serverItemSchema.merge(baseMongo
 mongooseSchema.virtual('image', {
   ref: 'Asset',
   localField: 'imageId',
+  foreignField: '_id',
+  justOne: true
+});
+
+// Add virtual property for compendium
+mongooseSchema.virtual('compendium', {
+  ref: 'Compendium',
+  localField: 'compendiumId',
   foreignField: '_id',
   justOne: true
 });

@@ -13,13 +13,16 @@ export const featDataSchema = z.object({
   
   // Feat type and category
   type: z.object({
-    value: z.enum(['feat', 'class', 'race', 'background', 'monster', 'epic']).default('feat'),
+    value: z.union([
+      z.enum(['feat', 'class', 'race', 'background', 'monster', 'epic']),
+      z.literal('') // Allow empty string for generic feats
+    ]).default('feat'),
     subtype: z.string().default('')
   }),
   
   // Prerequisites
   prerequisites: z.object({
-    level: z.number().min(1).optional(),
+    level: z.number().min(1).nullable().optional(),
     abilities: z.record(z.number()).optional(), // e.g., { str: 13, dex: 15 }
     skills: z.array(z.string()).default([]),
     other: z.string().default('')
@@ -31,7 +34,11 @@ export const featDataSchema = z.object({
   // Uses and limitations
   uses: z.object({
     spent: z.number().default(0),
-    recovery: z.array(z.string()).default([]),
+    recovery: z.array(z.object({
+      period: z.string(), // "lr" (long rest), "sr" (short rest), etc.
+      type: z.string(), // "recoverAll", "formula", etc.
+      formula: z.string().optional() // only present when type is "formula"
+    })).default([]),
     max: z.string().default('')
   }),
   

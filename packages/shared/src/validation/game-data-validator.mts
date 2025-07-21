@@ -358,7 +358,7 @@ export class GameDataValidator {
   /**
    * Get validation rules for a specific field
    */
-  private getFieldRules(fieldPath: string): ValidationRule[] {
+  private getFieldRules(_fieldPath: string): ValidationRule[] {
     // This would contain field-specific rules
     // For now, return empty array
     return [];
@@ -657,7 +657,7 @@ export class SchemaValidator {
   /**
    * Validate object against schema
    */
-  static validateSchema<T>(object: unknown, schema: Schema<T>): ValidationResult {
+  static validateSchema<T>(_object: unknown, _schema: Schema<T>): ValidationResult {
     const result: ValidationResult = {
       valid: true,
       errors: [],

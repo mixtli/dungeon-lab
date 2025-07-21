@@ -171,6 +171,27 @@ export interface Plugin {
    * @param registry Mechanics registry to register mechanics with
    */
   registerMechanics(registry: MechanicsRegistry): void;
+  
+  /**
+   * Optional: Validate actor data
+   * @param type Actor type
+   * @param data Actor data to validate
+   */
+  validateActorData?(type: string, data: unknown): { success: boolean; error?: Error; data?: unknown };
+  
+  /**
+   * Optional: Validate item data
+   * @param type Item type  
+   * @param data Item data to validate
+   */
+  validateItemData?(type: string, data: unknown): { success: boolean; error?: Error; data?: unknown };
+  
+  /**
+   * Optional: Validate VTT document data
+   * @param type Document type
+   * @param data Document data to validate
+   */
+  validateVTTDocumentData?(type: string, data: unknown): { success: boolean; error?: Error; data?: unknown };
 }
 
 /**

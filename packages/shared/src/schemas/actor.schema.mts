@@ -13,6 +13,9 @@ export const actorSchema = baseSchema.extend({
   avatarId: z.string().optional(),
   defaultTokenImageId: z.string().optional(),
 
+  // Compendium reference (optional - only set for compendium content)
+  compendiumId: z.string().optional(),
+
   description: z.string().optional(),
   gameSystemId: z.string().min(1),
   data: z.record(z.string(), z.any()).optional()

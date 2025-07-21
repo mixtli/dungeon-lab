@@ -1,0 +1,44 @@
+{
+  "name": "@dungeon-lab/foundry-converter",
+  "version": "1.0.0",
+  "description": "Standalone CLI tool for converting Foundry VTT packs to Dungeon Lab format",
+  "type": "module",
+  "bin": {
+    "foundry-converter": "./bin/foundry-converter.mjs"
+  },
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "dev": "tsx src/cli.mts",
+    "check": "tsc --noEmit",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "test:single": "tsx src/cli.mts --input ~/Library/Application\\ Support/FoundryVTT/Data/systems/dnd5e/packs/actors24 --output ./test-output/actors24 --system dnd-5e-2024 --verbose --no-validate",
+    "test:all": "tsx src/cli.mts --input ~/Library/Application\\ Support/FoundryVTT/Data/systems/dnd5e/packs --output ./test-output --system dnd-5e-2024 --all --verbose --no-validate",
+    "test:dry": "tsx src/cli.mts --input ~/Library/Application\\ Support/FoundryVTT/Data/systems/dnd5e/packs/actors24 --output ./test-output/actors24 --system dnd-5e-2024 --verbose --dry-run --no-validate"
+  },
+  "dependencies": {
+    "@dungeon-lab/shared": "file:../shared",
+    "@dungeon-lab/plugin-dnd-5e-2024": "file:../plugins/dnd-5e-2024",
+    "chalk": "^5.3.0",
+    "classic-level": "^1.4.1",
+    "commander": "^12.0.0",
+    "ora": "^8.0.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.25.0",
+    "@types/node": "^20.4.0",
+    "@typescript-eslint/eslint-plugin": "^6.15.0",
+    "@typescript-eslint/parser": "^6.15.0",
+    "eslint": "^8.56.0",
+    "globals": "^16.0.0",
+    "tsx": "^4.7.1",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.30.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

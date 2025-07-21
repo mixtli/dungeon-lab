@@ -141,7 +141,7 @@ export class ActorController {
         error: 'Invalid plugin ID'
       });
     }
-    const result = plugin.validateActorData(validatedData.type, data);
+    const result = plugin.validateActorData?.(validatedData.type, data) || { success: true, data };
 
     if (!result.success) {
       console.log(result.error?.message || 'Validation failed');
@@ -149,7 +149,7 @@ export class ActorController {
         success: false,
         data: null,
         error: result.error?.message || 'Validation failed',
-        error_details: (result.error as any)?.issues || []
+        error_details: (result.error as { issues?: unknown[] })?.issues || []
       });
     }
 

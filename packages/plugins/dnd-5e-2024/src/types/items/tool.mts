@@ -8,9 +8,9 @@ import { baseItemSchema } from './base-item.mjs';
 export const toolDataSchema = baseItemSchema.extend({
   // Tool type
   type: z.object({
-    value: z.enum(['art', 'game', 'music', 'vehicle', 'other']),
+    value: z.enum(['', 'art', 'game', 'music', 'vehicle', 'other']),
     baseItem: z.string().default('')
-  }),
+  }).optional(),
   
   // Tool-specific properties
   properties: z.array(z.string()).default([]),
@@ -19,8 +19,8 @@ export const toolDataSchema = baseItemSchema.extend({
   // Tool abilities (what ability score is used)
   ability: z.enum(['str', 'dex', 'con', 'int', 'wis', 'cha']).optional(),
   
-  // Tool quality modifier
-  bonus: z.number().default(0)
+  // Tool quality modifier (Foundry can send strings for expressions like "+1")
+  bonus: z.union([z.string(), z.number()]).nullable().default(0)
 });
 
 /**

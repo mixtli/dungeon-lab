@@ -13,7 +13,11 @@ export const vttDocumentSchema = baseSchema.extend({
     ),
   pluginId: z.string().min(1),
   documentType: z.string().min(1),
-  description: z.string().min(1).max(5000),
+  
+  // Compendium reference (optional - only set for compendium content)
+  compendiumId: z.string().optional(),
+  
+  description: z.string().max(5000),
   data: z.any() // This will be validated against plugin-specific schema
 });
 

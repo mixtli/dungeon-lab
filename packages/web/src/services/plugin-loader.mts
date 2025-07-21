@@ -69,11 +69,12 @@ export class VitePluginLoader implements PluginLoader {
     }
   }
   
-  async canLoadPlugin(_pluginPath: string): Promise<boolean> {
+  async canLoadPlugin(pluginPath: string): Promise<boolean> {
     try {
       // Check if the path exists and is accessible
       // In a real implementation, this would check file system or network
-      return true;
+      // For now, just validate the path format
+      return typeof pluginPath === 'string' && pluginPath.length > 0;
     } catch {
       return false;
     }

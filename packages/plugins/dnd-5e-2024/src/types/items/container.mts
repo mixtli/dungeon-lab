@@ -10,7 +10,7 @@ export const containerDataSchema = baseItemSchema.extend({
   type: z.object({
     value: z.enum(['backpack', 'bag', 'chest', 'pouch', 'quiver', 'case', 'other']),
     baseItem: z.string().default('')
-  }),
+  }).optional(),
   
   // Container-specific properties
   properties: z.array(z.string()).default([]),
@@ -18,7 +18,7 @@ export const containerDataSchema = baseItemSchema.extend({
   // Capacity and contents
   capacity: z.object({
     type: z.enum(['weight', 'items']).default('weight'),
-    value: z.number().min(0).default(0),
+    value: z.number().min(0).nullable().default(0),
     weightless: z.boolean().default(false) // bags of holding, etc.
   }),
   

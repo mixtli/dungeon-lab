@@ -117,3 +117,9 @@ export class DnD5e2024Plugin implements GameSystemPlugin {
 
 // Export the plugin instance
 export default new DnD5e2024Plugin();
+
+// Export type mappings and utilities for server-side imports
+export * from './types/foundry-mapping.mjs';
+
+// Export validation functions if needed
+export * from './types/validation.mjs';

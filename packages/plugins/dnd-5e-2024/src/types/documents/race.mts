@@ -17,10 +17,10 @@ export const raceDataSchema = z.object({
   // Physical characteristics
   movement: movementSchema,
   senses: z.object({
-    darkvision: z.number().min(0).default(0),
-    blindsight: z.number().min(0).default(0),
-    tremorsense: z.number().min(0).default(0),
-    truesight: z.number().min(0).default(0),
+    darkvision: z.number().min(0).nullable().default(0),
+    blindsight: z.number().min(0).nullable().default(0),
+    tremorsense: z.number().min(0).nullable().default(0),
+    truesight: z.number().min(0).nullable().default(0),
     special: z.string().default('')
   }),
   

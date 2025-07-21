@@ -134,11 +134,21 @@ class PluginDevTools {
 }
 
 /**
+ * Extend window object for development tools
+ */
+declare global {
+  interface Window {
+    __PLUGIN_DEV_TOOLS__?: typeof PluginDevTools;
+    __PLUGIN_REGISTRY__?: typeof pluginRegistry;
+  }
+}
+
+/**
  * Make plugin dev tools available globally in development
  */
 if (import.meta.env.DEV) {
-  (window as any).__PLUGIN_DEV_TOOLS__ = PluginDevTools;
-  (window as any).__PLUGIN_REGISTRY__ = pluginRegistry;
+  window.__PLUGIN_DEV_TOOLS__ = PluginDevTools;
+  window.__PLUGIN_REGISTRY__ = pluginRegistry;
   
   console.log(`
 🔧 Plugin Development Tools Available:

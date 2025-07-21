@@ -8,13 +8,13 @@ import { baseItemSchema } from './base-item.mjs';
 export const consumableDataSchema = baseItemSchema.extend({
   // Consumable type
   type: z.object({
-    value: z.enum(['potion', 'scroll', 'wand', 'rod', 'ammo', 'food', 'poison', 'other']),
+    value: z.enum(['', 'potion', 'scroll', 'wand', 'rod', 'ammo', 'food', 'poison', 'trinket', 'other']),
     baseItem: z.string().default('')
-  }),
+  }).optional(),
   
   // Consumable-specific properties
   properties: z.array(z.string()).default([]),
-  magicalBonus: z.number().default(0),
+  magicalBonus: z.number().nullable().default(0),
   
   // Spell scroll specific fields
   spell: z.object({

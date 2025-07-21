@@ -23,7 +23,19 @@
       "Bash(npm run:*)",
       "Bash(npx tsc:*)",
       "Bash(python3:*)",
-      "Bash(cp:*)"
+      "Bash(cp:*)",
+      "Bash(npm install:*)",
+      "Bash(brew install:*)",
+      "Bash(npm info:*)",
+      "Bash(cp:*)",
+      "Bash(chmod:*)",
+      "Bash(tsx:*)",
+      "Bash(node:*)",
+      "Bash(npx tsx:*)",
+      "Bash(tail:*)",
+      "Bash(timeout 60s npx tsx:*)",
+      "Bash(ldbdump:*)",
+      "Bash(timeout 30 npm run check)"
     ]
   },
   "enabledMcpjsonServers": [

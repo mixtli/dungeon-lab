@@ -6,6 +6,7 @@ import { useAuthStore } from '../../stores/auth.store.mjs';
 import { pluginRegistry } from '../../services/plugin-registry.mts';
 import { CampaignsClient } from '@dungeon-lab/client/index.mjs';
 import type { ICampaign } from '@dungeon-lab/shared/types/index.mjs';
+import type { GameSystemPlugin } from '@dungeon-lab/shared/types/plugin.mjs';
 
 const props = defineProps<{
   campaignId?: string;
@@ -47,11 +48,11 @@ const isCreateForm = computed(() => !isEditMode.value);
 const gameSystems = computed(() => {
   return pluginRegistry
     .getPlugins()
-    .filter((plugin: any) => plugin.config.type === 'gameSystem' && !!plugin.config.enabled)
-    .map((plugin: any) => ({
-      id: plugin.config.id,
-      name: plugin.config.name,
-      description: plugin.config.description || '',
+    .filter((plugin: GameSystemPlugin) => plugin.gameSystem && !!plugin.id)
+    .map((plugin: GameSystemPlugin) => ({
+      id: plugin.id,
+      name: plugin.name,
+      description: plugin.description || '',
     }));
 });
 

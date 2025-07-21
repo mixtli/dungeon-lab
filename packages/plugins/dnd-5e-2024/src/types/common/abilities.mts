@@ -4,7 +4,7 @@ import { z } from 'zod';
  * Individual ability score schema (STR, DEX, CON, INT, WIS, CHA)
  */
 export const abilityScoreSchema = z.object({
-  value: z.number().min(1).max(30),
+  value: z.number().min(0).max(50), // Allow very high scores for legendary creatures
   proficient: z.number().min(0).max(2), // 0=none, 1=proficient, 2=expertise
   max: z.number().nullable(),
   bonuses: z.object({

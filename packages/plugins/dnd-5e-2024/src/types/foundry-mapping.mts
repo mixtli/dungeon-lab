@@ -39,8 +39,8 @@ export const FOUNDRY_ITEM_TYPE_MAPPING = {
   'container': 'container',
   'backpack': 'container',
   
-  // Base items (templates)
-  'base': 'equipment', // Base items usually become equipment
+  // Base items (status effects/conditions from classes24 pack)
+  'base': 'condition', // Base items in classes pack are status effects
   
   // Enchantments (magical modifications)
   'enchantment': 'loot', // Treat as special loot
@@ -63,6 +63,9 @@ export const FOUNDRY_DOCUMENT_TYPE_MAPPING = {
   'subclass': 'subclass',
   'feat': 'feat',
   'race': 'race',
+  
+  // Status effects and conditions
+  'base': 'condition',
   
   // Rules and reference
   'rule': 'reference',
@@ -96,7 +99,7 @@ export const FOUNDRY_TYPE_MAPPING = {
   'tool': { target: 'Item', subtype: 'tool' },
   'loot': { target: 'Item', subtype: 'loot' },
   'container': { target: 'Item', subtype: 'container' },
-  'base': { target: 'Item', subtype: 'equipment' },
+  'base': { target: 'VTTDocument', subtype: 'condition' },
   'enchantment': { target: 'Item', subtype: 'loot' },
   
   // Documents

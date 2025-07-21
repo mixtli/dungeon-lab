@@ -29,6 +29,19 @@ export {
 // Chatbots schemas
 export * from './chatbots.schema.mjs';
 
+// Compendium schemas
+export {
+  compendiumSchema,
+  compendiumCreateSchema,
+  compendiumUpdateSchema,
+  compendiumEntrySchema,
+  compendiumEntryCreateSchema,
+  compendiumEntryUpdateSchema,
+  compendiumStatusSchema,
+  importSourceSchema,
+  contentTypeSchema
+} from './compendium.schema.mjs';
+
 // Encounter schemas
 export {
   encounterSchema,

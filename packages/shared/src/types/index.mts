@@ -76,6 +76,15 @@ import {
   vttDocumentUpdateSchema
 } from '../schemas/vtt-document.schema.mjs';
 
+import {
+  compendiumSchema,
+  compendiumCreateSchema,
+  compendiumUpdateSchema,
+  compendiumEntrySchema,
+  compendiumEntryCreateSchema,
+  compendiumEntryUpdateSchema
+} from '../schemas/compendium.schema.mjs';
+
 // General Types
 export type QueryValue = string | number | boolean | RegExp | Date | object;
 
@@ -164,6 +173,14 @@ export type IUVTT = z.infer<typeof uvttSchema>;
 export type IVTTDocument = z.infer<typeof vttDocumentSchema>;
 export type IVTTDocumentCreateData = z.infer<typeof vttDocumentCreateSchema>;
 export type IVTTDocumentUpdateData = z.infer<typeof vttDocumentUpdateSchema>;
+
+// Compendium Types
+export type ICompendium = z.infer<typeof compendiumSchema>;
+export type ICompendiumCreateData = z.infer<typeof compendiumCreateSchema>;
+export type ICompendiumUpdateData = z.infer<typeof compendiumUpdateSchema>;
+export type ICompendiumEntry = z.infer<typeof compendiumEntrySchema>;
+export type ICompendiumEntryCreateData = z.infer<typeof compendiumEntryCreateSchema>;
+export type ICompendiumEntryUpdateData = z.infer<typeof compendiumEntryUpdateSchema>;
 
 // Chatbot Types
 export * from './chatbots.mjs';

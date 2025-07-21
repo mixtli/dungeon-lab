@@ -7,19 +7,10 @@ import { readdir, readFile } from 'fs/promises';
 import { join } from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import { Plugin } from '@dungeon-lab/shared/types/index.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-
-interface Plugin {
-  id: string;
-  name: string;
-  description?: string;
-  version?: string;
-  author?: string;
-  validateActorData(type: string, data: unknown): { success: boolean; error?: { message: string } };
-  validateVTTDocumentData?(type: string, data: unknown): { success: boolean; error?: { message: string } };
-}
 
 interface PluginPackageJson {
   name: string;
@@ -83,23 +74,64 @@ class ServerPluginRegistry {
         version: packageJson.version,
         author: typeof packageJson.author === 'string' ? packageJson.author : (packageJson.author as unknown as { name: string })?.name,
         validateActorData: (_type: string, data: unknown) => {
-          // Basic validation - just check that data is an object
-          if (typeof data !== 'object' || data === null) {
-            return { success: false, error: { message: 'Actor data must be an object' } };
+          try {
+            // Note: This is a simplified synchronous validation
+            // In production, schemas should be pre-loaded during plugin initialization
+            if (typeof data !== 'object' || data === null) {
+              return { success: false, error: new Error('Actor data must be an object') };
+            }
+            
+            // For now, accept any valid object
+            // TODO: Implement proper schema validation after async plugin initialization
+            return { success: true, data };
+          } catch (error) {
+            return { 
+              success: false, 
+              error: error instanceof Error ? error : new Error('Actor validation failed') 
+            };
           }
-          
-          // For now, accept any valid object
-          return { success: true };
+        },
+        validateItemData: (_type: string, data: unknown) => {
+          try {
+            // Note: This is a simplified synchronous validation
+            // In production, schemas should be pre-loaded during plugin initialization
+            if (typeof data !== 'object' || data === null) {
+              return { success: false, error: new Error('Item data must be an object') };
+            }
+            
+            // For now, accept any valid object
+            // TODO: Implement proper schema validation after async plugin initialization
+            return { success: true, data };
+          } catch (error) {
+            return { 
+              success: false, 
+              error: error instanceof Error ? error : new Error('Item validation failed') 
+            };
+          }
         },
         validateVTTDocumentData: (_type: string, data: unknown) => {
-          // Basic validation - just check that data is an object
-          if (typeof data !== 'object' || data === null) {
-            return { success: false, error: { message: 'VTT document data must be an object' } };
+          try {
+            // Note: This is a simplified synchronous validation
+            // In production, schemas should be pre-loaded during plugin initialization
+            if (typeof data !== 'object' || data === null) {
+              return { success: false, error: new Error('VTT document data must be an object') };
+            }
+            
+            // For now, accept any valid object
+            // TODO: Implement proper schema validation after async plugin initialization
+            return { success: true, data };
+          } catch (error) {
+            return { 
+              success: false, 
+              error: error instanceof Error ? error : new Error('VTT document validation failed') 
+            };
           }
-          
-          // For now, accept any valid object
-          return { success: true };
-        }
+        },
+        // Stub implementations for required plugin lifecycle methods
+        onLoad: async () => {},
+        onUnload: async () => {},
+        registerComponents: () => {},
+        registerMechanics: () => {}
       };
       
       this.registerPlugin(plugin);
@@ -120,21 +152,35 @@ class ServerPluginRegistry {
       validateActorData: (_type: string, data: unknown) => {
         // Basic validation - just check that data is an object
         if (typeof data !== 'object' || data === null) {
-          return { success: false, error: { message: 'Actor data must be an object' } };
+          return { success: false, error: new Error('Actor data must be an object') };
         }
         
         // For now, accept any valid object
-        return { success: true };
+        return { success: true, data };
+      },
+      validateItemData: (_type: string, data: unknown) => {
+        // Basic validation - just check that data is an object
+        if (typeof data !== 'object' || data === null) {
+          return { success: false, error: new Error('Item data must be an object') };
+        }
+        
+        // For now, accept any valid object
+        return { success: true, data };
       },
       validateVTTDocumentData: (_type: string, data: unknown) => {
         // Basic validation - just check that data is an object
         if (typeof data !== 'object' || data === null) {
-          return { success: false, error: { message: 'VTT document data must be an object' } };
+          return { success: false, error: new Error('VTT document data must be an object') };
         }
         
         // For now, accept any valid object
-        return { success: true };
-      }
+        return { success: true, data };
+      },
+      // Stub implementations for required plugin lifecycle methods
+      onLoad: async () => {},
+      onUnload: async () => {},
+      registerComponents: () => {},
+      registerMechanics: () => {}
     });
   }
   

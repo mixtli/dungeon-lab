@@ -5,8 +5,7 @@ import {
   skillsSchema, 
   movementSchema, 
   creatureSizeSchema,
-  sourceSchema,
-  descriptionSchema 
+  sourceSchema
 } from '../common/index.mjs';
 
 /**
@@ -19,21 +18,21 @@ export const npcDataSchema = z.object({
   
   // Creature attributes
   attributes: z.object({
-    init: z.record(z.unknown()),
+    init: z.record(z.unknown()).optional(),
     movement: movementSchema,
-    attunement: z.record(z.unknown()),
-    senses: z.record(z.unknown()),
-    spellcasting: z.record(z.unknown()),
+    attunement: z.record(z.unknown()).optional(),
+    senses: z.record(z.unknown()).optional(),
+    spellcasting: z.union([z.string(), z.record(z.unknown())]).optional(),
     exhaustion: z.number().min(0).max(6).default(0),
-    concentration: z.record(z.unknown()),
+    concentration: z.record(z.unknown()).optional(),
     ac: z.record(z.unknown()),
-    hd: z.record(z.unknown()), // Hit dice
+    hd: z.record(z.unknown()).optional(), // Hit dice
     hp: z.object({
-      value: z.number().min(1),
-      max: z.number().min(1),
+      value: z.number().min(0), // Allow 0 HP for special creatures
+      max: z.number().min(0), // Allow 0 max HP for special creatures
       formula: z.string().optional()
     }),
-    death: z.record(z.unknown())
+    death: z.record(z.unknown()).optional()
   }),
   
   // Creature details
@@ -46,15 +45,15 @@ export const npcDataSchema = z.object({
     ideal: z.string().default(''),
     bond: z.string().default(''),
     flaw: z.string().default(''),
-    race: z.string().optional(),
+    race: z.string().nullable().optional(),
     type: z.object({
-      value: z.string(), // creature type (beast, humanoid, etc.)
+      value: z.string().optional(), // creature type (beast, humanoid, etc.)
       subtype: z.string().default(''),
       swarm: z.string().default(''),
       custom: z.string().default('')
-    }),
+    }).optional(),
     environment: z.string().default(''),
-    cr: z.union([z.number(), z.string()]), // Challenge Rating
+    cr: z.union([z.number(), z.string()]).nullable().optional(), // Challenge Rating
     spellLevel: z.number().min(0).default(0)
   }),
   
@@ -66,17 +65,17 @@ export const npcDataSchema = z.object({
     dv: z.record(z.unknown()), // damage vulnerabilities
     dm: z.record(z.unknown()), // damage modifiers
     ci: z.record(z.unknown()), // condition immunities
-    languages: z.record(z.unknown())
+    languages: z.record(z.unknown()).optional()
   }),
   
   // Money, skills, tools, spells
-  currency: currencySchema,
-  skills: skillsSchema,
-  tools: z.record(z.unknown()),
-  spells: z.record(z.unknown()),
-  bonuses: z.record(z.unknown()),
-  resources: z.record(z.unknown()),
-  source: sourceSchema
+  currency: currencySchema.optional(),
+  skills: skillsSchema.optional(),
+  tools: z.record(z.unknown()).optional(),
+  spells: z.record(z.unknown()).optional(),
+  bonuses: z.record(z.unknown()).optional(),
+  resources: z.record(z.unknown()).optional(),
+  source: sourceSchema.optional()
 });
 
 export type NPCData = z.infer<typeof npcDataSchema>;
