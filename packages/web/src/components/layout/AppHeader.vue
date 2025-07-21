@@ -124,6 +124,13 @@ function handleThemeToggle() {
               >
                 Asset Library
               </RouterLink>
+              <RouterLink
+                v-if="authStore.isAuthenticated"
+                to="/compendiums"
+                class="block px-4 py-2 text-sm nav-text hover:bg-stone-100 dark:hover:bg-stone-600"
+              >
+                Compendiums
+              </RouterLink>
               <template v-if="authStore.isAuthenticated && authStore.user?.isAdmin">
                 <div class="border-t border-gray-200 dark:border-gray-600 my-1"></div>
                 <RouterLink
@@ -284,6 +291,14 @@ function handleThemeToggle() {
           @click="closeMenu"
         >
           Asset Library
+        </RouterLink>
+        <RouterLink
+          v-if="authStore.isAuthenticated"
+          to="/compendiums"
+          class="block px-3 py-2 rounded-md text-base font-medium nav-text hover:bg-stone-100 dark:hover:bg-stone-700"
+          @click="closeMenu"
+        >
+          Compendiums
         </RouterLink>
         <button
           v-if="authStore.isAuthenticated"

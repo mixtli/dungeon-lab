@@ -40,6 +40,10 @@ const MapEditorView = () => import('@/views/map/MapEditorView.vue');
 const AssetListView = () => import('@/views/AssetListView.vue');
 const AssetDetailView = () => import('@/views/AssetDetailView.vue');
 
+// Compendium views
+const CompendiumListView = () => import('@/views/CompendiumListView.vue');
+const CompendiumDetailView = () => import('@/views/CompendiumDetailView.vue');
+
 const InvitesView = () => import('@/views/InvitesView.vue');
 
 // Encounter views
@@ -124,6 +128,25 @@ const routes: RouteRecordRaw[] = [
         component: AssetDetailView,
         meta: {
           title: 'Asset Details',
+          requiresAuth: true
+        }
+      },
+      // Compendium routes
+      {
+        path: 'compendiums',
+        name: 'compendiums',
+        component: CompendiumListView,
+        meta: {
+          title: 'Compendium Library',
+          requiresAuth: true
+        }
+      },
+      {
+        path: 'compendiums/:id',
+        name: 'compendium-detail',
+        component: CompendiumDetailView,
+        meta: {
+          title: 'Compendium Details',
           requiresAuth: true
         }
       },
