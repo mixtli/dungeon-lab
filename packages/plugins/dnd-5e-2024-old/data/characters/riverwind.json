@@ -1,0 +1,128 @@
+{
+  "userData": {
+    "uuid": "DE267BBE-D691-42F5-9D7B-47EED9DD837E"
+  },
+  "name": "Riverwind",
+  "description": "A stoic Plains barbarian and tribal healer who serves as a steadfast protector of his people. His unwavering faith and deep connection to nature guide his actions, while his skills as a warrior and healer make him an essential ally. Despite his reserved nature, his dedication to justice and truth remains unshakeable.",
+  "avatar": {
+    "url": "images/character_tokens/dragonlance/riverwind.png",
+    "type": "image/png",
+    "size": 0,
+    "name": "riverwind.png",
+    "data": null
+  },
+  "token": {
+    "url": "images/character_tokens/dragonlance/riverwind.png",
+    "type": "image/png",
+    "size": 0,
+    "name": "riverwind.png",
+    "data": null
+  },
+  "data": {
+    "species": "human",
+    "classes": [
+      {
+        "name": "fighter",
+        "level": 1,
+        "hitDiceType": "d8"
+      }
+    ],
+    "background": "tribal-healer",
+    "alignment": "lawful-good",
+    "experiencePoints": 0,
+    "proficiencyBonus": 2,
+    "armorClass": 10,
+    "initiative": 0,
+    "speed": 30,
+    "hitPoints": {
+      "maximum": 10,
+      "current": 10,
+      "temporary": 0
+    },
+    "hitDice": {
+      "total": 1,
+      "current": 1,
+      "type": "d8"
+    },
+    "abilities": {
+      "strength": {
+        "score": 10,
+        "modifier": 0,
+        "savingThrow": {
+          "proficient": false,
+          "bonus": 0
+        }
+      },
+      "dexterity": {
+        "score": 10,
+        "modifier": 0,
+        "savingThrow": {
+          "proficient": true,
+          "bonus": 0
+        }
+      },
+      "constitution": {
+        "score": 10,
+        "modifier": 0,
+        "savingThrow": {
+          "proficient": false,
+          "bonus": 0
+        }
+      },
+      "intelligence": {
+        "score": 10,
+        "modifier": 0,
+        "savingThrow": {
+          "proficient": false,
+          "bonus": 0
+        }
+      },
+      "wisdom": {
+        "score": 10,
+        "modifier": 0,
+        "savingThrow": {
+          "proficient": false,
+          "bonus": 0
+        }
+      },
+      "charisma": {
+        "score": 10,
+        "modifier": 0,
+        "savingThrow": {
+          "proficient": false,
+          "bonus": 0
+        }
+      }
+    },
+    "equipment": [
+      {
+        "id": "staff",
+        "quantity": 1
+      },
+      {
+        "id": "leather-armor",
+        "quantity": 1
+      }
+    ],
+    "features": [
+      {
+        "name": "Fighting Style: Defense",
+        "source": "Fighter",
+        "description": "+1 to AC while wearing armor"
+      },
+      {
+        "name": "Second Wind",
+        "source": "Fighter",
+        "description": "Once per short rest, bonus action to regain 1d10 + fighter level HP"
+      }
+    ],
+    "biography": {
+      "appearance": "A tall, stoic man with long dark hair and bronze skin, wearing tribal clothing",
+      "backstory": "A warrior and healer from the Que-Shu tribe of the Plains of Abanasinia",
+      "personalityTraits": "Quiet and reserved, deeply spiritual",
+      "ideals": "Tradition and honor guide my actions",
+      "bonds": "Devoted to Goldmoon and the ancient gods",
+      "flaws": "Sometimes too rigid in adherence to tribal traditions"
+    }
+  }
+}

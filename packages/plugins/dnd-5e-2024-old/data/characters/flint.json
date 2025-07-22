@@ -1,0 +1,101 @@
+{
+  "userData": {
+    "uuid": "76880B57-BE96-4585-A3F4-EB0DB7A89C6F"
+  },
+  "name": "Flint Fireforge",
+  "description": "A gruff but loyal dwarf whose grumbling exterior masks a heart of gold. As a master metalsmith and veteran warrior, Flint serves as both craftsman and fighter for his companions. Though he constantly complains about heights, boats, and especially kender, his deep friendship with Tanis and protective nature toward his friends reveal his true character.",
+  "avatar": {
+    "url": "images/character_tokens/dragonlance/flint.png",
+    "type": "image/png",
+    "size": 0,
+    "name": "flint.png",
+    "data": null
+  },
+  "token": {
+    "url": "images/character_tokens/dragonlance/flint.png",
+    "type": "image/png",
+    "size": 0,
+    "name": "flint.png",
+    "data": null
+  },
+  "data": {
+    "species": "dwarf",
+    "classes": [
+      {
+        "name": "fighter",
+        "level": 1,
+        "hitDiceType": "d10"
+      }
+    ],
+    "background": "artisan",
+    "alignment": "neutral-good",
+    "experiencePoints": 0,
+    "proficiencyBonus": 2,
+    "armorClass": 5,
+    "initiative": 0,
+    "speed": 30,
+    "hitPoints": {
+      "maximum": 10,
+      "current": 10,
+      "temporary": 0
+    },
+    "hitDice": {
+      "total": 1,
+      "current": 1,
+      "type": "d10"
+    },
+    "abilities": {
+      "strength": {
+        "score": 10,
+        "modifier": 0,
+        "savingThrow": {
+          "proficient": false,
+          "bonus": 0
+        }
+      },
+      "dexterity": {
+        "score": 10,
+        "modifier": 0,
+        "savingThrow": {
+          "proficient": true,
+          "bonus": 0
+        }
+      },
+      "constitution": {
+        "score": 10,
+        "modifier": 0,
+        "savingThrow": {
+          "proficient": false,
+          "bonus": 0
+        }
+      },
+      "intelligence": {
+        "score": 10,
+        "modifier": 0,
+        "savingThrow": {
+          "proficient": false,
+          "bonus": 0
+        }
+      },
+      "wisdom": {
+        "score": 10,
+        "modifier": 0,
+        "savingThrow": {
+          "proficient": false,
+          "bonus": 0
+        }
+      },
+      "charisma": {
+        "score": 10,
+        "modifier": 0,
+        "savingThrow": {
+          "proficient": false,
+          "bonus": 0
+        }
+      }
+    },
+    "equipment": [],
+    "features": [],
+    "biography": {}
+  }
+}

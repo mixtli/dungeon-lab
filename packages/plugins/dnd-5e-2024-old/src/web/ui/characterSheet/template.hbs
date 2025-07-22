@@ -1,0 +1,506 @@
+{{#if character}}
+  <!-- Character Sheet Container -->
+  <div class="character-sheet-container">
+    <!-- Edit Mode Toggle -->
+    <div class="sheet-controls">
+      <button id="edit-mode-toggle" class="btn {{#if isEditing}}btn-warning{{else}}btn-primary{{/if}}">
+        {{#if isEditing}}
+          Exit Edit Mode
+        {{else}}
+          Edit Character
+        {{/if}}
+      </button>
+      
+      {{#if isEditing}}
+        <button id="save-changes" class="btn btn-success" {{#unless isDirty}}disabled{{/unless}}>
+          Save Changes
+        </button>
+      {{/if}}
+    </div>
+
+    <!-- Character Header Section -->
+    <div class="character-header">
+      <!-- Character Name and Edit Button Row -->
+      <div class="character-name-row">
+        <div class="character-name">
+          {{#if isEditing}}
+            <input type="text" name="data.name" value="{{character.name}}" class="form-control">
+          {{else}}
+            <h1>{{character.name}}</h1>
+          {{/if}}
+        </div>
+      </div>
+      
+      <!-- Character Stats Grid -->
+      <div class="character-stats-grid">
+        <div class="stat-box">
+          <label>Classes</label>
+          <span>{{{classLevelString character.data.classes}}}</span>
+        </div>
+        
+        <div class="stat-box">
+          <label>Species</label>
+          <span>{{capitalize character.data.species}}</span>
+        </div>
+        
+        <div class="stat-box">
+          <label>Background</label>
+          <span>{{capitalize character.data.background}}</span>
+        </div>
+        
+        <div class="stat-box">
+          <label>Alignment</label>
+          <span>{{capitalize character.data.alignment}}</span>
+        </div>
+        
+        <div class="stat-box">
+          <label>Hit Points</label>
+          <div class="hp-container">
+            {{#if isEditing}}
+              <input type="number" name="data.hitPoints.current" value="{{character.data.hitPoints.current}}" class="form-control">
+              <span>/</span>
+              <input type="number" name="data.hitPoints.maximum" value="{{character.data.hitPoints.maximum}}" class="form-control">
+            {{else}}
+              <span>{{formatHP character.data.hitPoints.current character.data.hitPoints.maximum}}</span>
+            {{/if}}
+          </div>
+        </div>
+        
+        <div class="stat-box">
+          <label>Armor Class</label>
+          {{#if isEditing}}
+            <input type="number" name="data.armorClass" value="{{character.data.armorClass}}" class="form-control">
+          {{else}}
+            <span>{{character.data.armorClass}}</span>
+          {{/if}}
+        </div>
+        
+        <div class="stat-box">
+          <label>Initiative</label>
+          <span>{{formatBonus character.data.initiative}}</span>
+        </div>
+        
+        <div class="stat-box">
+          <label>Speed</label>
+          {{#if isEditing}}
+            <input type="number" name="data.speed" value="{{character.data.speed}}" class="form-control">
+          {{else}}
+            <span>{{character.data.speed}} ft.</span>
+          {{/if}}
+        </div>
+
+        <div class="stat-box">
+          <label>Proficiency</label>
+          <span>{{formatBonus character.data.proficiencyBonus}}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab Navigation -->
+    <div class="sheet-tabs">
+      <button class="tab-button {{#if (isActive 'abilities' activeTab)}}active{{/if}}" data-tab="abilities">Abilities & Skills</button>
+      <button class="tab-button {{#if (isActive 'combat' activeTab)}}active{{/if}}" data-tab="combat">Combat</button>
+      <button class="tab-button {{#if (isActive 'equipment' activeTab)}}active{{/if}}" data-tab="equipment">Equipment</button>
+      <button class="tab-button {{#if (isActive 'features' activeTab)}}active{{/if}}" data-tab="features">Features</button>
+      <button class="tab-button {{#if (isActive 'spells' activeTab)}}active{{/if}}" data-tab="spells">Spellcasting</button>
+      <button class="tab-button {{#if (isActive 'bio' activeTab)}}active{{/if}}" data-tab="bio">Biography</button>
+    </div>
+
+    <!-- Tab Content -->
+    <div class="tab-content">
+      <!-- Abilities Tab -->
+      <div class="tab-pane {{#if (isActive 'abilities' activeTab)}}active{{/if}}" id="abilities-tab">
+        <div class="abilities-section">
+          <div class="ability-scores">
+            <h3>Ability Scores</h3>
+            <div class="ability-grid">
+              <!-- Strength -->
+              <div class="ability-box">
+                <label>Strength</label>
+                <div class="ability-score">
+                  {{#if isEditing}}
+                    <input type="number" name="data.abilities.strength.score" value="{{character.data.abilities.strength.score}}" class="form-control">
+                  {{else}}
+                    <span class="score-value">{{character.data.abilities.strength.score}}</span>
+                  {{/if}}
+                  <span class="ability-modifier">{{abilityModifier character.data.abilities.strength.score}}</span>
+                </div>
+              </div>
+              
+              <!-- Dexterity -->
+              <div class="ability-box">
+                <label>Dexterity</label>
+                <div class="ability-score">
+                  {{#if isEditing}}
+                    <input type="number" name="data.abilities.dexterity.score" value="{{character.data.abilities.dexterity.score}}" class="form-control">
+                  {{else}}
+                    <span class="score-value">{{character.data.abilities.dexterity.score}}</span>
+                  {{/if}}
+                  <span class="ability-modifier">{{abilityModifier character.data.abilities.dexterity.score}}</span>
+                </div>
+              </div>
+              
+              <!-- Constitution -->
+              <div class="ability-box">
+                <label>Constitution</label>
+                <div class="ability-score">
+                  {{#if isEditing}}
+                    <input type="number" name="data.abilities.constitution.score" value="{{character.data.abilities.constitution.score}}" class="form-control">
+                  {{else}}
+                    <span class="score-value">{{character.data.abilities.constitution.score}}</span>
+                  {{/if}}
+                  <span class="ability-modifier">{{abilityModifier character.data.abilities.constitution.score}}</span>
+                </div>
+              </div>
+              
+              <!-- Intelligence -->
+              <div class="ability-box">
+                <label>Intelligence</label>
+                <div class="ability-score">
+                  {{#if isEditing}}
+                    <input type="number" name="data.abilities.intelligence.score" value="{{character.data.abilities.intelligence.score}}" class="form-control">
+                  {{else}}
+                    <span class="score-value">{{character.data.abilities.intelligence.score}}</span>
+                  {{/if}}
+                  <span class="ability-modifier">{{abilityModifier character.data.abilities.intelligence.score}}</span>
+                </div>
+              </div>
+              
+              <!-- Wisdom -->
+              <div class="ability-box">
+                <label>Wisdom</label>
+                <div class="ability-score">
+                  {{#if isEditing}}
+                    <input type="number" name="data.abilities.wisdom.score" value="{{character.data.abilities.wisdom.score}}" class="form-control">
+                  {{else}}
+                    <span class="score-value">{{character.data.abilities.wisdom.score}}</span>
+                  {{/if}}
+                  <span class="ability-modifier">{{abilityModifier character.data.abilities.wisdom.score}}</span>
+                </div>
+              </div>
+              
+              <!-- Charisma -->
+              <div class="ability-box">
+                <label>Charisma</label>
+                <div class="ability-score">
+                  {{#if isEditing}}
+                    <input type="number" name="data.abilities.charisma.score" value="{{character.data.abilities.charisma.score}}" class="form-control">
+                  {{else}}
+                    <span class="score-value">{{character.data.abilities.charisma.score}}</span>
+                  {{/if}}
+                  <span class="ability-modifier">{{abilityModifier character.data.abilities.charisma.score}}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Saving Throws -->
+          <div class="saving-throws">
+            <h3>Saving Throws</h3>
+            <ul class="saves-list">
+              <li class="save-item">
+                <div class="proficiency-box">
+                  {{#if isEditing}}
+                    <input type="checkbox" name="data.abilities.strength.savingThrow.proficient" {{#if character.data.abilities.strength.savingThrow.proficient}}checked{{/if}}>
+                  {{else}}
+                    <span class="{{#if character.data.abilities.strength.savingThrow.proficient}}proficient{{/if}}"></span>
+                  {{/if}}
+                </div>
+                <span class="save-name">Strength</span>
+                <span class="save-value">{{formatBonus character.data.abilities.strength.savingThrow.bonus}}</span>
+              </li>
+              
+              <li class="save-item">
+                <div class="proficiency-box">
+                  {{#if isEditing}}
+                    <input type="checkbox" name="data.abilities.dexterity.savingThrow.proficient" {{#if character.data.abilities.dexterity.savingThrow.proficient}}checked{{/if}}>
+                  {{else}}
+                    <span class="{{#if character.data.abilities.dexterity.savingThrow.proficient}}proficient{{/if}}"></span>
+                  {{/if}}
+                </div>
+                <span class="save-name">Dexterity</span>
+                <span class="save-value">{{formatBonus character.data.abilities.dexterity.savingThrow.bonus}}</span>
+              </li>
+              
+              <li class="save-item">
+                <div class="proficiency-box">
+                  {{#if isEditing}}
+                    <input type="checkbox" name="data.abilities.constitution.savingThrow.proficient" {{#if character.data.abilities.constitution.savingThrow.proficient}}checked{{/if}}>
+                  {{else}}
+                    <span class="{{#if character.data.abilities.constitution.savingThrow.proficient}}proficient{{/if}}"></span>
+                  {{/if}}
+                </div>
+                <span class="save-name">Constitution</span>
+                <span class="save-value">{{formatBonus character.data.abilities.constitution.savingThrow.bonus}}</span>
+              </li>
+              
+              <li class="save-item">
+                <div class="proficiency-box">
+                  {{#if isEditing}}
+                    <input type="checkbox" name="data.abilities.intelligence.savingThrow.proficient" {{#if character.data.abilities.intelligence.savingThrow.proficient}}checked{{/if}}>
+                  {{else}}
+                    <span class="{{#if character.data.abilities.intelligence.savingThrow.proficient}}proficient{{/if}}"></span>
+                  {{/if}}
+                </div>
+                <span class="save-name">Intelligence</span>
+                <span class="save-value">{{formatBonus character.data.abilities.intelligence.savingThrow.bonus}}</span>
+              </li>
+              
+              <li class="save-item">
+                <div class="proficiency-box">
+                  {{#if isEditing}}
+                    <input type="checkbox" name="data.abilities.wisdom.savingThrow.proficient" {{#if character.data.abilities.wisdom.savingThrow.proficient}}checked{{/if}}>
+                  {{else}}
+                    <span class="{{#if character.data.abilities.wisdom.savingThrow.proficient}}proficient{{/if}}"></span>
+                  {{/if}}
+                </div>
+                <span class="save-name">Wisdom</span>
+                <span class="save-value">{{formatBonus character.data.abilities.wisdom.savingThrow.bonus}}</span>
+              </li>
+              
+              <li class="save-item">
+                <div class="proficiency-box">
+                  {{#if isEditing}}
+                    <input type="checkbox" name="data.abilities.charisma.savingThrow.proficient" {{#if character.data.abilities.charisma.savingThrow.proficient}}checked{{/if}}>
+                  {{else}}
+                    <span class="{{#if character.data.abilities.charisma.savingThrow.proficient}}proficient{{/if}}"></span>
+                  {{/if}}
+                </div>
+                <span class="save-name">Charisma</span>
+                <span class="save-value">{{formatBonus character.data.abilities.charisma.savingThrow.bonus}}</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Combat Tab -->
+      <div class="tab-pane {{#if (isActive 'combat' activeTab)}}active{{/if}}" id="combat-tab">
+        <div class="combat-section">
+          <div class="combat-stats">
+            <div class="hit-dice">
+              <h3>Hit Dice</h3>
+              <div class="hit-dice-value">
+                {{#if isEditing}}
+                  <input type="number" name="data.hitDice.current" value="{{character.data.hitDice.current}}" class="form-control">
+                  <span>/</span>
+                  <input type="number" name="data.hitDice.total" value="{{character.data.hitDice.total}}" class="form-control">
+                {{else}}
+                  <span>{{character.data.hitDice.current}}/{{character.data.hitDice.total}} {{character.data.hitDice.type}}</span>
+                {{/if}}
+              </div>
+            </div>
+            
+            <div class="death-saves">
+              <h3>Death Saves</h3>
+              <div class="death-save-boxes">
+                <div class="success-box">
+                  <label>Successes</label>
+                  <div class="check-boxes">
+                    <span class="check-box"></span>
+                    <span class="check-box"></span>
+                    <span class="check-box"></span>
+                  </div>
+                </div>
+                <div class="failure-box">
+                  <label>Failures</label>
+                  <div class="check-boxes">
+                    <span class="check-box"></span>
+                    <span class="check-box"></span>
+                    <span class="check-box"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Weapons -->
+            <div class="weapons">
+              <h3>Weapons</h3>
+              <table class="weapons-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Attack Bonus</th>
+                    <th>Damage</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {{#each character.data.equipment}}
+                    {{#if this.id}}
+                      <tr class="weapon-row">
+                        <td>{{this.id}}</td>
+                        <td>+5</td>
+                        <td>1d8+3</td>
+                      </tr>
+                    {{/if}}
+                  {{/each}}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Equipment Tab -->
+      <div class="tab-pane {{#if (isActive 'equipment' activeTab)}}active{{/if}}" id="equipment-tab">
+        <div class="equipment-section">
+          <h3>Equipment</h3>
+          <div class="equipment-list">
+            {{#if character.data.equipment.length}}
+              <ul class="items-list">
+                {{#each character.data.equipment}}
+                  <li class="item">
+                    <span class="item-name">{{this.id}}</span>
+                    <span class="item-quantity">×{{this.quantity}}</span>
+                  </li>
+                {{/each}}
+              </ul>
+            {{else}}
+              <p class="no-items">No equipment found.</p>
+            {{/if}}
+          </div>
+        </div>
+      </div>
+      
+      <!-- Features Tab -->
+      <div class="tab-pane {{#if (isActive 'features' activeTab)}}active{{/if}}" id="features-tab">
+        <div class="features-section">
+          <h3>Features & Traits</h3>
+          
+          {{#if character.data.features.length}}
+            <div class="features-list">
+              {{#each character.data.features}}
+                <div class="feature-item">
+                  <h4 class="feature-name">{{this.name}}</h4>
+                  <div class="feature-source">Source: {{this.source}}</div>
+                  <div class="feature-description">{{this.description}}</div>
+                </div>
+              {{/each}}
+            </div>
+          {{else}}
+            <p class="no-features">No features found.</p>
+          {{/if}}
+        </div>
+      </div>
+      
+      <!-- Spellcasting Tab -->
+      <div class="tab-pane {{#if (isActive 'spells' activeTab)}}active{{/if}}" id="spells-tab">
+        <div class="spellcasting-section">
+          {{#if character.data.spellcasting}}
+            <div class="spell-stats">
+              <div class="spell-stat">
+                <label>Spellcasting Ability</label>
+                <span>{{character.data.spellcasting.ability}}</span>
+              </div>
+              <div class="spell-stat">
+                <label>Spell Save DC</label>
+                <span>{{character.data.spellcasting.spellSaveDC}}</span>
+              </div>
+              <div class="spell-stat">
+                <label>Spell Attack Bonus</label>
+                <span>{{formatBonus character.data.spellcasting.spellAttackBonus}}</span>
+              </div>
+            </div>
+            
+            <div class="spell-slots">
+              <h4>Spell Slots</h4>
+              <div class="spell-slot-list">
+                {{#each character.data.spellcasting.spellSlots}}
+                  <div class="spell-slot">
+                    <div class="slot-level">Level {{this.level}}</div>
+                    <div class="slot-usage">
+                      {{#if ../isEditing}}
+                        <input type="number" name="data.spellcasting.spellSlots[{{@index}}].used" value="{{this.used}}" class="form-control">
+                        <span>/</span>
+                        <input type="number" name="data.spellcasting.spellSlots[{{@index}}].total" value="{{this.total}}" class="form-control">
+                      {{else}}
+                        <span>{{this.used}}/{{this.total}}</span>
+                      {{/if}}
+                    </div>
+                  </div>
+                {{/each}}
+              </div>
+            </div>
+            
+            <div class="spell-list">
+              <h4>Spells</h4>
+              <div class="spells-by-level">
+                <!-- Spell list would go here -->
+                <p class="no-spells">Spell list not implemented yet.</p>
+              </div>
+            </div>
+          {{else}}
+            <p class="no-spellcasting">This character does not have spellcasting abilities.</p>
+          {{/if}}
+        </div>
+      </div>
+      
+      <!-- Biography Tab -->
+      <div class="tab-pane {{#if (isActive 'bio' activeTab)}}active{{/if}}" id="bio-tab">
+        <div class="biography-section">
+          <h3>Character Biography</h3>
+          
+          <div class="bio-grid">
+            <div class="bio-item">
+              <h4>Personality Traits</h4>
+              {{#if isEditing}}
+                <textarea name="data.biography.personalityTraits" class="form-control bio-textarea">{{character.data.biography.personalityTraits}}</textarea>
+              {{else}}
+                <p>{{character.data.biography.personalityTraits}}</p>
+              {{/if}}
+            </div>
+            
+            <div class="bio-item">
+              <h4>Ideals</h4>
+              {{#if isEditing}}
+                <textarea name="data.biography.ideals" class="form-control bio-textarea">{{character.data.biography.ideals}}</textarea>
+              {{else}}
+                <p>{{character.data.biography.ideals}}</p>
+              {{/if}}
+            </div>
+            
+            <div class="bio-item">
+              <h4>Bonds</h4>
+              {{#if isEditing}}
+                <textarea name="data.biography.bonds" class="form-control bio-textarea">{{character.data.biography.bonds}}</textarea>
+              {{else}}
+                <p>{{character.data.biography.bonds}}</p>
+              {{/if}}
+            </div>
+            
+            <div class="bio-item">
+              <h4>Flaws</h4>
+              {{#if isEditing}}
+                <textarea name="data.biography.flaws" class="form-control bio-textarea">{{character.data.biography.flaws}}</textarea>
+              {{else}}
+                <p>{{character.data.biography.flaws}}</p>
+              {{/if}}
+            </div>
+          </div>
+          
+          <div class="appearance">
+            <h4>Appearance</h4>
+            {{#if isEditing}}
+              <textarea name="data.biography.appearance" class="form-control bio-textarea">{{character.data.biography.appearance}}</textarea>
+            {{else}}
+              <p>{{character.data.biography.appearance}}</p>
+            {{/if}}
+          </div>
+          
+          <div class="backstory">
+            <h4>Backstory</h4>
+            {{#if isEditing}}
+              <textarea name="data.biography.backstory" class="form-control bio-textarea">{{character.data.biography.backstory}}</textarea>
+            {{else}}
+              <p>{{character.data.biography.backstory}}</p>
+            {{/if}}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{{else}}
+  <div class="no-character">
+    <p>No character data available.</p>
+  </div>
+{{/if}} 

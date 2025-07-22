@@ -1,0 +1,27 @@
+{
+  "extends": "../../../tsconfig.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "allowJs": true,
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "noUnusedLocals": true,
+    "paths": {
+      "@dungeon-lab/shared": ["../../shared/src"],
+      "@dungeon-lab/shared/*": ["../../shared/src/*"],
+      "@dungeon-lab/client": ["../../client/src"],
+      "@dungeon-lab/client/*": ["../../client/src/*"]
+    }
+  },
+  "include": ["src/**/*.d.ts", "src/**/*.mts", "src/**/*.ts", "src/**/*.js", "src/**/*.mjs"],
+  "references": [{ "path": "../../shared" }, { "path": "../../client" }],
+  "ts-node": {
+    "esm": true
+  }
+}

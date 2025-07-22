@@ -1,0 +1,10 @@
+{
+  "entry": [
+    "index.{js,ts,mts}",
+    "src/server/index.{js,ts,mts}",
+    "src/web/index.{js,ts,mts}",
+    "src/scripts/*{ts,js,mts}"
+  ],
+  "project": ["**/*.{js,ts}"],
+  "ignore": ["submodules/**"]
+}

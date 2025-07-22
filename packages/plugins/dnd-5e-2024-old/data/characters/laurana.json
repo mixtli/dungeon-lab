@@ -1,0 +1,101 @@
+{
+  "userData": {
+    "uuid": "E3507DCB-BE25-4753-BEC0-E44E0FC9DE87"
+  },
+  "name": "Laurana",
+  "description": "A Qualinesti princess whose journey transforms her from a sheltered noble to a respected military leader. Her ethereal elven beauty belies her growing strength and tactical brilliance. Though initially driven by her love for Tanis Half-Elven, she develops into a formidable commander in her own right, earning the title 'Golden General' for her leadership during the War of the Lance.",
+  "avatar": {
+    "url": "images/character_tokens/dragonlance/laurana.png",
+    "type": "image/png",
+    "size": 0,
+    "name": "laurana.png",
+    "data": null
+  },
+  "token": {
+    "url": "images/character_tokens/dragonlance/laurana.png",
+    "type": "image/png",
+    "size": 0,
+    "name": "laurana.png",
+    "data": null
+  },
+  "data": {
+    "species": "elf",
+    "classes": [
+      {
+        "name": "fighter",
+        "level": 1,
+        "hitDiceType": "d10"
+      }
+    ],
+    "background": "noble",
+    "alignment": "neutral-good",
+    "experiencePoints": 0,
+    "proficiencyBonus": 2,
+    "armorClass": 5,
+    "initiative": 0,
+    "speed": 30,
+    "hitPoints": {
+      "maximum": 10,
+      "current": 10,
+      "temporary": 0
+    },
+    "hitDice": {
+      "total": 1,
+      "current": 1,
+      "type": "d10"
+    },
+    "abilities": {
+      "strength": {
+        "score": 10,
+        "modifier": 0,
+        "savingThrow": {
+          "proficient": false,
+          "bonus": 0
+        }
+      },
+      "dexterity": {
+        "score": 10,
+        "modifier": 0,
+        "savingThrow": {
+          "proficient": true,
+          "bonus": 0
+        }
+      },
+      "constitution": {
+        "score": 10,
+        "modifier": 0,
+        "savingThrow": {
+          "proficient": false,
+          "bonus": 0
+        }
+      },
+      "intelligence": {
+        "score": 10,
+        "modifier": 0,
+        "savingThrow": {
+          "proficient": false,
+          "bonus": 0
+        }
+      },
+      "wisdom": {
+        "score": 10,
+        "modifier": 0,
+        "savingThrow": {
+          "proficient": false,
+          "bonus": 0
+        }
+      },
+      "charisma": {
+        "score": 10,
+        "modifier": 0,
+        "savingThrow": {
+          "proficient": false,
+          "bonus": 0
+        }
+      }
+    },
+    "equipment": [],
+    "features": [],
+    "biography": {}
+  }
+}

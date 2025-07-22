@@ -1,0 +1,132 @@
+{
+  "userData": {
+    "uuid": "f20a0abc-36d4-4b90-897d-a0c68b5541fd"
+  },
+  "name": "Sturm Brightblade",
+  "description": "A noble warrior who embodies the ancient traditions of the Knights of Solamnia, Sturm carries himself with unwavering honor and dignity. Despite the order's fall from grace, he maintains their code with fierce dedication, his handlebar mustache and ancient armor serving as symbols of his commitment to chivalric ideals. His steadfast loyalty and sacrifice for his principles make him both admirable and tragic.",
+  "avatar": {
+    "url": "images/character_tokens/dragonlance/sturm.png",
+    "type": "image/png",
+    "size": 0,
+    "name": "sturm.png",
+    "data": null
+  },
+  "token": {
+    "url": "images/character_tokens/dragonlance/sturm.png",
+    "type": "image/png",
+    "size": 0,
+    "name": "sturm.png",
+    "data": null
+  },
+  "data": {
+    "species": "human",
+    "classes": [
+      {
+        "name": "fighter",
+        "level": 1,
+        "hitDiceType": "d10"
+      }
+    ],
+    "background": "knight",
+    "alignment": "lawful-good",
+    "experiencePoints": 0,
+    "proficiencyBonus": 2,
+    "armorClass": 16,
+    "initiative": 0,
+    "speed": 30,
+    "hitPoints": {
+      "maximum": 12,
+      "current": 12,
+      "temporary": 0
+    },
+    "hitDice": {
+      "total": 1,
+      "current": 1,
+      "type": "d10"
+    },
+    "abilities": {
+      "strength": {
+        "score": 16,
+        "modifier": 3,
+        "savingThrow": {
+          "proficient": true,
+          "bonus": 0
+        }
+      },
+      "dexterity": {
+        "score": 10,
+        "modifier": 0,
+        "savingThrow": {
+          "proficient": false,
+          "bonus": 0
+        }
+      },
+      "constitution": {
+        "score": 14,
+        "modifier": 2,
+        "savingThrow": {
+          "proficient": true,
+          "bonus": 0
+        }
+      },
+      "intelligence": {
+        "score": 12,
+        "modifier": 1,
+        "savingThrow": {
+          "proficient": false,
+          "bonus": 0
+        }
+      },
+      "wisdom": {
+        "score": 13,
+        "modifier": 1,
+        "savingThrow": {
+          "proficient": false,
+          "bonus": 0
+        }
+      },
+      "charisma": {
+        "score": 15,
+        "modifier": 2,
+        "savingThrow": {
+          "proficient": false,
+          "bonus": 0
+        }
+      }
+    },
+    "equipment": [
+      {
+        "id": "longsword",
+        "quantity": 1
+      },
+      {
+        "id": "shield",
+        "quantity": 1
+      },
+      {
+        "id": "chainmail",
+        "quantity": 1
+      }
+    ],
+    "features": [
+      {
+        "name": "Fighting Style: Defense",
+        "source": "Fighter",
+        "description": "+1 to AC while wearing armor"
+      },
+      {
+        "name": "Second Wind",
+        "source": "Fighter",
+        "description": "Once per short rest, bonus action to regain 1d10 + fighter level HP"
+      }
+    ],
+    "biography": {
+      "appearance": "A tall, noble-looking man with a carefully maintained mustache, wearing the ancient armor of the Knights of Solamnia",
+      "backstory": "The son of a disgraced Knight of Solamnia, Sturm upholds the principles of the Knighthood despite its fall from grace",
+      "personalityTraits": "Honorable and chivalrous to a fault",
+      "ideals": "Honor and duty above all else",
+      "bonds": "Restore honor to the Knights of Solamnia and his family name",
+      "flaws": "Rigid adherence to an outdated code of honor"
+    }
+  }
+}
