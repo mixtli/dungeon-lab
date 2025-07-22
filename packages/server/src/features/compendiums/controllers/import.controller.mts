@@ -1,9 +1,12 @@
 import { Request, Response } from 'express';
 import asyncHandler from 'express-async-handler';
+import { nanoid } from 'nanoid';
 import { logger } from '../../../utils/logger.mjs';
 import { importService } from '../services/import.service.mjs';
 import { backgroundJobService } from '../../../services/background-job.service.mjs';
 import { COMPENDIUM_IMPORT_JOB, getImportProgress } from '../jobs/compendium-import.job.mjs';
+import { uploadBuffer } from '../../../services/storage.service.mjs';
+import { transactionService } from '../../../services/transaction.service.mjs';
 import { BaseAPIResponse } from '@dungeon-lab/shared/types/api/base.mjs';
 import { CompendiumManifest, ImportProgress, ValidationResult, ImportZipRequest, ValidateZipRequest } from '@dungeon-lab/shared/schemas/import.schema.mjs';
 import type { Job } from '@pulsecron/pulse';
@@ -31,7 +34,7 @@ interface ValidateZipResponse {
 export class ImportController {
   /**
    * POST /api/compendiums/import
-   * Import a compendium from a ZIP file
+   * Import a compendium from a ZIP file (raw ZIP data in request body)
    */
   importZip = asyncHandler(async (req: Request, res: Response<BaseAPIResponse<ImportResponse>>) => {
     try {
@@ -44,18 +47,20 @@ export class ImportController {
         return;
       }
 
-      const { zipFile, overwriteExisting, validateOnly } = req.body as ImportZipRequest;
-
-      if (!zipFile) {
+      // Check if request has raw ZIP data
+      if (!req.body || !Buffer.isBuffer(req.body)) {
         res.status(400).json({
           success: false,
-          error: 'ZIP file is required'
+          error: 'ZIP file data is required in request body'
         });
         return;
       }
 
-      // Convert File to Buffer
-      const zipBuffer = Buffer.from(await zipFile.arrayBuffer());
+      const zipBuffer = req.body as Buffer;
+      
+      // Get query parameters for options
+      const overwriteExisting = req.query.overwriteExisting === 'true';
+      const validateOnly = req.query.validateOnly === 'true';
 
       // If validateOnly is true, just validate and return
       if (validateOnly) {
@@ -79,9 +84,12 @@ export class ImportController {
         }
       }
 
-      // Create import job in background
+      // Store ZIP file in MinIO and create import job
+      const storageKey = `imports/${userId}/${Date.now()}-${nanoid()}.zip`;
+      await uploadBuffer(storageKey, zipBuffer, 'application/zip');
+      
       const job = backgroundJobService.createJob(COMPENDIUM_IMPORT_JOB, {
-        zipBuffer: zipBuffer.toString('base64'), // Convert to base64 for storage
+        zipStorageKey: storageKey, // Store only the storage reference
         userId,
         overwriteExisting
       }) as Job;
@@ -150,7 +158,7 @@ export class ImportController {
       }
 
       // Verify the job belongs to the requesting user
-      const jobData = job.attrs.data as { userId?: string; compendiumId?: string; progress?: unknown; error?: unknown };
+      const jobData = job.attrs.data as { userId?: string; compendiumId?: string; progress?: unknown; error?: unknown; zipStorageKey?: string };
       if (jobData.userId !== userId) {
         res.status(403).json({
           success: false,
@@ -198,7 +206,7 @@ export class ImportController {
 
   /**
    * POST /api/compendiums/validate
-   * Validate a ZIP file without importing
+   * Validate a ZIP file without importing (raw ZIP data in request body)
    */
   validateZip = asyncHandler(async (req: Request, res: Response<BaseAPIResponse<ValidateZipResponse>>) => {
     try {
@@ -211,18 +219,16 @@ export class ImportController {
         return;
       }
 
-      const { zipFile } = req.body as ValidateZipRequest;
-
-      if (!zipFile) {
+      // Check if request has raw ZIP data
+      if (!req.body || !Buffer.isBuffer(req.body)) {
         res.status(400).json({
           success: false,
-          error: 'ZIP file is required'
+          error: 'ZIP file data is required in request body'
         });
         return;
       }
 
-      // Convert File to Buffer
-      const zipBuffer = Buffer.from(await zipFile.arrayBuffer());
+      const zipBuffer = req.body as Buffer;
 
       try {
         const { manifest, validation } = await importService.validateManifest(zipBuffer);
@@ -295,7 +301,7 @@ export class ImportController {
       }
 
       // Verify the job belongs to the requesting user
-      const jobData = job.attrs.data as { userId?: string; compendiumId?: string; progress?: unknown; error?: unknown };
+      const jobData = job.attrs.data as { userId?: string; compendiumId?: string; progress?: unknown; error?: unknown; zipStorageKey?: string };
       if (jobData.userId !== userId) {
         res.status(403).json({
           success: false,
@@ -389,6 +395,63 @@ export class ImportController {
       res.status(500).json({
         success: false,
         error: `Failed to get import jobs: ${error instanceof Error ? error.message : 'Unknown error'}`
+      });
+    }
+  });
+
+  /**
+   * DELETE /api/compendiums/:id
+   * Delete an entire compendium and all associated content
+   */
+  deleteCompendium = asyncHandler(async (req: Request, res: Response<BaseAPIResponse<{ message: string }>>) => {
+    try {
+      const userId = req.session.user?.id;
+      if (!userId) {
+        res.status(401).json({
+          success: false,
+          error: 'Authentication required'
+        });
+        return;
+      }
+
+      const { id: compendiumSlug } = req.params;
+      
+      if (!compendiumSlug) {
+        res.status(400).json({
+          success: false,
+          error: 'Compendium slug is required'
+        });
+        return;
+      }
+
+      // First lookup the compendium by slug to get its ObjectId
+      const { CompendiumModel } = await import('../models/compendium.model.mjs');
+      const compendium = await CompendiumModel.findOne({ slug: compendiumSlug }).lean();
+      
+      if (!compendium) {
+        res.status(404).json({
+          success: false,
+          error: 'Compendium not found'
+        });
+        return;
+      }
+
+      // Use the transaction service to rollback the compendium with ObjectId
+      await transactionService.rollbackCompendium(compendium._id.toString());
+
+      res.status(200).json({
+        success: true,
+        data: {
+          message: 'Compendium deleted successfully'
+        }
+      });
+
+    } catch (error) {
+      logger.error('Delete compendium controller error:', error);
+      const status = error instanceof Error && error.message.includes('not found') ? 404 : 500;
+      res.status(status).json({
+        success: false,
+        error: `Failed to delete compendium: ${error instanceof Error ? error.message : 'Unknown error'}`
       });
     }
   });

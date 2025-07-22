@@ -2,7 +2,6 @@ import express from 'express';
 import { CompendiumController } from '../controllers/compendium.controller.mjs';
 import { importController } from '../controllers/import.controller.mjs';
 import { authenticate } from '../../../middleware/auth.middleware.mjs';
-import { validateZipUpload } from '../../../middleware/validation.middleware.mjs';
 import { createPathSchema, oapi } from '../../../oapi.mjs';
 import { z } from '../../../utils/zod.mjs';
 import { 
@@ -134,15 +133,15 @@ router.get(
   compendiumController.getCompendiums
 );
 
-// Get compendium by ID
+// Get compendium by slug
 router.get(
   '/:id',
   oapi.validPath(
     createPathSchema({
-      description: 'Get a specific compendium by ID',
+      description: 'Get a specific compendium by slug',
       requestParams: {
         path: z.object({
-          id: z.string().describe('Compendium ID')
+          id: z.string().describe('Compendium slug')
         })
       },
       responses: {
@@ -187,7 +186,7 @@ router.put(
       description: 'Update a compendium',
       requestParams: {
         path: z.object({
-          id: z.string().describe('Compendium ID')
+          id: z.string().describe('Compendium slug')
         })
       },
       requestBody: {
@@ -217,16 +216,22 @@ router.delete(
       description: 'Delete a compendium and all its entries',
       requestParams: {
         path: z.object({
-          id: z.string().describe('Compendium ID')
+          id: z.string().describe('Compendium slug')
         })
       },
       responses: {
-        200: deleteResponseSchema,
-        404: baseAPIResponseSchema
+        200: baseAPIResponseSchema.extend({
+          data: z.object({
+            message: z.string()
+          })
+        }),
+        401: baseAPIResponseSchema,
+        404: baseAPIResponseSchema,
+        500: baseAPIResponseSchema
       }
     })
   ),
-  compendiumController.deleteCompendium
+  importController.deleteCompendium
 );
 
 // Get compendium entries
@@ -237,7 +242,7 @@ router.get(
       description: 'Get all entries for a compendium',
       requestParams: {
         path: z.object({
-          id: z.string().describe('Compendium ID')
+          id: z.string().describe('Compendium slug')
         }),
         query: getEntriesQuerySchema
       },
@@ -257,7 +262,7 @@ router.post(
       description: 'Create a new entry in a compendium',
       requestParams: {
         path: z.object({
-          id: z.string().describe('Compendium ID')
+          id: z.string().describe('Compendium slug')
         })
       },
       requestBody: {
@@ -286,7 +291,7 @@ router.post(
       description: 'Link existing content to a compendium',
       requestParams: {
         path: z.object({
-          id: z.string().describe('Compendium ID')
+          id: z.string().describe('Compendium slug')
         })
       },
       requestBody: {
@@ -316,7 +321,7 @@ router.get(
       description: 'Get statistics for a compendium',
       requestParams: {
         path: z.object({
-          id: z.string().describe('Compendium ID')
+          id: z.string().describe('Compendium slug')
         })
       },
       responses: {
@@ -456,30 +461,16 @@ const userJobsResponseSchema = baseAPIResponseSchema.extend({
   }))
 });
 
+// Middleware to parse raw binary data for ZIP uploads
+const parseRawZip = express.raw({ 
+  type: 'application/zip',
+  limit: '500mb' 
+});
+
 // Import compendium from ZIP
 router.post(
   '/import',
-  oapi.validPath(
-    createPathSchema({
-      description: 'Import a compendium from a ZIP file',
-      requestBody: {
-        content: {
-          'multipart/form-data': {
-            schema: importZipSchema.openapi({
-              description: 'ZIP file with compendium data'
-            })
-          }
-        }
-      },
-      responses: {
-        202: importResponseSchema,
-        400: baseAPIResponseSchema,
-        401: baseAPIResponseSchema,
-        500: baseAPIResponseSchema
-      }
-    })
-  ),
-  validateZipUpload(importZipSchema, 'zipFile'),
+  parseRawZip,
   importController.importZip
 );
 
@@ -509,27 +500,7 @@ router.get(
 // Validate ZIP file
 router.post(
   '/validate',
-  oapi.validPath(
-    createPathSchema({
-      description: 'Validate a ZIP file without importing',
-      requestBody: {
-        content: {
-          'multipart/form-data': {
-            schema: validateZipSchema.openapi({
-              description: 'ZIP file to validate'
-            })
-          }
-        }
-      },
-      responses: {
-        200: validateZipResponseSchema,
-        400: baseAPIResponseSchema,
-        401: baseAPIResponseSchema,
-        500: baseAPIResponseSchema
-      }
-    })
-  ),
-  validateZipUpload(validateZipSchema, 'zipFile'),
+  parseRawZip,
   importController.validateZip
 );
 

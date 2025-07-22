@@ -35,11 +35,29 @@
       "Bash(tail:*)",
       "Bash(timeout 60s npx tsx:*)",
       "Bash(ldbdump:*)",
-      "Bash(timeout 30 npm run check)"
+      "Bash(timeout 30 npm run check)",
+      "Bash(zip:*)",
+      "Bash(npm test:*)",
+      "Bash(unzip:*)",
+      "Bash(./packages/foundry-converter/bin/foundry-converter.mjs --input \"/Users/mixtli/Library/Application Support/FoundryVTT/Data/systems/dnd5e/packs/spells24\" --output \"./compendiums/spells24\" --system \"dnd-5e-2024\")",
+      "Bash(mv:*)",
+      "mcp__mongodb__query",
+      "mcp__mongodb__count"
     ]
   },
   "enabledMcpjsonServers": [
-    "task-master-ai",
-    "memory-bank-mcp"
+    "memento",
+    "context7",
+    "perplexity",
+    "playwright",
+    "github",
+    "puppeteer",
+    "playwright-executionautomation",
+    "sequential-thinking",
+    "fetch",
+    "git",
+    "memory",
+    "mongo-lens",
+    "mongodb"
   ]
 }

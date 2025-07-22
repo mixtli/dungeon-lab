@@ -4,6 +4,8 @@ venv
 node_modules
 .envrc
 
+compendiums
+
 
 packages/*/dist
 packages/**/dist */

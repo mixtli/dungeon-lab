@@ -32,13 +32,21 @@ export interface ConversionResult {
 
 export interface PackManifest {
   name: string;
-  description: string;
+  slug: string;
+  description?: string;
   version: string;
-  system: string;
-  author: string;
-  convertedAt: string;
-  sourceType: 'foundry';
-  contents: {
+  gameSystemId: string;
+  pluginId: string;
+  authors?: string[];
+  license?: string;
+  contentTypes: string[];
+  assetDirectory: string;
+  contentDirectory: string;
+  // Legacy fields for backwards compatibility
+  author?: string;
+  convertedAt?: string;
+  sourceType?: 'foundry';
+  contents?: {
     actors: number;
     items: number;
     documents: number;
@@ -318,15 +326,11 @@ export class FoundryConverter {
    * Transform TransformedContent to the format expected by shared schemas
    */
   private transformToSharedSchemaFormat(content: any): any {
-    const gameSystemId = 'dnd5e-2024';
-    const pluginId = 'dnd-5e-2024';
-    
     switch (content.targetType) {
       case 'Actor':
         return {
           name: content.name,
           type: content.subtype,
-          gameSystemId,
           data: content.data.system || content.data
         };
         
@@ -334,8 +338,6 @@ export class FoundryConverter {
         return {
           name: content.name,
           type: content.subtype,
-          gameSystemId,
-          pluginId,
           data: content.data.system || content.data
         };
         
@@ -343,7 +345,6 @@ export class FoundryConverter {
         return {
           name: content.name,
           slug: this.generateSlug(content.name),
-          pluginId,
           documentType: content.subtype,
           description: content.data.description || '',
           data: content.data.system || content.data
@@ -464,17 +465,39 @@ export class FoundryConverter {
     }
   ): Promise<void> {
     // Create output directories
-    await fs.mkdir(path.join(outputPath, 'actors'), { recursive: true });
-    await fs.mkdir(path.join(outputPath, 'items'), { recursive: true });
-    await fs.mkdir(path.join(outputPath, 'documents'), { recursive: true });
+    await fs.mkdir(path.join(outputPath, 'content', 'actors'), { recursive: true });
+    await fs.mkdir(path.join(outputPath, 'content', 'items'), { recursive: true });
+    await fs.mkdir(path.join(outputPath, 'content', 'documents'), { recursive: true });
     await fs.mkdir(path.join(outputPath, 'assets'), { recursive: true });
 
+    // Determine content types based on what's included
+    const contentTypes: string[] = [];
+    if (data.actors.size > 0) contentTypes.push('actors');
+    if (data.items.size > 0) contentTypes.push('items');
+    if (data.documents.size > 0) {
+      // Determine document types from first few documents
+      const docTypes = new Set<string>();
+      for (const [, doc] of Array.from(data.documents.entries()).slice(0, 10)) {
+        if (doc.type) docTypes.add(doc.type);
+      }
+      contentTypes.push(...docTypes);
+    }
+    
     // Write manifest
+    const compendiumName = data.metadata?.label || path.basename(outputPath);
     const manifest: PackManifest = {
-      name: data.metadata?.label || path.basename(outputPath),
+      name: compendiumName,
+      slug: this.generateSlug(compendiumName),
       description: `Converted from Foundry pack: ${data.metadata?.name || 'unknown'}`,
       version: '1.0.0',
-      system: this.options.systemId,
+      gameSystemId: 'dnd-5e-2024',
+      pluginId: 'dnd-5e-2024',
+      authors: ['Foundry Converter'],
+      license: 'MIT',
+      contentTypes,
+      assetDirectory: 'assets',
+      contentDirectory: 'content',
+      // Legacy fields for backwards compatibility
       author: 'Foundry Converter',
       convertedAt: new Date().toISOString(),
       sourceType: 'foundry',
@@ -495,7 +518,7 @@ export class FoundryConverter {
     for (const [id, actor] of data.actors) {
       const filename = this.sanitizeFilename(`${id}-${actor.name}.json`);
       await fs.writeFile(
-        path.join(outputPath, 'actors', filename),
+        path.join(outputPath, 'content', 'actors', filename),
         JSON.stringify(actor, null, 2)
       );
     }
@@ -504,7 +527,7 @@ export class FoundryConverter {
     for (const [id, item] of data.items) {
       const filename = this.sanitizeFilename(`${id}-${item.name}.json`);
       await fs.writeFile(
-        path.join(outputPath, 'items', filename),
+        path.join(outputPath, 'content', 'items', filename),
         JSON.stringify(item, null, 2)
       );
     }
@@ -513,7 +536,7 @@ export class FoundryConverter {
     for (const [id, doc] of data.documents) {
       const filename = this.sanitizeFilename(`${id}-${doc.name}.json`);
       await fs.writeFile(
-        path.join(outputPath, 'documents', filename),
+        path.join(outputPath, 'content', 'documents', filename),
         JSON.stringify(doc, null, 2)
       );
     }
@@ -529,9 +552,9 @@ export class FoundryConverter {
     // Write invalid documents for debugging
     if (data.invalidDocuments && data.invalidDocuments.size > 0) {
       // Create invalid subdirectories
-      await fs.mkdir(path.join(outputPath, 'actors', 'invalid'), { recursive: true });
-      await fs.mkdir(path.join(outputPath, 'items', 'invalid'), { recursive: true });
-      await fs.mkdir(path.join(outputPath, 'documents', 'invalid'), { recursive: true });
+      await fs.mkdir(path.join(outputPath, 'content', 'actors', 'invalid'), { recursive: true });
+      await fs.mkdir(path.join(outputPath, 'content', 'items', 'invalid'), { recursive: true });
+      await fs.mkdir(path.join(outputPath, 'content', 'documents', 'invalid'), { recursive: true });
 
       for (const [id, invalidDoc] of data.invalidDocuments) {
         const filename = this.sanitizeFilename(`${id}-${invalidDoc.content.name}.json`);
@@ -555,7 +578,7 @@ export class FoundryConverter {
 
         // Write the invalid document
         await fs.writeFile(
-          path.join(outputPath, subdirectory, 'invalid', filename),
+          path.join(outputPath, 'content', subdirectory, 'invalid', filename),
           JSON.stringify(invalidDoc.content, null, 2)
         );
 
@@ -569,7 +592,7 @@ export class FoundryConverter {
         };
 
         await fs.writeFile(
-          path.join(outputPath, subdirectory, 'invalid', errorFilename),
+          path.join(outputPath, 'content', subdirectory, 'invalid', errorFilename),
           JSON.stringify(errorData, null, 2)
         );
       }

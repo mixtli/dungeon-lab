@@ -74,6 +74,15 @@ export class ImportService {
         throw new Error(`Plugin not found: ${manifest.pluginId}`);
       }
 
+      // Check for duplicate compendium name
+      const existingCompendium = await CompendiumModel.findOne({
+        name: manifest.name,
+        gameSystemId: manifest.gameSystemId
+      });
+      if (existingCompendium) {
+        throw new Error(`A compendium named "${manifest.name}" already exists for game system "${manifest.gameSystemId}"`);
+      }
+
       // Stage 2: Validate content files
       this.updateProgress(progressCallback, {
         stage: 'validating',
@@ -128,7 +137,7 @@ export class ImportService {
       });
 
       const compendium = await transactionService.withTransaction(async (session) => {
-        return await this.createCompendiumWithContent({
+          return await this.createCompendiumWithContent({
           compendium: {
             name: manifest.name,
             description: manifest.description,
@@ -295,12 +304,10 @@ export class ImportService {
     // Create compendium
     const compendium = await CompendiumModel.create([{
       ...data.compendium,
-      status: 'published',
+      status: 'active',
       isPublic: false,
-      statistics: {
-        totalEntries: data.content.length,
-        entriesByType: this.calculateTypeStatistics(data.content)
-      }
+      totalEntries: 0, // Will be updated after entries are created
+      entriesByType: {}
     }], { session });
 
     const compendiumDoc = compendium[0] as CompendiumDocument;
@@ -308,85 +315,134 @@ export class ImportService {
 
     // Process content by type
     const contentByType = this.groupContentByType(data.content);
+    logger.info(`Content grouped by type:`, {
+      actors: contentByType.actor?.length || 0,
+      items: contentByType.item?.length || 0,
+      documents: contentByType['vtt-document']?.length || 0,
+      total: data.content.length
+    });
     let processedItems = 0;
     const totalItems = data.content.length;
 
     // Create actors
     if (contentByType.actor.length > 0) {
-      const actors = await ActorModel.create(
-        contentByType.actor.map(item => ({
-          ...(item.data as Record<string, unknown>),
-          compendiumId,
-          createdBy: data.compendium.createdBy
-        })),
-        { session }
-      );
+      logger.info(`Creating ${contentByType.actor.length} actors`);
+      try {
+        const actorDocs = contentByType.actor.map(item => {
+          const actorData = item.data as Record<string, unknown>;
+          const { data: nestedData, gameSystemId, type, pluginId, name, avatarId: _avatarId, defaultTokenImageId: _defaultTokenImageId, ...otherFields } = actorData;
+          const doc = {
+            gameSystemId: gameSystemId || data.compendium.gameSystemId,
+            type,
+            pluginId: pluginId || data.compendium.pluginId,
+            name,
+            data: nestedData,
+            ...otherFields,
+            compendiumId,
+            createdBy: data.compendium.createdBy
+          };
+          return doc;
+        });
+        
+        const actors = await ActorModel.create(actorDocs, { ordered: true });
+        logger.info(`Successfully created ${actors.length} actors`);
+        
+        // Create compendium entries for actors
+        await CompendiumEntryModel.create(
+          actors.map((actor, index) => ({
+            compendiumId,
+            contentType: 'Actor',
+            contentId: actor._id,
+            name: contentByType.actor[index].name,
+            tags: [],
+            metadata: { originalPath: contentByType.actor[index].originalPath }
+          })),
+          { ordered: true }
+        );
 
-      // Create compendium entries for actors
-      await CompendiumEntryModel.create(
-        actors.map((actor, index) => ({
-          compendiumId,
-          contentType: 'actor',
-          contentId: actor._id,
-          name: contentByType.actor[index].name,
-          tags: [],
-          metadata: { originalPath: contentByType.actor[index].originalPath }
-        })),
-        { session }
-      );
-
-      processedItems += actors.length;
-      progressCallback?.(processedItems, totalItems);
+        processedItems += actors.length;
+        progressCallback?.(processedItems, totalItems);
+      } catch (error) {
+        logger.error(`Failed to create actors:`, error);
+        throw error;
+      }
     }
 
     // Create items
     if (contentByType.item.length > 0) {
-      const items = await ItemModel.create(
-        contentByType.item.map(item => ({
-          ...(item.data as Record<string, unknown>),
-          compendiumId,
-          createdBy: data.compendium.createdBy
-        })),
-        { session }
-      );
+      logger.info(`Creating ${contentByType.item.length} items`);
+      try {
+        const itemDocs = contentByType.item.map(item => {
+          const itemData = item.data as Record<string, unknown>;
+          const { data: nestedData, gameSystemId, type, pluginId, name, ...otherFields } = itemData;
+          const doc = {
+            gameSystemId: gameSystemId || data.compendium.gameSystemId,
+            type,
+            pluginId: pluginId || data.compendium.pluginId,
+            name,
+            data: nestedData,
+            ...otherFields,
+            compendiumId,
+            createdBy: data.compendium.createdBy
+          };
+          return doc;
+        });
+        
+        const items = await ItemModel.create(itemDocs, { ordered: true });
+        logger.info(`Successfully created ${items.length} items`);
 
-      await CompendiumEntryModel.create(
-        items.map((item, index) => ({
-          compendiumId,
-          contentType: 'item',
-          contentId: item._id,
-          name: contentByType.item[index].name,
-          tags: [],
-          metadata: { originalPath: contentByType.item[index].originalPath }
-        })),
-        { session }
-      );
+        await CompendiumEntryModel.create(
+          items.map((item, index) => ({
+            compendiumId,
+            contentType: 'Item',
+            contentId: item._id,
+            name: contentByType.item[index].name,
+            tags: [],
+            metadata: { originalPath: contentByType.item[index].originalPath }
+          })),
+          { ordered: true }
+        );
 
-      processedItems += items.length;
-      progressCallback?.(processedItems, totalItems);
+        processedItems += items.length;
+        progressCallback?.(processedItems, totalItems);
+      } catch (error) {
+        logger.error(`Failed to create items:`, error);
+        throw error;
+      }
     }
 
     // Create VTT documents
     if (contentByType['vtt-document'].length > 0) {
+      logger.info(`Creating ${contentByType['vtt-document'].length} VTT documents`);
       const documents = await VTTDocumentModel.create(
-        contentByType['vtt-document'].map(item => ({
-          ...(item.data as Record<string, unknown>),
-          compendiumId,
-          createdBy: data.compendium.createdBy
-        })),
-        { session }
+        contentByType['vtt-document'].map(item => {
+          const docData = item.data as Record<string, unknown>;
+          const { data: nestedData, pluginId, documentType, name, slug, description, ...otherFields } = docData;
+          return {
+            pluginId: pluginId || data.compendium.pluginId,
+            documentType,
+            name,
+            slug,
+            description: description || 'No description available',
+            data: nestedData,
+            ...otherFields,
+            compendiumId,
+            createdBy: data.compendium.createdBy
+          };
+        }),
+        { ordered: true }
       );
 
       await CompendiumEntryModel.create(
         documents.map((doc, index) => ({
           compendiumId,
-          contentType: 'vtt-document',
+          contentType: 'VTTDocument',
           contentId: doc._id,
           name: contentByType['vtt-document'][index].name,
           tags: [],
           metadata: { originalPath: contentByType['vtt-document'][index].originalPath }
         })),
-        { session }
+        { ordered: true }
       );
 
       processedItems += documents.length;
@@ -405,22 +461,44 @@ export class ImportService {
           createdBy: data.compendium.createdBy,
           compendiumId
         })),
-        { session }
+        { ordered: true }
       );
     }
+
+    // Update compendium statistics after all entries are created
+    const totalEntries = data.content.length;
+    const entriesByType = this.calculateTypeStatistics(data.content);
+    
+    await CompendiumModel.findByIdAndUpdate(
+      compendiumId,
+      {
+        totalEntries,
+        entriesByType
+      },
+      { session }
+    );
+    
+    // Update the returned document with the correct statistics
+    compendiumDoc.totalEntries = totalEntries;
+    compendiumDoc.entriesByType = entriesByType;
 
     return compendiumDoc;
   }
 
-  private determineContentType(filePath: string, data: { type?: string; [key: string]: unknown }): { type: 'actor' | 'item' | 'vtt-document'; subtype: string } {
-    // Try to determine from file path first
+  private determineContentType(filePath: string, data: { type?: string; documentType?: string; [key: string]: unknown }): { type: 'actor' | 'item' | 'vtt-document'; subtype: string } {
+    // Check data structure first - more reliable than file path
+    if ('documentType' in data && data.documentType) {
+      return { type: 'vtt-document', subtype: data.documentType as string };
+    }
+    
+    // Try to determine from file path
     const pathParts = filePath.split('/');
     if (pathParts.length > 1) {
       const directory = pathParts[0];
       if (directory === 'actors') return { type: 'actor', subtype: data.type || 'character' };
       if (directory === 'items') return { type: 'item', subtype: data.type || 'equipment' };
-      if (['spells', 'classes', 'backgrounds', 'races', 'feats'].includes(directory)) {
-        return { type: 'vtt-document', subtype: directory.slice(0, -1) }; // Remove 's' from plural
+      if (directory === 'documents' || ['spells', 'classes', 'backgrounds', 'races', 'feats'].includes(directory)) {
+        return { type: 'vtt-document', subtype: data.documentType as string || directory.slice(0, -1) };
       }
     }
 

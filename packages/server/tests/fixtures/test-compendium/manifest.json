@@ -1,0 +1,20 @@
+{
+  "name": "test-compendium", 
+  "slug": "test-compendium",
+  "description": "Comprehensive test compendium with diverse D&D 5e content types from real converted Foundry data",
+  "version": "1.0.0",
+  "gameSystemId": "dnd-5e-2024",
+  "pluginId": "dnd-5e-2024", 
+  "contentTypes": ["actors", "items", "backgrounds", "classes", "equipment", "spells"],
+  "assetDirectory": "assets",
+  "contentDirectory": "content",
+  "authors": ["Test Suite"],
+  "license": "CC-BY-4.0",
+  "sourceType": "foundry",
+  "contents": {
+    "actors": 3,
+    "items": 4,
+    "documents": 2,
+    "assets": 3
+  }
+}

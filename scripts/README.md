@@ -1,8 +1,45 @@
-# Meta-Development Script
+# Dungeon Lab Scripts
 
-This folder contains a **meta-development script** (`dev.js`) and related utilities that manage tasks for an AI-driven or traditional software development workflow. The script revolves around a `tasks.json` file, which holds an up-to-date list of development tasks.
+This directory contains utility scripts for Dungeon Lab development and administration.
 
-## Overview
+## Scripts
+
+### import-compendium.mjs
+
+A real-world demonstration script that imports Foundry VTT compendium data using the Dungeon Lab API. This script shows the complete end-to-end compendium import process:
+
+1. **Authentication** - Logs into the API using session-based auth
+2. **Validation** - Validates ZIP file structure and manifest
+3. **Import** - Starts background import job and monitors progress
+4. **Verification** - Confirms successful import and displays results
+
+**Usage:**
+```bash
+# Use default ZIP file (spells24 pack)
+node scripts/import-compendium.mjs
+
+# Use custom ZIP file
+node scripts/import-compendium.mjs /path/to/your/compendium.zip
+```
+
+**Features:**
+- Real API authentication (no mocking)
+- Progress monitoring with detailed status updates
+- Comprehensive error handling and logging
+- Post-import verification with entry sampling
+- Direct link to view imported compendium
+
+**Architecture Verification:**
+This script demonstrates the complete compendium import architecture including:
+- Raw ZIP upload (bypassing multipart/form-data limitations)
+- Background job processing with Pulse
+- MinIO storage for large files (avoiding MongoDB BSON limits)
+- Plugin-based content validation
+- Transactional import with rollback capabilities
+
+## Task Management System
+
+### Overview
 
 In an AI-driven development process—particularly with tools like [Cursor](https://www.cursor.so/)—it's beneficial to have a **single source of truth** for tasks. This script allows you to:
 

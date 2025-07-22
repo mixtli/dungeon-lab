@@ -47,11 +47,11 @@ export class CompendiumService {
   }
 
   /**
-   * Get compendium by ID
+   * Get compendium by slug
    */
-  async getCompendiumById(id: string): Promise<ICompendium> {
+  async getCompendiumById(slug: string): Promise<ICompendium> {
     try {
-      const compendium = await CompendiumModel.findById(id).lean();
+      const compendium = await CompendiumModel.findOne({ slug }).lean();
       if (!compendium) {
         throw new Error('Compendium not found');
       }
@@ -82,12 +82,12 @@ export class CompendiumService {
   }
 
   /**
-   * Update compendium
+   * Update compendium by slug
    */
-  async updateCompendium(id: string, data: ICompendiumUpdateData, updatedBy: string): Promise<ICompendium> {
+  async updateCompendium(slug: string, data: ICompendiumUpdateData, updatedBy: string): Promise<ICompendium> {
     try {
-      const compendium = await CompendiumModel.findByIdAndUpdate(
-        id,
+      const compendium = await CompendiumModel.findOneAndUpdate(
+        { slug },
         { ...data, updatedBy },
         { new: true, runValidators: true }
       ).lean();
@@ -104,20 +104,23 @@ export class CompendiumService {
   }
 
   /**
-   * Delete compendium and all its entries
+   * Delete compendium and all its entries by slug
    */
-  async deleteCompendium(id: string): Promise<void> {
+  async deleteCompendium(slug: string): Promise<void> {
     try {
       const session = await CompendiumModel.startSession();
       await session.withTransaction(async () => {
-        // Delete all entries first
-        await CompendiumEntryModel.deleteMany({ compendiumId: id }).session(session);
-        
-        // Delete the compendium
-        const result = await CompendiumModel.findByIdAndDelete(id).session(session);
-        if (!result) {
+        // First find the compendium to get its ObjectId
+        const compendium = await CompendiumModel.findOne({ slug }).session(session);
+        if (!compendium) {
           throw new Error('Compendium not found');
         }
+        
+        // Delete all entries using the ObjectId
+        await CompendiumEntryModel.deleteMany({ compendiumId: compendium._id }).session(session);
+        
+        // Delete the compendium by slug
+        await CompendiumModel.findOneAndDelete({ slug }).session(session);
       });
     } catch (error) {
       logger.error('Error deleting compendium:', error);
@@ -126,16 +129,22 @@ export class CompendiumService {
   }
 
   /**
-   * Get all entries for a compendium
+   * Get all entries for a compendium by slug
    */
-  async getCompendiumEntries(compendiumId: string, filters?: {
+  async getCompendiumEntries(slug: string, filters?: {
     contentType?: string;
     isActive?: boolean;
     category?: string;
     search?: string;
   }): Promise<ICompendiumEntry[]> {
     try {
-      const query: Record<string, QueryValue> = { compendiumId };
+      // First find the compendium to get its ObjectId
+      const compendium = await CompendiumModel.findOne({ slug }).lean();
+      if (!compendium) {
+        throw new Error('Compendium not found');
+      }
+
+      const query: Record<string, QueryValue> = { compendiumId: compendium._id };
       
       if (filters?.contentType) query.contentType = filters.contentType;
       if (filters?.isActive !== undefined) query.isActive = filters.isActive;
@@ -234,16 +243,22 @@ export class CompendiumService {
   }
 
   /**
-   * Link existing content to compendium
+   * Link existing content to compendium by slug
    */
   async linkContentToCompendium(
-    compendiumId: string, 
+    compendiumSlug: string, 
     contentType: 'Actor' | 'Item' | 'VTTDocument',
     contentId: string,
     entryData: Partial<ICompendiumEntryCreateData>,
     createdBy: string
   ): Promise<ICompendiumEntry> {
     try {
+      // First find the compendium to get its ObjectId
+      const compendium = await CompendiumModel.findOne({ slug: compendiumSlug }).lean();
+      if (!compendium) {
+        throw new Error('Compendium not found');
+      }
+
       // Verify content exists
       let content;
       let contentName = '';
@@ -267,9 +282,9 @@ export class CompendiumService {
         throw new Error(`${contentType} with ID ${contentId} not found`);
       }
       
-      // Create entry
+      // Create entry using the ObjectId
       const entry = await this.createCompendiumEntry({
-        compendiumId,
+        compendiumId: compendium._id.toString(),
         contentType,
         contentId,
         name: entryData.name || contentName,
@@ -282,8 +297,8 @@ export class CompendiumService {
         sourceData: entryData.sourceData
       }, createdBy);
       
-      // Update content with compendium reference
-      await this.updateContentCompendiumId(contentType, contentId, compendiumId);
+      // Update content with compendium reference using ObjectId
+      await this.updateContentCompendiumId(contentType, contentId, compendium._id.toString());
       
       return entry;
     } catch (error) {
@@ -339,12 +354,19 @@ export class CompendiumService {
   /**
    * Get compendium statistics
    */
-  async getCompendiumStats(compendiumId: string): Promise<{
+  async getCompendiumStats(slug: string): Promise<{
     totalEntries: number;
     entriesByType: Record<string, number>;
     entriesByCategory: Record<string, number>;
   }> {
     try {
+      // First find the compendium to get its ObjectId
+      const compendium = await CompendiumModel.findOne({ slug }).lean();
+      if (!compendium) {
+        throw new Error('Compendium not found');
+      }
+
+      const compendiumId = compendium._id;
       const [totalEntries, entriesByType, entriesByCategory] = await Promise.all([
         CompendiumEntryModel.countDocuments({ compendiumId, isActive: true }),
         

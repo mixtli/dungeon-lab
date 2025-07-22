@@ -23,6 +23,11 @@ mongooseSchema.index({ isPublic: 1 });
 mongooseSchema.index({ tags: 1 });
 mongooseSchema.index({ name: 'text', description: 'text' }); // Text search
 
+// Add unique constraint for compendium slug (global uniqueness)
+mongooseSchema.index({ slug: 1 }, { unique: true });
+// Add unique constraint for compendium name within a game system
+mongooseSchema.index({ name: 1, gameSystemId: 1 }, { unique: true });
+
 // Add virtual for entry count calculation
 mongooseSchema.virtual('entryCount', {
   ref: 'CompendiumEntry',

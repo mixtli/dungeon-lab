@@ -98,6 +98,29 @@ class StorageService {
   }
 
   /**
+   * Upload a buffer with a specific storage key
+   */
+  async uploadBuffer(key: string, buffer: Buffer, contentType: string): Promise<void> {
+    await this.client.putObject(this.bucket, key, buffer, buffer.length, {
+      'Content-Type': contentType,
+    });
+  }
+
+  /**
+   * Download a buffer from storage
+   */
+  async downloadBuffer(key: string): Promise<Buffer> {
+    const stream = await this.client.getObject(this.bucket, key);
+    const chunks: Buffer[] = [];
+    
+    return new Promise((resolve, reject) => {
+      stream.on('data', (chunk) => chunks.push(chunk));
+      stream.on('error', reject);
+      stream.on('end', () => resolve(Buffer.concat(chunks)));
+    });
+  }
+
+  /**
    * Get a presigned URL for a file
    */
   async getFileUrl(key: string, expiryInSeconds = 3600): Promise<string> {
@@ -188,6 +211,12 @@ export const listFiles = (prefix = '', recursive = true) =>
 
 export const getPublicUrl = (key: string) => 
   storageServiceInstance.getPublicUrl(key);
+
+export const uploadBuffer = (key: string, buffer: Buffer, contentType: string) => 
+  storageServiceInstance.uploadBuffer(key, buffer, contentType);
+
+export const downloadBuffer = (key: string) => 
+  storageServiceInstance.downloadBuffer(key);
 
 // Export the instance as default
 export default storageServiceInstance; 

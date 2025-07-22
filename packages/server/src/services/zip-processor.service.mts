@@ -23,7 +23,14 @@ export interface ProcessedZip {
   };
 }
 
-const openZip = promisify(yauzl.fromBuffer.bind(yauzl));
+const openZip = (buffer: Buffer): Promise<yauzl.ZipFile> => {
+  return new Promise((resolve, reject) => {
+    yauzl.fromBuffer(buffer, { lazyEntries: true }, (err, zipfile) => {
+      if (err) reject(err);
+      else resolve(zipfile);
+    });
+  });
+};
 
 export class ZipProcessorService {
   private readonly MAX_ZIP_SIZE = 500 * 1024 * 1024; // 500MB

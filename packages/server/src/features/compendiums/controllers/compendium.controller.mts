@@ -276,8 +276,11 @@ export class CompendiumController {
         });
       }
 
+      // First lookup the compendium by slug to get its ObjectId
+      const compendium = await this.compendiumService.getCompendiumById(req.params.id);
+
       const entry = await this.compendiumService.createCompendiumEntry(
-        { ...req.body, compendiumId: req.params.id },
+        { ...req.body, compendiumId: compendium.id },
         req.session.user.id
       );
 
@@ -288,7 +291,8 @@ export class CompendiumController {
     } catch (error) {
       logger.error('Error creating compendium entry:', error);
       const message = isErrorWithMessage(error) ? error.message : 'Failed to create compendium entry';
-      return res.status(500).json({
+      const status = message.includes('not found') ? 404 : 500;
+      return res.status(status).json({
         success: false,
         error: message
       });

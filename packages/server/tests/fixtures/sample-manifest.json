@@ -1,0 +1,15 @@
+{
+  "name": "test-compendium",
+  "description": "A test compendium for unit testing",
+  "version": "1.0.0",
+  "system": "dnd-5e-2024",
+  "author": "Test Suite",
+  "convertedAt": "2025-07-21T00:00:00.000Z",
+  "sourceType": "test",
+  "contents": {
+    "actors": 1,
+    "items": 2,
+    "documents": 3,
+    "assets": 0
+  }
+}

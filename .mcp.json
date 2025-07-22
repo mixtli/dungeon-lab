@@ -1,19 +1,113 @@
 {
   "mcpServers": {
-    "task-master-ai": {
-      "command": "task-master-mcp",
+    "memento": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@gannonh/memento-mcp"
+      ],
       "env": {
-        "MODEL": "claude-3-7-sonnet-20250219",
-        "PERPLEXITY_MODEL": "sonar-pro",
-        "MAX_TOKENS": "64000",
-        "TEMPERATURE": "0.2",
-        "DEFAULT_SUBTASKS": "5",
-        "DEFAULT_PRIORITY": "medium"
+        "MEMORY_STORAGE_TYPE": "neo4j",
+        "NEO4J_URI": "bolt://127.0.0.1:7687",
+        "NEO4J_USERNAME": "neo4j",
+        "NEO4J_PASSWORD": "memento_password",
+        "NEO4J_DATABASE": "dungeon-lab",
+        "NEO4J_VECTOR_INDEX": "entity_embeddings",
+        "NEO4J_VECTOR_DIMENSIONS": "1536",
+        "NEO4J_SIMILARITY_FUNCTION": "cosine",
+        "OPENAI_EMBEDDING_MODEL": "text-embedding-3-small",
+        "DEBUG": "true"
       }
     },
-    "memory-bank-mcp": {
+    "context7": {
       "command": "npx",
-      "args": ["-y", "@movibe/memory-bank-mcp", "--mode", "code"]
+      "args": [
+        "-y",
+        "@upstash/context7-mcp@latest"
+      ]
+    },
+    "perplexity": {
+      "env": {
+        "PERPLEXITY_MODEL": "sonar"
+      },
+      "command": "uvx",
+      "args": [
+        "perplexity-mcp"
+      ]
+    },
+    "puppeteer": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-puppeteer@latest"
+      ],
+      "env": {
+        "PUPPETEER_CDP_ENDPOINT": "http://127.0.0.1:9222"
+      }
+    },
+    "playwright-executionautomation": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@executeautomation/playwright-mcp-server"
+      ]
+    },
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@latest",
+        "--browser",
+        "chrome",
+        "--cdp-endpoint",
+        "http://127.0.0.1:9222"
+      ]
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ]
+    },
+    "fetch": {
+      "command": "uvx",
+      "args": [
+        "mcp-server-fetch"
+      ]
+    },
+    "git": {
+      "command": "uvx",
+      "args": [
+        "mcp-server-git",
+        "--repository",
+        "/Users/mixtli/Projects/dungeon-lab"
+      ]
+    },
+    "memory": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-memory"
+      ],
+      "env": {
+        "MEMORY_FILE_PATH": "/Users/mixtli/Documents/memory.json"
+      }
+    },
+    "mongo-lens": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mongodb-lens"
+      ]
+    },
+    "mongodb": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-mongo-server",
+        "mongodb://localhost:27017/dungeon-lab"
+      ]
     }
   }
 

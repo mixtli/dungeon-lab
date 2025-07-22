@@ -1,6 +1,7 @@
 import { backgroundJobService } from '../../../services/background-job.service.mjs';
 import { logger } from '../../../utils/logger.mjs';
 import { importService } from '../services/import.service.mjs';
+import { downloadBuffer, deleteFile } from '../../../services/storage.service.mjs';
 import type { Job } from '@pulsecron/pulse';
 import { ImportProgress } from '@dungeon-lab/shared/schemas/import.schema.mjs';
 
@@ -20,22 +21,22 @@ export async function registerCompendiumImportJobs(): Promise<void> {
   backgroundJobService.defineJob(
     COMPENDIUM_IMPORT_JOB,
     async (job: Job): Promise<void> => {
-      const { zipBuffer, userId } = job.attrs.data as { 
-        zipBuffer: string; // Base64 encoded
+      const { zipStorageKey, userId } = job.attrs.data as { 
+        zipStorageKey: string; // MinIO storage key
         userId: string;
         overwriteExisting?: boolean;
       };
       
-      if (!zipBuffer || !userId) {
-        throw new Error('ZIP buffer and User ID are required for compendium import');
+      if (!zipStorageKey || !userId) {
+        throw new Error('ZIP storage key and User ID are required for compendium import');
       }
       
       const jobId = job.attrs._id?.toString() || 'unknown';
       logger.info(`Starting compendium import job ${jobId} for user ${userId}`);
       
       try {
-        // Convert base64 back to buffer
-        const buffer = Buffer.from(zipBuffer, 'base64');
+        // Download ZIP from MinIO storage
+        const buffer = await downloadBuffer(zipStorageKey);
         
         // Process the import with progress callback
         const compendium = await importService.importFromZip(
@@ -67,6 +68,15 @@ export async function registerCompendiumImportJobs(): Promise<void> {
         
         logger.info(`Compendium import completed successfully: ${compendium.id}`);
         
+        // Clean up ZIP file from storage
+        try {
+          await deleteFile(zipStorageKey);
+          logger.debug(`Cleaned up ZIP file: ${zipStorageKey}`);
+        } catch (cleanupError) {
+          logger.warn(`Failed to clean up ZIP file ${zipStorageKey}:`, cleanupError);
+          // Don't fail the job for cleanup errors
+        }
+        
         // Clean up progress data after a delay
         setTimeout(() => {
           importProgress.delete(jobId);
@@ -74,6 +84,14 @@ export async function registerCompendiumImportJobs(): Promise<void> {
         
       } catch (error) {
         logger.error(`Error importing compendium for job ${jobId}:`, error);
+        
+        // Clean up ZIP file from storage even on error
+        try {
+          await deleteFile(zipStorageKey);
+          logger.debug(`Cleaned up ZIP file after error: ${zipStorageKey}`);
+        } catch (cleanupError) {
+          logger.warn(`Failed to clean up ZIP file ${zipStorageKey} after error:`, cleanupError);
+        }
         
         // Update progress with error
         const errorProgress: ImportProgress = {

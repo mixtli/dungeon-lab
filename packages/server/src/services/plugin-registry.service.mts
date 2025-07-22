@@ -39,10 +39,14 @@ class ServerPluginRegistry {
   private async discoverPlugins(): Promise<void> {
     try {
       // Look for plugins in packages/plugins directory
-      const pluginsDir = join(__dirname, '../../../../plugins');
+      const pluginsDir = join(__dirname, '../../../plugins');
       
       const entries = await readdir(pluginsDir, { withFileTypes: true });
-      const pluginDirs = entries.filter(entry => entry.isDirectory());
+      const pluginDirs = entries.filter(entry => 
+        entry.isDirectory() && 
+        entry.name !== 'node_modules' &&
+        !entry.name.startsWith('.')
+      );
       
       for (const pluginDir of pluginDirs) {
         await this.loadPluginFromDirectory(join(pluginsDir, pluginDir.name));

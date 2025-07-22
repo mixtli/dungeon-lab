@@ -28,6 +28,7 @@ export const contentTypeSchema = z.enum([
 // Base Compendium schema
 export const compendiumSchema = baseSchema.extend({
   name: z.string().min(1).max(255),
+  slug: z.string().min(1).max(255).regex(/^[a-z0-9-]+$/, 'Slug must contain only lowercase letters, numbers, and hyphens'),
   description: z.string().optional(),
   gameSystemId: z.string().min(1),
   pluginId: z.string().min(1),

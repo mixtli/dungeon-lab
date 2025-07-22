@@ -1,0 +1,38 @@
+{
+  "name": "Blanket",
+  "type": "loot",
+  "data": {
+    "description": {
+      "value": "<p>While wrapped in a blanket, you have Advantage on saving throws against extreme cold (see @UUID[Compendium.dnd5e.content24.JournalEntry.dmgDmsToolbox000.JournalEntryPage.xgLA30rErlkjIPAK]{Gameplay Toolbox}).</p>",
+      "chat": ""
+    },
+    "price": {
+      "value": 5,
+      "denomination": "sp"
+    },
+    "source": {
+      "custom": "",
+      "rules": "2024",
+      "revision": 1,
+      "license": "CC-BY-4.0",
+      "book": "SRD 5.2"
+    },
+    "identified": true,
+    "unidentified": {
+      "description": ""
+    },
+    "container": "phbagPriestsPack",
+    "quantity": 1,
+    "weight": {
+      "value": 3,
+      "units": "lb"
+    },
+    "rarity": "",
+    "properties": [],
+    "type": {
+      "value": "gear",
+      "subtype": ""
+    },
+    "identifier": "blanket"
+  }
+}
