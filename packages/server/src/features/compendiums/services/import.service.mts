@@ -1,4 +1,5 @@
 import { Types, ClientSession } from 'mongoose';
+import { createHash } from 'crypto';
 import { logger } from '../../../utils/logger.mjs';
 import { ZipProcessorService } from '../../../services/zip-processor.service.mjs';
 import { transactionService } from '../../../services/transaction.service.mjs';
@@ -18,6 +19,13 @@ interface ProcessedContent {
   name: string;
   data: unknown;
   originalPath: string;
+  // New fields from wrapper format
+  entryMetadata?: {
+    imageId?: string;
+    category?: string;
+    tags?: string[];
+    sortOrder?: number;
+  };
 }
 
 interface ValidationPlugin {
@@ -117,7 +125,7 @@ export class ImportService {
       });
 
       const compendium = await transactionService.withTransaction(async (session) => {
-          return await this.createCompendiumWithContent({
+          return await this.createCompendiumIterative({
           compendium: {
             name: manifest.name,
             slug: manifest.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
@@ -183,6 +191,186 @@ export class ImportService {
   }
 
   /**
+   * Create compendium and import content iteratively (one item at a time)
+   */
+  private async createCompendiumIterative(
+    data: ProcessedImportData,
+    session: ClientSession,
+    progressCallback?: (processed: number, total: number) => void
+  ): Promise<CompendiumDocument> {
+    // Create compendium
+    const compendium = await CompendiumModel.create([{
+      ...data.compendium,
+      status: 'active',
+      isPublic: false,
+      totalEntries: 0, // Will be updated after entries are created
+      entriesByType: {}
+    }], { session });
+
+    const compendiumDoc = compendium[0] as CompendiumDocument;
+    const compendiumId = compendiumDoc.id;
+
+    logger.info(`Starting iterative import of ${data.content.length} items`);
+    
+    let processedItems = 0;
+    let successCount = 0;
+    const totalItems = data.content.length;
+    const errors: string[] = [];
+
+    // Process each content item individually
+    for (const contentItem of data.content) {
+      try {
+        await this.processContentItem(
+          contentItem, 
+          compendiumId, 
+          data.assetFiles, 
+          data.userId, 
+          data.compendiumName, 
+          data.uploadedAssets
+        );
+        successCount++;
+        logger.info(`Successfully imported: ${contentItem.name} (${contentItem.type})`);
+      } catch (error) {
+        const errorMsg = `Failed to import ${contentItem.name}: ${error instanceof Error ? error.message : String(error)}`;
+        logger.warn(errorMsg);
+        errors.push(errorMsg);
+      }
+
+      processedItems++;
+      if (progressCallback) {
+        progressCallback(processedItems, totalItems);
+      }
+    }
+
+    // Update compendium statistics
+    const entriesByType: Record<string, number> = {};
+    const compendiumEntries = await CompendiumEntryModel.find({ compendiumId });
+    
+    for (const entry of compendiumEntries) {
+      const type = entry.embeddedContent?.type || 'unknown';
+      entriesByType[type] = (entriesByType[type] || 0) + 1;
+    }
+
+    await CompendiumModel.findByIdAndUpdate(compendiumId, {
+      totalEntries: successCount,
+      entriesByType
+    }, { session });
+
+    logger.info(`Iterative import completed: ${successCount}/${totalItems} items imported successfully`);
+    if (errors.length > 0) {
+      logger.warn(`Import errors encountered: ${errors.length} items failed`);
+    }
+
+    return compendiumDoc;
+  }
+
+  /**
+   * Process a single content item: validate, process images, and save to database
+   */
+  private async processContentItem(
+    contentItem: ProcessedContent,
+    compendiumId: string,
+    assetFiles: Map<string, { buffer: Buffer; mimetype: string; originalPath: string }>,
+    userId: string,
+    compendiumName: string,
+    uploadedAssets: string[]
+  ): Promise<void> {
+    // Process images and get processed content with asset IDs
+    const { processedContent, processedImageIds } = await this.processContentImages(
+      contentItem,
+      assetFiles,
+      userId,
+      compendiumName,
+      uploadedAssets
+    );
+
+    // Extract the actual content data from the processed result
+    const contentData = processedContent.data as Record<string, unknown>;
+    
+    // Debug: Log the actual content data structure
+    logger.info(`Processing ${contentItem.type} "${contentItem.name}": keys=${Object.keys(contentData)}`);
+    if (contentItem.type === 'vtt-document') {
+      logger.info(`VTT Document data:`, { 
+        hasName: 'name' in contentData,
+        hasSlug: 'slug' in contentData, 
+        hasPluginId: 'pluginId' in contentData,
+        hasDocumentType: 'documentType' in contentData,
+        hasDescription: 'description' in contentData,
+        hasData: 'data' in contentData,
+        actualKeys: Object.keys(contentData)
+      });
+    }
+    
+    // For compendium imports, we don't create actual documents in the database
+    // Instead, we create CompendiumEntry records with embedded content
+    const compendiumEntry = new CompendiumEntryModel({
+      compendiumId,
+      embeddedContent: {
+        type: contentItem.type === 'vtt-document' ? 'vttdocument' : contentItem.type,
+        data: contentData
+      },
+      name: contentItem.name,
+      tags: contentItem.entryMetadata?.tags || [],
+      category: contentItem.entryMetadata?.category,
+      sortOrder: contentItem.entryMetadata?.sortOrder || 0,
+      imageId: contentItem.entryMetadata?.imageId ? processedImageIds.get(contentItem.entryMetadata.imageId) : undefined,
+      metadata: {
+        originalPath: contentItem.originalPath
+      }
+    });
+
+    await compendiumEntry.save(); // This properly triggers pre-save middleware
+  }
+
+  /**
+   * Process images for a single content item
+   */
+  private async processContentImages(
+    contentItem: ProcessedContent,
+    assetFiles: Map<string, { buffer: Buffer; mimetype: string; originalPath: string }>,
+    userId: string,
+    compendiumName: string,
+    uploadedAssets: string[]
+  ): Promise<{ processedContent: ProcessedContent; processedImageIds: Map<string, string> }> {
+    const processedImageIds = new Map<string, string>();
+
+    // Process entry-level image if present
+    if (contentItem.entryMetadata?.imageId) {
+      try {
+        const assetId = await this.uploadAssetOnDemand(
+          contentItem.entryMetadata.imageId,
+          assetFiles,
+          userId,
+          compendiumName,
+          uploadedAssets
+        );
+        if (assetId) {
+          processedImageIds.set(contentItem.entryMetadata.imageId, assetId);
+        }
+      } catch (error) {
+        logger.warn(`Failed to upload entry-level image ${contentItem.entryMetadata.imageId}:`, error);
+      }
+    }
+
+    // Process content-level images
+    const { processedData } = await this.processDocumentImages(
+      contentItem.data as Record<string, unknown>, 
+      assetFiles, 
+      userId, 
+      compendiumName, 
+      uploadedAssets
+    );
+
+    return {
+      processedContent: {
+        ...contentItem,
+        data: processedData
+      },
+      processedImageIds
+    };
+  }
+
+  /**
    * Process and validate content files using plugin schemas
    */
   private async processContentFiles(
@@ -198,10 +386,28 @@ export class ImportService {
     for (const [filePath, buffer] of contentFiles) {
       try {
         const contentText = buffer.toString('utf-8');
-        const contentData = JSON.parse(contentText);
+        const fileData = JSON.parse(contentText);
+
+        // Check if this is the new wrapper format
+        let contentData: unknown;
+        let entryMetadata: { imageId?: string; category?: string; tags?: string[]; sortOrder?: number } | undefined = undefined;
+        
+        if (fileData.entry && fileData.content) {
+          // New wrapper format
+          entryMetadata = {
+            imageId: fileData.entry.imageId,
+            category: fileData.entry.category,
+            tags: fileData.entry.tags || [],
+            sortOrder: fileData.entry.sortOrder || 0
+          };
+          contentData = fileData.content;
+        } else {
+          // Legacy format - content is directly in the file
+          contentData = fileData;
+        }
 
         // Determine content type from file path or data
-        const { type, subtype } = this.determineContentType(filePath, contentData);
+        const { type, subtype } = this.determineContentType(filePath, contentData as { type?: string; documentType?: string; [key: string]: unknown });
         
         // Validate using plugin
         const validationResult = this.validateContent(plugin, type, subtype, contentData);
@@ -214,9 +420,10 @@ export class ImportService {
           processedContent.push({
             type,
             subtype,
-            name: contentData.name || filePath,
+            name: (contentData as { name?: string }).name || filePath,
             data: validationResult.data,
-            originalPath: filePath
+            originalPath: filePath,
+            entryMetadata
           });
         }
 
@@ -295,20 +502,39 @@ export class ImportService {
 
   /**
    * Process image fields in document data and upload assets on-demand
+   * Also handles entry-level imageId from wrapper format
    */
   private async processDocumentImages(
     docData: Record<string, unknown>,
     assetFiles: Map<string, { buffer: Buffer; mimetype: string; originalPath: string }>,
     userId: string,
     compendiumName: string,
-    uploadedAssets: string[]
-  ): Promise<Record<string, unknown>> {
+    uploadedAssets: string[],
+    entryMetadata?: { imageId?: string; category?: string; tags?: string[]; sortOrder?: number }
+  ): Promise<{ processedData: Record<string, unknown>; entryImageId?: string }> {
     const processedData = { ...docData };
     const imageFields = ['imageId', 'avatarId', 'defaultTokenImageId'];
 
     logger.info(`processDocumentImages: Processing document "${docData.name || 'Unknown'}" with ${assetFiles.size} available assets`);
-    logger.debug(`processDocumentImages: Available asset paths: [${Array.from(assetFiles.keys()).join(', ')}]`);
+    // logger.debug(`processDocumentImages: Available asset paths: [${Array.from(assetFiles.keys()).join(', ')}]`);
 
+    // Process entry-level imageId first (from wrapper format)
+    let entryImageId: string | undefined;
+    if (entryMetadata?.imageId) {
+      logger.info(`processDocumentImages: Processing entry-level imageId = "${entryMetadata.imageId}"`);
+      
+      entryImageId = await this.uploadAssetOnDemand(
+        entryMetadata.imageId,
+        assetFiles,
+        userId,
+        compendiumName,
+        uploadedAssets
+      ) || undefined;
+      
+      logger.info(`processDocumentImages: Entry-level imageId result: ${entryImageId || 'null'}`);
+    }
+
+    // Process content-level image fields
     for (const field of imageFields) {
       if (processedData[field] && typeof processedData[field] === 'string') {
         const imagePath = processedData[field] as string;
@@ -348,7 +574,7 @@ export class ImportService {
     const resultImageFields = imageFields.filter(field => processedData[field]).map(field => `${field}=${processedData[field]}`);
     logger.info(`processDocumentImages: Final result for "${docData.name || 'Unknown'}": [${resultImageFields.join(', ')}]`);
 
-    return processedData;
+    return { processedData, entryImageId };
   }
 
   /**
@@ -381,6 +607,9 @@ export class ImportService {
     });
     let processedItems = 0;
     const totalItems = data.content.length;
+    
+    // Track processed entry-level image IDs for compendium entries
+    const processedImageIds = new Map<string, string>();
 
     // Create actors (with on-demand asset uploading)
     if (contentByType.actor.length > 0) {
@@ -392,14 +621,20 @@ export class ImportService {
         try {
           const actorData = item.data as Record<string, unknown>;
           
-          // Process images on-demand before creating the actor
-          const processedActorData = await this.processDocumentImages(
+          // Process images on-demand before creating the actor  
+          const { processedData: processedActorData, entryImageId } = await this.processDocumentImages(
             actorData,
             data.assetFiles,
             data.userId,
             data.compendiumName,
-            data.uploadedAssets
+            data.uploadedAssets,
+            item.entryMetadata
           );
+          
+          // Track entry image ID for compendium entry creation
+          if (entryImageId && item.entryMetadata?.imageId) {
+            processedImageIds.set(item.entryMetadata.imageId, entryImageId);
+          }
 
           const { data: nestedData, gameSystemId, type, pluginId, name, ...otherFields } = processedActorData;
           
@@ -431,14 +666,31 @@ export class ImportService {
       if (processedActors.length > 0) {
         try {
           await CompendiumEntryModel.create(
-            processedActors.map(({ actor, originalItem }) => ({
-              compendiumId,
-              contentType: 'Actor',
-              contentId: actor._id,
-              name: originalItem.name,
-              tags: [],
-              metadata: { originalPath: originalItem.originalPath }
-            })),
+            processedActors.map(({ actor, originalItem }) => {
+              const embeddedData = actor.toObject();
+              const contentHash = createHash('sha256')
+                .update(JSON.stringify(embeddedData))
+                .digest('hex')
+                .substring(0, 16);
+              
+              return {
+                compendiumId,
+                embeddedContent: {
+                  type: 'actor',
+                  data: embeddedData
+                },
+                name: originalItem.name,
+                tags: originalItem.entryMetadata?.tags || [],
+                category: originalItem.entryMetadata?.category,
+                sortOrder: originalItem.entryMetadata?.sortOrder || 0,
+                imageId: originalItem.entryMetadata?.imageId ? processedImageIds.get(originalItem.entryMetadata.imageId) : undefined, // Use processed asset ID
+                contentHash,
+                contentVersion: '1.0.0',
+                metadata: { 
+                  originalPath: originalItem.originalPath
+                }
+              };
+            }),
             { ordered: false }
           );
         } catch (error) {
@@ -460,13 +712,19 @@ export class ImportService {
           const itemData = item.data as Record<string, unknown>;
           
           // Process images on-demand before creating the item
-          const processedItemData = await this.processDocumentImages(
+          const { processedData: processedItemData, entryImageId } = await this.processDocumentImages(
             itemData,
             data.assetFiles,
             data.userId,
             data.compendiumName,
-            data.uploadedAssets
+            data.uploadedAssets,
+            item.entryMetadata
           );
+          
+          // Track entry image ID for compendium entry creation
+          if (entryImageId && item.entryMetadata?.imageId) {
+            processedImageIds.set(item.entryMetadata.imageId, entryImageId);
+          }
 
           const { data: nestedData, gameSystemId, type, pluginId, name, ...otherFields } = processedItemData;
           
@@ -498,14 +756,31 @@ export class ImportService {
       if (processedItems2.length > 0) {
         try {
           await CompendiumEntryModel.create(
-            processedItems2.map(({ item, originalItem }) => ({
-              compendiumId,
-              contentType: 'Item',
-              contentId: item._id,
-              name: originalItem.name,
-              tags: [],
-              metadata: { originalPath: originalItem.originalPath }
-            })),
+            processedItems2.map(({ item, originalItem }) => {
+              const embeddedData = item.toObject();
+              const contentHash = createHash('sha256')
+                .update(JSON.stringify(embeddedData))
+                .digest('hex')
+                .substring(0, 16);
+              
+              return {
+                compendiumId,
+                embeddedContent: {
+                  type: 'item',
+                  data: embeddedData
+                },
+                name: originalItem.name,
+                tags: originalItem.entryMetadata?.tags || [],
+                category: originalItem.entryMetadata?.category,
+                sortOrder: originalItem.entryMetadata?.sortOrder || 0,
+                imageId: originalItem.entryMetadata?.imageId ? processedImageIds.get(originalItem.entryMetadata.imageId) : undefined, // Use processed asset ID
+                contentHash,
+                contentVersion: '1.0.0',
+                metadata: { 
+                  originalPath: originalItem.originalPath
+                }
+              };
+            }),
             { ordered: false }
           );
         } catch (error) {
@@ -527,13 +802,19 @@ export class ImportService {
           const docData = item.data as Record<string, unknown>;
           
           // Process images on-demand before creating the document
-          const processedDocData = await this.processDocumentImages(
+          const { processedData: processedDocData, entryImageId } = await this.processDocumentImages(
             docData,
             data.assetFiles,
             data.userId,
             data.compendiumName,
-            data.uploadedAssets
+            data.uploadedAssets,
+            item.entryMetadata
           );
+          
+          // Track entry image ID for compendium entry creation
+          if (entryImageId && item.entryMetadata?.imageId) {
+            processedImageIds.set(item.entryMetadata.imageId, entryImageId);
+          }
 
           const { data: nestedData, pluginId, documentType, name, slug, description, ...otherFields } = processedDocData;
           
@@ -566,14 +847,31 @@ export class ImportService {
       if (processedDocuments.length > 0) {
         try {
           await CompendiumEntryModel.create(
-            processedDocuments.map(({ document, originalItem }) => ({
-              compendiumId,
-              contentType: 'VTTDocument',
-              contentId: document._id,
-              name: originalItem.name,
-              tags: [],
-              metadata: { originalPath: originalItem.originalPath }
-            })),
+            processedDocuments.map(({ document, originalItem }) => {
+              const embeddedData = document.toObject();
+              const contentHash = createHash('sha256')
+                .update(JSON.stringify(embeddedData))
+                .digest('hex')
+                .substring(0, 16);
+              
+              return {
+                compendiumId,
+                embeddedContent: {
+                  type: 'vttdocument',
+                  data: embeddedData
+                },
+                name: originalItem.name,
+                tags: originalItem.entryMetadata?.tags || [],
+                category: originalItem.entryMetadata?.category,
+                sortOrder: originalItem.entryMetadata?.sortOrder || 0,
+                imageId: originalItem.entryMetadata?.imageId ? processedImageIds.get(originalItem.entryMetadata.imageId) : undefined, // Use processed asset ID
+                contentHash,
+                contentVersion: '1.0.0',
+                metadata: { 
+                  originalPath: originalItem.originalPath
+                }
+              };
+            }),
             { ordered: false }
           );
         } catch (error) {

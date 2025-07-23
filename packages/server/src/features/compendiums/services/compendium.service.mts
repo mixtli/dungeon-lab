@@ -147,7 +147,7 @@ export class CompendiumService {
 
       const query: Record<string, QueryValue> = { compendiumId: compendium._id };
       
-      if (filters?.contentType) query.contentType = filters.contentType;
+      if (filters?.contentType) query['embeddedContent.type'] = filters.contentType;
       if (filters?.isActive !== undefined) query.isActive = filters.isActive;
       if (filters?.category) query.category = filters.category;
       if (filters?.search) {
@@ -155,50 +155,69 @@ export class CompendiumService {
       }
       
       const entries = await CompendiumEntryModel.find(query)
-        .populate('content')
         .sort({ sortOrder: 1, name: 1 })
         .lean();
       
       // Manually populate asset fields for each entry based on content type
       for (const entry of entries) {
-        if (entry.content) {
-          const content = entry.content as any;
-          
-          // Collect asset IDs to populate
-          const assetIds: string[] = [];
-          const assetFieldMap: Record<string, string> = {};
+        // Collect asset IDs to populate (both entry-level and content-level)
+        const assetIds: string[] = [];
+        const assetFieldMap: Record<string, string> = {};
+        
+        // Add entry-level imageId if present
+        if (entry.imageId) {
+          assetIds.push(entry.imageId.toString());
+          assetFieldMap[entry.imageId.toString()] = 'entry.image';
+        }
+        
+        // Add content-level asset IDs if present
+        if (entry.embeddedContent && entry.embeddedContent.data) {
+          const content = entry.embeddedContent.data as any;
           
           if (content.avatarId) {
             assetIds.push(content.avatarId.toString());
-            assetFieldMap[content.avatarId.toString()] = 'avatarId';
+            assetFieldMap[content.avatarId.toString()] = 'content.avatarId';
           }
           
           if (content.imageId) {
             assetIds.push(content.imageId.toString());
-            assetFieldMap[content.imageId.toString()] = 'imageId';
+            assetFieldMap[content.imageId.toString()] = 'content.imageId';
           }
           
           if (content.defaultTokenImageId) {
             assetIds.push(content.defaultTokenImageId.toString());
-            assetFieldMap[content.defaultTokenImageId.toString()] = 'defaultTokenImageId';
+            assetFieldMap[content.defaultTokenImageId.toString()] = 'content.defaultTokenImageId';
           }
+        }
+        
+        // Fetch all assets at once and replace IDs with full asset objects
+        if (assetIds.length > 0) {
+          const assets = await AssetModel.find({ _id: { $in: assetIds } }).lean();
           
-          // Fetch all assets at once
-          if (assetIds.length > 0) {
-            const assets = await AssetModel.find({ _id: { $in: assetIds } }).lean();
-            
-            // Replace asset IDs with full asset objects
-            for (const asset of assets) {
-              const fieldName = assetFieldMap[asset._id.toString()];
-              if (fieldName) {
-                content[fieldName] = asset;
+          // Replace asset IDs with full asset objects
+          for (const asset of assets) {
+            const fieldPath = assetFieldMap[asset._id.toString()];
+            if (fieldPath) {
+              if (fieldPath === 'entry.image') {
+                // Add entry-level image object (keep imageId as string)
+                (entry as any).image = asset;
+              } else if (fieldPath.startsWith('content.')) {
+                // Replace content-level asset fields
+                const fieldName = fieldPath.replace('content.', '');
+                if (entry.embeddedContent && entry.embeddedContent.data) {
+                  (entry.embeddedContent.data as any)[fieldName] = asset;
+                }
               }
             }
           }
         }
       }
       
-      return entries;
+      // Map _id to id for each entry
+      return entries.map(entry => ({
+        ...entry,
+        id: entry._id?.toString?.() || entry.id,
+      }));
     } catch (error) {
       logger.error('Error fetching compendium entries:', error);
       throw new Error('Failed to get compendium entries');
@@ -211,15 +230,54 @@ export class CompendiumService {
   async getCompendiumEntryById(id: string): Promise<ICompendiumEntry> {
     try {
       const entry = await CompendiumEntryModel.findById(id)
-        .populate('content')
         .populate('compendium')
         .lean();
       
       if (!entry) {
         throw new Error('Compendium entry not found');
       }
-      
-      return entry;
+
+      // Populate entry-level and content-level image asset objects (like in getCompendiumEntries)
+      const assetIds: string[] = [];
+      const assetFieldMap: Record<string, string> = {};
+      if (entry.imageId) {
+        assetIds.push(entry.imageId.toString());
+        assetFieldMap[entry.imageId.toString()] = 'entry.image';
+      }
+      if (entry.embeddedContent && entry.embeddedContent.data) {
+        const content = entry.embeddedContent.data as any;
+        if (content.avatarId) {
+          assetIds.push(content.avatarId.toString());
+          assetFieldMap[content.avatarId.toString()] = 'content.avatarId';
+        }
+        if (content.imageId) {
+          assetIds.push(content.imageId.toString());
+          assetFieldMap[content.imageId.toString()] = 'content.imageId';
+        }
+        if (content.defaultTokenImageId) {
+          assetIds.push(content.defaultTokenImageId.toString());
+          assetFieldMap[content.defaultTokenImageId.toString()] = 'content.defaultTokenImageId';
+        }
+      }
+      if (assetIds.length > 0) {
+        const assets = await AssetModel.find({ _id: { $in: assetIds } }).lean();
+        for (const asset of assets) {
+          const fieldPath = assetFieldMap[asset._id.toString()];
+          if (fieldPath === 'entry.image') {
+            (entry as any).image = asset;
+          } else if (fieldPath && fieldPath.startsWith('content.')) {
+            const fieldName = fieldPath.replace('content.', '');
+            if (entry.embeddedContent && entry.embeddedContent.data) {
+              (entry.embeddedContent.data as any)[fieldName] = asset;
+            }
+          }
+        }
+      }
+      // Map _id to id for consistency
+      return {
+        ...entry,
+        id: entry._id?.toString?.() || entry.id,
+      };
     } catch (error) {
       logger.error('Error fetching compendium entry:', error);
       throw new Error('Failed to get compendium entry');
@@ -284,7 +342,10 @@ export class CompendiumService {
 
   /**
    * Link existing content to compendium by slug
+   * NOTE: This method is designed for the old schema where content was stored separately.
+   * With the new embedded content schema, this method is no longer needed.
    */
+  /*
   async linkContentToCompendium(
     compendiumSlug: string, 
     contentType: 'Actor' | 'Item' | 'VTTDocument',
@@ -346,6 +407,7 @@ export class CompendiumService {
       throw new Error('Failed to link content to compendium');
     }
   }
+  */
 
   /**
    * Unlink content from compendium
@@ -357,10 +419,8 @@ export class CompendiumService {
         throw new Error('Compendium entry not found');
       }
       
-      // Remove compendium reference from content
-      await this.updateContentCompendiumId(entry.contentType, entry.contentId, null);
-      
-      // Delete the entry
+      // Since content is now embedded, we just delete the entry
+      // No need to update external content records
       await CompendiumEntryModel.findByIdAndDelete(entryId);
     } catch (error) {
       logger.error('Error unlinking content from compendium:', error);
@@ -370,7 +430,10 @@ export class CompendiumService {
 
   /**
    * Update content's compendiumId field
+   * NOTE: This method is designed for the old schema where content was stored separately.
+   * With the new embedded content schema, this method is no longer needed.
    */
+  /*
   private async updateContentCompendiumId(
     contentType: 'Actor' | 'Item' | 'VTTDocument',
     contentId: string,
@@ -390,6 +453,7 @@ export class CompendiumService {
         break;
     }
   }
+  */
 
   /**
    * Get compendium statistics
@@ -412,7 +476,7 @@ export class CompendiumService {
         
         CompendiumEntryModel.aggregate([
           { $match: { compendiumId: new Types.ObjectId(compendiumId), isActive: true } },
-          { $group: { _id: '$contentType', count: { $sum: 1 } } }
+          { $group: { _id: '$embeddedContent.type', count: { $sum: 1 } } }
         ]),
         
         CompendiumEntryModel.aggregate([

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { CompendiumsClient } from '@dungeon-lab/client/index.mjs';
 import type { ICompendiumEntry } from '@dungeon-lab/shared/types/index.mjs';
 
@@ -9,6 +10,12 @@ const props = defineProps<{
 }>();
 
 const compendiumsClient = new CompendiumsClient();
+const router = useRouter();
+
+// Template instantiation state
+const instantiating = ref(false);
+const showInstantiateModal = ref(false);
+const entryToInstantiate = ref<ICompendiumEntry | null>(null);
 
 // State
 const entries = ref<ICompendiumEntry[]>([]);
@@ -105,22 +112,69 @@ function confirmDelete(entry: ICompendiumEntry) {
   showDeleteModal.value = true;
 }
 
+// Show instantiate confirmation
+function confirmInstantiate(entry: ICompendiumEntry) {
+  entryToInstantiate.value = entry;
+  showInstantiateModal.value = true;
+}
+
+// Instantiate template
+async function instantiateTemplate(entry: ICompendiumEntry) {
+  if (!entry) return;
+  
+  instantiating.value = true;
+  try {
+    const result = await compendiumsClient.instantiateTemplate(
+      props.compendiumId, 
+      entry.id,
+      {} // Could be extended to allow custom overrides
+    );
+    
+    // Show success message or navigate to the created content
+    showInstantiateModal.value = false;
+    entryToInstantiate.value = null;
+    
+    // Optional: Navigate to the created content or show success toast
+    console.log('Template instantiated successfully:', result);
+    
+  } catch (err: unknown) {
+    console.error('Failed to instantiate template:', err);
+    const errorObj = err as { response?: { data?: { message?: string } } };
+    error.value = errorObj.response?.data?.message || (err as Error).message || 'Failed to instantiate template';
+  } finally {
+    instantiating.value = false;
+  }
+}
+
 // Get content type icon and color
-function getContentTypeIcon(contentType: string): string {
+function getContentTypeIcon(entry: ICompendiumEntry): string {
+  const contentType = entry.embeddedContent?.type || (entry as any).contentType;
   switch (contentType) {
-    case 'Actor': return 'fas fa-users';
-    case 'Item': return 'fas fa-sword';
-    case 'VTTDocument': return 'fas fa-scroll';
+    case 'actor': return 'fas fa-users';
+    case 'item': return 'fas fa-sword';
+    case 'vttdocument': return 'fas fa-scroll';
     default: return 'fas fa-file';
   }
 }
 
-function getContentTypeColor(contentType: string): string {
+function getContentTypeColor(entry: ICompendiumEntry): string {
+  const contentType = entry.embeddedContent?.type || (entry as any).contentType;
   switch (contentType) {
-    case 'Actor': return 'text-blue-600';
-    case 'Item': return 'text-green-600';
-    case 'VTTDocument': return 'text-purple-600';
+    case 'actor': return 'text-blue-600';
+    case 'item': return 'text-green-600';
+    case 'vttdocument': return 'text-purple-600';
     default: return 'text-gray-600';
+  }
+}
+
+// Get display name for content type
+function getContentTypeDisplayName(entry: ICompendiumEntry): string {
+  const contentType = entry.embeddedContent?.type || (entry as any).contentType;
+  switch (contentType) {
+    case 'actor': return 'Actor';
+    case 'item': return 'Item';
+    case 'vttdocument': return 'Document';
+    default: return 'Unknown';
   }
 }
 
@@ -168,22 +222,51 @@ const paginationRange = computed(() => {
 
 // Get image URL for entry based on content type
 function getEntryImage(entry: ICompendiumEntry): string | null {
-  if (!entry.content) return null;
+  // Use entry-level image first (from wrapper format)
+  if ((entry as any).image?.url) {
+    return (entry as any).image.url;
+  }
   
-  const content = entry.content as any;
+  // Fallback to embedded content for legacy entries
+  if (!entry.embeddedContent) return null;
+  
+  const content = entry.embeddedContent.data as any;
   
   // For actors, prefer avatarId, fallback to defaultTokenImageId
-  if (entry.contentType === 'Actor') {
-    if (content.avatarId?.url) return content.avatarId.url;
-    if (content.defaultTokenImageId?.url) return content.defaultTokenImageId.url;
+  if (entry.embeddedContent.type === 'actor') {
+    if (content.avatarId?.url) {
+      return content.avatarId.url;
+    }
+    if (content.defaultTokenImageId?.url) {
+      return content.defaultTokenImageId.url;
+    }
   }
   
   // For items and documents, use imageId
-  if (entry.contentType === 'Item' || entry.contentType === 'VTTDocument') {
-    if (content.imageId?.url) return content.imageId.url;
+  if (entry.embeddedContent.type === 'item' || entry.embeddedContent.type === 'vttdocument') {
+    if (content.imageId?.url) {
+      return content.imageId.url;
+    }
   }
   
   return null;
+}
+
+// Navigation function
+function navigateToEntry(entry: ICompendiumEntry) {
+  if (!entry.id) {
+    console.error('Cannot navigate to entry: missing ID', entry);
+    error.value = 'This entry is missing an ID and cannot be opened';
+    return;
+  }
+
+  router.push({
+    name: 'compendium-entry-detail',
+    params: {
+      compendiumId: props.compendiumId,
+      entryId: entry.id
+    }
+  });
 }
 </script>
 
@@ -222,9 +305,9 @@ function getEntryImage(entry: ICompendiumEntry): string | null {
             @change="loadEntries"
           >
             <option value="">All Types</option>
-            <option value="Actor">Actors</option>
-            <option value="Item">Items</option>
-            <option value="VTTDocument">Documents</option>
+            <option value="actor">Actors</option>
+            <option value="item">Items</option>
+            <option value="vttdocument">Documents</option>
           </select>
         </div>
         <div>
@@ -300,7 +383,8 @@ function getEntryImage(entry: ICompendiumEntry): string | null {
         <li 
           v-for="entry in entries" 
           :key="entry.id"
-          class="px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-700"
+          class="px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors"
+          @click="navigateToEntry(entry)"
         >
           <div class="flex items-center justify-between">
             <div class="flex items-center space-x-4 flex-1 min-w-0">
@@ -315,7 +399,7 @@ function getEntryImage(entry: ICompendiumEntry): string | null {
                   />
                   <div class="w-full h-full hidden items-center justify-center">
                     <i 
-                      :class="[getContentTypeIcon(entry.contentType), getContentTypeColor(entry.contentType)]"
+                      :class="[getContentTypeIcon(entry), getContentTypeColor(entry)]"
                       class="text-lg"
                     ></i>
                   </div>
@@ -323,7 +407,7 @@ function getEntryImage(entry: ICompendiumEntry): string | null {
                 <!-- Fallback icon when no image -->
                 <div v-else class="w-10 h-10 flex items-center justify-center">
                   <i 
-                    :class="[getContentTypeIcon(entry.contentType), getContentTypeColor(entry.contentType)]"
+                    :class="[getContentTypeIcon(entry), getContentTypeColor(entry)]"
                     class="text-xl"
                   ></i>
                 </div>
@@ -335,7 +419,7 @@ function getEntryImage(entry: ICompendiumEntry): string | null {
                     {{ entry.name }}
                   </p>
                   <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
-                    {{ entry.contentType }}
+                    {{ getContentTypeDisplayName(entry) }}
                   </span>
                   <span v-if="entry.category" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
                     {{ entry.category }}
@@ -354,15 +438,22 @@ function getEntryImage(entry: ICompendiumEntry): string | null {
             
             <div class="flex items-center space-x-2">
               <button 
+                class="text-green-600 hover:text-green-700 p-2 rounded-md hover:bg-green-50 dark:hover:bg-green-900"
+                @click.stop="confirmInstantiate(entry)"
+                title="Create from template"
+              >
+                <i class="fas fa-plus-circle"></i>
+              </button>
+              <button 
                 class="text-blue-600 hover:text-blue-700 p-2 rounded-md hover:bg-blue-50 dark:hover:bg-blue-900"
-                @click="$router.push(`/compendiums/${compendiumId}/entries/${entry.id}/edit`)"
+                @click.stop="$router.push(`/compendiums/${compendiumId}/entries/${entry.id}/edit`)"
                 title="Edit entry"
               >
                 <i class="fas fa-edit"></i>
               </button>
               <button 
                 class="text-red-600 hover:text-red-700 p-2 rounded-md hover:bg-red-50 dark:hover:bg-red-900"
-                @click="confirmDelete(entry)"
+                @click.stop="confirmDelete(entry)"
                 title="Delete entry"
               >
                 <i class="fas fa-trash"></i>
@@ -441,6 +532,44 @@ function getEntryImage(entry: ICompendiumEntry): string | null {
           >
             <div v-if="deleting" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
             {{ deleting ? 'Deleting...' : 'Delete' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Instantiate Template Confirmation Modal -->
+    <div v-if="showInstantiateModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-4">
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md">
+        <div class="flex items-center mb-4">
+          <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-green-100">
+            <i class="fas fa-plus-circle text-green-600"></i>
+          </div>
+        </div>
+        
+        <div class="text-center">
+          <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">
+            Create from Template
+          </h3>
+          <p class="text-gray-600 dark:text-gray-400 mb-6">
+            This will create a new {{ getContentTypeDisplayName(entryToInstantiate!).toLowerCase() }} based on "{{ entryToInstantiate?.name }}" that you can customize and use in your world.
+          </p>
+        </div>
+        
+        <div class="flex justify-end space-x-3">
+          <button 
+            @click="showInstantiateModal = false; entryToInstantiate = null"
+            :disabled="instantiating"
+            class="px-4 py-2 bg-gray-300 hover:bg-gray-400 disabled:opacity-50 text-gray-800 rounded-md transition-colors"
+          >
+            Cancel
+          </button>
+          <button 
+            @click="instantiateTemplate(entryToInstantiate!)"
+            :disabled="instantiating"
+            class="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-md transition-colors flex items-center"
+          >
+            <div v-if="instantiating" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+            {{ instantiating ? 'Creating...' : 'Create' }}
           </button>
         </div>
       </div>

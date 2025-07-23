@@ -17,9 +17,10 @@
     "check": "vue-tsc --noEmit",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
-    "generate:compendium": "tsx src/scripts/generate-compendium-pack.mts",
-    "generate:compendium:srd": "tsx src/scripts/generate-compendium-pack.mts --srd-only",
-    "generate:compendium:all": "tsx src/scripts/generate-compendium-pack.mts --no-srd-only",
+    "generate:compendium": "tsx src/scripts/generate-compendium-pack.mts --output-dir ./packs/dnd-5e-2024",
+    "generate:compendium:srd": "tsx src/scripts/generate-compendium-pack.mts --srd-only --output-dir ./packs/dnd-5e-2024-srd",
+    "generate:compendium:all": "tsx src/scripts/generate-compendium-pack.mts --no-srd-only --output-dir ./packs/dnd-5e-2024-all",
+    "create:minimal-pack": "tsx src/scripts/create-minimal-test-pack.mts",
     "test:conversion": "tsx src/scripts/test-conversion.mts"
   },
   "dependencies": {

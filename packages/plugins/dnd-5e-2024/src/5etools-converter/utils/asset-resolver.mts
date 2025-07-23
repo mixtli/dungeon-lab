@@ -4,7 +4,7 @@
  */
 import { existsSync, readFileSync } from 'fs';
 import { join, extname } from 'path';
-import { ETOOLS_IMG_PATH } from '../config/constants.mjs';
+import { ETOOLS_IMG_PATH } from '../../config/constants.mjs';
 
 export interface ResolvedAsset {
   originalPath: string;

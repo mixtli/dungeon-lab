@@ -254,7 +254,7 @@ export class ZipProcessorService {
             mimetype,
             originalPath: entry.name
           });
-          logger.debug(`Added asset file: ${relativePath} (${mimetype})`);
+          //logger.debug(`Added asset file: ${relativePath} (${mimetype})`);
         } else {
           logger.warn(`Skipping unsupported asset type: ${entry.name} (${mimetype})`);
         }

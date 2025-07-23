@@ -3,7 +3,7 @@
  */
 import { join } from 'path';
 import { readFile, writeFile, mkdir } from 'fs/promises';
-import { ETOOLS_DATA_PATH, PLUGIN_CONFIG } from '../config/constants.mjs';
+import { ETOOLS_DATA_PATH, PLUGIN_CONFIG } from '../../config/constants.mjs';
 
 /**
  * Filter array to only SRD content

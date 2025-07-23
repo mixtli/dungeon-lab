@@ -200,7 +200,7 @@ function formatDate(dateString?: Date | string): string {
           </div>
         </div>
 
-        <div v-if="compendium.entriesByType?.Actor" class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
+        <div v-if="compendium.entriesByType?.actor" class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
           <div class="p-5">
             <div class="flex items-center">
               <div class="flex-shrink-0">
@@ -212,7 +212,7 @@ function formatDate(dateString?: Date | string): string {
                     Actors
                   </dt>
                   <dd class="text-lg font-medium text-gray-900 dark:text-white">
-                    {{ compendium.entriesByType.Actor }}
+                    {{ compendium.entriesByType.actor }}
                   </dd>
                 </dl>
               </div>
@@ -220,7 +220,7 @@ function formatDate(dateString?: Date | string): string {
           </div>
         </div>
 
-        <div v-if="compendium.entriesByType?.Item" class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
+        <div v-if="compendium.entriesByType?.item" class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
           <div class="p-5">
             <div class="flex items-center">
               <div class="flex-shrink-0">
@@ -232,7 +232,7 @@ function formatDate(dateString?: Date | string): string {
                     Items
                   </dt>
                   <dd class="text-lg font-medium text-gray-900 dark:text-white">
-                    {{ compendium.entriesByType.Item }}
+                    {{ compendium.entriesByType.item }}
                   </dd>
                 </dl>
               </div>
@@ -240,7 +240,7 @@ function formatDate(dateString?: Date | string): string {
           </div>
         </div>
 
-        <div v-if="compendium.entriesByType?.VTTDocument" class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
+        <div v-if="compendium.entriesByType?.vttdocument" class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
           <div class="p-5">
             <div class="flex items-center">
               <div class="flex-shrink-0">
@@ -252,7 +252,7 @@ function formatDate(dateString?: Date | string): string {
                     Documents
                   </dt>
                   <dd class="text-lg font-medium text-gray-900 dark:text-white">
-                    {{ compendium.entriesByType.VTTDocument }}
+                    {{ compendium.entriesByType.vttdocument }}
                   </dd>
                 </dl>
               </div>

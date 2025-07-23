@@ -3,7 +3,7 @@
  */
 import { join } from 'path';
 import { readFile } from 'fs/promises';
-import { ETOOLS_DATA_PATH } from '../config/constants.mjs';
+import { ETOOLS_DATA_PATH } from '../../config/constants.mjs';
 
 export interface ConversionOptions {
   srdOnly?: boolean;

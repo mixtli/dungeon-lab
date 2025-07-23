@@ -158,6 +158,19 @@ function changePage(page: number) {
   currentPage.value = page;
   loadCompendiums();
 }
+
+// Get display name for content type
+function getDisplayTypeName(type: string): string {
+  switch (type.toLowerCase()) {
+    case 'actor':
+    case 'Actor': return 'Actors';
+    case 'item':
+    case 'Item': return 'Items';
+    case 'vttdocument':
+    case 'VTTDocument': return 'Documents';
+    default: return type;
+  }
+}
 </script>
 
 <template>
@@ -337,7 +350,7 @@ function changePage(page: number) {
                   :key="type"
                   class="inline-flex items-center px-2 py-1 rounded text-xs bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
                 >
-                  {{ type }}: {{ count }}
+                  {{ getDisplayTypeName(type) }}: {{ count }}
                 </span>
               </div>
             </div>

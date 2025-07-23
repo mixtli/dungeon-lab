@@ -117,8 +117,8 @@ export async function registerCompendiumImportJobs(): Promise<void> {
     {
       priority: 'normal',
       concurrency: 2, // Limit concurrent imports
-      attempts: 3,
-      backoff: { type: 'exponential', delay: 10000 } // 10 second initial delay
+      attempts: 1, // Disable retries for debugging
+      // backoff: { type: 'exponential', delay: 10000 } // Disabled for debugging
     }
   );
   

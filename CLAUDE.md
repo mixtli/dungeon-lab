@@ -6,6 +6,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Dungeon Lab is a Virtual Table Top (VTT) system for Table Top Role Playing Games (TTRPGs) with an extensible plugin architecture to support multiple game systems. The project is built as a modern web application with real-time collaboration features.
 
+## Detailed Documentation
+
+For comprehensive guidance on working with this project, see the detailed documentation in `docs/claude/`:
+
+- **[AI Behavior Guidelines](docs/claude/ai-behavior.md)** - How Claude Code should behave, task management, and workflow patterns
+- **[Development Tools](docs/claude/development-tools.md)** - MCP integration, testing tools, and development environment
+- **[Code Standards](docs/claude/code-standards.md)** - TypeScript, Vue.js, and project-specific coding conventions
+- **[Testing Strategy](docs/claude/testing.md)** - Testing frameworks, patterns, and best practices
+- **[Architecture Guidelines](docs/claude/architecture.md)** - System architecture, plugin design, and communication patterns  
+- **[Domain Knowledge](docs/claude/domain-knowledge.md)** - VTT and TTRPG concepts, terminology, and context
+
 ## Development Commands
 
 ### Core Development
@@ -151,10 +162,26 @@ Strict dependency rules are enforced:
 - Testing strategy is still being defined
 - Currently no established patterns
 
-## Important Notes
+## Quick Reference
 
-- You do not need to restart vite or the node server.  They restart automatically on changes.
+### Essential Patterns
+- **Task Management**: Use TodoWrite for multi-step tasks, create implementation plans in `docs/` for large features
+- **Memory**: Store architectural insights in Memento MCP for persistence between sessions
+- **Authentication**: Session-based only, never modify auth code without permission
+- **File Extensions**: Use `.mts` for TypeScript files, import with `.mjs` extensions
+- **Testing**: Vitest (not Jest), focus on integration tests, use auth helpers
+
+### Key Tools
+- **Login**: admin@dungeonlab.com / password for testing
+- **MongoDB MCP**: For database queries and examination
+- **Playwright MCP**: For web testing and browser automation
+- **Memento MCP**: For storing persistent architectural knowledge
+
+### Important Notes
+- Servers restart automatically on changes (no manual restart needed)
 - Plugins build automatically before server starts
-- Use TypeScript checking: `npm run check` before commits
+- Run `npm run check` for TypeScript validation before commits
 - Follow mobile-first design principles
-- Maintain plugin isolation and interface boundaries
+- Maintain strict plugin isolation and interface boundaries
+
+For detailed information on any topic, refer to the comprehensive documentation in `docs/claude/`.

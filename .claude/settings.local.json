@@ -46,7 +46,9 @@
       "Bash(cat:*)",
       "Bash(timeout:*)",
       "Bash(mongosh:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "mcp__memento__search_nodes",
+      "mcp__memento__semantic_search"
     ]
   },
   "enabledMcpjsonServers": [

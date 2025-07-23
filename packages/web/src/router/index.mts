@@ -43,6 +43,7 @@ const AssetDetailView = () => import('@/views/AssetDetailView.vue');
 // Compendium views
 const CompendiumListView = () => import('@/views/CompendiumListView.vue');
 const CompendiumDetailView = () => import('@/views/CompendiumDetailView.vue');
+const CompendiumEntryDetailView = () => import('@/views/CompendiumEntryDetailView.vue');
 
 const InvitesView = () => import('@/views/InvitesView.vue');
 
@@ -147,6 +148,15 @@ const routes: RouteRecordRaw[] = [
         component: CompendiumDetailView,
         meta: {
           title: 'Compendium Details',
+          requiresAuth: true
+        }
+      },
+      {
+        path: 'compendiums/:compendiumId/entries/:entryId',
+        name: 'compendium-entry-detail',
+        component: CompendiumEntryDetailView,
+        meta: {
+          title: 'Compendium Entry',
           requiresAuth: true
         }
       },

@@ -82,7 +82,9 @@ import {
   compendiumUpdateSchema,
   compendiumEntrySchema,
   compendiumEntryCreateSchema,
-  compendiumEntryUpdateSchema
+  compendiumEntryUpdateSchema,
+  embeddedContentSchema,
+  contentFileWrapperSchema
 } from '../schemas/compendium.schema.mjs';
 
 // General Types
@@ -181,6 +183,13 @@ export type ICompendiumUpdateData = z.infer<typeof compendiumUpdateSchema>;
 export type ICompendiumEntry = z.infer<typeof compendiumEntrySchema>;
 export type ICompendiumEntryCreateData = z.infer<typeof compendiumEntryCreateSchema>;
 export type ICompendiumEntryUpdateData = z.infer<typeof compendiumEntryUpdateSchema>;
+export type IEmbeddedContent = z.infer<typeof embeddedContentSchema>;
+export type IContentFileWrapper = z.infer<typeof contentFileWrapperSchema>;
+
+// Utility types for extracting specific embedded content types
+export type IEmbeddedActorContent = Extract<IEmbeddedContent, { type: 'actor' }>;
+export type IEmbeddedItemContent = Extract<IEmbeddedContent, { type: 'item' }>;
+export type IEmbeddedVTTDocumentContent = Extract<IEmbeddedContent, { type: 'vttdocument' }>;
 
 // Chatbot Types
 export * from './chatbots.mjs';

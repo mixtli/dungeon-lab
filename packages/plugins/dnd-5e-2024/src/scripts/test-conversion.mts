@@ -1,7 +1,7 @@
 /**
  * Test script to verify 5etools data access and conversion utilities
  */
-import { readEtoolsData, filterSrdContent } from './conversion-utils.mjs';
+import { readEtoolsData, filterSrdContent } from '../5etools-converter/utils/conversion-utils.mjs';
 
 async function testDataAccess() {
   try {

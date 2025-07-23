@@ -364,7 +364,10 @@ export class CompendiumController {
   /**
    * Link existing content to compendium
    * @route POST /api/compendiums/:id/link
+   * NOTE: This method is designed for the old schema where content was stored separately.
+   * With the new embedded content schema, this method is no longer needed.
    */
+  /*
   linkContent = async (
     req: Request<{ id: string }, unknown, z.infer<typeof linkContentBodySchema>>,
     res: Response<BaseAPIResponse<ICompendiumEntry>>
@@ -400,6 +403,7 @@ export class CompendiumController {
       });
     }
   };
+  */
 
   /**
    * Unlink content from compendium

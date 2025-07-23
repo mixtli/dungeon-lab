@@ -39,7 +39,9 @@ export {
   compendiumEntryUpdateSchema,
   compendiumStatusSchema,
   importSourceSchema,
-  contentTypeSchema
+  embeddedContentTypeSchema,
+  embeddedContentSchema,
+  contentFileWrapperSchema
 } from './compendium.schema.mjs';
 
 // Encounter schemas

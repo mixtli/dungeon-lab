@@ -1,5 +1,6 @@
 import express from 'express';
 import { CompendiumController } from '../controllers/compendium.controller.mjs';
+import { TemplateController } from '../controllers/template.controller.mjs';
 import { importController } from '../controllers/import.controller.mjs';
 import { authenticate } from '../../../middleware/auth.middleware.mjs';
 import { createPathSchema, oapi } from '../../../oapi.mjs';
@@ -20,6 +21,7 @@ import { baseAPIResponseSchema } from '@dungeon-lab/shared/types/api/base.mjs';
  */
 const router = express.Router();
 const compendiumController = new CompendiumController();
+const templateController = new TemplateController();
 router.use(authenticate);
 
 // Create response schemas using baseAPIResponseSchema
@@ -284,6 +286,8 @@ router.post(
 );
 
 // Link existing content to compendium
+// NOTE: Disabled for new embedded content schema
+/*
 router.post(
   '/:id/link',
   oapi.validPath(
@@ -312,6 +316,7 @@ router.post(
   ),
   compendiumController.linkContent
 );
+*/
 
 // Get compendium statistics
 router.get(
@@ -420,6 +425,135 @@ router.delete(
     })
   ),
   compendiumController.unlinkContent
+);
+
+// Template-related routes
+
+// Instantiate template
+router.post(
+  '/:compendiumId/entries/:entryId/instantiate',
+  oapi.validPath(
+    createPathSchema({
+      description: 'Create an instance from a compendium template',
+      requestParams: {
+        path: z.object({
+          compendiumId: z.string().describe('Compendium ID'),
+          entryId: z.string().describe('Entry ID')
+        })
+      },
+      requestBody: {
+        content: {
+          'application/json': {
+            schema: z.object({
+              overrides: z.record(z.string(), z.unknown()).optional()
+            }).openapi({
+              description: 'Template overrides'
+            })
+          }
+        }
+      },
+      responses: {
+        201: baseAPIResponseSchema.extend({
+          data: z.unknown()
+        }),
+        401: baseAPIResponseSchema,
+        404: baseAPIResponseSchema,
+        500: baseAPIResponseSchema
+      }
+    })
+  ),
+  (req, res) => templateController.instantiateTemplate(req, res)
+);
+
+// Get template
+router.get(
+  '/:compendiumId/entries/:entryId/template',
+  oapi.validPath(
+    createPathSchema({
+      description: 'Get template content',
+      requestParams: {
+        path: z.object({
+          compendiumId: z.string().describe('Compendium ID'),
+          entryId: z.string().describe('Entry ID')
+        })
+      },
+      responses: {
+        200: baseAPIResponseSchema.extend({
+          data: z.object({
+            entryId: z.string(),
+            contentType: z.string(),
+            templateData: z.unknown()
+          })
+        }),
+        404: baseAPIResponseSchema,
+        500: baseAPIResponseSchema
+      }
+    })
+  ),
+  (req, res) => templateController.getTemplate(req, res)
+);
+
+// Update template
+router.put(
+  '/:compendiumId/entries/:entryId/template',
+  oapi.validPath(
+    createPathSchema({
+      description: 'Update template content',
+      requestParams: {
+        path: z.object({
+          compendiumId: z.string().describe('Compendium ID'),
+          entryId: z.string().describe('Entry ID')
+        })
+      },
+      requestBody: {
+        content: {
+          'application/json': {
+            schema: z.unknown().openapi({
+              description: 'New template data'
+            })
+          }
+        }
+      },
+      responses: {
+        200: baseAPIResponseSchema.extend({
+          data: z.unknown()
+        }),
+        404: baseAPIResponseSchema,
+        500: baseAPIResponseSchema
+      }
+    })
+  ),
+  (req, res) => templateController.updateTemplate(req, res)
+);
+
+// Get template usage statistics
+router.get(
+  '/:compendiumId/entries/:entryId/usage',
+  oapi.validPath(
+    createPathSchema({
+      description: 'Get template usage statistics',
+      requestParams: {
+        path: z.object({
+          compendiumId: z.string().describe('Compendium ID'),
+          entryId: z.string().describe('Entry ID')
+        })
+      },
+      responses: {
+        200: baseAPIResponseSchema.extend({
+          data: z.object({
+            totalUsages: z.number(),
+            recentUsages: z.array(z.object({
+              userId: z.string(),
+              createdAt: z.string(),
+              instanceId: z.string()
+            }))
+          })
+        }),
+        500: baseAPIResponseSchema
+      }
+    })
+  ),
+  (req, res) => templateController.getTemplateUsage(req, res)
 );
 
 // Import-related routes

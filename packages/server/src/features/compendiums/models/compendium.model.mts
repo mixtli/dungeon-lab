@@ -48,10 +48,10 @@ mongooseSchema.pre('save', async function(next) {
   const totalEntries = await CompendiumEntry.countDocuments({ compendiumId: this._id });
   this.totalEntries = totalEntries;
   
-  // Calculate entries by type
+  // Calculate entries by type (using embedded content type)
   const entriesByType = await CompendiumEntry.aggregate([
     { $match: { compendiumId: this._id } },
-    { $group: { _id: '$contentType', count: { $sum: 1 } } }
+    { $group: { _id: '$embeddedContent.type', count: { $sum: 1 } } }
   ]);
   
   this.entriesByType = entriesByType.reduce((acc, item) => {

@@ -219,4 +219,50 @@ export class CompendiumsClient extends ApiClient {
     }
     return response.data.data;
   }
+
+  /**
+   * Instantiate a template from a compendium entry
+   */
+  async instantiateTemplate(compendiumId: string, entryId: string, overrides?: Record<string, unknown>): Promise<any> {
+    const response = await this.api.post<BaseAPIResponse<any>>(`/api/compendiums/${compendiumId}/entries/${entryId}/instantiate`, {
+      overrides: overrides || {}
+    });
+    if (!response.data || !response.data.success) {
+      throw new Error(response.data?.error || 'Failed to instantiate template');
+    }
+    return response.data.data;
+  }
+
+  /**
+   * Get template content
+   */
+  async getTemplate(compendiumId: string, entryId: string): Promise<{ entryId: string; contentType: string; templateData: any }> {
+    const response = await this.api.get<BaseAPIResponse<{ entryId: string; contentType: string; templateData: any }>>(`/api/compendiums/${compendiumId}/entries/${entryId}/template`);
+    if (!response.data) {
+      throw new Error('Failed to get template');
+    }
+    return response.data.data;
+  }
+
+  /**
+   * Update template content
+   */
+  async updateTemplate(compendiumId: string, entryId: string, templateData: any): Promise<any> {
+    const response = await this.api.put<BaseAPIResponse<any>>(`/api/compendiums/${compendiumId}/entries/${entryId}/template`, templateData);
+    if (!response.data || !response.data.success) {
+      throw new Error(response.data?.error || 'Failed to update template');
+    }
+    return response.data.data;
+  }
+
+  /**
+   * Get template usage statistics
+   */
+  async getTemplateUsage(compendiumId: string, entryId: string): Promise<{ totalUsages: number; recentUsages: Array<{ userId: string; createdAt: string; instanceId: string }> }> {
+    const response = await this.api.get<BaseAPIResponse<{ totalUsages: number; recentUsages: Array<{ userId: string; createdAt: string; instanceId: string }> }>>(`/api/compendiums/${compendiumId}/entries/${entryId}/usage`);
+    if (!response.data) {
+      throw new Error('Failed to get template usage');
+    }
+    return response.data.data;
+  }
 }

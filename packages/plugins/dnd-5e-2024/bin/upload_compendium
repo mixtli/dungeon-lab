@@ -1,0 +1,5 @@
+curl -X POST \                                                                       │
+│     -H "Authorization: Bearer $API_AUTH_TOKEN" \                                       │
+│     -H "Content-Type: application/zip" \                                               │
+│     --data-binary @${1}\                                                     │
+│     http://localhost:3000/api/compendiums/import  
