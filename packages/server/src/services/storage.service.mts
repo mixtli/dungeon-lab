@@ -101,23 +101,46 @@ class StorageService {
    * Upload a buffer with a specific storage key
    */
   async uploadBuffer(key: string, buffer: Buffer, contentType: string): Promise<void> {
-    await this.client.putObject(this.bucket, key, buffer, buffer.length, {
-      'Content-Type': contentType,
-    });
+    logger.info(`MinIO uploadBuffer - Bucket: ${this.bucket}, Key: ${key}, Size: ${buffer.length} bytes, ContentType: ${contentType}`);
+    logger.info(`MinIO config - Endpoint: ${this.config.endpoint}:${this.config.port}, SSL: ${this.config.useSSL}`);
+    
+    try {
+      await this.client.putObject(this.bucket, key, buffer, buffer.length, {
+        'Content-Type': contentType,
+      });
+      logger.info(`MinIO putObject successful - Bucket: ${this.bucket}, Key: ${key}`);
+    } catch (error) {
+      logger.error(`MinIO putObject failed - Bucket: ${this.bucket}, Key: ${key}`, error);
+      throw error;
+    }
   }
 
   /**
    * Download a buffer from storage
    */
   async downloadBuffer(key: string): Promise<Buffer> {
-    const stream = await this.client.getObject(this.bucket, key);
-    const chunks: Buffer[] = [];
+    logger.info(`MinIO downloadBuffer - Bucket: ${this.bucket}, Key: ${key}`);
     
-    return new Promise((resolve, reject) => {
-      stream.on('data', (chunk) => chunks.push(chunk));
-      stream.on('error', reject);
-      stream.on('end', () => resolve(Buffer.concat(chunks)));
-    });
+    try {
+      const stream = await this.client.getObject(this.bucket, key);
+      const chunks: Buffer[] = [];
+      
+      return new Promise((resolve, reject) => {
+        stream.on('data', (chunk) => chunks.push(chunk));
+        stream.on('error', (error) => {
+          logger.error(`MinIO downloadBuffer stream error - Bucket: ${this.bucket}, Key: ${key}`, error);
+          reject(error);
+        });
+        stream.on('end', () => {
+          const buffer = Buffer.concat(chunks);
+          logger.info(`MinIO downloadBuffer successful - Bucket: ${this.bucket}, Key: ${key}, Size: ${buffer.length} bytes`);
+          resolve(buffer);
+        });
+      });
+    } catch (error) {
+      logger.error(`MinIO downloadBuffer failed - Bucket: ${this.bucket}, Key: ${key}`, error);
+      throw error;
+    }
   }
 
   /**

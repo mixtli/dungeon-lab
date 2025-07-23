@@ -42,7 +42,11 @@
       "Bash(./packages/foundry-converter/bin/foundry-converter.mjs --input \"/Users/mixtli/Library/Application Support/FoundryVTT/Data/systems/dnd5e/packs/spells24\" --output \"./compendiums/spells24\" --system \"dnd-5e-2024\")",
       "Bash(mv:*)",
       "mcp__mongodb__query",
-      "mcp__mongodb__count"
+      "mcp__mongodb__count",
+      "Bash(cat:*)",
+      "Bash(timeout:*)",
+      "Bash(mongosh:*)",
+      "Bash(curl:*)"
     ]
   },
   "enabledMcpjsonServers": [

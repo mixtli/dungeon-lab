@@ -36,7 +36,9 @@ export async function registerCompendiumImportJobs(): Promise<void> {
       
       try {
         // Download ZIP from MinIO storage
+        logger.info(`Starting ZIP download from storage. Key: ${zipStorageKey}`);
         const buffer = await downloadBuffer(zipStorageKey);
+        logger.info(`ZIP download successful. Key: ${zipStorageKey}, Size: ${buffer.length} bytes`);
         
         // Process the import with progress callback
         const compendium = await importService.importFromZip(
@@ -86,12 +88,13 @@ export async function registerCompendiumImportJobs(): Promise<void> {
         logger.error(`Error importing compendium for job ${jobId}:`, error);
         
         // Clean up ZIP file from storage even on error
-        try {
-          await deleteFile(zipStorageKey);
-          logger.debug(`Cleaned up ZIP file after error: ${zipStorageKey}`);
-        } catch (cleanupError) {
-          logger.warn(`Failed to clean up ZIP file ${zipStorageKey} after error:`, cleanupError);
-        }
+        // TODO: Temporarily disabled for debugging
+        // try {
+        //   await deleteFile(zipStorageKey);
+        //   logger.debug(`Cleaned up ZIP file after error: ${zipStorageKey}`);
+        // } catch (cleanupError) {
+        //   logger.warn(`Failed to clean up ZIP file ${zipStorageKey} after error:`, cleanupError);
+        // }
         
         // Update progress with error
         const errorProgress: ImportProgress = {

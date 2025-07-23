@@ -3,6 +3,7 @@ import { baseSchema } from './base.schema.mjs';
 // Base VTT Document schema
 export const vttDocumentSchema = baseSchema.extend({
   name: z.string().min(1).max(255),
+  imageId: z.string().optional(),
   slug: z
     .string()
     .min(1)

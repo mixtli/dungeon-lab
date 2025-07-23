@@ -9,9 +9,8 @@ import { CompendiumEntryModel } from '../models/compendium-entry.model.mjs';
 import { ActorModel } from '../../actors/models/actor.model.mjs';
 import { ItemModel } from '../../items/models/item.model.mjs';
 import { VTTDocumentModel } from '../../documents/models/vtt-document.model.mjs';
-import { AssetModel } from '../../assets/models/asset.model.mjs';
 import type { CompendiumDocument } from './compendium.service.mjs';
-import { ImportProgress, CompendiumManifest, ValidationResult, AssetMapping } from '@dungeon-lab/shared/schemas/import.schema.mjs';
+import { ImportProgress, CompendiumManifest, ValidationResult } from '@dungeon-lab/shared/schemas/import.schema.mjs';
 
 interface ProcessedContent {
   type: 'actor' | 'item' | 'vtt-document';
@@ -30,6 +29,7 @@ interface ValidationPlugin {
 interface ProcessedImportData {
   compendium: {
     name: string;
+    slug: string;
     description?: string;
     gameSystemId: string;
     pluginId: string;
@@ -37,7 +37,10 @@ interface ProcessedImportData {
     createdBy: Types.ObjectId;
   };
   content: ProcessedContent[];
-  assets: AssetMapping[];
+  assetFiles: Map<string, { buffer: Buffer; mimetype: string; originalPath: string }>;
+  userId: string;
+  compendiumName: string;
+  uploadedAssets: string[];
 }
 
 export class ImportService {
@@ -92,7 +95,7 @@ export class ImportService {
         errors: []
       });
 
-      const processedContent = await this.processContentFiles(
+      const { processedContent, errors: _validationErrors } = await this.processContentFiles(
         processedZip.contentFiles, 
         plugin,
         (processed, total) => this.updateProgress(progressCallback, {
@@ -104,30 +107,7 @@ export class ImportService {
         })
       );
 
-      // Stage 3: Upload assets
-      this.updateProgress(progressCallback, {
-        stage: 'uploading',
-        processedItems: 0,
-        totalItems: processedZip.assetFiles.size,
-        currentItem: 'Uploading assets',
-        errors: []
-      });
-
-      const assetMappings = await this.uploadAssets(
-        processedZip.assetFiles,
-        userId,
-        manifest.name,
-        uploadedAssets,
-        (uploaded, total) => this.updateProgress(progressCallback, {
-          stage: 'uploading',
-          processedItems: uploaded,
-          totalItems: total,
-          currentItem: 'Uploading assets',
-          errors: []
-        })
-      );
-
-      // Stage 4: Create compendium and content in transaction
+      // Stage 3: Create compendium and content in transaction (assets uploaded on-demand)
       this.updateProgress(progressCallback, {
         stage: 'processing',
         processedItems: 0,
@@ -140,6 +120,7 @@ export class ImportService {
           return await this.createCompendiumWithContent({
           compendium: {
             name: manifest.name,
+            slug: manifest.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
             description: manifest.description,
             gameSystemId: manifest.gameSystemId,
             pluginId: manifest.pluginId,
@@ -147,7 +128,10 @@ export class ImportService {
             createdBy: userObjectId
           },
           content: processedContent,
-          assets: assetMappings
+          assetFiles: processedZip.assetFiles,
+          userId,
+          compendiumName: manifest.name,
+          uploadedAssets
         }, session, (processed, total) => this.updateProgress(progressCallback, {
           stage: 'processing',
           processedItems: processed,
@@ -159,7 +143,7 @@ export class ImportService {
 
       // Stage 5: Complete
       const duration = Date.now() - startTime;
-      logger.info(`Import completed in ${duration}ms: ${processedContent.length} items, ${assetMappings.length} assets`);
+      logger.info(`Import completed in ${duration}ms: ${processedContent.length} items`);
 
       this.updateProgress(progressCallback, {
         stage: 'complete',
@@ -205,8 +189,9 @@ export class ImportService {
     contentFiles: Map<string, Buffer>,
     plugin: ValidationPlugin,
     progressCallback?: (processed: number, total: number) => void
-  ): Promise<ProcessedContent[]> {
+  ): Promise<{ processedContent: ProcessedContent[]; errors: string[] }> {
     const processedContent: ProcessedContent[] = [];
+    const errors: string[] = [];
     const totalFiles = contentFiles.size;
     let processedFiles = 0;
 
@@ -222,75 +207,148 @@ export class ImportService {
         const validationResult = this.validateContent(plugin, type, subtype, contentData);
         
         if (!validationResult.success) {
-          throw new Error(`Validation failed for ${filePath}: ${validationResult.error?.message}`);
+          const errorMsg = `Validation failed for ${filePath}: ${validationResult.error?.message}`;
+          logger.warn(errorMsg);
+          errors.push(errorMsg);
+        } else {
+          processedContent.push({
+            type,
+            subtype,
+            name: contentData.name || filePath,
+            data: validationResult.data,
+            originalPath: filePath
+          });
         }
-
-        processedContent.push({
-          type,
-          subtype,
-          name: contentData.name || filePath,
-          data: validationResult.data,
-          originalPath: filePath
-        });
 
         processedFiles++;
         progressCallback?.(processedFiles, totalFiles);
 
       } catch (error) {
-        logger.error(`Failed to process content file ${filePath}:`, error);
-        throw new Error(`Content processing failed for ${filePath}: ${error instanceof Error ? error.message : String(error)}`);
+        const errorMsg = `Failed to process content file ${filePath}: ${error instanceof Error ? error.message : String(error)}`;
+        logger.warn(errorMsg);
+        errors.push(errorMsg);
+        processedFiles++;
+        progressCallback?.(processedFiles, totalFiles);
       }
     }
 
-    return processedContent;
+    return { processedContent, errors };
   }
 
   /**
-   * Upload assets to storage and create asset records
+   * Upload a single asset on-demand and return the asset ID
    */
-  private async uploadAssets(
+  private async uploadAssetOnDemand(
+    imagePath: string,
     assetFiles: Map<string, { buffer: Buffer; mimetype: string; originalPath: string }>,
     userId: string,
     compendiumName: string,
-    uploadedAssets: string[],
-    progressCallback?: (uploaded: number, total: number) => void
-  ): Promise<AssetMapping[]> {
-    const assetMappings: AssetMapping[] = [];
-    const totalAssets = assetFiles.size;
-    let uploadedCount = 0;
+    uploadedAssets: string[]
+  ): Promise<string | null> {
+    logger.info(`uploadAssetOnDemand: Starting upload for "${imagePath}"`);
+    logger.debug(`uploadAssetOnDemand: Parameters:`, {
+      imagePath,
+      userId,
+      compendiumName,
+      assetFilesHasPath: assetFiles.has(imagePath),
+      totalAssetFiles: assetFiles.size,
+      uploadedAssetsCount: uploadedAssets.length
+    });
 
-    for (const [relativePath, assetData] of assetFiles) {
-      try {
-        // Create a File object from the buffer
-        const file = new File([assetData.buffer], relativePath, { type: assetData.mimetype });
+    try {
+      const assetData = assetFiles.get(imagePath);
+      if (!assetData) {
+        logger.warn(`uploadAssetOnDemand: Asset not found in ZIP: ${imagePath}`);
+        logger.debug(`uploadAssetOnDemand: Available assets: [${Array.from(assetFiles.keys()).slice(0, 10).join(', ')}${assetFiles.size > 10 ? '...' : ''}]`);
+        return null;
+      }
+
+      logger.info(`uploadAssetOnDemand: Found asset data for "${imagePath}" - buffer size: ${assetData.buffer.length}, mimetype: ${assetData.mimetype}, originalPath: ${assetData.originalPath}`);
+
+      // Create a File object from the buffer
+      const file = new File([assetData.buffer], imagePath, { type: assetData.mimetype });
+      logger.debug(`uploadAssetOnDemand: Created File object - name: ${file.name}, size: ${file.size}, type: ${file.type}`);
+      
+      // Upload to storage
+      logger.info(`uploadAssetOnDemand: Calling createAsset with path "compendiums/${compendiumName}/assets" for user ${userId}`);
+      const asset = await createAsset(
+        file,
+        `compendiums/${compendiumName}/assets`,
+        userId
+      );
+
+      logger.info(`uploadAssetOnDemand: createAsset successful - asset.id: ${asset.id}, asset.path: ${asset.path}`);
+
+      // Track for potential rollback
+      uploadedAssets.push(asset.path);
+
+      logger.info(`uploadAssetOnDemand: Upload complete: ${imagePath} -> ${asset.id}`);
+      return asset.id.toString();
+
+    } catch (error) {
+      const errorMsg = `Failed to upload asset ${imagePath}: ${error instanceof Error ? error.message : String(error)}`;
+      logger.error(`uploadAssetOnDemand: ${errorMsg}`);
+      logger.debug(`uploadAssetOnDemand: Error details:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Process image fields in document data and upload assets on-demand
+   */
+  private async processDocumentImages(
+    docData: Record<string, unknown>,
+    assetFiles: Map<string, { buffer: Buffer; mimetype: string; originalPath: string }>,
+    userId: string,
+    compendiumName: string,
+    uploadedAssets: string[]
+  ): Promise<Record<string, unknown>> {
+    const processedData = { ...docData };
+    const imageFields = ['imageId', 'avatarId', 'defaultTokenImageId'];
+
+    logger.info(`processDocumentImages: Processing document "${docData.name || 'Unknown'}" with ${assetFiles.size} available assets`);
+    logger.debug(`processDocumentImages: Available asset paths: [${Array.from(assetFiles.keys()).join(', ')}]`);
+
+    for (const field of imageFields) {
+      if (processedData[field] && typeof processedData[field] === 'string') {
+        const imagePath = processedData[field] as string;
+        logger.info(`processDocumentImages: Found ${field} = "${imagePath}" in document "${docData.name || 'Unknown'}"`);
         
-        // Upload to storage
-        const asset = await createAsset(
-          file,
-          `compendiums/${compendiumName}/assets`,
-          userId
-        );
-
-        // Track for potential rollback
-        uploadedAssets.push(asset.path);
-
-        assetMappings.push({
-          originalPath: assetData.originalPath,
-          storageKey: asset.path,
-          publicUrl: asset.url,
-          assetId: asset.id.toString()
+        logger.debug(`processDocumentImages: Calling uploadAssetOnDemand with:`, {
+          imagePath,
+          userId,
+          compendiumName,
+          assetFilesSize: assetFiles.size,
+          uploadedAssetsCount: uploadedAssets.length
         });
-
-        uploadedCount++;
-        progressCallback?.(uploadedCount, totalAssets);
-
-      } catch (error) {
-        logger.error(`Failed to upload asset ${relativePath}:`, error);
-        throw new Error(`Asset upload failed for ${relativePath}: ${error instanceof Error ? error.message : String(error)}`);
+        
+        const assetId = await this.uploadAssetOnDemand(
+          imagePath,
+          assetFiles,
+          userId,
+          compendiumName,
+          uploadedAssets
+        );
+        
+        logger.info(`processDocumentImages: uploadAssetOnDemand returned: ${assetId || 'null'} for ${field} = "${imagePath}"`);
+        
+        if (assetId) {
+          processedData[field] = assetId;
+          logger.info(`processDocumentImages: Successfully mapped ${field}: ${imagePath} -> ${assetId}`);
+        } else {
+          // Remove the field if asset upload failed
+          delete processedData[field];
+          logger.warn(`processDocumentImages: Removed ${field} field due to failed asset upload: ${imagePath}`);
+        }
+      } else if (processedData[field]) {
+        logger.debug(`processDocumentImages: Skipping ${field} - not a string (type: ${typeof processedData[field]})`);
       }
     }
 
-    return assetMappings;
+    const resultImageFields = imageFields.filter(field => processedData[field]).map(field => `${field}=${processedData[field]}`);
+    logger.info(`processDocumentImages: Final result for "${docData.name || 'Unknown'}": [${resultImageFields.join(', ')}]`);
+
+    return processedData;
   }
 
   /**
@@ -324,14 +382,28 @@ export class ImportService {
     let processedItems = 0;
     const totalItems = data.content.length;
 
-    // Create actors
+    // Create actors (with on-demand asset uploading)
     if (contentByType.actor.length > 0) {
       logger.info(`Creating ${contentByType.actor.length} actors`);
-      try {
-        const actorDocs = contentByType.actor.map(item => {
+      const processedActors: Array<{ actor: any; originalItem: ProcessedContent }> = [];
+      let actorsCreated = 0;
+
+      for (const item of contentByType.actor) {
+        try {
           const actorData = item.data as Record<string, unknown>;
-          const { data: nestedData, gameSystemId, type, pluginId, name, avatarId: _avatarId, defaultTokenImageId: _defaultTokenImageId, ...otherFields } = actorData;
-          const doc = {
+          
+          // Process images on-demand before creating the actor
+          const processedActorData = await this.processDocumentImages(
+            actorData,
+            data.assetFiles,
+            data.userId,
+            data.compendiumName,
+            data.uploadedAssets
+          );
+
+          const { data: nestedData, gameSystemId, type, pluginId, name, ...otherFields } = processedActorData;
+          
+          const actorToCreate = {
             gameSystemId: gameSystemId || data.compendium.gameSystemId,
             type,
             pluginId: pluginId || data.compendium.pluginId,
@@ -341,41 +413,64 @@ export class ImportService {
             compendiumId,
             createdBy: data.compendium.createdBy
           };
-          return doc;
-        });
-        
-        const actors = await ActorModel.create(actorDocs, { ordered: true });
-        logger.info(`Successfully created ${actors.length} actors`);
-        
-        // Create compendium entries for actors
-        await CompendiumEntryModel.create(
-          actors.map((actor, index) => ({
-            compendiumId,
-            contentType: 'Actor',
-            contentId: actor._id,
-            name: contentByType.actor[index].name,
-            tags: [],
-            metadata: { originalPath: contentByType.actor[index].originalPath }
-          })),
-          { ordered: true }
-        );
 
-        processedItems += actors.length;
-        progressCallback?.(processedItems, totalItems);
-      } catch (error) {
-        logger.error(`Failed to create actors:`, error);
-        throw error;
+          const [actor] = await ActorModel.create([actorToCreate], { ordered: false });
+          processedActors.push({ actor, originalItem: item });
+          actorsCreated++;
+          
+          processedItems++;
+          progressCallback?.(processedItems, totalItems);
+          
+        } catch (error) {
+          logger.warn(`Failed to create actor "${item.name}":`, error);
+          // Continue with next actor
+        }
       }
+
+      // Create compendium entries for successfully created actors
+      if (processedActors.length > 0) {
+        try {
+          await CompendiumEntryModel.create(
+            processedActors.map(({ actor, originalItem }) => ({
+              compendiumId,
+              contentType: 'Actor',
+              contentId: actor._id,
+              name: originalItem.name,
+              tags: [],
+              metadata: { originalPath: originalItem.originalPath }
+            })),
+            { ordered: false }
+          );
+        } catch (error) {
+          logger.warn(`Failed to create some compendium entries for actors:`, error);
+        }
+      }
+
+      logger.info(`Successfully created ${actorsCreated} actors`);
     }
 
-    // Create items
+    // Create items (with on-demand asset uploading)
     if (contentByType.item.length > 0) {
       logger.info(`Creating ${contentByType.item.length} items`);
-      try {
-        const itemDocs = contentByType.item.map(item => {
+      const processedItems2: Array<{ item: any; originalItem: ProcessedContent }> = [];
+      let itemsCreated = 0;
+
+      for (const item of contentByType.item) {
+        try {
           const itemData = item.data as Record<string, unknown>;
-          const { data: nestedData, gameSystemId, type, pluginId, name, ...otherFields } = itemData;
-          const doc = {
+          
+          // Process images on-demand before creating the item
+          const processedItemData = await this.processDocumentImages(
+            itemData,
+            data.assetFiles,
+            data.userId,
+            data.compendiumName,
+            data.uploadedAssets
+          );
+
+          const { data: nestedData, gameSystemId, type, pluginId, name, ...otherFields } = processedItemData;
+          
+          const itemToCreate = {
             gameSystemId: gameSystemId || data.compendium.gameSystemId,
             type,
             pluginId: pluginId || data.compendium.pluginId,
@@ -385,40 +480,64 @@ export class ImportService {
             compendiumId,
             createdBy: data.compendium.createdBy
           };
-          return doc;
-        });
-        
-        const items = await ItemModel.create(itemDocs, { ordered: true });
-        logger.info(`Successfully created ${items.length} items`);
 
-        await CompendiumEntryModel.create(
-          items.map((item, index) => ({
-            compendiumId,
-            contentType: 'Item',
-            contentId: item._id,
-            name: contentByType.item[index].name,
-            tags: [],
-            metadata: { originalPath: contentByType.item[index].originalPath }
-          })),
-          { ordered: true }
-        );
-
-        processedItems += items.length;
-        progressCallback?.(processedItems, totalItems);
-      } catch (error) {
-        logger.error(`Failed to create items:`, error);
-        throw error;
+          const [createdItem] = await ItemModel.create([itemToCreate], { ordered: false });
+          processedItems2.push({ item: createdItem, originalItem: item });
+          itemsCreated++;
+          
+          processedItems++;
+          progressCallback?.(processedItems, totalItems);
+          
+        } catch (error) {
+          logger.warn(`Failed to create item "${item.name}":`, error);
+          // Continue with next item
+        }
       }
+
+      // Create compendium entries for successfully created items
+      if (processedItems2.length > 0) {
+        try {
+          await CompendiumEntryModel.create(
+            processedItems2.map(({ item, originalItem }) => ({
+              compendiumId,
+              contentType: 'Item',
+              contentId: item._id,
+              name: originalItem.name,
+              tags: [],
+              metadata: { originalPath: originalItem.originalPath }
+            })),
+            { ordered: false }
+          );
+        } catch (error) {
+          logger.warn(`Failed to create some compendium entries for items:`, error);
+        }
+      }
+
+      logger.info(`Successfully created ${itemsCreated} items`);
     }
 
-    // Create VTT documents
+    // Create VTT documents (with on-demand asset uploading)
     if (contentByType['vtt-document'].length > 0) {
       logger.info(`Creating ${contentByType['vtt-document'].length} VTT documents`);
-      const documents = await VTTDocumentModel.create(
-        contentByType['vtt-document'].map(item => {
+      const processedDocuments: Array<{ document: any; originalItem: ProcessedContent }> = [];
+      let documentsCreated = 0;
+
+      for (const item of contentByType['vtt-document']) {
+        try {
           const docData = item.data as Record<string, unknown>;
-          const { data: nestedData, pluginId, documentType, name, slug, description, ...otherFields } = docData;
-          return {
+          
+          // Process images on-demand before creating the document
+          const processedDocData = await this.processDocumentImages(
+            docData,
+            data.assetFiles,
+            data.userId,
+            data.compendiumName,
+            data.uploadedAssets
+          );
+
+          const { data: nestedData, pluginId, documentType, name, slug, description, ...otherFields } = processedDocData;
+          
+          const documentToCreate = {
             pluginId: pluginId || data.compendium.pluginId,
             documentType,
             name,
@@ -429,41 +548,44 @@ export class ImportService {
             compendiumId,
             createdBy: data.compendium.createdBy
           };
-        }),
-        { ordered: true }
-      );
 
-      await CompendiumEntryModel.create(
-        documents.map((doc, index) => ({
-          compendiumId,
-          contentType: 'VTTDocument',
-          contentId: doc._id,
-          name: contentByType['vtt-document'][index].name,
-          tags: [],
-          metadata: { originalPath: contentByType['vtt-document'][index].originalPath }
-        })),
-        { ordered: true }
-      );
+          const [document] = await VTTDocumentModel.create([documentToCreate], { ordered: false });
+          processedDocuments.push({ document, originalItem: item });
+          documentsCreated++;
+          
+          processedItems++;
+          progressCallback?.(processedItems, totalItems);
+          
+        } catch (error) {
+          logger.warn(`Failed to create VTT document "${item.name}":`, error);
+          // Continue with next document
+        }
+      }
 
-      processedItems += documents.length;
-      progressCallback?.(processedItems, totalItems);
+      // Create compendium entries for successfully created documents
+      if (processedDocuments.length > 0) {
+        try {
+          await CompendiumEntryModel.create(
+            processedDocuments.map(({ document, originalItem }) => ({
+              compendiumId,
+              contentType: 'VTTDocument',
+              contentId: document._id,
+              name: originalItem.name,
+              tags: [],
+              metadata: { originalPath: originalItem.originalPath }
+            })),
+            { ordered: false }
+          );
+        } catch (error) {
+          logger.warn(`Failed to create some compendium entries for VTT documents:`, error);
+        }
+      }
+
+      logger.info(`Successfully created ${documentsCreated} VTT documents`);
     }
 
-    // Create asset records
-    if (data.assets.length > 0) {
-      await AssetModel.create(
-        data.assets.map(asset => ({
-          path: asset.storageKey,
-          url: asset.publicUrl,
-          size: 0, // Will be updated by storage service
-          type: 'image/unknown',
-          name: asset.originalPath.split('/').pop() || 'unknown',
-          createdBy: data.compendium.createdBy,
-          compendiumId
-        })),
-        { ordered: true }
-      );
-    }
+    // Assets are now created on-demand during document processing
+    // No separate asset creation phase needed
 
     // Update compendium statistics after all entries are created
     const totalEntries = data.content.length;
@@ -532,12 +654,20 @@ export class ImportService {
     }
   }
 
-  private groupContentByType(content: ProcessedContent[]) {
-    return content.reduce((acc, item) => {
+  private groupContentByType(content: ProcessedContent[]): Record<string, ProcessedContent[]> {
+    const grouped = content.reduce((acc, item) => {
       if (!acc[item.type]) acc[item.type] = [];
       acc[item.type].push(item);
       return acc;
     }, {} as Record<string, ProcessedContent[]>);
+
+    // Ensure all expected types exist as empty arrays
+    return {
+      actor: [] as ProcessedContent[],
+      item: [] as ProcessedContent[],
+      'vtt-document': [] as ProcessedContent[],
+      ...grouped
+    };
   }
 
   private calculateTypeStatistics(content: ProcessedContent[]) {

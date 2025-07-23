@@ -86,7 +86,15 @@ export class ImportController {
 
       // Store ZIP file in MinIO and create import job
       const storageKey = `imports/${userId}/${Date.now()}-${nanoid()}.zip`;
-      await uploadBuffer(storageKey, zipBuffer, 'application/zip');
+      logger.info(`Starting ZIP upload to MinIO. Size: ${zipBuffer.length} bytes, Key: ${storageKey}`);
+      
+      try {
+        await uploadBuffer(storageKey, zipBuffer, 'application/zip');
+        logger.info(`ZIP upload successful. Key: ${storageKey}`);
+      } catch (uploadError) {
+        logger.error(`ZIP upload failed. Key: ${storageKey}`, uploadError);
+        throw uploadError;
+      }
       
       const job = backgroundJobService.createJob(COMPENDIUM_IMPORT_JOB, {
         zipStorageKey: storageKey, // Store only the storage reference

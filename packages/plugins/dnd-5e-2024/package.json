@@ -16,17 +16,24 @@
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
     "check": "vue-tsc --noEmit",
     "lint": "eslint src",
-    "lint:fix": "eslint src --fix"
+    "lint:fix": "eslint src --fix",
+    "generate:compendium": "tsx src/scripts/generate-compendium-pack.mts",
+    "generate:compendium:srd": "tsx src/scripts/generate-compendium-pack.mts --srd-only",
+    "generate:compendium:all": "tsx src/scripts/generate-compendium-pack.mts --no-srd-only",
+    "test:conversion": "tsx src/scripts/test-conversion.mts"
   },
   "dependencies": {
     "@dungeon-lab/shared": "file:../../shared/src",
-    "vue": "^3.5.13"
+    "vue": "^3.5.13",
+    "zod": "^4.0.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",
+    "@types/archiver": "^6.0.3",
     "@types/node": "^20.4.0",
     "@typescript-eslint/eslint-plugin": "^6.15.0",
     "@typescript-eslint/parser": "^6.15.0",
+    "archiver": "^7.0.1",
     "eslint": "^8.56.0",
     "globals": "^16.0.0",
     "typescript": "^5.8.3",

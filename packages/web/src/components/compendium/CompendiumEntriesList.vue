@@ -165,6 +165,26 @@ const paginationRange = computed(() => {
   
   return range;
 });
+
+// Get image URL for entry based on content type
+function getEntryImage(entry: ICompendiumEntry): string | null {
+  if (!entry.content) return null;
+  
+  const content = entry.content as any;
+  
+  // For actors, prefer avatarId, fallback to defaultTokenImageId
+  if (entry.contentType === 'Actor') {
+    if (content.avatarId?.url) return content.avatarId.url;
+    if (content.defaultTokenImageId?.url) return content.defaultTokenImageId.url;
+  }
+  
+  // For items and documents, use imageId
+  if (entry.contentType === 'Item' || entry.contentType === 'VTTDocument') {
+    if (content.imageId?.url) return content.imageId.url;
+  }
+  
+  return null;
+}
 </script>
 
 <template>
@@ -285,10 +305,28 @@ const paginationRange = computed(() => {
           <div class="flex items-center justify-between">
             <div class="flex items-center space-x-4 flex-1 min-w-0">
               <div class="flex-shrink-0">
-                <i 
-                  :class="[getContentTypeIcon(entry.contentType), getContentTypeColor(entry.contentType)]"
-                  class="text-xl"
-                ></i>
+                <!-- Image if available, otherwise fallback to icon -->
+                <div v-if="getEntryImage(entry)" class="w-10 h-10 rounded-md overflow-hidden bg-gray-100 dark:bg-gray-700">
+                  <img 
+                    :src="getEntryImage(entry)" 
+                    :alt="entry.name"
+                    class="w-full h-full object-cover"
+                    @error="$event.target.style.display = 'none'; $event.target.nextElementSibling.style.display = 'flex'"
+                  />
+                  <div class="w-full h-full hidden items-center justify-center">
+                    <i 
+                      :class="[getContentTypeIcon(entry.contentType), getContentTypeColor(entry.contentType)]"
+                      class="text-lg"
+                    ></i>
+                  </div>
+                </div>
+                <!-- Fallback icon when no image -->
+                <div v-else class="w-10 h-10 flex items-center justify-center">
+                  <i 
+                    :class="[getContentTypeIcon(entry.contentType), getContentTypeColor(entry.contentType)]"
+                    class="text-xl"
+                  ></i>
+                </div>
               </div>
               
               <div class="flex-1 min-w-0">

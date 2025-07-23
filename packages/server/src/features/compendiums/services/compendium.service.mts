@@ -13,6 +13,7 @@ import { logger } from '../../../utils/logger.mjs';
 import { ActorModel } from '../../actors/models/actor.model.mjs';
 import { ItemModel } from '../../items/models/item.model.mjs';
 import { VTTDocumentModel } from '../../documents/models/vtt-document.model.mjs';
+import { AssetModel } from '../../assets/models/asset.model.mjs';
 
 export type QueryValue = string | number | boolean | RegExp | Date | object;
 export type CompendiumDocument = ICompendium;
@@ -157,6 +158,45 @@ export class CompendiumService {
         .populate('content')
         .sort({ sortOrder: 1, name: 1 })
         .lean();
+      
+      // Manually populate asset fields for each entry based on content type
+      for (const entry of entries) {
+        if (entry.content) {
+          const content = entry.content as any;
+          
+          // Collect asset IDs to populate
+          const assetIds: string[] = [];
+          const assetFieldMap: Record<string, string> = {};
+          
+          if (content.avatarId) {
+            assetIds.push(content.avatarId.toString());
+            assetFieldMap[content.avatarId.toString()] = 'avatarId';
+          }
+          
+          if (content.imageId) {
+            assetIds.push(content.imageId.toString());
+            assetFieldMap[content.imageId.toString()] = 'imageId';
+          }
+          
+          if (content.defaultTokenImageId) {
+            assetIds.push(content.defaultTokenImageId.toString());
+            assetFieldMap[content.defaultTokenImageId.toString()] = 'defaultTokenImageId';
+          }
+          
+          // Fetch all assets at once
+          if (assetIds.length > 0) {
+            const assets = await AssetModel.find({ _id: { $in: assetIds } }).lean();
+            
+            // Replace asset IDs with full asset objects
+            for (const asset of assets) {
+              const fieldName = assetFieldMap[asset._id.toString()];
+              if (fieldName) {
+                content[fieldName] = asset;
+              }
+            }
+          }
+        }
+      }
       
       return entries;
     } catch (error) {

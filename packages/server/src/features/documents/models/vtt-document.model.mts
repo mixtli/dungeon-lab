@@ -8,8 +8,10 @@ import { zId } from '@zodyac/zod-mongoose';
 
 // Create server-specific schema with ObjectId references
 const serverVTTDocumentSchema = vttDocumentSchema.extend({
-  compendiumId: zId('Compendium').optional()
+  compendiumId: zId('Compendium').optional(),
+  imageId: zId('Asset').optional()
 });
+
 
 // Create mongoose schema using the base schema creator to handle _id to id transformation
 const mongooseSchema = createMongoSchema<IVTTDocument>(
@@ -18,6 +20,14 @@ const mongooseSchema = createMongoSchema<IVTTDocument>(
 
 // Add compound unique index for slug within plugin and document type context
 mongooseSchema.index({ slug: 1, pluginId: 1, documentType: 1 }, { unique: true });
+
+// Add virtual property for image
+mongooseSchema.virtual('image', {
+  ref: 'Asset',
+  localField: 'imageId',
+  foreignField: '_id',
+  justOne: true
+});
 
 // Add pre-validation middleware to set default slug if not provided
 mongooseSchema.pre(
