@@ -3,10 +3,29 @@
  */
 import { WrapperConverter, WrapperConversionResult, WrapperContent } from '../base/wrapper-converter.mjs';
 import { readEtoolsData, filterSrdContent, formatEntries } from '../utils/conversion-utils.mjs';
+import type { EtoolsFeat, EtoolsFeatData, EtoolsFeatPrerequisite, EtoolsFeatAbilityScoreImprovement } from '../../5etools-types/feats.mjs';
+import type { EtoolsEntry } from '../../5etools-types/base.mjs';
+import { extractEtoolsArray, safeEtoolsCast } from '../../5etools-types/type-utils.mjs';
 import { featDocumentSchema } from '../../types/vttdocument.mjs';
 import { z } from 'zod';
 
 type IFeatDocument = z.infer<typeof featDocumentSchema>;
+
+/**
+ * Feat fluff data interface
+ */
+interface EtoolsFeatFluff {
+  name: string;
+  source?: string;
+  entries?: EtoolsEntry[];
+  images?: Array<{
+    type: string;
+    href: {
+      type: string;
+      path: string;
+    };
+  }>;
+}
 
 // Category mapping from 5etools codes to readable names
 const CATEGORY_MAP: Record<string, string> = {
@@ -25,18 +44,23 @@ export class FeatWrapperConverter extends WrapperConverter {
       const stats = { total: 0, converted: 0, skipped: 0, errors: 0 };
 
       // Read feat data
-      const featData = await readEtoolsData('feats.json');
-      const fluffData = await readEtoolsData('fluff-feats.json');
+      const rawFeatData = await readEtoolsData('feats.json');
+      const featData = safeEtoolsCast<EtoolsFeatData>(rawFeatData, ['feat'], 'feat data file');
+      const feats = extractEtoolsArray<EtoolsFeat>(featData, 'feat', 'feat list');
+      
+      const rawFluffData = await readEtoolsData('fluff-feats.json');
       
       // Create fluff lookup map
-      const fluffMap = new Map();
-      if (fluffData.featFluff) {
-        for (const fluff of fluffData.featFluff) {
-          fluffMap.set(fluff.name, fluff);
+      const fluffMap = new Map<string, EtoolsFeatFluff>();
+      if (rawFluffData && typeof rawFluffData === 'object' && 'featFluff' in rawFluffData) {
+        const fluffArray = (rawFluffData as { featFluff: EtoolsFeatFluff[] }).featFluff;
+        if (Array.isArray(fluffArray)) {
+          for (const fluff of fluffArray) {
+            fluffMap.set(fluff.name, fluff);
+          }
         }
       }
       
-      const feats = featData.feat || [];
       const filteredFeats = this.options.srdOnly ? filterSrdContent(feats) : feats;
       
       stats.total = filteredFeats.length;
@@ -55,7 +79,7 @@ export class FeatWrapperConverter extends WrapperConverter {
             'vttdocument',
             {
               imageId: assetPath,
-              category: this.determineCategory(featRaw, 'vttdocument'),
+              category: this.determineCategory(featRaw as unknown as Record<string, unknown>, 'vttdocument'),
               tags: this.extractTags(featRaw, 'vttdocument'),
               sortOrder: this.calculateSortOrder(featRaw, 'vttdocument') + i
             }
@@ -89,7 +113,7 @@ export class FeatWrapperConverter extends WrapperConverter {
     }
   }
 
-  private convertFeat(featData: any, fluffData?: any): { feat: IFeatDocument; assetPath?: string } {
+  private convertFeat(featData: EtoolsFeat, fluffData?: EtoolsFeatFluff): { feat: IFeatDocument; assetPath?: string } {
     // Extract asset path from fluff data if available
     let assetPath: string | undefined;
     if (fluffData && this.options.includeAssets) {
@@ -120,7 +144,7 @@ export class FeatWrapperConverter extends WrapperConverter {
     return { feat, assetPath };
   }
 
-  private buildDescription(featData: any, fluffData?: any): string {
+  private buildDescription(featData: EtoolsFeat, fluffData?: EtoolsFeatFluff): string {
     let description = '';
     
     // Use fluff description if available
@@ -138,7 +162,7 @@ export class FeatWrapperConverter extends WrapperConverter {
     return description.trim();
   }
 
-  private extractCategory(categoryData: any): string | undefined {
+  private extractCategory(categoryData: string | undefined): string | undefined {
     if (!categoryData) return undefined;
     
     if (typeof categoryData === 'string') {
@@ -148,7 +172,7 @@ export class FeatWrapperConverter extends WrapperConverter {
     return undefined;
   }
 
-  private extractAbilityChoices(abilityData: any): Array<{
+  private extractAbilityChoices(abilityData: EtoolsFeatAbilityScoreImprovement[] | undefined): Array<{
     choice: {
       from: string[];
       count?: number;
@@ -158,32 +182,22 @@ export class FeatWrapperConverter extends WrapperConverter {
     
     const choices: Array<{ choice: { from: string[]; count?: number } }> = [];
     
-    // Handle array format
-    if (Array.isArray(abilityData)) {
-      for (const ability of abilityData) {
-        if (ability.choose && ability.choose.from) {
-          choices.push({
-            choice: {
-              from: ability.choose.from.map((a: string) => this.normalizeAbility(a)),
-              count: ability.choose.count || 1
-            }
-          });
-        }
+    // Handle array format (abilityData is already typed as an array)
+    for (const ability of abilityData) {
+      if (ability.choose && ability.choose.from) {
+        choices.push({
+          choice: {
+            from: ability.choose.from.map((a) => this.normalizeAbility(a)),
+            count: ability.choose.count || 1
+          }
+        });
       }
-    } else if (abilityData.choose && abilityData.choose.from) {
-      // Handle single choice format
-      choices.push({
-        choice: {
-          from: abilityData.choose.from.map((a: string) => this.normalizeAbility(a)),
-          count: abilityData.choose.count || 1
-        }
-      });
     }
     
     return choices.length > 0 ? choices : undefined;
   }
 
-  private extractPrerequisites(prerequisiteData: any): {
+  private extractPrerequisites(prerequisiteData: EtoolsFeatPrerequisite | undefined): {
     ability?: Record<string, number>;
     race?: string[];
     class?: string[];
@@ -193,56 +207,53 @@ export class FeatWrapperConverter extends WrapperConverter {
   } | undefined {
     if (!prerequisiteData) return undefined;
     
-    const prerequisites: any = {};
+    const prerequisites: {
+      ability?: Record<string, number>;
+      race?: string[];
+      class?: string[];
+      level?: number;
+      spellcasting?: boolean;
+      other?: string;
+    } = {};
     
-    // Handle different prerequisite formats
-    if (Array.isArray(prerequisiteData)) {
-      for (const prereq of prerequisiteData) {
-        if (prereq.ability) {
-          prerequisites.ability = {};
-          for (const [key, value] of Object.entries(prereq.ability)) {
+    // Extract ability requirements
+    if (prerequisiteData.ability && Array.isArray(prerequisiteData.ability)) {
+      prerequisites.ability = {};
+      for (const abilityReq of prerequisiteData.ability) {
+        for (const [key, value] of Object.entries(abilityReq)) {
+          if (typeof value === 'number') {
             prerequisites.ability[this.normalizeAbility(key)] = value;
           }
         }
-        if (prereq.race) {
-          prerequisites.race = Array.isArray(prereq.race) ? prereq.race : [prereq.race];
-        }
-        if (prereq.level) {
-          prerequisites.level = prereq.level;
-        }
-        if (prereq.spellcasting) {
-          prerequisites.spellcasting = true;
-        }
-        if (prereq.other) {
-          prerequisites.other = prereq.other;
-        }
       }
-    } else if (typeof prerequisiteData === 'object') {
-      // Handle single prerequisite object
-      if (prerequisiteData.ability) {
-        prerequisites.ability = {};
-        for (const [key, value] of Object.entries(prerequisiteData.ability)) {
-          prerequisites.ability[this.normalizeAbility(key)] = value;
-        }
-      }
-      if (prerequisiteData.race) {
-        prerequisites.race = Array.isArray(prerequisiteData.race) ? prerequisiteData.race : [prerequisiteData.race];
-      }
-      if (prerequisiteData.level) {
-        prerequisites.level = prerequisiteData.level;
-      }
-      if (prerequisiteData.spellcasting) {
-        prerequisites.spellcasting = true;
-      }
-      if (prerequisiteData.other) {
-        prerequisites.other = prerequisiteData.other;
-      }
+    }
+    
+    // Extract race requirements
+    if (prerequisiteData.race && Array.isArray(prerequisiteData.race)) {
+      prerequisites.race = prerequisiteData.race.map(race => race.name);
+    }
+    
+    // Extract level requirement
+    if (prerequisiteData.level) {
+      prerequisites.level = prerequisiteData.level;
+    }
+    
+    // Extract spellcasting requirement
+    if (prerequisiteData.spellcasting || prerequisiteData.spellcastingFeature || prerequisiteData.spellcastingPrepared) {
+      prerequisites.spellcasting = true;
+    }
+    
+    // Extract other requirements
+    if (prerequisiteData.other) {
+      prerequisites.other = prerequisiteData.other;
+    } else if (prerequisiteData.otherSummary) {
+      prerequisites.other = prerequisiteData.otherSummary.entrySummary || prerequisiteData.otherSummary.entry;
     }
     
     return Object.keys(prerequisites).length > 0 ? prerequisites : undefined;
   }
 
-  private extractBenefits(entries: any[]): Array<{ name: string; description: string }> {
+  private extractBenefits(entries: EtoolsEntry[]): Array<{ name: string; description: string }> {
     const benefits: Array<{ name: string; description: string }> = [];
     
     if (!Array.isArray(entries)) return benefits;
@@ -262,7 +273,7 @@ export class FeatWrapperConverter extends WrapperConverter {
         });
       } else if (typeof entry === 'object' && entry.type === 'list' && entry.items) {
         // List items become individual benefits
-        entry.items.forEach((item: any, index: number) => {
+        entry.items.forEach((item: EtoolsEntry, index: number) => {
           benefits.push({
             name: `Benefit ${index + 1}`,
             description: typeof item === 'string' ? this.cleanRuleText(item) : formatEntries([item])
@@ -307,7 +318,7 @@ export class FeatWrapperConverter extends WrapperConverter {
   /**
    * Override category determination for feats
    */
-  protected determineCategory(sourceData: any, contentType: 'actor' | 'item' | 'vttdocument'): string | undefined {
+  protected determineCategory<T = Record<string, unknown>>(sourceData: T, contentType: 'actor' | 'item' | 'vttdocument'): string | undefined {
     if (contentType === 'vttdocument') {
       return 'Feats';
     }

@@ -115,11 +115,11 @@
                   </div>
                 </dd>
               </div>
-              <div v-if="entry.embeddedContent?.data?.gameSystemId">
+              <div v-if="(entry.embeddedContent?.type === 'actor' || entry.embeddedContent?.type === 'item') && entry.embeddedContent.data.gameSystemId">
                 <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Game System</dt>
                 <dd class="text-sm text-gray-900 dark:text-white">{{ entry.embeddedContent.data.gameSystemId }}</dd>
               </div>
-              <div v-if="entry.embeddedContent?.data?.pluginId">
+              <div v-if="(entry.embeddedContent?.type === 'item' || entry.embeddedContent?.type === 'vttdocument') && entry.embeddedContent.data.pluginId">
                 <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Plugin</dt>
                 <dd class="text-sm text-gray-900 dark:text-white">{{ entry.embeddedContent.data.pluginId }}</dd>
               </div>
@@ -168,19 +168,32 @@ const error = ref<string | null>(null);
 const entry = ref<ICompendiumEntry | null>(null);
 const compendium = ref<ICompendium | null>(null);
 
+// Extended interface for entries with populated image objects
+interface ICompendiumEntryWithImage extends ICompendiumEntry {
+  image?: {
+    url: string;
+    [key: string]: unknown;
+  };
+}
+
 // Computed properties
 const entryImageUrl = computed(() => {
   if (!entry.value) return null;
   
   // Use entry-level image first
-  if ((entry.value as any).image?.url) {
-    return (entry.value as any).image.url;
+  const entryWithImage = entry.value as ICompendiumEntryWithImage;
+  if (entryWithImage.image?.url) {
+    return entryWithImage.image.url;
   }
   
   // Fallback to embedded content images
   if (!entry.value.embeddedContent?.data) return null;
   
-  const content = entry.value.embeddedContent.data as any;
+  const content = entry.value.embeddedContent.data as {
+    avatarId?: { url: string };
+    defaultTokenImageId?: { url: string };
+    imageId?: { url: string };
+  };
   
   // For actors, prefer avatarId
   if (entry.value.embeddedContent.type === 'actor') {
@@ -235,12 +248,12 @@ function formatDescription(description: string): string {
     .join('');
 }
 
-function formatPluginData(data: any): string {
+function formatPluginData(data: Record<string, unknown>): string {
   if (!data) return 'No plugin data available';
   
   try {
     return JSON.stringify(data, null, 2);
-  } catch (e) {
+  } catch {
     return 'Invalid JSON data';
   }
 }

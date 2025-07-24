@@ -10,8 +10,6 @@ import {
   compendiumEntrySchema 
 } from '@dungeon-lab/shared/schemas/index.mjs';
 import { 
-  importZipSchema, 
-  validateZipSchema, 
   importProgressSchema 
 } from '@dungeon-lab/shared/schemas/import.schema.mjs';
 import { baseAPIResponseSchema } from '@dungeon-lab/shared/types/api/base.mjs';
@@ -102,19 +100,10 @@ const createEntryBodySchema = compendiumEntrySchema.omit({
 const updateEntryBodySchema = compendiumEntrySchema.partial().omit({
   id: true,
   createdBy: true,
-  compendiumId: true,
-  contentType: true,
-  contentId: true
+  compendiumId: true
 });
 
-const linkContentBodySchema = z.object({
-  contentType: z.enum(['Actor', 'Item', 'VTTDocument']),
-  contentId: z.string(),
-  name: z.string().optional(),
-  category: z.string().optional(),
-  tags: z.array(z.string()).optional(),
-  sortOrder: z.number().optional()
-});
+// Removed unused linkContentBodySchema
 
 // Routes
 
@@ -559,12 +548,6 @@ router.get(
 // Import-related routes
 
 // Import response schemas
-const importResponseSchema = baseAPIResponseSchema.extend({
-  data: z.object({
-    jobId: z.string(),
-    message: z.string()
-  })
-});
 
 const importStatusResponseSchema = baseAPIResponseSchema.extend({
   data: z.object({
@@ -576,14 +559,7 @@ const importStatusResponseSchema = baseAPIResponseSchema.extend({
   })
 });
 
-const validateZipResponseSchema = baseAPIResponseSchema.extend({
-  data: z.object({
-    valid: z.boolean(),
-    manifest: z.any().optional(),
-    validation: z.any().optional(),
-    error: z.string().optional()
-  })
-});
+// Removed unused validateZipResponseSchema
 
 const userJobsResponseSchema = baseAPIResponseSchema.extend({
   data: z.array(z.object({

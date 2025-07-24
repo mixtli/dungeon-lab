@@ -3,10 +3,47 @@
  */
 import { WrapperConverter, WrapperConversionResult, WrapperContent } from '../base/wrapper-converter.mjs';
 import { readEtoolsData, filterSrdContent, formatEntries } from '../utils/conversion-utils.mjs';
+import type { EtoolsItem, EtoolsItemData } from '../../5etools-types/items.mjs';
+import type { EtoolsEntry } from '../../5etools-types/base.mjs';
+import { extractEtoolsArray, safeEtoolsCast } from '../../5etools-types/type-utils.mjs';
 import { itemSchema } from '@dungeon-lab/shared/schemas/index.mjs';
 import { z } from 'zod';
 
 type IItem = z.infer<typeof itemSchema>;
+
+/**
+ * Item fluff data interface
+ */
+interface EtoolsItemFluff {
+  name: string;
+  source?: string;
+  entries?: EtoolsEntry[];
+  images?: Array<{
+    type: string;
+    href: {
+      type: string;
+      path: string;
+    };
+  }>;
+  _copy?: {
+    _mod?: {
+      images?: {
+        items?: Array<{
+          href: {
+            path: string;
+          };
+        }>;
+      };
+    };
+  };
+}
+
+/**
+ * Item fluff data file structure
+ */
+interface EtoolsItemFluffData {
+  itemFluff?: EtoolsItemFluff[];
+}
 
 // Item type mapping
 const ITEM_TYPE_MAP: Record<string, string> = {
@@ -15,7 +52,6 @@ const ITEM_TYPE_MAP: Record<string, string> = {
   'A': 'Ammunition',
   'LA': 'Light Armor',
   'MA': 'Medium Armor',
-  'HA': 'Heavy Armor',
   'S': 'Shield',
   'G': 'Adventuring Gear',
   'AT': 'Artisan Tools',
@@ -43,8 +79,9 @@ export class ItemWrapperConverter extends WrapperConverter {
       const stats = { total: 0, converted: 0, skipped: 0, errors: 0 };
 
       // Read fluff data for descriptions and images
-      const fluffData = await readEtoolsData('fluff-items.json');
-      const fluffMap = new Map();
+      const rawFluffData = await readEtoolsData('fluff-items.json');
+      const fluffData = safeEtoolsCast<EtoolsItemFluffData>(rawFluffData, [], 'item fluff data file');
+      const fluffMap = new Map<string, EtoolsItemFluff>();
       if (fluffData.itemFluff) {
         for (const fluff of fluffData.itemFluff) {
           fluffMap.set(fluff.name, fluff);
@@ -59,8 +96,9 @@ export class ItemWrapperConverter extends WrapperConverter {
       
       for (const fileSet of itemFiles) {
         try {
-          const itemData = await readEtoolsData(fileSet.data);
-          const items = itemData.item || [];
+          const rawItemData = await readEtoolsData(fileSet.data);
+          const itemData = safeEtoolsCast<EtoolsItemData>(rawItemData, ['item'], `item data file ${fileSet.data}`);
+          const items = extractEtoolsArray<EtoolsItem>(itemData, 'item', `item list in ${fileSet.data}`);
           const filteredItems = this.options.srdOnly ? filterSrdContent(items) : items;
           
           stats.total += filteredItems.length;
@@ -118,7 +156,7 @@ export class ItemWrapperConverter extends WrapperConverter {
     }
   }
 
-  private convertItem(itemData: any, fluffData?: any): { item: IItem; assetPath?: string } {
+  private convertItem(itemData: EtoolsItem, fluffData?: EtoolsItemFluff): { item: IItem; assetPath?: string } {
     // Extract asset path from fluff data if available
     let assetPath: string | undefined;
     if (fluffData && this.options.includeAssets) {
@@ -159,7 +197,7 @@ export class ItemWrapperConverter extends WrapperConverter {
         armor: this.isArmor(itemData) ? {
           armorClass: this.parseArmorClass(itemData.ac),
           category: itemData.type,
-          stealthDisadvantage: itemData.stealthDisadvantage === true,
+          stealthDisadvantage: itemData.stealth === true,
           strengthRequirement: itemData.strength
         } : undefined,
         
@@ -177,7 +215,7 @@ export class ItemWrapperConverter extends WrapperConverter {
     return { item, assetPath };
   }
 
-  private buildDescription(itemData: any, fluffData?: any): string {
+  private buildDescription(itemData: EtoolsItem, fluffData?: EtoolsItemFluff): string {
     let description = '';
     
     // Use fluff description if available
@@ -206,7 +244,7 @@ export class ItemWrapperConverter extends WrapperConverter {
       .trim();
   }
 
-  private determineItemSubtype(itemData: any): string {
+  private determineItemSubtype(itemData: EtoolsItem): string {
     if (this.isWeapon(itemData)) {
       return 'weapon';
     }
@@ -225,42 +263,40 @@ export class ItemWrapperConverter extends WrapperConverter {
     return 'loot';
   }
 
-  private isWeapon(itemData: any): boolean {
+  private isWeapon(itemData: EtoolsItem): boolean {
     return itemData.weaponCategory !== undefined || 
            itemData.type === 'M' || 
            itemData.type === 'R' ||
            itemData.type === 'A';
   }
 
-  private isArmor(itemData: any): boolean {
+  private isArmor(itemData: EtoolsItem): boolean {
     return itemData.armor === true || 
            itemData.type === 'LA' || 
            itemData.type === 'MA' || 
-           itemData.type === 'HA' || 
            itemData.type === 'S';
   }
 
-  private extractValue(valueData: any): number | undefined {
+  private extractValue(valueData: EtoolsItem['value']): number | undefined {
     if (!valueData) return undefined;
     
     if (typeof valueData === 'number') return valueData;
     
-    // Handle complex value formats like "50 gp"
-    if (typeof valueData === 'string') {
-      const match = valueData.match(/(\d+(?:\.\d+)?)/);
-      return match ? parseFloat(match[1]) : undefined;
+    // Handle EtoolsItemValue object
+    if (typeof valueData === 'object' && 'value' in valueData) {
+      return valueData.value;
     }
     
     return undefined;
   }
 
-  private parseDamage(damageData: any): string | undefined {
+  private parseDamage(damageData: EtoolsItem['dmg1']): string | undefined {
     if (!damageData) return undefined;
     if (typeof damageData === 'string') return damageData;
     return undefined;
   }
 
-  private parseRange(rangeData: any): { normal?: number; long?: number } | undefined {
+  private parseRange(rangeData: EtoolsItem['range']): { normal?: number; long?: number } | undefined {
     if (!rangeData) return undefined;
     
     if (typeof rangeData === 'number') {
@@ -280,7 +316,7 @@ export class ItemWrapperConverter extends WrapperConverter {
     return undefined;
   }
 
-  private parseArmorClass(acData: any): number | undefined {
+  private parseArmorClass(acData: EtoolsItem['ac']): number | undefined {
     if (typeof acData === 'number') return acData;
     if (Array.isArray(acData) && acData.length > 0) {
       return typeof acData[0] === 'number' ? acData[0] : undefined;
@@ -291,22 +327,24 @@ export class ItemWrapperConverter extends WrapperConverter {
   /**
    * Override category determination for items
    */
-  protected determineCategory(sourceData: any, contentType: 'actor' | 'item' | 'vttdocument'): string | undefined {
+  protected determineCategory<T = EtoolsItem>(sourceData: T, contentType: 'actor' | 'item' | 'vttdocument'): string | undefined {
     if (contentType === 'item') {
       // Categorize by item type
-      if (this.isWeapon(sourceData)) {
+      if (this.isWeapon(sourceData as EtoolsItem)) {
         return 'Weapons';
       }
-      if (this.isArmor(sourceData)) {
+      if (this.isArmor(sourceData as EtoolsItem)) {
         return 'Armor & Shields';
       }
-      if (sourceData.wondrous === true) {
+      if (sourceData && typeof sourceData === 'object' && 'wondrous' in sourceData && sourceData.wondrous === true) {
         return 'Wondrous Items';
       }
-      if (sourceData.type === 'AT' || sourceData.type === 'T') {
+      if (sourceData && typeof sourceData === 'object' && 'type' in sourceData && 
+          (sourceData.type === 'AT' || sourceData.type === 'T')) {
         return 'Tools';
       }
-      if (sourceData.charges || sourceData.recharge) {
+      if (sourceData && typeof sourceData === 'object' && 
+          (('charges' in sourceData && sourceData.charges) || ('recharge' in sourceData && sourceData.recharge))) {
         return 'Consumables';
       }
       return 'Adventuring Gear';
@@ -317,21 +355,23 @@ export class ItemWrapperConverter extends WrapperConverter {
   /**
    * Override tag extraction for items
    */
-  protected extractTags(sourceData: any, contentType: 'actor' | 'item' | 'vttdocument'): string[] {
+  protected extractTags<T = EtoolsItem>(sourceData: T, contentType: 'actor' | 'item' | 'vttdocument'): string[] {
     const baseTags = super.extractTags(sourceData, contentType);
     
     if (contentType === 'item') {
       // Add item-specific tags
-      if (sourceData.rarity && sourceData.rarity !== 'none' && sourceData.rarity !== 'common') {
+      if (sourceData && typeof sourceData === 'object' && 'rarity' in sourceData && 
+          typeof sourceData.rarity === 'string' && sourceData.rarity !== 'none' && sourceData.rarity !== 'common') {
         baseTags.push(sourceData.rarity.charAt(0).toUpperCase() + sourceData.rarity.slice(1));
       }
-      if (sourceData.reqAttune) {
+      if (sourceData && typeof sourceData === 'object' && 'reqAttune' in sourceData && sourceData.reqAttune) {
         baseTags.push('Requires Attunement');
       }
-      if (sourceData.weaponCategory) {
+      if (sourceData && typeof sourceData === 'object' && 'weaponCategory' in sourceData && 
+          typeof sourceData.weaponCategory === 'string') {
         baseTags.push(sourceData.weaponCategory);
       }
-      if (sourceData.wondrous) {
+      if (sourceData && typeof sourceData === 'object' && 'wondrous' in sourceData && sourceData.wondrous) {
         baseTags.push('Wondrous');
       }
     }
@@ -342,10 +382,14 @@ export class ItemWrapperConverter extends WrapperConverter {
   /**
    * Override sort order calculation for items
    */
-  protected calculateSortOrder(sourceData: any, contentType: 'actor' | 'item' | 'vttdocument'): number {
+  protected calculateSortOrder<T = EtoolsItem>(sourceData: T, contentType: 'actor' | 'item' | 'vttdocument'): number {
     if (contentType === 'item') {
       // Sort by rarity, then alphabetically
-      return RARITY_ORDER[sourceData.rarity] || 0;
+      if (sourceData && typeof sourceData === 'object' && 'rarity' in sourceData && 
+          typeof sourceData.rarity === 'string') {
+        return RARITY_ORDER[sourceData.rarity as keyof typeof RARITY_ORDER] || 0;
+      }
+      return 0;
     }
     return super.calculateSortOrder(sourceData, contentType);
   }

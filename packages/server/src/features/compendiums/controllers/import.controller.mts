@@ -8,7 +8,7 @@ import { COMPENDIUM_IMPORT_JOB, getImportProgress } from '../jobs/compendium-imp
 import { uploadBuffer } from '../../../services/storage.service.mjs';
 import { transactionService } from '../../../services/transaction.service.mjs';
 import { BaseAPIResponse } from '@dungeon-lab/shared/types/api/base.mjs';
-import { CompendiumManifest, ImportProgress, ValidationResult, ImportZipRequest, ValidateZipRequest } from '@dungeon-lab/shared/schemas/import.schema.mjs';
+import { CompendiumManifest, ImportProgress, ValidationResult } from '@dungeon-lab/shared/schemas/import.schema.mjs';
 import type { Job } from '@pulsecron/pulse';
 
 interface ImportResponse {

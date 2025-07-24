@@ -5,6 +5,8 @@ import { WrapperConverter, WrapperConversionResult, WrapperContent } from '../ba
 import { readEtoolsData, filterSrdContent, formatEntries } from '../utils/conversion-utils.mjs';
 import { characterClassDocumentSchema } from '../../types/character-class.mjs';
 import { z } from 'zod';
+import type { EtoolsClass, EtoolsClassData, EtoolsClassFluff, EtoolsClassFluffData } from '../../5etools-types/classes.mjs';
+import { extractEtoolsArray, safeEtoolsCast } from '../../5etools-types/type-utils.mjs';
 
 type ICharacterClassDocument = z.infer<typeof characterClassDocumentSchema>;
 
@@ -17,30 +19,32 @@ export class ClassWrapperConverter extends WrapperConverter {
       const stats = { total: 0, converted: 0, skipped: 0, errors: 0 };
 
       // Read class index to get list of available classes
-      const classIndex = await readEtoolsData('class/index.json');
+      const classIndex = await readEtoolsData<Record<string, string>>('class/index.json');
       const classFiles = Object.values(classIndex);
 
       for (const classFile of classFiles) {
         try {
           // Read class data file
-          const classData = await readEtoolsData(`class/${classFile}`);
-          const classes = classData.class || [];
+          const rawClassData = await readEtoolsData(`class/${classFile}`);
+          const classData = safeEtoolsCast<EtoolsClassData>(rawClassData, ['class'], `class file ${classFile}`);
+          const classes = extractEtoolsArray<EtoolsClass>(classData, 'class', `class list in ${classFile}`);
           const filteredClasses = this.options.srdOnly ? filterSrdContent(classes) : classes;
           
           stats.total += filteredClasses.length;
           this.log(`Processing ${filteredClasses.length} classes from ${classFile}`);
 
           // Read corresponding fluff data
-          const fluffFile = classFile.replace('class-', 'fluff-class-');
-          let fluffData: any = null;
+          const fluffFile = (classFile as string).replace('class-', 'fluff-class-');
+          let fluffData: EtoolsClassFluffData | null = null;
           try {
-            fluffData = await readEtoolsData(`class/${fluffFile}`);
-          } catch (error) {
+            const rawFluffData = await readEtoolsData(`class/${fluffFile}`);
+            fluffData = safeEtoolsCast<EtoolsClassFluffData>(rawFluffData, ['classFluff'], `fluff file ${fluffFile}`);
+          } catch {
             this.log(`No fluff data found for ${fluffFile}`);
           }
 
           // Create fluff lookup map
-          const fluffMap = new Map();
+          const fluffMap = new Map<string, EtoolsClassFluff>();
           if (fluffData?.classFluff) {
             for (const fluff of fluffData.classFluff) {
               fluffMap.set(fluff.name, fluff);
@@ -99,7 +103,7 @@ export class ClassWrapperConverter extends WrapperConverter {
     }
   }
 
-  private convertClass(classData: any, fluffData?: any): { characterClass: ICharacterClassDocument; assetPath?: string } {
+  private convertClass(classData: EtoolsClass, fluffData?: EtoolsClassFluff): { characterClass: ICharacterClassDocument; assetPath?: string } {
     // Extract asset path from fluff data if available
     let assetPath: string | undefined;
     if (fluffData && this.options.includeAssets) {
@@ -119,28 +123,29 @@ export class ClassWrapperConverter extends WrapperConverter {
       // Class-specific data
       data: {
         name: classData.name,
-        description: this.buildDescription(classData, fluffData),
-        hitDie: classData.hd?.faces || 8,
-        primaryAbilities: this.extractPrimaryAbilities(classData.primaryAbility),
-        savingThrowProficiencies: this.extractSavingThrows(classData.proficiency),
-        skillProficiencies: this.extractSkillProficiencies(classData.startingProficiencies?.skills),
-        armorProficiencies: classData.startingProficiencies?.armor || [],
-        weaponProficiencies: classData.startingProficiencies?.weapons || [],
-        toolProficiencies: classData.startingProficiencies?.tools || [],
-        startingEquipment: this.extractStartingEquipment(classData.startingEquipment),
-        features: this.extractFeatures(classData.classFeatures || classData.classFeature || []),
-        subclassTitle: classData.subclassTitle || 'Subclass',
-        
-        // Source information
         source: classData.source || 'PHB',
-        page: classData.page
+        edition: '5e-2024',
+        hitdie: `d${classData.hd?.faces || 8}`,
+        primaryability: this.extractPrimaryAbilities(classData.primaryAbility),
+        savingthrows: this.extractSavingThrows(classData.proficiency),
+        proficiencies: {
+          armor: classData.startingProficiencies?.armor || [],
+          weapons: classData.startingProficiencies?.weapons || [],
+          tools: this.extractToolProficiencies(classData.startingProficiencies?.tools) || [],
+          skills: this.extractSkillProficienciesAsChoices(classData.startingProficiencies?.skills) || []
+        },
+        equipment: this.extractStartingEquipment(classData.startingEquipment),
+        features: this.extractFeaturesAsRecord(classData.classFeature || []),
+        subclasslevel: 3, // Default subclass level
+        subclassTitle: classData.subclassTitle || 'Subclass',
+        subclasses: [] // TODO: Extract subclasses
       }
     };
 
     return { characterClass, assetPath };
   }
 
-  private buildDescription(classData: any, fluffData?: any): string {
+  private buildDescription(classData: EtoolsClass, fluffData?: EtoolsClassFluff): string {
     let description = '';
     
     // Use fluff description if available
@@ -156,64 +161,69 @@ export class ClassWrapperConverter extends WrapperConverter {
     return description.trim();
   }
 
-  private extractPrimaryAbilities(primaryAbility: any[]): string[] {
+  private extractPrimaryAbilities(primaryAbility: EtoolsClass['primaryAbility']): ('strength' | 'dexterity' | 'constitution' | 'intelligence' | 'wisdom' | 'charisma')[] {
     if (!primaryAbility || !Array.isArray(primaryAbility)) return [];
     
-    return primaryAbility.map(ability => {
+    const result: ('strength' | 'dexterity' | 'constitution' | 'intelligence' | 'wisdom' | 'charisma')[] = [];
+    for (const ability of primaryAbility) {
       if (typeof ability === 'string') {
-        return this.normalizeAbility(ability);
+        result.push(this.normalizeAbility(ability));
       }
       if (typeof ability === 'object' && ability.choose) {
-        // Handle choice format
-        return ability.choose.from?.map((a: string) => this.normalizeAbility(a)) || [];
-      }
-      return [];
-    }).flat();
-  }
-
-  private extractSavingThrows(proficiency: string[]): string[] {
-    if (!proficiency || !Array.isArray(proficiency)) return [];
-    return proficiency.map(prof => this.normalizeAbility(prof)).filter(Boolean);
-  }
-
-  private extractSkillProficiencies(skills: any[]): string[] {
-    if (!skills || !Array.isArray(skills)) return [];
-    
-    const skillList: string[] = [];
-    for (const skill of skills) {
-      if (typeof skill === 'string') {
-        skillList.push(skill.toLowerCase());
-      } else if (skill.choose && skill.choose.from) {
-        skillList.push(...skill.choose.from.map((s: string) => s.toLowerCase()));
+        // Handle choice format - take first option for now
+        const options = ability.choose.from;
+        if (options && options.length > 0) {
+          result.push(this.normalizeAbility(options[0]));
+        }
       }
     }
-    
-    return skillList;
+    return result;
   }
 
-  private extractStartingEquipment(equipment: any): any {
-    if (!equipment) return {};
-    
-    // Simplified equipment extraction - would need more complex logic for full implementation
+  private extractSavingThrows(proficiency: EtoolsClass['proficiency']): ('strength' | 'dexterity' | 'constitution' | 'intelligence' | 'wisdom' | 'charisma')[] {
+    if (!proficiency || !Array.isArray(proficiency)) return [];
+    return proficiency.map(prof => this.normalizeAbility(prof));
+  }
+
+
+  private extractStartingEquipment(equipment: EtoolsClass['startingEquipment']): { options: Record<string, { value?: number; source?: string; item?: string; equipmenttype?: string; quantity?: number; }[]>; type: "choice"; description: string[]; } {
+    // Return a properly structured equipment choice object
     return {
-      default: equipment.default || [],
-      goldAlternative: equipment.goldAlternative
+      options: {},
+      type: "choice",
+      description: equipment ? [`Equipment from ${equipment.default ? 'starting equipment' : 'background'}`] : []
     };
   }
 
-  private extractFeatures(features: any[]): any[] {
-    if (!features || !Array.isArray(features)) return [];
+  // Removed unused extractFeatures method
+
+  private extractFeaturesAsRecord(features: EtoolsClass['classFeature']): Record<string, { name: string; source: string; description?: string; benefits?: { name: string; description: string; }[]; gainsubclassfeature?: boolean; }[]> {
+    if (!features || !Array.isArray(features)) return {};
     
-    return features.map(feature => ({
-      name: feature.name || 'Unknown Feature',
-      level: feature.level || 1,
-      description: formatEntries(feature.entries || []),
-      source: feature.source
-    }));
+    const featuresByLevel: Record<string, { name: string; source: string; description?: string; benefits?: { name: string; description: string; }[]; gainsubclassfeature?: boolean; }[]> = {};
+    
+    features.forEach(feature => {
+      const level = feature.level || 1;
+      const levelKey = `${level}`;
+      
+      if (!featuresByLevel[levelKey]) {
+        featuresByLevel[levelKey] = [];
+      }
+      
+      featuresByLevel[levelKey].push({
+        name: feature.name || 'Unknown Feature',
+        source: feature.source || 'PHB',
+        description: formatEntries(feature.entries || []),
+        benefits: feature.benefits as { name: string; description: string; }[] | undefined,
+        gainsubclassfeature: feature.gainSubclassFeature
+      });
+    });
+    
+    return featuresByLevel;
   }
 
-  private normalizeAbility(ability: string): string {
-    const abilityMap: Record<string, string> = {
+  private normalizeAbility(ability: string): 'strength' | 'dexterity' | 'constitution' | 'intelligence' | 'wisdom' | 'charisma' {
+    const abilityMap: Record<string, 'strength' | 'dexterity' | 'constitution' | 'intelligence' | 'wisdom' | 'charisma'> = {
       str: 'strength',
       dex: 'dexterity', 
       con: 'constitution',
@@ -222,7 +232,10 @@ export class ClassWrapperConverter extends WrapperConverter {
       cha: 'charisma'
     };
     
-    return abilityMap[ability.toLowerCase()] || ability.toLowerCase();
+    const normalized = abilityMap[ability.toLowerCase()] || ability.toLowerCase();
+    const validAbilities = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'] as const;
+    return validAbilities.includes(normalized as typeof validAbilities[number]) ? 
+      normalized as typeof validAbilities[number] : 'strength';
   }
 
   private generateSlug(name: string): string {
@@ -234,10 +247,52 @@ export class ClassWrapperConverter extends WrapperConverter {
       .trim();
   }
 
+  private extractToolProficiencies(tools: EtoolsClass['startingProficiencies']['tools']): string[] {
+    if (!tools || !Array.isArray(tools)) return [];
+    
+    const result: string[] = [];
+    for (const tool of tools) {
+      if (typeof tool === 'string') {
+        result.push(tool);
+      } else if (tool && typeof tool === 'object' && 'choose' in tool && tool.choose) {
+        // For choice objects, just add the first option as a placeholder
+        if (Array.isArray(tool.choose.from) && tool.choose.from.length > 0) {
+          result.push(tool.choose.from[0]);
+        }
+      }
+    }
+    return result;
+  }
+
+  private extractSkillProficienciesAsChoices(skills: EtoolsClass['startingProficiencies']['skills']): { options: string[]; type: 'choice'; count: number; }[] {
+    if (!skills || !Array.isArray(skills)) return [];
+    
+    const result: { options: string[]; type: 'choice'; count: number; }[] = [];
+    for (const skill of skills) {
+      if (typeof skill === 'string') {
+        result.push({
+          options: [skill],
+          type: 'choice',
+          count: 1
+        });
+      } else if (skill && typeof skill === 'object' && 'choose' in skill && skill.choose) {
+        // For choice objects, use the actual choice structure
+        if (Array.isArray(skill.choose.from) && skill.choose.from.length > 0) {
+          result.push({
+            options: skill.choose.from as string[],
+            type: 'choice',
+            count: skill.choose.count || 1
+          });
+        }
+      }
+    }
+    return result;
+  }
+
   /**
    * Override category determination for classes
    */
-  protected determineCategory(sourceData: any, contentType: 'actor' | 'item' | 'vttdocument'): string | undefined {
+  protected determineCategory<T = EtoolsClass>(sourceData: T, contentType: 'actor' | 'item' | 'vttdocument'): string | undefined {
     if (contentType === 'vttdocument') {
       return 'Classes';
     }

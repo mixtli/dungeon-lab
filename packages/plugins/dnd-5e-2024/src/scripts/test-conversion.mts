@@ -8,7 +8,7 @@ async function testDataAccess() {
     console.log('Testing 5etools data access...');
     
     // Test reading spell data
-    const spellData = await readEtoolsData('spells/spells-xphb.json');
+    const spellData = await readEtoolsData<{ spell?: Array<Record<string, unknown>> }>('spells/spells-xphb.json');
     console.log(`✓ Successfully read spell data: ${spellData.spell?.length || 0} spells`);
     
     // Test SRD filtering on spells
@@ -16,7 +16,7 @@ async function testDataAccess() {
     console.log(`✓ SRD spells found: ${srdSpells.length}`);
     
     // Test reading monster data
-    const monsterData = await readEtoolsData('bestiary/bestiary-xphb.json');
+    const monsterData = await readEtoolsData<{ monster?: Array<Record<string, unknown>> }>('bestiary/bestiary-xphb.json');
     console.log(`✓ Successfully read monster data: ${monsterData.monster?.length || 0} monsters`);
     
     // Test SRD filtering on monsters
@@ -25,13 +25,13 @@ async function testDataAccess() {
     
     // Show sample SRD spell
     if (srdSpells.length > 0) {
-      const sample = srdSpells[0] as any;
+      const sample = srdSpells[0] as Record<string, unknown>;
       console.log(`\nSample SRD spell: "${sample.name}" (Level ${sample.level}, School: ${sample.school})`);
     }
     
     // Show sample SRD monster
     if (srdMonsters.length > 0) {
-      const sample = srdMonsters[0] as any;
+      const sample = srdMonsters[0] as Record<string, unknown>;
       console.log(`Sample SRD monster: "${sample.name}" (CR ${sample.cr}, Size: ${sample.size})`);
     }
     

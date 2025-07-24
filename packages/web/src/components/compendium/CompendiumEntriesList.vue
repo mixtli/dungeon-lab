@@ -146,9 +146,18 @@ async function instantiateTemplate(entry: ICompendiumEntry) {
   }
 }
 
+// Extended interface for entries with populated image objects
+interface ICompendiumEntryWithImage extends ICompendiumEntry {
+  image?: {
+    url: string;
+    [key: string]: unknown;
+  };
+  contentType?: string; // Legacy field for backward compatibility
+}
+
 // Get content type icon and color
-function getContentTypeIcon(entry: ICompendiumEntry): string {
-  const contentType = entry.embeddedContent?.type || (entry as any).contentType;
+function getContentTypeIcon(entry: ICompendiumEntryWithImage): string {
+  const contentType = entry.embeddedContent?.type || entry.contentType;
   switch (contentType) {
     case 'actor': return 'fas fa-users';
     case 'item': return 'fas fa-sword';
@@ -157,8 +166,8 @@ function getContentTypeIcon(entry: ICompendiumEntry): string {
   }
 }
 
-function getContentTypeColor(entry: ICompendiumEntry): string {
-  const contentType = entry.embeddedContent?.type || (entry as any).contentType;
+function getContentTypeColor(entry: ICompendiumEntryWithImage): string {
+  const contentType = entry.embeddedContent?.type || entry.contentType;
   switch (contentType) {
     case 'actor': return 'text-blue-600';
     case 'item': return 'text-green-600';
@@ -168,8 +177,8 @@ function getContentTypeColor(entry: ICompendiumEntry): string {
 }
 
 // Get display name for content type
-function getContentTypeDisplayName(entry: ICompendiumEntry): string {
-  const contentType = entry.embeddedContent?.type || (entry as any).contentType;
+function getContentTypeDisplayName(entry: ICompendiumEntryWithImage): string {
+  const contentType = entry.embeddedContent?.type || entry.contentType;
   switch (contentType) {
     case 'actor': return 'Actor';
     case 'item': return 'Item';
@@ -221,16 +230,20 @@ const paginationRange = computed(() => {
 });
 
 // Get image URL for entry based on content type
-function getEntryImage(entry: ICompendiumEntry): string | null {
+function getEntryImage(entry: ICompendiumEntryWithImage): string | undefined {
   // Use entry-level image first (from wrapper format)
-  if ((entry as any).image?.url) {
-    return (entry as any).image.url;
+  if (entry.image?.url) {
+    return entry.image.url;
   }
   
   // Fallback to embedded content for legacy entries
-  if (!entry.embeddedContent) return null;
+  if (!entry.embeddedContent) return undefined;
   
-  const content = entry.embeddedContent.data as any;
+  const content = entry.embeddedContent.data as {
+    avatarId?: { url: string };
+    defaultTokenImageId?: { url: string };
+    imageId?: { url: string };
+  };
   
   // For actors, prefer avatarId, fallback to defaultTokenImageId
   if (entry.embeddedContent.type === 'actor') {
@@ -249,7 +262,7 @@ function getEntryImage(entry: ICompendiumEntry): string | null {
     }
   }
   
-  return null;
+  return undefined;
 }
 
 // Navigation function
@@ -395,7 +408,7 @@ function navigateToEntry(entry: ICompendiumEntry) {
                     :src="getEntryImage(entry)" 
                     :alt="entry.name"
                     class="w-full h-full object-cover"
-                    @error="$event.target.style.display = 'none'; $event.target.nextElementSibling.style.display = 'flex'"
+                    @error="($event.target as HTMLElement).style.display = 'none'; (($event.target as HTMLElement).nextElementSibling as HTMLElement).style.display = 'flex'"
                   />
                   <div class="w-full h-full hidden items-center justify-center">
                     <i 

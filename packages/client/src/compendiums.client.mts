@@ -4,7 +4,8 @@ import type {
   ICompendiumUpdateData,
   ICompendiumEntry,
   ICompendiumEntryCreateData,
-  ICompendiumEntryUpdateData
+  ICompendiumEntryUpdateData,
+  IEmbeddedContent
 } from '@dungeon-lab/shared/types/index.mjs';
 import type { ImportJob, ValidationResult } from '@dungeon-lab/shared/schemas/import.schema.mjs';
 import { ApiClient } from './api.client.mjs';
@@ -223,8 +224,8 @@ export class CompendiumsClient extends ApiClient {
   /**
    * Instantiate a template from a compendium entry
    */
-  async instantiateTemplate(compendiumId: string, entryId: string, overrides?: Record<string, unknown>): Promise<any> {
-    const response = await this.api.post<BaseAPIResponse<any>>(`/api/compendiums/${compendiumId}/entries/${entryId}/instantiate`, {
+  async instantiateTemplate(compendiumId: string, entryId: string, overrides?: Record<string, unknown>): Promise<IEmbeddedContent> {
+    const response = await this.api.post<BaseAPIResponse<IEmbeddedContent>>(`/api/compendiums/${compendiumId}/entries/${entryId}/instantiate`, {
       overrides: overrides || {}
     });
     if (!response.data || !response.data.success) {
@@ -236,8 +237,8 @@ export class CompendiumsClient extends ApiClient {
   /**
    * Get template content
    */
-  async getTemplate(compendiumId: string, entryId: string): Promise<{ entryId: string; contentType: string; templateData: any }> {
-    const response = await this.api.get<BaseAPIResponse<{ entryId: string; contentType: string; templateData: any }>>(`/api/compendiums/${compendiumId}/entries/${entryId}/template`);
+  async getTemplate(compendiumId: string, entryId: string): Promise<{ entryId: string; contentType: string; templateData: IEmbeddedContent }> {
+    const response = await this.api.get<BaseAPIResponse<{ entryId: string; contentType: string; templateData: IEmbeddedContent }>>(`/api/compendiums/${compendiumId}/entries/${entryId}/template`);
     if (!response.data) {
       throw new Error('Failed to get template');
     }
@@ -247,8 +248,8 @@ export class CompendiumsClient extends ApiClient {
   /**
    * Update template content
    */
-  async updateTemplate(compendiumId: string, entryId: string, templateData: any): Promise<any> {
-    const response = await this.api.put<BaseAPIResponse<any>>(`/api/compendiums/${compendiumId}/entries/${entryId}/template`, templateData);
+  async updateTemplate(compendiumId: string, entryId: string, templateData: IEmbeddedContent): Promise<IEmbeddedContent> {
+    const response = await this.api.put<BaseAPIResponse<IEmbeddedContent>>(`/api/compendiums/${compendiumId}/entries/${entryId}/template`, templateData);
     if (!response.data || !response.data.success) {
       throw new Error(response.data?.error || 'Failed to update template');
     }

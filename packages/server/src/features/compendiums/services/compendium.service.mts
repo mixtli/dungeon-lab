@@ -10,13 +10,28 @@ import {
 import { CompendiumModel } from '../models/compendium.model.mjs';
 import { CompendiumEntryModel } from '../models/compendium-entry.model.mjs';
 import { logger } from '../../../utils/logger.mjs';
-import { ActorModel } from '../../actors/models/actor.model.mjs';
-import { ItemModel } from '../../items/models/item.model.mjs';
-import { VTTDocumentModel } from '../../documents/models/vtt-document.model.mjs';
+// Removed unused model imports
 import { AssetModel } from '../../assets/models/asset.model.mjs';
 
 export type QueryValue = string | number | boolean | RegExp | Date | object;
 export type CompendiumDocument = ICompendium;
+
+// Interface for embedded content data with asset references
+interface IEmbeddedContentData {
+  avatarId?: { toString(): string };
+  imageId?: { toString(): string };
+  defaultTokenImageId?: { toString(): string };
+  [key: string]: unknown;
+}
+
+// Type for entry with populated assets
+type ICompendiumEntryWithAssets = ICompendiumEntry & {
+  image?: {
+    _id: unknown;
+    url: string;
+    [key: string]: unknown;
+  };
+};
 
 export class CompendiumService {
   /**
@@ -172,7 +187,7 @@ export class CompendiumService {
         
         // Add content-level asset IDs if present
         if (entry.embeddedContent && entry.embeddedContent.data) {
-          const content = entry.embeddedContent.data as any;
+          const content = entry.embeddedContent.data as IEmbeddedContentData;
           
           if (content.avatarId) {
             assetIds.push(content.avatarId.toString());
@@ -200,12 +215,12 @@ export class CompendiumService {
             if (fieldPath) {
               if (fieldPath === 'entry.image') {
                 // Add entry-level image object (keep imageId as string)
-                (entry as any).image = asset;
+                (entry as ICompendiumEntryWithAssets).image = asset;
               } else if (fieldPath.startsWith('content.')) {
                 // Replace content-level asset fields
                 const fieldName = fieldPath.replace('content.', '');
                 if (entry.embeddedContent && entry.embeddedContent.data) {
-                  (entry.embeddedContent.data as any)[fieldName] = asset;
+                  (entry.embeddedContent.data as IEmbeddedContentData)[fieldName] = asset;
                 }
               }
             }
@@ -245,7 +260,7 @@ export class CompendiumService {
         assetFieldMap[entry.imageId.toString()] = 'entry.image';
       }
       if (entry.embeddedContent && entry.embeddedContent.data) {
-        const content = entry.embeddedContent.data as any;
+        const content = entry.embeddedContent.data as IEmbeddedContentData;
         if (content.avatarId) {
           assetIds.push(content.avatarId.toString());
           assetFieldMap[content.avatarId.toString()] = 'content.avatarId';
@@ -264,11 +279,11 @@ export class CompendiumService {
         for (const asset of assets) {
           const fieldPath = assetFieldMap[asset._id.toString()];
           if (fieldPath === 'entry.image') {
-            (entry as any).image = asset;
+            (entry as ICompendiumEntryWithAssets).image = asset;
           } else if (fieldPath && fieldPath.startsWith('content.')) {
             const fieldName = fieldPath.replace('content.', '');
             if (entry.embeddedContent && entry.embeddedContent.data) {
-              (entry.embeddedContent.data as any)[fieldName] = asset;
+              (entry.embeddedContent.data as IEmbeddedContentData)[fieldName] = asset;
             }
           }
         }

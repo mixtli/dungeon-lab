@@ -46,10 +46,10 @@ export abstract class BaseConverter {
   /**
    * Read and parse a JSON file from the 5etools data directory
    */
-  protected async readDataFile(relativePath: string): Promise<any> {
+  protected async readDataFile<T = unknown>(relativePath: string): Promise<T> {
     const fullPath = join(ETOOLS_DATA_PATH, relativePath);
     const data = await readFile(fullPath, 'utf-8');
-    return JSON.parse(data);
+    return JSON.parse(data) as T;
   }
 
   /**
@@ -117,7 +117,7 @@ export abstract class BaseConverter {
   /**
    * Log conversion progress
    */
-  protected log(message: string, ...args: any[]): void {
+  protected log(message: string, ...args: unknown[]): void {
     console.log(`[${this.constructor.name}] ${message}`, ...args);
   }
 

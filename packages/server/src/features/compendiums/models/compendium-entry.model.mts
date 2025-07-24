@@ -55,6 +55,11 @@ mongooseSchema.virtual('image', {
   justOne: true
 });
 
+// Interface for template data
+interface ITemplateData {
+  [key: string]: unknown;
+}
+
 // Instance methods
 mongooseSchema.methods.generateContentHash = function(): string {
   return createHash('sha256')
@@ -69,7 +74,7 @@ mongooseSchema.methods.updateContentVersion = function(): string {
   return this.contentVersion;
 };
 
-mongooseSchema.methods.getTemplate = function(): any {
+mongooseSchema.methods.getTemplate = function(): ITemplateData {
   // Return deep clone to prevent mutation
   return JSON.parse(JSON.stringify(this.embeddedContent.data));
 };
@@ -78,11 +83,11 @@ mongooseSchema.methods.getTemplate = function(): any {
 mongooseSchema.pre('save', function(next) {
   // Always generate contentHash for new documents or when embeddedContent is modified
   if (this.isNew || this.isModified('embeddedContent')) {
-    this.contentHash = (this as any).generateContentHash();
+    this.contentHash = (this as unknown as { generateContentHash(): string }).generateContentHash();
     if (this.isNew) {
       this.contentVersion = '1.0.0';
     } else {
-      (this as any).updateContentVersion();
+      (this as unknown as { updateContentVersion(): string }).updateContentVersion();
     }
   }
   next();

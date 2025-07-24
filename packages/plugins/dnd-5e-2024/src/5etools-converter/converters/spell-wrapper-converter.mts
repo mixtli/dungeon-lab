@@ -3,6 +3,8 @@
  */
 import { WrapperConverter, WrapperConversionResult, WrapperContent } from '../base/wrapper-converter.mjs';
 import { readEtoolsData, filterSrdContent, formatEntries } from '../utils/conversion-utils.mjs';
+import type { EtoolsSpell, EtoolsSpellData } from '../../5etools-types/spells.mjs';
+import { extractEtoolsArray, safeEtoolsCast } from '../../5etools-types/type-utils.mjs';
 
 // School mapping from 5etools to readable names
 const SCHOOL_MAP: Record<string, string> = {
@@ -25,8 +27,9 @@ export class SpellWrapperConverter extends WrapperConverter {
       const stats = { total: 0, converted: 0, skipped: 0, errors: 0 };
 
       // Read spell data
-      const spellData = await readEtoolsData('spells/spells-xphb.json');
-      const spells = spellData.spell || [];
+      const rawSpellData = await readEtoolsData('spells/spells-xphb.json');
+      const spellData = safeEtoolsCast<EtoolsSpellData>(rawSpellData, ['spell'], 'spell data file');
+      const spells = extractEtoolsArray<EtoolsSpell>(spellData, 'spell', 'spell list');
       const filteredSpells = this.options.srdOnly ? filterSrdContent(spells) : spells;
       
       stats.total = filteredSpells.length;
@@ -35,7 +38,7 @@ export class SpellWrapperConverter extends WrapperConverter {
       for (let i = 0; i < filteredSpells.length; i++) {
         const spellRaw = filteredSpells[i];
         try {
-          const spell = this.convertSpell(spellRaw);
+          const spell = this.convertSpell(spellRaw) as { name: string; [key: string]: unknown };
 
           // Create wrapper format
           const wrapper = this.createWrapper(
@@ -78,7 +81,7 @@ export class SpellWrapperConverter extends WrapperConverter {
     }
   }
 
-  private convertSpell(spellData: any): any {
+  private convertSpell(spellData: EtoolsSpell): unknown {
     const spell = {
       name: spellData.name,
       slug: this.generateSlug(spellData.name),
@@ -115,7 +118,7 @@ export class SpellWrapperConverter extends WrapperConverter {
     return spell;
   }
 
-  private buildDescription(spellData: any): string {
+  private buildDescription(spellData: EtoolsSpell): string {
     let description = '';
     
     // Build description from spell entries
@@ -147,7 +150,7 @@ export class SpellWrapperConverter extends WrapperConverter {
       .trim();
   }
 
-  private parseCastingTime(time: any[]): string {
+  private parseCastingTime(time: EtoolsSpell['time']): string {
     if (!time || time.length === 0) {
       return '1 action';
     }
@@ -162,7 +165,7 @@ export class SpellWrapperConverter extends WrapperConverter {
     return `${number} ${unit}${number > 1 ? 's' : ''}`;
   }
 
-  private parseRange(range: any): string {
+  private parseRange(range: EtoolsSpell['range']): string {
     if (!range) {
       return 'Self';
     }
@@ -183,7 +186,7 @@ export class SpellWrapperConverter extends WrapperConverter {
     return 'Special';
   }
 
-  private parseComponents(components: any): { verbal: boolean; somatic: boolean; material: boolean; materialComponents?: string } {
+  private parseComponents(components: EtoolsSpell['components']): { verbal: boolean; somatic: boolean; material: boolean; materialComponents?: string } {
     if (!components) {
       return { verbal: false, somatic: false, material: false };
     }
@@ -193,11 +196,11 @@ export class SpellWrapperConverter extends WrapperConverter {
       somatic: components.s === true,
       material: components.m !== undefined,
       materialComponents: typeof components.m === 'string' ? components.m : 
-                         components.m?.text || undefined
+                         (typeof components.m === 'object' && components.m && 'text' in components.m ? (components.m as { text: string }).text : undefined)
     };
   }
 
-  private parseDuration(duration: any[]): string {
+  private parseDuration(duration: EtoolsSpell['duration']): string {
     if (!duration || duration.length === 0) {
       return 'Instantaneous';
     }
@@ -222,12 +225,12 @@ export class SpellWrapperConverter extends WrapperConverter {
     return `${concentration}${amount} ${unit}${amount > 1 ? 's' : ''}`;
   }
 
-  private parseClasses(classes: any): string[] {
+  private parseClasses(classes: EtoolsSpell['classes']): string[] {
     if (!classes?.fromClassList) {
       return [];
     }
     
-    return classes.fromClassList.map((c: any) => 
+    return classes.fromClassList.map(c => 
       typeof c === 'string' ? c : c.name || ''
     ).filter(Boolean);
   }
@@ -244,9 +247,9 @@ export class SpellWrapperConverter extends WrapperConverter {
   /**
    * Override category determination for spells
    */
-  protected determineCategory(sourceData: any, contentType: 'actor' | 'item' | 'vttdocument'): string | undefined {
+  protected determineCategory<T = EtoolsSpell>(sourceData: T, contentType: 'actor' | 'item' | 'vttdocument'): string | undefined {
     if (contentType === 'vttdocument') {
-      const level = sourceData.level || 0;
+      const level = (sourceData && typeof sourceData === 'object' && 'level' in sourceData && typeof sourceData.level === 'number') ? sourceData.level : 0;
       if (level === 0) {
         return 'Cantrips';
       }
@@ -258,21 +261,23 @@ export class SpellWrapperConverter extends WrapperConverter {
   /**
    * Override tag extraction for spells
    */
-  protected extractTags(sourceData: any, contentType: 'actor' | 'item' | 'vttdocument'): string[] {
+  protected extractTags<T = EtoolsSpell>(sourceData: T, contentType: 'actor' | 'item' | 'vttdocument'): string[] {
     const baseTags = super.extractTags(sourceData, contentType);
     
     if (contentType === 'vttdocument') {
       // Add spell-specific tags
-      if (sourceData.school) {
-        baseTags.push(SCHOOL_MAP[sourceData.school] || sourceData.school);
+      if (sourceData && typeof sourceData === 'object' && 'school' in sourceData && typeof sourceData.school === 'string') {
+        baseTags.push(SCHOOL_MAP[sourceData.school as keyof typeof SCHOOL_MAP] || sourceData.school);
       }
-      if (sourceData.meta?.ritual) {
+      if (sourceData && typeof sourceData === 'object' && 'meta' in sourceData && 
+          sourceData.meta && typeof sourceData.meta === 'object' && 'ritual' in sourceData.meta && sourceData.meta.ritual) {
         baseTags.push('Ritual');
       }
-      if (sourceData.meta?.concentration) {
+      if (sourceData && typeof sourceData === 'object' && 'meta' in sourceData && 
+          sourceData.meta && typeof sourceData.meta === 'object' && 'concentration' in sourceData.meta && sourceData.meta.concentration) {
         baseTags.push('Concentration');
       }
-      if (sourceData.level === 0) {
+      if (sourceData && typeof sourceData === 'object' && 'level' in sourceData && sourceData.level === 0) {
         baseTags.push('Cantrip');
       }
     }

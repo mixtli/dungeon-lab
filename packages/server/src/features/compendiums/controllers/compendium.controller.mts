@@ -29,14 +29,7 @@ const getEntriesQuerySchema = z.object({
   search: z.string().optional()
 });
 
-const linkContentBodySchema = z.object({
-  contentType: z.enum(['Actor', 'Item', 'VTTDocument']),
-  contentId: z.string(),
-  name: z.string().optional(),
-  category: z.string().optional(),
-  tags: z.array(z.string()).optional(),
-  sortOrder: z.number().optional()
-});
+// Removed unused linkContentBodySchema
 
 export class CompendiumController {
   private compendiumService: CompendiumService;

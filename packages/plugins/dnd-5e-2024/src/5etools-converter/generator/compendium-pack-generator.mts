@@ -203,20 +203,24 @@ export class CompendiumPackGenerator {
     await mkdir(dir, { recursive: true });
   }
 
-  private getContentDirectory(type: string, wrapper?: any): string {
+  private getContentDirectory(type: string, wrapper?: Record<string, unknown>): string {
     switch (type) {
       case 'actor': return 'actors';
       case 'item': return 'items';
       case 'vttdocument':
         // For VTT documents, use the documentType to determine directory
-        if (wrapper?.content?.documentType) {
-          switch (wrapper.content.documentType) {
-            case 'background': return 'backgrounds';
-            case 'spell': return 'spells';
-            case 'characterClass': return 'classes';
-            case 'species': return 'species';
-            case 'feat': return 'feats';
-            default: return 'documents';
+        if (wrapper && 'content' in wrapper && wrapper.content && 
+            typeof wrapper.content === 'object' && 'documentType' in wrapper.content) {
+          const documentType = wrapper.content.documentType;
+          if (typeof documentType === 'string') {
+            switch (documentType) {
+              case 'background': return 'backgrounds';
+              case 'spell': return 'spells';
+              case 'characterClass': return 'classes';
+              case 'species': return 'species';
+              case 'feat': return 'feats';
+              default: return 'documents';
+            }
           }
         }
         return 'documents';
@@ -235,17 +239,17 @@ export class CompendiumPackGenerator {
     return `${type}-${cleanName}.json`;
   }
 
-  private generateManifest(contentCounts: Record<string, number>): any {
+  private generateManifest(contentCounts: Record<string, number>): Record<string, unknown> {
     return generateManifest({
       name: this.options.name,
       description: `D&D 5e ${this.options.srdOnly ? 'SRD ' : ''}content pack generated from 5etools data`,
       contentTypes: this.options.contentTypes,
       contentCounts,
       srdOnly: this.options.srdOnly
-    });
+    }) as Record<string, unknown>;
   }
 
-  private async writeManifest(manifest: any): Promise<void> {
+  private async writeManifest(manifest: Record<string, unknown>): Promise<void> {
     const manifestPath = join(this.options.outputDir, 'manifest.json');
     await writeJsonFile(manifestPath, manifest);
     console.log(`✅ Manifest written to ${manifestPath}`);

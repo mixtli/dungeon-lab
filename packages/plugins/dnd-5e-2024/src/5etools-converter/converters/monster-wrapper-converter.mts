@@ -3,11 +3,48 @@
  */
 import { WrapperConverter, WrapperConversionResult, WrapperContent } from '../base/wrapper-converter.mjs';
 import { readEtoolsData, filterSrdContent, formatEntries } from '../utils/conversion-utils.mjs';
+import type { EtoolsMonster, EtoolsMonsterData, EtoolsMonsterAction, EtoolsMonsterSpellcasting } from '../../5etools-types/monsters.mjs';
+import type { EtoolsEntry } from '../../5etools-types/base.mjs';
+import { extractEtoolsArray, safeEtoolsCast } from '../../5etools-types/type-utils.mjs';
 // Import shared actor schema
 import { actorSchema } from '@dungeon-lab/shared/schemas/index.mjs';
 import { z } from 'zod';
 
 type IActor = z.infer<typeof actorSchema>;
+
+/**
+ * Monster fluff data interface
+ */
+interface EtoolsMonsterFluff {
+  name: string;
+  source?: string;
+  entries?: EtoolsEntry[];
+  images?: Array<{
+    type: string;
+    href: {
+      type: string;
+      path: string;
+    };
+  }>;
+  _copy?: {
+    _mod?: {
+      images?: {
+        items?: Array<{
+          href: {
+            path: string;
+          };
+        }>;
+      };
+    };
+  };
+}
+
+/**
+ * Monster fluff data file structure
+ */
+interface EtoolsMonsterFluffData {
+  monsterFluff?: EtoolsMonsterFluff[];
+}
 
 // Size mapping from 5etools to our schema
 const SIZE_MAP: Record<string, 'tiny' | 'small' | 'medium' | 'large' | 'huge' | 'gargantuan'> = {
@@ -36,11 +73,13 @@ export class MonsterWrapperConverter extends WrapperConverter {
       for (const fileSet of monsterFiles) {
         try {
           // Read monster and fluff data
-          const monsterData = await readEtoolsData(fileSet.data);
-          const fluffData = await readEtoolsData(fileSet.fluff);
+          const rawMonsterData = await readEtoolsData(fileSet.data);
+          const monsterData = safeEtoolsCast<EtoolsMonsterData>(rawMonsterData, ['monster'], `monster data file ${fileSet.data}`);
+          const rawFluffData = await readEtoolsData(fileSet.fluff);
+          const fluffData = safeEtoolsCast<EtoolsMonsterFluffData>(rawFluffData, [], `monster fluff file ${fileSet.fluff}`);
 
           // Create fluff lookup map
-          const fluffMap = new Map();
+          const fluffMap = new Map<string, EtoolsMonsterFluff>();
           if (fluffData.monsterFluff) {
             for (const fluff of fluffData.monsterFluff) {
               fluffMap.set(fluff.name, fluff);
@@ -48,7 +87,7 @@ export class MonsterWrapperConverter extends WrapperConverter {
           }
 
           // Process monsters
-          const monsters = monsterData.monster || [];
+          const monsters = extractEtoolsArray<EtoolsMonster>(monsterData, 'monster', `monster list in ${fileSet.data}`);
           const filteredMonsters = this.options.srdOnly ? filterSrdContent(monsters) : monsters;
           
           stats.total += filteredMonsters.length;
@@ -106,7 +145,7 @@ export class MonsterWrapperConverter extends WrapperConverter {
     }
   }
 
-  private convertMonster(monsterData: any, fluffData?: any): { monster: IActor; assetPath?: string } {
+  private convertMonster(monsterData: EtoolsMonster, fluffData?: EtoolsMonsterFluff): { monster: IActor; assetPath?: string } {
     // Extract asset path from fluff data if available
     let assetPath: string | undefined;
     if (fluffData && this.options.includeAssets) {
@@ -138,10 +177,10 @@ export class MonsterWrapperConverter extends WrapperConverter {
       data: {
         // Basic stats
         size: SIZE_MAP[monsterData.size?.[0]] || 'medium',
-        type: monsterData.type?.type || 'humanoid',
-        subtype: monsterData.type?.subtype,
+        type: typeof monsterData.type === 'string' ? monsterData.type : monsterData.type?.type || 'humanoid',
+        subtype: typeof monsterData.type === 'object' && monsterData.type ? monsterData.type.tags?.join(', ') : undefined,
         alignment: Array.isArray(monsterData.alignment) 
-          ? monsterData.alignment.map((a: any) => typeof a === 'string' ? a : a.alignment || 'neutral').join(' ')
+          ? monsterData.alignment.join(' ')
           : 'neutral',
           
         // Ability scores
@@ -168,7 +207,7 @@ export class MonsterWrapperConverter extends WrapperConverter {
         damageResistances: monsterData.resist || [],
         damageImmunities: monsterData.immune || [],
         conditionImmunities: monsterData.conditionImmune || [],
-        senses: monsterData.senses || [],
+        senses: Array.isArray(monsterData.senses) ? monsterData.senses : [],
         languages: monsterData.languages || [],
         
         // Features
@@ -190,7 +229,7 @@ export class MonsterWrapperConverter extends WrapperConverter {
     return { monster, assetPath };
   }
 
-  private buildDescription(monsterData: any, fluffData?: any): string {
+  private buildDescription(monsterData: EtoolsMonster, fluffData?: EtoolsMonsterFluff): string {
     let description = '';
     
     // Add fluff description if available
@@ -201,7 +240,7 @@ export class MonsterWrapperConverter extends WrapperConverter {
     // Add basic monster info if no fluff
     if (!description) {
       const size = SIZE_MAP[monsterData.size?.[0]] || 'medium';
-      const type = monsterData.type?.type || 'creature';
+      const type = typeof monsterData.type === 'string' ? monsterData.type : monsterData.type?.type || 'creature';
       const cr = monsterData.cr || '0';
       description = `A ${size} ${type} of challenge rating ${cr}.`;
     }
@@ -218,27 +257,21 @@ export class MonsterWrapperConverter extends WrapperConverter {
       .trim();
   }
 
-  private parseAC(ac: any): number {
-    if (typeof ac === 'number') {
-      return ac;
-    }
+  private parseAC(ac: EtoolsMonster['ac']): number {
     if (Array.isArray(ac) && ac.length > 0) {
       const first = ac[0];
       if (typeof first === 'number') {
         return first;
       }
-      if (typeof first === 'object' && first.ac) {
+      if (typeof first === 'object' && first && 'ac' in first) {
         return first.ac;
       }
     }
     return 10; // Default AC
   }
 
-  private parseHP(hp: any): { average: number; formula?: string } {
-    if (typeof hp === 'number') {
-      return { average: hp };
-    }
-    if (typeof hp === 'object') {
+  private parseHP(hp: EtoolsMonster['hp']): { average: number; formula?: string } {
+    if (typeof hp === 'object' && hp) {
       return {
         average: hp.average || 1,
         formula: hp.formula
@@ -256,21 +289,27 @@ export class MonsterWrapperConverter extends WrapperConverter {
     return 2;
   }
 
-  private convertTraits(traits: any[]): any[] {
+  private convertTraits(traits: EtoolsMonsterAction[]): Array<{ name: string; description: string }> {
     return traits.map(trait => ({
       name: trait.name,
       description: formatEntries(trait.entries || [])
     }));
   }
 
-  private convertActions(actions: any[]): any[] {
+  private convertActions(actions: EtoolsMonsterAction[]): Array<{ name: string; description: string }> {
     return actions.map(action => ({
       name: action.name,
       description: formatEntries(action.entries || [])
     }));
   }
 
-  private convertSpellcasting(spellcasting: any[]): any {
+  private convertSpellcasting(spellcasting: EtoolsMonsterSpellcasting[]): {
+    name: string;
+    description: string;
+    ability: string;
+    level: number;
+    spells: Record<string, unknown>;
+  } | undefined {
     if (!spellcasting || spellcasting.length === 0) {
       return undefined;
     }
@@ -280,7 +319,7 @@ export class MonsterWrapperConverter extends WrapperConverter {
       name: sc.name || 'Spellcasting',
       description: formatEntries(sc.headerEntries || []),
       ability: sc.ability || 'int',
-      level: sc.level || 1,
+      level: 1, // Default level for monster spellcasting
       spells: sc.spells || {}
     };
   }

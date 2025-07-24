@@ -44,10 +44,10 @@ export abstract class WrapperConverter {
   /**
    * Read and parse a JSON file from the 5etools data directory
    */
-  protected async readDataFile(relativePath: string): Promise<any> {
+  protected async readDataFile<T = unknown>(relativePath: string): Promise<T> {
     const fullPath = join(ETOOLS_DATA_PATH, relativePath);
     const data = await readFile(fullPath, 'utf-8');
-    return JSON.parse(data);
+    return JSON.parse(data) as T;
   }
 
   /**
@@ -65,7 +65,7 @@ export abstract class WrapperConverter {
    */
   protected createWrapper(
     name: string,
-    contentData: any,
+    contentData: unknown,
     contentType: 'actor' | 'item' | 'vttdocument',
     options: {
       imageId?: string;
@@ -90,17 +90,21 @@ export abstract class WrapperConverter {
   /**
    * Extract entry-level image path from content
    */
-  protected extractEntryImagePath(sourceData: any, contentType: 'actor' | 'item' | 'vttdocument'): string | undefined {
+  protected extractEntryImagePath<T = Record<string, unknown>>(sourceData: T, contentType: 'actor' | 'item' | 'vttdocument'): string | undefined {
+    if (!sourceData || typeof sourceData !== 'object') return undefined;
+    
+    const data = sourceData as Record<string, unknown>;
     switch (contentType) {
       case 'actor':
         // For actors: prefer token images for browsing
-        return sourceData.tokenUrl || sourceData.imageUrl;
+        return (typeof data.tokenUrl === 'string' ? data.tokenUrl : undefined) || 
+               (typeof data.imageUrl === 'string' ? data.imageUrl : undefined);
       case 'item':
         // For items: use primary image
-        return sourceData.imageUrl;
+        return typeof data.imageUrl === 'string' ? data.imageUrl : undefined;
       case 'vttdocument':
         // For documents: use primary image if available
-        return sourceData.imageUrl;
+        return typeof data.imageUrl === 'string' ? data.imageUrl : undefined;
       default:
         return undefined;
     }
@@ -109,7 +113,7 @@ export abstract class WrapperConverter {
   /**
    * Determine category from content type and source data
    */
-  protected determineCategory(sourceData: any, contentType: 'actor' | 'item' | 'vttdocument'): string | undefined {
+  protected determineCategory<T = Record<string, unknown>>(sourceData: T, contentType: 'actor' | 'item' | 'vttdocument'): string | undefined {
     switch (contentType) {
       case 'actor':
         return 'Monsters';
@@ -125,64 +129,90 @@ export abstract class WrapperConverter {
   /**
    * Extract tags from source data
    */
-  protected extractTags(sourceData: any, contentType: 'actor' | 'item' | 'vttdocument'): string[] {
+  protected extractTags<T = Record<string, unknown>>(sourceData: T, contentType: 'actor' | 'item' | 'vttdocument'): string[] {
     const tags: string[] = [];
     
     // Add common tags based on content type
-    if (sourceData.source) tags.push(sourceData.source.toLowerCase());
-    if (sourceData.cr) tags.push(`cr${sourceData.cr}`.replace('.', '_'));
+    if (sourceData && typeof sourceData === 'object' && 'source' in sourceData && typeof sourceData.source === 'string') {
+      tags.push(sourceData.source.toLowerCase());
+    }
+    if (sourceData && typeof sourceData === 'object' && 'cr' in sourceData && sourceData.cr) {
+      tags.push(`cr${sourceData.cr}`.replace('.', '_'));
+    }
     
     // Add specific tags based on content type
     switch (contentType) {
       case 'actor':
         // Handle size (simple string or array)
-        if (sourceData.size) {
+        if (sourceData && typeof sourceData === 'object' && 'size' in sourceData && sourceData.size) {
           const size = Array.isArray(sourceData.size) ? sourceData.size[0] : sourceData.size;
           if (typeof size === 'string') tags.push(size.toLowerCase());
         }
         
         // Handle type (complex object with type.type and type.subtype)
-        if (sourceData.type?.type) {
+        if (sourceData && typeof sourceData === 'object' && 'type' in sourceData && 
+            typeof sourceData.type === 'object' && sourceData.type && 'type' in sourceData.type && 
+            typeof sourceData.type.type === 'string') {
           tags.push(sourceData.type.type.toLowerCase());
-          if (sourceData.type.subtype) {
+          if ('subtype' in sourceData.type && typeof sourceData.type.subtype === 'string') {
             tags.push(sourceData.type.subtype.toLowerCase());
           }
         }
         
         // Handle alignment (array of alignment objects)
-        if (sourceData.alignment && Array.isArray(sourceData.alignment)) {
+        if (sourceData && typeof sourceData === 'object' && 'alignment' in sourceData && 
+            Array.isArray(sourceData.alignment)) {
           for (const align of sourceData.alignment) {
             if (typeof align === 'string') {
               tags.push(align.toLowerCase().replace(' ', '-'));
-            } else if (align.alignment) {
+            } else if (align && typeof align === 'object' && 'alignment' in align) {
               const alignStr = Array.isArray(align.alignment) ? align.alignment.join('-') : align.alignment;
-              tags.push(alignStr.toLowerCase().replace(/\s+/g, '-'));
+              if (typeof alignStr === 'string') {
+                tags.push(alignStr.toLowerCase().replace(/\s+/g, '-'));
+              }
             }
           }
         }
         break;
         
       case 'item':
-        if (sourceData.rarity && sourceData.rarity !== 'none') {
+        if (sourceData && typeof sourceData === 'object' && 'rarity' in sourceData && 
+            typeof sourceData.rarity === 'string' && sourceData.rarity !== 'none') {
           tags.push(sourceData.rarity.toLowerCase().replace(' ', '-'));
         }
-        if (sourceData.wondrous) tags.push('wondrous');
-        if (sourceData.weaponCategory) tags.push('weapon');
-        if (sourceData.armor || sourceData.type === 'LA' || sourceData.type === 'MA' || sourceData.type === 'HA') {
-          tags.push('armor');
+        if (sourceData && typeof sourceData === 'object' && 'wondrous' in sourceData && sourceData.wondrous) {
+          tags.push('wondrous');
         }
-        if (sourceData.reqAttune) tags.push('attunement');
+        if (sourceData && typeof sourceData === 'object' && 'weaponCategory' in sourceData && sourceData.weaponCategory) {
+          tags.push('weapon');
+        }
+        if (sourceData && typeof sourceData === 'object') {
+          const hasArmor = 'armor' in sourceData && sourceData.armor;
+          const isLightArmor = 'type' in sourceData && sourceData.type === 'LA';
+          const isMediumArmor = 'type' in sourceData && sourceData.type === 'MA';
+          const isHeavyArmor = 'type' in sourceData && sourceData.type === 'HA';
+          if (hasArmor || isLightArmor || isMediumArmor || isHeavyArmor) {
+            tags.push('armor');
+          }
+        }
+        if (sourceData && typeof sourceData === 'object' && 'reqAttune' in sourceData && sourceData.reqAttune) {
+          tags.push('attunement');
+        }
         break;
         
       case 'vttdocument':
-        if (sourceData.level !== undefined) {
+        if (sourceData && typeof sourceData === 'object' && 'level' in sourceData && 
+            typeof sourceData.level === 'number') {
           if (sourceData.level === 0) {
             tags.push('cantrip');
           } else {
             tags.push(`level-${sourceData.level}`);
           }
         }
-        if (sourceData.school) tags.push(sourceData.school.toLowerCase());
+        if (sourceData && typeof sourceData === 'object' && 'school' in sourceData && 
+            typeof sourceData.school === 'string') {
+          tags.push(sourceData.school.toLowerCase());
+        }
         break;
     }
     
@@ -192,22 +222,28 @@ export abstract class WrapperConverter {
   /**
    * Calculate sort order for content
    */
-  protected calculateSortOrder(sourceData: any, contentType: 'actor' | 'item' | 'vttdocument'): number {
+  protected calculateSortOrder<T = Record<string, unknown>>(sourceData: T, contentType: 'actor' | 'item' | 'vttdocument'): number {
     switch (contentType) {
       case 'actor':
         // Sort by CR, then alphabetically
-        if (sourceData.cr) {
-          const cr = typeof sourceData.cr === 'string' ? parseFloat(sourceData.cr) : sourceData.cr;
+        if (sourceData && typeof sourceData === 'object' && 'cr' in sourceData && sourceData.cr) {
+          const cr = typeof sourceData.cr === 'string' ? parseFloat(sourceData.cr) : Number(sourceData.cr);
           return Math.floor(cr * 100); // CR 0.5 becomes 50, CR 1 becomes 100, etc.
         }
         return 0;
-      case 'item':
+      case 'item': {
         // Sort by rarity, then alphabetically
         const rarityOrder = { 'common': 100, 'uncommon': 200, 'rare': 300, 'very rare': 400, 'legendary': 500, 'artifact': 600 };
-        return rarityOrder[sourceData.rarity as keyof typeof rarityOrder] || 0;
+        if (sourceData && typeof sourceData === 'object' && 'rarity' in sourceData && 
+            typeof sourceData.rarity === 'string') {
+          return rarityOrder[sourceData.rarity as keyof typeof rarityOrder] || 0;
+        }
+        return 0;
+      }
       case 'vttdocument':
         // Sort by level for spells, then alphabetically
-        if (sourceData.level !== undefined) {
+        if (sourceData && typeof sourceData === 'object' && 'level' in sourceData && 
+            typeof sourceData.level === 'number') {
           return sourceData.level * 1000; // Level 0 = 0, Level 1 = 1000, etc.
         }
         return 0;
@@ -287,7 +323,7 @@ export abstract class WrapperConverter {
   /**
    * Log conversion progress
    */
-  protected log(message: string, ...args: any[]): void {
+  protected log(message: string, ...args: unknown[]): void {
     console.log(`[${this.constructor.name}] ${message}`, ...args);
   }
 

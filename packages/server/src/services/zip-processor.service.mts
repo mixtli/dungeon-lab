@@ -1,5 +1,5 @@
 import yauzl from 'yauzl';
-import { promisify } from 'util';
+// Removed unused promisify import
 import { logger } from '../utils/logger.mjs';
 import { CompendiumManifest, ValidationResult, compendiumManifestSchema } from '@dungeon-lab/shared/schemas/import.schema.mjs';
 

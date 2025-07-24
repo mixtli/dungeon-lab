@@ -4,6 +4,7 @@
 import { join } from 'path';
 import { readFile, writeFile, mkdir } from 'fs/promises';
 import { ETOOLS_DATA_PATH, PLUGIN_CONFIG } from '../../config/constants.mjs';
+import type { EtoolsEntry } from '../../5etools-types/base.mjs';
 
 /**
  * Filter array to only SRD content
@@ -22,11 +23,11 @@ export function isSrdContent(item: { srd52?: boolean }): boolean {
 /**
  * Read and parse a JSON file from the 5etools data directory
  */
-export async function readEtoolsData(relativePath: string): Promise<any> {
+export async function readEtoolsData<T = unknown>(relativePath: string): Promise<T> {
   const fullPath = join(ETOOLS_DATA_PATH, relativePath);
   try {
     const data = await readFile(fullPath, 'utf-8');
-    return JSON.parse(data);
+    return JSON.parse(data) as T;
   } catch (error) {
     console.error(`Failed to read file ${fullPath}:`, error);
     throw new Error(`Could not read 5etools data file: ${relativePath}`);
@@ -59,7 +60,7 @@ export function generateManifest(options: {
   contentTypes: string[];
   contentCounts: Record<string, number>;
   srdOnly?: boolean;
-}): any {
+}): unknown {
   const { name, description, contentTypes, contentCounts, srdOnly } = options;
   
   return {
@@ -82,7 +83,7 @@ export function generateManifest(options: {
 /**
  * Write JSON content to a file with proper formatting
  */
-export async function writeJsonFile(filepath: string, data: any): Promise<void> {
+export async function writeJsonFile(filepath: string, data: unknown): Promise<void> {
   const dir = filepath.substring(0, filepath.lastIndexOf('/'));
   await mkdir(dir, { recursive: true });
   await writeFile(filepath, JSON.stringify(data, null, 2), 'utf-8');
@@ -105,7 +106,7 @@ export async function createCompendiumStructure(basePath: string, contentTypes: 
 /**
  * Convert any value to lowercase string
  */
-export function toLowercase(value: any): string {
+export function toLowercase(value: unknown): string {
   if (value === null || value === undefined) {
     return '';
   }
@@ -165,7 +166,7 @@ export function parseDiceFormula(formula: string): { count: number; sides: numbe
 /**
  * Format entries array from 5etools into clean text
  */
-export function formatEntries(entries: any[]): string {
+export function formatEntries(entries: EtoolsEntry[]): string {
   if (!Array.isArray(entries)) {
     return typeof entries === 'string' ? entries : '';
   }
@@ -174,10 +175,10 @@ export function formatEntries(entries: any[]): string {
     .map(entry => {
       if (typeof entry === 'string') {
         return entry;
-      } else if (entry && typeof entry === 'object' && entry.entries) {
-        return formatEntries(entry.entries);
-      } else if (entry && typeof entry === 'object' && entry.items) {
-        return formatEntries(entry.items);
+      } else if (entry && typeof entry === 'object' && 'entries' in entry && Array.isArray(entry.entries)) {
+        return formatEntries(entry.entries as EtoolsEntry[]);
+      } else if (entry && typeof entry === 'object' && 'items' in entry && Array.isArray(entry.items)) {
+        return formatEntries(entry.items as EtoolsEntry[]);
       }
       return '';
     })
