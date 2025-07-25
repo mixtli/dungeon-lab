@@ -87,13 +87,13 @@ The implementation introduces a two-layer aggregate pattern separating runtime (
 - Comprehensive indexing strategy for performance
 - Type-safe discriminator model factories to avoid circular imports
 
-### Task 1.4: Update Campaign Model
-- [ ] Update CampaignModel to use new schema with pluginData
-- [ ] Update field transformations for new schema
-- [ ] Update virtual relationships if needed
+### Task 1.4: Update Campaign Model ✅ **COMPLETED**
+- [x] Update CampaignModel to use new schema with pluginData
+- [x] Update field transformations for new schema
+- [x] Update virtual relationships if needed
 
-**Files to modify:**
-- `packages/server/src/features/campaigns/models/campaign.model.mts`
+**Files modified:**
+- `packages/server/src/features/campaigns/models/campaign.model.mts` - Updated characters virtual to reference unified Document collection with actor filter
 
 ### Task 1.5: Implement Hybrid Service Architecture
 - [ ] Refactor ActorService to use DocumentService internally for basic CRUD

@@ -37,9 +37,10 @@ mongooseSchema.virtual('gameMaster', {
 });
 
 mongooseSchema.virtual('characters', {
-  ref: 'Actor',
+  ref: 'Document',
   localField: 'characterIds',
   foreignField: '_id',
+  match: { documentType: 'actor' },
   justOne: false
 });
 
