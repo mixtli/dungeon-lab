@@ -16,7 +16,11 @@ export const campaignSchema = baseSchema.extend({
   name: z.string().min(1).max(255),
   userData: z.record(z.string(), z.any()).optional(),
   description: z.string().optional(),
-  gameSystemId: z.string().min(1),
+  pluginId: z.string().min(1),
+  
+  // Campaign-level plugin data (global persistent state)
+  pluginData: z.record(z.string(), z.unknown()).default({}),
+  
   characterIds: z.array(z.string()).default([]), // Actor IDs of the characters in the campaign.  NOT User IDs.
   gameMasterId: z.string().optional(), // This is the User ID of the game master.
   status: campaignStatusSchema.default('active'),

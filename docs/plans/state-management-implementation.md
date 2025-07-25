@@ -12,16 +12,26 @@ The implementation introduces a two-layer aggregate pattern separating runtime (
 
 ## Phase 1: Foundation - Data Model Migration (Week 1-2)
 
-### Task 1.1: Update Campaign Schema
-- [ ] Add `pluginData` field to campaign schema in `packages/shared/src/schemas/campaign.schema.mts`
-- [ ] Replace `gameSystemId` with `pluginId` field
-- [ ] Replace `gameMasterId` with `gmId` field
-- [ ] Update campaign creation/patch schemas
-- [ ] Update ICampaign interface in shared types
+### Task 1.1: Update Campaign Schema ✅ **COMPLETED**
+- [x] Add `pluginData` field to campaign schema in `packages/shared/src/schemas/campaign.schema.mts`
+- [x] Replace `gameSystemId` with `pluginId` field
+- [ ] ~~Replace `gameMasterId` with `gmId` field~~ (kept as `gameMasterId` per user request)
+- [x] Update campaign creation/patch schemas (automatically updated via schema inheritance)
+- [x] Update ICampaign interface in shared types (automatically updated via type inference)
 
-**Files to modify:**
-- `packages/shared/src/schemas/campaign.schema.mts`
-- `packages/shared/src/types/campaign.types.mts`
+**Files modified:**
+- `packages/shared/src/schemas/campaign.schema.mts` - Added pluginData field, changed gameSystemId to pluginId
+- `packages/shared/src/types/api/campaigns.mts` - Updated search query schema
+- `packages/server/src/features/campaigns/models/campaign.model.mts` - Added Mixed type for pluginData
+- `packages/server/src/features/campaigns/services/campaign.service.mts` - Updated plugin validation
+- `packages/server/src/websocket/handlers/actor-handler.mts` - Fixed field reference
+- `packages/web/src/stores/actor.store.mts` - Updated game system ID access
+- `packages/web/src/stores/item.store.mts` - Updated game system ID access  
+- `packages/web/src/views/CampaignDetailView.vue` - Updated plugin access
+- `packages/web/src/components/campaign/CampaignForm.vue` - Updated form submission
+- `packages/web/src/components/campaign/CampaignListItem.vue` - Updated display field
+
+**✅ All TypeScript errors resolved - schema changes working correctly**
 
 ### Task 1.2: Create Unified Document Schema
 - [ ] Create new `document.schema.mts` with base document schema

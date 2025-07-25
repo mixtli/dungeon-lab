@@ -109,10 +109,10 @@ export class CampaignService {
         updatedBy: userObjectId.toString()
       };
 
-      // Validate that the game system exists
-      const gameSystem = pluginRegistry.getGameSystemPlugin(campaignData.gameSystemId.toString());
+      // Validate that the plugin exists
+      const gameSystem = pluginRegistry.getGameSystemPlugin(campaignData.pluginId.toString());
       if (!gameSystem) {
-        throw new Error('Invalid game system');
+        throw new Error('Invalid plugin');
       }
       const user = await UserModel.findById(userId);
       if (user?.isAdmin) {

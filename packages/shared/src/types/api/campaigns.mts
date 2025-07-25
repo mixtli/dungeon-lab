@@ -5,7 +5,7 @@ export const searchCampaignsQuerySchema = z
   .object({
     name: z.string().optional(),
     status: z.string().optional(),
-    gameSystemId: z.string().optional()
+    pluginId: z.string().optional()
   })
   .passthrough(); // Allow additional query parameters
 

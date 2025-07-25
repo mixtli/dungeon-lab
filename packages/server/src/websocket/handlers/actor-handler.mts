@@ -46,7 +46,7 @@ function actorHandler(socket: Socket<ClientToServerEvents, ServerToClientEvents>
           const gameSession = await GameSessionModel.findById(socket.gameSessionId);
           if (gameSession?.campaignId) {
             const campaign = await CampaignModel.findById(gameSession.campaignId);
-            if (campaign?.characterIds?.length && campaign.gameSystemId === gameSystemId) {
+            if (campaign?.characterIds?.length && campaign.pluginId === gameSystemId) {
               // Get campaign actors that the user doesn't already own
               const campaignActorIds = campaign.characterIds.filter(id => 
                 !userActors.some(actor => actor.id === id)

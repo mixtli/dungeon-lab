@@ -16,7 +16,7 @@ defineEmits(['view', 'edit', 'delete']);
         </div>
       </div>
     </td>
-    <td class="px-6 py-5 text-sm font-medium text-arcane dark:text-secondary-400">{{ campaign.gameSystemId }}</td>
+    <td class="px-6 py-5 text-sm font-medium text-arcane dark:text-secondary-400">{{ campaign.pluginId }}</td>
     <td class="px-6 py-5">
       <span
         :class="{

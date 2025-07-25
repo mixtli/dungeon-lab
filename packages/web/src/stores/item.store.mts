@@ -25,7 +25,7 @@ export const useItemStore = defineStore('item', () => {
 
   // Get current game system ID
   const currentGameSystemId = computed(() => {
-    return campaignStore.currentCampaign?.gameSystemId || null;
+    return campaignStore.currentCampaign?.pluginId || null;
   });
 
   // Getters

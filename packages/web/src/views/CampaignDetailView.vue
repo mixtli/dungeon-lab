@@ -48,7 +48,7 @@ const campaign = computed(() => campaignData.value);
 const gameSystem = computed(() => {
   if (!campaign.value) return null;
 
-  const plugin = pluginRegistry.getGameSystemPlugin(String(campaign.value.gameSystemId));
+  const plugin = pluginRegistry.getGameSystemPlugin(String(campaign.value.pluginId));
   return plugin
     ? {
         name: plugin.name,

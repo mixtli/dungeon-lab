@@ -69,7 +69,7 @@ onMounted(async () => {
           status: campaign.status,
           setting: campaign.setting
         };
-        gameSystemId.value = String(campaign.gameSystemId);
+        gameSystemId.value = String(campaign.pluginId);
       } else {
         error.value = 'Campaign not found';
         router.push({ name: 'campaigns' });
@@ -121,13 +121,14 @@ async function submitForm() {
         description: formData.value.description || '',
         status: formData.value.status,
         setting: formData.value.setting,
-        gameSystemId: gameSystemId.value,
+        pluginId: gameSystemId.value,
+        pluginData: {},
         gameMasterId: authStore.user.id,
         startDate: new Date().toISOString(),
         characterIds: []
       };
 
-      if (!createData.gameSystemId) {
+      if (!createData.pluginId) {
         error.value = 'Please select a game system';
         return;
       }
