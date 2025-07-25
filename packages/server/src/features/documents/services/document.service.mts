@@ -2,7 +2,6 @@ import type { BaseDocument, IActor, IItem, IVTTDocument } from '@dungeon-lab/sha
 import { DocumentModel, getDocumentModel } from '../models/document.model.mjs';
 import { ActorDocumentModel } from '../models/actor-document.model.mjs';
 import { ItemDocumentModel } from '../models/item-document.model.mjs';
-import { VTTDocumentModel } from '../models/vtt-document.model.mjs';
 import { logger } from '../../../utils/logger.mjs';
 import { deepMerge } from '@dungeon-lab/shared/utils/index.mjs';
 import type { FilterQuery, UpdateQuery, QueryOptions } from 'mongoose';
@@ -246,15 +245,15 @@ export class DocumentService {
      * Create a new VTT document
      */
     async create(vttDocData: Omit<IVTTDocument, 'id' | 'createdAt' | 'updatedAt'>): Promise<IVTTDocument> {
-      const vttDoc = new VTTDocumentModel(vttDocData);
-      return await vttDoc.save();
+      return await DocumentService.create<IVTTDocument>(vttDocData);
     },
 
     /**
      * Find VTT documents by campaign
      */
     async findByCampaign(campaignId: string, options?: QueryOptions): Promise<IVTTDocument[]> {
-      return await VTTDocumentModel.find({ campaignId }, undefined, options);
+      const filter = { campaignId, documentType: 'vtt-document' };
+      return await DocumentService.find<IVTTDocument>(filter, options);
     },
 
     /**
@@ -273,7 +272,7 @@ export class DocumentService {
       if (campaignId) {
         filter.campaignId = campaignId;
       }
-      return await VTTDocumentModel.findOne(filter);
+      return await DocumentService.findOne<IVTTDocument>(filter);
     },
 
     /**
@@ -286,12 +285,13 @@ export class DocumentService {
     ): Promise<IVTTDocument[]> {
       const filter: FilterQuery<IVTTDocument> = {
         pluginId,
-        pluginDocumentType
+        pluginDocumentType,
+        documentType: 'vtt-document'
       };
       if (campaignId) {
         filter.campaignId = campaignId;
       }
-      return await VTTDocumentModel.find(filter);
+      return await DocumentService.find<IVTTDocument>(filter);
     }
   };
 

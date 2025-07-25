@@ -95,25 +95,39 @@ The implementation introduces a two-layer aggregate pattern separating runtime (
 **Files modified:**
 - `packages/server/src/features/campaigns/models/campaign.model.mts` - Updated characters virtual to reference unified Document collection with actor filter
 
-### Task 1.5: Implement Hybrid Service Architecture
-- [ ] Refactor ActorService to use DocumentService internally for basic CRUD
-- [ ] Refactor ItemService to use DocumentService internally for basic CRUD
-- [ ] Preserve type-specific functionality in specialized services
-- [ ] Update WebSocket handlers to use appropriate service layer
-- [ ] Update REST controllers to route correctly between generic and specialized endpoints
+### Task 1.5: Implement Hybrid Service Architecture ✅ **COMPLETED**
+- [x] Phase 1: Refactor ActorService to use DocumentService internally for basic CRUD
+- [x] Phase 2: Refactor ItemService to use DocumentService internally for basic CRUD
+- [x] Phase 2.5: Refactor VTT document specialized methods to use unified DocumentService  
+- [x] Phase 3: Update WebSocket handlers to use hybrid service architecture
+- [x] Phase 4: Update REST controllers for hybrid service architecture
+- [x] Preserve type-specific functionality in specialized services
+- [x] Remove old duplicate models and clean up architecture
+- [x] Update imports throughout codebase to use unified models
 
-**Hybrid Architecture Pattern:**
-- Generic operations via DocumentService (`/api/documents/*`)
-- Specialized operations via type-specific services (`/api/actors/*`, `/api/items/*`)
-- Type services wrap DocumentService for basic CRUD, add specialized methods
+**Hybrid Architecture Pattern Implemented:**
+- ✅ Generic operations via DocumentService (unified document storage)
+- ✅ Specialized operations via type-specific services (`ActorService`, `ItemService`, `DocumentService.vttDocument.*`)
+- ✅ Type services wrap DocumentService for basic CRUD, add specialized methods
+- ✅ WebSocket handlers use service layer, not models directly
+- ✅ REST controllers route through appropriate service layer
 
-**Files to modify:**
-- `packages/server/src/features/actors/services/actor.service.mts` - Wrap DocumentService
-- `packages/server/src/features/items/services/item.service.mts` - Wrap DocumentService
-- `packages/server/src/websocket/handlers/actor-handler.mts` - Use hybrid approach
-- `packages/server/src/websocket/handlers/item-handler.mts` - Use hybrid approach
-- `packages/server/src/features/actors/controllers/actor.controller.mts` - Update routing
-- `packages/server/src/features/items/controllers/item.controller.mts` - Update routing
+**Files Modified:**
+- `packages/server/src/features/actors/services/actor.service.mts` - Now wraps DocumentService internally
+- `packages/server/src/features/items/services/item.service.mts` - Now wraps DocumentService internally
+- `packages/server/src/features/documents/services/document.service.mts` - VTT document methods updated
+- `packages/server/src/features/encounters/websocket/encounter-permissions.mts` - Uses DocumentService
+- `packages/server/src/features/campaigns/services/campaign.service.mts` - Uses DocumentService for actor queries
+- `packages/server/src/features/actors/jobs/actor-image.job.mts` - Uses DocumentService with proper typing
+- `packages/server/src/features/encounters/services/encounters.service.mts` - Uses DocumentService for actor operations
+- `packages/server/src/services/transaction.service.mts` - Updated for unified document deletion
+
+**Architecture Verification:**
+- ✅ All controllers verified to use service layer properly (no direct model access)
+- ✅ All WebSocket handlers updated to use service layer
+- ✅ All background jobs updated to use DocumentService
+- ✅ Type checking passes without errors
+- ✅ Hybrid pattern maintains backward compatibility while using unified storage
 
 ### Task 1.6: Create Migration Scripts
 - [ ] Create migration script to add pluginData to existing campaigns

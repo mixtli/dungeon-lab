@@ -1,11 +1,11 @@
 import { Types } from 'mongoose';
 import { logger } from '../../../utils/logger.mjs';
-import { IEncounter, IToken, EncounterStatusType } from '@dungeon-lab/shared/types/index.mjs';
+import { IEncounter, IToken, EncounterStatusType, IActor } from '@dungeon-lab/shared/types/index.mjs';
 import { EncounterModel } from '../models/encounter.model.mjs';
 import { TokenModel } from '../models/token.model.mjs';
 import { CampaignModel } from '../../campaigns/models/campaign.model.mjs';
 import { MapModel } from '../../maps/models/map.model.mjs';
-import { ActorDocumentModel } from '../../documents/models/actor-document.model.mjs';
+import { DocumentService } from '../../documents/services/document.service.mjs';
 import { z } from 'zod';
 import {
   createEncounterSchema,
@@ -522,9 +522,9 @@ export class EncounterService {
       }
 
       // Get the actor to access its properties
-      const actor = await ActorDocumentModel.findById(actorId).populate('token').exec();
+      const actor = await DocumentService.findById<IActor>(actorId);
       
-      if (!actor) {
+      if (!actor || actor.documentType !== 'actor') {
         throw new Error('Actor not found');
       }
 
@@ -1019,7 +1019,7 @@ export class EncounterService {
 
       // Check if token is player-controlled and user owns the associated actor
       if (token.isPlayerControlled && token.actorId) {
-        const actor = await ActorDocumentModel.findById(token.actorId).exec();
+        const actor = await DocumentService.findById(token.actorId);
         return actor?.createdBy?.toString() === userId;
       }
 
@@ -1052,9 +1052,8 @@ export class EncounterService {
       }
 
       // Check if user has a character in the campaign
-      const userObjectId = new Types.ObjectId(userId);
-      const userActors = await ActorDocumentModel.find({ createdBy: userObjectId }).exec();
-      const actorIds = userActors.map(actor => actor._id.toString());
+      const userActors = await DocumentService.find({ createdBy: userId, documentType: 'actor' });
+      const actorIds = userActors.map(actor => actor.id);
 
       return campaign.characterIds.some(characterId =>
         actorIds.includes(characterId.toString())
@@ -1076,8 +1075,8 @@ export class EncounterService {
       const gmCampaigns = await CampaignModel.find({ gameMasterId: userObjectId }).exec();
 
       // Get user's actors
-      const userActors = await ActorDocumentModel.find({ createdBy: userObjectId }).exec();
-      const actorIds = userActors.map(actor => actor._id);
+      const userActors = await DocumentService.find({ createdBy: userId, documentType: 'actor' });
+      const actorIds = userActors.map(actor => new Types.ObjectId(actor.id));
 
       // Get campaigns where user has characters
       const playerCampaigns = await CampaignModel.find({

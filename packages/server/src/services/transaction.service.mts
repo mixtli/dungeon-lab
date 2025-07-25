@@ -4,7 +4,6 @@ import { deleteDirectory } from './storage.service.mjs';
 import { CompendiumModel } from '../features/compendiums/models/compendium.model.mjs';
 import { CompendiumEntryModel } from '../features/compendiums/models/compendium-entry.model.mjs';
 import { DocumentModel } from '../features/documents/models/document.model.mjs';
-import { VTTDocumentModel } from '../features/documents/models/vtt-document.model.mjs';
 
 export class TransactionService {
   /**
@@ -101,7 +100,7 @@ export class TransactionService {
         CompendiumEntryModel.deleteMany({ compendiumId }, { session }),
         DocumentModel.deleteMany({ compendiumId, documentType: 'actor' }, { session }),
         DocumentModel.deleteMany({ compendiumId, documentType: 'item' }, { session }),
-        VTTDocumentModel.deleteMany({ compendiumId }, { session }),
+        DocumentModel.deleteMany({ compendiumId, documentType: 'vtt-document' }, { session }),
         CompendiumModel.findByIdAndDelete(compendiumId, { session })
       ]);
 
@@ -142,7 +141,8 @@ export class TransactionService {
           documentType: 'item',
           compendiumId: { $exists: true, $nin: validIds } 
         }, { session }),
-        VTTDocumentModel.deleteMany({ 
+        DocumentModel.deleteMany({ 
+          documentType: 'vtt-document',
           compendiumId: { $exists: true, $nin: validIds } 
         }, { session })
       ]);

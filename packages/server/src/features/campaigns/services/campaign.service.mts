@@ -1,7 +1,7 @@
 import { Types } from 'mongoose';
 import { ICampaign, ICampaignPatchData, IUser, IGameSession, IEncounter } from '@dungeon-lab/shared/types/index.mjs';
 import { CampaignModel } from '../models/campaign.model.mjs';
-import { ActorDocumentModel } from '../../documents/models/actor-document.model.mjs';
+import { DocumentService } from '../../documents/services/document.service.mjs';
 import { logger } from '../../../utils/logger.mjs';
 import { pluginRegistry } from '../../../services/plugin-registry.service.mjs';
 import { deepMerge } from '@dungeon-lab/shared/utils/index.mjs';
@@ -24,8 +24,8 @@ export class CampaignService {
       const userObjectId = new Types.ObjectId(userId);
 
       // First get all actors belonging to the user
-      const userActors = await ActorDocumentModel.find({ createdBy: userObjectId });
-      const actorIds = userActors.map((actor) => actor._id);
+      const userActors = await DocumentService.find({ createdBy: userId, documentType: 'actor' });
+      const actorIds = userActors.map((actor) => actor.id);
 
       // Convert query to case-insensitive regex for string values
       // Only convert simple string values, not nested paths
@@ -87,7 +87,7 @@ export class CampaignService {
     if (!campaign) {
       throw new Error('Campaign not found');
     }
-    const actors = await ActorDocumentModel.find({ _id: { $in: campaign.characterIds } });
+    const actors = await DocumentService.find({ _id: { $in: campaign.characterIds }, documentType: 'actor' });
     const usersPromises = actors.map(async (actor) => await UserModel.findById(actor.createdBy));
     const users = await Promise.all(usersPromises);
     return users.filter((user) => user !== null) as IUser[];
@@ -181,9 +181,8 @@ export class CampaignService {
       }
 
       // Check if user is GM or has a character in the campaign
-      const userObjectId = new Types.ObjectId(userId);
-      const userActors = await ActorDocumentModel.find({ createdBy: userObjectId });
-      const actorIds = userActors.map((actor) => actor._id.toString());
+      const userActors = await DocumentService.find({ createdBy: userId, documentType: 'actor' });
+      const actorIds = userActors.map((actor) => actor.id);
 
       const isGM = campaign.gameMasterId?.toString() === userId;
       const hasCharacter = campaign.characterIds.some((characterId) =>
@@ -211,10 +210,11 @@ export class CampaignService {
     }
     
     // Check if user has any characters in this campaign by looking at the actors
-    const userCharactersInCampaign = await ActorDocumentModel.find({
+    const userCharactersInCampaign = await DocumentService.find({
       _id: { $in: campaign.characterIds },
-      createdBy: userId
-    }).exec();
+      createdBy: userId,
+      documentType: 'actor'
+    });
     
     return userCharactersInCampaign.length > 0;
   }
@@ -232,10 +232,9 @@ export class CampaignService {
       //   return true;
       // }
 
-      // Get all actors belonging to the user
-      const actorObjectId = new Types.ObjectId(actorId);
-      const actor = await ActorDocumentModel.findById(actorObjectId);
-      if (!actor) {
+      // Get the actor
+      const actor = await DocumentService.findById(actorId);
+      if (!actor || actor.documentType !== 'actor') {
         throw new Error('Actor not found');
       }
 

@@ -1,9 +1,10 @@
 import { backgroundJobService } from '../../../services/background-job.service.mjs';
-import { ActorDocumentModel } from '../../documents/models/actor-document.model.mjs';
+import { DocumentService } from '../../documents/services/document.service.mjs';
 import { logger } from '../../../utils/logger.mjs';
 import { generateActorAvatar, generateActorToken } from '../utils/actor-image-generator.mjs';
 import type { Job } from '@pulsecron/pulse';
 import { createAsset } from '../../../utils/asset-upload.utils.mjs';
+import type { IActor } from '@dungeon-lab/shared/types/index.mjs';
 
 // Job names
 export const ACTOR_AVATAR_GENERATION_JOB = 'generate-actor-avatar';
@@ -14,7 +15,6 @@ export const ACTOR_TOKEN_GENERATION_JOB = 'generate-actor-token';
  */
 export async function registerActorImageJobs(): Promise<void> {
   logger.info('Registering actor avatar and token job handlers...');
-  const ActorModel = ActorDocumentModel;
   
   // Register actor avatar generation job
   backgroundJobService.defineJob(
@@ -29,8 +29,8 @@ export async function registerActorImageJobs(): Promise<void> {
       logger.info(`Starting avatar generation job for actor ${actorId}`);
       
       // Get the actor document
-      const actor = await ActorModel.findById(actorId);
-      if (!actor) {
+      const actor = await DocumentService.findById<IActor>(actorId);
+      if (!actor || actor.documentType !== 'actor') {
         throw new Error(`Actor not found with ID: ${actorId}`);
       }
       
@@ -40,8 +40,7 @@ export async function registerActorImageJobs(): Promise<void> {
         const avatarAsset = await createAsset(avatarFile, 'actors', userId);
         
         // Update the actor with the avatar ID
-        actor.avatarId = avatarAsset.id;
-        await actor.save();
+        await DocumentService.updateById(actorId, { avatarId: avatarAsset.id });
         
         logger.info(`Actor avatar generated successfully for actor ${actorId}`);
         
@@ -73,8 +72,8 @@ export async function registerActorImageJobs(): Promise<void> {
       logger.info(`Starting token generation job for actor ${actorId}`);
       
       // Get the actor document
-      const actor = await ActorModel.findById(actorId);
-      if (!actor) {
+      const actor = await DocumentService.findById<IActor>(actorId);
+      if (!actor || actor.documentType !== 'actor') {
         throw new Error(`Actor not found with ID: ${actorId}`);
       }
       
@@ -84,9 +83,10 @@ export async function registerActorImageJobs(): Promise<void> {
         const tokenAsset = await createAsset(tokenFile, 'actors/tokens', userId);
         
         // Update the actor with the token ID
-        actor.defaultTokenImageId = tokenAsset.id;
-        actor.updatedBy = userId;
-        await actor.save();
+        await DocumentService.updateById(actorId, { 
+          defaultTokenImageId: tokenAsset.id,
+          updatedBy: userId 
+        });
         
         logger.info(`Actor token generated successfully for actor ${actorId}`);
       } catch (error) {
