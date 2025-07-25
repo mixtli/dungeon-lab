@@ -4,7 +4,6 @@ export const compendiumManifestSchema = z.object({
   name: z.string().min(1).max(255),
   description: z.string().optional(),
   version: z.string(),
-  gameSystemId: z.string(),
   pluginId: z.string(),
   authors: z.array(z.string()).optional(),
   license: z.string().optional(),

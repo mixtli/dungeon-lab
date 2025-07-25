@@ -7,7 +7,7 @@ This document outlines the migration from the current MongoDB structure with sep
 ### Migration Goals
 
 1. **Plugin Agnosticism**: Remove all game system assumptions from core schemas
-2. **Unified Document Model**: Consolidate Actor, Item, and VTTDocument into single collection
+2. **Unified Document Model**: Consolidate Actor, Item, and VTTDocument into single collection (Maps and Encounters remain separate as infrastructure/session state)
 3. **GM-Authoritative Alignment**: Keep server schemas minimal for message routing
 4. **No Backward Compatibility**: Clean migration without legacy support (greenfield app)
 
@@ -2279,10 +2279,28 @@ The unified Document model integrates with the **GM-Authoritative Aggregate Arch
 
 #### 1. Campaign Aggregate (Persistence Layer)
 ```typescript
-// Campaign Aggregate - manages persistent data integrity
+// Campaign Aggregate - manages persistent data integrity and VTT infrastructure
 class CampaignAggregate {
   private campaignId: string;
+  private gmId: string;
+  private pluginId: string;
   private pluginData: Record<string, unknown>;
+  
+  constructor(campaignId: string) {
+    this.campaignId = campaignId;
+    // Load campaign data on initialization
+    this.loadCampaignData();
+  }
+  
+  private async loadCampaignData(): Promise<void> {
+    const campaign = await CampaignModel.findById(this.campaignId);
+    if (!campaign) {
+      throw new Error('Campaign not found');
+    }
+    this.gmId = campaign.gmId;
+    this.pluginId = campaign.pluginId;
+    this.pluginData = campaign.pluginData || {};
+  }
   
   // Ensure all documents belong to this campaign
   async validateCampaignBoundaries(document: IDocument): Promise<boolean> {
@@ -2294,11 +2312,51 @@ class CampaignAggregate {
   
   // Enforce GM authority over campaign data
   async enforceAuthorityRules(userId: string, operation: string): Promise<boolean> {
-    const campaign = await CampaignModel.findById(this.campaignId);
-    if (campaign.gmId !== userId && !operation.startsWith('read')) {
+    if (this.gmId !== userId && !operation.startsWith('read')) {
       throw new Error('Only GM can modify campaign data');
     }
     return true;
+  }
+  
+  // VTT infrastructure operations that server can handle directly
+  async performInfrastructureAction(action: InfrastructureAction): Promise<any> {
+    await this.validateCampaignBoundaries(action);
+    await this.enforceInvariants(action);
+    
+    // Delegate to universal inventory service for inventory operations
+    if (this.isInventoryAction(action)) {
+      const inventoryService = new UniversalInventoryService(this.campaignId);
+      return await inventoryService.handleAction(action);
+    }
+    
+    // Handle other VTT infrastructure actions
+    return await this.handleVTTInfrastructure(action);
+  }
+  
+  private async enforceInvariants(action: InfrastructureAction): Promise<void> {
+    // Ensure referential integrity for universal inventory
+    if (action.type === 'add_to_inventory' || action.type === 'equip_item') {
+      const item = await DocumentModel.findById(action.itemId);
+      if (!item || item.campaignId !== this.campaignId || item.documentType !== 'Item') {
+        throw new Error('Invalid item reference');
+      }
+    }
+    
+    // Ensure actor ownership for inventory operations
+    if (action.actorId) {
+      const actor = await DocumentModel.findById(action.actorId);
+      if (!actor || actor.campaignId !== this.campaignId || actor.documentType !== 'Actor') {
+        throw new Error('Invalid actor reference');
+      }
+    }
+  }
+  
+  private isInventoryAction(action: InfrastructureAction): boolean {
+    const inventoryActions = [
+      'add_to_inventory', 'remove_from_inventory', 'equip_item', 'unequip_item',
+      'move_inventory_item', 'update_inventory_quantity', 'organize_inventory'
+    ];
+    return inventoryActions.includes(action.type);
   }
   
   // Manage campaign-level plugin state
@@ -2309,46 +2367,213 @@ class CampaignAggregate {
       { $set: { [`pluginData.${pluginId}`]: data } }
     );
   }
+  
+  // Get full campaign data for session state reconstitution
+  async getFullCampaignData(): Promise<CampaignData> {
+    const campaign = await CampaignModel.findById(this.campaignId)
+      .populate('characterIds')
+      .lean();
+    
+    return {
+      ...campaign,
+      documents: await this.getCampaignDocuments(),
+      pluginConfig: this.pluginData[this.pluginId] || {}
+    };
+  }
+  
+  private async getCampaignDocuments(): Promise<IDocument[]> {
+    return DocumentModel.find({ campaignId: this.campaignId })
+      .populate('image')
+      .populate('avatar') 
+      .populate('tokenImage')
+      .lean();
+  }
 }
 ```
 
 #### 2. GameSession Aggregate (Runtime Layer)
 ```typescript
-// GameSession Aggregate - manages active gameplay and socket.io
+// GameSession Aggregate - manages active gameplay and socket.io rooms
 class GameSessionAggregate {
   private sessionId: string;        // Used as socket.io room ID
   private campaignAggregate: CampaignAggregate;
+  private gmSocketId: string;
+  private playerSockets: Map<string, string> = new Map(); // playerId -> socketId
   
   // Runtime state (not persisted in unified Document collection)
   private currentMapId?: string;
-  private mapViewState?: {
-    centerX: number;
-    centerY: number;
-    zoom: number;
-    rotation: number;
-  };
-  private activeEncounter?: {
-    id: string;
-    initiativeOrder: any[];
-    currentTurn: number;
-    round: number;
-    phase: 'setup' | 'combat' | 'resolution';
-    participants: any[];
-    combatState: any;
-  };
-  private playerPermissions: Map<string, {
-    canMoveTokens: boolean;
-    canRevealAreas: boolean;
-    viewRestrictedAreas: boolean;
-    revealedAreas: any[];
-    fogOfWarEnabled: boolean;
-  }> = new Map();
-  private sessionSettings = {
-    isPaused: false,
-    allowPlayerActions: true,
-    voiceChatEnabled: false,
-    textChatEnabled: true
-  };
+  private mapViewState?: MapViewState;
+  private activeEncounter?: EncounterState;
+  private pendingActions: ActionMessage[] = [];
+  private playerPermissions: Map<string, SessionPermissions> = new Map();
+  private sessionSettings: SessionSettings;
+  
+  // GM disconnection resilience state
+  private isGMConnected = true;
+  private actionQueue: ActionMessage[] = [];
+  private disconnectionStartTime?: number;
+  private heartbeatInterval?: NodeJS.Timeout;
+  
+  constructor(sessionId: string, campaignId: string, gmSocketId: string) {
+    this.sessionId = sessionId;
+    this.campaignAggregate = new CampaignAggregate(campaignId);
+    this.gmSocketId = gmSocketId;
+    this.sessionSettings = {
+      isPaused: false,
+      allowPlayerActions: true,
+      voiceChatEnabled: false,
+      textChatEnabled: true,
+      turnTimeLimit: 120
+    };
+    
+    // Initialize GM heartbeat monitoring
+    this.startGMHeartbeatMonitoring();
+  }
+  
+  // GM Disconnection Resilience Implementation
+  private startGMHeartbeatMonitoring(): void {
+    this.heartbeatInterval = setInterval(() => {
+      io.to(this.gmSocketId).emit('heartbeat:ping', { timestamp: Date.now() });
+    }, 5000); // 5 second intervals
+    
+    // Set up 15 second timeout
+    setTimeout(() => {
+      if (this.isGMConnected) {
+        this.handleGMTimeout();
+      }
+    }, 15000);
+  }
+  
+  onGMHeartbeatResponse(): void {
+    this.isGMConnected = true;
+    this.disconnectionStartTime = undefined;
+  }
+  
+  private handleGMTimeout(): void {
+    if (!this.isGMConnected) return; // Already handling disconnection
+    
+    this.isGMConnected = false;
+    this.disconnectionStartTime = Date.now();
+    this.pauseActionProcessing();
+    
+    this.broadcastToRoom('gm:disconnected', {
+      message: 'GM disconnected - game paused',
+      timestamp: Date.now(),
+      estimatedReconnectTime: 'Unknown'
+    });
+  }
+  
+  onGMReconnect(newSocketId: string): void {
+    if (this.isGMConnected) return; // Already connected
+    
+    this.gmSocketId = newSocketId;
+    this.isGMConnected = true;
+    const disconnectionDuration = this.disconnectionStartTime ? 
+      Date.now() - this.disconnectionStartTime : 0;
+    
+    this.resumeActionProcessing();
+    
+    this.broadcastToRoom('gm:reconnected', {
+      message: 'GM reconnected - game resumed',
+      timestamp: Date.now(),
+      disconnectionDuration
+    });
+    
+    // Process queued actions in chronological order
+    this.processQueuedActions();
+  }
+  
+  private pauseActionProcessing(): void {
+    this.sessionSettings.isPaused = true;
+    this.sessionSettings.allowPlayerActions = false;
+  }
+  
+  private resumeActionProcessing(): void {
+    this.sessionSettings.isPaused = false;
+    this.sessionSettings.allowPlayerActions = true;
+  }
+  
+  private async processQueuedActions(): Promise<void> {
+    // Sort actions chronologically
+    this.actionQueue.sort((a, b) => a.timestamp - b.timestamp);
+    
+    for (const action of this.actionQueue) {
+      try {
+        await this.processGameAction(action);
+      } catch (error) {
+        console.error(`Failed to process queued action ${action.id}:`, error);
+        // Send error to action originator
+        io.to(`user:${action.playerId}`).emit('action:error', {
+          actionId: action.id,
+          error: 'Failed to process after GM reconnection'
+        });
+      }
+    }
+    
+    this.actionQueue = [];
+  }
+  
+  // Action Processing with GM Authority
+  async processPlayerAction(playerId: string, action: PlayerAction): Promise<void> {
+    if (!this.isGMConnected) {
+      // Queue action during GM disconnection
+      const actionMessage: ActionMessage = {
+        id: generateId(),
+        playerId,
+        sessionId: this.sessionId,
+        action,
+        timestamp: Date.now(),
+        status: 'queued'
+      };
+      
+      this.actionQueue.push(actionMessage);
+      
+      io.to(`user:${playerId}`).emit('action:queued', {
+        message: 'Action queued - GM disconnected',
+        actionId: actionMessage.id,
+        estimatedProcessingTime: 'When GM reconnects'
+      });
+      
+      return;
+    }
+    
+    // Check if this is VTT infrastructure or game logic
+    if (this.isInfrastructureAction(action)) {
+      await this.handleInfrastructureActionThroughAggregates(playerId, action);
+      return;
+    }
+    
+    // Create message for GM approval
+    const message: ActionMessage = {
+      id: generateId(),
+      playerId,
+      sessionId: this.sessionId,
+      action,
+      timestamp: Date.now(),
+      status: 'pending'
+    };
+    
+    this.pendingActions.push(message);
+    
+    // Send to GM client for processing
+    io.to(this.gmSocketId).emit('action:pending', message);
+    
+    // Notify player action is being processed
+    io.to(`user:${playerId}`).emit('action:processing', {
+      actionId: message.id,
+      message: 'Waiting for GM approval'
+    });
+  }
+  
+  async processGameAction(action: ActionMessage): Promise<void> {
+    // Route to GM client for validation and processing
+    io.to(this.gmSocketId).emit('action:validate', {
+      actionId: action.id,
+      action: action.action,
+      playerId: action.playerId,
+      timestamp: action.timestamp
+    });
+  }
   
   // Broadcast changes to all players in session room
   broadcastToRoom(event: string, data: any): void {
@@ -2414,15 +2639,295 @@ class GameSessionAggregate {
     };
   }
   
+  // Player-Specific Broadcasting Patterns for Unified Document Changes
+  
+  // Broadcast Document changes with player-specific filtering
+  async broadcastDocumentUpdate(documentId: string, changes: any, updatedBy: string): Promise<void> {
+    const document = await DocumentModel.findById(documentId)
+      .populate('image')
+      .populate('avatar')
+      .populate('tokenImage')
+      .lean();
+      
+    if (!document) return;
+    
+    // Different broadcasting patterns based on document type
+    switch (document.documentType) {
+      case 'Actor':
+        await this.broadcastActorUpdate(document, changes, updatedBy);
+        break;
+      case 'Item':
+        await this.broadcastItemUpdate(document, changes, updatedBy);
+        break;
+      default:
+        await this.broadcastPluginDocumentUpdate(document, changes, updatedBy);
+        break;
+    }
+  }
+  
+  // Actor-specific broadcasting with inventory and visibility filtering
+  private async broadcastActorUpdate(actor: any, changes: any, updatedBy: string): Promise<void> {
+    // Get all players who can see this actor
+    const visibleToPlayers = await this.getPlayersWhoCanSeeActor(actor._id);
+    
+    // Filter changes based on player permissions
+    this.broadcastPlayerSpecific('actor:updated', (playerId) => {
+      if (!visibleToPlayers.includes(playerId)) {
+        return null; // Player cannot see this actor
+      }
+      
+      const isOwner = actor.createdBy === playerId;
+      const isGM = this.getPlayerRole(playerId) === 'gm';
+      
+      return {
+        actorId: actor._id,
+        changes: this.filterActorChangesForPlayer(changes, isOwner, isGM),
+        updatedBy,
+        timestamp: Date.now(),
+        
+        // Include inventory changes if player can see them
+        inventory: isOwner || isGM ? actor.inventory : undefined,
+        
+        // Include private notes for owner/GM only
+        userData: isOwner || isGM ? actor.userData : undefined,
+        
+        // Public information always visible
+        name: actor.name,
+        avatarId: actor.avatarId,
+        tokenImageId: actor.tokenImageId,
+        
+        // Computed values that plugins might have updated
+        computed: this.filterComputedValuesForPlayer(actor.computed, isOwner, isGM)
+      };
+    });
+  }
+  
+  // Item-specific broadcasting with ownership and visibility rules
+  private async broadcastItemUpdate(item: any, changes: any, updatedBy: string): Promise<void> {
+    // Find all actors who have this item in their inventory
+    const ownersQuery = await DocumentModel.find({
+      documentType: 'Actor',
+      campaignId: item.campaignId,
+      'inventory.itemId': item._id
+    }).select('_id createdBy').lean();
+    
+    const ownerPlayerIds = ownersQuery.map(actor => actor.createdBy);
+    const gmId = await this.getGMId();
+    
+    // Broadcast to item owners and GM
+    const recipients = [...new Set([...ownerPlayerIds, gmId])];
+    
+    this.broadcastToSpecificPlayers('item:updated', recipients, {
+      itemId: item._id,
+      changes: changes,
+      updatedBy,
+      timestamp: Date.now(),
+      
+      // Full item data for owners/GM
+      item: item,
+      
+      // Inventory context - which actors have this item
+      ownedBy: ownersQuery.map(actor => ({
+        actorId: actor._id,
+        quantity: actor.inventory.find(inv => inv.itemId.toString() === item._id.toString())?.quantity || 0
+      }))
+    });
+  }
+  
+  // Plugin document broadcasting (spells, classes, etc.)
+  private async broadcastPluginDocumentUpdate(document: any, changes: any, updatedBy: string): Promise<void> {
+    // Plugin documents are usually visible to all campaign members
+    const campaignPlayers = await this.getCampaignPlayerIds();
+    
+    this.broadcastToSpecificPlayers('document:updated', campaignPlayers, {
+      documentId: document._id,
+      documentType: document.documentType,
+      pluginDocumentType: document.pluginDocumentType,
+      changes: changes,
+      updatedBy,
+      timestamp: Date.now(),
+      
+      // Public document data
+      name: document.name,
+      description: document.description,
+      imageId: document.imageId,
+      
+      // Plugin data visible to all (spells, classes, etc. are public knowledge)
+      pluginData: document.pluginData
+    });
+  }
+  
+  // Universal inventory change broadcasting
+  async broadcastInventoryChange(actorId: string, inventoryChange: InventoryChange, playerId: string): Promise<void> {
+    const actor = await DocumentModel.findById(actorId).lean();
+    if (!actor || actor.documentType !== 'Actor') return;
+    
+    const isOwner = actor.createdBy === playerId;
+    const isGM = this.getPlayerRole(playerId) === 'gm';
+    
+    // Get affected items for reference
+    const affectedItemIds = [inventoryChange.itemId];
+    const items = await DocumentModel.find({
+      _id: { $in: affectedItemIds },
+      documentType: 'Item'
+    }).lean();
+    
+    // Broadcast to actor owner and GM
+    const recipients = [actor.createdBy];
+    if (!recipients.includes(await this.getGMId())) {
+      recipients.push(await this.getGMId());
+    }
+    
+    this.broadcastToSpecificPlayers('inventory:changed', recipients, {
+      actorId,
+      actorName: actor.name,
+      change: inventoryChange,
+      changedBy: playerId,
+      timestamp: Date.now(),
+      
+      // Include item details for context
+      affectedItems: items,
+      
+      // Current inventory state after change
+      inventory: actor.inventory,
+      
+      // Computed inventory values
+      totalWeight: this.calculateInventoryWeight(actor.inventory),
+      equippedItemsCount: actor.inventory.filter(inv => inv.equipped).length
+    });
+    
+    // Also broadcast to other players if they can see the actor (for equipped items visibility)
+    const visibleToPlayers = await this.getPlayersWhoCanSeeActor(actorId);
+    const otherPlayers = visibleToPlayers.filter(pid => !recipients.includes(pid));
+    
+    if (otherPlayers.length > 0 && inventoryChange.type === 'equip') {
+      this.broadcastToSpecificPlayers('actor:equipment-changed', otherPlayers, {
+        actorId,
+        actorName: actor.name,
+        equippedItem: items.find(item => item._id.toString() === inventoryChange.itemId),
+        slot: inventoryChange.slot,
+        changedBy: playerId,
+        timestamp: Date.now()
+      });
+    }
+  }
+  
+  // Permission-based broadcasting utilities
+  
+  private async getPlayersWhoCanSeeActor(actorId: string): Promise<string[]> {
+    const actor = await DocumentModel.findById(actorId).lean();
+    if (!actor) return [];
+    
+    // Actor is always visible to:
+    // 1. Owner (creator)
+    // 2. GM
+    // 3. Players in same encounter (if actor is participant)
+    // 4. Players who have been granted view permissions
+    
+    const visibleTo = [actor.createdBy, await this.getGMId()];
+    
+    // Add encounter participants
+    if (this.activeEncounter) {
+      const isParticipant = this.activeEncounter.participants.some(p => p.characterId === actorId);
+      if (isParticipant) {
+        visibleTo.push(...Array.from(this.playerSockets.keys()));
+      }
+    }
+    
+    // Add players with explicit view permissions
+    for (const [playerId, permissions] of this.playerPermissions.entries()) {
+      if (permissions.viewRestrictedAreas || permissions.canRevealAreas) {
+        visibleTo.push(playerId);
+      }
+    }
+    
+    return [...new Set(visibleTo)];
+  }
+  
+  private filterActorChangesForPlayer(changes: any, isOwner: boolean, isGM: boolean): any {
+    if (isGM) {
+      return changes; // GM sees everything
+    }
+    
+    if (isOwner) {
+      // Owner sees most things but not GM-specific metadata
+      const filtered = { ...changes };
+      delete filtered.computed?.gmNotes;
+      delete filtered.pluginData?.gmPrivateData;
+      return filtered;
+    }
+    
+    // Other players see only public changes
+    const publicChanges: any = {};
+    if (changes.name) publicChanges.name = changes.name;
+    if (changes.avatarId) publicChanges.avatarId = changes.avatarId;
+    if (changes.tokenImageId) publicChanges.tokenImageId = changes.tokenImageId;
+    
+    // Public computed values only
+    if (changes.computed) {
+      publicChanges.computed = {};
+      if (changes.computed.armorClass) publicChanges.computed.armorClass = changes.computed.armorClass;
+      if (changes.computed.hitPoints) publicChanges.computed.hitPoints = changes.computed.hitPoints;
+    }
+    
+    return Object.keys(publicChanges).length > 0 ? publicChanges : null;
+  }
+  
+  private filterComputedValuesForPlayer(computed: any, isOwner: boolean, isGM: boolean): any {
+    if (!computed) return undefined;
+    
+    if (isGM) return computed; // GM sees all computed values
+    
+    if (isOwner) {
+      // Owner sees most computed values except GM-specific ones
+      const filtered = { ...computed };
+      delete filtered.gmNotes;
+      delete filtered.secretBonuses;
+      return filtered;
+    }
+    
+    // Other players see only public computed values
+    return {
+      armorClass: computed.armorClass,
+      hitPoints: computed.hitPoints,
+      initiative: computed.initiative
+    };
+  }
+  
+  private broadcastToSpecificPlayers(event: string, playerIds: string[], data: any): void {
+    for (const playerId of playerIds) {
+      if (this.playerSockets.has(playerId)) {
+        io.to(`user:${playerId}`).emit(event, data);
+      }
+    }
+  }
+  
+  private async getCampaignPlayerIds(): Promise<string[]> {
+    const campaign = await CampaignModel.findById(this.campaignAggregate.id).lean();
+    if (!campaign) return [];
+    
+    return [
+      campaign.gmId,
+      ...Array.from(this.playerSockets.keys()).filter(pid => pid !== campaign.gmId)
+    ];
+  }
+  
+  private calculateInventoryWeight(inventory: any[]): number {
+    // Universal inventory weight calculation
+    return inventory.reduce((total, inv) => {
+      // Weight calculation would be enhanced by plugin, but we can provide basic calculation
+      return total + (inv.quantity * (inv.metadata?.weight || 0));
+    }, 0);
+  }
+  
   // Runtime state management (separate from persistent Document storage)
   async setCurrentMap(mapId: string, gmId: string): Promise<void> {
     await this.validateGMAuthority(gmId, 'set_map');
     
-    // Verify map exists in unified Document collection
-    const map = await DocumentModel.findOne({
+    // Verify map exists in Map collection (separate from unified Document collection)
+    const map = await MapModel.findOne({
       _id: mapId,
-      campaignId: this.campaignAggregate.id,
-      documentType: 'Map' // Maps could be part of unified collection
+      campaignId: this.campaignAggregate.id
     });
     
     if (!map) {
@@ -2443,7 +2948,7 @@ class GameSessionAggregate {
   async startEncounter(encounterData: any, gmId: string): Promise<void> {
     await this.validateGMAuthority(gmId, 'start_encounter');
     
-    // Validate all participants exist in unified Document collection
+    // Validate all participants exist in unified Document collection (Actor documents)
     const participantIds = encounterData.participants.map(p => p.characterId);
     const characters = await DocumentModel.find({
       _id: { $in: participantIds },
@@ -2525,21 +3030,26 @@ This separation ensures:
 ### Document Middleware for Aggregate Validation
 
 ```typescript
-// Document validation middleware that enforces aggregate boundaries
+// Comprehensive Document validation middleware that enforces aggregate boundaries and GM authority
 baseMongooseSchema.pre('save', async function(next) {
   try {
-    // Validate campaign boundaries
+    // 1. Validate campaign boundaries and authority
     if (this.campaignId) {
       const campaignAggregate = new CampaignAggregate(this.campaignId);
       await campaignAggregate.validateCampaignBoundaries(this);
+      
+      // Enforce GM authority rules
+      const modifyingUserId = this.updatedBy || this.createdBy;
+      if (modifyingUserId) {
+        await campaignAggregate.enforceAuthorityRules(modifyingUserId, 'modify');
+      }
     }
     
-    // Enforce authority rules
-    const modifyingUserId = this.updatedBy || this.createdBy;
-    if (modifyingUserId && this.campaignId) {
-      const campaignAggregate = new CampaignAggregate(this.campaignId);
-      await campaignAggregate.enforceAuthorityRules(modifyingUserId, 'modify');
-    }
+    // 2. VTT Infrastructure validation (universal concepts)
+    await this.validateVTTInfrastructure();
+    
+    // 3. Document type specific validation
+    await this.validateDocumentTypeSpecific();
     
     next();
   } catch (error) {
@@ -2547,9 +3057,66 @@ baseMongooseSchema.pre('save', async function(next) {
   }
 });
 
-// Inventory validation with campaign boundary enforcement
-baseMongooseSchema.pre('save', async function(next) {
-  if (this.documentType === 'Actor' && this.isModified('inventory')) {
+// VTT Infrastructure validation method
+baseMongooseSchema.methods.validateVTTInfrastructure = async function() {
+  // Validate asset references (avatars, tokens, images)
+  if (this.avatarId) {
+    const avatar = await AssetModel.findById(this.avatarId);
+    if (!avatar) {
+      throw new Error('Avatar asset not found');
+    }
+    if (avatar.campaignId && avatar.campaignId !== this.campaignId) {
+      throw new Error('Avatar asset belongs to different campaign');
+    }
+  }
+  
+  if (this.tokenImageId) {
+    const tokenImage = await AssetModel.findById(this.tokenImageId);
+    if (!tokenImage) {
+      throw new Error('Token image asset not found');
+    }
+    if (tokenImage.campaignId && tokenImage.campaignId !== this.campaignId) {
+      throw new Error('Token image asset belongs to different campaign');
+    }
+  }
+  
+  if (this.imageId) {
+    const image = await AssetModel.findById(this.imageId);
+    if (!image) {
+      throw new Error('Image asset not found');
+    }
+    if (image.campaignId && image.campaignId !== this.campaignId) {
+      throw new Error('Image asset belongs to different campaign');
+    }
+  }
+  
+  // Validate plugin consistency
+  if (this.campaignId) {
+    const campaign = await CampaignModel.findById(this.campaignId);
+    if (campaign && campaign.pluginId !== this.pluginId) {
+      throw new Error('Document plugin does not match campaign plugin');
+    }
+  }
+};
+
+// Document type specific validation
+baseMongooseSchema.methods.validateDocumentTypeSpecific = async function() {
+  switch (this.documentType) {
+    case 'Actor':
+      await this.validateActorDocument();
+      break;
+    case 'Item':
+      await this.validateItemDocument();
+      break;
+    default:
+      await this.validatePluginDocument();
+      break;
+  }
+};
+
+// Actor-specific validation with universal inventory
+baseMongooseSchema.methods.validateActorDocument = async function() {
+  if (this.isModified('inventory')) {
     const inventory = this.inventory || [];
     const itemIds = inventory.map(inv => inv.itemId);
     
@@ -2566,7 +3133,218 @@ baseMongooseSchema.pre('save', async function(next) {
         const missingIds = itemIds.filter(id => !foundIds.includes(id.toString()));
         throw new Error(`Invalid cross-campaign item references: ${missingIds.join(', ')}`);
       }
+      
+      // Validate inventory structure
+      for (const invItem of inventory) {
+        if (invItem.quantity < 0) {
+          throw new Error('Inventory quantity cannot be negative');
+        }
+        if (invItem.condition !== undefined && (invItem.condition < 0 || invItem.condition > 100)) {
+          throw new Error('Item condition must be between 0 and 100');
+        }
+        
+        // Validate equipment slots are not duplicated
+        if (invItem.equipped && invItem.slot) {
+          const duplicateSlot = inventory.find(other => 
+            other !== invItem && 
+            other.equipped && 
+            other.slot === invItem.slot
+          );
+          if (duplicateSlot) {
+            throw new Error(`Multiple items equipped in slot: ${invItem.slot}`);
+          }
+        }
+      }
     }
+  }
+  
+  // Validate required Actor fields
+  if (!this.pluginDocumentType) {
+    throw new Error('Actor must have pluginDocumentType (character, npc, monster, etc.)');
+  }
+};
+
+// Item-specific validation
+baseMongooseSchema.methods.validateItemDocument = async function() {
+  // Items should not have inventory (only Actors have inventory)
+  if (this.inventory && this.inventory.length > 0) {
+    throw new Error('Items cannot have inventory - only Actors can have inventory');
+  }
+  
+  // Validate required Item fields
+  if (!this.pluginDocumentType) {
+    throw new Error('Item must have pluginDocumentType (weapon, armor, tool, etc.)');
+  }
+  
+  // Validate item ownership patterns
+  if (this.campaignId && this.pluginData?.compendiumId) {
+    // This is a campaign-specific item based on a compendium template
+    const compendiumItem = await DocumentModel.findById(this.pluginData.compendiumId);
+    if (compendiumItem && compendiumItem.campaignId) {
+      throw new Error('Compendium items should not have campaignId set');
+    }
+  }
+};
+
+// Plugin document validation (Class, Spell, etc.)
+baseMongooseSchema.methods.validatePluginDocument = async function() {
+  // Plugin documents typically belong to compendiums, not campaigns
+  if (this.pluginData?.compendiumId && this.campaignId) {
+    console.warn(`Plugin document ${this._id} has both compendiumId and campaignId - this may indicate campaign-specific customization`);
+  }
+  
+  // Validate slug uniqueness within plugin + documentType + compendium
+  if (this.pluginData?.slug && this.pluginData?.compendiumId) {
+    const existing = await DocumentModel.findOne({
+      'pluginData.slug': this.pluginData.slug,
+      pluginId: this.pluginId,
+      documentType: this.documentType,
+      'pluginData.compendiumId': this.pluginData.compendiumId,
+      _id: { $ne: this._id }
+    });
+    
+    if (existing) {
+      throw new Error(`Document with slug "${this.pluginData.slug}" already exists in compendium`);
+    }
+  }
+};
+
+// GM Authority validation for document operations
+baseMongooseSchema.pre('findOneAndUpdate', async function(next) {
+  try {
+    const docId = this.getQuery()._id;
+    const updates = this.getUpdate();
+    
+    // Skip validation for system operations
+    if (updates.$system) {
+      return next();
+    }
+    
+    const document = await DocumentModel.findById(docId);
+    if (!document) {
+      return next();
+    }
+    
+    // Check if this update requires GM authority
+    const requiresGMAuth = this.requiresGMAuthority(updates, document);
+    if (requiresGMAuth) {
+      const campaign = await CampaignModel.findById(document.campaignId);
+      const updatingUserId = updates.updatedBy || updates.$set?.updatedBy;
+      
+      if (campaign && updatingUserId !== campaign.gmId) {
+        throw new Error('This operation requires GM authority');
+      }
+    }
+    
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Determine if update requires GM authority
+baseMongooseSchema.methods.requiresGMAuthority = function(updates, document) {
+  const sensitiveFields = [
+    'pluginData',           // Game mechanics changes
+    'inventory',            // Inventory manipulation outside normal rules
+    'campaignId',           // Changing ownership
+    'pluginDocumentType'    // Changing document subtype
+  ];
+  
+  const directStatChanges = [
+    'pluginData.hitPoints',
+    'pluginData.level',
+    'pluginData.experience',
+    'pluginData.stats',
+    'pluginData.abilities'
+  ];
+  
+  // Check for direct sensitive field modifications
+  for (const field of sensitiveFields) {
+    if (updates[field] !== undefined || updates.$set?.[field] !== undefined) {
+      return true;
+    }
+  }
+  
+  // Check for nested pluginData modifications that affect stats
+  for (const path of directStatChanges) {
+    if (updates.$set?.[path] !== undefined || updates.$unset?.[path] !== undefined) {
+      return true;
+    }
+  }
+  
+  // Inventory changes that bypass normal rules
+  if (updates.inventory || updates.$push?.inventory || updates.$pull?.inventory) {
+    // Check if this is an unusual inventory change
+    const newInventory = updates.inventory || updates.$push?.inventory;
+    if (newInventory) {
+      // Adding items with unusual properties requires GM approval
+      const hasUnusualProperties = newInventory.some(item => 
+        item.metadata?.gmGranted || 
+        item.metadata?.customProperties ||
+        item.quantity > 1000  // Unusually large quantities
+      );
+      
+      if (hasUnusualProperties) {
+        return true;
+      }
+    }
+  }
+  
+  return false;
+};
+
+// Cleanup orphaned documents when campaign is deleted
+baseMongooseSchema.pre('findOneAndDelete', async function(next) {
+  const document = await this.model.findOne(this.getQuery());
+  
+  if (document?.campaignId) {
+    // Check if campaign is being deleted
+    const campaign = await CampaignModel.findById(document.campaignId);
+    if (!campaign) {
+      // Campaign was deleted, this document can be safely removed
+      return next();
+    }
+  }
+  
+  // For Actor documents, handle inventory cleanup
+  if (document?.documentType === 'Actor' && document.inventory?.length > 0) {
+    await this.cleanupActorInventory(document);
+  }
+  
+  next();
+});
+
+// Cleanup actor inventory when actor is deleted
+baseMongooseSchema.methods.cleanupActorInventory = async function(actor) {
+  const itemIds = actor.inventory.map(inv => inv.itemId);
+  
+  for (const itemId of itemIds) {
+    // Check if this item is owned by other actors
+    const otherOwners = await DocumentModel.countDocuments({
+      documentType: 'Actor',
+      'inventory.itemId': itemId,
+      _id: { $ne: actor._id }
+    });
+    
+    // If no other actors own this item, check if it's a campaign-specific item
+    if (otherOwners === 0) {
+      const item = await DocumentModel.findById(itemId);
+      if (item && item.campaignId && !item.pluginData?.compendiumId) {
+        // This is a campaign-specific item with no other owners - safe to delete
+        await DocumentModel.findByIdAndDelete(itemId);
+      }
+    }
+  }
+};
+
+// Plugin data validation hook (for future plugin validation extensions)
+baseMongooseSchema.pre('save', async function(next) {
+  // Future: Plugins could register validation hooks here
+  // For now, pluginData is schema-less and validated by plugins
+  
+  if (this.pluginData && typeof this.pluginData !== 'object') {
+    throw new Error('pluginData must be an object');
   }
   
   next();
@@ -2751,27 +3529,144 @@ const actionFlow = {
 };
 ```
 
-## Migration Timeline
+## Migration Timeline with GM-Authoritative Integration
 
-### Week 1: Preparation
+### Week 1: Preparation and Schema Coordination
 - [ ] Create new Document schema and model
+- [ ] **Coordinate with Socket Event Schema Updates**
+  - [ ] Update socket schemas for discriminated union action events 
+  - [ ] Add GM heartbeat and disconnection event schemas
+  - [ ] Create migration scripts for socket event compatibility
 - [ ] Write migration scripts
 - [ ] Write validation scripts
 - [ ] Create backup procedures
+- [ ] **Test GameSession Aggregate Integration**
+  - [ ] Verify aggregate patterns work with unified Document collection
+  - [ ] Test player-specific state filtering
+  - [ ] Validate GM authority enforcement
 
-### Week 2: Migration Execution
+### Week 2: Migration Execution and Runtime Integration
 - [ ] Backup production database
 - [ ] Run migration on staging environment
+- [ ] **Deploy Socket Event Schema Updates**
+  - [ ] Update shared socket schemas with new action patterns
+  - [ ] Deploy GM heartbeat monitoring infrastructure
+  - [ ] Test action queuing during GM disconnections
 - [ ] Validate migration results
+- [ ] **Test Aggregate Architecture Integration**
+  - [ ] Verify Campaign aggregate works with unified Documents
+  - [ ] Test GameSession aggregate runtime state management
+  - [ ] Validate cross-aggregate communication patterns
 - [ ] Test application functionality
 - [ ] Deploy to production during maintenance window
 
-### Week 3: Cleanup and Optimization
+### Week 3: Cleanup, Optimization and Full Integration
 - [ ] Remove old model files
 - [ ] Drop old collections
 - [ ] Optimize indexes
+- [ ] **Complete GM-Authoritative Integration**
+  - [ ] Enable discriminated union action event processing
+  - [ ] Activate GM disconnection resilience features
+  - [ ] Deploy player-specific broadcasting patterns
 - [ ] Update API documentation
 - [ ] Update client code to use new endpoints
+- [ ] **Performance Optimization**
+  - [ ] Monitor aggregate performance under load
+  - [ ] Optimize Document collection queries
+  - [ ] Tune session state broadcasting efficiency
+
+### Socket Event Schema Migration Coordination
+
+#### Phase 1: Preparation (Week 1)
+```typescript
+// Add new action event schemas to shared package
+// packages/shared/src/schemas/socket/actions.mts
+export const gameActionRequestSchema = z.discriminatedUnion('type', [
+  attackActionSchema,
+  spellActionSchema,
+  skillCheckActionSchema,
+  itemUseActionSchema,
+  creativeActionSchema
+]);
+
+// GM disconnection event schemas
+export const gmHeartbeatSchema = z.object({
+  timestamp: z.number(),
+  sessionId: z.string()
+});
+
+export const gmDisconnectedSchema = z.object({
+  message: z.string(),
+  timestamp: z.number(),
+  estimatedReconnectTime: z.string()
+});
+
+export const actionQueuedSchema = z.object({
+  actionId: z.string(),
+  message: z.string(),
+  estimatedProcessingTime: z.string()
+});
+```
+
+#### Phase 2: Deployment (Week 2)
+```typescript
+// Update client-to-server events
+export const clientToServerEvents = z.object({
+  // Existing infrastructure events remain unchanged
+  'token:move': z.function().args(...tokenMoveArgsSchema.items).returns(z.void()),
+  'actor:get': z.function().args(...actorGetArgsSchema.items).returns(z.void()),
+  
+  // NEW: Single authority event for game actions
+  'action:request': z.function()
+    .args(gameActionRequestSchema)
+    .returns(z.void()),
+    
+  // NEW: GM heartbeat response
+  'heartbeat:pong': z.function()
+    .args(gmHeartbeatSchema)
+    .returns(z.void()),
+});
+
+// Update server-to-client events
+export const serverToClientEvents = z.object({
+  // Existing events remain unchanged
+  'chat': z.function().args(messageMetadataSchema, z.string()).returns(z.void()),
+  
+  // NEW: Action processing events
+  'action:pending': z.function().args(actionMessage).returns(z.void()),
+  'action:queued': z.function().args(actionQueuedSchema).returns(z.void()),
+  'action:processing': z.function().args(actionStatusSchema).returns(z.void()),
+  
+  // NEW: GM connection events
+  'gm:disconnected': z.function().args(gmDisconnectedSchema).returns(z.void()),
+  'gm:reconnected': z.function().args(gmReconnectedSchema).returns(z.void()),
+  'heartbeat:ping': z.function().args(gmHeartbeatSchema).returns(z.void()),
+});
+```
+
+#### Phase 3: Integration (Week 3)
+- Enable action event processing in GameSession aggregate
+- Activate GM disconnection monitoring
+- Switch clients to use new discriminated union action events
+- Monitor and optimize performance
+
+### Migration Dependency Matrix
+
+```
+Document Migration Dependencies:
+├── Socket Schema Updates (Parallel - Week 1-2)
+│   ├── Action event discriminated unions
+│   ├── GM heartbeat event schemas  
+│   └── Action queuing event schemas
+├── Aggregate Architecture (Sequential - Week 2-3)
+│   ├── Campaign aggregate (depends on Document migration)
+│   ├── GameSession aggregate (depends on socket schemas)
+│   └── Cross-aggregate communication (depends on both)
+└── Player Broadcasting (Sequential - Week 3)
+    ├── Permission-based filtering (depends on aggregates)
+    ├── State synchronization (depends on Document migration)
+    └── Real-time updates (depends on socket schemas)
+```
 
 ## Risk Mitigation
 

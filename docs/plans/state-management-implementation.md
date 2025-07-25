@@ -6,9 +6,9 @@ This document outlines the implementation plan for the GM-authoritative state ma
 
 ## Overview
 
-The implementation introduces a two-layer aggregate pattern separating runtime (GameSession) from persistence (Campaign), unified document storage with discriminators, and comprehensive state management for VTT operations.
+The implementation introduces a two-layer aggregate pattern separating runtime (GameSession) from persistence (Campaign), unified document storage with discriminators, comprehensive state management for VTT operations, GM-authoritative action processing with disconnection resilience, and sophisticated permission-based broadcasting patterns.
 
-**Estimated Timeline: 5-6 weeks**
+**Estimated Timeline: 6-7 weeks**
 
 ## Phase 1: Foundation - Data Model Migration (Week 1-2)
 
@@ -33,25 +33,43 @@ The implementation introduces a two-layer aggregate pattern separating runtime (
 
 **✅ All TypeScript errors resolved - schema changes working correctly**
 
-### Task 1.2: Create Unified Document Schema
-- [ ] Create new `document.schema.mts` with base document schema
-- [ ] Add discriminator field for document types (actor, item, map, encounter)
-- [ ] Create type-specific schemas extending base document schema
-- [ ] Update existing actor and item schemas to extend document schema
-- [ ] Create map and encounter document schemas
+### Task 1.2: Create Unified Document Schema ✅ **COMPLETED**
+- [x] Create new `document.schema.mts` with base document schema
+- [x] Add discriminator field for document types (actor, item, vtt-document)
+- [x] Create type-specific schemas extending base document schema
+- [x] Update existing actor and item schemas to extend document schema
+- [x] Update VTT document schema to extend document schema
+- [x] Fix legacy gameSystemId references in socket and other schemas
+- [x] Update schema exports in index.mts
 
-**Files to create:**
-- `packages/shared/src/schemas/document.schema.mts`
-- `packages/shared/src/schemas/map-document.schema.mts`
-- `packages/shared/src/schemas/encounter-document.schema.mts`
+**Note**: Maps and Encounters remain in separate collections as they are infrastructure/session state, not compendium content.
 
-**Files to modify:**
-- `packages/shared/src/schemas/actor.schema.mts`
-- `packages/shared/src/schemas/item.schema.mts`
+**Files created:**
+- `packages/shared/src/schemas/document.schema.mts` - Base document schema with discriminator and pluginDocumentType
+
+**Files modified:**
+- `packages/shared/src/schemas/actor.schema.mts` - Now extends baseDocumentSchema
+- `packages/shared/src/schemas/item.schema.mts` - Now extends baseDocumentSchema  
+- `packages/shared/src/schemas/vtt-document.schema.mts` - Now extends baseDocumentSchema
+- `packages/shared/src/schemas/socket/actors.mts` - Updated field names
+- `packages/shared/src/schemas/socket/items.mts` - Updated field names
+- `packages/shared/src/schemas/import.schema.mts` - Fixed gameSystemId reference
+- `packages/shared/src/schemas/compendium.schema.mts` - Fixed gameSystemId reference
+- `packages/shared/src/schemas/index.mts` - Added document schema exports
+
+**Key Changes Made:**
+- All document types now extend `baseDocumentSchema` with common fields
+- Added `pluginDocumentType` field for plugin-specific subtypes
+- Replaced `data` field with `pluginData` from base schema
+- Replaced `gameSystemId` with `pluginId` throughout
+- Replaced `type` field with `pluginDocumentType`
+- VTT infrastructure fields (avatarId, slug) preserved in specific schemas
+
+**⚠️ Known Issue**: TypeScript errors exist due to field name changes. These will be resolved in subsequent tasks that update server/client code to use new field names.
 
 ### Task 1.3: Create Document Model
 - [ ] Create unified DocumentModel with discriminators in `packages/server/src/features/documents/`
-- [ ] Set up discriminator models for Actor, Item, Map, Encounter documents
+- [ ] Set up discriminator models for Actor, Item, VTTDocument documents
 - [ ] Add proper indexing for document types and campaign associations
 - [ ] Create document service layer
 
@@ -59,8 +77,7 @@ The implementation introduces a two-layer aggregate pattern separating runtime (
 - `packages/server/src/features/documents/models/document.model.mts`
 - `packages/server/src/features/documents/models/actor-document.model.mts`
 - `packages/server/src/features/documents/models/item-document.model.mts`
-- `packages/server/src/features/documents/models/map-document.model.mts`
-- `packages/server/src/features/documents/models/encounter-document.model.mts`
+- `packages/server/src/features/documents/models/vtt-document.model.mts`
 - `packages/server/src/features/documents/services/document.service.mts`
 
 ### Task 1.4: Update Campaign Model
@@ -73,27 +90,122 @@ The implementation introduces a two-layer aggregate pattern separating runtime (
 
 ### Task 1.5: Create Migration Scripts
 - [ ] Create migration script to add pluginData to existing campaigns
-- [ ] Create migration script to move actors/items to unified document collection
+- [ ] Create migration script to move actors/items/vtt-documents to unified document collection
 - [ ] Add campaign ownership validation script
 - [ ] Test migration scripts on sample data
+
+**Note**: Maps and encounters remain in their existing collections.
 
 **Files to create:**
 - `packages/server/src/migrations/add-campaign-plugin-data.mts`
 - `packages/server/src/migrations/unify-documents.mts`
 - `packages/server/src/migrations/validate-campaign-ownership.mts`
 
+### Task 1.6: Socket Event Schema Preparation
+- [ ] Create discriminated union schemas for game actions (`action:request` event)
+- [ ] Add GM heartbeat and disconnection event schemas
+- [ ] Add action processing result schemas for different approval outcomes
+- [ ] Coordinate schema migration timeline with database changes
+- [ ] Update socket event exports to include new action schemas
+
+**Files to create:**
+- `packages/shared/src/schemas/socket/actions.mts`
+- `packages/shared/src/schemas/socket/gm-authority.mts`
+- `packages/shared/src/schemas/socket/heartbeat.mts`
+
+**Files to modify:**
+- `packages/shared/src/schemas/socket/index.mts` - Add action and GM authority event exports
+- `packages/shared/src/types/socket/index.mts` - Add type exports for new events
+
+**Key Schema Examples:**
+```typescript
+// Discriminated union for game actions
+export const gameActionRequestSchema = z.discriminatedUnion('type', [
+  attackActionSchema,
+  spellActionSchema,
+  skillCheckActionSchema,
+  itemUseActionSchema,
+  creativeActionSchema
+]);
+
+// GM heartbeat monitoring
+export const gmHeartbeatSchema = z.object({
+  timestamp: z.number(),
+  sessionId: z.string()
+});
+
+// Action processing results
+export const actionResultSchema = z.object({
+  actionId: z.string(),
+  status: z.enum(['approved', 'rejected', 'modified']),
+  result: z.unknown().optional(),
+  reason: z.string().optional()
+});
+```
+
 ## Phase 2: Aggregate Architecture (Week 2-3)
 
-### Task 2.1: Create GameSession Aggregate
+### Task 2.1: Create Enhanced GameSession Aggregate
 - [ ] Create GameSession aggregate class in `packages/server/src/aggregates/`
 - [ ] Implement constructor with campaign loading
 - [ ] Add participant and actor management methods
 - [ ] Add basic state validation methods
 - [ ] Add aggregate boundary enforcement
+- [ ] **NEW: Implement GM disconnection handling with heartbeat monitoring**
+- [ ] **NEW: Add action queuing during GM disconnections**
+- [ ] **NEW: Add reconnection state recovery mechanisms**
+- [ ] **NEW: Add action processing classification (AUTOMATIC/REVIEWABLE/MANUAL_ONLY)**
 
 **Files to create:**
 - `packages/server/src/aggregates/game-session.aggregate.mts`
 - `packages/server/src/aggregates/base.aggregate.mts`
+- `packages/server/src/aggregates/gm-disconnection-handler.mts`
+- `packages/server/src/aggregates/action-processor.mts`
+
+**Key GM Disconnection Features:**
+```typescript
+class GameSession {
+  private isGMConnected = true;
+  private actionQueue: ActionMessage[] = [];
+  private heartbeatInterval?: NodeJS.Timer;
+  private disconnectionStartTime?: number;
+  
+  private startGMHeartbeatMonitoring(): void {
+    this.heartbeatInterval = setInterval(() => {
+      io.to(this.gmSocketId).emit('heartbeat:ping', { 
+        timestamp: Date.now() 
+      });
+    }, 5000); // 5 second intervals
+  }
+  
+  async processPlayerAction(playerId: string, action: PlayerAction): Promise<void> {
+    if (!this.isGMConnected) {
+      // Queue action during GM disconnection
+      const actionMessage: ActionMessage = {
+        id: generateId(),
+        playerId,
+        sessionId: this.sessionId,
+        action,
+        timestamp: Date.now(),
+        status: 'queued'
+      };
+      
+      this.actionQueue.push(actionMessage);
+      
+      io.to(`user:${playerId}`).emit('action:queued', {
+        message: 'Action queued - GM disconnected',
+        actionId: actionMessage.id
+      });
+      
+      return;
+    }
+    
+    // Process normally when GM is connected
+    const processingLevel = this.getActionProcessingLevel(action);
+    await this.handleActionByLevel(action, processingLevel);
+  }
+}
+```
 
 ### Task 2.2: Implement State Reconstitution
 - [ ] Add `getCompleteSessionState()` method to GameSession aggregate
@@ -116,37 +228,129 @@ The implementation introduces a two-layer aggregate pattern separating runtime (
 **Files to create:**
 - `packages/server/src/aggregates/campaign.aggregate.mts`
 
-### Task 2.4: Add Authority Validation Middleware
+### Task 2.4: Add Enhanced Authority Validation Middleware
 - [ ] Create GM authority validation middleware
 - [ ] Add document ownership validation
 - [ ] Implement campaign member validation
 - [ ] Add plugin-specific permission validation
+- [ ] **NEW: Add comprehensive aggregate validation middleware**
+- [ ] **NEW: Add campaign boundary enforcement for all document operations**
+- [ ] **NEW: Add GM authority checks for state-changing operations**
 
 **Files to create:**
 - `packages/server/src/middleware/authority-validation.mts`
+- `packages/server/src/middleware/aggregate-validation.mts`
+- `packages/server/src/middleware/campaign-boundary.mts`
 
-## Phase 3: Enhanced State Management (Week 3-4)
+**Enhanced Validation Examples:**
+```typescript
+// Comprehensive aggregate validation middleware
+baseMongooseSchema.pre('save', async function(next) {
+  if (this.campaignId) {
+    const campaignAggregate = new CampaignAggregate(this.campaignId);
+    await campaignAggregate.validateCampaignBoundaries(this);
+    
+    const modifyingUserId = this.updatedBy || this.createdBy;
+    if (modifyingUserId) {
+      await campaignAggregate.enforceAuthorityRules(modifyingUserId, 'modify');
+    }
+  }
+  
+  await this.validateVTTInfrastructure();
+  await this.validateDocumentTypeSpecific();
+  
+  next();
+});
 
-### Task 3.1: Implement Broadcasting Patterns
-- [ ] Create state broadcasting service
-- [ ] Implement immediate state broadcasting
-- [ ] Add batched state updates 
-- [ ] Create player-specific state filtering
-- [ ] Add full state synchronization
-- [ ] Implement permission-based broadcasting
+// GM authority enforcement
+class GMAuthorityValidator {
+  static async validateGameSessionOperation(
+    sessionId: string, 
+    userId: string, 
+    operation: string
+  ): Promise<void> {
+    const session = await GameSessionService.findById(sessionId);
+    if (session.gmId !== userId) {
+      throw new UnauthorizedError('Only GM can perform this operation');
+    }
+  }
+}
+```
+
+## Phase 3: Sophisticated State Management & Broadcasting (Week 3-4)
+
+### Task 3.1: Implement Advanced Broadcasting Patterns
+- [ ] Create sophisticated state broadcasting service with permission filtering
+- [ ] **NEW: Implement player-specific broadcasting with visibility rules**
+- [ ] **NEW: Add actor-specific broadcasting with inventory and ownership filtering**
+- [ ] **NEW: Add item-specific broadcasting with ownership controls**
+- [ ] **NEW: Add plugin document broadcasting for public knowledge**
+- [ ] **NEW: Add universal inventory change broadcasting**
+- [ ] Add batched state updates with transaction guarantees
+- [ ] Add full state synchronization with version tracking
+- [ ] **NEW: Add permission-based utilities for determining document visibility**
 
 **Files to create:**
 - `packages/server/src/services/state-broadcast.service.mts`
+- `packages/server/src/services/permission-broadcast.service.mts`
+- `packages/server/src/services/visibility-filter.service.mts`
 
-### Task 3.2: Update Socket Handlers
+**Advanced Broadcasting Examples:**
+```typescript
+// Player-specific broadcasting with permission filtering
+private async broadcastActorUpdate(actor: any, changes: any, updatedBy: string): Promise<void> {
+  const visibleToPlayers = await this.getPlayersWhoCanSeeActor(actor._id);
+  
+  this.broadcastPlayerSpecific('actor:updated', (playerId) => {
+    if (!visibleToPlayers.includes(playerId)) {
+      return null;
+    }
+    
+    const isOwner = actor.createdBy === playerId;
+    const isGM = this.getPlayerRole(playerId) === 'gm';
+    
+    return {
+      actorId: actor._id,
+      changes: this.filterActorChangesForPlayer(changes, isOwner, isGM),
+      inventory: isOwner || isGM ? actor.inventory : undefined,
+      userData: isOwner || isGM ? actor.userData : undefined
+    };
+  });
+}
+
+// Universal inventory broadcasting
+private async broadcastInventoryChange(
+  actorId: string, 
+  inventoryChange: InventoryChange, 
+  playerId: string
+): Promise<void> {
+  const characterOwner = await this.getCharacterOwner(actorId);
+  
+  this.broadcastWithPermissions('inventory:changed', {
+    actorId,
+    change: inventoryChange,
+    changedBy: playerId,
+    timestamp: Date.now()
+  }, (recipientId) => 
+    recipientId === characterOwner || this.getPlayerRole(recipientId) === 'gm'
+  );
+}
+```
+
+### Task 3.2: Update Socket Handlers for GM Authority
 - [ ] Update `handleJoinSession` to use `getCompleteSessionState()`
-- [ ] Implement comprehensive state response
-- [ ] Add state version tracking
-- [ ] Update session leave handling
+- [ ] Implement comprehensive state response with player permissions
+- [ ] Add state version tracking and synchronization
+- [ ] Update session leave handling with cleanup
 - [ ] Add error handling for state operations
+- [ ] **NEW: Add GM authority validation to all state-changing handlers**
+- [ ] **NEW: Add GM disconnection detection and handling**
+- [ ] **NEW: Add action queuing for disconnected GM scenarios**
 
 **Files to modify:**
 - `packages/server/src/websocket/socket-server.mts`
+- `packages/server/src/websocket/handlers/session-handler.mts`
+- `packages/server/src/websocket/handlers/gm-authority-handler.mts`
 
 ### Task 3.3: Add Map State Management
 - [ ] Create map state tracking in GameSession
@@ -178,17 +382,20 @@ The implementation introduces a two-layer aggregate pattern separating runtime (
 - `packages/server/src/aggregates/game-session.aggregate.mts`
 - `packages/server/src/aggregates/campaign.aggregate.mts`
 
-## Phase 4: API & Service Updates (Week 4-5)
+## Phase 4: API & Service Updates with Socket Schema Integration (Week 4-5)
 
-### Task 4.1: Update GameSession Service
-- [ ] Refactor GameSessionService to use aggregates
-- [ ] Update session creation to use Campaign aggregate
+### Task 4.1: Update GameSession Service with GM Authority
+- [ ] Refactor GameSessionService to use enhanced aggregates
+- [ ] Update session creation to use Campaign aggregate with pluginData
 - [ ] Modify participant management to use aggregate methods
 - [ ] Update actor management to use document validation
-- [ ] Add comprehensive error handling
+- [ ] Add comprehensive error handling with GM authority checks
+- [ ] **NEW: Add GM disconnection resilience to service layer**
+- [ ] **NEW: Add action processing integration with classification system**
 
 **Files to modify:**
 - `packages/server/src/features/campaigns/services/game-session.service.mts`
+- `packages/server/src/features/campaigns/services/gm-authority.service.mts`
 
 ### Task 4.2: Update Campaign Service
 - [ ] Refactor CampaignService to use Campaign aggregate
@@ -210,22 +417,53 @@ The implementation introduces a two-layer aggregate pattern separating runtime (
 **Files to create:**
 - `packages/server/src/features/documents/services/actor-document.service.mts`
 - `packages/server/src/features/documents/services/item-document.service.mts`
-- `packages/server/src/features/documents/services/map-document.service.mts`
-- `packages/server/src/features/documents/services/encounter-document.service.mts`
+- `packages/server/src/features/documents/services/vtt-document.service.mts`
 
 **Files to modify:**
 - `packages/server/src/features/actors/services/actor.service.mts`
 - `packages/server/src/features/items/services/item.service.mts`
+- `packages/server/src/features/vtt-documents/services/vtt-document.service.mts`
 
-### Task 4.4: Update Socket Event Handlers
-- [ ] Update all socket handlers to use aggregates
+### Task 4.4: Update Socket Event Handlers with Schema Integration
+- [ ] Update all socket handlers to use enhanced aggregates
 - [ ] Add authority validation to state-changing operations
-- [ ] Implement new broadcasting patterns
+- [ ] Implement sophisticated broadcasting patterns with permission filtering
 - [ ] Update error responses to use aggregate validation
-- [ ] Add state version checking
+- [ ] Add state version checking and synchronization
+- [ ] **NEW: Add discriminated union action request handlers**
+- [ ] **NEW: Add GM heartbeat and disconnection event handlers**
+- [ ] **NEW: Add action processing workflow handlers (approve/reject/modify)**
+- [ ] **NEW: Add action queuing handlers for GM disconnection scenarios**
+- [ ] **NEW: Coordinate socket schema migration with database changes**
 
 **Files to modify:**
 - All socket handler files in `packages/server/src/websocket/handlers/`
+- `packages/server/src/websocket/handlers/action-request-handler.mts` (NEW)
+- `packages/server/src/websocket/handlers/gm-heartbeat-handler.mts` (NEW)
+- `packages/server/src/websocket/handlers/action-approval-handler.mts` (NEW)
+
+**Schema Integration Examples:**
+```typescript
+// Updated socket event handlers for discriminated unions
+socket.on('action:request', async (request: GameActionRequest) => {
+  const session = getSession(request.sessionId);
+  
+  // Server validates schema but doesn't understand game semantics
+  const validation = gameActionRequestSchema.safeParse(request);
+  if (!validation.success) {
+    return socket.emit('action:error', { message: 'Invalid action format' });
+  }
+  
+  // Route to GM without understanding what the action is
+  await session.routeActionToGM(request);
+});
+
+// GM heartbeat monitoring
+socket.on('heartbeat:pong', (data: { timestamp: number; sessionId: string }) => {
+  const session = getSession(data.sessionId);
+  session.recordGMHeartbeat(data.timestamp);
+});
+```
 
 ### Task 4.5: Remove Legacy Models (if needed)
 - [ ] ~~Remove ActorModel and ItemModel~~ (Keep for now - maintain separate collections)
@@ -235,51 +473,141 @@ The implementation introduces a two-layer aggregate pattern separating runtime (
 
 **Note**: Based on code examination, we may keep separate Actor/Item models and migrate incrementally.
 
-## Phase 5: Testing & Integration (Week 5-6)
+## Phase 5: Action Processing System Implementation (Week 5-6)
 
-### Task 5.1: Unit Tests for Aggregates
-- [ ] Create unit tests for GameSession aggregate
-- [ ] Test Campaign aggregate functionality
-- [ ] Test state reconstitution methods
-- [ ] Test authority validation
-- [ ] Test invariant enforcement
+### Task 5.1: Implement Action Classification System
+- [ ] Create plugin-configurable action classification (AUTOMATIC/REVIEWABLE/MANUAL_ONLY)
+- [ ] Implement action processing level detection based on plugin configuration
+- [ ] Add GM override settings for action processing levels
+- [ ] Create action escalation logic for edge cases
+- [ ] Add timeout handling for GM approval workflows
+
+**Files to create:**
+- `packages/server/src/services/action-classification.service.mts`
+- `packages/server/src/services/action-escalation.service.mts`
+- `packages/shared/src/types/action-processing.mts`
+
+### Task 5.2: Implement GM Approval Workflow
+- [ ] Create GM approval UI integration points
+- [ ] Add action queue management for pending approvals
+- [ ] Implement approval/rejection/modification workflows
+- [ ] Add batch action processing for multiple similar actions
+- [ ] Create approval timeout and auto-approval mechanisms
+
+**Files to create:**
+- `packages/server/src/services/gm-approval.service.mts`
+- `packages/server/src/services/action-queue.service.mts`
+- `packages/server/src/websocket/handlers/approval-workflow-handler.mts`
+
+### Task 5.3: Integrate Action Processing with Aggregates
+- [ ] Add action processing integration to GameSession aggregate
+- [ ] Implement automatic action execution for AUTOMATIC level actions
+- [ ] Add reviewable action presentation to GM clients
+- [ ] Create manual action escalation handling
+- [ ] Add plugin hook integration for custom processing logic
+
+**Files to modify:**
+- `packages/server/src/aggregates/game-session.aggregate.mts`
+- `packages/server/src/aggregates/action-processor.mts`
+
+**Action Processing Examples:**
+```typescript
+enum ActionProcessingLevel {
+  AUTOMATIC = "auto",        // Execute immediately after calculation
+  REVIEWABLE = "review",     // Present options to GM
+  MANUAL_ONLY = "manual"     // Always requires GM decision
+}
+
+class ActionClassificationService {
+  static getActionProcessingLevel(action: GameAction, pluginConfig: PluginConfig): ActionProcessingLevel {
+    // Check GM overrides first
+    const override = pluginConfig.gmOverrides?.get(action.type);
+    if (override) return override;
+    
+    // Fall back to plugin defaults
+    return pluginConfig.actionLevels.get(action.type) ?? ActionProcessingLevel.MANUAL_ONLY;
+  }
+  
+  static async processAction(action: GameAction, level: ActionProcessingLevel): Promise<ActionResult> {
+    switch (level) {
+      case ActionProcessingLevel.AUTOMATIC:
+        return await this.executeAutomatic(action);
+      case ActionProcessingLevel.REVIEWABLE:
+        return await this.escalateForReview(action);
+      case ActionProcessingLevel.MANUAL_ONLY:
+        return await this.escalateForManualDecision(action);
+    }
+  }
+}
+```
+
+## Phase 6: Testing & Integration (Week 6-7)
+
+### Task 6.1: Unit Tests for Enhanced Aggregates
+- [ ] Create unit tests for enhanced GameSession aggregate
+- [ ] Test Campaign aggregate functionality with pluginData
+- [ ] Test state reconstitution methods with permission filtering
+- [ ] Test authority validation and GM enforcement
+- [ ] Test invariant enforcement with campaign boundaries
+- [ ] **NEW: Test GM disconnection handling and action queuing**
+- [ ] **NEW: Test action processing classification system**
+- [ ] **NEW: Test heartbeat monitoring and timeout detection**
 
 **Files to create:**
 - `packages/server/src/aggregates/__tests__/game-session.aggregate.test.mts`
 - `packages/server/src/aggregates/__tests__/campaign.aggregate.test.mts`
+- `packages/server/src/aggregates/__tests__/gm-disconnection-handler.test.mts`
+- `packages/server/src/aggregates/__tests__/action-processor.test.mts`
 
-### Task 5.2: Integration Tests for State Management
-- [ ] Test complete session join flow
-- [ ] Test state broadcasting patterns
-- [ ] Test authority validation in socket operations
-- [ ] Test document ownership validation
-- [ ] Test pluginData persistence
+### Task 6.2: Integration Tests for Enhanced State Management
+- [ ] Test complete session join flow with comprehensive state
+- [ ] Test sophisticated broadcasting patterns with permission filtering
+- [ ] Test authority validation in socket operations with GM checks
+- [ ] Test document ownership validation with campaign boundaries
+- [ ] Test pluginData persistence across sessions
+- [ ] **NEW: Test GM disconnection scenarios and state recovery**
+- [ ] **NEW: Test action processing workflows (automatic/reviewable/manual)**
+- [ ] **NEW: Test socket schema migration coordination**
+- [ ] **NEW: Test permission-based broadcasting correctness**
 
 **Files to create:**
 - `packages/server/src/__tests__/integration/state-management.test.mts`
+- `packages/server/src/__tests__/integration/gm-disconnection.test.mts`
+- `packages/server/src/__tests__/integration/action-processing.test.mts`
+- `packages/server/src/__tests__/integration/permission-broadcasting.test.mts`
 
-### Task 5.3: Update Existing Tests
-- [ ] Update campaign service tests for new schema
-- [ ] Update socket handler tests for aggregate usage
-- [ ] Update game session tests for new architecture
+### Task 6.3: Update Existing Tests for Enhanced Architecture
+- [ ] Update campaign service tests for new schema with pluginData
+- [ ] Update socket handler tests for enhanced aggregate usage
+- [ ] Update game session tests for GM authority and disconnection handling
 - [ ] Fix any broken tests due to schema changes
+- [ ] **NEW: Update socket handler tests for discriminated union schemas**
+- [ ] **NEW: Update tests for permission-based broadcasting**
+- [ ] **NEW: Update tests for action processing integration**
 
 **Files to modify:**
 - `packages/server/src/features/campaigns/__tests__/`
 - `packages/server/src/websocket/__tests__/`
+- `packages/shared/src/schemas/__tests__/` (for new socket schemas)
 
-### Task 5.4: End-to-End Testing
-- [ ] Test complete session lifecycle with new state management
-- [ ] Test plugin data persistence across sessions
-- [ ] Test multi-player state synchronization
-- [ ] Test GM authority enforcement
-- [ ] Test error handling and recovery
+### Task 6.4: End-to-End Testing with Enhanced Scenarios
+- [ ] Test complete session lifecycle with enhanced state management
+- [ ] Test plugin data persistence across sessions with campaign pluginData
+- [ ] Test multi-player state synchronization with permission filtering
+- [ ] Test GM authority enforcement across all operations
+- [ ] Test error handling and recovery with GM disconnection scenarios
+- [ ] **NEW: Test GM disconnection and reconnection scenarios**
+- [ ] **NEW: Test action processing workflows end-to-end**
+- [ ] **NEW: Test permission-based broadcasting with multiple players**
+- [ ] **NEW: Test socket schema migration coordination**
 
-### Task 5.5: Performance Testing
-- [ ] Test state reconstitution performance with large campaigns
-- [ ] Test broadcasting performance with multiple players
-- [ ] Test database query performance with unified documents
-- [ ] Optimize slow operations identified
+### Task 6.5: Performance Testing with Enhanced Load
+- [ ] Test state reconstitution performance with large campaigns and comprehensive state
+- [ ] Test sophisticated broadcasting performance with multiple players and permission filtering
+- [ ] Test database query performance with unified documents and enhanced indexes
+- [ ] Test GM disconnection handling performance under load
+- [ ] Test action processing classification performance
+- [ ] Optimize slow operations identified in enhanced architecture
 
 ## Key Considerations
 
@@ -312,14 +640,27 @@ The implementation introduces a two-layer aggregate pattern separating runtime (
 
 ## Success Criteria
 
-- [ ] All session state is reconstituted comprehensively on join
-- [ ] GM authority is enforced at aggregate boundaries
-- [ ] Campaign pluginData persists across sessions
-- [ ] Document ownership is validated consistently
-- [ ] State broadcasting works for all state types
-- [ ] Performance is acceptable for expected user loads
-- [ ] All existing functionality continues to work
-- [ ] Plugin isolation is maintained with new architecture
+### Core State Management
+- [ ] All session state is reconstituted comprehensively on join with player permissions
+- [ ] GM authority is enforced at aggregate boundaries for all operations
+- [ ] Campaign pluginData persists across sessions and supports plugin architecture
+- [ ] Document ownership is validated consistently with campaign boundaries
+- [ ] Sophisticated state broadcasting works for all state types with permission filtering
+- [ ] Performance is acceptable for expected user loads with enhanced features
+
+### GM-Authoritative Features
+- [ ] **NEW: GM disconnection resilience works correctly (heartbeat monitoring, action queuing, reconnection)**
+- [ ] **NEW: Action processing classification system functions properly (AUTOMATIC/REVIEWABLE/MANUAL_ONLY)**
+- [ ] **NEW: Socket event schemas support discriminated unions for type-safe game actions**
+- [ ] **NEW: Permission-based broadcasting filters data correctly for different player roles**
+- [ ] **NEW: Action approval workflows integrate seamlessly with GM clients**
+
+### Architecture & Compatibility
+- [ ] All existing functionality continues to work with enhanced architecture
+- [ ] Plugin isolation is maintained with new GM-authoritative patterns
+- [ ] Socket schema migration coordinates properly with database changes
+- [ ] Enhanced aggregate validation enforces both technical and business rules
+- [ ] Universal inventory system integrates correctly with game logic separation
 
 ## Post-Implementation
 

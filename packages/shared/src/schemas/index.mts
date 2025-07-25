@@ -17,6 +17,15 @@ export {
 // Base schemas
 export * from './base.schema.mjs';
 
+// Document schemas
+export {
+  documentTypeSchema,
+  baseDocumentSchema,
+  createDocumentSchema,
+  updateDocumentSchema,
+  documentSchemaWithVirtuals
+} from './document.schema.mjs';
+
 // Campaign schemas
 export {
   campaignSchema,
@@ -87,7 +96,8 @@ export {
 // Item schemas
 export {
   itemSchema,
-  itemCreateSchema
+  itemCreateSchema,
+  itemPatchSchema
 } from './item.schema.mjs';
 
 // Map schemas

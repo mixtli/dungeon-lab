@@ -1,27 +1,32 @@
 import { z } from 'zod';
-import { baseSchema } from './base.schema.mjs';
+import { baseDocumentSchema } from './document.schema.mjs';
 
-// Base Item schema
-export const itemSchema = baseSchema.extend({
-  name: z.string().min(1).max(255),
-  type: z.string().min(1).max(255),
-  imageId: z.string().optional(),
+// Item schema - extends base document with VTT-specific fields
+export const itemSchema = baseDocumentSchema.extend({
+  // Discriminator value
+  documentType: z.literal('item'),
   
-  // Compendium reference (optional - only set for compendium content)
-  compendiumId: z.string().optional(),
-  
-  description: z.string().optional(),
-  gameSystemId: z.string().min(1),
-  pluginId: z.string().min(1),
-  weight: z.number().optional(),
-  cost: z.number().optional(),
-  data: z.any()
+  // Plugin subtypes: 'weapon', 'armor', 'tool', 'consumable', etc.
+  pluginDocumentType: z.string().min(1)
+
+  // Note: Other fields now come from baseDocumentSchema:
+  // - name, description, pluginId, campaignId, compendiumId, imageId
+  // - pluginData (replaces 'data'), userData
+  // - Game-specific fields like weight, cost should go in pluginData
 });
 
 export const itemCreateSchema = itemSchema
   .extend({
+    // File upload for item image
     image: z.instanceof(File).optional()
   })
   .omit({
-    id: true
+    // Omit auto-generated and file-reference fields
+    id: true,
+    createdBy: true,
+    updatedBy: true,
+    imageId: true // Will be set from uploaded file
   });
+
+// Item patch schema for updates
+export const itemPatchSchema = itemSchema.deepPartial();

@@ -18,7 +18,7 @@ export const actorCallbackSchema = z.object({
 // Get list of user's actors with filters
 export const actorListArgsSchema = z.tuple([
   z.object({
-    gameSystemId: z.string()
+    pluginId: z.string()
   }).optional(), // filters object is optional for backward compatibility
   z.function().args(actorCallbackSchema) // callback function is required for data retrieval
 ]);
@@ -35,11 +35,11 @@ export const actorUpdateArgsSchema = z.tuple([
   z.object({
     id: z.string(),
     name: z.string().optional(),
-    type: z.string().optional(),
+    pluginDocumentType: z.string().optional(),
     userData: z.record(z.any()).optional(),
     description: z.string().optional(),
-    gameSystemId: z.string().optional(),
-    data: z.record(z.string(), z.any()).optional(),
+    pluginId: z.string().optional(),
+    pluginData: z.record(z.string(), z.unknown()).optional(),
     token: z.instanceof(File).optional(),
     avatar: z.instanceof(File).optional()
   }),
@@ -60,15 +60,20 @@ export const actorDeleteArgsSchema = z.tuple([
 export const actorCreatedSchema = z.object({
   id: z.string(),
   name: z.string(),
-  type: z.string(),
-  gameSystemId: z.string(),
+  documentType: z.literal('actor'),
+  pluginDocumentType: z.string(),
+  pluginId: z.string(),
+  campaignId: z.string(),
   createdBy: z.string().optional(),
   updatedBy: z.string().optional(),
   userData: z.record(z.any()).optional(),
+  pluginData: z.record(z.string(), z.unknown()).optional(),
   avatarId: z.string().optional(),
   defaultTokenImageId: z.string().optional(),
   description: z.string().optional(),
-  data: z.record(z.string(), z.any()).optional(),
+  compendiumId: z.string().optional(),
+  imageId: z.string().optional(),
+  thumbnailId: z.string().optional(),
   token: z.object({
     id: z.string().optional(),
     type: z.string().optional(),

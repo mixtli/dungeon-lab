@@ -18,7 +18,7 @@ export const itemCallbackSchema = z.object({
 // Get list of user's items with filters
 export const itemListArgsSchema = z.tuple([
   z.object({
-    gameSystemId: z.string()
+    pluginId: z.string()
   }).optional(), // filters object is optional for backward compatibility
   z.function().args(itemCallbackSchema) // callback function is required for data retrieval
 ]);
@@ -33,14 +33,12 @@ export const itemGetArgsSchema = z.tuple([
 export const itemCreateArgsSchema = z.tuple([
   z.object({
     name: z.string(),
-    type: z.string(),
-    imageId: z.string().optional(),
+    pluginDocumentType: z.string(),
     description: z.string().optional(),
-    gameSystemId: z.string(),
     pluginId: z.string(),
-    weight: z.number().optional(),
-    cost: z.number().optional(),
-    data: z.any(),
+    campaignId: z.string(),
+    pluginData: z.record(z.string(), z.unknown()).optional(),
+    compendiumId: z.string().optional(),
     image: z.instanceof(File).optional()
   }),
   z.function().args(itemCallbackSchema) // callback function is required for error handling
@@ -51,14 +49,12 @@ export const itemUpdateArgsSchema = z.tuple([
   z.object({
     id: z.string(),
     name: z.string().optional(),
-    type: z.string().optional(),
-    imageId: z.string().optional(),
+    pluginDocumentType: z.string().optional(),
     description: z.string().optional(),
-    gameSystemId: z.string().optional(),
     pluginId: z.string().optional(),
-    weight: z.number().optional(),
-    cost: z.number().optional(),
-    data: z.any().optional(),
+    pluginData: z.record(z.string(), z.unknown()).optional(),
+    userData: z.record(z.string(), z.any()).optional(),
+    compendiumId: z.string().optional(),
     image: z.instanceof(File).optional()
   }),
   z.function().args(itemCallbackSchema) // callback function is required for error handling
@@ -78,14 +74,18 @@ export const itemDeleteArgsSchema = z.tuple([
 export const itemCreatedSchema = z.object({
   id: z.string(),
   name: z.string(),
-  type: z.string(),
-  imageId: z.string().optional(),
+  documentType: z.literal('item'),
+  pluginDocumentType: z.string(),
   description: z.string().optional(),
-  gameSystemId: z.string(),
   pluginId: z.string(),
-  weight: z.number().optional(),
-  cost: z.number().optional(),
-  data: z.any()
+  campaignId: z.string(),
+  pluginData: z.record(z.string(), z.unknown()).optional(),
+  userData: z.record(z.string(), z.any()).optional(),
+  compendiumId: z.string().optional(),
+  imageId: z.string().optional(),
+  thumbnailId: z.string().optional(),
+  createdBy: z.string().optional(),
+  updatedBy: z.string().optional()
 });
 
 // Item updated broadcast

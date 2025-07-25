@@ -3,20 +3,21 @@
 ## Executive Summary
 
 ### Problem Statement
-Current state management proposals require either complex server-side game logic (server plugins) or sophisticated event synchronization (event sourcing), both of which increase system complexity and development overhead. These approaches also struggle to handle the inherent flexibility of tabletop RPGs where house rules, edge cases, and creative play are the norm rather than the exception.
+Current state management proposals require complex server-side game logic (server plugins) to validate player actions and enforce game rules. This creates tight coupling between the server and specific game systems, increases deployment complexity, and makes the system harder to extend with new game mechanics or house rules.
 
-### Solution: GM as the Authority
-This proposal introduces a **GM-Authoritative State Management** system where the Game Master's client validates all game actions, maintaining the server as a simple message router. This approach mirrors the natural authority structure of tabletop RPGs while providing strong cheat prevention and ultimate rule flexibility.
+### Solution: Client-Side Validation with Discretionary GM Control
+This proposal introduces a **GM Client Validation** system where all game logic and rule enforcement happens on the GM's client, while the server remains a simple, game-agnostic message router and state store. The GM client automatically calculates and executes most player actions using plugin-based game rules, while providing GMs with **discretionary control** to intervene when narrative or tactical adjustments are needed.
 
 ### Key Benefits
-1. **True Server Agnosticism**: Server has zero game knowledge
-2. **Natural Authority Model**: Matches real tabletop gaming
-3. **Ultimate Flexibility**: GM can override any rule or plugin suggestion
-4. **Simplified Architecture**: No server plugins or complex synchronization
-5. **Authentic Experience**: Preserves the GM's role as final arbiter
+1. **True Server Agnosticism**: Server has zero game knowledge and no plugins needed
+2. **Automatic Rule Processing**: GM client calculates outcomes using game system plugins
+3. **Discretionary GM Control**: GMs can intervene when story/balance requires it
+4. **Transparent Automation**: GMs see calculated results and choose to apply/modify/reject
+5. **Simplified Deployment**: No server-side game system dependencies
+6. **Easy Extension**: New game systems only require client-side plugins
 
 ### Core Philosophy
-> "The server is a table, not a referee. The GM is the referee."
+> "The server is a table, not a referee. The GM client is the automated referee that calculates outcomes and presents options, giving the human GM discretionary control over the story."
 
 ## Core Architecture
 
@@ -30,27 +31,29 @@ graph TB
         P3[Player 3]
     end
     
-    subgraph "Server (Message Router)"
-        MQ[Message Queue]
-        SR[State Repository]
+    subgraph "Server (Game-Agnostic)"
+        MQ[Message Router]
+        SR[State Store]
         BR[Broadcast Engine]
     end
     
-    subgraph "GM Client"
+    subgraph "GM Client (Automated Validator)"
         GC[GM Controller]
-        PL[Plugin System]
-        AQ[Action Queue]
-        VE[Validation Engine]
+        PL[Game System Plugin]
+        AV[Automatic Validator]
+        HGM[Human GM Interface]
     end
     
     P1 -->|Action Request| MQ
     P2 -->|Action Request| MQ
     P3 -->|Action Request| MQ
     
-    MQ -->|Forward to GM| GC
-    GC --> PL
-    GC --> VE
-    VE -->|Approved Actions| SR
+    MQ -->|Route to GM Client| GC
+    GC --> AV
+    AV --> PL
+    AV -->|98% Auto-Approved| SR
+    AV -->|2% Edge Cases| HGM
+    HGM -->|GM Decision| SR
     SR -->|State Updates| BR
     BR -->|Broadcast| P1
     BR -->|Broadcast| P2
@@ -58,10 +61,10 @@ graph TB
     BR -->|Broadcast| GC
 ```
 
-### Authority Model
+### Validation Model
 
 ```typescript
-interface AuthorityModel {
+interface ValidationModel {
   // Server Authority (Infrastructure Only)
   server: {
     messageRouting: true;
@@ -74,40 +77,44 @@ interface AuthorityModel {
     documentRelationships: true;      // Actor-Item references
     assetManagement: true;           // Images, tokens, maps
     
-    // NO game logic
+    // NO game logic or validation
     combatRules: false;
     spellEffects: false;
     skillChecks: false;
     damageCalculation: false;
+    actionValidation: false;
   };
   
-  // GM Authority (Game Logic + Infrastructure Oversight)
-  gameMaster: {
-    // Game Logic (Exclusive)
-    actionValidation: true;
-    diceRolling: true;
-    ruleInterpretation: true;
-    conflictResolution: true;
+  // GM Client Authority (Automated Processing + Discretionary Control)
+  gmClient: {
+    // Automated Processing (Most actions)
+    automaticCalculation: true;     // Plugin calculates outcomes
+    ruleValidation: true;           // Movement limits, resource costs, etc.
+    outcomePresentation: true;      // Shows calculated results to GM
+    conditionalExecution: true;     // Executes based on GM approval settings
     
-    // Infrastructure Decisions (When Game-Affecting)
-    itemAcquisition: true;           // When players gain/lose items
-    characterCreation: true;         // Initial inventory setup
-    equipmentEffects: true;          // What equipped items do
+    // Discretionary GM Control (When needed)
+    resultModification: true;       // GM can adjust calculated outcomes
+    narrativeOverride: true;        // Change results for story reasons
+    difficultyAdjustment: true;     // Modify damage, saves, etc. on the fly
+    customRulings: true;            // House rules and creative solutions
     
-    // Override Authority
-    overrideServer: true;            // Can override any server action
+    // Ultimate Authority
+    overrideAnyDecision: true;      // Human GM has final say
+    configureAutomation: true;      // Set which actions need review
   };
   
-  // Player Authority (Limited)
+  // Player Authority (Action Requests)
   player: {
-    actionRequests: true;
-    characterControl: true;          // Within GM approval
+    actionRequests: true;           // Can request any action
+    characterControl: true;         // Normal gameplay actions
     uiPreferences: true;
     chatMessages: true;
     
-    // Basic Inventory Operations (Server-Mediated)
-    equipUnequipItems: true;         // Non-game-affecting organization
-    viewInventory: true;             // Read-only access
+    // Direct manipulation NOT allowed
+    directStatChanges: false;       // Triggers manual review
+    inventoryManipulation: false;   // Outside normal game rules
+    ruleViolations: false;         // Automatically rejected or escalated
   };
 }
 ```
@@ -165,7 +172,7 @@ interface GameLogic {
 }
 ```
 
-#### Authority Boundaries in Practice
+#### Validation Boundaries in Practice
 ```typescript
 // ✅ Server can do (VTT Infrastructure)
 server.inventory.equipItem(actorId, itemId, 'mainHand');
@@ -177,160 +184,906 @@ server.combat.calculateDamage(weapon, target);
 server.spells.checkIfCanCast(spell, caster);
 server.skills.rollCheck(skill, difficulty);
 
-// 🎯 GM decides then server applies (Game-Affecting Infrastructure)
-// GM: "Player finds a magic sword"
-gm.approveAction({
-  type: 'acquireItem',
-  result: server.inventory.addItem(actorId, swordId, 1)
+// 🤖 GM Client automatically validates and processes (98% of actions)
+gmClient.validateAttack(attackerActor, targetActor, weapon);
+gmClient.processSpellCasting(casterActor, spell, targets);
+gmClient.rollDamage(weapon, attackRoll);
+gmClient.applyDamage(targetActor, damageAmount);
+
+// 🎯 Escalated to human GM (2% of actions)
+// Player tries: "I want to set my HP to 999"
+gmClient.escalateToHuman({
+  type: 'suspicious_stat_change',
+  action: 'direct HP modification outside game rules',
+  requiresApproval: true
 });
 
-// GM: "Sword is cursed, player can't unequip it"
-gm.overrideServer({
-  blockAction: 'unequipItem',
-  itemId: cursedSwordId,
-  reason: 'cursed item'
+// GM setting: "Auto apply damage: disabled"  
+gmClient.escalateToHuman({
+  type: 'configurable_action',
+  action: 'apply 15 damage to goblin',
+  settingDisabled: 'auto_apply_damage'
 });
 ```
 
-This distinction preserves GM authority over all game decisions while allowing the server to efficiently manage the underlying VTT infrastructure that's common to all tabletop systems.
+This approach moves all game logic validation to the GM client while keeping the server focused on VTT infrastructure, ensuring seamless gameplay with automated rule enforcement.
 
-### Message Flow Example: Combat Attack
+## Socket Message Architecture & Type Safety
+
+The GM-Authoritative system uses a hybrid approach for socket communication that balances type safety with architectural consistency:
+
+### Event Classification
+
+Events are classified into two categories based on their authority requirements:
+
+#### Infrastructure Events (Direct Socket Events)
+These events handle VTT infrastructure and don't require GM authority:
+```typescript
+// Current typed events remain unchanged
+socket.emit('token:move', tokenMoveArgs);           // Position updates
+socket.emit('actor:get', actorGetArgs);             // Data retrieval  
+socket.emit('item:list', itemListArgs);             // Inventory access
+socket.emit('chat', chatMessageArgs);               // Chat messages
+socket.emit('map:generate', mapGenerateArgs);       // Map generation
+```
+
+#### Game Logic Events (Single Authority Event)
+All game actions requiring GM approval use a single event with discriminated unions:
+```typescript
+socket.emit('action:request', actionRequest);
+```
+
+### Type Safety Through Discriminated Unions
+
+The `action:request` event maintains full type safety using discriminated unions:
+
+```typescript
+// Base action request with discriminator
+interface BaseActionRequest {
+  type: string;
+  playerId: string;
+  sessionId: string;
+  timestamp: number;
+}
+
+// Discriminated union of all game actions
+type GameActionRequest = 
+  | AttackActionRequest
+  | SpellActionRequest  
+  | SkillCheckActionRequest
+  | ItemUseActionRequest
+  | CreativeActionRequest;
+
+// Specific action types with full type safety
+interface AttackActionRequest extends BaseActionRequest {
+  type: 'attack';
+  data: {
+    attackerId: string;
+    targetId: string;
+    weaponId: string;
+    attackType: 'melee' | 'ranged' | 'spell';
+    modifiers?: AttackModifier[];
+  };
+}
+
+interface SpellActionRequest extends BaseActionRequest {
+  type: 'cast_spell';
+  data: {
+    casterId: string;
+    spellId: string;
+    spellLevel: number;
+    targets: string[];
+    metamagic?: MetamagicOption[];
+  };
+}
+
+interface SkillCheckActionRequest extends BaseActionRequest {
+  type: 'skill_check';
+  data: {
+    actorId: string;
+    skill: SkillType;
+    difficulty?: number;
+    advantage?: 'advantage' | 'disadvantage' | 'normal';
+  };
+}
+```
+
+### Type-Safe Event Handling
+
+The system maintains type safety while keeping the server game-agnostic:
+
+```typescript
+// ✅ CORRECT: Server remains game-agnostic - just routes messages
+socket.on('action:request', (request: GameActionRequest) => {
+  // Server validates message structure but doesn't understand game semantics
+  const session = getSession(request.sessionId);
+  if (!session) {
+    return socket.emit('action:error', { message: 'Invalid session' });
+  }
+  
+  // Route to GM without understanding what the action is
+  routeToGM(session.gmId, {
+    type: 'action:pending',
+    actionId: generateId(),
+    request,
+    timestamp: Date.now()
+  });
+  
+  // Track for response routing
+  pendingActions.set(actionId, { playerId: request.playerId, socketId: socket.id });
+});
+
+// ✅ CORRECT: GM client handles game logic with full type safety
+const handleGMAction = (message: ActionMessage) => {
+  const { request } = message;
+  
+  // GM client uses discriminated unions for type-safe handling
+  switch (request.type) {
+    case 'attack':
+      // TypeScript knows this is AttackActionRequest
+      return showAttackApprovalUI(request.data); // request.data is fully typed
+      
+    case 'cast_spell':
+      // TypeScript knows this is SpellActionRequest
+      return showSpellApprovalUI(request.data); // request.data is fully typed
+      
+    case 'skill_check':
+      // TypeScript knows this is SkillCheckActionRequest
+      return showSkillCheckApprovalUI(request.data); // request.data is fully typed
+      
+    default:
+      // TypeScript ensures exhaustive checking
+      const _exhaustive: never = request;
+      throw new Error(`Unknown action type: ${(request as any).type}`);
+  }
+};
+```
+
+### Role Separation & Type Safety
+
+The type safety architecture maintains clear role separation:
+
+#### Server: Game-Agnostic Message Router
+```typescript
+class GameAgnosticServer {
+  // Server only understands message structure, not content
+  handleActionRequest(request: GameActionRequest) {
+    // ✅ Server CAN do:
+    // - Validate message schema
+    validateSchema(gameActionRequestSchema, request);
+    
+    // - Route to appropriate GM
+    const session = this.sessions.get(request.sessionId);
+    this.routeToGM(session.gmId, request);
+    
+    // - Track pending actions for response routing
+    this.pendingActions.set(request.id, request.playerId);
+    
+    // ❌ Server CANNOT do:
+    // - Understand what 'attack' means
+    // - Process spell effects  
+    // - Calculate damage
+    // - Apply game rules
+  }
+  
+  handleGMDecision(decision: GMDecision) {
+    // Server applies state changes blindly
+    this.applyStateChanges(decision.stateChanges);
+    
+    // Broadcast results without understanding them
+    this.broadcastToSession(decision.sessionId, {
+      type: 'action:result',
+      changes: decision.stateChanges
+    });
+  }
+}
+```
+
+#### GM Client: Game Logic with Type Safety
+```typescript  
+class GMGameLogicHandler {
+  // GM client understands game semantics with full type safety
+  processActionRequest(request: GameActionRequest) {
+    // TypeScript provides full type safety here
+    switch (request.type) {
+      case 'attack': {
+        // TypeScript knows request.data is AttackData
+        const { attackerId, targetId, weaponId } = request.data;
+        
+        // GM client can access game logic
+        const attacker = this.getActor(attackerId);
+        const target = this.getActor(targetId);
+        const weapon = this.getItem(weaponId);
+        
+        // Use plugin for suggestions
+        const result = this.plugin.calculateAttack(attacker, target, weapon);
+        
+        // Show GM approval UI with suggestions
+        return this.showAttackApprovalUI({
+          attacker,
+          target, 
+          weapon,
+          suggestedResult: result,
+          onApprove: (finalResult) => this.approveAction(request.id, finalResult),
+          onReject: (reason) => this.rejectAction(request.id, reason)
+        });
+      }
+      
+      case 'cast_spell': {
+        // TypeScript knows request.data is SpellData
+        const { casterId, spellId, targets } = request.data;
+        
+        // Game logic with type safety
+        const caster = this.getActor(casterId);
+        const spell = this.getSpell(spellId);
+        const targetActors = targets.map(id => this.getActor(id));
+        
+        return this.showSpellApprovalUI({
+          caster,
+          spell,
+          targets: targetActors,
+          // ... etc
+        });
+      }
+    }
+  }
+}
+```
+
+#### Key Benefits of This Approach
+
+1. **Server Simplicity**: No game logic, just message routing and state storage
+2. **Full Type Safety**: TypeScript catches errors at compile time, Zod validates at runtime  
+3. **Plugin Compatibility**: New game systems add actions without changing server code
+4. **GM Authority**: All game decisions happen on GM client with full context
+5. **Maintainability**: Clear separation of concerns between transport and game logic
+
+### Client-Side Type Safety
+
+Clients get full IntelliSense and compile-time checking:
+
+```typescript
+// Type-safe action creation
+const attackAction: AttackActionRequest = {
+  type: 'attack',
+  playerId: currentPlayer.id,
+  sessionId: currentSession.id,
+  timestamp: Date.now(),
+  data: {
+    attackerId: character.id,
+    targetId: goblin.id,
+    weaponId: sword.id,
+    attackType: 'melee', // TypeScript validates this enum
+    modifiers: [{ type: 'flanking', value: 2 }] // Fully typed
+  }
+};
+
+// Compile-time error prevention
+socket.emit('action:request', attackAction); // ✅ Type safe
+
+// This would cause TypeScript error:
+const badAction = {
+  type: 'attack',
+  data: {
+    attackerId: character.id,
+    invalidField: 'oops' // ❌ TypeScript error
+  }
+};
+```
+
+### Schema Validation Integration
+
+Zod schemas provide runtime validation that matches TypeScript types:
+
+```typescript
+// Zod schemas for runtime validation
+const attackActionSchema = z.object({
+  type: z.literal('attack'),
+  playerId: z.string(),
+  sessionId: z.string(),
+  timestamp: z.number(),
+  data: z.object({
+    attackerId: z.string(),
+    targetId: z.string(),
+    weaponId: z.string(),
+    attackType: z.enum(['melee', 'ranged', 'spell']),
+    modifiers: z.array(attackModifierSchema).optional()
+  })
+});
+
+const spellActionSchema = z.object({
+  type: z.literal('cast_spell'),
+  playerId: z.string(),
+  sessionId: z.string(), 
+  timestamp: z.number(),
+  data: z.object({
+    casterId: z.string(),
+    spellId: z.string(),
+    spellLevel: z.number().min(1).max(9),
+    targets: z.array(z.string()),
+    metamagic: z.array(metamagicOptionSchema).optional()
+  })
+});
+
+// Union schema for validation
+const gameActionRequestSchema = z.discriminatedUnion('type', [
+  attackActionSchema,
+  spellActionSchema,
+  skillCheckActionSchema,
+  // ... other action schemas
+]);
+
+// TypeScript types derived from schemas
+type GameActionRequest = z.infer<typeof gameActionRequestSchema>;
+type AttackActionRequest = z.infer<typeof attackActionSchema>;
+```
+
+### Benefits of This Approach
+
+1. **Architectural Consistency**: Server remains game-agnostic while providing type safety
+2. **Full Type Safety**: Complete IntelliSense and compile-time checking where it matters (GM client)
+3. **Runtime Validation**: Zod schemas catch invalid data at transport layer
+4. **True Server Agnosticism**: Server never needs to understand new game actions
+5. **Plugin Compatibility**: New game systems add actions without changing server code
+6. **GM Authority Preserved**: All game logic decisions happen on GM client with full context
+7. **Maintainability**: Clear separation between message transport and game logic
+
+### Socket Event Schema Updates
+
+The existing socket schemas would be updated to include the new patterns:
+
+```typescript
+// packages/shared/src/schemas/socket/actions.mts
+export const gameActionRequestSchema = z.discriminatedUnion('type', [
+  attackActionSchema,
+  spellActionSchema, 
+  skillCheckActionSchema,
+  itemUseActionSchema,
+  creativeActionSchema
+]);
+
+// Updated client-to-server events
+export const clientToServerEvents = z.object({
+  // ... existing infrastructure events
+  'action:request': z.function()
+    .args(gameActionRequestSchema)
+    .returns(z.void()),
+  
+  // ... other events remain unchanged
+  'token:move': z.function().args(...tokenMoveArgsSchema.items).returns(z.void()),
+  'actor:get': z.function().args(...actorGetArgsSchema.items).returns(z.void()),
+});
+```
+
+This approach maintains the architectural benefits of a single authority event while preserving complete type safety and developer experience.
+
+**Important**: The server uses these schemas only for message validation and routing. The discriminated union types ensure compile-time safety, but the server never executes the type-specific branches - that happens exclusively on the GM client where game logic belongs.
+
+### Message Flow Example: Automatic Action (Movement)
 
 ```mermaid
 sequenceDiagram
     participant P as Player Client
     participant S as Server
     participant GM as GM Client
+    participant Plugin as Game Plugin
     participant DB as Database
     participant All as All Clients
 
-    Note over P: Player initiates attack
-    P->>S: RequestAction(attack, goblin, sword)
-    S->>S: Queue action
+    Note over P: Player moves token
+    P->>S: RequestAction(move, token, newPosition)
+    S->>GM: ForwardAction(player1, move_request)
+    
+    Note over GM: Automatic processing (no human involved)
+    GM->>Plugin: Validate movement rules
+    Plugin->>Plugin: Check distance, obstacles, resources
+    Plugin->>GM: Valid movement
+    
+    Note over GM: Auto-executed in <50ms
+    GM->>S: ExecuteAction(newPosition)
+    S->>DB: Update state
+    S->>All: BroadcastUpdate(token position)
+    S->>P: ActionResult(success)
+```
+
+### Message Flow Example: Reviewable Action (Combat Attack)
+
+```mermaid
+sequenceDiagram
+    participant P as Player Client
+    participant S as Server
+    participant GM as GM Client  
+    participant Human as Human GM
+    participant Plugin as Game Plugin
+    participant DB as Database
+    participant All as All Clients
+
+    Note over P: Player attacks orc
+    P->>S: RequestAction(attack, orc, sword)
     S->>GM: ForwardAction(player1, attack_request)
     
-    Note over GM: GM validates action
-    GM->>GM: Plugin suggests result
-    GM->>GM: GM reviews/modifies
-    GM->>GM: Roll dice (if needed)
+    Note over GM: Calculate outcome for GM review
+    GM->>Plugin: Calculate attack outcome
+    Plugin->>Plugin: Roll attack (hits), roll damage (8)
+    Plugin->>GM: Result: Hit for 8 damage (orc drops to 0 HP)
     
-    alt Action Approved
-        GM->>S: ApproveAction(damage: 8, newHP: 7)
+    Note over GM: Present options to human GM
+    GM->>Human: ShowResult("Attack hits for 8 damage. Orc dies.")
+    GM->>Human: Options: [Apply] [Modify: ___] [Reject]
+    
+    alt GM applies calculated result
+        Human->>GM: Apply
+        Note over Human: Quick approval for normal result
+    else GM modifies for story reasons  
+        Human->>GM: Modify(damage: 3, "Keep orc alive for questioning")
+        Note over Human: GM saves orc for narrative reasons
+    end
+    
+    GM->>S: ExecuteAction(applied_damage: 3, newHP: 2)
+    S->>DB: Update state  
+    S->>All: BroadcastUpdate(orc HP: 2)
+    S->>P: ActionResult(success, damage: 3)
+```
+
+### Message Flow Example: Manual Only Action
+
+```mermaid
+sequenceDiagram
+    participant P as Player Client
+    participant S as Server
+    participant GM as GM Client
+    participant Human as Human GM
+    participant DB as Database
+
+    Note over P: Player tries suspicious action
+    P->>S: RequestAction(set_hp, self, 999)
+    S->>GM: ForwardAction(player1, stat_change)
+    
+    Note over GM: Automated validation catches violation
+    GM->>GM: Detect rule violation
+    GM->>Human: EscalateAction(suspicious stat change)
+    Human->>Human: Review and decide
+    
+    alt Human GM Rejects
+        Human->>GM: RejectAction(reason: "Not allowed")
+        GM->>S: RejectAction(reason)
+        S->>P: ActionResult(failed, "Direct stat changes not allowed")
+    else Human GM Approves with Modification
+        Human->>GM: ApproveAction(set_hp, self, 25, "Healing potion")
+        GM->>S: ExecuteAction(newHP: 25)
         S->>DB: Update state
-        S->>All: BroadcastUpdate(goblin HP: 7)
-        S->>P: ActionResult(success, damage: 8)
-    else Action Rejected
-        GM->>S: RejectAction(reason: "Out of range")
-        S->>P: ActionResult(failed, reason)
+        S->>P: ActionResult(success, "HP set to 25")
     end
 ```
 
 ## Progressive Authority Model
 
-### Authority Levels
+### Action Classification System
 
-The system implements three levels of authority to balance gameplay flow with GM control:
+The system implements three tiers of action processing to balance automation with GM narrative control:
 
 ```typescript
-enum AuthorityLevel {
-  AUTO_APPROVED = "auto",      // No GM intervention needed
-  QUICK_REVIEW = "review",     // GM notification, auto-approve after timeout
-  FULL_DISCRETION = "manual"   // Requires explicit GM approval
+enum ActionProcessingLevel {
+  AUTOMATIC = "auto",        // Execute immediately after calculation
+  REVIEWABLE = "review",     // Present options to GM
+  MANUAL_ONLY = "manual"     // Always requires GM decision
 }
 
-interface ActionAuthority {
-  // Immediate approval - no latency (VTT Infrastructure)
-  [AuthorityLevel.AUTO_APPROVED]: [
-    "basic_movement",          // Moving within speed
-    "view_character_sheet",    // Information access
-    "equip_unequip_item",      // Inventory organization
-    "view_inventory",          // Inventory access
-    "end_turn",               // Turn management
-    "organize_items"          // Non-game-affecting inventory changes
+interface PluginActionConfiguration {
+  // Automatic Processing - Execute immediately (Most actions)
+  [ActionProcessingLevel.AUTOMATIC]: [
+    // Movement and positioning
+    "movement",               // Walking, running within limits
+    "token_positioning",      // Map positioning within bounds
+    
+    // Information and social
+    "skill_checks",          // Ability and skill rolls
+    "view_character_sheet", 
+    "view_inventory",
+    "chat_messages",
+    
+    // Turn management
+    "end_turn",
+    "delay_turn",
+    "ready_action"
   ];
   
-  // Quick review - 3 second default approval (Simple Game Actions)
-  [AuthorityLevel.QUICK_REVIEW]: [
-    "basic_attack",           // Standard weapon attacks
-    "cantrip_cast",          // Level 0 spells
-    "class_ability",         // Standard class features
-    "consume_item",          // Use consumables
-    "simple_skill_check",    // Non-contested rolls
-    "opportunity_attack"     // Reaction attacks
+  // Reviewable - GM sees calculated result with modify/apply options
+  [ActionProcessingLevel.REVIEWABLE]: [
+    // Combat outcomes (for tactical/narrative control)
+    "weapon_attack",         // Show hit/miss, damage calculated
+    "spell_attack",          // Show spell effects calculated
+    "apply_damage",          // Show damage amount, allow modification
+    "saving_throws",         // Show results, allow rerolls/adjustments
+    "initiative_rolls",      // Show rolled initiatives
+    
+    // Resource changes (for balance control)  
+    "consume_spell_slot",    // Show resource usage
+    "consume_item",          // Show item effects
+    "death_saves",           // Show death save results
+    "level_up",              // Show level progression
   ];
   
-  // Full GM discretion - no auto-approval (Complex Game Actions)
-  [AuthorityLevel.FULL_DISCRETION]: [
-    "acquire_item",          // Gaining new items
-    "lose_item",            // Losing/destroying items
-    "high_level_spell",     // Level 6+ spells
-    "death_save",          // Life/death situations
-    "wish_spell",          // Reality-altering effects
-    "creative_action",     // "I want to try..."
-    "pvp_action",         // Player vs player
-    "story_critical"      // Major plot moments
+  // Manual Only - Always escalate to human GM
+  [ActionProcessingLevel.MANUAL_ONLY]: [
+    "direct_stat_changes",   // Player manually editing stats
+    "add_remove_items",      // Outside normal acquisition
+    "rule_violations",       // Actions that break game rules  
+    "creative_solutions",    // "I want to try..." edge cases
+    "house_rule_requests",   // Custom interpretations
   ];
+}
+
+// Plugin hook for configuring action processing
+interface PluginValidationHooks {
+  // Define which actions need review vs auto-execution
+  getActionProcessingLevel(action: GameAction): ActionProcessingLevel;
+  
+  // Calculate outcomes for reviewable actions
+  calculateActionOutcome(action: GameAction): CalculatedOutcome;
+  
+  // Validate if automatic actions are legal
+  validateAutomaticAction(action: GameAction): ValidationResult;
 }
 ```
 
-### Authority Decision Flow
+### Plugin Action Classification System
+
+Game system plugins define their own action processing rules through configuration:
+
+```typescript
+// Example D&D 5e plugin configuration
+class DnD5ePlugin implements PluginValidationHooks {
+  private actionClassification = new Map<string, ActionProcessingLevel>([
+    // Automatic - No GM intervention needed
+    ['movement', ActionProcessingLevel.AUTOMATIC],
+    ['skill_check', ActionProcessingLevel.AUTOMATIC], 
+    ['ability_check', ActionProcessingLevel.AUTOMATIC],
+    ['view_sheet', ActionProcessingLevel.AUTOMATIC],
+    ['chat_message', ActionProcessingLevel.AUTOMATIC],
+    ['end_turn', ActionProcessingLevel.AUTOMATIC],
+    
+    // Reviewable - GM sees calculated results, can modify
+    ['weapon_attack', ActionProcessingLevel.REVIEWABLE],
+    ['spell_attack', ActionProcessingLevel.REVIEWABLE],
+    ['apply_damage', ActionProcessingLevel.REVIEWABLE],
+    ['saving_throw', ActionProcessingLevel.REVIEWABLE],
+    ['death_save', ActionProcessingLevel.REVIEWABLE],
+    ['consume_spell_slot', ActionProcessingLevel.REVIEWABLE],
+    ['level_up', ActionProcessingLevel.REVIEWABLE],
+    
+    // Manual Only - Always requires GM decision
+    ['direct_stat_change', ActionProcessingLevel.MANUAL_ONLY],
+    ['add_item', ActionProcessingLevel.MANUAL_ONLY],
+    ['remove_item', ActionProcessingLevel.MANUAL_ONLY],
+    ['custom_action', ActionProcessingLevel.MANUAL_ONLY]
+  ]);
+  
+  // GM can override plugin defaults via settings
+  private gmOverrides = new Map<string, ActionProcessingLevel>();
+  
+  getActionProcessingLevel(action: GameAction): ActionProcessingLevel {
+    // Check GM overrides first
+    const override = this.gmOverrides.get(action.type);
+    if (override) return override;
+    
+    // Fall back to plugin defaults
+    return this.actionClassification.get(action.type) ?? ActionProcessingLevel.MANUAL_ONLY;
+  }
+  
+  calculateActionOutcome(action: GameAction): CalculatedOutcome {
+    switch (action.type) {
+      case 'weapon_attack':
+        return this.calculateAttackOutcome(action as WeaponAttackAction);
+      case 'spell_attack':
+        return this.calculateSpellOutcome(action as SpellAttackAction);
+      case 'saving_throw':
+        return this.calculateSaveOutcome(action as SavingThrowAction);
+      default:
+        throw new Error(`No calculation logic for action type: ${action.type}`);
+    }
+  }
+  
+  private calculateAttackOutcome(action: WeaponAttackAction): AttackOutcome {
+    const attacker = this.getActor(action.attackerId);
+    const target = this.getActor(action.targetId);
+    const weapon = this.getItem(action.weaponId);
+    
+    // Calculate attack roll
+    const attackRoll = this.rollD20() + attacker.attackBonus + weapon.attackBonus;
+    const hits = attackRoll >= target.armorClass;
+    
+    if (!hits) {
+      return {
+        type: 'miss',
+        description: `Attack misses (rolled ${attackRoll} vs AC ${target.armorClass})`,
+        changes: [],
+        consequences: ['No damage taken']
+      };
+    }
+    
+    // Calculate damage
+    const damageRoll = this.rollDice(weapon.damage.dice) + weapon.damage.bonus;
+    const isCritical = this.d20Roll >= 20;
+    const finalDamage = isCritical ? damageRoll * 2 : damageRoll;
+    
+    const newHP = Math.max(0, target.hitPoints - finalDamage);
+    const isDead = newHP === 0;
+    
+    return {
+      type: 'hit',
+      description: `${weapon.name} hits for ${finalDamage} damage${isCritical ? ' (critical!)' : ''}`,
+      changes: [
+        { actorId: target.id, field: 'hitPoints', oldValue: target.hitPoints, newValue: newHP }
+      ],
+      consequences: [
+        `Target takes ${finalDamage} ${weapon.damage.type} damage`,
+        `${target.name}: ${target.hitPoints} → ${newHP} HP`,
+        ...(isDead ? [`${target.name} drops to 0 HP`] : [])
+      ]
+    };
+  }
+}
+
+// Alternative game system with different philosophy
+class NarrativeSystemPlugin implements PluginValidationHooks {
+  // More actions require GM input for narrative control
+  private actionClassification = new Map<string, ActionProcessingLevel>([
+    // Only basic actions are automatic  
+    ['movement', ActionProcessingLevel.AUTOMATIC],
+    ['chat_message', ActionProcessingLevel.AUTOMATIC],
+    
+    // Most actions are reviewable for narrative control
+    ['attempt_action', ActionProcessingLevel.REVIEWABLE],
+    ['use_skill', ActionProcessingLevel.REVIEWABLE], 
+    ['dramatic_moment', ActionProcessingLevel.REVIEWABLE],
+    ['social_interaction', ActionProcessingLevel.REVIEWABLE],
+    
+    // Character changes always manual
+    ['change_trait', ActionProcessingLevel.MANUAL_ONLY],
+    ['narrative_declaration', ActionProcessingLevel.MANUAL_ONLY]
+  ]);
+  
+  // Different calculation approach - more narrative focused
+  calculateActionOutcome(action: GameAction): CalculatedOutcome {
+    return {
+      type: 'narrative_suggestion',
+      description: `Suggested outcome based on character traits and situation`,
+      changes: [], // Fewer mechanical changes
+      consequences: ['Success creates new narrative opportunities']
+    };
+  }
+}
+```
+
+#### Plugin Configuration Interface
+
+```typescript
+interface PluginActionConfig {
+  // Define processing levels for each action type
+  actionLevels: Map<string, ActionProcessingLevel>;
+  
+  // Allow GM to override plugin defaults
+  allowGMOverrides: boolean;
+  
+  // Define which actions can be batched together
+  batchableActions: string[];
+  
+  // Timeout settings for different action types
+  reviewTimeouts: Map<ActionProcessingLevel, number>;
+}
+
+// GM interface for configuring plugin behavior
+interface GMPluginSettings {
+  [pluginId: string]: {
+    // Override specific action processing levels
+    actionOverrides: Map<string, ActionProcessingLevel>;
+    
+    // Plugin-specific settings
+    customSettings: Record<string, any>;
+    
+    // Enable/disable plugin automation features
+    automationFeatures: {
+      [featureName: string]: boolean;
+    };
+  };
+}
+```
+
+### Action Processing Flow
 
 ```mermaid
 graph TD
-    A[Player Action] --> B{Check Authority Level}
-    B -->|Auto| C[Instant Approval]
-    B -->|Review| D[Send to GM Queue]
-    B -->|Manual| E[Require GM Input]
+    A[Player Action] --> B{Check Processing Level}
+    B -->|Automatic| C[Plugin Calculates & Validates]
+    B -->|Reviewable| D[Plugin Calculates Outcome]
+    B -->|Manual Only| E[Escalate to Human GM]
     
-    D --> F{GM Response?}
-    F -->|Yes| G[Use GM Decision]
-    F -->|No - 3s timeout| H[Auto-Approve]
+    C --> F{Valid?}
+    F -->|Yes| G[Auto-Execute]
+    F -->|No| H[Auto-Reject with Reason]
     
-    E --> I[Wait for GM]
-    I --> J[GM Decision]
+    D --> I[Present Calculated Result to GM]
+    I --> J{GM Response}
+    J -->|Apply| G
+    J -->|Modify| K[GM Adjusts Result]
+    J -->|Reject| H
+    J -->|No Response - 5s| G
     
-    C --> K[Execute Action]
-    G --> K
-    H --> K
-    J --> K
+    K --> G
+    
+    E --> L[Human GM Decision]
+    L -->|Approve| G
+    L -->|Reject| H
+    L -->|Custom Ruling| M[Apply Custom Result]
+    
+    G --> N[Update State & Broadcast]
+    H --> O[Notify Player with Reason]
+    M --> N
 ```
 
-### Dynamic Authority Configuration
+### Transparent Control Interface Design
+
+The GM interface provides clear visibility into calculated results with intuitive modification options:
+
+#### Action Review Interface
 
 ```typescript
-interface GMAuthoritySettings {
-  // Global settings
-  defaultApprovalTimeout: number;  // Seconds before auto-approval
-  combatAutoApproval: boolean;     // Auto-approve basic combat
+interface ActionReviewUI {
+  // Calculated outcome display
+  outcome: {
+    title: string;           // "Attack Result" 
+    description: string;     // "Longsword hits Orc for 8 damage"
+    calculatedResult: any;   // Structured result data
+    consequences: string[];  // ["Orc drops to 0 HP", "Orc dies"]
+  };
   
-  // Per-action overrides
-  actionSettings: {
-    [actionType: string]: {
-      authorityLevel: AuthorityLevel;
-      timeout?: number;
-      conditions?: AuthorityCondition[];
+  // GM control options
+  actions: {
+    apply: {
+      label: "Apply";
+      tooltip: "Execute calculated result";
+      hotkey: "Enter";
+    };
+    modify: {
+      label: "Modify";
+      tooltip: "Adjust damage, effects, or outcomes";
+      hotkey: "M";
+      fields: ModificationField[];
+    };
+    reject: {
+      label: "Reject"; 
+      tooltip: "Cancel this action";
+      hotkey: "R";
     };
   };
   
-  // Contextual rules
-  contextualRules: [
-    {
-      condition: "player.level < 5",
-      action: "high_level_spell",
-      override: AuthorityLevel.AUTO_APPROVED  // Auto-reject
-    },
-    {
-      condition: "combat.round > 10",
-      action: "basic_attack", 
-      override: AuthorityLevel.AUTO_APPROVED  // Speed up long combats
-    }
-  ];
+  // Context for decision making
+  context: {
+    player: string;          // "Alice"
+    character: string;       // "Thorin Ironbeard"
+    target: string;          // "Orc Warrior"
+    gameState: string;       // "Combat Round 3, Turn 2"
+  };
+}
+
+interface ModificationField {
+  field: string;             // "damage", "target", "effect"
+  currentValue: any;         // 8, "orc-1", "death"
+  suggestedValues?: any[];   // [1, 2, 3, 4, 5, 6, 7, 8]
+  type: 'number' | 'select' | 'text';
+  label: string;             // "Damage Amount"
+  reasoning?: string;        // "Reduce to keep orc alive"
+}
+```
+
+#### GM Interface Examples
+
+**Attack Result Review:**
+```
+┌─ Attack Result ─────────────────────────────────┐
+│ Alice's Thorin attacks Orc Warrior             │
+│ Longsword hits AC 15 (rolled 18) ✓             │
+│ Damage: 8 piercing (2d6+3, rolled 5,3)        │
+│                                                 │
+│ Consequences:                                   │
+│ • Orc drops from 15 HP → 7 HP                  │
+│ • Orc remains conscious                         │
+│                                                 │
+│ [Apply] [Modify...] [Reject]                    │
+└─────────────────────────────────────────────────┘
+```
+
+**Modification Interface:**
+```
+┌─ Modify Attack Result ──────────────────────────┐
+│ Damage: [8] → [___] (1-12 reasonable)           │
+│ Effect: [Normal] ▼ [Stunned/Prone/etc.]         │
+│ Target: [Orc] → [___] (redirect attack)         │
+│                                                 │
+│ Reason: [Keep orc alive for interrogation____] │
+│                                                 │
+│ [Apply Changes] [Cancel]                        │
+└─────────────────────────────────────────────────┘
+```
+
+**Spell Effect Review:**
+```
+┌─ Spell Result ──────────────────────────────────┐
+│ Bob's Wizard casts Fireball                     │
+│ 3 targets in 20ft radius                       │
+│                                                 │
+│ Orc 1: 28 fire damage (DC 15 Dex save: 8) ✗    │
+│ Orc 2: 14 fire damage (DC 15 Dex save: 16) ✓   │
+│ Goblin: 28 fire damage (DC 15 Dex save: 11) ✗  │
+│                                                 │
+│ Consequences:                                   │
+│ • Orc 1: 28 → 0 HP (dies)                      │
+│ • Orc 2: 15 → 1 HP (unconscious)               │
+│ • Goblin: 7 → 0 HP (dies)                      │
+│                                                 │
+│ [Apply] [Modify Damage...] [Reject]             │
+└─────────────────────────────────────────────────┘
+```
+
+#### Design Principles
+
+1. **Calculated First**: Always show what the rules determine happened
+2. **Clear Consequences**: Explicitly state the game state changes  
+3. **Easy Approval**: Default action (Apply) is prominently placed
+4. **Intuitive Modification**: Common adjustments (damage, targeting) are one click away
+5. **Contextual Information**: Show relevant game state for informed decisions
+6. **Fast Interaction**: Keyboard shortcuts for common actions
+7. **Reversible**: Actions can be undone if needed
+
+### GM Client Configuration
+
+```typescript
+interface GMClientSettings {
+  // Automation settings
+  automation: {
+    autoApplyDamage: boolean;        // Default: true
+    autoApplyHealing: boolean;       // Default: true
+    autoConsumeResources: boolean;   // Default: true (spell slots, ammo)
+    autoLevelUp: boolean;           // Default: false
+    autoDeathSaves: boolean;        // Default: true
+    autoInitiative: boolean;        // Default: true
+  };
   
-  // Player trust levels
-  playerTrust: {
+  // Escalation thresholds
+  escalation: {
+    suspiciousActionThreshold: number;     // How many weird actions before escalation
+    rapidActionThreshold: number;         // Actions per second that trigger review
+    statChangeThreshold: number;          // Stat changes that trigger manual review
+    inventoryChangeThreshold: number;     // Inventory changes outside rules
+  };
+  
+  // Quick approval settings (for configurable actions)
+  quickApproval: {
+    enabled: boolean;                     // Show quick approve buttons
+    timeout: number;                      // Seconds before auto-approve
+    showPreview: boolean;                 // Show what will happen
+    batchSimilar: boolean;               // Group similar actions
+  };
+  
+  // Plugin-specific overrides
+  pluginSettings: {
+    [pluginId: string]: {
+      validationLevel: {
+        [actionType: string]: ValidationLevel;
+      };
+      customRules: {
+        [ruleName: string]: boolean;      // House rules toggle
+      };
+    };
+  };
+  
+  // Player-specific settings
+  playerSettings: {
     [playerId: string]: {
-      trustLevel: "new" | "regular" | "trusted";
-      autoApproveList: string[];  // Additional auto-approved actions
+      suspicionLevel: "low" | "normal" | "high";  // How much to watch this player
+      allowDirectEdits: boolean;                  // Can they edit character sheets
+      exemptFromEscalation: string[];            // Actions that don't escalate for this player
     };
   };
 }
@@ -1522,769 +2275,488 @@ class UniversalInventoryService {
 ### GM Client Implementation
 
 ```typescript
-class GMActionController {
-  private actionQueue = new PriorityQueue<QueuedAction>();
-  private autoApprovalTimers = new Map<string, NodeJS.Timeout>();
-  private settings: GMAuthoritySettings;
+class GMClientValidator {
+  private pendingReviews = new Map<string, PendingReview>();
+  private settings: GMClientSettings;
   private plugin: GameSystemPlugin;
+  private humanGMInterface: HumanGMInterface;
   
   async handleIncomingAction(message: ActionMessage): Promise<void> {
     const action = message.action;
-    const authority = this.getAuthorityLevel(action);
+    const processingLevel = this.plugin.getActionProcessingLevel(action);
     
-    switch (authority) {
-      case AuthorityLevel.AUTO_APPROVED:
-        await this.autoApprove(message);
+    switch (processingLevel) {
+      case ActionProcessingLevel.AUTOMATIC:
+        await this.automaticProcessing(message);
         break;
         
-      case AuthorityLevel.QUICK_REVIEW:
-        await this.queueForQuickReview(message);
+      case ActionProcessingLevel.REVIEWABLE:
+        await this.reviewableProcessing(message);
         break;
         
-      case AuthorityLevel.FULL_DISCRETION:
-        await this.requireManualApproval(message);
+      case ActionProcessingLevel.MANUAL_ONLY:
+        await this.escalateToHuman(message);
         break;
     }
   }
   
-  private async autoApprove(message: ActionMessage): Promise<void> {
-    // Use plugin to calculate result
-    const result = await this.plugin.processAction(message.action);
-    
-    // Immediately approve
-    await this.sendDecision({
-      actionId: message.id,
-      approved: true,
-      stateChanges: result.stateChanges,
-      feedback: result.description,
-      autoApproved: true
-    });
-    
-    // Log for GM visibility
-    this.addToActionLog({
-      ...message,
-      result,
-      approvalType: 'auto',
-      timestamp: Date.now()
-    });
-  }
-  
-  private async queueForQuickReview(message: ActionMessage): Promise<void> {
-    // Calculate result
-    const suggestion = await this.plugin.processAction(message.action);
-    
-    // Add to GM queue
-    const queuedAction: QueuedAction = {
-      message,
-      suggestion,
-      priority: this.calculatePriority(message),
-      expiresAt: Date.now() + (this.settings.defaultApprovalTimeout * 1000)
-    };
-    
-    this.actionQueue.enqueue(queuedAction);
-    
-    // Show in GM interface
-    this.ui.showQuickAction(queuedAction);
-    
-    // Set auto-approval timer
-    const timer = setTimeout(() => {
-      this.autoApproveQueued(message.id);
-    }, this.settings.defaultApprovalTimeout * 1000);
-    
-    this.autoApprovalTimers.set(message.id, timer);
-  }
-  
-  private async requireManualApproval(message: ActionMessage): Promise<void> {
-    // Calculate suggestion
-    const suggestion = await this.plugin.processAction(message.action);
-    
-    // Show approval dialog
-    const dialog = await this.ui.showApprovalDialog({
-      action: message.action,
-      player: message.playerId,
-      suggestion,
-      context: await this.gatherContext(message),
-      options: {
-        approve: () => this.approve(message.id, suggestion),
-        modify: () => this.showModificationUI(message, suggestion),
-        reject: () => this.showRejectionUI(message),
-        delegate: () => this.delegateToPlayer(message)
-      }
-    });
-  }
-  
-  // Batch operations for efficiency
-  async processBatch(actions: ActionMessage[]): Promise<void> {
-    const similarActions = this.groupSimilarActions(actions);
-    
-    for (const group of similarActions) {
-      if (group.length > 3) {
-        const batchApproval = await this.ui.showBatchDialog({
-          actions: group,
-          summary: this.summarizeActions(group),
-          options: {
-            approveAll: () => this.batchApprove(group),
-            reviewEach: () => this.reviewIndividually(group),
-            rejectAll: () => this.batchReject(group)
-          }
+  private async automaticProcessing(message: ActionMessage): Promise<void> {
+    try {
+      // Validate and execute immediately
+      const validation = await this.plugin.validateAutomaticAction(message.action);
+      
+      if (validation.valid) {
+        const outcome = await this.plugin.calculateActionOutcome(message.action);
+        
+        // Execute without human intervention
+        await this.executeAction({
+          actionId: message.id,
+          outcome,
+          processingType: 'automatic',
+          processingTime: performance.now() - message.timestamp
+        });
+        
+        // Log for audit trail
+        this.addToActionLog({
+          ...message,
+          outcome,
+          processingType: 'automatic',
+          timestamp: Date.now()
+        });
+      } else {
+        // Validation failed - reject with reason
+        await this.rejectAction({
+          actionId: message.id,
+          reason: validation.reason,
+          suggestion: validation.suggestion
         });
       }
+    } catch (error) {
+      // Unexpected error - escalate to human
+      await this.escalateToHuman(message, `Automatic processing failed: ${error.message}`);
     }
   }
-}
-```
-
-### GM User Interface
-
-```typescript
-interface GMInterface {
-  // Action queue display
-  actionQueue: {
-    pending: QueuedAction[];
-    autoApprovalCountdown: Map<string, number>;
-    recentlyProcessed: ProcessedAction[];
-  };
   
-  // Quick action buttons
-  quickActions: {
-    approveAll: () => void;
-    pauseAutoApproval: () => void;
-    enableCombatMode: () => void;
-    trustPlayer: (playerId: string) => void;
-  };
+  private async reviewableProcessing(message: ActionMessage): Promise<void> {
+    try {
+      // Calculate outcome for GM review
+      const calculatedOutcome = await this.plugin.calculateActionOutcome(message.action);
+      
+      // Present to human GM with modification options
+      const reviewId = this.generateReviewId();
+      const reviewData: ActionReview = {
+        actionId: message.id,
+        playerId: message.playerId,
+        action: message.action,
+        calculatedOutcome,
+        options: this.generateReviewOptions(message.action, calculatedOutcome),
+        context: await this.gatherActionContext(message),
+        timestamp: Date.now()
+      };
+      
+      // Store pending review
+      this.pendingReviews.set(reviewId, {
+        message,
+        calculatedOutcome,
+        expiresAt: Date.now() + this.getReviewTimeout(message.action.type)
+      });
+      
+      // Show GM interface
+      await this.humanGMInterface.presentActionReview(reviewId, reviewData);
+      
+      // Set timeout for auto-application if no response
+      setTimeout(() => {
+        if (this.pendingReviews.has(reviewId)) {
+          this.autoApplyCalculatedResult(reviewId, 'timeout');
+        }
+      }, this.getReviewTimeout(message.action.type));
+      
+    } catch (error) {
+      await this.escalateToHuman(message, `Calculation failed: ${error.message}`);
+    }
+  }
   
-  // Modification interface
-  modificationDialog: {
-    action: ActionMessage;
-    suggestion: ActionResult;
-    fields: {
-      damage: NumberInput;
-      conditions: ConditionSelector;
-      customEffect: TextArea;
-    };
-    preview: () => StateChange[];
-    confirm: () => void;
-  };
-  
-  // Settings panel
-  settings: {
-    authority: GMAuthoritySettings;
-    hotkeys: HotkeyConfiguration;
-    automation: AutomationRules;
-  };
-}
-```
-
-### Player Experience
-
-```typescript
-class PlayerActionController {
-  private pendingActions = new Map<string, PendingAction>();
-  private actionFeedback = new UIFeedbackSystem();
-  
-  async requestAction(action: PlayerAction): Promise<ActionResult> {
-    // Create request
-    const request = {
-      id: generateId(),
-      action,
-      timestamp: Date.now()
-    };
+  // GM response handlers
+  async handleGMApproval(reviewId: string, response: GMResponse): Promise<void> {
+    const pending = this.pendingReviews.get(reviewId);
+    if (!pending) return;
     
-    // Show pending UI
-    this.actionFeedback.showPending(action, {
-      message: this.getWaitMessage(action),
-      estimatedTime: this.estimateApprovalTime(action),
-      cancelButton: () => this.cancelAction(request.id)
+    let finalOutcome: CalculatedOutcome;
+    
+    switch (response.action) {
+      case 'apply':
+        finalOutcome = pending.calculatedOutcome;
+        break;
+        
+      case 'modify':
+        finalOutcome = this.applyGMModifications(
+          pending.calculatedOutcome, 
+          response.modifications
+        );
+        break;
+        
+      case 'reject':
+        await this.rejectAction({
+          actionId: pending.message.id,
+          reason: response.reason || 'GM rejected action',
+          suggestion: response.suggestion
+        });
+        this.pendingReviews.delete(reviewId);
+        return;
+    }
+    
+    // Execute the final outcome
+    await this.executeAction({
+      actionId: pending.message.id,
+      outcome: finalOutcome,
+      processingType: 'gm_reviewed',
+      gmModifications: response.modifications,
+      gmReasoning: response.reasoning
     });
     
-    // Send to server
-    const result = await this.sendActionRequest(request);
-    
-    // Update UI based on result
-    if (result.success) {
-      this.actionFeedback.showSuccess(action, result);
-      await this.applyLocalUpdates(result.changes);
-    } else {
-      this.actionFeedback.showFailure(action, result.reason);
-    }
-    
-    return result;
+    this.pendingReviews.delete(reviewId);
   }
   
-  private getWaitMessage(action: PlayerAction): string {
-    const messages = {
-      attack: "Waiting for GM to resolve attack...",
-      spell: "GM is reviewing your spell...",
-      creative: "GM is considering your action...",
-      movement: "Moving...",  // Auto-approved, minimal wait
-    };
+  private applyGMModifications(
+    originalOutcome: CalculatedOutcome, 
+    modifications: GMModification[]
+  ): CalculatedOutcome {
+    let modifiedOutcome = { ...originalOutcome };
     
-    return messages[action.type] || "Waiting for GM approval...";
-  }
-  
-  private estimateApprovalTime(action: PlayerAction): number {
-    const estimates = {
-      [AuthorityLevel.AUTO_APPROVED]: 0,
-      [AuthorityLevel.QUICK_REVIEW]: 3,
-      [AuthorityLevel.FULL_DISCRETION]: 15
-    };
-    
-    const level = this.getAuthorityLevel(action);
-    return estimates[level];
-  }
-}
-```
-
-## GM Experience Design
-
-### Workload Management
-
-```typescript
-class GMWorkloadManager {
-  private stats = {
-    actionsPerMinute: new RollingAverage(60),
-    approvalTime: new RollingAverage(100),
-    autoApprovalRate: new Percentage()
-  };
-  
-  async optimizeWorkload(): Promise<WorkloadSuggestion[]> {
-    const suggestions: WorkloadSuggestion[] = [];
-    
-    // Detect high load
-    if (this.stats.actionsPerMinute.average > 10) {
-      suggestions.push({
-        type: 'enable_combat_mode',
-        message: 'Enable combat mode for faster approvals?',
-        action: () => this.enableCombatMode()
-      });
-    }
-    
-    // Detect patterns
-    const patterns = this.analyzeActionPatterns();
-    if (patterns.repeatedActions > 5) {
-      suggestions.push({
-        type: 'batch_approval',
-        message: `${patterns.repeatedActions} similar actions detected`,
-        action: () => this.showBatchInterface()
-      });
-    }
-    
-    // Trust suggestions
-    const trustAnalysis = this.analyzeTrustPatterns();
-    for (const player of trustAnalysis.trustworthy) {
-      suggestions.push({
-        type: 'increase_trust',
-        message: `Grant ${player.name} more autonomy?`,
-        action: () => this.increaseTrust(player.id)
-      });
-    }
-    
-    return suggestions;
-  }
-  
-  // Combat mode for faster gameplay
-  enableCombatMode(): void {
-    this.updateSettings({
-      combatMode: true,
-      autoApproval: {
-        basicAttacks: true,
-        movement: true,
-        simpleSpells: true,
-        timeout: 1  // 1 second quick review
+    for (const mod of modifications) {
+      switch (mod.field) {
+        case 'damage':
+          modifiedOutcome = this.modifyDamage(modifiedOutcome, mod.newValue);
+          break;
+        case 'target':
+          modifiedOutcome = this.modifyTarget(modifiedOutcome, mod.newValue);
+          break;
+        case 'effect':
+          modifiedOutcome = this.modifyEffect(modifiedOutcome, mod.newValue);
+          break;
       }
-    });
-    
-    this.ui.showNotification('Combat mode enabled - basic actions auto-approved');
-  }
-}
-```
-
-### Quick Action Interface
-
-```mermaid
-graph LR
-    subgraph "GM Screen"
-        AQ[Action Queue]
-        QA[Quick Actions]
-        AL[Action Log]
-        ST[Settings]
-    end
-    
-    subgraph "Quick Actions"
-        AA[Approve All]
-        PA[Pause Auto]
-        CM[Combat Mode]
-        BH[Batch Handler]
-    end
-    
-    subgraph "Keyboard Shortcuts"
-        K1[Space - Approve]
-        K2[X - Reject]
-        K3[M - Modify]
-        K4[Tab - Next]
-    end
-    
-    AQ --> QA
-    K1 --> AA
-    K2 --> QA
-    K3 --> QA
-    K4 --> AQ
-```
-
-### Delegation System
-
-```typescript
-class GMDelegationSystem {
-  private delegates = new Map<string, DelegatePermissions>();
-  
-  // Temporary delegation
-  async delegateTemporarily(playerId: string, permissions: string[]): Promise<void> {
-    this.delegates.set(playerId, {
-      permissions,
-      expiresAt: Date.now() + (30 * 60 * 1000), // 30 minutes
-      scope: 'session'
-    });
-    
-    await this.notifyPlayer(playerId, 'You have been granted temporary GM powers');
-  }
-  
-  // Co-GM system
-  async appointCoGM(playerId: string): Promise<void> {
-    this.delegates.set(playerId, {
-      permissions: ['approve_basic_actions', 'manage_initiative', 'resolve_attacks'],
-      expiresAt: null,  // Permanent for session
-      scope: 'campaign'
-    });
-    
-    await this.server.grantCoGMStatus(this.sessionId, playerId);
-  }
-  
-  // Handle delegation
-  async handleDelegatedAction(action: ActionMessage, delegateId: string): Promise<boolean> {
-    const permissions = this.delegates.get(delegateId);
-    if (!permissions) return false;
-    
-    if (this.canDelegateHandle(action, permissions)) {
-      // Let delegate handle it
-      await this.forwardToDelegate(delegateId, action);
-      return true;
     }
     
-    return false;
+    return modifiedOutcome;
   }
+  
+  private generateReviewOptions(action: GameAction, outcome: CalculatedOutcome): ReviewOption[] {
+    const options: ReviewOption[] = [
+      {
+        type: 'apply',
+        label: 'Apply',
+        description: 'Execute the calculated result',
+        hotkey: 'Enter',
+        isDefault: true
+      },
+      {
+        type: 'reject',
+        label: 'Reject',
+        description: 'Cancel this action',
+        hotkey: 'R'
+      }
+    ];
+    
+    // Add modification options based on action type
+    if (action.type === 'weapon_attack' || action.type === 'spell_attack') {
+      options.splice(1, 0, {
+        type: 'modify',
+        label: 'Modify Damage',
+        description: 'Adjust damage amount',
+        hotkey: 'M',
+        fields: [
+          {
+            field: 'damage',
+            type: 'number',
+            currentValue: this.extractDamage(outcome),
+            min: 0,
+            max: this.extractDamage(outcome) * 2,
+            suggestions: this.generateDamageSuggestions(outcome)
+          }
+        ]
+      });
+    }
+    
+    return options;
+  }
+}
+
+// Supporting interface definitions
+interface PendingReview {
+  message: ActionMessage;
+  calculatedOutcome: CalculatedOutcome;
+  expiresAt: number;
+}
+
+interface ActionReview {
+  actionId: string;
+  playerId: string;
+  action: GameAction;
+  calculatedOutcome: CalculatedOutcome;
+  options: ReviewOption[];
+  context: ActionContext;
+  timestamp: number;
+}
+
+interface GMResponse {
+  action: 'apply' | 'modify' | 'reject';
+  modifications?: GMModification[];
+  reasoning?: string;
+  reason?: string;
+  suggestion?: string;
+}
+
+interface GMModification {
+  field: string;
+  newValue: any;
+  reason?: string;
+}
+
+interface ReviewOption {
+  type: string;
+  label: string;
+  description: string;
+  hotkey?: string;
+  isDefault?: boolean;
+  fields?: ModificationField[];
+}
+
+interface CalculatedOutcome {
+  type: string;
+  description: string;
+  changes: StateChange[];
+  consequences: string[];
+}
+
+interface ActionContext {
+  player: string;
+  character: string;
+  target?: string;
+  gameState: string;
+  previousActions: string[];
 }
 ```
 
-## Edge Cases and Solutions
+This implementation provides:
 
-### GM Disconnection
+1. **Automatic Processing**: Actions execute immediately after validation
+2. **Reviewable Processing**: GM sees calculated results with modification options
+3. **Manual Only Processing**: Always requires human GM decision
+4. **Flexible Modification**: GMs can adjust outcomes before application
+5. **Timeout Handling**: Actions auto-apply if GM doesn't respond
+6. **Audit Trail**: All actions logged for review
+
+### Socket Event Updates
+
+The socket events need updates to support the calculated result + options pattern:
+
+```typescript
+// New socket events for reviewable actions
+interface ServerToClientEvents {
+  // ... existing events ...
+  
+  // New review-related events
+  'action:review-required': (reviewData: ActionReview) => void;
+  'action:auto-applied': (result: ActionResult) => void;
+  'action:gm-modified': (result: ActionResult, modifications: GMModification[]) => void;
+}
+
+interface ClientToServerEvents {
+  // ... existing events ...
+  
+  // GM response events
+  'action:review-response': (reviewId: string, response: GMResponse) => void;
+  'action:request-modification-ui': (reviewId: string, fields: string[]) => void;
+}
+```
+
+This completes the technical implementation updates for the discretionary GM control system. The key changes include:
+
+1. **ActionProcessingLevel** enum replacing ValidationLevel
+2. **Reviewable actions** that present calculated results to GM
+3. **Modification interface** for GM adjustments
+4. **Timeout handling** for responsive gameplay
+5. **Audit trail** for all GM decisions
+
+## Summary
+
+This enhanced GM-authoritative proposal successfully addresses the original goals while providing GMs with the narrative control they need. Key improvements include:
+
+### Technical Architecture
+- **Server remains game-agnostic**: No game logic on server, only message routing
+- **Plugin-driven validation**: Game systems define their own action processing rules  
+- **Type-safe messaging**: Discriminated unions ensure compile-time safety
+- **Scalable design**: New game systems require only client-side plugins
+
+### GM Experience
+- **Discretionary control**: GMs can intervene when story/balance requires it
+- **Transparent automation**: See calculated results before applying
+- **Flexible modification**: Adjust outcomes without breaking immersion
+- **Configurable processing**: Tune automation levels per action type
+
+### Player Experience  
+- **Responsive gameplay**: Most actions execute immediately
+- **Clear feedback**: Players know when GM review is happening
+- **Consistent rules**: Automated validation ensures fair play
+- **Narrative flexibility**: GMs can create dramatic moments when needed
+
+The automated validation model ensures that routine actions happen instantly without human intervention, while providing GMs with the discretionary control needed to shape the narrative and maintain game balance. Most importantly, this architecture eliminates the need for complex server-side game plugins while maintaining strong rule enforcement, providing a clean separation between VTT infrastructure and game system logic.
+
+## GM Disconnection Resilience
+
+The GM-authoritative architecture has one critical dependency: the GM client must be connected to process actions. To handle GM disconnections and flaky connections gracefully, the system implements a simple **pause and queue** strategy.
+
+### Core Strategy: Simple Pause & Queue
+
+When the GM client becomes unreachable, the system prioritizes **state consistency** over continued gameplay by pausing all action processing until the GM reconnects.
+
+#### GM Connection Monitoring
+```typescript
+interface GMConnectionMonitor {
+  heartbeatInterval: 5000;     // 5 second pings between GM client and server
+  disconnectTimeout: 15000;    // 15 seconds to declare disconnection
+  reconnectGracePeriod: 10000; // 10 seconds to avoid rapid pause/unpause cycles
+}
+```
+
+#### Disconnection Response Flow
+
+**1. Detection (15 seconds without heartbeat)**
+- Server immediately declares GM disconnected
+- All game actions stop processing
+- Player actions are queued with timestamps
+- Players receive clear notification: "GM disconnected - game paused"
+
+**2. During Disconnection**
+- **Queue Everything**: All player actions stored in chronological order
+- **Maintain State**: No state changes occur during disconnection
+- **Prevent Corruption**: Game state remains consistent
+- **Show Status**: Players see "Game Paused" with reconnection status
+
+**3. Flaky Connection Handling**
+- **Short Drops (< 30 seconds)**: Don't declare disconnection, just buffer actions temporarily
+- **Grace Period**: 10-second window after reconnection before resuming to prevent rapid cycling
+- **Connection Quality**: Optional indicator showing GM connection strength
+
+**4. GM Reconnection Flow**
+- **Automatic Resume**: GM client reconnects and normal processing resumes
+- **Process Queue**: All queued actions executed in chronological order
+- **Batch Processing**: Related actions can be processed together for efficiency
+- **Notification**: "GM reconnected - resuming game"
+
+### Technical Implementation
 
 ```typescript
 class GMDisconnectionHandler {
-  private reconnectionWindow = 2 * 60 * 1000;  // 2 minutes
-  private fallbackStrategies: FallbackStrategy[] = [];
+  private isGMConnected = true;
+  private actionQueue: ActionMessage[] = [];
+  private disconnectionStartTime?: number;
   
-  async handleGMDisconnect(sessionId: string): Promise<void> {
-    const session = await this.getSession(sessionId);
+  onGMDisconnect(): void {
+    this.isGMConnected = false;
+    this.disconnectionStartTime = Date.now();
     
-    // Immediate response
-    await this.pauseGameplay(sessionId);
-    await this.notifyPlayers(sessionId, {
-      type: 'gm_disconnected',
+    // Pause all action processing
+    this.pauseActionProcessing();
+    
+    // Notify all players
+    this.broadcastToSession('gm:disconnected', {
       message: 'GM disconnected - game paused',
-      expectedReconnection: this.reconnectionWindow
-    });
-    
-    // Check for co-GM
-    const coGM = session.coGMId;
-    if (coGM) {
-      await this.promoteCoGM(sessionId, coGM);
-      return;
-    }
-    
-    // Start reconnection timer
-    this.startReconnectionTimer(sessionId, async () => {
-      // After timeout, activate fallback
-      await this.activateFallback(sessionId);
+      timestamp: Date.now()
     });
   }
   
-  private async activateFallback(sessionId: string): Promise<void> {
-    const strategy = await this.selectFallbackStrategy(sessionId);
+  onGMReconnect(): void {
+    this.isGMConnected = true;
+    const disconnectionDuration = Date.now() - (this.disconnectionStartTime || 0);
     
-    switch (strategy) {
-      case 'peer_validation':
-        await this.enablePeerValidation(sessionId);
-        break;
-        
-      case 'auto_approve_all':
-        await this.enableEmergencyAutoApproval(sessionId);
-        break;
-        
-      case 'pause_until_return':
-        await this.maintainPause(sessionId);
-        break;
-        
-      case 'end_session':
-        await this.gracefullyEndSession(sessionId);
-        break;
-    }
-  }
-}
-```
-
-### Disputed Actions
-
-```typescript
-class DisputeResolution {
-  async handleDispute(dispute: ActionDispute): Promise<void> {
-    // Log dispute
-    await this.logDispute(dispute);
+    // Process queued actions in order
+    this.processQueuedActions();
     
-    // Present to GM with full context
-    const resolution = await this.gm.showDisputeDialog({
-      player: dispute.playerId,
-      action: dispute.action,
-      playerArgument: dispute.argument,
-      pluginRuling: dispute.pluginResult,
-      previousRulings: await this.findSimilarRulings(dispute),
-      options: {
-        upholdPlugin: () => this.resolveWithPlugin(dispute),
-        overrideForPlayer: () => this.resolveForPlayer(dispute),
-        customRuling: () => this.createCustomRuling(dispute),
-        discussFurther: () => this.openDiscussion(dispute)
-      }
+    // Resume normal processing
+    this.resumeActionProcessing();
+    
+    // Notify players
+    this.broadcastToSession('gm:reconnected', {
+      message: 'GM reconnected - resuming game',
+      queuedActions: this.actionQueue.length,
+      disconnectionDuration,
+      timestamp: Date.now()
     });
     
-    // Store ruling for consistency
-    await this.storeRuling(dispute, resolution);
+    // Clear queue
+    this.actionQueue = [];
+    this.disconnectionStartTime = undefined;
   }
-}
-```
-
-### Performance Optimization
-
-```typescript
-class PerformanceOptimizer {
-  // Predictive pre-approval
-  async predictiveApproval(playerId: string): Promise<void> {
-    const history = await this.getPlayerHistory(playerId);
-    const patterns = this.analyzePatterns(history);
-    
-    // Pre-calculate likely actions
-    for (const likelyAction of patterns.predictedActions) {
-      const result = await this.plugin.processAction(likelyAction);
-      this.cache.set(this.actionKey(playerId, likelyAction), result);
+  
+  queueAction(action: ActionMessage): void {
+    if (!this.isGMConnected) {
+      this.actionQueue.push({
+        ...action,
+        queuedAt: Date.now()
+      });
+      
+      // Notify player their action is queued
+      this.sendToPlayer(action.playerId, 'action:queued', {
+        actionId: action.id,
+        queuePosition: this.actionQueue.length,
+        message: 'Action queued - waiting for GM to reconnect'
+      });
     }
   }
   
-  // Batch processing
-  async processBatchActions(actions: ActionMessage[]): Promise<void> {
-    // Group by type
-    const grouped = this.groupByType(actions);
-    
-    // Process each group
-    for (const [type, group] of grouped) {
-      if (this.canBatchProcess(type)) {
-        const results = await this.plugin.batchProcess(group);
-        await this.applyBatchResults(results);
-      }
-    }
-  }
-  
-  // Smart caching
-  private cache = new LRUCache<string, ActionResult>({
-    max: 1000,
-    ttl: 5 * 60 * 1000  // 5 minutes
-  });
-  
-  async getCachedOrProcess(action: PlayerAction): Promise<ActionResult> {
-    const key = this.actionKey(action);
-    const cached = this.cache.get(key);
-    
-    if (cached && this.isCacheValid(cached, action)) {
-      return cached;
-    }
-    
-    const result = await this.plugin.processAction(action);
-    this.cache.set(key, result);
-    return result;
-  }
-}
-```
-
-## Comparison with Other Approaches
-
-### vs Server Plugins
-
-| Aspect | Server Plugins | GM-Authoritative |
-|--------|---------------|------------------|
-| **Server Complexity** | High - Must understand game rules | Minimal - Just routes messages |
-| **Development Effort** | High - Server and client plugins | Medium - Client plugins only |
-| **Rule Flexibility** | Limited - Code defines rules | Ultimate - GM interprets rules |
-| **Cheat Prevention** | High - Server validates | High - GM validates |
-| **Latency** | Low - Immediate response | Variable - Depends on GM |
-| **Authenticity** | Medium - Computer referee | High - Human referee |
-| **Edge Case Handling** | Poor - Must be coded | Excellent - GM decides |
-
-### vs Event Sourcing
-
-| Aspect | Event Sourcing | GM-Authoritative |
-|--------|----------------|------------------|
-| **Complexity** | Very High - Event replay, conflicts | Medium - Simple approval flow |
-| **Consistency** | Complex - Eventual consistency | Simple - GM ensures consistency |
-| **Debugging** | Difficult - Event streams | Easy - Linear approval log |
-| **Recovery** | Complex - Replay events | Simple - GM re-approves |
-| **Storage** | High - Full event history | Low - Current state only |
-
-### vs Pure Client Authority
-
-| Aspect | Client Authority | GM-Authoritative |
-|--------|-----------------|------------------|
-| **Trust Required** | Very High - Trust all players | Low - Only trust GM |
-| **Cheat Prevention** | None | High |
-| **Complexity** | Low | Medium |
-| **Flexibility** | High - Too high | High - GM controlled |
-| **Fair Play** | Player enforced | GM enforced |
-
-### Hybrid Possibilities
-
-```typescript
-interface HybridArchitecture {
-  // Start with GM-authoritative
-  baseModel: 'gm_authoritative';
-  
-  // Add server validation for specific things
-  serverValidation: {
-    enabled: false,  // Can enable later
-    validates: ['dice_rolls', 'resource_limits'];
-  };
-  
-  // Event sourcing for specific features
-  eventSourcing: {
-    enabled: false,  // Can add later
-    features: ['replay', 'spectator_mode'];
-  };
-  
-  // Gradual migration path
-  migration: {
-    phase1: 'gm_authoritative',
-    phase2: 'gm_auth_with_server_dice',
-    phase3: 'hybrid_progressive_authority'
-  };
-}
-```
-
-## Migration Strategy
-
-### Phase 1: Basic Implementation (Weeks 1-2)
-
-```typescript
-class Phase1Migration {
-  // Keep existing REST endpoints
-  async migrateEndpoints(): Promise<void> {
-    // Existing
-    app.post('/api/actor/:id/damage', legacyDamageHandler);
-    
-    // New GM-auth pathway
-    app.post('/api/action/request', gmAuthActionHandler);
-    
-    // Feature flag
-    if (session.useGMAuth) {
-      return gmAuthActionHandler(req, res);
-    } else {
-      return legacyDamageHandler(req, res);
-    }
-  }
-  
-  // Simple message routing
-  async implementRouter(): Promise<void> {
-    socket.on('action:request', async (action) => {
-      if (session.gmAuthEnabled) {
-        await forwardToGM(session.gmId, action);
-      } else {
-        await processLegacyAction(action);
-      }
-    });
-  }
-}
-```
-
-### Phase 2: Progressive Authority (Weeks 3-4)
-
-```typescript
-class Phase2Migration {
-  // Add authority levels
-  async addAuthoritySystem(): Promise<void> {
-    // Start with simple binary
-    const authority = {
-      autoApproved: ['movement', 'view_sheet'],
-      requiresGM: ['attack', 'spell', 'damage']
-    };
-    
-    // Gradually add more categories
-    await this.migrateActionTypes(authority);
-  }
-  
-  // GM tools
-  async addGMInterface(): Promise<void> {
-    // Basic approval UI
-    const gmUI = new GMApprovalInterface({
-      simple: true,
-      showSuggestions: true,
-      batchSupport: false  // Add later
-    });
-  }
-}
-```
-
-### Phase 3: Full System (Weeks 5-6)
-
-```typescript
-class Phase3Migration {
-  // Complete feature set
-  async enableFullFeatures(): Promise<void> {
-    await this.enableBatchProcessing();
-    await this.addPredictiveApproval();
-    await this.implementDelegation();
-    await this.addPerformanceOptimizations();
-  }
-  
-  // Remove legacy code
-  async cleanup(): Promise<void> {
-    if (this.allSessionsUsingGMAuth()) {
-      await this.removeLegacyEndpoints();
-      await this.removeServerGameLogic();
-      await this.simplifyDatabaseSchema();
+  private async processQueuedActions(): Promise<void> {
+    // Process actions in chronological order
+    for (const action of this.actionQueue) {
+      await this.processAction(action);
     }
   }
 }
 ```
 
-### Rollback Strategy
+### User Experience During Disconnections
 
-```typescript
-class RollbackStrategy {
-  // Feature flags for easy rollback
-  features = {
-    gmAuthEnabled: true,
-    legacyFallback: true,
-    dualPathways: true
-  };
-  
-  async rollback(reason: string): Promise<void> {
-    // Log rollback reason
-    await this.logRollback(reason);
-    
-    // Disable GM auth
-    this.features.gmAuthEnabled = false;
-    
-    // Notify users
-    await this.notifyUsers('Temporarily reverting to classic mode');
-    
-    // Keep data compatible
-    await this.ensureDataCompatibility();
-  }
-}
-```
+#### Player Interface
+- **Clear Status**: Prominent "Game Paused - GM Disconnected" message
+- **Queue Indicator**: Shows number of pending actions
+- **Allowed Actions**: Chat and character sheet viewing still work
+- **Expected Reconnection**: Optional countdown if reconnection time is known
 
-## Performance Considerations
+#### GM Interface on Reconnection
+- **Disconnection Summary**: Shows what happened while away
+- **Queued Actions**: List of pending actions to be processed
+- **Batch Options**: Ability to process similar actions together
+- **One-Click Resume**: Single button to process queue and resume
 
-### Latency Analysis
+### Benefits of Simple Approach
 
-```typescript
-interface LatencyProfile {
-  // Best case (auto-approved)
-  autoApproved: {
-    total: 50,  // ms
-    breakdown: {
-      network: 30,
-      processing: 10,
-      stateUpdate: 10
-    }
-  };
-  
-  // Typical case (quick review)
-  quickReview: {
-    total: 3000,  // 3 seconds
-    breakdown: {
-      network: 30,
-      queueing: 20,
-      gmReview: 2900,
-      stateUpdate: 50
-    }
-  };
-  
-  // Worst case (manual approval)
-  manualApproval: {
-    total: 15000,  // 15 seconds
-    breakdown: {
-      network: 30,
-      gmDecision: 14900,
-      stateUpdate: 70
-    }
-  };
-}
-```
+1. **No State Corruption**: Game state never becomes inconsistent
+2. **Predictable Behavior**: Players know exactly what to expect
+3. **Easy to Debug**: Minimal complexity, clear failure modes
+4. **Fair to All Players**: No complex delegation or special privileges
+5. **Maintains Authority**: GM retains complete control when they return
 
-### Optimization Strategies
+### Edge Cases Handled
 
-1. **Predictive Pre-approval**: Pre-calculate common actions
-2. **Smart Batching**: Group similar actions
-3. **Trust-based Fast Paths**: Trusted players get more auto-approvals
-4. **Context-aware Defaults**: Combat = faster approvals
-5. **Caching**: Cache repeated calculations
+- **Rapid Reconnects**: Grace period prevents pause/unpause cycling
+- **Long Queues**: Actions processed in batch operations for efficiency
+- **Action Expiration**: Optional timeout for queued actions
+- **Player Notifications**: Clear communication about queue status and estimated processing time
 
-## Security Considerations
-
-### Trust Model
-
-```typescript
-interface TrustModel {
-  // Server trusts only GM
-  server: {
-    trustsGM: true,
-    trustsPlayers: false,
-    validateMessages: true,
-    encryptSensitive: true
-  };
-  
-  // GM trusts plugins for suggestions
-  gm: {
-    trustsPlugins: 'suggestions_only',
-    canOverride: 'always',
-    auditLog: true
-  };
-  
-  // Players trust GM
-  players: {
-    acceptGMDecisions: true,
-    canDispute: true,
-    transparentProcess: true
-  };
-}
-```
-
-### Anti-Cheat Measures
-
-1. **Action Logging**: All actions logged with full context
-2. **Dispute System**: Players can challenge GM decisions
-3. **Audit Trail**: Complete history of approvals/rejections
-4. **Rate Limiting**: Prevent action spam
-5. **Session Recording**: Optional full session replay
+This approach trades potential gameplay continuity for **simplicity and reliability**. The system behaves predictably: when the person in authority is unavailable, the game waits for them to return - just like at a physical table.
 
 ## Conclusion
 
-The GM-Authoritative State Management system provides an elegant solution that:
+The GM Client Validation system provides an elegant solution that:
 
-1. **Maintains server simplicity** by eliminating game logic
-2. **Preserves the authentic tabletop experience** with GM as final arbiter
-3. **Provides strong cheat prevention** through human oversight
-4. **Enables ultimate flexibility** for house rules and edge cases
-5. **Scales efficiently** through progressive authority levels
+1. **Eliminates server-side game plugins** while maintaining rule enforcement
+2. **Provides automated processing** with discretionary GM control for narrative moments  
+3. **Preserves ultimate flexibility** through transparent result modification
+4. **Enables rapid deployment** with no server-side game system dependencies
+5. **Scales efficiently** through intelligent action classification and timeout handling
 
-This approach acknowledges that the complexity of tabletop RPGs comes not from the rules themselves, but from their interpretation and application in countless unique situations. By making the GM the authority rather than trying to encode all possibilities in software, we create a system that is both simpler to build and more faithful to the tabletop experience.
+This approach acknowledges that most tabletop RPG actions follow predictable rules that can be automated, while recognizing that narrative control and balance adjustments require human judgment. By moving validation to the GM client with smart automation and transparent control interfaces, we create a system that is both simpler to deploy and more responsive during gameplay.
 
-The progressive authority model ensures that routine actions don't bog down gameplay, while still maintaining GM oversight for important decisions. The comprehensive tooling for workload management ensures that being a GM in this system is empowering rather than overwhelming.
+The discretionary control model ensures that routine actions happen instantly without human intervention, while providing GMs with the tools to intervene when story or balance considerations require it. The comprehensive plugin configuration and modification interfaces ensure that GMs have full visibility and control over the automation.
 
-Most importantly, this architecture provides a clear migration path from the current system and can be enhanced with additional features (like server-side dice validation) in the future without fundamental restructuring.
+Most importantly, this architecture eliminates the need for complex server-side game plugins while maintaining strong rule enforcement, providing a clear path to support any tabletop RPG system through client-side plugins alone.
