@@ -67,18 +67,25 @@ The implementation introduces a two-layer aggregate pattern separating runtime (
 
 **⚠️ Known Issue**: TypeScript errors exist due to field name changes. These will be resolved in subsequent tasks that update server/client code to use new field names.
 
-### Task 1.3: Create Document Model
-- [ ] Create unified DocumentModel with discriminators in `packages/server/src/features/documents/`
-- [ ] Set up discriminator models for Actor, Item, VTTDocument documents
-- [ ] Add proper indexing for document types and campaign associations
-- [ ] Create document service layer
+### Task 1.3: Create Document Model ✅ **COMPLETED**
+- [x] Create unified DocumentModel with discriminators in `packages/server/src/features/documents/`
+- [x] Set up discriminator models for Actor, Item, VTTDocument documents
+- [x] Add proper indexing for document types and campaign associations
+- [x] Create document service layer
 
-**Files to create:**
-- `packages/server/src/features/documents/models/document.model.mts`
-- `packages/server/src/features/documents/models/actor-document.model.mts`
-- `packages/server/src/features/documents/models/item-document.model.mts`
-- `packages/server/src/features/documents/models/vtt-document.model.mts`
-- `packages/server/src/features/documents/services/document.service.mts`
+**Files created:**
+- `packages/server/src/features/documents/models/document.model.mts` - Base model with discriminator support
+- `packages/server/src/features/documents/models/actor-document.model.mts` - Actor discriminator with inventory
+- `packages/server/src/features/documents/models/item-document.model.mts` - Item discriminator
+- `packages/server/src/features/documents/models/vtt-document-unified.model.mts` - VTTDocument discriminator
+- `packages/server/src/features/documents/services/document.service.mts` - Unified service layer
+
+**Key Implementation Details:**
+- Used discriminator key 'documentType' instead of default '__t'
+- Added universal inventory system to Actor discriminator
+- Campaign boundary validation in pre-save middleware
+- Comprehensive indexing strategy for performance
+- Type-safe discriminator model factories to avoid circular imports
 
 ### Task 1.4: Update Campaign Model
 - [ ] Update CampaignModel to use new schema with pluginData
@@ -88,7 +95,27 @@ The implementation introduces a two-layer aggregate pattern separating runtime (
 **Files to modify:**
 - `packages/server/src/features/campaigns/models/campaign.model.mts`
 
-### Task 1.5: Create Migration Scripts
+### Task 1.5: Implement Hybrid Service Architecture
+- [ ] Refactor ActorService to use DocumentService internally for basic CRUD
+- [ ] Refactor ItemService to use DocumentService internally for basic CRUD
+- [ ] Preserve type-specific functionality in specialized services
+- [ ] Update WebSocket handlers to use appropriate service layer
+- [ ] Update REST controllers to route correctly between generic and specialized endpoints
+
+**Hybrid Architecture Pattern:**
+- Generic operations via DocumentService (`/api/documents/*`)
+- Specialized operations via type-specific services (`/api/actors/*`, `/api/items/*`)
+- Type services wrap DocumentService for basic CRUD, add specialized methods
+
+**Files to modify:**
+- `packages/server/src/features/actors/services/actor.service.mts` - Wrap DocumentService
+- `packages/server/src/features/items/services/item.service.mts` - Wrap DocumentService
+- `packages/server/src/websocket/handlers/actor-handler.mts` - Use hybrid approach
+- `packages/server/src/websocket/handlers/item-handler.mts` - Use hybrid approach
+- `packages/server/src/features/actors/controllers/actor.controller.mts` - Update routing
+- `packages/server/src/features/items/controllers/item.controller.mts` - Update routing
+
+### Task 1.6: Create Migration Scripts
 - [ ] Create migration script to add pluginData to existing campaigns
 - [ ] Create migration script to move actors/items/vtt-documents to unified document collection
 - [ ] Add campaign ownership validation script
@@ -101,7 +128,7 @@ The implementation introduces a two-layer aggregate pattern separating runtime (
 - `packages/server/src/migrations/unify-documents.mts`
 - `packages/server/src/migrations/validate-campaign-ownership.mts`
 
-### Task 1.6: Socket Event Schema Preparation
+### Task 1.7: Socket Event Schema Preparation
 - [ ] Create discriminated union schemas for game actions (`action:request` event)
 - [ ] Add GM heartbeat and disconnection event schemas
 - [ ] Add action processing result schemas for different approval outcomes

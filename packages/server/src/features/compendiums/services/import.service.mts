@@ -37,7 +37,6 @@ interface ProcessedImportData {
     name: string;
     slug: string;
     description?: string;
-    gameSystemId: string;
     pluginId: string;
     version: string;
     createdBy: Types.ObjectId;
@@ -86,10 +85,10 @@ export class ImportService {
       // Check for duplicate compendium name
       const existingCompendium = await CompendiumModel.findOne({
         name: manifest.name,
-        gameSystemId: manifest.gameSystemId
+        pluginId: manifest.pluginId
       });
       if (existingCompendium) {
-        throw new Error(`A compendium named "${manifest.name}" already exists for game system "${manifest.gameSystemId}"`);
+        throw new Error(`A compendium named "${manifest.name}" already exists for plugin "${manifest.pluginId}"`);
       }
 
       // Stage 2: Validate content files
@@ -128,7 +127,6 @@ export class ImportService {
             name: manifest.name,
             slug: manifest.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
             description: manifest.description,
-            gameSystemId: manifest.gameSystemId,
             pluginId: manifest.pluginId,
             version: manifest.version,
             createdBy: userObjectId

@@ -1,6 +1,6 @@
 import { Types } from 'mongoose';
 import type { IItem } from '@dungeon-lab/shared/types/index.mjs';
-import { ItemModel } from '../models/item.model.mjs';
+import { ItemDocumentModel } from '../../documents/models/item-document.model.mjs';
 import { logger } from '../../../utils/logger.mjs';
 import { deepMerge } from '@dungeon-lab/shared/utils/index.mjs';
 import { createAsset } from '../../../utils/asset-upload.utils.mjs';
@@ -10,9 +10,10 @@ import { AssetModel } from '../../../features/assets/models/asset.model.mjs';
 export type QueryValue = string | number | boolean | RegExp | Date | object;
 
 export class ItemService {
+
   async getAllItems(): Promise<IItem[]> {
     try {
-      const items = await ItemModel.find();
+      const items = await ItemDocumentModel.find({ documentType: 'item' });
       return items;
     } catch (error) {
       logger.error('Error fetching items:', error);
@@ -22,7 +23,7 @@ export class ItemService {
 
   async getItemById(id: string): Promise<IItem> {
     try {
-      const item = await ItemModel.findById(id);
+      const item = await ItemDocumentModel.findById(id);
       if (!item) {
         throw new Error('Item not found');
       }
@@ -35,7 +36,7 @@ export class ItemService {
 
   async getItems(campaignId: string): Promise<IItem[]> {
     try {
-      const items = await ItemModel.find({ campaignId });
+      const items = await ItemDocumentModel.find({ campaignId });
       return items;
     } catch (error) {
       logger.error('Error getting items:', error);
@@ -52,7 +53,7 @@ export class ItemService {
         updatedBy: userObjectId
       };
 
-      const item = await ItemModel.create(itemData);
+      const item = await ItemDocumentModel.create(itemData);
       if (file) {
         logger.info('Uploading provided actor token');
 
@@ -73,7 +74,7 @@ export class ItemService {
 
   async updateItem(id: string, data: Partial<IItem>, userId: string): Promise<IItem> {
     try {
-      const item = await ItemModel.findById(id);
+      const item = await ItemDocumentModel.findById(id);
       if (!item) {
         throw new Error('Item not found');
       }
@@ -84,7 +85,7 @@ export class ItemService {
         updatedBy: userObjectId
       };
 
-      const updatedItem = await ItemModel.findByIdAndUpdate(id, updateData, { new: true });
+      const updatedItem = await ItemDocumentModel.findByIdAndUpdate(id, updateData, { new: true });
 
       if (!updatedItem) {
         throw new Error('Failed to update item');
@@ -99,7 +100,7 @@ export class ItemService {
 
   async deleteItem(id: string): Promise<void> {
     try {
-      const item = await ItemModel.findByIdAndDelete(id);
+      const item = await ItemDocumentModel.findByIdAndDelete(id);
       if (!item) {
         throw new Error('Item not found');
       }
@@ -111,7 +112,7 @@ export class ItemService {
 
   async checkUserPermission(itemId: string, userId: string, isAdmin: boolean): Promise<boolean> {
     try {
-      const item = await ItemModel.findById(itemId);
+      const item = await ItemDocumentModel.findById(itemId);
       if (!item) {
         throw new Error('Item not found');
       }
@@ -130,7 +131,7 @@ export class ItemService {
     imageFile?: File
   ): Promise<IItem> {
     try {
-      const item = await ItemModel.findById(id);
+      const item = await ItemDocumentModel.findById(id);
       if (!item) {
         throw new Error('Item not found');
       }
@@ -181,7 +182,7 @@ export class ItemService {
     imageFile?: File
   ): Promise<IItem> {
     try {
-      const item = await ItemModel.findById(id);
+      const item = await ItemDocumentModel.findById(id);
       if (!item) {
         throw new Error('Item not found');
       }
@@ -235,7 +236,7 @@ export class ItemService {
   async updateItemImage(id: string, file: File, userId: string): Promise<IItem> {
     try {
       // Get existing item
-      const existingItem = await ItemModel.findById(id);
+      const existingItem = await ItemDocumentModel.findById(id);
       if (!existingItem) {
         throw new Error('Item not found');
       }
@@ -257,7 +258,7 @@ export class ItemService {
       }
 
       // Update the item with the new image ID
-      const updatedItem = await ItemModel.findByIdAndUpdate(
+      const updatedItem = await ItemDocumentModel.findByIdAndUpdate(
         id,
         {
           imageId: newImageAsset.id,
@@ -302,7 +303,7 @@ export class ItemService {
       }, {} as Record<string, QueryValue>);
 
       logger.debug('Searching items with query:', mongoQuery);
-      const items = await ItemModel.find(mongoQuery).populate('image');
+      const items = await ItemDocumentModel.find(mongoQuery).populate('image');
       logger.debug(`Found ${items.length} items matching query`);
       return items;
     } catch (error) {

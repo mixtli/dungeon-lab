@@ -1,6 +1,6 @@
 import { Types } from 'mongoose';
 import { IActor } from '@dungeon-lab/shared/types/index.mjs';
-import { ActorModel } from '../models/actor.model.mjs';
+import { ActorDocumentModel } from '../../documents/models/actor-document.model.mjs';
 import { logger } from '../../../utils/logger.mjs';
 import { createAsset } from '../../../utils/asset-upload.utils.mjs';
 import { AssetModel } from '../../../features/assets/models/asset.model.mjs';
@@ -19,10 +19,11 @@ import { createSearchParams } from '../../../utils/create.search.params.mjs';
 export type QueryValue = string | number | boolean | RegExp | Date | object;
 
 export class ActorService {
+
   async getAllActors(type?: string): Promise<IActor[]> {
     try {
-      const query = type ? { type } : {};
-      const actors = await ActorModel.find(query).populate('avatar').populate('token');
+      const query = type ? { pluginDocumentType: type } : { documentType: 'actor' };
+      const actors = await ActorDocumentModel.find(query).populate('avatar').populate('token');
       return actors;
     } catch (error) {
       logger.error('Error fetching actors:', error);
@@ -32,7 +33,7 @@ export class ActorService {
 
   async getActorById(id: string): Promise<IActor> {
     try {
-      const actor = await ActorModel.findById(id).populate('avatar').populate('token');
+      const actor = await ActorDocumentModel.findById(id).populate('avatar').populate('token');
       if (!actor) {
         throw new Error('Actor not found');
       }
@@ -45,7 +46,7 @@ export class ActorService {
 
   async getActors(campaignId: string): Promise<IActor[]> {
     try {
-      const actors = await ActorModel.find({ campaignId }).populate('avatar').populate('token');
+      const actors = await ActorDocumentModel.find({ campaignId }).populate('avatar').populate('token');
       return actors;
     } catch (error) {
       logger.error('Error getting actors:', error);
@@ -82,7 +83,7 @@ export class ActorService {
       }
 
       // Create actor in database to get an ID
-      const actor = await ActorModel.create(actorData);
+      const actor = await ActorDocumentModel.create(actorData);
 
       // Handle avatar file if provided
       if (avatarFile) {
@@ -135,7 +136,7 @@ export class ActorService {
     tokenFile?: File
   ): Promise<IActor> {
     try {
-      const actor = await ActorModel.findById(id);
+      const actor = await ActorDocumentModel.findById(id);
       if (!actor) {
         throw new Error('Actor not found');
       }
@@ -222,7 +223,7 @@ export class ActorService {
     tokenFile?: File
   ): Promise<IActor> {
     try {
-      const actor = await ActorModel.findById(id);
+      const actor = await ActorDocumentModel.findById(id);
       if (!actor) {
         throw new Error('Actor not found');
       }
@@ -302,7 +303,7 @@ export class ActorService {
   async updateActorAvatar(id: string, file: File, userId: string): Promise<IActor> {
     try {
       // Get existing actor
-      const existingActor = await ActorModel.findById(id);
+      const existingActor = await ActorDocumentModel.findById(id);
       if (!existingActor) {
         throw new Error('Actor not found');
       }
@@ -327,7 +328,7 @@ export class ActorService {
       }
 
       // Update the actor with the new avatar ID
-      const updatedActor = await ActorModel.findByIdAndUpdate(
+      const updatedActor = await ActorDocumentModel.findByIdAndUpdate(
         id,
         {
           avatarId: newAvatarAsset.id,
@@ -363,7 +364,7 @@ export class ActorService {
   async updateActorToken(id: string, file: File, userId: string): Promise<IActor> {
     try {
       // Get existing actor
-      const existingActor = await ActorModel.findById(id);
+      const existingActor = await ActorDocumentModel.findById(id);
       if (!existingActor) {
         throw new Error('Actor not found');
       }
@@ -388,7 +389,7 @@ export class ActorService {
       }
 
       // Update the actor with the new token ID
-      const updatedActor = await ActorModel.findByIdAndUpdate(
+      const updatedActor = await ActorDocumentModel.findByIdAndUpdate(
         id,
         {
           defaultTokenImageId: newTokenAsset.id,
@@ -417,7 +418,7 @@ export class ActorService {
 
   async deleteActor(id: string): Promise<void> {
     try {
-      const actor = await ActorModel.findByIdAndDelete(id);
+      const actor = await ActorDocumentModel.findByIdAndDelete(id);
       if (!actor) {
         throw new Error('Actor not found');
       }
@@ -429,7 +430,7 @@ export class ActorService {
 
   async checkUserPermission(actorId: string, userId: string, isAdmin: boolean): Promise<boolean> {
     try {
-      const actor = await ActorModel.findById(actorId);
+      const actor = await ActorDocumentModel.findById(actorId);
       if (!actor) {
         throw new Error('Actor not found');
       }
@@ -447,7 +448,7 @@ export class ActorService {
    * @param userId - ID of the user requesting the avatar generation
    */
   async generateActorAvatar(actorId: string, userId: string): Promise<void> {
-    const actor = await ActorModel.findById(actorId);
+    const actor = await ActorDocumentModel.findById(actorId);
     if (!actor) {
       throw new Error('Actor not found');
     }
@@ -466,7 +467,7 @@ export class ActorService {
    * @param userId - ID of the user requesting the token generation
    */
   async generateActorToken(actorId: string, userId: string): Promise<void> {
-    const actor = await ActorModel.findById(actorId);
+    const actor = await ActorDocumentModel.findById(actorId);
     if (!actor) {
       throw new Error('Actor not found');
     }
@@ -529,7 +530,7 @@ export class ActorService {
       }
 
       // Execute the query with all conditions
-      return await ActorModel.find(params).populate('avatar').populate('token');
+      return await ActorDocumentModel.find(params).populate('avatar').populate('token');
     } catch (error) {
       logger.error('Error searching actors:', error);
       throw new Error('Failed to search actors');

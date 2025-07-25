@@ -24,9 +24,9 @@ function itemHandler(socket: Socket<ClientToServerEvents, ServerToClientEvents>)
         return;
       }
 
-      const gameSystemId = filters?.gameSystemId;
-      if (!gameSystemId) {
-        callback({ success: false, error: 'Game system ID is required' });
+      const pluginId = filters?.pluginId;
+      if (!pluginId) {
+        callback({ success: false, error: 'Plugin ID is required' });
         return;
       }
 
@@ -39,16 +39,16 @@ function itemHandler(socket: Socket<ClientToServerEvents, ServerToClientEvents>)
 
       // Build search query
       const searchQuery: Record<string, QueryValue> = {
-        gameSystemId: gameSystemId
+        pluginId: pluginId
       };
 
       if (isGM) {
-        // GM gets all items for the game system
-        console.log(`[Item Handler] User ${socket.userId} is GM, fetching all items for game system ${gameSystemId}`);
+        // GM gets all items for the plugin
+        console.log(`[Item Handler] User ${socket.userId} is GM, fetching all items for plugin ${pluginId}`);
       } else {
         // Regular users only get items they created
         searchQuery.createdBy = socket.userId;
-        console.log(`[Item Handler] User ${socket.userId} is not GM, fetching only their items for game system ${gameSystemId}`);
+        console.log(`[Item Handler] User ${socket.userId} is not GM, fetching only their items for plugin ${pluginId}`);
       }
 
       const items = await itemService.searchItems(searchQuery);
@@ -103,7 +103,14 @@ function itemHandler(socket: Socket<ClientToServerEvents, ServerToClientEvents>)
         return;
       }
 
-      const item = await itemService.createItem(itemData, socket.userId);
+      // Ensure required fields are present
+      const completeItemData = {
+        ...itemData,
+        documentType: 'item' as const,
+        userData: (itemData as Record<string, unknown>).userData as Record<string, unknown> || {},
+        pluginData: (itemData as Record<string, unknown>).pluginData as Record<string, unknown> || {}
+      };
+      const item = await itemService.createItem(completeItemData, socket.userId);
       console.log('[Item Handler] Created item:', item.id);
       
       // Broadcast to other users who can see this item

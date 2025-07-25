@@ -1,7 +1,7 @@
 import { Types } from 'mongoose';
 import { ICampaign, ICampaignPatchData, IUser, IGameSession, IEncounter } from '@dungeon-lab/shared/types/index.mjs';
 import { CampaignModel } from '../models/campaign.model.mjs';
-import { ActorModel } from '../../actors/models/actor.model.mjs';
+import { ActorDocumentModel } from '../../documents/models/actor-document.model.mjs';
 import { logger } from '../../../utils/logger.mjs';
 import { pluginRegistry } from '../../../services/plugin-registry.service.mjs';
 import { deepMerge } from '@dungeon-lab/shared/utils/index.mjs';
@@ -18,12 +18,13 @@ export const campaignQuerySchema = z.object({
 type CampaignQuery = z.infer<typeof campaignQuerySchema>;
 
 export class CampaignService {
+
   async getMyCampaigns(userId: string, query: CampaignQuery = {}): Promise<ICampaign[]> {
     try {
       const userObjectId = new Types.ObjectId(userId);
 
       // First get all actors belonging to the user
-      const userActors = await ActorModel.find({ createdBy: userObjectId });
+      const userActors = await ActorDocumentModel.find({ createdBy: userObjectId });
       const actorIds = userActors.map((actor) => actor._id);
 
       // Convert query to case-insensitive regex for string values
@@ -86,7 +87,7 @@ export class CampaignService {
     if (!campaign) {
       throw new Error('Campaign not found');
     }
-    const actors = await ActorModel.find({ _id: { $in: campaign.characterIds } });
+    const actors = await ActorDocumentModel.find({ _id: { $in: campaign.characterIds } });
     const usersPromises = actors.map(async (actor) => await UserModel.findById(actor.createdBy));
     const users = await Promise.all(usersPromises);
     return users.filter((user) => user !== null) as IUser[];
@@ -181,7 +182,7 @@ export class CampaignService {
 
       // Check if user is GM or has a character in the campaign
       const userObjectId = new Types.ObjectId(userId);
-      const userActors = await ActorModel.find({ createdBy: userObjectId });
+      const userActors = await ActorDocumentModel.find({ createdBy: userObjectId });
       const actorIds = userActors.map((actor) => actor._id.toString());
 
       const isGM = campaign.gameMasterId?.toString() === userId;
@@ -210,8 +211,7 @@ export class CampaignService {
     }
     
     // Check if user has any characters in this campaign by looking at the actors
-    const { ActorModel } = await import('../../actors/models/actor.model.mjs');
-    const userCharactersInCampaign = await ActorModel.find({
+    const userCharactersInCampaign = await ActorDocumentModel.find({
       _id: { $in: campaign.characterIds },
       createdBy: userId
     }).exec();
@@ -234,7 +234,7 @@ export class CampaignService {
 
       // Get all actors belonging to the user
       const actorObjectId = new Types.ObjectId(actorId);
-      const actor = await ActorModel.findById(actorObjectId);
+      const actor = await ActorDocumentModel.findById(actorObjectId);
       if (!actor) {
         throw new Error('Actor not found');
       }

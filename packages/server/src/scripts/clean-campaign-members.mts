@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { ActorModel } from '../features/actors/models/actor.model.mjs';
+import { DocumentModel } from '../features/documents/models/document.model.mjs';
 import { CampaignModel } from '../features/campaigns/models/campaign.model.mjs';
 import { logger } from '../utils/logger.mjs';
 
@@ -17,7 +17,8 @@ async function cleanCampaignMembers() {
       const characterIds = campaign.characterIds.map(
         (id: string | mongoose.Types.ObjectId) => new mongoose.Types.ObjectId(id)
       );
-      const existingActors = (await ActorModel.find({
+      const existingActors = (await DocumentModel.find({
+        documentType: 'actor',
         _id: { $in: characterIds }
       })) as mongoose.Document[];
       const existingActorIds = new Set(existingActors.map((actor) => actor.get('_id').toString()));

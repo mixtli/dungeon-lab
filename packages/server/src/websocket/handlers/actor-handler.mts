@@ -26,16 +26,16 @@ function actorHandler(socket: Socket<ClientToServerEvents, ServerToClientEvents>
         return;
       }
 
-      const gameSystemId = filters?.gameSystemId;
-      if (!gameSystemId) {
-        callback({ success: false, error: 'Game system ID is required' });
+      const pluginId = filters?.pluginId;
+      if (!pluginId) {
+        callback({ success: false, error: 'Plugin ID is required' });
         return;
       }
 
-      // Get user's own actors for this game system
+      // Get user's own actors for this plugin
       const userActors = await actorService.searchActors({ 
         createdBy: socket.userId,
-        gameSystemId: gameSystemId 
+        pluginId: pluginId 
       });
 
       let campaignActors: IActor[] = [];
@@ -46,7 +46,7 @@ function actorHandler(socket: Socket<ClientToServerEvents, ServerToClientEvents>
           const gameSession = await GameSessionModel.findById(socket.gameSessionId);
           if (gameSession?.campaignId) {
             const campaign = await CampaignModel.findById(gameSession.campaignId);
-            if (campaign?.characterIds?.length && campaign.pluginId === gameSystemId) {
+            if (campaign?.characterIds?.length && campaign.pluginId === pluginId) {
               // Get campaign actors that the user doesn't already own
               const campaignActorIds = campaign.characterIds.filter(id => 
                 !userActors.some(actor => actor.id === id)
@@ -55,7 +55,7 @@ function actorHandler(socket: Socket<ClientToServerEvents, ServerToClientEvents>
               if (campaignActorIds.length > 0) {
                 campaignActors = await actorService.searchActors({
                   id: { $in: campaignActorIds },
-                  gameSystemId: gameSystemId
+                  pluginId: pluginId
                 });
               }
             }

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { DocumentService } from '../document.service.mjs';
-import { VTTDocument } from '../../models/vtt-document.model.mjs';
+import { VTTDocumentModel } from '../../models/vtt-document.model.mjs';
 import { Types } from 'mongoose';
 
 vi.mock('../../models/vtt-document.model.mjs');
@@ -25,15 +25,15 @@ describe('DocumentService', () => {
 
   describe('getDocumentById', () => {
     it('should return a document when found', async () => {
-      vi.mocked(VTTDocument.findById).mockResolvedValueOnce(mockDocument);
+      vi.mocked(VTTDocumentModel.findById).mockResolvedValueOnce(mockDocument);
 
       const result = await documentService.getDocumentById('123');
       expect(result).toEqual(mockDocument);
-      expect(VTTDocument.findById).toHaveBeenCalledWith('123');
+      expect(VTTDocumentModel.findById).toHaveBeenCalledWith('123');
     });
 
     it('should throw error when document not found', async () => {
-      vi.mocked(VTTDocument.findById).mockResolvedValueOnce(null);
+      vi.mocked(VTTDocumentModel.findById).mockResolvedValueOnce(null);
 
       await expect(documentService.getDocumentById('123')).rejects.toThrow('Document not found');
     });
@@ -47,21 +47,21 @@ describe('DocumentService', () => {
         'data.hitPoints.max': '10'
       };
 
-      vi.mocked(VTTDocument.find).mockResolvedValueOnce([mockDocument]);
+      vi.mocked(VTTDocumentModel.find).mockResolvedValueOnce([mockDocument]);
 
       const result = await documentService.searchDocuments(query);
       expect(result).toEqual([mockDocument]);
-      expect(VTTDocument.find).toHaveBeenCalledWith(expectedMongoQuery);
+      expect(VTTDocumentModel.find).toHaveBeenCalledWith(expectedMongoQuery);
     });
 
     it('should handle non-string query values', async () => {
       const query = { 'data.hitPoints.max': 10 };
       
-      vi.mocked(VTTDocument.find).mockResolvedValueOnce([mockDocument]);
+      vi.mocked(VTTDocumentModel.find).mockResolvedValueOnce([mockDocument]);
 
       const result = await documentService.searchDocuments(query);
       expect(result).toEqual([mockDocument]);
-      expect(VTTDocument.find).toHaveBeenCalledWith(query);
+      expect(VTTDocumentModel.find).toHaveBeenCalledWith(query);
     });
   });
 }); 

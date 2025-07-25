@@ -124,16 +124,16 @@ export class ActorController {
     const avatarFile = req.assets?.avatar?.[0];
     const tokenFile = req.assets?.token?.[0];
 
-    const data = validatedData.data;
+    const data = validatedData.pluginData;
     if (!data) {
       return res.status(400).json({
         success: false,
         data: null,
-        error: 'Data is required'
+        error: 'Plugin data is required'
       });
     }
 
-    const plugin = pluginRegistry.getPlugin(validatedData.gameSystemId);
+    const plugin = pluginRegistry.getPlugin(validatedData.pluginId);
     if (!plugin) {
       return res.status(400).json({
         success: false,
@@ -141,7 +141,7 @@ export class ActorController {
         error: 'Invalid plugin ID'
       });
     }
-    const result = plugin.validateActorData?.(validatedData.type, data) || { success: true, data };
+    const result = plugin.validateActorData?.(validatedData.pluginDocumentType, data) || { success: true, data };
 
     if (!result.success) {
       console.log(result.error?.message || 'Validation failed');

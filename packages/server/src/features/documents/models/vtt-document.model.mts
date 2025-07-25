@@ -1,119 +1,88 @@
-import { vttDocumentSchema } from '@dungeon-lab/shared/schemas/index.mjs';
-import type { IVTTDocument } from '@dungeon-lab/shared/types/index.mjs';
 import mongoose from 'mongoose';
-import { pluginRegistry } from '../../../services/plugin-registry.service.mjs';
+import { z } from 'zod';
+import { vttDocumentSchema } from '@dungeon-lab/shared/schemas/index.mjs';
 import { baseMongooseZodSchema } from '../../../models/base.model.schema.mjs';
 import { createMongoSchema } from '../../../models/zod-to-mongo.mjs';
 import { zId } from '@zodyac/zod-mongoose';
+import type { IVTTDocument } from '@dungeon-lab/shared/types/index.mjs';
+import { pluginRegistry } from '../../../services/plugin-registry.service.mjs';
 
-// Create server-specific schema with ObjectId references
+// Create server-specific VTT document schema with ObjectId references
 const serverVTTDocumentSchema = vttDocumentSchema.extend({
+  campaignId: zId('Campaign'),
   compendiumId: zId('Compendium').optional(),
-  imageId: zId('Asset').optional()
+  imageId: zId('Asset').optional(),
+  thumbnailId: zId('Asset').optional(),
+  slug: z.string().min(1)
 });
 
-
-// Create mongoose schema using the base schema creator to handle _id to id transformation
-const mongooseSchema = createMongoSchema<IVTTDocument>(
+// Create the discriminator schema
+const vttDocumentMongooseSchema = createMongoSchema<IVTTDocument>(
   serverVTTDocumentSchema.merge(baseMongooseZodSchema)
 );
 
-// Add compound unique index for slug within plugin and document type context
-mongooseSchema.index({ slug: 1, pluginId: 1, documentType: 1 }, { unique: true });
-
-// Add virtual property for image
-mongooseSchema.virtual('image', {
-  ref: 'Asset',
-  localField: 'imageId',
-  foreignField: '_id',
-  justOne: true
-});
+// Override pluginData field to use Mixed type for flexibility
+vttDocumentMongooseSchema.path('pluginData', mongoose.Schema.Types.Mixed);
+vttDocumentMongooseSchema.path('userData', mongoose.Schema.Types.Mixed);
 
 // Add pre-validation middleware to set default slug if not provided
-mongooseSchema.pre(
-  'validate',
-  function (
-    this: mongoose.Document & IVTTDocument,
-    next: mongoose.CallbackWithoutResultAndOptionalError
-  ) {
-    // Only set default slug if name is modified and slug is not explicitly set
-    if (this.isModified('name') && !this.get('slug')) {
-      // Convert name to lowercase, replace spaces with dashes, and remove any non-alphanumeric characters
-      const slug = this.name
-        .toLowerCase()
-        .replace(/\s+/g, '-') // Replace spaces with dashes
-        .replace(/[^a-z0-9-]/g, '') // Remove any characters that aren't lowercase letters, numbers, or dashes
-        .replace(/-+/g, '-'); // Replace multiple consecutive dashes with a single dash
+vttDocumentMongooseSchema.pre('validate', function(next) {
+  // Only set default slug if name is modified and slug is not explicitly set
+  if (this.isModified('name') && !this.get('slug')) {
+    // Convert name to lowercase, replace spaces with dashes, and remove any non-alphanumeric characters
+    const slug = (this.get('name') as string)
+      .toLowerCase()
+      .replace(/\s+/g, '-') // Replace spaces with dashes
+      .replace(/[^a-z0-9-]/g, '') // Remove any characters that aren't lowercase letters, numbers, or dashes
+      .replace(/-+/g, '-'); // Replace multiple consecutive dashes with a single dash
 
-      this.set('slug', slug);
-    }
-    next();
+    this.set('slug', slug);
   }
-);
-
-// Add validation middleware
-mongooseSchema.pre(
-  'save',
-  async function (
-    this: mongoose.Document & IVTTDocument,
-    next: mongoose.CallbackWithoutResultAndOptionalError
-  ) {
-    try {
-      console.log('saving document', this.name, this.documentType);
-      // Only validate data field if it's modified
-      if (this.isModified('data')) {
-        console.log('validating document data', this.documentType);
-        const plugin = pluginRegistry.getPlugin(this.pluginId);
-        if (!plugin) {
-          throw new Error(`Plugin ${this.pluginId} not found`);
-        }
-        const isValid = plugin.validateVTTDocumentData?.(this.documentType, this.data) || { success: true };
-        if (!isValid.success) {
-          console.log(isValid.error?.message || 'Validation failed');
-          throw new Error(
-            `Invalid document data for plugin ${this.pluginId} and type ${this.documentType}`
-          );
-        }
-      }
-
-      // Check for duplicate slug if slug is modified
-      if (this.isModified('slug')) {
-        const existingDoc = await VTTDocument.findOne({
-          slug: this.slug,
-          pluginId: this.pluginId,
-          documentType: this.documentType,
-          _id: { $ne: this._id } // Exclude current document when updating
-        });
-
-        if (existingDoc) {
-          throw new Error(
-            `A document with slug "${this.slug}" already exists for plugin "${this.pluginId}" and type "${this.documentType}"`
-          );
-        }
-      }
-
-      next();
-    } catch (error) {
-      next(error as Error);
-    }
-  }
-);
-
-// Add virtual property for compendium
-mongooseSchema.virtual('compendium', {
-  ref: 'Compendium',
-  localField: 'compendiumId',
-  foreignField: '_id',
-  justOne: true
+  next();
 });
 
-/**
- * VTT Document interface extending the base IVTTDocument
- */
-//export interface VTTDocument extends Omit<IVTTDocument, 'id'>, BaseDocument {}
+// Add validation middleware for plugin data and slug uniqueness
+vttDocumentMongooseSchema.pre('save', async function(next) {
+  try {
+    // Only validate pluginData field if it's modified
+    if (this.isModified('pluginData')) {
+      const plugin = pluginRegistry.getPlugin(this.get('pluginId') as string);
+      if (!plugin) {
+        throw new Error(`Plugin ${this.get('pluginId')} not found`);
+      }
+      const isValid = plugin.validateVTTDocumentData?.(this.get('pluginDocumentType') as string, this.get('pluginData')) || { success: true };
+      if (!isValid.success) {
+        throw new Error(
+          `Invalid document data for plugin ${this.get('pluginId')} and type ${this.get('pluginDocumentType')}`
+        );
+      }
+    }
 
-// Create and export model
-export const VTTDocument = mongoose.model<IVTTDocument>('VTTDocument', mongooseSchema);
+    // Check for duplicate slug if slug is modified
+    if (this.isModified('slug')) {
+      const VTTDocumentModel = this.constructor as mongoose.Model<IVTTDocument>;
+      const existingDoc = await VTTDocumentModel.findOne({
+        slug: this.slug,
+        pluginId: this.pluginId,
+        documentType: this.documentType,
+        _id: { $ne: this._id } // Exclude current document when updating
+      });
 
-// Export with consistent naming for new code
-export const VTTDocumentModel = VTTDocument;
+      if (existingDoc) {
+        throw new Error(
+          `A document with slug "${this.slug}" already exists for plugin "${this.pluginId}" and type "${this.documentType}"`
+        );
+      }
+    }
+
+    next();
+  } catch (error) {
+    next(error as Error);
+  }
+});
+
+// Import the base DocumentModel to create discriminator
+import { DocumentModel } from './document.model.mjs';
+
+// Create the VTT document discriminator model directly
+export const VTTDocumentModel = DocumentModel.discriminator<IVTTDocument>('VTTDocument', vttDocumentMongooseSchema);

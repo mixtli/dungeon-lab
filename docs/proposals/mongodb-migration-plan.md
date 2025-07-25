@@ -3688,9 +3688,105 @@ Document Migration Dependencies:
 3. **Connection Pooling**: Use appropriate connection settings
 4. **Progress Monitoring**: Track migration progress
 
+## Service Architecture Decision: Hybrid Approach
+
+### Unified Documents + Type-Specific Features
+
+After implementing the unified Document model with discriminators, we have decided on a **hybrid architecture** that combines the benefits of unified document operations with specialized type-specific functionality.
+
+#### Architecture Overview
+
+**Unified `documents/` Feature (Core CRUD)**
+- **Purpose**: Generic document operations that work across all types
+- **Models**: Unified discriminator models (DocumentModel with Actor/Item/VTTDocument discriminators) 
+- **Service**: Generic DocumentService for basic CRUD operations
+- **Controller**: Type-agnostic REST endpoints
+- **Routes**: `/api/documents/*` - universal operations for admin tools
+
+**Type-Specific Features (Specialized Operations)**
+- **`actors/` Feature**: Actor-only functionality (character generators, AI avatar/token generation, background jobs)
+- **`items/` Feature**: Item-only functionality (inventory management, equipment logic, future expansion)
+- **Services**: ActorService and ItemService extend/wrap DocumentService internally
+- **Routes**: `/api/actors/*` and `/api/items/*` for specialized operations
+
+#### Responsibility Boundaries
+
+```typescript
+// Generic operations (documents feature)
+GET /api/documents?type=actor&campaignId=123  // Admin tools, search across types
+POST /api/documents { documentType: "actor", ... }  // Universal creation
+PUT /api/documents/:id  // Generic updates
+
+// Actor-specific operations (actors feature)  
+POST /api/actors/:id/generate-avatar  // AI image generation
+POST /api/actors/:id/generate-token   // AI token creation
+POST /api/actors/character-generator  // Multi-step character creation wizard
+GET /api/actors/:id/build-steps      // Character builder workflow
+
+// Item-specific operations (items feature)
+POST /api/items/:id/stack-with/:otherId   // Item stacking logic
+PUT /api/items/:id/equip-to/:actorId      // Equipment management
+GET /api/items/inventory-suggestions      // Smart inventory features
+```
+
+#### Service Architecture Pattern
+
+```typescript
+class ActorService {
+  private documentService = new DocumentService();
+  
+  // Basic CRUD delegates to DocumentService
+  async createActor(data) {
+    return this.documentService.create({ ...data, documentType: 'actor' });
+  }
+  
+  async updateActor(id, data) {
+    return this.documentService.update(id, data);
+  }
+  
+  // Actor-specific methods
+  async generateAvatar(actorId) { /* AI generation logic */ }
+  async runCharacterGenerator(pluginId, steps) { /* wizard logic */ }
+  async validateCharacterBuild(actorData) { /* build validation */ }
+}
+
+class ItemService {
+  private documentService = new DocumentService();
+  
+  // Basic CRUD delegates to DocumentService  
+  async createItem(data) {
+    return this.documentService.create({ ...data, documentType: 'item' });
+  }
+  
+  // Item-specific methods
+  async stackItems(itemId1, itemId2) { /* stacking logic */ }
+  async equipToActor(itemId, actorId, slot) { /* equipment logic */ }
+  async getInventorySuggestions(actorId) { /* smart suggestions */ }
+}
+```
+
+#### Benefits of Hybrid Approach
+
+1. **Best of Both Worlds**: Generic admin tools + specialized functionality
+2. **Clear Separation**: Type-agnostic vs type-specific operations  
+3. **Plugin Support**: Actors can have generators, items can have inventory logic
+4. **Scalable**: Easy to add new document types or extend existing ones
+5. **Admin Friendly**: Unified document management for general operations
+6. **Developer Friendly**: Specialized APIs for type-specific features
+
+#### Migration Strategy
+
+1. **Keep documents/ as foundation** - Already well-designed for unified operations
+2. **Refactor actors/ and items/ features** - Make them use DocumentService internally
+3. **Update routing** - Clear separation between generic and specialized endpoints  
+4. **Remove duplicate models** - Use discriminator models everywhere
+5. **Preserve specialized logic** - Actor image generation, jobs, utilities remain
+
+This approach provides unified benefits for administration while maintaining rich, specialized capabilities for features like character generators and future item management workflows.
+
 ## Conclusion
 
-This migration transforms Dungeon Lab from a game-system-aware server to a truly plugin-agnostic platform. The discriminated Document model:
+This migration transforms Dungeon Lab from a game-system-aware server to a truly plugin-agnostic platform. The discriminated Document model combined with the hybrid service architecture:
 
 1. **Eliminates Game Assumptions**: No more hardcoded D&D fields
 2. **Provides Type Safety**: Actor/Item discriminators ensure VTT infrastructure integrity

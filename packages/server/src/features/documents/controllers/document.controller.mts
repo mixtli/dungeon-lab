@@ -168,7 +168,7 @@ export class DocumentController {
         });
       }
 
-      const data = plugin.validateVTTDocumentData?.(validatedData.documentType, validatedData.data) || { success: true };
+      const data = plugin.validateVTTDocumentData?.(validatedData.pluginDocumentType, validatedData.pluginData) || { success: true };
       if (!data.success) {
         return res.status(400).json({
           success: false,

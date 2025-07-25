@@ -13,7 +13,17 @@ export const actorSchema = baseDocumentSchema.extend({
 
   // VTT infrastructure fields (actor-specific)
   avatarId: z.string().optional(),
-  defaultTokenImageId: z.string().optional()
+  defaultTokenImageId: z.string().optional(),
+  
+  // Universal inventory system
+  inventory: z.array(z.object({
+    itemId: z.string(),                    // Reference to Item document
+    quantity: z.number().min(0),
+    equipped: z.boolean().default(false),
+    slot: z.string().optional(),
+    condition: z.number().min(0).max(100).optional(),
+    metadata: z.record(z.string(), z.unknown()).optional()
+  })).default([]).optional()
 
   // Note: Other fields now come from baseDocumentSchema:
   // - name, description, pluginId, campaignId, compendiumId, imageId

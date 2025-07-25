@@ -1,6 +1,10 @@
 import mongoose, { ClientSession } from 'mongoose';
 import { logger } from '../utils/logger.mjs';
 import { deleteDirectory } from './storage.service.mjs';
+import { CompendiumModel } from '../features/compendiums/models/compendium.model.mjs';
+import { CompendiumEntryModel } from '../features/compendiums/models/compendium-entry.model.mjs';
+import { DocumentModel } from '../features/documents/models/document.model.mjs';
+import { VTTDocumentModel } from '../features/documents/models/vtt-document.model.mjs';
 
 export class TransactionService {
   /**
@@ -90,18 +94,13 @@ export class TransactionService {
     try {
       logger.info(`Rolling back compendium: ${compendiumId}`);
       
-      // Import models here to avoid circular dependencies
-      const { CompendiumModel } = await import('../features/compendiums/models/compendium.model.mjs');
-      const { CompendiumEntryModel } = await import('../features/compendiums/models/compendium-entry.model.mjs');
-      const { ActorModel } = await import('../features/actors/models/actor.model.mjs');
-      const { ItemModel } = await import('../features/items/models/item.model.mjs');
-      const { VTTDocumentModel } = await import('../features/documents/models/vtt-document.model.mjs');
+      // Models are now imported at the top of the file
 
       // Delete all content associated with this compendium
       await Promise.all([
         CompendiumEntryModel.deleteMany({ compendiumId }, { session }),
-        ActorModel.deleteMany({ compendiumId }, { session }),
-        ItemModel.deleteMany({ compendiumId }, { session }),
+        DocumentModel.deleteMany({ compendiumId, documentType: 'actor' }, { session }),
+        DocumentModel.deleteMany({ compendiumId, documentType: 'item' }, { session }),
         VTTDocumentModel.deleteMany({ compendiumId }, { session }),
         CompendiumModel.findByIdAndDelete(compendiumId, { session })
       ]);
@@ -127,11 +126,7 @@ export class TransactionService {
     try {
       session.startTransaction();
 
-      // Import models
-      const { CompendiumModel } = await import('../features/compendiums/models/compendium.model.mjs');
-      const { ActorModel } = await import('../features/actors/models/actor.model.mjs');
-      const { ItemModel } = await import('../features/items/models/item.model.mjs');
-      const { VTTDocumentModel } = await import('../features/documents/models/vtt-document.model.mjs');
+      // Models are imported at the top of the file
 
       // Get all valid compendium IDs
       const validCompendiumIds = await CompendiumModel.find({}, { _id: 1 }, { session });
@@ -139,10 +134,12 @@ export class TransactionService {
 
       // Find and delete orphaned content
       const [actorsDeleted, itemsDeleted, documentsDeleted] = await Promise.all([
-        ActorModel.deleteMany({ 
+        DocumentModel.deleteMany({ 
+          documentType: 'actor',
           compendiumId: { $exists: true, $nin: validIds } 
         }, { session }),
-        ItemModel.deleteMany({ 
+        DocumentModel.deleteMany({ 
+          documentType: 'item',
           compendiumId: { $exists: true, $nin: validIds } 
         }, { session }),
         VTTDocumentModel.deleteMany({ 

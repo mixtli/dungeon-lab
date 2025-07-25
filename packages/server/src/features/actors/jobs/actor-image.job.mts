@@ -1,5 +1,5 @@
 import { backgroundJobService } from '../../../services/background-job.service.mjs';
-import { ActorModel } from '../models/actor.model.mjs';
+import { ActorDocumentModel } from '../../documents/models/actor-document.model.mjs';
 import { logger } from '../../../utils/logger.mjs';
 import { generateActorAvatar, generateActorToken } from '../utils/actor-image-generator.mjs';
 import type { Job } from '@pulsecron/pulse';
@@ -14,6 +14,7 @@ export const ACTOR_TOKEN_GENERATION_JOB = 'generate-actor-token';
  */
 export async function registerActorImageJobs(): Promise<void> {
   logger.info('Registering actor avatar and token job handlers...');
+  const ActorModel = ActorDocumentModel;
   
   // Register actor avatar generation job
   backgroundJobService.defineJob(

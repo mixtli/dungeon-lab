@@ -77,6 +77,14 @@ import {
 } from '../schemas/vtt-document.schema.mjs';
 
 import {
+  baseDocumentSchema,
+  createDocumentSchema,
+  updateDocumentSchema,
+  documentSchemaWithVirtuals,
+  documentTypeSchema
+} from '../schemas/document.schema.mjs';
+
+import {
   compendiumSchema,
   compendiumCreateSchema,
   compendiumUpdateSchema,
@@ -170,6 +178,13 @@ export type IMapCreateData = z.infer<typeof mapCreateSchema>;
 export type IMapUpdateData = z.infer<typeof mapUpdateSchema>;
 export type IMapImportUVTTData = z.infer<typeof mapImportUVTTSchema>;
 export type IUVTT = z.infer<typeof uvttSchema>;
+
+// Document Types (Unified)
+export type DocumentType = z.infer<typeof documentTypeSchema>;
+export type BaseDocument = z.infer<typeof baseDocumentSchema>;
+export type CreateDocumentData = z.infer<typeof createDocumentSchema>;
+export type UpdateDocumentData = z.infer<typeof updateDocumentSchema>;
+export type DocumentWithVirtuals = z.infer<typeof documentSchemaWithVirtuals>;
 
 // VTT Document Types
 export type IVTTDocument = z.infer<typeof vttDocumentSchema>;

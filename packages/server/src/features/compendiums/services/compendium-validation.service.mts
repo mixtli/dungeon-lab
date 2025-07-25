@@ -167,10 +167,10 @@ export class CompendiumValidationService {
    * Validate compendium metadata
    */
   validateCompendiumMetadata(data: {
-    gameSystemId: string;
     pluginId: string;
     name: string;
     description?: string;
+    [key: string]: unknown; // Allow additional properties
   }): ValidationResult {
     try {
       // Check if plugin exists
@@ -197,10 +197,10 @@ export class CompendiumValidationService {
         };
       }
 
-      if (!data.gameSystemId || data.gameSystemId.trim().length === 0) {
+      if (!data.pluginId || (typeof data.pluginId === 'string' && data.pluginId.trim().length === 0)) {
         return {
           success: false,
-          error: new Error('Game system ID is required')
+          error: new Error('Plugin ID is required')
         };
       }
 

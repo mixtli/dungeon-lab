@@ -2,6 +2,8 @@ import { Types } from 'mongoose';
 import { logger } from '../../../utils/logger.mjs';
 import { EncounterModel } from '../models/encounter.model.mjs';
 import { TokenModel } from '../models/token.model.mjs';
+import { CampaignModel } from '../../campaigns/models/campaign.model.mjs';
+import { DocumentModel } from '../../documents/models/document.model.mjs';
 
 export interface EncounterPermissions {
   canView: boolean;
@@ -102,7 +104,6 @@ export class EncounterPermissionValidator {
         return false;
       }
 
-      const CampaignModel = (await import('../../../features/campaigns/models/campaign.model.mjs')).CampaignModel;
       const campaign = await CampaignModel.findById(encounter.campaignId).lean().exec();
       if (!campaign) {
         return false;
@@ -116,8 +117,7 @@ export class EncounterPermissionValidator {
       // Players can only control their own tokens
       if (token.actorId) {
         // Check if the actor belongs to the user
-        const ActorModel = (await import('../../../features/actors/models/actor.model.mjs')).ActorModel;
-        const actor = await ActorModel.findById(token.actorId).lean().exec();
+        const actor = await DocumentModel.findOne({ _id: token.actorId, documentType: 'actor' }).lean().exec();
         return actor?.createdBy?.toString() === userId;
       }
 
