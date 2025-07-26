@@ -295,46 +295,59 @@ The system maintains type safety while keeping the server game-agnostic:
 ```typescript
 // ✅ CORRECT: Server remains game-agnostic - just routes messages
 socket.on('action:request', (request: GameActionRequest) => {
-  // Server validates message structure but doesn't understand game semantics
+  // Server validates envelope structure only
+  const validation = gameActionRequestSchema.safeParse(request);
+  if (!validation.success) {
+    return socket.emit('action:error', { message: 'Invalid action format' });
+  }
+  
   const session = getSession(request.sessionId);
   if (!session) {
     return socket.emit('action:error', { message: 'Invalid session' });
   }
   
-  // Route to GM without understanding what the action is
+  // Route entire message to GM without understanding payload contents
   routeToGM(session.gmId, {
     type: 'action:pending',
-    actionId: generateId(),
-    request,
+    actionId: request.actionId,
+    request,  // Payload remains opaque to server
     timestamp: Date.now()
   });
   
   // Track for response routing
-  pendingActions.set(actionId, { playerId: request.playerId, socketId: socket.id });
+  pendingActions.set(request.actionId, { playerId: request.playerId, socketId: socket.id });
 });
 
-// ✅ CORRECT: GM client handles game logic with full type safety
+// ✅ CORRECT: GM client handles game logic with plugin validation
 const handleGMAction = (message: ActionMessage) => {
   const { request } = message;
   
-  // GM client uses discriminated unions for type-safe handling
-  switch (request.type) {
+  // Plugin validates the opaque payload using game-specific schemas
+  const plugin = getPlugin(request.pluginId);
+  const payloadValidation = plugin.validateActionPayload(request.actionType, request.payload);
+  
+  if (!payloadValidation.success) {
+    return rejectAction(request.actionId, 'Invalid action payload');
+  }
+  
+  // Plugin-specific type-safe handling with discriminated unions
+  switch (payloadValidation.data.type) {
     case 'attack':
-      // TypeScript knows this is AttackActionRequest
-      return showAttackApprovalUI(request.data); // request.data is fully typed
+      // TypeScript knows this is AttackAction (from plugin schemas)
+      return showAttackApprovalUI(payloadValidation.data); // Fully typed by plugin
       
     case 'cast_spell':
-      // TypeScript knows this is SpellActionRequest
-      return showSpellApprovalUI(request.data); // request.data is fully typed
+      // TypeScript knows this is SpellAction (from plugin schemas)  
+      return showSpellApprovalUI(payloadValidation.data); // Fully typed by plugin
       
     case 'skill_check':
-      // TypeScript knows this is SkillCheckActionRequest
-      return showSkillCheckApprovalUI(request.data); // request.data is fully typed
+      // TypeScript knows this is SkillCheckAction (from plugin schemas)
+      return showSkillCheckApprovalUI(payloadValidation.data); // Fully typed by plugin
       
     default:
-      // TypeScript ensures exhaustive checking
-      const _exhaustive: never = request;
-      throw new Error(`Unknown action type: ${(request as any).type}`);
+      // TypeScript ensures exhaustive checking within plugin action types
+      const _exhaustive: never = payloadValidation.data;
+      throw new Error(`Unknown action type: ${payloadValidation.data.type}`);
   }
 };
 ```
@@ -530,17 +543,19 @@ type AttackActionRequest = z.infer<typeof attackActionSchema>;
 
 ### Socket Event Schema Updates
 
-The existing socket schemas would be updated to include the new patterns:
+The socket schemas are updated to maintain true server agnosticism by separating infrastructure validation from game logic validation:
 
 ```typescript
-// packages/shared/src/schemas/socket/actions.mts
-export const gameActionRequestSchema = z.discriminatedUnion('type', [
-  attackActionSchema,
-  spellActionSchema, 
-  skillCheckActionSchema,
-  itemUseActionSchema,
-  creativeActionSchema
-]);
+// packages/shared/src/schemas/socket/actions.mts (SERVER-AGNOSTIC)
+export const gameActionRequestSchema = z.object({
+  actionId: z.string(),
+  playerId: z.string(),
+  sessionId: z.string(),
+  timestamp: z.number(),
+  pluginId: z.string(),
+  actionType: z.string(),     // Plugin defines valid types, server doesn't validate
+  payload: z.unknown()        // Completely opaque to server
+});
 
 // Updated client-to-server events
 export const clientToServerEvents = z.object({
@@ -555,9 +570,28 @@ export const clientToServerEvents = z.object({
 });
 ```
 
-This approach maintains the architectural benefits of a single authority event while preserving complete type safety and developer experience.
+**Architectural Separation**: Game-specific action schemas (attack, spell, skill check, etc.) are defined in plugin code only, not in shared server schemas:
 
-**Important**: The server uses these schemas only for message validation and routing. The discriminated union types ensure compile-time safety, but the server never executes the type-specific branches - that happens exclusively on the GM client where game logic belongs.
+```typescript
+// In plugin code (NOT in shared schemas):
+// packages/plugins/dnd5e/shared/src/schemas/actions.mts
+const attackActionSchema = z.object({
+  type: z.literal('attack'),
+  attackerId: z.string(),
+  targetId: z.string(),
+  weaponId: z.string(),
+  // ... game-specific fields
+});
+
+const gameActionPayloadSchema = z.discriminatedUnion('type', [
+  attackActionSchema,
+  spellActionSchema,
+  skillCheckActionSchema
+  // Plugin defines these, server never sees them
+]);
+```
+
+This approach ensures **true server agnosticism** - the server validates only the message envelope and routes the opaque payload to the GM client, where the plugin handles all game logic validation and processing.
 
 ### Message Flow Example: Automatic Action (Movement)
 

@@ -129,60 +129,72 @@ The implementation introduces a two-layer aggregate pattern separating runtime (
 - ✅ Type checking passes without errors
 - ✅ Hybrid pattern maintains backward compatibility while using unified storage
 
-### Task 1.6: Create Migration Scripts
-- [ ] Create migration script to add pluginData to existing campaigns
-- [ ] Create migration script to move actors/items/vtt-documents to unified document collection
-- [ ] Add campaign ownership validation script
-- [ ] Test migration scripts on sample data
+### Task 1.6: Create Migration Scripts ❌ **SKIPPED**
+- [x] ~~Create migration script to add pluginData to existing campaigns~~ 
+- [x] ~~Create migration script to move actors/items/vtt-documents to unified document collection~~
+- [x] ~~Add campaign ownership validation script~~
+- [x] ~~Test migration scripts on sample data~~
 
-**Note**: Maps and encounters remain in their existing collections.
+**⚠️ DECISION: Database Reset Approach**
+Instead of creating complex migration scripts, the decision was made to reset the database and start fresh. This approach is simpler and avoids potential migration complexity since this is still in development phase.
 
-**Files to create:**
-- `packages/server/src/migrations/add-campaign-plugin-data.mts`
-- `packages/server/src/migrations/unify-documents.mts`
-- `packages/server/src/migrations/validate-campaign-ownership.mts`
+**Approach:**
+- Database will be reset/cleared
+- New schema will be used from clean slate
+- No migration scripts needed
+- Faster development iteration
 
-### Task 1.7: Socket Event Schema Preparation
-- [ ] Create discriminated union schemas for game actions (`action:request` event)
-- [ ] Add GM heartbeat and disconnection event schemas
-- [ ] Add action processing result schemas for different approval outcomes
-- [ ] Coordinate schema migration timeline with database changes
-- [ ] Update socket event exports to include new action schemas
+**Files to create:** *(None - task skipped)*
+- ~~`packages/server/src/migrations/add-campaign-plugin-data.mts`~~
+- ~~`packages/server/src/migrations/unify-documents.mts`~~
+- ~~`packages/server/src/migrations/validate-campaign-ownership.mts`~~
 
-**Files to create:**
-- `packages/shared/src/schemas/socket/actions.mts`
-- `packages/shared/src/schemas/socket/gm-authority.mts`
-- `packages/shared/src/schemas/socket/heartbeat.mts`
+### Task 1.7: Socket Event Schema Preparation ✅ **COMPLETED**
+- [x] Create server-agnostic action envelope schema (no game-specific logic)
+- [x] Add GM heartbeat and disconnection event schemas with network quality monitoring
+- [x] Add action processing result schemas for GM approval workflows
+- [x] Coordinate schema alignment with database changes from previous tasks
+- [x] Update socket event exports to include new infrastructure schemas
+- [x] Update GM-Authoritative document to clarify architectural consistency
 
-**Files to modify:**
-- `packages/shared/src/schemas/socket/index.mts` - Add action and GM authority event exports
-- `packages/shared/src/types/socket/index.mts` - Add type exports for new events
+**Files created:**
+- `packages/shared/src/schemas/socket/actions.mts` - Server-agnostic action envelope with opaque payload
+- `packages/shared/src/schemas/socket/gm-authority.mts` - GM authority infrastructure schemas
+- `packages/shared/src/schemas/socket/heartbeat.mts` - Comprehensive heartbeat monitoring
 
-**Key Schema Examples:**
+**Files modified:**
+- `packages/shared/src/schemas/socket/index.mts` - Added action, GM authority, and heartbeat event exports
+- `packages/shared/src/types/socket/index.mts` - Added TypeScript type exports for new events
+- `docs/proposals/gm-authoritative-state-management.md` - Corrected architectural inconsistency
+
+**Key Architectural Achievement:**
+- **True Server Agnosticism**: Server validates only message envelope, treats game actions as opaque
+- **Plugin-Based Game Logic**: Game-specific schemas (attack, spell, etc.) defined in plugin code only
+- **Infrastructure Separation**: Clear boundary between server message routing and plugin game validation
+
+**Implemented Schema Pattern:**
 ```typescript
-// Discriminated union for game actions
-export const gameActionRequestSchema = z.discriminatedUnion('type', [
-  attackActionSchema,
-  spellActionSchema,
-  skillCheckActionSchema,
-  itemUseActionSchema,
-  creativeActionSchema
-]);
-
-// GM heartbeat monitoring
-export const gmHeartbeatSchema = z.object({
+// Server-agnostic envelope (shared schemas)
+export const gameActionRequestSchema = z.object({
+  actionId: z.string(),
+  playerId: z.string(),
+  sessionId: z.string(),
   timestamp: z.number(),
-  sessionId: z.string()
+  pluginId: z.string(),
+  actionType: z.string(),     // Plugin defines valid types
+  payload: z.unknown()        // Completely opaque to server
 });
 
-// Action processing results
-export const actionResultSchema = z.object({
-  actionId: z.string(),
-  status: z.enum(['approved', 'rejected', 'modified']),
-  result: z.unknown().optional(),
-  reason: z.string().optional()
+// Game-specific schemas (plugin code only, NOT in shared schemas)
+// packages/plugins/dnd5e/shared/src/schemas/actions.mts
+const attackActionSchema = z.object({
+  type: z.literal('attack'),
+  attackerId: z.string(),
+  // ... game-specific fields
 });
 ```
+
+**✅ Ready for Phase 2**: Socket infrastructure now supports GM-authoritative architecture with proper server agnosticism and plugin isolation.
 
 ## Phase 2: Aggregate Architecture (Week 2-3)
 

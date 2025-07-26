@@ -96,3 +96,28 @@ import * as itemSocketSchemas from '../../schemas/socket/items.mjs';
 
 export type ActorCallback = z.infer<typeof actorSocketSchemas.actorCallbackSchema>;
 export type ItemCallback = z.infer<typeof itemSocketSchemas.itemCallbackSchema>;
+
+// Export GM-Authoritative socket types (server-agnostic action handling)
+import * as actionSchemas from '../../schemas/socket/actions.mjs';
+import * as gmAuthoritySchemas from '../../schemas/socket/gm-authority.mjs';
+import * as heartbeatSchemas from '../../schemas/socket/heartbeat.mjs';
+
+// Game action types (server-agnostic envelope)
+export type GameActionRequest = z.infer<typeof actionSchemas.gameActionRequestSchema>;
+export type GameActionResult = z.infer<typeof actionSchemas.gameActionResultSchema>;
+export type QueuedAction = z.infer<typeof actionSchemas.queuedActionSchema>;
+
+// GM authority types
+export type GMAuthorityRequest = z.infer<typeof gmAuthoritySchemas.gmAuthorityRequestSchema>;
+export type GMConnectionStatus = z.infer<typeof gmAuthoritySchemas.gmConnectionStatusSchema>;
+export type ActionQueueOperation = z.infer<typeof gmAuthoritySchemas.actionQueueOperationSchema>;
+export type MessageRoutingStatus = z.infer<typeof gmAuthoritySchemas.messageRoutingStatusSchema>;
+export type GMSessionControl = z.infer<typeof gmAuthoritySchemas.gmSessionControlSchema>;
+
+// GM heartbeat types
+export type GMHeartbeatPing = z.infer<typeof heartbeatSchemas.gmHeartbeatPingSchema>;
+export type GMHeartbeatPong = z.infer<typeof heartbeatSchemas.gmHeartbeatPongSchema>;
+export type ConnectionTimeout = z.infer<typeof heartbeatSchemas.connectionTimeoutSchema>;
+export type GMReconnection = z.infer<typeof heartbeatSchemas.gmReconnectionSchema>;
+export type HeartbeatConfig = z.infer<typeof heartbeatSchemas.heartbeatConfigSchema>;
+export type NetworkQuality = z.infer<typeof heartbeatSchemas.networkQualitySchema>;

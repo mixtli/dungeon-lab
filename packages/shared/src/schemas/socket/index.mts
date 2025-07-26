@@ -135,6 +135,32 @@ import {
   itemDeletedSchema
 } from './items.mjs';
 
+import {
+  // GM-Authoritative action schemas (server-agnostic)
+  gameActionRequestSchema,
+  gameActionResultSchema,
+  queuedActionSchema
+} from './actions.mjs';
+
+import {
+  // GM authority infrastructure schemas
+  gmAuthorityRequestSchema,
+  gmConnectionStatusSchema,
+  actionQueueOperationSchema,
+  messageRoutingStatusSchema,
+  gmSessionControlSchema
+} from './gm-authority.mjs';
+
+import {
+  // GM heartbeat monitoring schemas
+  gmHeartbeatPingSchema,
+  gmHeartbeatPongSchema,
+  connectionTimeoutSchema,
+  gmReconnectionSchema,
+  heartbeatConfigSchema,
+  networkQualitySchema
+} from './heartbeat.mjs';
+
 // Re-export all schemas for backwards compatibility
 export {
   // Chat schemas
@@ -246,7 +272,27 @@ export {
   itemDeleteArgsSchema,
   itemCreatedSchema,
   itemUpdatedSchema,
-  itemDeletedSchema
+  itemDeletedSchema,
+  
+  // GM-Authoritative action schemas (server-agnostic)
+  gameActionRequestSchema,
+  gameActionResultSchema,
+  queuedActionSchema,
+  
+  // GM authority infrastructure schemas
+  gmAuthorityRequestSchema,
+  gmConnectionStatusSchema,
+  actionQueueOperationSchema,
+  messageRoutingStatusSchema,
+  gmSessionControlSchema,
+  
+  // GM heartbeat monitoring schemas
+  gmHeartbeatPingSchema,
+  gmHeartbeatPongSchema,
+  connectionTimeoutSchema,
+  gmReconnectionSchema,
+  heartbeatConfigSchema,
+  networkQualitySchema
 };
 
 // ============================================================================
@@ -290,7 +336,22 @@ export const serverToClientEvents = z.object({
   // Item events
   'item:created': z.function().args(itemCreatedSchema).returns(z.void()),
   'item:updated': z.function().args(itemUpdatedSchema).returns(z.void()),
-  'item:deleted': z.function().args(itemDeletedSchema).returns(z.void())
+  'item:deleted': z.function().args(itemDeletedSchema).returns(z.void()),
+  
+  // GM-Authoritative action events (server routes without understanding game logic)
+  'action:result': z.function().args(gameActionResultSchema).returns(z.void()),
+  'action:queued': z.function().args(queuedActionSchema).returns(z.void()),
+  
+  // GM authority events
+  'gm:connection-status': z.function().args(gmConnectionStatusSchema).returns(z.void()),
+  'gm:queue-operation': z.function().args(actionQueueOperationSchema).returns(z.void()),
+  'gm:routing-status': z.function().args(messageRoutingStatusSchema).returns(z.void()),
+  
+  // GM heartbeat events
+  'heartbeat:ping': z.function().args(gmHeartbeatPingSchema).returns(z.void()),
+  'heartbeat:timeout': z.function().args(connectionTimeoutSchema).returns(z.void()),
+  'heartbeat:reconnection': z.function().args(gmReconnectionSchema).returns(z.void()),
+  'heartbeat:quality': z.function().args(networkQualitySchema).returns(z.void())
 });
 
 export const clientToServerEvents = z.object({
@@ -321,5 +382,16 @@ export const clientToServerEvents = z.object({
   'item:get': z.function().args(...itemGetArgsSchema.items).returns(z.void()),
   'item:create': z.function().args(...itemCreateArgsSchema.items).returns(z.void()),
   'item:update': z.function().args(...itemUpdateArgsSchema.items).returns(z.void()),
-  'item:delete': z.function().args(...itemDeleteArgsSchema.items).returns(z.void())
+  'item:delete': z.function().args(...itemDeleteArgsSchema.items).returns(z.void()),
+  
+  // GM-Authoritative action events (server-agnostic routing)
+  'action:request': z.function().args(gameActionRequestSchema).returns(z.void()),
+  
+  // GM authority events
+  'gm:authority-request': z.function().args(gmAuthorityRequestSchema).returns(z.void()),
+  'gm:session-control': z.function().args(gmSessionControlSchema).returns(z.void()),
+  
+  // GM heartbeat events
+  'heartbeat:pong': z.function().args(gmHeartbeatPongSchema).returns(z.void()),
+  'heartbeat:config': z.function().args(heartbeatConfigSchema).returns(z.void())
 });
