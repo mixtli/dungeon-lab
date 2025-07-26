@@ -176,81 +176,120 @@ import type { DnD5eCharacterData } from './character.mjs';
 import { DEFAULT_SKILLS } from './character.mjs';
 import type { IActor, PluginContext } from '@dungeon-lab/shared/types/index.mjs';
 
+// Interface for D&D 5e character plugin data
+interface DnD5ePluginData {
+  level?: number;
+  experience?: { current?: number; next?: number };
+  race?: { name?: string; size?: string };
+  species?: string;
+  classes?: Array<{ name: string; level: number; hitDie: number }>;
+  background?: { name?: string } | string;
+  abilities?: {
+    strength?: { value: number };
+    dexterity?: { value: number };
+    constitution?: { value: number };
+    intelligence?: { value: number };
+    wisdom?: { value: number };
+    charisma?: { value: number };
+  };
+  savingThrows?: {
+    strength?: { proficient: boolean; bonus: number };
+    dexterity?: { proficient: boolean; bonus: number };
+    constitution?: { proficient: boolean; bonus: number };
+    intelligence?: { proficient: boolean; bonus: number };
+    wisdom?: { proficient: boolean; bonus: number };
+    charisma?: { proficient: boolean; bonus: number };
+  };
+  skills?: Record<string, any>;
+  hitPoints?: { current?: number; maximum?: number; temporary?: number };
+  armorClass?: number;
+  initiative?: number;
+  speed?: number;
+  inspiration?: boolean;
+  deathSaves?: { successes?: number; failures?: number };
+  hitDice?: { current?: number; maximum?: number; type?: string };
+  spells?: any;
+  equipment?: any;
+}
+
 // Transform IActor to DnD5eCharacterData
 const characterData = computed((): DnD5eCharacterData => {
   const actor = props.character;
+  const pluginData = actor.pluginData as DnD5ePluginData;
   
   return {
     id: actor.id,
     name: actor.name,
-    level: actor.data?.level || 1,
+    level: pluginData?.level || 1,
     experience: {
-      current: actor.data?.experience?.current || 0,
-      next: actor.data?.experience?.next || 300,
+      current: pluginData?.experience?.current || 0,
+      next: pluginData?.experience?.next || 300,
     },
     race: {
-      name: actor.data?.race?.name || actor.data?.species || 'Human',
-      size: actor.data?.race?.size || 'medium',
+      name: pluginData?.race?.name || pluginData?.species || 'Human',
+      size: pluginData?.race?.size || 'medium',
     },
-    classes: actor.data?.classes || [
+    classes: pluginData?.classes || [
       { name: 'Fighter', level: 1, hitDie: 10 }
     ],
     background: {
-      name: actor.data?.background?.name || actor.data?.background || 'Folk Hero',
+      name: (typeof pluginData?.background === 'object' && pluginData.background?.name) 
+        ? pluginData.background.name 
+        : (typeof pluginData?.background === 'string' ? pluginData.background : 'Folk Hero'),
     },
-    abilities: actor.data?.abilities || {
-      strength: { value: 10 },
-      dexterity: { value: 10 },
-      constitution: { value: 10 },
-      intelligence: { value: 10 },
-      wisdom: { value: 10 },
-      charisma: { value: 10 },
+    abilities: {
+      strength: pluginData?.abilities?.strength || { value: 10 },
+      dexterity: pluginData?.abilities?.dexterity || { value: 10 },
+      constitution: pluginData?.abilities?.constitution || { value: 10 },
+      intelligence: pluginData?.abilities?.intelligence || { value: 10 },
+      wisdom: pluginData?.abilities?.wisdom || { value: 10 },
+      charisma: pluginData?.abilities?.charisma || { value: 10 },
     },
-    savingThrows: actor.data?.savingThrows || {
-      strength: { proficient: false, bonus: 0 },
-      dexterity: { proficient: false, bonus: 0 },
-      constitution: { proficient: false, bonus: 0 },
-      intelligence: { proficient: false, bonus: 0 },
-      wisdom: { proficient: false, bonus: 0 },
-      charisma: { proficient: false, bonus: 0 },
+    savingThrows: {
+      strength: pluginData?.savingThrows?.strength || { proficient: false, bonus: 0 },
+      dexterity: pluginData?.savingThrows?.dexterity || { proficient: false, bonus: 0 },
+      constitution: pluginData?.savingThrows?.constitution || { proficient: false, bonus: 0 },
+      intelligence: pluginData?.savingThrows?.intelligence || { proficient: false, bonus: 0 },
+      wisdom: pluginData?.savingThrows?.wisdom || { proficient: false, bonus: 0 },
+      charisma: pluginData?.savingThrows?.charisma || { proficient: false, bonus: 0 },
     },
-    skills: actor.data?.skills || DEFAULT_SKILLS,
+    skills: pluginData?.skills || DEFAULT_SKILLS,
     hitPoints: {
-      current: actor.data?.hitPoints?.current || 8,
-      maximum: actor.data?.hitPoints?.maximum || 8,
-      temporary: actor.data?.hitPoints?.temporary || 0,
+      current: pluginData?.hitPoints?.current || 8,
+      maximum: pluginData?.hitPoints?.maximum || 8,
+      temporary: pluginData?.hitPoints?.temporary || 0,
     },
     armorClass: {
-      total: actor.data?.armorClass || 10,
+      total: pluginData?.armorClass || 10,
       base: 10,
       modifiers: [],
     },
     initiative: {
-      bonus: actor.data?.initiative || 0,
+      bonus: pluginData?.initiative || 0,
     },
     combat: {
       speed: {
-        walking: actor.data?.speed || 30,
+        walking: pluginData?.speed || 30,
       },
     },
-    inspiration: actor.data?.inspiration || false,
+    inspiration: pluginData?.inspiration || false,
     deathSaves: {
-      successes: actor.data?.deathSaves?.successes || 0,
-      failures: actor.data?.deathSaves?.failures || 0,
+      successes: pluginData?.deathSaves?.successes || 0,
+      failures: pluginData?.deathSaves?.failures || 0,
     },
     hitDice: {
-      current: actor.data?.hitDice?.current || 1,
-      maximum: actor.data?.hitDice?.maximum || 1,
-      type: actor.data?.hitDice?.type || 'd10',
+      current: pluginData?.hitDice?.current || 1,
+      maximum: pluginData?.hitDice?.maximum || 1,
+      type: pluginData?.hitDice?.type || 'd10',
     },
-    spells: actor.data?.spells || {
+    spells: pluginData?.spells || {
       spellcastingAbility: 'intelligence',
       spellAttackBonus: 0,
       spellSaveDC: 8,
       slots: {},
       known: [],
     },
-    equipment: actor.data?.equipment || {
+    equipment: pluginData?.equipment || {
       weapons: [],
       armor: [],
       items: [],
@@ -427,7 +466,7 @@ const switchTab = (tabId: string) => {
 };
 
 const updateCharacter = (updates: Partial<DnD5eCharacterData>) => {
-  const updatedCharacter = { ...props.character, data: { ...props.character.data, ...updates } };
+  const updatedCharacter = { ...props.character, pluginData: { ...props.character.pluginData, ...updates } };
   isDirty.value = true;
   emit('update:character', updatedCharacter);
 };

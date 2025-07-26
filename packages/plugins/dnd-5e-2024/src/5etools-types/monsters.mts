@@ -190,6 +190,7 @@ export interface EtoolsMonster extends EtoolsSource {
   regionalEffects?: EtoolsEntry[];
   spellcasting?: EtoolsMonsterSpellcasting[];
   variant?: EtoolsEntry[];
+  gear?: string[];
   dragonCastingColor?: string;
   environment?: string[];
   soundClip?: {

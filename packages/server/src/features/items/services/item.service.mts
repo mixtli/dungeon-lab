@@ -1,7 +1,7 @@
-import type { IItem } from '@dungeon-lab/shared/types/index.mjs';
+import type { IItem, IItemCreateData } from '@dungeon-lab/shared/types/index.mjs';
 import { DocumentService } from '../../documents/services/document.service.mjs';
 import { logger } from '../../../utils/logger.mjs';
-import { deepMerge } from '@dungeon-lab/shared/utils/index.mjs';
+import { deepMerge, generateSlug } from '@dungeon-lab/shared/utils/index.mjs';
 import { createAsset } from '../../../utils/asset-upload.utils.mjs';
 import { AssetModel } from '../../../features/assets/models/asset.model.mjs';
 
@@ -44,10 +44,11 @@ export class ItemService {
     }
   }
 
-  async createItem(data: Omit<IItem, 'id'>, userId: string, file?: File): Promise<IItem> {
+  async createItem(data: Omit<IItemCreateData, 'image'>, userId: string, file?: File): Promise<IItem> {
     try {
       const itemData = {
         ...data,
+        slug: data.slug || generateSlug(data.name),
         createdBy: userId,
         updatedBy: userId
       };

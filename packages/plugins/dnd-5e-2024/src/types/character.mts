@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { spellcastingSchema } from './common.mjs';
 
 const abilitySchema = z.object({
   score: z.number().min(1).max(30),
@@ -83,27 +84,7 @@ export const characterDataSchema = z.object({
     .default([]),
 
   // Spellcasting
-  spellcasting: z
-    .object({
-      ability: z.enum(['intelligence', 'wisdom', 'charisma']),
-      spellSaveDC: z.number(),
-      spellAttackBonus: z.number(),
-      spellSlots: z.array(
-        z.object({
-          level: z.number().min(1).max(9),
-          total: z.number(),
-          used: z.number()
-        })
-      ),
-      spells: z.array(
-        z.object({
-          id: z.string(),
-          prepared: z.boolean().optional()
-        })
-      )
-    })
-    .optional(),
-
+  spellcasting: spellcastingSchema,
   // Biography
   biography: z
     .object({

@@ -6,20 +6,10 @@ export const vttDocumentSchema = baseDocumentSchema.extend({
   documentType: z.literal('vtt-document'),
   
   // Plugin subtypes: 'class', 'spell', 'feat', 'background', etc.
-  pluginDocumentType: z.string().min(1),
-  
-  // VTT infrastructure field (URL-friendly identifier)
-  slug: z
-    .string()
-    .min(1)
-    .max(255)
-    .regex(
-      /^[a-z0-9-]+$/,
-      'Slug must be lowercase with no spaces, only hyphens and numbers allowed'
-    )
+  pluginDocumentType: z.string().min(1)
 
   // Note: Other fields now come from baseDocumentSchema:
-  // - name, description, pluginId, campaignId, compendiumId, imageId
+  // - name, description, slug, pluginId, campaignId, compendiumId, imageId
   // - pluginData (replaces 'data'), userData
 });
 
@@ -29,6 +19,10 @@ export const vttDocumentCreateSchema = vttDocumentSchema
     id: true,
     createdBy: true,
     updatedBy: true
+  })
+  .extend({
+    // Make slug optional on create - it will be auto-generated from name if not provided
+    slug: vttDocumentSchema.shape.slug.optional()
   });
 
 // Update schema (makes all fields optional)

@@ -114,6 +114,10 @@ export class SpeciesWrapperConverter extends WrapperConverter {
       pluginId: 'dnd-5e-2024',
       documentType: 'species',
       description: this.buildDescription(raceData, fluffData),
+      campaignId: '', // Will be set during import
+      pluginData: {},
+      userData: {},
+      pluginDocumentType: 'species',
       
       // Species-specific data
       data: {

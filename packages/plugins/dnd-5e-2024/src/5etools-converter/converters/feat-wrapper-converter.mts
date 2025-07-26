@@ -129,6 +129,10 @@ export class FeatWrapperConverter extends WrapperConverter {
       pluginId: 'dnd-5e-2024',
       documentType: 'feat',
       description: this.buildDescription(featData, fluffData),
+      campaignId: '', // Will be set during import
+      pluginData: {},
+      userData: {},
+      pluginDocumentType: 'feat',
       
       // Feat-specific data
       data: {

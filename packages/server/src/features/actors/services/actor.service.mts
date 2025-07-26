@@ -1,4 +1,4 @@
-import { IActor } from '@dungeon-lab/shared/types/index.mjs';
+import { IActor, IActorCreateData } from '@dungeon-lab/shared/types/index.mjs';
 import { DocumentService } from '../../documents/services/document.service.mjs';
 import { logger } from '../../../utils/logger.mjs';
 import { createAsset } from '../../../utils/asset-upload.utils.mjs';
@@ -8,7 +8,7 @@ import {
   ACTOR_AVATAR_GENERATION_JOB,
   ACTOR_TOKEN_GENERATION_JOB
 } from '../jobs/actor-image.job.mjs';
-import { deepMerge } from '@dungeon-lab/shared/utils/index.mjs';
+import { deepMerge, generateSlug } from '@dungeon-lab/shared/utils/index.mjs';
 import { UserModel } from '../../../models/user.model.mjs';
 import { IActorPatchData } from '@dungeon-lab/shared/types/index.mjs';
 import mongoose from 'mongoose';
@@ -63,7 +63,7 @@ export class ActorService {
    * @param tokenFile - Optional token file for the actor
    */
   async createActor(
-    data: Omit<IActor, 'id'>,
+    data: Omit<IActorCreateData, 'avatar' | 'token'>,
     userId: string,
     avatarFile?: File,
     tokenFile?: File
@@ -71,13 +71,14 @@ export class ActorService {
     try {
       const actorData = {
         ...data,
+        slug: data.slug || generateSlug(data.name),
         createdBy: userId,
         updatedBy: userId
       };
 
       // This allows admins to create actors for other users
       const user = await UserModel.findById(userId);
-      if (user?.isAdmin && data.createdBy) {
+      if (user?.isAdmin && 'createdBy' in data && typeof data.createdBy === 'string') {
         actorData.createdBy = data.createdBy;
       }
 
@@ -131,7 +132,7 @@ export class ActorService {
    */
   async putActor(
     id: string,
-    data: Omit<IActor, 'id'>,
+    data: Omit<IActorCreateData, 'avatar' | 'token'>,
     userId: string,
     avatarFile?: File,
     tokenFile?: File
@@ -142,8 +143,9 @@ export class ActorService {
         throw new Error('Actor not found');
       }
 
-      const updateData = {
+      const updateData: any = {
         ...data,
+        slug: data.slug || generateSlug(data.name),
         updatedBy: userId
       };
 

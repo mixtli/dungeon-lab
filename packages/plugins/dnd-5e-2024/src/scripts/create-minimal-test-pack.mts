@@ -76,7 +76,7 @@ class MinimalPackCreator {
   }
 
   private async createOutputStructure(): Promise<void> {
-    const dirs = ['content/actors', 'content/items', 'content/misc', 'assets'];
+    const dirs = ['content/npcs', 'content/items', 'content/misc', 'assets'];
     for (const dir of dirs) {
       await mkdir(join(this.options.outputDir, dir), { recursive: true });
     }
@@ -86,12 +86,12 @@ class MinimalPackCreator {
     const content: ContentItem[] = [];
     const contentDir = join(this.options.inputDir, 'content');
 
-    // Read actors
-    const actorsDir = join(contentDir, 'actors');
-    if (existsSync(actorsDir)) {
-      const actorFiles = await readdir(actorsDir);
-      for (const file of actorFiles.filter(f => f.endsWith('.json'))) {
-        const filePath = join(actorsDir, file);
+    // Read NPCs
+    const npcsDir = join(contentDir, 'npcs');
+    if (existsSync(npcsDir)) {
+      const npcFiles = await readdir(npcsDir);
+      for (const file of npcFiles.filter(f => f.endsWith('.json'))) {
+        const filePath = join(npcsDir, file);
         const data = JSON.parse(await readFile(filePath, 'utf-8')) as IContentFileWrapper;
         content.push({ 
           ...data, 
@@ -201,7 +201,7 @@ class MinimalPackCreator {
       let outputSubDir: string;
       switch (item.entry.type) {
         case 'actor':
-          outputSubDir = 'actors';
+          outputSubDir = 'npcs';
           break;
         case 'item':
           outputSubDir = 'items';

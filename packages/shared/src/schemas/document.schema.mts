@@ -23,6 +23,16 @@ export const baseDocumentSchema = baseSchema.extend({
   name: z.string().min(1).max(255),
   description: z.string().optional(),
   
+  // URL-friendly identifier (auto-generated from name if not provided)
+  slug: z
+    .string()
+    .min(1)
+    .max(255)
+    .regex(
+      /^[a-z0-9-]+$/,
+      'Slug must be lowercase with no spaces, only hyphens and numbers allowed'
+    ),
+  
   // Discriminator field for document type
   documentType: documentTypeSchema,
   

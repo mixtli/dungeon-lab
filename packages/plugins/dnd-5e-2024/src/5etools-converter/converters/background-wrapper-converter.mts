@@ -128,6 +128,10 @@ export class BackgroundWrapperConverter extends WrapperConverter {
       pluginId: 'dnd-5e-2024',
       documentType: 'background',
       description: this.buildDescription(backgroundData, fluffData),
+      campaignId: '', // Will be set during import
+      pluginData: {},
+      userData: {},
+      pluginDocumentType: 'background',
       
       // Background-specific data  
       data: {

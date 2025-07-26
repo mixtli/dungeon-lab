@@ -95,6 +95,13 @@ import {
   contentFileWrapperSchema
 } from '../schemas/compendium.schema.mjs';
 
+import {
+  documentReferenceSchema,
+  referenceObjectSchema,
+  DocumentReference,
+  ReferenceObject
+} from './reference.mjs';
+
 // General Types
 export type QueryValue = string | number | boolean | RegExp | Date | object;
 
@@ -205,6 +212,10 @@ export type IContentFileWrapper = z.infer<typeof contentFileWrapperSchema>;
 export type IEmbeddedActorContent = Extract<IEmbeddedContent, { type: 'actor' }>;
 export type IEmbeddedItemContent = Extract<IEmbeddedContent, { type: 'item' }>;
 export type IEmbeddedVTTDocumentContent = Extract<IEmbeddedContent, { type: 'vttdocument' }>;
+
+// Reference Types
+export type { DocumentReference, ReferenceObject };
+export { documentReferenceSchema, referenceObjectSchema };
 
 // Chatbot Types
 export * from './chatbots.mjs';

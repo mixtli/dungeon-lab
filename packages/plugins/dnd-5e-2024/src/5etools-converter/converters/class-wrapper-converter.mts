@@ -119,6 +119,10 @@ export class ClassWrapperConverter extends WrapperConverter {
       pluginId: 'dnd-5e-2024',
       documentType: 'characterClass',
       description: this.buildDescription(classData, fluffData),
+      campaignId: '', // Will be set during import
+      pluginData: {},
+      userData: {},
+      pluginDocumentType: 'characterClass',
       
       // Class-specific data
       data: {

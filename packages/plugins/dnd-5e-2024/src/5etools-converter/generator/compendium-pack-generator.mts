@@ -92,11 +92,15 @@ export class CompendiumPackGenerator {
   }
 
   private async createDirectoryStructure(): Promise<void> {
-    const contentTypes = ['actors', 'items', 'documents', 'backgrounds', 'spells', 'classes', 'species', 'feats'];
-    if (this.options.includeAssets) {
-      contentTypes.push('assets');
-    }
+    const contentTypes = ['npcs', 'items', 'documents', 'backgrounds', 'spells', 'classes', 'species', 'feats'];
     await createCompendiumStructure(this.options.outputDir, contentTypes);
+    
+    // Create assets directory at root level if needed
+    if (this.options.includeAssets) {
+      const { mkdir } = await import('fs/promises');
+      const { join } = await import('path');
+      await mkdir(join(this.options.outputDir, 'assets'), { recursive: true });
+    }
   }
 
   private createConverter(contentType: string) {
@@ -205,7 +209,7 @@ export class CompendiumPackGenerator {
 
   private getContentDirectory(type: string, wrapper?: Record<string, unknown>): string {
     switch (type) {
-      case 'actor': return 'actors';
+      case 'actor': return 'npcs';
       case 'item': return 'items';
       case 'vttdocument':
         // For VTT documents, use the documentType to determine directory
@@ -236,7 +240,7 @@ export class CompendiumPackGenerator {
       .replace(/-+/g, '-')
       .toLowerCase();
     
-    return `${type}-${cleanName}.json`;
+    return `${cleanName}.json`;
   }
 
   private generateManifest(contentCounts: Record<string, number>): Record<string, unknown> {

@@ -168,13 +168,16 @@ export class ItemWrapperConverter extends WrapperConverter {
     const item: IItem = {
       id: `item-${this.generateSlug(itemData.name)}`, // Temporary ID for wrapper format
       name: itemData.name,
-      type: this.determineItemSubtype(itemData),
+      slug: this.generateSlug(itemData.name),
       pluginId: 'dnd-5e-2024',
-      gameSystemId: 'dnd-5e-2024',
+      documentType: 'item',
+      pluginDocumentType: this.determineItemSubtype(itemData),
+      campaignId: '', // Will be set during import
+      userData: {},
       description: this.buildDescription(itemData, fluffData),
       
-      // Item-specific data
-      data: {
+      // Item-specific data in pluginData
+      pluginData: {
         // Basic properties
         type: this.determineItemSubtype(itemData),
         rarity: itemData.rarity || 'common',

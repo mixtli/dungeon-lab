@@ -31,11 +31,6 @@ export const actorSchema = baseDocumentSchema.extend({
 });
 
 export const actorCreateSchema = actorSchema
-  .extend({
-    // File uploads for avatar and token images
-    avatar: z.instanceof(File).optional(),
-    token: z.instanceof(File).optional()
-  })
   .omit({
     // Omit auto-generated and file-reference fields
     id: true,
@@ -43,6 +38,13 @@ export const actorCreateSchema = actorSchema
     updatedBy: true,
     avatarId: true,
     defaultTokenImageId: true
+  })
+  .extend({
+    // Make slug optional on create - it will be auto-generated from name if not provided
+    slug: actorSchema.shape.slug.optional(),
+    // File uploads for avatar and token images
+    avatar: z.instanceof(File).optional(),
+    token: z.instanceof(File).optional()
   });
 
 export const actorSchemaWithVirtuals = actorSchema.extend({

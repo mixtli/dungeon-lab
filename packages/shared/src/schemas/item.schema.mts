@@ -16,16 +16,18 @@ export const itemSchema = baseDocumentSchema.extend({
 });
 
 export const itemCreateSchema = itemSchema
-  .extend({
-    // File upload for item image
-    image: z.instanceof(File).optional()
-  })
   .omit({
     // Omit auto-generated and file-reference fields
     id: true,
     createdBy: true,
     updatedBy: true,
     imageId: true // Will be set from uploaded file
+  })
+  .extend({
+    // Make slug optional on create - it will be auto-generated from name if not provided
+    slug: itemSchema.shape.slug.optional(),
+    // File upload for item image
+    image: z.instanceof(File).optional()
   });
 
 // Item patch schema for updates
