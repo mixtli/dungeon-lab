@@ -14,7 +14,7 @@ import { ItemWrapperConverter } from '../converters/item-wrapper-converter.mjs';
 import { ClassWrapperConverter } from '../converters/class-wrapper-converter.mjs';
 import { SpeciesWrapperConverter } from '../converters/species-wrapper-converter.mjs';
 import { FeatWrapperConverter } from '../converters/feat-wrapper-converter.mjs';
-import { ConditionWrapperConverter } from '../converters/condition-wrapper-converter.mjs';
+import { TypedConditionWrapperConverter } from '../converters/typed-condition-wrapper-converter.mjs';
 import { ActionWrapperConverter } from '../converters/action-wrapper-converter.mjs';
 import { DeityWrapperConverter } from '../converters/deity-wrapper-converter.mjs';
 import { RuleWrapperConverter } from '../converters/rule-wrapper-converter.mjs';
@@ -162,7 +162,7 @@ export class CompendiumPackGenerator {
       case 'feats':
         return new FeatWrapperConverter(options);
       case 'conditions':
-        return new ConditionWrapperConverter(options);
+        return new TypedConditionWrapperConverter(options);
       case 'actions':
         return new ActionWrapperConverter(options);
       case 'deities':

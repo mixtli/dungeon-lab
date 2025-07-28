@@ -81,7 +81,7 @@ export const dndSenseDataSchema = z.object({
     explorationBenefits: z.array(z.string()).optional()
   }).optional(),
   
-  /** Related senses */aaaa
+  /** Related senses */
   relatedSenses: z.array(z.string()).optional()
 });
 
