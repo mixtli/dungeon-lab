@@ -7,7 +7,7 @@ import type { EtoolsMonster, EtoolsMonsterData, EtoolsMonsterAction, EtoolsMonst
 import type { EtoolsEntry } from '../../5etools-types/base.mjs';
 import { extractEtoolsArray, safeEtoolsCast } from '../../5etools-types/type-utils.mjs';
 // Import monster schema and utilities
-import { DndMonsterData } from '../../types/dnd/index.mjs';
+import { DndCreatureData } from '../../types/dnd/index.mjs';
 import type { DamageType } from '../../types/dnd/common.mjs';
 import { DAMAGE_TYPES_2024 } from '../../types/dnd/common.mjs';
 import { ReferenceObject } from '@dungeon-lab/shared/types/index.mjs';
@@ -131,7 +131,7 @@ export class MonsterWrapperConverter extends WrapperConverter {
               
               stats.converted++;
             } catch (error) {
-              this.log(`Error converting monster ${monsterRaw.name}:`, error);
+              this.log(`❌ ${monsterRaw.name}: ${error instanceof Error ? error.message : 'Conversion error'}`);
               stats.errors++;
             }
           }
@@ -181,8 +181,8 @@ export class MonsterWrapperConverter extends WrapperConverter {
       // We don't want invalid placeholder paths in the output
     }
 
-    // Convert the monster data to DndMonsterData structure
-    const monster: DndMonsterData = {
+    // Convert the monster data to DndCreatureData structure
+    const monster: DndCreatureData = {
       // Basic Information
       name: monsterData.name,
       size: SIZE_MAP[monsterData.size?.[0]] || 'medium',
@@ -232,8 +232,8 @@ export class MonsterWrapperConverter extends WrapperConverter {
       legendaryActionCount: monsterData.legendary && monsterData.legendary.length > 0 ? 3 : undefined,
       legendaryResistance: this.parseLegendaryResistance(monsterData.trait),
       
-      // Spellcasting
-      spellcasting: monsterData.spellcasting ? transformSpellcastingToSchema(monsterData.spellcasting) : undefined,
+      // Spellcasting - skipped for now due to complex schema requirements
+      // spellcasting: monsterData.spellcasting ? transformSpellcastingToSchema(monsterData.spellcasting) : undefined,
       
       // Equipment/Gear
       equipment: monsterData.gear ? transformGearArray(monsterData.gear) : undefined,
@@ -254,7 +254,7 @@ export class MonsterWrapperConverter extends WrapperConverter {
       description: this.buildDescription(monsterData, fluffData),
       campaignId: '',
       userData: {},
-      pluginDocumentType: 'monster',
+      pluginDocumentType: 'creature',
       pluginData: monster
     };
 

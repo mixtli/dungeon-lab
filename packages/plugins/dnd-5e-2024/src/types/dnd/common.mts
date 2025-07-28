@@ -48,6 +48,20 @@ export const LANGUAGES_2024 = [
   'primordial', 'sylvan', 'terran', 'undercommon', 'telepathy'
 ] as const;
 export const languageSchema = z.enum(LANGUAGES_2024);
+
+// D&D 5e 2024 Armor Proficiencies
+export const ARMOR_PROFICIENCIES = [
+  'light armor', 'medium armor', 'heavy armor', 'shields'
+] as const;
+export const armorProficiencySchema = z.enum(ARMOR_PROFICIENCIES);
+export type ArmorProficiency = z.infer<typeof armorProficiencySchema>;
+
+// D&D 5e 2024 Weapon Proficiencies
+export const WEAPON_PROFICIENCIES = [
+  'simple weapons', 'martial weapons', 'specific'
+] as const;
+export const weaponProficiencySchema = z.enum(WEAPON_PROFICIENCIES);
+export type WeaponProficiency = z.infer<typeof weaponProficiencySchema>;
 export type Language = z.infer<typeof languageSchema>;
 
 // D&D 5e 2024 Alignments
@@ -142,7 +156,7 @@ export const aoeShapeSchema = z.enum(AOE_SHAPES);
 export type AoeShape = z.infer<typeof aoeShapeSchema>;
 
 // Armor Types for proficiency requirements
-export const ARMOR_TYPES = ['light', 'medium', 'heavy'] as const;
+export const ARMOR_TYPES = ['light', 'medium', 'heavy', 'shield'] as const;
 export const armorTypeSchema = z.enum(ARMOR_TYPES);
 export type ArmorType = z.infer<typeof armorTypeSchema>;
 
@@ -157,9 +171,15 @@ export const weaponTypeSchema = z.enum(WEAPON_TYPES);
 export type WeaponType = z.infer<typeof weaponTypeSchema>;
 
 // Action Types for the 2024 action economy
-export const ACTION_TYPES = ['action', 'bonus_action', 'reaction', 'free', 'movement'] as const;
+export const ACTION_TYPES = ['action', 'bonus_action', 'reaction', 'free', 'movement', 'other'] as const;
 export const actionTypeSchema = z.enum(ACTION_TYPES);
 export type ActionType = z.infer<typeof actionTypeSchema>;
+
+// Weapon Mastery Properties (2024 D&D feature)
+export const WEAPON_MASTERY_PROPERTIES = ['cleave', 'graze', 'nick', 'push', 'sap', 'slow', 'topple', 'vex'] as const;
+export const weaponMasteryPropertySchema = z.enum(WEAPON_MASTERY_PROPERTIES);
+export const weaponMasteryProperty = weaponMasteryPropertySchema; // Alias for consistent naming
+export type WeaponMasteryProperty = z.infer<typeof weaponMasteryPropertySchema>;
 
 // D&D 5e 2024 Monster Spellcasting Schema (simplified format for 2024)
 export const monsterSpellcastingSchema = z.object({
@@ -249,3 +269,87 @@ export type FeatReference = z.infer<typeof featReferenceSchema>;
 export type ItemReference = z.infer<typeof itemReferenceSchema>;
 export type ConditionReference = z.infer<typeof conditionReferenceSchema>;
 export type ActionReference = z.infer<typeof actionReferenceSchema>;
+
+/**
+ * D&D 5e 2024 Spell-specific schemas
+ */
+
+/**
+ * Spell class availability schema for 2024 format
+ * Tracks which classes can access spells and how
+ */
+export const spellClassAvailabilitySchema = z.object({
+  /** Classes that get this spell on their spell list */
+  classList: z.array(z.enum(['artificer', 'bard', 'cleric', 'druid', 'paladin', 'ranger', 'sorcerer', 'warlock', 'wizard'])),
+  /** Whether this spell is domain/circle/etc. specific */
+  subclassRestrictions: z.array(z.object({
+    className: z.string(),
+    subclassName: z.string(),
+    source: z.string().optional()
+  })).optional(),
+  /** Alternative access methods (feats, magic items, etc.) */
+  alternativeAccess: z.array(z.object({
+    type: z.enum(['feat', 'magic_item', 'feature']),
+    name: z.string(),
+    source: z.string().optional()
+  })).optional()
+});
+
+/**
+ * Enhanced spell components schema for 2024
+ */
+export const spellComponentsSchema = z.object({
+  /** Verbal component required */
+  verbal: z.boolean(),
+  /** Somatic component required */
+  somatic: z.boolean(),
+  /** Material component required */
+  material: z.boolean(),
+  /** Material component details */
+  materialComponents: z.object({
+    /** Description of material components */
+    description: z.string(),
+    /** Whether components are consumed */
+    consumed: z.boolean().default(false),
+    /** Gold piece cost if expensive */
+    cost: z.number().optional(),
+    /** Whether a focus can substitute */
+    focusSubstitute: z.boolean().default(true)
+  }).optional()
+});
+
+/**
+ * Spell scaling schema for higher levels and character progression
+ */
+export const spellScalingSchema = z.object({
+  /** How the spell scales when cast at higher levels */
+  higherLevels: z.object({
+    /** Description of scaling */
+    description: z.string(),
+    /** Specific scaling patterns */
+    scaling: z.array(z.object({
+      /** What aspect scales (damage, targets, duration, etc.) */
+      type: z.enum(['damage', 'healing', 'targets', 'duration', 'range', 'area']),
+      /** How much it scales per level */
+      increment: z.string(), // e.g., "1d6", "1 target", "10 feet"
+      /** At what spell level intervals */
+      interval: z.number().default(1)
+    }))
+  }).optional(),
+  /** Character level scaling (for cantrips mainly) */
+  characterLevel: z.object({
+    /** Description of character level scaling */
+    description: z.string(),
+    /** Scaling breakpoints */
+    breakpoints: z.array(z.object({
+      /** Character level */
+      level: z.number(),
+      /** What changes */
+      effect: z.string()
+    }))
+  }).optional()
+});
+
+export type SpellClassAvailability = z.infer<typeof spellClassAvailabilitySchema>;
+export type SpellComponents = z.infer<typeof spellComponentsSchema>;
+export type SpellScaling = z.infer<typeof spellScalingSchema>;

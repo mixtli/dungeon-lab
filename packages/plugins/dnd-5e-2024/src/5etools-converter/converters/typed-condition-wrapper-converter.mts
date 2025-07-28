@@ -95,11 +95,11 @@ export class TypedConditionWrapperConverter extends WrapperConverter {
    * Create wrapper format from a typed condition document
    */
   private createConditionWrapper(conditionDoc: ConditionDocument) {
-    // Extract entry-level metadata from the document
-    const imageId = this.extractEntryImagePath(conditionDoc.pluginData, 'vtt-document');
-    const category = conditionDoc.category || 'Conditions';
-    const tags = conditionDoc.tags || [];
-    const sortOrder = conditionDoc.sortOrder || 0;
+    // The typed converter already sets imageId on the document if available
+    const imageId = (conditionDoc as any).imageId;
+    const category = 'Conditions'; // Fixed category for conditions
+    const tags: string[] = []; // No specific tags for conditions yet
+    const sortOrder = 0; // Default sort order
 
     // Create the wrapper using the base class method
     return this.createWrapper(

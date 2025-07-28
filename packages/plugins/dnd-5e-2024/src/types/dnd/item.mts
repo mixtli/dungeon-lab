@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { vttDocumentSchema } from '@dungeon-lab/shared/schemas/index.mjs';
 import { 
   physicalDamageTypeSchema,
+  damageTypeSchema,
   weaponCategorySchema,
   weaponTypeSchema,
   weaponMasteryProperty,
@@ -40,7 +41,7 @@ export const weaponSchema = z.object({
   /** Basic weapon properties */
   damage: z.object({
     dice: z.string(), // e.g., "1d8"
-    type: physicalDamageTypeSchema
+    type: damageTypeSchema // Allow all damage types for magical weapons
   }),
   
   /** Weapon classification */
@@ -58,7 +59,8 @@ export const weaponSchema = z.object({
   
   /** Versatile damage (for versatile weapons) */
   versatileDamage: z.object({
-    dice: z.string() // e.g., "1d10"
+    dice: z.string(), // e.g., "1d10"
+    type: damageTypeSchema // Same damage type as primary
   }).optional(),
   
   /** Range information (for ranged/thrown weapons) */
@@ -161,7 +163,32 @@ export const gearSchema = z.object({
   page: z.number().optional()
 });
 
-
+/**
+ * Tool schema for artisan tools, gaming sets, instruments, etc.
+ */
+export const toolSchema = z.object({
+  itemType: z.literal('tool'),
+  name: z.string(),
+  description: z.string(),
+  
+  /** Tool category */
+  category: z.enum(['artisan', 'gaming-set', 'musical-instrument', 'other']).optional(),
+  
+  /** Physical properties */
+  weight: z.number().optional(),
+  cost: z.object({
+    amount: z.number(),
+    currency: currencyTypeSchema.default('gp')
+  }).optional(),
+  
+  /** Magic properties */
+  magical: z.boolean().default(false),
+  rarity: itemRaritySchema.optional(),
+  attunement: z.boolean().default(false),
+  
+  source: z.string().optional(),
+  page: z.number().optional()
+});
 
 /**
  * Discriminated union of all item types
@@ -170,7 +197,8 @@ export const gearSchema = z.object({
 export const dndItemDataSchema = z.discriminatedUnion('itemType', [
   weaponSchema,
   armorSchema,
-  gearSchema
+  gearSchema,
+  toolSchema
 ]);
 
 /**
@@ -192,19 +220,14 @@ export type DndItemDocument = z.infer<typeof dndItemDocumentSchema>;
 export type DndWeaponData = z.infer<typeof weaponSchema>;
 export type DndArmorData = z.infer<typeof armorSchema>;
 export type DndGearData = z.infer<typeof gearSchema>;
+export type DndToolData = z.infer<typeof toolSchema>;
 
 /**
  * Item type identifiers
  */
 export const itemTypeIdentifiers = [
-  'weapon', 'armor', 'gear'
+  'weapon', 'armor', 'gear', 'tool'
 ] as const;
 
 export type ItemTypeIdentifier = typeof itemTypeIdentifiers[number];
 
-// Create/Update schemas for items
-export const createDndItemSchema = dndItemDataSchema;
-export const updateDndItemSchema = dndItemDataSchema.partial();
-
-export type CreateDndItem = z.infer<typeof createDndItemSchema>;
-export type UpdateDndItem = z.infer<typeof updateDndItemSchema>;

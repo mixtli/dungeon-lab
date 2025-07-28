@@ -139,13 +139,3 @@ export const scriptMapping = {
   'DeepSpeech': ['deep-speech']
 } as const;
 
-// Create/Update schemas for languages
-export const createDndLanguageSchema = dndLanguageDataSchema.partial({
-  availableAtCreation: true,
-  properties: true
-});
-
-export const updateDndLanguageSchema = dndLanguageDataSchema.partial();
-
-export type CreateDndLanguage = z.infer<typeof createDndLanguageSchema>;
-export type UpdateDndLanguage = z.infer<typeof updateDndLanguageSchema>;

@@ -1,6 +1,7 @@
 /**
  * TypeScript definitions for 5etools species (race) data structures
  */
+import { z } from 'zod';
 import type { 
   EtoolsSource, 
   EtoolsEntry, 
@@ -224,3 +225,124 @@ export interface EtoolsSpeciesData {
     dateLastModified?: number;
   };
 }
+
+/**
+ * Species fluff data structure
+ */
+export interface EtoolsSpeciesFluff extends EtoolsSource {
+  name: string;
+  entries?: EtoolsEntry[];
+  images?: Array<{
+    type: string;
+    href: {
+      type: string;
+      path: string;
+    };
+    title?: string;
+    altText?: string;
+    width?: number;
+    height?: number;
+    credit?: string;
+  }>;
+}
+
+/**
+ * Species fluff data structure (fluff files)
+ */
+export interface EtoolsSpeciesFluffData {
+  raceFluff?: EtoolsSpeciesFluff[];
+  _meta?: {
+    sources?: Array<{
+      json: string;
+      abbreviation: string;
+      full: string;
+      url?: string;
+      authors?: string[];
+      convertedBy?: string[];
+    }>;
+    dateAdded?: number;
+    dateLastModified?: number;
+  };
+}
+
+// Zod schemas for validation
+
+export const etoolsSpeciesAbilityScoreImprovementSchema = z.object({
+  choose: z.object({
+    from: z.array(z.string()),
+    count: z.number().optional(),
+    amount: z.number().optional()
+  }).optional(),
+  str: z.number().optional(),
+  dex: z.number().optional(),
+  con: z.number().optional(),
+  int: z.number().optional(),
+  wis: z.number().optional(),
+  cha: z.number().optional()
+}).passthrough();
+
+export const etoolsSpeciesSpeedSchema = z.union([
+  z.number(), // Speed can be just a number
+  z.object({
+    walk: z.number().optional(),
+    fly: z.union([z.number(), z.boolean()]).optional(), // Can be boolean for "has fly speed"
+    swim: z.union([z.number(), z.boolean()]).optional(), // Can be boolean for "has swim speed"
+    climb: z.union([z.number(), z.boolean()]).optional(), // Can be boolean for "has climb speed"
+    burrow: z.number().optional(),
+    hover: z.boolean().optional(),
+    canHover: z.boolean().optional()
+  }).passthrough()
+]);
+
+export const etoolsSpeciesSchema = z.object({
+  name: z.string(),
+  source: z.string(),
+  page: z.number().optional(),
+  srd: z.boolean().optional(),
+  basicRules: z.boolean().optional(),
+  ability: z.array(etoolsSpeciesAbilityScoreImprovementSchema).optional(),
+  size: z.array(z.string()).optional(),
+  speed: etoolsSpeciesSpeedSchema.optional(),
+  entries: z.array(z.any()).optional(),
+  skillProficiencies: z.array(z.any()).optional(),
+  languageProficiencies: z.array(z.any()).optional(),
+  toolProficiencies: z.array(z.any()).optional(),
+  armorProficiencies: z.array(z.union([z.string(), z.any()])).optional(),
+  weaponProficiencies: z.array(z.union([z.string(), z.any()])).optional(),
+  darkvision: z.number().optional(),
+  blindsight: z.number().optional(),
+  truesight: z.number().optional(),
+  resist: z.array(z.union([z.string(), z.any()])).optional(),
+  immune: z.array(z.string()).optional(),
+  vulnerable: z.array(z.string()).optional(),
+  conditionImmune: z.array(z.string()).optional(),
+  additionalSpells: z.array(z.any()).optional(),
+  age: z.any().optional(),
+  heightAndWeight: z.any().optional(),
+  subraces: z.array(z.any()).optional(),
+  traitTags: z.array(z.string()).nullable().optional(),
+  lineage: z.union([z.string(), z.boolean()]).optional(),
+  creatureTypes: z.array(z.string()).optional(),
+  creatureTypeTags: z.array(z.string()).optional()
+}).passthrough();
+
+export const etoolsSpeciesDataSchema = z.object({
+  race: z.array(etoolsSpeciesSchema)
+}).passthrough();
+
+export const etoolsSpeciesFluffSchema = z.object({
+  name: z.string(),
+  source: z.string(),
+  entries: z.array(z.any()).optional(),
+  images: z.array(z.object({
+    type: z.string(),
+    href: z.object({
+      type: z.string(),
+      path: z.string()
+    })
+  })).optional()
+}).passthrough();
+
+export const etoolsSpeciesFluffDataSchema = z.object({
+  raceFluff: z.array(etoolsSpeciesFluffSchema).optional()
+}).passthrough();

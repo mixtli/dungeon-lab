@@ -120,13 +120,3 @@ export type SpellSchoolIdentifier = (typeof spellSchoolIdentifiers)[number];
 export const spellLevelIdentifiers = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] as const;
 export type SpellLevelIdentifier = (typeof spellLevelIdentifiers)[number];
 
-// Create/Update schemas for spells
-export const createDndSpellSchema = dndSpellDataSchema.partial({
-  ritual: true,
-  concentration: true
-});
-
-export const updateDndSpellSchema = dndSpellDataSchema.partial();
-
-export type CreateDndSpell = z.infer<typeof createDndSpellSchema>;
-export type UpdateDndSpell = z.infer<typeof updateDndSpellSchema>;

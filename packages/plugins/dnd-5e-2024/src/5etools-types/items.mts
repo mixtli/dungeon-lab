@@ -1,6 +1,7 @@
 /**
  * TypeScript definitions for 5etools item data structures
  */
+import { z } from 'zod';
 import type { 
   EtoolsSource, 
   EtoolsEntry
@@ -241,3 +242,92 @@ export interface EtoolsItemData {
     dateLastModified?: number;
   };
 }
+
+/**
+ * Zod schema for 5etools item data validation - flexible to handle actual data structures
+ */
+export const etoolsItemSchema = z.object({
+  name: z.string(),
+  source: z.string(),
+  page: z.number().optional(),
+  
+  // Item classification
+  type: z.string().optional(), // Many magic items don't have explicit type
+  typeText: z.string().optional(),
+  rarity: z.string(),
+  
+  // Physical properties
+  weight: z.union([z.number(), z.string()]).optional(),
+  value: z.union([
+    z.number(),
+    z.object({
+      coin: z.string().optional(),
+      value: z.number().optional()
+    })
+  ]).optional(),
+  
+  // Weapon properties
+  weaponCategory: z.string().optional(), // 'simple', 'martial'
+  property: z.array(z.string()).optional(),
+  range: z.union([
+    z.string(), // "30/120"
+    z.object({
+      short: z.number().optional(),
+      long: z.number().optional()
+    })
+  ]).optional(),
+  reload: z.number().optional(),
+  dmg1: z.string().optional(), // Primary damage
+  dmg2: z.string().optional(), // Versatile damage
+  dmgType: z.string().optional(),
+  damage: z.object({
+    dmg1: z.string().optional(),
+    dmg2: z.string().optional(),
+    dmgType: z.string().optional()
+  }).optional(),
+  
+  // Armor properties
+  ac: z.union([
+    z.number(),
+    z.object({
+      ac: z.number(),
+      from: z.array(z.string()).optional()
+    })
+  ]).optional(),
+  strength: z.string().optional(),
+  stealth: z.boolean().optional(),
+  
+  // Magic properties
+  tier: z.string().optional(),
+  bonus: z.string().optional(),
+  bonusWeapon: z.string().optional(),
+  bonusAc: z.string().optional(),
+  bonusSpellAttack: z.string().optional(),
+  bonusSpellDamage: z.string().optional(),
+  bonusSpellSaveDc: z.string().optional(),
+  reqAttune: z.union([z.boolean(), z.string()]).optional(),
+  reqAttuneTags: z.array(z.any()).optional(),
+  
+  // 2024 properties
+  mastery: z.array(z.string()).optional(),
+  weapon: z.boolean().optional(),
+  armor: z.boolean().optional(),
+  shield: z.boolean().optional(),
+  wondrous: z.boolean().optional(),
+  firearm: z.boolean().optional(),
+  focus: z.array(z.string()).optional(),
+  
+  // Content
+  entries: z.array(z.any()).optional(),
+  
+  // Additional fields
+  age: z.string().optional(),
+  ammoType: z.string().optional(),
+  edition: z.string().optional(),
+  valueRarity: z.string().optional(),
+  srd: z.boolean().optional(),
+  srd52: z.boolean().optional(),
+  basicRules: z.boolean().optional(),
+  basicRules2024: z.boolean().optional(),
+  reprintedAs: z.array(z.string()).optional()
+}).passthrough(); // Allow additional properties

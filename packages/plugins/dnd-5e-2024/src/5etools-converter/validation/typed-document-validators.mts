@@ -14,7 +14,7 @@ import { itemSchema } from '@dungeon-lab/shared/schemas/item.schema.mjs';
 import { vttDocumentSchema } from '@dungeon-lab/shared/schemas/vtt-document.schema.mjs';
 import type { BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
 import {
-  dndMonsterDataSchema,
+  dndCreatureDataSchema,
   dndItemDataSchema,
   dndSpellDataSchema,
   dndBackgroundDataSchema,
@@ -23,7 +23,8 @@ import {
   dndFeatDataSchema,
   dndConditionDataSchema,
   dndActionDataSchema,
-  type DndMonsterData,
+  dndLanguageDataSchema,
+  type DndCreatureData,
   type DndItemData,
   type DndSpellData,
   type DndBackgroundData,
@@ -31,8 +32,11 @@ import {
   type DndSpeciesData,
   type DndFeatData,
   type DndConditionData,
-  type DndActionData
+  type DndActionData,
+  type DndLanguageData
 } from '../../types/dnd/index.mjs';
+import { dndRuleDataSchema, type DndRuleData } from '../../types/dnd/rule.mjs';
+import { dndSenseDataSchema, type DndSenseData } from '../../types/dnd/sense.mjs';
 
 /**
  * Document type discriminator
@@ -109,10 +113,10 @@ export function validateWithSchema<T>(
 // Specific typed validators for common document types
 
 /**
- * Monster document validator (actor + monster plugin data)
+ * Creature document validator (actor + creature plugin data)
  */
-export const monsterDocumentValidator = createTypedDocumentValidator('actor', dndMonsterDataSchema);
-export type MonsterDocument = z.infer<typeof monsterDocumentValidator>;
+export const creatureDocumentValidator = createTypedDocumentValidator('actor', dndCreatureDataSchema);
+export type CreatureDocument = z.infer<typeof creatureDocumentValidator>;
 
 /**
  * Item document validator (item + item plugin data) 
@@ -163,11 +167,29 @@ export const actionDocumentValidator = createTypedDocumentValidator('vtt-documen
 export type ActionDocument = z.infer<typeof actionDocumentValidator>;
 
 /**
+ * Language document validator (vtt-document + language plugin data)
+ */
+export const languageDocumentValidator = createTypedDocumentValidator('vtt-document', dndLanguageDataSchema);
+export type LanguageDocument = z.infer<typeof languageDocumentValidator>;
+
+/**
+ * Sense document validator (vtt-document + sense plugin data)
+ */
+export const senseDocumentValidator = createTypedDocumentValidator('vtt-document', dndSenseDataSchema);
+export type SenseDocument = z.infer<typeof senseDocumentValidator>;
+
+/**
+ * Rule document validator (vtt-document + rule plugin data)
+ */
+export const ruleDocumentValidator = createTypedDocumentValidator('vtt-document', dndRuleDataSchema);
+export type RuleDocument = z.infer<typeof ruleDocumentValidator>;
+
+/**
  * Registry of all document validators by plugin document type
  */
 export const DOCUMENT_VALIDATORS = {
   // Actor types
-  'monster': monsterDocumentValidator,
+  'creature': creatureDocumentValidator,
   
   // Item types  
   'weapon': itemDocumentValidator,
@@ -183,7 +205,10 @@ export const DOCUMENT_VALIDATORS = {
   'species': speciesDocumentValidator,
   'feat': featDocumentValidator,
   'condition': conditionDocumentValidator,
-  'action': actionDocumentValidator
+  'action': actionDocumentValidator,
+  'language': languageDocumentValidator,
+  'sense': senseDocumentValidator,
+  'rule': ruleDocumentValidator
 } as const;
 
 /**

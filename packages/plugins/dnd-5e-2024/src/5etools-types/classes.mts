@@ -1,6 +1,7 @@
 /**
  * TypeScript definitions for 5etools class data structures
  */
+import { z } from 'zod';
 import type { 
   EtoolsSource, 
   EtoolsEntry, 
@@ -212,3 +213,99 @@ export interface EtoolsClassFluffData {
     dateLastModified?: number;
   };
 }
+
+// Zod schemas for validation
+
+export const etoolsClassHitDieSchema = z.object({
+  faces: z.number(),
+  number: z.number().optional()
+}).passthrough();
+
+export const etoolsClassProficienciesSchema = z.object({
+  armor: z.array(z.union([z.string(), z.any()])).optional(),
+  weapons: z.array(z.union([z.string(), z.any()])).optional(),
+  tools: z.array(z.union([z.string(), z.any()])).optional(),
+  skills: z.array(z.union([z.string(), z.any()])).optional(),
+  skillsPoints: z.number().optional()
+}).passthrough();
+
+export const etoolsStartingEquipmentSchema = z.object({
+  additionalFromBackground: z.boolean().optional(),
+  default: z.array(z.string()).optional(),
+  goldAlternative: z.string().optional(),
+  defaultData: z.array(z.any()).optional()
+}).passthrough();
+
+export const etoolsClassFeatureSchema = z.object({
+  name: z.string(),
+  level: z.number(),
+  source: z.string(),
+  page: z.number().optional(),
+  entries: z.array(z.any()).optional(),
+  header: z.number().optional(),
+  consumes: z.any().optional()
+}).passthrough();
+
+export const etoolsSubclassSchema = z.object({
+  name: z.string(),
+  shortName: z.string(),
+  source: z.string(),
+  page: z.number().optional(),
+  className: z.string(),
+  classSource: z.string(),
+  subclassFeatures: z.array(etoolsClassFeatureSchema).optional(),
+  entries: z.array(z.any()).optional(),
+  additionalSpells: z.array(z.any()).optional()
+}).passthrough();
+
+export const etoolsClassSchema = z.object({
+  name: z.string(),
+  source: z.string(),
+  page: z.number().optional(),
+  srd: z.boolean().optional(),
+  basicRules: z.boolean().optional(),
+  srd52: z.boolean().optional(),
+  basicRules2024: z.boolean().optional(),
+  hd: etoolsClassHitDieSchema.optional(),  
+  primaryAbility: z.array(z.union([z.string(), z.any()])).optional(),
+  proficiency: z.array(z.string()).optional(),
+  startingProficiencies: etoolsClassProficienciesSchema.optional(),
+  startingEquipment: etoolsStartingEquipmentSchema.optional(),
+  classFeature: z.array(etoolsClassFeatureSchema).optional(),
+  subclasses: z.array(etoolsSubclassSchema).optional(),
+  casterProgression: z.string().optional(),
+  spellcastingAbility: z.string().optional(),
+  cantripProgression: z.array(z.number()).optional(),
+  spellsKnownProgression: z.array(z.number()).optional(),
+  additionalSpells: z.array(z.any()).optional(),
+  preparedSpells: z.string().optional(),
+  multiclassing: z.any().optional(),
+  requirements: z.any().optional(),
+  fluff: z.array(z.any()).optional()
+}).passthrough();
+
+export const etoolsClassDataSchema = z.object({
+  class: z.array(etoolsClassSchema)
+}).passthrough();
+
+export const etoolsClassFluffSchema = z.object({
+  name: z.string(),
+  source: z.string(),
+  entries: z.array(z.any()).optional(),
+  images: z.array(z.object({
+    type: z.string(),
+    href: z.object({
+      type: z.string(),
+      path: z.string()
+    })
+  })).optional()
+}).passthrough();
+
+export const etoolsClassFluffDataSchema = z.object({
+  classFluff: z.array(etoolsClassFluffSchema).optional(),
+  subclassFluff: z.array(etoolsClassFluffSchema.extend({
+    className: z.string(),
+    classSource: z.string(),
+    subclassShortName: z.string()
+  })).optional()
+}).passthrough();

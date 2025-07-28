@@ -1,10 +1,10 @@
 export { MonsterWrapperConverter } from './monster-wrapper-converter.mjs';
-export { SpellWrapperConverter } from './spell-wrapper-converter.mjs';
-export { BackgroundWrapperConverter } from './background-wrapper-converter.mjs';
+export { TypedSpellWrapperConverter } from './typed-spell-wrapper-converter.mjs';
+export { TypedBackgroundWrapperConverter } from './typed-background-wrapper-converter.mjs';
 export { ItemWrapperConverter } from './item-wrapper-converter.mjs';
+export { TypedFeatWrapperConverter } from './typed-feat-wrapper-converter.mjs';
 export { ConditionWrapperConverter } from './condition-wrapper-converter.mjs';
 export { ActionWrapperConverter } from './action-wrapper-converter.mjs';
-export { DeityWrapperConverter } from './deity-wrapper-converter.mjs';
 export { RuleWrapperConverter } from './rule-wrapper-converter.mjs';
-export { LanguageWrapperConverter } from './language-wrapper-converter.mjs';
+export { TypedLanguageWrapperConverter } from './typed-language-wrapper-converter.mjs';
 export { SenseWrapperConverter } from './sense-wrapper-converter.mjs';

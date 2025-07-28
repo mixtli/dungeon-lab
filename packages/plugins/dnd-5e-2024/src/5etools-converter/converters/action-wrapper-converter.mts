@@ -42,13 +42,13 @@ export class ActionWrapperConverter extends WrapperConverter {
 
               // Check validation result
               if (!validationResult.success) {
-                this.log(`❌ Action ${actionRaw.name} failed validation:`, validationResult.errors);
+                this.log(`❌ ${actionRaw.name}: ${validationResult.errors?.join(', ') || 'Validation failed'}`);
                 stats.errors++;
                 continue; // Skip this action and continue with next
               }
 
               // Log successful validation
-              this.log(`✅ Action ${actionRaw.name} validated successfully`);
+              this.log(`✅ ${actionRaw.name}`);
 
               // Create wrapper format using the full document structure
               const wrapper = this.createWrapper(
@@ -70,7 +70,7 @@ export class ActionWrapperConverter extends WrapperConverter {
               
               stats.converted++;
             } catch (error) {
-              this.log(`Error converting action ${actionRaw.name}:`, error);
+              this.log(`❌ ${actionRaw.name}: ${error instanceof Error ? error.message : 'Conversion error'}`);
               stats.errors++;
             }
           }
@@ -111,20 +111,17 @@ export class ActionWrapperConverter extends WrapperConverter {
     const transformResult = transformMonsterEntries(actionData.entries);
     const description = formatEntries(transformResult.entries);
 
-    // Create simplified action structure for validation
-    const timeCost = this.parseTimeCost(actionData.time);
+    // Create action structure matching the clean schema
     const actionDataForValidation = {
       name: actionData.name,
       description,
       source: actionData.source,
       page: actionData.page,
-      actionType: this.determineActionType(timeCost),
-      timeCost, // Keep as undefined if missing
+      actionType: this.determineActionType(actionData.time),
+      trigger: this.extractTrigger(actionData.time),
       requirements: this.extractRequirements(description),
-      mechanics: this.parseActionMechanicsForSchema(description),
-      variants: this.extractActionVariantsForSchema(description),
-      tags: this.parseActionTagsForSchema(actionData.name, description),
-      relatedActions: this.extractRelatedActions(description)
+      effects: this.parseActionEffects(description),
+      uses: this.parseActionUses(description)
     };
 
     // Create full document structure for output
@@ -175,183 +172,58 @@ export class ActionWrapperConverter extends WrapperConverter {
     return Object.keys(requirements).length > 0 ? requirements : undefined;
   }
 
-  private parseActionMechanicsForSchema(description: string): {
-    damage?: { type: string; dice: string; };
-    range?: number;
-    areaOfEffect?: { type: 'sphere' | 'cube' | 'cylinder' | 'cone' | 'line'; size: number; };
-    savingThrow?: { ability: 'strength' | 'dexterity' | 'constitution' | 'intelligence' | 'wisdom' | 'charisma'; dc?: number; };
-    attackRoll?: boolean;
-  } | undefined {
-    const mechanics: {
-      damage?: { type: string; dice: string; };
-      range?: number;
-      areaOfEffect?: { type: 'sphere' | 'cube' | 'cylinder' | 'cone' | 'line'; size: number; };
-      savingThrow?: { ability: 'strength' | 'dexterity' | 'constitution' | 'intelligence' | 'wisdom' | 'charisma'; dc?: number; };
-      attackRoll?: boolean;
-    } = {};
-    
-    // Parse range
-    const rangeMatch = description.match(/(\d+)\s*feet?/i);
-    if (rangeMatch) {
-      mechanics.range = parseInt(rangeMatch[1], 10);
-    }
-    
-    // Parse area of effect
-    const aoeMatch = description.match(/(\d+)-foot[- ]?(radius|cube|cylinder|cone|line)/i);
-    if (aoeMatch) {
-      const size = parseInt(aoeMatch[1], 10);
-      const type = aoeMatch[2].toLowerCase();
-      
-      if (type === 'radius') {
-        mechanics.areaOfEffect = { type: 'sphere', size };
-      } else if (['cube', 'cylinder', 'cone', 'line'].includes(type)) {
-        mechanics.areaOfEffect = { type: type as 'cube' | 'cylinder' | 'cone' | 'line', size };
-      }
-    }
-    
-    // Parse saving throw
-    const saveMatch = description.match(/DC (\d+) (\w+) saving throw/i);
-    if (saveMatch) {
-      const dc = parseInt(saveMatch[1], 10);
-      const ability = saveMatch[2].toLowerCase();
-      
-      if (['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'].includes(ability)) {
-        mechanics.savingThrow = {
-          ability: ability as 'strength' | 'dexterity' | 'constitution' | 'intelligence' | 'wisdom' | 'charisma',
-          dc
-        };
-      }
-    }
-    
-    // Parse attack roll
-    if (description.toLowerCase().includes('attack roll') || description.toLowerCase().includes('make.*attack')) {
-      mechanics.attackRoll = true;
-    }
-    
-    // Parse damage
-    const damageMatch = description.match(/(\d+d\d+(?:\s*[+-]\s*\d+)?)\s*(\w+)\s*damage/i);
-    if (damageMatch) {
-      mechanics.damage = {
-        dice: damageMatch[1],
-        type: damageMatch[2].toLowerCase()
-      };
-    }
-    
-    return Object.keys(mechanics).length > 0 ? mechanics : undefined;
-  }
 
-  private extractActionVariantsForSchema(description: string): Array<{
-    name: string;
-    description: string;
-    requirements?: string;
-  }> | undefined {
-    // This is a simplified implementation
-    const variants: Array<{
-      name: string;
-      description: string;
-      requirements?: string;
-    }> = [];
-    
-    if (description.includes('alternative') || description.includes('variant') || description.includes('instead')) {
-      variants.push({
-        name: 'Alternative Use',
-        description: 'This action can be used in alternative ways as described in the full text.'
-      });
-    }
-    
-    return variants.length > 0 ? variants : undefined;
-  }
 
-  private parseActionTagsForSchema(name: string, description: string): Array<'magic' | 'movement' | 'combat' | 'exploration' | 'social' | 'utility' | 'defensive' | 'offensive' | 'healing'> | undefined {
-    const tags: Array<'magic' | 'movement' | 'combat' | 'exploration' | 'social' | 'utility' | 'defensive' | 'offensive' | 'healing'> = [];
-    
-    const nameDesc = (name + ' ' + description).toLowerCase();
-    
-    if (nameDesc.includes('attack') || nameDesc.includes('damage')) {
-      tags.push('offensive');
-    }
-    if (nameDesc.includes('heal') || nameDesc.includes('restore')) {
-      tags.push('healing');
-    }
-    if (nameDesc.includes('move') || nameDesc.includes('speed') || nameDesc.includes('dash')) {
-      tags.push('movement');
-    }
-    if (nameDesc.includes('dodge') || nameDesc.includes('defend') || nameDesc.includes('protection')) {
-      tags.push('defensive');
-    }
-    if (nameDesc.includes('spell') || nameDesc.includes('magic')) {
-      tags.push('magic');
-    }
-    if (nameDesc.includes('help') || nameDesc.includes('aid') || nameDesc.includes('assist')) {
-      tags.push('utility');
-    }
-    if (nameDesc.includes('search') || nameDesc.includes('investigate') || nameDesc.includes('perception')) {
-      tags.push('exploration');
-    }
-    if (nameDesc.includes('persuasion') || nameDesc.includes('deception') || nameDesc.includes('intimidation')) {
-      tags.push('social');
-    }
-    
-    // Default to combat if in doubt and involves actions/attacks
-    if (tags.length === 0 && (nameDesc.includes('action') || nameDesc.includes('turn'))) {
-      tags.push('combat');
-    }
-    
-    return tags.length > 0 ? tags : undefined;
-  }
-
-  private parseTimeCost(time?: EtoolsActionTime[]): {
-    number: number;
-    unit: 'action' | 'bonus_action' | 'reaction' | 'minute' | 'hour' | 'round';
-  } | undefined {
-    if (!time || time.length === 0) return undefined;
+  private determineActionType(time?: EtoolsActionTime[]): DndActionData['actionType'] {
+    if (!time || time.length === 0) return 'action'; // Default to action
     
     const timeEntry = time[0];
     
     // Handle string entries like "Free"
     if (typeof timeEntry === 'string') {
       if (String(timeEntry).toLowerCase() === 'free') {
-        return undefined; // Free actions don't have a time cost
+        return 'free';
       }
-      return undefined; // Unknown string format
+      return 'action'; // Default for unknown strings
     }
     
-    // Handle object entries with number and unit
-    if (typeof timeEntry === 'object' && timeEntry.number && timeEntry.unit) {
-      // Convert 5etools 'bonus' to our 'bonus_action'
-      const unit = timeEntry.unit === 'bonus' ? 'bonus_action' as const : timeEntry.unit;
-      return {
-        number: timeEntry.number,
-        unit
-      };
+    // Handle object entries with unit
+    if (typeof timeEntry === 'object' && timeEntry.unit) {
+      switch (timeEntry.unit) {
+        case 'action':
+          return 'action';
+        case 'bonus':
+          return 'bonus_action';
+        case 'reaction':
+          return 'reaction';
+        default:
+          return 'action';
+      }
+    }
+    
+    return 'action';
+  }
+
+  private extractTrigger(time?: EtoolsActionTime[]): string | undefined {
+    if (!time || time.length === 0) return undefined;
+    
+    const timeEntry = time[0];
+    if (typeof timeEntry === 'object' && timeEntry.unit === 'reaction' && timeEntry.condition) {
+      return timeEntry.condition;
     }
     
     return undefined;
   }
 
-  private determineActionType(timeCost?: DndActionData['timeCost']): DndActionData['actionType'] {
-    if (!timeCost) return undefined;
-    
-    switch (timeCost.unit) {
-      case 'action':
-        return 'action';
-      case 'bonus_action':
-        return 'bonus_action';
-      case 'reaction':
-        return 'reaction';
-      default:
-        return undefined;
-    }
-  }
-
-  // @ts-expect-error - Future functionality, currently unused
-  private parseActionMechanics(description: string): DndActionData['mechanics'] {
-    const mechanics: NonNullable<DndActionData['mechanics']> = {};
+  private parseActionEffects(description: string): DndActionData['effects'] {
+    const effects: NonNullable<DndActionData['effects']> = {
+      attackRoll: false
+    };
     
     // Parse range
     const rangeMatch = description.match(/(\d+)\s*feet?/i);
     if (rangeMatch) {
-      mechanics.range = parseInt(rangeMatch[1], 10);
+      effects.range = `${rangeMatch[1]} feet`;
     }
     
     // Parse area of effect
@@ -361,10 +233,15 @@ export class ActionWrapperConverter extends WrapperConverter {
       const type = aoeMatch[2].toLowerCase();
       
       if (type === 'radius') {
-        mechanics.areaOfEffect = { type: 'sphere', size };
+        effects.area = { type: 'sphere', size };
       } else if (['cube', 'cylinder', 'cone', 'line'].includes(type)) {
-        mechanics.areaOfEffect = { type: type as 'cube' | 'cylinder' | 'cone' | 'line', size };
+        effects.area = { type: type as 'cube' | 'cylinder' | 'cone' | 'line', size };
       }
+    }
+    
+    // Parse attack roll
+    if (description.toLowerCase().includes('attack roll') || description.toLowerCase().includes('make.*attack')) {
+      effects.attackRoll = true;
     }
     
     // Parse saving throw
@@ -374,91 +251,58 @@ export class ActionWrapperConverter extends WrapperConverter {
       const ability = saveMatch[2].toLowerCase();
       
       if (['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'].includes(ability)) {
-        mechanics.savingThrow = {
+        effects.savingThrow = {
           ability: ability as 'strength' | 'dexterity' | 'constitution' | 'intelligence' | 'wisdom' | 'charisma',
           dc
         };
       }
     }
     
-    // Parse attack roll
-    if (description.toLowerCase().includes('attack roll') || description.toLowerCase().includes('make.*attack')) {
-      mechanics.attackRoll = true;
-    }
-    
     // Parse damage
     const damageMatch = description.match(/(\d+d\d+(?:\s*[+-]\s*\d+)?)\s*(\w+)\s*damage/i);
     if (damageMatch) {
-      mechanics.damage = {
+      effects.damage = {
         dice: damageMatch[1],
         type: damageMatch[2].toLowerCase()
       };
     }
     
-    return Object.keys(mechanics).length > 0 ? mechanics : undefined;
+    return Object.keys(effects).length > 1 || effects.attackRoll ? effects : undefined;
   }
 
-  // @ts-expect-error - Future functionality, currently unused
-  private parseActionTags(name: string, description: string): DndActionData['tags'] {
-    const tags: NonNullable<DndActionData['tags']> = [];
-    
-    // Determine tags based on name and description
-    const nameDesc = (name + ' ' + description).toLowerCase();
-    
-    if (nameDesc.includes('attack') || nameDesc.includes('damage')) {
-      tags.push('offensive');
-    }
-    if (nameDesc.includes('heal') || nameDesc.includes('restore')) {
-      tags.push('healing');
-    }
-    if (nameDesc.includes('move') || nameDesc.includes('speed') || nameDesc.includes('dash')) {
-      tags.push('movement');
-    }
-    if (nameDesc.includes('dodge') || nameDesc.includes('defend') || nameDesc.includes('protection')) {
-      tags.push('defensive');
-    }
-    if (nameDesc.includes('spell') || nameDesc.includes('magic')) {
-      tags.push('magic');
-    }
-    if (nameDesc.includes('help') || nameDesc.includes('aid') || nameDesc.includes('assist')) {
-      tags.push('utility');
-    }
-    if (nameDesc.includes('search') || nameDesc.includes('investigate') || nameDesc.includes('perception')) {
-      tags.push('exploration');
-    }
-    if (nameDesc.includes('persuasion') || nameDesc.includes('deception') || nameDesc.includes('intimidation')) {
-      tags.push('social');
-    }
-    
-    // Default to combat if in doubt and involves actions/attacks
-    if (tags.length === 0 && (nameDesc.includes('action') || nameDesc.includes('turn'))) {
-      tags.push('combat');
+  private parseActionUses(description: string): DndActionData['uses'] {
+    // Look for usage patterns like "once per turn", "once per short rest", etc.
+    const usageMatch = description.match(/(?:once|(\d+)\s*times?)\s*per\s*(turn|round|short\s*rest|long\s*rest|day)/i);
+    if (usageMatch) {
+      const value = usageMatch[1] ? parseInt(usageMatch[1], 10) : 1;
+      const per = usageMatch[2].toLowerCase().replace(/\s+/g, ' ');
+      
+      // Map different formats to schema values
+      let restType: 'turn' | 'round' | 'short rest' | 'long rest' | 'day';
+      switch (per) {
+        case 'turn':
+          restType = 'turn';
+          break;
+        case 'round':
+          restType = 'round';
+          break;
+        case 'short rest':
+          restType = 'short rest';
+          break;
+        case 'long rest':
+          restType = 'long rest';
+          break;
+        case 'day':
+          restType = 'day';
+          break;
+        default:
+          return undefined;
+      }
+      
+      return { value, per: restType };
     }
     
-    return tags.length > 0 ? tags : undefined;
+    return undefined;
   }
 
-  // @ts-expect-error - Future functionality, currently unused
-  private extractActionVariants(description: string): DndActionData['variants'] {
-    // Look for sections that describe variants or special uses
-    const variants: NonNullable<DndActionData['variants']> = [];
-    
-    // This is a simplified implementation - real parsing would be more sophisticated
-    if (description.includes('alternative') || description.includes('variant') || description.includes('instead')) {
-      // Could parse out specific variant rules here
-    }
-    
-    return variants.length > 0 ? variants : undefined;
-  }
-
-  private extractRelatedActions(description: string): string[] | undefined {
-    const actions = ['attack', 'dash', 'dodge', 'help', 'hide', 'ready', 'search', 'disengage', 'study', 'utilize'];
-    
-    const found = actions.filter(action => 
-      description.toLowerCase().includes(action) && 
-      !description.toLowerCase().startsWith(action)
-    );
-    
-    return found.length > 0 ? found : undefined;
-  }
 }

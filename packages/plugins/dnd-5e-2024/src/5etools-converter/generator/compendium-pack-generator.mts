@@ -7,19 +7,18 @@ import { createWriteStream } from 'fs';
 import { writeFile } from 'fs/promises';
 import archiver from 'archiver';
 
-import { MonsterWrapperConverter } from '../converters/monster-wrapper-converter.mjs';
-import { SpellWrapperConverter } from '../converters/spell-wrapper-converter.mjs';
-import { BackgroundWrapperConverter } from '../converters/background-wrapper-converter.mjs';
-import { ItemWrapperConverter } from '../converters/item-wrapper-converter.mjs';
-import { ClassWrapperConverter } from '../converters/class-wrapper-converter.mjs';
-import { SpeciesWrapperConverter } from '../converters/species-wrapper-converter.mjs';
-import { FeatWrapperConverter } from '../converters/feat-wrapper-converter.mjs';
+import { TypedMonsterWrapperConverter } from '../converters/typed-monster-wrapper-converter.mjs';
+import { TypedSpellWrapperConverter } from '../converters/typed-spell-wrapper-converter.mjs';
+import { TypedBackgroundWrapperConverter } from '../converters/typed-background-wrapper-converter.mjs';
+import { TypedItemWrapperConverter } from '../converters/typed-item-wrapper-converter.mjs';
+import { TypedClassWrapperConverter } from '../converters/typed-class-wrapper-converter.mjs';
+import { TypedSpeciesWrapperConverter } from '../converters/typed-species-wrapper-converter.mjs';
+import { TypedFeatWrapperConverter } from '../converters/typed-feat-wrapper-converter.mjs';
 import { TypedConditionWrapperConverter } from '../converters/typed-condition-wrapper-converter.mjs';
-import { ActionWrapperConverter } from '../converters/action-wrapper-converter.mjs';
-import { DeityWrapperConverter } from '../converters/deity-wrapper-converter.mjs';
-import { RuleWrapperConverter } from '../converters/rule-wrapper-converter.mjs';
-import { LanguageWrapperConverter } from '../converters/language-wrapper-converter.mjs';
-import { SenseWrapperConverter } from '../converters/sense-wrapper-converter.mjs';
+import { TypedActionWrapperConverter } from '../converters/typed-action-wrapper-converter.mjs';
+import { TypedRuleWrapperConverter } from '../converters/typed-rule-wrapper-converter.mjs';
+import { TypedLanguageWrapperConverter } from '../converters/typed-language-wrapper-converter.mjs';
+import { TypedSenseWrapperConverter } from '../converters/typed-sense-wrapper-converter.mjs';
 import { ConversionOptions, WrapperContent } from '../base/wrapper-converter.mjs';
 import {
   generateManifest,
@@ -109,7 +108,7 @@ export class CompendiumPackGenerator {
 
   private async createDirectoryStructure(): Promise<void> {
     const contentTypes = [
-      'npcs',
+      'creatures', // Updated from 'npcs' to consolidate monsters and NPCs
       'items',  // fallback for uncategorized items
       'weapons',
       'armor',
@@ -124,7 +123,6 @@ export class CompendiumPackGenerator {
       'feats',
       'conditions',
       'actions',
-      'deities',
       'rules',
       'languages',
       'senses'
@@ -148,31 +146,29 @@ export class CompendiumPackGenerator {
 
     switch (contentType) {
       case 'monsters':
-        return new MonsterWrapperConverter(options);
+        return new TypedMonsterWrapperConverter(options);
       case 'spells':
-        return new SpellWrapperConverter(options);
+        return new TypedSpellWrapperConverter(options);
       case 'backgrounds':
-        return new BackgroundWrapperConverter(options);
+        return new TypedBackgroundWrapperConverter(options);
       case 'items':
-        return new ItemWrapperConverter(options);
+        return new TypedItemWrapperConverter(options);
       case 'classes':
-        return new ClassWrapperConverter(options);
+        return new TypedClassWrapperConverter(options);
       case 'species':
-        return new SpeciesWrapperConverter(options);
+        return new TypedSpeciesWrapperConverter(options);
       case 'feats':
-        return new FeatWrapperConverter(options);
+        return new TypedFeatWrapperConverter(options);
       case 'conditions':
         return new TypedConditionWrapperConverter(options);
       case 'actions':
-        return new ActionWrapperConverter(options);
-      case 'deities':
-        return new DeityWrapperConverter(options);
+        return new TypedActionWrapperConverter(options);
       case 'rules':
-        return new RuleWrapperConverter(options);
+        return new TypedRuleWrapperConverter(options);
       case 'languages':
-        return new LanguageWrapperConverter(options);
+        return new TypedLanguageWrapperConverter(options);
       case 'senses':
-        return new SenseWrapperConverter(options);
+        return new TypedSenseWrapperConverter(options);
       default:
         throw new Error(`Unknown content type: ${contentType}`);
     }
@@ -282,7 +278,7 @@ export class CompendiumPackGenerator {
           const outputPath = join(this.options.outputDir, 'assets', assetPath);
           await this.ensureDirectoryExists(outputPath);
           await writeFile(outputPath, resolved.buffer);
-          console.log(`✅ Copied asset: ${assetPath}`);
+          // Asset copied silently
         } else {
           console.warn(`⚠️  Asset not found: ${assetPath}`);
         }
@@ -306,7 +302,7 @@ export class CompendiumPackGenerator {
   private getContentDirectory(type: string, wrapper?: Record<string, unknown>): string {
     switch (type) {
       case 'actor':
-        return 'npcs';
+        return 'creatures'; // Updated to use creatures directory
       case 'item':
         // For items, use the pluginDocumentType to determine directory
         if (
@@ -361,8 +357,6 @@ export class CompendiumPackGenerator {
                 return 'conditions';
               case 'action':
                 return 'actions';
-              case 'deity':
-                return 'deities';
               case 'rule':
                 return 'rules';
               case 'language':

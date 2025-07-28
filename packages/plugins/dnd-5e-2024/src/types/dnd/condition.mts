@@ -90,12 +90,3 @@ export const conditionIdentifiers = [
 
 export type ConditionIdentifier = typeof conditionIdentifiers[number];
 
-// Create/Update schemas for conditions
-export const createDndConditionSchema = dndConditionDataSchema.partial({
-  effects: true
-});
-
-export const updateDndConditionSchema = dndConditionDataSchema.partial();
-
-export type CreateDndCondition = z.infer<typeof createDndConditionSchema>;
-export type UpdateDndCondition = z.infer<typeof updateDndConditionSchema>;

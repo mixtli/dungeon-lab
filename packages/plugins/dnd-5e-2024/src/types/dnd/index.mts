@@ -24,7 +24,6 @@ export * from './rule.mjs';
 export * from './sense.mjs';
 
 // World and lore types
-export * from './deity.mjs';
 export * from './language.mjs';
 
 // Equipment and magic types
@@ -44,7 +43,6 @@ export const dndDocumentTypes = [
   'character-class',
   'condition',
   'creature',
-  'deity',
   'feat',
   'item',
   'language',

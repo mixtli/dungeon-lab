@@ -101,12 +101,3 @@ export const basicActionIdentifiers = [
 
 export type BasicActionIdentifier = (typeof basicActionIdentifiers)[number];
 
-// Create/Update schemas for actions
-export const createDndActionSchema = dndActionDataSchema.partial({
-  actionType: true
-});
-
-export const updateDndActionSchema = dndActionDataSchema.partial();
-
-export type CreateDndAction = z.infer<typeof createDndActionSchema>;
-export type UpdateDndAction = z.infer<typeof updateDndActionSchema>;

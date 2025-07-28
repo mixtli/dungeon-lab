@@ -10,6 +10,29 @@ import { generateSlug } from '@dungeon-lab/shared/utils/index.mjs';
 import { transformMonsterEntries } from '../utils/reference-transformer.mjs';
 import type { DndConditionData } from '../../types/dnd/index.mjs';
 
+/**
+ * Condition fluff data interface
+ */
+interface EtoolsConditionFluff {
+  name: string;
+  source?: string;
+  entries?: EtoolsEntry[];
+  images?: Array<{
+    type: string;
+    href: {
+      type: string;
+      path: string;
+    };
+  }>;
+}
+
+/**
+ * Condition fluff data file structure
+ */
+interface EtoolsConditionFluffData {
+  conditionFluff?: EtoolsConditionFluff[];
+}
+
 export class ConditionWrapperConverter extends WrapperConverter {
   async convert(): Promise<WrapperConversionResult> {
     try {
@@ -22,6 +45,20 @@ export class ConditionWrapperConverter extends WrapperConverter {
       const conditionFiles = [
         'conditionsdiseases.json'
       ];
+      
+      // Read fluff data
+      const fluffMap = new Map<string, EtoolsConditionFluff>();
+      try {
+        const rawFluffData = await readEtoolsData('fluff-conditionsdiseases.json');
+        const fluffData = safeEtoolsCast<EtoolsConditionFluffData>(rawFluffData, [], 'condition fluff file');
+        if (fluffData.conditionFluff) {
+          for (const fluff of fluffData.conditionFluff) {
+            fluffMap.set(fluff.name, fluff);
+          }
+        }
+      } catch {
+        this.log('No condition fluff data found');
+      }
 
       for (const fileName of conditionFiles) {
         try {
@@ -38,18 +75,19 @@ export class ConditionWrapperConverter extends WrapperConverter {
           for (let i = 0; i < filteredConditions.length; i++) {
             const conditionRaw = filteredConditions[i];
             try {
-              const { condition, validationResult } = await this.convertCondition(conditionRaw);
+              const fluff = fluffMap.get(conditionRaw.name);
+              const { condition, assetPath, validationResult } = await this.convertCondition(conditionRaw, fluff);
               // Condition is already properly typed for wrapper creation
 
               // Check validation result
               if (!validationResult.success) {
-                this.log(`❌ Condition ${conditionRaw.name} failed validation:`, validationResult.errors);
+                this.log(`❌ ${conditionRaw.name}: ${validationResult.errors?.join(', ') || 'Validation failed'}`);
                 stats.errors++;
                 continue; // Skip this condition and continue with next
               }
 
               // Log successful validation
-              this.log(`✅ Condition ${conditionRaw.name} validated successfully`);
+              this.log(`✅ ${conditionRaw.name}`);
 
               // Create wrapper format using the full document structure
               const wrapper = this.createWrapper(
@@ -57,6 +95,7 @@ export class ConditionWrapperConverter extends WrapperConverter {
                 condition, // Always use the full structure for proper directory mapping
                 'vtt-document',
                 {
+                  imageId: assetPath,
                   category: this.determineCategory(conditionRaw, 'vtt-document'),
                   tags: this.extractTags(conditionRaw, 'vtt-document'),
                   sortOrder: this.calculateSortOrder(conditionRaw, 'vtt-document') + i
@@ -71,7 +110,7 @@ export class ConditionWrapperConverter extends WrapperConverter {
               
               stats.converted++;
             } catch (error) {
-              this.log(`Error converting condition ${conditionRaw.name}:`, error);
+              this.log(`❌ ${conditionRaw.name}: ${error instanceof Error ? error.message : 'Conversion error'}`);
               stats.errors++;
             }
           }
@@ -96,7 +135,7 @@ export class ConditionWrapperConverter extends WrapperConverter {
     }
   }
 
-  private async convertCondition(conditionData: EtoolsCondition): Promise<{ condition: {
+  private async convertCondition(conditionData: EtoolsCondition, fluffData?: EtoolsConditionFluff): Promise<{ condition: {
     id: string;
     slug: string;
     name: string;
@@ -107,10 +146,25 @@ export class ConditionWrapperConverter extends WrapperConverter {
     description: string;
     userData: Record<string, unknown>;
     pluginData: unknown;
-  }; validationResult: ValidationResult }> {
-    // Transform entries to extract references
-    const transformResult = transformMonsterEntries(conditionData.entries);
-    const description = formatEntries(transformResult.entries);
+  }; assetPath?: string; validationResult: ValidationResult }> {
+    // Extract asset path from fluff data if available
+    let assetPath: string | undefined;
+    if (fluffData && this.options.includeAssets) {
+      if (fluffData.images?.[0]?.href?.path) {
+        assetPath = fluffData.images[0].href.path;
+      }
+    }
+    // Use fluff description if available, otherwise use condition entries
+    let description = '';
+    let transformResult: { entries: EtoolsEntry[]; references: any[] };
+    
+    if (fluffData?.entries) {
+      transformResult = transformMonsterEntries(fluffData.entries);
+      description = formatEntries(transformResult.entries);
+    } else {
+      transformResult = transformMonsterEntries(conditionData.entries);
+      description = formatEntries(transformResult.entries);
+    }
 
     // Create simplified condition structure for validation
     const conditionDataForValidation = {
@@ -118,9 +172,8 @@ export class ConditionWrapperConverter extends WrapperConverter {
       description,
       source: conditionData.source,
       page: conditionData.page,
-      effects: this.parseConditionEffectsAsStrings(conditionData.entries),
-      severity: this.determineSeverity(description),
-      relatedConditions: this.extractRelatedConditions(description)
+      effects: this.parseConditionEffectsForSchema(conditionData.entries),
+      duration: this.extractDuration(description)
     };
 
     // Create full document structure for output
@@ -140,7 +193,7 @@ export class ConditionWrapperConverter extends WrapperConverter {
     // Validate the simplified condition data against the schema
     const validationResult = await validateConditionData(conditionDataForValidation);
 
-    return { condition, validationResult };
+    return { condition, assetPath, validationResult };
   }
 
   /**
@@ -164,39 +217,98 @@ export class ConditionWrapperConverter extends WrapperConverter {
     return effects.length > 0 ? effects : undefined;
   }
 
-  // @ts-expect-error - Future functionality for advanced condition parsing
-  private parseConditionEffectsForSchema(entries: EtoolsEntry[]): Array<{
-    type: 'advantage' | 'disadvantage' | 'immunity' | 'resistance' | 'vulnerability' | 'modifier' | 'restriction' | 'other';
-    target: string;
-    description: string;
-  }> | undefined {
-    const effects: Array<{
-      type: 'advantage' | 'disadvantage' | 'immunity' | 'resistance' | 'vulnerability' | 'modifier' | 'restriction' | 'other';
-      target: string;
-      description: string;
-    }> = [];
+  private parseConditionEffectsForSchema(entries: EtoolsEntry[]): {
+    movement?: {
+      prevented?: boolean;
+      reduced?: boolean;
+      speedReduction?: number;
+    };
+    actions?: {
+      prevented?: boolean;
+      disadvantage?: boolean;
+    };
+    attackRolls?: {
+      advantage?: boolean;
+      disadvantage?: boolean;
+      prevented?: boolean;
+    };
+    savingThrows?: {
+      advantage?: boolean;
+      disadvantage?: boolean;
+    };
+    againstAffected?: {
+      attackAdvantage?: boolean;
+      attackDisadvantage?: boolean;
+    };
+  } {
+    // Convert entries to plain text for analysis
+    const fullText = this.extractTextFromEntries(entries).toLowerCase();
+    
+    const effects: {
+      movement?: { prevented?: boolean; reduced?: boolean; speedReduction?: number };
+      actions?: { prevented?: boolean; disadvantage?: boolean };
+      attackRolls?: { advantage?: boolean; disadvantage?: boolean; prevented?: boolean };
+      savingThrows?: { advantage?: boolean; disadvantage?: boolean };
+      againstAffected?: { attackAdvantage?: boolean; attackDisadvantage?: boolean };
+    } = {};
+    
+    // Parse movement effects
+    if (fullText.includes("can't move") || fullText.includes("speed becomes 0") || fullText.includes("cannot move")) {
+      effects.movement = { prevented: true };
+    } else if (fullText.includes("speed is halved") || fullText.includes("movement is halved")) {
+      effects.movement = { reduced: true, speedReduction: 50 };
+    }
+    
+    // Parse action effects
+    if (fullText.includes("can't take actions") || fullText.includes("cannot take actions") || fullText.includes("incapacitated")) {
+      effects.actions = { prevented: true };
+    } else if (fullText.includes("disadvantage on") && fullText.includes("ability check")) {
+      effects.actions = { disadvantage: true };
+    }
+    
+    // Parse attack roll effects
+    if (fullText.includes("can't attack") || fullText.includes("cannot attack")) {
+      effects.attackRolls = { prevented: true };
+    } else if (fullText.includes("advantage on attack")) {
+      effects.attackRolls = { advantage: true };
+    } else if (fullText.includes("disadvantage on attack")) {
+      effects.attackRolls = { disadvantage: true };
+    }
+    
+    // Parse saving throw effects
+    if (fullText.includes("advantage on") && (fullText.includes("saving throw") || fullText.includes("save"))) {
+      effects.savingThrows = { advantage: true };
+    } else if (fullText.includes("disadvantage on") && (fullText.includes("saving throw") || fullText.includes("save"))) {
+      effects.savingThrows = { disadvantage: true };
+    }
+    
+    // Parse effects against the affected creature
+    if (fullText.includes("attack rolls against") && fullText.includes("advantage")) {
+      effects.againstAffected = { attackAdvantage: true };
+    } else if (fullText.includes("attack rolls against") && fullText.includes("disadvantage")) {
+      effects.againstAffected = { attackDisadvantage: true };
+    }
+    
+    return effects;
+  }
+  
+  private extractTextFromEntries(entries: EtoolsEntry[]): string {
+    const texts: string[] = [];
     
     for (const entry of entries) {
-      if (typeof entry === 'object' && entry.type === 'list' && entry.items) {
-        for (const item of entry.items) {
-          if (typeof item === 'string') {
-            effects.push({
-              type: this.classifyEffectType(item),
-              target: 'creature',
-              description: item
-            });
-          }
+      if (typeof entry === 'string') {
+        texts.push(entry);
+      } else if (typeof entry === 'object' && entry) {
+        if ('entries' in entry && Array.isArray(entry.entries)) {
+          texts.push(this.extractTextFromEntries(entry.entries));
         }
-      } else if (typeof entry === 'string') {
-        effects.push({
-          type: this.classifyEffectType(entry),
-          target: 'creature',
-          description: entry
-        });
+        if ('items' in entry && Array.isArray(entry.items)) {
+          texts.push(this.extractTextFromEntries(entry.items));
+        }
       }
     }
     
-    return effects.length > 0 ? effects : undefined;
+    return texts.join(' ');
   }
 
   private classifyEffectType(description: string): 'advantage' | 'disadvantage' | 'immunity' | 'resistance' | 'vulnerability' | 'modifier' | 'restriction' | 'other' {
@@ -219,10 +331,29 @@ export class ConditionWrapperConverter extends WrapperConverter {
     return 'minor';
   }
 
-  // @ts-expect-error - Future functionality for condition duration parsing
-  private extractDuration(description: string): string | undefined {
-    const durationMatch = description.match(/(?:for|until|lasts?) (\d+\s+\w+|[^.]+)/i);
-    return durationMatch ? durationMatch[1].trim() : undefined;
+  private extractDuration(description: string): { type: 'instantaneous' | 'until_end_of_turn' | 'until_start_of_turn' | 'time_based' | 'until_removed'; specific?: string } | undefined {
+    const lower = description.toLowerCase();
+    
+    if (lower.includes('until the end of') || lower.includes('end of turn')) {
+      return { type: 'until_end_of_turn', specific: 'until end of turn' };
+    } else if (lower.includes('until the start of') || lower.includes('start of turn')) {
+      return { type: 'until_start_of_turn', specific: 'until start of turn' };
+    } else if (lower.includes('for 1 minute') || lower.includes('1 minute') || lower.includes('for 1 hour') || lower.includes('1 hour')) {
+      return { type: 'time_based', specific: lower.includes('minute') ? '1 minute' : '1 hour' };
+    } else if (lower.includes('until') && (lower.includes('save') || lower.includes('saving throw') || lower.includes('removed'))) {
+      return { type: 'until_removed', specific: 'until removed or dispelled' };
+    } else if (lower.includes('instantaneous') || lower.includes('immediately')) {
+      return { type: 'instantaneous' };
+    }
+    
+    // Try to extract specific time-based duration patterns
+    const durationMatch = description.match(/(?:for|lasts?)\s+(\d+\s+\w+)/i);
+    if (durationMatch) {
+      return { type: 'time_based', specific: durationMatch[1].trim() };
+    }
+    
+    // Default: most conditions last until removed
+    return { type: 'until_removed' };
   }
 
   // @ts-expect-error - Future functionality for condition removal parsing
@@ -266,51 +397,6 @@ export class ConditionWrapperConverter extends WrapperConverter {
     return effects;
   }
 
-  // @ts-expect-error - Future functionality for condition mechanics parsing
-  private parseConditionMechanics(description: string): DndConditionData['mechanics'] {
-    const mechanics: NonNullable<DndConditionData['mechanics']> = {};
-    
-    // Parse common mechanical effects
-    if (description.toLowerCase().includes('can\'t see') || description.toLowerCase().includes('cannot see')) {
-      mechanics.affectsSight = true;
-    }
-    
-    if (description.toLowerCase().includes('speed') && description.toLowerCase().includes('0')) {
-      mechanics.affectsMovement = true;
-    }
-    
-    if (description.toLowerCase().includes('can\'t take actions') || description.toLowerCase().includes('cannot take actions')) {
-      mechanics.affectsActions = true;
-      mechanics.preventsActions = true;
-    }
-    
-    if (description.toLowerCase().includes('can\'t take reactions') || description.toLowerCase().includes('cannot take reactions')) {
-      mechanics.preventsReactions = true;
-    }
-    
-    if (description.toLowerCase().includes('can\'t speak') || description.toLowerCase().includes('cannot speak')) {
-      mechanics.preventsSpeech = true;
-    }
-
-    // Parse advantage/disadvantage
-    const advantageDisadvantage: NonNullable<NonNullable<DndConditionData['mechanics']>['advantageDisadvantage']> = {};
-    
-    if (description.includes('attack rolls have disadvantage')) {
-      advantageDisadvantage.attackRolls = 'disadvantage';
-    }
-    if (description.includes('attack rolls have advantage')) {
-      advantageDisadvantage.attackRolls = 'advantage';
-    }
-    if (description.includes('Attack rolls against the creature have advantage')) {
-      advantageDisadvantage.attacksAgainst = 'advantage';
-    }
-    
-    if (Object.keys(advantageDisadvantage).length > 0) {
-      mechanics.advantageDisadvantage = advantageDisadvantage;
-    }
-    
-    return Object.keys(mechanics).length > 0 ? mechanics : undefined;
-  }
 
   private extractRelatedConditions(description: string): string[] | undefined {
     const conditions = ['blinded', 'charmed', 'deafened', 'frightened', 'grappled', 'incapacitated', 

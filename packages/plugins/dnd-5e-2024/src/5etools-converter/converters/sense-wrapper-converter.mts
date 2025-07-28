@@ -57,9 +57,10 @@ export class SenseWrapperConverter extends WrapperConverter {
                 originalPath: fileName
               });
               
+              this.log(`✅ ${senseRaw.name}`);
               stats.converted++;
             } catch (error) {
-              this.log(`Error converting sense ${senseRaw.name}:`, error);
+              this.log(`❌ ${senseRaw.name}: ${error instanceof Error ? error.message : 'Conversion error'}`);
               stats.errors++;
             }
           }

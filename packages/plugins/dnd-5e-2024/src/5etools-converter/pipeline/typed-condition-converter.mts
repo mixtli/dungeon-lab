@@ -18,6 +18,7 @@ import {
 } from '../validation/typed-document-validators.mjs';
 import { processEntries } from '../text/markup-processor.mjs';
 import type { EtoolsCondition, EtoolsConditionData } from '../../5etools-types/conditions.mjs';
+import type { EtoolsEntry } from '../../5etools-types/base.mjs';
 import { dndConditionDataSchema, type DndConditionData } from '../../types/dnd/condition.mjs';
 import { extractEtoolsArray, safeEtoolsCast } from '../../5etools-types/type-utils.mjs';
 
@@ -41,6 +42,29 @@ const etoolsConditionSchema = z.object({
 }).passthrough(); // Allow additional properties
 
 /**
+ * Condition fluff data interface
+ */
+interface EtoolsConditionFluff {
+  name: string;
+  source?: string;
+  entries?: EtoolsEntry[];
+  images?: Array<{
+    type: string;
+    href: {
+      type: string;
+      path: string;
+    };
+  }>;
+}
+
+/**
+ * Condition fluff data file structure
+ */
+interface EtoolsConditionFluffData {
+  conditionFluff?: EtoolsConditionFluff[];
+}
+
+/**
  * Typed condition converter using the new pipeline
  */
 export class TypedConditionConverter extends TypedConverter<
@@ -48,6 +72,7 @@ export class TypedConditionConverter extends TypedConverter<
   typeof dndConditionDataSchema,
   ConditionDocument
 > {
+  private fluffMap = new Map<string, EtoolsConditionFluff>();
   protected getInputSchema() {
     return etoolsConditionSchema;
   }
@@ -65,7 +90,25 @@ export class TypedConditionConverter extends TypedConverter<
   }
 
   protected extractDescription(input: EtoolsCondition): string {
+    // Check for fluff description first, then fall back to condition entries
+    const fluff = this.fluffMap.get(input.name);
+    if (fluff?.entries) {
+      return processEntries(fluff.entries, this.options.textProcessing).text;
+    }
     return processEntries(input.entries, this.options.textProcessing).text;
+  }
+
+  protected extractAssetPath(input: EtoolsCondition): string | undefined {
+    if (!this.options.includeAssets) {
+      return undefined;
+    }
+    
+    const fluff = this.fluffMap.get(input.name);
+    if (fluff?.images?.[0]?.href?.path) {
+      return fluff.images[0].href.path;
+    }
+    
+    return undefined;
   }
 
   protected transformData(input: EtoolsCondition): DndConditionData {
@@ -76,11 +119,28 @@ export class TypedConditionConverter extends TypedConverter<
       description,
       source: input.source,
       page: input.page,
-      effects: this.parseConditionEffects(input.entries),
-      severity: this.determineSeverity(description),
-      relatedConditions: this.extractRelatedConditions(description),
-      mechanics: this.parseConditionMechanics(description)
+      effects: this.parseConditionEffectsAsObject(input.entries, description),
+      duration: this.parseConditionDuration(description)
     };
+  }
+
+  /**
+   * Load condition fluff data for image assets and enhanced descriptions
+   */
+  private async loadFluffData(): Promise<void> {
+    try {
+      const rawFluffData = await this.readEtoolsData('fluff-conditionsdiseases.json');
+      const fluffData = safeEtoolsCast<EtoolsConditionFluffData>(rawFluffData, [], 'condition fluff file');
+      
+      if (fluffData.conditionFluff) {
+        for (const fluff of fluffData.conditionFluff) {
+          this.fluffMap.set(fluff.name, fluff);
+        }
+        this.log(`Loaded fluff data for ${fluffData.conditionFluff.length} conditions`);
+      }
+    } catch (error) {
+      this.log('No condition fluff data found or failed to load');
+    }
   }
 
   /**
@@ -94,6 +154,9 @@ export class TypedConditionConverter extends TypedConverter<
   }> {
     try {
       this.log('Starting typed condition conversion...');
+      
+      // Load fluff data for images and enhanced descriptions
+      await this.loadFluffData();
       
       const results: ConditionDocument[] = [];
       const errors: string[] = [];
@@ -158,106 +221,83 @@ export class TypedConditionConverter extends TypedConverter<
    * Private helper methods for condition-specific parsing
    */
 
-  private parseConditionEffects(entries: any[]): string[] | undefined {
-    const effects: string[] = [];
-    
-    for (const entry of entries) {
-      if (typeof entry === 'string') {
-        effects.push(entry);
-      } else if (entry && typeof entry === 'object' && entry.type === 'list' && Array.isArray(entry.items)) {
-        for (const item of entry.items) {
-          if (typeof item === 'string') {
-            effects.push(item);
-          }
-        }
-      }
-    }
-    
-    return effects.length > 0 ? effects : undefined;
-  }
-
-  private determineSeverity(description: string): 'minor' | 'moderate' | 'severe' | undefined {
+  private parseConditionEffectsAsObject(entries: any[], description: string): DndConditionData['effects'] {
     const lower = description.toLowerCase();
     
-    if (lower.includes('unconscious') || lower.includes('paralyzed') || lower.includes('petrified')) {
-      return 'severe';
-    }
-    if (lower.includes('stunned') || lower.includes('incapacitated')) {
-      return 'severe';
-    }
-    if (lower.includes('restrained') || lower.includes('grappled') || lower.includes('prone')) {
-      return 'moderate';
+    const effects: DndConditionData['effects'] = {};
+    
+    // Movement restrictions
+    if (lower.includes('speed') && (lower.includes('0') || lower.includes('halved'))) {
+      effects.movement = {
+        prevented: lower.includes('speed') && lower.includes('0'),
+        reduced: lower.includes('halved'),
+        speedReduction: lower.includes('halved') ? 0.5 : undefined
+      };
     }
     
-    return 'minor';
+    // Action restrictions
+    if (lower.includes('can\'t take actions') || lower.includes('cannot take actions') || 
+        lower.includes('incapacitated') || lower.includes('stunned')) {
+      effects.actions = {
+        prevented: lower.includes('can\'t take actions') || lower.includes('cannot take actions') || lower.includes('stunned'),
+        disadvantage: lower.includes('disadvantage') && lower.includes('action')
+      };
+    }
+    
+    // Attack roll modifications
+    if (lower.includes('attack') && (lower.includes('advantage') || lower.includes('disadvantage') || lower.includes('can\'t attack'))) {
+      effects.attackRolls = {
+        advantage: lower.includes('attack rolls have advantage'),
+        disadvantage: lower.includes('attack rolls have disadvantage'),
+        prevented: lower.includes('can\'t attack') || lower.includes('cannot attack')
+      };
+    }
+    
+    // Saving throw modifications
+    if (lower.includes('saving throw') && (lower.includes('advantage') || lower.includes('disadvantage'))) {
+      effects.savingThrows = {
+        advantage: lower.includes('saving throws have advantage'),
+        disadvantage: lower.includes('saving throws have disadvantage')
+      };
+    }
+    
+    // How others interact with affected creature
+    if (lower.includes('attacks against') && (lower.includes('advantage') || lower.includes('disadvantage'))) {
+      effects.againstAffected = {
+        attackAdvantage: lower.includes('attacks against') && lower.includes('advantage'),
+        attackDisadvantage: lower.includes('attacks against') && lower.includes('disadvantage')
+      };
+    }
+    
+    return effects;
   }
 
-  private extractRelatedConditions(description: string): string[] | undefined {
-    const conditions = [
-      'blinded', 'charmed', 'deafened', 'frightened', 'grappled', 'incapacitated',
-      'invisible', 'paralyzed', 'petrified', 'poisoned', 'prone', 'restrained',
-      'stunned', 'unconscious', 'exhaustion'
-    ];
-    
-    const found = conditions.filter(condition => 
-      description.toLowerCase().includes(condition) && 
-      !description.toLowerCase().startsWith(condition) // Don't include self
-    );
-    
-    return found.length > 0 ? found : undefined;
-  }
-
-  private parseConditionMechanics(description: string): DndConditionData['mechanics'] {
+  private parseConditionDuration(description: string): DndConditionData['duration'] {
     const lower = description.toLowerCase();
-    const mechanics: NonNullable<DndConditionData['mechanics']> = {};
     
-    // Parse basic mechanical effects
-    if (lower.includes('can\'t see') || lower.includes('cannot see')) {
-      mechanics.affectsSight = true;
-    }
-    
-    if (lower.includes('speed') && lower.includes('0')) {
-      mechanics.affectsMovement = true;
+    // Some conditions are until removed
+    if (lower.includes('until removed') || lower.includes('permanently')) {
+      return {
+        type: 'until_removed',
+        specific: 'Until removed'
+      };
     }
     
-    if (lower.includes('can\'t take actions') || lower.includes('cannot take actions')) {
-      mechanics.affectsActions = true;
-      mechanics.preventsActions = true;
+    // Most conditions have time-based duration that varies by source
+    if (lower.includes('minute') || lower.includes('hour') || lower.includes('day')) {
+      return {
+        type: 'time_based',
+        specific: 'Varies by source'
+      };
     }
     
-    if (lower.includes('can\'t take reactions') || lower.includes('cannot take reactions')) {
-      mechanics.preventsReactions = true;
-    }
-    
-    if (lower.includes('can\'t speak') || lower.includes('cannot speak')) {
-      mechanics.preventsSpeech = true;
-    }
-
-    // Parse advantage/disadvantage
-    const advantageDisadvantage: NonNullable<NonNullable<DndConditionData['mechanics']>['advantageDisadvantage']> = {};
-    
-    if (lower.includes('attack rolls have disadvantage')) {
-      advantageDisadvantage.attackRolls = 'disadvantage';
-    }
-    if (lower.includes('attack rolls have advantage')) {
-      advantageDisadvantage.attackRolls = 'advantage';
-    }
-    if (lower.includes('attack rolls against the creature have advantage')) {
-      advantageDisadvantage.attacksAgainst = 'advantage';
-    }
-    if (lower.includes('ability check') && lower.includes('disadvantage')) {
-      advantageDisadvantage.abilityChecks = 'disadvantage';
-    }
-    if (lower.includes('saving throw') && lower.includes('disadvantage')) {
-      advantageDisadvantage.savingThrows = 'disadvantage';
-    }
-    
-    if (Object.keys(advantageDisadvantage).length > 0) {
-      mechanics.advantageDisadvantage = advantageDisadvantage;
-    }
-    
-    return Object.keys(mechanics).length > 0 ? mechanics : undefined;
+    // Default for most conditions - they last until removed
+    return {
+      type: 'until_removed',
+      specific: 'Varies by source'
+    };
   }
+
 
   /**
    * Override base class methods for condition-specific behavior
@@ -273,11 +313,6 @@ export class TypedConditionConverter extends TypedConverter<
     // Add condition-specific tags
     if (input.basicRules2024 || input.basicRules) {
       tags.push('basic-rules');
-    }
-    
-    const severity = this.determineSeverity(this.extractDescription(input));
-    if (severity) {
-      tags.push(severity);
     }
     
     return tags;

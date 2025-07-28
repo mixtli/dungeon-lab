@@ -71,13 +71,13 @@ export class FeatWrapperConverter extends WrapperConverter {
 
           // Check validation result
           if (!validationResult.success) {
-            this.log(`❌ Feat ${featRaw.name} failed validation:`, validationResult.errors);
+            this.log(`❌ ${featRaw.name}: ${validationResult.errors?.join(', ') || 'Validation failed'}`);
             stats.errors++;
             continue; // Skip this feat and continue with next
           }
 
           // Log successful validation
-          this.log(`✅ Feat ${featRaw.name} validated successfully`);
+          this.log(`✅ ${featRaw.name}`);
 
           // Create wrapper format using the full document structure
           const wrapper = this.createWrapper(
@@ -100,7 +100,7 @@ export class FeatWrapperConverter extends WrapperConverter {
           
           stats.converted++;
         } catch (error) {
-          this.log(`Error converting feat ${featRaw.name}:`, error);
+          this.log(`❌ ${featRaw.name}: ${error instanceof Error ? error.message : 'Conversion error'}`);
           stats.errors++;
         }
       }
@@ -140,17 +140,63 @@ export class FeatWrapperConverter extends WrapperConverter {
       }
     }
 
-    // Create simplified feat structure for validation
-    const featDataForValidation = {
+    // Determine feat category and structure based on schema requirements
+    const category = this.extractCategoryForSchema(featData.category);
+    
+    // Create base feat structure
+    const baseFeatData = {
       name: featData.name,
       description: this.buildDescription(featData, fluffData),
       source: featData.source,
       page: featData.page,
-      prerequisites: this.extractPrerequisitesForSchema(featData.prerequisite),
-      benefits: this.extractBenefitsForCanonicalSchema(featData.entries || []),
-      repeatable: featData.repeatable || false,
-      category: this.extractCategoryForSchema(featData.category)
+      category
     };
+
+    // Build feat data based on category (discriminated union)
+    let featDataForValidation: any = baseFeatData;
+    
+    if (category === 'general') {
+      // General feats require prerequisites with level 4+ and abilityScoreImprovement
+      featDataForValidation = {
+        ...baseFeatData,
+        prerequisites: {
+          level: 4, // General feats require level 4+
+          ...this.extractPrerequisitesForGeneralFeat(featData.prerequisite)
+        },
+        abilityScoreImprovement: {
+          choices: ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'] as const,
+          value: 1 // General feats always provide +1
+        },
+        repeatable: featData.repeatable || false
+      };
+    } else if (category === 'fighting_style') {
+      // Fighting style feats require Fighting Style class feature
+      featDataForValidation = {
+        ...baseFeatData,
+        prerequisites: {
+          classFeature: 'Fighting Style' as const
+        }
+      };
+    } else if (category === 'epic_boon') {
+      // Epic boon feats require level 19
+      featDataForValidation = {
+        ...baseFeatData,
+        prerequisites: {
+          level: 19 as const
+        },
+        abilityScoreImprovement: {
+          choices: ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'] as const,
+          value: 2, // Epic boons typically provide +2
+          canExceedTwenty: true
+        }
+      };
+    } else if (category === 'origin') {
+      // Origin feats have no prerequisites or ability score improvements
+      featDataForValidation = {
+        ...baseFeatData,
+        grantedBy: 'Background' // Default since we don't have specific background info
+      };
+    }
 
     // Create full document structure for output
     const feat = {
@@ -273,6 +319,48 @@ export class FeatWrapperConverter extends WrapperConverter {
     return Object.keys(prerequisites).length > 0 ? prerequisites : undefined;
   }
 
+  private extractPrerequisitesForGeneralFeat(prerequisiteData: EtoolsFeatPrerequisite | undefined): {
+    ability?: Record<string, number>;
+    proficiency?: string[];
+    other?: string;
+  } {
+    const prerequisites: {
+      ability?: Record<string, number>;
+      proficiency?: string[];
+      other?: string;
+    } = {};
+    
+    if (!prerequisiteData) return prerequisites;
+    
+    // Extract ability requirements
+    if (prerequisiteData.ability && Array.isArray(prerequisiteData.ability)) {
+      prerequisites.ability = {};
+      for (const abilityReq of prerequisiteData.ability) {
+        for (const [key, value] of Object.entries(abilityReq)) {
+          if (typeof value === 'number') {
+            prerequisites.ability[this.normalizeAbility(key)] = value;
+          }
+        }
+      }
+    }
+    
+    // Extract proficiency requirements
+    if (prerequisiteData.proficiency) {
+      prerequisites.proficiency = Array.isArray(prerequisiteData.proficiency) 
+        ? prerequisiteData.proficiency 
+        : [prerequisiteData.proficiency];
+    }
+    
+    // Extract other requirements
+    if (prerequisiteData.other) {
+      prerequisites.other = prerequisiteData.other;
+    } else if (prerequisiteData.otherSummary) {
+      prerequisites.other = prerequisiteData.otherSummary.entrySummary || prerequisiteData.otherSummary.entry;
+    }
+    
+    return prerequisites;
+  }
+
   /**
    * Extract benefits for canonical schema (name + description)
    */
@@ -373,14 +461,14 @@ export class FeatWrapperConverter extends WrapperConverter {
     return benefits;
   }
 
-  private extractCategoryForSchema(categoryData: string | undefined): 'general' | 'fighting_style' | 'magic' | 'racial' | undefined {
-    if (!categoryData) return undefined;
+  private extractCategoryForSchema(categoryData: string | undefined): 'origin' | 'general' | 'fighting_style' | 'epic_boon' {
+    if (!categoryData) return 'general'; // Default to general
     
-    const categoryMap: Record<string, 'general' | 'fighting_style' | 'magic' | 'racial'> = {
+    const categoryMap: Record<string, 'origin' | 'general' | 'fighting_style' | 'epic_boon'> = {
       'G': 'general',
       'F': 'fighting_style',
-      'O': 'general', // Origin feats are general
-      'E': 'magic'    // Epic boons are magical
+      'O': 'origin',     // Origin feats from backgrounds
+      'E': 'epic_boon'   // Epic boons
     };
     
     return categoryMap[categoryData] || 'general';

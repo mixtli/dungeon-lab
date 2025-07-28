@@ -111,14 +111,3 @@ export const creatureSizeIdentifiers = [
 
 export type CreatureSizeIdentifier = typeof creatureSizeIdentifiers[number];
 
-// Create/Update schemas for creatures
-export const createDndCreatureSchema = dndCreatureDataSchema.partial({
-  proficiencyBonus: true,
-  experiencePoints: true,
-  senses: true
-});
-
-export const updateDndCreatureSchema = dndCreatureDataSchema.partial();
-
-export type CreateDndCreature = z.infer<typeof createDndCreatureSchema>;
-export type UpdateDndCreature = z.infer<typeof updateDndCreatureSchema>;

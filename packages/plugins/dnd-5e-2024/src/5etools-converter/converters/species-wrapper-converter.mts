@@ -52,13 +52,13 @@ export class SpeciesWrapperConverter extends WrapperConverter {
 
           // Check validation result
           if (!validationResult.success) {
-            this.log(`❌ Species ${raceRaw.name} failed validation:`, validationResult.errors);
+            this.log(`❌ ${raceRaw.name}: ${validationResult.errors?.join(', ') || 'Validation failed'}`);
             stats.errors++;
             continue; // Skip this species and continue with next
           }
 
           // Log successful validation
-          this.log(`✅ Species ${raceRaw.name} validated successfully`);
+          this.log(`✅ ${raceRaw.name}`);
 
           // Create wrapper format using the full document structure
           const wrapper = this.createWrapper(
@@ -81,7 +81,7 @@ export class SpeciesWrapperConverter extends WrapperConverter {
           
           stats.converted++;
         } catch (error) {
-          this.log(`Error converting species ${raceRaw.name}:`, error);
+          this.log(`❌ ${raceRaw.name}: ${error instanceof Error ? error.message : 'Conversion error'}`);
           stats.errors++;
         }
       }
@@ -125,14 +125,17 @@ export class SpeciesWrapperConverter extends WrapperConverter {
       }
     }
 
-    // Create simplified species structure for validation
+    // Create species structure matching dndSpeciesDataSchema
     const speciesDataForValidation = {
       name: String(raceData.name || 'Unknown Species'),
       description: this.buildDescription(raceData, fluffData),
-      size: this.extractSize(raceData.size),
-      speed: this.extractSpeed(raceData.speed),
+      creatureType: 'Humanoid', // Most D&D species are humanoid
+      size: this.extractSizeAsObject(raceData.size),
+      movement: this.extractMovementAsObject(raceData.speed),
       traits: this.extractTraits(Array.isArray(raceData.entries) ? raceData.entries as EtoolsEntry[] : []),
-      subspecies: this.extractSubspecies(Array.isArray(raceData.subraces) ? raceData.subraces : [])
+      // Optional fields
+      source: String(raceData.source || 'PHB'),
+      page: typeof raceData.page === 'number' ? raceData.page : undefined
     };
 
     // Create full document structure for output
@@ -190,6 +193,24 @@ export class SpeciesWrapperConverter extends WrapperConverter {
     return 'medium';
   }
 
+  private extractSizeAsObject(sizeData: unknown): { category: 'tiny' | 'small' | 'medium' | 'large' | 'huge'; description: string } {
+    const category = this.extractSize(sizeData);
+    
+    // Generate appropriate description based on size
+    const sizeDescriptions: Record<string, string> = {
+      tiny: 'about 2-3 feet tall',
+      small: 'about 3-4 feet tall',
+      medium: 'about 5-7 feet tall',
+      large: 'about 8-12 feet tall',
+      huge: 'about 15+ feet tall'
+    };
+    
+    return {
+      category,
+      description: sizeDescriptions[category] || sizeDescriptions.medium
+    };
+  }
+
   private extractSpeed(speedData: unknown): number {
     if (!speedData) return 30;
     
@@ -204,6 +225,55 @@ export class SpeciesWrapperConverter extends WrapperConverter {
     }
     
     return 30;
+  }
+
+  private extractMovementAsObject(speedData: unknown): { walk: number; fly?: number; swim?: number; climb?: number; burrow?: number; hover?: boolean; notes?: string } {
+    const movement: { walk: number; fly?: number; swim?: number; climb?: number; burrow?: number; hover?: boolean; notes?: string } = {
+      walk: 30
+    };
+    
+    if (!speedData) return movement;
+    
+    // Handle simple number format (just walk speed)
+    if (typeof speedData === 'number') {
+      movement.walk = speedData;
+      return movement;
+    }
+    
+    // Handle object format with multiple speeds
+    if (typeof speedData === 'object' && speedData) {
+      const speed = speedData as Record<string, unknown>;
+      
+      if (typeof speed.walk === 'number') {
+        movement.walk = speed.walk;
+      }
+      if (typeof speed.fly === 'number') {
+        movement.fly = speed.fly;
+        // Check for hover in fly speed notation like "fly 30 ft. (hover)"
+        if (typeof speed.canHover === 'boolean') {
+          movement.hover = speed.canHover;
+        }
+      }
+      if (typeof speed.swim === 'number') {
+        movement.swim = speed.swim;
+      }
+      if (typeof speed.climb === 'number') {
+        movement.climb = speed.climb;
+      }
+      if (typeof speed.burrow === 'number') {
+        movement.burrow = speed.burrow;
+      }
+      
+      // Handle alternative speed property names that 5etools might use
+      if (typeof speed.swimming === 'number') {
+        movement.swim = speed.swimming;
+      }
+      if (typeof speed.climbing === 'number') {
+        movement.climb = speed.climbing;
+      }
+    }
+    
+    return movement;
   }
 
   private extractTraits(entries: EtoolsEntry[]): Array<{ name: string; description: string }> {

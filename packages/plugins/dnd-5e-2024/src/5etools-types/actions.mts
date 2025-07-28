@@ -1,6 +1,7 @@
 /**
  * 5etools action type definitions
  */
+import { z } from 'zod';
 import type { EtoolsEntry } from './base.mjs';
 
 export interface EtoolsActionTime {
@@ -32,3 +33,33 @@ export interface EtoolsAction {
 export interface EtoolsActionData {
   action: EtoolsAction[];
 }
+
+// Zod schemas for validation
+
+export const etoolsActionTimeSchema = z.object({
+  number: z.number(),
+  unit: z.enum(['action', 'bonus', 'reaction', 'minute', 'hour', 'round']),
+  condition: z.string().optional()
+}).passthrough();
+
+export const etoolsActionSchema = z.object({
+  name: z.string(),
+  source: z.string(),
+  page: z.number().optional(),
+  entries: z.array(z.any()),
+  time: z.array(z.union([etoolsActionTimeSchema, z.string()])).optional(),
+  srd: z.boolean().optional(),
+  basicRules: z.boolean().optional(),
+  srd52: z.boolean().optional(),
+  basicRules2024: z.boolean().optional(),
+  otherSources: z.array(z.object({
+    source: z.string(),
+    page: z.number()
+  })).optional(),
+  reprintedAs: z.array(z.string()).optional(),
+  fromVariant: z.string().optional()
+}).passthrough();
+
+export const etoolsActionDataSchema = z.object({
+  action: z.array(etoolsActionSchema)
+}).passthrough();

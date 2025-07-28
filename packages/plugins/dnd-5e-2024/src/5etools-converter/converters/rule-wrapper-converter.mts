@@ -58,9 +58,10 @@ export class RuleWrapperConverter extends WrapperConverter {
                 originalPath: fileName
               });
               
+              this.log(`✅ ${ruleRaw.name}`);
               stats.converted++;
             } catch (error) {
-              this.log(`Error converting rule ${ruleRaw.name}:`, error);
+              this.log(`❌ ${ruleRaw.name}: ${error instanceof Error ? error.message : 'Conversion error'}`);
               stats.errors++;
             }
           }

@@ -6,7 +6,6 @@ import type {
   DndItemData, 
   DndWeaponData, 
   DndArmorData, 
-  DndShieldData, 
   DndToolData, 
   DndGearData,
   ItemTypeIdentifier,
@@ -133,8 +132,8 @@ export function determineItemType(etoolsItem: EtoolsItem): ItemTypeIdentifier {
       case 'MA': // Medium armor  
       case 'HA': // Heavy armor
         return 'armor';
-      case 'S': // Shield
-        return 'shield';
+      case 'S': // Shield (treat as armor)
+        return 'armor';
       case 'AT': // Artisan tools
       case 'T': // Tools
       case 'INS': // Instruments
@@ -160,9 +159,11 @@ export function convertItem(etoolsItem: EtoolsItem): DndItemData {
     case 'weapon':
       return convertWeapon(etoolsItem);
     case 'armor':
+      // Handle both regular armor and shields as armor type
+      if (etoolsItem.type?.startsWith('S')) {
+        return convertShield(etoolsItem);
+      }
       return convertArmor(etoolsItem);
-    case 'shield':
-      return convertShield(etoolsItem);
     case 'tool':
       return convertTool(etoolsItem);
     case 'gear':
@@ -239,8 +240,8 @@ function convertWeapon(etoolsItem: EtoolsItem): DndWeaponData {
       dice: etoolsItem.dmg1 || '1d4',
       type: damageTypeMap[etoolsItem.dmgType || 'B'] || 'bludgeoning'
     },
-    weaponCategory: etoolsItem.weaponCategory || 'simple',
-    weaponType: isRanged ? 'ranged' : 'melee'
+    category: (etoolsItem.weaponCategory || 'simple') as 'simple' | 'martial',
+    type: isRanged ? 'ranged' : 'melee'
   };
   
   // Versatile damage
@@ -251,18 +252,31 @@ function convertWeapon(etoolsItem: EtoolsItem): DndWeaponData {
     };
   }
   
-  // Weapon properties
+  // Weapon properties - clean source suffixes like "F|XPHB"
   if (etoolsItem.property) {
     weapon.properties = etoolsItem.property
-      .map(prop => weaponPropertyMap[prop])
-      .filter(Boolean) as WeaponPropertyIdentifier[];
+      .map(prop => {
+        // Handle both string properties and object properties (like Lance's "2H unless mounted")
+        if (typeof prop === 'string') {
+          const cleanProp = prop.split('|')[0]; // Remove source suffix
+          return weaponPropertyMap[cleanProp];
+        } else if (typeof prop === 'object' && prop && 'uid' in prop && typeof prop.uid === 'string') {
+          // Handle object properties with uid field
+          const cleanProp = prop.uid.split('|')[0]; // Remove source suffix from uid
+          return weaponPropertyMap[cleanProp];
+        }
+        return undefined;
+      })
+      .filter(Boolean);
   }
   
-  // Weapon mastery (2024)
-  if (etoolsItem.mastery) {
-    weapon.mastery = etoolsItem.mastery
-      .map(mastery => weaponMasteryMap[mastery])
-      .filter(Boolean) as WeaponMasteryIdentifier[];
+  // Weapon mastery (2024) - single value, not array
+  if (etoolsItem.mastery && Array.isArray(etoolsItem.mastery) && etoolsItem.mastery.length > 0) {
+    const cleanMastery = etoolsItem.mastery[0].split('|')[0]; // Remove source suffix, take first
+    const mappedMastery = weaponMasteryMap[cleanMastery];
+    if (mappedMastery) {
+      weapon.mastery = mappedMastery;
+    }
   }
   
   // Range
@@ -300,7 +314,7 @@ function convertArmor(etoolsItem: EtoolsItem): DndArmorData {
     description: base.description || 'No description available.', // Ensure required field
     itemType: 'armor',
     armorClass: etoolsItem.ac || 10,
-    armorType
+    type: armorType // Schema expects 'type' not 'armorType'
   };
   
   if (etoolsItem.strength) {
@@ -315,18 +329,21 @@ function convertArmor(etoolsItem: EtoolsItem): DndArmorData {
 }
 
 /**
- * Convert shield-specific data
+ * Convert shield-specific data (shields are treated as armor type 'shield')
  */
-function convertShield(etoolsItem: EtoolsItem): DndShieldData {
+function convertShield(etoolsItem: EtoolsItem): DndArmorData {
   const base = convertBaseProperties(etoolsItem);
   
   return {
     ...base,
     name: base.name || 'Unknown Shield', // Ensure required field
     description: base.description || 'No description available.', // Ensure required field
-    itemType: 'shield',
-    armorClassBonus: etoolsItem.ac || 2
-  } as DndShieldData;
+    itemType: 'armor',
+    type: 'shield',
+    armorClass: etoolsItem.ac || 2, // Shield provides AC bonus (usually +2)
+    magical: base.magical || false,
+    attunement: base.attunement || false
+  } as DndArmorData;
 }
 
 /**
@@ -336,13 +353,13 @@ function convertTool(etoolsItem: EtoolsItem): DndToolData {
   const base = convertBaseProperties(etoolsItem);
   
   // Determine tool category from type or name
-  let toolCategory: 'artisan' | 'gaming-set' | 'musical-instrument' | 'other' = 'other';
+  let category: 'artisan' | 'gaming-set' | 'musical-instrument' | 'other' = 'other';
   if (etoolsItem.type === 'INS') {
-    toolCategory = 'musical-instrument';
+    category = 'musical-instrument';
   } else if (etoolsItem.name.toLowerCase().includes('gaming set')) {
-    toolCategory = 'gaming-set';
+    category = 'gaming-set';
   } else if (etoolsItem.name.toLowerCase().includes('tools')) {
-    toolCategory = 'artisan';
+    category = 'artisan';
   }
   
   return {
@@ -350,7 +367,9 @@ function convertTool(etoolsItem: EtoolsItem): DndToolData {
     name: base.name || 'Unknown Tool', // Ensure required field
     description: base.description || 'No description available.', // Ensure required field
     itemType: 'tool',
-    toolCategory
+    category,
+    magical: base.magical || false,
+    attunement: base.attunement || false
   } as DndToolData;
 }
 

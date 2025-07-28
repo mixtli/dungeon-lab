@@ -373,18 +373,6 @@ export const dndCharacterDocumentSchema = actorSchema.extend({
 export type DndCharacterData = z.infer<typeof dndCharacterDataSchema>;
 export type DndCharacterDocument = z.infer<typeof dndCharacterDocumentSchema>;
 
-// Create/Update schemas for characters
-export const createDndCharacterSchema = dndCharacterDataSchema.partial({
-  progression: true,
-  attributes: true,
-  creationDate: true,
-  lastModified: true
-});
-
-export const updateDndCharacterSchema = dndCharacterDataSchema.partial();
-
-export type CreateDndCharacter = z.infer<typeof createDndCharacterSchema>;
-export type UpdateDndCharacter = z.infer<typeof updateDndCharacterSchema>;
 
 // Additional helper type exports
 export type CharacterProgression = z.infer<typeof characterProgressionSchema>;

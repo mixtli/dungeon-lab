@@ -7,7 +7,7 @@ import { documentTypeSchema } from '@dungeon-lab/shared/schemas/index.mjs';
 import { ParsedReference, TextReferenceMatch, scanTextForReferences } from './reference-parser.mjs';
 import type { EtoolsEntry } from '../../5etools-types/base.mjs';
 import type { EtoolsMonsterSpellcasting } from '../../5etools-types/monsters.mjs';
-import type { Spellcasting } from '../../types/dnd/index.mjs';
+import type { SpellcastingType } from '../../types/dnd/index.mjs';
 import type { z } from 'zod';
 
 /**
@@ -33,7 +33,6 @@ const REFERENCE_TYPE_MAP: Record<string, DocumentType> = {
   'creature': 'vtt-document', 
   'skill': 'vtt-document',
   'sense': 'vtt-document',
-  'deity': 'vtt-document',
   'hazard': 'vtt-document',
   'object': 'vtt-document',
   'language': 'vtt-document',
@@ -157,7 +156,7 @@ export function transformGearArray(gear: string[]): ReferenceObject[] {
 /**
  * Transforms 5etools spellcasting data to match the user's spellcastingSchema
  */
-export function transformSpellcastingToSchema(spellcasting: EtoolsMonsterSpellcasting[]): Spellcasting | undefined {
+export function transformSpellcastingToSchema(spellcasting: EtoolsMonsterSpellcasting[]): SpellcastingType | undefined {
   if (!spellcasting || spellcasting.length === 0) {
     return undefined;
   }

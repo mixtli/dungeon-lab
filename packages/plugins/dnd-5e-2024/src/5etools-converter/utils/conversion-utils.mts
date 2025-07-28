@@ -9,7 +9,7 @@ import type { ZodSchema } from 'zod';
 // Import canonical schemas from types/dnd
 import {
   dndItemDataSchema,
-  dndMonsterDataSchema,
+  dndCreatureDataSchema,
   dndCharacterClassDataSchema,
   dndSpeciesDataSchema,
   dndFeatDataSchema,
@@ -359,7 +359,7 @@ export async function validateItemData(data: unknown): Promise<ValidationResult>
  */
 export async function validateMonsterData(data: unknown): Promise<ValidationResult> {
   try {
-    return validateWithSchema(data, dndMonsterDataSchema, 'Monster Data');
+    return validateWithSchema(data, dndCreatureDataSchema, 'Monster Data');
   } catch (error) {
     return {
       success: false,
@@ -474,7 +474,7 @@ async function validateContentByDocumentType(content: unknown, documentType: str
       return await validateActionData(dataToValidate);
     default:
       return {
-        success: true // For now, pass through unknown document types (deity, rule, language, sense)
+        success: true // For now, pass through unknown document types (rule, language, sense)
       };
   }
 }

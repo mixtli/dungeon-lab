@@ -10,8 +10,7 @@ import { monsterSpellcastingSchema, abilitySchema, skillSchema, damageTypeSchema
  */
 
 // Import creature types from common.mjs for consistency
-export const creatureTypeSchema = z.enum(CREATURE_TYPES);
-export type CreatureType = z.infer<typeof creatureTypeSchema>;
+const creatureTypeSchema = z.enum(CREATURE_TYPES);
 
 // Senses structure for 2024
 export const sensesSchema = z.object({
@@ -179,18 +178,7 @@ export const dndStatBlockSchema = z.object({
   page: z.number().optional()
 });
 
-// Utility schemas for creating/updating stat blocks
-export const createDndStatBlockSchema = dndStatBlockSchema.partial({
-  proficiencyBonus: true,
-  experiencePoints: true,
-  senses: true
-});
-
-export const updateDndStatBlockSchema = dndStatBlockSchema.partial();
-
 /**
  * Runtime type exports
  */
 export type DndStatBlock = z.infer<typeof dndStatBlockSchema>;
-export type CreateDndStatBlock = z.infer<typeof createDndStatBlockSchema>;
-export type UpdateDndStatBlock = z.infer<typeof updateDndStatBlockSchema>;
