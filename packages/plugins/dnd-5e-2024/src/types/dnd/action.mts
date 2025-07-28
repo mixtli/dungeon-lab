@@ -1,9 +1,16 @@
 import { z } from 'zod';
+import { vttDocumentSchema } from '@dungeon-lab/shared/schemas/index.mjs';
+import { 
+  actionTypeSchema,
+  aoeShapeSchema,
+  abilitySchema,
+  restTypeSchema
+} from './common.mjs';
 
 /**
- * D&D 5e Action Runtime Types
+ * D&D 5e 2024 Action Runtime Types
  * 
- * These are the canonical runtime types used in MongoDB documents.
+ * Updated for 2024 action economy and enhanced action categorization.
  * All document references use MongoDB 'id' fields.
  * Compendium types are auto-derived from these with id→_ref conversion.
  */
@@ -15,42 +22,43 @@ import { z } from 'zod';
 export const dndActionDataSchema = z.object({
   name: z.string(),
   description: z.string(),
-  actionType: z.enum(['action', 'bonus_action', 'reaction', 'free', 'movement']).optional(),
-  timeCost: z.object({
-    number: z.number(),
-    unit: z.enum(['action', 'bonus_action', 'reaction', 'minute', 'hour', 'round'])
-  }).optional(),
-  source: z.string().optional(),
-  page: z.number().optional(),
   
-  /** Conditions under which this action can be used */
+  /** Action type in 2024 economy */
+  actionType: actionTypeSchema,
+  
+  /** Specific timing for reactions */
+  trigger: z.string().optional(), // e.g., "when you take damage"
+  
+  /** Action requirements */
   requirements: z.object({
-    /** Minimum level required */
+    /** Minimum level */
     level: z.number().optional(),
     /** Required class features */
     features: z.array(z.string()).optional(),
-    /** Required equipment or items */
-    equipment: z.array(z.string()).optional(),
-    /** Other prerequisites */
-    other: z.string().optional()
+    /** Required equipment */
+    equipment: z.array(z.string()).optional()
   }).optional(),
   
-  /** Mechanical effects of the action */
-  mechanics: z.object({
-    /** Range of the action in feet */
-    range: z.number().optional(),
+  /** Mechanical effects */
+  effects: z.object({
+    /** Range of effect */
+    range: z.string().optional(), // e.g., "5 feet", "30 feet"
+    
     /** Area of effect */
-    areaOfEffect: z.object({
-      type: z.enum(['sphere', 'cube', 'cylinder', 'cone', 'line']),
+    area: z.object({
+      type: aoeShapeSchema,
       size: z.number()
     }).optional(),
+    
+    /** Attack roll required */
+    attackRoll: z.boolean().default(false),
+    
     /** Saving throw required */
     savingThrow: z.object({
-      ability: z.enum(['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma']),
-      dc: z.number().optional()
+      ability: abilitySchema,
+      dc: z.number().optional() // May be calculated
     }).optional(),
-    /** Attack roll required */
-    attackRoll: z.boolean().optional(),
+    
     /** Damage dealt */
     damage: z.object({
       dice: z.string(),
@@ -58,29 +66,24 @@ export const dndActionDataSchema = z.object({
     }).optional()
   }).optional(),
   
-  /** Common variants or special uses */
-  variants: z.array(z.object({
-    name: z.string(),
-    description: z.string(),
-    requirements: z.string().optional()
-  })).optional(),
+  /** Usage limitations */
+  uses: z.object({
+    value: z.number(),
+    per: restTypeSchema
+  }).optional(),
   
-  /** Related actions */
-  relatedActions: z.array(z.string()).optional(),
-  
-  /** Tags for categorization */
-  tags: z.array(z.enum([
-    'combat', 'exploration', 'social', 'magic', 'movement', 
-    'utility', 'defensive', 'offensive', 'healing'
-  ])).optional()
+  source: z.string().optional(),
+  page: z.number().optional()
 });
 
 /**
  * D&D Action document schema (runtime)
+ * Extends base VTT document with action-specific plugin data
  */
-// Note: Action documents should use the standard vttDocumentSchema from shared
-// This is just the plugin data schema
-export const dndActionDocumentSchema = dndActionDataSchema;
+export const dndActionDocumentSchema = vttDocumentSchema.extend({
+  pluginDocumentType: z.literal('action'),
+  pluginData: dndActionDataSchema
+});
 
 /**
  * Runtime type exports
@@ -89,11 +92,21 @@ export type DndActionData = z.infer<typeof dndActionDataSchema>;
 export type DndActionDocument = z.infer<typeof dndActionDocumentSchema>;
 
 /**
- * Action identifiers from D&D 5e
+ * Basic D&D actions available to all characters
  */
-export const actionIdentifiers = [
-  'attack', 'cast-spell', 'dash', 'disengage', 'dodge', 'help', 'hide', 
-  'ready', 'search', 'use-object', 'grapple', 'shove'
+export const basicActionIdentifiers = [
+  'attack', 'cast-spell', 'dash', 'disengage', 'dodge', 'help',
+  'hide', 'ready', 'search', 'use-object', 'grapple', 'shove'
 ] as const;
 
-export type ActionIdentifier = (typeof actionIdentifiers)[number];
+export type BasicActionIdentifier = (typeof basicActionIdentifiers)[number];
+
+// Create/Update schemas for actions
+export const createDndActionSchema = dndActionDataSchema.partial({
+  actionType: true
+});
+
+export const updateDndActionSchema = dndActionDataSchema.partial();
+
+export type CreateDndAction = z.infer<typeof createDndActionSchema>;
+export type UpdateDndAction = z.infer<typeof updateDndActionSchema>;

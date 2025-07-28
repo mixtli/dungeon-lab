@@ -1,158 +1,146 @@
 import { z } from 'zod';
-import { abilitySchema } from './common.mjs';
+import { vttDocumentSchema } from '@dungeon-lab/shared/schemas/index.mjs';
+import { abilitySchema, restTypeSchema, spellcastingAbilitySchema, spellcastingTypeSchema, spellPreparationSchema } from './common.mjs';
 
 /**
- * D&D 5e Character Class Runtime Types
+ * D&D 5e 2024 Character Class Runtime Types
  * 
- * These are the canonical runtime types used in MongoDB documents.
+ * Updated for 2024 features including weapon mastery, 4 subclasses per class,
+ * and enhanced class feature systems.
  * All document references use MongoDB 'id' fields.
  * Compendium types are auto-derived from these with id→_ref conversion.
  */
 
 /**
- * Benefit schema for class features
+ * 2024 Weapon Mastery system
+ * Certain classes can "master" weapons for additional effects
  */
-export const dndBenefitSchema = z.object({
+export const weaponMasterySchema = z.object({
+  /** Weapons this class can master */
+  availableWeapons: z.array(z.string()),
+  /** Number of weapons that can be mastered simultaneously */
+  maxMasteries: z.number(),
+  /** Level at which weapon mastery is gained */
+  gainedAtLevel: z.number(),
+  /** How mastery options can be changed */
+  changeRules: z.string() // e.g., "on long rest", "on level up"
+});
+
+/**
+ * Class feature with level requirements and descriptions
+ */
+export const classFeatureSchema = z.object({
   name: z.string(),
-  description: z.string()
+  level: z.number().min(1).max(20),
+  description: z.string(),
+  /** Whether this feature has limited uses */
+  uses: z.object({
+    value: z.number(),
+    per: restTypeSchema,
+    /** How uses scale with level */
+    scaling: z.string().optional()
+  }).optional(),
+  /** Whether this feature provides choices */
+  choices: z.array(z.object({
+    name: z.string(),
+    description: z.string()
+  })).optional()
 });
 
 /**
- * Skill choice schema for class proficiencies
+ * 2024 Subclass structure (exactly 4 per class)
  */
-export const dndSkillChoiceSchema = z.object({
-  type: z.literal('choice'),
-  count: z.number().int().min(0),
-  options: z.array(z.string())
-});
-
-/**
- * Equipment choice schema for class starting equipment
- */
-export const dndEquipmentChoiceSchema = z.object({
-  item: z.string().optional(),
-  equipmenttype: z.string().optional(),
-  source: z.string().optional(),
-  quantity: z.number().int().positive().optional(),
-  value: z.number().optional()
-});
-
-/**
- * Equipment data schema for class equipment options
- */
-export const dndEquipmentDataSchema = z.object({
-  type: z.literal('choice'),
-  options: z.record(z.string(), z.array(dndEquipmentChoiceSchema)),
-  description: z.array(z.string())
-});
-
-/**
- * Feature data schema for class features
- */
-export const dndFeatureDataSchema = z.object({
+export const subclassSchema = z.object({
   name: z.string(),
-  source: z.string(),
-  description: z.string().optional(),
-  benefits: z.array(dndBenefitSchema).optional(),
-  gainsubclassfeature: z.boolean().optional()
+  description: z.string(),
+  /** Level at which subclass is chosen (usually 3, sometimes 1 or 2) */
+  gainedAtLevel: z.number(),
+  /** Subclass-specific features by level */
+  features: z.record(z.string(), z.array(classFeatureSchema)),
+  /** Additional spells known (if applicable) */
+  additionalSpells: z.array(z.object({
+    level: z.number(),
+    spells: z.array(z.string())
+  })).optional()
 });
 
 /**
- * Spell reference schema for class spell lists (simplified)
- */
-export const dndClassSpellDataSchema = z.object({
-  name: z.string(),
-  source: z.string(),
-  tag: z.string().optional(),
-  resourceName: z.string().optional(),
-  resourceAmount: z.number().optional()
-});
-
-/**
- * Spell choice schema for class spell selection
- */
-export const dndSpellChoiceSchema = z.object({
-  type: z.literal('choice'),
-  levels: z.array(z.number()).optional(),
-  count: z.number().optional(),
-  classes: z.array(z.string()).optional(),
-  schools: z.array(z.string()).optional(),
-}).catchall(z.any());
-
-/**
- * Spell entry schema for class spell lists
- */
-export const dndSpellEntrySchema = z.object({
-  prepared: z.record(z.string(), z.array(z.union([dndClassSpellDataSchema, dndSpellChoiceSchema]))).optional(),
-  known: z.record(z.string(), z.array(z.union([dndClassSpellDataSchema, dndSpellChoiceSchema]))).optional(),
-  innate: z.record(z.string(), z.array(z.union([dndClassSpellDataSchema, dndSpellChoiceSchema]))).optional(),
-  resourceName: z.string().optional()
-});
-
-/**
- * Subclass data schema
- */
-export const dndSubclassDataSchema = z.object({
-  name: z.string(),
-  shortname: z.string(),
-  source: z.string(),
-  classname: z.string(),
-  features: z.record(z.string(), z.array(dndFeatureDataSchema)),
-  additionalspells: z.array(dndSpellEntrySchema)
-});
-
-/**
- * D&D Character Class runtime data schema
- * This is the canonical structure for character classes in MongoDB
+ * Complete D&D 2024 Character Class Schema
  */
 export const dndCharacterClassDataSchema = z.object({
   name: z.string(),
-  source: z.string(),
-  edition: z.string(),
-  hitdie: z.string(),
-  primaryability: z.array(abilitySchema),
-  savingthrows: z.array(abilitySchema),
+  description: z.string(),
+  
+  /** Primary ability scores for this class */
+  primaryAbilities: z.array(abilitySchema),
+  
+  /** Hit die for this class */
+  hitDie: z.number(), // e.g., 8 for d8, 10 for d10
+  
+  /** Proficiencies granted at 1st level */
   proficiencies: z.object({
     armor: z.array(z.string()),
     weapons: z.array(z.string()),
     tools: z.array(z.string()),
-    skills: z.array(dndSkillChoiceSchema),
+    savingThrows: z.array(abilitySchema),
+    skills: z.object({
+      count: z.number(),
+      choices: z.array(z.string())
+    })
   }),
-  equipment: dndEquipmentDataSchema,
-  features: z.record(z.string(), z.array(dndFeatureDataSchema)),
-  subclasslevel: z.number().int().positive(),
-  subclassTitle: z.string(),
-  subclasses: z.array(dndSubclassDataSchema)
+  
+  /** 2024: Weapon Mastery (if applicable) */
+  weaponMastery: weaponMasterySchema.optional(),
+  
+  /** Class features by level */
+  features: z.record(z.string(), z.array(classFeatureSchema)),
+  
+  /** 2024: Exactly 4 subclasses in core PHB */
+  subclasses: z.array(subclassSchema).length(4),
+  
+  /** Spellcasting information (if applicable) */
+  spellcasting: z.object({
+    ability: spellcastingAbilitySchema,
+    type: spellcastingTypeSchema,
+    /** Spells known vs prepared */
+    preparation: spellPreparationSchema,
+    /** Spell list access */
+    spellList: z.string(),
+    /** Cantrips known progression */
+    cantripsKnown: z.record(z.string(), z.number()).optional(),
+    /** Spells known progression (if applicable) */
+    spellsKnown: z.record(z.string(), z.number()).optional()
+  }).optional(),
+  
+  // Source information
+  source: z.string().optional(),
+  page: z.number().optional()
 });
 
 /**
  * D&D Character Class document schema (runtime)
+ * Extends base VTT document with character class-specific plugin data
  */
-// Note: CharacterClass documents should use the standard vttDocumentSchema from shared
-// This is just the plugin data schema
-export const dndCharacterClassDocumentSchema = dndCharacterClassDataSchema;
+export const dndCharacterClassDocumentSchema = vttDocumentSchema.extend({
+  pluginDocumentType: z.literal('character-class'),
+  pluginData: dndCharacterClassDataSchema
+});
 
 /**
  * Runtime type exports
  */
-export type DndBenefit = z.infer<typeof dndBenefitSchema>;
-export type DndSkillChoice = z.infer<typeof dndSkillChoiceSchema>;
-export type DndClassEquipmentChoice = z.infer<typeof dndEquipmentChoiceSchema>;
-export type DndEquipmentData = z.infer<typeof dndEquipmentDataSchema>;
-export type DndFeatureData = z.infer<typeof dndFeatureDataSchema>;
-export type DndClassSpellData = z.infer<typeof dndClassSpellDataSchema>;
-export type DndSpellChoice = z.infer<typeof dndSpellChoiceSchema>;
-export type DndSpellEntry = z.infer<typeof dndSpellEntrySchema>;
-export type DndSubclassData = z.infer<typeof dndSubclassDataSchema>;
+export type WeaponMastery = z.infer<typeof weaponMasterySchema>;
+export type ClassFeature = z.infer<typeof classFeatureSchema>;
+export type Subclass = z.infer<typeof subclassSchema>;
 export type DndCharacterClassData = z.infer<typeof dndCharacterClassDataSchema>;
 export type DndCharacterClassDocument = z.infer<typeof dndCharacterClassDocumentSchema>;
 
 /**
- * Core D&D 5e class identifiers
+ * D&D 2024 Classes (12 total, same as 2014)
  */
 export const characterClassIdentifiers = [
-  'barbarian', 'bard', 'cleric', 'druid', 'fighter', 'monk', 'paladin', 
-  'ranger', 'rogue', 'sorcerer', 'warlock', 'wizard'
+  'barbarian', 'bard', 'cleric', 'druid', 'fighter', 'monk',
+  'paladin', 'ranger', 'rogue', 'sorcerer', 'warlock', 'wizard'
 ] as const;
 
-export type CharacterClassIdentifier = (typeof characterClassIdentifiers)[number];
+export type CharacterClassIdentifier = typeof characterClassIdentifiers[number];

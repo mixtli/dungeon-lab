@@ -33,8 +33,7 @@ export * from './spell.mjs';
 
 // Creature types
 export * from './stat-block.mjs';
-export * from './npc.mjs';
-export * from './monster.mjs';
+export * from './creature.mjs';
 
 /**
  * All D&D document type identifiers for runtime types
@@ -44,11 +43,11 @@ export const dndDocumentTypes = [
   'background', 
   'character-class',
   'condition',
+  'creature',
   'deity',
   'feat',
   'item',
   'language',
-  'monster',
   'rule',
   'sense',
   'species',

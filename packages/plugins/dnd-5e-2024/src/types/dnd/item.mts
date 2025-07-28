@@ -1,4 +1,14 @@
 import { z } from 'zod';
+import { vttDocumentSchema } from '@dungeon-lab/shared/schemas/index.mjs';
+import { 
+  physicalDamageTypeSchema,
+  weaponCategorySchema,
+  weaponTypeSchema,
+  weaponMasteryProperty,
+  armorTypeSchema,
+  currencyTypeSchema,
+  itemRaritySchema
+} from './common.mjs';
 
 /**
  * D&D 5e Item Runtime Types
@@ -11,160 +21,147 @@ import { z } from 'zod';
  */
 
 /**
- * Base schema shared by all item types
+ * D&D 5e 2024 Item Runtime Types
+ * 
+ * Updated for 2024 item system with weapon mastery, enhanced magic properties,
+ * and better type discrimination. Uses discriminated union for type safety.
+ * All document references use MongoDB 'id' fields.
+ * Compendium types are auto-derived from these with id→_ref conversion.
  */
-const baseItemSchema = z.object({
-  name: z.string(),
-  description: z.string(),
-  source: z.string().optional(),
-  page: z.number().optional(),
-  
-  /** Physical properties */
-  weight: z.number().optional(),
-  cost: z.object({
-    amount: z.number(),
-    currency: z.enum(['cp', 'sp', 'gp', 'pp']).default('gp')
-  }).optional(),
-  
-  /** Magic properties */
-  rarity: z.enum(['common', 'uncommon', 'rare', 'very rare', 'legendary', 'artifact']).optional(),
-  magical: z.boolean().optional(),
-  attunement: z.boolean().optional(),
-  attunementRequirements: z.string().optional(),
-  
-  /** Charges and usage for magic items */
-  charges: z.number().optional(),
-  rechargeable: z.boolean().optional(),
-  rechargeRate: z.string().optional(),
-  
-  /** Tags for organization */
-  tags: z.array(z.string()).optional()
-});
 
 /**
  * Weapon item schema with weapon-specific properties
  */
-const weaponSchema = baseItemSchema.extend({
+export const weaponSchema = z.object({
   itemType: z.literal('weapon'),
+  name: z.string(),
+  description: z.string(),
   
-  /** Damage properties */
+  /** Basic weapon properties */
   damage: z.object({
-    dice: z.string(),        // "1d8", "2d6", etc.
-    type: z.enum(['slashing', 'piercing', 'bludgeoning', 'acid', 'cold', 'fire', 'force', 'lightning', 'necrotic', 'poison', 'psychic', 'radiant', 'thunder'])
+    dice: z.string(), // e.g., "1d8"
+    type: physicalDamageTypeSchema
   }),
   
-  /** Versatile weapons have a second damage value */
-  versatileDamage: z.object({
-    dice: z.string(),        // "1d10" for versatile weapons
-    type: z.enum(['slashing', 'piercing', 'bludgeoning', 'acid', 'cold', 'fire', 'force', 'lightning', 'necrotic', 'poison', 'psychic', 'radiant', 'thunder'])
-  }).optional(),
-  
   /** Weapon classification */
-  weaponCategory: z.enum(['simple', 'martial']),
-  weaponType: z.enum(['melee', 'ranged']),
+  category: weaponCategorySchema,
+  type: weaponTypeSchema,
   
-  /** Weapon properties from D&D rules */
+  /** Traditional weapon properties */
   properties: z.array(z.enum([
-    'ammunition', 'finesse', 'heavy', 'light', 'loading', 
+    'ammunition', 'finesse', 'heavy', 'light', 'loading',
     'range', 'reach', 'special', 'thrown', 'two-handed', 'versatile'
   ])).optional(),
   
-  /** 2024 D&D weapon mastery properties */
-  mastery: z.array(z.enum([
-    'cleave', 'graze', 'nick', 'push', 'sap', 'slow', 'topple', 'vex'
-  ])).optional(),
+  /** 2024: Weapon Mastery properties */
+  mastery: weaponMasteryProperty.optional(),
   
-  /** Range for ranged weapons and thrown weapons */
-  range: z.object({
-    normal: z.number(),      // Normal range in feet
-    long: z.number()         // Long range in feet
+  /** Versatile damage (for versatile weapons) */
+  versatileDamage: z.object({
+    dice: z.string() // e.g., "1d10"
   }).optional(),
   
-  /** Magic weapon bonuses */
-  attackBonus: z.number().optional(),
-  damageBonus: z.number().optional()
+  /** Range information (for ranged/thrown weapons) */
+  range: z.object({
+    normal: z.number(),
+    long: z.number()
+  }).optional(),
+  
+  /** Weight and cost */
+  weight: z.number().optional(),
+  cost: z.object({
+    amount: z.number(),
+    currency: currencyTypeSchema.default('gp')
+  }).optional(),
+  
+  /** Magic weapon properties */
+  magical: z.boolean().default(false),
+  enchantmentBonus: z.number().optional(), // +1, +2, +3
+  rarity: itemRaritySchema.optional(),
+  attunement: z.boolean().default(false),
+  
+  source: z.string().optional(),
+  page: z.number().optional()
 });
 
 /**
  * Armor item schema with armor-specific properties
  */
-const armorSchema = baseItemSchema.extend({
+export const armorSchema = z.object({
   itemType: z.literal('armor'),
+  name: z.string(),
+  description: z.string(),
   
-  /** Armor class value */
+  /** Armor Class provided */
   armorClass: z.number(),
   
-  /** Armor type determines proficiency requirements */
-  armorType: z.enum(['light', 'medium', 'heavy']),
+  /** Armor type determines proficiency requirement */
+  type: armorTypeSchema,
   
-  /** Dexterity modifier cap for medium/heavy armor */
+  /** Dex modifier limitations */
   maxDexBonus: z.number().optional(),
   
-  /** Strength requirement for heavy armor */
+  /** Strength requirement (heavy armor) */
   strengthRequirement: z.number().optional(),
   
   /** Stealth disadvantage */
-  stealthDisadvantage: z.boolean().optional(),
+  stealthDisadvantage: z.boolean().default(false),
   
-  /** Time to don/doff armor */
-  donTime: z.string().optional(),      // "1 minute", "5 minutes", etc.
-  doffTime: z.string().optional()
-});
-
-/**
- * Shield item schema
- */
-const shieldSchema = baseItemSchema.extend({
-  itemType: z.literal('shield'),
+  /** Time to don/doff */
+  donTime: z.string().optional(),
+  doffTime: z.string().optional(),
   
-  /** AC bonus provided by shield */
-  armorClassBonus: z.number().default(2),
-  
-  /** Special shield properties */
-  specialProperties: z.array(z.string()).optional()
-});
-
-/**
- * Tool item schema with tool-specific properties
- */
-const toolSchema = baseItemSchema.extend({
-  itemType: z.literal('tool'),
-  
-  /** Tool category */
-  toolCategory: z.enum(['artisan', 'gaming-set', 'musical-instrument', 'other']),
-  
-  /** Ability score typically associated with this tool */
-  associatedAbility: z.enum(['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma']).optional(),
-  
-  /** What this tool can be used for */
-  proficiencyApplications: z.array(z.string()).optional(),
-  
-  /** What items can be crafted with this tool */
-  craftingCapabilities: z.array(z.string()).optional()
-});
-
-/**
- * General gear/equipment schema for adventuring gear
- */
-const gearSchema = baseItemSchema.extend({
-  itemType: z.literal('gear'),
-  
-  /** Gear subcategory for organization */
-  gearCategory: z.enum(['container', 'consumable', 'utility', 'ammunition', 'other']),
-  
-  /** Container properties */
-  capacity: z.object({
-    weight: z.number(),      // Weight capacity in pounds
-    volume: z.string()       // Volume capacity description
+  /** Weight and cost */
+  weight: z.number().optional(),
+  cost: z.object({
+    amount: z.number(),
+    currency: currencyTypeSchema.default('gp')
   }).optional(),
   
-  /** Consumable properties */
-  uses: z.number().optional(),
+  /** Magic armor properties */
+  magical: z.boolean().default(false),
+  enchantmentBonus: z.number().optional(),
+  rarity: itemRaritySchema.optional(),
+  attunement: z.boolean().default(false),
   
-  /** Ammunition properties */
-  compatibleWeapons: z.array(z.string()).optional(),
-  quantity: z.number().optional()
+  source: z.string().optional(),
+  page: z.number().optional()
 });
+
+/**
+ * General gear schema for other items
+ */
+export const gearSchema = z.object({
+  itemType: z.literal('gear'),
+  name: z.string(),
+  description: z.string(),
+  
+  /** Gear subcategory */
+  category: z.enum(['consumable', 'container', 'tool', 'ammunition', 'treasure', 'other']).optional(),
+  
+  /** Physical properties */
+  weight: z.number().optional(),
+  cost: z.object({
+    amount: z.number(),
+    currency: currencyTypeSchema.default('gp')
+  }).optional(),
+  
+  /** Magic properties */
+  magical: z.boolean().default(false),
+  rarity: itemRaritySchema.optional(),
+  attunement: z.boolean().default(false),
+  
+  /** Usage properties */
+  consumable: z.object({
+    uses: z.number(),
+    duration: z.string().optional()
+  }).optional(),
+  
+  source: z.string().optional(),
+  page: z.number().optional()
+});
+
+
 
 /**
  * Discriminated union of all item types
@@ -173,18 +170,17 @@ const gearSchema = baseItemSchema.extend({
 export const dndItemDataSchema = z.discriminatedUnion('itemType', [
   weaponSchema,
   armorSchema,
-  shieldSchema,
-  toolSchema,
   gearSchema
 ]);
 
 /**
- * D&D Item document schema (runtime)
- * Note: Items are top-level documents, not VTT documents
+ * D&D Item document schema (runtime) 
+ * Extends base VTT document with item-specific plugin data
  */
-// Note: Item documents should use the standard itemSchema from shared
-// This is just the plugin data schema
-export const dndItemDocumentSchema = dndItemDataSchema;
+export const dndItemDocumentSchema = vttDocumentSchema.extend({
+  pluginDocumentType: z.literal('item'),
+  pluginData: dndItemDataSchema
+});
 
 /**
  * Runtime type exports
@@ -195,53 +191,20 @@ export type DndItemDocument = z.infer<typeof dndItemDocumentSchema>;
 /** Specific item type exports */
 export type DndWeaponData = z.infer<typeof weaponSchema>;
 export type DndArmorData = z.infer<typeof armorSchema>;
-export type DndShieldData = z.infer<typeof shieldSchema>;
-export type DndToolData = z.infer<typeof toolSchema>;
 export type DndGearData = z.infer<typeof gearSchema>;
 
 /**
  * Item type identifiers
  */
 export const itemTypeIdentifiers = [
-  'weapon', 'armor', 'shield', 'tool', 'gear'
+  'weapon', 'armor', 'gear'
 ] as const;
 
 export type ItemTypeIdentifier = typeof itemTypeIdentifiers[number];
 
-/**
- * Weapon category identifiers
- */
-export const weaponCategoryIdentifiers = ['simple', 'martial', 'melee'] as const;
-export type WeaponCategoryIdentifier = typeof weaponCategoryIdentifiers[number];
+// Create/Update schemas for items
+export const createDndItemSchema = dndItemDataSchema;
+export const updateDndItemSchema = dndItemDataSchema.partial();
 
-/**
- * Armor type identifiers
- */
-export const armorTypeIdentifiers = ['light', 'medium', 'heavy'] as const;
-export type ArmorTypeIdentifier = typeof armorTypeIdentifiers[number];
-
-/**
- * Damage type identifiers
- */
-export const damageTypeIdentifiers = [
-  'slashing', 'piercing', 'bludgeoning', 'acid', 'cold', 'fire', 
-  'force', 'lightning', 'necrotic', 'poison', 'psychic', 'radiant', 'thunder'
-] as const;
-export type DamageTypeIdentifier = typeof damageTypeIdentifiers[number];
-
-/**
- * Weapon property identifiers
- */
-export const weaponPropertyIdentifiers = [
-  'ammunition', 'finesse', 'heavy', 'light', 'loading', 
-  'range', 'reach', 'special', 'thrown', 'two-handed', 'versatile'
-] as const;
-export type WeaponPropertyIdentifier = typeof weaponPropertyIdentifiers[number];
-
-/**
- * Weapon mastery identifiers (2024 D&D)
- */
-export const weaponMasteryIdentifiers = [
-  'cleave', 'graze', 'nick', 'push', 'sap', 'slow', 'topple', 'vex'
-] as const;
-export type WeaponMasteryIdentifier = typeof weaponMasteryIdentifiers[number];
+export type CreateDndItem = z.infer<typeof createDndItemSchema>;
+export type UpdateDndItem = z.infer<typeof updateDndItemSchema>;

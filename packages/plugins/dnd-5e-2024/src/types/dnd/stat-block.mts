@@ -1,24 +1,15 @@
 import { z } from 'zod';
-import { spellcastingSchema, abilitySchema, skillSchema, damageTypeSchema } from './common.mjs';
+import { monsterSpellcastingSchema, abilitySchema, skillSchema, damageTypeSchema, creatureSizeSchema, CREATURE_TYPES } from './common.mjs';
 
 /**
  * D&D 5e 2024 Stat Block Runtime Types
  * 
- * Complete stat block schema that covers all fields needed for both monsters and NPCs.
+ * Complete stat block schema that covers all fields needed for all creatures (monsters and NPCs).
+ * In 2024 D&D, monsters and NPCs use identical stat block formats.
  * All document references use MongoDB 'id' fields.
  */
 
-// D&D 5e 2024 sizes
-export const CREATURE_SIZES = ['tiny', 'small', 'medium', 'large', 'huge', 'gargantuan'] as const;
-export const creatureSizeSchema = z.enum(CREATURE_SIZES);
-export type CreatureSize = z.infer<typeof creatureSizeSchema>;
-
-// D&D 5e 2024 creature types
-export const CREATURE_TYPES = [
-  'aberration', 'beast', 'celestial', 'construct', 'dragon', 'elemental',
-  'fey', 'fiend', 'giant', 'humanoid', 'monstrosity', 'ooze',
-  'plant', 'undead'
-] as const;
+// Import creature types from common.mjs for consistency
 export const creatureTypeSchema = z.enum(CREATURE_TYPES);
 export type CreatureType = z.infer<typeof creatureTypeSchema>;
 
@@ -127,7 +118,7 @@ export type TreasureTheme = z.infer<typeof treasureThemeSchema>;
 
 /**
  * Complete D&D 5e 2024 stat block schema
- * Covers all fields needed for both monsters and NPCs
+ * Covers all fields needed for all creatures (monsters and NPCs use identical formats)
  */
 export const dndStatBlockSchema = z.object({
   // Basic Information
@@ -173,8 +164,8 @@ export const dndStatBlockSchema = z.object({
   legendaryActionCount: z.number().optional(), // Usually 3
   legendaryResistance: z.number().optional(), // Uses per day
   
-  // Spellcasting
-  spellcasting: spellcastingSchema,
+  // Spellcasting (2024 monster format)
+  spellcasting: monsterSpellcastingSchema.optional(),
   
   // 2024 New Fields
   habitat: z.array(habitatSchema).optional(),

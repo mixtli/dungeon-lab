@@ -1,7 +1,9 @@
 import { z } from 'zod';
+import { documentReferenceSchema } from '@dungeon-lab/shared/types/reference.mjs';
+
 
 /**
- * D&D 5e Common Runtime Types and Constants
+ * D&D 5e 2024 Common Runtime Types and Constants
  * 
  * These are shared types and constants used across all D&D documents.
  * All document references use MongoDB 'id' fields.
@@ -12,7 +14,7 @@ export const ABILITIES = ['strength', 'dexterity', 'constitution', 'intelligence
 export const abilitySchema = z.enum(ABILITIES);
 export type Ability = z.infer<typeof abilitySchema>;
 
-// D&D 5e 2024 Skills (updated official list)
+// D&D 5e 2024 Skills (18 total)
 export const SKILLS_2024 = [
   'acrobatics', 'animal handling', 'arcana', 'athletics', 'deception',
   'history', 'insight', 'intimidation', 'investigation', 'medicine',
@@ -22,42 +24,13 @@ export const SKILLS_2024 = [
 export const skillSchema = z.enum(SKILLS_2024);
 export type Skill = z.infer<typeof skillSchema>;
 
-// Armor proficiency types
-export const ARMOR_PROFICIENCIES = [
-  'light armor', 'medium armor', 'heavy armor', 'shields'
+// D&D 5e 2024 Damage Types
+export const DAMAGE_TYPES_2024 = [
+  'acid', 'bludgeoning', 'cold', 'fire', 'force', 'lightning', 'necrotic',
+  'piercing', 'poison', 'psychic', 'radiant', 'slashing', 'thunder'
 ] as const;
-export const armorProficiencySchema = z.enum(ARMOR_PROFICIENCIES);
-export type ArmorProficiency = z.infer<typeof armorProficiencySchema>;
-
-// Weapon proficiency types
-export const WEAPON_PROFICIENCIES = [
-  'simple weapons', 'martial weapons', 'exotic weapons', 'ranged weapons', 'melee weapons'
-] as const;
-export const weaponProficiencySchema = z.enum(WEAPON_PROFICIENCIES);
-export type WeaponProficiency = z.infer<typeof weaponProficiencySchema>;
-
-// Tool proficiency types
-export const TOOL_PROFICIENCIES = [
-  'artisan tools', 'gaming sets', 'musical instruments', 'other'
-] as const;
-export const toolProficiencySchema = z.enum(TOOL_PROFICIENCIES);
-export type ToolProficiency = z.infer<typeof toolProficiencySchema>;
-
-// D&D 5e 2024 Languages (updated list)
-export const LANGUAGES_2024 = [
-  'common', 'dwarvish', 'elvish', 'giant', 'gnomish', 'goblin', 'halfling', 'orc', 
-  'abyssal', 'celestial', 'deep speech', 'draconic', 'druidic', 'ignan', 'infernal', 
-  'primordial', 'sylvan', 'terran', 'undercommon', 'telepathy'
-] as const;
-export const languageSchema = z.enum(LANGUAGES_2024);
-export type Language = z.infer<typeof languageSchema>;
-
-// D&D 5e 2024 Alignments (updated)
-export const ALIGNMENTS_2024 = [
-  'lawful good', 'neutral good', 'chaotic good', 'lawful neutral', 'neutral', 'chaotic neutral', 'lawful evil', 'neutral evil', 'chaotic evil', 'unaligned'
-] as const;
-export const alignmentSchema = z.enum(ALIGNMENTS_2024);
-export type Alignment = z.infer<typeof alignmentSchema>;
+export const damageTypeSchema = z.enum(DAMAGE_TYPES_2024);
+export type DamageType = z.infer<typeof damageTypeSchema>;
 
 // D&D 5e 2024 Conditions
 export const CONDITIONS_2024 = [
@@ -68,55 +41,211 @@ export const CONDITIONS_2024 = [
 export const conditionSchema = z.enum(CONDITIONS_2024);
 export type Condition = z.infer<typeof conditionSchema>;
 
-// D&D 5e 2024 Damage Types
-export const DAMAGE_TYPES_2024 = [
-  'acid', 'bludgeoning', 'cold', 'fire', 'force', 'lightning', 'necrotic',
-  'piercing', 'poison', 'psychic', 'radiant', 'slashing', 'thunder'
+// D&D 5e 2024 Languages
+export const LANGUAGES_2024 = [
+  'common', 'dwarvish', 'elvish', 'giant', 'gnomish', 'goblin', 'halfling', 'orc', 
+  'abyssal', 'celestial', 'deep speech', 'draconic', 'druidic', 'ignan', 'infernal', 
+  'primordial', 'sylvan', 'terran', 'undercommon', 'telepathy'
 ] as const;
-export const damageTypeSchema = z.enum(DAMAGE_TYPES_2024);
-export type DamageType = z.infer<typeof damageTypeSchema>;
+export const languageSchema = z.enum(LANGUAGES_2024);
+export type Language = z.infer<typeof languageSchema>;
 
-// D&D 5e 2024 Spellcasting Schema (improved for integration)
-export const spellcastingSchema = z
-  .object({
-    // Core spellcasting information
-    ability: z.enum(['intelligence', 'wisdom', 'charisma']),
-    spellSaveDC: z.number(),
-    spellAttackBonus: z.number(),
-    casterLevel: z.number().optional(), // For NPCs/monsters with class levels
-    
-    // Spell slots (traditional vancian casting)
-    spellSlots: z.array(z.object({
-      level: z.number().min(1).max(9),
-      total: z.number(),
-      used: z.number()
-    })).optional(),
-    
-    // Spells known/prepared
-    spells: z.array(z.object({
-      id: z.any(), // Reference to spell document
-      prepared: z.boolean().optional(),
-      level: z.number().min(0).max(9).optional(), // Spell level for reference
-      uses: z.object({
-        value: z.number(),
-        per: z.enum(['day', 'short rest', 'long rest', 'recharge'])
-      }).optional() // For limited-use spells
-    })).optional(),
-    
-    // 2024 Monster Spellcasting (simplified format)
-    innateSpells: z.object({
-      atWill: z.array(z.any()).optional(),
-      daily: z.record(z.string(), z.array(z.any())).optional(), // "1": [...], "2e": [...]
-      recharge: z.array(z.object({
-        recharge: z.string(), // "5-6", "6", etc.
-        spell: z.any()
-      })).optional()
-    }).optional(),
-    
-    // Display options for 2024
-    displayAs: z.enum(['trait', 'action', 'bonus action', 'reaction']).optional(),
-    description: z.string().optional() // For custom spellcasting descriptions
+// D&D 5e 2024 Alignments
+export const ALIGNMENTS_2024 = [
+  'lawful good', 'neutral good', 'chaotic good', 
+  'lawful neutral', 'neutral', 'chaotic neutral', 
+  'lawful evil', 'neutral evil', 'chaotic evil', 'unaligned'
+] as const;
+export const alignmentSchema = z.enum(ALIGNMENTS_2024);
+export type Alignment = z.infer<typeof alignmentSchema>;
+
+// Creature Sizes
+export const CREATURE_SIZES = ['tiny', 'small', 'medium', 'large', 'huge', 'gargantuan'] as const;
+export const creatureSizeSchema = z.enum(CREATURE_SIZES);
+export type CreatureSize = z.infer<typeof creatureSizeSchema>;
+
+// Creature Types
+export const CREATURE_TYPES = [
+  'aberration', 'beast', 'celestial', 'construct', 'dragon', 'elemental',
+  'fey', 'fiend', 'giant', 'humanoid', 'monstrosity', 'ooze',
+  'plant', 'undead'
+] as const;
+export const creatureTypeSchema = z.enum(CREATURE_TYPES);
+export type CreatureType = z.infer<typeof creatureTypeSchema>;
+
+// Schools of Magic
+export const SPELL_SCHOOLS = [
+  'abjuration', 'conjuration', 'divination', 'enchantment',
+  'evocation', 'illusion', 'necromancy', 'transmutation'
+] as const;
+export const spellSchoolSchema = z.enum(SPELL_SCHOOLS);
+export type SpellSchool = z.infer<typeof spellSchoolSchema>;
+
+// Currency Types
+export const CURRENCY_TYPES = ['cp', 'sp', 'ep', 'gp', 'pp'] as const;
+export const currencyTypeSchema = z.enum(CURRENCY_TYPES);
+export type Currency = z.infer<typeof currencyTypeSchema>;
+
+// Rest Types for ability/resource recovery
+export const REST_TYPES = ['turn', 'round', 'short rest', 'long rest', 'day'] as const;
+export const restTypeSchema = z.enum(REST_TYPES);
+export type RestType = z.infer<typeof restTypeSchema>;
+
+// Magic Item Rarities
+export const ITEM_RARITIES = ['common', 'uncommon', 'rare', 'very rare', 'legendary', 'artifact'] as const;
+export const itemRaritySchema = z.enum(ITEM_RARITIES);
+export type ItemRarity = z.infer<typeof itemRaritySchema>;
+
+// Saving Throw Effects
+export const SAVE_EFFECTS = ['none', 'half', 'negates', 'other'] as const;
+export const saveEffectSchema = z.enum(SAVE_EFFECTS);
+export type SaveEffect = z.infer<typeof saveEffectSchema>;
+
+// Spellcasting Abilities (shortened versions)
+export const SPELLCASTING_ABILITIES = ['int', 'wis', 'cha'] as const;
+export const spellcastingAbilitySchema = z.enum(SPELLCASTING_ABILITIES);
+export type SpellcastingAbility = z.infer<typeof spellcastingAbilitySchema>;
+
+// Spellcasting Types
+export const SPELLCASTING_TYPES = ['full', 'half', 'third', 'pact', 'none'] as const;
+export const spellcastingTypeSchema = z.enum(SPELLCASTING_TYPES);
+export type SpellcastingType = z.infer<typeof spellcastingTypeSchema>;
+
+// Spell Preparation Types
+export const SPELL_PREPARATION_TYPES = ['known', 'prepared', 'both'] as const;
+export const spellPreparationSchema = z.enum(SPELL_PREPARATION_TYPES);
+export type SpellPreparationType = z.infer<typeof spellPreparationSchema>;
+
+// Physical Damage Types (subset of all damage types)
+export const PHYSICAL_DAMAGE_TYPES = ['slashing', 'piercing', 'bludgeoning'] as const;
+export const physicalDamageTypeSchema = z.enum(PHYSICAL_DAMAGE_TYPES);
+export type PhysicalDamageType = z.infer<typeof physicalDamageTypeSchema>;
+
+// Equipment Categories
+export const EQUIPMENT_CATEGORIES = ['adventuring-gear', 'tool', 'container', 'consumable'] as const;
+export const equipmentCategorySchema = z.enum(EQUIPMENT_CATEGORIES);
+export type EquipmentCategory = z.infer<typeof equipmentCategorySchema>;
+
+// Roll Advantage/Disadvantage
+export const ROLL_MODIFIERS = ['advantage', 'disadvantage'] as const;
+export const rollModifierSchema = z.enum(ROLL_MODIFIERS);
+export type RollModifier = z.infer<typeof rollModifierSchema>;
+
+// Duration Types
+export const DURATION_TYPES = ['instantaneous', 'until_end_of_turn', 'until_start_of_turn', 'time_based', 'until_removed'] as const;
+export const durationTypeSchema = z.enum(DURATION_TYPES);
+export type DurationType = z.infer<typeof durationTypeSchema>;
+
+// Area of Effect Shapes
+export const AOE_SHAPES = ['sphere', 'cube', 'cylinder', 'cone', 'line'] as const;
+export const aoeShapeSchema = z.enum(AOE_SHAPES);
+export type AoeShape = z.infer<typeof aoeShapeSchema>;
+
+// Armor Types for proficiency requirements
+export const ARMOR_TYPES = ['light', 'medium', 'heavy'] as const;
+export const armorTypeSchema = z.enum(ARMOR_TYPES);
+export type ArmorType = z.infer<typeof armorTypeSchema>;
+
+// Weapon Categories
+export const WEAPON_CATEGORIES = ['simple', 'martial'] as const;
+export const weaponCategorySchema = z.enum(WEAPON_CATEGORIES);
+export type WeaponCategory = z.infer<typeof weaponCategorySchema>;
+
+// Weapon Types
+export const WEAPON_TYPES = ['melee', 'ranged'] as const;
+export const weaponTypeSchema = z.enum(WEAPON_TYPES);
+export type WeaponType = z.infer<typeof weaponTypeSchema>;
+
+// Action Types for the 2024 action economy
+export const ACTION_TYPES = ['action', 'bonus_action', 'reaction', 'free', 'movement'] as const;
+export const actionTypeSchema = z.enum(ACTION_TYPES);
+export type ActionType = z.infer<typeof actionTypeSchema>;
+
+// D&D 5e 2024 Monster Spellcasting Schema (simplified format for 2024)
+export const monsterSpellcastingSchema = z.object({
+  ability: spellcastingAbilitySchema,
+  spellSaveDC: z.number(),
+  spellAttackBonus: z.number(),
+  
+  /** 2024 format for monster spellcasting */
+  spells: z.object({
+    /** At-will spells */
+    atWill: z.array(z.string()).optional(),
+    /** Daily spell usage: "1/day", "2/day", etc. */
+    daily: z.record(z.string(), z.array(z.string())).optional(),
+    /** Recharge spells */
+    recharge: z.array(z.object({
+      recharge: z.string(), // "5-6", "6"
+      spells: z.array(z.string())
+    })).optional()
   })
-  .optional();
+});
 
-export type Spellcasting = z.infer<typeof spellcastingSchema>;
+export type MonsterSpellcasting = z.infer<typeof monsterSpellcastingSchema>;
+
+/**
+ * Generic choice schema for player choices
+ * Used when players need to choose between multiple options (tools, skills, spells, etc.)
+ */
+export const genericChoiceSchema = z.object({
+  /** Number of choices the player can make */
+  count: z.number().min(1),
+  /** Array of options to choose from */
+  options: z.array(z.object({
+    /** Display name for the option */
+    name: z.string(),
+    /** Document reference (if applicable) */
+    _ref: documentReferenceSchema.optional(),
+    /** Additional metadata about this choice */
+    metadata: z.record(z.unknown()).optional()
+  })),
+  /** Optional description of the choice (e.g., "Choose one kind of Gaming Set") */
+  description: z.string().optional()
+});
+
+export type GenericChoice = z.infer<typeof genericChoiceSchema>;
+
+/**
+ * Type-safe document references for specific D&D concepts
+ * These constrain the pluginType field to ensure type safety
+ */
+export const backgroundReferenceSchema = documentReferenceSchema.extend({
+  pluginType: z.literal('background')
+});
+
+export const speciesReferenceSchema = documentReferenceSchema.extend({
+  pluginType: z.literal('species') 
+});
+
+export const classReferenceSchema = documentReferenceSchema.extend({
+  pluginType: z.literal('class')
+});
+
+export const spellReferenceSchema = documentReferenceSchema.extend({
+  pluginType: z.literal('spell')
+});
+
+export const featReferenceSchema = documentReferenceSchema.extend({
+  pluginType: z.literal('feat')
+});
+
+export const itemReferenceSchema = documentReferenceSchema.extend({
+  documentType: z.literal('item')
+});
+
+export const conditionReferenceSchema = documentReferenceSchema.extend({
+  pluginType: z.literal('condition')
+});
+
+export const actionReferenceSchema = documentReferenceSchema.extend({
+  pluginType: z.literal('action')
+});
+
+export type BackgroundReference = z.infer<typeof backgroundReferenceSchema>;
+export type SpeciesReference = z.infer<typeof speciesReferenceSchema>;
+export type ClassReference = z.infer<typeof classReferenceSchema>;
+export type SpellReference = z.infer<typeof spellReferenceSchema>;
+export type FeatReference = z.infer<typeof featReferenceSchema>;
+export type ItemReference = z.infer<typeof itemReferenceSchema>;
+export type ConditionReference = z.infer<typeof conditionReferenceSchema>;
+export type ActionReference = z.infer<typeof actionReferenceSchema>;

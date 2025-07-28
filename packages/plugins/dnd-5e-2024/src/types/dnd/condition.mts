@@ -1,9 +1,11 @@
 import { z } from 'zod';
+import { vttDocumentSchema } from '@dungeon-lab/shared/schemas/index.mjs';
+import { rollModifierSchema, durationTypeSchema } from './common.mjs';
 
 /**
- * D&D 5e Condition Runtime Types
+ * D&D 5e 2024 Condition Runtime Types
  * 
- * These are the canonical runtime types used in MongoDB documents.
+ * Updated for 2024 condition list and enhanced mechanical descriptions.
  * All document references use MongoDB 'id' fields.
  * Compendium types are auto-derived from these with id→_ref conversion.
  */
@@ -15,45 +17,61 @@ import { z } from 'zod';
 export const dndConditionDataSchema = z.object({
   name: z.string(),
   description: z.string(),
-  effects: z.array(z.string()).optional(),
-  source: z.string().optional(),
-  page: z.number().optional(),
   
-  mechanics: z.object({
-    /** Whether this condition affects sight */
-    affectsSight: z.boolean().optional(),
-    /** Whether this condition affects movement */
-    affectsMovement: z.boolean().optional(),
-    /** Whether this condition affects actions */
-    affectsActions: z.boolean().optional(),
-    /** Whether this condition provides advantage/disadvantage */
-    advantageDisadvantage: z.object({
-      attackRolls: z.enum(['advantage', 'disadvantage']).optional(),
-      abilityChecks: z.enum(['advantage', 'disadvantage']).optional(),
-      savingThrows: z.enum(['advantage', 'disadvantage']).optional(),
-      attacksAgainst: z.enum(['advantage', 'disadvantage']).optional()
+  /** Mechanical effects of the condition */
+  effects: z.object({
+    /** Movement restrictions */
+    movement: z.object({
+      prevented: z.boolean().default(false),
+      reduced: z.boolean().default(false),
+      speedReduction: z.number().optional()
     }).optional(),
-    /** Whether this condition prevents actions */
-    preventsActions: z.boolean().optional(),
-    /** Whether this condition prevents reactions */
-    preventsReactions: z.boolean().optional(),
-    /** Whether this condition prevents speech */
-    preventsSpeech: z.boolean().optional()
+    
+    /** Action restrictions */
+    actions: z.object({
+      prevented: z.boolean().default(false),
+      disadvantage: z.boolean().default(false)
+    }).optional(),
+    
+    /** Attack roll modifications */
+    attackRolls: z.object({
+      advantage: z.boolean().optional(),
+      disadvantage: z.boolean().optional(),
+      prevented: z.boolean().default(false)
+    }).optional(),
+    
+    /** Saving throw modifications */
+    savingThrows: z.object({
+      advantage: z.boolean().optional(),
+      disadvantage: z.boolean().optional(),
+      specific: z.record(z.string(), rollModifierSchema).optional()
+    }).optional(),
+    
+    /** How others interact with affected creature */
+    againstAffected: z.object({
+      attackAdvantage: z.boolean().optional(),
+      attackDisadvantage: z.boolean().optional()
+    }).optional()
+  }),
+  
+  /** Duration information */
+  duration: z.object({
+    type: durationTypeSchema,
+    specific: z.string().optional() // e.g., "1 minute", "24 hours"
   }).optional(),
   
-  /** Severity level for conditions with degrees */
-  severity: z.enum(['minor', 'moderate', 'severe']).optional(),
-  
-  /** Related conditions that might be applied together */
-  relatedConditions: z.array(z.string()).optional()
+  source: z.string().optional(),
+  page: z.number().optional()
 });
 
 /**
  * D&D Condition document schema (runtime)
+ * Extends base VTT document with condition-specific plugin data
  */
-// Note: Condition documents should use the standard vttDocumentSchema from shared
-// This is just the plugin data schema
-export const dndConditionDocumentSchema = dndConditionDataSchema;
+export const dndConditionDocumentSchema = vttDocumentSchema.extend({
+  pluginDocumentType: z.literal('condition'),
+  pluginData: dndConditionDataSchema
+});
 
 /**
  * Runtime type exports
@@ -62,12 +80,22 @@ export type DndConditionData = z.infer<typeof dndConditionDataSchema>;
 export type DndConditionDocument = z.infer<typeof dndConditionDocumentSchema>;
 
 /**
- * Standard D&D 5e condition identifiers
+ * D&D 2024 Conditions (verified against SRD)
  */
 export const conditionIdentifiers = [
-  'blinded', 'charmed', 'deafened', 'frightened', 'grappled', 'incapacitated',
-  'invisible', 'paralyzed', 'petrified', 'poisoned', 'prone', 'restrained',
-  'stunned', 'unconscious', 'exhaustion'
+  'blinded', 'charmed', 'deafened', 'exhaustion', 'frightened', 'grappled',
+  'incapacitated', 'invisible', 'paralyzed', 'petrified', 'poisoned', 'prone',
+  'restrained', 'stunned', 'unconscious'
 ] as const;
 
 export type ConditionIdentifier = typeof conditionIdentifiers[number];
+
+// Create/Update schemas for conditions
+export const createDndConditionSchema = dndConditionDataSchema.partial({
+  effects: true
+});
+
+export const updateDndConditionSchema = dndConditionDataSchema.partial();
+
+export type CreateDndCondition = z.infer<typeof createDndConditionSchema>;
+export type UpdateDndCondition = z.infer<typeof updateDndConditionSchema>;
