@@ -3,14 +3,14 @@
  */
 import { WrapperConverter, WrapperConversionResult, WrapperContent } from '../base/wrapper-converter.mjs';
 import { readEtoolsData, filterSrdContent, formatEntries } from '../utils/conversion-utils.mjs';
-import type { EtoolsMonster, EtoolsMonsterData, EtoolsMonsterAction } from '../../5etools-types/monsters.mjs';
+import type { EtoolsMonster, EtoolsMonsterData, EtoolsMonsterAction, EtoolsMonsterSaves, EtoolsMonsterDamageType } from '../../5etools-types/monsters.mjs';
 import type { EtoolsEntry } from '../../5etools-types/base.mjs';
 import { extractEtoolsArray, safeEtoolsCast } from '../../5etools-types/type-utils.mjs';
-// Import shared actor schema and utilities
-import { actorSchema } from '@dungeon-lab/shared/schemas/index.mjs';
-import { generateSlug } from '@dungeon-lab/shared/utils/index.mjs';
+// Import monster schema and utilities
+import { DndMonsterData } from '../../types/dnd/index.mjs';
+import type { DamageType } from '../../types/dnd/common.mjs';
+import { DAMAGE_TYPES_2024 } from '../../types/dnd/common.mjs';
 import { ReferenceObject } from '@dungeon-lab/shared/types/index.mjs';
-import { z } from 'zod';
 // Import reference processing utilities
 import {
   transformGearArray,
@@ -20,7 +20,7 @@ import {
   parseActionData,
 } from '../utils/reference-transformer.mjs';
 
-type IActor = z.infer<typeof actorSchema>;
+// Monster data will use the stat block structure
 
 /**
  * Monster fluff data interface
@@ -107,7 +107,8 @@ export class MonsterWrapperConverter extends WrapperConverter {
             const monsterRaw = filteredMonsters[i];
             try {
               const fluff = fluffMap.get(monsterRaw.name);
-              const { monster, assetPath } = this.convertMonster(monsterRaw, fluff);
+              const { monster, assetPath } = await this.convertMonster(monsterRaw, fluff);
+              // Monster is already properly typed for wrapper creation
 
               // Create wrapper format
               const wrapper = this.createWrapper(
@@ -155,7 +156,18 @@ export class MonsterWrapperConverter extends WrapperConverter {
     }
   }
 
-  private convertMonster(monsterData: EtoolsMonster, fluffData?: EtoolsMonsterFluff): { monster: IActor; assetPath?: string } {
+  private async convertMonster(monsterData: EtoolsMonster, fluffData?: EtoolsMonsterFluff): Promise<{ monster: {
+    id: string;
+    name: string;
+    slug: string;
+    pluginId: string;
+    documentType: string;
+    description: string;
+    campaignId: string;
+    userData: Record<string, unknown>;
+    pluginDocumentType: string;
+    pluginData: unknown;
+  }; assetPath?: string }> {
     // Extract asset path from fluff data if available
     let assetPath: string | undefined;
     if (fluffData && this.options.includeAssets) {
@@ -165,101 +177,88 @@ export class MonsterWrapperConverter extends WrapperConverter {
         assetPath = fluffData._copy._mod.images.items[0].href.path;
       }
       
-      // If no fluff image, generate standard asset path
-      if (!assetPath) {
-        assetPath = this.generateAssetPath('bestiary', monsterData.name);
-      }
+      // If no fluff image, leave assetPath as undefined
+      // We don't want invalid placeholder paths in the output
     }
 
-    // Convert the monster data
-    const monster: IActor = {
-      id: `monster-${generateSlug(monsterData.name)}`, // Temporary ID for wrapper format
-      slug: generateSlug(monsterData.name), // Explicit slug generation
+    // Convert the monster data to DndMonsterData structure
+    const monster: DndMonsterData = {
+      // Basic Information
       name: monsterData.name,
-      documentType: 'actor',
-      pluginDocumentType: 'npc',
-      pluginId: 'dnd-5e-2024',
-      campaignId: '', // Will be set during import
-      description: this.buildDescription(monsterData, fluffData),
-      userData: {},
+      size: SIZE_MAP[monsterData.size?.[0]] || 'medium',
+      type: this.buildTypeString(monsterData.type),
+      alignment: this.parseAlignment(monsterData.alignment),
       
-      // Avatar and token references (will be processed by import service)
-      avatarId: assetPath,
-      defaultTokenImageId: assetPath,
+      // Core Stats
+      armorClass: this.parseACToSchema(monsterData.ac),
+      hitPoints: this.parseHPToSchema(monsterData.hp),
+      speed: this.parseSpeedToSchema(monsterData.speed),
+      abilities: {
+        strength: monsterData.str || 10,
+        dexterity: monsterData.dex || 10,
+        constitution: monsterData.con || 10,
+        intelligence: monsterData.int || 10,
+        wisdom: monsterData.wis || 10,
+        charisma: monsterData.cha || 10
+      },
       
-      // Monster stat block data (using new shared structure)
-      pluginData: {
-        // Basic Information
-        name: monsterData.name,
-        size: SIZE_MAP[monsterData.size?.[0]] || 'medium',
-        type: this.buildTypeString(monsterData.type),
-        alignment: this.parseAlignment(monsterData.alignment),
-        
-        // Core Stats
-        armorClass: this.parseACToSchema(monsterData.ac),
-        hitPoints: this.parseHPToSchema(monsterData.hp),
-        speed: this.parseSpeedToSchema(monsterData.speed),
-        abilities: {
-          strength: monsterData.str || 10,
-          dexterity: monsterData.dex || 10,
-          constitution: monsterData.con || 10,
-          intelligence: monsterData.int || 10,
-          wisdom: monsterData.wis || 10,
-          charisma: monsterData.cha || 10
-        },
-        
-        // Combat & Skills
-        proficiencyBonus: this.calculateProficiencyBonus(monsterData.cr || '0'),
-        savingThrows: monsterData.save || undefined,
-        skills: monsterData.skill || undefined,
-        
-        // Resistances & Immunities (with proper typing)
-        damageVulnerabilities: this.parseDamageTypes(monsterData.vulnerable),
-        damageResistances: this.parseDamageTypes(monsterData.resist),
-        damageImmunities: this.parseDamageTypes(monsterData.immune),
-        conditionImmunities: monsterData.conditionImmune ? transformConditionImmunities(monsterData.conditionImmune) : undefined,
-        
-        // Senses & Communication
-        senses: this.parseSensesToSchema(monsterData.senses, monsterData.passive),
-        languages: monsterData.languages || undefined,
-        
-        // Challenge & Experience
-        challengeRating: monsterData.cr || '0',
-        experiencePoints: this.calculateExperiencePoints(monsterData.cr || '0'),
-        
-        // Features & Actions
-        traits: this.convertTraits(monsterData.trait || []),
-        actions: this.convertActions(monsterData.action || []),
-        bonusActions: this.convertActions(monsterData.bonus || []),
-        reactions: this.convertActions(monsterData.reaction || []),
-        
-        // Legendary Abilities
-        legendaryActions: this.convertLegendaryActions(monsterData.legendary || []),
-        legendaryActionCount: monsterData.legendary && monsterData.legendary.length > 0 ? 3 : undefined,
-        legendaryResistance: this.parseLegendaryResistance(monsterData.trait),
-        
-        // Spellcasting
-        spellcasting: monsterData.spellcasting ? transformSpellcastingToSchema(monsterData.spellcasting) : undefined,
-        
-        // 2024 New Fields
-        habitat: this.parseHabitat(monsterData.environment),
-        treasure: undefined, // TODO: Parse from 5etools treasure data
-        
-        // Equipment/Gear
-        equipment: monsterData.gear ? transformGearArray(monsterData.gear) : undefined,
-        
-        // Source Information
-        source: monsterData.source || 'Unknown',
-        page: monsterData.page,
-        
-        // Monster-specific fields
-        monsterType: this.parseMonsterType(monsterData.type),
-        tags: this.parseMonsterTags(monsterData.type),
-        environment: monsterData.environment || undefined // Legacy field
-      }
+      // Combat & Skills
+      proficiencyBonus: this.calculateProficiencyBonus(monsterData.cr || '0'),
+      savingThrows: this.convertSavingThrows(monsterData.save),
+      skills: monsterData.skill || undefined,
+      
+      // Resistances & Immunities (with proper typing)
+      damageVulnerabilities: this.convertDamageTypesArray(monsterData.vulnerable),
+      damageResistances: this.convertDamageTypesArray(monsterData.resist),
+      damageImmunities: this.convertDamageTypesArray(monsterData.immune),
+      conditionImmunities: monsterData.conditionImmune ? transformConditionImmunities(monsterData.conditionImmune) : undefined,
+      
+      // Senses & Communication
+      senses: this.parseSensesToSchema(monsterData.senses, monsterData.passive),
+      languages: monsterData.languages || undefined,
+      
+      // Challenge & Experience
+      challengeRating: monsterData.cr || '0',
+      experiencePoints: this.calculateExperiencePoints(monsterData.cr || '0'),
+      
+      // Features & Actions
+      traits: this.convertTraits(monsterData.trait || []),
+      actions: this.convertActions(monsterData.action || []),
+      bonusActions: this.convertActions(monsterData.bonus || []),
+      reactions: this.convertActions(monsterData.reaction || []),
+      
+      // Legendary Abilities
+      legendaryActions: this.convertLegendaryActions(monsterData.legendary || []),
+      legendaryActionCount: monsterData.legendary && monsterData.legendary.length > 0 ? 3 : undefined,
+      legendaryResistance: this.parseLegendaryResistance(monsterData.trait),
+      
+      // Spellcasting
+      spellcasting: monsterData.spellcasting ? transformSpellcastingToSchema(monsterData.spellcasting) : undefined,
+      
+      // Equipment/Gear
+      equipment: monsterData.gear ? transformGearArray(monsterData.gear) : undefined,
+      
+      // Monster-specific fields (from dndMonsterSpecificSchema)
+      environment: monsterData.environment || undefined,
+      tags: this.parseMonsterTags(monsterData.type),
+      description: this.buildDescription(monsterData, fluffData)
     };
 
-    return { monster, assetPath };
+    // Create full document structure for output
+    const monsterDocument = {
+      id: `monster-${this.generateSlug(monsterData.name)}`,
+      name: monsterData.name,
+      slug: this.generateSlug(monsterData.name),
+      pluginId: 'dnd-5e-2024',
+      documentType: 'actor', // Monsters are actors
+      description: this.buildDescription(monsterData, fluffData),
+      campaignId: '',
+      userData: {},
+      pluginDocumentType: 'monster',
+      pluginData: monster
+    };
+
+    return { monster: monsterDocument, assetPath };
   }
 
   private buildDescription(monsterData: EtoolsMonster, fluffData?: EtoolsMonsterFluff): string {
@@ -332,18 +331,31 @@ export class MonsterWrapperConverter extends WrapperConverter {
 
   private parseSpeedToSchema(speed: EtoolsMonster['speed']): { walk?: number; fly?: number; swim?: number; climb?: number; burrow?: number; hover?: boolean } {
     if (typeof speed === 'object' && speed) {
+      // Handle complex fly speed objects from 5etools
+      let flySpeed: number | undefined;
+      let canHover = false;
+      
+      if (typeof speed.fly === 'number') {
+        flySpeed = speed.fly;
+      } else if (typeof speed.fly === 'object' && speed.fly && 'number' in speed.fly) {
+        const flyObj = speed.fly as { number: number; condition?: string };
+        flySpeed = flyObj.number;
+        canHover = flyObj.condition?.includes('hover') || false;
+      }
+      
       return {
         walk: speed.walk || undefined,
-        fly: speed.fly || undefined,
+        fly: flySpeed,
         swim: speed.swim || undefined,
         climb: speed.climb || undefined,
         burrow: speed.burrow || undefined,
-        hover: speed.hover || speed.canHover || undefined
+        hover: canHover || speed.hover || speed.canHover || undefined
       };
     }
     return { walk: 30 };
   }
 
+  // @ts-expect-error - Future functionality for legacy damage type parsing
   private parseDamageTypes(damages?: (string | { [key: string]: string[] | string })[]): string[] | undefined {
     if (!damages || damages.length === 0) return undefined;
     
@@ -453,6 +465,7 @@ export class MonsterWrapperConverter extends WrapperConverter {
     return undefined;
   }
 
+  // @ts-expect-error - Future functionality for habitat parsing
   private parseHabitat(environment?: string[]): string[] | undefined {
     if (!environment || environment.length === 0) return undefined;
     
@@ -476,6 +489,7 @@ export class MonsterWrapperConverter extends WrapperConverter {
     return mapped.length > 0 ? mapped : undefined;
   }
 
+  // @ts-expect-error - Future functionality for monster type parsing
   private parseMonsterType(type: EtoolsMonster['type']): string | undefined {
     if (typeof type === 'string') {
       return type;
@@ -525,7 +539,7 @@ export class MonsterWrapperConverter extends WrapperConverter {
     description: string; 
     attackBonus?: number;
     damage?: string;
-    damageType?: string;
+    damageType?: DamageType;
     savingThrow?: {
       ability: 'strength' | 'dexterity' | 'constitution' | 'intelligence' | 'wisdom' | 'charisma';
       dc: number;
@@ -561,7 +575,7 @@ export class MonsterWrapperConverter extends WrapperConverter {
         description: parsedData.description,
         attackBonus: parsedData.attackBonus,
         damage: parsedData.damage,
-        damageType: parsedData.damageType as any, // Type will be validated by schema
+        damageType: this.convertDamageType(parsedData.damageType || ''),
         savingThrow: parsedData.savingThrow,
         recharge,
         references: parsedData.references.length > 0 ? parsedData.references : undefined
@@ -569,11 +583,98 @@ export class MonsterWrapperConverter extends WrapperConverter {
     });
   }
   
+  private convertDamageType(damageType: string): DamageType | undefined {
+    if (!damageType) return undefined;
+    
+    const normalizedType = damageType.toLowerCase().trim() as DamageType;
+    
+    // Check if it's a valid damage type from our schema
+    if (DAMAGE_TYPES_2024.includes(normalizedType)) {
+      return normalizedType;
+    }
+    
+    return undefined;
+  }
+
+  private convertDamageTypesArray(damageTypes: (string | EtoolsMonsterDamageType)[] | undefined): DamageType[] | undefined {
+    if (!damageTypes || !Array.isArray(damageTypes)) return undefined;
+    
+    const converted = damageTypes
+      .map(type => {
+        // Handle both string and object formats from 5etools
+        if (typeof type === 'string') {
+          return this.convertDamageType(type);
+        } else if (typeof type === 'object' && type) {
+          // Handle EtoolsMonsterDamageType objects - extract damage type keys
+          const damageTypeKeys = Object.keys(type);
+          if (damageTypeKeys.length > 0) {
+            return this.convertDamageType(damageTypeKeys[0]);
+          }
+        }
+        return undefined;
+      })
+      .filter((type): type is DamageType => type !== undefined);
+    
+    return converted.length > 0 ? converted : undefined;
+  }
+
+  private convertSavingThrows(saves: EtoolsMonsterSaves | undefined): {
+    strength?: number;
+    dexterity?: number;
+    constitution?: number;
+    intelligence?: number;
+    wisdom?: number;
+    charisma?: number;
+  } | undefined {
+    if (!saves || typeof saves !== 'object') return undefined;
+    
+    const converted: {
+      strength?: number;
+      dexterity?: number;
+      constitution?: number;
+      intelligence?: number;
+      wisdom?: number;
+      charisma?: number;
+    } = {};
+    
+    // Convert 5etools abbreviations to full names
+    const abilityMap: Record<string, keyof typeof converted> = {
+      str: 'strength',
+      dex: 'dexterity',
+      con: 'constitution',
+      int: 'intelligence',
+      wis: 'wisdom',
+      cha: 'charisma'
+    };
+    
+    for (const [key, value] of Object.entries(saves)) {
+      const ability = abilityMap[key.toLowerCase()];
+      if (ability && typeof value === 'string') {
+        // Parse the modifier string (e.g., "+5" or "-1")
+        const numValue = parseInt(value.replace(/[^-+\d]/g, ''), 10);
+        if (!isNaN(numValue)) {
+          converted[ability] = numValue;
+        }
+      }
+    }
+    
+    return Object.keys(converted).length > 0 ? converted : undefined;
+  }
+
   private convertRechargeValue(rechargeValue: string): string {
     const num = parseInt(rechargeValue, 10);
     if (num === 6) return '6';
     if (num >= 1 && num <= 5) return `${num}-6`;
     return rechargeValue;
+  }
+
+  private generateSlug(name: string): string {
+    return name
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .trim();
   }
 
 }

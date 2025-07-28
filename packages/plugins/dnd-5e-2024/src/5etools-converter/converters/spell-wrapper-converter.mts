@@ -2,7 +2,7 @@
  * Spell converter for 5etools data to wrapper compendium format
  */
 import { WrapperConverter, WrapperConversionResult, WrapperContent } from '../base/wrapper-converter.mjs';
-import { readEtoolsData, filterSrdContent, formatEntries } from '../utils/conversion-utils.mjs';
+import { readEtoolsData, filterSrdContent, formatEntries, validateSpellData, ValidationResult } from '../utils/conversion-utils.mjs';
 import type { EtoolsSpell, EtoolsSpellData } from '../../5etools-types/spells.mjs';
 import { extractEtoolsArray, safeEtoolsCast } from '../../5etools-types/type-utils.mjs';
 
@@ -38,23 +38,33 @@ export class SpellWrapperConverter extends WrapperConverter {
       for (let i = 0; i < filteredSpells.length; i++) {
         const spellRaw = filteredSpells[i];
         try {
-          const spell = this.convertSpell(spellRaw) as { name: string; [key: string]: unknown };
+          const { spell, validationResult } = await this.convertSpell(spellRaw);
 
-          // Create wrapper format
+          // Check validation result
+          if (!validationResult.success) {
+            this.log(`❌ Spell ${spellRaw.name} failed validation:`, validationResult.errors);
+            stats.errors++;
+            continue; // Skip this spell and continue with next
+          }
+
+          // Log successful validation
+          this.log(`✅ Spell ${spellRaw.name} validated successfully`);
+
+          // Create wrapper format using the full document structure
           const wrapper = this.createWrapper(
             spell.name,
-            spell,
-            'vttdocument',
+            spell, // Always use the full structure for proper directory mapping
+            'vtt-document',
             {
-              imageId: this.extractEntryImagePath(spellRaw, 'vttdocument'),
-              category: this.determineCategory(spellRaw, 'vttdocument'),
-              tags: this.extractTags(spellRaw, 'vttdocument'),
-              sortOrder: this.calculateSortOrder(spellRaw, 'vttdocument') + i
+              imageId: this.extractEntryImagePath(spellRaw, 'vtt-document'),
+              category: this.determineCategory(spellRaw, 'vtt-document'),
+              tags: this.extractTags(spellRaw, 'vtt-document'),
+              sortOrder: this.calculateSortOrder(spellRaw, 'vtt-document') + i
             }
           );
           
           content.push({
-            type: 'vttdocument',
+            type: 'vtt-document',
             wrapper,
             originalPath: 'spells/spells-xphb.json'
           });
@@ -81,41 +91,62 @@ export class SpellWrapperConverter extends WrapperConverter {
     }
   }
 
-  private convertSpell(spellData: EtoolsSpell): unknown {
-    const spell = {
+  private async convertSpell(spellData: EtoolsSpell): Promise<{ spell: {
+    id: string;
+    slug: string;
+    name: string;
+    pluginId: string;
+    campaignId: string;
+    documentType: string;
+    description: string;
+    userData: Record<string, unknown>;
+    pluginDocumentType: string;
+    pluginData: unknown;
+  }; validationResult: ValidationResult }> {
+    // Create simplified spell structure for validation
+    const spellDataForValidation = {
       name: spellData.name,
-      slug: this.generateSlug(spellData.name),
-      pluginId: 'dnd-5e-2024',
-      documentType: 'spell',
       description: this.buildDescription(spellData),
+      level: spellData.level || 0,
+      school: (SCHOOL_MAP[spellData.school] || spellData.school || 'evocation').toLowerCase(),
+      ritual: spellData.meta?.ritual === true,
+      concentration: spellData.meta?.concentration === true,
       
-      // Spell-specific data
-      data: {
-        level: spellData.level || 0,
-        school: SCHOOL_MAP[spellData.school] || spellData.school || 'Evocation',
-        ritual: spellData.meta?.ritual === true,
-        concentration: spellData.meta?.concentration === true,
-        
-        // Casting info
-        time: this.parseCastingTime(spellData.time),
-        range: this.parseRange(spellData.range),
-        components: this.parseComponents(spellData.components),
-        duration: this.parseDuration(spellData.duration),
-        
-        // Spell text
-        entries: spellData.entries ? formatEntries(spellData.entries) : '',
-        higherLevel: spellData.entriesHigherLevel ? formatEntries(spellData.entriesHigherLevel) : undefined,
-        
-        // Classes that can cast this spell
-        classes: this.parseClasses(spellData.classes),
-        
-        // Source information
-        source: spellData.source || 'PHB',
-        page: spellData.page
-      }
+      // Casting info
+      castingTime: this.parseCastingTime(spellData.time),
+      range: this.parseRange(spellData.range),
+      components: this.parseComponents(spellData.components),
+      duration: this.parseDuration(spellData.duration),
+      
+      // Spell text
+      higherLevels: spellData.entriesHigherLevel ? formatEntries(spellData.entriesHigherLevel) : undefined,
+      
+      // Classes that can cast this spell
+      classes: this.parseClasses(spellData.classes),
+      
+      // Source information
+      source: spellData.source || 'PHB',
+      page: spellData.page
     };
 
-    return spell;
+    // Create full document structure for output
+    const spell = {
+      id: `spell-${this.generateSlug(spellData.name)}`,
+      slug: this.generateSlug(spellData.name),
+      name: spellData.name,
+      documentType: 'vtt-document', // Correct documentType from schema
+      pluginDocumentType: 'spell',
+      pluginId: 'dnd-5e-2024',
+      campaignId: '',
+      description: this.buildDescription(spellData),
+      userData: {},
+      pluginData: spellDataForValidation
+    };
+
+    // Validate the simplified spell data against the schema
+    const validationResult = await validateSpellData(spellDataForValidation);
+
+    return { spell, validationResult };
   }
 
   private buildDescription(spellData: EtoolsSpell): string {
@@ -247,8 +278,8 @@ export class SpellWrapperConverter extends WrapperConverter {
   /**
    * Override category determination for spells
    */
-  protected determineCategory<T = EtoolsSpell>(sourceData: T, contentType: 'actor' | 'item' | 'vttdocument'): string | undefined {
-    if (contentType === 'vttdocument') {
+  protected determineCategory<T = EtoolsSpell>(sourceData: T, contentType: 'actor' | 'item' | 'vtt-document'): string | undefined {
+    if (contentType === 'vtt-document') {
       const level = (sourceData && typeof sourceData === 'object' && 'level' in sourceData && typeof sourceData.level === 'number') ? sourceData.level : 0;
       if (level === 0) {
         return 'Cantrips';
@@ -261,10 +292,10 @@ export class SpellWrapperConverter extends WrapperConverter {
   /**
    * Override tag extraction for spells
    */
-  protected extractTags<T = EtoolsSpell>(sourceData: T, contentType: 'actor' | 'item' | 'vttdocument'): string[] {
+  protected extractTags<T = EtoolsSpell>(sourceData: T, contentType: 'actor' | 'item' | 'vtt-document'): string[] {
     const baseTags = super.extractTags(sourceData, contentType);
     
-    if (contentType === 'vttdocument') {
+    if (contentType === 'vtt-document') {
       // Add spell-specific tags
       if (sourceData && typeof sourceData === 'object' && 'school' in sourceData && typeof sourceData.school === 'string') {
         baseTags.push(SCHOOL_MAP[sourceData.school as keyof typeof SCHOOL_MAP] || sourceData.school);

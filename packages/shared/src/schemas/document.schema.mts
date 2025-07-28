@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { baseSchema } from './base.schema.mjs';
 import { assetSchema } from './asset.schema.mjs';
-import { compendiumSchema } from './compendium.schema.mjs';
 
 /**
  * Document types for discriminator field
@@ -43,7 +42,7 @@ export const baseDocumentSchema = baseSchema.extend({
   pluginId: z.string().min(1),
   
   // Campaign association (documents belong to campaigns)
-  campaignId: z.string(),
+  campaignId: z.string().optional(),
   
   // Plugin-specific data (flexible structure)
   pluginData: z.record(z.string(), z.unknown()).default({}),
@@ -75,12 +74,12 @@ export const updateDocumentSchema = baseDocumentSchema.deepPartial();
 
 /**
  * Document schema with virtual asset relationships
+ * Note: compendium relationship removed to avoid circular dependency
  */
 export const documentSchemaWithVirtuals = baseDocumentSchema.extend({
   // Virtual asset relationships (properly typed)
   image: assetSchema.optional(),
-  thumbnail: assetSchema.optional(),
-  compendium: compendiumSchema.optional()
+  thumbnail: assetSchema.optional()
 });
 
 export type DocumentType = z.infer<typeof documentTypeSchema>;

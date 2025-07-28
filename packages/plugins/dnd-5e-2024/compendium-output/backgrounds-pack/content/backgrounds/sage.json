@@ -1,0 +1,165 @@
+{
+  "entry": {
+    "name": "Sage",
+    "type": "vttdocument",
+    "category": "Backgrounds",
+    "tags": [
+      "xphb",
+      "Background",
+      "Arcana",
+      "History"
+    ],
+    "sortOrder": 2
+  },
+  "content": {
+    "documentType": "background",
+    "name": "Sage",
+    "description": "You spent your formative years traveling between manors and monasteries, performing various odd jobs and services in exchange for access to their libraries. You whiled away many a long evening studying books and scrolls, learning the lore of the multiverse—even the rudiments of magic—and your mind yearns for more.",
+    "source": "XPHB",
+    "page": 183,
+    "abilityScoreImprovements": [
+      {
+        "type": "weighted",
+        "choices": [
+          {
+            "from": [
+              "con",
+              "int",
+              "wis"
+            ],
+            "weights": [
+              2,
+              1
+            ],
+            "total": 3
+          }
+        ]
+      },
+      {
+        "type": "weighted",
+        "choices": [
+          {
+            "from": [
+              "con",
+              "int",
+              "wis"
+            ],
+            "weights": [
+              1,
+              1,
+              1
+            ],
+            "total": 3
+          }
+        ]
+      }
+    ],
+    "feats": [
+      {
+        "_ref": {
+          "slug": "magic-initiate",
+          "type": "vtt-document",
+          "pluginType": "feat",
+          "source": "XPHB",
+          "metadata": {
+            "variant": "wizard"
+          }
+        },
+        "displayName": "Magic Initiate"
+      }
+    ],
+    "skillProficiencies": [
+      {
+        "_ref": {
+          "slug": "arcana",
+          "type": "vtt-document",
+          "pluginType": "skill",
+          "source": "XPHB"
+        },
+        "displayName": "Arcana"
+      },
+      {
+        "_ref": {
+          "slug": "history",
+          "type": "vtt-document",
+          "pluginType": "skill",
+          "source": "XPHB"
+        },
+        "displayName": "History"
+      }
+    ],
+    "toolProficiencies": [
+      {
+        "_ref": {
+          "slug": "calligraphers-supplies",
+          "type": "vtt-document",
+          "pluginType": "tool",
+          "source": "XPHB"
+        },
+        "displayName": "Calligrapher's Supplies"
+      }
+    ],
+    "startingEquipment": {
+      "type": "choice",
+      "options": [
+        {
+          "label": "A",
+          "items": [
+            {
+              "_ref": {
+                "slug": "quarterstaffxphb",
+                "type": "item",
+                "pluginType": "weapon",
+                "source": "XPHB"
+              }
+            },
+            {
+              "_ref": {
+                "slug": "calligraphers-suppliesxphb",
+                "type": "item",
+                "pluginType": "gear",
+                "source": "XPHB"
+              }
+            },
+            {
+              "_ref": {
+                "slug": "bookxphb",
+                "type": "item",
+                "pluginType": "gear",
+                "source": "XPHB"
+              }
+            },
+            {
+              "_ref": {
+                "slug": "parchmentxphb",
+                "type": "item",
+                "pluginType": "gear",
+                "source": "XPHB"
+              },
+              "quantity": 8
+            },
+            {
+              "_ref": {
+                "slug": "robexphb",
+                "type": "item",
+                "pluginType": "gear",
+                "source": "XPHB"
+              }
+            },
+            {
+              "value": 800
+            }
+          ]
+        },
+        {
+          "label": "B",
+          "items": [
+            {
+              "value": 5000
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

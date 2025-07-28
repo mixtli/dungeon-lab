@@ -27,7 +27,7 @@ async function main() {
       },
       'content-types': {
         type: 'string',
-        default: 'monsters,spells,backgrounds,items,classes,species,feats'
+        default: 'monsters,spells,backgrounds,items,classes,species,feats,conditions,actions,deities,rules,languages,senses'
       },
       'include-assets': {
         type: 'boolean',
@@ -55,12 +55,12 @@ Options:
   -s, --srd-only               Generate only SRD content (default: true)
   -o, --output-dir <dir>       Output directory (default: ./dist/compendium-pack)
   --name <name>                Compendium pack name
-  --content-types <types>      Comma-separated content types (default: monsters,spells,backgrounds,items,classes,species,feats)
+  --content-types <types>      Comma-separated content types (default: monsters,spells,backgrounds,items,classes,species,feats,conditions,actions,deities,rules,languages,senses)
   --include-assets             Include image assets (default: true)
   --skip-missing-assets        Skip missing assets instead of warning (default: false)
   -h, --help                   Show help
 
-Available content types: monsters, spells, backgrounds, items, classes, species, feats
+Available content types: monsters, spells, backgrounds, items, classes, species, feats, conditions, actions, deities, rules, languages, senses
 
 Examples:
   # Generate full SRD pack with assets
@@ -82,7 +82,7 @@ Examples:
     srdOnly: values['srd-only'] ?? true,
     outputDir: values['output-dir'] ?? './dist/compendium-pack',
     name: values.name ?? 'D&D 5e SRD Content Pack',
-    contentTypes: (values['content-types'] ?? 'monsters,spells,backgrounds,items,classes,species,feats').split(',').map(s => s.trim()),
+    contentTypes: (values['content-types'] ?? 'monsters,spells,backgrounds,items,classes,species,feats,conditions,actions,deities,rules,languages,senses').split(',').map(s => s.trim()),
     includeAssets: values['include-assets'] ?? true
   };
 

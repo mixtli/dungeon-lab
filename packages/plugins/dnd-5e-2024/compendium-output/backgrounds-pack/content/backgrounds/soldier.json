@@ -1,0 +1,166 @@
+{
+  "entry": {
+    "name": "Soldier",
+    "type": "vttdocument",
+    "category": "Backgrounds",
+    "tags": [
+      "xphb",
+      "Background",
+      "Athletics",
+      "Intimidation"
+    ],
+    "sortOrder": 3
+  },
+  "content": {
+    "documentType": "background",
+    "name": "Soldier",
+    "description": "You began training for war as soon as you reached adulthood and carry precious few memories of life before you took up arms. Battle is in your blood. Sometimes you catch yourself reflexively performing the basic fighting exercises you learned first. Eventually, you put that training to use on the battlefield, protecting the realm by waging war.",
+    "source": "XPHB",
+    "page": 185,
+    "abilityScoreImprovements": [
+      {
+        "type": "weighted",
+        "choices": [
+          {
+            "from": [
+              "str",
+              "dex",
+              "con"
+            ],
+            "weights": [
+              2,
+              1
+            ],
+            "total": 3
+          }
+        ]
+      },
+      {
+        "type": "weighted",
+        "choices": [
+          {
+            "from": [
+              "str",
+              "dex",
+              "con"
+            ],
+            "weights": [
+              1,
+              1,
+              1
+            ],
+            "total": 3
+          }
+        ]
+      }
+    ],
+    "feats": [
+      {
+        "_ref": {
+          "slug": "savage-attackerxphb",
+          "type": "vtt-document",
+          "pluginType": "feat",
+          "source": "XPHB"
+        },
+        "displayName": "Savage Attacker|xphb"
+      }
+    ],
+    "skillProficiencies": [
+      {
+        "_ref": {
+          "slug": "athletics",
+          "type": "vtt-document",
+          "pluginType": "skill",
+          "source": "XPHB"
+        },
+        "displayName": "Athletics"
+      },
+      {
+        "_ref": {
+          "slug": "intimidation",
+          "type": "vtt-document",
+          "pluginType": "skill",
+          "source": "XPHB"
+        },
+        "displayName": "Intimidation"
+      }
+    ],
+    "startingEquipment": {
+      "type": "choice",
+      "options": [
+        {
+          "label": "A",
+          "items": [
+            {
+              "_ref": {
+                "slug": "spearxphb",
+                "type": "item",
+                "pluginType": "weapon",
+                "source": "XPHB"
+              }
+            },
+            {
+              "_ref": {
+                "slug": "shortbowxphb",
+                "type": "item",
+                "pluginType": "weapon",
+                "source": "XPHB"
+              }
+            },
+            {
+              "_ref": {
+                "slug": "arrows-20xphb",
+                "type": "item",
+                "pluginType": "gear",
+                "source": "XPHB"
+              }
+            },
+            {
+              "_ref": {
+                "slug": "gaming-setxphb",
+                "type": "item",
+                "pluginType": "tool",
+                "source": "XPHB"
+              }
+            },
+            {
+              "_ref": {
+                "slug": "healers-kitxphb",
+                "type": "item",
+                "pluginType": "tool",
+                "source": "XPHB"
+              }
+            },
+            {
+              "_ref": {
+                "slug": "quiverxphb",
+                "type": "item",
+                "pluginType": "gear",
+                "source": "XPHB"
+              }
+            },
+            {
+              "_ref": {
+                "slug": "travelers-clothesxphb",
+                "type": "item",
+                "pluginType": "gear",
+                "source": "XPHB"
+              }
+            },
+            {
+              "value": 1400
+            }
+          ]
+        },
+        {
+          "label": "B",
+          "items": [
+            {
+              "value": 5000
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

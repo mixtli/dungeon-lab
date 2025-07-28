@@ -1,0 +1,6176 @@
+
+> @dungeon-lab/plugin-dnd-5e-2024@2.0.0 generate:compendium:srd
+> tsx src/scripts/generate-compendium-pack.mts --srd-only --output-dir ./packs/dnd-5e-2024-srd
+
+🚀 Starting compendium pack generation...
+📁 Output directory: ./packs/dnd-5e-2024-srd
+🎯 Content types: monsters, spells, backgrounds, items, classes, species, feats, conditions, actions, deities, rules, languages, senses
+📋 SRD only: Yes
+
+📦 Processing monsters...
+[MonsterWrapperConverter] Starting monster wrapper conversion...
+[MonsterWrapperConverter] Processing 1 monsters from bestiary/bestiary-xphb.json
+[MonsterWrapperConverter] Processing 331 monsters from bestiary/bestiary-xmm.json
+[MonsterWrapperConverter] Monster wrapper conversion complete. Stats: { total: 332, converted: 332, skipped: 0, errors: 0 }
+✅ monsters: 332 items converted
+   Stats: 332/332 converted, 0 errors
+
+📦 Processing spells...
+[SpellWrapperConverter] Starting spell wrapper conversion...
+[SpellWrapperConverter] Processing 322 spells
+[SpellWrapperConverter] ✅ Spell Acid Splash validated successfully
+[SpellWrapperConverter] ✅ Spell Aid validated successfully
+[SpellWrapperConverter] ✅ Spell Alarm validated successfully
+[SpellWrapperConverter] ✅ Spell Alter Self validated successfully
+[SpellWrapperConverter] ✅ Spell Animal Friendship validated successfully
+[SpellWrapperConverter] ✅ Spell Animal Messenger validated successfully
+[SpellWrapperConverter] ✅ Spell Animal Shapes validated successfully
+[SpellWrapperConverter] ✅ Spell Animate Dead validated successfully
+[SpellWrapperConverter] ✅ Spell Animate Objects validated successfully
+[SpellWrapperConverter] ✅ Spell Antilife Shell validated successfully
+[SpellWrapperConverter] ✅ Spell Antimagic Field validated successfully
+[SpellWrapperConverter] ✅ Spell Antipathy/Sympathy validated successfully
+[SpellWrapperConverter] ✅ Spell Arcane Eye validated successfully
+[SpellWrapperConverter] ✅ Spell Arcane Lock validated successfully
+[SpellWrapperConverter] ✅ Spell Astral Projection validated successfully
+[SpellWrapperConverter] ✅ Spell Augury validated successfully
+[SpellWrapperConverter] ✅ Spell Aura of Life validated successfully
+[SpellWrapperConverter] ✅ Spell Awaken validated successfully
+[SpellWrapperConverter] ✅ Spell Bane validated successfully
+[SpellWrapperConverter] ✅ Spell Banishment validated successfully
+[SpellWrapperConverter] ✅ Spell Barkskin validated successfully
+[SpellWrapperConverter] ✅ Spell Beacon of Hope validated successfully
+[SpellWrapperConverter] ✅ Spell Befuddlement validated successfully
+[SpellWrapperConverter] ✅ Spell Bestow Curse validated successfully
+[SpellWrapperConverter] ✅ Spell Blade Barrier validated successfully
+[SpellWrapperConverter] ✅ Spell Bless validated successfully
+[SpellWrapperConverter] ✅ Spell Blight validated successfully
+[SpellWrapperConverter] ✅ Spell Blindness/Deafness validated successfully
+[SpellWrapperConverter] ✅ Spell Blink validated successfully
+[SpellWrapperConverter] ✅ Spell Blur validated successfully
+[SpellWrapperConverter] ✅ Spell Burning Hands validated successfully
+[SpellWrapperConverter] ✅ Spell Call Lightning validated successfully
+[SpellWrapperConverter] ✅ Spell Calm Emotions validated successfully
+[SpellWrapperConverter] ✅ Spell Chain Lightning validated successfully
+[SpellWrapperConverter] ✅ Spell Charm Monster validated successfully
+[SpellWrapperConverter] ✅ Spell Charm Person validated successfully
+[SpellWrapperConverter] ✅ Spell Chill Touch validated successfully
+[SpellWrapperConverter] ✅ Spell Chromatic Orb validated successfully
+[SpellWrapperConverter] ✅ Spell Circle of Death validated successfully
+[SpellWrapperConverter] ✅ Spell Clairvoyance validated successfully
+[SpellWrapperConverter] ✅ Spell Clone validated successfully
+[SpellWrapperConverter] ✅ Spell Cloudkill validated successfully
+[SpellWrapperConverter] ✅ Spell Color Spray validated successfully
+[SpellWrapperConverter] ✅ Spell Command validated successfully
+[SpellWrapperConverter] ✅ Spell Commune validated successfully
+[SpellWrapperConverter] ✅ Spell Commune with Nature validated successfully
+[SpellWrapperConverter] ✅ Spell Comprehend Languages validated successfully
+[SpellWrapperConverter] ✅ Spell Compulsion validated successfully
+[SpellWrapperConverter] ✅ Spell Cone of Cold validated successfully
+[SpellWrapperConverter] ✅ Spell Confusion validated successfully
+[SpellWrapperConverter] ✅ Spell Conjure Animals validated successfully
+[SpellWrapperConverter] ✅ Spell Conjure Celestial validated successfully
+[SpellWrapperConverter] ✅ Spell Conjure Elemental validated successfully
+[SpellWrapperConverter] ✅ Spell Conjure Fey validated successfully
+[SpellWrapperConverter] ✅ Spell Conjure Minor Elementals validated successfully
+[SpellWrapperConverter] ✅ Spell Conjure Woodland Beings validated successfully
+[SpellWrapperConverter] ✅ Spell Contact Other Plane validated successfully
+[SpellWrapperConverter] ✅ Spell Contagion validated successfully
+[SpellWrapperConverter] ✅ Spell Contingency validated successfully
+[SpellWrapperConverter] ✅ Spell Continual Flame validated successfully
+[SpellWrapperConverter] ✅ Spell Control Water validated successfully
+[SpellWrapperConverter] ✅ Spell Control Weather validated successfully
+[SpellWrapperConverter] ✅ Spell Counterspell validated successfully
+[SpellWrapperConverter] ✅ Spell Create Food and Water validated successfully
+[SpellWrapperConverter] ✅ Spell Create or Destroy Water validated successfully
+[SpellWrapperConverter] ✅ Spell Create Undead validated successfully
+[SpellWrapperConverter] ✅ Spell Creation validated successfully
+[SpellWrapperConverter] ✅ Spell Cure Wounds validated successfully
+[SpellWrapperConverter] ✅ Spell Dancing Lights validated successfully
+[SpellWrapperConverter] ✅ Spell Darkness validated successfully
+[SpellWrapperConverter] ✅ Spell Darkvision validated successfully
+[SpellWrapperConverter] ✅ Spell Daylight validated successfully
+[SpellWrapperConverter] ✅ Spell Death Ward validated successfully
+[SpellWrapperConverter] ✅ Spell Delayed Blast Fireball validated successfully
+[SpellWrapperConverter] ✅ Spell Demiplane validated successfully
+[SpellWrapperConverter] ✅ Spell Detect Evil and Good validated successfully
+[SpellWrapperConverter] ✅ Spell Detect Magic validated successfully
+[SpellWrapperConverter] ✅ Spell Detect Poison and Disease validated successfully
+[SpellWrapperConverter] ✅ Spell Detect Thoughts validated successfully
+[SpellWrapperConverter] ✅ Spell Dimension Door validated successfully
+[SpellWrapperConverter] ✅ Spell Disguise Self validated successfully
+[SpellWrapperConverter] ✅ Spell Disintegrate validated successfully
+[SpellWrapperConverter] ✅ Spell Dispel Evil and Good validated successfully
+[SpellWrapperConverter] ✅ Spell Dispel Magic validated successfully
+[SpellWrapperConverter] ✅ Spell Dissonant Whispers validated successfully
+[SpellWrapperConverter] ✅ Spell Divination validated successfully
+[SpellWrapperConverter] ✅ Spell Divine Favor validated successfully
+[SpellWrapperConverter] ✅ Spell Divine Smite validated successfully
+[SpellWrapperConverter] ✅ Spell Divine Word validated successfully
+[SpellWrapperConverter] ✅ Spell Dominate Beast validated successfully
+[SpellWrapperConverter] ✅ Spell Dominate Monster validated successfully
+[SpellWrapperConverter] ✅ Spell Dominate Person validated successfully
+[SpellWrapperConverter] ✅ Spell Dragon's Breath validated successfully
+[SpellWrapperConverter] ✅ Spell Dream validated successfully
+[SpellWrapperConverter] ✅ Spell Druidcraft validated successfully
+[SpellWrapperConverter] ✅ Spell Earthquake validated successfully
+[SpellWrapperConverter] ✅ Spell Eldritch Blast validated successfully
+[SpellWrapperConverter] ✅ Spell Elementalism validated successfully
+[SpellWrapperConverter] ✅ Spell Enhance Ability validated successfully
+[SpellWrapperConverter] ✅ Spell Enlarge/Reduce validated successfully
+[SpellWrapperConverter] ✅ Spell Ensnaring Strike validated successfully
+[SpellWrapperConverter] ✅ Spell Entangle validated successfully
+[SpellWrapperConverter] ✅ Spell Enthrall validated successfully
+[SpellWrapperConverter] ✅ Spell Etherealness validated successfully
+[SpellWrapperConverter] ✅ Spell Expeditious Retreat validated successfully
+[SpellWrapperConverter] ✅ Spell Eyebite validated successfully
+[SpellWrapperConverter] ✅ Spell Fabricate validated successfully
+[SpellWrapperConverter] ✅ Spell Faerie Fire validated successfully
+[SpellWrapperConverter] ✅ Spell False Life validated successfully
+[SpellWrapperConverter] ✅ Spell Fear validated successfully
+[SpellWrapperConverter] ✅ Spell Feather Fall validated successfully
+[SpellWrapperConverter] ✅ Spell Find Familiar validated successfully
+[SpellWrapperConverter] ✅ Spell Find Steed validated successfully
+[SpellWrapperConverter] ✅ Spell Find the Path validated successfully
+[SpellWrapperConverter] ✅ Spell Find Traps validated successfully
+[SpellWrapperConverter] ✅ Spell Finger of Death validated successfully
+[SpellWrapperConverter] ✅ Spell Fire Bolt validated successfully
+[SpellWrapperConverter] ✅ Spell Fire Shield validated successfully
+[SpellWrapperConverter] ✅ Spell Fire Storm validated successfully
+[SpellWrapperConverter] ✅ Spell Fireball validated successfully
+[SpellWrapperConverter] ✅ Spell Flame Blade validated successfully
+[SpellWrapperConverter] ✅ Spell Flame Strike validated successfully
+[SpellWrapperConverter] ✅ Spell Flaming Sphere validated successfully
+[SpellWrapperConverter] ✅ Spell Flesh to Stone validated successfully
+[SpellWrapperConverter] ✅ Spell Fly validated successfully
+[SpellWrapperConverter] ✅ Spell Fog Cloud validated successfully
+[SpellWrapperConverter] ✅ Spell Forbiddance validated successfully
+[SpellWrapperConverter] ✅ Spell Forcecage validated successfully
+[SpellWrapperConverter] ✅ Spell Foresight validated successfully
+[SpellWrapperConverter] ✅ Spell Freedom of Movement validated successfully
+[SpellWrapperConverter] ✅ Spell Gaseous Form validated successfully
+[SpellWrapperConverter] ✅ Spell Gate validated successfully
+[SpellWrapperConverter] ✅ Spell Geas validated successfully
+[SpellWrapperConverter] ✅ Spell Gentle Repose validated successfully
+[SpellWrapperConverter] ✅ Spell Giant Insect validated successfully
+[SpellWrapperConverter] ✅ Spell Glibness validated successfully
+[SpellWrapperConverter] ✅ Spell Globe of Invulnerability validated successfully
+[SpellWrapperConverter] ✅ Spell Glyph of Warding validated successfully
+[SpellWrapperConverter] ✅ Spell Goodberry validated successfully
+[SpellWrapperConverter] ✅ Spell Grease validated successfully
+[SpellWrapperConverter] ✅ Spell Greater Invisibility validated successfully
+[SpellWrapperConverter] ✅ Spell Greater Restoration validated successfully
+[SpellWrapperConverter] ✅ Spell Guardian of Faith validated successfully
+[SpellWrapperConverter] ✅ Spell Guards and Wards validated successfully
+[SpellWrapperConverter] ✅ Spell Guidance validated successfully
+[SpellWrapperConverter] ✅ Spell Guiding Bolt validated successfully
+[SpellWrapperConverter] ✅ Spell Gust of Wind validated successfully
+[SpellWrapperConverter] ✅ Spell Hallow validated successfully
+[SpellWrapperConverter] ✅ Spell Hallucinatory Terrain validated successfully
+[SpellWrapperConverter] ✅ Spell Harm validated successfully
+[SpellWrapperConverter] ✅ Spell Haste validated successfully
+[SpellWrapperConverter] ✅ Spell Heal validated successfully
+[SpellWrapperConverter] ✅ Spell Healing Word validated successfully
+[SpellWrapperConverter] ✅ Spell Heat Metal validated successfully
+[SpellWrapperConverter] ✅ Spell Hellish Rebuke validated successfully
+[SpellWrapperConverter] ✅ Spell Heroes' Feast validated successfully
+[SpellWrapperConverter] ✅ Spell Heroism validated successfully
+[SpellWrapperConverter] ✅ Spell Hex validated successfully
+[SpellWrapperConverter] ✅ Spell Hold Monster validated successfully
+[SpellWrapperConverter] ✅ Spell Hold Person validated successfully
+[SpellWrapperConverter] ✅ Spell Holy Aura validated successfully
+[SpellWrapperConverter] ✅ Spell Hunter's Mark validated successfully
+[SpellWrapperConverter] ✅ Spell Hypnotic Pattern validated successfully
+[SpellWrapperConverter] ✅ Spell Ice Knife validated successfully
+[SpellWrapperConverter] ✅ Spell Ice Storm validated successfully
+[SpellWrapperConverter] ✅ Spell Identify validated successfully
+[SpellWrapperConverter] ✅ Spell Illusory Script validated successfully
+[SpellWrapperConverter] ✅ Spell Imprisonment validated successfully
+[SpellWrapperConverter] ✅ Spell Incendiary Cloud validated successfully
+[SpellWrapperConverter] ✅ Spell Inflict Wounds validated successfully
+[SpellWrapperConverter] ✅ Spell Insect Plague validated successfully
+[SpellWrapperConverter] ✅ Spell Invisibility validated successfully
+[SpellWrapperConverter] ✅ Spell Jump validated successfully
+[SpellWrapperConverter] ✅ Spell Knock validated successfully
+[SpellWrapperConverter] ✅ Spell Legend Lore validated successfully
+[SpellWrapperConverter] ✅ Spell Lesser Restoration validated successfully
+[SpellWrapperConverter] ✅ Spell Levitate validated successfully
+[SpellWrapperConverter] ✅ Spell Light validated successfully
+[SpellWrapperConverter] ✅ Spell Lightning Bolt validated successfully
+[SpellWrapperConverter] ✅ Spell Locate Animals or Plants validated successfully
+[SpellWrapperConverter] ✅ Spell Locate Creature validated successfully
+[SpellWrapperConverter] ✅ Spell Locate Object validated successfully
+[SpellWrapperConverter] ✅ Spell Longstrider validated successfully
+[SpellWrapperConverter] ✅ Spell Mage Armor validated successfully
+[SpellWrapperConverter] ✅ Spell Mage Hand validated successfully
+[SpellWrapperConverter] ✅ Spell Magic Circle validated successfully
+[SpellWrapperConverter] ✅ Spell Magic Jar validated successfully
+[SpellWrapperConverter] ✅ Spell Magic Missile validated successfully
+[SpellWrapperConverter] ✅ Spell Magic Mouth validated successfully
+[SpellWrapperConverter] ✅ Spell Magic Weapon validated successfully
+[SpellWrapperConverter] ✅ Spell Major Image validated successfully
+[SpellWrapperConverter] ✅ Spell Mass Cure Wounds validated successfully
+[SpellWrapperConverter] ✅ Spell Mass Heal validated successfully
+[SpellWrapperConverter] ✅ Spell Mass Healing Word validated successfully
+[SpellWrapperConverter] ✅ Spell Mass Suggestion validated successfully
+[SpellWrapperConverter] ✅ Spell Maze validated successfully
+[SpellWrapperConverter] ✅ Spell Meld into Stone validated successfully
+[SpellWrapperConverter] ✅ Spell Mending validated successfully
+[SpellWrapperConverter] ✅ Spell Message validated successfully
+[SpellWrapperConverter] ✅ Spell Meteor Swarm validated successfully
+[SpellWrapperConverter] ✅ Spell Mind Blank validated successfully
+[SpellWrapperConverter] ✅ Spell Mind Spike validated successfully
+[SpellWrapperConverter] ✅ Spell Minor Illusion validated successfully
+[SpellWrapperConverter] ✅ Spell Mirage Arcane validated successfully
+[SpellWrapperConverter] ✅ Spell Mirror Image validated successfully
+[SpellWrapperConverter] ✅ Spell Mislead validated successfully
+[SpellWrapperConverter] ✅ Spell Misty Step validated successfully
+[SpellWrapperConverter] ✅ Spell Modify Memory validated successfully
+[SpellWrapperConverter] ✅ Spell Moonbeam validated successfully
+[SpellWrapperConverter] ✅ Spell Move Earth validated successfully
+[SpellWrapperConverter] ✅ Spell Nondetection validated successfully
+[SpellWrapperConverter] ✅ Spell Pass without Trace validated successfully
+[SpellWrapperConverter] ✅ Spell Passwall validated successfully
+[SpellWrapperConverter] ✅ Spell Phantasmal Force validated successfully
+[SpellWrapperConverter] ✅ Spell Phantasmal Killer validated successfully
+[SpellWrapperConverter] ✅ Spell Phantom Steed validated successfully
+[SpellWrapperConverter] ✅ Spell Planar Ally validated successfully
+[SpellWrapperConverter] ✅ Spell Planar Binding validated successfully
+[SpellWrapperConverter] ✅ Spell Plane Shift validated successfully
+[SpellWrapperConverter] ✅ Spell Plant Growth validated successfully
+[SpellWrapperConverter] ✅ Spell Poison Spray validated successfully
+[SpellWrapperConverter] ✅ Spell Polymorph validated successfully
+[SpellWrapperConverter] ✅ Spell Power Word Heal validated successfully
+[SpellWrapperConverter] ✅ Spell Power Word Kill validated successfully
+[SpellWrapperConverter] ✅ Spell Power Word Stun validated successfully
+[SpellWrapperConverter] ✅ Spell Prayer of Healing validated successfully
+[SpellWrapperConverter] ✅ Spell Prestidigitation validated successfully
+[SpellWrapperConverter] ✅ Spell Prismatic Spray validated successfully
+[SpellWrapperConverter] ✅ Spell Prismatic Wall validated successfully
+[SpellWrapperConverter] ✅ Spell Produce Flame validated successfully
+[SpellWrapperConverter] ✅ Spell Programmed Illusion validated successfully
+[SpellWrapperConverter] ✅ Spell Project Image validated successfully
+[SpellWrapperConverter] ✅ Spell Protection from Energy validated successfully
+[SpellWrapperConverter] ✅ Spell Protection from Evil and Good validated successfully
+[SpellWrapperConverter] ✅ Spell Protection from Poison validated successfully
+[SpellWrapperConverter] ✅ Spell Purify Food and Drink validated successfully
+[SpellWrapperConverter] ✅ Spell Raise Dead validated successfully
+[SpellWrapperConverter] ✅ Spell Ray of Enfeeblement validated successfully
+[SpellWrapperConverter] ✅ Spell Ray of Frost validated successfully
+[SpellWrapperConverter] ✅ Spell Ray of Sickness validated successfully
+[SpellWrapperConverter] ✅ Spell Regenerate validated successfully
+[SpellWrapperConverter] ✅ Spell Reincarnate validated successfully
+[SpellWrapperConverter] ✅ Spell Remove Curse validated successfully
+[SpellWrapperConverter] ✅ Spell Resistance validated successfully
+[SpellWrapperConverter] ✅ Spell Resurrection validated successfully
+[SpellWrapperConverter] ✅ Spell Reverse Gravity validated successfully
+[SpellWrapperConverter] ✅ Spell Revivify validated successfully
+[SpellWrapperConverter] ✅ Spell Rope Trick validated successfully
+[SpellWrapperConverter] ✅ Spell Sacred Flame validated successfully
+[SpellWrapperConverter] ✅ Spell Sanctuary validated successfully
+[SpellWrapperConverter] ✅ Spell Scorching Ray validated successfully
+[SpellWrapperConverter] ✅ Spell Scrying validated successfully
+[SpellWrapperConverter] ✅ Spell Searing Smite validated successfully
+[SpellWrapperConverter] ✅ Spell See Invisibility validated successfully
+[SpellWrapperConverter] ✅ Spell Seeming validated successfully
+[SpellWrapperConverter] ✅ Spell Sending validated successfully
+[SpellWrapperConverter] ✅ Spell Sequester validated successfully
+[SpellWrapperConverter] ✅ Spell Shapechange validated successfully
+[SpellWrapperConverter] ✅ Spell Shatter validated successfully
+[SpellWrapperConverter] ✅ Spell Shield validated successfully
+[SpellWrapperConverter] ✅ Spell Shield of Faith validated successfully
+[SpellWrapperConverter] ✅ Spell Shillelagh validated successfully
+[SpellWrapperConverter] ✅ Spell Shining Smite validated successfully
+[SpellWrapperConverter] ✅ Spell Shocking Grasp validated successfully
+[SpellWrapperConverter] ✅ Spell Silence validated successfully
+[SpellWrapperConverter] ✅ Spell Silent Image validated successfully
+[SpellWrapperConverter] ✅ Spell Simulacrum validated successfully
+[SpellWrapperConverter] ✅ Spell Sleep validated successfully
+[SpellWrapperConverter] ✅ Spell Sleet Storm validated successfully
+[SpellWrapperConverter] ✅ Spell Slow validated successfully
+[SpellWrapperConverter] ✅ Spell Sorcerous Burst validated successfully
+[SpellWrapperConverter] ✅ Spell Spare the Dying validated successfully
+[SpellWrapperConverter] ✅ Spell Speak with Animals validated successfully
+[SpellWrapperConverter] ✅ Spell Speak with Dead validated successfully
+[SpellWrapperConverter] ✅ Spell Speak with Plants validated successfully
+[SpellWrapperConverter] ✅ Spell Spider Climb validated successfully
+[SpellWrapperConverter] ✅ Spell Spike Growth validated successfully
+[SpellWrapperConverter] ✅ Spell Spirit Guardians validated successfully
+[SpellWrapperConverter] ✅ Spell Spiritual Weapon validated successfully
+[SpellWrapperConverter] ✅ Spell Starry Wisp validated successfully
+[SpellWrapperConverter] ✅ Spell Stinking Cloud validated successfully
+[SpellWrapperConverter] ✅ Spell Stone Shape validated successfully
+[SpellWrapperConverter] ✅ Spell Stoneskin validated successfully
+[SpellWrapperConverter] ✅ Spell Storm of Vengeance validated successfully
+[SpellWrapperConverter] ✅ Spell Suggestion validated successfully
+[SpellWrapperConverter] ✅ Spell Summon Dragon validated successfully
+[SpellWrapperConverter] ✅ Spell Sunbeam validated successfully
+[SpellWrapperConverter] ✅ Spell Sunburst validated successfully
+[SpellWrapperConverter] ✅ Spell Symbol validated successfully
+[SpellWrapperConverter] ✅ Spell Telekinesis validated successfully
+[SpellWrapperConverter] ✅ Spell Teleport validated successfully
+[SpellWrapperConverter] ✅ Spell Teleportation Circle validated successfully
+[SpellWrapperConverter] ✅ Spell Thaumaturgy validated successfully
+[SpellWrapperConverter] ✅ Spell Thunderwave validated successfully
+[SpellWrapperConverter] ✅ Spell Time Stop validated successfully
+[SpellWrapperConverter] ✅ Spell Tongues validated successfully
+[SpellWrapperConverter] ✅ Spell Transport via Plants validated successfully
+[SpellWrapperConverter] ✅ Spell Tree Stride validated successfully
+[SpellWrapperConverter] ✅ Spell True Polymorph validated successfully
+[SpellWrapperConverter] ✅ Spell True Resurrection validated successfully
+[SpellWrapperConverter] ✅ Spell True Seeing validated successfully
+[SpellWrapperConverter] ✅ Spell True Strike validated successfully
+[SpellWrapperConverter] ✅ Spell Tsunami validated successfully
+[SpellWrapperConverter] ✅ Spell Unseen Servant validated successfully
+[SpellWrapperConverter] ✅ Spell Vampiric Touch validated successfully
+[SpellWrapperConverter] ✅ Spell Vicious Mockery validated successfully
+[SpellWrapperConverter] ✅ Spell Vitriolic Sphere validated successfully
+[SpellWrapperConverter] ✅ Spell Wall of Fire validated successfully
+[SpellWrapperConverter] ✅ Spell Wall of Force validated successfully
+[SpellWrapperConverter] ✅ Spell Wall of Ice validated successfully
+[SpellWrapperConverter] ✅ Spell Wall of Stone validated successfully
+[SpellWrapperConverter] ✅ Spell Wall of Thorns validated successfully
+[SpellWrapperConverter] ✅ Spell Warding Bond validated successfully
+[SpellWrapperConverter] ✅ Spell Water Breathing validated successfully
+[SpellWrapperConverter] ✅ Spell Water Walk validated successfully
+[SpellWrapperConverter] ✅ Spell Web validated successfully
+[SpellWrapperConverter] ✅ Spell Weird validated successfully
+[SpellWrapperConverter] ✅ Spell Wind Walk validated successfully
+[SpellWrapperConverter] ✅ Spell Wind Wall validated successfully
+[SpellWrapperConverter] ✅ Spell Wish validated successfully
+[SpellWrapperConverter] ✅ Spell Word of Recall validated successfully
+[SpellWrapperConverter] ✅ Spell Zone of Truth validated successfully
+[SpellWrapperConverter] Spell wrapper conversion complete. Stats: { total: 322, converted: 322, skipped: 0, errors: 0 }
+✅ spells: 322 items converted
+   Stats: 322/322 converted, 0 errors
+
+📦 Processing backgrounds...
+[BackgroundWrapperConverter] Starting background wrapper conversion...
+[BackgroundWrapperConverter] Processing 4 backgrounds
+[BackgroundWrapperConverter] ✅ Background Acolyte validated successfully
+[BackgroundWrapperConverter] ✅ Background Criminal validated successfully
+[BackgroundWrapperConverter] ✅ Background Sage validated successfully
+[BackgroundWrapperConverter] ✅ Background Soldier validated successfully
+[BackgroundWrapperConverter] Background wrapper conversion complete. Stats: { total: 4, converted: 4, skipped: 0, errors: 0 }
+✅ backgrounds: 4 items converted
+   Stats: 4/4 converted, 0 errors
+
+📦 Processing items...
+[ItemWrapperConverter] Starting item wrapper conversion...
+Invalid 5etools data structure in item data file items.json: {
+  _meta: { internalCopies: [ 'item' ] },
+  item: [
+    {
+      name: '+1 All-Purpose Tool',
+      source: 'TCE',
+      page: 119,
+      rarity: 'uncommon',
+      reqAttune: 'by an artificer',
+      reqAttuneTags: [Array],
+      wondrous: true,
+      bonusSpellAttack: '+1',
+      bonusSpellSaveDc: '+1',
+      focus: [Array],
+      entries: [Array]
+    },
+    {
+      name: '+1 Amulet of the Devout',
+      source: 'TCE',
+      page: 119,
+      rarity: 'uncommon',
+      reqAttune: 'by a cleric or paladin',
+      reqAttuneTags: [Array],
+      wondrous: true,
+      weight: 1,
+      bonusSpellAttack: '+1',
+      bonusSpellSaveDc: '+1',
+      entries: [Array]
+    },
+    {
+      name: '+1 Arcane Grimoire',
+      source: 'TCE',
+      page: 120,
+      rarity: 'uncommon',
+      reqAttune: 'by a wizard',
+      reqAttuneTags: [Array],
+      wondrous: true,
+      weight: 3,
+      bonusSpellAttack: '+1',
+      bonusSpellSaveDc: '+1',
+      focus: [Array],
+      entries: [Array]
+    },
+    {
+      name: '+1 Bloodwell Vial',
+      source: 'TCE',
+      page: 122,
+      rarity: 'uncommon',
+      reqAttune: 'by a sorcerer',
+      reqAttuneTags: [Array],
+      wondrous: true,
+      bonusSpellAttack: '+1',
+      bonusSpellSaveDc: '+1',
+      focus: [Array],
+      entries: [Array]
+    },
+    {
+      name: '+1 Dragonhide Belt',
+      source: 'FTD',
+      page: 23,
+      rarity: 'uncommon',
+      reqAttune: 'by a monk',
+      reqAttuneTags: [Array],
+      wondrous: true,
+      entries: [Array]
+    },
+    {
+      name: "+1 Fate Dealer's Deck",
+      source: 'BMT',
+      page: 61,
+      rarity: 'rare',
+      reqAttune: 'by a cleric or paladin',
+      reqAttuneTags: [Array],
+      wondrous: true,
+      bonusSpellAttack: '+1',
+      bonusSpellSaveDc: '+1',
+      entries: [Array],
+      hasFluffImages: true
+    },
+    {
+      name: '+1 Moon Sickle',
+      source: 'TCE',
+      page: 133,
+      baseItem: 'sickle|PHB',
+      type: 'M',
+      rarity: 'uncommon',
+      reqAttune: 'by a druid or ranger',
+      reqAttuneTags: [Array],
+      weight: 2,
+      weaponCategory: 'simple',
+      property: [Array],
+      dmg1: '1d4',
+      dmgType: 'S',
+      bonusWeapon: '+1',
+      bonusSpellAttack: '+1',
+      bonusSpellSaveDc: '+1',
+      focus: [Array],
+      entries: [Array]
+    },
+    {
+      name: "+1 Rhythm-Maker's Drum",
+      source: 'TCE',
+      page: 134,
+      type: 'INS',
+      rarity: 'uncommon',
+      reqAttune: 'by a bard',
+      reqAttuneTags: [Array],
+      wondrous: true,
+      weight: 3,
+      bonusSpellAttack: '+1',
+      bonusSpellSaveDc: '+1',
+      entries: [Array]
+    },
+    {
+      name: '+1 Rod of the Pact Keeper',
+      source: 'DMG',
+      page: 197,
+      reprintedAs: [Array],
+      type: 'RD|DMG',
+      tier: 'major',
+      rarity: 'uncommon',
+      reqAttune: 'by a warlock',
+      reqAttuneTags: [Array],
+      weight: 2,
+      bonusSpellAttack: '+1',
+      bonusSpellSaveDc: '+1',
+      entries: [Array],
+      lootTables: [Array]
+    },
+    {
+      name: '+1 Rod of the Pact Keeper',
+      source: 'XDMG',
+      page: 301,
+      type: 'RD|XDMG',
+      rarity: 'uncommon',
+      reqAttune: 'by a warlock',
+      reqAttuneTags: [Array],
+      weight: 2,
+      bonusSpellAttack: '+1',
+      bonusSpellSaveDc: '+1',
+      entries: [Array]
+    },
+    {
+      name: '+1 Wand of the War Mage',
+      source: 'DMG',
+      page: 212,
+      srd: true,
+      reprintedAs: [Array],
+      type: 'WD|DMG',
+      tier: 'major',
+      rarity: 'uncommon',
+      reqAttune: 'by a spellcaster',
+      reqAttuneTags: [Array],
+      weight: 1,
+      bonusSpellAttack: '+1',
+      entries: [Array],
+      lootTables: [Array]
+    },
+    {
+      name: '+1 Wand of the War Mage',
+      source: 'XDMG',
+      page: 322,
+      srd52: true,
+      basicRules2024: true,
+      type: 'WD|XDMG',
+      rarity: 'uncommon',
+      reqAttune: 'by a spellcaster',
+      reqAttuneTags: [Array],
+      weight: 1,
+      bonusSpellAttack: '+1',
+      entries: [Array],
+      lootTables: [Array]
+    },
+    {
+      name: '+1 Wraps of Unarmed Power',
+      source: 'XDMG',
+      page: 325,
+      rarity: 'uncommon',
+      wondrous: true,
+      bonusWeapon: '+1',
+      entries: [Array],
+      lootTables: [Array]
+    },
+    {
+      name: '+1 Wraps of Unarmed Prowess',
+      source: 'BMT',
+      page: 69,
+      reprintedAs: [Array],
+      rarity: 'uncommon',
+      wondrous: true,
+      bonusWeapon: '+1',
+      entries: [Array]
+    },
+    {
+      name: '+2 All-Purpose Tool',
+      source: 'TCE',
+      page: 119,
+      rarity: 'rare',
+      reqAttune: 'by an artificer',
+      reqAttuneTags: [Array],
+      wondrous: true,
+      bonusSpellAttack: '+2',
+      bonusSpellSaveDc: '+2',
+      focus: [Array],
+      entries: [Array]
+    },
+    {
+      name: '+2 Amulet of the Devout',
+      source: 'TCE',
+      page: 119,
+      rarity: 'rare',
+      reqAttune: 'by a cleric or paladin',
+      reqAttuneTags: [Array],
+      wondrous: true,
+      weight: 1,
+      bonusSpellAttack: '+2',
+      bonusSpellSaveDc: '+2',
+      entries: [Array]
+    },
+    {
+      name: '+2 Arcane Grimoire',
+      source: 'TCE',
+      page: 120,
+      rarity: 'rare',
+      reqAttune: 'by a wizard',
+      reqAttuneTags: [Array],
+      wondrous: true,
+      weight: 3,
+      bonusSpellAttack: '+2',
+      bonusSpellSaveDc: '+2',
+      focus: [Array],
+      entries: [Array]
+    },
+    {
+      name: '+2 Bloodwell Vial',
+      source: 'TCE',
+      page: 122,
+      rarity: 'rare',
+      reqAttune: 'by a sorcerer',
+      reqAttuneTags: [Array],
+      wondrous: true,
+      bonusSpellAttack: '+2',
+      bonusSpellSaveDc: '+2',
+      focus: [Array],
+      entries: [Array]
+    },
+    {
+      name: '+2 Dragonhide Belt',
+      source: 'FTD',
+      page: 23,
+      rarity: 'rare',
+      reqAttune: 'by a monk',
+      reqAttuneTags: [Array],
+      wondrous: true,
+      entries: [Array]
+    },
+    {
+      name: "+2 Fate Dealer's Deck",
+      source: 'BMT',
+      page: 61,
+      rarity: 'very rare',
+      reqAttune: 'by a cleric or paladin',
+      reqAttuneTags: [Array],
+      wondrous: true,
+      bonusSpellAttack: '+2',
+      bonusSpellSaveDc: '+2',
+      entries: [Array],
+      hasFluffImages: true
+    },
+    {
+      name: '+2 Moon Sickle',
+      source: 'TCE',
+      page: 133,
+      baseItem: 'sickle|PHB',
+      type: 'M',
+      rarity: 'rare',
+      reqAttune: 'by a druid or ranger',
+      reqAttuneTags: [Array],
+      weight: 2,
+      weaponCategory: 'simple',
+      property: [Array],
+      dmg1: '1d4',
+      dmgType: 'S',
+      bonusWeapon: '+2',
+      bonusSpellAttack: '+2',
+      bonusSpellSaveDc: '+2',
+      focus: [Array],
+      entries: [Array]
+    },
+    {
+      name: "+2 Rhythm-Maker's Drum",
+      source: 'TCE',
+      page: 134,
+      type: 'INS',
+      rarity: 'rare',
+      reqAttune: 'by a bard',
+      reqAttuneTags: [Array],
+      wondrous: true,
+      weight: 3,
+      bonusSpellAttack: '+2',
+      bonusSpellSaveDc: '+2',
+      entries: [Array]
+    },
+    {
+      name: '+2 Ring of Protection',
+      source: 'TDCSR',
+      page: 263,
+      _copy: [Object],
+      bonusAc: '+2',
+      bonusSavingThrow: '+2',
+      optionalfeatures: [],
+      hasFluffImages: true
+    },
+    {
+      name: '+2 Rod of the Pact Keeper',
+      source: 'DMG',
+      page: 197,
+      reprintedAs: [Array],
+      type: 'RD|DMG',
+      tier: 'major',
+      rarity: 'rare',
+      reqAttune: 'by a warlock',
+      reqAttuneTags: [Array],
+      weight: 2,
+      bonusSpellAttack: '+2',
+      bonusSpellSaveDc: '+2',
+      entries: [Array],
+      lootTables: [Array]
+    },
+    {
+      name: '+2 Rod of the Pact Keeper',
+      source: 'XDMG',
+      page: 301,
+      type: 'RD|XDMG',
+      rarity: 'rare',
+      reqAttune: 'by a warlock',
+      reqAttuneTags: [Array],
+      weight: 2,
+      bonusSpellAttack: '+2',
+      bonusSpellSaveDc: '+2',
+      entries: [Array],
+      lootTables: [Array]
+    },
+    {
+      name: '+2 Studded Leather Armor of Acid Resistance',
+      source: 'TDCSR',
+      page: 271,
+      type: 'LA',
+      resist: [Array],
+      tier: 'major',
+      rarity: 'unknown (magic)',
+      reqAttune: true,
+      weight: 13,
+      ac: 12,
+      bonusAc: '+2',
+      entries: [Array]
+    },
+    {
+      name: '+2 Studded White Dragon Leather Armor of Cold Resistance',
+      source: 'TDCSR',
+      page: 267,
+      type: 'LA',
+      resist: [Array],
+      tier: 'major',
+      rarity: 'unknown (magic)',
+      reqAttune: true,
+      weight: 13,
+      ac: 12,
+      bonusAc: '+2',
+      entries: [Array]
+    },
+    {
+      name: '+2 Wand of the War Mage',
+      source: 'DMG',
+      page: 212,
+      srd: true,
+      reprintedAs: [Array],
+      type: 'WD|DMG',
+      tier: 'major',
+      rarity: 'rare',
+      reqAttune: 'by a spellcaster',
+      reqAttuneTags: [Array],
+      weight: 1,
+      bonusSpellAttack: '+2',
+      entries: [Array],
+      lootTables: [Array]
+    },
+    {
+      name: '+2 Wand of the War Mage',
+      source: 'XDMG',
+      page: 322,
+      srd52: true,
+      basicRules2024: true,
+      type: 'WD|XDMG',
+      rarity: 'rare',
+      reqAttune: 'by a spellcaster',
+      reqAttuneTags: [Array],
+      weight: 1,
+      bonusSpellAttack: '+2',
+      entries: [Array],
+      lootTables: [Array]
+    },
+    {
+      name: '+2 Wraps of Unarmed Power',
+      source: 'XDMG',
+      page: 325,
+      rarity: 'rare',
+      wondrous: true,
+      bonusWeapon: '+2',
+      entries: [Array],
+      lootTables: [Array]
+    },
+    {
+      name: '+2 Wraps of Unarmed Prowess',
+      source: 'BMT',
+      page: 69,
+      reprintedAs: [Array],
+      rarity: 'rare',
+      wondrous: true,
+      bonusWeapon: '+2',
+      entries: [Array]
+    },
+    {
+      name: '+3 All-Purpose Tool',
+      source: 'TCE',
+      page: 119,
+      rarity: 'very rare',
+      reqAttune: 'by an artificer',
+      reqAttuneTags: [Array],
+      wondrous: true,
+      bonusSpellAttack: '+3',
+      bonusSpellSaveDc: '+3',
+      focus: [Array],
+      entries: [Array]
+    },
+    {
+      name: '+3 Amulet of the Devout',
+      source: 'TCE',
+      page: 119,
+      rarity: 'very rare',
+      reqAttune: 'by a cleric or paladin',
+      reqAttuneTags: [Array],
+      wondrous: true,
+      weight: 1,
+      bonusSpellAttack: '+3',
+      bonusSpellSaveDc: '+3',
+      entries: [Array]
+    },
+    {
+      name: '+3 Arcane Grimoire',
+      source: 'TCE',
+      page: 120,
+      rarity: 'very rare',
+      reqAttune: 'by a wizard',
+      reqAttuneTags: [Array],
+      wondrous: true,
+      weight: 3,
+      bonusSpellAttack: '+3',
+      bonusSpellSaveDc: '+3',
+      focus: [Array],
+      entries: [Array]
+    },
+    {
+      name: '+3 Bloodwell Vial',
+      source: 'TCE',
+      page: 122,
+      rarity: 'very rare',
+      reqAttune: 'by a sorcerer',
+      reqAttuneTags: [Array],
+      wondrous: true,
+      bonusSpellAttack: '+3',
+      bonusSpellSaveDc: '+3',
+      focus: [Array],
+      entries: [Array]
+    },
+    {
+      name: '+3 Dragonhide Belt',
+      source: 'FTD',
+      page: 23,
+      rarity: 'very rare',
+      reqAttune: 'by a monk',
+      reqAttuneTags: [Array],
+      wondrous: true,
+      entries: [Array]
+    },
+    {
+      name: "+3 Fate Dealer's Deck",
+      source: 'BMT',
+      page: 61,
+      rarity: 'legendary',
+      reqAttune: 'by a cleric or paladin',
+      reqAttuneTags: [Array],
+      wondrous: true,
+      bonusSpellAttack: '+3',
+      bonusSpellSaveDc: '+3',
+      entries: [Array],
+      hasFluffImages: true
+    },
+    {
+      name: '+3 Moon Sickle',
+      source: 'TCE',
+      page: 133,
+      baseItem: 'sickle|PHB',
+      type: 'M',
+      rarity: 'very rare',
+      reqAttune: 'by a druid or ranger',
+      reqAttuneTags: [Array],
+      weight: 2,
+      weaponCategory: 'simple',
+      property: [Array],
+      dmg1: '1d4',
+      dmgType: 'S',
+      bonusWeapon: '+3',
+      bonusSpellAttack: '+3',
+      bonusSpellSaveDc: '+3',
+      focus: [Array],
+      entries: [Array]
+    },
+    {
+      name: "+3 Rhythm-Maker's Drum",
+      source: 'TCE',
+      page: 134,
+      type: 'INS',
+      rarity: 'very rare',
+      reqAttune: 'by a bard',
+      reqAttuneTags: [Array],
+      wondrous: true,
+      weight: 3,
+      bonusSpellAttack: '+3',
+      bonusSpellSaveDc: '+3',
+      entries: [Array]
+    },
+    {
+      name: '+3 Rod of the Pact Keeper',
+      source: 'DMG',
+      page: 197,
+      reprintedAs: [Array],
+      type: 'RD|DMG',
+      tier: 'major',
+      rarity: 'very rare',
+      reqAttune: 'by a warlock',
+      reqAttuneTags: [Array],
+      weight: 2,
+      bonusSpellAttack: '+3',
+      bonusSpellSaveDc: '+3',
+      entries: [Array],
+      lootTables: [Array]
+    },
+    {
+      name: '+3 Rod of the Pact Keeper',
+      source: 'XDMG',
+      page: 301,
+      type: 'RD|XDMG',
+      rarity: 'very rare',
+      reqAttune: 'by a warlock',
+      reqAttuneTags: [Array],
+      weight: 2,
+      bonusSpellAttack: '+3',
+      bonusSpellSaveDc: '+3',
+      entries: [Array],
+      lootTables: [Array]
+    },
+    {
+      name: '+3 Wand of the War Mage',
+      source: 'DMG',
+      page: 212,
+      srd: true,
+      reprintedAs: [Array],
+      type: 'WD|DMG',
+      tier: 'major',
+      rarity: 'very rare',
+      reqAttune: 'by a spellcaster',
+      reqAttuneTags: [Array],
+      weight: 1,
+      bonusSpellAttack: '+3',
+      entries: [Array],
+      lootTables: [Array]
+    },
+    {
+      name: '+3 Wand of the War Mage',
+      source: 'XDMG',
+      page: 322,
+      srd52: true,
+      basicRules2024: true,
+      type: 'WD|XDMG',
+      rarity: 'very rare',
+      reqAttune: 'by a spellcaster',
+      reqAttuneTags: [Array],
+      weight: 1,
+      bonusSpellAttack: '+3',
+      entries: [Array],
+      lootTables: [Array]
+    },
+    {
+      name: '+3 Wraps of Unarmed Power',
+      source: 'XDMG',
+      page: 325,
+      rarity: 'very rare',
+      wondrous: true,
+      bonusWeapon: '+3',
+      entries: [Array],
+      lootTables: [Array]
+    },
+    {
+      name: '+3 Wraps of Unarmed Prowess',
+      source: 'BMT',
+      page: 69,
+      reprintedAs: [Array],
+      rarity: 'very rare',
+      wondrous: true,
+      bonusWeapon: '+3',
+      entries: [Array]
+    },
+    {
+      name: 'Abacus',
+      source: 'PHB',
+      page: 150,
+      srd: true,
+      basicRules: true,
+      type: 'G',
+      rarity: 'none',
+      weight: 2,
+      value: 200
+    },
+    {
+      name: 'Abracadabrus',
+      source: 'IDRotF',
+      page: 314,
+      rarity: 'very rare',
+      wondrous: true,
+      weight: 25,
+      recharge: 'dawn',
+      rechargeAmount: '{@dice 1d20}',
+      charges: 20,
+      entries: [Array],
+      miscTags: [Array]
+    },
+    {
+      name: 'Accounting and Valuation of All Things',
+      source: 'CoA',
+      page: 272,
+      rarity: 'artifact',
+      reqAttune: true,
+      wondrous: true,
+      entries: [Array]
+    },
+    {
+      name: 'Acid',
+      source: 'XPHB',
+      page: 222,
+      srd52: true,
+      basicRules2024: true,
+      type: 'G|XPHB',
+      rarity: 'none',
+      weight: 1,
+      value: 2500,
+      entries: [Array],
+      miscTags: [Array]
+    },
+    {
+      name: 'Acid (vial)',
+      source: 'PHB',
+      page: 148,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      type: 'G',
+      rarity: 'none',
+      weight: 1,
+      value: 2500,
+      entries: [Array],
+      miscTags: [Array]
+    },
+    {
+      name: 'Acid Absorbing Tattoo',
+      source: 'TCE',
+      page: 119,
+      resist: [Array],
+      detail1: 'green',
+      rarity: 'very rare',
+      reqAttune: true,
+      wondrous: true,
+      tattoo: true,
+      hasRefs: true,
+      entries: [Array]
+    },
+    {
+      name: 'Adamantine Bar',
+      source: 'WDH',
+      page: 90,
+      type: 'TG',
+      rarity: 'none',
+      weight: 10,
+      value: 100000
+    },
+    {
+      name: 'Adjustable Stilts',
+      source: 'WDH',
+      page: 47,
+      type: 'OTH',
+      rarity: 'unknown',
+      weight: 8,
+      entries: [Array]
+    },
+    {
+      name: 'Adze of Annam',
+      source: 'BGG',
+      page: 110,
+      baseItem: 'greataxe|PHB',
+      type: 'M',
+      rarity: 'artifact',
+      reqAttune: true,
+      weight: 7,
+      weaponCategory: 'martial',
+      property: [Array],
+      dmg1: '1d12',
+      dmgType: 'S',
+      bonusWeapon: '+3',
+      entries: [Array],
+      attachedSpells: [Object],
+      hasFluffImages: true
+    },
+    {
+      name: 'Aerenal Trinket',
+      source: 'ERLW',
+      page: 134,
+      type: 'G',
+      rarity: 'none',
+      entries: [Array],
+      miscTags: [Array]
+    },
+    {
+      name: 'Agony (Awakened)',
+      source: 'TDCSR',
+      _copy: [Object],
+      hasFluffImages: true
+    },
+    {
+      name: 'Agony (Dormant)',
+      source: 'TDCSR',
+      page: 202,
+      baseItem: 'flail|PHB',
+      type: 'M',
+      rarity: 'legendary',
+      reqAttune: 'by a creature of non-good alignment',
+      reqAttuneTags: [Array],
+      weight: 2,
+      weaponCategory: 'martial',
+      property: [Array],
+      dmg1: '1d8',
+      dmgType: 'B',
+      bonusWeapon: '+2',
+      entries: [Array],
+      hasFluffImages: true
+    },
+    {
+      name: 'Agony (Exalted)',
+      source: 'TDCSR',
+      _copy: [Object],
+      bonusWeapon: '+3',
+      hasFluffImages: true
+    },
+    {
+      name: 'Airship',
+      source: 'DMG',
+      page: 119,
+      reprintedAs: [Array],
+      type: 'AIR|DMG',
+      rarity: 'none',
+      value: 2000000,
+      crew: 10,
+      vehAc: 13,
+      vehHp: 300,
+      vehSpeed: 8,
+      capPassenger: 20,
+      capCargo: 1
+    },
+    {
+      name: 'Airship',
+      source: 'XPHB',
+      page: 230,
+      basicRules2024: true,
+      type: 'AIR|XPHB',
+      rarity: 'none',
+      value: 4000000,
+      crew: 10,
+      vehAc: 13,
+      vehHp: 300,
+      vehSpeed: 8,
+      capPassenger: 20,
+      capCargo: 1
+    },
+    {
+      name: 'Akmon, Hammer of Purphoros',
+      source: 'MOT',
+      page: 198,
+      baseItem: 'warhammer|PHB',
+      type: 'M',
+      resist: [Array],
+      conditionImmune: [Array],
+      rarity: 'artifact',
+      reqAttune: true,
+      weight: 2,
+      weaponCategory: 'martial',
+      property: [Array],
+      dmg1: '1d8',
+      dmgType: 'B',
+      dmg2: '1d10',
+      grantsProficiency: true,
+      bonusWeapon: '+3',
+      entries: [Array],
+      attachedSpells: [Object],
+      hasFluffImages: true
+    },
+    {
+      name: 'Alchemical Compendium',
+      source: 'TCE',
+      page: 119,
+      rarity: 'rare',
+      reqAttune: 'by a wizard',
+      reqAttuneTags: [Array],
+      wondrous: true,
+      weight: 3,
+      recharge: 'dawn',
+      rechargeAmount: '{@dice 1d3}',
+      charges: 3,
+      focus: [Array],
+      entries: [Array],
+      attachedSpells: [Array]
+    },
+    {
+      name: "Alchemist's Doom",
+      source: 'SCC',
+      page: 179,
+      _copy: [Object],
+      type: 'G',
+      rarity: 'unknown',
+      value: null,
+      entries: [Array]
+    },
+    {
+      name: "Alchemist's Fire",
+      source: 'XPHB',
+      page: 222,
+      srd52: true,
+      basicRules2024: true,
+      type: 'G|XPHB',
+      rarity: 'none',
+      weight: 1,
+      value: 5000,
+      entries: [Array],
+      miscTags: [Array]
+    },
+    {
+      name: "Alchemist's Fire (flask)",
+      source: 'PHB',
+      page: 148,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      type: 'G',
+      rarity: 'none',
+      weight: 1,
+      value: 5000,
+      entries: [Array],
+      miscTags: [Array]
+    },
+    {
+      name: "Alchemist's Supplies",
+      source: 'PHB',
+      page: 154,
+      srd: true,
+      basicRules: true,
+      additionalSources: [Array],
+      reprintedAs: [Array],
+      type: 'AT',
+      rarity: 'none',
+      weight: 8,
+      value: 5000,
+      additionalEntries: [Array]
+    },
+    {
+      name: "Alchemist's Supplies",
+      source: 'XPHB',
+      page: 220,
+      srd52: true,
+      basicRules2024: true,
+      type: 'AT|XPHB',
+      rarity: 'none',
+      weight: 8,
+      value: 5000,
+      entries: [Array]
+    },
+    {
+      name: 'Alchemy Jug',
+      source: 'DMG',
+      page: 150,
+      reprintedAs: [Array],
+      tier: 'minor',
+      rarity: 'uncommon',
+      wondrous: true,
+      weight: 12,
+      entries: [Array],
+      optionalfeatures: [Array],
+      lootTables: [Array],
+      miscTags: [Array],
+      hasFluffImages: true
+    },
+    {
+      name: 'Alchemy Jug',
+      source: 'XDMG',
+      page: 227,
+      rarity: 'uncommon',
+      wondrous: true,
+      weight: 12,
+      entries: [Array],
+      optionalfeatures: [Array],
+      lootTables: [Array],
+      miscTags: [Array],
+      hasFluffImages: true
+    },
+    {
+      name: 'Alchemy Jug (Blue)',
+      source: 'CM',
+      page: 144,
+      rarity: 'uncommon',
+      wondrous: true,
+      weight: 12,
+      entries: [Array],
+      miscTags: [Array]
+    },
+    {
+      name: 'Alchemy Jug (Orange)',
+      source: 'CM',
+      page: 144,
+      rarity: 'uncommon',
+      wondrous: true,
+      weight: 12,
+      entries: [Array],
+      miscTags: [Array]
+    },
+    {
+      name: 'Ale (gallon)',
+      source: 'PHB',
+      page: 158,
+      srd: true,
+      basicRules: true,
+      type: 'FD',
+      rarity: 'none',
+      value: 20,
+      miscTags: [Array]
+    },
+    {
+      name: 'Ale (mug)',
+      source: 'PHB',
+      page: 158,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      type: 'FD',
+      rarity: 'none',
+      value: 4,
+      miscTags: [Array]
+    },
+    {
+      name: 'Ale (mug)',
+      source: 'XPHB',
+      page: 231,
+      srd52: true,
+      basicRules2024: true,
+      type: 'FD|XPHB',
+      rarity: 'none',
+      value: 4,
+      miscTags: [Array]
+    },
+    {
+      name: 'Alexandrite',
+      source: 'DMG',
+      page: 134,
+      reprintedAs: [Array],
+      type: '$G|DMG',
+      rarity: 'none',
+      value: 50000,
+      entries: [Array]
+    },
+    {
+      name: 'Alexandrite',
+      source: 'XDMG',
+      page: 214,
+      type: '$G|XDMG',
+      rarity: 'none',
+      value: 50000,
+      entries: [Array]
+    },
+    {
+      name: 'Amber',
+      source: 'DMG',
+      page: 134,
+      reprintedAs: [Array],
+      type: '$G|DMG',
+      rarity: 'none',
+      value: 10000,
+      entries: [Array]
+    },
+    {
+      name: 'Amber',
+      source: 'XDMG',
+      page: 214,
+      type: '$G|XDMG',
+      rarity: 'none',
+      value: 10000,
+      entries: [Array]
+    },
+    {
+      name: 'Amber Runestone',
+      source: 'NRH-TLT',
+      page: 6,
+      rarity: 'uncommon',
+      wondrous: true,
+      entries: [Array],
+      light: [Array]
+    },
+    {
+      name: 'Amethyst',
+      source: 'DMG',
+      page: 134,
+      reprintedAs: [Array],
+      type: '$G|DMG',
+      rarity: 'none',
+      value: 10000,
+      entries: [Array]
+    },
+    {
+      name: 'Amethyst',
+      source: 'XDMG',
+      page: 214,
+      type: '$G|XDMG',
+      rarity: 'none',
+      value: 10000,
+      entries: [Array]
+    },
+    {
+      name: 'Amethyst Lodestone',
+      source: 'FTD',
+      page: 22,
+      rarity: 'very rare',
+      reqAttune: true,
+      wondrous: true,
+      modifySpeed: [Object],
+      recharge: 'dawn',
+      rechargeAmount: '{@dice 1d6}',
+      charges: 6,
+      entries: [Array],
+      attachedSpells: [Object]
+    },
+    {
+      name: 'Amulet',
+      group: [Array],
+      source: 'PHB',
+      page: 151,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      type: 'SCF',
+      scfType: 'holy',
+      rarity: 'none',
+      weight: 1,
+      value: 500
+    },
+    {
+      name: 'Amulet',
+      group: [Array],
+      source: 'XPHB',
+      page: 226,
+      srd52: true,
+      basicRules2024: true,
+      type: 'SCF|XPHB',
+      scfType: 'holy',
+      rarity: 'none',
+      weight: 1,
+      value: 500,
+      entries: [Array]
+    },
+    {
+      name: 'Amulet of Appearance',
+      source: 'CoA',
+      page: 267,
+      rarity: 'rare',
+      reqAttune: true,
+      wondrous: true,
+      entries: [Array]
+    },
+    {
+      name: 'Amulet of Betrayal',
+      source: 'CoA',
+      page: 267,
+      rarity: 'very rare',
+      reqAttune: true,
+      wondrous: true,
+      entries: [Array]
+    },
+    {
+      name: 'Amulet of dinosaur feathers (Sun Empire)',
+      source: 'PSX',
+      page: 24,
+      type: '$A|DMG',
+      rarity: 'none',
+      value: 2500
+    },
+    {
+      name: 'Amulet of Duplicity',
+      source: 'CoA',
+      page: 267,
+      rarity: 'very rare',
+      reqAttune: true,
+      wondrous: true,
+      curse: true,
+      entries: [Array]
+    },
+    {
+      name: 'Amulet of Harmony',
+      source: 'NRH-AT',
+      page: 8,
+      rarity: 'legendary',
+      reqAttune: true,
+      wondrous: true,
+      entries: [Array]
+    },
+    {
+      name: 'Amulet of Health',
+      source: 'DMG',
+      page: 150,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      tier: 'major',
+      rarity: 'rare',
+      reqAttune: true,
+      wondrous: true,
+      weight: 1,
+      ability: [Object],
+      entries: [Array],
+      optionalfeatures: [Array],
+      lootTables: [Array],
+      hasFluffImages: true
+    },
+    {
+      name: 'Amulet of Health',
+      source: 'XDMG',
+      page: 228,
+      srd52: true,
+      basicRules2024: true,
+      rarity: 'rare',
+      reqAttune: true,
+      wondrous: true,
+      weight: 1,
+      ability: [Object],
+      entries: [Array],
+      optionalfeatures: [Array],
+      lootTables: [Array],
+      hasFluffImages: true
+    },
+    {
+      name: 'Amulet of Proof against Detection and Location',
+      source: 'DMG',
+      page: 150,
+      srd: true,
+      reprintedAs: [Array],
+      tier: 'major',
+      rarity: 'uncommon',
+      reqAttune: true,
+      wondrous: true,
+      weight: 1,
+      entries: [Array],
+      lootTables: [Array],
+      hasFluffImages: true
+    },
+    {
+      name: 'Amulet of Proof against Detection and Location',
+      source: 'XDMG',
+      page: 228,
+      srd52: true,
+      basicRules2024: true,
+      rarity: 'uncommon',
+      reqAttune: true,
+      wondrous: true,
+      weight: 1,
+      entries: [Array],
+      lootTables: [Array],
+      hasFluffImages: true
+    },
+    {
+      name: 'Amulet of Protection from Turning',
+      source: 'TftYP',
+      page: 228,
+      rarity: 'rare',
+      reqAttune: true,
+      wondrous: true,
+      weight: 1,
+      entries: [Array]
+    },
+    {
+      name: 'Amulet of the Black Skull',
+      source: 'ToA',
+      page: 206,
+      rarity: 'very rare',
+      reqAttune: true,
+      wondrous: true,
+      weight: 1,
+      recharge: 'dawn',
+      rechargeAmount: '{@dice 1d6}',
+      charges: 6,
+      entries: [Array]
+    },
+    {
+      name: 'Amulet of the Drunkard',
+      source: 'EGW',
+      page: 265,
+      rarity: 'uncommon',
+      wondrous: true,
+      entries: [Array],
+      hasFluffImages: true
+    },
+    {
+      name: 'Amulet of the Inferno',
+      source: 'CoA',
+      page: 273,
+      rarity: 'artifact',
+      reqAttune: true,
+      wondrous: true,
+      entries: [Array],
+      attachedSpells: [Array],
+      hasFluffImages: true
+    },
+    {
+      name: 'Amulet of the Planes',
+      source: 'DMG',
+      page: 150,
+      srd: true,
+      reprintedAs: [Array],
+      tier: 'major',
+      rarity: 'very rare',
+      reqAttune: true,
+      wondrous: true,
+      weight: 1,
+      entries: [Array],
+      attachedSpells: [Array],
+      lootTables: [Array],
+      hasFluffImages: true
+    },
+    {
+      name: 'Amulet of the Planes',
+      source: 'XDMG',
+      page: 150,
+      srd52: true,
+      rarity: 'very rare',
+      reqAttune: true,
+      wondrous: true,
+      weight: 1,
+      entries: [Array],
+      attachedSpells: [Array],
+      lootTables: [Array],
+      hasFluffImages: true
+    },
+    {
+      name: 'Animated Shield',
+      source: 'DMG',
+      page: 151,
+      srd: true,
+      reprintedAs: [Array],
+      type: 'S',
+      tier: 'major',
+      rarity: 'very rare',
+      reqAttune: true,
+      weight: 6,
+      ac: 2,
+      entries: [Array],
+      lootTables: [Array],
+      hasFluffImages: true
+    },
+    ... 2374 more items
+  ],
+  itemGroup: [
+    {
+      name: 'Absorbing Tattoo',
+      source: 'TCE',
+      page: 119,
+      rarity: 'very rare',
+      reqAttune: true,
+      wondrous: true,
+      tattoo: true,
+      entries: [Array],
+      items: [Array]
+    },
+    {
+      name: 'Agony',
+      source: 'TDCSR',
+      page: 202,
+      baseItem: 'flail|PHB',
+      type: 'M',
+      rarity: 'legendary',
+      reqAttune: 'by a creature of non-good alignment',
+      reqAttuneTags: [Array],
+      weight: 2,
+      weaponCategory: 'martial',
+      property: [Array],
+      dmg1: '1d8',
+      dmgType: 'B',
+      bonusWeapon: '+2',
+      entries: [Array],
+      items: [Array],
+      hasFluffImages: true
+    },
+    {
+      name: 'Arcane Focus',
+      source: 'PHB',
+      page: 151,
+      reprintedAs: [Array],
+      type: 'SCF',
+      scfType: 'arcane',
+      rarity: 'none',
+      focus: [Array],
+      items: [Array]
+    },
+    {
+      name: 'Arcane Focus',
+      source: 'XPHB',
+      page: 224,
+      type: 'SCF|XPHB',
+      scfType: 'arcane',
+      rarity: 'none',
+      focus: [Array],
+      items: [Array]
+    },
+    {
+      name: 'Armor of Resistance',
+      source: 'DMG',
+      page: 162,
+      reprintedAs: [Array],
+      type: 'GV|DMG',
+      tier: 'major',
+      rarity: 'rare',
+      reqAttune: true,
+      entries: [Array],
+      items: [Array],
+      hasFluffImages: true
+    },
+    {
+      name: 'Armor of Resistance',
+      source: 'XDMG',
+      page: 231,
+      srd52: true,
+      basicRules2024: true,
+      type: 'GV|XDMG',
+      rarity: 'rare',
+      reqAttune: true,
+      entries: [Array],
+      items: [Array],
+      itemsHidden: true,
+      lootTables: [Array],
+      hasFluffImages: true
+    },
+    {
+      name: 'Armor of the Valiant Soul',
+      source: 'TDCSR',
+      page: 202,
+      baseItem: 'scale mail|PHB',
+      type: 'MA',
+      immune: [Array],
+      resist: [Array],
+      conditionImmune: [Array],
+      rarity: 'legendary',
+      reqAttune: true,
+      weight: 45,
+      property: [Array],
+      ac: 14,
+      bonusAc: '+1',
+      stealth: true,
+      entries: [Array],
+      items: [Array],
+      attachedSpells: [Object],
+      hasFluffImages: true
+    },
+    {
+      name: 'Armor of Vulnerability',
+      source: 'DMG',
+      page: 152,
+      reprintedAs: [Array],
+      baseItem: 'plate armor|phb',
+      type: 'HA',
+      tier: 'major',
+      rarity: 'rare',
+      reqAttune: true,
+      curse: true,
+      weight: 65,
+      ac: 18,
+      strength: '15',
+      stealth: true,
+      items: [Array],
+      lootTables: [Array]
+    },
+    {
+      name: 'Armor of Vulnerability',
+      source: 'XDMG',
+      page: 231,
+      srd52: true,
+      basicRules2024: true,
+      type: 'GV|XDMG',
+      rarity: 'rare',
+      reqAttune: true,
+      curse: true,
+      items: [Array],
+      lootTables: [Array]
+    },
+    {
+      name: "Artisan's Tools",
+      source: 'PHB',
+      page: 154,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      type: 'AT',
+      rarity: 'none',
+      items: [Array]
+    },
+    {
+      name: "Artisan's Tools",
+      source: 'XPHB',
+      page: 220,
+      srd52: true,
+      type: 'AT|XPHB',
+      rarity: 'none',
+      items: [Array]
+    },
+    {
+      name: 'Bag of Tricks',
+      source: 'DMG',
+      page: 154,
+      reprintedAs: [Array],
+      tier: 'major',
+      rarity: 'uncommon',
+      wondrous: true,
+      weight: 0.5,
+      recharge: 'dawn',
+      items: [Array],
+      hasFluffImages: true
+    },
+    {
+      name: 'Bag of Tricks',
+      source: 'XDMG',
+      page: 234,
+      srd52: true,
+      basicRules2024: true,
+      rarity: 'uncommon',
+      wondrous: true,
+      recharge: 'dawn',
+      items: [Array],
+      lootTables: [Array],
+      hasFluffImages: true
+    },
+    {
+      name: 'Belt of Giant Strength',
+      source: 'DMG',
+      page: 155,
+      reprintedAs: [Array],
+      rarity: 'varies',
+      reqAttune: true,
+      wondrous: true,
+      items: [Array],
+      hasFluffImages: true
+    },
+    {
+      name: 'Belt of Giant Strength',
+      source: 'XDMG',
+      page: 236,
+      srd52: true,
+      basicRules2024: true,
+      rarity: 'varies',
+      reqAttune: true,
+      wondrous: true,
+      entries: [Array],
+      items: [Array],
+      itemsHidden: true,
+      hasFluffImages: true
+    },
+    {
+      name: 'Blade of Broken Mirrors',
+      source: 'EGW',
+      page: 275,
+      baseItem: 'dagger|phb',
+      type: 'M',
+      rarity: 'artifact',
+      reqAttune: 'by a humanoid',
+      reqAttuneTags: [Array],
+      sentient: true,
+      weight: 1,
+      weaponCategory: 'simple',
+      property: [Array],
+      range: '20/60',
+      dmg1: '1d4',
+      dmgType: 'P',
+      entries: [Array],
+      items: [Array]
+    },
+    {
+      name: "Cabal's Ruin",
+      source: 'TDCSR',
+      page: 203,
+      rarity: 'legendary',
+      reqAttune: true,
+      wondrous: true,
+      property: [Array],
+      recharge: 'restShort',
+      charges: 4,
+      entries: [Array],
+      items: [Array],
+      hasFluffImages: true
+    },
+    {
+      name: 'Carpet of Flying',
+      source: 'DMG',
+      page: 157,
+      reprintedAs: [Array],
+      tier: 'major',
+      rarity: 'very rare',
+      wondrous: true,
+      items: [Array],
+      lootTables: [Array]
+    },
+    {
+      name: 'Carpet of Flying',
+      source: 'XDMG',
+      page: 242,
+      srd52: true,
+      basicRules2024: true,
+      rarity: 'very rare',
+      wondrous: true,
+      entries: [Array],
+      items: [Array],
+      itemsHidden: true,
+      lootTables: [Array],
+      hasFluffImages: true
+    },
+    {
+      name: 'Chromatic Rose',
+      source: 'WBtW',
+      page: 208,
+      rarity: 'rare',
+      wondrous: true,
+      entries: [Array],
+      items: [Array]
+    },
+    {
+      name: 'Circlet of Barbed Vision',
+      source: 'TDCSR',
+      page: 203,
+      immune: [Array],
+      resist: [Array],
+      conditionImmune: [Array],
+      rarity: 'legendary',
+      reqAttune: 'by a creature of non-good alignment',
+      reqAttuneTags: [Array],
+      wondrous: true,
+      property: [Array],
+      entries: [Array],
+      items: [Array],
+      hasFluffImages: true
+    },
+    {
+      name: 'Condemner',
+      source: 'TDCSR',
+      page: 204,
+      baseItem: 'heavy crossbow|PHB',
+      type: 'R',
+      rarity: 'legendary',
+      reqAttune: true,
+      weight: 18,
+      weaponCategory: 'martial',
+      property: [Array],
+      range: '100/400',
+      dmg1: '1d10',
+      dmgType: 'P',
+      bonusWeapon: '+1',
+      entries: [Array],
+      items: [Array],
+      ammoType: 'crossbow bolt|phb',
+      attachedSpells: [Array],
+      hasFluffImages: true
+    },
+    {
+      name: 'Crystal Ball (Legendary Version)',
+      source: 'DMG',
+      page: 159,
+      tier: 'major',
+      rarity: 'legendary',
+      reqAttune: true,
+      wondrous: true,
+      weight: 3,
+      items: [Array],
+      attachedSpells: [Array],
+      lootTables: [Array]
+    },
+    {
+      name: "Danoth's Visor",
+      source: 'EGW',
+      page: 270,
+      rarity: 'legendary',
+      reqAttune: true,
+      wondrous: true,
+      property: [Array],
+      entries: [Array],
+      items: [Array],
+      hasFluffImages: true
+    },
+    {
+      name: "Deathwalker's Ward",
+      source: 'TDCSR',
+      page: 204,
+      baseItem: 'studded leather armor|PHB',
+      type: 'LA',
+      resist: [Array],
+      rarity: 'legendary',
+      reqAttune: true,
+      weight: 13,
+      property: [Array],
+      ac: 12,
+      bonusAc: '+1',
+      bonusSavingThrow: '+1',
+      entries: [Array],
+      items: [Array],
+      hasFluffImages: true
+    },
+    {
+      name: 'Devastation Orb',
+      source: 'PotA',
+      page: 222,
+      rarity: 'very rare',
+      wondrous: true,
+      entries: [Array],
+      items: [Array],
+      miscTags: [Array]
+    },
+    {
+      name: 'Dragon Scale Mail',
+      source: 'DMG',
+      page: 165,
+      srd: true,
+      reprintedAs: [Array],
+      type: 'MA',
+      tier: 'major',
+      rarity: 'very rare',
+      reqAttune: true,
+      weight: 45,
+      ac: 14,
+      bonusAc: '+1',
+      stealth: true,
+      items: [Array],
+      lootTables: [Array],
+      hasFluffImages: true
+    },
+    {
+      name: 'Dragon Scale Mail',
+      source: 'XDMG',
+      page: 254,
+      srd52: true,
+      basicRules2024: true,
+      baseItem: 'scale mail|xphb',
+      type: 'MA|XPHB',
+      rarity: 'very rare',
+      reqAttune: true,
+      weight: 45,
+      ac: 14,
+      bonusAc: '+1',
+      stealth: true,
+      items: [Array],
+      lootTables: [Array],
+      hasFluffImages: true
+    },
+    {
+      name: 'Dragon Vessel',
+      source: 'FTD',
+      page: 27,
+      rarity: 'varies',
+      reqAttune: true,
+      wondrous: true,
+      entries: [Array],
+      items: [Array]
+    },
+    {
+      name: "Dragon's Wrath Weapon",
+      source: 'FTD',
+      page: 25,
+      type: 'GV|DMG',
+      rarity: 'varies',
+      reqAttune: true,
+      entries: [Array],
+      items: [Array]
+    },
+    {
+      name: 'Dragon-Touched Focus',
+      source: 'FTD',
+      page: 26,
+      rarity: 'varies',
+      reqAttune: 'by a spellcaster',
+      reqAttuneTags: [Array],
+      wondrous: true,
+      focus: [Array],
+      entries: [Array],
+      items: [Array]
+    },
+    {
+      name: 'Druidic Focus',
+      source: 'PHB',
+      page: 151,
+      reprintedAs: [Array],
+      type: 'SCF',
+      scfType: 'druid',
+      rarity: 'none',
+      focus: [Array],
+      items: [Array]
+    },
+    {
+      name: 'Druidic Focus',
+      source: 'XPHB',
+      page: 225,
+      type: 'SCF|XPHB',
+      scfType: 'druid',
+      rarity: 'none',
+      focus: [Array],
+      items: [Array]
+    },
+    {
+      name: 'Elemental Gem',
+      source: 'DMG',
+      page: 167,
+      reprintedAs: [Array],
+      tier: 'minor',
+      rarity: 'uncommon',
+      wondrous: true,
+      items: [Array],
+      attachedSpells: [Object],
+      lootTables: [Array],
+      hasFluffImages: true
+    },
+    {
+      name: 'Elemental Gem',
+      source: 'XDMG',
+      page: 257,
+      srd52: true,
+      basicRules2024: true,
+      rarity: 'uncommon',
+      wondrous: true,
+      items: [Array],
+      lootTables: [Array],
+      hasFluffImages: true
+    },
+    {
+      name: 'Enspelled Armor',
+      source: 'XDMG',
+      page: 258,
+      type: 'GV|XDMG',
+      rarity: 'varies',
+      reqAttune: true,
+      recharge: 'dawn',
+      rechargeAmount: '{@dice 1d6}',
+      charges: 6,
+      items: [Array],
+      lootTables: [Array]
+    },
+    {
+      name: 'Enspelled Staff',
+      source: 'XDMG',
+      page: 258,
+      type: 'M|XPHB',
+      rarity: 'varies',
+      reqAttune: 'by a Spellcaster',
+      reqAttuneTags: [Array],
+      weight: 4,
+      weaponCategory: 'simple',
+      property: [Array],
+      mastery: [Array],
+      dmg1: '1d6',
+      dmgType: 'B',
+      dmg2: '1d8',
+      recharge: 'dawn',
+      rechargeAmount: '{@dice 1d6}',
+      charges: 6,
+      staff: true,
+      items: [Array],
+      lootTables: [Array]
+    },
+    {
+      name: 'Enspelled Weapon',
+      source: 'XDMG',
+      page: 258,
+      type: 'GV|XDMG',
+      rarity: 'varies',
+      reqAttune: true,
+      recharge: 'dawn',
+      rechargeAmount: '{@dice 1d6}',
+      charges: 6,
+      items: [Array],
+      lootTables: [Array]
+    },
+    {
+      name: 'Eye and Hand of Vecna',
+      source: 'DMG',
+      page: 224,
+      reprintedAs: [Array],
+      rarity: 'artifact',
+      reqAttune: true,
+      wondrous: true,
+      ability: [Object],
+      entries: [Array],
+      items: [Array],
+      attachedSpells: [Object],
+      hasFluffImages: true
+    },
+    {
+      name: 'Eye and Hand of Vecna',
+      source: 'XDMG',
+      page: 259,
+      rarity: 'artifact',
+      reqAttune: true,
+      wondrous: true,
+      ability: [Object],
+      entries: [Array],
+      items: [Array],
+      itemsHidden: true,
+      attachedSpells: [Object],
+      hasFluffImages: true
+    },
+    {
+      name: 'Fenthras',
+      source: 'TDCSR',
+      page: 205,
+      baseItem: 'longbow|PHB',
+      type: 'R',
+      rarity: 'legendary',
+      reqAttune: true,
+      weight: 2,
+      weaponCategory: 'martial',
+      property: [Array],
+      range: '150/600',
+      dmg1: '1d8',
+      dmgType: 'P',
+      bonusWeapon: '+1',
+      entries: [Array],
+      items: [Array],
+      ammoType: 'arrow|phb',
+      hasFluffImages: true
+    },
+    {
+      name: 'Figurine of Wondrous Power',
+      source: 'DMG',
+      page: 169,
+      reprintedAs: [Array],
+      rarity: 'varies',
+      wondrous: true,
+      items: [Array],
+      hasFluffImages: true
+    },
+    {
+      name: 'Figurine of Wondrous Power',
+      source: 'XDMG',
+      page: 261,
+      srd52: true,
+      basicRules2024: true,
+      rarity: 'varies',
+      wondrous: true,
+      items: [Array]
+    },
+    {
+      name: 'Flensing Claws',
+      source: 'VGM',
+      page: 81,
+      type: 'OTH',
+      rarity: 'unknown',
+      dmgType: 'S',
+      entries: [Array],
+      items: [Array]
+    },
+    {
+      name: 'Gaming Set',
+      source: 'PHB',
+      page: 154,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      type: 'GS',
+      rarity: 'none',
+      items: [Array]
+    },
+    {
+      name: 'Gaming Set',
+      source: 'XPHB',
+      page: 221,
+      srd52: true,
+      basicRules2024: true,
+      type: 'GS|XPHB',
+      rarity: 'none',
+      items: [Array]
+    },
+    {
+      name: 'Glamerweave',
+      source: 'ERLW',
+      page: 277,
+      rarity: 'varies',
+      wondrous: true,
+      items: [Array]
+    },
+    {
+      name: 'Grimoire Infinitus',
+      source: 'EGW',
+      page: 271,
+      rarity: 'legendary',
+      reqAttune: 'by a wizard',
+      reqAttuneTags: [Array],
+      wondrous: true,
+      weight: 3,
+      property: [Array],
+      entries: [Array],
+      items: [Array],
+      hasFluffImages: true
+    },
+    {
+      name: 'Grovelthrash',
+      source: 'EGW',
+      page: 275,
+      baseItem: 'warhammer|PHB',
+      type: 'M',
+      rarity: 'artifact',
+      reqAttune: true,
+      sentient: true,
+      weight: 2,
+      weaponCategory: 'martial',
+      property: [Array],
+      dmg1: '1d8',
+      dmgType: 'B',
+      dmg2: '1d10',
+      entries: [Array],
+      items: [Array],
+      hasFluffImages: true
+    },
+    {
+      name: 'Guild Keyrune',
+      source: 'GGR',
+      page: 177,
+      rarity: 'varies',
+      reqAttune: 'by a member of the relevant guild',
+      wondrous: true,
+      entries: [Array],
+      items: [Array]
+    },
+    {
+      name: 'Guild Signet',
+      source: 'GGR',
+      page: 178,
+      type: 'RG|DMG',
+      rarity: 'uncommon',
+      reqAttune: true,
+      charges: 3,
+      entries: [Array],
+      items: [Array]
+    },
+    {
+      name: 'Hide of the Feral Guardian',
+      source: 'EGW',
+      page: 271,
+      baseItem: 'studded leather armor|PHB',
+      type: 'LA',
+      rarity: 'legendary',
+      reqAttune: true,
+      weight: 13,
+      property: [Array],
+      ac: 12,
+      entries: [Array],
+      items: [Array],
+      attachedSpells: [Object]
+    },
+    {
+      name: 'Holy Symbol',
+      source: 'PHB',
+      page: 151,
+      reprintedAs: [Array],
+      type: 'SCF',
+      scfType: 'holy',
+      rarity: 'none',
+      focus: [Array],
+      items: [Array]
+    },
+    {
+      name: 'Holy Symbol',
+      source: 'XPHB',
+      page: 226,
+      type: 'SCF|XPHB',
+      scfType: 'holy',
+      rarity: 'none',
+      focus: [Array],
+      items: [Array]
+    },
+    {
+      name: "Honor's Last Stand",
+      source: 'TDCSR',
+      page: 206,
+      baseItem: 'shield|PHB',
+      type: 'S',
+      rarity: 'legendary',
+      reqAttune: 'by a creature of non-evil alignment',
+      reqAttuneTags: [Array],
+      weight: 6,
+      property: [Array],
+      ac: 2,
+      bonusAc: '+3',
+      entries: [Array],
+      items: [Array],
+      hasFluff: true,
+      hasFluffImages: true
+    },
+    {
+      name: 'Horn of Valhalla',
+      source: 'DMG',
+      page: 175,
+      reprintedAs: [Array],
+      rarity: 'varies',
+      wondrous: true,
+      items: [Array],
+      hasFluffImages: true
+    },
+    {
+      name: 'Horn of Valhalla',
+      source: 'XDMG',
+      page: 270,
+      srd52: true,
+      basicRules2024: true,
+      rarity: 'varies',
+      wondrous: true,
+      entries: [Array],
+      items: [Array],
+      itemsHidden: true,
+      hasFluffImages: true
+    },
+    {
+      name: 'Imbued Wood Focus',
+      source: 'ERLW',
+      page: 277,
+      type: 'SCF',
+      scfType: 'arcane',
+      rarity: 'common',
+      reqAttune: true,
+      wondrous: true,
+      entries: [Array],
+      items: [Array]
+    },
+    {
+      name: "Infiltrator's Key",
+      source: 'EGW',
+      page: 272,
+      rarity: 'legendary',
+      reqAttune: true,
+      wondrous: true,
+      property: [Array],
+      grantsProficiency: true,
+      entries: [Array],
+      items: [Array],
+      hasFluffImages: true
+    },
+    {
+      name: 'Instrument of the Bards',
+      source: 'DMG',
+      page: 176,
+      reprintedAs: [Array],
+      type: 'INS',
+      rarity: 'varies',
+      reqAttune: 'by a bard',
+      reqAttuneTags: [Array],
+      wondrous: true,
+      entries: [Array],
+      items: [Array],
+      attachedSpells: [Object]
+    },
+    {
+      name: 'Instrument of the Bards',
+      source: 'XDMG',
+      page: 272,
+      rarity: 'varies',
+      reqAttune: 'by a bard',
+      reqAttuneTags: [Array],
+      wondrous: true,
+      entries: [Array],
+      items: [Array],
+      attachedSpells: [Object],
+      hasFluffImages: true
+    },
+    {
+      name: 'Ioun Stone',
+      source: 'DMG',
+      page: 176,
+      reprintedAs: [Array],
+      rarity: 'varies',
+      reqAttune: true,
+      wondrous: true,
+      items: [Array]
+    },
+    {
+      name: 'Ioun Stone',
+      source: 'LLK',
+      page: 55,
+      reprintedAs: [Array],
+      rarity: 'rare',
+      reqAttune: true,
+      wondrous: true,
+      items: [Array]
+    },
+    {
+      name: 'Ioun Stone',
+      source: 'XDMG',
+      page: 273,
+      srd52: true,
+      basicRules2024: true,
+      rarity: 'varies',
+      reqAttune: true,
+      wondrous: true,
+      hasRefs: true,
+      entries: [Array],
+      items: [Array],
+      hasFluffImages: true
+    },
+    {
+      name: 'Jewel of Three Prayers',
+      source: 'CRCotN',
+      page: 213,
+      rarity: 'legendary',
+      reqAttune: true,
+      wondrous: true,
+      property: [Array],
+      recharge: 'dawn',
+      entries: [Array],
+      items: [Array],
+      attachedSpells: [Object],
+      hasFluffImages: true
+    },
+    {
+      name: 'Kiss of the Changebringer',
+      source: 'TDCSR',
+      page: 206,
+      conditionImmune: [Array],
+      rarity: 'legendary',
+      reqAttune: true,
+      wondrous: true,
+      property: [Array],
+      bonusSavingThrow: '+1',
+      entries: [Array],
+      items: [Array],
+      attachedSpells: [Object],
+      hasFluffImages: true
+    },
+    {
+      name: 'Lash of Shadows',
+      source: 'EGW',
+      page: 276,
+      baseItem: 'whip|PHB',
+      type: 'M',
+      rarity: 'artifact',
+      reqAttune: true,
+      sentient: true,
+      weight: 3,
+      weaponCategory: 'martial',
+      property: [Array],
+      dmg1: '1d4',
+      dmgType: 'S',
+      entries: [Array],
+      items: [Array],
+      hasFluffImages: true
+    },
+    {
+      name: 'Mace of the Black Crown',
+      source: 'EGW',
+      page: 276,
+      baseItem: 'mace|PHB',
+      type: 'M',
+      resist: [Array],
+      rarity: 'artifact',
+      reqAttune: true,
+      sentient: true,
+      weight: 4,
+      weaponCategory: 'simple',
+      property: [Array],
+      dmg1: '1d6',
+      dmgType: 'B',
+      entries: [Array],
+      items: [Array],
+      hasFluffImages: true
+    },
+    {
+      name: 'Manual of Golems',
+      source: 'DMG',
+      page: 180,
+      reprintedAs: [Array],
+      tier: 'major',
+      rarity: 'very rare',
+      wondrous: true,
+      weight: 5,
+      items: [Array],
+      lootTables: [Array],
+      hasFluffImages: true
+    },
+    {
+      name: 'Manual of Golems',
+      source: 'XDMG',
+      page: 277,
+      srd52: true,
+      basicRules2024: true,
+      rarity: 'very rare',
+      wondrous: true,
+      weight: 5,
+      entries: [Array],
+      items: [Array],
+      itemsHidden: true,
+      hasFluffImages: true
+    },
+    {
+      name: 'Mind Crystal',
+      source: 'PaBTSO',
+      page: 218,
+      rarity: 'varies',
+      wondrous: true,
+      entries: [Array],
+      items: [Array],
+      hasFluffImages: true
+    },
+    {
+      name: 'Musical Instrument',
+      source: 'PHB',
+      page: 154,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      type: 'INS',
+      rarity: 'none',
+      items: [Array]
+    },
+    {
+      name: 'Musical Instrument',
+      source: 'SCAG',
+      page: 124,
+      reprintedAs: [Array],
+      type: 'INS',
+      rarity: 'none',
+      items: [Array]
+    },
+    {
+      name: 'Musical Instrument',
+      source: 'XPHB',
+      page: 221,
+      srd52: true,
+      basicRules2024: true,
+      type: 'INS|XPHB',
+      rarity: 'none',
+      items: [Array]
+    },
+    {
+      name: 'Mythcarver',
+      source: 'TDCSR',
+      page: 207,
+      baseItem: 'longsword|PHB',
+      type: 'M',
+      rarity: 'legendary',
+      reqAttune: 'by a bard',
+      reqAttuneTags: [Array],
+      weight: 3,
+      weaponCategory: 'martial',
+      property: [Array],
+      dmg1: '1d8',
+      dmgType: 'S',
+      dmg2: '1d10',
+      bonusWeapon: '+1',
+      entries: [Array],
+      items: [Array],
+      hasFluff: true,
+      hasFluffImages: true
+    },
+    {
+      name: 'Orb of Shielding',
+      source: 'ERLW',
+      page: 278,
+      type: 'SCF',
+      scfType: 'arcane',
+      rarity: 'common',
+      reqAttune: true,
+      wondrous: true,
+      weight: 3,
+      entries: [Array],
+      items: [Array]
+    },
+    {
+      name: 'Plate of the Dawnmartyr',
+      source: 'TDCSR',
+      page: 208,
+      baseItem: 'plate armor|PHB',
+      type: 'HA',
+      resist: [Array],
+      rarity: 'legendary',
+      reqAttune: true,
+      weight: 65,
+      property: [Array],
+      ac: 18,
+      strength: '15',
+      bonusAc: '+1',
+      stealth: true,
+      entries: [Array],
+      items: [Array],
+      hasFluffImages: true
+    },
+    {
+      name: 'Potion of Giant Strength',
+      source: 'DMG',
+      page: 187,
+      reprintedAs: [Array],
+      type: 'P',
+      rarity: 'varies',
+      items: [Array],
+      miscTags: [Array]
+    },
+    {
+      name: 'Potion of Giant Strength',
+      source: 'XDMG',
+      page: 288,
+      srd52: true,
+      basicRules2024: true,
+      type: 'P|XPHB',
+      rarity: 'varies',
+      weight: 0.5,
+      items: [Array],
+      miscTags: [Array]
+    },
+    {
+      name: 'Potion of Healing (*)',
+      source: 'DMG',
+      page: 187,
+      srd: true,
+      type: 'P',
+      rarity: 'varies',
+      entries: [Array],
+      items: [Array],
+      miscTags: [Array]
+    },
+    {
+      name: 'Potion of Mind Control',
+      source: 'TftYP',
+      page: 229,
+      type: 'P',
+      rarity: 'varies',
+      items: [Array],
+      miscTags: [Array]
+    },
+    {
+      name: 'Potion of Resistance',
+      source: 'DMG',
+      page: 188,
+      reprintedAs: [Array],
+      type: 'P',
+      tier: 'minor',
+      rarity: 'uncommon',
+      items: [Array],
+      lootTables: [Array],
+      miscTags: [Array]
+    },
+    {
+      name: 'Potion of Resistance',
+      source: 'XDMG',
+      page: 289,
+      srd52: true,
+      basicRules2024: true,
+      type: 'P|XPHB',
+      rarity: 'uncommon',
+      weight: 0.5,
+      entries: [Array],
+      items: [Array],
+      itemsHidden: true,
+      lootTables: [Array],
+      miscTags: [Array]
+    },
+    {
+      name: 'Potions of Healing',
+      source: 'DMG',
+      page: 187,
+      reprintedAs: [Array],
+      type: 'P',
+      rarity: 'varies',
+      items: [Array],
+      miscTags: [Array]
+    },
+    {
+      name: 'Potions of Healing',
+      source: 'XDMG',
+      page: 288,
+      srd52: true,
+      basicRules2024: true,
+      type: 'P|XPHB',
+      rarity: 'varies',
+      weight: 0.5,
+      items: [Array],
+      miscTags: [Array]
+    },
+    {
+      name: 'Prehistoric Figurine of Wondrous Power',
+      source: 'BGG',
+      page: 114,
+      rarity: 'varies',
+      wondrous: true,
+      entries: [Array],
+      items: [Array],
+      hasFluffImages: true
+    },
+    {
+      name: 'Pyremaul',
+      source: 'TDCSR',
+      page: 208,
+      baseItem: 'maul|PHB',
+      type: 'M',
+      rarity: 'legendary',
+      reqAttune: true,
+      weight: 10,
+      weaponCategory: 'martial',
+      property: [Array],
+      dmg1: '2d6',
+      dmgType: 'B',
+      bonusWeaponAttack: '+1',
+      entries: [Array],
+      items: [Array],
+      attachedSpells: [Object],
+      hasFluffImages: true
+    },
+    {
+      name: "Quaal's Feather Token",
+      source: 'DMG',
+      page: 188,
+      reprintedAs: [Array],
+      rarity: 'rare',
+      wondrous: true,
+      entries: [Array],
+      items: [Array],
+      lootTables: [Array],
+      hasFluffImages: true
+    },
+    {
+      name: "Quaal's Feather Token",
+      source: 'XDMG',
+      page: 290,
+      srd52: true,
+      basicRules2024: true,
+      rarity: 'varies',
+      wondrous: true,
+      entries: [Array],
+      items: [Array],
+      itemsHidden: true,
+      hasFluffImages: true
+    },
+    {
+      name: 'Ring of Elemental Command',
+      source: 'DMG',
+      page: 190,
+      reprintedAs: [Array],
+      type: 'RG|DMG',
+      tier: 'major',
+      rarity: 'legendary',
+      reqAttune: true,
+      charges: 5,
+      items: [Array]
+    },
+    {
+      name: 'Ring of Elemental Command',
+      source: 'XDMG',
+      page: 292,
+      srd52: true,
+      basicRules2024: true,
+      type: 'RG|XDMG',
+      rarity: 'legendary',
+      reqAttune: true,
+      recharge: 'dawn',
+      rechargeAmount: '{@dice 1d4 + 1}',
+      charges: 5,
+      items: [Array]
+    },
+    {
+      name: 'Ring of Resistance',
+      source: 'DMG',
+      page: 192,
+      reprintedAs: [Array],
+      type: 'RG|DMG',
+      tier: 'major',
+      rarity: 'rare',
+      reqAttune: true,
+      entries: [Array],
+      items: [Array],
+      lootTables: [Array],
+      hasFluffImages: true
+    },
+    {
+      name: 'Ring of Resistance',
+      source: 'XDMG',
+      page: 294,
+      srd52: true,
+      basicRules2024: true,
+      type: 'RG|XDMG',
+      rarity: 'rare',
+      entries: [Array],
+      items: [Array],
+      itemsHidden: true,
+      lootTables: [Array]
+    },
+    {
+      name: 'Rod of the Pact Keeper',
+      source: 'DMG',
+      page: 197,
+      reprintedAs: [Array],
+      type: 'RD|DMG',
+      tier: 'major',
+      rarity: 'varies',
+      reqAttune: 'by a warlock',
+      reqAttuneTags: [Array],
+      weight: 2,
+      items: [Array]
+    },
+    {
+      name: 'Rod of the Pact Keeper',
+      source: 'XDMG',
+      page: 301,
+      type: 'RD|XDMG',
+      rarity: 'varies',
+      reqAttune: 'by a warlock',
+      reqAttuneTags: [Array],
+      weight: 2,
+      items: [Array],
+      lootTables: [Array]
+    },
+    {
+      name: "Ruin's Wake",
+      source: 'EGW',
+      page: 277,
+      baseItem: 'spear|PHB',
+      type: 'M',
+      rarity: 'artifact',
+      reqAttune: true,
+      sentient: true,
+      weight: 3,
+      weaponCategory: 'simple',
+      property: [Array],
+      range: '20/60',
+      dmg1: '1d6',
+      dmgType: 'P',
+      dmg2: '1d8',
+      entries: [Array],
+      items: [Array],
+      hasFluffImages: true
+    },
+    {
+      name: "Sage's Signet",
+      source: 'BMT',
+      page: 37,
+      type: 'RG|DMG',
+      rarity: 'varies',
+      reqAttune: 'by a spellcaster',
+      reqAttuneTags: [Array],
+      entries: [Array],
+      items: [Array],
+      attachedSpells: [Object]
+    },
+    {
+      name: 'Scaled Ornament',
+      source: 'FTD',
+      page: 27,
+      rarity: 'varies',
+      reqAttune: true,
+      wondrous: true,
+      bonusAc: '+1',
+      entries: [Array],
+      items: [Array]
+    },
+    {
+      name: 'Scroll of Protection',
+      source: 'DMG',
+      page: 199,
+      reprintedAs: [Array],
+      type: 'SC|DMG',
+      tier: 'minor',
+      rarity: 'rare',
+      items: [Array],
+      lootTables: [Array],
+      miscTags: [Array]
+    },
+    {
+      name: 'Scroll of Protection',
+      source: 'XDMG',
+      page: 302,
+      type: 'SC|XPHB',
+      rarity: 'rare',
+      entries: [Array],
+      items: [Array],
+      itemsHidden: true,
+      lootTables: [Array],
+      miscTags: [Array],
+      hasFluffImages: true
+    },
+    ... 24 more items
+  ]
+}
+Expected fields: item, baseitem
+[ItemWrapperConverter] Processing 475 items from items.json
+[ItemWrapperConverter] ✅ Item +1 Wand of the War Mage validated successfully
+[ItemWrapperConverter] ✅ Item +2 Wand of the War Mage validated successfully
+[ItemWrapperConverter] ✅ Item +3 Wand of the War Mage validated successfully
+[ItemWrapperConverter] ✅ Item Acid validated successfully
+[ItemWrapperConverter] ✅ Item Alchemist's Fire validated successfully
+[ItemWrapperConverter] ✅ Item Alchemist's Supplies validated successfully
+[ItemWrapperConverter] ✅ Item Ale (mug) validated successfully
+[ItemWrapperConverter] ✅ Item Amulet validated successfully
+[ItemWrapperConverter] ✅ Item Amulet of Health validated successfully
+[ItemWrapperConverter] ✅ Item Amulet of Proof against Detection and Location validated successfully
+[ItemWrapperConverter] ✅ Item Amulet of the Planes validated successfully
+[ItemWrapperConverter] ✅ Item Animated Shield validated successfully
+[ItemWrapperConverter] ✅ Item Antitoxin validated successfully
+[ItemWrapperConverter] ❌ Item Armor of Invulnerability failed validation: [ 'Item Data - strengthRequirement: Expected number, received string' ]
+[ItemWrapperConverter] ✅ Item Arrow-Catching Shield validated successfully
+[ItemWrapperConverter] ✅ Item Assassin's Blood validated successfully
+[ItemWrapperConverter] ✅ Item Backpack validated successfully
+[ItemWrapperConverter] ✅ Item Bag of Beans validated successfully
+[ItemWrapperConverter] ✅ Item Bag of Devouring validated successfully
+[ItemWrapperConverter] ✅ Item Bag of Holding validated successfully
+[ItemWrapperConverter] ✅ Item Bag of Tricks, Gray validated successfully
+[ItemWrapperConverter] ✅ Item Bag of Tricks, Rust validated successfully
+[ItemWrapperConverter] ✅ Item Bag of Tricks, Tan validated successfully
+[ItemWrapperConverter] ✅ Item Ball Bearings validated successfully
+[ItemWrapperConverter] ✅ Item Barrel validated successfully
+[ItemWrapperConverter] ✅ Item Basic Poison validated successfully
+[ItemWrapperConverter] ✅ Item Basket validated successfully
+[ItemWrapperConverter] ✅ Item Bead of Force validated successfully
+[ItemWrapperConverter] ✅ Item Bead of Nourishment validated successfully
+[ItemWrapperConverter] ✅ Item Bedroll validated successfully
+[ItemWrapperConverter] ✅ Item Bell validated successfully
+[ItemWrapperConverter] ✅ Item Belt of Cloud Giant Strength validated successfully
+[ItemWrapperConverter] ✅ Item Belt of Dwarvenkind validated successfully
+[ItemWrapperConverter] ✅ Item Belt of Fire Giant Strength validated successfully
+[ItemWrapperConverter] ✅ Item Belt of Frost Giant Strength validated successfully
+[ItemWrapperConverter] ✅ Item Belt of Hill Giant Strength validated successfully
+[ItemWrapperConverter] ✅ Item Belt of Stone Giant Strength validated successfully
+[ItemWrapperConverter] ✅ Item Belt of Storm Giant Strength validated successfully
+[ItemWrapperConverter] ✅ Item Black Dragon Scale Mail validated successfully
+[ItemWrapperConverter] ✅ Item Blanket validated successfully
+[ItemWrapperConverter] ✅ Item Block and Tackle validated successfully
+[ItemWrapperConverter] ✅ Item Blue Dragon Scale Mail validated successfully
+[ItemWrapperConverter] ✅ Item Book validated successfully
+[ItemWrapperConverter] ✅ Item Boots of Elvenkind validated successfully
+[ItemWrapperConverter] ✅ Item Boots of Levitation validated successfully
+[ItemWrapperConverter] ✅ Item Boots of Speed validated successfully
+[ItemWrapperConverter] ✅ Item Boots of Striding and Springing validated successfully
+[ItemWrapperConverter] ✅ Item Boots of the Winterlands validated successfully
+[ItemWrapperConverter] ✅ Item Bowl of Commanding Water Elementals validated successfully
+[ItemWrapperConverter] ✅ Item Bracers of Archery validated successfully
+[ItemWrapperConverter] ✅ Item Bracers of Defense validated successfully
+[ItemWrapperConverter] ✅ Item Brass Dragon Scale Mail validated successfully
+[ItemWrapperConverter] ✅ Item Brazier of Commanding Fire Elementals validated successfully
+[ItemWrapperConverter] ✅ Item Bread (loaf) validated successfully
+[ItemWrapperConverter] ✅ Item Brewer's Supplies validated successfully
+[ItemWrapperConverter] ✅ Item Bronze Dragon Scale Mail validated successfully
+[ItemWrapperConverter] ✅ Item Brooch of Shielding validated successfully
+[ItemWrapperConverter] ✅ Item Broom of Flying validated successfully
+[ItemWrapperConverter] ✅ Item Bucket validated successfully
+[ItemWrapperConverter] ✅ Item Bullseye Lantern validated successfully
+[ItemWrapperConverter] ✅ Item Burglar's Pack validated successfully
+[ItemWrapperConverter] ✅ Item Burnt Othur Fumes validated successfully
+[ItemWrapperConverter] ✅ Item Calligrapher's Supplies validated successfully
+[ItemWrapperConverter] ✅ Item Caltrops validated successfully
+[ItemWrapperConverter] ✅ Item Camel validated successfully
+[ItemWrapperConverter] ✅ Item Candle validated successfully
+[ItemWrapperConverter] ✅ Item Candle of Invocation validated successfully
+[ItemWrapperConverter] ✅ Item Canvas (1 sq. yd.) validated successfully
+[ItemWrapperConverter] ✅ Item Cape of the Mountebank validated successfully
+[ItemWrapperConverter] ✅ Item Carpenter's Tools validated successfully
+[ItemWrapperConverter] ✅ Item Carpet of Flying, 3 ft. × 5 ft. validated successfully
+[ItemWrapperConverter] ✅ Item Carpet of Flying, 4 ft. × 6 ft. validated successfully
+[ItemWrapperConverter] ✅ Item Carpet of Flying, 5 ft. × 7 ft. validated successfully
+[ItemWrapperConverter] ✅ Item Carpet of Flying, 6 ft. × 9 ft. validated successfully
+[ItemWrapperConverter] ✅ Item Carriage validated successfully
+[ItemWrapperConverter] ✅ Item Cart validated successfully
+[ItemWrapperConverter] ✅ Item Cartographer's Tools validated successfully
+[ItemWrapperConverter] ✅ Item Censer of Controlling Air Elementals validated successfully
+[ItemWrapperConverter] ✅ Item Chain validated successfully
+[ItemWrapperConverter] ✅ Item Chariot validated successfully
+[ItemWrapperConverter] ✅ Item Cheese (wedge) validated successfully
+[ItemWrapperConverter] ✅ Item Chest validated successfully
+[ItemWrapperConverter] ✅ Item Chicken validated successfully
+[ItemWrapperConverter] ✅ Item Chime of Opening validated successfully
+[ItemWrapperConverter] ✅ Item Cinnamon validated successfully
+[ItemWrapperConverter] ✅ Item Circlet of Blasting validated successfully
+[ItemWrapperConverter] ✅ Item Climber's Kit validated successfully
+[ItemWrapperConverter] ✅ Item Cloak of Arachnida validated successfully
+[ItemWrapperConverter] ✅ Item Cloak of Displacement validated successfully
+[ItemWrapperConverter] ✅ Item Cloak of Elvenkind validated successfully
+[ItemWrapperConverter] ✅ Item Cloak of Invisibility validated successfully
+[ItemWrapperConverter] ✅ Item Cloak of Protection validated successfully
+[ItemWrapperConverter] ✅ Item Cloak of the Bat validated successfully
+[ItemWrapperConverter] ✅ Item Cloak of the Manta Ray validated successfully
+[ItemWrapperConverter] ✅ Item Cloves validated successfully
+[ItemWrapperConverter] ✅ Item Cobbler's Tools validated successfully
+[ItemWrapperConverter] ✅ Item Common Wine (bottle) validated successfully
+[ItemWrapperConverter] ✅ Item Component Pouch validated successfully
+[ItemWrapperConverter] ✅ Item Cook's Utensils validated successfully
+[ItemWrapperConverter] ✅ Item Copper validated successfully
+[ItemWrapperConverter] ✅ Item Copper Dragon Scale Mail validated successfully
+[ItemWrapperConverter] ✅ Item Costume validated successfully
+[ItemWrapperConverter] ✅ Item Cotton Cloth (1 sq. yd.) validated successfully
+[ItemWrapperConverter] ✅ Item Cow validated successfully
+[ItemWrapperConverter] ✅ Item Crossbow Bolt Case validated successfully
+[ItemWrapperConverter] ✅ Item Crowbar validated successfully
+[ItemWrapperConverter] ✅ Item Crystal Ball validated successfully
+[ItemWrapperConverter] ✅ Item Crystal Ball of Mind Reading validated successfully
+[ItemWrapperConverter] ✅ Item Crystal Ball of Telepathy validated successfully
+[ItemWrapperConverter] ✅ Item Crystal Ball of True Seeing validated successfully
+[ItemWrapperConverter] ✅ Item Cube of Force validated successfully
+[ItemWrapperConverter] ✅ Item Cubic Gate validated successfully
+[ItemWrapperConverter] ✅ Item Dagger of Venom validated successfully
+[ItemWrapperConverter] ✅ Item Decanter of Endless Water validated successfully
+[ItemWrapperConverter] ✅ Item Deck of Illusions validated successfully
+[ItemWrapperConverter] ✅ Item Dice Set validated successfully
+[ItemWrapperConverter] ✅ Item Dimensional Shackles validated successfully
+[ItemWrapperConverter] ✅ Item Diplomat's Pack validated successfully
+[ItemWrapperConverter] ✅ Item Disguise Kit validated successfully
+[ItemWrapperConverter] ✅ Item Draft Horse validated successfully
+[ItemWrapperConverter] ✅ Item Dungeoneer's Pack validated successfully
+[ItemWrapperConverter] ✅ Item Dust of Disappearance validated successfully
+[ItemWrapperConverter] ✅ Item Dust of Dryness validated successfully
+[ItemWrapperConverter] ✅ Item Dust of Sneezing and Choking validated successfully
+[ItemWrapperConverter] ✅ Item Dwarven Thrower validated successfully
+[ItemWrapperConverter] ✅ Item Efreeti Bottle validated successfully
+[ItemWrapperConverter] ✅ Item Elemental Gem, Blue Sapphire validated successfully
+[ItemWrapperConverter] ✅ Item Elemental Gem, Emerald validated successfully
+[ItemWrapperConverter] ✅ Item Elemental Gem, Red Corundum validated successfully
+[ItemWrapperConverter] ✅ Item Elemental Gem, Yellow Diamond validated successfully
+[ItemWrapperConverter] ✅ Item Elephant validated successfully
+[ItemWrapperConverter] ✅ Item Elixir of Health validated successfully
+[ItemWrapperConverter] ✅ Item Emblem validated successfully
+[ItemWrapperConverter] ✅ Item Entertainer's Pack validated successfully
+[ItemWrapperConverter] ✅ Item Essence of Ether validated successfully
+[ItemWrapperConverter] ✅ Item Eversmoking Bottle validated successfully
+[ItemWrapperConverter] ✅ Item Exotic Saddle validated successfully
+[ItemWrapperConverter] ✅ Item Explorer's Pack validated successfully
+[ItemWrapperConverter] ✅ Item Eyes of Charming validated successfully
+[ItemWrapperConverter] ✅ Item Eyes of Minute Seeing validated successfully
+[ItemWrapperConverter] ✅ Item Eyes of the Eagle validated successfully
+[ItemWrapperConverter] ✅ Item Feed (per day) validated successfully
+[ItemWrapperConverter] ✅ Item Figurine of Wondrous Power, Bronze Griffon validated successfully
+[ItemWrapperConverter] ✅ Item Figurine of Wondrous Power, Ebony Fly validated successfully
+[ItemWrapperConverter] ✅ Item Figurine of Wondrous Power, Golden Lions validated successfully
+[ItemWrapperConverter] ✅ Item Figurine of Wondrous Power, Ivory Goats validated successfully
+[ItemWrapperConverter] ✅ Item Figurine of Wondrous Power, Marble Elephant validated successfully
+[ItemWrapperConverter] ✅ Item Figurine of Wondrous Power, Obsidian Steed validated successfully
+[ItemWrapperConverter] ✅ Item Figurine of Wondrous Power, Onyx Dog validated successfully
+[ItemWrapperConverter] ✅ Item Figurine of Wondrous Power, Serpentine Owl validated successfully
+[ItemWrapperConverter] ✅ Item Figurine of Wondrous Power, Silver Raven validated successfully
+[ItemWrapperConverter] ✅ Item Fine Clothes validated successfully
+[ItemWrapperConverter] ✅ Item Fine Wine (bottle) validated successfully
+[ItemWrapperConverter] ✅ Item Flask validated successfully
+[ItemWrapperConverter] ✅ Item Flour validated successfully
+[ItemWrapperConverter] ✅ Item Folding Boat validated successfully
+[ItemWrapperConverter] ✅ Item Forgery Kit validated successfully
+[ItemWrapperConverter] ✅ Item Galley validated successfully
+[ItemWrapperConverter] ✅ Item Gauntlets of Ogre Power validated successfully
+[ItemWrapperConverter] ✅ Item Gem of Brightness validated successfully
+[ItemWrapperConverter] ✅ Item Gem of Seeing validated successfully
+[ItemWrapperConverter] ✅ Item Ginger validated successfully
+[ItemWrapperConverter] ✅ Item Glamoured Studded Leather validated successfully
+[ItemWrapperConverter] ✅ Item Glass Bottle validated successfully
+[ItemWrapperConverter] ✅ Item Glassblower's Tools validated successfully
+[ItemWrapperConverter] ✅ Item Gloves of Missile Snaring validated successfully
+[ItemWrapperConverter] ✅ Item Gloves of Swimming and Climbing validated successfully
+[ItemWrapperConverter] ✅ Item Gloves of Thievery validated successfully
+[ItemWrapperConverter] ✅ Item Goat validated successfully
+[ItemWrapperConverter] ✅ Item Goggles of Night validated successfully
+[ItemWrapperConverter] ✅ Item Gold validated successfully
+[ItemWrapperConverter] ✅ Item Gold Dragon Scale Mail validated successfully
+[ItemWrapperConverter] ✅ Item Grappling Hook validated successfully
+[ItemWrapperConverter] ✅ Item Green Dragon Scale Mail validated successfully
+[ItemWrapperConverter] ✅ Item Hat of Disguise validated successfully
+[ItemWrapperConverter] ✅ Item Hat of Many Spells validated successfully
+[ItemWrapperConverter] ✅ Item Headband of Intellect validated successfully
+[ItemWrapperConverter] ✅ Item Healer's Kit validated successfully
+[ItemWrapperConverter] ✅ Item Helm of Brilliance validated successfully
+[ItemWrapperConverter] ✅ Item Helm of Comprehending Languages validated successfully
+[ItemWrapperConverter] ✅ Item Helm of Telepathy validated successfully
+[ItemWrapperConverter] ✅ Item Helm of Teleportation validated successfully
+[ItemWrapperConverter] ✅ Item Herbalism Kit validated successfully
+[ItemWrapperConverter] ✅ Item Holy Water validated successfully
+[ItemWrapperConverter] ✅ Item Hooded Lantern validated successfully
+[ItemWrapperConverter] ✅ Item Horn of Blasting validated successfully
+[ItemWrapperConverter] ✅ Item Horn of Valhalla, Brass validated successfully
+[ItemWrapperConverter] ✅ Item Horn of Valhalla, Bronze validated successfully
+[ItemWrapperConverter] ✅ Item Horn of Valhalla, Iron validated successfully
+[ItemWrapperConverter] ✅ Item Horn of Valhalla, Silver validated successfully
+[ItemWrapperConverter] ✅ Item Horseshoes of a Zephyr validated successfully
+[ItemWrapperConverter] ✅ Item Horseshoes of Speed validated successfully
+[ItemWrapperConverter] ✅ Item Hunting Trap validated successfully
+[ItemWrapperConverter] ✅ Item Immovable Rod validated successfully
+[ItemWrapperConverter] ✅ Item Ink validated successfully
+[ItemWrapperConverter] ✅ Item Ink Pen validated successfully
+[ItemWrapperConverter] ✅ Item Ioun Stone, Absorption validated successfully
+[ItemWrapperConverter] ✅ Item Ioun Stone, Agility validated successfully
+[ItemWrapperConverter] ✅ Item Ioun Stone, Awareness validated successfully
+[ItemWrapperConverter] ✅ Item Ioun Stone, Fortitude validated successfully
+[ItemWrapperConverter] ✅ Item Ioun Stone, Greater Absorption validated successfully
+[ItemWrapperConverter] ✅ Item Ioun Stone, Insight validated successfully
+[ItemWrapperConverter] ✅ Item Ioun Stone, Intellect validated successfully
+[ItemWrapperConverter] ✅ Item Ioun Stone, Leadership validated successfully
+[ItemWrapperConverter] ✅ Item Ioun Stone, Mastery validated successfully
+[ItemWrapperConverter] ✅ Item Ioun Stone, Protection validated successfully
+[ItemWrapperConverter] ✅ Item Ioun Stone, Regeneration validated successfully
+[ItemWrapperConverter] ✅ Item Ioun Stone, Reserve validated successfully
+[ItemWrapperConverter] ✅ Item Ioun Stone, Strength validated successfully
+[ItemWrapperConverter] ✅ Item Ioun Stone, Sustenance validated successfully
+[ItemWrapperConverter] ✅ Item Iron validated successfully
+[ItemWrapperConverter] ✅ Item Iron Flask validated successfully
+[ItemWrapperConverter] ✅ Item Iron Pot validated successfully
+[ItemWrapperConverter] ✅ Item Iron Spike validated successfully
+[ItemWrapperConverter] ✅ Item Iron Spikes validated successfully
+[ItemWrapperConverter] ✅ Item Javelin of Lightning validated successfully
+[ItemWrapperConverter] ✅ Item Jeweler's Tools validated successfully
+[ItemWrapperConverter] ✅ Item Jug validated successfully
+[ItemWrapperConverter] ✅ Item Keelboat validated successfully
+[ItemWrapperConverter] ✅ Item Ladder validated successfully
+[ItemWrapperConverter] ✅ Item Lamp validated successfully
+[ItemWrapperConverter] ✅ Item Lantern of Revealing validated successfully
+[ItemWrapperConverter] ✅ Item Leatherworker's Tools validated successfully
+[ItemWrapperConverter] ✅ Item Linen (1 sq. yd.) validated successfully
+[ItemWrapperConverter] ✅ Item Lock validated successfully
+[ItemWrapperConverter] ✅ Item Lolth's Sting validated successfully
+[ItemWrapperConverter] ✅ Item Longship validated successfully
+[ItemWrapperConverter] ✅ Item Mace of Disruption validated successfully
+[ItemWrapperConverter] ✅ Item Mace of Smiting validated successfully
+[ItemWrapperConverter] ✅ Item Mace of Terror validated successfully
+[ItemWrapperConverter] ✅ Item Magnifying Glass validated successfully
+[ItemWrapperConverter] ✅ Item Malice validated successfully
+[ItemWrapperConverter] ✅ Item Manacles validated successfully
+[ItemWrapperConverter] ✅ Item Mantle of Spell Resistance validated successfully
+[ItemWrapperConverter] ✅ Item Manual of Bodily Health validated successfully
+[ItemWrapperConverter] ✅ Item Manual of Clay Golems validated successfully
+[ItemWrapperConverter] ✅ Item Manual of Flesh Golems validated successfully
+[ItemWrapperConverter] ✅ Item Manual of Gainful Exercise validated successfully
+[ItemWrapperConverter] ✅ Item Manual of Iron Golems validated successfully
+[ItemWrapperConverter] ✅ Item Manual of Quickness of Action validated successfully
+[ItemWrapperConverter] ✅ Item Manual of Stone Golems validated successfully
+[ItemWrapperConverter] ✅ Item Map or Scroll Case validated successfully
+[ItemWrapperConverter] ✅ Item Mason's Tools validated successfully
+[ItemWrapperConverter] ✅ Item Mastiff validated successfully
+[ItemWrapperConverter] ✅ Item Medallion of Thoughts validated successfully
+[ItemWrapperConverter] ✅ Item Midnight Tears validated successfully
+[ItemWrapperConverter] ✅ Item Military Saddle validated successfully
+[ItemWrapperConverter] ✅ Item Mirror validated successfully
+[ItemWrapperConverter] ✅ Item Mirror of Life Trapping validated successfully
+[ItemWrapperConverter] ✅ Item Mule validated successfully
+[ItemWrapperConverter] ✅ Item Navigator's Tools validated successfully
+[ItemWrapperConverter] ✅ Item Necklace of Adaptation validated successfully
+[ItemWrapperConverter] ✅ Item Necklace of Fireballs validated successfully
+[ItemWrapperConverter] ✅ Item Necklace of Prayer Beads validated successfully
+[ItemWrapperConverter] ✅ Item Net validated successfully
+[ItemWrapperConverter] ✅ Item Oil validated successfully
+[ItemWrapperConverter] ✅ Item Oil of Etherealness validated successfully
+[ItemWrapperConverter] ✅ Item Oil of Sharpness validated successfully
+[ItemWrapperConverter] ✅ Item Oil of Slipperiness validated successfully
+[ItemWrapperConverter] ✅ Item Oil of Taggit validated successfully
+[ItemWrapperConverter] ✅ Item Ox validated successfully
+[ItemWrapperConverter] ✅ Item Painter's Supplies validated successfully
+[ItemWrapperConverter] ✅ Item Pale Tincture validated successfully
+[ItemWrapperConverter] ✅ Item Paper validated successfully
+[ItemWrapperConverter] ✅ Item Parchment validated successfully
+[ItemWrapperConverter] ✅ Item Pearl of Power validated successfully
+[ItemWrapperConverter] ✅ Item Pepper validated successfully
+[ItemWrapperConverter] ✅ Item Perfume validated successfully
+[ItemWrapperConverter] ✅ Item Periapt of Health validated successfully
+[ItemWrapperConverter] ✅ Item Periapt of Proof against Poison validated successfully
+[ItemWrapperConverter] ✅ Item Periapt of Wound Closure validated successfully
+[ItemWrapperConverter] ✅ Item Philter of Love validated successfully
+[ItemWrapperConverter] ✅ Item Pig validated successfully
+[ItemWrapperConverter] ✅ Item Pipes of Haunting validated successfully
+[ItemWrapperConverter] ✅ Item Pipes of the Sewers validated successfully
+[ItemWrapperConverter] ✅ Item Platinum validated successfully
+[ItemWrapperConverter] ✅ Item Playing Cards validated successfully
+[ItemWrapperConverter] ✅ Item Poisoner's Kit validated successfully
+[ItemWrapperConverter] ✅ Item Pole validated successfully
+[ItemWrapperConverter] ✅ Item Pony validated successfully
+[ItemWrapperConverter] ✅ Item Portable Hole validated successfully
+[ItemWrapperConverter] ✅ Item Portable Ram validated successfully
+[ItemWrapperConverter] ✅ Item Potion of Acid Resistance validated successfully
+[ItemWrapperConverter] ✅ Item Potion of Animal Friendship validated successfully
+[ItemWrapperConverter] ✅ Item Potion of Clairvoyance validated successfully
+[ItemWrapperConverter] ✅ Item Potion of Climbing validated successfully
+[ItemWrapperConverter] ✅ Item Potion of Cloud Giant Strength validated successfully
+[ItemWrapperConverter] ✅ Item Potion of Cold Resistance validated successfully
+[ItemWrapperConverter] ✅ Item Potion of Diminution validated successfully
+[ItemWrapperConverter] ✅ Item Potion of Fire Giant Strength validated successfully
+[ItemWrapperConverter] ✅ Item Potion of Fire Resistance validated successfully
+[ItemWrapperConverter] ✅ Item Potion of Flying validated successfully
+[ItemWrapperConverter] ✅ Item Potion of Force Resistance validated successfully
+[ItemWrapperConverter] ✅ Item Potion of Frost Giant Strength validated successfully
+[ItemWrapperConverter] ✅ Item Potion of Gaseous Form validated successfully
+[ItemWrapperConverter] ✅ Item Potion of Greater Healing validated successfully
+[ItemWrapperConverter] ✅ Item Potion of Growth validated successfully
+[ItemWrapperConverter] ✅ Item Potion of Healing validated successfully
+[ItemWrapperConverter] ✅ Item Potion of Heroism validated successfully
+[ItemWrapperConverter] ✅ Item Potion of Hill Giant Strength validated successfully
+[ItemWrapperConverter] ✅ Item Potion of Invisibility validated successfully
+[ItemWrapperConverter] ✅ Item Potion of Invulnerability validated successfully
+[ItemWrapperConverter] ✅ Item Potion of Lightning Resistance validated successfully
+[ItemWrapperConverter] ✅ Item Potion of Longevity validated successfully
+[ItemWrapperConverter] ✅ Item Potion of Mind Reading validated successfully
+[ItemWrapperConverter] ✅ Item Potion of Necrotic Resistance validated successfully
+[ItemWrapperConverter] ✅ Item Potion of Poison validated successfully
+[ItemWrapperConverter] ✅ Item Potion of Poison Resistance validated successfully
+[ItemWrapperConverter] ✅ Item Potion of Psychic Resistance validated successfully
+[ItemWrapperConverter] ✅ Item Potion of Radiant Resistance validated successfully
+[ItemWrapperConverter] ✅ Item Potion of Speed validated successfully
+[ItemWrapperConverter] ✅ Item Potion of Stone Giant Strength validated successfully
+[ItemWrapperConverter] ✅ Item Potion of Storm Giant Strength validated successfully
+[ItemWrapperConverter] ✅ Item Potion of Superior Healing validated successfully
+[ItemWrapperConverter] ✅ Item Potion of Supreme Healing validated successfully
+[ItemWrapperConverter] ✅ Item Potion of Thunder Resistance validated successfully
+[ItemWrapperConverter] ✅ Item Potion of Vitality validated successfully
+[ItemWrapperConverter] ✅ Item Potion of Water Breathing validated successfully
+[ItemWrapperConverter] ✅ Item Potter's Tools validated successfully
+[ItemWrapperConverter] ✅ Item Pouch validated successfully
+[ItemWrapperConverter] ✅ Item Priest's Pack validated successfully
+[ItemWrapperConverter] ✅ Item Purple Worm Poison validated successfully
+[ItemWrapperConverter] ✅ Item Quarterstaff of the Acrobat validated successfully
+[ItemWrapperConverter] ✅ Item Quiver validated successfully
+[ItemWrapperConverter] ✅ Item Rations validated successfully
+[ItemWrapperConverter] ✅ Item Red Dragon Scale Mail validated successfully
+[ItemWrapperConverter] ✅ Item Reliquary validated successfully
+[ItemWrapperConverter] ✅ Item Riding Horse validated successfully
+[ItemWrapperConverter] ✅ Item Riding Saddle validated successfully
+[ItemWrapperConverter] ✅ Item Ring of Acid Resistance validated successfully
+[ItemWrapperConverter] ✅ Item Ring of Animal Influence validated successfully
+[ItemWrapperConverter] ✅ Item Ring of Cold Resistance validated successfully
+[ItemWrapperConverter] ✅ Item Ring of Djinni Summoning validated successfully
+[ItemWrapperConverter] ✅ Item Ring of Elemental Command (Air) validated successfully
+[ItemWrapperConverter] ✅ Item Ring of Elemental Command (Earth) validated successfully
+[ItemWrapperConverter] ✅ Item Ring of Elemental Command (Fire) validated successfully
+[ItemWrapperConverter] ✅ Item Ring of Elemental Command (Water) validated successfully
+[ItemWrapperConverter] ✅ Item Ring of Evasion validated successfully
+[ItemWrapperConverter] ✅ Item Ring of Feather Falling validated successfully
+[ItemWrapperConverter] ✅ Item Ring of Fire Resistance validated successfully
+[ItemWrapperConverter] ✅ Item Ring of Force Resistance validated successfully
+[ItemWrapperConverter] ✅ Item Ring of Free Action validated successfully
+[ItemWrapperConverter] ✅ Item Ring of Invisibility validated successfully
+[ItemWrapperConverter] ✅ Item Ring of Jumping validated successfully
+[ItemWrapperConverter] ✅ Item Ring of Lightning Resistance validated successfully
+[ItemWrapperConverter] ✅ Item Ring of Mind Shielding validated successfully
+[ItemWrapperConverter] ✅ Item Ring of Necrotic Resistance validated successfully
+[ItemWrapperConverter] ✅ Item Ring of Poison Resistance validated successfully
+[ItemWrapperConverter] ✅ Item Ring of Protection validated successfully
+[ItemWrapperConverter] ✅ Item Ring of Psychic Resistance validated successfully
+[ItemWrapperConverter] ✅ Item Ring of Radiant Resistance validated successfully
+[ItemWrapperConverter] ✅ Item Ring of Regeneration validated successfully
+[ItemWrapperConverter] ✅ Item Ring of Shooting Stars validated successfully
+[ItemWrapperConverter] ✅ Item Ring of Spell Storing validated successfully
+[ItemWrapperConverter] ✅ Item Ring of Spell Turning validated successfully
+[ItemWrapperConverter] ✅ Item Ring of Swimming validated successfully
+[ItemWrapperConverter] ✅ Item Ring of Telekinesis validated successfully
+[ItemWrapperConverter] ✅ Item Ring of the Ram validated successfully
+[ItemWrapperConverter] ✅ Item Ring of Three Wishes validated successfully
+[ItemWrapperConverter] ✅ Item Ring of Thunder Resistance validated successfully
+[ItemWrapperConverter] ✅ Item Ring of Warmth validated successfully
+[ItemWrapperConverter] ✅ Item Ring of Water Walking validated successfully
+[ItemWrapperConverter] ✅ Item Ring of X-ray Vision validated successfully
+[ItemWrapperConverter] ✅ Item Robe validated successfully
+[ItemWrapperConverter] ✅ Item Robe of Eyes validated successfully
+[ItemWrapperConverter] ✅ Item Robe of Scintillating Colors validated successfully
+[ItemWrapperConverter] ✅ Item Robe of Stars validated successfully
+[ItemWrapperConverter] ✅ Item Robe of the Archmagi validated successfully
+[ItemWrapperConverter] ✅ Item Robe of Useful Items validated successfully
+[ItemWrapperConverter] ✅ Item Rod of Absorption validated successfully
+[ItemWrapperConverter] ✅ Item Rod of Alertness validated successfully
+[ItemWrapperConverter] ✅ Item Rod of Lordly Might validated successfully
+[ItemWrapperConverter] ✅ Item Rod of Resurrection validated successfully
+[ItemWrapperConverter] ✅ Item Rod of Rulership validated successfully
+[ItemWrapperConverter] ✅ Item Rod of Security validated successfully
+[ItemWrapperConverter] ✅ Item Rope validated successfully
+[ItemWrapperConverter] ✅ Item Rope of Climbing validated successfully
+[ItemWrapperConverter] ✅ Item Rope of Entanglement validated successfully
+[ItemWrapperConverter] ✅ Item Rowboat validated successfully
+[ItemWrapperConverter] ✅ Item Sack validated successfully
+[ItemWrapperConverter] ✅ Item Saffron validated successfully
+[ItemWrapperConverter] ✅ Item Sailing Ship validated successfully
+[ItemWrapperConverter] ✅ Item Salt validated successfully
+[ItemWrapperConverter] ✅ Item Scarab of Protection validated successfully
+[ItemWrapperConverter] ✅ Item Scholar's Pack validated successfully
+[ItemWrapperConverter] ✅ Item Scimitar of Speed validated successfully
+[ItemWrapperConverter] ✅ Item Sending Stones validated successfully
+[ItemWrapperConverter] ✅ Item Sentinel Shield validated successfully
+[ItemWrapperConverter] ✅ Item Serpent Venom validated successfully
+[ItemWrapperConverter] ✅ Item Sheep validated successfully
+[ItemWrapperConverter] ✅ Item Shield of Missile Attraction validated successfully
+[ItemWrapperConverter] ✅ Item Shield of the Cavalier validated successfully
+[ItemWrapperConverter] ✅ Item Shovel validated successfully
+[ItemWrapperConverter] ✅ Item Signal Whistle validated successfully
+[ItemWrapperConverter] ✅ Item Silk validated successfully
+[ItemWrapperConverter] ✅ Item Silver validated successfully
+[ItemWrapperConverter] ✅ Item Silver Dragon Scale Mail validated successfully
+[ItemWrapperConverter] ✅ Item Sled validated successfully
+[ItemWrapperConverter] ✅ Item Slippers of Spider Climbing validated successfully
+[ItemWrapperConverter] ✅ Item Smith's Tools validated successfully
+[ItemWrapperConverter] ✅ Item Sovereign Glue validated successfully
+[ItemWrapperConverter] ✅ Item Spell Scroll (Cantrip) validated successfully
+[ItemWrapperConverter] ✅ Item Spell Scroll (Level 1) validated successfully
+[ItemWrapperConverter] ✅ Item Spell Scroll (Level 2) validated successfully
+[ItemWrapperConverter] ✅ Item Spell Scroll (Level 3) validated successfully
+[ItemWrapperConverter] ✅ Item Spell Scroll (Level 4) validated successfully
+[ItemWrapperConverter] ✅ Item Spell Scroll (Level 5) validated successfully
+[ItemWrapperConverter] ✅ Item Spell Scroll (Level 6) validated successfully
+[ItemWrapperConverter] ✅ Item Spell Scroll (Level 7) validated successfully
+[ItemWrapperConverter] ✅ Item Spell Scroll (Level 8) validated successfully
+[ItemWrapperConverter] ✅ Item Spell Scroll (Level 9) validated successfully
+[ItemWrapperConverter] ✅ Item Spellguard Shield validated successfully
+[ItemWrapperConverter] ✅ Item Sphere of Annihilation validated successfully
+[ItemWrapperConverter] ✅ Item Sprig of Mistletoe validated successfully
+[ItemWrapperConverter] ✅ Item Spyglass validated successfully
+[ItemWrapperConverter] ✅ Item Stabling (per day) validated successfully
+[ItemWrapperConverter] ✅ Item Staff of Charming validated successfully
+[ItemWrapperConverter] ✅ Item Staff of Fire validated successfully
+[ItemWrapperConverter] ✅ Item Staff of Frost validated successfully
+[ItemWrapperConverter] ✅ Item Staff of Healing validated successfully
+[ItemWrapperConverter] ✅ Item Staff of Power validated successfully
+[ItemWrapperConverter] ✅ Item Staff of Striking validated successfully
+[ItemWrapperConverter] ✅ Item Staff of Swarming Insects validated successfully
+[ItemWrapperConverter] ✅ Item Staff of the Magi validated successfully
+[ItemWrapperConverter] ✅ Item Staff of the Python validated successfully
+[ItemWrapperConverter] ✅ Item Staff of the Woodlands validated successfully
+[ItemWrapperConverter] ✅ Item Staff of Thunder and Lightning validated successfully
+[ItemWrapperConverter] ✅ Item Staff of Withering validated successfully
+[ItemWrapperConverter] ✅ Item Stone of Controlling Earth Elementals validated successfully
+[ItemWrapperConverter] ✅ Item Stone of Good Luck validated successfully
+[ItemWrapperConverter] ✅ Item Sun Blade validated successfully
+[ItemWrapperConverter] ✅ Item Talisman of Pure Good validated successfully
+[ItemWrapperConverter] ✅ Item Talisman of the Sphere validated successfully
+[ItemWrapperConverter] ✅ Item Talisman of Ultimate Evil validated successfully
+[ItemWrapperConverter] ✅ Item Tent validated successfully
+[ItemWrapperConverter] ✅ Item Thieves' Tools validated successfully
+[ItemWrapperConverter] ✅ Item Thunderous Greatclub validated successfully
+[ItemWrapperConverter] ✅ Item Tinderbox validated successfully
+[ItemWrapperConverter] ✅ Item Tinker's Tools validated successfully
+[ItemWrapperConverter] ✅ Item Tome of Clear Thought validated successfully
+[ItemWrapperConverter] ✅ Item Tome of Leadership and Influence validated successfully
+[ItemWrapperConverter] ✅ Item Tome of Understanding validated successfully
+[ItemWrapperConverter] ✅ Item Torch validated successfully
+[ItemWrapperConverter] ✅ Item Torpor validated successfully
+[ItemWrapperConverter] ✅ Item Traveler's Clothes validated successfully
+[ItemWrapperConverter] ✅ Item Trident of Fish Command validated successfully
+[ItemWrapperConverter] ✅ Item Truth Serum validated successfully
+[ItemWrapperConverter] ✅ Item Universal Solvent validated successfully
+[ItemWrapperConverter] ✅ Item Vial validated successfully
+[ItemWrapperConverter] ✅ Item Wagon validated successfully
+[ItemWrapperConverter] ✅ Item Wand of Binding validated successfully
+[ItemWrapperConverter] ✅ Item Wand of Enemy Detection validated successfully
+[ItemWrapperConverter] ✅ Item Wand of Fear validated successfully
+[ItemWrapperConverter] ✅ Item Wand of Fireballs validated successfully
+[ItemWrapperConverter] ✅ Item Wand of Lightning Bolts validated successfully
+[ItemWrapperConverter] ✅ Item Wand of Magic Detection validated successfully
+[ItemWrapperConverter] ✅ Item Wand of Magic Missiles validated successfully
+[ItemWrapperConverter] ✅ Item Wand of Paralysis validated successfully
+[ItemWrapperConverter] ✅ Item Wand of Polymorph validated successfully
+[ItemWrapperConverter] ✅ Item Wand of Secrets validated successfully
+[ItemWrapperConverter] ✅ Item Wand of Web validated successfully
+[ItemWrapperConverter] ✅ Item Wand of Wonder validated successfully
+[ItemWrapperConverter] ✅ Item Warhorse validated successfully
+[ItemWrapperConverter] ✅ Item Warship validated successfully
+[ItemWrapperConverter] ✅ Item Waterskin validated successfully
+[ItemWrapperConverter] ✅ Item Weaver's Tools validated successfully
+[ItemWrapperConverter] ✅ Item Well of Many Worlds validated successfully
+[ItemWrapperConverter] ✅ Item Wheat validated successfully
+[ItemWrapperConverter] ✅ Item White Dragon Scale Mail validated successfully
+[ItemWrapperConverter] ✅ Item Wind Fan validated successfully
+[ItemWrapperConverter] ✅ Item Winged Boots validated successfully
+[ItemWrapperConverter] ✅ Item Wings of Flying validated successfully
+[ItemWrapperConverter] ✅ Item Woodcarver's Tools validated successfully
+[ItemWrapperConverter] ✅ Item Wyvern Poison validated successfully
+[ItemWrapperConverter] ✅ Item Yew Wand validated successfully
+Invalid 5etools data structure in item data file items-base.json: {
+  _meta: { internalCopies: [ 'itemType' ] },
+  baseitem: [
+    {
+      name: 'Antimatter Rifle',
+      source: 'DMG',
+      page: 268,
+      reprintedAs: [Array],
+      edition: 'classic',
+      type: 'R',
+      rarity: 'none',
+      weight: 10,
+      weaponCategory: 'martial',
+      age: 'futuristic',
+      property: [Array],
+      range: '120/360',
+      reload: 2,
+      dmg1: '6d8',
+      dmgType: 'N',
+      firearm: true,
+      weapon: true,
+      ammoType: 'energy cell'
+    },
+    {
+      name: 'Antimatter Rifle',
+      source: 'XDMG',
+      page: 73,
+      edition: 'one',
+      type: 'R|XPHB',
+      rarity: 'none',
+      weight: 10,
+      valueRarity: 'very rare',
+      weaponCategory: 'martial',
+      age: 'futuristic',
+      property: [Array],
+      mastery: [Array],
+      range: '120/360',
+      reload: 2,
+      dmg1: '6d8',
+      dmgType: 'N',
+      firearm: true,
+      weapon: true,
+      ammoType: 'energy cell|xdmg'
+    },
+    {
+      name: 'Arrow',
+      source: 'PHB',
+      page: 150,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      edition: 'classic',
+      type: 'A',
+      rarity: 'none',
+      weight: 0.05,
+      value: 5,
+      arrow: true
+    },
+    {
+      name: 'Arrow',
+      source: 'XPHB',
+      page: 222,
+      srd52: true,
+      edition: 'one',
+      type: 'A|XPHB',
+      rarity: 'none',
+      weight: 0.05,
+      value: 5,
+      arrow: true,
+      entries: [Array]
+    },
+    {
+      name: 'Arrows (20)',
+      source: 'PHB',
+      page: 150,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      edition: 'classic',
+      type: 'A',
+      rarity: 'none',
+      weight: 1,
+      value: 100,
+      arrow: true,
+      packContents: [Array]
+    },
+    {
+      name: 'Arrows (20)',
+      source: 'XPHB',
+      page: 222,
+      srd52: true,
+      edition: 'one',
+      type: 'A|XPHB',
+      rarity: 'none',
+      weight: 1,
+      value: 100,
+      arrow: true,
+      entries: [Array],
+      packContents: [Array]
+    },
+    {
+      name: 'Automatic Pistol',
+      source: 'DMG',
+      page: 268,
+      reprintedAs: [Array],
+      edition: 'classic',
+      type: 'R',
+      rarity: 'none',
+      weight: 3,
+      weaponCategory: 'martial',
+      age: 'modern',
+      property: [Array],
+      range: '50/150',
+      reload: 15,
+      dmg1: '2d6',
+      dmgType: 'P',
+      firearm: true,
+      weapon: true,
+      ammoType: 'modern bullet'
+    },
+    {
+      name: 'Automatic Rifle',
+      source: 'DMG',
+      page: 268,
+      reprintedAs: [Array],
+      edition: 'classic',
+      type: 'R',
+      rarity: 'none',
+      weight: 8,
+      weaponCategory: 'martial',
+      age: 'modern',
+      property: [Array],
+      range: '80/240',
+      reload: 30,
+      dmg1: '2d8',
+      dmgType: 'P',
+      firearm: true,
+      weapon: true,
+      ammoType: 'modern bullet'
+    },
+    {
+      name: 'Automatic Rifle',
+      source: 'XDMG',
+      page: 73,
+      edition: 'one',
+      type: 'R|XPHB',
+      rarity: 'none',
+      weight: 8,
+      valueRarity: 'rare',
+      weaponCategory: 'martial',
+      age: 'modern',
+      property: [Array],
+      mastery: [Array],
+      range: '80/240',
+      reload: 30,
+      dmg1: '2d8',
+      dmgType: 'P',
+      firearm: true,
+      weapon: true,
+      ammoType: 'firearm bullet|xphb'
+    },
+    {
+      name: 'Bagpipes',
+      source: 'PHB',
+      page: 154,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      edition: 'classic',
+      type: 'INS',
+      rarity: 'none',
+      weight: 6,
+      value: 3000
+    },
+    {
+      name: 'Bagpipes',
+      source: 'XPHB',
+      page: 221,
+      srd52: true,
+      basicRules2024: true,
+      edition: 'one',
+      type: 'INS|XPHB',
+      rarity: 'none',
+      weight: 6,
+      value: 3000,
+      entries: [Array]
+    },
+    {
+      name: 'Battleaxe',
+      source: 'PHB',
+      page: 149,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      edition: 'classic',
+      type: 'M',
+      rarity: 'none',
+      weight: 4,
+      value: 1000,
+      weaponCategory: 'martial',
+      property: [Array],
+      dmg1: '1d8',
+      dmgType: 'S',
+      dmg2: '1d10',
+      axe: true,
+      weapon: true
+    },
+    {
+      name: 'Battleaxe',
+      source: 'XPHB',
+      page: 215,
+      srd52: true,
+      basicRules2024: true,
+      edition: 'one',
+      type: 'M|XPHB',
+      rarity: 'none',
+      weight: 4,
+      value: 1000,
+      weaponCategory: 'martial',
+      property: [Array],
+      mastery: [Array],
+      dmg1: '1d8',
+      dmgType: 'S',
+      dmg2: '1d10',
+      axe: true,
+      weapon: true,
+      hasFluffImages: true
+    },
+    {
+      name: 'Birdpipes',
+      source: 'SCAG',
+      page: 124,
+      type: 'INS',
+      rarity: 'none',
+      entries: [Array]
+    },
+    {
+      name: 'Blowgun',
+      source: 'PHB',
+      page: 149,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      edition: 'classic',
+      type: 'R',
+      rarity: 'none',
+      weight: 1,
+      value: 1000,
+      weaponCategory: 'martial',
+      property: [Array],
+      range: '25/100',
+      dmg1: '1',
+      dmgType: 'P',
+      weapon: true,
+      ammoType: 'blowgun needle|phb'
+    },
+    {
+      name: 'Blowgun',
+      source: 'XPHB',
+      page: 215,
+      srd52: true,
+      basicRules2024: true,
+      edition: 'one',
+      type: 'R|XPHB',
+      rarity: 'none',
+      weight: 1,
+      value: 1000,
+      weaponCategory: 'martial',
+      property: [Array],
+      mastery: [Array],
+      range: '25/100',
+      dmg1: '1',
+      dmgType: 'P',
+      weapon: true,
+      ammoType: 'needle|xphb',
+      hasFluffImages: true
+    },
+    {
+      name: 'Blowgun Needle',
+      source: 'PHB',
+      page: 150,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      edition: 'classic',
+      type: 'A',
+      rarity: 'none',
+      weight: 0.02,
+      value: 2,
+      needleBlowgun: true
+    },
+    {
+      name: 'Blowgun Needles (50)',
+      source: 'PHB',
+      page: 150,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      edition: 'classic',
+      type: 'A',
+      rarity: 'none',
+      weight: 1,
+      value: 100,
+      needleBlowgun: true,
+      packContents: [Array]
+    },
+    {
+      name: 'Bolt',
+      source: 'XPHB',
+      page: 222,
+      srd52: true,
+      edition: 'one',
+      type: 'A|XPHB',
+      rarity: 'none',
+      weight: 0.075,
+      value: 5,
+      bolt: true,
+      entries: [Array]
+    },
+    {
+      name: 'Bolts (20)',
+      source: 'XPHB',
+      page: 222,
+      srd52: true,
+      edition: 'one',
+      type: 'A|XPHB',
+      rarity: 'none',
+      weight: 1.5,
+      value: 100,
+      bolt: true,
+      entries: [Array],
+      packContents: [Array]
+    },
+    {
+      name: 'Breastplate',
+      source: 'PHB',
+      page: 145,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      edition: 'classic',
+      type: 'MA',
+      rarity: 'none',
+      weight: 20,
+      value: 40000,
+      ac: 14,
+      armor: true,
+      entries: [Array]
+    },
+    {
+      name: 'Breastplate',
+      source: 'XPHB',
+      page: 219,
+      srd52: true,
+      basicRules2024: true,
+      edition: 'one',
+      type: 'MA|XPHB',
+      rarity: 'none',
+      weight: 20,
+      value: 40000,
+      ac: 14,
+      armor: true,
+      hasFluffImages: true
+    },
+    {
+      name: 'Chain Mail',
+      source: 'PHB',
+      page: 145,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      edition: 'classic',
+      type: 'HA',
+      rarity: 'none',
+      weight: 55,
+      value: 7500,
+      ac: 16,
+      strength: '13',
+      armor: true,
+      stealth: true,
+      entries: [Array]
+    },
+    {
+      name: 'Chain Mail',
+      source: 'XPHB',
+      page: 219,
+      srd52: true,
+      basicRules2024: true,
+      edition: 'one',
+      type: 'HA|XPHB',
+      rarity: 'none',
+      weight: 55,
+      value: 7500,
+      ac: 16,
+      strength: '13',
+      armor: true,
+      stealth: true,
+      hasFluffImages: true
+    },
+    {
+      name: 'Chain Shirt',
+      source: 'PHB',
+      page: 144,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      edition: 'classic',
+      type: 'MA',
+      rarity: 'none',
+      weight: 20,
+      value: 5000,
+      ac: 13,
+      armor: true,
+      entries: [Array]
+    },
+    {
+      name: 'Chain Shirt',
+      source: 'XPHB',
+      page: 219,
+      srd52: true,
+      basicRules2024: true,
+      edition: 'one',
+      type: 'MA|XPHB',
+      rarity: 'none',
+      weight: 20,
+      value: 5000,
+      ac: 13,
+      armor: true,
+      hasFluffImages: true
+    },
+    {
+      name: 'Club',
+      source: 'PHB',
+      page: 149,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      edition: 'classic',
+      type: 'M',
+      rarity: 'none',
+      weight: 2,
+      value: 10,
+      weaponCategory: 'simple',
+      property: [Array],
+      dmg1: '1d4',
+      dmgType: 'B',
+      club: true,
+      weapon: true
+    },
+    {
+      name: 'Club',
+      source: 'XPHB',
+      page: 215,
+      srd52: true,
+      basicRules2024: true,
+      edition: 'one',
+      type: 'M|XPHB',
+      rarity: 'none',
+      weight: 2,
+      value: 10,
+      weaponCategory: 'simple',
+      property: [Array],
+      mastery: [Array],
+      dmg1: '1d4',
+      dmgType: 'B',
+      club: true,
+      weapon: true,
+      hasFluffImages: true
+    },
+    {
+      name: 'Crossbow Bolt',
+      source: 'PHB',
+      page: 150,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      edition: 'classic',
+      type: 'A',
+      rarity: 'none',
+      weight: 0.075,
+      value: 5,
+      bolt: true
+    },
+    {
+      name: 'Crossbow Bolts (20)',
+      source: 'PHB',
+      page: 150,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      edition: 'classic',
+      type: 'A',
+      rarity: 'none',
+      weight: 1.5,
+      value: 100,
+      bolt: true,
+      packContents: [Array]
+    },
+    {
+      name: 'Crystal',
+      group: [Array],
+      source: 'PHB',
+      page: 151,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      edition: 'classic',
+      type: 'SCF',
+      scfType: 'arcane',
+      rarity: 'none',
+      weight: 1,
+      value: 1000
+    },
+    {
+      name: 'Crystal',
+      group: [Array],
+      source: 'XPHB',
+      page: 224,
+      srd52: true,
+      edition: 'one',
+      type: 'SCF|XPHB',
+      scfType: 'arcane',
+      rarity: 'none',
+      weight: 1,
+      value: 1000
+    },
+    {
+      name: 'Dagger',
+      source: 'PHB',
+      page: 149,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      edition: 'classic',
+      type: 'M',
+      rarity: 'none',
+      weight: 1,
+      value: 200,
+      weaponCategory: 'simple',
+      property: [Array],
+      range: '20/60',
+      dmg1: '1d4',
+      dmgType: 'P',
+      dagger: true,
+      weapon: true
+    },
+    {
+      name: 'Dagger',
+      source: 'XPHB',
+      page: 215,
+      srd52: true,
+      basicRules2024: true,
+      edition: 'one',
+      type: 'M|XPHB',
+      rarity: 'none',
+      weight: 1,
+      value: 200,
+      weaponCategory: 'simple',
+      property: [Array],
+      mastery: [Array],
+      range: '20/60',
+      dmg1: '1d4',
+      dmgType: 'P',
+      dagger: true,
+      weapon: true,
+      hasFluffImages: true
+    },
+    {
+      name: 'Dart',
+      source: 'PHB',
+      page: 149,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      edition: 'classic',
+      type: 'R',
+      rarity: 'none',
+      weight: 0.25,
+      value: 5,
+      weaponCategory: 'simple',
+      property: [Array],
+      range: '20/60',
+      dmg1: '1d4',
+      dmgType: 'P',
+      weapon: true
+    },
+    {
+      name: 'Dart',
+      source: 'XPHB',
+      page: 215,
+      srd52: true,
+      basicRules2024: true,
+      edition: 'one',
+      type: 'R|XPHB',
+      rarity: 'none',
+      weight: 0.25,
+      value: 5,
+      weaponCategory: 'simple',
+      property: [Array],
+      mastery: [Array],
+      range: '20/60',
+      dmg1: '1d4',
+      dmgType: 'P',
+      weapon: true,
+      hasFluffImages: true
+    },
+    {
+      name: 'Double-Bladed Scimitar',
+      source: 'ERLW',
+      page: 21,
+      type: 'M',
+      rarity: 'none',
+      weight: 6,
+      value: 10000,
+      weaponCategory: 'martial',
+      property: [Array],
+      dmg1: '2d4',
+      dmgType: 'S',
+      sword: true,
+      weapon: true,
+      entries: [Array],
+      hasFluff: true
+    },
+    {
+      name: 'Drum',
+      source: 'PHB',
+      page: 154,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      edition: 'classic',
+      type: 'INS',
+      rarity: 'none',
+      weight: 3,
+      value: 600
+    },
+    {
+      name: 'Drum',
+      source: 'XPHB',
+      page: 221,
+      srd52: true,
+      basicRules2024: true,
+      edition: 'one',
+      type: 'INS|XPHB',
+      rarity: 'none',
+      weight: 3,
+      value: 600,
+      entries: [Array]
+    },
+    {
+      name: 'Dulcimer',
+      source: 'PHB',
+      page: 154,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      edition: 'classic',
+      type: 'INS',
+      rarity: 'none',
+      weight: 10,
+      value: 2500
+    },
+    {
+      name: 'Dulcimer',
+      source: 'XPHB',
+      page: 221,
+      srd52: true,
+      basicRules2024: true,
+      edition: 'one',
+      type: 'INS|XPHB',
+      rarity: 'none',
+      weight: 10,
+      value: 2500,
+      entries: [Array]
+    },
+    {
+      name: 'Energy Cell',
+      source: 'DMG',
+      page: 268,
+      reprintedAs: [Array],
+      edition: 'classic',
+      type: 'AF|DMG',
+      rarity: 'none',
+      weight: 0.3125,
+      age: 'futuristic',
+      cellEnergy: true,
+      miscTags: [Array]
+    },
+    {
+      name: 'Energy Cell',
+      source: 'XDMG',
+      page: 72,
+      edition: 'one',
+      type: 'AF|XDMG',
+      rarity: 'none',
+      weight: 0.5,
+      age: 'futuristic',
+      cellEnergy: true,
+      miscTags: [Array]
+    },
+    {
+      name: 'Firearm Bullet',
+      source: 'XPHB',
+      page: 222,
+      edition: 'one',
+      type: 'A|XPHB',
+      rarity: 'none',
+      weight: 0.2,
+      value: 30,
+      bulletFirearm: true,
+      entries: [Array],
+      miscTags: [Array]
+    },
+    {
+      name: 'Firearm Bullets (10)',
+      source: 'XPHB',
+      page: 222,
+      edition: 'one',
+      type: 'A|XPHB',
+      rarity: 'none',
+      weight: 2,
+      value: 300,
+      bulletFirearm: true,
+      entries: [Array],
+      packContents: [Array],
+      miscTags: [Array]
+    },
+    {
+      name: 'Flail',
+      source: 'PHB',
+      page: 149,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      edition: 'classic',
+      type: 'M',
+      rarity: 'none',
+      weight: 2,
+      value: 1000,
+      weaponCategory: 'martial',
+      dmg1: '1d8',
+      dmgType: 'B',
+      weapon: true
+    },
+    {
+      name: 'Flail',
+      source: 'XPHB',
+      page: 215,
+      srd52: true,
+      basicRules2024: true,
+      edition: 'one',
+      type: 'M|XPHB',
+      rarity: 'none',
+      weight: 2,
+      value: 1000,
+      weaponCategory: 'martial',
+      mastery: [Array],
+      dmg1: '1d8',
+      dmgType: 'B',
+      weapon: true,
+      hasFluffImages: true
+    },
+    {
+      name: 'Flute',
+      source: 'PHB',
+      page: 154,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      edition: 'classic',
+      type: 'INS',
+      rarity: 'none',
+      weight: 1,
+      value: 200
+    },
+    {
+      name: 'Flute',
+      source: 'XPHB',
+      page: 221,
+      srd52: true,
+      basicRules2024: true,
+      edition: 'one',
+      type: 'INS|XPHB',
+      rarity: 'none',
+      weight: 1,
+      value: 200,
+      entries: [Array]
+    },
+    {
+      name: 'Glaive',
+      source: 'PHB',
+      page: 149,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      edition: 'classic',
+      type: 'M',
+      rarity: 'none',
+      weight: 6,
+      value: 2000,
+      weaponCategory: 'martial',
+      property: [Array],
+      dmg1: '1d10',
+      dmgType: 'S',
+      polearm: true,
+      weapon: true
+    },
+    {
+      name: 'Glaive',
+      source: 'XPHB',
+      page: 215,
+      srd52: true,
+      basicRules2024: true,
+      edition: 'one',
+      type: 'M|XPHB',
+      rarity: 'none',
+      weight: 6,
+      value: 2000,
+      weaponCategory: 'martial',
+      property: [Array],
+      mastery: [Array],
+      dmg1: '1d10',
+      dmgType: 'S',
+      polearm: true,
+      weapon: true,
+      hasFluffImages: true
+    },
+    {
+      name: 'Glaur',
+      source: 'SCAG',
+      page: 124,
+      type: 'INS',
+      rarity: 'none',
+      entries: [Array]
+    },
+    {
+      name: 'Greataxe',
+      source: 'PHB',
+      page: 149,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      edition: 'classic',
+      type: 'M',
+      rarity: 'none',
+      weight: 7,
+      value: 3000,
+      weaponCategory: 'martial',
+      property: [Array],
+      dmg1: '1d12',
+      dmgType: 'S',
+      axe: true,
+      weapon: true
+    },
+    {
+      name: 'Greataxe',
+      source: 'XPHB',
+      page: 215,
+      srd52: true,
+      basicRules2024: true,
+      edition: 'one',
+      type: 'M|XPHB',
+      rarity: 'none',
+      weight: 7,
+      value: 3000,
+      weaponCategory: 'martial',
+      property: [Array],
+      mastery: [Array],
+      dmg1: '1d12',
+      dmgType: 'S',
+      axe: true,
+      weapon: true,
+      hasFluffImages: true
+    },
+    {
+      name: 'Greatclub',
+      source: 'PHB',
+      page: 149,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      edition: 'classic',
+      type: 'M',
+      rarity: 'none',
+      weight: 10,
+      value: 20,
+      weaponCategory: 'simple',
+      property: [Array],
+      dmg1: '1d8',
+      dmgType: 'B',
+      club: true,
+      weapon: true
+    },
+    {
+      name: 'Greatclub',
+      source: 'XPHB',
+      page: 215,
+      srd52: true,
+      basicRules2024: true,
+      edition: 'one',
+      type: 'M|XPHB',
+      rarity: 'none',
+      weight: 10,
+      value: 20,
+      weaponCategory: 'simple',
+      property: [Array],
+      mastery: [Array],
+      dmg1: '1d8',
+      dmgType: 'B',
+      club: true,
+      weapon: true,
+      hasFluffImages: true
+    },
+    {
+      name: 'Greatsword',
+      source: 'PHB',
+      page: 149,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      edition: 'classic',
+      type: 'M',
+      rarity: 'none',
+      weight: 6,
+      value: 5000,
+      weaponCategory: 'martial',
+      property: [Array],
+      dmg1: '2d6',
+      dmgType: 'S',
+      sword: true,
+      weapon: true
+    },
+    {
+      name: 'Greatsword',
+      source: 'XPHB',
+      page: 215,
+      srd52: true,
+      basicRules2024: true,
+      edition: 'one',
+      type: 'M|XPHB',
+      rarity: 'none',
+      weight: 6,
+      value: 5000,
+      weaponCategory: 'martial',
+      property: [Array],
+      mastery: [Array],
+      dmg1: '2d6',
+      dmgType: 'S',
+      sword: true,
+      weapon: true,
+      hasFluffImages: true
+    },
+    {
+      name: 'Halberd',
+      source: 'PHB',
+      page: 149,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      edition: 'classic',
+      type: 'M',
+      rarity: 'none',
+      weight: 6,
+      value: 2000,
+      weaponCategory: 'martial',
+      property: [Array],
+      dmg1: '1d10',
+      dmgType: 'S',
+      polearm: true,
+      weapon: true
+    },
+    {
+      name: 'Halberd',
+      source: 'XPHB',
+      page: 215,
+      srd52: true,
+      basicRules2024: true,
+      edition: 'one',
+      type: 'M|XPHB',
+      rarity: 'none',
+      weight: 6,
+      value: 2000,
+      weaponCategory: 'martial',
+      property: [Array],
+      mastery: [Array],
+      dmg1: '1d10',
+      dmgType: 'S',
+      polearm: true,
+      weapon: true,
+      hasFluffImages: true
+    },
+    {
+      name: 'Half Plate Armor',
+      source: 'PHB',
+      page: 145,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      edition: 'classic',
+      type: 'MA',
+      rarity: 'none',
+      weight: 40,
+      value: 75000,
+      ac: 15,
+      armor: true,
+      stealth: true,
+      entries: [Array]
+    },
+    {
+      name: 'Half Plate Armor',
+      source: 'XPHB',
+      page: 219,
+      srd52: true,
+      basicRules2024: true,
+      edition: 'one',
+      type: 'MA|XPHB',
+      rarity: 'none',
+      weight: 40,
+      value: 75000,
+      ac: 15,
+      armor: true,
+      stealth: true,
+      hasFluffImages: true
+    },
+    {
+      name: 'Hand Crossbow',
+      source: 'PHB',
+      page: 149,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      edition: 'classic',
+      type: 'R',
+      rarity: 'none',
+      weight: 3,
+      value: 7500,
+      weaponCategory: 'martial',
+      property: [Array],
+      range: '30/120',
+      dmg1: '1d6',
+      dmgType: 'P',
+      crossbow: true,
+      weapon: true,
+      ammoType: 'crossbow bolt|phb'
+    },
+    {
+      name: 'Hand Crossbow',
+      source: 'XPHB',
+      page: 215,
+      srd52: true,
+      basicRules2024: true,
+      edition: 'one',
+      type: 'R|XPHB',
+      rarity: 'none',
+      weight: 3,
+      value: 7500,
+      weaponCategory: 'martial',
+      property: [Array],
+      mastery: [Array],
+      range: '30/120',
+      dmg1: '1d6',
+      dmgType: 'P',
+      crossbow: true,
+      weapon: true,
+      ammoType: 'bolt|xphb',
+      hasFluffImages: true
+    },
+    {
+      name: 'Hand Drum',
+      source: 'SCAG',
+      page: 124,
+      type: 'INS',
+      rarity: 'none',
+      entries: [Array]
+    },
+    {
+      name: 'Handaxe',
+      source: 'PHB',
+      page: 149,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      edition: 'classic',
+      type: 'M',
+      rarity: 'none',
+      weight: 2,
+      value: 500,
+      weaponCategory: 'simple',
+      property: [Array],
+      range: '20/60',
+      dmg1: '1d6',
+      dmgType: 'S',
+      axe: true,
+      weapon: true
+    },
+    {
+      name: 'Handaxe',
+      source: 'XPHB',
+      page: 215,
+      srd52: true,
+      basicRules2024: true,
+      edition: 'one',
+      type: 'M|XPHB',
+      rarity: 'none',
+      weight: 2,
+      value: 500,
+      weaponCategory: 'simple',
+      property: [Array],
+      mastery: [Array],
+      range: '20/60',
+      dmg1: '1d6',
+      dmgType: 'S',
+      axe: true,
+      weapon: true,
+      hasFluffImages: true
+    },
+    {
+      name: 'Heavy Crossbow',
+      source: 'PHB',
+      page: 149,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      edition: 'classic',
+      type: 'R',
+      rarity: 'none',
+      weight: 18,
+      value: 5000,
+      weaponCategory: 'martial',
+      property: [Array],
+      range: '100/400',
+      dmg1: '1d10',
+      dmgType: 'P',
+      crossbow: true,
+      weapon: true,
+      ammoType: 'crossbow bolt|phb'
+    },
+    {
+      name: 'Heavy Crossbow',
+      source: 'XPHB',
+      page: 215,
+      srd52: true,
+      basicRules2024: true,
+      edition: 'one',
+      type: 'R|XPHB',
+      rarity: 'none',
+      weight: 18,
+      value: 5000,
+      weaponCategory: 'martial',
+      property: [Array],
+      mastery: [Array],
+      range: '100/400',
+      dmg1: '1d10',
+      dmgType: 'P',
+      crossbow: true,
+      weapon: true,
+      ammoType: 'bolt|xphb',
+      hasFluffImages: true
+    },
+    {
+      name: 'Hide Armor',
+      source: 'PHB',
+      page: 144,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      edition: 'classic',
+      type: 'MA',
+      rarity: 'none',
+      weight: 12,
+      value: 1000,
+      ac: 12,
+      armor: true,
+      entries: [Array]
+    },
+    {
+      name: 'Hide Armor',
+      source: 'XPHB',
+      page: 219,
+      srd52: true,
+      basicRules2024: true,
+      edition: 'one',
+      type: 'MA|XPHB',
+      rarity: 'none',
+      weight: 12,
+      value: 1000,
+      ac: 12,
+      armor: true,
+      hasFluffImages: true
+    },
+    {
+      name: 'Hooked Shortspear',
+      source: 'OotA',
+      page: 224,
+      type: 'M',
+      rarity: 'unknown',
+      weight: 2,
+      weaponCategory: 'martial',
+      property: [Array],
+      dmg1: '1d4',
+      dmgType: 'P',
+      weapon: true,
+      entries: [Array]
+    },
+    {
+      name: 'Hoopak',
+      source: 'DSotDQ',
+      page: 188,
+      type: 'M',
+      rarity: 'none',
+      weight: 2,
+      value: 10,
+      weaponCategory: 'martial',
+      property: [Array],
+      range: '40/160',
+      dmg1: '1d6',
+      dmgType: 'P',
+      weapon: true,
+      entries: [Array],
+      ammoType: 'sling bullet|phb',
+      hasFluffImages: true
+    },
+    {
+      name: 'Horn',
+      source: 'PHB',
+      page: 154,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      edition: 'classic',
+      type: 'INS',
+      rarity: 'none',
+      weight: 2,
+      value: 300
+    },
+    {
+      name: 'Horn',
+      source: 'XPHB',
+      page: 221,
+      srd52: true,
+      basicRules2024: true,
+      edition: 'one',
+      type: 'INS|XPHB',
+      rarity: 'none',
+      weight: 2,
+      value: 300,
+      entries: [Array]
+    },
+    {
+      name: 'Hunting Rifle',
+      source: 'DMG',
+      page: 268,
+      reprintedAs: [Array],
+      edition: 'classic',
+      type: 'R',
+      rarity: 'none',
+      weight: 8,
+      weaponCategory: 'martial',
+      age: 'modern',
+      property: [Array],
+      range: '80/240',
+      reload: 5,
+      dmg1: '2d10',
+      dmgType: 'P',
+      firearm: true,
+      weapon: true,
+      ammoType: 'modern bullet'
+    },
+    {
+      name: 'Hunting Rifle',
+      source: 'XDMG',
+      page: 73,
+      edition: 'one',
+      type: 'R|XPHB',
+      rarity: 'none',
+      weight: 8,
+      valueRarity: 'rare',
+      weaponCategory: 'martial',
+      age: 'modern',
+      property: [Array],
+      mastery: [Array],
+      range: '80/240',
+      reload: 5,
+      dmg1: '2d10',
+      dmgType: 'P',
+      firearm: true,
+      weapon: true,
+      ammoType: 'firearm bullet|xphb'
+    },
+    {
+      name: 'Javelin',
+      source: 'PHB',
+      page: 149,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      edition: 'classic',
+      type: 'M',
+      rarity: 'none',
+      weight: 2,
+      value: 50,
+      weaponCategory: 'simple',
+      property: [Array],
+      range: '30/120',
+      dmg1: '1d6',
+      dmgType: 'P',
+      spear: true,
+      weapon: true
+    },
+    {
+      name: 'Javelin',
+      source: 'XPHB',
+      page: 215,
+      srd52: true,
+      basicRules2024: true,
+      edition: 'one',
+      type: 'M|XPHB',
+      rarity: 'none',
+      weight: 2,
+      value: 50,
+      weaponCategory: 'simple',
+      property: [Array],
+      mastery: [Array],
+      range: '30/120',
+      dmg1: '1d6',
+      dmgType: 'P',
+      spear: true,
+      weapon: true,
+      hasFluffImages: true
+    },
+    {
+      name: 'Lance',
+      source: 'PHB',
+      page: 149,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      edition: 'classic',
+      type: 'M',
+      rarity: 'none',
+      weight: 6,
+      value: 1000,
+      weaponCategory: 'martial',
+      property: [Array],
+      dmg1: '1d12',
+      dmgType: 'P',
+      lance: true,
+      weapon: true,
+      entries: [Array]
+    },
+    {
+      name: 'Lance',
+      source: 'XPHB',
+      page: 215,
+      srd52: true,
+      basicRules2024: true,
+      edition: 'one',
+      type: 'M|XPHB',
+      rarity: 'none',
+      weight: 6,
+      value: 1000,
+      weaponCategory: 'martial',
+      property: [Array],
+      mastery: [Array],
+      dmg1: '1d10',
+      dmgType: 'P',
+      lance: true,
+      weapon: true,
+      entries: [Array],
+      hasFluffImages: true
+    },
+    {
+      name: 'Laser Pistol',
+      source: 'DMG',
+      page: 268,
+      reprintedAs: [Array],
+      edition: 'classic',
+      type: 'R',
+      rarity: 'none',
+      weight: 2,
+      weaponCategory: 'martial',
+      age: 'futuristic',
+      property: [Array],
+      range: '40/120',
+      reload: 50,
+      dmg1: '3d6',
+      dmgType: 'R',
+      firearm: true,
+      weapon: true,
+      ammoType: 'energy cell'
+    },
+    {
+      name: 'Laser Pistol',
+      source: 'XDMG',
+      page: 73,
+      edition: 'one',
+      type: 'R|XPHB',
+      rarity: 'none',
+      weight: 2,
+      valueRarity: 'very rare',
+      weaponCategory: 'martial',
+      age: 'futuristic',
+      property: [Array],
+      mastery: [Array],
+      range: '40/120',
+      reload: 50,
+      dmg1: '3d6',
+      dmgType: 'R',
+      firearm: true,
+      weapon: true,
+      ammoType: 'energy cell|xdmg'
+    },
+    {
+      name: 'Laser Rifle',
+      source: 'DMG',
+      page: 268,
+      reprintedAs: [Array],
+      edition: 'classic',
+      type: 'R',
+      rarity: 'none',
+      weight: 7,
+      weaponCategory: 'martial',
+      age: 'futuristic',
+      property: [Array],
+      range: '100/300',
+      reload: 30,
+      dmg1: '3d8',
+      dmgType: 'R',
+      firearm: true,
+      weapon: true,
+      ammoType: 'energy cell'
+    },
+    {
+      name: 'Laser Rifle',
+      source: 'XDMG',
+      page: 73,
+      edition: 'one',
+      type: 'R|XPHB',
+      rarity: 'none',
+      weight: 7,
+      valueRarity: 'very rare',
+      weaponCategory: 'martial',
+      age: 'futuristic',
+      property: [Array],
+      mastery: [Array],
+      range: '100/300',
+      reload: 30,
+      dmg1: '3d8',
+      dmgType: 'R',
+      firearm: true,
+      weapon: true,
+      ammoType: 'energy cell|xdmg'
+    },
+    {
+      name: 'Leather Armor',
+      source: 'PHB',
+      page: 144,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      edition: 'classic',
+      type: 'LA',
+      rarity: 'none',
+      weight: 10,
+      value: 1000,
+      ac: 11,
+      armor: true,
+      entries: [Array]
+    },
+    {
+      name: 'Leather Armor',
+      source: 'XPHB',
+      page: 219,
+      srd52: true,
+      basicRules2024: true,
+      edition: 'one',
+      type: 'LA|XPHB',
+      rarity: 'none',
+      weight: 10,
+      value: 1000,
+      ac: 11,
+      armor: true,
+      hasFluffImages: true
+    },
+    {
+      name: 'Light Crossbow',
+      source: 'PHB',
+      page: 149,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      edition: 'classic',
+      type: 'R',
+      rarity: 'none',
+      weight: 5,
+      value: 2500,
+      weaponCategory: 'simple',
+      property: [Array],
+      range: '80/320',
+      dmg1: '1d8',
+      dmgType: 'P',
+      crossbow: true,
+      weapon: true,
+      ammoType: 'crossbow bolt|phb'
+    },
+    {
+      name: 'Light Crossbow',
+      source: 'XPHB',
+      page: 215,
+      srd52: true,
+      basicRules2024: true,
+      edition: 'one',
+      type: 'R|XPHB',
+      rarity: 'none',
+      weight: 5,
+      value: 2500,
+      weaponCategory: 'simple',
+      property: [Array],
+      mastery: [Array],
+      range: '80/320',
+      dmg1: '1d8',
+      dmgType: 'P',
+      crossbow: true,
+      weapon: true,
+      ammoType: 'bolt|xphb',
+      hasFluffImages: true
+    },
+    {
+      name: 'Light Hammer',
+      source: 'PHB',
+      page: 149,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      edition: 'classic',
+      type: 'M',
+      rarity: 'none',
+      weight: 2,
+      value: 200,
+      weaponCategory: 'simple',
+      property: [Array],
+      range: '20/60',
+      dmg1: '1d4',
+      dmgType: 'B',
+      hammer: true,
+      weapon: true
+    },
+    {
+      name: 'Light Hammer',
+      source: 'XPHB',
+      page: 215,
+      srd52: true,
+      basicRules2024: true,
+      edition: 'one',
+      type: 'M|XPHB',
+      rarity: 'none',
+      weight: 2,
+      value: 200,
+      weaponCategory: 'simple',
+      property: [Array],
+      mastery: [Array],
+      range: '20/60',
+      dmg1: '1d4',
+      dmgType: 'B',
+      hammer: true,
+      weapon: true,
+      hasFluffImages: true
+    },
+    {
+      name: 'Light Repeating Crossbow',
+      source: 'OotA',
+      page: 224,
+      type: 'R',
+      rarity: 'unknown',
+      weight: 5,
+      weaponCategory: 'simple',
+      property: [Array],
+      range: '40/160',
+      dmg1: '1d8',
+      dmgType: 'P',
+      crossbow: true,
+      weapon: true,
+      entries: [Array],
+      ammoType: 'crossbow bolt|phb'
+    },
+    {
+      name: 'Longbow',
+      source: 'PHB',
+      page: 149,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      edition: 'classic',
+      type: 'R',
+      rarity: 'none',
+      weight: 2,
+      value: 5000,
+      weaponCategory: 'martial',
+      property: [Array],
+      range: '150/600',
+      dmg1: '1d8',
+      dmgType: 'P',
+      bow: true,
+      weapon: true,
+      ammoType: 'arrow|phb'
+    },
+    {
+      name: 'Longbow',
+      source: 'XPHB',
+      page: 215,
+      srd52: true,
+      basicRules2024: true,
+      edition: 'one',
+      type: 'R|XPHB',
+      rarity: 'none',
+      weight: 2,
+      value: 5000,
+      weaponCategory: 'martial',
+      property: [Array],
+      mastery: [Array],
+      range: '150/600',
+      dmg1: '1d8',
+      dmgType: 'P',
+      bow: true,
+      weapon: true,
+      ammoType: 'arrow|xphb',
+      hasFluffImages: true
+    },
+    {
+      name: 'Longhorn',
+      source: 'SCAG',
+      page: 124,
+      type: 'INS',
+      rarity: 'none',
+      entries: [Array]
+    },
+    {
+      name: 'Longsword',
+      source: 'PHB',
+      page: 149,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      edition: 'classic',
+      type: 'M',
+      rarity: 'none',
+      weight: 3,
+      value: 1500,
+      weaponCategory: 'martial',
+      property: [Array],
+      dmg1: '1d8',
+      dmgType: 'S',
+      dmg2: '1d10',
+      sword: true,
+      weapon: true
+    },
+    {
+      name: 'Longsword',
+      source: 'XPHB',
+      page: 215,
+      srd52: true,
+      basicRules2024: true,
+      edition: 'one',
+      type: 'M|XPHB',
+      rarity: 'none',
+      weight: 3,
+      value: 1500,
+      weaponCategory: 'martial',
+      property: [Array],
+      mastery: [Array],
+      dmg1: '1d8',
+      dmgType: 'S',
+      dmg2: '1d10',
+      sword: true,
+      weapon: true,
+      hasFluffImages: true
+    },
+    {
+      name: 'Lute',
+      source: 'PHB',
+      page: 154,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      edition: 'classic',
+      type: 'INS',
+      rarity: 'none',
+      weight: 2,
+      value: 3500
+    },
+    {
+      name: 'Lute',
+      source: 'XPHB',
+      page: 221,
+      srd52: true,
+      basicRules2024: true,
+      edition: 'one',
+      type: 'INS|XPHB',
+      rarity: 'none',
+      weight: 2,
+      value: 3500,
+      entries: [Array]
+    },
+    {
+      name: 'Lyre',
+      source: 'PHB',
+      page: 154,
+      srd: true,
+      basicRules: true,
+      reprintedAs: [Array],
+      edition: 'classic',
+      type: 'INS',
+      rarity: 'none',
+      weight: 2,
+      value: 3000
+    },
+    ... 93 more items
+  ],
+  itemProperty: [
+    {
+      abbreviation: '2H',
+      source: 'PHB',
+      page: 147,
+      reprintedAs: [Array],
+      template: '{{prop_name_lower}}',
+      entries: [Array]
+    },
+    {
+      abbreviation: '2H',
+      source: 'XPHB',
+      page: 214,
+      basicRules2024: true,
+      template: '{{prop_name}}',
+      entries: [Array]
+    },
+    {
+      abbreviation: 'A',
+      source: 'PHB',
+      page: 146,
+      reprintedAs: [Array],
+      template: '{{prop_name_lower}} ({{item.range}} ft.)',
+      entries: [Array]
+    },
+    {
+      abbreviation: 'A',
+      source: 'XPHB',
+      page: 213,
+      basicRules2024: true,
+      template: '{{prop_name}} (Range {{item.range}} ft.; {{item.ammoType}})',
+      entries: [Array]
+    },
+    {
+      abbreviation: 'AF',
+      source: 'DMG',
+      page: 267,
+      reprintedAs: [Array],
+      template: '{{prop_name_lower}} ({{item.range}} ft.)',
+      entries: [Array]
+    },
+    {
+      abbreviation: 'AF',
+      source: 'XDMG',
+      page: 72,
+      template: '{{prop_name}} ({{item.range}} ft.; {{item.ammoType}})',
+      entries: [Array]
+    },
+    {
+      abbreviation: 'BF',
+      source: 'DMG',
+      page: 267,
+      reprintedAs: [Array],
+      template: '{{prop_name_lower}}',
+      entries: [Array]
+    },
+    {
+      abbreviation: 'BF',
+      source: 'XDMG',
+      page: 72,
+      template: '{{prop_name}}',
+      entries: [Array]
+    },
+    {
+      abbreviation: 'ER',
+      source: 'TDCSR',
+      page: 195,
+      template: '{{prop_name_lower}} ({{item.reach}} ft.)',
+      entriesTemplate: [Array]
+    },
+    {
+      abbreviation: 'F',
+      source: 'PHB',
+      page: 147,
+      reprintedAs: [Array],
+      template: '{{prop_name_lower}}',
+      entries: [Array]
+    },
+    {
+      abbreviation: 'F',
+      source: 'XPHB',
+      page: 213,
+      basicRules2024: true,
+      template: '{{prop_name}}',
+      entries: [Array]
+    },
+    {
+      abbreviation: 'H',
+      source: 'PHB',
+      page: 147,
+      reprintedAs: [Array],
+      template: '{{prop_name_lower}}',
+      entries: [Array]
+    },
+    {
+      abbreviation: 'H',
+      source: 'XPHB',
+      page: 213,
+      basicRules2024: true,
+      template: '{{prop_name}}',
+      entries: [Array]
+    },
+    {
+      abbreviation: 'L',
+      source: 'PHB',
+      page: 147,
+      reprintedAs: [Array],
+      template: '{{prop_name_lower}}',
+      entries: [Array]
+    },
+    {
+      abbreviation: 'L',
+      source: 'XPHB',
+      page: 213,
+      basicRules2024: true,
+      template: '{{prop_name}}',
+      entries: [Array]
+    },
+    {
+      abbreviation: 'LD',
+      source: 'PHB',
+      page: 147,
+      reprintedAs: [Array],
+      template: '{{prop_name_lower}}',
+      entries: [Array]
+    },
+    {
+      abbreviation: 'LD',
+      source: 'XPHB',
+      page: 214,
+      basicRules2024: true,
+      template: '{{prop_name}}',
+      entries: [Array]
+    },
+    {
+      abbreviation: 'R',
+      source: 'PHB',
+      page: 147,
+      reprintedAs: [Array],
+      template: '{{prop_name_lower}}',
+      entries: [Array]
+    },
+    {
+      abbreviation: 'R',
+      source: 'XPHB',
+      page: 214,
+      basicRules2024: true,
+      template: '{{prop_name}}',
+      entries: [Array]
+    },
+    {
+      abbreviation: 'RLD',
+      source: 'DMG',
+      page: 267,
+      reprintedAs: [Array],
+      template: '{{prop_name_lower}} ({{item.reload}} shots)',
+      entries: [Array]
+    },
+    {
+      abbreviation: 'RLD',
+      source: 'XDMG',
+      page: 72,
+      template: '{{prop_name}} ({{item.reload}} shots)',
+      entries: [Array]
+    },
+    {
+      name: 'special',
+      abbreviation: 'S',
+      source: 'PHB',
+      page: 147,
+      template: '{{prop_name_lower}}'
+    },
+    {
+      abbreviation: 'T',
+      source: 'PHB',
+      page: 147,
+      reprintedAs: [Array],
+      template: '{{prop_name_lower}} ({{item.range}} ft.)',
+      entries: [Array]
+    },
+    {
+      abbreviation: 'T',
+      source: 'XPHB',
+      page: 214,
+      basicRules2024: true,
+      template: '{{prop_name}} ({{item.range}} ft.)',
+      entries: [Array]
+    },
+    {
+      abbreviation: 'V',
+      source: 'PHB',
+      page: 147,
+      reprintedAs: [Array],
+      template: '{{prop_name_lower}} ({{item.dmg2}})',
+      entries: [Array]
+    },
+    {
+      abbreviation: 'V',
+      source: 'XPHB',
+      page: 214,
+      basicRules2024: true,
+      template: '{{prop_name}} ({{item.dmg2}})',
+      entries: [Array]
+    },
+    {
+      abbreviation: 'Vst',
+      source: 'TDCSR',
+      page: 200,
+      template: 'Vestige',
+      entries: [Array]
+    }
+  ],
+  itemType: [
+    { name: 'Treasure', abbreviation: '$', source: 'DMG', page: 133 },
+    {
+      name: 'Treasure (Art Object)',
+      abbreviation: '$A',
+      source: 'DMG',
+      page: 133,
+      reprintedAs: [Array]
+    },
+    {
+      name: 'Treasure (Art Object)',
+      abbreviation: '$A',
+      source: 'XDMG',
+      page: 215,
+      entries: [Array]
+    },
+    {
+      name: 'Treasure (Coinage)',
+      abbreviation: '$C',
+      source: 'PHB',
+      page: 143,
+      reprintedAs: [Array]
+    },
+    {
+      name: 'Treasure (Coinage)',
+      abbreviation: '$C',
+      source: 'XPHB',
+      page: 213,
+      basicRules2024: true,
+      entries: [Array]
+    },
+    {
+      name: 'Treasure (Gemstone)',
+      abbreviation: '$G',
+      source: 'DMG',
+      page: 133,
+      reprintedAs: [Array]
+    },
+    {
+      name: 'Treasure (Gemstone)',
+      abbreviation: '$G',
+      source: 'XDMG',
+      page: 214,
+      entries: [Array]
+    },
+    {
+      name: 'Ammunition',
+      abbreviation: 'A',
+      source: 'PHB',
+      page: 148,
+      reprintedAs: [Array]
+    },
+    {
+      name: 'Ammunition',
+      abbreviation: 'A',
+      source: 'XPHB',
+      page: 222,
+      basicRules2024: true
+    },
+    {
+      name: 'Ammunition',
+      abbreviation: 'AF',
+      source: 'DMG',
+      page: 267,
+      reprintedAs: [Array]
+    },
+    {
+      name: 'Ammunition',
+      abbreviation: 'AF',
+      source: 'XDMG',
+      page: 72
+    },
+    {
+      name: 'Vehicle (Air)',
+      abbreviation: 'AIR',
+      source: 'DMG',
+      page: 119,
+      reprintedAs: [Array],
+      _copy: [Object]
+    },
+    {
+      name: 'Vehicle (Air)',
+      abbreviation: 'AIR',
+      source: 'XPHB',
+      page: 230,
+      basicRules2024: true,
+      _copy: [Object]
+    },
+    {
+      name: "Artisan's Tools",
+      abbreviation: 'AT',
+      source: 'PHB',
+      page: 154,
+      reprintedAs: [Array],
+      entries: [Array]
+    },
+    {
+      name: "Artisan's Tools",
+      abbreviation: 'AT',
+      source: 'XPHB',
+      page: 220,
+      basicRules2024: true,
+      entries: [Array]
+    },
+    {
+      name: 'Explosive',
+      abbreviation: 'EXP',
+      source: 'DMG',
+      page: 267,
+      reprintedAs: [Array]
+    },
+    {
+      name: 'Explosive',
+      abbreviation: 'EXP',
+      source: 'XDMG',
+      page: 72
+    },
+    {
+      name: 'Food and Drink',
+      abbreviation: 'FD',
+      source: 'PHB',
+      page: 158,
+      reprintedAs: [Array]
+    },
+    {
+      name: 'Food and Drink',
+      abbreviation: 'FD',
+      source: 'XPHB',
+      page: 231,
+      basicRules2024: true
+    },
+    {
+      name: 'Adventuring Gear',
+      abbreviation: 'G',
+      source: 'PHB',
+      page: 148,
+      reprintedAs: [Array]
+    },
+    {
+      name: 'Adventuring Gear',
+      abbreviation: 'G',
+      source: 'XPHB',
+      page: 222,
+      basicRules2024: true
+    },
+    {
+      name: 'Gaming Set',
+      abbreviation: 'GS',
+      source: 'PHB',
+      page: 154,
+      reprintedAs: [Array],
+      entries: [Array]
+    },
+    {
+      name: 'Gaming Set',
+      abbreviation: 'GS',
+      source: 'XPHB',
+      page: 221,
+      basicRules2024: true,
+      entries: [Array]
+    },
+    {
+      name: 'Generic Variant',
+      abbreviation: 'GV',
+      source: 'DMG',
+      page: 135
+    },
+    {
+      name: 'Heavy Armor',
+      abbreviation: 'HA',
+      source: 'PHB',
+      page: 145,
+      reprintedAs: [Array]
+    },
+    {
+      name: 'Heavy Armor',
+      abbreviation: 'HA',
+      source: 'XPHB',
+      page: 219,
+      basicRules2024: true
+    },
+    {
+      name: 'Illegal Drug',
+      abbreviation: 'IDG',
+      source: 'TDCSR',
+      page: 85,
+      entriesTemplate: [Array]
+    },
+    {
+      name: 'Instrument',
+      abbreviation: 'INS',
+      source: 'PHB',
+      page: 154,
+      reprintedAs: [Array],
+      entries: [Array]
+    },
+    {
+      name: 'Instrument',
+      abbreviation: 'INS',
+      source: 'XPHB',
+      page: 221,
+      basicRules2024: true,
+      entries: [Array]
+    },
+    {
+      name: 'Light Armor',
+      abbreviation: 'LA',
+      source: 'PHB',
+      page: 144,
+      reprintedAs: [Array]
+    },
+    {
+      name: 'Light Armor',
+      abbreviation: 'LA',
+      source: 'XPHB',
+      page: 219,
+      basicRules2024: true
+    },
+    {
+      name: 'Melee Weapon',
+      abbreviation: 'M',
+      source: 'PHB',
+      page: 146,
+      reprintedAs: [Array]
+    },
+    {
+      name: 'Melee Weapon',
+      abbreviation: 'M',
+      source: 'XPHB',
+      page: 213,
+      basicRules2024: true
+    },
+    {
+      name: 'Medium Armor',
+      abbreviation: 'MA',
+      source: 'PHB',
+      page: 144,
+      reprintedAs: [Array]
+    },
+    {
+      name: 'Medium Armor',
+      abbreviation: 'MA',
+      source: 'XPHB',
+      page: 219,
+      basicRules2024: true
+    },
+    {
+      name: 'Mount',
+      abbreviation: 'MNT',
+      source: 'PHB',
+      page: 155,
+      reprintedAs: [Array]
+    },
+    {
+      name: 'Mount',
+      abbreviation: 'MNT',
+      source: 'XPHB',
+      page: 230,
+      basicRules2024: true
+    },
+    { name: 'Other', abbreviation: 'OTH', source: 'PHB', page: 143 },
+    {
+      name: 'Potion',
+      abbreviation: 'P',
+      source: 'PHB',
+      page: 148,
+      reprintedAs: [Array]
+    },
+    {
+      name: 'Potion',
+      abbreviation: 'P',
+      source: 'XPHB',
+      page: 222,
+      basicRules2024: true
+    },
+    {
+      name: 'Ranged Weapon',
+      abbreviation: 'R',
+      source: 'PHB',
+      page: 146,
+      reprintedAs: [Array],
+      entries: [Array]
+    },
+    {
+      name: 'Ranged Weapon',
+      abbreviation: 'R',
+      source: 'XPHB',
+      page: 214,
+      basicRules2024: true,
+      entries: [Array]
+    },
+    { name: 'Rod', abbreviation: 'RD', source: 'DMG', page: 139 },
+    { name: 'Ring', abbreviation: 'RG', source: 'DMG', page: 139 },
+    {
+      name: 'Shield',
+      abbreviation: 'S',
+      source: 'PHB',
+      page: 144,
+      reprintedAs: [Array]
+    },
+    {
+      name: 'Shield',
+      abbreviation: 'S',
+      source: 'XPHB',
+      page: 219,
+      basicRules2024: true
+    },
+    {
+      name: 'Scroll',
+      abbreviation: 'SC',
+      source: 'DMG',
+      page: 139,
+      reprintedAs: [Array]
+    },
+    {
+      name: 'Scroll',
+      abbreviation: 'SC',
+      source: 'XPHB',
+      page: 222,
+      basicRules2024: true
+    },
+    {
+      name: 'Spellcasting Focus',
+      abbreviation: 'SCF',
+      source: 'PHB',
+      page: 148,
+      reprintedAs: [Array]
+    },
+    {
+      name: 'Spellcasting Focus',
+      abbreviation: 'SCF',
+      source: 'XPHB',
+      page: 222,
+      basicRules2024: true
+    },
+    {
+      name: 'Vehicle (Water)',
+      abbreviation: 'SHP',
+      source: 'DMG',
+      page: 119,
+      reprintedAs: [Array],
+      entries: [Array]
+    },
+    {
+      name: 'Vehicle (Water)',
+      abbreviation: 'SHP',
+      source: 'XPHB',
+      page: 230,
+      basicRules2024: true,
+      entries: [Array]
+    },
+    {
+      name: 'Vehicle (Space)',
+      abbreviation: 'SPC',
+      source: 'AAG',
+      page: 24
+    },
+    {
+      name: 'Tool',
+      abbreviation: 'T',
+      source: 'PHB',
+      page: 154,
+      reprintedAs: [Array]
+    },
+    {
+      name: 'Tool',
+      abbreviation: 'T',
+      source: 'XPHB',
+      page: 220,
+      basicRules2024: true,
+      entries: [Array]
+    },
+    {
+      name: 'Tack and Harness',
+      abbreviation: 'TAH',
+      source: 'PHB',
+      page: 155,
+      reprintedAs: [Array]
+    },
+    {
+      name: 'Tack and Harness',
+      abbreviation: 'TAH',
+      source: 'XPHB',
+      page: 230,
+      basicRules2024: true
+    },
+    {
+      name: 'Trade Bar',
+      abbreviation: 'TB',
+      source: 'XDMG',
+      page: 213,
+      entries: [Array]
+    },
+    {
+      name: 'Trade Good',
+      abbreviation: 'TG',
+      source: 'PHB',
+      page: 146,
+      reprintedAs: [Array],
+      entries: [Array]
+    },
+    {
+      name: 'Trade Good',
+      abbreviation: 'TG',
+      source: 'XDMG',
+      page: 213,
+      entries: [Array]
+    },
+    {
+      name: 'Vehicle (Land)',
+      abbreviation: 'VEH',
+      source: 'PHB',
+      page: 155,
+      reprintedAs: [Array]
+    },
+    {
+      name: 'Vehicle (Land)',
+      abbreviation: 'VEH',
+      source: 'XPHB',
+      page: 230,
+      basicRules2024: true
+    },
+    { name: 'Wand', abbreviation: 'WD', source: 'DMG', page: 139 }
+  ],
+  itemTypeAdditionalEntries: [
+    {
+      name: 'Gaming Set',
+      source: 'XGE',
+      appliesTo: 'GS|PHB',
+      entries: [Array]
+    },
+    {
+      name: 'Instrument',
+      source: 'XGE',
+      appliesTo: 'INS|PHB',
+      entries: [Array]
+    }
+  ],
+  itemEntry: [
+    {
+      name: 'Absorbing Tattoo',
+      source: 'TCE',
+      entriesTemplate: [Array]
+    },
+    {
+      name: 'Armor of Resistance',
+      source: 'DMG',
+      entriesTemplate: [Array]
+    },
+    {
+      name: 'Armor of Resistance',
+      source: 'XDMG',
+      entriesTemplate: [Array]
+    },
+    {
+      name: 'Chromatic Rose',
+      source: 'WBtW',
+      entriesTemplate: [Array]
+    },
+    {
+      name: 'Dragon Scale Mail',
+      source: 'XDMG',
+      entriesTemplate: [Array]
+    },
+    { name: 'Grenade', source: 'DMG', entriesTemplate: [Array] },
+    { name: 'Grenade', source: 'XDMG', entriesTemplate: [Array] },
+    { name: 'Ioun Stone', source: 'XDMG', entriesTemplate: [Array] },
+    {
+      name: 'Potion of Resistance',
+      source: 'DMG',
+      entriesTemplate: [Array]
+    },
+    {
+      name: 'Potion of Resistance',
+      source: 'XDMG',
+      entriesTemplate: [Array]
+    },
+    {
+      name: 'Ring of Resistance',
+      source: 'DMG',
+      entriesTemplate: [Array]
+    },
+    {
+      name: 'Ring of Resistance',
+      source: 'XDMG',
+      entriesTemplate: [Array]
+    },
+    {
+      name: 'Scroll of Protection',
+      source: 'XDMG',
+      entriesTemplate: [Array]
+    }
+  ],
+  itemMastery: [
+    {
+      name: 'Cleave',
+      source: 'XPHB',
+      page: 214,
+      srd52: true,
+      basicRules2024: true,
+      entries: [Array]
+    },
+    {
+      name: 'Graze',
+      source: 'XPHB',
+      page: 214,
+      srd52: true,
+      basicRules2024: true,
+      entries: [Array]
+    },
+    {
+      name: 'Nick',
+      source: 'XPHB',
+      page: 214,
+      srd52: true,
+      basicRules2024: true,
+      entries: [Array]
+    },
+    {
+      name: 'Push',
+      source: 'XPHB',
+      page: 214,
+      srd52: true,
+      basicRules2024: true,
+      entries: [Array]
+    },
+    {
+      name: 'Sap',
+      source: 'XPHB',
+      page: 214,
+      srd52: true,
+      basicRules2024: true,
+      entries: [Array]
+    },
+    {
+      name: 'Slow',
+      source: 'XPHB',
+      page: 214,
+      srd52: true,
+      basicRules2024: true,
+      entries: [Array]
+    },
+    {
+      name: 'Topple',
+      source: 'XPHB',
+      page: 214,
+      srd52: true,
+      basicRules2024: true,
+      entries: [Array]
+    },
+    {
+      name: 'Vex',
+      source: 'XPHB',
+      page: 214,
+      srd52: true,
+      basicRules2024: true,
+      entries: [Array]
+    }
+  ]
+}
+Expected fields: item, baseitem
+[ItemWrapperConverter] Processing 75 items from items-base.json
+[ItemWrapperConverter] ✅ Item Arrow validated successfully
+[ItemWrapperConverter] ✅ Item Arrows (20) validated successfully
+[ItemWrapperConverter] ✅ Item Bagpipes validated successfully
+[ItemWrapperConverter] ✅ Item Battleaxe validated successfully
+[ItemWrapperConverter] ✅ Item Blowgun validated successfully
+[ItemWrapperConverter] ✅ Item Bolt validated successfully
+[ItemWrapperConverter] ✅ Item Bolts (20) validated successfully
+[ItemWrapperConverter] ✅ Item Breastplate validated successfully
+[ItemWrapperConverter] ❌ Item Chain Mail failed validation: [ 'Item Data - strengthRequirement: Expected number, received string' ]
+[ItemWrapperConverter] ✅ Item Chain Shirt validated successfully
+[ItemWrapperConverter] ✅ Item Club validated successfully
+[ItemWrapperConverter] ✅ Item Crystal validated successfully
+[ItemWrapperConverter] ✅ Item Dagger validated successfully
+[ItemWrapperConverter] ✅ Item Dart validated successfully
+[ItemWrapperConverter] ✅ Item Drum validated successfully
+[ItemWrapperConverter] ✅ Item Dulcimer validated successfully
+[ItemWrapperConverter] ✅ Item Flail validated successfully
+[ItemWrapperConverter] ✅ Item Flute validated successfully
+[ItemWrapperConverter] ✅ Item Glaive validated successfully
+[ItemWrapperConverter] ✅ Item Greataxe validated successfully
+[ItemWrapperConverter] ✅ Item Greatclub validated successfully
+[ItemWrapperConverter] ✅ Item Greatsword validated successfully
+[ItemWrapperConverter] ✅ Item Halberd validated successfully
+[ItemWrapperConverter] ✅ Item Half Plate Armor validated successfully
+[ItemWrapperConverter] ✅ Item Hand Crossbow validated successfully
+[ItemWrapperConverter] ✅ Item Handaxe validated successfully
+[ItemWrapperConverter] ✅ Item Heavy Crossbow validated successfully
+[ItemWrapperConverter] ✅ Item Hide Armor validated successfully
+[ItemWrapperConverter] ✅ Item Horn validated successfully
+[ItemWrapperConverter] ✅ Item Javelin validated successfully
+[ItemWrapperConverter] ✅ Item Lance validated successfully
+[ItemWrapperConverter] ✅ Item Leather Armor validated successfully
+[ItemWrapperConverter] ✅ Item Light Crossbow validated successfully
+[ItemWrapperConverter] ✅ Item Light Hammer validated successfully
+[ItemWrapperConverter] ✅ Item Longbow validated successfully
+[ItemWrapperConverter] ✅ Item Longsword validated successfully
+[ItemWrapperConverter] ✅ Item Lute validated successfully
+[ItemWrapperConverter] ✅ Item Lyre validated successfully
+[ItemWrapperConverter] ✅ Item Mace validated successfully
+[ItemWrapperConverter] ✅ Item Maul validated successfully
+[ItemWrapperConverter] ✅ Item Morningstar validated successfully
+[ItemWrapperConverter] ✅ Item Musket validated successfully
+[ItemWrapperConverter] ✅ Item Needle validated successfully
+[ItemWrapperConverter] ✅ Item Needles (50) validated successfully
+[ItemWrapperConverter] ✅ Item Orb validated successfully
+[ItemWrapperConverter] ✅ Item Padded Armor validated successfully
+[ItemWrapperConverter] ✅ Item Pan Flute validated successfully
+[ItemWrapperConverter] ✅ Item Pike validated successfully
+[ItemWrapperConverter] ✅ Item Pistol validated successfully
+[ItemWrapperConverter] ❌ Item Plate Armor failed validation: [ 'Item Data - strengthRequirement: Expected number, received string' ]
+[ItemWrapperConverter] ✅ Item Quarterstaff validated successfully
+[ItemWrapperConverter] ✅ Item Rapier validated successfully
+[ItemWrapperConverter] ✅ Item Ring Mail validated successfully
+[ItemWrapperConverter] ✅ Item Rod validated successfully
+[ItemWrapperConverter] ✅ Item Scale Mail validated successfully
+[ItemWrapperConverter] ✅ Item Scimitar validated successfully
+[ItemWrapperConverter] ✅ Item Shawm validated successfully
+[ItemWrapperConverter] ✅ Item Shield validated successfully
+[ItemWrapperConverter] ✅ Item Shortbow validated successfully
+[ItemWrapperConverter] ✅ Item Shortsword validated successfully
+[ItemWrapperConverter] ✅ Item Sickle validated successfully
+[ItemWrapperConverter] ✅ Item Sling validated successfully
+[ItemWrapperConverter] ✅ Item Sling Bullet validated successfully
+[ItemWrapperConverter] ✅ Item Sling Bullets (20) validated successfully
+[ItemWrapperConverter] ✅ Item Spear validated successfully
+[ItemWrapperConverter] ❌ Item Splint Armor failed validation: [ 'Item Data - strengthRequirement: Expected number, received string' ]
+[ItemWrapperConverter] ✅ Item Staff validated successfully
+[ItemWrapperConverter] ✅ Item Studded Leather Armor validated successfully
+[ItemWrapperConverter] ✅ Item Trident validated successfully
+[ItemWrapperConverter] ✅ Item Viol validated successfully
+[ItemWrapperConverter] ✅ Item Wand validated successfully
+[ItemWrapperConverter] ✅ Item War Pick validated successfully
+[ItemWrapperConverter] ✅ Item Warhammer validated successfully
+[ItemWrapperConverter] ✅ Item Whip validated successfully
+[ItemWrapperConverter] ✅ Item Wooden Staff validated successfully
+[ItemWrapperConverter] Item wrapper conversion complete. Stats: { total: 550, converted: 546, skipped: 0, errors: 4 }
+✅ items: 546 items converted
+   Stats: 546/550 converted, 4 errors
+
+📦 Processing classes...
+[ClassWrapperConverter] Starting class wrapper conversion...
+[ClassWrapperConverter] Processing 0 classes from class-artificer.json
+[ClassWrapperConverter] Processing 1 classes from class-barbarian.json
+[ClassWrapperConverter] ✅ Class Barbarian validated successfully
+[ClassWrapperConverter] Processing 1 classes from class-bard.json
+[ClassWrapperConverter] ✅ Class Bard validated successfully
+[ClassWrapperConverter] Processing 1 classes from class-cleric.json
+[ClassWrapperConverter] ✅ Class Cleric validated successfully
+[ClassWrapperConverter] Processing 1 classes from class-druid.json
+[ClassWrapperConverter] ✅ Class Druid validated successfully
+[ClassWrapperConverter] Processing 1 classes from class-fighter.json
+[ClassWrapperConverter] ✅ Class Fighter validated successfully
+[ClassWrapperConverter] Processing 1 classes from class-monk.json
+[ClassWrapperConverter] ✅ Class Monk validated successfully
+[ClassWrapperConverter] Processing 0 classes from class-mystic.json
+[ClassWrapperConverter] Processing 1 classes from class-paladin.json
+[ClassWrapperConverter] ✅ Class Paladin validated successfully
+[ClassWrapperConverter] Processing 1 classes from class-ranger.json
+[ClassWrapperConverter] ✅ Class Ranger validated successfully
+[ClassWrapperConverter] Processing 1 classes from class-rogue.json
+[ClassWrapperConverter] ✅ Class Rogue validated successfully
+[ClassWrapperConverter] Processing 0 classes from class-sidekick.json
+[ClassWrapperConverter] Processing 1 classes from class-sorcerer.json
+[ClassWrapperConverter] ✅ Class Sorcerer validated successfully
+[ClassWrapperConverter] Processing 1 classes from class-warlock.json
+[ClassWrapperConverter] ✅ Class Warlock validated successfully
+[ClassWrapperConverter] Processing 1 classes from class-wizard.json
+[ClassWrapperConverter] ✅ Class Wizard validated successfully
+[ClassWrapperConverter] Class wrapper conversion complete. Stats: { total: 12, converted: 12, skipped: 0, errors: 0 }
+✅ classes: 12 items converted
+   Stats: 12/12 converted, 0 errors
+
+📦 Processing species...
+[SpeciesWrapperConverter] Starting species wrapper conversion...
+[SpeciesWrapperConverter] Processing 8 species
+[SpeciesWrapperConverter] ✅ Species Dragonborn validated successfully
+[SpeciesWrapperConverter] ✅ Species Dwarf validated successfully
+[SpeciesWrapperConverter] ✅ Species Elf validated successfully
+[SpeciesWrapperConverter] ✅ Species Gnome validated successfully
+[SpeciesWrapperConverter] ✅ Species Goliath validated successfully
+[SpeciesWrapperConverter] ✅ Species Human validated successfully
+[SpeciesWrapperConverter] ✅ Species Orc validated successfully
+[SpeciesWrapperConverter] ✅ Species Tiefling validated successfully
+[SpeciesWrapperConverter] Species wrapper conversion complete. Stats: { total: 8, converted: 8, skipped: 0, errors: 0 }
+✅ species: 8 items converted
+   Stats: 8/8 converted, 0 errors
+
+📦 Processing feats...
+[FeatWrapperConverter] Starting feat wrapper conversion...
+[FeatWrapperConverter] Processing 19 feats
+[FeatWrapperConverter] ✅ Feat Ability Score Improvement validated successfully
+[FeatWrapperConverter] ✅ Feat Alert validated successfully
+[FeatWrapperConverter] ✅ Feat Archery validated successfully
+[FeatWrapperConverter] ✅ Feat Boon of Combat Prowess validated successfully
+[FeatWrapperConverter] ✅ Feat Boon of Dimensional Travel validated successfully
+[FeatWrapperConverter] ✅ Feat Boon of Fate validated successfully
+[FeatWrapperConverter] ✅ Feat Boon of Irresistible Offense validated successfully
+[FeatWrapperConverter] ✅ Feat Boon of Spell Recall validated successfully
+[FeatWrapperConverter] ✅ Feat Boon of the Night Spirit validated successfully
+[FeatWrapperConverter] ✅ Feat Boon of Truesight validated successfully
+[FeatWrapperConverter] ✅ Feat Defense validated successfully
+[FeatWrapperConverter] ✅ Feat Dueling validated successfully
+[FeatWrapperConverter] ✅ Feat Grappler validated successfully
+[FeatWrapperConverter] ✅ Feat Great Weapon Fighting validated successfully
+[FeatWrapperConverter] ✅ Feat Magic Initiate validated successfully
+[FeatWrapperConverter] ✅ Feat Protection validated successfully
+[FeatWrapperConverter] ✅ Feat Savage Attacker validated successfully
+[FeatWrapperConverter] ✅ Feat Skilled validated successfully
+[FeatWrapperConverter] ✅ Feat Two-Weapon Fighting validated successfully
+[FeatWrapperConverter] Feat wrapper conversion complete. Stats: { total: 19, converted: 19, skipped: 0, errors: 0 }
+✅ feats: 19 items converted
+   Stats: 19/19 converted, 0 errors
+
+📦 Processing conditions...
+[ConditionWrapperConverter] Starting condition wrapper conversion...
+[ConditionWrapperConverter] Processing 15 conditions from conditionsdiseases.json
+[ConditionWrapperConverter] ✅ Condition Blinded validated successfully
+[ConditionWrapperConverter] ✅ Condition Charmed validated successfully
+[ConditionWrapperConverter] ✅ Condition Deafened validated successfully
+[ConditionWrapperConverter] ✅ Condition Exhaustion validated successfully
+[ConditionWrapperConverter] ✅ Condition Frightened validated successfully
+[ConditionWrapperConverter] ✅ Condition Grappled validated successfully
+[ConditionWrapperConverter] ✅ Condition Incapacitated validated successfully
+[ConditionWrapperConverter] ✅ Condition Invisible validated successfully
+[ConditionWrapperConverter] ✅ Condition Paralyzed validated successfully
+[ConditionWrapperConverter] ✅ Condition Petrified validated successfully
+[ConditionWrapperConverter] ✅ Condition Poisoned validated successfully
+[ConditionWrapperConverter] ✅ Condition Prone validated successfully
+[ConditionWrapperConverter] ✅ Condition Restrained validated successfully
+[ConditionWrapperConverter] ✅ Condition Stunned validated successfully
+[ConditionWrapperConverter] ✅ Condition Unconscious validated successfully
+[ConditionWrapperConverter] Condition wrapper conversion complete. Stats: { total: 15, converted: 15, skipped: 0, errors: 0 }
+✅ conditions: 15 items converted
+   Stats: 15/15 converted, 0 errors
+
+📦 Processing actions...
+[ActionWrapperConverter] Starting action wrapper conversion...
+[ActionWrapperConverter] Processing 15 actions from actions.json
+[ActionWrapperConverter] ✅ Action Attack validated successfully
+[ActionWrapperConverter] ✅ Action Dash validated successfully
+[ActionWrapperConverter] ✅ Action Disengage validated successfully
+[ActionWrapperConverter] ✅ Action Dodge validated successfully
+[ActionWrapperConverter] ✅ Action Don or Doff a Shield validated successfully
+[ActionWrapperConverter] ✅ Action End Concentration validated successfully
+[ActionWrapperConverter] ✅ Action Escape a Grapple validated successfully
+[ActionWrapperConverter] ✅ Action Help validated successfully
+[ActionWrapperConverter] ✅ Action Hide validated successfully
+[ActionWrapperConverter] ✅ Action Magic validated successfully
+[ActionWrapperConverter] ✅ Action Opportunity Attack validated successfully
+[ActionWrapperConverter] ✅ Action Ready validated successfully
+[ActionWrapperConverter] ✅ Action Search validated successfully
+[ActionWrapperConverter] ✅ Action Two-Weapon Fighting validated successfully
+[ActionWrapperConverter] ✅ Action Utilize validated successfully
+[ActionWrapperConverter] Action wrapper conversion complete. Stats: { total: 15, converted: 15, skipped: 0, errors: 0 }
+✅ actions: 15 items converted
+   Stats: 15/15 converted, 0 errors
+
+📦 Processing deities...
+[DeityWrapperConverter] Starting deity wrapper conversion...
+[DeityWrapperConverter] Processing 0 deities from deities.json
+[DeityWrapperConverter] Deity wrapper conversion complete. Stats: { total: 0, converted: 0, skipped: 0, errors: 0 }
+✅ deities: 0 items converted
+   Stats: 0/0 converted, 0 errors
+
+📦 Processing rules...
+[RuleWrapperConverter] Starting rule wrapper conversion...
+[RuleWrapperConverter] Processing 115 rules from variantrules.json
+[RuleWrapperConverter] Rule wrapper conversion complete. Stats: { total: 115, converted: 115, skipped: 0, errors: 0 }
+✅ rules: 115 items converted
+   Stats: 115/115 converted, 0 errors
+
+📦 Processing languages...
+[LanguageWrapperConverter] Starting language wrapper conversion...
+[LanguageWrapperConverter] Processing 19 languages from languages.json
+[LanguageWrapperConverter] Language wrapper conversion complete. Stats: { total: 19, converted: 19, skipped: 0, errors: 0 }
+✅ languages: 19 items converted
+   Stats: 19/19 converted, 0 errors
+
+📦 Processing senses...
+[SenseWrapperConverter] Starting sense wrapper conversion...
+[SenseWrapperConverter] Processing 4 senses from senses.json
+[SenseWrapperConverter] Sense wrapper conversion complete. Stats: { total: 4, converted: 4, skipped: 0, errors: 0 }
+✅ senses: 4 items converted
+   Stats: 4/4 converted, 0 errors
+
+📝 Validating and writing 1411 content files...
+❌ Generation failed: Error: Unknown content type: vtt-document. Content should not go to misc directory.
+    at CompendiumPackGenerator.getContentDirectory (/Users/mixtli/Projects/dungeon-lab/packages/plugins/dnd-5e-2024/src/5etools-converter/generator/compendium-pack-generator.mts:343:15)
+    at <anonymous> (/Users/mixtli/Projects/dungeon-lab/packages/plugins/dnd-5e-2024/src/5etools-converter/generator/compendium-pack-generator.mts:185:30)
+    at Array.map (<anonymous>)
+    at CompendiumPackGenerator.writeContentFiles (/Users/mixtli/Projects/dungeon-lab/packages/plugins/dnd-5e-2024/src/5etools-converter/generator/compendium-pack-generator.mts:184:32)
+    at CompendiumPackGenerator.generate (/Users/mixtli/Projects/dungeon-lab/packages/plugins/dnd-5e-2024/src/5etools-converter/generator/compendium-pack-generator.mts:82:37)
+    at async main (/Users/mixtli/Projects/dungeon-lab/packages/plugins/dnd-5e-2024/src/scripts/generate-compendium-pack.mts:90:3)
+npm error Lifecycle script `generate:compendium:srd` failed with error:
+npm error code 1
+npm error path /Users/mixtli/Projects/dungeon-lab/packages/plugins/dnd-5e-2024
+npm error workspace @dungeon-lab/plugin-dnd-5e-2024@2.0.0
+npm error location /Users/mixtli/Projects/dungeon-lab/packages/plugins/dnd-5e-2024
+npm error command failed
+npm error command sh -c tsx src/scripts/generate-compendium-pack.mts --srd-only --output-dir ./packs/dnd-5e-2024-srd

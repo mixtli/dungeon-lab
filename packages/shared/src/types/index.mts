@@ -211,7 +211,7 @@ export type IContentFileWrapper = z.infer<typeof contentFileWrapperSchema>;
 // Utility types for extracting specific embedded content types
 export type IEmbeddedActorContent = Extract<IEmbeddedContent, { type: 'actor' }>;
 export type IEmbeddedItemContent = Extract<IEmbeddedContent, { type: 'item' }>;
-export type IEmbeddedVTTDocumentContent = Extract<IEmbeddedContent, { type: 'vttdocument' }>;
+export type IEmbeddedVTTDocumentContent = Extract<IEmbeddedContent, { type: 'vtt-document' }>;
 
 // Reference Types
 export type { DocumentReference, ReferenceObject };

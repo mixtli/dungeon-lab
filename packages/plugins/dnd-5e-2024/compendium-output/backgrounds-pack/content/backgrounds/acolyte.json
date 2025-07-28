@@ -1,0 +1,166 @@
+{
+  "entry": {
+    "name": "Acolyte",
+    "type": "vttdocument",
+    "category": "Backgrounds",
+    "tags": [
+      "xphb",
+      "Background",
+      "Insight",
+      "Religion"
+    ],
+    "sortOrder": 0
+  },
+  "content": {
+    "documentType": "background",
+    "name": "Acolyte",
+    "description": "You devoted yourself to service in a temple, either nestled in a town or secluded in a sacred grove. There you performed rites in honor of a god or pantheon. You served under a priest and studied religion. Thanks to your priest's instruction and your own devotion, you also learned how to channel a modicum of divine power in service to your place of worship and the people who prayed there.",
+    "source": "XPHB",
+    "page": 178,
+    "abilityScoreImprovements": [
+      {
+        "type": "weighted",
+        "choices": [
+          {
+            "from": [
+              "int",
+              "wis",
+              "cha"
+            ],
+            "weights": [
+              2,
+              1
+            ],
+            "total": 3
+          }
+        ]
+      },
+      {
+        "type": "weighted",
+        "choices": [
+          {
+            "from": [
+              "int",
+              "wis",
+              "cha"
+            ],
+            "weights": [
+              1,
+              1,
+              1
+            ],
+            "total": 3
+          }
+        ]
+      }
+    ],
+    "feats": [
+      {
+        "_ref": {
+          "slug": "magic-initiate",
+          "type": "vtt-document",
+          "pluginType": "feat",
+          "source": "XPHB",
+          "metadata": {
+            "variant": "cleric"
+          }
+        },
+        "displayName": "Magic Initiate"
+      }
+    ],
+    "skillProficiencies": [
+      {
+        "_ref": {
+          "slug": "insight",
+          "type": "vtt-document",
+          "pluginType": "skill",
+          "source": "XPHB"
+        },
+        "displayName": "Insight"
+      },
+      {
+        "_ref": {
+          "slug": "religion",
+          "type": "vtt-document",
+          "pluginType": "skill",
+          "source": "XPHB"
+        },
+        "displayName": "Religion"
+      }
+    ],
+    "toolProficiencies": [
+      {
+        "_ref": {
+          "slug": "calligraphers-supplies",
+          "type": "vtt-document",
+          "pluginType": "tool",
+          "source": "XPHB"
+        },
+        "displayName": "Calligrapher's Supplies"
+      }
+    ],
+    "startingEquipment": {
+      "type": "choice",
+      "options": [
+        {
+          "label": "A",
+          "items": [
+            {
+              "_ref": {
+                "slug": "bookxphb",
+                "type": "item",
+                "pluginType": "gear",
+                "source": "XPHB"
+              },
+              "displayName": "Book (Prayers)"
+            },
+            {
+              "_ref": {
+                "slug": "calligraphers-suppliesxphb",
+                "type": "item",
+                "pluginType": "gear",
+                "source": "XPHB"
+              }
+            },
+            {
+              "_ref": {
+                "slug": "holy-symbolxphb",
+                "type": "item",
+                "pluginType": "gear",
+                "source": "XPHB"
+              }
+            },
+            {
+              "_ref": {
+                "slug": "parchmentxphb",
+                "type": "item",
+                "pluginType": "gear",
+                "source": "XPHB"
+              },
+              "quantity": 10
+            },
+            {
+              "_ref": {
+                "slug": "robexphb",
+                "type": "item",
+                "pluginType": "gear",
+                "source": "XPHB"
+              }
+            },
+            {
+              "value": 800
+            }
+          ]
+        },
+        {
+          "label": "B",
+          "items": [
+            {
+              "value": 5000
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

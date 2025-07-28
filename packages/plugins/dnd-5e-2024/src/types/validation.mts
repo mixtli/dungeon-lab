@@ -2,9 +2,10 @@
  * Validation utilities for D&D 5e plugin types
  */
 import { z } from 'zod';
-import { characterDataSchema } from './character.mjs';
-import { monsterSchema, npcSchema } from './actor.mjs';
-import { spellSchema } from './spell.mjs';
+import { characterDataSchema } from './dnd/character.mjs';
+import { dndMonsterDataSchema } from './dnd/monster.mjs';
+import { dndNpcDataSchema } from './dnd/npc.mjs';
+import { dndSpellDataSchema } from './dnd/spell.mjs';
 
 // Actor data validation
 export const validateCharacterData = (data: unknown) => {
@@ -17,7 +18,7 @@ export const validateCharacterData = (data: unknown) => {
 
 export const validateMonsterData = (data: unknown) => {
   try {
-    return { success: true, data: monsterSchema.parse(data) };
+    return { success: true, data: dndMonsterDataSchema.parse(data) };
   } catch (error) {
     return { success: false, error: error as Error };
   }
@@ -25,7 +26,7 @@ export const validateMonsterData = (data: unknown) => {
 
 export const validateNPCData = (data: unknown) => {
   try {
-    return { success: true, data: npcSchema.parse(data) };
+    return { success: true, data: dndNpcDataSchema.parse(data) };
   } catch (error) {
     return { success: false, error: error as Error };
   }
@@ -34,7 +35,7 @@ export const validateNPCData = (data: unknown) => {
 // Spell validation
 export const validateSpellData = (data: unknown) => {
   try {
-    return { success: true, data: spellSchema.parse(data) };
+    return { success: true, data: dndSpellDataSchema.parse(data) };
   } catch (error) {
     return { success: false, error: error as Error };
   }
@@ -48,6 +49,6 @@ export interface ValidationResult<T = unknown> {
 }
 
 // Export union types for convenience
-export type ActorData = z.infer<typeof characterDataSchema> | z.infer<typeof monsterSchema> | z.infer<typeof npcSchema>;
+export type ActorData = z.infer<typeof characterDataSchema> | z.infer<typeof dndMonsterDataSchema> | z.infer<typeof dndNpcDataSchema>;
 export type ItemData = unknown; // Will be defined when item types are complete
-export type DocumentData = z.infer<typeof spellSchema>; // Will be expanded
+export type DocumentData = z.infer<typeof dndSpellDataSchema>; // Will be expanded

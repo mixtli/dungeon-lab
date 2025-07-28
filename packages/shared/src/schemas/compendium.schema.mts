@@ -25,7 +25,7 @@ export const importSourceSchema = z.enum([
 export const embeddedContentTypeSchema = z.enum([
   'actor',
   'item', 
-  'vttdocument'
+  'vtt-document'
 ]);
 
 // Discriminated union for embedded content
@@ -39,7 +39,7 @@ export const embeddedContentSchema = z.discriminatedUnion('type', [
     data: itemSchema.omit({ id: true, createdBy: true, updatedBy: true })
   }),
   z.object({
-    type: z.literal('vttdocument'),
+    type: z.literal('vtt-document'),
     data: vttDocumentSchema.omit({ id: true, createdBy: true, updatedBy: true })
   })
 ]);
@@ -48,7 +48,7 @@ export const embeddedContentSchema = z.discriminatedUnion('type', [
 export const contentFileWrapperSchema = z.object({
   entry: z.object({
     name: z.string().min(1).max(255),
-    type: z.enum(['actor', 'item', 'vttdocument']),
+    type: z.enum(['actor', 'item', 'vtt-document']),
     imageId: z.string().optional(),
     category: z.string().optional(),
     tags: z.array(z.string()).optional(),
@@ -162,4 +162,4 @@ export type CompendiumEntryUpdate = z.infer<typeof compendiumEntryUpdateSchema>;
 // Utility types for extracting specific embedded content types
 export type EmbeddedActorContent = Extract<EmbeddedContent, { type: 'actor' }>;
 export type EmbeddedItemContent = Extract<EmbeddedContent, { type: 'item' }>;
-export type EmbeddedVTTDocumentContent = Extract<EmbeddedContent, { type: 'vttdocument' }>;
+export type EmbeddedVTTDocumentContent = Extract<EmbeddedContent, { type: 'vtt-document' }>;

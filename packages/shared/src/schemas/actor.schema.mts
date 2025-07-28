@@ -1,11 +1,11 @@
 import { z } from 'zod';
-import { baseDocumentSchema } from './document.schema.mjs';
+import { baseDocumentSchema, documentTypeSchema } from './document.schema.mjs';
 import { assetSchema } from './asset.schema.mjs';
 // import { deepPartial } from '../utils/deepPartial.mjs';
 
 // Actor schema - extends base document with VTT-specific fields
 export const actorSchema = baseDocumentSchema.extend({
-  // Discriminator value
+  // Discriminator value - use literal for proper type inference
   documentType: z.literal('actor'),
   
   // Plugin subtypes: 'character', 'npc', 'monster', etc.

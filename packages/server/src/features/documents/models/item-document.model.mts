@@ -13,9 +13,9 @@ const serverItemSchema = itemSchema.extend({
   thumbnailId: zId('Asset').optional()
 });
 
-// Create the discriminator schema
+// Create the discriminator schema (omit documentType as it's handled by discriminator)
 const itemMongooseSchema = createMongoSchema<IItem>(
-  serverItemSchema.merge(baseMongooseZodSchema)
+  serverItemSchema.merge(baseMongooseZodSchema).omit({ documentType: true })
 );
 
 // Override pluginData field to use Mixed type for flexibility

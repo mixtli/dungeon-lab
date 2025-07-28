@@ -2,14 +2,11 @@
  * Item converter for 5etools data to wrapper compendium format
  */
 import { WrapperConverter, WrapperConversionResult, WrapperContent } from '../base/wrapper-converter.mjs';
-import { readEtoolsData, filterSrdContent, formatEntries } from '../utils/conversion-utils.mjs';
-import type { EtoolsItem, EtoolsItemData } from '../../5etools-types/items.mjs';
+import { readEtoolsData, filterSrdContent, formatEntries, validateItemData, ValidationResult } from '../utils/conversion-utils.mjs';
+import type { EtoolsItem, EtoolsItemData, EtoolsItemWeight, EtoolsItemValue, EtoolsItemRange, EtoolsItemAC } from '../../5etools-types/items.mjs';
 import type { EtoolsEntry } from '../../5etools-types/base.mjs';
-import { extractEtoolsArray, safeEtoolsCast } from '../../5etools-types/type-utils.mjs';
-import { itemSchema } from '@dungeon-lab/shared/schemas/index.mjs';
-import { z } from 'zod';
-
-type IItem = z.infer<typeof itemSchema>;
+import { safeEtoolsCast } from '../../5etools-types/type-utils.mjs';
+import { convertItem, determineItemType, type EtoolsItem as EtoolsItemConverted } from '../utils/item-conversion.mjs';
 
 /**
  * Item fluff data interface
@@ -97,8 +94,21 @@ export class ItemWrapperConverter extends WrapperConverter {
       for (const fileSet of itemFiles) {
         try {
           const rawItemData = await readEtoolsData(fileSet.data);
-          const itemData = safeEtoolsCast<EtoolsItemData>(rawItemData, ['item'], `item data file ${fileSet.data}`);
-          const items = extractEtoolsArray<EtoolsItem>(itemData, 'item', `item list in ${fileSet.data}`);
+          
+          // Don't validate structure since items-base.json has 'baseitem' instead of 'item'
+          const itemData = rawItemData as EtoolsItemData;
+          
+          // Handle both item and baseitem arrays
+          let items: EtoolsItem[] = [];
+          if (fileSet.data === 'items-base.json' && itemData.baseitem) {
+            items = itemData.baseitem;
+          } else if (itemData.item) {
+            items = itemData.item;
+          } else {
+            this.log(`No items found in ${fileSet.data}`);
+            continue;
+          }
+          
           const filteredItems = this.options.srdOnly ? filterSrdContent(items) : items;
           
           stats.total += filteredItems.length;
@@ -108,12 +118,22 @@ export class ItemWrapperConverter extends WrapperConverter {
             const itemRaw = filteredItems[i];
             try {
               const fluff = fluffMap.get(itemRaw.name);
-              const { item, assetPath } = this.convertItem(itemRaw, fluff);
+              const { item, assetPath, validationResult } = await this.convertItem(itemRaw, fluff);
 
-              // Create wrapper format
+              // Check validation result
+              if (!validationResult.success) {
+                this.log(`❌ Item ${itemRaw.name} failed validation:`, validationResult.errors);
+                stats.errors++;
+                continue; // Skip this item and continue with next
+              }
+
+              // Log successful validation
+              this.log(`✅ Item ${itemRaw.name} validated successfully`);
+
+              // Create wrapper format using the full document structure
               const wrapper = this.createWrapper(
                 item.name,
-                item,
+                item, // Always use the full structure for proper directory mapping
                 'item',
                 {
                   imageId: assetPath,
@@ -156,7 +176,18 @@ export class ItemWrapperConverter extends WrapperConverter {
     }
   }
 
-  private convertItem(itemData: EtoolsItem, fluffData?: EtoolsItemFluff): { item: IItem; assetPath?: string } {
+  private async convertItem(itemData: EtoolsItem, fluffData?: EtoolsItemFluff): Promise<{ item: {
+    id: string;
+    slug: string;
+    name: string;
+    pluginId: string;
+    campaignId: string;
+    documentType: string;
+    description: string;
+    userData: Record<string, unknown>;
+    pluginDocumentType: string;
+    pluginData: unknown;
+  }; assetPath?: string; validationResult: ValidationResult }> {
     // Extract asset path from fluff data if available
     let assetPath: string | undefined;
     if (fluffData && this.options.includeAssets) {
@@ -165,57 +196,80 @@ export class ItemWrapperConverter extends WrapperConverter {
       }
     }
 
-    const item: IItem = {
-      id: `item-${this.generateSlug(itemData.name)}`, // Temporary ID for wrapper format
+    // Convert the 5etools item data to our specialized schema
+    const itemConversionData: EtoolsItemConverted = {
       name: itemData.name,
-      slug: this.generateSlug(itemData.name),
-      pluginId: 'dnd-5e-2024',
-      documentType: 'item',
-      pluginDocumentType: this.determineItemSubtype(itemData),
-      campaignId: '', // Will be set during import
-      userData: {},
-      description: this.buildDescription(itemData, fluffData),
+      source: itemData.source,
+      page: itemData.page,
+      type: itemData.type,
+      weight: this.convertWeight(itemData.weight),
+      value: this.convertValue(itemData.value),
+      rarity: itemData.rarity,
       
-      // Item-specific data in pluginData
-      pluginData: {
-        // Basic properties
-        type: this.determineItemSubtype(itemData),
-        rarity: itemData.rarity || 'common',
-        attunement: itemData.reqAttune !== undefined,
-        
-        // Physical properties
-        weight: itemData.weight,
-        value: this.extractValue(itemData.value),
-        
-        // Weapon properties
-        weapon: this.isWeapon(itemData) ? {
-          category: itemData.weaponCategory,
-          damage: this.parseDamage(itemData.dmg1),
-          damageType: itemData.dmgType,
-          properties: itemData.property || [],
-          range: this.parseRange(itemData.range)
-        } : undefined,
-        
-        // Armor properties
-        armor: this.isArmor(itemData) ? {
-          armorClass: this.parseArmorClass(itemData.ac),
-          category: itemData.type,
-          stealthDisadvantage: itemData.stealth === true,
-          strengthRequirement: itemData.strength
-        } : undefined,
-        
-        // Magic item properties
-        charges: itemData.charges,
-        recharge: itemData.recharge,
-        curse: itemData.curse,
-        
-        // Source information
-        source: itemData.source || 'PHB',
-        page: itemData.page
-      }
+      // Weapon properties
+      weapon: (() => {
+        const type = itemData.type?.split('|')[0]; // Remove source suffix
+        return itemData.weaponCategory !== undefined || type === 'M' || type === 'R';
+      })(),
+      weaponCategory: this.convertWeaponCategory(itemData.weaponCategory),
+      dmg1: itemData.dmg1,
+      dmg2: itemData.dmg2,
+      dmgType: itemData.dmgType,
+      property: itemData.property,
+      mastery: itemData.mastery,
+      range: this.convertRange(itemData.range),
+      
+      // Armor properties
+      armor: (() => {
+        const type = itemData.type?.split('|')[0]; // Remove source suffix
+        return itemData.armor || type === 'LA' || type === 'MA' || type === 'S';
+      })(),
+      ac: this.convertAC(itemData.ac),
+      strength: this.convertStrength(itemData.strength),
+      stealth: itemData.stealth,
+      
+      // Tool properties  
+      tool: (() => {
+        const type = itemData.type?.split('|')[0]; // Remove source suffix
+        return type === 'AT' || type === 'T' || type === 'INS';
+      })(),
+      
+      // Magic properties
+      reqAttune: itemData.reqAttune,
+      charges: this.convertCharges(itemData.charges),
+      
+      // Description
+      entries: itemData.entries || (fluffData?.entries ? fluffData.entries : [])
     };
 
-    return { item, assetPath };
+    // Use our conversion utility to get properly typed item data
+    const convertedItem = convertItem(itemConversionData);
+
+    // Override description with fluff data if available
+    if (fluffData?.entries) {
+      convertedItem.description = formatEntries(fluffData.entries);
+    } else if (!convertedItem.description || convertedItem.description === 'No description available.') {
+      convertedItem.description = this.buildDescription(itemData, fluffData);
+    }
+
+    // Create full document structure for output
+    const item = {
+      id: `item-${this.generateSlug(convertedItem.name)}`,
+      slug: this.generateSlug(convertedItem.name),
+      name: convertedItem.name,
+      pluginId: 'dnd-5e-2024',
+      campaignId: '',
+      documentType: 'item' as const, // Items use 'item' documentType
+      description: convertedItem.description,
+      userData: {},
+      pluginDocumentType: convertedItem.itemType, // weapon, armor, shield, tool, gear
+      pluginData: convertedItem
+    };
+
+    // Validate the constructed item data against the schema
+    const validationResult = await validateItemData(convertedItem);
+
+    return { item, assetPath, validationResult };
   }
 
   private buildDescription(itemData: EtoolsItem, fluffData?: EtoolsItemFluff): string {
@@ -238,127 +292,81 @@ export class ItemWrapperConverter extends WrapperConverter {
     return description.trim();
   }
 
-  private generateSlug(name: string): string {
-    return name
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-')
-      .trim();
-  }
 
-  private determineItemSubtype(itemData: EtoolsItem): string {
-    if (this.isWeapon(itemData)) {
-      return 'weapon';
-    }
-    if (this.isArmor(itemData)) {
-      return 'equipment';
-    }
-    if (itemData.wondrous === true) {
-      return 'loot';
-    }
-    if (itemData.type === 'AT' || itemData.type === 'T') {
-      return 'tool';
-    }
-    if (itemData.charges || itemData.recharge) {
-      return 'consumable';
-    }
-    return 'loot';
-  }
-
-  private isWeapon(itemData: EtoolsItem): boolean {
-    return itemData.weaponCategory !== undefined || 
-           itemData.type === 'M' || 
-           itemData.type === 'R' ||
-           itemData.type === 'A';
-  }
-
-  private isArmor(itemData: EtoolsItem): boolean {
-    return itemData.armor === true || 
-           itemData.type === 'LA' || 
-           itemData.type === 'MA' || 
-           itemData.type === 'S';
-  }
-
-  private extractValue(valueData: EtoolsItem['value']): number | undefined {
-    if (!valueData) return undefined;
-    
-    if (typeof valueData === 'number') return valueData;
-    
-    // Handle EtoolsItemValue object
-    if (typeof valueData === 'object' && 'value' in valueData) {
-      return valueData.value;
-    }
-    
-    return undefined;
-  }
-
-  private parseDamage(damageData: EtoolsItem['dmg1']): string | undefined {
-    if (!damageData) return undefined;
-    if (typeof damageData === 'string') return damageData;
-    return undefined;
-  }
-
-  private parseRange(rangeData: EtoolsItem['range']): { normal?: number; long?: number } | undefined {
-    if (!rangeData) return undefined;
-    
-    if (typeof rangeData === 'number') {
-      return { normal: rangeData };
-    }
-    
-    if (typeof rangeData === 'string') {
-      const match = rangeData.match(/(\d+)(?:\/(\d+))?/);
-      if (match) {
-        return {
-          normal: parseInt(match[1]),
-          long: match[2] ? parseInt(match[2]) : undefined
-        };
-      }
-    }
-    
-    return undefined;
-  }
-
-  private parseArmorClass(acData: EtoolsItem['ac']): number | undefined {
-    if (typeof acData === 'number') return acData;
-    if (Array.isArray(acData) && acData.length > 0) {
-      return typeof acData[0] === 'number' ? acData[0] : undefined;
-    }
+  private convertWeaponCategory(category: string | undefined): "simple" | "martial" | undefined {
+    if (!category) return undefined;
+    if (category === 'simple' || category === 'martial') return category;
     return undefined;
   }
 
   /**
    * Override category determination for items
    */
-  protected determineCategory<T = EtoolsItem>(sourceData: T, contentType: 'actor' | 'item' | 'vttdocument'): string | undefined {
-    if (contentType === 'item') {
-      // Categorize by item type
-      if (this.isWeapon(sourceData as EtoolsItem)) {
-        return 'Weapons';
+  protected determineCategory<T = EtoolsItem>(sourceData: T, contentType: 'actor' | 'item' | 'vtt-document'): string | undefined {
+    if (contentType === 'item' && sourceData && typeof sourceData === 'object') {
+      const item = sourceData as unknown as EtoolsItem;
+      
+      // Convert to our conversion format for type determination
+      const type = item.type?.split('|')[0]; // Remove source suffix
+      const conversionItem: EtoolsItemConverted = {
+        name: item.name || '',
+        type: item.type,
+        weapon: item.weaponCategory !== undefined || type === 'M' || type === 'R',
+        weaponCategory: this.convertWeaponCategory(item.weaponCategory),
+        armor: item.armor || type === 'LA' || type === 'MA' || type === 'S',
+        tool: type === 'AT' || type === 'T' || type === 'INS'
+      };
+      
+      const itemType = determineItemType(conversionItem);
+      
+      switch (itemType) {
+        case 'weapon':
+          if (item.weaponCategory === 'martial') {
+            return 'Martial Weapons';
+          }
+          return 'Simple Weapons';
+          
+        case 'armor': {
+          const type = item.type?.split('|')[0];
+          switch (type) {
+            case 'LA': return 'Light Armor';
+            case 'MA': return 'Medium Armor';
+            case 'HA': return 'Heavy Armor';
+            default: return 'Armor';
+          }
+        }
+          
+        case 'shield':
+          return 'Shields';
+          
+        case 'tool':
+          if (item.type === 'INS') {
+            return 'Musical Instruments';
+          }
+          return 'Tools';
+          
+        case 'gear':
+        default:
+          if (item.type === 'A') {
+            return 'Ammunition';
+          }
+          if (item.wondrous) {
+            return 'Wondrous Items';
+          }
+          if (item.charges || item.recharge) {
+            return 'Consumables';
+          }
+          return 'Adventuring Gear';
       }
-      if (this.isArmor(sourceData as EtoolsItem)) {
-        return 'Armor & Shields';
-      }
-      if (sourceData && typeof sourceData === 'object' && 'wondrous' in sourceData && sourceData.wondrous === true) {
-        return 'Wondrous Items';
-      }
-      if (sourceData && typeof sourceData === 'object' && 'type' in sourceData && 
-          (sourceData.type === 'AT' || sourceData.type === 'T')) {
-        return 'Tools';
-      }
-      if (sourceData && typeof sourceData === 'object' && 
-          (('charges' in sourceData && sourceData.charges) || ('recharge' in sourceData && sourceData.recharge))) {
-        return 'Consumables';
-      }
-      return 'Adventuring Gear';
     }
+    
     return super.determineCategory(sourceData, contentType);
   }
 
   /**
    * Override tag extraction for items
    */
-  protected extractTags<T = EtoolsItem>(sourceData: T, contentType: 'actor' | 'item' | 'vttdocument'): string[] {
+  protected extractTags<T = EtoolsItem>(sourceData: T, contentType: 'actor' | 'item' | 'vtt-document'): string[] {
     const baseTags = super.extractTags(sourceData, contentType);
     
     if (contentType === 'item') {
@@ -385,7 +393,7 @@ export class ItemWrapperConverter extends WrapperConverter {
   /**
    * Override sort order calculation for items
    */
-  protected calculateSortOrder<T = EtoolsItem>(sourceData: T, contentType: 'actor' | 'item' | 'vttdocument'): number {
+  protected calculateSortOrder<T = EtoolsItem>(sourceData: T, contentType: 'actor' | 'item' | 'vtt-document'): number {
     if (contentType === 'item') {
       // Sort by rarity, then alphabetically
       if (sourceData && typeof sourceData === 'object' && 'rarity' in sourceData && 
@@ -395,5 +403,89 @@ export class ItemWrapperConverter extends WrapperConverter {
       return 0;
     }
     return super.calculateSortOrder(sourceData, contentType);
+  }
+
+
+  /**
+   * Convert range to simple string
+   */
+  private convertRange(range: string | EtoolsItemRange | undefined): string | undefined {
+    if (range === undefined) return undefined;
+    if (typeof range === 'string') return range;
+    if (typeof range === 'object' && range !== null) {
+      // Handle complex range object
+      return `${range.short || ''}/${range.long || ''}`;
+    }
+    return undefined;
+  }
+
+  /**
+   * Convert AC to simple number
+   */
+  private convertAC(ac: number | EtoolsItemAC | undefined): number | undefined {
+    if (ac === undefined) return undefined;
+    if (typeof ac === 'number') return ac;
+    if (typeof ac === 'object' && ac !== null) {
+      // Assume EtoolsItemAC has a base property
+      return ac.ac || 0;
+    }
+    return undefined;
+  }
+
+  /**
+   * Convert strength requirement to number
+   */
+  private convertStrength(strength: string | undefined): number | undefined {
+    if (!strength) return undefined;
+    const parsed = parseInt(strength);
+    return isNaN(parsed) ? undefined : parsed;
+  }
+
+  /**
+   * Convert charges to number
+   */
+  private convertCharges(charges: string | number | undefined): number | undefined {
+    if (charges === undefined) return undefined;
+    if (typeof charges === 'number') return charges;
+    if (typeof charges === 'string') {
+      const parsed = parseInt(charges);
+      return isNaN(parsed) ? undefined : parsed;
+    }
+    return undefined;
+  }
+
+  /**
+   * Convert 5etools weight to simple number
+   */
+  private convertWeight(weight: EtoolsItemWeight | undefined): number | undefined {
+    if (weight === undefined) return undefined;
+    if (typeof weight === 'number') return weight;
+    if (typeof weight === 'string') {
+      const parsed = parseFloat(weight);
+      return isNaN(parsed) ? undefined : parsed;
+    }
+    return undefined;
+  }
+
+  /**
+   * Convert 5etools value to simple number
+   */
+  private convertValue(value: number | EtoolsItemValue | undefined): number | undefined {
+    if (value === undefined) return undefined;
+    if (typeof value === 'number') return value;
+    if (typeof value === 'object' && value !== null) {
+      // Assume EtoolsItemValue has an amount property
+      return value.value || 0;
+    }
+    return undefined;
+  }
+
+  private generateSlug(name: string): string {
+    return name
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .trim();
   }
 }

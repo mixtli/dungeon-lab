@@ -1,0 +1,21 @@
+{
+  "name": "D&D 5e Backgrounds",
+  "slug": "d&d-5e-backgrounds",
+  "description": "D&D 5e SRD content pack generated from 5etools data",
+  "version": "1.0.0",
+  "gameSystemId": "dnd-5e-2024",
+  "pluginId": "dnd-5e-2024",
+  "contentTypes": [
+    "backgrounds"
+  ],
+  "assetDirectory": "assets",
+  "contentDirectory": "content",
+  "authors": [
+    "5etools Converter"
+  ],
+  "license": "OGL-1.0a",
+  "sourceType": "5etools",
+  "contents": {
+    "backgrounds": 4
+  }
+}

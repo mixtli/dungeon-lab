@@ -1,6 +1,12 @@
 import { z } from 'zod';
-import { spellcastingSchema } from './common.mjs';
-import { ReferenceObject } from '@dungeon-lab/shared/types/index.mjs';
+import { spellcastingSchema, abilitySchema, skillSchema, damageTypeSchema } from './common.mjs';
+
+/**
+ * D&D 5e 2024 Stat Block Runtime Types
+ * 
+ * Complete stat block schema that covers all fields needed for both monsters and NPCs.
+ * All document references use MongoDB 'id' fields.
+ */
 
 // D&D 5e 2024 sizes
 export const CREATURE_SIZES = ['tiny', 'small', 'medium', 'large', 'huge', 'gargantuan'] as const;
@@ -9,40 +15,12 @@ export type CreatureSize = z.infer<typeof creatureSizeSchema>;
 
 // D&D 5e 2024 creature types
 export const CREATURE_TYPES = [
-  'aberration', 'beast', 'celestial', 'construct', 'dragon', 'elemental', 
-  'fey', 'fiend', 'giant', 'humanoid', 'monstrosity', 'ooze', 
+  'aberration', 'beast', 'celestial', 'construct', 'dragon', 'elemental',
+  'fey', 'fiend', 'giant', 'humanoid', 'monstrosity', 'ooze',
   'plant', 'undead'
 ] as const;
 export const creatureTypeSchema = z.enum(CREATURE_TYPES);
 export type CreatureType = z.infer<typeof creatureTypeSchema>;
-
-// D&D 5e 2024 alignments (simplified)
-export const ALIGNMENTS_2024 = [
-  'lawful good', 'neutral good', 'chaotic good',
-  'lawful neutral', 'neutral', 'chaotic neutral', 
-  'lawful evil', 'neutral evil', 'chaotic evil',
-  'unaligned'
-] as const;
-export const alignment2024Schema = z.enum(ALIGNMENTS_2024);
-export type Alignment2024 = z.infer<typeof alignment2024Schema>;
-
-// Damage types for 2024
-export const DAMAGE_TYPES = [
-  'acid', 'bludgeoning', 'cold', 'fire', 'force', 'lightning', 'necrotic',
-  'piercing', 'poison', 'psychic', 'radiant', 'slashing', 'thunder'
-] as const;
-export const damageTypeSchema = z.enum(DAMAGE_TYPES);
-export type DamageType = z.infer<typeof damageTypeSchema>;
-
-// Skills for 2024 (updated list)
-export const SKILLS_2024 = [
-  'acrobatics', 'animal handling', 'arcana', 'athletics', 'deception',
-  'history', 'insight', 'intimidation', 'investigation', 'medicine',
-  'nature', 'perception', 'performance', 'persuasion', 'religion',
-  'sleight of hand', 'stealth', 'survival'
-] as const;
-export const skill2024Schema = z.enum(SKILLS_2024);
-export type Skill2024 = z.infer<typeof skill2024Schema>;
 
 // Senses structure for 2024
 export const sensesSchema = z.object({
@@ -106,7 +84,7 @@ export const actionSchema = z.object({
   damage: z.string().optional(),
   damageType: damageTypeSchema.optional(),
   savingThrow: z.object({
-    ability: z.enum(['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma']),
+    ability: abilitySchema,
     dc: z.number()
   }).optional(),
   recharge: z.string().optional(), // "5-6", "6", etc.
@@ -114,14 +92,14 @@ export const actionSchema = z.object({
     value: z.number(),
     per: z.enum(['turn', 'round', 'short rest', 'long rest', 'day'])
   }).optional(),
-  references: z.array(z.custom<ReferenceObject>()).optional()
+  references: z.array(z.any()).optional() // Reference objects
 });
 
 // Trait/Feature structure  
 export const traitSchema = z.object({
   name: z.string(),
   description: z.string(),
-  references: z.array(z.custom<ReferenceObject>()).optional()
+  references: z.array(z.any()).optional() // Reference objects
 });
 
 // Legendary actions structure
@@ -133,7 +111,7 @@ export const legendaryActionSchema = z.object({
 
 // Habitat types for 2024
 export const HABITATS = [
-  'arctic', 'coastal', 'desert', 'forest', 'grassland', 'hill', 
+  'arctic', 'coastal', 'desert', 'forest', 'grassland', 'hill',
   'mountain', 'swamp', 'underdark', 'underwater', 'urban'
 ] as const;
 export const habitatSchema = z.enum(HABITATS);
@@ -151,7 +129,7 @@ export type TreasureTheme = z.infer<typeof treasureThemeSchema>;
  * Complete D&D 5e 2024 stat block schema
  * Covers all fields needed for both monsters and NPCs
  */
-export const statBlockSchema = z.object({
+export const dndStatBlockSchema = z.object({
   // Basic Information
   name: z.string(),
   size: creatureSizeSchema,
@@ -167,14 +145,14 @@ export const statBlockSchema = z.object({
   // Combat & Skills
   proficiencyBonus: z.number(),
   savingThrows: savingThrowsSchema,
-  skills: z.record(skill2024Schema, z.number()).optional(),
+  skills: z.record(skillSchema, z.number()).optional(),
   initiativeModifier: z.number().optional(), // Separate from DEX for 2024
   
   // Resistances & Immunities
   damageVulnerabilities: z.array(damageTypeSchema).optional(),
   damageResistances: z.array(damageTypeSchema).optional(),
   damageImmunities: z.array(damageTypeSchema).optional(),
-  conditionImmunities: z.array(z.custom<ReferenceObject>()).optional(),
+  conditionImmunities: z.array(z.any()).optional(), // Reference objects
   
   // Senses & Communication
   senses: sensesSchema,
@@ -203,23 +181,25 @@ export const statBlockSchema = z.object({
   treasure: z.array(treasureThemeSchema).optional(),
   
   // Equipment/Gear (flexible for both monsters and NPCs)
-  equipment: z.array(z.custom<ReferenceObject>()).optional(),
+  equipment: z.array(z.any()).optional(), // Reference objects
   
   // Source Information
   source: z.string().optional(),
   page: z.number().optional()
 });
 
-export type IStatBlock = z.infer<typeof statBlockSchema>;
-
 // Utility schemas for creating/updating stat blocks
-export const createStatBlockSchema = statBlockSchema.partial({
+export const createDndStatBlockSchema = dndStatBlockSchema.partial({
   proficiencyBonus: true,
   experiencePoints: true,
   senses: true
 });
 
-export const updateStatBlockSchema = statBlockSchema.partial();
+export const updateDndStatBlockSchema = dndStatBlockSchema.partial();
 
-export type IStatBlockCreateData = z.infer<typeof createStatBlockSchema>;
-export type IStatBlockUpdateData = z.infer<typeof updateStatBlockSchema>;
+/**
+ * Runtime type exports
+ */
+export type DndStatBlock = z.infer<typeof dndStatBlockSchema>;
+export type CreateDndStatBlock = z.infer<typeof createDndStatBlockSchema>;
+export type UpdateDndStatBlock = z.infer<typeof updateDndStatBlockSchema>;

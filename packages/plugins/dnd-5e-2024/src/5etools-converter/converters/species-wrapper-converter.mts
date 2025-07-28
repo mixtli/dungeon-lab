@@ -2,12 +2,8 @@
  * Species converter for 5etools data to wrapper compendium format
  */
 import { WrapperConverter, WrapperConversionResult, WrapperContent } from '../base/wrapper-converter.mjs';
-import { readEtoolsData, filterSrdContent, formatEntries } from '../utils/conversion-utils.mjs';
-import { speciesDocumentSchema } from '../../types/vttdocument.mjs';
+import { readEtoolsData, filterSrdContent, formatEntries, validateSpeciesData, ValidationResult } from '../utils/conversion-utils.mjs';
 import type { EtoolsEntry } from '../../5etools-types/base.mjs';
-import { z } from 'zod';
-
-type ISpeciesDocument = z.infer<typeof speciesDocumentSchema>;
 
 // Size mapping from 5etools to our schema
 const SIZE_MAP: Record<string, 'tiny' | 'small' | 'medium' | 'large' | 'huge'> = {
@@ -51,23 +47,34 @@ export class SpeciesWrapperConverter extends WrapperConverter {
         const raceRaw = filteredRaces[i];
         try {
           const fluff = fluffMap.get(String(raceRaw && typeof raceRaw === 'object' && 'name' in raceRaw ? raceRaw.name : 'unknown'));
-          const { species, assetPath } = this.convertSpecies(raceRaw, fluff);
+          const { species, assetPath, validationResult } = await this.convertSpecies(raceRaw, fluff);
+          // Species is already properly typed for wrapper creation
 
-          // Create wrapper format
+          // Check validation result
+          if (!validationResult.success) {
+            this.log(`❌ Species ${raceRaw.name} failed validation:`, validationResult.errors);
+            stats.errors++;
+            continue; // Skip this species and continue with next
+          }
+
+          // Log successful validation
+          this.log(`✅ Species ${raceRaw.name} validated successfully`);
+
+          // Create wrapper format using the full document structure
           const wrapper = this.createWrapper(
             species.name,
-            species,
-            'vttdocument',
+            species, // Always use the full structure for proper directory mapping
+            'vtt-document',
             {
               imageId: assetPath,
-              category: this.determineCategory(raceRaw, 'vttdocument'),
-              tags: this.extractTags(raceRaw, 'vttdocument'),
-              sortOrder: this.calculateSortOrder(raceRaw, 'vttdocument') + i
+              category: this.determineCategory(raceRaw, 'vtt-document'),
+              tags: this.extractTags(raceRaw, 'vtt-document'),
+              sortOrder: this.calculateSortOrder(raceRaw, 'vtt-document') + i
             }
           );
           
           content.push({
-            type: 'vttdocument',
+            type: 'vtt-document',
             wrapper,
             originalPath: 'races.json'
           });
@@ -94,7 +101,18 @@ export class SpeciesWrapperConverter extends WrapperConverter {
     }
   }
 
-  private convertSpecies(raceData: Record<string, unknown>, fluffData?: Record<string, unknown>): { species: ISpeciesDocument; assetPath?: string } {
+  private async convertSpecies(raceData: Record<string, unknown>, fluffData?: Record<string, unknown>): Promise<{ species: {
+    id: string;
+    name: string;
+    slug: string;
+    pluginId: string;
+    documentType: string;
+    description: string;
+    campaignId: string;
+    userData: Record<string, unknown>;
+    pluginDocumentType: string;
+    pluginData: unknown;
+  }; assetPath?: string; validationResult: ValidationResult }> {
     // Extract asset path from fluff data if available
     let assetPath: string | undefined;
     if (fluffData && this.options.includeAssets && 'images' in fluffData && 
@@ -107,30 +125,34 @@ export class SpeciesWrapperConverter extends WrapperConverter {
       }
     }
 
-    const species: ISpeciesDocument = {
-      id: `species-${this.generateSlug(String(raceData.name || 'unknown'))}`, // Temporary ID for wrapper format
+    // Create simplified species structure for validation
+    const speciesDataForValidation = {
+      name: String(raceData.name || 'Unknown Species'),
+      description: this.buildDescription(raceData, fluffData),
+      size: this.extractSize(raceData.size),
+      speed: this.extractSpeed(raceData.speed),
+      traits: this.extractTraits(Array.isArray(raceData.entries) ? raceData.entries as EtoolsEntry[] : []),
+      subspecies: this.extractSubspecies(Array.isArray(raceData.subraces) ? raceData.subraces : [])
+    };
+
+    // Create full document structure for output
+    const species = {
+      id: `species-${this.generateSlug(String(raceData.name || 'unknown'))}`,
       name: String(raceData.name || 'Unknown Species'),
       slug: this.generateSlug(String(raceData.name || 'unknown')),
       pluginId: 'dnd-5e-2024',
-      documentType: 'species',
+      documentType: 'vtt-document', // Correct documentType from schema
       description: this.buildDescription(raceData, fluffData),
-      campaignId: '', // Will be set during import
-      pluginData: {},
+      campaignId: '',
       userData: {},
       pluginDocumentType: 'species',
-      
-      // Species-specific data
-      data: {
-        name: String(raceData.name || 'Unknown Species'),
-        description: this.buildDescription(raceData, fluffData),
-        size: this.extractSize(raceData.size),
-        speed: this.extractSpeed(raceData.speed),
-        traits: this.extractTraits(Array.isArray(raceData.entries) ? raceData.entries as EtoolsEntry[] : []),
-        subspecies: this.extractSubspecies(Array.isArray(raceData.subraces) ? raceData.subraces : [])
-      }
+      pluginData: speciesDataForValidation // Use pluginData consistently with other converters
     };
 
-    return { species, assetPath };
+    // Validate the simplified species data against the schema
+    const validationResult = await validateSpeciesData(speciesDataForValidation);
+
+    return { species, assetPath, validationResult };
   }
 
   private buildDescription(raceData: Record<string, unknown>, fluffData?: Record<string, unknown>): string {
@@ -293,8 +315,8 @@ export class SpeciesWrapperConverter extends WrapperConverter {
   /**
    * Override category determination for species
    */
-  protected determineCategory<T = Record<string, unknown>>(sourceData: T, contentType: 'actor' | 'item' | 'vttdocument'): string | undefined {
-    if (contentType === 'vttdocument') {
+  protected determineCategory<T = Record<string, unknown>>(sourceData: T, contentType: 'actor' | 'item' | 'vtt-document'): string | undefined {
+    if (contentType === 'vtt-document') {
       return 'Species';
     }
     return super.determineCategory(sourceData, contentType);

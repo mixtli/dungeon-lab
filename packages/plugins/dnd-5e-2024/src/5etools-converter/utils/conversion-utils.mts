@@ -5,6 +5,19 @@ import { join } from 'path';
 import { readFile, writeFile, mkdir } from 'fs/promises';
 import { ETOOLS_DATA_PATH, PLUGIN_CONFIG } from '../../config/constants.mjs';
 import type { EtoolsEntry } from '../../5etools-types/base.mjs';
+import type { ZodSchema } from 'zod';
+// Import canonical schemas from types/dnd
+import {
+  dndItemDataSchema,
+  dndMonsterDataSchema,
+  dndCharacterClassDataSchema,
+  dndSpeciesDataSchema,
+  dndFeatDataSchema,
+  dndConditionDataSchema,
+  dndActionDataSchema,
+  dndSpellDataSchema,
+  dndBackgroundDataSchema
+} from '../../types/dnd/index.mjs';
 
 /**
  * Filter array to only SRD content
@@ -184,4 +197,284 @@ export function formatEntries(entries: EtoolsEntry[]): string {
     })
     .filter(text => text.length > 0)
     .join('\n\n');
+}
+
+/**
+ * Validation result for schema validation
+ */
+export interface ValidationResult<T = unknown> {
+  success: boolean;
+  data?: T;
+  errors?: string[];
+}
+
+/**
+ * Validate data against a Zod schema and return detailed results
+ */
+export function validateWithSchema<T>(
+  data: unknown, 
+  schema: ZodSchema<T>, 
+  context?: string
+): ValidationResult<T> {
+  const result = schema.safeParse(data);
+  
+  if (result.success) {
+    return {
+      success: true,
+      data: result.data
+    };
+  }
+  
+  const errors = result.error.errors.map(err => {
+    const path = err.path.length > 0 ? err.path.join('.') : 'root';
+    return `${path}: ${err.message}`;
+  });
+  
+  return {
+    success: false,
+    errors: context ? errors.map(err => `${context} - ${err}`) : errors
+  };
+}
+
+/**
+ * Validate background data against the background schema
+ */
+export async function validateBackgroundData(data: unknown): Promise<ValidationResult> {
+  try {
+    // Import zod and create a simplified background schema inline to avoid circular dependencies
+    // Use the canonical background schema for validation
+
+    return validateWithSchema(data, dndBackgroundDataSchema, 'Background Data');
+  } catch (error) {
+    return {
+      success: false,
+      errors: [`Failed to validate background data: ${error instanceof Error ? error.message : 'Unknown error'}`]
+    };
+  }
+}
+
+/**
+ * Validate spell data against the canonical spell schema
+ */
+export async function validateSpellData(data: unknown): Promise<ValidationResult> {
+  try {
+    return validateWithSchema(data, dndSpellDataSchema, 'Spell Data');
+  } catch (error) {
+    return {
+      success: false,
+      errors: [`Failed to validate spell data: ${error instanceof Error ? error.message : 'Unknown error'}`]
+    };
+  }
+}
+
+/**
+ * Validate wrapper content structure
+ */
+export interface WrapperValidationResult {
+  success: boolean;
+  errors?: string[];
+  entryErrors?: string[];
+  contentErrors?: string[];
+}
+
+/**
+ * Validate a complete wrapper object (entry + content)
+ */
+export async function validateWrapperContent(
+  wrapper: unknown,
+  contentType: 'actor' | 'item' | 'vtt-document',
+  documentType?: string
+): Promise<WrapperValidationResult> {
+  const errors: string[] = [];
+  const entryErrors: string[] = [];
+  const contentErrors: string[] = [];
+  
+  // Basic structure validation
+  if (!wrapper || typeof wrapper !== 'object') {
+    return {
+      success: false,
+      errors: ['Wrapper must be an object']
+    };
+  }
+  
+  const wrapperObj = wrapper as Record<string, unknown>;
+  
+  // Validate entry structure
+  if (!wrapperObj.entry || typeof wrapperObj.entry !== 'object') {
+    entryErrors.push('Missing or invalid entry object');
+  } else {
+    const entry = wrapperObj.entry as Record<string, unknown>;
+    if (!entry.name || typeof entry.name !== 'string') {
+      entryErrors.push('Entry missing name field');
+    }
+    if (!entry.type || typeof entry.type !== 'string') {
+      entryErrors.push('Entry missing type field');
+    }
+  }
+  
+  // Validate content structure
+  if (!wrapperObj.content) {
+    contentErrors.push('Missing content object');
+  } else {
+    // For vtt documents, validate specific document types
+    if (contentType === 'vtt-document' && documentType) {
+      try {
+        const contentValidation = await validateContentByDocumentType(wrapperObj.content, documentType);
+        if (!contentValidation.success && contentValidation.errors) {
+          contentErrors.push(...contentValidation.errors);
+        }
+      } catch (error) {
+        contentErrors.push(`Content validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
+  }
+  
+  const allErrors = [...errors, ...entryErrors, ...contentErrors];
+  
+  return {
+    success: allErrors.length === 0,
+    errors: allErrors.length > 0 ? allErrors : undefined,
+    entryErrors: entryErrors.length > 0 ? entryErrors : undefined,
+    contentErrors: contentErrors.length > 0 ? contentErrors : undefined
+  };
+}
+
+
+/**
+ * Validate item data against the canonical item schema
+ */
+export async function validateItemData(data: unknown): Promise<ValidationResult> {
+  try {
+    return validateWithSchema(data, dndItemDataSchema, 'Item Data');
+  } catch (error) {
+    return {
+      success: false,
+      errors: [`Failed to validate item data: ${error instanceof Error ? error.message : 'Unknown error'}`]
+    };
+  }
+}
+
+/**
+ * Validate monster data against the canonical monster schema
+ */
+export async function validateMonsterData(data: unknown): Promise<ValidationResult> {
+  try {
+    return validateWithSchema(data, dndMonsterDataSchema, 'Monster Data');
+  } catch (error) {
+    return {
+      success: false,
+      errors: [`Failed to validate monster data: ${error instanceof Error ? error.message : 'Unknown error'}`]
+    };
+  }
+}
+
+/**
+ * Validate class data against the class schema
+ */
+export async function validateClassData(data: unknown): Promise<ValidationResult> {
+  try {
+    return validateWithSchema(data, dndCharacterClassDataSchema, 'Class Data');
+  } catch (error) {
+    return {
+      success: false,
+      errors: [`Failed to validate class data: ${error instanceof Error ? error.message : 'Unknown error'}`]
+    };
+  }
+}
+
+/**
+ * Validate species data against the species schema
+ */
+export async function validateSpeciesData(data: unknown): Promise<ValidationResult> {
+  try {
+    return validateWithSchema(data, dndSpeciesDataSchema, 'Species Data');
+  } catch (error) {
+    return {
+      success: false,
+      errors: [`Failed to validate species data: ${error instanceof Error ? error.message : 'Unknown error'}`]
+    };
+  }
+}
+
+/**
+ * Validate feat data against the feat schema
+ */
+export async function validateFeatData(data: unknown): Promise<ValidationResult> {
+  try {
+    return validateWithSchema(data, dndFeatDataSchema, 'Feat Data');
+  } catch (error) {
+    return {
+      success: false,
+      errors: [`Failed to validate feat data: ${error instanceof Error ? error.message : 'Unknown error'}`]
+    };
+  }
+}
+
+/**
+ * Validate condition data against the condition schema
+ */
+export async function validateConditionData(data: unknown): Promise<ValidationResult> {
+  try {
+    // Use the canonical condition schema for validation
+
+    return validateWithSchema(data, dndConditionDataSchema, 'Condition Data');
+  } catch (error) {
+    return {
+      success: false,
+      errors: [`Failed to validate condition data: ${error instanceof Error ? error.message : 'Unknown error'}`]
+    };
+  }
+}
+
+/**
+ * Validate action data against the action schema
+ */
+export async function validateActionData(data: unknown): Promise<ValidationResult> {
+  try {
+    // Use the canonical action schema for validation
+
+    return validateWithSchema(data, dndActionDataSchema, 'Action Data');
+  } catch (error) {
+    return {
+      success: false,
+      errors: [`Failed to validate action data: ${error instanceof Error ? error.message : 'Unknown error'}`]
+    };
+  }
+}
+
+/**
+ * Validate content based on document type
+ */
+async function validateContentByDocumentType(content: unknown, documentType: string): Promise<ValidationResult> {
+  // For documents with pluginData, extract the relevant data for validation
+  let dataToValidate = content;
+  
+  if (content && typeof content === 'object' && 'pluginData' in content) {
+    dataToValidate = content.pluginData;
+  }
+  
+  switch (documentType) {
+    case 'background':
+      return await validateBackgroundData(dataToValidate);
+    case 'spell':
+      return await validateSpellData(dataToValidate);
+    case 'item':
+      return await validateItemData(dataToValidate);
+    case 'monster':
+      return await validateMonsterData(dataToValidate);
+    case 'characterClass':
+      return await validateClassData(dataToValidate);
+    case 'species':
+      return await validateSpeciesData(dataToValidate);
+    case 'feat':
+      return await validateFeatData(dataToValidate);
+    case 'condition':
+      return await validateConditionData(dataToValidate);
+    case 'action':
+      return await validateActionData(dataToValidate);
+    default:
+      return {
+        success: true // For now, pass through unknown document types (deity, rule, language, sense)
+      };
+  }
 }

@@ -1,0 +1,163 @@
+{
+  "entry": {
+    "name": "Criminal",
+    "type": "vttdocument",
+    "category": "Backgrounds",
+    "tags": [
+      "xphb",
+      "Background",
+      "Sleight Of Hand",
+      "Stealth"
+    ],
+    "sortOrder": 1
+  },
+  "content": {
+    "documentType": "background",
+    "name": "Criminal",
+    "description": "You eked out a living in dark alleyways, cutting purses or burgling shops. Perhaps you were part of a small gang of like-minded wrongdoers who looked out for each other. Or maybe you were a lone wolf, fending for yourself against the local thieves' guild and more fearsome lawbreakers.",
+    "source": "XPHB",
+    "page": 180,
+    "abilityScoreImprovements": [
+      {
+        "type": "weighted",
+        "choices": [
+          {
+            "from": [
+              "dex",
+              "con",
+              "int"
+            ],
+            "weights": [
+              2,
+              1
+            ],
+            "total": 3
+          }
+        ]
+      },
+      {
+        "type": "weighted",
+        "choices": [
+          {
+            "from": [
+              "dex",
+              "con",
+              "int"
+            ],
+            "weights": [
+              1,
+              1,
+              1
+            ],
+            "total": 3
+          }
+        ]
+      }
+    ],
+    "feats": [
+      {
+        "_ref": {
+          "slug": "alertxphb",
+          "type": "vtt-document",
+          "pluginType": "feat",
+          "source": "XPHB"
+        },
+        "displayName": "Alert|xphb"
+      }
+    ],
+    "skillProficiencies": [
+      {
+        "_ref": {
+          "slug": "sleight-of-hand",
+          "type": "vtt-document",
+          "pluginType": "skill",
+          "source": "XPHB"
+        },
+        "displayName": "Sleight Of Hand"
+      },
+      {
+        "_ref": {
+          "slug": "stealth",
+          "type": "vtt-document",
+          "pluginType": "skill",
+          "source": "XPHB"
+        },
+        "displayName": "Stealth"
+      }
+    ],
+    "toolProficiencies": [
+      {
+        "_ref": {
+          "slug": "thieves-tools",
+          "type": "vtt-document",
+          "pluginType": "tool",
+          "source": "XPHB"
+        },
+        "displayName": "Thieves' Tools"
+      }
+    ],
+    "startingEquipment": {
+      "type": "choice",
+      "options": [
+        {
+          "label": "A",
+          "items": [
+            {
+              "_ref": {
+                "slug": "daggerxphb",
+                "type": "item",
+                "pluginType": "weapon",
+                "source": "XPHB"
+              },
+              "quantity": 2
+            },
+            {
+              "_ref": {
+                "slug": "thieves-toolsxphb",
+                "type": "item",
+                "pluginType": "tool",
+                "source": "XPHB"
+              }
+            },
+            {
+              "_ref": {
+                "slug": "crowbarxphb",
+                "type": "item",
+                "pluginType": "gear",
+                "source": "XPHB"
+              }
+            },
+            {
+              "_ref": {
+                "slug": "pouchxphb",
+                "type": "item",
+                "pluginType": "gear",
+                "source": "XPHB"
+              },
+              "quantity": 2
+            },
+            {
+              "_ref": {
+                "slug": "travelers-clothesxphb",
+                "type": "item",
+                "pluginType": "gear",
+                "source": "XPHB"
+              }
+            },
+            {
+              "value": 1600
+            }
+          ]
+        },
+        {
+          "label": "B",
+          "items": [
+            {
+              "value": 5000
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

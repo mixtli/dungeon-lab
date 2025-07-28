@@ -1,129 +1,36 @@
-import { z } from 'zod';
-import { characterClassDataSchema } from './character-class.mjs';
-import { vttDocumentSchema } from '@dungeon-lab/shared/schemas/index.mjs';
-// These schemas represent the data field of the documents in the mongoose model VTTDocument which is returned by the API
-// Background schema
-export const backgroundDataSchema = z.object({
-  name: z.string(),
-  description: z.string(),
-  skillProficiencies: z.array(z.string()),
-  abilities: z.array(z.string()).optional(),
-  languageProficiencies: z.array(z.string()).optional(),
-  toolProficiencies: z.array(z.string()).optional(),
-  equipment: z.union([
-    z.array(z.string()),
-    z.object({
-      type: z.literal('choice'),
-      options: z.array(
-        z.array(
-          z.union([
-            z.object({
-              item: z.string(),
-              quantity: z.number().optional()
-            }),
-            z.object({
-              value: z.number()
-            })
-          ])
-        )
-      )
-    })
-  ]).optional(),
-  feature: z.object({
-    name: z.string(),
-    description: z.string()
-  }).optional(),
-  feats: z.array(z.string()).optional(),
-  source: z.string().optional(),
-  page: z.number().optional(),
-  suggestedCharacteristics: z.object({
-    personalityTraits: z.array(z.string()).optional(),
-    ideals: z.array(z.string()).optional(),
-    bonds: z.array(z.string()).optional(),
-    flaws: z.array(z.string()).optional()
-  }).optional()
-});
+import { dndCharacterClassDataSchema } from './dnd/character-class.mjs';
 
-// Species schema
-export const speciesDataSchema = z.object({
-  name: z.string(),
-  description: z.string(),
-  size: z.enum(['tiny', 'small', 'medium', 'large', 'huge']),
-  speed: z.number(),
-  traits: z.array(z.object({
-    name: z.string(),
-    description: z.string()
-  })),
-  subspecies: z.array(z.object({
-    name: z.string(),
-    description: z.string(),
-    speed: z.number().optional(),
-    abilityScoreIncrease: z.record(z.string(), z.number()).optional(),
-    traits: z.array(z.object({
-      name: z.string(), 
-      description: z.string()
-    })).optional(),
-    spells: z.array(z.object({
-      name: z.string().optional(),
-      cantrips: z.array(z.string()),
-      spells: z.array(z.object({
-        level: z.number(),
-        spells: z.array(z.string())
-      }))
-    })).optional()
-  })).optional()
-});
+// Import from separate type files
+import { 
+  dndBackgroundDataSchema, 
+  dndBackgroundDocumentSchema,
+  type DndBackgroundData,
+  type DndBackgroundDocument
+} from './dnd/background.mjs';
 
-// Feat schema
-export const featDataSchema = z.object({
-  name: z.string(),
-  description: z.string(),
-  category: z.string().optional(),
-  ability: z.array(
-    z.object({
-      choice: z.object({
-        from: z.array(z.string()),
-        count: z.number().optional()
-      })
-    })
-  ).optional(),
-  prerequisites: z.object({
-    ability: z.record(z.string(), z.number()).optional(),
-    race: z.array(z.string()).optional(),
-    class: z.array(z.string()).optional(),
-    level: z.number().optional(),
-    spellcasting: z.boolean().optional(),
-    other: z.string().optional()
-  }).optional(),
-  benefits: z.array(z.object({
-    name: z.string(),
-    description: z.string()
-  }))
-});
+import {
+  dndSpeciesDataSchema,
+  dndSpeciesDocumentSchema,
+  type DndSpeciesData,
+  type DndSpeciesDocument
+} from './dnd/species.mjs';
 
-export type IBackground = z.infer<typeof backgroundDataSchema>;
-export type IBackgroundData = z.infer<typeof backgroundDataSchema>;
-export type ISpeciesData = z.infer<typeof speciesDataSchema>;
-export type IFeatData = z.infer<typeof featDataSchema>;
+import {
+  dndFeatDataSchema,
+  dndFeatDocumentSchema,
+  type DndFeatData,
+  type DndFeatDocument
+} from './dnd/feat.mjs';
 
-export const backgroundDocumentSchema = vttDocumentSchema.extend({
-  documentType: z.literal('background'),
-  data: backgroundDataSchema
-});
+// Re-export for backward compatibility
+export { dndBackgroundDataSchema as backgroundDataSchema, dndBackgroundDocumentSchema as backgroundDocumentSchema };
+export { dndSpeciesDataSchema as speciesDataSchema, dndSpeciesDocumentSchema as speciesDocumentSchema };
+export { dndFeatDataSchema as featDataSchema, dndFeatDocumentSchema as featDocumentSchema };
 
-export const speciesDocumentSchema = vttDocumentSchema.extend({
-  documentType: z.literal('species'),
-  data: speciesDataSchema
-});
-
-export const featDocumentSchema = vttDocumentSchema.extend({
-  documentType: z.literal('feat'),
-  data: featDataSchema
-});
-
-export type IBackgroundDocument = z.infer<typeof backgroundDocumentSchema>;
-export type ISpeciesDocument = z.infer<typeof speciesDocumentSchema>;
-export type IFeatDocument = z.infer<typeof featDocumentSchema>;
+export type IBackground = DndBackgroundData; // legacy alias
+export type { DndBackgroundData as IBackgroundData, DndBackgroundDocument as IBackgroundDocument };
+export type { DndSpeciesData as ISpeciesData, DndSpeciesDocument as ISpeciesDocument };
+export type { DndFeatData as IFeatData, DndFeatDocument as IFeatDocument };
 
 
 
@@ -139,13 +46,13 @@ export type IFeatDocument = z.infer<typeof featDocumentSchema>;
 
 // Export const for each document type for validation functions
 export const vttDocumentDataTypes = {
-  characterClass: characterClassDataSchema,
-  background: backgroundDataSchema,
-  species: speciesDataSchema,
-  feat: featDataSchema
+  characterClass: dndCharacterClassDataSchema,
+  background: dndBackgroundDataSchema,
+  species: dndSpeciesDataSchema,
+  feat: dndFeatDataSchema
 };
 
 // Convert schemas to JSON Schema for plugin registration
-export const backgroundJsonSchema = backgroundDataSchema.describe('D&D 5E Background');
-export const speciesJsonSchema = speciesDocumentSchema.describe('D&D 5E Species');
-export const featJsonSchema = featDocumentSchema.describe('D&D 5E Feat'); 
+export const backgroundJsonSchema = dndBackgroundDataSchema.describe('D&D 5E Background');
+export const speciesJsonSchema = dndSpeciesDocumentSchema.describe('D&D 5E Species');
+export const featJsonSchema = dndFeatDocumentSchema.describe('D&D 5E Feat'); 

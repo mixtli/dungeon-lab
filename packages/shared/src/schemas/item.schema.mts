@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { baseDocumentSchema } from './document.schema.mjs';
+import { baseDocumentSchema, documentTypeSchema } from './document.schema.mjs';
 
 // Item schema - extends base document with VTT-specific fields
 export const itemSchema = baseDocumentSchema.extend({
-  // Discriminator value
+  // Discriminator value - use literal for proper type inference
   documentType: z.literal('item'),
   
   // Plugin subtypes: 'weapon', 'armor', 'tool', 'consumable', etc.

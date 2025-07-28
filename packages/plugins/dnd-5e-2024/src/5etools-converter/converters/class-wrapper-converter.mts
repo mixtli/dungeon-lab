@@ -2,13 +2,11 @@
  * Class converter for 5etools data to wrapper compendium format
  */
 import { WrapperConverter, WrapperConversionResult, WrapperContent } from '../base/wrapper-converter.mjs';
-import { readEtoolsData, filterSrdContent, formatEntries } from '../utils/conversion-utils.mjs';
-import { characterClassDocumentSchema } from '../../types/character-class.mjs';
-import { z } from 'zod';
-import type { EtoolsClass, EtoolsClassData, EtoolsClassFluff, EtoolsClassFluffData } from '../../5etools-types/classes.mjs';
+import { readEtoolsData, filterSrdContent, formatEntries, validateClassData, ValidationResult } from '../utils/conversion-utils.mjs';
+import type { EtoolsClass, EtoolsClassData, EtoolsClassFluff, EtoolsClassFluffData, EtoolsSubclass } from '../../5etools-types/classes.mjs';
 import { extractEtoolsArray, safeEtoolsCast } from '../../5etools-types/type-utils.mjs';
+import type { DndSubclassData, DndSpellEntry } from '../../types/dnd/character-class.mjs';
 
-type ICharacterClassDocument = z.infer<typeof characterClassDocumentSchema>;
 
 export class ClassWrapperConverter extends WrapperConverter {
   async convert(): Promise<WrapperConversionResult> {
@@ -55,23 +53,34 @@ export class ClassWrapperConverter extends WrapperConverter {
             const classRaw = filteredClasses[i];
             try {
               const fluff = fluffMap.get(classRaw.name);
-              const { characterClass, assetPath } = this.convertClass(classRaw, fluff);
+              const { characterClass, assetPath, validationResult } = await this.convertClass(classRaw, fluff);
+              // CharacterClass is already properly typed for wrapper creation
 
-              // Create wrapper format
+              // Check validation result
+              if (!validationResult.success) {
+                this.log(`❌ Class ${classRaw.name} failed validation:`, validationResult.errors);
+                stats.errors++;
+                continue; // Skip this class and continue with next
+              }
+
+              // Log successful validation
+              this.log(`✅ Class ${classRaw.name} validated successfully`);
+
+              // Create wrapper format using the full document structure
               const wrapper = this.createWrapper(
                 characterClass.name,
-                characterClass,
-                'vttdocument',
+                characterClass, // Always use the full structure for proper directory mapping
+                'vtt-document',
                 {
                   imageId: assetPath,
-                  category: this.determineCategory(classRaw, 'vttdocument'),
-                  tags: this.extractTags(classRaw, 'vttdocument'),
-                  sortOrder: this.calculateSortOrder(classRaw, 'vttdocument') + i
+                  category: this.determineCategory(classRaw, 'vtt-document'),
+                  tags: this.extractTags(classRaw, 'vtt-document'),
+                  sortOrder: this.calculateSortOrder(classRaw, 'vtt-document') + i
                 }
               );
               
               content.push({
-                type: 'vttdocument',
+                type: 'vtt-document',
                 wrapper,
                 originalPath: `class/${classFile}`
               });
@@ -103,7 +112,18 @@ export class ClassWrapperConverter extends WrapperConverter {
     }
   }
 
-  private convertClass(classData: EtoolsClass, fluffData?: EtoolsClassFluff): { characterClass: ICharacterClassDocument; assetPath?: string } {
+  private async convertClass(classData: EtoolsClass, fluffData?: EtoolsClassFluff): Promise<{ characterClass: {
+    id: string;
+    name: string;
+    slug: string;
+    pluginId: string;
+    documentType: string;
+    description: string;
+    campaignId: string;
+    userData: Record<string, unknown>;
+    pluginDocumentType: string;
+    pluginData: unknown;
+  }; assetPath?: string; validationResult: ValidationResult }> {
     // Extract asset path from fluff data if available
     let assetPath: string | undefined;
     if (fluffData && this.options.includeAssets) {
@@ -112,41 +132,45 @@ export class ClassWrapperConverter extends WrapperConverter {
       }
     }
 
-    const characterClass: ICharacterClassDocument = {
-      id: `class-${this.generateSlug(classData.name)}`, // Temporary ID for wrapper format
+    // Create simplified class structure for validation
+    const classDataForValidation = {
+      name: classData.name,
+      source: classData.source || 'PHB',
+      edition: '2024',
+      hitdie: `d${classData.hd?.faces || 8}`,
+      primaryability: this.extractPrimaryAbilities(classData.primaryAbility),
+      savingthrows: this.extractSavingThrows(classData.proficiency),
+      proficiencies: {
+        armor: classData.startingProficiencies?.armor || [],
+        weapons: classData.startingProficiencies?.weapons || [],
+        tools: this.extractToolProficiencies(classData.startingProficiencies?.tools) || [],
+        skills: this.extractSkillProficienciesAsChoices(classData.startingProficiencies?.skills) || []
+      },
+      equipment: this.extractStartingEquipment(classData.startingEquipment),
+      features: this.extractFeaturesAsRecord(classData.classFeature || []),
+      subclasslevel: 3, // Standard D&D 5e subclass level
+      subclassTitle: classData.subclassTitle || 'Subclass',
+      subclasses: this.extractSubclasses(classData.subclasses || [])
+    };
+
+    // Create full document structure for output (regardless of validation)
+    const characterClass = {
+      id: `class-${this.generateSlug(classData.name)}`,
       name: classData.name,
       slug: this.generateSlug(classData.name),
       pluginId: 'dnd-5e-2024',
-      documentType: 'characterClass',
+      documentType: 'vtt-document', // Correct documentType from schema
       description: this.buildDescription(classData, fluffData),
-      campaignId: '', // Will be set during import
-      pluginData: {},
+      campaignId: '',
       userData: {},
-      pluginDocumentType: 'characterClass',
-      
-      // Class-specific data
-      data: {
-        name: classData.name,
-        source: classData.source || 'PHB',
-        edition: '5e-2024',
-        hitdie: `d${classData.hd?.faces || 8}`,
-        primaryability: this.extractPrimaryAbilities(classData.primaryAbility),
-        savingthrows: this.extractSavingThrows(classData.proficiency),
-        proficiencies: {
-          armor: classData.startingProficiencies?.armor || [],
-          weapons: classData.startingProficiencies?.weapons || [],
-          tools: this.extractToolProficiencies(classData.startingProficiencies?.tools) || [],
-          skills: this.extractSkillProficienciesAsChoices(classData.startingProficiencies?.skills) || []
-        },
-        equipment: this.extractStartingEquipment(classData.startingEquipment),
-        features: this.extractFeaturesAsRecord(classData.classFeature || []),
-        subclasslevel: 3, // Default subclass level
-        subclassTitle: classData.subclassTitle || 'Subclass',
-        subclasses: [] // TODO: Extract subclasses
-      }
+      pluginDocumentType: 'character-class',
+      pluginData: classDataForValidation
     };
 
-    return { characterClass, assetPath };
+    // Validate the simplified class data against the schema
+    const validationResult = await validateClassData(classDataForValidation);
+
+    return { characterClass, assetPath, validationResult };
   }
 
   private buildDescription(classData: EtoolsClass, fluffData?: EtoolsClassFluff): string {
@@ -293,11 +317,67 @@ export class ClassWrapperConverter extends WrapperConverter {
     return result;
   }
 
+  private extractSubclasses(subclasses: EtoolsSubclass[]): DndSubclassData[] {
+    if (!Array.isArray(subclasses)) return [];
+    
+    return subclasses.map(subclass => ({
+      name: subclass.name || 'Unknown Subclass',
+      shortname: subclass.shortName || subclass.name || 'Unknown',
+      source: subclass.source || 'PHB',
+      classname: subclass.className || '',
+      features: this.extractFeaturesAsRecord([]), // subclassFeatures are references, not full feature objects
+      additionalspells: this.extractAdditionalSpells([])
+    }));
+  }
+
+  private extractAdditionalSpells(additionalSpells: Array<{known?: Record<string, string[]>; prepared?: Record<string, string[]>; expanded?: Record<string, string[]>}>): DndSpellEntry[] {
+    if (!Array.isArray(additionalSpells) || additionalSpells.length === 0) return [];
+    
+    return additionalSpells.map(spellGroup => {
+      const entry: DndSpellEntry = {};
+      
+      // Convert each type of spell list to our format
+      if (spellGroup.known) {
+        entry.known = {};
+        for (const [level, spells] of Object.entries(spellGroup.known)) {
+          entry.known[level] = spells.map(spell => ({
+            name: spell,
+            source: 'PHB' // Default source
+          }));
+        }
+      }
+      
+      if (spellGroup.prepared) {
+        entry.prepared = {};
+        for (const [level, spells] of Object.entries(spellGroup.prepared)) {
+          entry.prepared[level] = spells.map(spell => ({
+            name: spell,
+            source: 'PHB' // Default source
+          }));
+        }
+      }
+      
+      // Note: 'expanded' doesn't directly map to our schema, treating as prepared
+      if (spellGroup.expanded) {
+        if (!entry.prepared) entry.prepared = {};
+        for (const [level, spells] of Object.entries(spellGroup.expanded)) {
+          if (!entry.prepared[level]) entry.prepared[level] = [];
+          entry.prepared[level].push(...spells.map(spell => ({
+            name: spell,
+            source: 'PHB' // Default source
+          })));
+        }
+      }
+      
+      return entry;
+    });
+  }
+
   /**
    * Override category determination for classes
    */
-  protected determineCategory<T = EtoolsClass>(sourceData: T, contentType: 'actor' | 'item' | 'vttdocument'): string | undefined {
-    if (contentType === 'vttdocument') {
+  protected determineCategory<T = EtoolsClass>(sourceData: T, contentType: 'actor' | 'item' | 'vtt-document'): string | undefined {
+    if (contentType === 'vtt-document') {
       return 'Classes';
     }
     return super.determineCategory(sourceData, contentType);

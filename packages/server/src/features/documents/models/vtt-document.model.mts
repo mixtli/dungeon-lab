@@ -16,9 +16,9 @@ const serverVTTDocumentSchema = vttDocumentSchema.extend({
   slug: z.string().min(1)
 });
 
-// Create the discriminator schema
+// Create the discriminator schema (omit documentType as it's handled by discriminator)
 const vttDocumentMongooseSchema = createMongoSchema<IVTTDocument>(
-  serverVTTDocumentSchema.merge(baseMongooseZodSchema)
+  serverVTTDocumentSchema.merge(baseMongooseZodSchema).omit({ documentType: true })
 );
 
 // Override pluginData field to use Mixed type for flexibility

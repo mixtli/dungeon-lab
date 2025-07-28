@@ -13,7 +13,7 @@ export interface ConversionOptions {
 }
 
 export interface WrapperContent {
-  type: 'actor' | 'item' | 'vttdocument';
+  type: 'actor' | 'item' | 'vtt-document';
   wrapper: IContentFileWrapper;
   originalPath?: string;
 }
@@ -66,7 +66,7 @@ export abstract class WrapperConverter {
   protected createWrapper(
     name: string,
     contentData: unknown,
-    contentType: 'actor' | 'item' | 'vttdocument',
+    contentType: 'actor' | 'item' | 'vtt-document',
     options: {
       imageId?: string;
       category?: string;
@@ -90,7 +90,7 @@ export abstract class WrapperConverter {
   /**
    * Extract entry-level image path from content
    */
-  protected extractEntryImagePath<T = Record<string, unknown>>(sourceData: T, contentType: 'actor' | 'item' | 'vttdocument'): string | undefined {
+  protected extractEntryImagePath<T = Record<string, unknown>>(sourceData: T, contentType: 'actor' | 'item' | 'vtt-document'): string | undefined {
     if (!sourceData || typeof sourceData !== 'object') return undefined;
     
     const data = sourceData as Record<string, unknown>;
@@ -102,7 +102,7 @@ export abstract class WrapperConverter {
       case 'item':
         // For items: use primary image
         return typeof data.imageUrl === 'string' ? data.imageUrl : undefined;
-      case 'vttdocument':
+      case 'vtt-document':
         // For documents: use primary image if available
         return typeof data.imageUrl === 'string' ? data.imageUrl : undefined;
       default:
@@ -113,13 +113,13 @@ export abstract class WrapperConverter {
   /**
    * Determine category from content type and source data
    */
-  protected determineCategory<T = Record<string, unknown>>(sourceData: T, contentType: 'actor' | 'item' | 'vttdocument'): string | undefined {
+  protected determineCategory<T = Record<string, unknown>>(sourceData: T, contentType: 'actor' | 'item' | 'vtt-document'): string | undefined {
     switch (contentType) {
       case 'actor':
         return 'Monsters';
       case 'item':
         return 'Equipment';
-      case 'vttdocument':
+      case 'vtt-document':
         return 'Documents';
       default:
         return undefined;
@@ -129,7 +129,7 @@ export abstract class WrapperConverter {
   /**
    * Extract tags from source data
    */
-  protected extractTags<T = Record<string, unknown>>(sourceData: T, contentType: 'actor' | 'item' | 'vttdocument'): string[] {
+  protected extractTags<T = Record<string, unknown>>(sourceData: T, contentType: 'actor' | 'item' | 'vtt-document'): string[] {
     const tags: string[] = [];
     
     // Add common tags based on content type
@@ -200,7 +200,7 @@ export abstract class WrapperConverter {
         }
         break;
         
-      case 'vttdocument':
+      case 'vtt-document':
         if (sourceData && typeof sourceData === 'object' && 'level' in sourceData && 
             typeof sourceData.level === 'number') {
           if (sourceData.level === 0) {
@@ -222,7 +222,7 @@ export abstract class WrapperConverter {
   /**
    * Calculate sort order for content
    */
-  protected calculateSortOrder<T = Record<string, unknown>>(sourceData: T, contentType: 'actor' | 'item' | 'vttdocument'): number {
+  protected calculateSortOrder<T = Record<string, unknown>>(sourceData: T, contentType: 'actor' | 'item' | 'vtt-document'): number {
     switch (contentType) {
       case 'actor':
         // Sort by CR, then alphabetically
@@ -240,7 +240,7 @@ export abstract class WrapperConverter {
         }
         return 0;
       }
-      case 'vttdocument':
+      case 'vtt-document':
         // Sort by level for spells, then alphabetically
         if (sourceData && typeof sourceData === 'object' && 'level' in sourceData && 
             typeof sourceData.level === 'number') {
@@ -255,13 +255,13 @@ export abstract class WrapperConverter {
   /**
    * Get default category for content type
    */
-  private getDefaultCategory(contentType: 'actor' | 'item' | 'vttdocument'): string {
+  private getDefaultCategory(contentType: 'actor' | 'item' | 'vtt-document'): string {
     switch (contentType) {
       case 'actor':
         return 'Monsters';
       case 'item':
         return 'Equipment';
-      case 'vttdocument':
+      case 'vtt-document':
         return 'Documents';
       default:
         return 'Miscellaneous';

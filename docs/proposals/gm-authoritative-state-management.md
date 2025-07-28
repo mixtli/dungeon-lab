@@ -392,52 +392,167 @@ class GameAgnosticServer {
 }
 ```
 
-#### GM Client: Game Logic with Type Safety
+#### GM Client: Game Logic with Type Safety and Request Deduplication
 ```typescript  
 class GMGameLogicHandler {
+  private pendingActionsByType = new Map<string, ActionRequest[]>();
+  private conflictingActions = new Map<string, string[]>(); // actionKey -> conflicting action IDs
+  private processingActions = new Set<string>(); // Currently processing action IDs
+  
   // GM client understands game semantics with full type safety
-  processActionRequest(request: GameActionRequest) {
-    // TypeScript provides full type safety here
-    switch (request.type) {
-      case 'attack': {
-        // TypeScript knows request.data is AttackData
-        const { attackerId, targetId, weaponId } = request.data;
-        
-        // GM client can access game logic
-        const attacker = this.getActor(attackerId);
-        const target = this.getActor(targetId);
-        const weapon = this.getItem(weaponId);
-        
-        // Use plugin for suggestions
-        const result = this.plugin.calculateAttack(attacker, target, weapon);
-        
-        // Show GM approval UI with suggestions
-        return this.showAttackApprovalUI({
-          attacker,
-          target, 
-          weapon,
-          suggestedResult: result,
-          onApprove: (finalResult) => this.approveAction(request.id, finalResult),
-          onReject: (reason) => this.rejectAction(request.id, reason)
-        });
-      }
+  async processActionRequest(request: GameActionRequest): Promise<void> {
+    // Generate unique key for this type of action
+    const actionKey = this.generateActionKey(request);
+    
+    // Check for duplicate requests (same player, same action, within time window)
+    if (this.isDuplicateRequest(request, actionKey)) {
+      return this.rejectAction(request.id, 'Duplicate action request');
+    }
+    
+    // Check for conflicting actions (affecting same entities)
+    const conflictingActionIds = this.findConflictingActions(request);
+    if (conflictingActionIds.length > 0) {
+      return this.handleConflictingActions(request, conflictingActionIds);
+    }
+    
+    // Track this action as in-progress
+    this.addToPending(actionKey, request);
+    this.processingActions.add(request.id);
+    
+    try {
+      // Get current state version for affected entities
+      const affectedEntities = this.getAffectedEntities(request);
+      const entityVersions = await this.getCurrentEntityVersions(affectedEntities);
       
-      case 'cast_spell': {
-        // TypeScript knows request.data is SpellData
-        const { casterId, spellId, targets } = request.data;
+      // Process based on action type with full type safety
+      switch (request.type) {
+        case 'attack': {
+          // TypeScript knows request.data is AttackData
+          const { attackerId, targetId, weaponId } = request.data;
+          
+          // GM client can access game logic
+          const attacker = this.getActor(attackerId);
+          const target = this.getActor(targetId);
+          const weapon = this.getItem(weaponId);
+          
+          // Use plugin for suggestions
+          const result = this.plugin.calculateAttack(attacker, target, weapon);
+          
+          // Show GM approval UI with suggestions
+          return this.showAttackApprovalUI({
+            request,
+            attacker,
+            target, 
+            weapon,
+            suggestedResult: result,
+            expectedEntityVersions: entityVersions,
+            onApprove: (finalResult) => this.approveAction(request.id, finalResult),
+            onReject: (reason) => this.rejectAction(request.id, reason)
+          });
+        }
         
-        // Game logic with type safety
-        const caster = this.getActor(casterId);
-        const spell = this.getSpell(spellId);
-        const targetActors = targets.map(id => this.getActor(id));
-        
-        return this.showSpellApprovalUI({
-          caster,
-          spell,
-          targets: targetActors,
-          // ... etc
-        });
+        case 'cast_spell': {
+          // TypeScript knows request.data is SpellData
+          const { casterId, spellId, targets } = request.data;
+          
+          // Game logic with type safety
+          const caster = this.getActor(casterId);
+          const spell = this.getSpell(spellId);
+          const targetActors = targets.map(id => this.getActor(id));
+          
+          return this.showSpellApprovalUI({
+            request,
+            caster,
+            spell,
+            targets: targetActors,
+            expectedEntityVersions: entityVersions,
+            // ... etc
+          });
+        }
       }
+    } finally {
+      // Clean up tracking when processing completes
+      this.removeFromPending(actionKey, request.id);
+      this.processingActions.delete(request.id);
+    }
+  }
+  
+  private generateActionKey(request: GameActionRequest): string {
+    // Create key based on action type and affected entities
+    const affectedEntities = this.getAffectedEntities(request).sort();
+    return `${request.type}:${affectedEntities.join(',')}`;
+  }
+  
+  private isDuplicateRequest(request: GameActionRequest, actionKey: string): boolean {
+    const pending = this.pendingActionsByType.get(actionKey) || [];
+    const timeWindow = 5000; // 5 second window for duplicate detection
+    
+    return pending.some(pendingRequest => 
+      pendingRequest.playerId === request.playerId &&
+      pendingRequest.deduplicationKey === request.deduplicationKey &&
+      (Date.now() - pendingRequest.timestamp) < timeWindow
+    );
+  }
+  
+  private findConflictingActions(request: GameActionRequest): string[] {
+    const affectedEntities = this.getAffectedEntities(request);
+    const conflicting: string[] = [];
+    
+    // Check all pending actions for entity conflicts
+    for (const [actionKey, pendingRequests] of this.pendingActionsByType) {
+      for (const pendingRequest of pendingRequests) {
+        const pendingEntities = this.getAffectedEntities(pendingRequest);
+        const hasOverlap = affectedEntities.some(entity => pendingEntities.includes(entity));
+        
+        if (hasOverlap && this.actionsConflict(request, pendingRequest)) {
+          conflicting.push(pendingRequest.id);
+        }
+      }
+    }
+    
+    return conflicting;
+  }
+  
+  private actionsConflict(action1: GameActionRequest, action2: GameActionRequest): boolean {
+    // Define conflict rules between different action types
+    const conflictRules = new Map([
+      ['attack', ['attack', 'move', 'cast_spell']], // Attacks conflict with other actions on same target
+      ['move', ['attack', 'move', 'grapple']],      // Movement conflicts with positional actions
+      ['cast_spell', ['attack', 'cast_spell', 'counterspell']], // Spells conflict with other actions
+    ]);
+    
+    const action1Conflicts = conflictRules.get(action1.type) || [];
+    return action1Conflicts.includes(action2.type);
+  }
+  
+  private async handleConflictingActions(
+    request: GameActionRequest, 
+    conflictingActionIds: string[]
+  ): Promise<void> {
+    // Present conflict resolution options to GM
+    this.showConflictResolutionUI({
+      newAction: request,
+      conflictingActions: conflictingActionIds.map(id => this.getActionById(id)),
+      options: [
+        { label: 'Queue after conflicts resolve', action: 'queue' },
+        { label: 'Process simultaneously', action: 'batch' },
+        { label: 'Reject new action', action: 'reject' },
+        { label: 'Cancel conflicting actions', action: 'replace' }
+      ]
+    });
+  }
+  
+  private getAffectedEntities(request: GameActionRequest): string[] {
+    // Extract entity IDs that this action would affect
+    switch (request.type) {
+      case 'attack':
+        return [request.data.attackerId, request.data.targetId];
+      case 'cast_spell':
+        return [request.data.casterId, ...request.data.targets];
+      case 'move':
+        return [request.data.actorId];
+      default:
+        return [];
     }
   }
 }
@@ -1308,46 +1423,52 @@ class GameSession {
     });
   }
   
-  // Comprehensive state reconstitution for session join
+  // Comprehensive state reconstitution for session join with snapshot consistency
   async getCompleteSessionState(playerId: string): Promise<CompleteSessionState> {
-    // Get persistent campaign data
-    const campaignData = await this.campaign.getFullCampaignData();
-    
-    // Get player's character data with inventory
-    const playerCharacters = await this.getPlayerCharacters(playerId);
-    
-    // Get current map state if active
-    const mapState = this.currentMapId ? await this.getCurrentMapState(playerId) : null;
-    
-    // Get encounter state if active
-    const encounterState = this.activeEncounter ? 
-      await this.getEncounterStateForPlayer(playerId) : null;
-    
-    // Get session-specific runtime state
-    const runtimeState = this.getRuntimeSessionState(playerId);
-    
-    return {
-      // Persistent campaign data
-      campaign: campaignData,
-      characters: playerCharacters,
+    // Use database transaction to ensure consistent snapshot of all data
+    return await this.db.transaction(async (dbSession) => {
+      // Get state version first to ensure consistency
+      const stateVersion = await this.getStateVersion(this.id, dbSession);
       
-      // Runtime session state
-      sessionId: this.id,
-      currentMap: mapState,
-      activeEncounter: encounterState,
-      playerPermissions: this.playerPermissions.get(playerId),
-      sessionSettings: this.sessionSettings,
+      // Get all persistent data within the same transaction
+      const campaignData = await this.campaign.getFullCampaignData(dbSession);
+      const playerCharacters = await this.getPlayerCharacters(playerId, dbSession);
       
-      // GM action queue (filtered for player)
-      pendingActions: this.getPendingActionsForPlayer(playerId),
+      // Get current map state if active (within transaction for token positions)
+      const mapState = this.currentMapId ? 
+        await this.getCurrentMapState(playerId, dbSession) : null;
       
-      // Connected players
-      connectedPlayers: Array.from(this.playerSockets.keys()),
+      // Get encounter state if active (within transaction for participant data)
+      const encounterState = this.activeEncounter ? 
+        await this.getEncounterStateForPlayer(playerId, dbSession) : null;
       
-      // State synchronization info
-      stateVersion: this.getStateVersion(),
-      lastUpdated: Date.now()
-    };
+      // Get session-specific runtime state (no DB access needed)
+      const runtimeState = this.getRuntimeSessionState(playerId);
+      
+      return {
+        // Persistent campaign data
+        campaign: campaignData,
+        characters: playerCharacters,
+        
+        // Runtime session state
+        sessionId: this.id,
+        currentMap: mapState,
+        activeEncounter: encounterState,
+        playerPermissions: this.playerPermissions.get(playerId),
+        sessionSettings: this.sessionSettings,
+        
+        // GM action queue (filtered for player)
+        pendingActions: this.getPendingActionsForPlayer(playerId),
+        
+        // Connected players
+        connectedPlayers: Array.from(this.playerSockets.keys()),
+        
+        // State synchronization info (consistent snapshot)
+        stateVersion,
+        lastUpdated: Date.now(),
+        snapshotTimestamp: Date.now() // When this snapshot was taken
+      };
+    });
   }
   
   private async getCurrentMapState(playerId: string): Promise<MapState> {
@@ -1730,6 +1851,45 @@ The broadcasting system ensures state consistency through several mechanisms:
 3. **Automatic Resync**: Clients that detect version mismatch request full state synchronization
 4. **Transactional Batches**: Related changes are batched together to prevent partial state updates
 5. **Permission Filtering**: Each player receives only the state changes they're authorized to see
+6. **Database Transactions**: Multi-record state updates are wrapped in database transactions for atomicity
+7. **Optimistic Locking**: GM decisions include expected state versions to prevent conflicts
+8. **Request Deduplication**: Duplicate or conflicting actions are detected and handled appropriately
+9. **Snapshot Consistency**: Initial state loading uses consistent snapshots to prevent race conditions
+
+#### Advanced State Management Patterns
+
+```typescript
+// Enhanced state version management for optimistic locking
+interface StateVersion {
+  global: string;           // Overall state version for the session
+  entities: Map<string, string>; // Per-entity versions for granular locking
+  timestamp: number;        // When this version was created
+  checksum: string;         // Data integrity verification
+}
+
+// GM Decision with state validation
+interface GMDecision {
+  actionId: string;
+  approved: boolean;
+  expectedStateVersion: StateVersion;  // State GM saw when making decision
+  stateChanges: StateChange[];
+  reason?: string;
+  feedback?: string;
+  conflictResolution?: 'abort' | 'requeue' | 'force'; // How to handle version conflicts
+}
+
+// Request deduplication for GM client
+interface ActionRequest {
+  id: string;
+  type: string;
+  playerId: string;
+  sessionId: string;
+  timestamp: number;
+  deduplicationKey: string;  // Hash of action content for duplicate detection
+  affectedEntities: string[]; // Entities this action would modify
+  expectedEntityVersions: Map<string, string>; // Expected versions of affected entities
+}
+```
 
 // Campaign - Persistence Aggregate (ensures data integrity)
 class Campaign {
@@ -1905,25 +2065,40 @@ class GMAuthoritativeServer {
     if (!session) throw new Error('Not a GM');
     
     if (decision.approved) {
-      // Apply state changes
-      await this.applyStateChanges(session.id, decision.stateChanges);
-      
-      // Broadcast to all
-      this.broadcast(session.id, 'state:updated', {
-        changes: decision.stateChanges,
-        reason: decision.actionId,
-        timestamp: Date.now()
-      });
-      
-      // Notify original player
-      const playerId = this.pendingActions.get(decision.actionId);
-      if (playerId) {
-        this.sendToClient(playerId, 'action:result', {
-          actionId: decision.actionId,
-          success: true,
+      try {
+        // Apply state changes with version validation
+        const newVersion = await this.applyStateChanges(
+          session.id, 
+          decision.stateChanges, 
+          decision.expectedStateVersion
+        );
+        
+        // Broadcast to all with new version
+        this.broadcast(session.id, 'state:updated', {
           changes: decision.stateChanges,
-          message: decision.feedback
+          reason: decision.actionId,
+          newVersion,
+          timestamp: Date.now()
         });
+        
+        // Notify original player
+        const playerId = this.pendingActions.get(decision.actionId);
+        if (playerId) {
+          this.sendToClient(playerId, 'action:result', {
+            actionId: decision.actionId,
+            success: true,
+            changes: decision.stateChanges,
+            newVersion,
+            message: decision.feedback
+          });
+        }
+      } catch (error) {
+        if (error instanceof StateVersionConflictError) {
+          // Handle version conflict based on GM's preference
+          await this.handleVersionConflict(decision, error);
+        } else {
+          throw error;
+        }
       }
     } else {
       // Notify player of rejection
@@ -1941,19 +2116,110 @@ class GMAuthoritativeServer {
     this.pendingActions.delete(decision.actionId);
   }
   
-  // Simple state storage - no validation
+  private async handleVersionConflict(
+    decision: GMDecision, 
+    error: StateVersionConflictError
+  ): Promise<void> {
+    const originalAction = await this.getOriginalAction(decision.actionId);
+    
+    switch (decision.conflictResolution || 'requeue') {
+      case 'abort':
+        // Notify GM and player that action was aborted due to conflict
+        this.sendToClient(decision.gmId, 'action:version-conflict', {
+          actionId: decision.actionId,
+          reason: error.message,
+          resolution: 'aborted'
+        });
+        break;
+        
+      case 'requeue':
+        // Re-present action to GM with current state
+        await this.resubmitActionToGM(originalAction, 'State changed, please review again');
+        break;
+        
+      case 'force':
+        // Apply anyway, but warn about potential inconsistency
+        const newVersion = await this.applyStateChanges(decision.sessionId, decision.stateChanges);
+        this.broadcast(decision.sessionId, 'state:updated', {
+          changes: decision.stateChanges,
+          reason: decision.actionId,
+          newVersion,
+          warning: 'Applied despite state version conflict',
+          timestamp: Date.now()
+        });
+        break;
+    }
+  }
+  
+  // Atomic state storage with transaction support
   private async applyStateChanges(
     sessionId: string,
-    changes: StateChange[]
+    changes: StateChange[],
+    expectedVersion?: StateVersion
+  ): Promise<StateVersion> {
+    return await this.db.transaction(async (dbSession) => {
+      // Load current state within transaction for consistency
+      const currentState = await this.loadState(sessionId, dbSession);
+      const currentVersion = await this.getStateVersion(sessionId, dbSession);
+      
+      // Validate expected version if provided (optimistic locking)
+      if (expectedVersion && !this.isVersionCompatible(currentVersion, expectedVersion)) {
+        throw new StateVersionConflictError(
+          `State version conflict. Expected: ${expectedVersion.global}, Current: ${currentVersion.global}`
+        );
+      }
+      
+      // Apply all changes atomically
+      for (const change of changes) {
+        await this.applyChange(currentState, change, dbSession);
+        
+        // Update entity version if this change affects a specific entity
+        if (change.entityId) {
+          currentVersion.entities.set(change.entityId, generateNewEntityVersion());
+        }
+      }
+      
+      // Generate new global version
+      const newVersion: StateVersion = {
+        global: generateNewGlobalVersion(),
+        entities: new Map(currentVersion.entities),
+        timestamp: Date.now(),
+        checksum: this.calculateStateChecksum(currentState)
+      };
+      
+      // Save state and version atomically
+      await this.saveState(sessionId, currentState, dbSession);
+      await this.saveStateVersion(sessionId, newVersion, dbSession);
+      
+      return newVersion;
+    });
+  }
+  
+  private async applyChange(
+    state: any, 
+    change: StateChange, 
+    dbSession: any
   ): Promise<void> {
-    const state = await this.loadState(sessionId);
+    // Apply change without understanding the game logic
+    setPath(state, change.path, change.value);
     
-    for (const change of changes) {
-      // Apply change without understanding it
-      setPath(state, change.path, change.value);
+    // If this affects database documents, update them within the transaction
+    if (change.documentUpdates) {
+      for (const docUpdate of change.documentUpdates) {
+        await this.updateDocument(docUpdate, dbSession);
+      }
     }
-    
-    await this.saveState(sessionId, state);
+  }
+  
+  private isVersionCompatible(current: StateVersion, expected: StateVersion): boolean {
+    // Check if any affected entities have changed since expected version
+    for (const [entityId, expectedEntityVersion] of expected.entities) {
+      const currentEntityVersion = current.entities.get(entityId);
+      if (currentEntityVersion && currentEntityVersion !== expectedEntityVersion) {
+        return false;
+      }
+    }
+    return true;
   }
 }
 ```
@@ -2779,6 +3045,63 @@ class GMDisconnectionHandler {
 
 This approach trades potential gameplay continuity for **simplicity and reliability**. The system behaves predictably: when the person in authority is unavailable, the game waits for them to return - just like at a physical table.
 
+## State Consistency and Reliability Guarantees
+
+The enhanced GM-Authoritative system provides comprehensive state consistency through multiple layers of protection:
+
+### Race Condition Prevention
+
+1. **Database Transactions**: All multi-record state updates are wrapped in ACID transactions
+2. **Snapshot Consistency**: Initial state loading uses consistent database snapshots
+3. **Optimistic Locking**: GM decisions include expected state versions to detect conflicts
+4. **Request Deduplication**: Duplicate and conflicting action requests are detected and handled appropriately
+
+### Conflict Resolution Mechanisms
+
+```typescript
+// State version conflicts are handled gracefully
+class StateVersionConflictError extends Error {
+  constructor(
+    message: string,
+    public expectedVersion: StateVersion,
+    public currentVersion: StateVersion,
+    public conflictingChanges: StateChange[]
+  ) {
+    super(message);
+  }
+}
+
+// Conflict resolution strategies
+enum ConflictResolution {
+  ABORT = 'abort',      // Cancel the action
+  REQUEUE = 'requeue',  // Re-present to GM with current state
+  FORCE = 'force'       // Apply anyway with warning
+}
+```
+
+### Data Integrity Assurance
+
+- **Entity Versioning**: Per-entity versions enable granular conflict detection
+- **Checksum Validation**: State checksums detect data corruption
+- **Referential Integrity**: Campaign boundaries prevent cross-campaign data leakage
+- **Atomic Broadcasting**: State changes are broadcast as complete, consistent units
+
+### Recovery and Resilience
+
+- **Automatic Resync**: Clients detect version mismatches and request full state sync
+- **Transaction Rollback**: Failed state updates are automatically rolled back
+- **Action Replay**: Conflicted actions can be reprocessed with current state
+- **Graceful Degradation**: System continues operating even with individual action failures
+
+## Performance Characteristics
+
+The state consistency mechanisms are designed for minimal performance impact:
+
+- **Granular Locking**: Only affected entities are version-checked, not global state
+- **Efficient Deduplication**: Hash-based duplicate detection with minimal computation
+- **Batched Operations**: Related state changes are grouped to reduce transaction overhead
+- **Selective Snapshots**: Only players joining mid-session require full state snapshots
+
 ## Conclusion
 
 The GM Client Validation system provides an elegant solution that:
@@ -2788,9 +3111,14 @@ The GM Client Validation system provides an elegant solution that:
 3. **Preserves ultimate flexibility** through transparent result modification
 4. **Enables rapid deployment** with no server-side game system dependencies
 5. **Scales efficiently** through intelligent action classification and timeout handling
+6. **Ensures state consistency** through comprehensive conflict detection and resolution
+7. **Guarantees data integrity** through atomic transactions and optimistic locking
+8. **Handles race conditions** through snapshot consistency and request deduplication
 
 This approach acknowledges that most tabletop RPG actions follow predictable rules that can be automated, while recognizing that narrative control and balance adjustments require human judgment. By moving validation to the GM client with smart automation and transparent control interfaces, we create a system that is both simpler to deploy and more responsive during gameplay.
 
+The enhanced state management ensures that multiple players can interact simultaneously without data corruption or inconsistent state, while maintaining the single-authority model that prevents conflicting game rule interpretations.
+
 The discretionary control model ensures that routine actions happen instantly without human intervention, while providing GMs with the tools to intervene when story or balance considerations require it. The comprehensive plugin configuration and modification interfaces ensure that GMs have full visibility and control over the automation.
 
-Most importantly, this architecture eliminates the need for complex server-side game plugins while maintaining strong rule enforcement, providing a clear path to support any tabletop RPG system through client-side plugins alone.
+Most importantly, this architecture eliminates the need for complex server-side game plugins while maintaining strong rule enforcement and state consistency, providing a clear path to support any tabletop RPG system through client-side plugins alone.

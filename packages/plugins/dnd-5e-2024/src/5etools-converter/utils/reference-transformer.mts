@@ -5,9 +5,9 @@
 import { ReferenceObject, DocumentReference } from '@dungeon-lab/shared/types/index.mjs';
 import { documentTypeSchema } from '@dungeon-lab/shared/schemas/index.mjs';
 import { ParsedReference, TextReferenceMatch, scanTextForReferences } from './reference-parser.mjs';
-import type { EtoolsMonsterSpellcasting } from '../../5etools-types/monsters.mjs';
 import type { EtoolsEntry } from '../../5etools-types/base.mjs';
-import type { Spellcasting } from '../../types/common.mjs';
+import type { EtoolsMonsterSpellcasting } from '../../5etools-types/monsters.mjs';
+import type { Spellcasting } from '../../types/dnd/index.mjs';
 import type { z } from 'zod';
 
 /**
@@ -260,7 +260,6 @@ export function transformSpellcastingToSchema(spellcasting: EtoolsMonsterSpellca
     spells: allSpells
   };
 }
-
 
 /**
  * Helper function to transform individual spell entries

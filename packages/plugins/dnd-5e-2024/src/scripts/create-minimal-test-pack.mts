@@ -151,7 +151,7 @@ class MinimalPackCreator {
     // Group by type using entry.type field from wrapper format
     const actors = contentWithImages.filter(item => item.entry.type === 'actor');
     const items = contentWithImages.filter(item => item.entry.type === 'item');
-    const documents = contentWithImages.filter(item => item.entry.type === 'vttdocument');
+    const documents = contentWithImages.filter(item => item.entry.type === 'vtt-document');
 
     console.log(`📊 Available with images: ${actors.length} actors, ${items.length} items, ${documents.length} documents`);
 
@@ -206,7 +206,7 @@ class MinimalPackCreator {
         case 'item':
           outputSubDir = 'items';
           break;
-        case 'vttdocument':
+        case 'vtt-document':
           outputSubDir = 'misc';
           break;
         default:
@@ -269,7 +269,7 @@ class MinimalPackCreator {
     // Count by type using entry.type field
     const actors = selectedContent.filter(item => item.entry.type === 'actor');
     const items = selectedContent.filter(item => item.entry.type === 'item');
-    const documents = selectedContent.filter(item => item.entry.type === 'vttdocument');
+    const documents = selectedContent.filter(item => item.entry.type === 'vtt-document');
 
     const updatedManifest = {
       ...inputManifest,
@@ -279,7 +279,7 @@ class MinimalPackCreator {
       contents: {
         actors: actors.length,
         items: items.length,
-        vttdocuments: documents.length
+        'vtt-documents': documents.length
       }
     };
 

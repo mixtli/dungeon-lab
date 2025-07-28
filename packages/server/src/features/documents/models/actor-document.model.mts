@@ -26,9 +26,9 @@ const serverActorSchema = actorSchema.extend({
   })).default([])
 });
 
-// Create the discriminator schema
+// Create the discriminator schema (omit documentType as it's handled by discriminator)
 const actorMongooseSchema = createMongoSchema<IActor>(
-  serverActorSchema.merge(baseMongooseZodSchema)
+  serverActorSchema.merge(baseMongooseZodSchema).omit({ documentType: true })
 );
 
 // Override pluginData field to use Mixed type for flexibility
