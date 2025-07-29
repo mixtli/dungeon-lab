@@ -19,7 +19,7 @@ import {
   type PluginDocumentType,
   validateDocument,
   validateWithSchema
-} from '../validation/typed-document-validators.mjs';
+} from '../validation/document-validators.mjs';
 import {
   type MarkupProcessingOptions,
   entriesToCleanText

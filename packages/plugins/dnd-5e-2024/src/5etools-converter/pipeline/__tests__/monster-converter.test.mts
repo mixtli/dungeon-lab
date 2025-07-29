@@ -6,8 +6,8 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { TypedMonsterConverter } from './typed-monster-converter.mjs';
-import type { EtoolsMonster } from '../../5etools-types/monsters.mjs';
+import { TypedMonsterConverter } from '../monster-converter.mjs';
+import type { EtoolsMonster } from '../../../5etools-types/monsters.mjs';
 
 describe('TypedMonsterConverter', () => {
   let converter: TypedMonsterConverter;

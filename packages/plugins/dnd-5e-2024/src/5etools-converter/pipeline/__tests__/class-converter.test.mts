@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { TypedClassConverter } from '../typed-class-converter.mjs';
+import { TypedClassConverter } from '../class-converter.mjs';
 import type { DndCharacterClassData } from '../../../types/dnd/character-class.mjs';
 
 describe('TypedClassConverter', () => {

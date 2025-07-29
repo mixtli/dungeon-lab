@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { TypedRuleConverter } from '../typed-rule-converter.mjs';
+import { TypedRuleConverter } from '../rule-converter.mjs';
 import type { DndRuleData } from '../../../types/dnd/rule.mjs';
 
 describe('TypedRuleConverter - Comprehensive Tests', () => {

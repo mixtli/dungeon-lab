@@ -11,12 +11,12 @@
  */
 
 import { z } from 'zod';
-import { TypedConverter } from './typed-converter.mjs';
+import { TypedConverter } from './converter.mjs';
 import { 
   type FeatDocument,
   type DocumentType,
   type PluginDocumentType
-} from '../validation/typed-document-validators.mjs';
+} from '../validation/document-validators.mjs';
 import type { GeneralFeat, EpicBoonFeat } from '../../types/dnd/feat.mjs';
 import { processEntries } from '../text/markup-processor.mjs';
 import type { 

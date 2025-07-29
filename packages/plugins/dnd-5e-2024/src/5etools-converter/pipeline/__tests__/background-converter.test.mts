@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { TypedBackgroundConverter } from '../typed-background-converter.mjs';
+import { TypedBackgroundConverter } from '../background-converter.mjs';
 import type { DndBackgroundData } from '../../../types/dnd/background.mjs';
 
 describe('TypedBackgroundConverter', () => {

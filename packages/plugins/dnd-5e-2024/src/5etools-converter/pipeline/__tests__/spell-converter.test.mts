@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { TypedSpellConverter } from '../typed-spell-converter.mjs';
+import { TypedSpellConverter } from '../spell-converter.mjs';
 import type { EtoolsSpell } from '../../../5etools-types/spells.mjs';
 
 describe('TypedSpellConverter', () => {

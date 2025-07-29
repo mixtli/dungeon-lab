@@ -10,12 +10,12 @@
  */
 
 import { z } from 'zod';
-import { TypedConverter } from './typed-converter.mjs';
+import { TypedConverter } from './converter.mjs';
 import { 
   type RuleDocument,
   type DocumentType,
   type PluginDocumentType
-} from '../validation/typed-document-validators.mjs';
+} from '../validation/document-validators.mjs';
 import { processEntries } from '../text/markup-processor.mjs';
 import type { EtoolsVariantRuleData, EtoolsRuleType } from '../../5etools-types/variantrules.mjs';
 import { etoolsVariantRuleSchema } from '../../5etools-types/variantrules.mjs';

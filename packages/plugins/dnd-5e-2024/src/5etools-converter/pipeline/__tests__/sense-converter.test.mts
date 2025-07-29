@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { TypedSenseConverter } from '../typed-sense-converter.mjs';
+import { TypedSenseConverter } from '../sense-converter.mjs';
 import type { DndSenseData } from '../../../types/dnd/sense.mjs';
 
 describe('TypedSenseConverter', () => {

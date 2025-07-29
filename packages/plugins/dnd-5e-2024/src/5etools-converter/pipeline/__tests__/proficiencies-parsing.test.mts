@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { TypedClassConverter } from '../typed-class-converter.mjs';
+import { TypedClassConverter } from '../class-converter.mjs';
 import type { DndCharacterClassData, ProficiencyEntry, ProficiencyFilterConstraint } from '../../../types/dnd/character-class.mjs';
 import type { ItemReferenceObject } from '../../../types/dnd/common.mjs';
 

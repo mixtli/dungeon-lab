@@ -7,19 +7,19 @@ import { createWriteStream } from 'fs';
 import { writeFile } from 'fs/promises';
 import archiver from 'archiver';
 
-import { TypedMonsterConverter } from '../pipeline/typed-monster-converter.mjs';
-import { TypedSpellConverter } from '../pipeline/typed-spell-converter.mjs';
-import { TypedBackgroundConverter } from '../pipeline/typed-background-converter.mjs';
-import { TypedItemConverter } from '../pipeline/typed-item-converter.mjs';
-import { TypedClassConverter } from '../pipeline/typed-class-converter.mjs';
-import { TypedSpeciesConverter } from '../pipeline/typed-species-converter.mjs';
-import { TypedFeatConverter } from '../pipeline/typed-feat-converter.mjs';
-import { TypedConditionConverter } from '../pipeline/typed-condition-converter.mjs';
-import { TypedActionConverter } from '../pipeline/typed-action-converter.mjs';
-import { TypedRuleConverter } from '../pipeline/typed-rule-converter.mjs';
-import { TypedLanguageConverter } from '../pipeline/typed-language-converter.mjs';
-import { TypedSenseConverter } from '../pipeline/typed-sense-converter.mjs';
-import { ConversionOptions } from '../pipeline/typed-converter.mjs';
+import { TypedMonsterConverter } from '../pipeline/monster-converter.mjs';
+import { TypedSpellConverter } from '../pipeline/spell-converter.mjs';
+import { TypedBackgroundConverter } from '../pipeline/background-converter.mjs';
+import { TypedItemConverter } from '../pipeline/item-converter.mjs';
+import { TypedClassConverter } from '../pipeline/class-converter.mjs';
+import { TypedSpeciesConverter } from '../pipeline/species-converter.mjs';
+import { TypedFeatConverter } from '../pipeline/feat-converter.mjs';
+import { TypedConditionConverter } from '../pipeline/condition-converter.mjs';
+import { TypedActionConverter } from '../pipeline/action-converter.mjs';
+import { TypedRuleConverter } from '../pipeline/rule-converter.mjs';
+import { TypedLanguageConverter } from '../pipeline/language-converter.mjs';
+import { TypedSenseConverter } from '../pipeline/sense-converter.mjs';
+import { ConversionOptions } from '../pipeline/converter.mjs';
 import type { IContentFileWrapper } from '@dungeon-lab/shared/types/index.mjs';
 import {
   generateManifest,

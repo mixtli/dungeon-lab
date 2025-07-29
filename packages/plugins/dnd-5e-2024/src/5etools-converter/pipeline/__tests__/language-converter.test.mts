@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { TypedLanguageConverter } from '../typed-language-converter.mjs';
+import { TypedLanguageConverter } from '../language-converter.mjs';
 import type { DndLanguageData } from '../../../types/dnd/language.mjs';
 
 describe('TypedLanguageConverter', () => {

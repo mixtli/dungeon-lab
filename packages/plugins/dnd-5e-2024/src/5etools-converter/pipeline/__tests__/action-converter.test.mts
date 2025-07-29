@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { TypedActionConverter } from '../typed-action-converter.mjs';
+import { TypedActionConverter } from '../action-converter.mjs';
 import type { DndActionData } from '../../../types/dnd/action.mjs';
 
 describe('TypedActionConverter', () => {

@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { TypedConditionConverter } from '../typed-condition-converter.mjs';
+import { TypedConditionConverter } from '../condition-converter.mjs';
 import type { DndConditionData } from '../../../types/dnd/condition.mjs';
 import { conditionIdentifiers } from '../../../types/dnd/condition.mjs';
 

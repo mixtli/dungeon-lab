@@ -10,12 +10,12 @@
  */
 
 import { z } from 'zod';
-import { TypedConverter } from './typed-converter.mjs';
+import { TypedConverter } from './converter.mjs';
 import { 
   type SenseDocument,
   type DocumentType,
   type PluginDocumentType
-} from '../validation/typed-document-validators.mjs';
+} from '../validation/document-validators.mjs';
 import { processEntries } from '../text/markup-processor.mjs';
 import type { EtoolsSenseData } from '../../5etools-types/senses.mjs';
 import { etoolsSenseSchema } from '../../5etools-types/senses.mjs';

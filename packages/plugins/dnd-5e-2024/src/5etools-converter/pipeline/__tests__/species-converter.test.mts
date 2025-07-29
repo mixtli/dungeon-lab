@@ -11,7 +11,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { TypedSpeciesConverter } from '../typed-species-converter.mjs';
+import { TypedSpeciesConverter } from '../species-converter.mjs';
 import type { DndSpeciesData, DndSpeciesLineage, DndSpellProgression } from '../../../types/dnd/species.mjs';
 
 describe('TypedSpeciesConverter - Comprehensive Tests', () => {

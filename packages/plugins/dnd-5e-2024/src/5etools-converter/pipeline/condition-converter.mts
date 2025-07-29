@@ -9,12 +9,12 @@
  */
 
 import { z } from 'zod';
-import { TypedConverter } from './typed-converter.mjs';
+import { TypedConverter } from './converter.mjs';
 import { 
   type ConditionDocument,
   type DocumentType,
   type PluginDocumentType
-} from '../validation/typed-document-validators.mjs';
+} from '../validation/document-validators.mjs';
 import { processEntries } from '../text/markup-processor.mjs';
 import type { EtoolsCondition, EtoolsConditionData } from '../../5etools-types/conditions.mjs';
 import type { EtoolsEntry } from '../../5etools-types/base.mjs';

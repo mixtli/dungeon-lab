@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { TypedFeatConverter } from '../typed-feat-converter.mjs';
+import { TypedFeatConverter } from '../feat-converter.mjs';
 import type { DndFeatData, OriginFeat, GeneralFeat, FightingStyleFeat, EpicBoonFeat } from '../../../types/dnd/feat.mjs';
 
 describe('TypedFeatConverter', () => {
