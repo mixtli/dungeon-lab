@@ -156,6 +156,7 @@ export class TypedSpellConverter extends TypedConverter<
   SpellDocument
 > {
   private fluffMap = new Map<string, EtoolsSpellFluff>();
+  private spellClassLookup = new Map<string, { class?: Record<string, Record<string, boolean>> }>();
 
   protected getInputSchema() {
     return etoolsSpellSchema;
@@ -195,15 +196,20 @@ export class TypedSpellConverter extends TypedConverter<
     return undefined;
   }
 
-  protected transformData(input: z.infer<typeof etoolsSpellSchema>): DndSpellData {
+  protected async transformData(input: z.infer<typeof etoolsSpellSchema>): Promise<DndSpellData> {
     const description = this.extractDescription(input);
+    
+    // Ensure lookup data is loaded for individual conversions
+    if (this.spellClassLookup.size === 0) {
+      await this.loadSpellClassLookup();
+    }
     
     return {
       name: input.name,
       description,
       level: input.level,
       school: this.parseSchool(input.school),
-      classAvailability: this.parseClassAvailability(input.classes),
+      classAvailability: this.parseClassAvailability(input.classes, input.name),
       castingTime: this.parseCastingTime(input.time as { number: number; unit: string; condition?: string }[]),
       range: this.parseRange(input.range as { type: string; distance?: { type: string; amount?: number } }),
       components: this.parseComponents(input.components as { v?: boolean; s?: boolean; m?: boolean | string | object; r?: boolean }),
@@ -218,6 +224,34 @@ export class TypedSpellConverter extends TypedConverter<
       source: input.source,
       page: input.page
     };
+  }
+
+  /**
+   * Load spell-class lookup data from 5etools gendata file
+   * This provides the actual spell-to-class mappings that are missing from spell files
+   */
+  private async loadSpellClassLookup(): Promise<void> {
+    try {
+      this.log('Loading spell-class lookup data...');
+      
+      const rawLookupData = await this.readEtoolsData('generated/gendata-spell-source-lookup.json');
+      
+      if (rawLookupData && typeof rawLookupData === 'object' && 'xphb' in rawLookupData) {
+        const xphbData = rawLookupData.xphb as Record<string, unknown>;
+        
+        for (const [spellName, spellData] of Object.entries(xphbData)) {
+          if (spellData && typeof spellData === 'object') {
+            this.spellClassLookup.set(spellName.toLowerCase(), spellData);
+          }
+        }
+        
+        this.log(`Loaded spell-class mappings for ${this.spellClassLookup.size} spells`);
+      } else {
+        this.log('No XPHB spell-class lookup data found');
+      }
+    } catch (error) {
+      this.log('Failed to load spell-class lookup data:', error);
+    }
   }
 
   /**
@@ -271,6 +305,9 @@ export class TypedSpellConverter extends TypedConverter<
   }> {
     try {
       this.log('Starting typed spell conversion...');
+      
+      // Load spell-class lookup data
+      await this.loadSpellClassLookup();
       
       // Load fluff data for images and enhanced descriptions
       await this.loadFluffData();
@@ -341,32 +378,52 @@ export class TypedSpellConverter extends TypedConverter<
     return SCHOOL_MAP[school] as DndSpellData['school'] || 'abjuration';
   }
 
-  private parseClassAvailability(classes?: z.infer<typeof etoolsSpellSchema>['classes']): DndSpellData['classAvailability'] {
+  private parseClassAvailability(classes?: z.infer<typeof etoolsSpellSchema>['classes'], spellName?: string): DndSpellData['classAvailability'] {
+    // First try to use the lookup data (preferred method)
+    if (spellName) {
+      const lookupData = this.spellClassLookup.get(spellName.toLowerCase());
+      
+      if (lookupData && lookupData.class && lookupData.class.XPHB) {
+        const classList = Object.keys(lookupData.class.XPHB)
+          .map((className) => this.mapClassNameToEnum(className))
+          .filter((cls): cls is NonNullable<typeof cls> => cls !== null);
+        
+        return { classList };
+      }
+    }
+    
+    // Fallback to original method if no lookup data found
     if (!classes?.fromClassList) {
       return { classList: [] };
     }
     
     // Convert class names to standard format
     const classList = classes.fromClassList.map((cls) => {
-      const name = cls.name.toLowerCase();
-      // Map 5etools names to our enum values
-      switch (name) {
-        case 'artificer': return 'artificer';
-        case 'bard': return 'bard';
-        case 'cleric': return 'cleric';
-        case 'druid': return 'druid';
-        case 'paladin': return 'paladin';
-        case 'ranger': return 'ranger';
-        case 'sorcerer': return 'sorcerer';
-        case 'warlock': return 'warlock';
-        case 'wizard': return 'wizard';
-        default: 
-          this.log(`Unknown class name: ${name}, skipping`);
-          return null;
-      }
+      return this.mapClassNameToEnum(cls.name);
     }).filter((cls): cls is NonNullable<typeof cls> => cls !== null);
 
     return { classList };
+  }
+
+  /**
+   * Map 5etools class names to our D&D 5e 2024 enum values
+   */
+  private mapClassNameToEnum(className: string): 'artificer' | 'bard' | 'cleric' | 'druid' | 'paladin' | 'ranger' | 'sorcerer' | 'warlock' | 'wizard' | null {
+    const name = className.toLowerCase();
+    switch (name) {
+      case 'artificer': return 'artificer';
+      case 'bard': return 'bard';
+      case 'cleric': return 'cleric';
+      case 'druid': return 'druid';
+      case 'paladin': return 'paladin';
+      case 'ranger': return 'ranger';
+      case 'sorcerer': return 'sorcerer';
+      case 'warlock': return 'warlock';
+      case 'wizard': return 'wizard';
+      default: 
+        this.log(`Unknown class name: ${name}, skipping`);
+        return null;
+    }
   }
 
   private parseCastingTime(time: { number: number; unit: string; condition?: string }[]): string {

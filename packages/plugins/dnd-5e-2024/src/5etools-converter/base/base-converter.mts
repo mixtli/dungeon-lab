@@ -54,11 +54,18 @@ export abstract class BaseConverter {
 
   /**
    * Filter content to SRD only if option is enabled
+   * 
+   * The 2024 D&D content (XPHB source) is included in SRD via the srd52 flag.
+   * This ensures legal compliance while providing access to core 2024 rules.
+   * 
+   * @param data Array of 5etools data objects
+   * @returns Filtered array containing only SRD content when srdOnly=true
    */
   protected filterSrdContent<T extends { srd52?: boolean }>(data: T[]): T[] {
     if (!this.options.srdOnly) {
       return data;
     }
+    // srd52 flag indicates content is part of the 2024 SRD
     return data.filter(item => item.srd52 === true);
   }
 

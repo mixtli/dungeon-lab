@@ -115,10 +115,64 @@ export const SAVE_EFFECTS = ['none', 'half', 'negates', 'other'] as const;
 export const saveEffectSchema = z.enum(SAVE_EFFECTS);
 export type SaveEffect = z.infer<typeof saveEffectSchema>;
 
-// Spellcasting Abilities (shortened versions)
-export const SPELLCASTING_ABILITIES = ['int', 'wis', 'cha'] as const;
+// Spellcasting Abilities (full names for bundle format)
+export const SPELLCASTING_ABILITIES = ['intelligence', 'wisdom', 'charisma'] as const;
 export const spellcastingAbilitySchema = z.enum(SPELLCASTING_ABILITIES);
 export type SpellcastingAbility = z.infer<typeof spellcastingAbilitySchema>;
+
+// Global ability abbreviation mapping (source data → bundle format)
+export const ABILITY_ABBREVIATION_MAP: Record<string, Ability> = {
+  'str': 'strength',
+  'dex': 'dexterity', 
+  'con': 'constitution',
+  'int': 'intelligence',
+  'wis': 'wisdom',
+  'cha': 'charisma'
+} as const;
+
+// Helper function to convert ability abbreviations to full names
+export function expandAbilityName(abbreviation: string): Ability {
+  const expanded = ABILITY_ABBREVIATION_MAP[abbreviation.toLowerCase()];
+  if (!expanded) {
+    throw new Error(`Unknown ability abbreviation: ${abbreviation}`);
+  }
+  return expanded;
+}
+
+// Helper function to convert spellcasting ability abbreviations to full names
+export function expandSpellcastingAbility(abbreviation: string): SpellcastingAbility {
+  const expanded = ABILITY_ABBREVIATION_MAP[abbreviation.toLowerCase()];
+  if (!expanded || !(['intelligence', 'wisdom', 'charisma'] as const).includes(expanded as SpellcastingAbility)) {
+    throw new Error(`Invalid spellcasting ability abbreviation: ${abbreviation}`);
+  }
+  return expanded as SpellcastingAbility;
+}
+
+// Global weapon property abbreviation mapping (5etools source data → bundle format)
+export const WEAPON_PROPERTY_ABBREVIATION_MAP: Record<string, string> = {
+  'A': 'ammunition',
+  'F': 'finesse', 
+  'H': 'heavy',
+  'L': 'light',
+  'LD': 'loading',
+  'R': 'range',
+  'RCH': 'reach',
+  'S': 'special',
+  'T': 'thrown',
+  '2H': 'two-handed',
+  'V': 'versatile'
+} as const;
+
+// Helper function to convert weapon property abbreviations to full names
+export function expandWeaponProperty(abbreviation: string): string {
+  // Remove source suffixes like "|XPHB"
+  const cleanAbbr = abbreviation.split('|')[0].toUpperCase();
+  const expanded = WEAPON_PROPERTY_ABBREVIATION_MAP[cleanAbbr];
+  if (!expanded) {
+    throw new Error(`Unknown weapon property abbreviation: ${abbreviation}`);
+  }
+  return expanded;
+}
 
 // Spellcasting Types
 export const SPELLCASTING_TYPES = ['full', 'half', 'third', 'pact', 'none'] as const;
@@ -181,27 +235,6 @@ export const weaponMasteryPropertySchema = z.enum(WEAPON_MASTERY_PROPERTIES);
 export const weaponMasteryProperty = weaponMasteryPropertySchema; // Alias for consistent naming
 export type WeaponMasteryProperty = z.infer<typeof weaponMasteryPropertySchema>;
 
-// D&D 5e 2024 Monster Spellcasting Schema (simplified format for 2024)
-export const monsterSpellcastingSchema = z.object({
-  ability: spellcastingAbilitySchema,
-  spellSaveDC: z.number(),
-  spellAttackBonus: z.number(),
-  
-  /** 2024 format for monster spellcasting */
-  spells: z.object({
-    /** At-will spells */
-    atWill: z.array(z.string()).optional(),
-    /** Daily spell usage: "1/day", "2/day", etc. */
-    daily: z.record(z.string(), z.array(z.string())).optional(),
-    /** Recharge spells */
-    recharge: z.array(z.object({
-      recharge: z.string(), // "5-6", "6"
-      spells: z.array(z.string())
-    })).optional()
-  })
-});
-
-export type MonsterSpellcasting = z.infer<typeof monsterSpellcastingSchema>;
 
 /**
  * Generic choice schema for player choices
@@ -227,40 +260,87 @@ export type GenericChoice = z.infer<typeof genericChoiceSchema>;
 
 /**
  * Type-safe document references for specific D&D concepts
- * These constrain the pluginType field to ensure type safety
+ * These are private - use the public wrapped versions below
  */
-export const backgroundReferenceSchema = documentReferenceSchema.extend({
+const backgroundReferenceSchema = documentReferenceSchema.extend({
   pluginType: z.literal('background')
 });
 
-export const speciesReferenceSchema = documentReferenceSchema.extend({
+const speciesReferenceSchema = documentReferenceSchema.extend({
   pluginType: z.literal('species') 
 });
 
-export const classReferenceSchema = documentReferenceSchema.extend({
+const classReferenceSchema = documentReferenceSchema.extend({
   pluginType: z.literal('class')
 });
 
-export const spellReferenceSchema = documentReferenceSchema.extend({
+const spellReferenceSchema = documentReferenceSchema.extend({
   pluginType: z.literal('spell')
 });
 
-export const featReferenceSchema = documentReferenceSchema.extend({
+const featReferenceSchema = documentReferenceSchema.extend({
   pluginType: z.literal('feat')
 });
 
-export const itemReferenceSchema = documentReferenceSchema.extend({
-  documentType: z.literal('item')
+const itemReferenceSchema = documentReferenceSchema.extend({
+  type: z.literal('item')
 });
 
-export const conditionReferenceSchema = documentReferenceSchema.extend({
+const conditionReferenceSchema = documentReferenceSchema.extend({
   pluginType: z.literal('condition')
 });
 
-export const actionReferenceSchema = documentReferenceSchema.extend({
+const actionReferenceSchema = documentReferenceSchema.extend({
   pluginType: z.literal('action')
 });
 
+/**
+ * Public wrapped reference object schemas - these should be used in document schemas
+ * All include the required _ref wrapper for consistent output format
+ */
+export const backgroundReferenceObjectSchema = z.object({
+   _ref: backgroundReferenceSchema
+});
+
+export const speciesReferenceObjectSchema = z.object({
+  _ref: speciesReferenceSchema
+});
+
+export const classReferenceObjectSchema = z.object({
+  _ref: classReferenceSchema
+});
+
+export const spellReferenceObjectSchema = z.object({
+  _ref: spellReferenceSchema
+});
+
+export const featReferenceObjectSchema = z.object({
+  _ref: featReferenceSchema
+});
+
+export const itemReferenceObjectSchema = z.object({
+  _ref: itemReferenceSchema
+});
+
+export const conditionReferenceObjectSchema = z.object({
+  _ref: conditionReferenceSchema
+});
+
+export const actionReferenceObjectSchema = z.object({
+  _ref: actionReferenceSchema
+});
+
+// Type exports - these are for the wrapped versions
+export type BackgroundReferenceObject = z.infer<typeof backgroundReferenceObjectSchema>;
+export type SpeciesReferenceObject = z.infer<typeof speciesReferenceObjectSchema>;
+export type ClassReferenceObject = z.infer<typeof classReferenceObjectSchema>;
+export type SpellReferenceObject = z.infer<typeof spellReferenceObjectSchema>;
+export type FeatReferenceObject = z.infer<typeof featReferenceObjectSchema>;
+export type ItemReferenceObject = z.infer<typeof itemReferenceObjectSchema>;
+export type ConditionReferenceObject = z.infer<typeof conditionReferenceObjectSchema>;
+export type ActionReferenceObject = z.infer<typeof actionReferenceObjectSchema>;
+
+// For internal use - accessing the inner reference type when needed
 export type BackgroundReference = z.infer<typeof backgroundReferenceSchema>;
 export type SpeciesReference = z.infer<typeof speciesReferenceSchema>;
 export type ClassReference = z.infer<typeof classReferenceSchema>;
@@ -269,6 +349,31 @@ export type FeatReference = z.infer<typeof featReferenceSchema>;
 export type ItemReference = z.infer<typeof itemReferenceSchema>;
 export type ConditionReference = z.infer<typeof conditionReferenceSchema>;
 export type ActionReference = z.infer<typeof actionReferenceSchema>;
+
+// D&D 5e 2024 Monster Spellcasting Schema (simplified format for 2024)
+export const monsterSpellcastingSchema = z.object({
+  ability: spellcastingAbilitySchema,
+  spellSaveDC: z.number(),
+  spellAttackBonus: z.number(),
+  
+  /** 2024 format for monster spellcasting */
+  spells: z.object({
+    /** At-will spells */
+    atWill: z.array(spellReferenceObjectSchema).optional(),
+    /** Daily spells with explicit usage counts */
+    daily: z.array(z.object({
+      spell: spellReferenceObjectSchema, // Spell reference
+      uses: z.number()   // Number of uses per day
+    })).optional(),
+    /** Recharge spells */
+    recharge: z.array(z.object({
+      recharge: z.string(), // "5-6", "6"
+      spells: z.array(spellReferenceObjectSchema)
+    })).optional()
+  })
+});
+
+export type MonsterSpellcasting = z.infer<typeof monsterSpellcastingSchema>;
 
 /**
  * D&D 5e 2024 Spell-specific schemas

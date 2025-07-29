@@ -55,7 +55,8 @@ export class TypedRuleConverter extends TypedConverter<
 
   protected extractDescription(input: z.infer<typeof etoolsVariantRuleSchema>): string {
     if (input.entries && input.entries.length > 0) {
-      return processEntries(input.entries, this.options.textProcessing).text;
+      const processed = processEntries(input.entries, this.options.textProcessing);
+      return processed.text || `${input.name} is a game rule.`;
     }
     return `${input.name} is a game rule.`;
   }
@@ -86,17 +87,10 @@ export class TypedRuleConverter extends TypedConverter<
       // Extract subsections from entries
       subsections: this.parseSubsections(input.entries),
       
-      // Extract related rules
-      relatedRules: this.extractRelatedRules(input, description),
+      // Note: Related rules and prerequisites would need manual curation
+      // as they're not structured in the 5etools data
       
-      // Extract prerequisites
-      prerequisites: this.extractPrerequisites(input, description),
-      
-      // Extract mechanical impact
-      mechanics: this.extractMechanics(input, description),
-      
-      // Extract examples
-      examples: this.extractExamples(input, description),
+      // Note: Examples would need manual curation as they're not structured in 5etools data
       
       // Generate tags
       tags: this.generateTags(input, description)
@@ -193,52 +187,46 @@ export class TypedRuleConverter extends TypedConverter<
     }
   }
 
-  private parseRuleCategory(input: z.infer<typeof etoolsVariantRuleSchema>, description: string): DndRuleData['category'] {
-    const nameDesc = (input.name + ' ' + description).toLowerCase();
+  private parseRuleCategory(input: z.infer<typeof etoolsVariantRuleSchema>, _description: string): DndRuleData['category'] {
+    // Only use rule name for categorization (more reliable than full text parsing)
+    const name = input.name.toLowerCase();
     
-    if (nameDesc.includes('combat') || nameDesc.includes('attack') || nameDesc.includes('damage')) {
+    // Use rule type to help determine category
+    const ruleType = this.convertRuleType(input.ruleType);
+    
+    // Combat-related rules
+    if (name.includes('combat') || name.includes('attack') || name.includes('damage') || 
+        name.includes('initiative') || name.includes('action')) {
       return 'combat';
     }
-    if (nameDesc.includes('spell') || nameDesc.includes('magic') || nameDesc.includes('casting')) {
+    
+    // Magic-related rules
+    if (name.includes('spell') || name.includes('magic') || name.includes('casting')) {
       return 'magic';
     }
-    if (nameDesc.includes('equipment') || nameDesc.includes('item') || nameDesc.includes('weapon')) {
+    
+    // Equipment-related rules  
+    if (name.includes('equipment') || name.includes('item') || name.includes('weapon') || 
+        name.includes('armor') || name.includes('adamantine')) {
       return 'equipment';
     }
-    if (nameDesc.includes('exploration') || nameDesc.includes('travel') || nameDesc.includes('environment')) {
-      return 'exploration';
-    }
-    if (nameDesc.includes('social') || nameDesc.includes('interaction') || nameDesc.includes('influence')) {
-      return 'social';
-    }
-    if (nameDesc.includes('character') || nameDesc.includes('creation') || nameDesc.includes('background')) {
-      return 'character_creation';
-    }
-    if (nameDesc.includes('advancement') || nameDesc.includes('level') || nameDesc.includes('experience')) {
-      return 'advancement';
-    }
-    if (nameDesc.includes('condition') || nameDesc.includes('status')) {
-      return 'conditions';
-    }
-    if (nameDesc.includes('downtime') || nameDesc.includes('activity')) {
-      return 'downtime';
-    }
-    if (nameDesc.includes('variant') || nameDesc.includes('alternative')) {
-      return 'variant_rules';
-    }
-    if (nameDesc.includes('optional')) {
-      return 'optional_rules';
-    }
-    if (nameDesc.includes('dm') || nameDesc.includes('dungeon master')) {
-      return 'dm_tools';
-    }
     
-    // Check for definitions (basic rule explanations)
-    if (nameDesc.includes('ability check') || nameDesc.includes('action') || nameDesc.includes('advantage')) {
+    // Basic definitions (core rule explanations)
+    if (name.includes('ability') || name.includes('advantage') || name.includes('disadvantage') || 
+        name.includes('check') || name.includes('modifier') || name.includes('proficiency')) {
       return 'definitions';
     }
     
-    return 'definitions'; // Default for basic rule definitions
+    // Use rule type to categorize variant/optional rules
+    if (ruleType === 'variant' || ruleType === 'variant_optional') {
+      return 'variant_rules';
+    }
+    if (ruleType === 'optional') {
+      return 'optional_rules';
+    }
+    
+    // Default to definitions for core rules
+    return 'definitions';
   }
 
   private isBasicRule(input: z.infer<typeof etoolsVariantRuleSchema>): boolean {
@@ -249,191 +237,65 @@ export class TypedRuleConverter extends TypedConverter<
     const subsections: NonNullable<DndRuleData['subsections']> = [];
     
     for (const entry of entries) {
-      if (typeof entry === 'object' && entry.type === 'entries' && entry.name) {
-        const description = Array.isArray(entry.entries) ? 
-          processEntries(entry.entries, this.options.textProcessing).text : 
-          (typeof entry.entries === 'string' ? entry.entries : '');
-        
-        subsections.push({
-          name: entry.name,
-          description
-        });
+      // Only process object entries
+      if (typeof entry === 'object' && entry !== null) {
+        // Handle entries with type "entries" that have named subsections
+        if (entry.type === 'entries' && 'name' in entry && entry.name && 'entries' in entry && entry.entries) {
+          const description = Array.isArray(entry.entries) ? 
+            processEntries(entry.entries, this.options.textProcessing).text : 
+            (typeof entry.entries === 'string' ? entry.entries : '');
+          
+          if (description) {
+            subsections.push({
+              name: entry.name,
+              description
+            });
+          }
+        }
+        // Handle other named entry types that might contain subsection content
+        else if (entry.type && ['inset', 'insetReadaloud', 'section'].includes(entry.type) && 'name' in entry && entry.name) {
+          // For other entry types, try to extract content if available
+          const content = ('entries' in entry && entry.entries) ? 
+            (Array.isArray(entry.entries) ? 
+              processEntries(entry.entries, this.options.textProcessing).text : 
+              (typeof entry.entries === 'string' ? entry.entries : '')) : '';
+          
+          if (content) {
+            subsections.push({
+              name: entry.name,
+              description: content
+            });
+          }
+        }
       }
     }
     
     return subsections.length > 0 ? subsections : undefined;
   }
 
-  private extractRelatedRules(input: z.infer<typeof etoolsVariantRuleSchema>, description: string): DndRuleData['relatedRules'] {
-    const related: string[] = [];
-    const desc = description.toLowerCase();
-    
-    // Look for common rule references
-    if (desc.includes('advantage') || desc.includes('disadvantage')) {
-      related.push('Advantage and Disadvantage');
-    }
-    if (desc.includes('proficiency bonus')) {
-      related.push('Proficiency Bonus');
-    }
-    if (desc.includes('ability check')) {
-      related.push('Ability Checks');
-    }
-    if (desc.includes('saving throw')) {
-      related.push('Saving Throws');
-    }
-    if (desc.includes('attack roll')) {
-      related.push('Attack Rolls');
-    }
-    if (desc.includes('initiative')) {
-      related.push('Initiative');
-    }
-    if (desc.includes('concentration')) {
-      related.push('Concentration');
-    }
-    
-    return related.length > 0 ? related : undefined;
-  }
 
-  private extractPrerequisites(input: z.infer<typeof etoolsVariantRuleSchema>, description: string): DndRuleData['prerequisites'] {
-    const prerequisites: NonNullable<DndRuleData['prerequisites']> = {};
-    const desc = description.toLowerCase();
-    
-    // Check for level requirements
-    const levelMatch = desc.match(/(\d+)(?:st|nd|rd|th)[-\s]?level/i);
-    if (levelMatch) {
-      prerequisites.level = parseInt(levelMatch[1], 10);
-    }
-    
-    // Check for DM approval mentions
-    if (desc.includes('dm') || desc.includes('dungeon master') || desc.includes('gm') || desc.includes('game master')) {
-      if (desc.includes('approval') || desc.includes('permission') || desc.includes('discretion')) {
-        prerequisites.dmApproval = true;
-      }
-    }
-    
-    // Check for other rule dependencies
-    const otherRules: string[] = [];
-    if (desc.includes('variant rule')) {
-      otherRules.push('Other variant rules');
-    }
-    if (desc.includes('optional rule')) {
-      otherRules.push('Other optional rules');
-    }
-    
-    if (otherRules.length > 0) {
-      prerequisites.otherRules = otherRules;
-    }
-    
-    return Object.keys(prerequisites).length > 0 ? prerequisites : undefined;
-  }
 
-  private extractMechanics(input: z.infer<typeof etoolsVariantRuleSchema>, description: string): DndRuleData['mechanics'] {
-    const mechanics: NonNullable<DndRuleData['mechanics']> = {};
-    const desc = description.toLowerCase();
-    
-    // Determine if this modifies core mechanics
-    const coreKeywords = ['ability check', 'attack roll', 'damage roll', 'saving throw', 'spell', 'movement', 'rest'];
-    mechanics.modifiesCoreMechanics = coreKeywords.some(keyword => desc.includes(keyword));
-    
-    // Determine what this rule affects
-    const affects: NonNullable<NonNullable<DndRuleData['mechanics']>['affects']> = [];
-    
-    if (desc.includes('ability check')) affects.push('ability_checks');
-    if (desc.includes('attack roll')) affects.push('attack_rolls');
-    if (desc.includes('damage')) affects.push('damage_rolls');
-    if (desc.includes('saving throw')) affects.push('saving_throws');
-    if (desc.includes('spell')) affects.push('spell_casting');
-    if (desc.includes('movement') || desc.includes('speed')) affects.push('movement');
-    if (desc.includes('rest')) affects.push('resting');
-    if (desc.includes('death save')) affects.push('death_saves');
-    if (desc.includes('initiative')) affects.push('initiative');
-    if (desc.includes('condition')) affects.push('conditions');
-    if (desc.includes('equipment') || desc.includes('item')) affects.push('equipment');
-    if (desc.includes('magic item')) affects.push('magic_items');
-    
-    if (affects.length > 0) {
-      mechanics.affects = affects;
-    }
-    
-    // Determine complexity
-    const wordCount = description.split(' ').length;
-    if (wordCount < 50) {
-      mechanics.complexity = 'simple';
-    } else if (wordCount < 200) {
-      mechanics.complexity = 'moderate';
-    } else {
-      mechanics.complexity = 'complex';
-    }
-    
-    return Object.keys(mechanics).length > 0 ? mechanics : undefined;
-  }
-
-  private extractExamples(input: z.infer<typeof etoolsVariantRuleSchema>, description: string): DndRuleData['examples'] {
-    // Look for example patterns in the description
-    const examples: NonNullable<DndRuleData['examples']> = [];
-    const desc = description;
-    
-    // Look for "For example" or "Example:" patterns
-    const examplePatterns = [
-      /for example[,:]\s*([^.]+\.)/gi,
-      /example[,:]\s*([^.]+\.)/gi,
-      /such as[,:]\s*([^.]+\.)/gi
-    ];
-    
-    for (const pattern of examplePatterns) {
-      let match;
-      while ((match = pattern.exec(desc)) !== null) {
-        const exampleText = match[1].trim();
-        if (exampleText.length > 10) { // Only include substantial examples
-          examples.push({
-            situation: `Example scenario`,
-            ruling: exampleText
-          });
-        }
-      }
-    }
-    
-    return examples.length > 0 ? examples : undefined;
-  }
 
   private generateTags(input: z.infer<typeof etoolsVariantRuleSchema>, description: string): DndRuleData['tags'] {
     const tags: string[] = [];
-    const nameDesc = (input.name + ' ' + description).toLowerCase();
     
-    // Add rule type tags
+    // Add rule type tag (from structured data)
     tags.push(this.convertRuleType(input.ruleType));
     
-    // Add content-based tags
-    if (nameDesc.includes('optional')) tags.push('optional');
-    if (nameDesc.includes('variant')) tags.push('variant');
-    if (nameDesc.includes('dm') || nameDesc.includes('dungeon master')) tags.push('dm-tools');
-    if (nameDesc.includes('player')) tags.push('player-facing');
-    if (nameDesc.includes('homebrew')) tags.push('homebrew');
-    if (nameDesc.includes('house rule')) tags.push('house-rule');
-    if (nameDesc.includes('combat')) tags.push('combat');
-    if (nameDesc.includes('exploration')) tags.push('exploration');
-    if (nameDesc.includes('social')) tags.push('social');
-    if (nameDesc.includes('magic')) tags.push('magic');
-    if (nameDesc.includes('equipment')) tags.push('equipment');
-    
-    // Add source tag if available
+    // Add source tag if available (from structured data)
     if (input.source) {
       tags.push(input.source.toLowerCase());
     }
     
-    // Add complexity tag
-    const wordCount = description.split(' ').length;
-    if (wordCount < 50) {
-      tags.push('simple');
-    } else if (wordCount < 200) {
-      tags.push('moderate');
-    } else {
-      tags.push('complex');
-    }
-    
-    // Add basic rule tag
+    // Add basic rule tag (from structured flags)
     if (this.isBasicRule(input)) {
       tags.push('basic-rules');
+    }
+    
+    // Add category as tag (from structured classification)
+    const category = this.parseRuleCategory(input, description);
+    if (category) {
+      tags.push(category);
     }
     
     return tags.length > 0 ? tags : undefined;

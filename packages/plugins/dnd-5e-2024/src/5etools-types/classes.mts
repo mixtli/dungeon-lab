@@ -68,6 +68,13 @@ export interface EtoolsSubclass extends EtoolsSource {
   className: string;
   classSource: string;
   subclassFeatures: string[];
+  entries?: EtoolsEntry[];
+  additionalSpells?: Array<{
+    known?: Record<string, string[]>;
+    prepared?: Record<string, string[]>;
+    expanded?: Record<string, string[]>;
+    innate?: Record<string, Record<string, string[]>>;
+  }>;
   subclassTableGroups?: Array<{
     title: string;
     subclasses: Array<{
@@ -137,6 +144,7 @@ export interface EtoolsClass extends EtoolsSource {
     known?: Record<string, string[]>;
     prepared?: Record<string, string[]>;
     expanded?: Record<string, string[]>;
+    innate?: Record<string, Record<string, string[]>>;
   }>;
   
   // Inheritance tracking
@@ -272,6 +280,7 @@ export const etoolsClassSchema = z.object({
   startingProficiencies: etoolsClassProficienciesSchema.optional(),
   startingEquipment: etoolsStartingEquipmentSchema.optional(),
   classFeature: z.array(etoolsClassFeatureSchema).optional(),
+  classFeatures: z.array(z.union([z.string(), z.any()])).optional(),
   subclasses: z.array(etoolsSubclassSchema).optional(),
   casterProgression: z.string().optional(),
   spellcastingAbility: z.string().optional(),

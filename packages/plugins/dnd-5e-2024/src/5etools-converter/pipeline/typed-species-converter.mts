@@ -22,13 +22,18 @@ import type {
   EtoolsSpeciesFluff, 
   EtoolsSpeciesFluffData
 } from '../../5etools-types/species.mjs';
-import type { EtoolsEntry } from '../../5etools-types/base.mjs';
+import type { EtoolsEntry, EtoolsChoice } from '../../5etools-types/base.mjs';
 import { etoolsSpeciesSchema } from '../../5etools-types/species.mjs';
 import { 
   dndSpeciesDataSchema, 
-  type DndSpeciesData
+  type DndSpeciesData,
+  type DndSpecialSenses,
+  type DndSkillProficiency,
+  type DndSpeciesLineage,
+  type DndSpellProgression
 } from '../../types/dnd/species.mjs';
 import { safeEtoolsCast } from '../../5etools-types/type-utils.mjs';
+import { expandSpellcastingAbility, type SpellReferenceObject, SKILLS_2024, type Skill } from '../../types/dnd/common.mjs';
 
 // SpeciesDocument type is now imported from the validators file
 
@@ -84,16 +89,22 @@ export class TypedSpeciesConverter extends TypedConverter<
       creatureType: input.creatureTypes?.[0] || 'Humanoid',
       
       // Extract size (now as object with category and description) 
-      size: this.extractSize(input.size),
+      size: this.extractSize(input.size, input.sizeEntry),
       
       // Extract movement (not speed)
       movement: this.extractMovement(input.speed),
       
+      // Extract special senses like darkvision
+      specialSenses: this.extractSpecialSenses(input.darkvision as number | undefined, input.blindsight as number | undefined, input.tremorsense as number | undefined, input.truesight as number | undefined),
+      
+      // Extract skill proficiencies with choices
+      skillProficiencies: this.extractSkillProficiencies(input.skillProficiencies),
+      
       // Extract traits (main species abilities)
       traits: this.extractTraits(input),
       
-      // Extract ancestry options (for species like Dragonborn)
-      ancestryOptions: this.extractAncestryOptions(input),
+      // Extract lineage options with spell progressions (replaces ancestryOptions)
+      lineages: this.extractLineages(input.additionalSpells),
       
       // Extract lifespan info
       lifespan: this.extractLifespan(input.age),
@@ -194,21 +205,221 @@ export class TypedSpeciesConverter extends TypedConverter<
 
   // Helper methods for extracting species-specific data
 
-  private extractSize(size?: string[]): DndSpeciesData['size'] {
-    if (!size?.length) {
-      return { category: 'medium', description: 'about 5-6 feet tall' };
+  private extractSize(size?: string[], sizeEntry?: unknown): DndSpeciesData['size'] {
+    let description = 'about 5-6 feet tall';
+    
+    // Extract description from sizeEntry if available (XPHB format)
+    if (sizeEntry && typeof sizeEntry === 'object' && 'entries' in sizeEntry) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const entries = (sizeEntry as any).entries;
+      if (Array.isArray(entries) && entries[0]) {
+        description = entries[0];
+      }
     }
     
-    const sizeMap: Record<string, { category: DndSpeciesData['size']['category'], description: string }> = {
-      'T': { category: 'tiny', description: 'about 2-4 feet tall' },
-      'S': { category: 'small', description: 'about 3-4 feet tall' }, 
-      'M': { category: 'medium', description: 'about 5-6 feet tall' },
-      'L': { category: 'large', description: 'about 7-8 feet tall' },
-      'H': { category: 'huge', description: 'about 12+ feet tall' },
-      'G': { category: 'huge', description: 'about 20+ feet tall' } // Gargantuan maps to huge
+    if (!size?.length) {
+      return { category: 'medium', description };
+    }
+    
+    const sizeMap: Record<string, DndSpeciesData['size']['category']> = {
+      'T': 'tiny',
+      'S': 'small', 
+      'M': 'medium',
+      'L': 'large',
+      'H': 'huge',
+      'G': 'gargantuan'
     };
     
-    return sizeMap[size[0]] || { category: 'medium', description: 'about 5-6 feet tall' };
+    return { 
+      category: sizeMap[size[0]] || 'medium',
+      description
+    };
+  }
+
+  private extractSpecialSenses(darkvision?: number, blindsight?: number, tremorsense?: number, truesight?: number): DndSpecialSenses | undefined {
+    const senses: DndSpecialSenses = {};
+
+    if (darkvision) senses.darkvision = darkvision;
+    if (blindsight) senses.blindsight = blindsight;
+    if (tremorsense) senses.tremorsense = tremorsense;
+    if (truesight) senses.truesight = truesight;
+
+    return Object.keys(senses).length > 0 ? senses : undefined;
+  }
+
+  private extractSkillProficiencies(skillProficiencies?: Array<{
+    choose?: EtoolsChoice<string>;
+    [skill: string]: boolean | EtoolsChoice<string> | undefined;
+  }>): DndSkillProficiency | undefined {
+    if (!skillProficiencies?.length) return undefined;
+
+    const result: DndSkillProficiency = {};
+    const fixed: Skill[] = [];
+    const choices: Array<{ count: number; from: Skill[]; description?: string }> = [];
+
+    for (const prof of skillProficiencies) {
+      if (typeof prof === 'object' && prof) {
+        const profObj = prof;
+        
+        // Handle choice objects like {"choose": {"from": ["insight", "perception", "survival"]}}
+        if (profObj.choose && typeof profObj.choose === 'object' && 'from' in profObj.choose) {
+          const choiceData = profObj.choose as { from: string[]; count?: number };
+          // Filter to only valid skill names
+          const validSkills = choiceData.from.filter(skill => 
+            SKILLS_2024.includes(skill as Skill)
+          ) as Skill[];
+          
+          if (validSkills.length > 0) {
+            choices.push({
+              count: choiceData.count || 1,
+              from: validSkills,
+              description: `Choose ${choiceData.count || 1} from ${validSkills.join(', ')}`
+            });
+          }
+        }
+        
+        // Handle fixed proficiencies (less common for species)
+        for (const [skill, value] of Object.entries(profObj)) {
+          if (value === true && skill !== 'choose' && SKILLS_2024.includes(skill as Skill)) {
+            fixed.push(skill as Skill);
+          }
+        }
+      }
+    }
+
+    if (fixed.length > 0) result.fixed = fixed;
+    if (choices.length > 0) result.choices = choices;
+
+    return Object.keys(result).length > 0 ? result : undefined;
+  }
+
+  private extractLineages(additionalSpells?: unknown[]): DndSpeciesLineage[] | undefined {
+    if (!additionalSpells?.length) return undefined;
+
+    const lineages: DndSpeciesLineage[] = [];
+
+    for (const spellData of additionalSpells) {
+      if (typeof spellData === 'object' && spellData && 'name' in spellData) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const spellObj = spellData as any;
+        
+        const lineage: DndSpeciesLineage = {
+          name: spellObj.name,
+          description: `${spellObj.name} lineage with unique spell progression`,
+          level1Benefits: this.extractLevel1Benefits(spellObj),
+          spellProgression: this.extractSpellProgression(spellObj)
+        };
+
+        lineages.push(lineage);
+      }
+    }
+
+    return lineages.length > 0 ? lineages : undefined;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private extractLevel1Benefits(spellObj: any): string {
+    // Extract the first level benefits based on the lineage
+    if (spellObj.name === 'Drow') {
+      return 'The range of your Darkvision increases to 120 feet. You also know the Dancing Lights cantrip.';
+    } else if (spellObj.name === 'High Elf') {
+      return 'You know the Prestidigitation cantrip. Whenever you finish a Long Rest, you can replace that cantrip with a different cantrip from the Wizard spell list.';
+    } else if (spellObj.name === 'Wood Elf') {
+      return 'Your Speed increases to 35 feet. You also know the Druidcraft cantrip.';
+    }
+    
+    return `You gain special abilities as part of the ${spellObj.name} lineage.`;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private extractSpellProgression(spellObj: any): DndSpellProgression | undefined {
+    // Handle spellcasting ability choice
+    let spellcastingAbility: DndSpellProgression['spellcastingAbility'];
+    if (spellObj.ability?.choose && Array.isArray(spellObj.ability.choose)) {
+      // Expand abbreviations to full ability names
+      const expandedAbilities = spellObj.ability.choose.map((abbr: string) => expandSpellcastingAbility(abbr));
+      spellcastingAbility = { choice: expandedAbilities };
+    } else {
+      // Default choice
+      spellcastingAbility = { choice: ['intelligence', 'wisdom', 'charisma'] };
+    }
+
+    const progression: DndSpellProgression = { spellcastingAbility };
+
+    // Extract cantrips
+    if (spellObj.known && spellObj.known['1']) {
+      const cantrips = [];
+      const level1Spells = spellObj.known['1'];
+      
+      if (Array.isArray(level1Spells)) {
+        for (const spell of level1Spells) {
+          cantrips.push({
+            spell: this.generateSpellRef(spell),
+            replaceable: false
+          });
+        }
+      } else if (level1Spells._ && Array.isArray(level1Spells._)) {
+        // Handle choice format like {"_": [{"choose": "level=0|class=Wizard"}]}
+        for (const choice of level1Spells._) {
+          if (choice.choose) {
+            cantrips.push({
+              spell: this.generateSpellRef('prestidigitation'), // Default
+              replaceable: true,
+              replacementOptions: {
+                filter: choice.choose,
+                description: 'Any cantrip from the Wizard spell list'
+              }
+            });
+          }
+        }
+      }
+      
+      if (cantrips.length > 0) {
+        progression.cantrips = cantrips;
+      }
+    }
+
+    // Extract spells by level
+    if (spellObj.innate) {
+      const spellsByLevel: Record<string, Array<{
+        spell: SpellReferenceObject;
+        dailyUses: number;
+        usageDescription: string;
+      }>> = {};
+      
+      for (const [level, spells] of Object.entries(spellObj.innate)) {
+        if (typeof spells === 'object' && spells && 'daily' in spells) {
+          const dailySpells = (spells as Record<string, unknown>).daily as Record<string, string[]>;
+          if (dailySpells?.['1'] && Array.isArray(dailySpells['1'])) {
+            spellsByLevel[level] = dailySpells['1'].map((spell: string) => ({
+              spell: this.generateSpellRef(spell),
+              dailyUses: 1,
+              usageDescription: 'Once per long rest'
+            }));
+          }
+        }
+      }
+      
+      if (Object.keys(spellsByLevel).length > 0) {
+        progression.spellsByLevel = spellsByLevel;
+      }
+    }
+
+    return Object.keys(progression).length > 1 ? progression : undefined; // More than just spellcastingAbility
+  }
+
+  private generateSpellRef(spellName: string): SpellReferenceObject {
+    // Clean up spell name and generate reference
+    const cleanName = spellName.replace(/\|.*$/, '').replace(/#.*$/, '');
+    return {
+      _ref: {
+        type: 'vtt-document' as const,
+        pluginType: 'spell' as const,
+        slug: cleanName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        source: 'XPHB'
+        // _id will be populated when documents are resolved
+      }
+    };
   }
 
   private extractMovement(speed?: unknown): DndSpeciesData['movement'] {
@@ -248,48 +459,25 @@ export class TypedSpeciesConverter extends TypedConverter<
   private extractTraits(input: z.infer<typeof etoolsSpeciesSchema>): DndSpeciesData['traits'] {
     const traits: DndSpeciesData['traits'] = [];
     
-    // Extract ability score improvements as traits
-    if (input.ability?.length) {
-      for (const ability of input.ability) {
-        traits.push({
-          name: 'Ability Score Increase',
-          description: this.formatAbilityScoreIncrease(ability)
-        });
+    // Extract actual traits from the entries field (where the real XPHB traits are)
+    if (input.entries && Array.isArray(input.entries)) {
+      for (const entry of input.entries) {
+        if (entry && typeof entry === 'object' && 'name' in entry && 'entries' in entry) {
+          const entryObj = entry as { name: string; entries: EtoolsEntry[] };
+          const description = processEntries(entryObj.entries, this.options.textProcessing).text;
+          
+          traits.push({
+            name: entryObj.name,
+            description
+          });
+        }
       }
-    }
-    
-    // Extract proficiencies as traits
-    const proficiencyTraits = this.extractProficiencyTraits(input);
-    traits.push(...proficiencyTraits);
-    
-    // Extract resistances/immunities as traits
-    const resistanceTraits = this.extractResistanceTraits(input);
-    traits.push(...resistanceTraits);
-    
-    // Extract additional spells as traits
-    if (input.additionalSpells?.length) {
-      traits.push({
-        name: 'Spellcasting',
-        description: 'You know certain spells as part of your racial heritage.'
-      });
     }
     
     return traits;
   }
 
 
-  private extractAncestryOptions(input: z.infer<typeof etoolsSpeciesSchema>): DndSpeciesData['ancestryOptions'] {
-    // For species like Dragonborn that have ancestry variations
-    if (input.name.toLowerCase().includes('dragonborn') && input.traitTags?.includes('Breath Weapon')) {
-      return [{
-        name: 'Draconic Ancestry',
-        description: 'You have draconic ancestry that determines your breath weapon and damage resistance.',
-        affectedTraits: ['Breath Weapon', 'Damage Resistance']
-      }];
-    }
-    
-    return undefined;
-  }
 
   private extractLifespan(age?: unknown): DndSpeciesData['lifespan'] {
     if (!age) {
@@ -304,99 +492,5 @@ export class TypedSpeciesConverter extends TypedConverter<
     };
   }
 
-  private formatAbilityScoreIncrease(ability: unknown): string {
-    const abilityData = ability as { [key: string]: number } | { choose: { from: string[]; count: number; amount?: number } };
-    const increases: string[] = [];
-    
-    if (!abilityData || typeof abilityData !== 'object') {
-      return 'Your ability scores increase.';
-    }
-    
-    // Handle choose format
-    if ('choose' in abilityData && abilityData.choose && typeof abilityData.choose === 'object') {
-      const chooseData = abilityData.choose as { count: number; amount?: number };
-      const count = chooseData.count || 1;
-      const amount = chooseData.amount || 1;
-      increases.push(`Choose ${count} different abilities to increase by ${amount}`);
-    } else {
-      // Handle direct ability increases
-      const directAbilities = abilityData as { [key: string]: number };
-      if (directAbilities.str) increases.push(`Strength +${directAbilities.str}`);
-      if (directAbilities.dex) increases.push(`Dexterity +${directAbilities.dex}`);
-      if (directAbilities.con) increases.push(`Constitution +${directAbilities.con}`);
-      if (directAbilities.int) increases.push(`Intelligence +${directAbilities.int}`);
-      if (directAbilities.wis) increases.push(`Wisdom +${directAbilities.wis}`);
-      if (directAbilities.cha) increases.push(`Charisma +${directAbilities.cha}`);
-    }
-    
-    return increases.length > 0 ? increases.join(', ') + '.' : 'Your ability scores increase.';
-  }
 
-  private extractProficiencyTraits(input: z.infer<typeof etoolsSpeciesSchema>): DndSpeciesData['traits'] {
-    const traits: DndSpeciesData['traits'] = [];
-    
-    if (input.skillProficiencies?.length) {
-      traits.push({
-        name: 'Skill Proficiency',
-        description: 'You have proficiency with certain skills.'
-      });
-    }
-    
-    if (input.languageProficiencies?.length) {
-      traits.push({
-        name: 'Languages',
-        description: 'You know certain languages.'
-      });
-    }
-    
-    if (input.toolProficiencies?.length) {
-      traits.push({
-        name: 'Tool Proficiency', 
-        description: 'You have proficiency with certain tools.'
-      });
-    }
-    
-    if (input.weaponProficiencies?.length) {
-      traits.push({
-        name: 'Weapon Proficiency',
-        description: `You have proficiency with ${input.weaponProficiencies.join(', ')}.`
-      });
-    }
-    
-    if (input.armorProficiencies?.length) {
-      traits.push({
-        name: 'Armor Proficiency',
-        description: `You have proficiency with ${input.armorProficiencies.join(', ')}.`
-      });
-    }
-    
-    return traits;
-  }
-
-  private extractResistanceTraits(input: z.infer<typeof etoolsSpeciesSchema>): DndSpeciesData['traits'] {
-    const traits: DndSpeciesData['traits'] = [];
-    
-    if (input.resist?.length) {
-      traits.push({
-        name: 'Damage Resistance',
-        description: `You have resistance to ${input.resist.join(', ')} damage.`
-      });
-    }
-    
-    if (input.immune?.length) {
-      traits.push({
-        name: 'Damage Immunity',
-        description: `You have immunity to ${input.immune.join(', ')} damage.`
-      });
-    }
-    
-    if (input.conditionImmune?.length) {
-      traits.push({
-        name: 'Condition Immunity',
-        description: `You are immune to the ${input.conditionImmune.join(', ')} condition(s).`
-      });
-    }
-    
-    return traits;
-  }
 }

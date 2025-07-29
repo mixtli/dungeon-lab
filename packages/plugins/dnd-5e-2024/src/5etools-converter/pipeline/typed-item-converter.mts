@@ -30,6 +30,7 @@ import {
   type DndGearData,
   type DndToolData
 } from '../../types/dnd/item.mjs';
+import { expandWeaponProperty } from '../../types/dnd/common.mjs';
 import { safeEtoolsCast } from '../../5etools-types/type-utils.mjs';
 
 
@@ -388,7 +389,15 @@ export class TypedItemConverter extends TypedConverter<
     
     const validProperties = ['ammunition', 'finesse', 'heavy', 'light', 'loading', 'range', 'reach', 'special', 'thrown', 'two-handed', 'versatile'];
     return properties
-      .map(prop => prop.toLowerCase().replace(/\|.*/, '')) // Remove source suffixes
+      .map(prop => {
+        try {
+          // Use the global mapping to expand abbreviations like "F" -> "finesse"
+          return expandWeaponProperty(prop);
+        } catch {
+          // Fallback for properties that might already be full names
+          return prop.toLowerCase().replace(/\|.*/, ''); // Remove source suffixes
+        }
+      })
       .filter(prop => validProperties.includes(prop)) as any[];
   }
 

@@ -1,7 +1,12 @@
 import { z } from 'zod';
 import { vttDocumentSchema } from '@dungeon-lab/shared/schemas/index.mjs';
-import { documentReferenceSchema } from '@dungeon-lab/shared/types/reference.mjs';
-import { abilitySchema, currencyTypeSchema, genericChoiceSchema } from './common.mjs';
+import { 
+  abilitySchema, 
+  currencyTypeSchema, 
+  genericChoiceSchema,
+  itemReferenceObjectSchema,
+  featReferenceObjectSchema
+} from './common.mjs';
 
 /**
  * D&D 5e Background Runtime Types
@@ -11,18 +16,6 @@ import { abilitySchema, currencyTypeSchema, genericChoiceSchema } from './common
  * Compendium types are auto-derived from these with id→_ref conversion.
  */
 
-/**
- * 2024 ability score system for backgrounds
- * Each background lists exactly 3 ability scores to choose from
- * Player increases one by 2 and another by 1, OR all three by 1
- * NOTE: This replaces the old racial ability score improvements
- */
-export const abilityScoreChoiceSchema = z.object({
-  /** The three ability scores this background offers */
-  choices: z.array(abilitySchema).length(3),
-  /** Human-readable description like "Intelligence, Wisdom, Charisma" */
-  displayText: z.string()
-});
 
 /**
  * Equipment choice structure matching 2024 "Choose A or B" pattern
@@ -34,8 +27,8 @@ export const backgroundEquipmentSchema = z.object({
     items: z.array(z.object({
       name: z.string(),
       quantity: z.number().default(1),
-      /** Reference to item document using shared schema */
-      _ref: documentReferenceSchema.optional()
+      /** Reference to item document */
+      item: itemReferenceObjectSchema.optional()
     })),
     /** Starting gold pieces included in package */
     goldPieces: z.number()
@@ -50,7 +43,7 @@ export const backgroundEquipmentSchema = z.object({
  * Tool proficiency schema with document references
  */
 export const toolProficiencySchema = z.object({
-  _ref: documentReferenceSchema,
+  tool: itemReferenceObjectSchema,
   displayName: z.string()
 });
 
@@ -62,14 +55,14 @@ export const dndBackgroundDataSchema = z.object({
   name: z.string(),
   description: z.string().optional(),
   
-  /** 2024: Ability scores moved from species to backgrounds */
-  abilityScores: abilityScoreChoiceSchema,
+  /** 2024: Ability scores moved from species to backgrounds - exactly 3 ability scores to choose from */
+  abilityScores: z.array(abilitySchema).length(3),
   
   /** 2024: Each background grants exactly one Origin Feat */
   originFeat: z.object({
     name: z.string(),
-    /** Reference to feat document using shared schema */
-    _ref: documentReferenceSchema.optional()
+    /** Reference to feat document */
+    feat: featReferenceObjectSchema.optional()
   }),
   
   /** 2024: Each background grants exactly 2 skill proficiencies */
@@ -107,7 +100,6 @@ export const dndBackgroundDocumentSchema = vttDocumentSchema.extend({
  */
 export type DndBackgroundData = z.infer<typeof dndBackgroundDataSchema>;
 export type DndBackgroundDocument = z.infer<typeof dndBackgroundDocumentSchema>;
-export type DndAbilityScoreChoice = z.infer<typeof abilityScoreChoiceSchema>;
 export type DndBackgroundEquipment = z.infer<typeof backgroundEquipmentSchema>;
 export type DndToolProficiency = z.infer<typeof toolProficiencySchema>;
 

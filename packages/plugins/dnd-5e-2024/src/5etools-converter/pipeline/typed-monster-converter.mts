@@ -26,7 +26,7 @@ import {
   type DndCreatureData
 } from '../../types/dnd/creature.mjs';
 import { safeEtoolsCast } from '../../5etools-types/type-utils.mjs';
-import { damageTypeSchema, type DamageType } from '../../types/dnd/common.mjs';
+import { damageTypeSchema, type DamageType, type SpellReferenceObject } from '../../types/dnd/common.mjs';
 
 /**
  * Monster fluff data interface
@@ -608,13 +608,13 @@ export class TypedMonsterConverter extends TypedConverter<
   }
 
   private parseSpellcasting(spellcasting?: Array<{ name?: string; type?: string; headerEntries?: unknown[]; will?: string[]; daily?: Record<string, string[]>; spells?: Record<string, unknown>; ability?: string; dc?: number; mod?: number; attackBonus?: number }>): {
-    ability: 'int' | 'wis' | 'cha';
+    ability: 'intelligence' | 'wisdom' | 'charisma';
     spellSaveDC: number;
     spellAttackBonus: number;
     spells: {
-      atWill?: string[];
-      daily?: Record<string, string[]>;
-      recharge?: Array<{ recharge: string; spells: string[] }>;
+      atWill?: SpellReferenceObject[];
+      daily?: Array<{ spell: SpellReferenceObject; uses: number }>;
+      recharge?: Array<{ recharge: string; spells: SpellReferenceObject[] }>;
     };
   } | undefined {
     if (!spellcasting || !Array.isArray(spellcasting) || spellcasting.length === 0) return undefined;
@@ -622,46 +622,93 @@ export class TypedMonsterConverter extends TypedConverter<
     const primary = spellcasting[0];
     if (!primary) return undefined;
     
-    // Map ability to expected format
-    let ability: 'int' | 'wis' | 'cha' = 'cha'; // default
+    // Map ability to full names (2024 format)
+    let ability: 'intelligence' | 'wisdom' | 'charisma' = 'charisma'; // default
     if (primary.ability === 'intelligence' || primary.ability === 'int') {
-      ability = 'int';
+      ability = 'intelligence';
     } else if (primary.ability === 'wisdom' || primary.ability === 'wis') {
-      ability = 'wis';
+      ability = 'wisdom';
     } else if (primary.ability === 'charisma' || primary.ability === 'cha') {
-      ability = 'cha';
+      ability = 'charisma';
     }
     
-    // Calculate save DC and attack bonus if not provided
-    const saveDC = primary.dc || 8 + 3 + this.getAbilityModifier(ability); // Default calculation
-    const attackBonus = primary.mod || primary.attackBonus || 3 + this.getAbilityModifier(ability);
+    // Extract save DC and attack bonus from header entries if available
+    let saveDC = 10; // default
+    let attackBonus = 0; // default
     
-    // Parse spells into expected format
+    if (primary.headerEntries) {
+      for (const entry of primary.headerEntries) {
+        if (typeof entry === 'string') {
+          // Look for spell save DC pattern: {@dc 13}
+          const dcMatch = entry.match(/{@dc (\d+)}/); 
+          if (dcMatch) {
+            saveDC = parseInt(dcMatch[1], 10);
+          }
+          
+          // Look for spell attack bonus: {@hit 9} or {@hit +9}
+          const hitMatch = entry.match(/{@hit ([+-]?\d+)}/); 
+          if (hitMatch) {
+            attackBonus = parseInt(hitMatch[1], 10);
+          }
+        }
+      }
+    }
+    
+    // Fallback to provided values if header entries didn't contain them
+    if (primary.dc) saveDC = primary.dc;
+    if (primary.mod || primary.attackBonus) attackBonus = primary.mod || primary.attackBonus || attackBonus;
+    
+    // Parse spells into the new format
     const spells: {
-      atWill?: string[];
-      daily?: Record<string, string[]>;
-      recharge?: Array<{ recharge: string; spells: string[] }>;
+      atWill?: SpellReferenceObject[];
+      daily?: Array<{ spell: SpellReferenceObject; uses: number }>;
+      recharge?: Array<{ recharge: string; spells: SpellReferenceObject[] }>;
     } = {};
     
-    // Handle at-will spells
+    // Handle at-will spells - create spell references
     if (primary.will) {
-      spells.atWill = primary.will;
+      spells.atWill = primary.will.map(spell => this.createSpellReference(spell));
     }
     
-    // Handle daily spells
+    // Handle daily spells - convert from 5etools format to explicit uses
     if (primary.daily) {
-      spells.daily = primary.daily;
+      spells.daily = [];
+      
+      for (const [key, spellArray] of Object.entries(primary.daily)) {
+        // Parse usage count from key: "1e" = 1 each, "2e" = 2 each, "3" = 3 total
+        let uses = 1;
+        if (key.endsWith('e')) {
+          uses = parseInt(key.replace('e', ''), 10) || 1;
+        } else {
+          uses = parseInt(key, 10) || 1;
+        }
+        
+        // Add each spell with its usage count
+        for (const spell of spellArray) {
+          spells.daily.push({
+            spell: this.createSpellReference(spell),
+            uses
+          });
+        }
+      }
     }
     
     // Handle spell slots (convert to daily format)
     if (primary.spells) {
-      spells.daily = spells.daily || {};
-      Object.entries(primary.spells).forEach(([level, data]) => {
+      if (!spells.daily) {
+        spells.daily = [];
+      }
+      Object.entries(primary.spells).forEach(([_level, data]) => {
         if (typeof data === 'object' && data !== null && 'spells' in data) {
-          const spellData = data as { spells: string[] | Record<string, unknown> };
+          const spellData = data as { spells: string[] | Record<string, unknown>; slots?: number };
           const levelSpells = Array.isArray(spellData.spells) ? spellData.spells : Object.keys(spellData.spells);
-          if (levelSpells.length > 0) {
-            spells.daily![`level${level}`] = levelSpells;
+          const slots = spellData.slots || 1;
+          
+          for (const spell of levelSpells) {
+            spells.daily!.push({
+              spell: this.createSpellReference(spell),
+              uses: slots
+            });
           }
         }
       });
@@ -675,10 +722,46 @@ export class TypedMonsterConverter extends TypedConverter<
     };
   }
   
-  private getAbilityModifier(_ability: 'int' | 'wis' | 'cha'): number {
-    // This is a rough estimate - in a real implementation you'd calculate from the monster's ability scores
-    return 3; // Assumes +3 modifier (16-17 ability score)
+  /**
+   * Create a spell reference object from 5etools spell format
+   */
+  private createSpellReference(spell: string): SpellReferenceObject {
+    let spellName = spell;
+    let source = 'XPHB'; // default source
+    
+    // Handle 5etools format: {@spell Detect Magic|XPHB}
+    const match = spell.match(/^{@\w+\s+([^|}]+)(?:\|([^}]+))?}/);
+    if (match) {
+      spellName = match[1].trim();
+      source = match[2]?.trim() || 'XPHB';
+    } else {
+      // Handle additional text after spell reference: "{@spell Melf's Acid Arrow|XPHB} (level 3 version)"
+      const extendedMatch = spell.match(/^{@\w+\s+([^|}]+)(?:\|([^}]+))?}\s*\([^)]+\)/);
+      if (extendedMatch) {
+        spellName = extendedMatch[1].trim();
+        source = extendedMatch[2]?.trim() || 'XPHB';
+      }
+    }
+    
+    // Generate slug from spell name
+    const slug = spellName.toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
+      .replace(/[^a-z0-9\s-]/g, '') // Remove special chars except spaces and hyphens
+      .replace(/\s+/g, '-') // Replace spaces with hyphens
+      .replace(/-+/g, '-') // Collapse multiple hyphens
+      .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
+    
+    return {
+      _ref: {
+        type: 'vtt-document' as const,
+        slug,
+        source: source.toLowerCase(),
+        pluginType: 'spell'
+      }
+    };
   }
+
 
   private generateTags(input: z.infer<typeof etoolsMonsterSchema>): string[] {
     const tags: string[] = [];

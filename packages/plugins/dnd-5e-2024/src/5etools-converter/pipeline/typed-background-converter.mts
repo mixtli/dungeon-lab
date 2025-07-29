@@ -17,11 +17,17 @@ import {
   type PluginDocumentType
 } from '../validation/typed-document-validators.mjs';
 import { processEntries } from '../text/markup-processor.mjs';
-import type { EtoolsBackground, EtoolsBackgroundData } from '../../5etools-types/backgrounds.mjs';
+import type { 
+  EtoolsBackground, 
+  EtoolsBackgroundData, 
+  EtoolsAbilityScoreImprovement,
+  EtoolsBackgroundStartingEquipment
+} from '../../5etools-types/backgrounds.mjs';
 import type { EtoolsEntry } from '../../5etools-types/base.mjs';
 import { dndBackgroundDataSchema, type DndBackgroundData } from '../../types/dnd/background.mjs';
 import { extractEtoolsArray, safeEtoolsCast } from '../../5etools-types/type-utils.mjs';
-import type { Ability } from '../../types/dnd/common.mjs';
+import type { Ability, ItemReferenceObject } from '../../types/dnd/common.mjs';
+import { generateSlug } from '../../types/utils.mjs';
 
 /**
  * Input schema for 5etools background data
@@ -36,7 +42,7 @@ const etoolsBackgroundSchema = z.object({
   startingEquipment: z.array(z.unknown()).optional(),
   entries: z.array(z.unknown()).optional(),
   feats: z.array(z.unknown()).optional(),
-  abilityScoreImprovement: z.unknown().optional(),
+  ability: z.array(z.unknown()).optional(),
   srd: z.boolean().optional(),
   basicRules: z.boolean().optional(),
   reprintedAs: z.array(z.string()).optional()
@@ -122,7 +128,7 @@ export class TypedBackgroundConverter extends TypedConverter<
     return {
       name: input.name,
       description,
-      abilityScores: this.parseAbilityScores(input.abilityScoreImprovement),
+      abilityScores: this.parseAbilityScores(input.ability),
       originFeat: this.parseOriginFeat(input.feats),
       skillProficiencies: this.parseSkillProficiencies(input.skillProficiencies),
       toolProficiencies: this.parseToolProficiencies(input.toolProficiencies),
@@ -228,22 +234,126 @@ export class TypedBackgroundConverter extends TypedConverter<
    * Private helper methods for background-specific parsing
    */
 
-  private parseAbilityScores(_abilityScoreImprovement: unknown): DndBackgroundData['abilityScores'] {
-    // For now, provide a default. In 2024, backgrounds should specify the 3 abilities
-    // This would need more sophisticated parsing of the actual data structure
+  private parseAbilityScores(ability: unknown): DndBackgroundData['abilityScores'] {
+    if (!Array.isArray(ability) || ability.length === 0) {
+      // Default fallback - should not happen with valid 2024 backgrounds
+      return ['strength', 'dexterity', 'constitution'] as Ability[];
+    }
+
+    const abilityChoice = ability[0];
+    if (!abilityChoice || typeof abilityChoice !== 'object' || !('choose' in abilityChoice)) {
+      return ['strength', 'dexterity', 'constitution'] as Ability[];
+    }
+
+    const choose = (abilityChoice as EtoolsAbilityScoreImprovement).choose;
+    if (!choose || typeof choose !== 'object' || !('weighted' in choose)) {
+      return ['strength', 'dexterity', 'constitution'] as Ability[];
+    }
+
+    const weighted = choose.weighted;
+    if (!weighted || typeof weighted !== 'object' || !('from' in weighted)) {
+      return ['strength', 'dexterity', 'constitution'] as Ability[];
+    }
+
+    const fromArray = weighted.from;
+    if (!Array.isArray(fromArray) || fromArray.length !== 3) {
+      return ['strength', 'dexterity', 'constitution'] as Ability[];
+    }
+
+    // Map 5etools abbreviations to full ability names
+    const abilityMap: Record<string, Ability> = {
+      'str': 'strength',
+      'dex': 'dexterity', 
+      'con': 'constitution',
+      'int': 'intelligence',
+      'wis': 'wisdom',
+      'cha': 'charisma'
+    };
+
+    const mappedAbilities: Ability[] = fromArray.map(abbrev => 
+      abilityMap[abbrev] || 'strength'
+    );
+
+    return mappedAbilities;
+  }
+
+  private parseOriginFeat(feats: unknown): DndBackgroundData['originFeat'] {
+    if (!Array.isArray(feats) || feats.length === 0) {
+      return {
+        name: 'Origin Feat',
+        feat: undefined
+      };
+    }
+
+    const featObject = feats[0];
+    if (!featObject || typeof featObject !== 'object') {
+      return {
+        name: 'Origin Feat',
+        feat: undefined
+      };
+    }
+
+    // Get the first feat key which should be in format like "magic initiate; wizard|xphb"
+    const featKeys = Object.keys(featObject);
+    if (featKeys.length === 0) {
+      return {
+        name: 'Origin Feat',
+        feat: undefined
+      };
+    }
+
+    const featKey = featKeys[0];
+    
+    // Parse feat key: "magic initiate; wizard|xphb" or "alert|xphb"
+    const [featPart, sourcePart] = featKey.split('|');
+    const source = sourcePart || 'xphb';
+    
+    let featName: string;
+    let featSlug: string;
+    
+    if (featPart.includes(';')) {
+      // Handle "magic initiate; wizard" format
+      const [baseFeat, spellClass] = featPart.split(';').map(part => part.trim());
+      featName = this.formatFeatName(baseFeat);
+      featSlug = this.createFeatSlug(baseFeat, spellClass);
+    } else {
+      // Handle simple feat name like "alert"
+      featName = this.formatFeatName(featPart);
+      featSlug = generateSlug(featPart);
+    }
+
     return {
-      choices: ['strength', 'dexterity', 'constitution'] as Ability[],
-      displayText: 'Choose any three ability scores'
+      name: featName,
+      feat: {
+        _ref: {
+          type: 'vtt-document' as const,
+          slug: featSlug,
+          pluginType: 'feat',
+          source
+        }
+      }
     };
   }
 
-  private parseOriginFeat(_feats: unknown): DndBackgroundData['originFeat'] {
-    // For now, provide a default. In 2024, each background grants one origin feat
-    // This would need parsing of the actual feat structure
-    return {
-      name: 'Origin Feat',
-      _ref: undefined
-    };
+  /**
+   * Format feat name to proper title case
+   */
+  private formatFeatName(featName: string): string {
+    return featName
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  }
+
+  /**
+   * Create feat slug, handling special cases like Magic Initiate with spell class
+   */
+  private createFeatSlug(baseFeat: string, spellClass?: string): string {
+    const baseSlug = generateSlug(baseFeat);
+    if (spellClass) {
+      return `${baseSlug}-${generateSlug(spellClass)}`;
+    }
+    return baseSlug;
   }
 
   private parseSkillProficiencies(skillProficiencies: unknown[]): string[] {
@@ -261,15 +371,229 @@ export class TypedBackgroundConverter extends TypedConverter<
     return [];
   }
 
-  private parseToolProficiencies(_toolProficiencies: unknown): DndBackgroundData['toolProficiencies'] {
-    // For now, return undefined. This would need sophisticated parsing
-    // of tool proficiency structures from 5etools
-    return undefined;
+  private parseToolProficiencies(toolProficiencies: unknown): DndBackgroundData['toolProficiencies'] {
+    if (!Array.isArray(toolProficiencies) || toolProficiencies.length === 0) {
+      return undefined;
+    }
+
+    const tools: Array<{ tool: ItemReferenceObject, displayName: string }> = [];
+
+    for (const proficiencyObject of toolProficiencies) {
+      if (!proficiencyObject || typeof proficiencyObject !== 'object') {
+        continue;
+      }
+
+      // Extract tool names from the object keys
+      const toolKeys = Object.keys(proficiencyObject).filter(key => 
+        proficiencyObject[key] === true || typeof proficiencyObject[key] === 'number'
+      );
+
+      for (const toolKey of toolKeys) {
+        // Skip complex choice structures for now - handle them later if needed
+        if (toolKey === 'choose') {
+          continue;
+        }
+
+        // Handle generic tool types (anyArtisansTool, anyGamingSet, etc.)
+        if (toolKey.startsWith('any')) {
+          // For generic tools, we don't create a _ref since they're not specific items
+          // Instead, we'll return undefined for now to indicate this needs special handling
+          continue;
+        }
+
+        // Handle specific tool names
+        const displayName = this.formatToolName(toolKey);
+        const slug = generateSlug(toolKey);
+
+        tools.push({
+          tool: {
+            _ref: {
+              type: 'item' as const,
+              slug,
+              pluginType: 'tool',
+              source: 'xphb'
+            }
+          },
+          displayName
+        });
+      }
+    }
+
+    return tools.length > 0 ? tools : undefined;
   }
 
-  private parseEquipment(_startingEquipment: unknown): DndBackgroundData['equipment'] {
-    // Provide a default equipment structure for 2024 backgrounds
-    // This would need sophisticated parsing of the starting equipment structure
+  /**
+   * Format tool name to proper display format
+   */
+  private formatToolName(toolName: string): string {
+    return toolName
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  }
+
+  private parseEquipment(startingEquipment: unknown): DndBackgroundData['equipment'] {
+    // Handle the array structure from 5etools
+    if (!Array.isArray(startingEquipment) || startingEquipment.length === 0) {
+      return this.getDefaultEquipment();
+    }
+
+    const choice = startingEquipment[0]; // First choice object
+    if (!choice || typeof choice !== 'object') {
+      return this.getDefaultEquipment();
+    }
+
+    // Handle both "A"/"B" format and "_" (default) format
+    const choiceObj = choice as EtoolsBackgroundStartingEquipment;
+    const optionA = choiceObj.A || choiceObj._ || [];
+    const optionB = choiceObj.B || [];
+
+    return {
+      equipmentPackage: {
+        items: this.parseEquipmentItems(optionA),
+        goldPieces: this.extractGoldFromItems(optionA)
+      },
+      goldAlternative: this.extractGoldFromItems(optionB),
+      currency: 'gp'
+    };
+  }
+
+  /**
+   * Parse array of equipment items from 5etools format
+   */
+  private parseEquipmentItems(items: unknown[]): Array<{name: string; quantity: number; item?: ItemReferenceObject}> {
+    if (!Array.isArray(items)) {
+      return [];
+    }
+
+    const equipmentItems: Array<{name: string; quantity: number; item?: ItemReferenceObject}> = [];
+
+    for (const item of items) {
+      if (!item || typeof item !== 'object') {
+        continue;
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const itemObj = item as any;
+
+      // Handle items with "item" field (e.g., {"item": "quarterstaff|xphb"})
+      if (itemObj.item) {
+        const itemName = this.extractItemName(itemObj.item);
+        const quantity = itemObj.quantity || 1;
+        const itemRef = this.createItemReference(itemObj.item);
+        equipmentItems.push({
+          name: itemName,
+          quantity,
+          item: itemRef
+        });
+      }
+      // Handle items with "special" field (e.g., {"special": "quill"})
+      else if (itemObj.special) {
+        // Special items don't have references to actual item documents
+        // They're typically custom/narrative items
+        equipmentItems.push({
+          name: itemObj.special,
+          quantity: itemObj.quantity || 1,
+          item: undefined
+        });
+      }
+      // Handle direct string items (e.g., "common clothes|phb")
+      else if (typeof item === 'string') {
+        const itemName = this.extractItemName(item);
+        const itemRef = this.createItemReference(item);
+        equipmentItems.push({
+          name: itemName,
+          quantity: 1,
+          item: itemRef
+        });
+      }
+      // Skip items with "value" field as those represent gold pieces
+    }
+
+    return equipmentItems;
+  }
+
+  /**
+   * Extract gold pieces from equipment items (values are in copper pieces)
+   */
+  private extractGoldFromItems(items: unknown[]): number {
+    if (!Array.isArray(items)) {
+      return 0;
+    }
+
+    let totalCopper = 0;
+
+    for (const item of items) {
+      if (!item || typeof item !== 'object') {
+        continue;
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const itemObj = item as any;
+      if (itemObj.value && typeof itemObj.value === 'number') {
+        totalCopper += itemObj.value;
+      }
+      // Handle containsValue for pouches/containers
+      else if (itemObj.containsValue && typeof itemObj.containsValue === 'number') {
+        totalCopper += itemObj.containsValue;
+      }
+    }
+
+    // Convert copper pieces to gold pieces (100 cp = 1 gp)
+    return Math.floor(totalCopper / 100);
+  }
+
+  /**
+   * Extract clean item name from 5etools format (e.g., "quarterstaff|xphb" -> "Quarterstaff")
+   */
+  private extractItemName(itemRef: string): string {
+    if (!itemRef || typeof itemRef !== 'string') {
+      return 'Unknown Item';
+    }
+
+    // Remove source suffix (e.g., "quarterstaff|xphb" -> "quarterstaff")
+    const baseName = itemRef.split('|')[0];
+    
+    // Convert to title case and handle special formatting
+    return baseName
+      .split(/[-_\s]+/)
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ')
+      .replace(/\bOf\b/g, 'of')
+      .replace(/\bThe\b/g, 'the')
+      .replace(/\bAnd\b/g, 'and');
+  }
+
+  /**
+   * Create a document reference for an item from 5etools format
+   */
+  private createItemReference(itemRef: string): ItemReferenceObject | undefined {
+    if (!itemRef || typeof itemRef !== 'string') {
+      return undefined;
+    }
+
+    // Parse the item reference (e.g., "quarterstaff|xphb")
+    const parts = itemRef.split('|');
+    const itemName = parts[0];
+    const source = parts[1] || 'phb'; // Default to PHB if no source specified
+
+    // Generate the slug from the item name
+    const slug = generateSlug(itemName);
+
+    // Create document reference
+    return {
+      _ref: {
+        type: 'item' as const,
+        slug,
+        source: source.toLowerCase()
+      }
+    };
+  }
+
+  /**
+   * Get default equipment structure when parsing fails
+   */
+  private getDefaultEquipment(): DndBackgroundData['equipment'] {
     return {
       equipmentPackage: {
         items: [],

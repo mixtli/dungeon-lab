@@ -4,70 +4,25 @@ import { vttDocumentSchema } from '@dungeon-lab/shared/schemas/index.mjs';
 /**
  * D&D 5e 2024 Language Runtime Types
  * 
- * Updated for 2024 language system with standard/rare categories,
- * proper script information, and typical speakers.
+ * Simplified schema based on actual XPHB (2024) source data.
+ * No artificial/hardcoded data - only what's actually in 5etools XPHB entries.
  * All document references use MongoDB 'id' fields.
  * Compendium types are auto-derived from these with id→_ref conversion.
  */
 
 /**
  * D&D Language runtime data schema
- * Updated for 2024 standard/rare language categories
+ * Based on actual XPHB 2024 data structure
  */
 export const dndLanguageDataSchema = z.object({
   name: z.string(),
   description: z.string(),
   
-  /** 2024: Language category (standard vs rare) */
+  /** 2024: Language category (standard vs rare) from XPHB type field */
   category: z.enum(['standard', 'rare']),
   
-  /** Typical speakers of this language */
-  typicalSpeakers: z.array(z.string()),
-  
-  /** Script information */
-  script: z.object({
-    /** Name of the script (e.g., "Common", "Elvish", "Draconic") */
-    name: z.string(),
-    /** Alternative name for the script */
-    alternateName: z.string().optional(),
-    /** Description of the writing system */
-    description: z.string().optional(),
-    /** Other languages that share this script */
-    sharedWith: z.array(z.string()).default([])
-  }),
-  
-  /** 2024: Whether available during character creation */
-  availableAtCreation: z.boolean().default(true),
-  
-  /** Special properties */
-  properties: z.object({
-    /** Whether this is a sign language */
-    isSignLanguage: z.boolean().default(false),
-    /** Whether this is a secret language */
-    isSecret: z.boolean().default(false),
-    /** Whether this language has dialects */
-    hasDialects: z.boolean().default(false),
-    /** Special learning requirements */
-    learningRequirements: z.string().optional()
-  }).optional(),
-  
-  /** Dialect information (for Primordial) */
-  dialects: z.array(z.object({
-    name: z.string(),
-    description: z.string().optional(),
-    /** Can communicate with speakers of other dialects */
-    mutuallyIntelligible: z.boolean().default(true)
-  })).optional(),
-  
-  /** Cultural and regional information */
-  cultural: z.object({
-    /** Primary planes or regions where spoken */
-    primaryRegions: z.array(z.string()).optional(),
-    /** Historical significance */
-    history: z.string().optional(),
-    /** Religious or ceremonial importance */
-    ceremonialUse: z.boolean().default(false)
-  }).optional(),
+  /** Origin extracted from entries field (e.g., "Origin: Demons of the Abyss.") */
+  origin: z.string().optional(),
   
   source: z.string().optional(),
   page: z.number().optional()
@@ -87,55 +42,4 @@ export const dndLanguageDocumentSchema = vttDocumentSchema.extend({
  */
 export type DndLanguageData = z.infer<typeof dndLanguageDataSchema>;
 export type DndLanguageDocument = z.infer<typeof dndLanguageDocumentSchema>;
-
-/**
- * D&D 2024 Standard Languages (available at character creation)
- */
-export const standardLanguageIdentifiers = [
-  'common', 'common-sign-language', 'dwarvish', 'elvish', 'giant', 
-  'gnomish', 'goblin', 'halfling', 'orc', 'draconic'
-] as const;
-
-/**
- * D&D 2024 Rare Languages (not available at character creation)
- */
-export const rareLanguageIdentifiers = [
-  'abyssal', 'celestial', 'deep-speech', 'druidic', 'infernal', 
-  'primordial', 'sylvan', 'thieves-cant', 'undercommon'
-] as const;
-
-/**
- * All D&D 2024 Languages
- */
-export const allLanguageIdentifiers = [
-  ...standardLanguageIdentifiers,
-  ...rareLanguageIdentifiers
-] as const;
-
-export type StandardLanguageIdentifier = typeof standardLanguageIdentifiers[number];
-export type RareLanguageIdentifier = typeof rareLanguageIdentifiers[number];
-export type LanguageIdentifier = typeof allLanguageIdentifiers[number];
-
-/**
- * Primordial dialects (mutually intelligible)
- */
-export const primordialDialects = [
-  'aquan', 'auran', 'ignan', 'terran'
-] as const;
-
-export type PrimordialDialect = typeof primordialDialects[number];
-
-/**
- * D&D 2024 Script names and their shared languages
- */
-export const scriptMapping = {
-  'Common': ['common', 'halfling'],
-  'Dwarven': ['dwarvish', 'giant', 'gnomish', 'goblin', 'orc', 'primordial'],
-  'Elvish': ['elvish', 'sylvan', 'undercommon'],
-  'Draconic': ['draconic'],
-  'Celestial': ['celestial'],
-  'Infernal': ['infernal'],
-  'Abyssal': ['abyssal'],
-  'DeepSpeech': ['deep-speech']
-} as const;
 

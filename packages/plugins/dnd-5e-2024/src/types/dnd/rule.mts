@@ -49,19 +49,6 @@ export const dndRuleDataSchema = z.object({
     dmApproval: z.boolean().optional()
   }).optional(),
   
-  /** Mechanical impact of the rule */
-  mechanics: z.object({
-    /** Does this rule modify core mechanics */
-    modifiesCoreMechanics: z.boolean().optional(),
-    /** Areas of the game this rule affects */
-    affects: z.array(z.enum([
-      'ability_checks', 'attack_rolls', 'damage_rolls', 'saving_throws',
-      'spell_casting', 'movement', 'resting', 'death_saves', 'initiative',
-      'conditions', 'equipment', 'magic_items'
-    ])).optional(),
-    /** Complexity level for implementation */
-    complexity: z.enum(['simple', 'moderate', 'complex']).optional()
-  }).optional(),
   
   /** Examples of rule usage */
   examples: z.array(z.object({

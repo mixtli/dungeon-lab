@@ -7,7 +7,7 @@ import { documentTypeSchema } from '@dungeon-lab/shared/schemas/index.mjs';
 import { ParsedReference, TextReferenceMatch, scanTextForReferences } from './reference-parser.mjs';
 import type { EtoolsEntry } from '../../5etools-types/base.mjs';
 import type { EtoolsMonsterSpellcasting } from '../../5etools-types/monsters.mjs';
-import type { MonsterSpellcasting } from '../../types/dnd/common.mjs';
+import type { MonsterSpellcasting, SpellReferenceObject } from '../../types/dnd/common.mjs';
 import type { z } from 'zod';
 
 /**
@@ -163,17 +163,17 @@ export function transformSpellcastingToSchema(spellcasting: EtoolsMonsterSpellca
 
   const sc = spellcasting[0]; // Take first spellcasting entry
   
-  // Map ability to the expected short form for MonsterSpellcasting schema
-  const abilityMap: Record<string, 'int' | 'wis' | 'cha'> = {
-    'str': 'int', // fallback
-    'dex': 'int', // fallback
-    'con': 'int', // fallback
-    'int': 'int',
-    'wis': 'wis',
-    'cha': 'cha'
+  // Map ability to the expected full form for MonsterSpellcasting schema
+  const abilityMap: Record<string, 'intelligence' | 'wisdom' | 'charisma'> = {
+    'str': 'intelligence', // fallback
+    'dex': 'intelligence', // fallback
+    'con': 'intelligence', // fallback
+    'int': 'intelligence',
+    'wis': 'wisdom',
+    'cha': 'charisma'
   };
   
-  const ability = sc.ability ? (abilityMap[sc.ability] || 'int') : 'int';
+  const ability = sc.ability ? (abilityMap[sc.ability] || 'intelligence') : 'intelligence';
   
   // Parse spell save DC and attack bonus from header entries
   let spellSaveDC = 10;
@@ -248,28 +248,70 @@ export function transformSpellcastingToSchema(spellcasting: EtoolsMonsterSpellca
     }
   }
   
+  // Helper function to create spell reference
+  const createSpellReference = (spellString: string): SpellReferenceObject => {
+    let spellName = spellString;
+    let source = 'XPHB';
+    
+    const match = spellString.match(/^{@\w+\s+([^|}]+)(?:\|([^}]+))?}/);
+    if (match) {
+      spellName = match[1].trim();
+      source = match[2]?.trim() || 'XPHB';
+    }
+    
+    const slug = spellName.toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-+|-+$/g, '');
+    
+    return {
+      _ref: {
+        type: 'vtt-document' as const,
+        slug,
+        source: source.toLowerCase(),
+        pluginType: 'spell'
+      }
+    };
+  };
+
   // Extract spell lists for the MonsterSpellcasting schema format
-  const atWillSpells: string[] = [];
-  const dailySpells: Record<string, string[]> = {};
+  const atWillSpells: SpellReferenceObject[] = [];
+  const dailySpells: Array<{ spell: SpellReferenceObject; uses: number }> = [];
   
   // At-will/will spells
   if (sc.will) {
     for (const spell of sc.will) {
       if (typeof spell === 'string') {
-        atWillSpells.push(spell);
+        atWillSpells.push(createSpellReference(spell));
       } else if (spell && typeof spell === 'object' && 'name' in spell) {
-        atWillSpells.push((spell as { name: string }).name);
+        atWillSpells.push(createSpellReference((spell as { name: string }).name));
       }
     }
   }
   
-  // Daily spells
+  // Daily spells - convert from 5etools format to explicit uses
   if (sc.daily) {
     for (const [key, spells] of Object.entries(sc.daily)) {
       if (Array.isArray(spells)) {
-        dailySpells[key] = spells.map(spell => 
-          typeof spell === 'string' ? spell : (spell as { name?: string }).name || 'Unknown Spell'
-        );
+        // Parse usage count from key: "1e" = 1 each, "2e" = 2 each, "3" = 3 total
+        let uses = 1;
+        if (key.endsWith('e')) {
+          uses = parseInt(key.replace('e', ''), 10) || 1;
+        } else {
+          uses = parseInt(key, 10) || 1;
+        }
+        
+        // Add each spell with its usage count
+        for (const spell of spells) {
+          const spellName = typeof spell === 'string' ? spell : (spell as { name?: string }).name || 'Unknown Spell';
+          dailySpells.push({
+            spell: createSpellReference(spellName),
+            uses
+          });
+        }
       }
     }
   }
@@ -280,7 +322,7 @@ export function transformSpellcastingToSchema(spellcasting: EtoolsMonsterSpellca
     spellAttackBonus,
     spells: {
       atWill: atWillSpells.length > 0 ? atWillSpells : undefined,
-      daily: Object.keys(dailySpells).length > 0 ? dailySpells : undefined,
+      daily: dailySpells.length > 0 ? dailySpells : undefined,
       recharge: undefined // 5etools doesn't typically have recharge spells in the same format
     }
   };

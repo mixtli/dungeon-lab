@@ -16,6 +16,15 @@ import {
  */
 
 /**
+ * Timing information schema (preserves 5etools structure)
+ */
+export const actionTimeSchema = z.object({
+  number: z.number(),
+  unit: z.enum(['action', 'bonus', 'reaction', 'minute', 'hour', 'round']),
+  condition: z.string().optional()
+});
+
+/**
  * D&D Action runtime data schema
  * This is the canonical structure for actions in MongoDB
  */
@@ -28,6 +37,9 @@ export const dndActionDataSchema = z.object({
   
   /** Specific timing for reactions */
   trigger: z.string().optional(), // e.g., "when you take damage"
+  
+  /** Original timing data from 5etools (preserves structured information) */
+  time: z.array(z.union([actionTimeSchema, z.string()])).optional(),
   
   /** Action requirements */
   requirements: z.object({

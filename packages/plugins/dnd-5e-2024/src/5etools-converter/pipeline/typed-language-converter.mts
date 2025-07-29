@@ -19,7 +19,7 @@ import {
 import { processEntries } from '../text/markup-processor.mjs';
 import type { EtoolsLanguage, EtoolsLanguageData } from '../../5etools-types/languages.mjs';
 import type { EtoolsEntry } from '../../5etools-types/base.mjs';
-import { dndLanguageDataSchema, type DndLanguageData, scriptMapping } from '../../types/dnd/language.mjs';
+import { dndLanguageDataSchema, type DndLanguageData } from '../../types/dnd/language.mjs';
 import { extractEtoolsArray, safeEtoolsCast } from '../../5etools-types/type-utils.mjs';
 
 /**
@@ -115,17 +115,13 @@ export class TypedLanguageConverter extends TypedConverter<
 
   protected transformData(input: z.infer<typeof etoolsLanguageSchema>): DndLanguageData {
     const description = this.extractDescription(input);
+    const origin = this.extractOrigin(input.entries);
     
     return {
       name: input.name,
       description,
       category: this.parseCategory(input.type),
-      typicalSpeakers: this.parseTypicalSpeakers(input.typicalSpeakers),
-      script: this.parseScript(input.script, input.name),
-      availableAtCreation: this.parseAvailableAtCreation(input.type),
-      properties: this.parseProperties(input),
-      dialects: this.parseDialects(input.name),
-      cultural: this.parseCultural(input),
+      origin,
       source: input.source,
       page: input.page
     };
@@ -228,131 +224,24 @@ export class TypedLanguageConverter extends TypedConverter<
    */
 
   private parseCategory(type?: string): DndLanguageData['category'] {
-    // Map 5etools language types to 2024 standard/rare categories
-    if (!type || type === 'standard') {
-      return 'standard';
-    }
-    if (type === 'exotic' || type === 'rare') {
+    // XPHB uses 'standard' and 'rare' directly
+    if (type === 'rare') {
       return 'rare';
     }
     return 'standard'; // Default to standard
   }
 
-  private parseTypicalSpeakers(typicalSpeakers?: string[]): string[] {
-    if (!typicalSpeakers) {
-      return [];
+  private extractOrigin(entries?: unknown[]): string | undefined {
+    if (!entries || entries.length === 0) {
+      return undefined;
     }
     
-    // Clean up typical speakers by removing 5etools markup
-    return typicalSpeakers.map(speaker => {
-      // Remove {@creature ...} and {@filter ...} markup, keep just the name
-      return speaker
-        .replace(/\{@creature ([^}]+)\}/g, '$1')
-        .replace(/\{@filter ([^|]+)\|[^}]+\}/g, '$1')
-        .replace(/\{@[^}]+\}/g, '') // Remove any other markup
-        .trim();
-    }).filter(speaker => speaker.length > 0);
-  }
-
-  private parseScript(script?: string, languageName?: string): DndLanguageData['script'] {
-    if (!script) {
-      // Try to infer script from language name and mapping
-      const scriptName = this.inferScriptFromLanguage(languageName);
-      return {
-        name: scriptName,
-        description: `Uses ${scriptName} script`,
-        sharedWith: this.getLanguagesForScript(scriptName)
-      };
+    const firstEntry = entries[0];
+    if (typeof firstEntry === 'string' && firstEntry.startsWith('Origin: ')) {
+      return firstEntry.replace('Origin: ', '').replace(/\.$/, '').trim();
     }
     
-    return {
-      name: script,
-      description: `Written using ${script} script`,
-      sharedWith: this.getLanguagesForScript(script)
-    };
-  }
-
-  private inferScriptFromLanguage(languageName?: string): string {
-    if (!languageName) {
-      return 'Common';
-    }
-    
-    const lowerName = languageName.toLowerCase();
-    
-    // Find which script this language uses based on the mapping
-    for (const [scriptName, languages] of Object.entries(scriptMapping)) {
-      if (languages.some(lang => lowerName.includes(lang) || lang.includes(lowerName))) {
-        return scriptName;
-      }
-    }
-    
-    return 'Common'; // Default fallback
-  }
-
-  private getLanguagesForScript(scriptName: string): string[] {
-    const entry = Object.entries(scriptMapping).find(([script]) => script === scriptName);
-    return entry ? entry[1].slice() : [];
-  }
-
-  private parseAvailableAtCreation(type?: string): boolean {
-    // In 2024, exotic/rare languages are not available at character creation
-    return type !== 'exotic' && type !== 'rare';
-  }
-
-  private parseProperties(input: z.infer<typeof etoolsLanguageSchema>): DndLanguageData['properties'] {
-    const languageName = input.name.toLowerCase();
-    
-    return {
-      isSignLanguage: languageName.includes('sign'),
-      isSecret: languageName.includes('cant') || languageName.includes('druidic'),
-      hasDialects: languageName === 'primordial',
-      learningRequirements: this.getLearningRequirements(languageName)
-    };
-  }
-
-  private getLearningRequirements(languageName: string): string | undefined {
-    if (languageName.includes('druidic')) {
-      return 'Must be a druid to learn this language';
-    }
-    if (languageName.includes('cant')) {
-      return 'Must have criminal background or rogue training';
-    }
     return undefined;
   }
 
-  private parseDialects(languageName: string): DndLanguageData['dialects'] {
-    if (languageName.toLowerCase() === 'primordial') {
-      return [
-        { name: 'Aquan', description: 'Elemental dialect of water', mutuallyIntelligible: true },
-        { name: 'Auran', description: 'Elemental dialect of air', mutuallyIntelligible: true },
-        { name: 'Ignan', description: 'Elemental dialect of fire', mutuallyIntelligible: true },
-        { name: 'Terran', description: 'Elemental dialect of earth', mutuallyIntelligible: true }
-      ];
-    }
-    return undefined;
-  }
-
-  private parseCultural(input: z.infer<typeof etoolsLanguageSchema>): DndLanguageData['cultural'] {
-    // Basic cultural information based on language name and typical speakers
-    const languageName = input.name.toLowerCase();
-    
-    let primaryRegions: string[] = [];
-    let ceremonialUse = false;
-    
-    if (languageName.includes('celestial')) {
-      primaryRegions = ['Upper Planes', 'Mount Celestia'];
-      ceremonialUse = true;
-    } else if (languageName.includes('abyssal')) {
-      primaryRegions = ['Abyss', 'Lower Planes'];
-    } else if (languageName.includes('infernal')) {
-      primaryRegions = ['Nine Hells', 'Lower Planes'];
-    } else if (languageName.includes('draconic')) {
-      ceremonialUse = true;
-    }
-    
-    return primaryRegions.length > 0 || ceremonialUse ? {
-      primaryRegions: primaryRegions.length > 0 ? primaryRegions : undefined,
-      ceremonialUse
-    } : undefined;
-  }
 }

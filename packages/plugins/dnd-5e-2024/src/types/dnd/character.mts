@@ -1,12 +1,12 @@
 import { z } from 'zod';
 import { actorSchema } from '@dungeon-lab/shared/schemas/index.mjs';
 import {
-  speciesReferenceSchema,
-  backgroundReferenceSchema,
-  classReferenceSchema,
-  spellReferenceSchema,
-  featReferenceSchema,
-  itemReferenceSchema,
+  speciesReferenceObjectSchema,
+  backgroundReferenceObjectSchema,
+  classReferenceObjectSchema,
+  spellReferenceObjectSchema,
+  featReferenceObjectSchema,
+  itemReferenceObjectSchema,
   abilitySchema,
   skillSchema,
   restTypeSchema,
@@ -181,7 +181,7 @@ export const characterSpellcastingSchema = z.object({
   
   /** Known/prepared spells */
   spells: z.array(z.object({
-    _ref: spellReferenceSchema,
+    spell: spellReferenceObjectSchema,
     level: z.number().min(0).max(9),
     class: z.string(),
     prepared: z.boolean().default(true),
@@ -190,7 +190,7 @@ export const characterSpellcastingSchema = z.object({
   
   /** Cantrips */
   cantrips: z.array(z.object({
-    _ref: spellReferenceSchema,
+    spell: spellReferenceObjectSchema,
     class: z.string()
   })).default([])
 });
@@ -202,41 +202,41 @@ export const characterInventorySchema = z.object({
   /** Equipped items */
   equipped: z.object({
     armor: z.object({
-      _ref: itemReferenceSchema.optional(),
+      item: itemReferenceObjectSchema.optional(),
       ac: z.number().optional(),
       enhancementBonus: z.number().default(0)
     }).optional(),
     
     shield: z.object({
-      _ref: itemReferenceSchema.optional(),
+      item: itemReferenceObjectSchema.optional(),
       ac: z.number().optional(),
       enhancementBonus: z.number().default(0)
     }).optional(),
     
     /** 2024: Weapon mastery tracking */
     weapons: z.array(z.object({
-      _ref: itemReferenceSchema,
+      item: itemReferenceObjectSchema,
       slot: z.enum(['main_hand', 'off_hand', 'two_handed']),
       masteryActive: z.boolean().default(false),
       enhancementBonus: z.number().default(0)
     })).default([]),
     
     accessories: z.array(z.object({
-      _ref: itemReferenceSchema,
+      item: itemReferenceObjectSchema,
       slot: z.string() // ring, amulet, etc.
     })).default([])
   }),
   
   /** Carried items */
   carried: z.array(z.object({
-    _ref: itemReferenceSchema,
+    item: itemReferenceObjectSchema,
     quantity: z.number().min(1).default(1),
     identified: z.boolean().default(true),
     location: z.string().optional() // backpack, belt pouch, etc.
   })).default([]),
   
   /** Attuned magical items (max 3) */
-  attunedItems: z.array(itemReferenceSchema).max(3).default([]),
+  attunedItems: z.array(itemReferenceObjectSchema).max(3).default([]),
   
   /** Currency */
   currency: z.object({
@@ -267,7 +267,7 @@ export const characterFeaturesSchema = z.object({
   
   /** Character feats */
   feats: z.array(z.object({
-    _ref: featReferenceSchema,
+    feat: featReferenceObjectSchema,
     source: z.enum(['origin', 'asi_replacement', 'bonus']),
     level: z.number().min(1).max(20).optional()
   })).default([]),
@@ -292,15 +292,15 @@ export const dndCharacterDataSchema = z.object({
   name: z.string(),
   
   /** Character origin (2024 system) */
-  species: speciesReferenceSchema,
-  background: backgroundReferenceSchema,
+  species: speciesReferenceObjectSchema,
+  background: backgroundReferenceObjectSchema,
   
   /** Character classes */
   classes: z.array(z.object({
-    _ref: classReferenceSchema,
+    class: classReferenceObjectSchema,
     level: z.number().min(1).max(20),
     subclass: z.object({
-      _ref: classReferenceSchema,
+      subclass: classReferenceObjectSchema,
       level: z.number().min(1).max(20)
     }).optional(),
     hitPointsRolled: z.array(z.number()).optional()
@@ -323,7 +323,7 @@ export const dndCharacterDataSchema = z.object({
     armor: z.array(armorProficiencySchema).default([]),
     weapons: z.array(weaponProficiencySchema).default([]),
     tools: z.array(z.object({
-      _ref: itemReferenceSchema,
+      tool: itemReferenceObjectSchema,
       proficient: z.boolean().default(true),
       expert: z.boolean().default(false)
     })).default([]),

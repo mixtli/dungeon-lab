@@ -79,11 +79,15 @@ export class TypedActionConverter extends TypedConverter<
       // Extract trigger for reactions
       trigger: this.extractTrigger(input.time),
       
+      // Preserve original timing data from 5etools
+      time: input.time,
+      
       // Extract requirements from description and entries
       requirements: this.extractRequirements(input, description),
       
-      // Extract mechanical effects
-      effects: this.extractEffects(input, description),
+      // NOTE: Effects are not extracted from text due to unreliable parsing.
+      // The finite set of actions (~15) should have effects manually curated.
+      // effects: undefined,
       
       // Extract usage limitations
       uses: this.extractUses(input, description)
@@ -232,22 +236,10 @@ export class TypedActionConverter extends TypedConverter<
     }
     
     // Extract feature requirements
+    // NOTE: Removed unreliable text matching for class features like Ki, Rage, etc.
+    // These should be determined from structured class feature data, not text parsing.
+    // Actions in actions.json are general actions, not class-specific actions.
     const features: string[] = [];
-    if (desc.includes('rage') || desc.includes('barbarian')) {
-      features.push('Rage');
-    }
-    if (desc.includes('ki') || desc.includes('monk')) {
-      features.push('Ki');
-    }
-    if (desc.includes('spell slot') || desc.includes('spellcasting')) {
-      features.push('Spellcasting');
-    }
-    if (desc.includes('channel divinity')) {
-      features.push('Channel Divinity');
-    }
-    if (desc.includes('action surge')) {
-      features.push('Action Surge');
-    }
     
     if (features.length > 0) {
       requirements.features = features;
@@ -272,61 +264,28 @@ export class TypedActionConverter extends TypedConverter<
     return Object.keys(requirements).length > 0 ? requirements : undefined;
   }
 
-  private extractEffects(input: z.infer<typeof etoolsActionSchema>, description: string): DndActionData['effects'] {
-    const effects: NonNullable<DndActionData['effects']> = {
-      attackRoll: false
-    };
-    const desc = description.toLowerCase();
-    
-    // Parse range
-    const rangeMatch = desc.match(/(?:range|reach)\s*(?:of\s*)?(\d+)\s*feet?/i);
-    if (rangeMatch) {
-      effects.range = `${rangeMatch[1]} feet`;
-    }
-    
-    // Parse area of effect
-    const aoeMatch = desc.match(/(\d+)-foot[- ]?(radius|cube|cylinder|cone|line|sphere)/i);
-    if (aoeMatch) {
-      const size = parseInt(aoeMatch[1], 10);
-      const type = aoeMatch[2].toLowerCase();
-      
-      if (type === 'radius' || type === 'sphere') {
-        effects.area = { type: 'sphere', size };
-      } else if (['cube', 'cylinder', 'cone', 'line'].includes(type)) {
-        effects.area = { type: type as 'cube' | 'cylinder' | 'cone' | 'line', size };
-      }
-    }
-    
-    // Parse attack roll
-    if (desc.includes('attack roll') || desc.includes('make.*attack') || desc.includes('melee.*attack') || desc.includes('ranged.*attack')) {
-      effects.attackRoll = true;
-    }
-    
-    // Parse saving throw
-    const saveMatch = desc.match(/dc (\d+) (\w+) saving throw/i);
-    if (saveMatch) {
-      const dc = parseInt(saveMatch[1], 10);
-      const ability = saveMatch[2].toLowerCase();
-      
-      if (['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'].includes(ability)) {
-        effects.savingThrow = {
-          ability: ability as 'strength' | 'dexterity' | 'constitution' | 'intelligence' | 'wisdom' | 'charisma',
-          dc
-        };
-      }
-    }
-    
-    // Parse damage
-    const damageMatch = desc.match(/(\d+d\d+(?:\s*[+-]\s*\d+)?)\s*(\w+)\s*damage/i);
-    if (damageMatch) {
-      effects.damage = {
-        dice: damageMatch[1].replace(/\s+/g, ''),
-        type: damageMatch[2].toLowerCase()
-      };
-    }
-    
-    return Object.keys(effects).length > 1 || effects.attackRoll ? effects : undefined;
-  }
+  /**
+   * NOTE: Effects extraction removed due to unreliable text parsing.
+   * 
+   * MANUAL EFFECTS CURATION APPROACH:
+   * 
+   * The effects field should be manually populated for the finite set of general actions (~15)
+   * because automated extraction from description text is unreliable:
+   * 
+   * Problems with automated extraction:
+   * - False positives: "Hide" action got attackRoll: true because description mentions "attack"
+   * - False negatives: "Attack" action might miss attackRoll due to varied phrasing
+   * - Context dependency: Real effects depend on character stats, equipment, level
+   * - Complex parsing: Damage, saves, ranges have many textual representations
+   * 
+   * Recommended approach:
+   * 1. Leave effects undefined in converter (current state)
+   * 2. Manually curate effects for each action in a separate data file or database updates
+   * 3. Use game knowledge to set accurate mechanical effects
+   * 4. Consider character context when defining effects (e.g., attack bonus calculation)
+   * 
+   * This ensures high accuracy for the small, manageable set of general actions.
+   */
 
   private extractUses(input: z.infer<typeof etoolsActionSchema>, description: string): DndActionData['uses'] {
     const desc = description.toLowerCase();
@@ -362,14 +321,8 @@ export class TypedActionConverter extends TypedConverter<
       return { value, per: restType };
     }
     
-    // Check for specific class feature limitations
-    if (desc.includes('rage') && desc.includes('while raging')) {
-      return { value: 1, per: 'turn' };
-    }
-    
-    if (desc.includes('ki point')) {
-      return { value: 1, per: 'turn' };
-    }
+    // NOTE: Removed unreliable text matching for class feature limitations
+    // These should be determined from structured class feature data, not text parsing
     
     return undefined;
   }

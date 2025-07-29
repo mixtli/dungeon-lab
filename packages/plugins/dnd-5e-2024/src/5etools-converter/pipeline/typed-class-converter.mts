@@ -17,12 +17,15 @@ import {
   type PluginDocumentType
 } from '../validation/typed-document-validators.mjs';
 import { processEntries } from '../text/markup-processor.mjs';
-import type { EtoolsClassData, EtoolsClassFluff, EtoolsClassFluffData } from '../../5etools-types/classes.mjs';
+import type { EtoolsClassData, EtoolsClassFluff, EtoolsClassFluffData, EtoolsSubclass } from '../../5etools-types/classes.mjs';
 import { etoolsClassSchema } from '../../5etools-types/classes.mjs';
 import { 
   dndCharacterClassDataSchema, 
-  type DndCharacterClassData
+  type DndCharacterClassData,
+  type ProficiencyEntry,
+  type ProficiencyFilterConstraint
 } from '../../types/dnd/character-class.mjs';
+import { ABILITY_ABBREVIATION_MAP, expandSpellcastingAbility, spellReferenceObjectSchema, type SpellReferenceObject } from '../../types/dnd/common.mjs';
 import { safeEtoolsCast } from '../../5etools-types/type-utils.mjs';
 
 // ClassDocument type is now imported from the validators file
@@ -128,6 +131,10 @@ export class TypedClassConverter extends TypedConverter<
           const rawClassData = await this.readEtoolsData(`class/${classFile}`);
           const classData = safeEtoolsCast<EtoolsClassData>(rawClassData, ['class'], `class file ${classFile}`);
           
+          // Store the raw class data for subclass extraction
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (this as any).currentClassFileData = classData;
+          
           if (!classData.class?.length) {
             this.log(`No classes found in ${classFile}`);
             continue;
@@ -216,11 +223,126 @@ export class TypedClassConverter extends TypedConverter<
         if (options && options.length > 0) {
           abilities.push(options[0].toLowerCase());
         }
+      } else if (ability && typeof ability === 'object') {
+        // Handle 5etools format: {"int": true, "wis": true} or {"str": true, "dex": true}
+        const abilityObj = ability as Record<string, unknown>;
+        for (const [key, value] of Object.entries(abilityObj)) {
+          if (value === true) {
+            const fullAbility = ABILITY_ABBREVIATION_MAP[key.toLowerCase()] || key.toLowerCase();
+            if (validAbilities.includes(fullAbility)) {
+              abilities.push(fullAbility);
+            }
+          }
+        }
       }
     }
     
-    return abilities
-      .filter(ability => validAbilities.includes(ability)) as DndCharacterClassData['primaryAbilities'];
+    return abilities.length > 0 
+      ? abilities as DndCharacterClassData['primaryAbilities']
+      : ['strength']; // Fallback if parsing fails
+  }
+
+  /**
+   * Parse 5etools {@item} reference into ItemReference
+   * Example: "{@item Thieves' Tools|XPHB}" -> ItemReference object
+   */
+  private parseItemReference(itemString: string): ProficiencyEntry | string {
+    const itemMatch = itemString.match(/\{@item\s+([^|]+)\|([^}]+)\}/);
+    if (!itemMatch) {
+      return itemString; // Return as simple string if not an item reference
+    }
+
+    const itemName = itemMatch[1].trim();
+    const source = itemMatch[2].trim();
+    
+    // Convert name to slug format (lowercase, spaces to hyphens, remove apostrophes)
+    const slug = itemName.toLowerCase()
+      .replace(/'/g, '')
+      .replace(/\s+/g, '-');
+
+    return {
+      type: 'reference',
+      item: {
+        _ref: {
+          slug,
+          type: 'item',
+          pluginType: 'tool', // Assuming tools for now, could be enhanced
+          source: source.toLowerCase()
+        }
+      },
+      displayText: itemName
+    };
+  }
+
+  /**
+   * Parse 5etools {@filter} constraint into ProficiencyFilterConstraint
+   * Example: "Martial weapons that have the {@filter Finesse or Light|items|type=martial weapon|property=finesse;light} property"
+   */
+  private parseFilterConstraint(filterString: string): ProficiencyEntry | string {
+    const filterMatch = filterString.match(/\{@filter\s+([^|]+)\|items\|([^}]+)\}/);
+    if (!filterMatch) {
+      return filterString; // Return as simple string if not a filter
+    }
+
+    const filterParams = filterMatch[2].trim();
+
+    // Parse filter parameters
+    const params = new Map<string, string>();
+    const paramPairs = filterParams.split('|');
+    
+    for (const pair of paramPairs) {
+      const [key, value] = pair.split('=', 2);
+      if (key && value) {
+        params.set(key.trim(), value.trim());
+      }
+    }
+
+    // Extract relevant filter constraints
+    const constraint: ProficiencyFilterConstraint = {
+      displayText: filterString, // Full text for display
+      itemType: this.extractItemType(params.get('type')),
+      category: this.extractWeaponCategory(params.get('type')),
+      properties: this.extractWeaponProperties(params.get('property')),
+      additionalFilters: Object.fromEntries(
+        Array.from(params.entries()).filter(([key]) => !['type', 'property'].includes(key))
+      )
+    };
+
+    return {
+      type: 'filter',
+      constraint
+    };
+  }
+
+  /**
+   * Extract item type from type parameter
+   * Example: "martial weapon" -> "weapon", "simple weapon" -> "weapon"
+   */
+  private extractItemType(typeParam?: string): string | undefined {
+    if (!typeParam) return undefined;
+    if (typeParam.includes('weapon')) return 'weapon';
+    // Could extend for other item types like "armor", "tool", etc.
+    return typeParam;
+  }
+
+  /**
+   * Extract weapon category from type parameter
+   * Example: "martial weapon" -> "martial"
+   */
+  private extractWeaponCategory(typeParam?: string): string | undefined {
+    if (!typeParam) return undefined;
+    if (typeParam.includes('martial')) return 'martial';
+    if (typeParam.includes('simple')) return 'simple';
+    return undefined;
+  }
+
+  /**
+   * Extract weapon properties from property parameter
+   * Example: "finesse;light" -> ["finesse", "light"]
+   */
+  private extractWeaponProperties(propertyParam?: string): string[] | undefined {
+    if (!propertyParam) return undefined;
+    return propertyParam.split(';').map(prop => prop.trim().toLowerCase());
   }
 
   private extractProficiencies(input: z.infer<typeof etoolsClassSchema>): DndCharacterClassData['proficiencies'] {
@@ -234,29 +356,62 @@ export class TypedClassConverter extends TypedConverter<
 
     // Extract armor proficiencies
     if (input.startingProficiencies?.armor) {
-      proficiencies.armor = input.startingProficiencies.armor.map(armor => 
-        typeof armor === 'string' ? armor : 'Light armor'
-      );
+      proficiencies.armor = input.startingProficiencies.armor.map(armor => {
+        if (typeof armor === 'string') {
+          // Try to parse as item reference or filter, otherwise return as string
+          const itemRef = this.parseItemReference(armor);
+          if (itemRef !== armor) return itemRef;
+          
+          const filterRef = this.parseFilterConstraint(armor);
+          if (filterRef !== armor) return filterRef;
+          
+          return armor; // Return as simple string
+        }
+        return 'Light armor'; // Fallback for non-string types
+      });
     }
 
     // Extract weapon proficiencies
     if (input.startingProficiencies?.weapons) {
-      proficiencies.weapons = input.startingProficiencies.weapons.map(weapon => 
-        typeof weapon === 'string' ? weapon : 'Simple weapons'
-      );
+      proficiencies.weapons = input.startingProficiencies.weapons.map(weapon => {
+        if (typeof weapon === 'string') {
+          // Try to parse as item reference or filter, otherwise return as string
+          const itemRef = this.parseItemReference(weapon);
+          if (itemRef !== weapon) return itemRef;
+          
+          const filterRef = this.parseFilterConstraint(weapon);
+          if (filterRef !== weapon) return filterRef;
+          
+          return weapon; // Return as simple string
+        }
+        return 'Simple weapons'; // Fallback for non-string types
+      });
     }
 
     // Extract tool proficiencies
     if (input.startingProficiencies?.tools) {
-      proficiencies.tools = input.startingProficiencies.tools.map(tool => 
-        typeof tool === 'string' ? tool : 'Artisan\'s tools'
-      );
+      proficiencies.tools = input.startingProficiencies.tools.map(tool => {
+        if (typeof tool === 'string') {
+          // Try to parse as item reference or filter, otherwise return as string
+          const itemRef = this.parseItemReference(tool);
+          if (itemRef !== tool) return itemRef;
+          
+          const filterRef = this.parseFilterConstraint(tool);
+          if (filterRef !== tool) return filterRef;
+          
+          return tool; // Return as simple string
+        }
+        return 'Artisan\'s tools'; // Fallback for non-string types
+      });
     }
 
     // Extract saving throw proficiencies
     if (input.proficiency) {
       proficiencies.savingThrows = input.proficiency
-        .map(prof => prof.toLowerCase())
+        .map(prof => {
+          const lowerProf = prof.toLowerCase();
+          return ABILITY_ABBREVIATION_MAP[lowerProf] || lowerProf;
+        })
         .filter(prof => ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'].includes(prof)) as DndCharacterClassData['proficiencies']['savingThrows'];
     }
 
@@ -322,50 +477,286 @@ export class TypedClassConverter extends TypedConverter<
   }
 
   private extractFeatures(input: z.infer<typeof etoolsClassSchema>): DndCharacterClassData['features'] {
-    const featuresRecord: Record<string, DndCharacterClassData['features'][string]> = {};
+    const featuresArray: DndCharacterClassData['features'] = [];
     
-    if (!input.classFeature?.length) return featuresRecord;
-
-    for (const feature of input.classFeature) {
-      const levelKey = feature.level.toString();
-      if (!featuresRecord[levelKey]) {
-        featuresRecord[levelKey] = [];
+    // Handle classFeatures array (XPHB format - array of strings)
+    if (input.classFeatures?.length) {
+      for (const featureRef of input.classFeatures) {
+        if (typeof featureRef === 'string') {
+          // Parse feature reference: "Spellcasting|Wizard|XPHB|1"
+          const parsed = this.parseFeatureReference(featureRef);
+          if (parsed) {
+            featuresArray.push({
+              name: parsed.name,
+              level: parsed.level,
+              description: `${parsed.name} feature from ${parsed.source || 'D&D 5e'}.`,
+              grantsSubclass: false,
+              uses: undefined, // TODO: Implement feature uses extraction
+              choices: undefined // TODO: Implement feature choices extraction
+            });
+          }
+        } else if (featureRef && typeof featureRef === 'object' && 'classFeature' in featureRef) {
+          // Handle subclass feature references
+          const subclassRef = featureRef as { classFeature: string; gainSubclassFeature?: boolean };
+          const parsed = this.parseFeatureReference(subclassRef.classFeature);
+          if (parsed) {
+            featuresArray.push({
+              name: parsed.name,
+              level: parsed.level,
+              description: `${parsed.name} subclass feature from ${parsed.source || 'D&D 5e'}.`,
+              grantsSubclass: subclassRef.gainSubclassFeature === true,
+              uses: undefined, // TODO: Implement feature uses extraction
+              choices: undefined // TODO: Implement feature choices extraction
+            });
+          }
+        }
       }
-
-      featuresRecord[levelKey].push({
-        name: feature.name,
-        level: feature.level,
-        description: feature.entries ? processEntries(feature.entries, this.options.textProcessing).text : `${feature.name} feature.`,
-        uses: undefined, // TODO: Implement feature uses extraction
-        choices: undefined // TODO: Implement feature choices extraction
-      });
+    }
+    
+    // Handle classFeature array (classic format - array of objects) as fallback
+    if (input.classFeature?.length) {
+      for (const feature of input.classFeature) {
+        featuresArray.push({
+          name: feature.name,
+          level: feature.level,
+          description: feature.entries ? processEntries(feature.entries, this.options.textProcessing).text : `${feature.name} feature.`,
+          grantsSubclass: false, // Classic format doesn't have subclass info
+          uses: undefined, // TODO: Implement feature uses extraction
+          choices: undefined // TODO: Implement feature choices extraction
+        });
+      }
     }
 
-    return featuresRecord;
+    return featuresArray;
+  }
+
+  /**
+   * Parse feature reference string like "Spellcasting|Wizard|XPHB|1"
+   */
+  private parseFeatureReference(featureRef: string): { name: string; level: number; source?: string } | null {
+    const parts = featureRef.split('|');
+    if (parts.length < 4) {
+      return null;
+    }
+
+    const name = parts[0];
+    const level = parseInt(parts[3], 10);
+    const source = parts[2];
+
+    if (isNaN(level)) {
+      return null;
+    }
+
+    return { name, level, source };
   }
 
   private extractSubclasses(input: z.infer<typeof etoolsClassSchema>): DndCharacterClassData['subclasses'] {
-    const baseSubclasses = input.subclasses || [];
-    const converted = baseSubclasses.map(subclass => ({
+    // Get subclasses from the class file data, not from the individual class object
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const classFileData = (this as any).currentClassFileData;
+    const allSubclasses = classFileData?.subclass || [];
+    
+    // Filter for only 2024 (XPHB) subclasses matching this class
+    const xphbSubclasses = allSubclasses.filter((subclass: EtoolsSubclass) => 
+      subclass.source === 'XPHB' && 
+      subclass.classSource === 'XPHB' &&
+      subclass.className === input.name
+    );
+    
+    const converted = xphbSubclasses.map((subclass: EtoolsSubclass) => ({
       name: subclass.name,
-      description: subclass.entries ? processEntries(subclass.entries, this.options.textProcessing).text : `${subclass.name} subclass.`,
-      gainedAtLevel: 3, // Default for most classes
-      features: {}, // TODO: Implement subclass features extraction
-      additionalSpells: undefined // TODO: Implement subclass spells extraction
+      description: subclass.entries ? processEntries(subclass.entries, this.options.textProcessing).text : `${subclass.name} subclass for ${input.name}.`,
+      gainedAtLevel: 3, // Standard level for most 2024 subclasses
+      features: this.extractSubclassFeatures(subclass), // Extract real subclass features
+      additionalSpells: this.extractSubclassSpells(subclass) // Extract subclass spells if available
     }));
 
-    // Ensure exactly 4 subclasses as required by schema
-    while (converted.length < 4) {
-      converted.push({
-        name: `Placeholder Subclass ${converted.length + 1}`,
-        description: 'Placeholder subclass for validation',
-        gainedAtLevel: 3,
-        features: {},
-        additionalSpells: undefined
-      });
+    // Ensure exactly 4 subclasses as required by 2024 schema
+    if (converted.length !== 4) {
+      this.log(`Warning: Expected 4 XPHB subclasses for ${input.name}, found ${converted.length}`);
+      
+      // If we have fewer than 4, pad with placeholders (shouldn't happen for complete 2024 data)
+      while (converted.length < 4) {
+        converted.push({
+          name: `Missing Subclass ${converted.length + 1}`,
+          description: `Missing 2024 subclass data for ${input.name}`,
+          gainedAtLevel: 3,
+          features: [],
+          additionalSpells: undefined
+        });
+      }
     }
     
-    return converted.slice(0, 4); // Take only first 4
+    return converted.slice(0, 4); // Take exactly 4
+  }
+
+  /**
+   * Extract subclass features from subclass feature references
+   */
+  private extractSubclassFeatures(subclass: EtoolsSubclass): DndCharacterClassData['subclasses'][0]['features'] {
+    const features: DndCharacterClassData['subclasses'][0]['features'] = [];
+    
+    if (subclass.subclassFeatures?.length) {
+      for (const featureRef of subclass.subclassFeatures) {
+        if (typeof featureRef === 'string') {
+          // Parse feature reference like "Abjuration Savant|Wizard|XPHB|Abjurer|XPHB|3"
+          const parsed = this.parseSubclassFeatureReference(featureRef);
+          if (parsed) {
+            features.push({
+              name: parsed.name,
+              level: parsed.level,
+              description: `${parsed.name} feature from the ${subclass.name} subclass.`,
+              grantsSubclass: false, // Subclass features don't grant further subclasses
+              uses: undefined,
+              choices: undefined
+            });
+          }
+        }
+      }
+    }
+    
+    return features;
+  }
+
+  /**
+   * Extract additional spells granted by subclasses
+   */
+  private extractSubclassSpells(subclass: EtoolsSubclass): DndCharacterClassData['subclasses'][0]['additionalSpells'] {
+    if (!subclass.additionalSpells?.length) return undefined;
+    
+    const spellsByLevel: Record<string, Array<{
+      type: 'known' | 'prepared' | 'innate';
+      source: 'specific' | 'choice';
+      spell?: SpellReferenceObject;
+      choice?: { maxLevel: number; class?: string; school?: string; count?: number };
+    }>> = {};
+    
+    for (const spellGroup of subclass.additionalSpells) {
+      // Process different spell types: known, prepared, innate
+      const spellTypes: Array<'known' | 'prepared' | 'innate'> = ['known', 'prepared', 'innate'];
+      
+      for (const spellType of spellTypes) {
+        if (spellGroup[spellType]) {
+          // Process spells by level
+          for (const [levelStr, spells] of Object.entries(spellGroup[spellType])) {
+            const level = parseInt(levelStr, 10);
+            if (!isNaN(level) && Array.isArray(spells)) {
+              if (!spellsByLevel[levelStr]) {
+                spellsByLevel[levelStr] = [];
+              }
+              
+              for (const spell of spells) {
+                if (typeof spell === 'string') {
+                  // Convert specific spell reference to SpellReference
+                  const spellRef = this.convertSpellToReference(spell);
+                  if (spellRef) {
+                    spellsByLevel[levelStr].push({
+                      type: spellType,
+                      source: 'specific',
+                      spell: spellRef
+                    });
+                  }
+                } else if (spell && typeof spell === 'object' && spell.choose) {
+                  // Parse choice objects like {"choose": "level=0;1;2|class=Wizard|school=V"}
+                  const choiceData = this.parseSpellChoice(spell.choose);
+                  if (choiceData) {
+                    spellsByLevel[levelStr].push({
+                      type: spellType,
+                      source: 'choice',
+                      choice: choiceData
+                    });
+                  }
+                } else {
+                  this.log(`Unknown spell format: ${JSON.stringify(spell)}`);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    return Object.keys(spellsByLevel).length > 0 ? spellsByLevel : undefined;
+  }
+
+  /**
+   * Convert 5etools spell reference to SpellReference object
+   */
+  private convertSpellToReference(spellString: string): z.infer<typeof spellReferenceObjectSchema> | null {
+    // Parse references like "counterspell|xphb" or "minor illusion|xphb#c"
+    const parts = spellString.split('|');
+    if (parts.length < 1) return null;
+    
+    const spellName = parts[0].replace('#c', ''); // Remove cantrip marker
+    const source = parts[1] || 'xphb'; // Default to XPHB
+    
+    // Convert spell name to slug format (lowercase, hyphenated)
+    const slug = spellName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    
+    return {
+      _ref: {
+        slug,
+        type: 'vtt-document',
+        pluginType: 'spell',
+        source: source.toLowerCase()
+      }
+    };
+  }
+
+  /**
+   * Parse spell choice string like "level=0;1;2|class=Wizard|school=A"
+   */
+  private parseSpellChoice(choiceString: string): { maxLevel: number; class?: string; school?: string; count?: number } | null {
+    const parts = choiceString.split('|');
+    const result: { maxLevel: number; class?: string; school?: string; count?: number } = { maxLevel: 0 };
+    
+    for (const part of parts) {
+      if (part.startsWith('level=')) {
+        // Parse level range like "0;1;2" to get max level
+        const levels = part.substring(6).split(';').map(l => parseInt(l, 10)).filter(l => !isNaN(l));
+        if (levels.length > 0) {
+          result.maxLevel = Math.max(...levels);
+        }
+      } else if (part.startsWith('class=')) {
+        result.class = part.substring(6).toLowerCase();
+      } else if (part.startsWith('school=')) {
+        // Convert school abbreviations to full names
+        const schoolCode = part.substring(7);
+        const schoolMap: Record<string, string> = {
+          'A': 'abjuration',
+          'C': 'conjuration', 
+          'D': 'divination',
+          'E': 'enchantment',
+          'V': 'evocation',
+          'I': 'illusion',
+          'N': 'necromancy',
+          'T': 'transmutation'
+        };
+        result.school = schoolMap[schoolCode] || schoolCode.toLowerCase();
+      }
+    }
+    
+    return result.maxLevel >= 0 ? result : null;
+  }
+
+  /**
+   * Parse subclass feature reference string like "Abjuration Savant|Wizard|XPHB|Abjurer|XPHB|3"
+   */
+  private parseSubclassFeatureReference(featureRef: string): { name: string; level: number; source?: string } | null {
+    const parts = featureRef.split('|');
+    if (parts.length < 6) {
+      return null;
+    }
+
+    const name = parts[0];
+    const level = parseInt(parts[5], 10);
+    const source = parts[2];
+
+    if (isNaN(level)) {
+      return null;
+    }
+
+    return { name, level, source };
   }
 
   // NOTE: extractMulticlassing and extractStartingEquipment methods removed
@@ -378,6 +769,8 @@ export class TypedClassConverter extends TypedConverter<
       case 'full':
         return 'full';
       case 'half':
+      case '1/2':
+      case 'artificer': // Artificer-style progression (half caster)
         return 'half';
       case '1/3':
         return 'third';
@@ -388,22 +781,25 @@ export class TypedClassConverter extends TypedConverter<
     }
   }
 
-  private mapSpellcastingAbility(ability?: string): 'int' | 'wis' | 'cha' {
-    if (!ability) return 'int';
+  private mapSpellcastingAbility(ability?: string): 'intelligence' | 'wisdom' | 'charisma' {
+    if (!ability) return 'intelligence';
     
     const abilityLower = ability.toLowerCase();
-    switch (abilityLower) {
-      case 'intelligence':
-      case 'int':
-        return 'int';
-      case 'wisdom':
-      case 'wis':
-        return 'wis';
-      case 'charisma':
-      case 'cha':
-        return 'cha';
-      default:
-        return 'int';
+    
+    // Handle both full names and abbreviations
+    if (abilityLower === 'intelligence' || abilityLower === 'int') {
+      return 'intelligence';
+    } else if (abilityLower === 'wisdom' || abilityLower === 'wis') {
+      return 'wisdom';  
+    } else if (abilityLower === 'charisma' || abilityLower === 'cha') {
+      return 'charisma';
+    } else {
+      // Try using the global mapping
+      try {
+        return expandSpellcastingAbility(abilityLower);
+      } catch {
+        return 'intelligence'; // Fallback
+      }
     }
   }
 

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { vttDocumentSchema } from '@dungeon-lab/shared/schemas/index.mjs';
-import { abilitySchema, restTypeSchema, spellcastingAbilitySchema, spellcastingTypeSchema, spellPreparationSchema } from './common.mjs';
+import { abilitySchema, restTypeSchema, spellcastingAbilitySchema, spellcastingTypeSchema, spellPreparationSchema, spellReferenceObjectSchema, itemReferenceObjectSchema } from './common.mjs';
 
 /**
  * D&D 5e 2024 Character Class Runtime Types
@@ -10,6 +10,46 @@ import { abilitySchema, restTypeSchema, spellcastingAbilitySchema, spellcastingT
  * All document references use MongoDB 'id' fields.
  * Compendium types are auto-derived from these with id→_ref conversion.
  */
+
+/**
+ * Filter constraint for complex proficiency requirements
+ * Parsed from 5etools {@filter} syntax like:
+ * "Martial weapons that have the {@filter Finesse or Light|items|type=martial weapon|property=finesse;light} property"
+ */
+export const proficiencyFilterConstraintSchema = z.object({
+  /** Display text shown to users */
+  displayText: z.string(),
+  /** Base item type constraint (e.g., "martial weapon", "simple weapon") */
+  itemType: z.string().optional(),
+  /** Weapon category constraint (e.g., "martial", "simple") */
+  category: z.string().optional(),
+  /** Required weapon properties (e.g., ["finesse", "light"]) */
+  properties: z.array(z.string()).optional(),
+  /** Additional filter parameters */
+  additionalFilters: z.record(z.string(), z.any()).optional()
+});
+
+/**
+ * Enhanced proficiency entry supporting three types:
+ * 1. Simple string (e.g., "simple", "light armor")
+ * 2. Document reference (e.g., Thieves' Tools)
+ * 3. Filter constraint (e.g., martial weapons with finesse or light property)
+ */
+export const proficiencyEntrySchema = z.union([
+  // Simple string proficiency
+  z.string(),
+  // Document reference proficiency (items like tools)
+  z.object({
+    type: z.literal('reference'),
+    item: itemReferenceObjectSchema,
+    displayText: z.string()
+  }),
+  // Filter constraint proficiency (complex weapon filters)
+  z.object({
+    type: z.literal('filter'),
+    constraint: proficiencyFilterConstraintSchema
+  })
+]);
 
 /**
  * 2024 Weapon Mastery system
@@ -44,7 +84,9 @@ export const classFeatureSchema = z.object({
   choices: z.array(z.object({
     name: z.string(),
     description: z.string()
-  })).optional()
+  })).optional(),
+  /** Whether this feature grants a subclass choice */
+  grantsSubclass: z.boolean()
 });
 
 /**
@@ -55,13 +97,22 @@ export const subclassSchema = z.object({
   description: z.string(),
   /** Level at which subclass is chosen (usually 3, sometimes 1 or 2) */
   gainedAtLevel: z.number(),
-  /** Subclass-specific features by level */
-  features: z.record(z.string(), z.array(classFeatureSchema)),
-  /** Additional spells known (if applicable) */
-  additionalSpells: z.array(z.object({
-    level: z.number(),
-    spells: z.array(z.string())
-  })).optional()
+  /** Subclass-specific features as flat array */
+  features: z.array(classFeatureSchema),
+  /** Additional spells by character level (if applicable) */
+  additionalSpells: z.record(z.string(), z.array(z.object({
+    type: z.enum(['known', 'prepared', 'innate']),
+    source: z.enum(['specific', 'choice']),
+    /** For specific spells */
+    spell: spellReferenceObjectSchema.optional(),
+    /** For spell choices */
+    choice: z.object({
+      maxLevel: z.number(),
+      class: z.string().optional(),
+      school: z.string().optional(),
+      count: z.number().default(1).optional()
+    }).optional()
+  }))).optional()
 });
 
 /**
@@ -79,9 +130,9 @@ export const dndCharacterClassDataSchema = z.object({
   
   /** Proficiencies granted at 1st level */
   proficiencies: z.object({
-    armor: z.array(z.string()),
-    weapons: z.array(z.string()),
-    tools: z.array(z.string()),
+    armor: z.array(proficiencyEntrySchema),
+    weapons: z.array(proficiencyEntrySchema),
+    tools: z.array(proficiencyEntrySchema),
     savingThrows: z.array(abilitySchema),
     skills: z.object({
       count: z.number(),
@@ -92,8 +143,8 @@ export const dndCharacterClassDataSchema = z.object({
   /** 2024: Weapon Mastery (if applicable) */
   weaponMastery: weaponMasterySchema.optional(),
   
-  /** Class features by level */
-  features: z.record(z.string(), z.array(classFeatureSchema)),
+  /** Class features as flat array */
+  features: z.array(classFeatureSchema),
   
   /** 2024: Exactly 4 subclasses in core PHB */
   subclasses: z.array(subclassSchema).length(4),
@@ -129,6 +180,8 @@ export const dndCharacterClassDocumentSchema = vttDocumentSchema.extend({
 /**
  * Runtime type exports
  */
+export type ProficiencyFilterConstraint = z.infer<typeof proficiencyFilterConstraintSchema>;
+export type ProficiencyEntry = z.infer<typeof proficiencyEntrySchema>;
 export type WeaponMastery = z.infer<typeof weaponMasterySchema>;
 export type ClassFeature = z.infer<typeof classFeatureSchema>;
 export type Subclass = z.infer<typeof subclassSchema>;
