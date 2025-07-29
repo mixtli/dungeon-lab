@@ -10,9 +10,8 @@
  */
 
 import { z } from 'zod';
-import { TypedConverter, type ConversionOptions } from './typed-converter.mjs';
+import { TypedConverter } from './typed-converter.mjs';
 import { 
-  languageDocumentValidator,
   type LanguageDocument,
   type DocumentType,
   type PluginDocumentType
@@ -33,7 +32,7 @@ const etoolsLanguageSchema = z.object({
   type: z.string().optional(), // "standard", "exotic", etc.
   typicalSpeakers: z.array(z.string()).optional(),
   script: z.string().optional(),
-  entries: z.array(z.any()).optional(),
+  entries: z.array(z.unknown()).optional(), // EtoolsEntry has complex structure
   srd: z.boolean().optional(),
   basicRules: z.boolean().optional(),
   reprintedAs: z.array(z.string()).optional()
@@ -89,19 +88,19 @@ export class TypedLanguageConverter extends TypedConverter<
     return 'language';
   }
 
-  protected extractDescription(input: EtoolsLanguage): string {
+  protected extractDescription(input: z.infer<typeof etoolsLanguageSchema>): string {
     // Check for fluff description first, then fall back to language entries
     const fluff = this.fluffMap.get(input.name);
     if (fluff?.entries) {
       return processEntries(fluff.entries, this.options.textProcessing).text;
     }
     if (input.entries) {
-      return processEntries(input.entries, this.options.textProcessing).text;
+      return processEntries(input.entries as EtoolsEntry[], this.options.textProcessing).text;
     }
     return `Language: ${input.name}`;
   }
 
-  protected extractAssetPath(input: EtoolsLanguage): string | undefined {
+  protected extractAssetPath(input: z.infer<typeof etoolsLanguageSchema>): string | undefined {
     if (!this.options.includeAssets) {
       return undefined;
     }
@@ -114,7 +113,7 @@ export class TypedLanguageConverter extends TypedConverter<
     return undefined;
   }
 
-  protected transformData(input: EtoolsLanguage): DndLanguageData {
+  protected transformData(input: z.infer<typeof etoolsLanguageSchema>): DndLanguageData {
     const description = this.extractDescription(input);
     
     return {
@@ -300,7 +299,7 @@ export class TypedLanguageConverter extends TypedConverter<
     return type !== 'exotic' && type !== 'rare';
   }
 
-  private parseProperties(input: EtoolsLanguage): DndLanguageData['properties'] {
+  private parseProperties(input: z.infer<typeof etoolsLanguageSchema>): DndLanguageData['properties'] {
     const languageName = input.name.toLowerCase();
     
     return {
@@ -333,7 +332,7 @@ export class TypedLanguageConverter extends TypedConverter<
     return undefined;
   }
 
-  private parseCultural(input: EtoolsLanguage): DndLanguageData['cultural'] {
+  private parseCultural(input: z.infer<typeof etoolsLanguageSchema>): DndLanguageData['cultural'] {
     // Basic cultural information based on language name and typical speakers
     const languageName = input.name.toLowerCase();
     

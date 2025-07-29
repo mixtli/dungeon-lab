@@ -50,6 +50,9 @@
       "mcp__memento__search_nodes",
       "mcp__memento__semantic_search",
       "Bash(jq:*)"
+    ],
+    "additionalDirectories": [
+      "/Users/mixtli/checkouts/5etools-src"
     ]
   },
   "enabledMcpjsonServers": [

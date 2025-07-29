@@ -12,7 +12,6 @@ import { z } from 'zod';
 import { actorSchema } from '@dungeon-lab/shared/schemas/actor.schema.mjs';
 import { itemSchema } from '@dungeon-lab/shared/schemas/item.schema.mjs';
 import { vttDocumentSchema } from '@dungeon-lab/shared/schemas/vtt-document.schema.mjs';
-import type { BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
 import {
   dndCreatureDataSchema,
   dndItemDataSchema,
@@ -23,20 +22,10 @@ import {
   dndFeatDataSchema,
   dndConditionDataSchema,
   dndActionDataSchema,
-  dndLanguageDataSchema,
-  type DndCreatureData,
-  type DndItemData,
-  type DndSpellData,
-  type DndBackgroundData,
-  type DndCharacterClassData,
-  type DndSpeciesData,
-  type DndFeatData,
-  type DndConditionData,
-  type DndActionData,
-  type DndLanguageData
+  dndLanguageDataSchema
 } from '../../types/dnd/index.mjs';
-import { dndRuleDataSchema, type DndRuleData } from '../../types/dnd/rule.mjs';
-import { dndSenseDataSchema, type DndSenseData } from '../../types/dnd/sense.mjs';
+import { dndRuleDataSchema } from '../../types/dnd/rule.mjs';
+import { dndSenseDataSchema } from '../../types/dnd/sense.mjs';
 
 /**
  * Document type discriminator
@@ -187,7 +176,7 @@ export type RuleDocument = z.infer<typeof ruleDocumentValidator>;
 /**
  * Registry of all document validators by plugin document type
  */
-export const DOCUMENT_VALIDATORS = {
+export const DOCUMENT_VALIDATORS: Record<string, z.ZodTypeAny> = {
   // Actor types
   'creature': creatureDocumentValidator,
   
@@ -214,12 +203,15 @@ export const DOCUMENT_VALIDATORS = {
 /**
  * Plugin document type keys
  */
-export type PluginDocumentType = keyof typeof DOCUMENT_VALIDATORS;
+export type PluginDocumentType = 
+  | 'creature'
+  | 'weapon' | 'armor' | 'shield' | 'tool' | 'gear'
+  | 'spell' | 'background' | 'character-class' | 'species' | 'feat' | 'condition' | 'action' | 'language' | 'sense' | 'rule';
 
 /**
  * Get validator for a specific plugin document type
  */
-export function getDocumentValidator(pluginDocumentType: PluginDocumentType) {
+export function getDocumentValidator(pluginDocumentType: PluginDocumentType): z.ZodTypeAny {
   const validator = DOCUMENT_VALIDATORS[pluginDocumentType];
   if (!validator) {
     throw new Error(`No validator found for plugin document type: ${pluginDocumentType}`);

@@ -29,13 +29,13 @@
             {{ compendium?.name || 'Compendium' }}
           </router-link>
           <span>›</span>
-          <span class="text-gray-900 dark:text-white">{{ entry.name }}</span>
+          <span class="text-gray-900 dark:text-white">{{ entry.entry.name }}</span>
         </nav>
 
         <div class="flex items-center justify-between">
           <div>
             <h1 class="text-3xl font-bold text-gray-900 dark:text-white">
-              {{ entry.name }}
+              {{ entry.entry.name }}
             </h1>
             <div class="flex items-center space-x-4 mt-2">
               <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
@@ -43,8 +43,8 @@
                 <i :class="getContentTypeIcon(entry)" class="mr-1"></i>
                 {{ getContentTypeDisplayName(entry) }}
               </span>
-              <span v-if="entry.category" class="text-sm text-gray-500 dark:text-gray-400">
-                {{ entry.category }}
+              <span v-if="entry.entry.category" class="text-sm text-gray-500 dark:text-gray-400">
+                {{ entry.entry.category }}
               </span>
             </div>
           </div>
@@ -63,7 +63,7 @@
           <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
             <img 
               :src="entryImageUrl" 
-              :alt="entry.name"
+              :alt="entry.entry.name"
               class="w-full h-auto object-contain"
             />
           </div>
@@ -76,9 +76,9 @@
               Description
             </h2>
             <div 
-              v-if="entry.embeddedContent?.data?.description"
+              v-if="entry.content?.description"
               class="prose dark:prose-invert max-w-none"
-              v-html="formatDescription(entry.embeddedContent.data.description)"
+              v-html="formatDescription(entry.content.description)"
             ></div>
             <p v-else class="text-gray-500 dark:text-gray-400 italic">
               No description available
@@ -97,16 +97,16 @@
                 <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Type</dt>
                 <dd class="text-sm text-gray-900 dark:text-white">{{ getContentTypeDisplayName(entry) }}</dd>
               </div>
-              <div v-if="entry.category">
+              <div v-if="entry.entry.category">
                 <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Category</dt>
-                <dd class="text-sm text-gray-900 dark:text-white">{{ entry.category }}</dd>
+                <dd class="text-sm text-gray-900 dark:text-white">{{ entry.entry.category }}</dd>
               </div>
-              <div v-if="entry.tags && entry.tags.length > 0">
+              <div v-if="entry.entry.tags && entry.entry.tags.length > 0">
                 <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Tags</dt>
                 <dd class="text-sm text-gray-900 dark:text-white">
                   <div class="flex flex-wrap gap-1 mt-1">
                     <span 
-                      v-for="tag in entry.tags" 
+                      v-for="tag in entry.entry.tags" 
                       :key="tag"
                       class="inline-flex items-center px-2 py-1 rounded text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
                     >
@@ -115,13 +115,13 @@
                   </div>
                 </dd>
               </div>
-              <div v-if="(entry.embeddedContent?.type === 'actor' || entry.embeddedContent?.type === 'item') && entry.embeddedContent.data.gameSystemId">
+              <div v-if="(entry.entry.type === 'actor' || entry.entry.type === 'item') && entry.content.gameSystemId">
                 <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Game System</dt>
-                <dd class="text-sm text-gray-900 dark:text-white">{{ entry.embeddedContent.data.gameSystemId }}</dd>
+                <dd class="text-sm text-gray-900 dark:text-white">{{ entry.content.gameSystemId }}</dd>
               </div>
-              <div v-if="(entry.embeddedContent?.type === 'item' || entry.embeddedContent?.type === 'vttdocument') && entry.embeddedContent.data.pluginId">
+              <div v-if="(entry.entry.type === 'item' || entry.entry.type === 'vtt-document') && entry.content.pluginId">
                 <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Plugin</dt>
-                <dd class="text-sm text-gray-900 dark:text-white">{{ entry.embeddedContent.data.pluginId }}</dd>
+                <dd class="text-sm text-gray-900 dark:text-white">{{ entry.content.pluginId }}</dd>
               </div>
               <div>
                 <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Version</dt>
@@ -145,7 +145,7 @@
             
             <div class="p-6">
               <div class="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
-                <pre class="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap overflow-auto max-h-96">{{ formatPluginData(entry.embeddedContent?.data?.data) }}</pre>
+                <pre class="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap overflow-auto max-h-96">{{ formatPluginData(entry.content) }}</pre>
               </div>
             </div>
           </div>
@@ -186,17 +186,17 @@ const entryImageUrl = computed(() => {
     return entryWithImage.image.url;
   }
   
-  // Fallback to embedded content images
-  if (!entry.value.embeddedContent?.data) return null;
+  // Fallback to content images
+  if (!entry.value.content) return null;
   
-  const content = entry.value.embeddedContent.data as {
+  const content = entry.value.content as {
     avatarId?: { url: string };
     defaultTokenImageId?: { url: string };
     imageId?: { url: string };
   };
   
   // For actors, prefer avatarId
-  if (entry.value.embeddedContent.type === 'actor') {
+  if (entry.value.entry.type === 'actor') {
     if (content.avatarId?.url) return content.avatarId.url;
     if (content.defaultTokenImageId?.url) return content.defaultTokenImageId.url;
   }
@@ -209,31 +209,31 @@ const entryImageUrl = computed(() => {
 
 // Functions for content type handling
 function getContentTypeIcon(entry: ICompendiumEntry): string {
-  const contentType = entry.embeddedContent?.type;
+  const contentType = entry.entry.type;
   switch (contentType) {
     case 'actor': return 'fas fa-users';
     case 'item': return 'fas fa-sword';
-    case 'vttdocument': return 'fas fa-scroll';
+    case 'vtt-document': return 'fas fa-scroll';
     default: return 'fas fa-file';
   }
 }
 
 function getContentTypeColor(entry: ICompendiumEntry): string {
-  const contentType = entry.embeddedContent?.type;
+  const contentType = entry.entry.type;
   switch (contentType) {
     case 'actor': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
     case 'item': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
-    case 'vttdocument': return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200';
+    case 'vtt-document': return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200';
     default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
   }
 }
 
 function getContentTypeDisplayName(entry: ICompendiumEntry): string {
-  const contentType = entry.embeddedContent?.type;
+  const contentType = entry.entry.type;
   switch (contentType) {
     case 'actor': return 'Actor';
     case 'item': return 'Item';
-    case 'vttdocument': return 'Document';
+    case 'vtt-document': return 'Document';
     default: return 'Unknown';
   }
 }

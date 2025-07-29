@@ -12,18 +12,16 @@ import type { CompendiumDocument } from './compendium.service.mjs';
 import { ImportProgress, CompendiumManifest, ValidationResult } from '@dungeon-lab/shared/schemas/import.schema.mjs';
 
 interface ProcessedContent {
-  type: 'actor' | 'item' | 'vtt-document';
-  subtype: string;
-  name: string;
-  data: unknown;
-  originalPath: string;
-  // New fields from wrapper format
-  entryMetadata?: {
+  entry: {
+    name: string;
+    type: 'actor' | 'item' | 'vtt-document';
     imageId?: string;
     category?: string;
     tags?: string[];
     sortOrder?: number;
   };
+  content: unknown; // The actual document data
+  originalPath: string;
 }
 
 interface ValidationPlugin {
@@ -225,10 +223,10 @@ export class ImportService {
           data.uploadedAssets
         );
         successCount++;
-        logger.info(`Successfully imported: ${contentItem.name} (${contentItem.type})`);
+        logger.info(`Successfully imported: ${contentItem.entry.name} (${contentItem.entry.type})`);
       } catch (error) {
-        const errorMsg = `Failed to import ${contentItem.name}: ${error instanceof Error ? error.message : String(error)}`;
-        logger.warn(errorMsg);
+        const errorMsg = `Failed to import ${contentItem.entry.name} (${contentItem.entry.type}): ${error instanceof Error ? error.message : String(error)}`;
+        logger.error(errorMsg);
         errors.push(errorMsg);
       }
 
@@ -243,7 +241,7 @@ export class ImportService {
     const compendiumEntries = await CompendiumEntryModel.find({ compendiumId });
     
     for (const entry of compendiumEntries) {
-      const type = entry.embeddedContent?.type || 'unknown';
+      const type = entry.entry?.type || 'unknown';
       entriesByType[type] = (entriesByType[type] || 0) + 1;
     }
 
@@ -280,37 +278,19 @@ export class ImportService {
       uploadedAssets
     );
 
-    // Extract the actual content data from the processed result
-    const contentData = processedContent.data as Record<string, unknown>;
-    
-    // Debug: Log the actual content data structure
-    logger.info(`Processing ${contentItem.type} "${contentItem.name}": keys=${Object.keys(contentData)}`);
-    if (contentItem.type === 'vtt-document') {
-      logger.info(`VTT Document data:`, { 
-        hasName: 'name' in contentData,
-        hasSlug: 'slug' in contentData, 
-        hasPluginId: 'pluginId' in contentData,
-        hasDocumentType: 'documentType' in contentData,
-        hasDescription: 'description' in contentData,
-        hasData: 'data' in contentData,
-        actualKeys: Object.keys(contentData)
-      });
-    }
-    
-    // For compendium imports, we don't create actual documents in the database
-    // Instead, we create CompendiumEntry records with embedded content
+    // Create CompendiumEntry using the new entry+content structure (no transformation needed!)
     const compendiumEntry = new CompendiumEntryModel({
       compendiumId,
-      embeddedContent: {
-        type: contentItem.type === 'vtt-document' ? 'vttdocument' : contentItem.type,
-        data: contentData
+      entry: {
+        name: processedContent.entry.name,
+        type: processedContent.entry.type, // Direct from upload, no mapping bugs!
+        category: processedContent.entry.category,
+        tags: processedContent.entry.tags || [],
+        sortOrder: processedContent.entry.sortOrder || 0,
+        imageId: processedContent.entry.imageId ? processedImageIds.get(processedContent.entry.imageId) : undefined
       },
-      name: contentItem.name,
-      tags: contentItem.entryMetadata?.tags || [],
-      category: contentItem.entryMetadata?.category,
-      sortOrder: contentItem.entryMetadata?.sortOrder || 0,
-      imageId: contentItem.entryMetadata?.imageId ? processedImageIds.get(contentItem.entryMetadata.imageId) : undefined,
-      metadata: {
+      content: processedContent.content, // Direct save, no transformation
+      sourceData: {
         originalPath: contentItem.originalPath
       }
     });
@@ -331,26 +311,26 @@ export class ImportService {
     const processedImageIds = new Map<string, string>();
 
     // Process entry-level image if present
-    if (contentItem.entryMetadata?.imageId) {
+    if (contentItem.entry.imageId) {
       try {
         const assetId = await this.uploadAssetOnDemand(
-          contentItem.entryMetadata.imageId,
+          contentItem.entry.imageId,
           assetFiles,
           userId,
           compendiumName,
           uploadedAssets
         );
         if (assetId) {
-          processedImageIds.set(contentItem.entryMetadata.imageId, assetId);
+          processedImageIds.set(contentItem.entry.imageId, assetId);
         }
       } catch (error) {
-        logger.warn(`Failed to upload entry-level image ${contentItem.entryMetadata.imageId}:`, error);
+        logger.warn(`Failed to upload entry-level image ${contentItem.entry.imageId}:`, error);
       }
     }
 
     // Process content-level images
     const { processedData } = await this.processDocumentImages(
-      contentItem.data as Record<string, unknown>, 
+      contentItem.content as Record<string, unknown>, 
       assetFiles, 
       userId, 
       compendiumName, 
@@ -359,8 +339,9 @@ export class ImportService {
 
     return {
       processedContent: {
-        ...contentItem,
-        data: processedData
+        entry: contentItem.entry,
+        content: processedData,
+        originalPath: contentItem.originalPath
       },
       processedImageIds
     };
@@ -384,29 +365,39 @@ export class ImportService {
         const contentText = buffer.toString('utf-8');
         const fileData = JSON.parse(contentText);
 
-        // Check if this is the new wrapper format
-        let contentData: unknown;
-        let entryMetadata: { imageId?: string; category?: string; tags?: string[]; sortOrder?: number } | undefined = undefined;
-        
-        if (fileData.entry && fileData.content) {
-          // New wrapper format
-          entryMetadata = {
-            imageId: fileData.entry.imageId,
-            category: fileData.entry.category,
-            tags: fileData.entry.tags || [],
-            sortOrder: fileData.entry.sortOrder || 0
-          };
-          contentData = fileData.content;
-        } else {
-          // Legacy format - content is directly in the file
-          contentData = fileData;
+        // Expect wrapper format with entry and content
+        if (!fileData.entry || !fileData.content) {
+          const errorMsg = `Invalid file format: ${filePath} - expected {entry, content} structure`;
+          logger.warn(errorMsg);
+          errors.push(errorMsg);
+          processedFiles++;
+          progressCallback?.(processedFiles, totalFiles);
+          continue;
         }
 
-        // Determine content type from file path or data
-        const { type, subtype } = this.determineContentType(filePath, contentData as { type?: string; documentType?: string; [key: string]: unknown });
-        
-        // Validate using plugin
-        const validationResult = this.validateContent(plugin, type, subtype, contentData);
+        // Extract entry metadata and content
+        const entry = {
+          name: fileData.entry.name,
+          type: fileData.entry.type as 'actor' | 'item' | 'vtt-document',
+          imageId: fileData.entry.imageId,
+          category: fileData.entry.category,
+          tags: fileData.entry.tags || [],
+          sortOrder: fileData.entry.sortOrder || 0
+        };
+        const content = fileData.content;
+
+        // Validate entry.type
+        if (!['actor', 'item', 'vtt-document'].includes(entry.type)) {
+          const errorMsg = `Invalid entry type: ${entry.type} in ${filePath}`;
+          logger.warn(errorMsg);
+          errors.push(errorMsg);
+          processedFiles++;
+          progressCallback?.(processedFiles, totalFiles);
+          continue;
+        }
+
+        // Validate using plugin (simplified - no complex subtype logic needed)
+        const validationResult = this.validateContent(plugin, entry.type, '', content);
         
         if (!validationResult.success) {
           const errorMsg = `Validation failed for ${filePath}: ${validationResult.error?.message}`;
@@ -414,12 +405,9 @@ export class ImportService {
           errors.push(errorMsg);
         } else {
           processedContent.push({
-            type,
-            subtype,
-            name: (contentData as { name?: string }).name || filePath,
-            data: validationResult.data,
-            originalPath: filePath,
-            entryMetadata
+            entry,
+            content: validationResult.data,
+            originalPath: filePath
           });
         }
 
@@ -448,50 +436,28 @@ export class ImportService {
     compendiumName: string,
     uploadedAssets: string[]
   ): Promise<string | null> {
-    logger.info(`uploadAssetOnDemand: Starting upload for "${imagePath}"`);
-    logger.debug(`uploadAssetOnDemand: Parameters:`, {
-      imagePath,
-      userId,
-      compendiumName,
-      assetFilesHasPath: assetFiles.has(imagePath),
-      totalAssetFiles: assetFiles.size,
-      uploadedAssetsCount: uploadedAssets.length
-    });
-
     try {
       const assetData = assetFiles.get(imagePath);
       if (!assetData) {
-        logger.warn(`uploadAssetOnDemand: Asset not found in ZIP: ${imagePath}`);
-        logger.debug(`uploadAssetOnDemand: Available assets: [${Array.from(assetFiles.keys()).slice(0, 10).join(', ')}${assetFiles.size > 10 ? '...' : ''}]`);
         return null;
       }
 
-      logger.info(`uploadAssetOnDemand: Found asset data for "${imagePath}" - buffer size: ${assetData.buffer.length}, mimetype: ${assetData.mimetype}, originalPath: ${assetData.originalPath}`);
-
       // Create a File object from the buffer
       const file = new File([assetData.buffer], imagePath, { type: assetData.mimetype });
-      logger.debug(`uploadAssetOnDemand: Created File object - name: ${file.name}, size: ${file.size}, type: ${file.type}`);
       
       // Upload to storage
-      logger.info(`uploadAssetOnDemand: Calling createAsset with path "compendiums/${compendiumName}/assets" for user ${userId}`);
       const asset = await createAsset(
         file,
         `compendiums/${compendiumName}/assets`,
         userId
       );
 
-      logger.info(`uploadAssetOnDemand: createAsset successful - asset.id: ${asset.id}, asset.path: ${asset.path}`);
-
       // Track for potential rollback
       uploadedAssets.push(asset.path);
-
-      logger.info(`uploadAssetOnDemand: Upload complete: ${imagePath} -> ${asset.id}`);
       return asset.id.toString();
 
     } catch (error) {
-      const errorMsg = `Failed to upload asset ${imagePath}: ${error instanceof Error ? error.message : String(error)}`;
-      logger.error(`uploadAssetOnDemand: ${errorMsg}`);
-      logger.debug(`uploadAssetOnDemand: Error details:`, error);
+      logger.error(`Failed to upload asset ${imagePath}: ${error instanceof Error ? error.message : String(error)}`);
       return null;
     }
   }
@@ -511,14 +477,9 @@ export class ImportService {
     const processedData = { ...docData };
     const imageFields = ['imageId', 'avatarId', 'defaultTokenImageId'];
 
-    logger.info(`processDocumentImages: Processing document "${docData.name || 'Unknown'}" with ${assetFiles.size} available assets`);
-    // logger.debug(`processDocumentImages: Available asset paths: [${Array.from(assetFiles.keys()).join(', ')}]`);
-
     // Process entry-level imageId first (from wrapper format)
     let entryImageId: string | undefined;
     if (entryMetadata?.imageId) {
-      logger.info(`processDocumentImages: Processing entry-level imageId = "${entryMetadata.imageId}"`);
-      
       entryImageId = await this.uploadAssetOnDemand(
         entryMetadata.imageId,
         assetFiles,
@@ -526,23 +487,12 @@ export class ImportService {
         compendiumName,
         uploadedAssets
       ) || undefined;
-      
-      logger.info(`processDocumentImages: Entry-level imageId result: ${entryImageId || 'null'}`);
     }
 
     // Process content-level image fields
     for (const field of imageFields) {
       if (processedData[field] && typeof processedData[field] === 'string') {
         const imagePath = processedData[field] as string;
-        logger.info(`processDocumentImages: Found ${field} = "${imagePath}" in document "${docData.name || 'Unknown'}"`);
-        
-        logger.debug(`processDocumentImages: Calling uploadAssetOnDemand with:`, {
-          imagePath,
-          userId,
-          compendiumName,
-          assetFilesSize: assetFiles.size,
-          uploadedAssetsCount: uploadedAssets.length
-        });
         
         const assetId = await this.uploadAssetOnDemand(
           imagePath,
@@ -552,62 +502,25 @@ export class ImportService {
           uploadedAssets
         );
         
-        logger.info(`processDocumentImages: uploadAssetOnDemand returned: ${assetId || 'null'} for ${field} = "${imagePath}"`);
-        
         if (assetId) {
           processedData[field] = assetId;
-          logger.info(`processDocumentImages: Successfully mapped ${field}: ${imagePath} -> ${assetId}`);
         } else {
           // Remove the field if asset upload failed
           delete processedData[field];
-          logger.warn(`processDocumentImages: Removed ${field} field due to failed asset upload: ${imagePath}`);
+          logger.warn(`Failed to upload asset: ${imagePath}`);
         }
-      } else if (processedData[field]) {
-        logger.debug(`processDocumentImages: Skipping ${field} - not a string (type: ${typeof processedData[field]})`);
       }
     }
 
-    const resultImageFields = imageFields.filter(field => processedData[field]).map(field => `${field}=${processedData[field]}`);
-    logger.info(`processDocumentImages: Final result for "${docData.name || 'Unknown'}": [${resultImageFields.join(', ')}]`);
+    // Images processed (detailed logging removed for cleaner output)
 
     return { processedData, entryImageId };
   }
 
   // Removed unused createCompendiumWithContent method
 
-  private determineContentType(filePath: string, data: { type?: string; documentType?: string; [key: string]: unknown }): { type: 'actor' | 'item' | 'vtt-document'; subtype: string } {
-    // Check data structure first - more reliable than file path
-    if ('documentType' in data && data.documentType) {
-      return { type: 'vtt-document', subtype: data.documentType as string };
-    }
-    
-    // Try to determine from file path
-    const pathParts = filePath.split('/');
-    if (pathParts.length > 1) {
-      const directory = pathParts[0];
-      if (directory === 'actors') return { type: 'actor', subtype: data.type || 'character' };
-      if (directory === 'items') return { type: 'item', subtype: data.type || 'equipment' };
-      if (directory === 'documents' || ['spells', 'classes', 'backgrounds', 'races', 'feats'].includes(directory)) {
-        return { type: 'vtt-document', subtype: data.documentType as string || directory.slice(0, -1) };
-      }
-    }
-
-    // Fall back to data inspection
-    if (data.type) {
-      if (['character', 'npc', 'vehicle'].includes(data.type)) {
-        return { type: 'actor', subtype: data.type };
-      }
-      if (['weapon', 'armor', 'equipment', 'consumable', 'tool', 'loot'].includes(data.type)) {
-        return { type: 'item', subtype: data.type };
-      }
-      if (['spell', 'class', 'background', 'race', 'feat'].includes(data.type)) {
-        return { type: 'vtt-document', subtype: data.type };
-      }
-    }
-
-    // Default fallback
-    return { type: 'item', subtype: 'equipment' };
-  }
+  // REMOVED: determineContentType method - no longer needed!
+  // Content type is now taken directly from entry.type in the upload format
 
   private validateContent(plugin: ValidationPlugin, type: string, subtype: string, data: unknown): { success: boolean; data?: unknown; error?: Error } {
     switch (type) {

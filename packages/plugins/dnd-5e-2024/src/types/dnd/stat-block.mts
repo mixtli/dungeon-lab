@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { monsterSpellcastingSchema, abilitySchema, skillSchema, damageTypeSchema, creatureSizeSchema, CREATURE_TYPES } from './common.mjs';
+import { monsterSpellcastingSchema, abilitySchema, skillSchema, damageTypeSchema, creatureSizeSchema } from './common.mjs';
 
 /**
  * D&D 5e 2024 Stat Block Runtime Types
@@ -10,7 +10,7 @@ import { monsterSpellcastingSchema, abilitySchema, skillSchema, damageTypeSchema
  */
 
 // Import creature types from common.mjs for consistency
-const creatureTypeSchema = z.enum(CREATURE_TYPES);
+// Note: CREATURE_TYPES is available from common.mjs if needed
 
 // Senses structure for 2024
 export const sensesSchema = z.object({

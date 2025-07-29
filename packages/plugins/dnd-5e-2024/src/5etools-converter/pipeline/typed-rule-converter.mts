@@ -9,6 +9,7 @@
  * - Comprehensive rule data extraction with mechanics, categories, and subsections
  */
 
+import { z } from 'zod';
 import { TypedConverter } from './typed-converter.mjs';
 import { 
   type RuleDocument,
@@ -16,7 +17,7 @@ import {
   type PluginDocumentType
 } from '../validation/typed-document-validators.mjs';
 import { processEntries } from '../text/markup-processor.mjs';
-import type { EtoolsVariantRule, EtoolsVariantRuleData, EtoolsRuleType } from '../../5etools-types/variantrules.mjs';
+import type { EtoolsVariantRuleData, EtoolsRuleType } from '../../5etools-types/variantrules.mjs';
 import { etoolsVariantRuleSchema } from '../../5etools-types/variantrules.mjs';
 import { 
   dndRuleDataSchema, 
@@ -52,19 +53,19 @@ export class TypedRuleConverter extends TypedConverter<
     return 'rule';
   }
 
-  protected extractDescription(input: EtoolsVariantRule): string {
+  protected extractDescription(input: z.infer<typeof etoolsVariantRuleSchema>): string {
     if (input.entries && input.entries.length > 0) {
       return processEntries(input.entries, this.options.textProcessing).text;
     }
     return `${input.name} is a game rule.`;
   }
 
-  protected extractAssetPath(input: EtoolsVariantRule): string | undefined {
+  protected extractAssetPath(_input: z.infer<typeof etoolsVariantRuleSchema>): string | undefined {
     // Rules typically don't have associated images
     return undefined;
   }
 
-  protected transformData(input: EtoolsVariantRule): DndRuleData {
+  protected transformData(input: z.infer<typeof etoolsVariantRuleSchema>): DndRuleData {
     const description = this.extractDescription(input);
     
     return {
@@ -192,7 +193,7 @@ export class TypedRuleConverter extends TypedConverter<
     }
   }
 
-  private parseRuleCategory(input: EtoolsVariantRule, description: string): DndRuleData['category'] {
+  private parseRuleCategory(input: z.infer<typeof etoolsVariantRuleSchema>, description: string): DndRuleData['category'] {
     const nameDesc = (input.name + ' ' + description).toLowerCase();
     
     if (nameDesc.includes('combat') || nameDesc.includes('attack') || nameDesc.includes('damage')) {
@@ -240,7 +241,7 @@ export class TypedRuleConverter extends TypedConverter<
     return 'definitions'; // Default for basic rule definitions
   }
 
-  private isBasicRule(input: EtoolsVariantRule): boolean {
+  private isBasicRule(input: z.infer<typeof etoolsVariantRuleSchema>): boolean {
     return !!(input.srd || input.basicRules || input.srd52 || input.basicRules2024);
   }
 
@@ -263,7 +264,7 @@ export class TypedRuleConverter extends TypedConverter<
     return subsections.length > 0 ? subsections : undefined;
   }
 
-  private extractRelatedRules(input: EtoolsVariantRule, description: string): DndRuleData['relatedRules'] {
+  private extractRelatedRules(input: z.infer<typeof etoolsVariantRuleSchema>, description: string): DndRuleData['relatedRules'] {
     const related: string[] = [];
     const desc = description.toLowerCase();
     
@@ -293,7 +294,7 @@ export class TypedRuleConverter extends TypedConverter<
     return related.length > 0 ? related : undefined;
   }
 
-  private extractPrerequisites(input: EtoolsVariantRule, description: string): DndRuleData['prerequisites'] {
+  private extractPrerequisites(input: z.infer<typeof etoolsVariantRuleSchema>, description: string): DndRuleData['prerequisites'] {
     const prerequisites: NonNullable<DndRuleData['prerequisites']> = {};
     const desc = description.toLowerCase();
     
@@ -326,7 +327,7 @@ export class TypedRuleConverter extends TypedConverter<
     return Object.keys(prerequisites).length > 0 ? prerequisites : undefined;
   }
 
-  private extractMechanics(input: EtoolsVariantRule, description: string): DndRuleData['mechanics'] {
+  private extractMechanics(input: z.infer<typeof etoolsVariantRuleSchema>, description: string): DndRuleData['mechanics'] {
     const mechanics: NonNullable<DndRuleData['mechanics']> = {};
     const desc = description.toLowerCase();
     
@@ -367,7 +368,7 @@ export class TypedRuleConverter extends TypedConverter<
     return Object.keys(mechanics).length > 0 ? mechanics : undefined;
   }
 
-  private extractExamples(input: EtoolsVariantRule, description: string): DndRuleData['examples'] {
+  private extractExamples(input: z.infer<typeof etoolsVariantRuleSchema>, description: string): DndRuleData['examples'] {
     // Look for example patterns in the description
     const examples: NonNullable<DndRuleData['examples']> = [];
     const desc = description;
@@ -395,7 +396,7 @@ export class TypedRuleConverter extends TypedConverter<
     return examples.length > 0 ? examples : undefined;
   }
 
-  private generateTags(input: EtoolsVariantRule, description: string): DndRuleData['tags'] {
+  private generateTags(input: z.infer<typeof etoolsVariantRuleSchema>, description: string): DndRuleData['tags'] {
     const tags: string[] = [];
     const nameDesc = (input.name + ' ' + description).toLowerCase();
     

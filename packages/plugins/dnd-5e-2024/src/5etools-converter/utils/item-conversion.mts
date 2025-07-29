@@ -8,11 +8,15 @@ import type {
   DndArmorData, 
   DndToolData, 
   DndGearData,
-  ItemTypeIdentifier,
-  DamageTypeIdentifier,
-  WeaponPropertyIdentifier,
-  WeaponMasteryIdentifier
+  ItemTypeIdentifier
 } from '../../types/dnd/item.mjs';
+import type { 
+  DamageType,
+  WeaponMasteryProperty
+} from '../../types/dnd/common.mjs';
+
+// Weapon properties and related types from the inline enums in item.mts
+type WeaponProperty = 'ammunition' | 'finesse' | 'heavy' | 'light' | 'loading' | 'range' | 'reach' | 'special' | 'thrown' | 'two-handed' | 'versatile';
 import type { EtoolsEntry } from '../../5etools-types/base.mjs';
 
 /**
@@ -58,7 +62,7 @@ export interface EtoolsItem {
 /**
  * Damage type mapping from 5etools codes to our enum values
  */
-const damageTypeMap: Record<string, DamageTypeIdentifier> = {
+const damageTypeMap: Record<string, DamageType> = {
   'S': 'slashing',
   'P': 'piercing', 
   'B': 'bludgeoning',
@@ -77,7 +81,7 @@ const damageTypeMap: Record<string, DamageTypeIdentifier> = {
 /**
  * Weapon property mapping from 5etools codes to our enum values
  */
-const weaponPropertyMap: Record<string, WeaponPropertyIdentifier> = {
+const weaponPropertyMap: Record<string, WeaponProperty> = {
   'A': 'ammunition',
   'F': 'finesse', 
   'H': 'heavy',
@@ -94,7 +98,7 @@ const weaponPropertyMap: Record<string, WeaponPropertyIdentifier> = {
 /**
  * Weapon mastery mapping from 5etools to our enum values
  */
-const weaponMasteryMap: Record<string, WeaponMasteryIdentifier> = {
+const weaponMasteryMap: Record<string, WeaponMasteryProperty> = {
   'Cleave': 'cleave',
   'Graze': 'graze', 
   'Nick': 'nick',
@@ -212,13 +216,8 @@ function convertBaseProperties(etoolsItem: EtoolsItem) {
   
   if (etoolsItem.reqAttune) {
     base.attunement = true;
-    if (typeof etoolsItem.reqAttune === 'string') {
-      base.attunementRequirements = etoolsItem.reqAttune;
-    }
-  }
-  
-  if (etoolsItem.charges) {
-    base.charges = etoolsItem.charges;
+    // Note: Attunement requirements are stored in description for now
+    // TODO: Consider adding attunementRequirements to schema if needed
   }
   
   return base;
@@ -241,7 +240,9 @@ function convertWeapon(etoolsItem: EtoolsItem): DndWeaponData {
       type: damageTypeMap[etoolsItem.dmgType || 'B'] || 'bludgeoning'
     },
     category: (etoolsItem.weaponCategory || 'simple') as 'simple' | 'martial',
-    type: isRanged ? 'ranged' : 'melee'
+    type: isRanged ? 'ranged' : 'melee',
+    magical: base.magical || false, // Ensure boolean
+    attunement: base.attunement || false // Ensure boolean
   };
   
   // Versatile damage
@@ -260,14 +261,14 @@ function convertWeapon(etoolsItem: EtoolsItem): DndWeaponData {
         if (typeof prop === 'string') {
           const cleanProp = prop.split('|')[0]; // Remove source suffix
           return weaponPropertyMap[cleanProp];
-        } else if (typeof prop === 'object' && prop && 'uid' in prop && typeof prop.uid === 'string') {
+        } else if (typeof prop === 'object' && prop && typeof (prop as { uid?: string }).uid === 'string') {
           // Handle object properties with uid field
-          const cleanProp = prop.uid.split('|')[0]; // Remove source suffix from uid
+          const cleanProp = (prop as { uid: string }).uid.split('|')[0]; // Remove source suffix from uid
           return weaponPropertyMap[cleanProp];
         }
         return undefined;
       })
-      .filter(Boolean);
+      .filter((prop): prop is WeaponProperty => prop !== undefined);
   }
   
   // Weapon mastery (2024) - single value, not array
@@ -314,7 +315,10 @@ function convertArmor(etoolsItem: EtoolsItem): DndArmorData {
     description: base.description || 'No description available.', // Ensure required field
     itemType: 'armor',
     armorClass: etoolsItem.ac || 10,
-    type: armorType // Schema expects 'type' not 'armorType'
+    type: armorType, // Schema expects 'type' not 'armorType'
+    stealthDisadvantage: etoolsItem.stealth || false, // Default to false
+    magical: base.magical || false, // Ensure boolean
+    attunement: base.attunement || false // Ensure boolean
   };
   
   if (etoolsItem.strength) {
@@ -341,6 +345,7 @@ function convertShield(etoolsItem: EtoolsItem): DndArmorData {
     itemType: 'armor',
     type: 'shield',
     armorClass: etoolsItem.ac || 2, // Shield provides AC bonus (usually +2)
+    stealthDisadvantage: false, // Shields don't impose stealth disadvantage
     magical: base.magical || false,
     attunement: base.attunement || false
   } as DndArmorData;
@@ -400,7 +405,9 @@ function convertGear(etoolsItem: EtoolsItem): DndGearData {
     name: base.name || 'Unknown Item', // Ensure required field
     description: base.description || 'No description available.', // Ensure required field
     itemType: 'gear',
-    gearCategory
+    category: gearCategory === 'utility' ? 'other' : gearCategory, // Map utility to other
+    magical: base.magical || false, // Ensure boolean
+    attunement: base.attunement || false // Ensure boolean
   } as DndGearData;
 }
 

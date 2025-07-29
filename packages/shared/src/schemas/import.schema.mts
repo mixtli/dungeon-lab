@@ -7,7 +7,7 @@ export const compendiumManifestSchema = z.object({
   pluginId: z.string(),
   authors: z.array(z.string()).optional(),
   license: z.string().optional(),
-  contentTypes: z.array(z.enum(['actors', 'items', 'spells', 'classes', 'backgrounds', 'species', 'feats', 'equipment', 'monsters', 'rules'])),
+  contentTypes: z.array(z.string()),
   assetDirectory: z.string().default('assets'),
   contentDirectory: z.string().default('content')
 });

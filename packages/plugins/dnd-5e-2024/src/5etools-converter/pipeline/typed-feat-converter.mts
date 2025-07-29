@@ -19,7 +19,10 @@ import {
 } from '../validation/typed-document-validators.mjs';
 import type { GeneralFeat, EpicBoonFeat } from '../../types/dnd/feat.mjs';
 import { processEntries } from '../text/markup-processor.mjs';
-import type { EtoolsFeat, EtoolsFeatData } from '../../5etools-types/feats.mjs';
+import type { 
+  EtoolsFeat, 
+  EtoolsFeatData
+} from '../../5etools-types/feats.mjs';
 import type { EtoolsEntry } from '../../5etools-types/base.mjs';
 import { dndFeatDataSchema, type DndFeatData } from '../../types/dnd/feat.mjs';
 import { extractEtoolsArray, safeEtoolsCast } from '../../5etools-types/type-utils.mjs';
@@ -59,11 +62,11 @@ const etoolsFeatSchema = z.object({
   ])).optional(),
   
   // Standard fields
-  entries: z.array(z.any()).optional(),
-  additionalSpells: z.array(z.any()).optional(),
-  skillProficiencies: z.array(z.any()).optional(),
-  languageProficiencies: z.array(z.any()).optional(),
-  toolProficiencies: z.array(z.any()).optional(),
+  entries: z.array(z.unknown()).optional(), // EtoolsEntry has complex structure
+  additionalSpells: z.array(z.unknown()).optional(), // Complex spell reference structure
+  skillProficiencies: z.array(z.unknown()).optional(), // Complex proficiency structure
+  languageProficiencies: z.array(z.unknown()).optional(), // Complex proficiency structure
+  toolProficiencies: z.array(z.unknown()).optional(), // Complex proficiency structure
   
   // 5etools specific fields
   category: z.string().optional(), // "G", "F", "O", "E"
@@ -125,19 +128,19 @@ export class TypedFeatConverter extends TypedConverter<
     return 'feat';
   }
 
-  protected extractDescription(input: EtoolsFeat): string {
+  protected extractDescription(input: z.infer<typeof etoolsFeatSchema>): string {
     // Check for fluff description first, then fall back to feat entries
     const fluff = this.fluffMap.get(input.name);
     if (fluff?.entries) {
       return processEntries(fluff.entries, this.options.textProcessing).text;
     }
     if (input.entries) {
-      return processEntries(input.entries, this.options.textProcessing).text;
+      return processEntries(input.entries as EtoolsEntry[], this.options.textProcessing).text;
     }
     return `Feat: ${input.name}`;
   }
 
-  protected extractAssetPath(input: EtoolsFeat): string | undefined {
+  protected extractAssetPath(input: z.infer<typeof etoolsFeatSchema>): string | undefined {
     if (!this.options.includeAssets) {
       return undefined;
     }
@@ -150,7 +153,7 @@ export class TypedFeatConverter extends TypedConverter<
     return undefined;
   }
 
-  protected transformData(input: EtoolsFeat): DndFeatData {
+  protected transformData(input: z.infer<typeof etoolsFeatSchema>): DndFeatData {
     const description = this.extractDescription(input);
     const category = this.determineFeatCategory(input);
     
@@ -307,7 +310,7 @@ export class TypedFeatConverter extends TypedConverter<
    * Private helper methods for feat-specific parsing
    */
 
-  private determineFeatCategory(input: EtoolsFeat): 'origin' | 'general' | 'fighting_style' | 'epic_boon' {
+  private determineFeatCategory(input: z.infer<typeof etoolsFeatSchema>): 'origin' | 'general' | 'fighting_style' | 'epic_boon' {
     // Use 5etools category field if available (most reliable)
     if ('category' in input && typeof input.category === 'string') {
       switch (input.category) {
@@ -348,7 +351,7 @@ export class TypedFeatConverter extends TypedConverter<
     return fightingStyleFeats.some(style => name.includes(style));
   }
 
-  private isOriginFeat(input: EtoolsFeat): boolean {
+  private isOriginFeat(input: z.infer<typeof etoolsFeatSchema>): boolean {
     // Origin feats typically have no prerequisites and no ability score improvements
     // or are explicitly mentioned as origin feats in newer sources
     const name = input.name.toLowerCase();
@@ -369,30 +372,29 @@ export class TypedFeatConverter extends TypedConverter<
     return false;
   }
 
-  private inferGrantingBackground(featName: string): string {
+  private inferGrantingBackground(_featName: string): string {
     // Try to infer which background grants this origin feat
     // This would need more sophisticated mapping for a real implementation
     return 'Various Backgrounds';
   }
 
-  private parseGeneralPrerequisites(prerequisites?: any[]): GeneralFeat['prerequisites'] {
-    if (!prerequisites || prerequisites.length === 0) {
+  private parseGeneralPrerequisites(prerequisite?: z.infer<typeof etoolsFeatSchema>['prerequisite']): GeneralFeat['prerequisites'] {
+    if (!prerequisite) {
       return {
         level: 4 // Default minimum level for general feats
       };
     }
     
-    const prereq = prerequisites[0];
     const result: GeneralFeat['prerequisites'] = {
-      level: prereq.level || 4
+      level: prerequisite[0]?.level || 4
     };
     
     // Handle ability prerequisites - can be object or array format
-    if (prereq.ability) {
-      if (Array.isArray(prereq.ability)) {
+    if (prerequisite[0]?.ability) {
+      if (Array.isArray(prerequisite[0].ability)) {
         // Convert array format [{"str": 13}] to object format with expanded names
         const abilityObj: Record<string, number> = {};
-        for (const abilityEntry of prereq.ability) {
+        for (const abilityEntry of prerequisite[0].ability) {
           for (const [abbr, value] of Object.entries(abilityEntry)) {
             const fullName = this.expandAbilityAbbreviation(abbr);
             abilityObj[fullName] = value as number;
@@ -402,7 +404,7 @@ export class TypedFeatConverter extends TypedConverter<
       } else {
         // Handle object format and expand abbreviations
         const expandedAbilities: Record<string, number> = {};
-        for (const [abbr, value] of Object.entries(prereq.ability)) {
+        for (const [abbr, value] of Object.entries(prerequisite[0].ability)) {
           const fullName = this.expandAbilityAbbreviation(abbr);
           expandedAbilities[fullName] = value as number;
         }
@@ -410,18 +412,18 @@ export class TypedFeatConverter extends TypedConverter<
       }
     }
     
-    if (prereq.proficiency) {
-      result.proficiency = prereq.proficiency;
+    if (prerequisite[0]?.proficiency) {
+      result.proficiency = prerequisite[0].proficiency;
     }
     
-    if (prereq.other) {
-      result.other = prereq.other;
+    if (prerequisite[0]?.other) {
+      result.other = prerequisite[0].other;
     }
     
     return result;
   }
 
-  private parseAbilityScoreImprovement(abilities?: any[]): GeneralFeat['abilityScoreImprovement'] {
+  private parseAbilityScoreImprovement(abilities?: z.infer<typeof etoolsFeatSchema>['ability']): GeneralFeat['abilityScoreImprovement'] {
     if (!abilities || abilities.length === 0) {
       // Default general feat ASI - player can choose any ability
       return {
@@ -435,11 +437,11 @@ export class TypedFeatConverter extends TypedConverter<
     let choices: Ability[] = [];
     
     // Handle complex choose structure
-    if (abilityObj.choose && abilityObj.choose.from) {
+    if ('choose' in abilityObj && abilityObj.choose && typeof abilityObj.choose === 'object' && 'from' in abilityObj.choose) {
       choices = abilityObj.choose.from.map((abbr: string) => this.expandAbilityAbbreviation(abbr));
     } else {
       // Handle simple object format
-      choices = Object.keys(abilityObj).map(abbr => this.expandAbilityAbbreviation(abbr));
+      choices = Object.keys(abilityObj as Record<string, unknown>).map(abbr => this.expandAbilityAbbreviation(abbr));
     }
     
     return {
@@ -448,7 +450,7 @@ export class TypedFeatConverter extends TypedConverter<
     };
   }
 
-  private parseEpicBoonAbilityImprovement(abilities?: any[]): EpicBoonFeat['abilityScoreImprovement'] {
+  private parseEpicBoonAbilityImprovement(abilities?: z.infer<typeof etoolsFeatSchema>['ability']): EpicBoonFeat['abilityScoreImprovement'] {
     if (!abilities || abilities.length === 0) {
       return undefined;
     }
@@ -458,13 +460,14 @@ export class TypedFeatConverter extends TypedConverter<
     let value = 2; // Default for epic boons
     
     // Handle complex choose structure
-    if (abilityObj.choose && abilityObj.choose.from) {
+    if ('choose' in abilityObj && abilityObj.choose && typeof abilityObj.choose === 'object' && 'from' in abilityObj.choose) {
       choices = abilityObj.choose.from.map((abbr: string) => this.expandAbilityAbbreviation(abbr));
-      value = abilityObj.choose.amount || abilityObj.choose.count || 2;
+      value = ('amount' in abilityObj.choose ? abilityObj.choose.amount : undefined) || 
+              ('count' in abilityObj.choose ? abilityObj.choose.count : undefined) || 2;
     } else {
       // Handle simple object format
-      choices = Object.keys(abilityObj).map(abbr => this.expandAbilityAbbreviation(abbr));
-      const values = Object.values(abilityObj) as number[];
+      choices = Object.keys(abilityObj as Record<string, unknown>).map(abbr => this.expandAbilityAbbreviation(abbr));
+      const values = Object.values(abilityObj as Record<string, number>);
       value = Math.max(...values);
     }
     
@@ -475,7 +478,7 @@ export class TypedFeatConverter extends TypedConverter<
     };
   }
 
-  private isRepeatable(input: EtoolsFeat): boolean {
+  private isRepeatable(input: z.infer<typeof etoolsFeatSchema>): boolean {
     // Check 5etools repeatable field first
     if ('repeatable' in input && typeof input.repeatable === 'boolean') {
       return input.repeatable;

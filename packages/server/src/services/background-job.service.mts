@@ -24,7 +24,8 @@ class BackgroundJobService {
       },
       defaultConcurrency: 5,
       maxConcurrency: 20,
-      defaultLockLifetime: 10 * 60 * 1000, // 10 minutes
+      defaultLockLifetime: 30 * 60 * 1000, // 30 minutes (increased from 10 for long-running imports)
+      processEvery: '10 seconds', // Check for jobs every 10 seconds
     });
 
     // Set up event listeners
@@ -35,7 +36,9 @@ class BackgroundJobService {
     this.pulse.on('success', (job) => {
       logger.info(`Background job completed successfully: ${job.attrs.name}`, { 
         jobId: job.attrs.id,
-        duration: job.attrs.lastRunAt ? new Date().getTime() - job.attrs.lastRunAt.getTime() : undefined
+        duration: job.attrs.lastRunAt ? new Date().getTime() - job.attrs.lastRunAt.getTime() : undefined,
+        failCount: job.attrs.failCount,
+        runCount: job.attrs.runCount
       });
     });
 
@@ -43,8 +46,21 @@ class BackgroundJobService {
       logger.error(`Background job failed: ${job.attrs.name}`, {
         jobId: job.attrs.id,
         error: error.message,
-        stack: error.stack
+        stack: error.stack,
+        failCount: job.attrs.failCount,
+        runCount: job.attrs.runCount
       });
+      
+      // Special logging for "aborted" errors
+      if (error.message === 'aborted') {
+        logger.error(`PULSECRON ABORTED ERROR DETECTED for job ${job.attrs.id}:`, {
+          jobName: job.attrs.name,
+          jobData: job.attrs.data,
+          lastRunAt: job.attrs.lastRunAt,
+          lockedAt: job.attrs.lockedAt,
+          fullError: error
+        });
+      }
     });
   }
 

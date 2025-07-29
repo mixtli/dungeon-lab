@@ -15,7 +15,7 @@ async function testMinimalImport() {
     console.log('Testing minimal pack import...');
     
     // Read the minimal test pack
-    const zipBuffer = readFileSync('./packages/plugins/dnd-5e-2024/minimal-test-pack.zip');
+    const zipBuffer = readFileSync('./minimal-test-pack-correct.zip');
     console.log(`ZIP size: ${(zipBuffer.length / 1024 / 1024).toFixed(2)} MB`);
 
     // Upload compendium pack - send raw ZIP data

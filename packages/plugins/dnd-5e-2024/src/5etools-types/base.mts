@@ -13,6 +13,7 @@ export interface EtoolsSource {
 
 /**
  * Entry types that can appear in 5etools entries arrays
+ * Based on 2024 XPHB data patterns
  */
 export type EtoolsEntry = 
   | string
@@ -20,7 +21,8 @@ export type EtoolsEntry =
   | EtoolsEntryList
   | EtoolsEntryQuote
   | EtoolsEntryInlineEntries
-  | EtoolsEntryEntries;
+  | EtoolsEntryEntries
+  | EtoolsEntryItem;
 
 export interface EtoolsEntryTable {
   type: 'table';
@@ -54,6 +56,12 @@ export interface EtoolsEntryEntries {
   entries: EtoolsEntry[];
 }
 
+export interface EtoolsEntryItem {
+  type: 'item';
+  name: string;
+  entries: EtoolsEntry[];
+}
+
 /**
  * Distance specification used in ranges, movement speeds, etc.
  */
@@ -64,18 +72,20 @@ export interface EtoolsDistance {
 
 /**
  * Time specification used in casting times, durations, etc.
+ * Enhanced for 2024 data patterns
  */
 export interface EtoolsTime {
   number: number;
-  unit: 'action' | 'bonus' | 'reaction' | 'minute' | 'hour' | 'day' | 'round';
+  unit: 'action' | 'bonus' | 'reaction' | 'minute' | 'hour' | 'day' | 'round' | 'turn';
   condition?: string;
 }
 
 /**
  * Duration specification for spells and effects
+ * Enhanced for 2024 data patterns
  */
 export interface EtoolsDuration {
-  type: 'instant' | 'timed' | 'permanent';
+  type: 'instant' | 'timed' | 'permanent' | 'special';
   duration?: {
     type: 'minute' | 'hour' | 'day' | 'round' | 'turn';
     amount: number;

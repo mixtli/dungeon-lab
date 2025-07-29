@@ -6,13 +6,12 @@ import { baseMongooseZodSchema } from '../../../models/base.model.schema.mjs';
 import { createMongoSchema } from '../../../models/zod-to-mongo.mjs';
 import { zId } from '@zodyac/zod-mongoose';
 
-// Create a modified schema without the discriminated union field
+// Create a modified schema for Mongoose  
 const compendiumEntrySchemaForMongoose = compendiumEntrySchema
-  .omit({ embeddedContent: true }) // Remove the discriminated union field
   .merge(baseMongooseZodSchema)
   .extend({
     compendiumId: zId('Compendium'),
-    imageId: zId('Asset').optional() // Reference to Asset model for entry-level image
+    // Note: entry.imageId is handled within the entry object, no top-level imageId override needed
   });
 
 /**
@@ -21,23 +20,24 @@ const compendiumEntrySchemaForMongoose = compendiumEntrySchema
 const mongooseSchema = createMongoSchema<ICompendiumEntry>(compendiumEntrySchemaForMongoose);
 
 // Override complex fields to use Mixed type for flexibility
-mongooseSchema.path('embeddedContent', mongoose.Schema.Types.Mixed);
+mongooseSchema.path('entry', mongoose.Schema.Types.Mixed); // Entry metadata
+mongooseSchema.path('content', mongoose.Schema.Types.Mixed); // Document content  
 mongooseSchema.path('sourceData', mongoose.Schema.Types.Mixed);
 mongooseSchema.path('userData', mongoose.Schema.Types.Mixed);
 
-// Add indexes for performance with embedded content
-mongooseSchema.index({ compendiumId: 1, sortOrder: 1 });
-mongooseSchema.index({ compendiumId: 1, 'embeddedContent.type': 1 });
+// Add indexes for performance with new entry+content structure
+mongooseSchema.index({ compendiumId: 1, 'entry.sortOrder': 1 });
+mongooseSchema.index({ compendiumId: 1, 'entry.type': 1 });
 mongooseSchema.index({ compendiumId: 1, isActive: 1 });
-mongooseSchema.index({ compendiumId: 1, category: 1 });
-mongooseSchema.index({ tags: 1 });
-mongooseSchema.index({ category: 1 });
-mongooseSchema.index({ name: 'text' }); // Text search
+mongooseSchema.index({ compendiumId: 1, 'entry.category': 1 });
+mongooseSchema.index({ 'entry.tags': 1 });
+mongooseSchema.index({ 'entry.category': 1 });
+mongooseSchema.index({ 'entry.name': 'text' }); // Text search
 mongooseSchema.index({ contentHash: 1 }); // For version tracking
 mongooseSchema.index({ contentVersion: 1 });
 
-// Unique constraint on compendium + name combination (since we don't have contentId anymore)
-mongooseSchema.index({ compendiumId: 1, name: 1 }, { unique: true });
+// Unique constraint on compendium + name combination
+mongooseSchema.index({ compendiumId: 1, 'entry.name': 1 }, { unique: true });
 
 // Add virtual for compendium
 mongooseSchema.virtual('compendium', {
@@ -50,7 +50,7 @@ mongooseSchema.virtual('compendium', {
 // Add virtual for image asset
 mongooseSchema.virtual('image', {
   ref: 'Asset',
-  localField: 'imageId',
+  localField: 'entry.imageId',
   foreignField: '_id',
   justOne: true
 });
@@ -63,7 +63,7 @@ interface ITemplateData {
 // Instance methods
 mongooseSchema.methods.generateContentHash = function(): string {
   return createHash('sha256')
-    .update(JSON.stringify(this.embeddedContent.data))
+    .update(JSON.stringify(this.content))
     .digest('hex')
     .substring(0, 16);
 };
@@ -76,13 +76,13 @@ mongooseSchema.methods.updateContentVersion = function(): string {
 
 mongooseSchema.methods.getTemplate = function(): ITemplateData {
   // Return deep clone to prevent mutation
-  return JSON.parse(JSON.stringify(this.embeddedContent.data));
+  return JSON.parse(JSON.stringify(this.content));
 };
 
-// Pre-save middleware to ensure content hash is up to date
+// Pre-save middleware to ensure content hash is up to date and handle asset ID conversions
 mongooseSchema.pre('save', function(next) {
-  // Always generate contentHash for new documents or when embeddedContent is modified
-  if (this.isNew || this.isModified('embeddedContent')) {
+  // Always generate contentHash for new documents or when content is modified
+  if (this.isNew || this.isModified('content')) {
     this.contentHash = (this as unknown as { generateContentHash(): string }).generateContentHash();
     if (this.isNew) {
       this.contentVersion = '1.0.0';
@@ -90,6 +90,31 @@ mongooseSchema.pre('save', function(next) {
       (this as unknown as { updateContentVersion(): string }).updateContentVersion();
     }
   }
+  
+  // Convert entry.imageId from string to ObjectId if needed
+  if ((this as any).entry?.imageId && typeof (this as any).entry.imageId === 'string') {
+    try {
+      (this as any).entry.imageId = new mongoose.Types.ObjectId((this as any).entry.imageId);
+    } catch (error) {
+      // If conversion fails, keep as string (might be a file path during import)
+      // The import service will handle this case
+    }
+  }
+  
+  // Convert content-level asset IDs from string to ObjectId if needed
+  if ((this as any).content) {
+    const assetFields = ['imageId', 'avatarId', 'defaultTokenImageId'];
+    for (const field of assetFields) {
+      if ((this as any).content[field] && typeof (this as any).content[field] === 'string') {
+        try {
+          (this as any).content[field] = new mongoose.Types.ObjectId((this as any).content[field]);
+        } catch (error) {
+          // If conversion fails, keep as string
+        }
+      }
+    }
+  }
+  
   next();
 });
 
@@ -97,11 +122,11 @@ mongooseSchema.pre('save', function(next) {
 mongooseSchema.post('save', async function(doc) {
   const CompendiumModel = mongoose.model('Compendium');
   
-  // Update compendium statistics based on embedded content types
+  // Update compendium statistics based on entry types
   const pipeline = [
     { $match: { compendiumId: doc.compendiumId } },
     { $group: {
-      _id: '$embeddedContent.type',
+      _id: '$entry.type',
       count: { $sum: 1 }
     }}
   ];
@@ -130,7 +155,7 @@ mongooseSchema.post('findOneAndDelete', async function(doc) {
     const pipeline = [
       { $match: { compendiumId: doc.compendiumId } },
       { $group: {
-        _id: '$embeddedContent.type',
+        _id: '$entry.type',
         count: { $sum: 1 }
       }}
     ];

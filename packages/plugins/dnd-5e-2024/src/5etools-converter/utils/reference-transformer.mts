@@ -7,7 +7,7 @@ import { documentTypeSchema } from '@dungeon-lab/shared/schemas/index.mjs';
 import { ParsedReference, TextReferenceMatch, scanTextForReferences } from './reference-parser.mjs';
 import type { EtoolsEntry } from '../../5etools-types/base.mjs';
 import type { EtoolsMonsterSpellcasting } from '../../5etools-types/monsters.mjs';
-import type { SpellcastingType } from '../../types/dnd/index.mjs';
+import type { MonsterSpellcasting } from '../../types/dnd/common.mjs';
 import type { z } from 'zod';
 
 /**
@@ -156,27 +156,24 @@ export function transformGearArray(gear: string[]): ReferenceObject[] {
 /**
  * Transforms 5etools spellcasting data to match the user's spellcastingSchema
  */
-export function transformSpellcastingToSchema(spellcasting: EtoolsMonsterSpellcasting[]): SpellcastingType | undefined {
+export function transformSpellcastingToSchema(spellcasting: EtoolsMonsterSpellcasting[]): MonsterSpellcasting | undefined {
   if (!spellcasting || spellcasting.length === 0) {
     return undefined;
   }
 
   const sc = spellcasting[0]; // Take first spellcasting entry
   
-  // Convert ability code to full name
-  const abilityMap: Record<string, string> = {
-    'str': 'strength',
-    'dex': 'dexterity', 
-    'con': 'constitution',
-    'int': 'intelligence',
-    'wis': 'wisdom',
-    'cha': 'charisma'
+  // Map ability to the expected short form for MonsterSpellcasting schema
+  const abilityMap: Record<string, 'int' | 'wis' | 'cha'> = {
+    'str': 'int', // fallback
+    'dex': 'int', // fallback
+    'con': 'int', // fallback
+    'int': 'int',
+    'wis': 'wis',
+    'cha': 'cha'
   };
   
-  const mappedAbility = sc.ability ? (abilityMap[sc.ability] || 'intelligence') : 'intelligence';
-  const ability = (['intelligence', 'wisdom', 'charisma'].includes(mappedAbility) 
-    ? mappedAbility 
-    : 'intelligence') as 'intelligence' | 'wisdom' | 'charisma';
+  const ability = sc.ability ? (abilityMap[sc.ability] || 'int') : 'int';
   
   // Parse spell save DC and attack bonus from header entries
   let spellSaveDC = 10;
@@ -251,12 +248,41 @@ export function transformSpellcastingToSchema(spellcasting: EtoolsMonsterSpellca
     }
   }
   
+  // Extract spell lists for the MonsterSpellcasting schema format
+  const atWillSpells: string[] = [];
+  const dailySpells: Record<string, string[]> = {};
+  
+  // At-will/will spells
+  if (sc.will) {
+    for (const spell of sc.will) {
+      if (typeof spell === 'string') {
+        atWillSpells.push(spell);
+      } else if (spell && typeof spell === 'object' && 'name' in spell) {
+        atWillSpells.push((spell as { name: string }).name);
+      }
+    }
+  }
+  
+  // Daily spells
+  if (sc.daily) {
+    for (const [key, spells] of Object.entries(sc.daily)) {
+      if (Array.isArray(spells)) {
+        dailySpells[key] = spells.map(spell => 
+          typeof spell === 'string' ? spell : (spell as { name?: string }).name || 'Unknown Spell'
+        );
+      }
+    }
+  }
+  
   return {
     ability,
     spellSaveDC,
-    spellAttackBonus, 
-    spellSlots,
-    spells: allSpells
+    spellAttackBonus,
+    spells: {
+      atWill: atWillSpells.length > 0 ? atWillSpells : undefined,
+      daily: Object.keys(dailySpells).length > 0 ? dailySpells : undefined,
+      recharge: undefined // 5etools doesn't typically have recharge spells in the same format
+    }
   };
 }
 

@@ -9,6 +9,7 @@
  * - Comprehensive sense data extraction with mechanics, limitations, and game impact
  */
 
+import { z } from 'zod';
 import { TypedConverter } from './typed-converter.mjs';
 import { 
   type SenseDocument,
@@ -16,13 +17,13 @@ import {
   type PluginDocumentType
 } from '../validation/typed-document-validators.mjs';
 import { processEntries } from '../text/markup-processor.mjs';
-import type { EtoolsSense, EtoolsSenseData } from '../../5etools-types/senses.mjs';
+import type { EtoolsSenseData } from '../../5etools-types/senses.mjs';
 import { etoolsSenseSchema } from '../../5etools-types/senses.mjs';
 import { 
   dndSenseDataSchema, 
   type DndSenseData
 } from '../../types/dnd/sense.mjs';
-import { extractEtoolsArray, safeEtoolsCast } from '../../5etools-types/type-utils.mjs';
+import { safeEtoolsCast } from '../../5etools-types/type-utils.mjs';
 
 // SenseDocument type is now imported from the validators file
 
@@ -51,19 +52,19 @@ export class TypedSenseConverter extends TypedConverter<
     return 'sense';
   }
 
-  protected extractDescription(input: EtoolsSense): string {
+  protected extractDescription(input: z.infer<typeof etoolsSenseSchema>): string {
     if (input.entries && input.entries.length > 0) {
       return processEntries(input.entries, this.options.textProcessing).text;
     }
     return `${input.name} is a special sense.`;
   }
 
-  protected extractAssetPath(input: EtoolsSense): string | undefined {
+  protected extractAssetPath(_input: z.infer<typeof etoolsSenseSchema>): string | undefined {
     // Senses typically don't have associated images
     return undefined;
   }
 
-  protected transformData(input: EtoolsSense): DndSenseData {
+  protected transformData(input: z.infer<typeof etoolsSenseSchema>): DndSenseData {
     const description = this.extractDescription(input);
     
     return {
@@ -175,7 +176,7 @@ export class TypedSenseConverter extends TypedConverter<
 
   // Helper methods for extracting sense-specific data
 
-  private extractMechanics(input: EtoolsSense, description: string): DndSenseData['mechanics'] {
+  private extractMechanics(input: z.infer<typeof etoolsSenseSchema>, description: string): DndSenseData['mechanics'] {
     const mechanics: DndSenseData['mechanics'] = {};
     const name = input.name.toLowerCase();
     const desc = description.toLowerCase();
@@ -225,7 +226,7 @@ export class TypedSenseConverter extends TypedConverter<
     return Object.keys(mechanics).length > 0 ? mechanics : undefined;
   }
 
-  private extractLimitations(input: EtoolsSense, description: string): DndSenseData['limitations'] {
+  private extractLimitations(input: z.infer<typeof etoolsSenseSchema>, description: string): DndSenseData['limitations'] {
     const limitations: DndSenseData['limitations'] = {};
     const desc = description.toLowerCase();
     
@@ -253,9 +254,9 @@ export class TypedSenseConverter extends TypedConverter<
     return Object.keys(limitations).length > 0 ? limitations : undefined;
   }
 
-  private extractTypicalCreatures(input: EtoolsSense, description: string): string[] | undefined {
+  private extractTypicalCreatures(input: z.infer<typeof etoolsSenseSchema>, _description: string): string[] | undefined {
     const creatures: string[] = [];
-    const desc = description.toLowerCase();
+    // const _desc = description.toLowerCase(); // Potentially useful for future implementation
     const name = input.name.toLowerCase();
     
     // Common creature associations
@@ -275,7 +276,7 @@ export class TypedSenseConverter extends TypedConverter<
     return creatures.length > 0 ? creatures : undefined;
   }
 
-  private extractAcquisition(input: EtoolsSense, description: string): DndSenseData['acquisition'] {
+  private extractAcquisition(input: z.infer<typeof etoolsSenseSchema>, description: string): DndSenseData['acquisition'] {
     const acquisition: DndSenseData['acquisition'] = {};
     const desc = description.toLowerCase();
     
@@ -302,16 +303,16 @@ export class TypedSenseConverter extends TypedConverter<
     return Object.keys(acquisition).length > 0 ? acquisition : undefined;
   }
 
-  private extractVariants(input: EtoolsSense, description: string): DndSenseData['variants'] | undefined {
+  private extractVariants(_input: z.infer<typeof etoolsSenseSchema>, _description: string): DndSenseData['variants'] | undefined {
     // This would need more sophisticated parsing to extract variants
     // For now, return undefined - variants could be added manually or through fluff data
     return undefined;
   }
 
-  private extractGameImpact(input: EtoolsSense, description: string): DndSenseData['gameImpact'] {
+  private extractGameImpact(_input: z.infer<typeof etoolsSenseSchema>, _description: string): DndSenseData['gameImpact'] {
     const gameImpact: DndSenseData['gameImpact'] = {};
-    const desc = description.toLowerCase();
-    const name = input.name.toLowerCase();
+    // const _desc = description.toLowerCase(); // Potentially useful for future implementation
+    const name = _input.name.toLowerCase();
     
     // Stealth interaction
     if (name.includes('blindsight') || name.includes('truesight')) {
@@ -344,7 +345,7 @@ export class TypedSenseConverter extends TypedConverter<
     return Object.keys(gameImpact).length > 0 ? gameImpact : undefined;
   }
 
-  private extractRelatedSenses(input: EtoolsSense, description: string): string[] | undefined {
+  private extractRelatedSenses(input: z.infer<typeof etoolsSenseSchema>, _description: string): string[] | undefined {
     const related: string[] = [];
     const name = input.name.toLowerCase();
     

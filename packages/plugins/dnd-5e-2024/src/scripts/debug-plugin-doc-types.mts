@@ -11,8 +11,7 @@ async function debugPluginDocTypes() {
 
   try {
     const converter = new TypedItemConverter({
-      includeAssets: false,
-      verbose: false
+      includeAssets: false
     });
 
     const result = await converter.convertItems();

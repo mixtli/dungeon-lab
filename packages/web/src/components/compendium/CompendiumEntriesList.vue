@@ -157,32 +157,32 @@ interface ICompendiumEntryWithImage extends ICompendiumEntry {
 
 // Get content type icon and color
 function getContentTypeIcon(entry: ICompendiumEntryWithImage): string {
-  const contentType = entry.embeddedContent?.type || entry.contentType;
+  const contentType = entry.entry.type;
   switch (contentType) {
     case 'actor': return 'fas fa-users';
     case 'item': return 'fas fa-sword';
-    case 'vttdocument': return 'fas fa-scroll';
+    case 'vtt-document': return 'fas fa-scroll';
     default: return 'fas fa-file';
   }
 }
 
 function getContentTypeColor(entry: ICompendiumEntryWithImage): string {
-  const contentType = entry.embeddedContent?.type || entry.contentType;
+  const contentType = entry.entry.type;
   switch (contentType) {
     case 'actor': return 'text-blue-600';
     case 'item': return 'text-green-600';
-    case 'vttdocument': return 'text-purple-600';
+    case 'vtt-document': return 'text-purple-600';
     default: return 'text-gray-600';
   }
 }
 
 // Get display name for content type
 function getContentTypeDisplayName(entry: ICompendiumEntryWithImage): string {
-  const contentType = entry.embeddedContent?.type || entry.contentType;
+  const contentType = entry.entry.type;
   switch (contentType) {
     case 'actor': return 'Actor';
     case 'item': return 'Item';
-    case 'vttdocument': return 'Document';
+    case 'vtt-document': return 'Document';
     default: return 'Unknown';
   }
 }
@@ -236,17 +236,17 @@ function getEntryImage(entry: ICompendiumEntryWithImage): string | undefined {
     return entry.image.url;
   }
   
-  // Fallback to embedded content for legacy entries
-  if (!entry.embeddedContent) return undefined;
+  // Use content-level images based on content type
+  if (!entry.content) return undefined;
   
-  const content = entry.embeddedContent.data as {
+  const content = entry.content as {
     avatarId?: { url: string };
     defaultTokenImageId?: { url: string };
     imageId?: { url: string };
   };
   
   // For actors, prefer avatarId, fallback to defaultTokenImageId
-  if (entry.embeddedContent.type === 'actor') {
+  if (entry.entry.type === 'actor') {
     if (content.avatarId?.url) {
       return content.avatarId.url;
     }
@@ -256,7 +256,7 @@ function getEntryImage(entry: ICompendiumEntryWithImage): string | undefined {
   }
   
   // For items and documents, use imageId
-  if (entry.embeddedContent.type === 'item' || entry.embeddedContent.type === 'vttdocument') {
+  if (entry.entry.type === 'item' || entry.entry.type === 'vtt-document') {
     if (content.imageId?.url) {
       return content.imageId.url;
     }
@@ -320,7 +320,7 @@ function navigateToEntry(entry: ICompendiumEntry) {
             <option value="">All Types</option>
             <option value="actor">Actors</option>
             <option value="item">Items</option>
-            <option value="vttdocument">Documents</option>
+            <option value="vtt-document">Documents</option>
           </select>
         </div>
         <div>
@@ -406,7 +406,7 @@ function navigateToEntry(entry: ICompendiumEntry) {
                 <div v-if="getEntryImage(entry)" class="w-10 h-10 rounded-md overflow-hidden bg-gray-100 dark:bg-gray-700">
                   <img 
                     :src="getEntryImage(entry)" 
-                    :alt="entry.name"
+                    :alt="entry.entry.name"
                     class="w-full h-full object-cover"
                     @error="($event.target as HTMLElement).style.display = 'none'; (($event.target as HTMLElement).nextElementSibling as HTMLElement).style.display = 'flex'"
                   />
@@ -429,7 +429,7 @@ function navigateToEntry(entry: ICompendiumEntry) {
               <div class="flex-1 min-w-0">
                 <div class="flex items-center space-x-2 mb-1">
                   <p class="text-sm font-medium text-gray-900 dark:text-white truncate">
-                    {{ entry.name }}
+                    {{ entry.entry.name }}
                   </p>
                   <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
                     {{ getContentTypeDisplayName(entry) }}

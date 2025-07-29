@@ -162,7 +162,7 @@ export class CompendiumService {
 
       const query: Record<string, QueryValue> = { compendiumId: compendium._id };
       
-      if (filters?.contentType) query['embeddedContent.type'] = filters.contentType;
+      if (filters?.contentType) query['entry.type'] = filters.contentType;
       if (filters?.isActive !== undefined) query.isActive = filters.isActive;
       if (filters?.category) query.category = filters.category;
       if (filters?.search) {
@@ -170,7 +170,7 @@ export class CompendiumService {
       }
       
       const entries = await CompendiumEntryModel.find(query)
-        .sort({ sortOrder: 1, name: 1 })
+        .sort({ 'entry.sortOrder': 1, 'entry.name': 1 })
         .lean();
       
       // Manually populate asset fields for each entry based on content type
@@ -180,14 +180,14 @@ export class CompendiumService {
         const assetFieldMap: Record<string, string> = {};
         
         // Add entry-level imageId if present
-        if (entry.imageId) {
-          assetIds.push(entry.imageId.toString());
-          assetFieldMap[entry.imageId.toString()] = 'entry.image';
+        if (entry.entry.imageId) {
+          assetIds.push(entry.entry.imageId.toString());
+          assetFieldMap[entry.entry.imageId.toString()] = 'entry.image';
         }
         
         // Add content-level asset IDs if present
-        if (entry.embeddedContent && entry.embeddedContent.data) {
-          const content = entry.embeddedContent.data as IEmbeddedContentData;
+        if (entry.content) {
+          const content = entry.content as IEmbeddedContentData;
           
           if (content.avatarId) {
             assetIds.push(content.avatarId.toString());
@@ -219,8 +219,8 @@ export class CompendiumService {
               } else if (fieldPath.startsWith('content.')) {
                 // Replace content-level asset fields
                 const fieldName = fieldPath.replace('content.', '');
-                if (entry.embeddedContent && entry.embeddedContent.data) {
-                  (entry.embeddedContent.data as IEmbeddedContentData)[fieldName] = asset;
+                if (entry.content) {
+                  (entry.content as IEmbeddedContentData)[fieldName] = asset;
                 }
               }
             }
@@ -255,12 +255,12 @@ export class CompendiumService {
       // Populate entry-level and content-level image asset objects (like in getCompendiumEntries)
       const assetIds: string[] = [];
       const assetFieldMap: Record<string, string> = {};
-      if (entry.imageId) {
-        assetIds.push(entry.imageId.toString());
-        assetFieldMap[entry.imageId.toString()] = 'entry.image';
+      if (entry.entry.imageId) {
+        assetIds.push(entry.entry.imageId.toString());
+        assetFieldMap[entry.entry.imageId.toString()] = 'entry.image';
       }
-      if (entry.embeddedContent && entry.embeddedContent.data) {
-        const content = entry.embeddedContent.data as IEmbeddedContentData;
+      if (entry.content) {
+        const content = entry.content as IEmbeddedContentData;
         if (content.avatarId) {
           assetIds.push(content.avatarId.toString());
           assetFieldMap[content.avatarId.toString()] = 'content.avatarId';
@@ -282,8 +282,8 @@ export class CompendiumService {
             (entry as ICompendiumEntryWithAssets).image = asset;
           } else if (fieldPath && fieldPath.startsWith('content.')) {
             const fieldName = fieldPath.replace('content.', '');
-            if (entry.embeddedContent && entry.embeddedContent.data) {
-              (entry.embeddedContent.data as IEmbeddedContentData)[fieldName] = asset;
+            if (entry.content) {
+              (entry.content as IEmbeddedContentData)[fieldName] = asset;
             }
           }
         }
@@ -491,7 +491,7 @@ export class CompendiumService {
         
         CompendiumEntryModel.aggregate([
           { $match: { compendiumId: new Types.ObjectId(compendiumId), isActive: true } },
-          { $group: { _id: '$embeddedContent.type', count: { $sum: 1 } } }
+          { $group: { _id: '$entry.type', count: { $sum: 1 } } }
         ]),
         
         CompendiumEntryModel.aggregate([

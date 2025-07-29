@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { baseDocumentSchema, documentTypeSchema } from './document.schema.mjs';
+import { baseDocumentSchema } from './document.schema.mjs';
 import { assetSchema } from './asset.schema.mjs';
 // import { deepPartial } from '../utils/deepPartial.mjs';
 

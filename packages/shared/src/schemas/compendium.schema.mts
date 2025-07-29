@@ -73,9 +73,9 @@ export const compendiumSchema = baseSchema.extend({
   importedAt: z.string().optional(),
   importedBy: z.string().optional(),
   
-  // Content statistics (updated for embedded content types)
+  // Content statistics (based on entry.type)
   totalEntries: z.number().default(0),
-  entriesByType: z.record(embeddedContentTypeSchema, z.number()).default({}),
+  entriesByType: z.record(z.enum(['actor', 'item', 'vtt-document']), z.number()).default({}),
   
   // Tags for organization
   tags: z.array(z.string()).default([]),
@@ -84,24 +84,25 @@ export const compendiumSchema = baseSchema.extend({
   userData: z.record(z.string(), z.any()).optional()
 });
 
-// Compendium Entry schema with embedded content
+// Compendium Entry schema using wrapper format (entry + content)
 export const compendiumEntrySchema = baseSchema.extend({
   compendiumId: z.string(),
-  name: z.string().min(1).max(255),
   
-  // Entry metadata
-  sortOrder: z.number().default(0),
+  // Entry metadata (matches contentFileWrapperSchema.entry)
+  entry: z.object({
+    name: z.string().min(1).max(255),
+    type: z.enum(['actor', 'item', 'vtt-document']),
+    imageId: z.string().optional(), // Asset ID for entry-level image
+    category: z.string().optional(),
+    tags: z.array(z.string()).optional().default([]),
+    sortOrder: z.number().optional().default(0)
+  }),
+  
+  // Document content (validated against game system schemas)
+  content: z.any(), // Will be ActorSchema | ItemSchema | VTTDocumentSchema depending on entry.type
+  
+  // Entry-level flags
   isActive: z.boolean().default(true),
-  
-  // Top-level image for browsing (Asset ID)
-  imageId: z.string().optional(),
-  
-  // Search and categorization
-  tags: z.array(z.string()).default([]),
-  category: z.string().optional(),
-  
-  // Embedded content with discriminated union
-  embeddedContent: embeddedContentSchema,
   
   // Version tracking
   contentVersion: z.string().default('1.0.0'),
@@ -142,7 +143,7 @@ export const compendiumEntryUpdateSchema = compendiumEntrySchema.partial().omit(
   id: true,
   createdBy: true,
   compendiumId: true,
-  embeddedContent: true, // Content updates should go through template service
+  content: true, // Content updates should go through template service
   contentHash: true // Will be regenerated on updates
 });
 
@@ -159,7 +160,13 @@ export type CompendiumUpdate = z.infer<typeof compendiumUpdateSchema>;
 export type CompendiumEntryCreate = z.infer<typeof compendiumEntryCreateSchema>;
 export type CompendiumEntryUpdate = z.infer<typeof compendiumEntryUpdateSchema>;
 
-// Utility types for extracting specific embedded content types
+// Utility types for extracting specific embedded content types (DEPRECATED - use entry.type instead)
 export type EmbeddedActorContent = Extract<EmbeddedContent, { type: 'actor' }>;
 export type EmbeddedItemContent = Extract<EmbeddedContent, { type: 'item' }>;
 export type EmbeddedVTTDocumentContent = Extract<EmbeddedContent, { type: 'vtt-document' }>;
+
+// New utility types for entry-based structure
+export type CompendiumEntryType = 'actor' | 'item' | 'vtt-document';
+export type CompendiumEntryWithActorContent = ICompendiumEntry & { entry: { type: 'actor' } };
+export type CompendiumEntryWithItemContent = ICompendiumEntry & { entry: { type: 'item' } };
+export type CompendiumEntryWithVTTDocumentContent = ICompendiumEntry & { entry: { type: 'vtt-document' } };

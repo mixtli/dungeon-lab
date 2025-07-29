@@ -7,19 +7,20 @@ import { createWriteStream } from 'fs';
 import { writeFile } from 'fs/promises';
 import archiver from 'archiver';
 
-import { TypedMonsterWrapperConverter } from '../converters/typed-monster-wrapper-converter.mjs';
-import { TypedSpellWrapperConverter } from '../converters/typed-spell-wrapper-converter.mjs';
-import { TypedBackgroundWrapperConverter } from '../converters/typed-background-wrapper-converter.mjs';
-import { TypedItemWrapperConverter } from '../converters/typed-item-wrapper-converter.mjs';
-import { TypedClassWrapperConverter } from '../converters/typed-class-wrapper-converter.mjs';
-import { TypedSpeciesWrapperConverter } from '../converters/typed-species-wrapper-converter.mjs';
-import { TypedFeatWrapperConverter } from '../converters/typed-feat-wrapper-converter.mjs';
-import { TypedConditionWrapperConverter } from '../converters/typed-condition-wrapper-converter.mjs';
-import { TypedActionWrapperConverter } from '../converters/typed-action-wrapper-converter.mjs';
-import { TypedRuleWrapperConverter } from '../converters/typed-rule-wrapper-converter.mjs';
-import { TypedLanguageWrapperConverter } from '../converters/typed-language-wrapper-converter.mjs';
-import { TypedSenseWrapperConverter } from '../converters/typed-sense-wrapper-converter.mjs';
-import { ConversionOptions, WrapperContent } from '../base/wrapper-converter.mjs';
+import { TypedMonsterConverter } from '../pipeline/typed-monster-converter.mjs';
+import { TypedSpellConverter } from '../pipeline/typed-spell-converter.mjs';
+import { TypedBackgroundConverter } from '../pipeline/typed-background-converter.mjs';
+import { TypedItemConverter } from '../pipeline/typed-item-converter.mjs';
+import { TypedClassConverter } from '../pipeline/typed-class-converter.mjs';
+import { TypedSpeciesConverter } from '../pipeline/typed-species-converter.mjs';
+import { TypedFeatConverter } from '../pipeline/typed-feat-converter.mjs';
+import { TypedConditionConverter } from '../pipeline/typed-condition-converter.mjs';
+import { TypedActionConverter } from '../pipeline/typed-action-converter.mjs';
+import { TypedRuleConverter } from '../pipeline/typed-rule-converter.mjs';
+import { TypedLanguageConverter } from '../pipeline/typed-language-converter.mjs';
+import { TypedSenseConverter } from '../pipeline/typed-sense-converter.mjs';
+import { ConversionOptions } from '../pipeline/typed-converter.mjs';
+import type { IContentFileWrapper } from '@dungeon-lab/shared/types/index.mjs';
 import {
   generateManifest,
   writeJsonFile,
@@ -27,6 +28,34 @@ import {
   validateWrapperContent
 } from '../utils/conversion-utils.mjs';
 import { AssetResolver } from '../utils/asset-resolver.mjs';
+
+type TypedConverter = 
+  | TypedMonsterConverter
+  | TypedSpellConverter
+  | TypedBackgroundConverter
+  | TypedItemConverter
+  | TypedClassConverter
+  | TypedSpeciesConverter
+  | TypedFeatConverter
+  | TypedConditionConverter
+  | TypedActionConverter
+  | TypedRuleConverter
+  | TypedLanguageConverter
+  | TypedSenseConverter;
+
+interface DocumentLike {
+  documentType: 'actor' | 'item' | 'vtt-document';
+  pluginDocumentType: string;
+  name: string;
+  imageId?: string;
+  pluginData?: unknown;
+}
+
+export interface WrapperContent {
+  type: 'actor' | 'item' | 'vtt-document';
+  wrapper: IContentFileWrapper;
+  originalPath?: string;
+}
 
 export interface GeneratorOptions extends ConversionOptions {
   outputDir: string;
@@ -59,7 +88,7 @@ export class CompendiumPackGenerator {
         console.log(`\n📦 Processing ${contentType}...`);
 
         const converter = this.createConverter(contentType);
-        const result = await converter.convert();
+        const result = await this.convertContentType(contentType, converter);
 
         if (result.success && result.content) {
           allContent.push(...result.content);
@@ -112,7 +141,6 @@ export class CompendiumPackGenerator {
       'items',  // fallback for uncategorized items
       'weapons',
       'armor',
-      'shields',
       'tools',
       'gear',
       'documents',
@@ -141,37 +169,221 @@ export class CompendiumPackGenerator {
     const options: ConversionOptions = {
       srdOnly: this.options.srdOnly,
       includeAssets: this.options.includeAssets,
-      outputDir: this.options.outputDir
+      outputDir: this.options.outputDir,
+      textProcessing: {
+        cleanText: true,
+        extractReferences: true
+      }
     };
 
     switch (contentType) {
       case 'monsters':
-        return new TypedMonsterWrapperConverter(options);
+        return new TypedMonsterConverter(options);
       case 'spells':
-        return new TypedSpellWrapperConverter(options);
+        return new TypedSpellConverter(options);
       case 'backgrounds':
-        return new TypedBackgroundWrapperConverter(options);
+        return new TypedBackgroundConverter(options);
       case 'items':
-        return new TypedItemWrapperConverter(options);
+        return new TypedItemConverter(options);
       case 'classes':
-        return new TypedClassWrapperConverter(options);
+        return new TypedClassConverter(options);
       case 'species':
-        return new TypedSpeciesWrapperConverter(options);
+        return new TypedSpeciesConverter(options);
       case 'feats':
-        return new TypedFeatWrapperConverter(options);
+        return new TypedFeatConverter(options);
       case 'conditions':
-        return new TypedConditionWrapperConverter(options);
+        return new TypedConditionConverter(options);
       case 'actions':
-        return new TypedActionWrapperConverter(options);
+        return new TypedActionConverter(options);
       case 'rules':
-        return new TypedRuleWrapperConverter(options);
+        return new TypedRuleConverter(options);
       case 'languages':
-        return new TypedLanguageWrapperConverter(options);
+        return new TypedLanguageConverter(options);
       case 'senses':
-        return new TypedSenseWrapperConverter(options);
+        return new TypedSenseConverter(options);
       default:
         throw new Error(`Unknown content type: ${contentType}`);
     }
+  }
+
+  private async convertContentType(contentType: string, converter: TypedConverter): Promise<{
+    success: boolean;
+    content?: WrapperContent[];
+    error?: Error;
+    stats?: {
+      total: number;
+      converted: number; 
+      skipped: number;
+      errors: number;
+    };
+  }> {
+    try {
+      let typedResult;
+      
+      // Call the appropriate conversion method based on content type
+      switch (contentType) {
+        case 'monsters':
+          typedResult = await (converter as TypedMonsterConverter).convertMonsters();
+          break;
+        case 'spells':
+          typedResult = await (converter as TypedSpellConverter).convertSpells();
+          break;
+        case 'backgrounds':
+          typedResult = await (converter as TypedBackgroundConverter).convertBackgrounds();
+          break;
+        case 'items':
+          typedResult = await (converter as TypedItemConverter).convertItems();
+          break;
+        case 'classes':
+          typedResult = await (converter as TypedClassConverter).convertClasses();
+          break;
+        case 'species':
+          typedResult = await (converter as TypedSpeciesConverter).convertSpecies();
+          break;
+        case 'feats':
+          typedResult = await (converter as TypedFeatConverter).convertFeats();
+          break;
+        case 'conditions':
+          typedResult = await (converter as TypedConditionConverter).convertConditions();
+          break;
+        case 'actions':
+          typedResult = await (converter as TypedActionConverter).convertActions();
+          break;
+        case 'rules':
+          typedResult = await (converter as TypedRuleConverter).convertRules();
+          break;
+        case 'languages':
+          typedResult = await (converter as TypedLanguageConverter).convertLanguages();
+          break;
+        case 'senses':
+          typedResult = await (converter as TypedSenseConverter).convertSenses();
+          break;
+        default:
+          throw new Error(`Unknown content type: ${contentType}`);
+      }
+
+      if (!typedResult.success) {
+        return {
+          success: false,
+          error: new Error('Typed conversion failed'),
+          stats: {
+            total: typedResult.stats?.total || 0,
+            converted: typedResult.stats?.converted || 0,
+            skipped: 0,
+            errors: typedResult.stats?.errors || 0
+          }
+        };
+      }
+
+      // Convert typed results to wrapper format
+      const wrapperContent: WrapperContent[] = [];
+      
+      // Create wrappers from documents
+      for (const document of typedResult.results) {
+        const wrapper: IContentFileWrapper = {
+          entry: {
+            name: document.name,
+            type: this.getContentTypeFromDocument(document),
+            imageId: document.imageId,
+            category: this.getCategoryFromDocument(document),
+            tags: this.getTagsFromDocument(document),
+            sortOrder: 0
+          },
+          content: document
+        };
+        
+        wrapperContent.push({
+          type: this.getContentTypeFromDocument(document),
+          wrapper: wrapper
+        });
+      }
+
+      return {
+        success: true,
+        content: wrapperContent,
+        stats: {
+          total: typedResult.stats?.total || 0,
+          converted: typedResult.stats?.converted || 0,
+          skipped: 0,
+          errors: typedResult.stats?.errors || 0
+        }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error : new Error('Unknown conversion error')
+      };
+    }
+  }
+
+  private getContentTypeFromDocument(document: DocumentLike): 'actor' | 'item' | 'vtt-document' {
+    // Check the actual documentType field from the document
+    if (document.documentType === 'actor') {
+      return 'actor';
+    }
+    if (document.documentType === 'item') {
+      return 'item';
+    }
+    if (document.documentType === 'vtt-document') {
+      return 'vtt-document';
+    }
+    // Default fallback
+    return 'vtt-document';
+  }
+
+  private getCategoryFromDocument(document: DocumentLike): string {
+    // Determine category based on pluginDocumentType
+    switch (document.pluginDocumentType) {
+      case 'monster':
+        return 'Monsters';
+      case 'spell':
+        return 'Spells';
+      case 'background':
+        return 'Backgrounds';
+      case 'weapon':
+      case 'armor':
+      case 'shield':
+      case 'tool':
+      case 'gear':
+        return 'Equipment';
+      case 'character-class':
+        return 'Classes';
+      case 'species':
+        return 'Species';
+      case 'feat':
+        return 'Feats';
+      case 'condition':
+        return 'Conditions';
+      case 'action':
+        return 'Actions';
+      case 'rule':
+        return 'Rules';
+      case 'language':
+        return 'Languages';
+      case 'sense':
+        return 'Senses';
+      default:
+        return 'Documents';
+    }
+  }
+
+  private getTagsFromDocument(document: DocumentLike): string[] {
+    const tags: string[] = [];
+    
+    // Add plugin document type as tag
+    if (document.pluginDocumentType) {
+      tags.push(document.pluginDocumentType);
+    }
+    
+    // Add source if available
+    if (document.pluginData && typeof document.pluginData === 'object' && 'source' in document.pluginData) {
+      const source = (document.pluginData as Record<string, unknown>).source;
+      if (typeof source === 'string') {
+        tags.push(source.toLowerCase());
+      }
+    }
+    
+    return tags;
   }
 
   private async writeContentFiles(
@@ -320,7 +532,7 @@ export class CompendiumPackGenerator {
               case 'armor':
                 return 'armor';
               case 'shield':
-                return 'shields';
+                return 'armor';
               case 'tool':
                 return 'tools';
               case 'gear':
@@ -363,6 +575,8 @@ export class CompendiumPackGenerator {
                 return 'languages';
               case 'sense':
                 return 'senses';
+              case 'monster':
+                return 'creatures';
               default:
                 return 'documents';
             }

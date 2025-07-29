@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Type-safe conversion pipeline base class
  * 
@@ -14,7 +15,6 @@ import { readFile } from 'fs/promises';
 import { ETOOLS_DATA_PATH } from '../../config/constants.mjs';
 import type { IContentFileWrapper } from '@dungeon-lab/shared/types/index.mjs';
 import { 
-  type ValidationResult,
   type DocumentType,
   type PluginDocumentType,
   validateDocument,
@@ -22,7 +22,6 @@ import {
 } from '../validation/typed-document-validators.mjs';
 import {
   type MarkupProcessingOptions,
-  processEntries,
   entriesToCleanText
 } from '../text/markup-processor.mjs';
 
@@ -66,6 +65,16 @@ export interface ConversionStats {
   skipped: number;
   errors: number;
 }
+
+/**
+ * Type constraint for inputs that have a name field
+ */
+type NamedInput = { name: string; [key: string]: unknown };
+
+/**
+ * Type constraint for documents that have name and imageId fields
+ */
+type DocumentWithNameAndImage = { name: string; imageId?: string; [key: string]: unknown };
 
 /**
  * Abstract base class for type-safe converters
@@ -173,15 +182,16 @@ export abstract class TypedConverter<
       const description = this.extractDescription(input);
       const assetPath = this.extractAssetPath?.(input);
       
-      // Get name from input (assume all inputs have a name field)
-      const inputName = (input as any).name;
-      if (!inputName || typeof inputName !== 'string') {
+      // Get name from input - using type guard
+      if (!this.hasNameField(input)) {
         return {
           success: false,
           errors: ['Input data must have a name field'],
           stage: 'document-creation'
         };
       }
+      
+      const inputName = input.name;
       
       const document = {
         id: `${this.getPluginDocumentType()}-${this.generateSlug(inputName)}`,
@@ -191,7 +201,6 @@ export abstract class TypedConverter<
         documentType: this.getDocumentType(),
         pluginDocumentType: this.getPluginDocumentType(),
         description: this.processText(description),
-        campaignId: '',
         userData: {},
         pluginData,
         ...(assetPath && { imageId: assetPath })
@@ -239,9 +248,9 @@ export abstract class TypedConverter<
     try {
       const wrapper: IContentFileWrapper = {
         entry: {
-          name: (document as any).name,
+          name: this.getDocumentName(document),
           type: this.getDocumentType(),
-          imageId: (document as any).imageId,
+          imageId: this.getDocumentImageId(document),
           category: this.determineCategory(input),
           tags: this.extractTags(input),
           sortOrder: this.calculateSortOrder(input)
@@ -376,7 +385,7 @@ export abstract class TypedConverter<
    * Override these methods in subclasses for custom behavior
    */
   
-  protected determineCategory(input: z.infer<TInput>): string | undefined {
+  protected determineCategory(_input: z.infer<TInput>): string | undefined {
     return undefined;
   }
   
@@ -391,7 +400,30 @@ export abstract class TypedConverter<
     return tags;
   }
   
-  protected calculateSortOrder(input: z.infer<TInput>): number {
+  protected calculateSortOrder(_input: z.infer<TInput>): number {
     return 0;
+  }
+  
+  /**
+   * Type guards and utility methods
+   */
+  
+  private hasNameField(input: z.infer<TInput>): input is z.infer<TInput> & NamedInput {
+    return typeof input === 'object' && input !== null && 
+           'name' in input && typeof (input as any).name === 'string';
+  }
+  
+  private getDocumentName(document: TDocument): string {
+    if (typeof document === 'object' && document !== null && 'name' in document) {
+      return (document as DocumentWithNameAndImage).name;
+    }
+    throw new Error('Document must have a name field');
+  }
+  
+  private getDocumentImageId(document: TDocument): string | undefined {
+    if (typeof document === 'object' && document !== null && 'imageId' in document) {
+      return (document as any).imageId;
+    }
+    return undefined;
   }
 }

@@ -155,11 +155,12 @@ function tagToReference(tag: ParsedMarkupTag): ReferenceObject | null {
   }
   
   return {
-    slug: tag.content.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
-    type: 'vtt-document', // Most references are to VTT documents
-    pluginType: tag.type,
-    source: tag.source?.toLowerCase() || 'xphb',
-    displayName: tag.content
+    _ref: {
+      slug: tag.content.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
+      type: 'vtt-document', // Most references are to VTT documents
+      pluginType: tag.type,
+      source: tag.source?.toLowerCase() || 'xphb'
+    }
   };
 }
 
@@ -174,7 +175,7 @@ export function processMarkup(
     extractReferences = false,
     cleanText = true,
     preserveMarkup = false,
-    context
+    context: _context
   } = options;
   
   if (preserveMarkup) {

@@ -25,6 +25,7 @@ export interface EtoolsSpellRange {
 
 /**
  * Spell components specification
+ * Enhanced for 2024 data patterns
  */
 export interface EtoolsSpellComponents {
   v?: boolean; // Verbal
@@ -73,6 +74,21 @@ export interface EtoolsSpellScaling {
 }
 
 /**
+ * Scaling level dice information for cantrips and spells
+ * New in 2024 data
+ */
+export interface EtoolsScalingLevelDice {
+  label?: string;
+  scaling: {
+    '1'?: string;
+    '5'?: string;
+    '11'?: string;
+    '17'?: string;
+    [level: string]: string | undefined;
+  };
+}
+
+/**
  * Complete spell data structure from 5etools JSON
  */
 export interface EtoolsSpell extends EtoolsSource {
@@ -93,11 +109,9 @@ export interface EtoolsSpell extends EtoolsSource {
   conditionInflict?: string[];
   savingThrow?: string[];
   spellAttack?: string[];
-  miscTags?: string[];
-  areaTags?: string[];
   
   // Scaling information
-  scalingLevelDice?: EtoolsSpellScaling;
+  scalingLevelDice?: EtoolsScalingLevelDice;
   
   // Variant and reprint information
   hasFluff?: boolean;
@@ -106,6 +120,11 @@ export interface EtoolsSpell extends EtoolsSource {
   // Additional metadata
   affectsCreatureType?: string[];
   timelineTags?: string[];
+  
+  // 2024-specific metadata
+  basicRules2024?: boolean;
+  miscTags?: string[];
+  areaTags?: string[];
   
   // Inheritance tracking
   _copy?: {

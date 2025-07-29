@@ -9,9 +9,8 @@
  */
 
 import { z } from 'zod';
-import { TypedConverter, type ConversionOptions } from './typed-converter.mjs';
+import { TypedConverter } from './typed-converter.mjs';
 import { 
-  conditionDocumentValidator,
   type ConditionDocument,
   type DocumentType,
   type PluginDocumentType
@@ -29,7 +28,7 @@ const etoolsConditionSchema = z.object({
   name: z.string(),
   source: z.string(),
   page: z.number().optional(),
-  entries: z.array(z.any()), // EtoolsEntry[] - using any for now to avoid circular imports
+  entries: z.array(z.unknown()), // EtoolsEntry[] - using unknown for type safety
   srd: z.boolean().optional(),
   basicRules: z.boolean().optional(),
   srd52: z.boolean().optional(),
@@ -89,16 +88,16 @@ export class TypedConditionConverter extends TypedConverter<
     return 'condition';
   }
 
-  protected extractDescription(input: EtoolsCondition): string {
+  protected extractDescription(input: z.infer<typeof etoolsConditionSchema>): string {
     // Check for fluff description first, then fall back to condition entries
     const fluff = this.fluffMap.get(input.name);
     if (fluff?.entries) {
       return processEntries(fluff.entries, this.options.textProcessing).text;
     }
-    return processEntries(input.entries, this.options.textProcessing).text;
+    return processEntries(input.entries as EtoolsEntry[], this.options.textProcessing).text;
   }
 
-  protected extractAssetPath(input: EtoolsCondition): string | undefined {
+  protected extractAssetPath(input: z.infer<typeof etoolsConditionSchema>): string | undefined {
     if (!this.options.includeAssets) {
       return undefined;
     }
@@ -111,7 +110,7 @@ export class TypedConditionConverter extends TypedConverter<
     return undefined;
   }
 
-  protected transformData(input: EtoolsCondition): DndConditionData {
+  protected transformData(input: z.infer<typeof etoolsConditionSchema>): DndConditionData {
     const description = this.extractDescription(input);
     
     return {
@@ -138,7 +137,7 @@ export class TypedConditionConverter extends TypedConverter<
         }
         this.log(`Loaded fluff data for ${fluffData.conditionFluff.length} conditions`);
       }
-    } catch (error) {
+    } catch {
       this.log('No condition fluff data found or failed to load');
     }
   }
@@ -221,7 +220,7 @@ export class TypedConditionConverter extends TypedConverter<
    * Private helper methods for condition-specific parsing
    */
 
-  private parseConditionEffectsAsObject(entries: any[], description: string): DndConditionData['effects'] {
+  private parseConditionEffectsAsObject(entries: unknown[], description: string): DndConditionData['effects'] {
     const lower = description.toLowerCase();
     
     const effects: DndConditionData['effects'] = {};
@@ -303,7 +302,7 @@ export class TypedConditionConverter extends TypedConverter<
    * Override base class methods for condition-specific behavior
    */
 
-  protected determineCategory(input: EtoolsCondition): string | undefined {
+  protected determineCategory(_input: EtoolsCondition): string | undefined {
     return 'Conditions';
   }
 
@@ -318,7 +317,7 @@ export class TypedConditionConverter extends TypedConverter<
     return tags;
   }
 
-  protected calculateSortOrder(input: EtoolsCondition): number {
+  protected calculateSortOrder(_input: EtoolsCondition): number {
     // Sort alphabetically by name
     return 0; // Base order, will be adjusted by index in batch conversion
   }

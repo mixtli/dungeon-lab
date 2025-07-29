@@ -10,9 +10,8 @@
  */
 
 import { z } from 'zod';
-import { TypedConverter, type ConversionOptions } from './typed-converter.mjs';
+import { TypedConverter } from './typed-converter.mjs';
 import { 
-  backgroundDocumentValidator,
   type BackgroundDocument,
   type DocumentType,
   type PluginDocumentType
@@ -32,12 +31,12 @@ const etoolsBackgroundSchema = z.object({
   source: z.string(),
   page: z.number().optional(),
   skillProficiencies: z.array(z.record(z.boolean())),
-  languageProficiencies: z.array(z.any()).optional(),
-  toolProficiencies: z.array(z.any()).optional(),
-  startingEquipment: z.array(z.any()).optional(),
-  entries: z.array(z.any()).optional(),
-  feats: z.array(z.any()).optional(),
-  abilityScoreImprovement: z.any().optional(),
+  languageProficiencies: z.array(z.unknown()).optional(),
+  toolProficiencies: z.array(z.unknown()).optional(),
+  startingEquipment: z.array(z.unknown()).optional(),
+  entries: z.array(z.unknown()).optional(),
+  feats: z.array(z.unknown()).optional(),
+  abilityScoreImprovement: z.unknown().optional(),
   srd: z.boolean().optional(),
   basicRules: z.boolean().optional(),
   reprintedAs: z.array(z.string()).optional()
@@ -92,19 +91,19 @@ export class TypedBackgroundConverter extends TypedConverter<
     return 'background';
   }
 
-  protected extractDescription(input: EtoolsBackground): string {
+  protected extractDescription(input: z.infer<typeof etoolsBackgroundSchema>): string {
     // Check for fluff description first, then fall back to background entries
     const fluff = this.fluffMap.get(input.name);
     if (fluff?.entries) {
       return processEntries(fluff.entries, this.options.textProcessing).text;
     }
     if (input.entries) {
-      return processEntries(input.entries, this.options.textProcessing).text;
+      return processEntries(input.entries as EtoolsEntry[], this.options.textProcessing).text;
     }
     return `Background: ${input.name}`;
   }
 
-  protected extractAssetPath(input: EtoolsBackground): string | undefined {
+  protected extractAssetPath(input: z.infer<typeof etoolsBackgroundSchema>): string | undefined {
     if (!this.options.includeAssets) {
       return undefined;
     }
@@ -117,7 +116,7 @@ export class TypedBackgroundConverter extends TypedConverter<
     return undefined;
   }
 
-  protected transformData(input: EtoolsBackground): DndBackgroundData {
+  protected transformData(input: z.infer<typeof etoolsBackgroundSchema>): DndBackgroundData {
     const description = this.extractDescription(input);
     
     return {
@@ -229,7 +228,7 @@ export class TypedBackgroundConverter extends TypedConverter<
    * Private helper methods for background-specific parsing
    */
 
-  private parseAbilityScores(abilityScoreImprovement: any): DndBackgroundData['abilityScores'] {
+  private parseAbilityScores(_abilityScoreImprovement: unknown): DndBackgroundData['abilityScores'] {
     // For now, provide a default. In 2024, backgrounds should specify the 3 abilities
     // This would need more sophisticated parsing of the actual data structure
     return {
@@ -238,7 +237,7 @@ export class TypedBackgroundConverter extends TypedConverter<
     };
   }
 
-  private parseOriginFeat(feats: any): DndBackgroundData['originFeat'] {
+  private parseOriginFeat(_feats: unknown): DndBackgroundData['originFeat'] {
     // For now, provide a default. In 2024, each background grants one origin feat
     // This would need parsing of the actual feat structure
     return {
@@ -247,7 +246,7 @@ export class TypedBackgroundConverter extends TypedConverter<
     };
   }
 
-  private parseSkillProficiencies(skillProficiencies: any[]): string[] {
+  private parseSkillProficiencies(skillProficiencies: unknown[]): string[] {
     if (!skillProficiencies || skillProficiencies.length === 0) {
       return [];
     }
@@ -255,19 +254,20 @@ export class TypedBackgroundConverter extends TypedConverter<
     // Extract skill names from the first proficiency object
     const firstProf = skillProficiencies[0];
     if (typeof firstProf === 'object' && firstProf !== null) {
-      return Object.keys(firstProf).filter(skill => firstProf[skill] === true);
+      const profObj = firstProf as Record<string, unknown>;
+      return Object.keys(profObj).filter(skill => profObj[skill] === true);
     }
     
     return [];
   }
 
-  private parseToolProficiencies(toolProficiencies: any): DndBackgroundData['toolProficiencies'] {
+  private parseToolProficiencies(_toolProficiencies: unknown): DndBackgroundData['toolProficiencies'] {
     // For now, return undefined. This would need sophisticated parsing
     // of tool proficiency structures from 5etools
     return undefined;
   }
 
-  private parseEquipment(startingEquipment: any): DndBackgroundData['equipment'] {
+  private parseEquipment(_startingEquipment: unknown): DndBackgroundData['equipment'] {
     // Provide a default equipment structure for 2024 backgrounds
     // This would need sophisticated parsing of the starting equipment structure
     return {

@@ -9,6 +9,7 @@
  * - Comprehensive species data extraction with traits, subraces, and fluff support
  */
 
+import { z } from 'zod';
 import { TypedConverter } from './typed-converter.mjs';
 import { 
   type SpeciesDocument,
@@ -16,7 +17,12 @@ import {
   type PluginDocumentType
 } from '../validation/typed-document-validators.mjs';
 import { processEntries } from '../text/markup-processor.mjs';
-import type { EtoolsSpecies, EtoolsSpeciesData, EtoolsSpeciesFluff, EtoolsSpeciesFluffData } from '../../5etools-types/species.mjs';
+import type { 
+  EtoolsSpeciesData, 
+  EtoolsSpeciesFluff, 
+  EtoolsSpeciesFluffData
+} from '../../5etools-types/species.mjs';
+import type { EtoolsEntry } from '../../5etools-types/base.mjs';
 import { etoolsSpeciesSchema } from '../../5etools-types/species.mjs';
 import { 
   dndSpeciesDataSchema, 
@@ -51,30 +57,24 @@ export class TypedSpeciesConverter extends TypedConverter<
     return 'species';
   }
 
-  protected extractDescription(input: EtoolsSpecies, fluff?: EtoolsSpeciesFluff): string {
-    // Try fluff data first
-    if (fluff?.entries && fluff.entries.length > 0) {
-      return processEntries(fluff.entries, this.options.textProcessing).text;
-    }
-    
+  protected extractDescription(input: z.infer<typeof etoolsSpeciesSchema>): string {
+    // TODO: Load fluff data for enhanced descriptions
     // Try species entries
     if (input.entries && input.entries.length > 0) {
-      return processEntries(input.entries, this.options.textProcessing).text;
+      return processEntries(input.entries as EtoolsEntry[], this.options.textProcessing).text;
     }
     
     // Fallback to basic description
     return `${input.name} is a species in D&D 5e.`;
   }
 
-  protected extractAssetPath(input: EtoolsSpecies, fluff?: EtoolsSpeciesFluff): string | undefined {
-    if (fluff?.images?.[0]?.href?.path) {
-      return fluff.images[0].href.path;
-    }
+  protected extractAssetPath(_input: z.infer<typeof etoolsSpeciesSchema>): string | undefined {
+    // TODO: Load fluff data for image assets
     return undefined;
   }
 
-  protected transformData(input: EtoolsSpecies, fluff?: EtoolsSpeciesFluff): DndSpeciesData {
-    const description = this.extractDescription(input, fluff);
+  protected transformData(input: z.infer<typeof etoolsSpeciesSchema>): DndSpeciesData {
+    const description = this.extractDescription(input);
     
     return {
       name: input.name,
@@ -89,14 +89,8 @@ export class TypedSpeciesConverter extends TypedConverter<
       // Extract movement (not speed)
       movement: this.extractMovement(input.speed),
       
-      // Extract senses
-      senses: this.extractSenses(input),
-      
       // Extract traits (main species abilities)
       traits: this.extractTraits(input),
-      
-      // Extract subraces if available  
-      subraces: this.extractSubraces(input.subraces),
       
       // Extract ancestry options (for species like Dragonborn)
       ancestryOptions: this.extractAncestryOptions(input),
@@ -164,8 +158,8 @@ export class TypedSpeciesConverter extends TypedConverter<
       this.log(`Processing ${filteredSpecies.length} species`);
 
       for (const speciesItem of filteredSpecies) {
-        const fluff = fluffMap.get(speciesItem.name);
-        const result = await this.convertItem(speciesItem, fluff);
+        // const _fluff = fluffMap.get(speciesItem.name); // TODO: Use fluff data for enhanced descriptions
+        const result = await this.convertItem(speciesItem);
         
         if (result.success && result.document) {
           results.push(result.document);
@@ -217,57 +211,41 @@ export class TypedSpeciesConverter extends TypedConverter<
     return sizeMap[size[0]] || { category: 'medium', description: 'about 5-6 feet tall' };
   }
 
-  private extractMovement(speed?: any): DndSpeciesData['movement'] {
+  private extractMovement(speed?: unknown): DndSpeciesData['movement'] {
     if (!speed) {
       return { walk: 30 }; // Default speed
     }
     
     const movement: DndSpeciesData['movement'] = { walk: 30 };
     
-    if (typeof speed === 'object') {
-      if (speed.walk) movement.walk = speed.walk;
-      if (speed.fly) {
+    const speedData = speed as Record<string, number | boolean>;
+    if (typeof speedData === 'object' && speedData) {
+      if (typeof speedData.walk === 'number') movement.walk = speedData.walk;
+      if (speedData.fly) {
         // Handle boolean fly speed (means equal to walk speed)
-        movement.fly = typeof speed.fly === 'boolean' ? movement.walk : speed.fly;
-        if (speed.hover || speed.canHover) {
+        movement.fly = typeof speedData.fly === 'boolean' ? movement.walk : speedData.fly as number;
+        if (speedData.hover || speedData.canHover) {
           movement.hover = true;
         }
       }
-      if (speed.swim) {
+      if (speedData.swim) {
         // Handle boolean swim speed (means equal to walk speed)
-        movement.swim = typeof speed.swim === 'boolean' ? movement.walk : speed.swim;
+        movement.swim = typeof speedData.swim === 'boolean' ? movement.walk : speedData.swim as number;
       }
-      if (speed.climb) {
+      if (speedData.climb) {
         // Handle boolean climb speed (means equal to walk speed)
-        movement.climb = typeof speed.climb === 'boolean' ? movement.walk : speed.climb;
+        movement.climb = typeof speedData.climb === 'boolean' ? movement.walk : speedData.climb as number;
       }
-      if (speed.burrow) movement.burrow = speed.burrow;
-    } else if (typeof speed === 'number') {
-      movement.walk = speed;
+      if (typeof speedData.burrow === 'number') movement.burrow = speedData.burrow;
+    } else if (typeof speedData === 'number') {
+      movement.walk = speedData;
     }
     
     return movement;
   }
 
-  private extractSenses(input: EtoolsSpecies): DndSpeciesData['senses'] {
-    const senses: DndSpeciesData['senses'] = {};
-    
-    if (input.darkvision) {
-      senses.darkvision = input.darkvision;
-    }
-    
-    if (input.blindsight) {
-      senses.blindsight = input.blindsight;
-    }
-    
-    if (input.truesight) {
-      senses.truesight = input.truesight;
-    }
-    
-    return Object.keys(senses).length > 0 ? senses : undefined;
-  }
 
-  private extractTraits(input: EtoolsSpecies): DndSpeciesData['traits'] {
+  private extractTraits(input: z.infer<typeof etoolsSpeciesSchema>): DndSpeciesData['traits'] {
     const traits: DndSpeciesData['traits'] = [];
     
     // Extract ability score improvements as traits
@@ -299,17 +277,8 @@ export class TypedSpeciesConverter extends TypedConverter<
     return traits;
   }
 
-  private extractSubraces(subraces?: any[]): DndSpeciesData['subraces'] {
-    if (!subraces?.length) return undefined;
-    
-    return subraces.map(subrace => ({
-      name: subrace.name || 'Unknown Subrace',
-      description: subrace.entries ? processEntries(subrace.entries, this.options.textProcessing).text : `${subrace.name} subrace.`,
-      traits: [] // Could be enhanced to extract subrace-specific traits
-    }));
-  }
 
-  private extractAncestryOptions(input: EtoolsSpecies): DndSpeciesData['ancestryOptions'] {
+  private extractAncestryOptions(input: z.infer<typeof etoolsSpeciesSchema>): DndSpeciesData['ancestryOptions'] {
     // For species like Dragonborn that have ancestry variations
     if (input.name.toLowerCase().includes('dragonborn') && input.traitTags?.includes('Breath Weapon')) {
       return [{
@@ -322,38 +291,48 @@ export class TypedSpeciesConverter extends TypedConverter<
     return undefined;
   }
 
-  private extractLifespan(age?: any): DndSpeciesData['lifespan'] {
+  private extractLifespan(age?: unknown): DndSpeciesData['lifespan'] {
     if (!age) {
       return { maturity: 18, average: 80, maximum: 120 }; // Default human-like lifespan
     }
     
+    const ageData = age as { mature?: number; max?: number; [key: string]: unknown };
     return {
-      maturity: age.mature || 18,
-      average: age.max ? Math.floor(age.max * 0.75) : 80, // Estimate average as 75% of max
-      maximum: age.max || 120
+      maturity: ageData.mature || 18,
+      average: ageData.max ? Math.floor(ageData.max * 0.75) : 80, // Estimate average as 75% of max
+      maximum: ageData.max || 120
     };
   }
 
-  private formatAbilityScoreIncrease(ability: any): string {
+  private formatAbilityScoreIncrease(ability: unknown): string {
+    const abilityData = ability as { [key: string]: number } | { choose: { from: string[]; count: number; amount?: number } };
     const increases: string[] = [];
     
-    if (ability.str) increases.push(`Strength +${ability.str}`);
-    if (ability.dex) increases.push(`Dexterity +${ability.dex}`);
-    if (ability.con) increases.push(`Constitution +${ability.con}`);
-    if (ability.int) increases.push(`Intelligence +${ability.int}`);
-    if (ability.wis) increases.push(`Wisdom +${ability.wis}`);
-    if (ability.cha) increases.push(`Charisma +${ability.cha}`);
+    if (!abilityData || typeof abilityData !== 'object') {
+      return 'Your ability scores increase.';
+    }
     
-    if (ability.choose) {
-      const count = ability.choose.count || 1;
-      const amount = ability.choose.amount || 1;
+    // Handle choose format
+    if ('choose' in abilityData && abilityData.choose && typeof abilityData.choose === 'object') {
+      const chooseData = abilityData.choose as { count: number; amount?: number };
+      const count = chooseData.count || 1;
+      const amount = chooseData.amount || 1;
       increases.push(`Choose ${count} different abilities to increase by ${amount}`);
+    } else {
+      // Handle direct ability increases
+      const directAbilities = abilityData as { [key: string]: number };
+      if (directAbilities.str) increases.push(`Strength +${directAbilities.str}`);
+      if (directAbilities.dex) increases.push(`Dexterity +${directAbilities.dex}`);
+      if (directAbilities.con) increases.push(`Constitution +${directAbilities.con}`);
+      if (directAbilities.int) increases.push(`Intelligence +${directAbilities.int}`);
+      if (directAbilities.wis) increases.push(`Wisdom +${directAbilities.wis}`);
+      if (directAbilities.cha) increases.push(`Charisma +${directAbilities.cha}`);
     }
     
     return increases.length > 0 ? increases.join(', ') + '.' : 'Your ability scores increase.';
   }
 
-  private extractProficiencyTraits(input: EtoolsSpecies): DndSpeciesData['traits'] {
+  private extractProficiencyTraits(input: z.infer<typeof etoolsSpeciesSchema>): DndSpeciesData['traits'] {
     const traits: DndSpeciesData['traits'] = [];
     
     if (input.skillProficiencies?.length) {
@@ -394,7 +373,7 @@ export class TypedSpeciesConverter extends TypedConverter<
     return traits;
   }
 
-  private extractResistanceTraits(input: EtoolsSpecies): DndSpeciesData['traits'] {
+  private extractResistanceTraits(input: z.infer<typeof etoolsSpeciesSchema>): DndSpeciesData['traits'] {
     const traits: DndSpeciesData['traits'] = [];
     
     if (input.resist?.length) {

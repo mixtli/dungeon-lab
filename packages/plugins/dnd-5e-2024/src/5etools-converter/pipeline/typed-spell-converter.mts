@@ -10,22 +10,25 @@
  */
 
 import { z } from 'zod';
-import { TypedConverter, type ConversionOptions } from './typed-converter.mjs';
+import { TypedConverter } from './typed-converter.mjs';
 import { 
-  spellDocumentValidator,
   type SpellDocument,
   type DocumentType,
   type PluginDocumentType
 } from '../validation/typed-document-validators.mjs';
 import { processEntries } from '../text/markup-processor.mjs';
-import type { EtoolsSpell, EtoolsSpellData } from '../../5etools-types/spells.mjs';
+import type { 
+  EtoolsSpell, 
+  EtoolsSpellData
+} from '../../5etools-types/spells.mjs';
 import type { EtoolsEntry } from '../../5etools-types/base.mjs';
 import { dndSpellDataSchema, type DndSpellData } from '../../types/dnd/spell.mjs';
 import { extractEtoolsArray, safeEtoolsCast } from '../../5etools-types/type-utils.mjs';
 import type { Ability } from '../../types/dnd/common.mjs';
 
 /**
- * Input schema for 5etools spell data
+ * Simplified spell schema for type safety
+ * Uses the existing EtoolsSpell interface
  */
 const etoolsSpellSchema = z.object({
   name: z.string(),
@@ -35,7 +38,8 @@ const etoolsSpellSchema = z.object({
   school: z.string(),
   time: z.array(z.object({
     number: z.number(),
-    unit: z.string()
+    unit: z.string(),
+    condition: z.string().optional()
   })),
   range: z.object({
     type: z.string(),
@@ -48,28 +52,51 @@ const etoolsSpellSchema = z.object({
     v: z.boolean().optional(),
     s: z.boolean().optional(),
     m: z.union([z.boolean(), z.string(), z.object({
-      text: z.string()
-    })]).optional()
+      text: z.string().optional(),
+      cost: z.number().optional(),
+      consume: z.boolean().optional()
+    })]).optional(),
+    r: z.boolean().optional()
   }),
   duration: z.array(z.object({
     type: z.string(),
     duration: z.object({
       type: z.string(),
-      amount: z.number().optional()
+      amount: z.number()
     }).optional(),
-    concentration: z.boolean().optional()
+    concentration: z.boolean().optional(),
+    ends: z.array(z.string()).optional()
   })),
-  entries: z.array(z.any()), // EtoolsEntry[] - using any for now to avoid circular imports
-  entriesHigherLevel: z.array(z.any()).optional(),
-  damageInflict: z.array(z.string()).optional(),
-  savingThrow: z.array(z.string()).optional(),
-  spellAttack: z.array(z.string()).optional(),
+  entries: z.array(z.unknown()), // Complex EtoolsEntry structure
+  entriesHigherLevel: z.array(z.unknown()).optional(),
   classes: z.object({
     fromClassList: z.array(z.object({
       name: z.string(),
       source: z.string()
-    }))
+    })).optional(),
+    fromClassListVariant: z.array(z.object({
+      name: z.string(),
+      source: z.string()
+    })).optional(),
+    fromSubclass: z.array(z.object({
+      class: z.object({ name: z.string(), source: z.string() }),
+      subclass: z.object({ name: z.string(), source: z.string() })
+    })).optional()
   }).optional(),
+  meta: z.object({
+    ritual: z.boolean().optional(),
+    concentration: z.boolean().optional()
+  }).optional(),
+  damageInflict: z.array(z.string()).optional(),
+  conditionInflict: z.array(z.string()).optional(),
+  savingThrow: z.array(z.string()).optional(),
+  spellAttack: z.array(z.string()).optional(),
+  scalingLevelDice: z.object({
+    label: z.string().optional(),
+    scaling: z.record(z.string())
+  }).optional(),
+  miscTags: z.array(z.string()).optional(),
+  areaTags: z.array(z.string()).optional(),
   srd: z.boolean().optional(),
   basicRules: z.boolean().optional(),
   srd52: z.boolean().optional(),
@@ -78,7 +105,11 @@ const etoolsSpellSchema = z.object({
     source: z.string(),
     page: z.number()
   })).optional(),
-  reprintedAs: z.array(z.string()).optional()
+  reprintedAs: z.array(z.string()).optional(),
+  hasFluff: z.boolean().optional(),
+  hasFluffImages: z.boolean().optional(),
+  affectsCreatureType: z.array(z.string()).optional(),
+  timelineTags: z.array(z.string()).optional()
 }).passthrough(); // Allow additional properties
 
 /**
@@ -142,16 +173,16 @@ export class TypedSpellConverter extends TypedConverter<
     return 'spell';
   }
 
-  protected extractDescription(input: EtoolsSpell): string {
+  protected extractDescription(input: z.infer<typeof etoolsSpellSchema>): string {
     // Check for fluff description first, then fall back to spell entries
     const fluff = this.fluffMap.get(input.name);
     if (fluff?.entries) {
-      return processEntries(fluff.entries, this.options.textProcessing).text;
+      return processEntries(fluff.entries as EtoolsEntry[], this.options.textProcessing).text;
     }
-    return processEntries(input.entries, this.options.textProcessing).text;
+    return processEntries(input.entries as EtoolsEntry[], this.options.textProcessing).text;
   }
 
-  protected extractAssetPath(input: EtoolsSpell): string | undefined {
+  protected extractAssetPath(input: z.infer<typeof etoolsSpellSchema>): string | undefined {
     if (!this.options.includeAssets) {
       return undefined;
     }
@@ -164,7 +195,7 @@ export class TypedSpellConverter extends TypedConverter<
     return undefined;
   }
 
-  protected transformData(input: EtoolsSpell): DndSpellData {
+  protected transformData(input: z.infer<typeof etoolsSpellSchema>): DndSpellData {
     const description = this.extractDescription(input);
     
     return {
@@ -173,13 +204,13 @@ export class TypedSpellConverter extends TypedConverter<
       level: input.level,
       school: this.parseSchool(input.school),
       classAvailability: this.parseClassAvailability(input.classes),
-      castingTime: this.parseCastingTime(input.time),
-      range: this.parseRange(input.range),
-      components: this.parseComponents(input.components),
-      duration: this.parseDuration(input.duration),
+      castingTime: this.parseCastingTime(input.time as { number: number; unit: string; condition?: string }[]),
+      range: this.parseRange(input.range as { type: string; distance?: { type: string; amount?: number } }),
+      components: this.parseComponents(input.components as { v?: boolean; s?: boolean; m?: boolean | string | object; r?: boolean }),
+      duration: this.parseDuration(input.duration as { type: string; duration?: { type: string; amount: number }; concentration?: boolean }[]),
       ritual: this.parseRitual(input),
-      concentration: this.parseConcentration(input.duration),
-      scaling: this.parseScaling(input.entriesHigherLevel),
+      concentration: this.parseConcentration(input.duration as { type: string; duration?: { type: string; amount: number }; concentration?: boolean }[]),
+      scaling: this.parseScaling(input.entriesHigherLevel as unknown[]),
       damage: this.parseDamage(input),
       savingThrow: this.parseSavingThrow(input.savingThrow),
       attackRoll: this.parseAttackRoll(input.spellAttack),
@@ -205,7 +236,7 @@ export class TypedSpellConverter extends TypedConverter<
           }
           this.log(`Loaded PHB fluff data for ${phbFluffData.spellFluff.length} spells`);
         }
-      } catch (error) {
+      } catch {
         this.log('No PHB spell fluff data found');
       }
       
@@ -219,7 +250,7 @@ export class TypedSpellConverter extends TypedConverter<
           }
           this.log(`Loaded XPHB fluff data for ${xphbFluffData.spellFluff.length} spells (overrides PHB where applicable)`);
         }
-      } catch (error) {
+      } catch {
         this.log('No XPHB spell fluff data found');
       }
       
@@ -310,13 +341,13 @@ export class TypedSpellConverter extends TypedConverter<
     return SCHOOL_MAP[school] as DndSpellData['school'] || 'abjuration';
   }
 
-  private parseClassAvailability(classes: any): DndSpellData['classAvailability'] {
+  private parseClassAvailability(classes?: z.infer<typeof etoolsSpellSchema>['classes']): DndSpellData['classAvailability'] {
     if (!classes?.fromClassList) {
       return { classList: [] };
     }
     
     // Convert class names to standard format
-    const classList = classes.fromClassList.map((cls: any) => {
+    const classList = classes.fromClassList.map((cls) => {
       const name = cls.name.toLowerCase();
       // Map 5etools names to our enum values
       switch (name) {
@@ -333,12 +364,12 @@ export class TypedSpellConverter extends TypedConverter<
           this.log(`Unknown class name: ${name}, skipping`);
           return null;
       }
-    }).filter((cls: any): cls is NonNullable<typeof cls> => cls !== null);
+    }).filter((cls): cls is NonNullable<typeof cls> => cls !== null);
 
     return { classList };
   }
 
-  private parseCastingTime(time: any[]): string {
+  private parseCastingTime(time: { number: number; unit: string; condition?: string }[]): string {
     if (!time || time.length === 0) {
       return 'Action';
     }
@@ -354,11 +385,7 @@ export class TypedSpellConverter extends TypedConverter<
     return `${number} ${unit}s`;
   }
 
-  private parseRange(range: any): string {
-    if (!range) {
-      return 'Self';
-    }
-    
+  private parseRange(range: { type: string; distance?: { type: string; amount?: number } }): string {
     if (range.type === 'point') {
       if (range.distance?.type === 'self') {
         return 'Self';
@@ -372,12 +399,12 @@ export class TypedSpellConverter extends TypedConverter<
     return 'Self';
   }
 
-  private parseComponents(components: any): DndSpellData['components'] {
-    const materialInfo = this.parseMaterialComponent(components?.m);
+  private parseComponents(components: { v?: boolean; s?: boolean; m?: boolean | string | object; r?: boolean }): DndSpellData['components'] {
+    const materialInfo = this.parseMaterialComponent(components.m);
     
     return {
-      verbal: components?.v || false,
-      somatic: components?.s || false,
+      verbal: components.v || false,
+      somatic: components.s || false,
       material: materialInfo.required,
       materialComponents: materialInfo.required && materialInfo.description ? {
         description: materialInfo.description,
@@ -387,7 +414,7 @@ export class TypedSpellConverter extends TypedConverter<
     };
   }
 
-  private parseMaterialComponent(material: any): { required: boolean; description?: string } {
+  private parseMaterialComponent(material: unknown): { required: boolean; description?: string } {
     if (!material) {
       return { required: false };
     }
@@ -400,14 +427,15 @@ export class TypedSpellConverter extends TypedConverter<
       return { required: true, description: material };
     }
     
-    if (typeof material === 'object' && material.text) {
-      return { required: true, description: material.text };
+    if (typeof material === 'object' && material && 'text' in material) {
+      const materialObj = material as { text: string };
+      return { required: true, description: materialObj.text };
     }
     
     return { required: false };
   }
 
-  private parseDuration(duration: any[]): string {
+  private parseDuration(duration: { type: string; duration?: { type: string; amount: number }; concentration?: boolean }[]): string {
     if (!duration || duration.length === 0) {
       return 'Instantaneous';
     }
@@ -430,36 +458,32 @@ export class TypedSpellConverter extends TypedConverter<
     return 'Instantaneous';
   }
 
-  private formatDurationAmount(duration: any): string {
-    if (!duration) {
-      return '1 minute';
-    }
-    
+  private formatDurationAmount(duration: { type: string; amount: number }): string {
     const amount = duration.amount || 1;
     const type = duration.type || 'minute';
     
     return amount === 1 ? `1 ${type}` : `${amount} ${type}s`;
   }
 
-  private parseRitual(input: any): boolean {
+  private parseRitual(_input: z.infer<typeof etoolsSpellSchema>): boolean {
     // Check if spell has ritual tag or can be cast as ritual
     return false; // Most spells are not rituals, would need specific logic
   }
 
-  private parseConcentration(duration: any[]): boolean {
+  private parseConcentration(duration: { type: string; duration?: { type: string; amount: number }; concentration?: boolean }[]): boolean {
     if (!duration || duration.length === 0) {
       return false;
     }
     
-    return duration[0]?.concentration || false;
+    return duration[0].concentration || false;
   }
 
-  private parseScaling(entriesHigherLevel: any[]): DndSpellData['scaling'] {
+  private parseScaling(entriesHigherLevel?: unknown[]): DndSpellData['scaling'] {
     if (!entriesHigherLevel || entriesHigherLevel.length === 0) {
       return undefined;
     }
     
-    const description = processEntries(entriesHigherLevel, this.options.textProcessing).text;
+    const description = processEntries(entriesHigherLevel as EtoolsEntry[], this.options.textProcessing).text;
     
     return {
       higherLevels: {
@@ -469,13 +493,13 @@ export class TypedSpellConverter extends TypedConverter<
     };
   }
 
-  private parseDamage(input: any): DndSpellData['damage'] {
+  private parseDamage(_input: z.infer<typeof etoolsSpellSchema>): DndSpellData['damage'] {
     // This would need sophisticated parsing of the spell description
     // For now, return undefined - would need damage dice extraction logic
     return undefined;
   }
 
-  private parseSavingThrow(savingThrow: string[]): DndSpellData['savingThrow'] {
+  private parseSavingThrow(savingThrow?: string[]): DndSpellData['savingThrow'] {
     if (!savingThrow || savingThrow.length === 0) {
       return undefined;
     }
@@ -484,10 +508,15 @@ export class TypedSpellConverter extends TypedConverter<
     const abilityMap: Record<string, Ability> = {
       'str': 'strength',
       'dex': 'dexterity', 
+      'dexterity': 'dexterity',
       'con': 'constitution',
+      'constitution': 'constitution',
       'int': 'intelligence',
+      'intelligence': 'intelligence',
       'wis': 'wisdom',
-      'cha': 'charisma'
+      'wisdom': 'wisdom',
+      'cha': 'charisma',
+      'charisma': 'charisma'
     };
     
     const ability = abilityMap[savingThrow[0].toLowerCase()];
@@ -501,7 +530,7 @@ export class TypedSpellConverter extends TypedConverter<
     };
   }
 
-  private parseAttackRoll(spellAttack: string[]): DndSpellData['attackRoll'] {
+  private parseAttackRoll(spellAttack?: string[]): DndSpellData['attackRoll'] {
     if (!spellAttack || spellAttack.length === 0) {
       return undefined;
     }
@@ -512,7 +541,7 @@ export class TypedSpellConverter extends TypedConverter<
     };
   }
 
-  private parseAreaOfEffect(input: any): DndSpellData['areaOfEffect'] {
+  private parseAreaOfEffect(_input: z.infer<typeof etoolsSpellSchema>): DndSpellData['areaOfEffect'] {
     // This would need sophisticated parsing of spell description for AoE
     // For now, return undefined - would need AoE extraction logic
     return undefined;

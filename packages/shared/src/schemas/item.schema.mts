@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { baseDocumentSchema, documentTypeSchema } from './document.schema.mjs';
+import { baseDocumentSchema } from './document.schema.mjs';
 
 // Item schema - extends base document with VTT-specific fields
 export const itemSchema = baseDocumentSchema.extend({

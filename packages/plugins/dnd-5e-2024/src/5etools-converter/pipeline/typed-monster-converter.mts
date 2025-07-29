@@ -18,14 +18,15 @@ import {
   type PluginDocumentType
 } from '../validation/typed-document-validators.mjs';
 import { processEntries } from '../text/markup-processor.mjs';
-import type { EtoolsMonster, EtoolsMonsterData } from '../../5etools-types/monsters.mjs';
+import type { EtoolsMonsterData } from '../../5etools-types/monsters.mjs';
 import { etoolsMonsterSchema } from '../../5etools-types/monsters.mjs';
 import type { EtoolsEntry } from '../../5etools-types/base.mjs';
 import { 
   dndCreatureDataSchema, 
   type DndCreatureData
 } from '../../types/dnd/creature.mjs';
-import { extractEtoolsArray, safeEtoolsCast } from '../../5etools-types/type-utils.mjs';
+import { safeEtoolsCast } from '../../5etools-types/type-utils.mjs';
+import { damageTypeSchema, type DamageType } from '../../types/dnd/common.mjs';
 
 /**
  * Monster fluff data interface
@@ -87,7 +88,7 @@ export class TypedMonsterConverter extends TypedConverter<
     return 'creature';
   }
 
-  protected extractDescription(input: EtoolsMonster): string {
+  protected extractDescription(input: z.infer<typeof etoolsMonsterSchema>): string {
     // Check for fluff description first, then fall back to basic info
     const fluff = this.fluffMap.get(input.name);
     if (fluff?.entries) {
@@ -102,7 +103,7 @@ export class TypedMonsterConverter extends TypedConverter<
     return `${size} ${type}, ${alignment}`;
   }
 
-  protected extractAssetPath(input: EtoolsMonster): string | undefined {
+  protected extractAssetPath(input: z.infer<typeof etoolsMonsterSchema>): string | undefined {
     if (!this.options.includeAssets) {
       return undefined;
     }
@@ -120,14 +121,14 @@ export class TypedMonsterConverter extends TypedConverter<
     return undefined;
   }
 
-  protected transformData(input: EtoolsMonster): DndCreatureData {
+  protected transformData(input: z.infer<typeof etoolsMonsterSchema>): DndCreatureData {
     return {
       // Basic creature identity
       name: input.name,
       description: this.extractDescription(input),
       size: this.mapSize(input.size),
       type: this.mapType(input.type),
-      subtype: input.type?.tags?.join(', '),
+      // subtype: typeof input.type === 'object' && input.type?.tags ? input.type.tags.join(', ') : undefined, // TODO: Add subtype to schema
       alignment: this.parseAlignment(input.alignment),
       
       // Core stats
@@ -165,7 +166,7 @@ export class TypedMonsterConverter extends TypedConverter<
       bonusActions: this.parseActions(input.bonus),
       reactions: this.parseActions(input.reaction),
       legendaryActions: this.parseLegendaryActions(input.legendary),
-      mythicActions: this.parseActions(input.mythic),
+      // mythicActions: this.parseActions(input.mythic), // TODO: Add mythicActions to schema
       
       // Spellcasting (if present)
       spellcasting: this.parseSpellcasting(input.spellcasting),
@@ -289,7 +290,7 @@ export class TypedMonsterConverter extends TypedConverter<
 
   // Helper methods for parsing monster data
 
-  private mapSize(size: any): 'tiny' | 'small' | 'medium' | 'large' | 'huge' | 'gargantuan' {
+  private mapSize(size: string | string[]): 'tiny' | 'small' | 'medium' | 'large' | 'huge' | 'gargantuan' {
     const sizeMap: Record<string, 'tiny' | 'small' | 'medium' | 'large' | 'huge' | 'gargantuan'> = {
       'T': 'tiny',
       'S': 'small', 
@@ -312,7 +313,7 @@ export class TypedMonsterConverter extends TypedConverter<
     return 'medium';
   }
 
-  private mapType(type: any): string {
+  private mapType(type: string | { type: string; tags?: string[] }): string {
     if (typeof type === 'string') {
       return type;
     }
@@ -322,17 +323,30 @@ export class TypedMonsterConverter extends TypedConverter<
     return 'humanoid';
   }
 
-  private parseAlignment(alignment: any): string {
+  private parseAlignment(alignment?: string | string[] | { alignment?: string[] }): string {
+    if (!alignment) return 'neutral';
+    
     if (Array.isArray(alignment)) {
-      return alignment.map(a => typeof a === 'string' ? a : a.alignment || 'neutral').join(' or ');
+      if (alignment.length === 0) return 'neutral';
+      return alignment.map(a => typeof a === 'string' ? a : 'neutral').join(' or ');
     }
-    if (typeof alignment === 'object') {
-      return alignment.alignment || 'neutral';
+    
+    if (typeof alignment === 'object' && alignment !== null) {
+      if ('alignment' in alignment && Array.isArray(alignment.alignment)) {
+        if (alignment.alignment.length === 0) return 'neutral';
+        return alignment.alignment.join(' or ');
+      }
+      return 'neutral';
     }
-    return alignment || 'neutral';
+    
+    if (typeof alignment === 'string') {
+      return alignment;
+    }
+    
+    return 'neutral';
   }
 
-  private parseArmorClass(ac: any): { value: number; source?: string } {
+  private parseArmorClass(ac: number | number[] | { ac: number; from?: string[] }[]): { value: number; source?: string } {
     if (typeof ac === 'number') {
       return { value: ac };
     }
@@ -351,7 +365,7 @@ export class TypedMonsterConverter extends TypedConverter<
     return { value: 10 };
   }
 
-  private parseHitPoints(hp: any): { average: number; formula?: string } {
+  private parseHitPoints(hp?: { average?: number; formula?: string; special?: string } | number): { average: number; formula?: string } {
     if (typeof hp === 'number') {
       return { average: hp };
     }
@@ -364,22 +378,30 @@ export class TypedMonsterConverter extends TypedConverter<
     return { average: 1 };
   }
 
-  private parseSpeed(speed: any): Record<string, number> {
+  private parseSpeed(speed?: number | Record<string, number | boolean | { number: number; condition?: string }>): Record<string, number> {
     const result: Record<string, number> = {};
+    
+    if (!speed) {
+      return { walk: 30 }; // Default speed if not specified
+    }
     
     if (typeof speed === 'number') {
       result.walk = speed;
       return result;
     }
     
-    if (typeof speed === 'object') {
+    if (typeof speed === 'object' && speed !== null) {
       Object.entries(speed).forEach(([key, value]) => {
         if (typeof value === 'number') {
           result[key] = value;
-        } else if (typeof value === 'object' && value !== null) {
+        } else if (typeof value === 'boolean') {
+          // Skip boolean values like hover: true
+          return;
+        } else if (typeof value === 'object' && value !== null && 'number' in value) {
           // Handle complex speed objects like { number: 40, condition: "hover" }
-          if (typeof value.number === 'number') {
-            result[key] = value.number;
+          const speedObj = value as { number: number };
+          if (typeof speedObj.number === 'number') {
+            result[key] = speedObj.number;
           }
         }
       });
@@ -388,7 +410,7 @@ export class TypedMonsterConverter extends TypedConverter<
     return Object.keys(result).length > 0 ? result : { walk: 30 };
   }
 
-  private parseSavingThrows(saves: any): Record<string, number> | undefined {
+  private parseSavingThrows(saves?: Record<string, string>): Record<string, number> | undefined {
     if (!saves) return undefined;
     
     const result: Record<string, number> = {};
@@ -404,7 +426,7 @@ export class TypedMonsterConverter extends TypedConverter<
     return Object.keys(result).length > 0 ? result : undefined;
   }
 
-  private parseSkills(skills: any): Record<string, number> | undefined {
+  private parseSkills(skills?: Record<string, string>): Record<string, number> | undefined {
     if (!skills) return undefined;
     
     const result: Record<string, number> = {};
@@ -420,17 +442,31 @@ export class TypedMonsterConverter extends TypedConverter<
     return Object.keys(result).length > 0 ? result : undefined;
   }
 
-  private parseDamageArray(damages: any): string[] | undefined {
+  private parseDamageArray(damages: unknown): DamageType[] | undefined {
     if (!damages) return undefined;
     
-    const result: string[] = [];
+    const result: DamageType[] = [];
     
     if (Array.isArray(damages)) {
       damages.forEach(damage => {
         if (typeof damage === 'string') {
-          result.push(damage);
-        } else if (typeof damage === 'object' && damage.resist) {
-          result.push(...damage.resist);
+          // Validate that the damage type is valid
+          const validationType = damageTypeSchema.safeParse(damage);
+          if (validationType.success) {
+            result.push(validationType.data);
+          } else {
+            this.log(`Unknown damage type: ${damage}`);
+          }
+        } else if (typeof damage === 'object' && damage && 'resist' in damage) {
+          const resistObj = damage as { resist: string[] };
+          resistObj.resist.forEach(resist => {
+            const validationType = damageTypeSchema.safeParse(resist);
+            if (validationType.success) {
+              result.push(validationType.data);
+            } else {
+              this.log(`Unknown damage type: ${resist}`);
+            }
+          });
         }
       });
     }
@@ -438,15 +474,13 @@ export class TypedMonsterConverter extends TypedConverter<
     return result.length > 0 ? result : undefined;
   }
 
-  private parseConditionImmunities(conditions: any): string[] | undefined {
-    if (!conditions) return undefined;
-    if (Array.isArray(conditions)) {
-      return conditions.map(c => typeof c === 'string' ? c : c.conditionImmune || '').filter(Boolean);
-    }
-    return undefined;
+  private parseConditionImmunities(conditions?: string[]): string[] | undefined {
+    if (!conditions || !Array.isArray(conditions) || conditions.length === 0) return undefined;
+    
+    return conditions.map(c => typeof c === 'string' ? c : '').filter(Boolean);
   }
 
-  private parseSenses(senses: any, passive?: number): { passivePerception: number; [key: string]: number } {
+  private parseSenses(senses?: string[] | { darkvision?: number; blindsight?: number; tremorsense?: number; truesight?: number; passive?: number }, passive?: number): { passivePerception: number; [key: string]: number } {
     const result: { passivePerception: number; [key: string]: number } = {
       passivePerception: passive || 10 // Default passive perception
     };
@@ -486,41 +520,51 @@ export class TypedMonsterConverter extends TypedConverter<
     return result;
   }
 
-  private parseLanguages(languages: any): string[] | undefined {
+  private parseLanguages(languages?: string[]): string[] | undefined {
     if (!languages) return undefined;
+    
     if (Array.isArray(languages)) {
-      return languages.map(lang => typeof lang === 'string' ? lang : lang.language || '').filter(Boolean);
+      if (languages.length === 0) return undefined;
+      return languages.map(lang => typeof lang === 'string' ? lang : '').filter(Boolean);
     }
+    
     if (typeof languages === 'string') {
       return [languages];
     }
+    
     return undefined;
   }
 
-  private parseChallengeRating(cr: any): number {
+  private parseChallengeRating(cr: string | number | { cr?: string | number; value?: string | number }): number {
     if (typeof cr === 'number') return cr;
+    
     if (typeof cr === 'string') {
       // Handle fractional CRs like "1/2", "1/4"
       if (cr.includes('/')) {
         const [num, denom] = cr.split('/').map(Number);
-        return num / denom;
+        if (!isNaN(num) && !isNaN(denom) && denom !== 0) {
+          return num / denom;
+        }
       }
-      return parseFloat(cr) || 0;
+      const parsed = parseFloat(cr);
+      return isNaN(parsed) ? 0 : parsed;
     }
+    
     if (typeof cr === 'object' && cr !== null) {
       // Handle complex CR objects
-      if (cr.cr !== undefined) {
+      if ('cr' in cr && cr.cr !== undefined) {
         return this.parseChallengeRating(cr.cr);
       }
       // Some monsters might have CR nested differently
-      if (typeof cr.value === 'number' || typeof cr.value === 'string') {
+      if ('value' in cr && cr.value !== undefined) {
         return this.parseChallengeRating(cr.value);
       }
     }
+    
     return 0;
   }
 
-  private calculateProficiencyBonus(cr: any): number {
+  private calculateProficiencyBonus(cr: string | number | { cr?: string | number; value?: string | number }): number {
     const rating = this.parseChallengeRating(cr);
     if (rating >= 17) return 6;
     if (rating >= 13) return 5;
@@ -529,41 +573,41 @@ export class TypedMonsterConverter extends TypedConverter<
     return 2;
   }
 
-  private parseTraits(traits: any): Array<{ name: string; description: string }> | undefined {
-    if (!Array.isArray(traits)) return undefined;
+  private parseTraits(traits?: Array<{ name: string; entries: unknown[] }>): Array<{ name: string; description: string }> | undefined {
+    if (!traits || !Array.isArray(traits) || traits.length === 0) return undefined;
     
     return traits.map(trait => ({
-      name: trait.name || 'Unnamed Trait',
-      description: Array.isArray(trait.entries) ? 
-        processEntries(trait.entries, this.options.textProcessing).text : 
-        (trait.entries || trait.description || '')
+      name: trait?.name || 'Unnamed Trait',
+      description: Array.isArray(trait?.entries) ? 
+        processEntries(trait.entries as EtoolsEntry[], this.options.textProcessing).text : 
+        (typeof trait?.entries === 'string' ? trait.entries : '')
     }));
   }
 
-  private parseActions(actions: any): Array<{ name: string; description: string }> | undefined {
-    if (!Array.isArray(actions)) return undefined;
+  private parseActions(actions?: Array<{ name: string; entries: unknown[] }>): Array<{ name: string; description: string }> | undefined {
+    if (!actions || !Array.isArray(actions) || actions.length === 0) return undefined;
     
     return actions.map(action => ({
-      name: action.name || 'Unnamed Action',
-      description: Array.isArray(action.entries) ? 
-        processEntries(action.entries, this.options.textProcessing).text : 
-        (action.entries || action.description || '')
+      name: action?.name || 'Unnamed Action',
+      description: Array.isArray(action?.entries) ? 
+        processEntries(action.entries as EtoolsEntry[], this.options.textProcessing).text : 
+        (typeof action?.entries === 'string' ? action.entries : '')
     }));
   }
 
-  private parseLegendaryActions(legendary: any): Array<{ name: string; description: string; cost?: number }> | undefined {
-    if (!Array.isArray(legendary)) return undefined;
+  private parseLegendaryActions(legendary?: Array<{ name: string; entries: unknown[]; cost?: number }>): Array<{ name: string; description: string; cost?: number }> | undefined {
+    if (!legendary || !Array.isArray(legendary) || legendary.length === 0) return undefined;
     
     return legendary.map(action => ({
-      name: action.name || 'Unnamed Action',
-      description: Array.isArray(action.entries) ? 
-        processEntries(action.entries, this.options.textProcessing).text : 
-        (action.entries || action.description || ''),
-      cost: action.cost || 1
+      name: action?.name || 'Unnamed Action',
+      description: Array.isArray(action?.entries) ? 
+        processEntries(action.entries as EtoolsEntry[], this.options.textProcessing).text : 
+        (typeof action?.entries === 'string' ? action.entries : ''),
+      cost: action?.cost || 1
     }));
   }
 
-  private parseSpellcasting(spellcasting: any): {
+  private parseSpellcasting(spellcasting?: Array<{ name?: string; type?: string; headerEntries?: unknown[]; will?: string[]; daily?: Record<string, string[]>; spells?: Record<string, unknown>; ability?: string; dc?: number; mod?: number; attackBonus?: number }>): {
     ability: 'int' | 'wis' | 'cha';
     spellSaveDC: number;
     spellAttackBonus: number;
@@ -573,9 +617,10 @@ export class TypedMonsterConverter extends TypedConverter<
       recharge?: Array<{ recharge: string; spells: string[] }>;
     };
   } | undefined {
-    if (!Array.isArray(spellcasting) || spellcasting.length === 0) return undefined;
+    if (!spellcasting || !Array.isArray(spellcasting) || spellcasting.length === 0) return undefined;
     
     const primary = spellcasting[0];
+    if (!primary) return undefined;
     
     // Map ability to expected format
     let ability: 'int' | 'wis' | 'cha' = 'cha'; // default
@@ -612,8 +657,9 @@ export class TypedMonsterConverter extends TypedConverter<
     if (primary.spells) {
       spells.daily = spells.daily || {};
       Object.entries(primary.spells).forEach(([level, data]) => {
-        if (typeof data === 'object' && data.spells) {
-          const levelSpells = Array.isArray(data.spells) ? data.spells : Object.keys(data.spells);
+        if (typeof data === 'object' && data !== null && 'spells' in data) {
+          const spellData = data as { spells: string[] | Record<string, unknown> };
+          const levelSpells = Array.isArray(spellData.spells) ? spellData.spells : Object.keys(spellData.spells);
           if (levelSpells.length > 0) {
             spells.daily![`level${level}`] = levelSpells;
           }
@@ -629,12 +675,12 @@ export class TypedMonsterConverter extends TypedConverter<
     };
   }
   
-  private getAbilityModifier(ability: 'int' | 'wis' | 'cha'): number {
+  private getAbilityModifier(_ability: 'int' | 'wis' | 'cha'): number {
     // This is a rough estimate - in a real implementation you'd calculate from the monster's ability scores
     return 3; // Assumes +3 modifier (16-17 ability score)
   }
 
-  private generateTags(input: EtoolsMonster): string[] {
+  private generateTags(input: z.infer<typeof etoolsMonsterSchema>): string[] {
     const tags: string[] = [];
     
     // Add creature type

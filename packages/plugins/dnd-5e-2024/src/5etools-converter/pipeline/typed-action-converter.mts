@@ -9,6 +9,7 @@
  * - Comprehensive action data extraction with requirements, effects, and usage
  */
 
+import { z } from 'zod';
 import { TypedConverter } from './typed-converter.mjs';
 import { 
   type ActionDocument,
@@ -16,7 +17,7 @@ import {
   type PluginDocumentType
 } from '../validation/typed-document-validators.mjs';
 import { processEntries } from '../text/markup-processor.mjs';
-import type { EtoolsAction, EtoolsActionData, EtoolsActionTime } from '../../5etools-types/actions.mjs';
+import type { EtoolsActionData } from '../../5etools-types/actions.mjs';
 import { etoolsActionSchema } from '../../5etools-types/actions.mjs';
 import { 
   dndActionDataSchema, 
@@ -51,19 +52,19 @@ export class TypedActionConverter extends TypedConverter<
     return 'action';
   }
 
-  protected extractDescription(input: EtoolsAction): string {
+  protected extractDescription(input: z.infer<typeof etoolsActionSchema>): string {
     if (input.entries && input.entries.length > 0) {
       return processEntries(input.entries, this.options.textProcessing).text;
     }
     return `${input.name} is a special action.`;
   }
 
-  protected extractAssetPath(input: EtoolsAction): string | undefined {
+  protected extractAssetPath(_input: z.infer<typeof etoolsActionSchema>): string | undefined {
     // Actions typically don't have associated images
     return undefined;
   }
 
-  protected transformData(input: EtoolsAction): DndActionData {
+  protected transformData(input: z.infer<typeof etoolsActionSchema>): DndActionData {
     const description = this.extractDescription(input);
     
     return {
@@ -169,7 +170,7 @@ export class TypedActionConverter extends TypedConverter<
 
   // Helper methods for extracting action-specific data
 
-  private determineActionType(time?: (EtoolsActionTime | string)[]): DndActionData['actionType'] {
+  private determineActionType(time?: unknown[]): DndActionData['actionType'] {
     if (!time || time.length === 0) return 'action'; // Default to action
     
     const timeEntry = time[0];
@@ -184,8 +185,9 @@ export class TypedActionConverter extends TypedConverter<
     }
     
     // Handle object entries with unit
-    if (typeof timeEntry === 'object' && timeEntry.unit) {
-      switch (timeEntry.unit) {
+    if (typeof timeEntry === 'object' && timeEntry && 'unit' in timeEntry) {
+      const timeObj = timeEntry as { unit: string };
+      switch (timeObj.unit) {
         case 'action':
           return 'action';
         case 'bonus':
@@ -205,18 +207,21 @@ export class TypedActionConverter extends TypedConverter<
     return 'action';
   }
 
-  private extractTrigger(time?: (EtoolsActionTime | string)[]): string | undefined {
+  private extractTrigger(time?: unknown[]): string | undefined {
     if (!time || time.length === 0) return undefined;
     
     const timeEntry = time[0];
-    if (typeof timeEntry === 'object' && timeEntry.unit === 'reaction' && timeEntry.condition) {
-      return timeEntry.condition;
+    if (typeof timeEntry === 'object' && timeEntry && 'unit' in timeEntry && 'condition' in timeEntry) {
+      const timeObj = timeEntry as { unit: string; condition?: string };
+      if (timeObj.unit === 'reaction' && timeObj.condition) {
+        return timeObj.condition;
+      }
     }
     
     return undefined;
   }
 
-  private extractRequirements(input: EtoolsAction, description: string): DndActionData['requirements'] {
+  private extractRequirements(input: z.infer<typeof etoolsActionSchema>, description: string): DndActionData['requirements'] {
     const requirements: NonNullable<DndActionData['requirements']> = {};
     const desc = description.toLowerCase();
     
@@ -267,7 +272,7 @@ export class TypedActionConverter extends TypedConverter<
     return Object.keys(requirements).length > 0 ? requirements : undefined;
   }
 
-  private extractEffects(input: EtoolsAction, description: string): DndActionData['effects'] {
+  private extractEffects(input: z.infer<typeof etoolsActionSchema>, description: string): DndActionData['effects'] {
     const effects: NonNullable<DndActionData['effects']> = {
       attackRoll: false
     };
@@ -323,7 +328,7 @@ export class TypedActionConverter extends TypedConverter<
     return Object.keys(effects).length > 1 || effects.attackRoll ? effects : undefined;
   }
 
-  private extractUses(input: EtoolsAction, description: string): DndActionData['uses'] {
+  private extractUses(input: z.infer<typeof etoolsActionSchema>, description: string): DndActionData['uses'] {
     const desc = description.toLowerCase();
     
     // Look for usage patterns like "once per turn", "once per short rest", etc.

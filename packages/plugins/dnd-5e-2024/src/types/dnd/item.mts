@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { vttDocumentSchema } from '@dungeon-lab/shared/schemas/index.mjs';
 import { 
-  physicalDamageTypeSchema,
   damageTypeSchema,
   weaponCategorySchema,
   weaponTypeSchema,
