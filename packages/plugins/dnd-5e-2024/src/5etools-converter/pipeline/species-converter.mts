@@ -413,7 +413,7 @@ export class TypedSpeciesConverter extends TypedConverter<
     const cleanName = spellName.replace(/\|.*$/, '').replace(/#.*$/, '');
     return {
       _ref: {
-        type: 'vtt-document' as const,
+        documentType: 'vtt-document' as const,
         pluginType: 'spell' as const,
         slug: cleanName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
         source: 'XPHB'

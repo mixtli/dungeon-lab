@@ -14,7 +14,7 @@ import { ImportProgress, CompendiumManifest, ValidationResult } from '@dungeon-l
 interface ProcessedContent {
   entry: {
     name: string;
-    type: 'actor' | 'item' | 'vtt-document';
+    documentType: 'actor' | 'item' | 'vtt-document';
     imageId?: string;
     category?: string;
     tags?: string[];
@@ -44,6 +44,7 @@ interface ProcessedImportData {
   userId: string;
   compendiumName: string;
   uploadedAssets: string[];
+  existingCompendium?: CompendiumDocument;
 }
 
 export class ImportService {
@@ -80,13 +81,14 @@ export class ImportService {
         throw new Error(`Plugin not found: ${manifest.pluginId}`);
       }
 
-      // Check for duplicate compendium name
+      // Check for existing compendium - we'll update it instead of throwing an error
       const existingCompendium = await CompendiumModel.findOne({
         name: manifest.name,
         pluginId: manifest.pluginId
       });
+      
       if (existingCompendium) {
-        throw new Error(`A compendium named "${manifest.name}" already exists for plugin "${manifest.pluginId}"`);
+        logger.info(`Found existing compendium "${manifest.name}" - will update it with new content`);
       }
 
       // Stage 2: Validate content files
@@ -120,7 +122,7 @@ export class ImportService {
       });
 
       const compendium = await transactionService.withTransaction(async (session) => {
-          return await this.createCompendiumIterative({
+          return await this.createOrUpdateCompendiumIterative({
           compendium: {
             name: manifest.name,
             slug: manifest.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
@@ -133,25 +135,27 @@ export class ImportService {
           assetFiles: processedZip.assetFiles,
           userId,
           compendiumName: manifest.name,
-          uploadedAssets
+          uploadedAssets,
+          existingCompendium
         }, session, (processed, total) => this.updateProgress(progressCallback, {
           stage: 'processing',
           processedItems: processed,
           totalItems: total,
-          currentItem: 'Creating content',
+          currentItem: existingCompendium ? 'Updating content' : 'Creating content',
           errors: []
         }));
       });
 
       // Stage 5: Complete
       const duration = Date.now() - startTime;
-      logger.info(`Import completed in ${duration}ms: ${processedContent.length} items`);
+      const operation = existingCompendium ? 'Update' : 'Import';
+      logger.info(`${operation} completed in ${duration}ms: ${processedContent.length} items`);
 
       this.updateProgress(progressCallback, {
         stage: 'complete',
         processedItems: processedContent.length,
         totalItems: processedContent.length,
-        currentItem: 'Import complete',
+        currentItem: `${operation} complete`,
         errors: []
       });
 
@@ -165,11 +169,12 @@ export class ImportService {
         await transactionService.rollbackAssets(uploadedAssets);
       }
 
+      const operation = existingCompendium ? 'Update' : 'Import';
       this.updateProgress(progressCallback, {
         stage: 'error',
         processedItems: 0,
         totalItems: 0,
-        currentItem: 'Import failed',
+        currentItem: `${operation} failed`,
         errors: [error instanceof Error ? error.message : String(error)]
       });
 
@@ -185,26 +190,51 @@ export class ImportService {
   }
 
   /**
-   * Create compendium and import content iteratively (one item at a time)
+   * Create or update compendium and import content iteratively (one item at a time)
    */
-  private async createCompendiumIterative(
+  private async createOrUpdateCompendiumIterative(
     data: ProcessedImportData,
     session: ClientSession,
     progressCallback?: (processed: number, total: number) => void
   ): Promise<CompendiumDocument> {
-    // Create compendium
-    const compendium = await CompendiumModel.create([{
-      ...data.compendium,
-      status: 'active',
-      isPublic: false,
-      totalEntries: 0, // Will be updated after entries are created
-      entriesByType: {}
-    }], { session });
+    let compendiumDoc: CompendiumDocument;
+    let compendiumId: string;
 
-    const compendiumDoc = compendium[0] as CompendiumDocument;
-    const compendiumId = compendiumDoc.id;
+    if (data.existingCompendium) {
+      // Update existing compendium manifest data
+      compendiumDoc = await CompendiumModel.findByIdAndUpdate(
+        data.existingCompendium._id,
+        {
+          description: data.compendium.description,
+          version: data.compendium.version,
+          status: 'active', // Ensure it's active
+          // Keep existing createdBy, name, slug, pluginId
+          updatedAt: new Date()
+        },
+        { session, new: true }
+      ) as CompendiumDocument;
+      
+      compendiumId = compendiumDoc.id;
+      
+      // Clear existing entries (we'll replace them with the new content)
+      const existingEntryCount = await CompendiumEntryModel.countDocuments({ compendiumId });
+      await CompendiumEntryModel.deleteMany({ compendiumId }, { session });
+      logger.info(`Cleared ${existingEntryCount} existing entries for update`);
+    } else {
+      // Create new compendium
+      const compendium = await CompendiumModel.create([{
+        ...data.compendium,
+        status: 'active',
+        isPublic: false,
+        totalEntries: 0, // Will be updated after entries are created
+        entriesByType: {}
+      }], { session });
 
-    logger.info(`Starting iterative import of ${data.content.length} items`);
+      compendiumDoc = compendium[0] as CompendiumDocument;
+      compendiumId = compendiumDoc.id;
+    }
+
+    logger.info(`Starting iterative ${data.existingCompendium ? 'update' : 'import'} of ${data.content.length} items`);
     
     let processedItems = 0;
     let successCount = 0;
@@ -223,9 +253,9 @@ export class ImportService {
           data.uploadedAssets
         );
         successCount++;
-        logger.info(`Successfully imported: ${contentItem.entry.name} (${contentItem.entry.type})`);
+        logger.info(`Successfully imported: ${contentItem.entry.name} (${contentItem.entry.documentType})`);
       } catch (error) {
-        const errorMsg = `Failed to import ${contentItem.entry.name} (${contentItem.entry.type}): ${error instanceof Error ? error.message : String(error)}`;
+        const errorMsg = `Failed to import ${contentItem.entry.name} (${contentItem.entry.documentType}): ${error instanceof Error ? error.message : String(error)}`;
         logger.error(errorMsg);
         errors.push(errorMsg);
       }
@@ -241,7 +271,7 @@ export class ImportService {
     const compendiumEntries = await CompendiumEntryModel.find({ compendiumId });
     
     for (const entry of compendiumEntries) {
-      const type = entry.entry?.type || 'unknown';
+      const type = entry.entry?.documentType || 'unknown';
       entriesByType[type] = (entriesByType[type] || 0) + 1;
     }
 
@@ -250,9 +280,9 @@ export class ImportService {
       entriesByType
     }, { session });
 
-    logger.info(`Iterative import completed: ${successCount}/${totalItems} items imported successfully`);
+    logger.info(`Iterative ${data.existingCompendium ? 'update' : 'import'} completed: ${successCount}/${totalItems} items ${data.existingCompendium ? 'updated' : 'imported'} successfully`);
     if (errors.length > 0) {
-      logger.warn(`Import errors encountered: ${errors.length} items failed`);
+      logger.warn(`${data.existingCompendium ? 'Update' : 'Import'} errors encountered: ${errors.length} items failed`);
     }
 
     return compendiumDoc;
@@ -283,7 +313,7 @@ export class ImportService {
       compendiumId,
       entry: {
         name: processedContent.entry.name,
-        type: processedContent.entry.type, // Direct from upload, no mapping bugs!
+        documentType: processedContent.entry.documentType, // Direct from upload, no mapping bugs!
         category: processedContent.entry.category,
         tags: processedContent.entry.tags || [],
         sortOrder: processedContent.entry.sortOrder || 0,
@@ -378,7 +408,7 @@ export class ImportService {
         // Extract entry metadata and content
         const entry = {
           name: fileData.entry.name,
-          type: fileData.entry.type as 'actor' | 'item' | 'vtt-document',
+          documentType: fileData.entry.documentType as 'actor' | 'item' | 'vtt-document',
           imageId: fileData.entry.imageId,
           category: fileData.entry.category,
           tags: fileData.entry.tags || [],
@@ -386,9 +416,9 @@ export class ImportService {
         };
         const content = fileData.content;
 
-        // Validate entry.type
-        if (!['actor', 'item', 'vtt-document'].includes(entry.type)) {
-          const errorMsg = `Invalid entry type: ${entry.type} in ${filePath}`;
+        // Validate entry.documentType
+        if (!['actor', 'item', 'vtt-document'].includes(entry.documentType)) {
+          const errorMsg = `Invalid entry type: ${entry.documentType} in ${filePath}`;
           logger.warn(errorMsg);
           errors.push(errorMsg);
           processedFiles++;
@@ -397,7 +427,7 @@ export class ImportService {
         }
 
         // Validate using plugin (simplified - no complex subtype logic needed)
-        const validationResult = this.validateContent(plugin, entry.type, '', content);
+        const validationResult = this.validateContent(plugin, entry.documentType, '', content);
         
         if (!validationResult.success) {
           const errorMsg = `Validation failed for ${filePath}: ${validationResult.error?.message}`;

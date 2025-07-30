@@ -99,7 +99,7 @@ export interface PlayerCharacterData {
  */
 export interface MapState {
   mapId: string;
-  mapData: any; // Map document data
+  mapData: Record<string, unknown>; // Map document data
   viewState?: MapViewState;
   tokens: TokenData[];
   revealedAreas: Area[];

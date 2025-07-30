@@ -157,7 +157,7 @@ interface ICompendiumEntryWithImage extends ICompendiumEntry {
 
 // Get content type icon and color
 function getContentTypeIcon(entry: ICompendiumEntryWithImage): string {
-  const contentType = entry.entry.type;
+  const contentType = entry.entry.documentType;
   switch (contentType) {
     case 'actor': return 'fas fa-users';
     case 'item': return 'fas fa-sword';
@@ -167,7 +167,7 @@ function getContentTypeIcon(entry: ICompendiumEntryWithImage): string {
 }
 
 function getContentTypeColor(entry: ICompendiumEntryWithImage): string {
-  const contentType = entry.entry.type;
+  const contentType = entry.entry.documentType;
   switch (contentType) {
     case 'actor': return 'text-blue-600';
     case 'item': return 'text-green-600';
@@ -178,7 +178,7 @@ function getContentTypeColor(entry: ICompendiumEntryWithImage): string {
 
 // Get display name for content type
 function getContentTypeDisplayName(entry: ICompendiumEntryWithImage): string {
-  const contentType = entry.entry.type;
+  const contentType = entry.entry.documentType;
   switch (contentType) {
     case 'actor': return 'Actor';
     case 'item': return 'Item';
@@ -246,7 +246,7 @@ function getEntryImage(entry: ICompendiumEntryWithImage): string | undefined {
   };
   
   // For actors, prefer avatarId, fallback to defaultTokenImageId
-  if (entry.entry.type === 'actor') {
+  if (entry.entry.documentType === 'actor') {
     if (content.avatarId?.url) {
       return content.avatarId.url;
     }
@@ -256,7 +256,7 @@ function getEntryImage(entry: ICompendiumEntryWithImage): string | undefined {
   }
   
   // For items and documents, use imageId
-  if (entry.entry.type === 'item' || entry.entry.type === 'vtt-document') {
+  if (entry.entry.documentType === 'item' || entry.entry.documentType === 'vtt-document') {
     if (content.imageId?.url) {
       return content.imageId.url;
     }

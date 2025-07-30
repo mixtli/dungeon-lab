@@ -65,7 +65,6 @@ describe('ImportService Direct Integration Test', () => {
     const compendium = compendiums[0];
     expect(compendium.name).toBe('test-compendium');
     expect(compendium.description).toBe('Comprehensive test compendium with diverse D&D 5e content types from real converted Foundry data');
-    expect(compendium.gameSystemId).toBe('dnd5e-2024');
     expect(compendium.pluginId).toBe('dnd-5e-2024');
     expect(compendium.status).toBe('active');
 

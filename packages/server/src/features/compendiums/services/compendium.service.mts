@@ -162,7 +162,7 @@ export class CompendiumService {
 
       const query: Record<string, QueryValue> = { compendiumId: compendium._id };
       
-      if (filters?.contentType) query['entry.type'] = filters.contentType;
+      if (filters?.contentType) query['entry.documentType'] = filters.contentType;
       if (filters?.isActive !== undefined) query.isActive = filters.isActive;
       if (filters?.category) query.category = filters.category;
       if (filters?.search) {
@@ -491,7 +491,7 @@ export class CompendiumService {
         
         CompendiumEntryModel.aggregate([
           { $match: { compendiumId: new Types.ObjectId(compendiumId), isActive: true } },
-          { $group: { _id: '$entry.type', count: { $sum: 1 } } }
+          { $group: { _id: '$entry.documentType', count: { $sum: 1 } } }
         ]),
         
         CompendiumEntryModel.aggregate([

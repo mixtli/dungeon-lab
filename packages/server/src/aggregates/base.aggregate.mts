@@ -108,7 +108,7 @@ export abstract class BaseAggregate extends EventEmitter {
   /**
    * Ensure a required field is present
    */
-  protected ensureRequired(value: any, fieldName: string): void {
+  protected ensureRequired(value: unknown, fieldName: string): void {
     if (value === undefined || value === null || value === '') {
       throw new AggregateValidationError(
         `${fieldName} is required`,

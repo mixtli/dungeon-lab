@@ -48,7 +48,7 @@ export const embeddedContentSchema = z.discriminatedUnion('type', [
 export const contentFileWrapperSchema = z.object({
   entry: z.object({
     name: z.string().min(1).max(255),
-    type: z.enum(['actor', 'item', 'vtt-document']),
+    documentType: z.enum(['actor', 'item', 'vtt-document']),
     imageId: z.string().optional(),
     category: z.string().optional(),
     tags: z.array(z.string()).optional(),
@@ -73,7 +73,7 @@ export const compendiumSchema = baseSchema.extend({
   importedAt: z.string().optional(),
   importedBy: z.string().optional(),
   
-  // Content statistics (based on entry.type)
+  // Content statistics (based on entry.documentType)
   totalEntries: z.number().default(0),
   entriesByType: z.record(z.enum(['actor', 'item', 'vtt-document']), z.number()).default({}),
   
@@ -91,7 +91,7 @@ export const compendiumEntrySchema = baseSchema.extend({
   // Entry metadata (matches contentFileWrapperSchema.entry)
   entry: z.object({
     name: z.string().min(1).max(255),
-    type: z.enum(['actor', 'item', 'vtt-document']),
+    documentType: z.enum(['actor', 'item', 'vtt-document']),
     imageId: z.string().optional(), // Asset ID for entry-level image
     category: z.string().optional(),
     tags: z.array(z.string()).optional().default([]),
@@ -99,7 +99,7 @@ export const compendiumEntrySchema = baseSchema.extend({
   }),
   
   // Document content (validated against game system schemas)
-  content: z.any(), // Will be ActorSchema | ItemSchema | VTTDocumentSchema depending on entry.type
+  content: z.any(), // Will be ActorSchema | ItemSchema | VTTDocumentSchema depending on entry.documentType
   
   // Entry-level flags
   isActive: z.boolean().default(true),
@@ -160,13 +160,13 @@ export type CompendiumUpdate = z.infer<typeof compendiumUpdateSchema>;
 export type CompendiumEntryCreate = z.infer<typeof compendiumEntryCreateSchema>;
 export type CompendiumEntryUpdate = z.infer<typeof compendiumEntryUpdateSchema>;
 
-// Utility types for extracting specific embedded content types (DEPRECATED - use entry.type instead)
+// Utility types for extracting specific embedded content types (DEPRECATED - use entry.documentType instead)
 export type EmbeddedActorContent = Extract<EmbeddedContent, { type: 'actor' }>;
 export type EmbeddedItemContent = Extract<EmbeddedContent, { type: 'item' }>;
 export type EmbeddedVTTDocumentContent = Extract<EmbeddedContent, { type: 'vtt-document' }>;
 
 // New utility types for entry-based structure
 export type CompendiumEntryType = 'actor' | 'item' | 'vtt-document';
-export type CompendiumEntryWithActorContent = ICompendiumEntry & { entry: { type: 'actor' } };
-export type CompendiumEntryWithItemContent = ICompendiumEntry & { entry: { type: 'item' } };
-export type CompendiumEntryWithVTTDocumentContent = ICompendiumEntry & { entry: { type: 'vtt-document' } };
+export type CompendiumEntryWithActorContent = ICompendiumEntry & { entry: { documentType: 'actor' } };
+export type CompendiumEntryWithItemContent = ICompendiumEntry & { entry: { documentType: 'item' } };
+export type CompendiumEntryWithVTTDocumentContent = ICompendiumEntry & { entry: { documentType: 'vtt-document' } };

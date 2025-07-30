@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { vttDocumentSchema } from '@dungeon-lab/shared/schemas/index.mjs';
+import { referenceObjectSchema } from '@dungeon-lab/shared/types/index.mjs';
 import { 
   damageTypeSchema,
   weaponCategorySchema,
@@ -172,6 +173,9 @@ export const toolSchema = z.object({
   
   /** Tool category */
   category: z.enum(['artisan', 'gaming-set', 'musical-instrument', 'other']).optional(),
+  
+  /** Reference to parent item group */
+  itemGroup: referenceObjectSchema.optional(),
   
   /** Physical properties */
   weight: z.number().optional(),

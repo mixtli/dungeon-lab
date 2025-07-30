@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { documentReferenceSchema } from '@dungeon-lab/shared/types/reference.mjs';
+import { documentReferenceSchema, referenceObjectSchema } from '@dungeon-lab/shared/types/reference.mjs';
 
 
 /**
@@ -247,8 +247,8 @@ export const genericChoiceSchema = z.object({
   options: z.array(z.object({
     /** Display name for the option */
     name: z.string(),
-    /** Document reference (if applicable) */
-    _ref: documentReferenceSchema.optional(),
+    /** Document reference (if applicable) - can be resolved ObjectId or unresolved reference */
+    reference: referenceObjectSchema.optional(),
     /** Additional metadata about this choice */
     metadata: z.record(z.unknown()).optional()
   })),
@@ -262,73 +262,50 @@ export type GenericChoice = z.infer<typeof genericChoiceSchema>;
  * Type-safe document references for specific D&D concepts
  * These are private - use the public wrapped versions below
  */
-const backgroundReferenceSchema = documentReferenceSchema.extend({
+const _backgroundReferenceSchema = documentReferenceSchema.extend({
   pluginType: z.literal('background')
 });
 
-const speciesReferenceSchema = documentReferenceSchema.extend({
+const _speciesReferenceSchema = documentReferenceSchema.extend({
   pluginType: z.literal('species') 
 });
 
-const classReferenceSchema = documentReferenceSchema.extend({
+const _classReferenceSchema = documentReferenceSchema.extend({
   pluginType: z.literal('class')
 });
 
-const spellReferenceSchema = documentReferenceSchema.extend({
+const _spellReferenceSchema = documentReferenceSchema.extend({
   pluginType: z.literal('spell')
 });
 
-const featReferenceSchema = documentReferenceSchema.extend({
+const _featReferenceSchema = documentReferenceSchema.extend({
   pluginType: z.literal('feat')
 });
 
-const itemReferenceSchema = documentReferenceSchema.extend({
-  type: z.literal('item')
+const _itemReferenceSchema = documentReferenceSchema.extend({
+  documentType: z.literal('item')
 });
 
-const conditionReferenceSchema = documentReferenceSchema.extend({
+const _conditionReferenceSchema = documentReferenceSchema.extend({
   pluginType: z.literal('condition')
 });
 
-const actionReferenceSchema = documentReferenceSchema.extend({
+const _actionReferenceSchema = documentReferenceSchema.extend({
   pluginType: z.literal('action')
 });
 
 /**
- * Public wrapped reference object schemas - these should be used in document schemas
- * All include the required _ref wrapper for consistent output format
+ * Public reference schemas - these should be used in document schemas during generation
+ * These allow unresolved reference objects with optional error info for failed resolution
  */
-export const backgroundReferenceObjectSchema = z.object({
-   _ref: backgroundReferenceSchema
-});
-
-export const speciesReferenceObjectSchema = z.object({
-  _ref: speciesReferenceSchema
-});
-
-export const classReferenceObjectSchema = z.object({
-  _ref: classReferenceSchema
-});
-
-export const spellReferenceObjectSchema = z.object({
-  _ref: spellReferenceSchema
-});
-
-export const featReferenceObjectSchema = z.object({
-  _ref: featReferenceSchema
-});
-
-export const itemReferenceObjectSchema = z.object({
-  _ref: itemReferenceSchema
-});
-
-export const conditionReferenceObjectSchema = z.object({
-  _ref: conditionReferenceSchema
-});
-
-export const actionReferenceObjectSchema = z.object({
-  _ref: actionReferenceSchema
-});
+export const backgroundReferenceObjectSchema = referenceObjectSchema;
+export const speciesReferenceObjectSchema = referenceObjectSchema;
+export const classReferenceObjectSchema = referenceObjectSchema;
+export const spellReferenceObjectSchema = referenceObjectSchema;
+export const featReferenceObjectSchema = referenceObjectSchema;
+export const itemReferenceObjectSchema = referenceObjectSchema;
+export const conditionReferenceObjectSchema = referenceObjectSchema;
+export const actionReferenceObjectSchema = referenceObjectSchema;
 
 // Type exports - these are for the wrapped versions
 export type BackgroundReferenceObject = z.infer<typeof backgroundReferenceObjectSchema>;
@@ -341,14 +318,14 @@ export type ConditionReferenceObject = z.infer<typeof conditionReferenceObjectSc
 export type ActionReferenceObject = z.infer<typeof actionReferenceObjectSchema>;
 
 // For internal use - accessing the inner reference type when needed
-export type BackgroundReference = z.infer<typeof backgroundReferenceSchema>;
-export type SpeciesReference = z.infer<typeof speciesReferenceSchema>;
-export type ClassReference = z.infer<typeof classReferenceSchema>;
-export type SpellReference = z.infer<typeof spellReferenceSchema>;
-export type FeatReference = z.infer<typeof featReferenceSchema>;
-export type ItemReference = z.infer<typeof itemReferenceSchema>;
-export type ConditionReference = z.infer<typeof conditionReferenceSchema>;
-export type ActionReference = z.infer<typeof actionReferenceSchema>;
+export type BackgroundReference = z.infer<typeof _backgroundReferenceSchema>;
+export type SpeciesReference = z.infer<typeof _speciesReferenceSchema>;
+export type ClassReference = z.infer<typeof _classReferenceSchema>;
+export type SpellReference = z.infer<typeof _spellReferenceSchema>;
+export type FeatReference = z.infer<typeof _featReferenceSchema>;
+export type ItemReference = z.infer<typeof _itemReferenceSchema>;
+export type ConditionReference = z.infer<typeof _conditionReferenceSchema>;
+export type ActionReference = z.infer<typeof _actionReferenceSchema>;
 
 // D&D 5e 2024 Monster Spellcasting Schema (simplified format for 2024)
 export const monsterSpellcastingSchema = z.object({

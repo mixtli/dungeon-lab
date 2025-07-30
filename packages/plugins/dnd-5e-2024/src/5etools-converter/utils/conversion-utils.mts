@@ -307,8 +307,8 @@ export async function validateWrapperContent(
     if (!entry.name || typeof entry.name !== 'string') {
       entryErrors.push('Entry missing name field');
     }
-    if (!entry.type || typeof entry.type !== 'string') {
-      entryErrors.push('Entry missing type field');
+    if (!entry.documentType || typeof entry.documentType !== 'string') {
+      entryErrors.push('Entry missing documentType field');
     }
   }
   

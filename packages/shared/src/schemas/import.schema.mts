@@ -23,7 +23,7 @@ export const validateZipSchema = z.object({
 });
 
 export const importProgressSchema = z.object({
-  stage: z.enum(['validating', 'processing', 'uploading', 'complete', 'error']),
+  stage: z.enum(['validating', 'processing', 'uploading', 'resolving-references', 'complete', 'error']),
   processedItems: z.number(),
   totalItems: z.number(),
   currentItem: z.string().optional(),

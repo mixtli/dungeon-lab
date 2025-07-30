@@ -27,7 +27,7 @@ mongooseSchema.path('userData', mongoose.Schema.Types.Mixed);
 
 // Add indexes for performance with new entry+content structure
 mongooseSchema.index({ compendiumId: 1, 'entry.sortOrder': 1 });
-mongooseSchema.index({ compendiumId: 1, 'entry.type': 1 });
+mongooseSchema.index({ compendiumId: 1, 'entry.documentType': 1 });
 mongooseSchema.index({ compendiumId: 1, isActive: 1 });
 mongooseSchema.index({ compendiumId: 1, 'entry.category': 1 });
 mongooseSchema.index({ 'entry.tags': 1 });
@@ -36,8 +36,14 @@ mongooseSchema.index({ 'entry.name': 'text' }); // Text search
 mongooseSchema.index({ contentHash: 1 }); // For version tracking
 mongooseSchema.index({ contentVersion: 1 });
 
-// Unique constraint on compendium + name combination
-mongooseSchema.index({ compendiumId: 1, 'entry.name': 1 }, { unique: true });
+// Unique constraint on compendium + name + documentType + source combination
+// This allows multiple items with same name if they're different types or from different sources
+mongooseSchema.index({ 
+  compendiumId: 1, 
+  'entry.name': 1, 
+  'entry.documentType': 1, 
+  'content.source': 1 
+}, { unique: true });
 
 // Add virtual for compendium
 mongooseSchema.virtual('compendium', {
@@ -92,23 +98,26 @@ mongooseSchema.pre('save', function(next) {
   }
   
   // Convert entry.imageId from string to ObjectId if needed
-  if ((this as any).entry?.imageId && typeof (this as any).entry.imageId === 'string') {
+  const thisDoc = this as unknown as { entry?: { imageId?: string | mongoose.Types.ObjectId } };
+  if (thisDoc.entry?.imageId && typeof thisDoc.entry.imageId === 'string') {
     try {
-      (this as any).entry.imageId = new mongoose.Types.ObjectId((this as any).entry.imageId);
-    } catch (error) {
+      thisDoc.entry.imageId = new mongoose.Types.ObjectId(thisDoc.entry.imageId);
+    } catch (_error) {
       // If conversion fails, keep as string (might be a file path during import)
       // The import service will handle this case
     }
   }
   
   // Convert content-level asset IDs from string to ObjectId if needed
-  if ((this as any).content) {
+  const contentDoc = this as unknown as { content?: Record<string, unknown> };
+  if (contentDoc.content) {
     const assetFields = ['imageId', 'avatarId', 'defaultTokenImageId'];
     for (const field of assetFields) {
-      if ((this as any).content[field] && typeof (this as any).content[field] === 'string') {
+      const fieldValue = contentDoc.content[field];
+      if (fieldValue && typeof fieldValue === 'string') {
         try {
-          (this as any).content[field] = new mongoose.Types.ObjectId((this as any).content[field]);
-        } catch (error) {
+          contentDoc.content[field] = new mongoose.Types.ObjectId(fieldValue);
+        } catch (_error) {
           // If conversion fails, keep as string
         }
       }
@@ -126,7 +135,7 @@ mongooseSchema.post('save', async function(doc) {
   const pipeline = [
     { $match: { compendiumId: doc.compendiumId } },
     { $group: {
-      _id: '$entry.type',
+      _id: '$entry.documentType',
       count: { $sum: 1 }
     }}
   ];
@@ -155,7 +164,7 @@ mongooseSchema.post('findOneAndDelete', async function(doc) {
     const pipeline = [
       { $match: { compendiumId: doc.compendiumId } },
       { $group: {
-        _id: '$entry.type',
+        _id: '$entry.documentType',
         count: { $sum: 1 }
       }}
     ];

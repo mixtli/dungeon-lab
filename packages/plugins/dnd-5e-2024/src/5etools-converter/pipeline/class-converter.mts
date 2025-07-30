@@ -265,7 +265,7 @@ export class TypedClassConverter extends TypedConverter<
       item: {
         _ref: {
           slug,
-          type: 'item',
+          documentType: 'item',
           pluginType: 'tool', // Assuming tools for now, could be enhanced
           source: source.toLowerCase()
         }
@@ -696,7 +696,7 @@ export class TypedClassConverter extends TypedConverter<
     return {
       _ref: {
         slug,
-        type: 'vtt-document',
+        documentType: 'vtt-document',
         pluginType: 'spell',
         source: source.toLowerCase()
       }

@@ -754,7 +754,7 @@ export class TypedMonsterConverter extends TypedConverter<
     
     return {
       _ref: {
-        type: 'vtt-document' as const,
+        documentType: 'vtt-document' as const,
         slug,
         source: source.toLowerCase(),
         pluginType: 'spell'

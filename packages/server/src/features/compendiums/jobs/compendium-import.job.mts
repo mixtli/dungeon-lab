@@ -4,6 +4,7 @@ import { importService } from '../services/import.service.mjs';
 import { downloadBuffer, deleteFile } from '../../../services/storage.service.mjs';
 import type { Job } from '@pulsecron/pulse';
 import { ImportProgress } from '@dungeon-lab/shared/schemas/import.schema.mjs';
+import { compendiumReferenceResolutionService } from '../services/compendium-reference-resolution.service.mjs';
 
 // Job names
 export const COMPENDIUM_IMPORT_JOB = 'import-compendium';
@@ -62,6 +63,36 @@ export async function registerCompendiumImportJobs(): Promise<void> {
           }
         );
         
+        // Resolve cross-document references after import is complete
+        logger.info(`Starting reference resolution for compendium: ${compendium.id}`);
+        try {
+          // Update progress to indicate reference resolution
+          const resolutionProgress: ImportProgress = {
+            stage: 'resolving-references',
+            processedItems: 0,
+            totalItems: 0,
+            currentItem: 'Resolving cross-document references...',
+            errors: []
+          };
+          importProgress.set(jobId, resolutionProgress);
+          
+          const resolutionResult = await compendiumReferenceResolutionService.resolveCompendiumReferences(
+            compendium.id.toString()
+          );
+          
+          logger.info(`Reference resolution completed for compendium ${compendium.id}:`, {
+            resolved: resolutionResult.resolved,
+            failed: resolutionResult.failed,
+            ambiguous: resolutionResult.ambiguous,
+            errorCount: resolutionResult.errors.length
+          });
+          
+        } catch (resolutionError) {
+          logger.error(`Reference resolution failed for compendium ${compendium.id}:`, resolutionError);
+          // Don't fail the entire import for reference resolution errors
+          // The compendium can still be used with unresolved references
+        }
+        
         // Get final progress state
         const finalProgress = importProgress.get(jobId);
         
@@ -73,7 +104,7 @@ export async function registerCompendiumImportJobs(): Promise<void> {
             stage: 'complete',
             processedItems: 0,
             totalItems: 0,
-            currentItem: 'Import complete',
+            currentItem: 'Import complete with reference resolution',
             errors: []
           }
         };

@@ -98,8 +98,10 @@ import {
 import {
   documentReferenceSchema,
   referenceObjectSchema,
+  referenceOrObjectIdSchema,
   DocumentReference,
-  ReferenceObject
+  ReferenceObject,
+  ReferenceOrObjectId
 } from './reference.mjs';
 
 // General Types
@@ -214,8 +216,8 @@ export type IEmbeddedItemContent = Extract<IEmbeddedContent, { type: 'item' }>;
 export type IEmbeddedVTTDocumentContent = Extract<IEmbeddedContent, { type: 'vtt-document' }>;
 
 // Reference Types
-export type { DocumentReference, ReferenceObject };
-export { documentReferenceSchema, referenceObjectSchema };
+export type { DocumentReference, ReferenceObject, ReferenceOrObjectId };
+export { documentReferenceSchema, referenceObjectSchema, referenceOrObjectIdSchema };
 
 // Chatbot Types
 export * from './chatbots.mjs';

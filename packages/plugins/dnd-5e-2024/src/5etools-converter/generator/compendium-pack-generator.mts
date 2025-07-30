@@ -283,7 +283,7 @@ export class CompendiumPackGenerator {
         const wrapper: IContentFileWrapper = {
           entry: {
             name: document.name,
-            type: this.getContentTypeFromDocument(document),
+            documentType: this.getContentTypeFromDocument(document),
             imageId: document.imageId,
             category: this.getCategoryFromDocument(document),
             tags: this.getTagsFromDocument(document),

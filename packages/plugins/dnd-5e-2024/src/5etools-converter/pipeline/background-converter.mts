@@ -326,7 +326,7 @@ export class TypedBackgroundConverter extends TypedConverter<
       name: featName,
       feat: {
         _ref: {
-          type: 'vtt-document' as const,
+          documentType: 'vtt-document' as const,
           slug: featSlug,
           pluginType: 'feat',
           source
@@ -408,7 +408,7 @@ export class TypedBackgroundConverter extends TypedConverter<
         tools.push({
           tool: {
             _ref: {
-              type: 'item' as const,
+              documentType: 'item' as const,
               slug,
               pluginType: 'tool',
               source: 'xphb'
@@ -583,7 +583,7 @@ export class TypedBackgroundConverter extends TypedConverter<
     // Create document reference
     return {
       _ref: {
-        type: 'item' as const,
+        documentType: 'item' as const,
         slug,
         source: source.toLowerCase()
       }

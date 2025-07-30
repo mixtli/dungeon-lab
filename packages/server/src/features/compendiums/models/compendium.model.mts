@@ -17,7 +17,7 @@ mongooseSchema.path('entriesByType', mongoose.Schema.Types.Mixed);
 mongooseSchema.path('userData', mongoose.Schema.Types.Mixed);
 
 // Add indexes for performance
-mongooseSchema.index({ gameSystemId: 1, pluginId: 1 });
+mongooseSchema.index({ pluginId: 1 });
 mongooseSchema.index({ status: 1 });
 mongooseSchema.index({ isPublic: 1 });
 mongooseSchema.index({ tags: 1 });
@@ -25,8 +25,8 @@ mongooseSchema.index({ name: 'text', description: 'text' }); // Text search
 
 // Add unique constraint for compendium slug (global uniqueness)
 mongooseSchema.index({ slug: 1 }, { unique: true });
-// Add unique constraint for compendium name within a game system
-mongooseSchema.index({ name: 1, gameSystemId: 1 }, { unique: true });
+// Add unique constraint for compendium name within a plugin
+mongooseSchema.index({ name: 1, pluginId: 1 }, { unique: true });
 
 // Add virtual for entry count calculation
 mongooseSchema.virtual('entryCount', {
@@ -51,7 +51,7 @@ mongooseSchema.pre('save', async function(next) {
   // Calculate entries by type (using embedded content type)
   const entriesByType = await CompendiumEntry.aggregate([
     { $match: { compendiumId: this._id } },
-    { $group: { _id: '$embeddedContent.type', count: { $sum: 1 } } }
+    { $group: { _id: '$embeddedContent.documentType', count: { $sum: 1 } } }
   ]);
   
   this.entriesByType = entriesByType.reduce((acc, item) => {

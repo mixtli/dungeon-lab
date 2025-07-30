@@ -262,21 +262,23 @@ export class StateBroadcaster {
     const firstBroadcast = group[0];
     
     switch (firstBroadcast.type) {
-      case 'map_update':
+      case 'map_update': {
         // Combine map updates
         const combinedMapUpdate = this.combineMapUpdates(
           group.map(b => b.data as MapUpdate)
         );
         this.sendMapUpdate(combinedMapUpdate, firstBroadcast.targetPlayers);
         break;
+      }
         
-      case 'encounter_update':
+      case 'encounter_update': {
         // Combine encounter updates
         const combinedEncounterUpdate = this.combineEncounterUpdates(
           group.map(b => b.data as EncounterUpdate)
         );
         this.sendEncounterUpdate(combinedEncounterUpdate, firstBroadcast.targetPlayers);
         break;
+      }
         
       case 'action_result':
         // Send action results individually (can't be combined)

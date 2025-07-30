@@ -115,7 +115,9 @@ function itemHandler(socket: Socket<ClientToServerEvents, ServerToClientEvents>)
       
       // Broadcast to other users who can see this item
       // For now, broadcast to all users in the same campaigns
-      socket.broadcast.emit('item:created', item);
+      if (item.campaignId) {
+        socket.broadcast.emit('item:created', item as typeof item & { campaignId: string });
+      }
       
       callback({ success: true, data: item });
     } catch (error) {
@@ -143,7 +145,9 @@ function itemHandler(socket: Socket<ClientToServerEvents, ServerToClientEvents>)
       console.log('[Item Handler] Updated item:', item.id);
       
       // Broadcast update to other users
-      socket.broadcast.emit('item:updated', item);
+      if (item.campaignId) {
+        socket.broadcast.emit('item:updated', item as typeof item & { campaignId: string });
+      }
       
       callback({ success: true, data: item });
     } catch (error) {

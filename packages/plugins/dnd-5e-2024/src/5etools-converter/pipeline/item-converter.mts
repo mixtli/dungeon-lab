@@ -67,6 +67,7 @@ export class TypedItemConverter extends TypedConverter<
 > {
   private fluffMap = new Map<string, EtoolsItemFluff>();
   private currentPluginData: DndItemData | null = null;
+  private isProcessingItemGroup = false;
 
   protected getInputSchema() {
     return etoolsItemSchema;
@@ -77,10 +78,19 @@ export class TypedItemConverter extends TypedConverter<
   }
 
   protected getDocumentType(): DocumentType {
+    // Check if processing item group
+    if (this.isProcessingItemGroup) {
+      return 'vtt-document';
+    }
     return 'item';
   }
 
   protected getPluginDocumentType(): PluginDocumentType {
+    // Check if processing item group
+    if (this.isProcessingItemGroup) {
+      return 'item-group';
+    }
+    
     // Dynamic determination based on current item being processed
     if (this.currentPluginData) {
       return this.mapItemTypeToPluginDocumentType(this.currentPluginData);
@@ -186,10 +196,11 @@ export class TypedItemConverter extends TypedConverter<
       let total = 0;
       let converted = 0;
 
-      // Process both item files
+      // Process both item files and item groups
       const itemFiles = [
         { filename: 'items.json', arrayKey: 'item' as const },
-        { filename: 'items-base.json', arrayKey: 'baseitem' as const }
+        { filename: 'items-base.json', arrayKey: 'baseitem' as const },
+        { filename: 'items.json', arrayKey: 'itemGroup' as const }
       ];
 
       for (const fileInfo of itemFiles) {
@@ -202,6 +213,8 @@ export class TypedItemConverter extends TypedConverter<
             items = (rawData as Record<string, unknown>).baseitem as EtoolsItem[];
           } else if (fileInfo.arrayKey === 'item' && typeof rawData === 'object' && rawData !== null && 'item' in rawData) {
             items = (rawData as Record<string, unknown>).item as EtoolsItem[];
+          } else if (fileInfo.arrayKey === 'itemGroup' && typeof rawData === 'object' && rawData !== null && 'itemGroup' in rawData) {
+            items = (rawData as Record<string, unknown>).itemGroup as EtoolsItem[];
           }
 
           if (items.length === 0) {
@@ -215,15 +228,22 @@ export class TypedItemConverter extends TypedConverter<
           this.log(`Processing ${filteredItems.length} items from ${fileInfo.filename}`);
 
           for (const item of filteredItems) {
-            const result = await this.convertItem(item);
+            let result;
+            
+            // Handle itemGroup entries as VTT documents
+            if (fileInfo.arrayKey === 'itemGroup') {
+              result = await this.convertItemGroup(item as any);
+            } else {
+              result = await this.convertItem(item);
+            }
             
             if (result.success && result.document) {
               results.push(result.document);
               converted++;
-              this.log(`✅ Item ${item.name} converted successfully`);
+              this.log(`✅ ${fileInfo.arrayKey === 'itemGroup' ? 'Item group' : 'Item'} ${item.name} converted successfully`);
             } else {
-              errors.push(`Failed to convert item ${item.name}: ${result.errors?.join(', ') || 'Unknown error'}`);
-              this.log(`❌ Item ${item.name}: ${result.errors?.join(', ') || 'Conversion failed'}`);
+              errors.push(`Failed to convert ${fileInfo.arrayKey === 'itemGroup' ? 'item group' : 'item'} ${item.name}: ${result.errors?.join(', ') || 'Unknown error'}`);
+              this.log(`❌ ${fileInfo.arrayKey === 'itemGroup' ? 'Item group' : 'Item'} ${item.name}: ${result.errors?.join(', ') || 'Conversion failed'}`);
             }
           }
         } catch (fileError) {
@@ -252,6 +272,70 @@ export class TypedItemConverter extends TypedConverter<
         stats: { total: 0, converted: 0, errors: 1 }
       };
     }
+  }
+
+  /**
+   * Convert itemGroup entry to VTT document
+   */
+  private async convertItemGroup(input: z.infer<typeof etoolsItemSchema>): Promise<{
+    success: boolean;
+    document?: ItemDocument;
+    errors?: string[];
+  }> {
+    try {
+      // Create VTT document manually for item group (not using typed converter pipeline)
+      const document: ItemDocument = {
+        id: `item-group-${this.generateSlug(input.name)}`,
+        name: input.name,
+        slug: this.generateSlug(input.name),
+        pluginId: 'dnd-5e-2024',
+        documentType: 'vtt-document',
+        pluginDocumentType: 'item-group',
+        description: this.extractDescription(input),
+        userData: {},
+        pluginData: {
+          name: input.name,
+          description: this.extractDescription(input),
+          type: input.type || 'other',
+          source: input.source,
+          page: input.page,
+          items: this.convertItemsListToReferences(input.items || [])
+        } as any
+      };
+
+      // Add asset path if available
+      const assetPath = this.extractAssetPath(input);
+      if (assetPath) {
+        document.imageId = assetPath;
+      }
+
+      return {
+        success: true,
+        document
+      };
+    } catch (error) {
+      return {
+        success: false,
+        errors: [error instanceof Error ? error.message : 'Unknown conversion error']
+      };
+    }
+  }
+
+  /**
+   * Convert items list to reference objects
+   */
+  private convertItemsListToReferences(items: string[]): Array<{ _ref: { slug: string; documentType: 'actor' | 'item' | 'vtt-document'; source?: string; pluginType?: string } }> {
+    return items.map(itemRef => {
+      // Parse item reference format "Item Name|SOURCE"
+      const [name, source] = itemRef.split('|');
+      return {
+        _ref: {
+          slug: this.generateSlug(name.trim()),
+          documentType: 'item',
+          source: source ? source.trim() : undefined
+        }
+      };
+    });
   }
 
   /**
@@ -340,6 +424,7 @@ export class TypedItemConverter extends TypedConverter<
       name: input.name,
       description: this.extractDescription(input),
       category: this.parseToolCategory(input.type || 'T'),
+      itemGroup: this.getItemGroupReference(input.type || 'T', input.source),
       weight: this.parseWeight(input.weight),
       cost: this.parseCost(input.value),
       magical: this.isMagicalItem(input),
@@ -466,6 +551,44 @@ export class TypedItemConverter extends TypedConverter<
       case 'GS': return 'gaming-set';
       case 'INS': return 'musical-instrument';
       default: return 'other';
+    }
+  }
+
+  private getItemGroupReference(type: string, source?: string): { _ref: { slug: string; documentType: 'actor' | 'item' | 'vtt-document'; source?: string; pluginType?: string } } | undefined {
+    // Extract base type (handle pipe-separated formats like "AT|XPHB")
+    const baseType = type.split('|')[0];
+    const itemSource = type.includes('|') ? type.split('|')[1] : source;
+    
+    switch (baseType) {
+      case 'AT':
+        return {
+          _ref: {
+            slug: this.generateSlug("Artisan's Tools"),
+            documentType: 'vtt-document',
+            pluginType: 'item-group',
+            source: itemSource
+          }
+        };
+      case 'INS':
+        return {
+          _ref: {
+            slug: this.generateSlug('Musical Instrument'),
+            documentType: 'vtt-document',
+            pluginType: 'item-group',
+            source: itemSource
+          }
+        };
+      case 'GS':
+        return {
+          _ref: {
+            slug: this.generateSlug('Gaming Set'),
+            documentType: 'vtt-document',
+            pluginType: 'item-group',
+            source: itemSource
+          }
+        };
+      default:
+        return undefined;
     }
   }
 

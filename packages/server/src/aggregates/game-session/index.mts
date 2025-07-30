@@ -74,7 +74,7 @@ export { StateBroadcaster } from './state-broadcaster.mjs';
 export function createGameSessionAggregate(
   sessionId: string,
   initialState: CompleteSessionState,
-  socketServer: any, // Using any to avoid circular dependency with Socket.IO types
+  socketServer: unknown, // Using unknown to avoid circular dependency with Socket.IO types
   config?: {
     enableHeartbeatMonitoring?: boolean;
     heartbeatIntervalMs?: number;
@@ -83,7 +83,7 @@ export function createGameSessionAggregate(
     maxConcurrentPlayers?: number;
   }
 ): GameSessionAggregate {
-  return new GameSessionAggregate(sessionId, initialState, socketServer, config);
+  return new GameSessionAggregate(sessionId, initialState, socketServer as never, config);
 }
 
 /**
@@ -93,14 +93,20 @@ export function createGameSessionAggregate(
  * format expected by the aggregate.
  */
 export function createInitialSessionState(
-  gameSessionModel: any, // Database model
+  gameSessionModel: unknown, // Database model
   campaignData: CampaignData,
   characters: PlayerCharacterData[]
 ): CompleteSessionState {
+  const model = gameSessionModel as { 
+    id?: string; 
+    _id?: { toString(): string }; 
+    settings?: Record<string, unknown> 
+  };
+  
   return {
     campaign: campaignData,
     characters,
-    sessionId: gameSessionModel.id || gameSessionModel._id?.toString(),
+    sessionId: model.id || model._id?.toString() || 'unknown',
     currentMap: null, // Will be set when a map is loaded
     activeEncounter: null, // Will be set when an encounter starts
     playerPermissions: undefined, // Will be set per player
@@ -112,11 +118,11 @@ export function createInitialSessionState(
       turnTimeLimit: undefined,
       autoAdvanceTurns: false,
       requireGMApproval: false,
-      ...gameSessionModel.settings
+      ...(model.settings || {})
     },
     pendingActions: [],
     connectedPlayers: [],
-    stateVersion: `${gameSessionModel.id}-0-${Date.now()}`,
+    stateVersion: `${model.id || model._id?.toString() || 'unknown'}-0-${Date.now()}`,
     lastUpdated: Date.now()
   };
 }
@@ -145,7 +151,7 @@ export function validateSessionState(state: CompleteSessionState): boolean {
     }
     
     return true;
-  } catch (error) {
+  } catch (_error) {
     return false;
   }
 }

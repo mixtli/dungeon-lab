@@ -3,6 +3,7 @@ import { CompendiumController } from '../controllers/compendium.controller.mjs';
 import { TemplateController } from '../controllers/template.controller.mjs';
 import { importController } from '../controllers/import.controller.mjs';
 import { authenticate } from '../../../middleware/auth.middleware.mjs';
+import referenceResolutionRoutes from './reference-resolution.routes.mjs';
 import { createPathSchema, oapi } from '../../../oapi.mjs';
 import { z } from '../../../utils/zod.mjs';
 import { 
@@ -657,5 +658,8 @@ router.get(
   ),
   importController.getUserImportJobs
 );
+
+// Reference resolution routes
+router.use('/', referenceResolutionRoutes);
 
 export default router;

@@ -119,6 +119,14 @@ export abstract class TypedConverter<
   
   /** Generate asset path (optional) */
   protected extractAssetPath?(input: z.infer<TInput>): string | undefined;
+  
+  /** Extract source from input data (optional) */
+  protected extractSource(input: z.infer<TInput>): string | undefined {
+    if (input && typeof input === 'object' && 'source' in input && typeof input.source === 'string') {
+      return input.source;
+    }
+    return undefined;
+  }
 
   /**
    * Stage 1: Validate input data against 5etools schema
@@ -193,6 +201,9 @@ export abstract class TypedConverter<
       
       const inputName = input.name;
       
+      // Extract source from input if available
+      const source = this.extractSource(input);
+      
       const document = {
         id: `${this.getPluginDocumentType()}-${this.generateSlug(inputName)}`,
         name: inputName,
@@ -203,6 +214,7 @@ export abstract class TypedConverter<
         description: this.processText(description),
         userData: {},
         pluginData,
+        ...(source && { source }),
         ...(assetPath && { imageId: assetPath })
       } as TDocument;
       

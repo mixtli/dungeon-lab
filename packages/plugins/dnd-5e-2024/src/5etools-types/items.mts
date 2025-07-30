@@ -152,7 +152,7 @@ export interface EtoolsItem extends EtoolsSource {
   ammo?: boolean;
   armor?: boolean;
   shield?: boolean;
-  focus?: boolean;
+  focus?: string[];
   poisonTypes?: string[];
   staff?: boolean;
   wand?: boolean;
@@ -189,6 +189,9 @@ export interface EtoolsItem extends EtoolsSource {
   finesse?: boolean;
   heavy?: boolean;
   twoHanded?: boolean;
+  
+  // Item group properties (for itemGroup entries)
+  items?: string[]; // Array of item references like "Alchemist's Supplies|XPHB"
 }
 
 /**
@@ -329,5 +332,8 @@ export const etoolsItemSchema = z.object({
   srd52: z.boolean().optional(),
   basicRules: z.boolean().optional(),
   basicRules2024: z.boolean().optional(),
-  reprintedAs: z.array(z.string()).optional()
+  reprintedAs: z.array(z.string()).optional(),
+  
+  // Item group properties
+  items: z.array(z.string()).optional() // Array of item references
 }).passthrough(); // Allow additional properties

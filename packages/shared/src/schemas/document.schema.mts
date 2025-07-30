@@ -41,6 +41,9 @@ export const baseDocumentSchema = baseSchema.extend({
   // Plugin association
   pluginId: z.string().min(1),
   
+  // Source book/module identifier (e.g., "XPHB", "XMM")
+  source: z.string().min(1).optional(),
+  
   // Campaign association (documents belong to campaigns)
   campaignId: z.string().optional(),
   

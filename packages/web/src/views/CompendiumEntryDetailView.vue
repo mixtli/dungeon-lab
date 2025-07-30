@@ -115,11 +115,11 @@
                   </div>
                 </dd>
               </div>
-              <div v-if="(entry.entry.type === 'actor' || entry.entry.type === 'item') && entry.content.gameSystemId">
+              <div v-if="(entry.entry.documentType === 'actor' || entry.entry.documentType === 'item') && entry.content.gameSystemId">
                 <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Game System</dt>
                 <dd class="text-sm text-gray-900 dark:text-white">{{ entry.content.gameSystemId }}</dd>
               </div>
-              <div v-if="(entry.entry.type === 'item' || entry.entry.type === 'vtt-document') && entry.content.pluginId">
+              <div v-if="(entry.entry.documentType === 'item' || entry.entry.documentType === 'vtt-document') && entry.content.pluginId">
                 <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Plugin</dt>
                 <dd class="text-sm text-gray-900 dark:text-white">{{ entry.content.pluginId }}</dd>
               </div>
@@ -196,7 +196,7 @@ const entryImageUrl = computed(() => {
   };
   
   // For actors, prefer avatarId
-  if (entry.value.entry.type === 'actor') {
+  if (entry.value.entry.documentType === 'actor') {
     if (content.avatarId?.url) return content.avatarId.url;
     if (content.defaultTokenImageId?.url) return content.defaultTokenImageId.url;
   }
@@ -209,7 +209,7 @@ const entryImageUrl = computed(() => {
 
 // Functions for content type handling
 function getContentTypeIcon(entry: ICompendiumEntry): string {
-  const contentType = entry.entry.type;
+  const contentType = entry.entry.documentType;
   switch (contentType) {
     case 'actor': return 'fas fa-users';
     case 'item': return 'fas fa-sword';
@@ -219,7 +219,7 @@ function getContentTypeIcon(entry: ICompendiumEntry): string {
 }
 
 function getContentTypeColor(entry: ICompendiumEntry): string {
-  const contentType = entry.entry.type;
+  const contentType = entry.entry.documentType;
   switch (contentType) {
     case 'actor': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
     case 'item': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
@@ -229,7 +229,7 @@ function getContentTypeColor(entry: ICompendiumEntry): string {
 }
 
 function getContentTypeDisplayName(entry: ICompendiumEntry): string {
-  const contentType = entry.entry.type;
+  const contentType = entry.entry.documentType;
   switch (contentType) {
     case 'actor': return 'Actor';
     case 'item': return 'Item';

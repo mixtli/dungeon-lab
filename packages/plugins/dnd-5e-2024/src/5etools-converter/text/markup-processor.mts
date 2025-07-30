@@ -154,10 +154,21 @@ function tagToReference(tag: ParsedMarkupTag): ReferenceObject | null {
     return null;
   }
   
+  // Map tag types to their correct document types
+  let documentType: 'actor' | 'item' | 'vtt-document';
+  if (tag.type === 'item') {
+    documentType = 'item';
+  } else if (tag.type === 'creature') {
+    documentType = 'actor';
+  } else {
+    // spell, condition, skill, sense, language, variantrule
+    documentType = 'vtt-document';
+  }
+  
   return {
     _ref: {
       slug: tag.content.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
-      type: 'vtt-document', // Most references are to VTT documents
+      documentType,
       pluginType: tag.type,
       source: tag.source?.toLowerCase() || 'xphb'
     }

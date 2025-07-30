@@ -130,7 +130,9 @@ function actorHandler(socket: Socket<ClientToServerEvents, ServerToClientEvents>
       console.log('[Actor Handler] Updated actor:', actor.id);
       
       // Broadcast update to other users
-      socket.broadcast.emit('actor:updated', actor);
+      if (actor.campaignId) {
+        socket.broadcast.emit('actor:updated', actor as typeof actor & { campaignId: string });
+      }
       
       callback({ success: true, data: actor });
     } catch (error) {

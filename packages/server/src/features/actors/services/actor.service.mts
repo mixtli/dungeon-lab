@@ -143,7 +143,7 @@ export class ActorService {
         throw new Error('Actor not found');
       }
 
-      const updateData: any = {
+      const updateData: Record<string, unknown> = {
         ...data,
         slug: data.slug || generateSlug(data.name),
         updatedBy: userId

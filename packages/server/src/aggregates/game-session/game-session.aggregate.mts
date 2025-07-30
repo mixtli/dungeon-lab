@@ -517,15 +517,17 @@ export class GameSessionAggregate extends BaseAggregate {
         // State already updated in update methods
         break;
         
-      case 'GMDisconnected':
+      case 'GMDisconnected': {
         const disconnectedPayload = event.payload as GMDisconnectedEvent['payload'];
         logger.warn(`GM disconnected from session ${this.id}`, disconnectedPayload);
         break;
+      }
         
-      case 'GMReconnected':
+      case 'GMReconnected': {
         const reconnectedPayload = event.payload as GMReconnectedEvent['payload'];
         logger.info(`GM reconnected to session ${this.id}`, reconnectedPayload);
         break;
+      }
         
       default:
         logger.warn(`Unknown event type: ${event.eventType}`);

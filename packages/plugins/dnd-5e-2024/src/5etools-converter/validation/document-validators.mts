@@ -197,7 +197,22 @@ export const DOCUMENT_VALIDATORS: Record<string, z.ZodTypeAny> = {
   'action': actionDocumentValidator,
   'language': languageDocumentValidator,
   'sense': senseDocumentValidator,
-  'rule': ruleDocumentValidator
+  'rule': ruleDocumentValidator,
+  'item-group': z.object({
+    name: z.string(),
+    description: z.string(),
+    type: z.string(),
+    source: z.string(),
+    page: z.number().optional(),
+    items: z.array(z.object({
+      _ref: z.object({
+        slug: z.string(),
+        documentType: z.enum(['actor', 'item', 'vtt-document']),
+        pluginType: z.string().optional(),
+        source: z.string().optional()
+      })
+    }))
+  })
 } as const;
 
 /**
@@ -206,7 +221,8 @@ export const DOCUMENT_VALIDATORS: Record<string, z.ZodTypeAny> = {
 export type PluginDocumentType = 
   | 'creature'
   | 'weapon' | 'armor' | 'shield' | 'tool' | 'gear'
-  | 'spell' | 'background' | 'character-class' | 'species' | 'feat' | 'condition' | 'action' | 'language' | 'sense' | 'rule';
+  | 'spell' | 'background' | 'character-class' | 'species' | 'feat' | 'condition' | 'action' | 'language' | 'sense' | 'rule'
+  | 'item-group';
 
 /**
  * Get validator for a specific plugin document type
