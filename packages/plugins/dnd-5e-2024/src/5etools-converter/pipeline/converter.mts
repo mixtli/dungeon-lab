@@ -261,7 +261,7 @@ export abstract class TypedConverter<
       const wrapper: IContentFileWrapper = {
         entry: {
           name: this.getDocumentName(document),
-          type: this.getDocumentType(),
+          documentType: this.getDocumentType(),
           imageId: this.getDocumentImageId(document),
           category: this.determineCategory(input),
           tags: this.extractTags(input),

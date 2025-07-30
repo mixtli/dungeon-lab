@@ -346,14 +346,12 @@ export class TypedBackgroundConverter extends TypedConverter<
   }
 
   /**
-   * Create feat slug, handling special cases like Magic Initiate with spell class
+   * Create feat slug - always use base feat slug since 2024 D&D consolidated variants
+   * (e.g., "Magic Initiate" replaces "Magic Initiate (Cleric)", "Magic Initiate (Wizard)", etc.)
    */
   private createFeatSlug(baseFeat: string, spellClass?: string): string {
-    const baseSlug = generateSlug(baseFeat);
-    if (spellClass) {
-      return `${baseSlug}-${generateSlug(spellClass)}`;
-    }
-    return baseSlug;
+    // Always return the base slug - feat variants are handled within the feat itself in 2024 D&D
+    return generateSlug(baseFeat);
   }
 
   private parseSkillProficiencies(skillProficiencies: unknown[]): string[] {
@@ -574,10 +572,13 @@ export class TypedBackgroundConverter extends TypedConverter<
 
     // Parse the item reference (e.g., "quarterstaff|xphb")
     const parts = itemRef.split('|');
-    const itemName = parts[0];
+    let itemName = parts[0];
     const source = parts[1] || 'phb'; // Default to PHB if no source specified
 
-    // Generate the slug from the item name
+    // Handle item name mappings for 2024 D&D rule changes
+    itemName = this.mapItemName(itemName);
+
+    // Generate the slug from the mapped item name
     const slug = generateSlug(itemName);
 
     // Create document reference
@@ -588,6 +589,22 @@ export class TypedBackgroundConverter extends TypedConverter<
         source: source.toLowerCase()
       }
     };
+  }
+
+  /**
+   * Map old item names to their 2024 D&D equivalents
+   */
+  private mapItemName(itemName: string): string {
+    const itemMappings: Record<string, string> = {
+      // Holy Symbol was replaced with specific variants in 2024 D&D
+      'holy symbol': 'amulet', // Use amulet as default holy symbol
+      'holy-symbol': 'amulet',
+      'holysymbol': 'amulet',
+      // Add other mappings as needed for different item name changes
+    };
+
+    const lowerName = itemName.toLowerCase();
+    return itemMappings[lowerName] || itemName;
   }
 
   /**
