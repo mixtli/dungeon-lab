@@ -143,9 +143,11 @@ async function handleSubmit() {
     // Create a proper actor request object
     const actorData: CreateActorRequest = {
       name: basicInfo.value.name,
-      type: 'character',
-      gameSystemId: plugin.value.id,
-      data: pluginData,
+      userData: {},
+      pluginId: plugin.value.id,
+      pluginData: pluginData,
+      documentType: 'actor' as const,
+      pluginDocumentType: 'character',
       description: basicInfo.value.description || undefined,
       avatar: basicInfo.value.avatarImage instanceof File ? basicInfo.value.avatarImage : undefined,
       token: basicInfo.value.tokenImage instanceof File ? basicInfo.value.tokenImage : undefined

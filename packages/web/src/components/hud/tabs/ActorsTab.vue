@@ -44,7 +44,7 @@
         v-for="actor in filteredActors"
         :key="actor.id"
         class="actor-card"
-        :class="`actor-${actor.type}`"
+        :class="`actor-${actor.pluginDocumentType}`"
         @click="selectActor(actor)"
         @dblclick="openCharacterSheet(actor)"
       >
@@ -57,7 +57,7 @@
         <div class="actor-info">
           <div class="actor-name">{{ actor.name }}</div>
           <div class="actor-details">
-            <span class="actor-type">{{ actor.type }}</span>
+            <span class="actor-type">{{ actor.pluginDocumentType }}</span>
           </div>
         </div>
 
@@ -118,15 +118,15 @@ const filteredActors = computed(() => {
 
   // Filter by type
   if (activeFilter.value !== 'all') {
-    filtered = filtered.filter((actor: { type: string; }) => actor.type === activeFilter.value);
+    filtered = filtered.filter((actor: { pluginDocumentType: string; }) => actor.pluginDocumentType === activeFilter.value);
   }
 
   // Filter by search query
   if (searchQuery.value.trim()) {
     const query = searchQuery.value.toLowerCase();
-    filtered = filtered.filter((actor: { name: string; type: string; }) => 
+    filtered = filtered.filter((actor: { name: string; pluginDocumentType: string; }) => 
       actor.name.toLowerCase().includes(query) ||
-      actor.type.toLowerCase().includes(query)
+      actor.pluginDocumentType.toLowerCase().includes(query)
     );
   }
 

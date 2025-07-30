@@ -106,7 +106,8 @@ export const useEncounterStore = defineStore('encounter', () => {
       if (!imageUrl) throw new Error('No token or avatar image available for this actor');
 
       // Get the actor's size (default to medium if not specified)
-      const size = actor.data?.size?.toLowerCase() || 'medium';
+      const pluginData = actor.pluginData as Record<string, unknown>;
+      const size = (pluginData?.size as string)?.toLowerCase() || 'medium';
       if (!['tiny', 'small', 'medium', 'large', 'huge', 'gargantuan'].includes(size)) {
         throw new Error('Invalid token size');
       }
@@ -115,7 +116,7 @@ export const useEncounterStore = defineStore('encounter', () => {
       const position = tokenData.position || { x: 0, y: 0, elevation: 0 };
 
       // Determine if the token is player controlled based on actor type
-      const isPlayerControlled = actor.type === 'character';
+      const isPlayerControlled = actor.pluginDocumentType === 'character';
 
       // Create the token data object that matches CreateTokenData type
       const createData = {
@@ -127,7 +128,7 @@ export const useEncounterStore = defineStore('encounter', () => {
         actorId: tokenData.actorId,
         isVisible: tokenData.isVisible,
         isPlayerControlled,
-        data: actor.data || {}, // Copy the entire actor data field
+        data: actor.pluginData || {}, // Copy the entire actor plugin data field
         conditions: []
       } as const;
 

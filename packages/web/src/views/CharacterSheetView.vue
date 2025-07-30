@@ -48,7 +48,7 @@ onMounted(async () => {
       console.log('character', character.value);
 
       // Get the plugin ID from the character's gameSystemId
-      pluginId.value = fetchedCharacter.gameSystemId || '';
+      pluginId.value = fetchedCharacter.pluginId || '';
 
       // Check if plugin is loaded or available
       if (pluginId.value) {

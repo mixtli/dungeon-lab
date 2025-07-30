@@ -140,7 +140,7 @@ const isGameMasterForSession = computed(() => {
           </div>
           <div>
             <h3 class="font-medium text-onyx dark:text-parchment">{{ actor.name }}</h3>
-            <p class="text-sm text-ash dark:text-stone-300">{{ actor.type }}</p>
+            <p class="text-sm text-ash dark:text-stone-300">{{ actor.documentType }}</p>
           </div>
         </div>
       </div>

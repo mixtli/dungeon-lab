@@ -26,7 +26,11 @@ const getEntriesQuerySchema = z.object({
   contentType: z.string().optional(),
   isActive: z.string().transform(val => val === 'true').optional(),
   category: z.string().optional(),
-  search: z.string().optional()
+  search: z.string().optional(),
+  page: z.string().transform(val => parseInt(val, 10)).optional(),
+  limit: z.string().transform(val => parseInt(val, 10)).optional(),
+  sort: z.string().optional(),
+  order: z.string().optional()
 });
 
 // Removed unused linkContentBodySchema
@@ -207,15 +211,25 @@ export class CompendiumController {
    */
   getCompendiumEntries = async (
     req: Request<{ id: string }>,
-    res: Response<BaseAPIResponse<ICompendiumEntry[]>>
-  ): Promise<Response<BaseAPIResponse<ICompendiumEntry[]>> | void> => {
+    res: Response<BaseAPIResponse<{
+      entries: ICompendiumEntry[];
+      total: number;
+      page: number;
+      limit: number;
+    }>>
+  ): Promise<Response<BaseAPIResponse<{
+    entries: ICompendiumEntry[];
+    total: number;
+    page: number;
+    limit: number;
+  }>> | void> => {
     try {
       const query = getEntriesQuerySchema.parse(req.query);
-      const entries = await this.compendiumService.getCompendiumEntries(req.params.id, query);
+      const result = await this.compendiumService.getCompendiumEntries(req.params.id, query);
 
       return res.status(200).json({
         success: true,
-        data: entries,
+        data: result,
       });
     } catch (error) {
       logger.error('Error getting compendium entries:', error);

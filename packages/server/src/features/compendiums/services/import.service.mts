@@ -1,5 +1,5 @@
 import { Types, ClientSession } from 'mongoose';
-// Removed unused createHash import
+import type { ICompendium } from '@dungeon-lab/shared/types/index.mjs';
 import { logger } from '../../../utils/logger.mjs';
 import { ZipProcessorService } from '../../../services/zip-processor.service.mjs';
 import { transactionService } from '../../../services/transaction.service.mjs';
@@ -8,7 +8,6 @@ import { createAsset } from '../../../utils/asset-upload.utils.mjs';
 import { CompendiumModel } from '../models/compendium.model.mjs';
 import { CompendiumEntryModel } from '../models/compendium-entry.model.mjs';
 // Removed unused model imports
-import type { CompendiumDocument } from './compendium.service.mjs';
 import { ImportProgress, CompendiumManifest, ValidationResult } from '@dungeon-lab/shared/schemas/import.schema.mjs';
 
 interface ProcessedContent {
@@ -44,7 +43,7 @@ interface ProcessedImportData {
   userId: string;
   compendiumName: string;
   uploadedAssets: string[];
-  existingCompendium?: CompendiumDocument;
+  existingCompendium?: InstanceType<typeof CompendiumModel> | null;
 }
 
 export class ImportService {
@@ -57,10 +56,11 @@ export class ImportService {
     zipBuffer: Buffer,
     userId: string,
     progressCallback?: (progress: ImportProgress) => void
-  ): Promise<CompendiumDocument> {
+  ): Promise<ICompendium> {
     const startTime = Date.now();
     const userObjectId = new Types.ObjectId(userId);
     const uploadedAssets: string[] = [];
+    let existingCompendium: InstanceType<typeof CompendiumModel> | null = null;
 
     try {
       // Stage 1: Validate and process ZIP
@@ -82,7 +82,7 @@ export class ImportService {
       }
 
       // Check for existing compendium - we'll update it instead of throwing an error
-      const existingCompendium = await CompendiumModel.findOne({
+      existingCompendium = await CompendiumModel.findOne({
         name: manifest.name,
         pluginId: manifest.pluginId
       });
@@ -196,14 +196,14 @@ export class ImportService {
     data: ProcessedImportData,
     session: ClientSession,
     progressCallback?: (processed: number, total: number) => void
-  ): Promise<CompendiumDocument> {
-    let compendiumDoc: CompendiumDocument;
+  ): Promise<ICompendium> {
+    let compendiumDoc: InstanceType<typeof CompendiumModel>;
     let compendiumId: string;
 
     if (data.existingCompendium) {
       // Update existing compendium manifest data
-      compendiumDoc = await CompendiumModel.findByIdAndUpdate(
-        data.existingCompendium._id,
+      const updatedDoc = await CompendiumModel.findByIdAndUpdate(
+        (data.existingCompendium as any)._id, // eslint-disable-line @typescript-eslint/no-explicit-any
         {
           description: data.compendium.description,
           version: data.compendium.version,
@@ -212,8 +212,13 @@ export class ImportService {
           updatedAt: new Date()
         },
         { session, new: true }
-      ) as CompendiumDocument;
+      );
       
+      if (!updatedDoc) {
+        throw new Error('Failed to update existing compendium');
+      }
+      
+      compendiumDoc = updatedDoc;
       compendiumId = compendiumDoc.id;
       
       // Clear existing entries (we'll replace them with the new content)
@@ -230,7 +235,7 @@ export class ImportService {
         entriesByType: {}
       }], { session });
 
-      compendiumDoc = compendium[0] as CompendiumDocument;
+      compendiumDoc = compendium[0];
       compendiumId = compendiumDoc.id;
     }
 
@@ -285,7 +290,7 @@ export class ImportService {
       logger.warn(`${data.existingCompendium ? 'Update' : 'Import'} errors encountered: ${errors.length} items failed`);
     }
 
-    return compendiumDoc;
+    return compendiumDoc.toObject() as ICompendium;
   }
 
   /**

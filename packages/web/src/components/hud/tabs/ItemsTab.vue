@@ -44,24 +44,24 @@
         v-for="item in filteredItems"
         :key="item.id"
         class="item-card"
-        :class="`item-${item.data?.rarity || 'common'}`"
+        :class="`item-${item.pluginData?.rarity || 'common'}`"
         @click="selectItem(item)"
       >
         <div class="item-icon">
           <img v-if="item.imageId && itemImageUrls[item.imageId]" :src="itemImageUrls[item.imageId]" :alt="item.name" />
-          <i v-else :class="getItemIcon(item.type)"></i>
+          <i v-else :class="getItemIcon(item.pluginDocumentType)"></i>
         </div>
         
         <div class="item-info">
           <div class="item-name">{{ item.name }}</div>
           <div class="item-details">
-            <span class="item-type">{{ item.type }}</span>
-            <span v-if="item.data?.rarity" class="item-rarity" :class="`rarity-${item.data.rarity}`">{{ item.data.rarity }}</span>
+            <span class="item-type">{{ item.pluginDocumentType }}</span>
+            <span v-if="item.pluginData?.rarity" class="item-rarity" :class="`rarity-${item.pluginData.rarity}`">{{ item.pluginData.rarity }}</span>
           </div>
           <div v-if="item.description" class="item-description">{{ item.description }}</div>
-          <div class="item-properties" v-if="item.data?.properties?.length">
+          <div class="item-properties" v-if="(item.pluginData?.properties as any)?.length">
             <span
-              v-for="property in item.data.properties"
+              v-for="property in item.pluginData.properties"
               :key="property"
               class="property-tag"
             >
@@ -133,7 +133,7 @@ const filteredItems = computed(() => {
 
   // Filter by type
   if (activeFilter.value !== 'all') {
-    filtered = filtered.filter(item => item.type === activeFilter.value);
+    filtered = filtered.filter(item => item.pluginDocumentType === activeFilter.value);
   }
 
   // Filter by search query
@@ -141,7 +141,7 @@ const filteredItems = computed(() => {
     const query = searchQuery.value.toLowerCase();
     filtered = filtered.filter(item => 
       item.name.toLowerCase().includes(query) ||
-      item.type.toLowerCase().includes(query) ||
+      item.pluginDocumentType.toLowerCase().includes(query) ||
       item.description?.toLowerCase().includes(query)
     );
   }
@@ -215,6 +215,7 @@ async function duplicateItem(item: IItem): Promise<void> {
     const duplicatedData = {
       ...item,
       name: `${item.name} (Copy)`,
+      campaignId: item.campaignId || '', // Ensure campaignId is provided
       id: undefined // Let server generate new ID
     };
     await itemStore.createItemSocket(duplicatedData);

@@ -87,7 +87,7 @@
                 </div>
                 <div>
                   <h3 class="font-semibold text-dragon dark:text-gold">{{ character.name }}</h3>
-                  <p class="text-sm text-ash dark:text-stone-300">{{ character.type }}</p>
+                  <p class="text-sm text-ash dark:text-stone-300">{{ character.documentType }}</p>
                 </div>
               </div>
             </div>
@@ -119,7 +119,7 @@ import { InvitesClient, ActorsClient } from '@dungeon-lab/client/index.mjs';
 interface Campaign {
   id: string;
   name: string;
-  gameSystemId: string;
+  pluginId: string;
 }
 
 interface User {
@@ -190,9 +190,9 @@ async function loadCompatibleCharacters(gameSystemId: string) {
     const actors = await actorsClient.getActors();
     compatibleCharacters.value = actors.filter(
       (actor: IActor) =>
-        actor.gameSystemId === gameSystemId && 
+        actor.pluginId === gameSystemId && 
         actor.createdBy === authStore.user?.id &&
-        actor.type === 'character'
+        actor.documentType === 'actor'
     );
   } catch (err: unknown) {
     const errorObj = err as Error & { response?: { data?: { message?: string } } };
@@ -206,7 +206,7 @@ async function handleAccept(invite: Invite) {
   selectedInvite.value = invite;
   const gameSystemId = typeof invite.campaignId === 'string' 
     ? null 
-    : invite.campaignId.gameSystemId;
+    : invite.campaignId.pluginId;
   
   if (gameSystemId) {
     await loadCompatibleCharacters(gameSystemId);
@@ -263,7 +263,7 @@ function createNewCharacter() {
 
   const gameSystemId = typeof selectedInvite.value.campaignId === 'string'
     ? null
-    : selectedInvite.value.campaignId.gameSystemId;
+    : selectedInvite.value.campaignId.pluginId;
 
   if (!gameSystemId) {
     error.value = "Could not determine game system ID.";

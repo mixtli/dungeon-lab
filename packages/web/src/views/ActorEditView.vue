@@ -143,8 +143,11 @@ async function handleSubmit(event: Event) {
       avatar: basicInfo.value.avatarImage instanceof File ? basicInfo.value.avatarImage : undefined,
       token: basicInfo.value.tokenImage instanceof File ? basicInfo.value.tokenImage : undefined,
       // Add required fields from the existing actor
-      type: 'character', // Since we're in CharacterEditView, this is a character
-      gameSystemId: 'dnd-5e-2024', // Hardcode for now - ideally would get from the actual actor
+      userData: {},
+      pluginId: 'dnd-5e-2024', // Hardcode for now - ideally would get from the actual actor
+      pluginData: {},
+      documentType: 'actor' as const,
+      pluginDocumentType: 'character',
     };
 
     // Send the request

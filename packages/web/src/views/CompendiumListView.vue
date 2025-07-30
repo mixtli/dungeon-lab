@@ -69,7 +69,7 @@ const paginationRange = computed(() => {
 // Filtering
 const filters = ref({
   search: '',
-  gameSystemId: '',
+  pluginId: '',
   status: '',
   isPublic: '',
   sortBy: 'createdAt:desc'
@@ -97,7 +97,7 @@ async function loadCompendiums() {
     
     // Add filters
     if (filters.value.search) params.search = filters.value.search;
-    if (filters.value.gameSystemId) params.gameSystemId = filters.value.gameSystemId;
+    if (filters.value.pluginId) params.pluginId = filters.value.pluginId;
     if (filters.value.status) params.status = filters.value.status;
     if (filters.value.isPublic) params.isPublic = filters.value.isPublic === 'true';
     
@@ -201,7 +201,7 @@ function getDisplayTypeName(type: string): string {
         <div>
           <label class="block text-sm font-medium mb-1">Game System</label>
           <select 
-            v-model="filters.gameSystemId" 
+            v-model="filters.pluginId" 
             class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm"
             @change="loadCompendiums"
           >
@@ -308,7 +308,7 @@ function getDisplayTypeName(type: string): string {
                   {{ compendium.name }}
                 </h3>
                 <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                  {{ compendium.gameSystemId || 'Unknown System' }}
+                  {{ compendium.pluginId || 'Unknown System' }}
                 </p>
               </div>
               <span 

@@ -72,8 +72,18 @@ export class CompendiumsClient extends ApiClient {
   /**
    * Get entries in a compendium with optional filtering
    */
-  async getCompendiumEntries(compendiumId: string, params?: Record<string, string | number | boolean>): Promise<ICompendiumEntry[]> {
-    const response = await this.api.get<BaseAPIResponse<ICompendiumEntry[]>>(`/api/compendiums/${compendiumId}/entries`, { params });
+  async getCompendiumEntries(compendiumId: string, params?: Record<string, string | number | boolean>): Promise<{
+    entries: ICompendiumEntry[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
+    const response = await this.api.get<BaseAPIResponse<{
+      entries: ICompendiumEntry[];
+      total: number;
+      page: number;
+      limit: number;
+    }>>(`/api/compendiums/${compendiumId}/entries`, { params });
     if (!response.data) {
       throw new Error('Failed to get compendium entries');
     }

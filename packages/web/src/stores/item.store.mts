@@ -49,7 +49,7 @@ export const useItemStore = defineStore('item', () => {
         return;
       }
 
-      const filters = { gameSystemId };
+      const filters = { pluginId: gameSystemId };
       socketStore.emit('item:list', filters, (response: { success: boolean; data?: IItem[]; error?: string }) => {
         if (response.success && response.data) {
           items.value = response.data;
@@ -75,7 +75,13 @@ export const useItemStore = defineStore('item', () => {
         return;
       }
 
-      socketStore.emit('item:create', itemData, (response: { success: boolean; data?: IItem; error?: string }) => {
+      // Ensure campaignId is set
+      const dataWithCampaignId = {
+        ...itemData,
+        campaignId: itemData.campaignId || ''
+      };
+
+      socketStore.emit('item:create', dataWithCampaignId, (response: { success: boolean; data?: IItem; error?: string }) => {
         if (response.success && response.data) {
           // Note: Item will be added to local state via broadcast event
           resolve(response.data);
@@ -174,19 +180,39 @@ export const useItemStore = defineStore('item', () => {
     socket.off('item:updated');
     socket.off('item:deleted');
 
-    socket.on('item:created', (item: IItem) => {
+    socket.on('item:created', (item: Partial<IItem> & { id: string; name: string }) => {
       console.log('[Item Store] Item created event received:', item);
-      items.value.push(item);
+      // Add default slug if missing
+      const itemWithDefaults: IItem = {
+        ...item,
+        slug: item.slug || item.name?.toLowerCase().replace(/\s+/g, '-') || '',
+        userData: item.userData || {},
+        pluginData: item.pluginData || {},
+        pluginId: item.pluginId || 'unknown',
+        documentType: item.documentType || 'item',
+        pluginDocumentType: item.pluginDocumentType || 'unknown'
+      };
+      items.value.push(itemWithDefaults);
     });
 
-    socket.on('item:updated', (updatedItem: IItem) => {
+    socket.on('item:updated', (updatedItem: Partial<IItem> & { id: string; name: string }) => {
       console.log('[Item Store] Item updated event received:', updatedItem);
-      const index = items.value.findIndex(i => i.id === updatedItem.id);
+      // Add default slug if missing
+      const itemWithDefaults: IItem = {
+        ...updatedItem,
+        slug: updatedItem.slug || updatedItem.name?.toLowerCase().replace(/\s+/g, '-') || '',
+        userData: updatedItem.userData || {},
+        pluginData: updatedItem.pluginData || {},
+        pluginId: updatedItem.pluginId || 'unknown',
+        documentType: updatedItem.documentType || 'item',
+        pluginDocumentType: updatedItem.pluginDocumentType || 'unknown'
+      };
+      const index = items.value.findIndex(i => i.id === itemWithDefaults.id);
       if (index !== -1) {
-        items.value[index] = updatedItem;
+        items.value[index] = itemWithDefaults;
       }
-      if (currentItem.value?.id === updatedItem.id) {
-        currentItem.value = updatedItem;
+      if (currentItem.value?.id === itemWithDefaults.id) {
+        currentItem.value = itemWithDefaults;
       }
     });
 

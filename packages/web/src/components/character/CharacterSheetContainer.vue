@@ -28,12 +28,12 @@
           <i class="mdi mdi-account-alert text-4xl text-gray-400 mb-4"></i>
           <h3 class="text-lg font-semibold text-gray-900 mb-2">Character Sheet Unavailable</h3>
           <p class="text-sm text-gray-600 mb-4">
-            {{ character ? `The character sheet component for game system "${character.gameSystemId}" is not available.` : 'No character data provided.' }}
+            {{ character ? `The character sheet component for game system "${character.pluginId}" is not available.` : 'No character data provided.' }}
           </p>
           <details class="mb-4 text-left">
             <summary class="text-sm text-gray-500 cursor-pointer">Debug Information</summary>
             <div class="mt-2 text-xs text-gray-400 font-mono">
-              <div>Character Game System: {{ character?.gameSystemId || 'none' }}</div>
+              <div>Character Game System: {{ character?.pluginId || 'none' }}</div>
               <div>Active Game System: {{ getActiveGameSystem() }}</div>
             </div>
           </details>
@@ -70,14 +70,14 @@ const emit = defineEmits<{
 
 // Get the character sheet component directly from the plugin registry (synchronous)
 const characterSheetComponent = computed(() => {
-  console.log('[CharacterSheetModal] Character game system ID:', props.character?.gameSystemId);
+  console.log('[CharacterSheetModal] Character game system ID:', props.character?.pluginId);
   
-  if (!props.character?.gameSystemId) {
+  if (!props.character?.pluginId) {
     return null;
   }
 
   // For D&D 5e 2024, get component directly from plugin registry
-  if (props.character.gameSystemId === 'dnd5e-2024' || props.character.gameSystemId === 'dnd-5e-2024') {
+  if (props.character.pluginId === 'dnd5e-2024' || props.character.pluginId === 'dnd-5e-2024') {
     // Try the direct component ID (as registered by the plugin)
     const component = pluginRegistry.getComponentById('dnd-5e-2024-character-sheet');
     if (component) {
@@ -90,7 +90,7 @@ const characterSheetComponent = computed(() => {
   }
 
   // Add support for other game systems here
-  // if (props.character.gameSystemId === 'pathfinder') { ... }
+  // if (props.character.pluginId === 'pathfinder') { ... }
   
   return null;
 });
@@ -106,10 +106,10 @@ const characterSheetData = computed(() => {
 
 // Get plugin context for event communication
 const pluginContext = computed(() => {
-  if (!props.character?.gameSystemId) return null;
+  if (!props.character?.pluginId) return null;
   
   // Map game system ID to plugin ID
-  let pluginId = props.character.gameSystemId;
+  let pluginId = props.character.pluginId;
   if (pluginId === 'dnd5e-2024' || pluginId === 'dnd-5e-2024') {
     pluginId = 'dnd-5e-2024';
   }
@@ -124,8 +124,8 @@ function handleCharacterUpdate(updatedCharacter: Record<string, unknown>) {
   const updatedActor: IActor = {
     ...props.character,
     name: (updatedCharacter.name as string) || props.character.name,
-    data: {
-      ...props.character.data,
+    pluginData: {
+      ...props.character.pluginData,
       ...updatedCharacter,
     },
   };
@@ -139,8 +139,8 @@ function handleSave(character: Record<string, unknown>) {
   const updatedActor: IActor = {
     ...props.character,
     name: (character.name as string) || props.character.name,
-    data: {
-      ...props.character.data,
+    pluginData: {
+      ...props.character.pluginData,
       ...character,
     },
   };

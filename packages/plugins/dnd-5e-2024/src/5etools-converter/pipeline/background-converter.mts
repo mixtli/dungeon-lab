@@ -313,9 +313,9 @@ export class TypedBackgroundConverter extends TypedConverter<
     
     if (featPart.includes(';')) {
       // Handle "magic initiate; wizard" format
-      const [baseFeat, spellClass] = featPart.split(';').map(part => part.trim());
+      const [baseFeat] = featPart.split(';').map(part => part.trim());
       featName = this.formatFeatName(baseFeat);
-      featSlug = this.createFeatSlug(baseFeat, spellClass);
+      featSlug = this.createFeatSlug(baseFeat);
     } else {
       // Handle simple feat name like "alert"
       featName = this.formatFeatName(featPart);
@@ -349,7 +349,7 @@ export class TypedBackgroundConverter extends TypedConverter<
    * Create feat slug - always use base feat slug since 2024 D&D consolidated variants
    * (e.g., "Magic Initiate" replaces "Magic Initiate (Cleric)", "Magic Initiate (Wizard)", etc.)
    */
-  private createFeatSlug(baseFeat: string, spellClass?: string): string {
+  private createFeatSlug(baseFeat: string): string {
     // Always return the base slug - feat variants are handled within the feat itself in 2024 D&D
     return generateSlug(baseFeat);
   }

@@ -1,0 +1,66 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "workspaces": {
+    ".": {
+      "entry": ["scripts/**/*.{js,mjs,ts,mts}"],
+      "project": ["scripts/**/*.{js,mjs,ts,mts}"]
+    },
+    "packages/client": {
+      "entry": ["src/index.mts"],
+      "project": ["src/**/*.{js,mjs,ts,mts}"]
+    },
+    "packages/server": {
+      "entry": [
+        "src/index.mts",
+        "src/app.mts",
+        "src/scripts/**/*.{js,mjs,ts,mts}"
+      ],
+      "project": ["src/**/*.{js,mjs,ts,mts}"]
+    },
+    "packages/web": {
+      "entry": [
+        "src/main.mts",
+        "vite.config.mts",
+        "tailwind.config.js",
+        "postcss.config.js"
+      ],
+      "project": ["src/**/*.{js,mjs,ts,mts,vue}"]
+    },
+    "packages/shared": {
+      "entry": ["src/index.mts", "src/index-server.mts"],
+      "project": ["src/**/*.{js,mjs,ts,mts}"]
+    },
+    "packages/foundry-converter": {
+      "entry": ["src/index.mts", "src/cli.mts"],
+      "project": ["src/**/*.{js,mjs,ts,mts}"]
+    },
+    "packages/plugins/dnd-5e-2024": {
+      "entry": ["src/index.mts"],
+      "project": ["src/**/*.{js,mjs,ts,mts,vue}"]
+    }
+  },
+  "ignore": [
+    "packages/plugins/dnd-5e-2024-old/**",
+    "**/dist/**",
+    "**/coverage/**",
+    "**/node_modules/**",
+    "**/*.d.ts",
+    "**/test-utils.mts",
+    "**/tests/**",
+    "**/*.test.{js,mjs,ts,mts}",
+    "**/*.spec.{js,mjs,ts,mts}",
+    "**/vitest.config.{js,mjs,ts,mts}",
+    "**/eslint.config.{js,mjs}",
+    "**/tsconfig*.json"
+  ],
+  "ignoreDependencies": [
+    "@types/*",
+    "typescript",
+    "eslint",
+    "prettier",
+    "vite",
+    "vitest"
+  ],
+  "ignoreExportsUsedInFile": true,
+  "includeEntryExports": false
+}

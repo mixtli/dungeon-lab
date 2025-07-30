@@ -115,9 +115,9 @@
                   </div>
                 </dd>
               </div>
-              <div v-if="(entry.entry.documentType === 'actor' || entry.entry.documentType === 'item') && entry.content.gameSystemId">
+              <div v-if="(entry.entry.documentType === 'actor' || entry.entry.documentType === 'item') && entry.content.pluginId">
                 <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Game System</dt>
-                <dd class="text-sm text-gray-900 dark:text-white">{{ entry.content.gameSystemId }}</dd>
+                <dd class="text-sm text-gray-900 dark:text-white">{{ entry.content.pluginId }}</dd>
               </div>
               <div v-if="(entry.entry.documentType === 'item' || entry.entry.documentType === 'vtt-document') && entry.content.pluginId">
                 <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Plugin</dt>

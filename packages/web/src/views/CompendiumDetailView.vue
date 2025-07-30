@@ -143,7 +143,7 @@ function formatDate(dateString?: Date | string): string {
           <div class="mt-4 flex flex-wrap items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
             <span class="flex items-center">
               <i class="fas fa-gamepad mr-2"></i>
-              {{ compendium.gameSystemId || 'Unknown System' }}
+              {{ compendium.pluginId || 'Unknown System' }}
             </span>
             <span class="flex items-center">
               <i class="fas fa-tag mr-2"></i>
@@ -240,7 +240,7 @@ function formatDate(dateString?: Date | string): string {
           </div>
         </div>
 
-        <div v-if="compendium.entriesByType?.vttdocument" class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
+        <div v-if="compendium.entriesByType?.['vtt-document']" class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
           <div class="p-5">
             <div class="flex items-center">
               <div class="flex-shrink-0">
@@ -252,7 +252,7 @@ function formatDate(dateString?: Date | string): string {
                     Documents
                   </dt>
                   <dd class="text-lg font-medium text-gray-900 dark:text-white">
-                    {{ compendium.entriesByType.vttdocument }}
+                    {{ compendium.entriesByType['vtt-document'] }}
                   </dd>
                 </dl>
               </div>

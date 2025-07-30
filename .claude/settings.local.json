@@ -49,7 +49,11 @@
       "Bash(curl:*)",
       "mcp__memento__search_nodes",
       "mcp__memento__semantic_search",
-      "Bash(jq:*)"
+      "Bash(jq:*)",
+      "mcp__playwright-executionautomation__playwright_navigate",
+      "mcp__playwright__browser_network_requests",
+      "mcp__playwright__browser_evaluate",
+      "mcp__playwright__browser_click"
     ],
     "additionalDirectories": [
       "/Users/mixtli/checkouts/5etools-src"

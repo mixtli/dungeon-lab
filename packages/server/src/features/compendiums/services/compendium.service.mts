@@ -152,7 +152,16 @@ export class CompendiumService {
     isActive?: boolean;
     category?: string;
     search?: string;
-  }): Promise<ICompendiumEntry[]> {
+    page?: number;
+    limit?: number;
+    sort?: string;
+    order?: string;
+  }): Promise<{
+    entries: ICompendiumEntry[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     try {
       // First find the compendium to get its ObjectId
       const compendium = await CompendiumModel.findOne({ slug }).lean();
@@ -169,9 +178,37 @@ export class CompendiumService {
         query.$text = { $search: filters.search };
       }
       
-      const entries = await CompendiumEntryModel.find(query)
-        .sort({ 'entry.sortOrder': 1, 'entry.name': 1 })
-        .lean();
+      // Build sort object
+      let sortObj: Record<string, 1 | -1> = { 'entry.sortOrder': 1, 'entry.name': 1 };
+      if (filters?.sort) {
+        const sortField = filters.sort;
+        const sortOrder = filters.order === 'desc' ? -1 : 1;
+        
+        // Map frontend sort fields to database fields
+        const fieldMap: Record<string, string> = {
+          'createdAt': 'createdAt',
+          'updatedAt': 'updatedAt',
+          'name': 'entry.name',
+          'type': 'entry.documentType'
+        };
+        
+        const dbField = fieldMap[sortField] || sortField;
+        sortObj = { [dbField]: sortOrder };
+      }
+
+      // Build the query with pagination
+      let entriesQuery = CompendiumEntryModel.find(query).sort(sortObj);
+      
+      // Apply pagination if provided
+      if (filters?.page && filters?.limit) {
+        const skip = (filters.page - 1) * filters.limit;
+        entriesQuery = entriesQuery.skip(skip).limit(filters.limit);
+      }
+      
+      // Get total count (without pagination) for the same query
+      const total = await CompendiumEntryModel.countDocuments(query);
+      
+      const entries = await entriesQuery.lean();
       
       // Manually populate asset fields for each entry based on content type
       for (const entry of entries) {
@@ -229,10 +266,17 @@ export class CompendiumService {
       }
       
       // Map _id to id for each entry
-      return entries.map(entry => ({
+      const mappedEntries = entries.map(entry => ({
         ...entry,
         id: entry._id?.toString?.() || entry.id,
       }));
+
+      return {
+        entries: mappedEntries,
+        total,
+        page: filters?.page || 1,
+        limit: filters?.limit || 20
+      };
     } catch (error) {
       logger.error('Error fetching compendium entries:', error);
       throw new Error('Failed to get compendium entries');

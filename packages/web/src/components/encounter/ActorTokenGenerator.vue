@@ -47,11 +47,11 @@
       
       <div v-if="selectedActor" class="actor-preview">
         <h4>{{ selectedActor.name }}</h4>
-        <p class="actor-type">{{ selectedActor.type?.toUpperCase() }}</p>
-        <div class="actor-stats" v-if="selectedActor.data?.stats">
-          <span>HP: {{ selectedActor.data.stats.hitPoints || 'N/A' }}</span>
-          <span>AC: {{ selectedActor.data.stats.armorClass || 'N/A' }}</span>
-          <span>Speed: {{ selectedActor.data.stats.speed || 'N/A' }}</span>
+        <p class="actor-type">{{ selectedActor.documentType?.toUpperCase() }}</p>
+        <div class="actor-stats" v-if="selectedActor.pluginData?.stats">
+          <span>HP: {{ (selectedActor.pluginData.stats as any).hitPoints || 'N/A' }}</span>
+          <span>AC: {{ (selectedActor.pluginData.stats as any).armorClass || 'N/A' }}</span>
+          <span>Speed: {{ (selectedActor.pluginData.stats as any).speed || 'N/A' }}</span>
         </div>
       </div>
       
@@ -196,11 +196,11 @@ const selectedActor = computed(() => {
 });
 
 const pcActors = computed(() => {
-  return campaignCharacters.value.filter((actor: IActor) => actor.type === 'character');
+  return campaignCharacters.value.filter((actor: IActor) => actor.pluginDocumentType === 'character');
 });
 
 const npcActors = computed(() => {
-  return campaignCharacters.value.filter((actor: IActor) => actor.type === 'npc');
+  return campaignCharacters.value.filter((actor: IActor) => actor.pluginDocumentType === 'npc');
 });
 
 const monsterActors = computed(() => {
@@ -208,7 +208,7 @@ const monsterActors = computed(() => {
 });
 
 const isMonster = computed(() => {
-  return selectedActor.value?.type === 'monster';
+  return selectedActor.value?.pluginDocumentType === 'monster';
 });
 
 const isGM = computed(() => {
@@ -306,7 +306,7 @@ onMounted(async () => {
 watch(selectedActor, (newActor) => {
   if (newActor) {
     // Set reasonable defaults based on actor type
-    if (newActor.type === 'monster') {
+    if (newActor.pluginDocumentType === 'monster') {
       tokenOptions.value.randomizeHP = true;
     }
   }

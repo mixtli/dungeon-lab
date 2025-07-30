@@ -36,7 +36,7 @@ onMounted(async () => {
       // Filter to only include actual characters
       if (campaignData.characters && Array.isArray(campaignData.characters)) {
         localCharacters.value = campaignData.characters.filter(
-          (char): char is IActor => char !== null && char?.type === 'character'
+          (char): char is IActor => char !== null && char?.documentType === 'actor'
         );
         console.log('Filtered characters:', localCharacters.value);
       } else {

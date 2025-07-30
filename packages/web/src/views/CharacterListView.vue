@@ -31,7 +31,7 @@ onMounted(async () => {
   try {
     const actors = await actorClient.getActors();
     // Filter only character type actors
-    characters.value = actors.filter((actor: IActor) => actor.type === 'character');
+    characters.value = actors.filter((actor: IActor) => actor.pluginDocumentType === 'character');
   } catch (err) {
     console.error('Error loading characters:', err);
     error.value = 'Failed to load characters. Please try again later.';
@@ -135,9 +135,9 @@ function handleCreate() {
             <div class="flex justify-between items-start">
               <div>
                 <h3 class="text-xl font-bold text-gray-900">{{ character.name }}</h3>
-                <p v-if="character.data" class="text-gray-600">
-                  Level {{ character.data.level }} {{ character.data.race }}
-                  {{ character.data.class }}
+                <p v-if="character.pluginData" class="text-gray-600">
+                  Level {{ character.pluginData.level }} {{ character.pluginData.race }}
+                  {{ character.pluginData.class }}
                 </p>
               </div>
               <div class="flex space-x-2">
@@ -160,10 +160,10 @@ function handleCreate() {
               </div>
             </div>
 
-            <div v-if="character.data && character.data.hitPoints" class="mt-4 flex items-center justify-between">
+            <div v-if="character.pluginData && (character.pluginData as any).hitPoints" class="mt-4 flex items-center justify-between">
               <div class="text-sm font-medium text-gray-500">HP</div>
               <div class="text-sm font-semibold text-gray-900">
-                {{ character.data.hitPoints.current }}/{{ character.data.hitPoints.maximum }}
+                {{ (character.pluginData as any).hitPoints.current }}/{{ (character.pluginData as any).hitPoints.maximum }}
               </div>
             </div>
           </div>

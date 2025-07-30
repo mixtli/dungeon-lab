@@ -170,7 +170,7 @@ async function handleCharacterSave(character: IActor) {
   try {
     await actorStore.updateActor(character.id, {
       name: character.name,
-      data: character.data
+      pluginData: character.pluginData
     });
     console.log('Character saved:', character.name);
   } catch (error) {
@@ -191,7 +191,7 @@ onMounted(() => {
   fallbackTimeout.value = window.setTimeout(() => {
     // If no plugin context was found, show fallback chrome
     const hasActivePlugin = Array.from(characterSheetStore.floatingSheets.values()).some(sheet => {
-      const gameSystemId = sheet.character.gameSystemId;
+      const gameSystemId = sheet.character.pluginId;
       let pluginId = gameSystemId;
       if (pluginId === 'dnd5e-2024' || pluginId === 'dnd-5e-2024') {
         pluginId = 'dnd-5e-2024';
@@ -226,7 +226,7 @@ onUnmounted(() => {
 function setupPluginEventListeners() {
   // Listen for events from all character sheets
   for (const [sheetId, sheet] of characterSheetStore.floatingSheets) {
-    const gameSystemId = sheet.character.gameSystemId;
+    const gameSystemId = sheet.character.pluginId;
     let pluginId = gameSystemId;
     
     // Map game system ID to plugin ID

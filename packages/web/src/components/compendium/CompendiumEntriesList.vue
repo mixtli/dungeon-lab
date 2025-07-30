@@ -71,13 +71,13 @@ async function loadEntries() {
       params.order = order;
     }
 
-    const entriesData = await compendiumsClient.getCompendiumEntries(
+    const result = await compendiumsClient.getCompendiumEntries(
       props.compendiumId, 
       params as Record<string, string | number | boolean>
     );
 
-    entries.value = entriesData || [];
-    totalEntries.value = entriesData.length;
+    entries.value = result.entries || [];
+    totalEntries.value = result.total;
   } catch (err: unknown) {
     console.error('Failed to load compendium entries:', err);
     const errorObj = err as { response?: { data?: { message?: string } } };
@@ -434,16 +434,16 @@ function navigateToEntry(entry: ICompendiumEntry) {
                   <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
                     {{ getContentTypeDisplayName(entry) }}
                   </span>
-                  <span v-if="entry.category" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
-                    {{ entry.category }}
+                  <span v-if="entry.entry.category" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
+                    {{ entry.entry.category }}
                   </span>
                 </div>
                 
                 <div class="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400">
                   <span>Created {{ formatDate((entry as any).createdAt) }}</span>
-                  <span v-if="entry.tags && entry.tags.length > 0" class="flex items-center space-x-1">
+                  <span v-if="entry.entry.tags && entry.entry.tags.length > 0" class="flex items-center space-x-1">
                     <i class="fas fa-tags"></i>
-                    <span>{{ entry.tags.slice(0, 2).join(', ') }}{{ entry.tags.length > 2 ? ` +${entry.tags.length - 2}` : '' }}</span>
+                    <span>{{ entry.entry.tags.slice(0, 2).join(', ') }}{{ entry.entry.tags.length > 2 ? ` +${entry.entry.tags.length - 2}` : '' }}</span>
                   </span>
                 </div>
               </div>
@@ -526,7 +526,7 @@ function navigateToEntry(entry: ICompendiumEntry) {
             Delete Entry
           </h3>
           <p class="text-gray-600 dark:text-gray-400 mb-6">
-            Are you sure you want to delete "{{ entryToDelete?.name }}"? This action cannot be undone.
+            Are you sure you want to delete "{{ entryToDelete?.entry.name }}"? This action cannot be undone.
           </p>
         </div>
         
@@ -564,7 +564,7 @@ function navigateToEntry(entry: ICompendiumEntry) {
             Create from Template
           </h3>
           <p class="text-gray-600 dark:text-gray-400 mb-6">
-            This will create a new {{ getContentTypeDisplayName(entryToInstantiate!).toLowerCase() }} based on "{{ entryToInstantiate?.name }}" that you can customize and use in your world.
+            This will create a new {{ getContentTypeDisplayName(entryToInstantiate!).toLowerCase() }} based on "{{ entryToInstantiate?.entry.name }}" that you can customize and use in your world.
           </p>
         </div>
         

@@ -51,7 +51,7 @@ export const useActorStore = defineStore(
           return;
         }
 
-        const filters = { gameSystemId };
+        const filters = { pluginId: gameSystemId };
         socketStore.emit('actor:list', filters, (response: { success: boolean; data?: IActor[]; error?: string }) => {
           if (response.success && response.data) {
             actors.value = response.data;
@@ -173,14 +173,24 @@ export const useActorStore = defineStore(
       socket.off('actor:updated');
       socket.off('actor:deleted');
 
-      socket.on('actor:updated', (updatedActor) => {
+      socket.on('actor:updated', (updatedActor: Partial<IActor> & { id: string; name: string }) => {
         console.log('[Actor Store] Actor updated event received:', updatedActor);
-        const index = actors.value.findIndex(a => a.id === updatedActor.id);
+        // Add default fields if missing
+        const actorWithDefaults: IActor = {
+          ...updatedActor,
+          slug: updatedActor.slug || updatedActor.name?.toLowerCase().replace(/\s+/g, '-') || '',
+          userData: updatedActor.userData || {},
+          pluginData: updatedActor.pluginData || {},
+          pluginId: updatedActor.pluginId || 'unknown',
+          documentType: updatedActor.documentType || 'actor',
+          pluginDocumentType: updatedActor.pluginDocumentType || 'unknown'
+        };
+        const index = actors.value.findIndex(a => a.id === actorWithDefaults.id);
         if (index !== -1) {
-          actors.value[index] = updatedActor;
+          actors.value[index] = actorWithDefaults;
         }
-        if (currentActor.value?.id === updatedActor.id) {
-          currentActor.value = updatedActor;
+        if (currentActor.value?.id === actorWithDefaults.id) {
+          currentActor.value = actorWithDefaults;
         }
       });
 
