@@ -20,7 +20,7 @@ export interface CompendiumIndex {
   byObjectId: Map<string, {
     slug: string;
     documentType: string;
-    pluginType?: string;
+    pluginDocumentType?: string;
     source?: string;
   }>;
 }
@@ -63,7 +63,7 @@ export interface IndexableCompendiumEntry {
   _id: Types.ObjectId;
   slug: string;
   documentType: string;
-  pluginType?: string;
+  pluginDocumentType?: string;
   source?: string;
   pluginData: Record<string, unknown>;
 }
@@ -101,7 +101,7 @@ export function buildCompendiumIndex(entries: IndexableCompendiumEntry[]): Compe
     index.byObjectId.set(entry._id.toString(), {
       slug: entry.slug,
       documentType: entry.documentType,
-      pluginType: entry.pluginType,
+      pluginDocumentType: entry.pluginDocumentType,
       source: entry.source
     });
   }

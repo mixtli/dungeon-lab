@@ -1,30 +1,29 @@
 import { z } from 'zod';
 import { vttDocumentSchema } from '../../schemas/vtt-document.schema.mjs';
+import { createDocumentSchema, baseDocumentSchema } from '../../schemas/document.schema.mjs';
 import { baseAPIResponseSchema } from './base.mjs';
 
 // Types for GET /documents (Search documents)
 export const getDocumentsResponseSchema = baseAPIResponseSchema.extend({
-  data: z.array(vttDocumentSchema)
+  data: z.array(baseDocumentSchema)
 });
 
 export type GetDocumentsResponse = z.infer<typeof getDocumentsResponseSchema>;
 
 // Types for GET /documents/:id (Get one document)
 export const getDocumentResponseSchema = baseAPIResponseSchema.extend({
-  data: vttDocumentSchema.optional()
+  data: baseDocumentSchema.optional()
 });
 
 export type GetDocumentResponse = z.infer<typeof getDocumentResponseSchema>;
 
 // Types for POST /documents (Create document)
-export const createDocumentRequestSchema = vttDocumentSchema.omit({
-  id: true
-});
+export const createDocumentRequestSchema = createDocumentSchema;
 
 export type CreateDocumentRequest = z.infer<typeof createDocumentRequestSchema>;
 
 export const createDocumentResponseSchema = baseAPIResponseSchema.extend({
-  data: vttDocumentSchema.optional()
+  data: baseDocumentSchema.optional()
 });
 
 export type CreateDocumentResponse = z.infer<typeof createDocumentResponseSchema>;
@@ -34,7 +33,7 @@ export const putDocumentRequestSchema = createDocumentRequestSchema;
 export type PutDocumentRequest = z.infer<typeof putDocumentRequestSchema>;
 
 export const putDocumentResponseSchema = baseAPIResponseSchema.extend({
-  data: vttDocumentSchema.optional()
+  data: baseDocumentSchema.optional()
 });
 
 export type PutDocumentResponse = z.infer<typeof putDocumentResponseSchema>;

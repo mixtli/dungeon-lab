@@ -48,6 +48,20 @@ export const proficiencyEntrySchema = z.union([
   z.object({
     type: z.literal('filter'),
     constraint: proficiencyFilterConstraintSchema
+  }),
+  // Item group selection proficiency (choose N items from group)
+  z.object({
+    type: z.literal('group-choice'),
+    group: z.object({
+      _ref: z.object({
+        slug: z.string(),
+        documentType: z.literal('vtt-document'),
+        pluginDocumentType: z.literal('item-group'),
+        source: z.string()
+      })
+    }),
+    count: z.number(),
+    displayText: z.string()
   })
 ]);
 
@@ -162,6 +176,21 @@ export const dndCharacterClassDataSchema = z.object({
     /** Spells known progression (if applicable) */
     spellsKnown: z.record(z.string(), z.number()).optional()
   }).optional(),
+  
+  /** Starting equipment options - array of all available choices */
+  startingEquipment: z.array(z.object({
+    /** Label for this option (A, B, C, etc.) */
+    label: z.string(),
+    /** Items included in this option */
+    items: z.array(z.object({
+      item: itemReferenceObjectSchema,
+      quantity: z.number().default(1)
+    })).optional(),
+    /** Gold amount included in this option (in gold pieces) */
+    gold: z.number().optional(),
+    /** Display text for this option */
+    description: z.string()
+  })).optional(),
   
   // Source information
   source: z.string().optional(),

@@ -33,6 +33,19 @@ const getEntriesQuerySchema = z.object({
   order: z.string().optional()
 });
 
+const getAllEntriesQuerySchema = z.object({
+  pluginId: z.string().optional(),
+  documentType: z.string().optional(),
+  pluginDocumentType: z.string().optional(),
+  isActive: z.string().transform(val => val === 'true').optional(),
+  category: z.string().optional(),
+  search: z.string().optional(),
+  page: z.string().transform(val => parseInt(val, 10)).optional(),
+  limit: z.string().transform(val => parseInt(val, 10)).optional(),
+  sort: z.string().optional(),
+  order: z.string().optional()
+});
+
 // Removed unused linkContentBodySchema
 
 export class CompendiumController {
@@ -233,6 +246,42 @@ export class CompendiumController {
       });
     } catch (error) {
       logger.error('Error getting compendium entries:', error);
+      const message = isErrorWithMessage(error) ? error.message : 'Failed to get compendium entries';
+      return res.status(500).json({
+        success: false,
+        error: message
+      });
+    }
+  };
+
+  /**
+   * Get all compendium entries across compendiums with filtering
+   * @route GET /api/compendiums/entries
+   */
+  getAllCompendiumEntries = async (
+    req: Request,
+    res: Response<BaseAPIResponse<{
+      entries: ICompendiumEntry[];
+      total: number;
+      page: number;
+      limit: number;
+    }>>
+  ): Promise<Response<BaseAPIResponse<{
+    entries: ICompendiumEntry[];
+    total: number;
+    page: number;
+    limit: number;
+  }>> | void> => {
+    try {
+      const query = getAllEntriesQuerySchema.parse(req.query);
+      const result = await this.compendiumService.getAllCompendiumEntries(query);
+
+      return res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      logger.error('Error getting all compendium entries:', error);
       const message = isErrorWithMessage(error) ? error.message : 'Failed to get compendium entries';
       return res.status(500).json({
         success: false,

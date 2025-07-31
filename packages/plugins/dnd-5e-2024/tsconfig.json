@@ -22,6 +22,12 @@
       ],
       "@dungeon-lab/shared/*": [
         "../../shared/src/*"
+      ],
+      "@dungeon-lab/client": [
+        "../../client/src"
+      ],
+      "@dungeon-lab/client/*": [
+        "../../client/src/*"
       ]
     },
     "strict": true,
@@ -44,6 +50,9 @@
   "references": [
     {
       "path": "../../shared"
+    },
+    {
+      "path": "../../client"
     }
   ]
 }

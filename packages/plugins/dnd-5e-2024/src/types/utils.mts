@@ -8,7 +8,7 @@ import { z } from 'zod';
 export const documentReferenceSchema = z.object({
   slug: z.string().min(1),
   type: z.string().min(1), // e.g., "vtt-document", "actor", "item"
-  pluginType: z.string().min(1), // e.g., "skill", "feat", "condition"
+  pluginDocumentType: z.string().min(1), // e.g., "skill", "feat", "condition"
   source: z.string().min(1), // e.g., "xphb", "phb"
   metadata: z.record(z.string(), z.unknown()).optional(), // Additional context (variants, etc.)
   id: z.string().optional() // MongoDB ID - present in runtime, omitted in compendium
@@ -40,14 +40,14 @@ export type CompendiumType<T> = {
 export function createDocumentReference(
   slug: string,
   type: string,
-  pluginType: string,
+  pluginDocumentType: string,
   source: string,
   metadata?: Record<string, unknown>
 ): DocumentReference {
   return {
     slug,
     type,
-    pluginType,
+    pluginDocumentType,
     source,
     ...(metadata && { metadata })
   };

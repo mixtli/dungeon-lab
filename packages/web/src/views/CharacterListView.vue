@@ -31,7 +31,7 @@ onMounted(async () => {
   try {
     const actors = await actorClient.getActors();
     // Filter only character document types
-    characters.value = actors.filter((actor: IActor) => actor.documentType === 'character');
+    characters.value = actors.filter((actor: IActor) => actor.documentType === 'actor' && actor.pluginDocumentType === 'character');
   } catch (err) {
     console.error('Error loading characters:', err);
     error.value = 'Failed to load characters. Please try again later.';

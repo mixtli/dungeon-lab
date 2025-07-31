@@ -15,7 +15,7 @@ interface ItemGroupReference {
   _ref: {
     slug: string;
     type: string;
-    pluginType: string;
+    pluginDocumentType: string;
     source: string;
   };
 }

@@ -45,13 +45,6 @@
         "PUPPETEER_CDP_ENDPOINT": "http://127.0.0.1:9222"
       }
     },
-    "playwright-executionautomation": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@executeautomation/playwright-mcp-server"
-      ]
-    },
     "playwright": {
       "command": "npx",
       "args": [

@@ -235,6 +235,8 @@ export class CompendiumPackGenerator {
           typedResult = await (converter as TypedItemConverter).convertItems();
           break;
         case 'classes':
+          // Initialize the class converter to load item data for type determination
+          await (converter as TypedClassConverter).initialize();
           typedResult = await (converter as TypedClassConverter).convertClasses();
           break;
         case 'species':

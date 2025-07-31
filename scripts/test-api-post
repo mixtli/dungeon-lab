@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# Quick POST request with authentication
+# Usage: ./scripts/test-api-post <endpoint> <json-data>
+# Example: ./scripts/test-api-post /api/compendiums '{"name":"test","pluginId":"dnd-5e-2024"}'
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec "$SCRIPT_DIR/test-api" POST "$@"

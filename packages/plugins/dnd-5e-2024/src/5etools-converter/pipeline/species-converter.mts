@@ -414,7 +414,7 @@ export class TypedSpeciesConverter extends TypedConverter<
     return {
       _ref: {
         documentType: 'vtt-document' as const,
-        pluginType: 'spell' as const,
+        pluginDocumentType: 'spell' as const,
         slug: cleanName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
         source: 'XPHB'
         // _id will be populated when documents are resolved

@@ -9,7 +9,7 @@ import {
   patchDocumentRequestSchema,
   SearchDocumentsQuery
 } from '@dungeon-lab/shared/types/api/index.mjs';
-import { IVTTDocument } from '@dungeon-lab/shared/types/index.mjs';
+import { BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
 import { ZodError } from 'zod';
 import { createSearchParams } from '../../../utils/create.search.params.mjs';
 import { isErrorWithMessage } from '../../../utils/error.mjs';
@@ -23,8 +23,8 @@ export class DocumentController {
 
   getDocument = async (
     req: Request,
-    res: Response<BaseAPIResponse<IVTTDocument>>
-  ): Promise<Response<BaseAPIResponse<IVTTDocument>> | void> => {
+    res: Response<BaseAPIResponse<BaseDocument>>
+  ): Promise<Response<BaseAPIResponse<BaseDocument>> | void> => {
     try {
       const { id } = req.params;
       const document = await this.documentService.getDocumentById(id);
@@ -50,9 +50,9 @@ export class DocumentController {
   };
 
   putDocument = async (
-    req: Request<{ id: string }, object, IVTTDocument>,
-    res: Response<BaseAPIResponse<IVTTDocument>>
-  ): Promise<Response<BaseAPIResponse<IVTTDocument>> | void> => {
+    req: Request<{ id: string }, object, BaseDocument>,
+    res: Response<BaseAPIResponse<BaseDocument>>
+  ): Promise<Response<BaseAPIResponse<BaseDocument>> | void> => {
     try {
       const { id } = req.params;
       const userId = req.session.user.id;
@@ -87,9 +87,9 @@ export class DocumentController {
   };
 
   patchDocument = async (
-    req: Request<{ id: string }, object, IVTTDocument>,
-    res: Response<BaseAPIResponse<IVTTDocument>>
-  ): Promise<Response<BaseAPIResponse<IVTTDocument>> | void> => {
+    req: Request<{ id: string }, object, BaseDocument>,
+    res: Response<BaseAPIResponse<BaseDocument>>
+  ): Promise<Response<BaseAPIResponse<BaseDocument>> | void> => {
     try {
       const { id } = req.params;
       const userId = req.session.user.id;
@@ -152,9 +152,9 @@ export class DocumentController {
   };
 
   createDocument = async (
-    req: Request<object, object, IVTTDocument>,
-    res: Response<BaseAPIResponse<IVTTDocument>>
-  ): Promise<Response<BaseAPIResponse<IVTTDocument>> | void> => {
+    req: Request<object, object, BaseDocument>,
+    res: Response<BaseAPIResponse<BaseDocument>>
+  ): Promise<Response<BaseAPIResponse<BaseDocument>> | void> => {
     try {
       const userId = req.session.user.id;
       const validatedData = createDocumentRequestSchema.parse(req.body);
@@ -201,8 +201,8 @@ export class DocumentController {
 
   searchDocuments = async (
     req: Request<object, object, object, SearchDocumentsQuery>,
-    res: Response<BaseAPIResponse<IVTTDocument[]>>
-  ): Promise<Response<BaseAPIResponse<IVTTDocument[]>> | void> => {
+    res: Response<BaseAPIResponse<BaseDocument[]>>
+  ): Promise<Response<BaseAPIResponse<BaseDocument[]>> | void> => {
     try {
       // Convert dot notation in query params to nested objects
       const query = createSearchParams(req.query as Record<string, QueryValue>);

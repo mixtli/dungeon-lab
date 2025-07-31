@@ -12,6 +12,9 @@ import type { MechanicsRegistry } from '@dungeon-lab/shared/types/mechanics-regi
 // Import the full featured character sheet component
 import DnD5eCharacterSheet from './character-sheet.vue';
 
+// Import the character creator component
+import DnD5eCharacterCreator from './components/character-creator/DnD5eCharacterCreator.vue';
+
 /**
  * D&D 5th Edition (2024) Plugin Implementation - Minimal Version
  */
@@ -69,7 +72,29 @@ export class DnD5e2024Plugin implements GameSystemPlugin {
       }
     );
     
-    console.log(`[${this.id}] Registered character sheet component`);
+    // Character creator component
+    registry.register(
+      'dnd-5e-2024-character-creator',
+      DnD5eCharacterCreator,
+      {
+        pluginId: this.id,
+        name: 'D&D 5e Character Creator',
+        description: 'D&D 5e character creation wizard component',
+        category: 'character-creator',
+        props: {
+          basicInfo: { type: 'object', required: true },
+          readonly: { type: 'boolean', default: false }
+        },
+        events: {
+          'character-ready': 'Emitted when character data is complete and ready for creation',
+          'back-to-basics': 'Emitted to return to basic info step',
+          'validation-change': 'Emitted when step validation status changes'
+        },
+        hotReloadable: true
+      }
+    );
+    
+    console.log(`[${this.id}] Registered character sheet and character creator components`);
   }
   
   /**

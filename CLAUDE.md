@@ -6,6 +6,29 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 I prefer brutal honesty over and realistic takes instead of being lead on paths of maybes or "it can work".
 
+## ⚠️ CRITICAL DEVELOPMENT RULES ⚠️
+
+### **NEVER RESTART THE DEV SERVER**
+- The dev server is already running (UI on port 8080, API on port 3000)
+- **NEVER** run `npm run dev` or any server restart commands
+- The server restarts automatically when code changes - no manual intervention needed
+- Restarting wastes time and disrupts the development workflow
+
+### **CORRECT PORTS FOR TESTING**
+- **UI/Frontend**: Always use `http://localhost:8080` for Playwright testing
+- **API/Backend**: Runs on `http://localhost:3000` (for API calls only, not UI testing)
+
+### **USE MCP PLAYWRIGHT SERVER - NOT LOCAL PLAYWRIGHT**
+- There is a Playwright MCP server available for browser automation
+- **NEVER** run `npx playwright install` or try to install Playwright locally
+- **ALWAYS** use the MCP Playwright server tools for browser testing:
+  - `mcp__playwright__browser_navigate` 
+  - `mcp__playwright__browser_click`
+  - `mcp__playwright__browser_screenshot`
+  - `mcp__playwright__browser_snapshot`
+  - etc.
+- The MCP server handles all browser automation needs
+
 ## Project Overview
 
 Dungeon Lab is a Virtual Table Top (VTT) system for Table Top Role Playing Games (TTRPGs) with an extensible plugin architecture to support multiple game systems. The project is built as a modern web application with real-time collaboration features.
@@ -107,6 +130,7 @@ The system uses a hybrid approach:
 - Use `.mts` extension for TypeScript files
 - Import statements should reference `.mjs` files (not `.mts`)
 - Use lowercase with dashes for directories (e.g., `auth-wizard`)
+- **IMPORTANT**: When importing from workspace packages, always use the full filename (e.g., `@dungeon-lab/client/index.mjs` instead of `@dungeon-lab/client`)
 - Don't use explicit any types.  Prefer a more specific type or unknown.
 
 ### Code Style
@@ -162,6 +186,18 @@ Strict dependency rules are enforced:
 - Run from `packages/server` directory
 - Use `requestAs()` helper for authenticated requests
 
+### API Testing
+- **For quick API testing**: Use the authentication-enabled scripts in `scripts/` directory:
+  - `./scripts/test-api-get /api/endpoint` - GET requests with auth
+  - `./scripts/test-api-post /api/endpoint '{"data":"value"}'` - POST requests with auth
+  - `./scripts/test-api GET /api/endpoint` - Generic method with auth
+- **Requirements**: `API_AUTH_TOKEN` environment variable must be set
+- **Examples**:
+  ```bash
+  ./scripts/test-api-get "/api/compendiums/entries?pluginId=dnd-5e-2024&documentType=vtt-document&pluginDocumentType=character-class"
+  ./scripts/test-api-post "/api/compendiums" '{"name":"test","pluginId":"dnd-5e-2024"}'
+  ```
+
 ### Web Tests
 - Testing strategy is still being defined
 - Currently no established patterns
@@ -174,15 +210,18 @@ Strict dependency rules are enforced:
 - **Authentication**: Session-based only, never modify auth code without permission
 - **File Extensions**: Use `.mts` for TypeScript files, import with `.mjs` extensions
 - **Testing**: Vitest (not Jest), focus on integration tests, use auth helpers
+- **Server Management**: NEVER restart the dev server - it's persistent and auto-reloads code changes
 
 ### Key Tools
 - **Login**: admin@dungeonlab.com / password for testing
 - **MongoDB MCP**: For database queries and examination
 - **Playwright MCP**: For web testing and browser automation
 - **Memento MCP**: For storing persistent architectural knowledge
+- **API Testing**: Use `./scripts/test-api-get <endpoint>` and `./scripts/test-api-post <endpoint> <data>` for authenticated API testing (requires `API_AUTH_TOKEN` env var)
 
 ### Important Notes
-- Servers restart automatically on changes (no manual restart needed)
+- **NEVER manually restart the server** - it's always running and auto-reloads on code changes (nodemon)
+- **NEVER run `npm run dev`** - the development server is persistent and restarting causes port conflicts
 - Plugins build automatically before server starts
 - Run `npm run check` for TypeScript validation before commits
 - Follow mobile-first design principles

@@ -53,7 +53,22 @@
       "mcp__playwright-executionautomation__playwright_navigate",
       "mcp__playwright__browser_network_requests",
       "mcp__playwright__browser_evaluate",
-      "mcp__playwright__browser_click"
+      "mcp__playwright__browser_click",
+      "mcp__playwright__browser_type",
+      "Bash(./scripts/test-api-get:*)",
+      "mcp__mongo-lens__find-documents",
+      "mcp__mongo-lens__list-collections",
+      "mcp__mongo-lens__use-database",
+      "mcp__memento__create_entities",
+      "mcp__playwright-executionautomation__playwright_evaluate",
+      "mcp__playwright__browser_select_option",
+      "mcp__playwright__browser_snapshot",
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__mongodb__listCollections",
+      "mcp__mongo-lens__list-databases",
+      "Bash(./scripts/upload-pack.sh:*)",
+      "Bash(./bin/upload-pack.sh:*)",
+      "Bash(bash:*)"
     ],
     "additionalDirectories": [
       "/Users/mixtli/checkouts/5etools-src"

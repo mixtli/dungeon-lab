@@ -1,0 +1,81 @@
+#!/bin/bash
+
+# Authenticated API testing script for Dungeon Lab
+# Usage: ./scripts/test-api <method> <endpoint> [data]
+# Examples:
+#   ./scripts/test-api GET /api/compendiums/entries?pluginId=dnd-5e-2024
+#   ./scripts/test-api POST /api/compendiums '{"name":"test"}'
+
+set -e
+
+# Check if API_AUTH_TOKEN is set
+if [ -z "$API_AUTH_TOKEN" ]; then
+    echo "Error: API_AUTH_TOKEN environment variable is not set!"
+    echo "Please set it with: export API_AUTH_TOKEN=your_token_here"
+    exit 1
+fi
+
+# Default API base URL
+API_BASE="${API_BASE:-http://localhost:3000}"
+
+# Parse arguments
+METHOD="${1:-GET}"
+ENDPOINT="$2"
+DATA="$3"
+
+if [ -z "$ENDPOINT" ]; then
+    echo "Usage: $0 <method> <endpoint> [data]"
+    echo "Examples:"
+    echo "  $0 GET /api/compendiums/entries"
+    echo "  $0 POST /api/compendiums '{\"name\":\"test\"}'"
+    exit 1
+fi
+
+# Ensure endpoint starts with /
+if [[ ! "$ENDPOINT" =~ ^/ ]]; then
+    ENDPOINT="/$ENDPOINT"
+fi
+
+# Build curl command
+CURL_CMD="curl -s -w '\nHTTP Status: %{http_code}\nResponse Time: %{time_total}s\n'"
+CURL_CMD="$CURL_CMD -H 'Authorization: Bearer $API_AUTH_TOKEN'"
+CURL_CMD="$CURL_CMD -H 'Content-Type: application/json'"
+
+# Add method-specific options
+case "$METHOD" in
+    GET)
+        CURL_CMD="$CURL_CMD -X GET"
+        ;;
+    POST)
+        CURL_CMD="$CURL_CMD -X POST"
+        if [ -n "$DATA" ]; then
+            CURL_CMD="$CURL_CMD -d '$DATA'"
+        fi
+        ;;
+    PUT)
+        CURL_CMD="$CURL_CMD -X PUT"
+        if [ -n "$DATA" ]; then
+            CURL_CMD="$CURL_CMD -d '$DATA'"
+        fi
+        ;;
+    DELETE)
+        CURL_CMD="$CURL_CMD -X DELETE"
+        ;;
+    *)
+        echo "Unsupported method: $METHOD"
+        echo "Supported methods: GET, POST, PUT, DELETE"
+        exit 1
+        ;;
+esac
+
+# Add URL
+CURL_CMD="$CURL_CMD '$API_BASE$ENDPOINT'"
+
+# Execute the request
+echo "Making $METHOD request to: $API_BASE$ENDPOINT"
+if [ -n "$DATA" ]; then
+    echo "Data: $DATA"
+fi
+echo "---"
+
+eval $CURL_CMD

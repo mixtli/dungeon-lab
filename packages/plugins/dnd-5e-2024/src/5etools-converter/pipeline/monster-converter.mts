@@ -757,7 +757,7 @@ export class TypedMonsterConverter extends TypedConverter<
         documentType: 'vtt-document' as const,
         slug,
         source: source.toLowerCase(),
-        pluginType: 'spell'
+        pluginDocumentType: 'spell'
       }
     };
   }

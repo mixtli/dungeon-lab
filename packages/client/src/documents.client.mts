@@ -1,4 +1,4 @@
-import type { IVTTDocument } from '@dungeon-lab/shared/types/index.mjs';
+import type { BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
 import {
   BaseAPIResponse,
   CreateDocumentRequest,
@@ -17,8 +17,8 @@ export class DocumentsClient extends ApiClient {
    * @param documentId - The ID of the document to retrieve
    * @returns The document or undefined if not found
    */
-  async getDocument(documentId: string): Promise<IVTTDocument | undefined> {
-    const response = await this.api.get<BaseAPIResponse<IVTTDocument>>(
+  async getDocument(documentId: string): Promise<BaseDocument | undefined> {
+    const response = await this.api.get<BaseAPIResponse<BaseDocument>>(
       `/api/documents/${documentId}`
     );
     if (!response.data.success) {
@@ -31,8 +31,8 @@ export class DocumentsClient extends ApiClient {
    * Get all documents (defaults to empty query)
    * @returns Array of documents
    */
-  async getDocuments(params?: SearchDocumentsQuery): Promise<IVTTDocument[]> {
-    const response = await this.api.get<BaseAPIResponse<IVTTDocument[]>>('/api/documents', {
+  async getDocuments(params?: SearchDocumentsQuery): Promise<BaseDocument[]> {
+    const response = await this.api.get<BaseAPIResponse<BaseDocument[]>>('/api/documents', {
       params
     });
     if (!response.data.success) {
@@ -46,7 +46,7 @@ export class DocumentsClient extends ApiClient {
    * @param query - Search query parameters
    * @returns Array of matching documents
    */
-  async searchDocuments(query: SearchDocumentsQuery): Promise<IVTTDocument[]> {
+  async searchDocuments(query: SearchDocumentsQuery): Promise<BaseDocument[]> {
     const queryString = new URLSearchParams();
     Object.entries(query).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
@@ -54,7 +54,7 @@ export class DocumentsClient extends ApiClient {
       }
     });
 
-    const response = await this.api.get<BaseAPIResponse<IVTTDocument[]>>(
+    const response = await this.api.get<BaseAPIResponse<BaseDocument[]>>(
       `/api/documents?${queryString.toString()}`
     );
     if (!response.data.success) {
@@ -68,8 +68,8 @@ export class DocumentsClient extends ApiClient {
    * @param data - The document data to create
    * @returns The created document or undefined
    */
-  async createDocument(data: CreateDocumentRequest): Promise<IVTTDocument | undefined> {
-    const response = await this.api.post<BaseAPIResponse<IVTTDocument>>('/api/documents', data);
+  async createDocument(data: CreateDocumentRequest): Promise<BaseDocument | undefined> {
+    const response = await this.api.post<BaseAPIResponse<BaseDocument>>('/api/documents', data);
     if (!response.data.success) {
       throw new Error(response.data.error || 'Failed to create document');
     }
@@ -85,8 +85,8 @@ export class DocumentsClient extends ApiClient {
   async patchDocument(
     documentId: string,
     data: PatchDocumentRequest
-  ): Promise<IVTTDocument | undefined> {
-    const response = await this.api.patch<BaseAPIResponse<IVTTDocument>>(
+  ): Promise<BaseDocument | undefined> {
+    const response = await this.api.patch<BaseAPIResponse<BaseDocument>>(
       `/api/documents/${documentId}`,
       data
     );
@@ -105,8 +105,8 @@ export class DocumentsClient extends ApiClient {
   async putDocument(
     documentId: string,
     data: PutDocumentRequest
-  ): Promise<IVTTDocument | undefined> {
-    const response = await this.api.put<BaseAPIResponse<IVTTDocument>>(
+  ): Promise<BaseDocument | undefined> {
+    const response = await this.api.put<BaseAPIResponse<BaseDocument>>(
       `/api/documents/${documentId}`,
       data
     );

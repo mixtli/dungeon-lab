@@ -515,6 +515,187 @@ export class CompendiumService {
   */
 
   /**
+   * Get all entries across all compendiums with optional filtering using aggregation
+   */
+  async getAllCompendiumEntries(filters?: {
+    pluginId?: string;
+    documentType?: string;
+    pluginDocumentType?: string;
+    isActive?: boolean;
+    category?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+    sort?: string;
+    order?: string;
+  }): Promise<{
+    entries: ICompendiumEntry[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
+    try {
+      // Build match stage for aggregation
+      const matchStage: Record<string, unknown> = {};
+      
+      if (filters?.documentType) matchStage['entry.documentType'] = filters.documentType;
+      if (filters?.pluginDocumentType) matchStage['content.pluginDocumentType'] = filters.pluginDocumentType;
+      if (filters?.isActive !== undefined) matchStage.isActive = filters.isActive;
+      if (filters?.category) matchStage.category = filters.category;
+      if (filters?.search) {
+        matchStage.$text = { $search: filters.search };
+      }
+
+      // Build aggregation pipeline
+      const pipeline = [
+        // Join with compendiums collection to get pluginId
+        {
+          $lookup: {
+            from: 'compendia',
+            localField: 'compendiumId',
+            foreignField: '_id',
+            as: 'compendium'
+          }
+        },
+        // Unwind compendium array (should only be one)
+        {
+          $unwind: '$compendium'
+        },
+        // Add compendium fields to root for easier filtering
+        {
+          $addFields: {
+            'compendium.pluginId': '$compendium.pluginId'
+          }
+        }
+      ];
+
+      // Add pluginId filter if specified
+      if (filters?.pluginId) {
+        matchStage['compendium.pluginId'] = filters.pluginId;
+      }
+
+      // Add match stage if we have filters
+      if (Object.keys(matchStage).length > 0) {
+        pipeline.push({ $match: matchStage });
+      }
+
+      // Build sort stage
+      let sortStage: Record<string, 1 | -1> = { 'entry.sortOrder': 1, 'entry.name': 1 };
+      if (filters?.sort) {
+        const sortField = filters.sort;
+        const sortOrder = filters.order === 'desc' ? -1 : 1;
+        
+        // Map frontend sort fields to database fields
+        const fieldMap: Record<string, string> = {
+          'createdAt': 'createdAt',
+          'updatedAt': 'updatedAt',
+          'name': 'entry.name',
+          'type': 'entry.documentType'
+        };
+        
+        const dbField = fieldMap[sortField] || sortField;
+        sortStage = { [dbField]: sortOrder };
+      }
+
+      // Add sort stage
+      pipeline.push({ $sort: sortStage });
+
+      // Get total count first (before pagination)
+      const countPipeline = [...pipeline, { $count: 'total' }];
+      const countResult = await CompendiumEntryModel.aggregate(countPipeline);
+      const total = countResult.length > 0 ? countResult[0].total : 0;
+
+      // Add pagination if provided
+      if (filters?.page && filters?.limit) {
+        const skip = (filters.page - 1) * filters.limit;
+        pipeline.push({ $skip: skip });
+        pipeline.push({ $limit: filters.limit });
+      }
+
+      // Remove compendium field from output (we only needed it for filtering)
+      pipeline.push({
+        $project: {
+          compendium: 0
+        }
+      });
+
+      // Execute aggregation
+      const entries = await CompendiumEntryModel.aggregate(pipeline);
+      
+      // Manually populate asset fields for each entry (same logic as getCompendiumEntries)
+      for (const entry of entries) {
+        // Collect asset IDs to populate (both entry-level and content-level)
+        const assetIds: string[] = [];
+        const assetFieldMap: Record<string, string> = {};
+        
+        // Add entry-level imageId if present
+        if (entry.entry.imageId) {
+          assetIds.push(entry.entry.imageId.toString());
+          assetFieldMap[entry.entry.imageId.toString()] = 'entry.image';
+        }
+        
+        // Add content-level asset IDs if present
+        if (entry.content) {
+          const content = entry.content as IEmbeddedContentData;
+          
+          if (content.avatarId) {
+            assetIds.push(content.avatarId.toString());
+            assetFieldMap[content.avatarId.toString()] = 'content.avatarId';
+          }
+          
+          if (content.imageId) {
+            assetIds.push(content.imageId.toString());
+            assetFieldMap[content.imageId.toString()] = 'content.imageId';
+          }
+          
+          if (content.defaultTokenImageId) {
+            assetIds.push(content.defaultTokenImageId.toString());
+            assetFieldMap[content.defaultTokenImageId.toString()] = 'content.defaultTokenImageId';
+          }
+        }
+        
+        // Fetch all assets at once and replace IDs with full asset objects
+        if (assetIds.length > 0) {
+          const assets = await AssetModel.find({ _id: { $in: assetIds } }).lean();
+          
+          // Replace asset IDs with full asset objects
+          for (const asset of assets) {
+            const fieldPath = assetFieldMap[asset._id.toString()];
+            if (fieldPath) {
+              if (fieldPath === 'entry.image') {
+                // Add entry-level image object (keep imageId as string)
+                (entry as ICompendiumEntryWithAssets).image = asset;
+              } else if (fieldPath.startsWith('content.')) {
+                // Replace content-level asset fields
+                const fieldName = fieldPath.replace('content.', '');
+                if (entry.content) {
+                  (entry.content as IEmbeddedContentData)[fieldName] = asset;
+                }
+              }
+            }
+          }
+        }
+      }
+      
+      // Map _id to id for each entry
+      const mappedEntries = entries.map(entry => ({
+        ...entry,
+        id: entry._id?.toString?.() || entry.id,
+      }));
+
+      return {
+        entries: mappedEntries,
+        total,
+        page: filters?.page || 1,
+        limit: filters?.limit || 20
+      };
+    } catch (error: unknown) {
+      logger.error('Error fetching all compendium entries:', error);
+      throw new Error('Failed to get compendium entries');
+    }
+  }
+
+  /**
    * Get compendium statistics
    */
   async getCompendiumStats(slug: string): Promise<{

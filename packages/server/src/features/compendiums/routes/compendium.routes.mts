@@ -75,6 +75,19 @@ const getEntriesQuerySchema = z.object({
   search: z.string().optional()
 });
 
+const getAllEntriesQuerySchema = z.object({
+  pluginId: z.string().optional(),
+  documentType: z.string().optional(),
+  pluginDocumentType: z.string().optional(),
+  isActive: z.string().optional(),
+  category: z.string().optional(),
+  search: z.string().optional(),
+  page: z.string().optional(),
+  limit: z.string().optional(),
+  sort: z.string().optional(),
+  order: z.string().optional()
+});
+
 // Request body schemas
 const createCompendiumBodySchema = compendiumSchema.omit({
   id: true,
@@ -107,6 +120,23 @@ const updateEntryBodySchema = compendiumEntrySchema.partial().omit({
 // Removed unused linkContentBodySchema
 
 // Routes
+
+// Get all compendium entries across compendiums (must be before /:id routes)
+router.get(
+  '/entries',
+  oapi.validPath(
+    createPathSchema({
+      description: 'Get all compendium entries across compendiums with filtering',
+      requestParams: {
+        query: getAllEntriesQuerySchema
+      },
+      responses: {
+        200: getEntriesResponseSchema
+      }
+    })
+  ),
+  compendiumController.getAllCompendiumEntries
+);
 
 // Get all compendiums
 router.get(

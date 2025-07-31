@@ -35,10 +35,12 @@ export interface EtoolsStartingEquipment {
   additionalFromBackground?: boolean;
   default?: string[];
   goldAlternative?: string;
+  entries?: string[];
   defaultData?: Array<{
     _?: string;
-    a?: string[];
-    b?: string[];
+    A?: Array<{ item?: string; quantity?: number; value?: number }>;
+    B?: Array<{ item?: string; quantity?: number; value?: number }>;
+    C?: Array<{ item?: string; quantity?: number; value?: number }>;
     equipmentType?: string;
   }>;
 }
@@ -241,6 +243,7 @@ export const etoolsStartingEquipmentSchema = z.object({
   additionalFromBackground: z.boolean().optional(),
   default: z.array(z.string()).optional(),
   goldAlternative: z.string().optional(),
+  entries: z.array(z.string()).optional(),
   defaultData: z.array(z.any()).optional()
 }).passthrough();
 

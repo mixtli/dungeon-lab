@@ -169,7 +169,7 @@ function tagToReference(tag: ParsedMarkupTag): ReferenceObject | null {
     _ref: {
       slug: tag.content.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
       documentType,
-      pluginType: tag.type,
+      pluginDocumentType: tag.type,
       source: tag.source?.toLowerCase() || 'xphb'
     }
   };

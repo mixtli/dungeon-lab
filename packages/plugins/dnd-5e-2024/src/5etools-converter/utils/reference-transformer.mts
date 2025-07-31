@@ -67,7 +67,7 @@ export function transformToReferenceObject(parsedRef: ParsedReference): Referenc
   const documentReference: DocumentReference = {
     slug: parsedRef.slug,
     documentType: documentType,
-    pluginType: documentType === 'vtt-document' ? parsedRef.type : 'dnd-5e-2024',
+    pluginDocumentType: documentType === 'vtt-document' ? parsedRef.type : 'dnd-5e-2024',
     source: parsedRef.source,
     metadata: {
       originalType: parsedRef.type,
@@ -272,7 +272,7 @@ export function transformSpellcastingToSchema(spellcasting: EtoolsMonsterSpellca
         documentType: 'vtt-document' as const,
         slug,
         source: source.toLowerCase(),
-        pluginType: 'spell'
+        pluginDocumentType: 'spell'
       }
     };
   };

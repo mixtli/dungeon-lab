@@ -208,7 +208,7 @@ export const DOCUMENT_VALIDATORS: Record<string, z.ZodTypeAny> = {
       _ref: z.object({
         slug: z.string(),
         documentType: z.enum(['actor', 'item', 'vtt-document']),
-        pluginType: z.string().optional(),
+        pluginDocumentType: z.string().optional(),
         source: z.string().optional()
       })
     }))

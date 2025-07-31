@@ -16,7 +16,8 @@ import {
   type DocumentType,
   type PluginDocumentType
 } from '../validation/document-validators.mjs';
-import { processEntries } from '../text/markup-processor.mjs';
+import { processEntries, cleanMarkupText } from '../text/markup-processor.mjs';
+import { etoolsItemSchema } from '../../5etools-types/items.mjs';
 import type { EtoolsClassData, EtoolsClassFluff, EtoolsClassFluffData, EtoolsSubclass } from '../../5etools-types/classes.mjs';
 import { etoolsClassSchema } from '../../5etools-types/classes.mjs';
 import { 
@@ -25,7 +26,7 @@ import {
   type ProficiencyEntry,
   type ProficiencyFilterConstraint
 } from '../../types/dnd/character-class.mjs';
-import { ABILITY_ABBREVIATION_MAP, expandSpellcastingAbility, spellReferenceObjectSchema, type SpellReferenceObject } from '../../types/dnd/common.mjs';
+import { ABILITY_ABBREVIATION_MAP, expandSpellcastingAbility, spellReferenceObjectSchema, type SpellReferenceObject, SKILLS_2024 } from '../../types/dnd/common.mjs';
 import { safeEtoolsCast } from '../../5etools-types/type-utils.mjs';
 
 // ClassDocument type is now imported from the validators file
@@ -38,6 +39,8 @@ export class TypedClassConverter extends TypedConverter<
   typeof dndCharacterClassDataSchema,
   ClassDocument
 > {
+  /** Item lookup map for determining item types */
+  private itemMap = new Map<string, z.infer<typeof etoolsItemSchema>>();
 
   protected getInputSchema() {
     return etoolsClassSchema;
@@ -53,6 +56,56 @@ export class TypedClassConverter extends TypedConverter<
 
   protected getPluginDocumentType(): PluginDocumentType {
     return 'character-class';
+  }
+
+  /**
+   * Initialize the converter by loading item data for type determination
+   */
+  async initialize() {
+    await this.loadItemData();
+  }
+
+  /**
+   * Load item data from 5etools sources for item type lookup
+   */
+  private async loadItemData() {
+    try {
+      // Load base items and regular items
+      const [baseItemsData, itemsData] = await Promise.all([
+        this.readEtoolsData('items-base.json'),
+        this.readEtoolsData('items.json')
+      ]);
+      
+      let baseItemCount = 0;
+      let regularItemCount = 0;
+      
+      // Process base items (uses 'baseitem' array key)
+      if (baseItemsData && typeof baseItemsData === 'object' && 'baseitem' in baseItemsData && Array.isArray(baseItemsData.baseitem)) {
+        for (const item of baseItemsData.baseitem) {
+          if (item && typeof item === 'object' && 'name' in item && 'source' in item) {
+            const key = `${String(item.name).toLowerCase()}|${String(item.source).toLowerCase()}`;
+            this.itemMap.set(key, item as z.infer<typeof etoolsItemSchema>);
+            baseItemCount++;
+            
+          }
+        }
+      }
+      
+      // Process regular items
+      if (itemsData && typeof itemsData === 'object' && 'item' in itemsData && Array.isArray(itemsData.item)) {
+        for (const item of itemsData.item) {
+          if (item && typeof item === 'object' && 'name' in item && 'source' in item) {
+            const key = `${String(item.name).toLowerCase()}|${String(item.source).toLowerCase()}`;
+            this.itemMap.set(key, item as z.infer<typeof etoolsItemSchema>);
+            regularItemCount++;
+          }
+        }
+      }
+      
+      
+    } catch (error) {
+      console.warn('Failed to load item data for type determination:', error);
+    }
   }
 
   protected extractDescription(input: z.infer<typeof etoolsClassSchema>): string {
@@ -96,9 +149,10 @@ export class TypedClassConverter extends TypedConverter<
       // Extract subclasses
       subclasses: this.extractSubclasses(input),
       
-      // NOTE: multiclassing removed from schema - would need to be added back if needed
+      // Extract starting equipment
+      startingEquipment: this.extractStartingEquipment(input),
       
-      // NOTE: startingEquipment removed from schema - would need to be added back if needed
+      // NOTE: multiclassing removed from schema - would need to be added back if needed
     };
   }
 
@@ -266,7 +320,7 @@ export class TypedClassConverter extends TypedConverter<
         _ref: {
           slug,
           documentType: 'item',
-          pluginType: 'tool', // Assuming tools for now, could be enhanced
+          pluginDocumentType: 'tool', // Assuming tools for now, could be enhanced
           source: source.toLowerCase()
         }
       },
@@ -299,7 +353,7 @@ export class TypedClassConverter extends TypedConverter<
 
     // Extract relevant filter constraints
     const constraint: ProficiencyFilterConstraint = {
-      displayText: filterString, // Full text for display
+      displayText: cleanMarkupText(filterString), // Process markup into clean text
       itemType: this.extractItemType(params.get('type')),
       category: this.extractWeaponCategory(params.get('type')),
       properties: this.extractWeaponProperties(params.get('property')),
@@ -344,6 +398,13 @@ export class TypedClassConverter extends TypedConverter<
     if (!propertyParam) return undefined;
     return propertyParam.split(';').map(prop => prop.trim().toLowerCase());
   }
+
+  // Mapping of 5etools tool group patterns to item-group slugs
+  private static readonly TOOL_GROUP_MAPPING: Record<string, { slug: string; displayName: string }> = {
+    'anyMusicalInstrument': { slug: 'musical-instrument', displayName: 'Musical Instruments' },
+    'anyArtisanTool': { slug: 'artisans-tools', displayName: 'Artisan\'s Tools' },
+    'anyArtisansTool': { slug: 'artisans-tools', displayName: 'Artisan\'s Tools' }
+  };
 
   private extractProficiencies(input: z.infer<typeof etoolsClassSchema>): DndCharacterClassData['proficiencies'] {
     const proficiencies: DndCharacterClassData['proficiencies'] = {
@@ -405,6 +466,39 @@ export class TypedClassConverter extends TypedConverter<
       });
     }
 
+    // Handle toolProficiencies array for group selections (e.g., {"anyMusicalInstrument": 3})
+    if (input.startingProficiencies?.toolProficiencies && Array.isArray(input.startingProficiencies.toolProficiencies)) {
+      for (const toolProf of input.startingProficiencies.toolProficiencies) {
+        if (typeof toolProf === 'object' && toolProf !== null) {
+          for (const [key, count] of Object.entries(toolProf)) {
+            if (typeof count === 'number' && TypedClassConverter.TOOL_GROUP_MAPPING[key]) {
+              const groupInfo = TypedClassConverter.TOOL_GROUP_MAPPING[key];
+              const groupChoice = {
+                type: 'group-choice' as const,
+                group: {
+                  _ref: {
+                    slug: groupInfo.slug,
+                    documentType: 'vtt-document' as const,
+                    pluginDocumentType: 'item-group' as const,
+                    source: 'xphb'
+                  }
+                },
+                count,
+                displayText: `Choose ${count === 1 ? 'one' : count} ${groupInfo.displayName}`
+              };
+              
+              // Replace any existing simple tool references with the group choice
+              proficiencies.tools = proficiencies.tools.filter(tool => 
+                !(typeof tool === 'object' && tool.type === 'reference' && 
+                  tool.item._ref.slug === groupInfo.slug)
+              );
+              proficiencies.tools.push(groupChoice);
+            }
+          }
+        }
+      }
+    }
+
     // Extract saving throw proficiencies
     if (input.proficiency) {
       proficiencies.savingThrows = input.proficiency
@@ -432,6 +526,10 @@ export class TypedClassConverter extends TypedConverter<
               allChoices.push(...skill.choose.from);
               totalCount += skill.choose.count || 1;
             }
+          } else if (skill && typeof skill === 'object' && skill.any) {
+            // Handle {"any": N} format - choose any N skills from all skills
+            allChoices.push(...SKILLS_2024);
+            totalCount += skill.any;
           }
         }
         
@@ -697,7 +795,7 @@ export class TypedClassConverter extends TypedConverter<
       _ref: {
         slug,
         documentType: 'vtt-document',
-        pluginType: 'spell',
+        pluginDocumentType: 'spell',
         source: source.toLowerCase()
       }
     };
@@ -759,8 +857,161 @@ export class TypedClassConverter extends TypedConverter<
     return { name, level, source };
   }
 
-  // NOTE: extractMulticlassing and extractStartingEquipment methods removed
-  // as these properties are not part of the current schema
+  private extractStartingEquipment(input: z.infer<typeof etoolsClassSchema>): DndCharacterClassData['startingEquipment'] {
+    if (!input.startingEquipment?.defaultData?.length) return undefined;
+
+    const defaultData = input.startingEquipment.defaultData[0];
+    const options: DndCharacterClassData['startingEquipment'] = [];
+
+    // Extract all options (A, B, C, etc.)
+    for (const [label, optionData] of Object.entries(defaultData)) {
+      if (!Array.isArray(optionData)) continue;
+
+      const equipmentItems: Array<{ item: any; quantity: number }> = [];
+      let goldAmount = 0;
+
+      // Process each item in this option
+      for (const item of optionData) {
+        if (typeof item === 'object' && 'item' in item) {
+          // Parse item reference like "greataxe|xphb"
+          const itemRef = this.parseEquipmentItemReference(item.item);
+          if (itemRef) {
+            equipmentItems.push({
+              item: itemRef,
+              quantity: item.quantity || 1
+            });
+          }
+        } else if (typeof item === 'object' && 'value' in item) {
+          // Convert copper pieces to gold pieces
+          goldAmount = Math.floor((item.value as number) / 100);
+        }
+      }
+
+      // Create description from the entries field if available
+      let description = `Option ${label}`;
+      if (input.startingEquipment.entries?.length) {
+        // Try to extract description for this option from entries
+        const entryText = input.startingEquipment.entries[0];
+        const optionMatch = entryText.match(new RegExp(`\\(${label}\\)([^;]+)(?:;|$)`));
+        if (optionMatch) {
+          // Clean the 5etools markup from the description
+          description = cleanMarkupText(optionMatch[1].trim());
+        }
+      }
+
+      options.push({
+        label,
+        items: equipmentItems.length > 0 ? equipmentItems : undefined,
+        gold: goldAmount > 0 ? goldAmount : undefined,
+        description
+      });
+    }
+
+    return options.length > 0 ? options : undefined;
+  }
+
+  /**
+   * Parse equipment item reference like "greataxe|xphb" into ItemReference
+   */
+  private parseEquipmentItemReference(itemString: string): any {
+    const parts = itemString.split('|');
+    if (parts.length < 1) return null;
+    
+    const itemName = parts[0];
+    const source = parts[1] || 'xphb';
+    
+    // Convert name to slug format (lowercase, spaces to hyphens, remove apostrophes)
+    const slug = itemName.toLowerCase()
+      .replace(/'/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/[^a-z0-9-]/g, '');
+    
+    // Determine the correct plugin document type from item data
+    const pluginDocumentType = this.determineItemPluginDocumentType(itemName, source);
+    
+    return {
+      _ref: {
+        slug,
+        documentType: 'vtt-document',
+        pluginDocumentType,
+        source: source.toLowerCase()
+      }
+    };
+  }
+
+  /**
+   * Determine the plugin document type for an equipment item
+   */
+  private determineItemPluginDocumentType(itemName: string, source: string): string {
+    // Try to find the item in our loaded data
+    const key = `${itemName.toLowerCase()}|${source.toLowerCase()}`;
+    const item = this.itemMap.get(key);
+    
+    if (item) {
+      // Use the same logic as the item converter
+      const itemType = this.determineItemType(item);
+      return this.mapItemTypeToPluginDocumentType(itemType, item);
+    }
+    
+    // Fallback to generic 'item' if not found
+    return 'item';
+  }
+
+  /**
+   * Determine item type from 5etools item data (mirrors ItemConverter logic)
+   */
+  private determineItemType(item: z.infer<typeof etoolsItemSchema>): 'weapon' | 'armor' | 'tool' | 'gear' {
+    // Check explicit boolean flags first
+    if (item.weapon || item.firearm) return 'weapon';
+    if (item.armor || item.shield) return 'armor';
+    
+    // Check type codes if available
+    if (item.type) {
+      // Extract base type (handle pipe-separated formats like "AT|XPHB")
+      const baseType = item.type.split('|')[0];
+      
+      switch (baseType) {
+        case 'M': case 'R': // Melee, Ranged
+          return 'weapon';
+        case 'LA': case 'MA': case 'HA': case 'S': // Light Armor, Medium Armor, Heavy Armor, Shield
+          return 'armor';
+        case 'AT': case 'T': case 'GS': case 'INS': // Artisan Tools, Tools, Gaming Sets, Instruments
+          return 'tool';
+        case 'G': case 'A': case 'P': case 'WD': case 'RD': case 'RG': // Gear, Ammunition, Potions, Wondrous, Rod, Ring
+        default:
+          return 'gear';
+      }
+    }
+    
+    // For items without type (magic items), check name patterns or other properties
+    if (item.bonusWeapon || item.dmg1 || item.damage) return 'weapon';
+    if (item.bonusAc || item.ac) return 'armor';
+    if (item.wondrous || item.staff || item.wand || item.rod) return 'gear';
+    
+    // Default fallback
+    return 'gear';
+  }
+
+  /**
+   * Map item type to plugin document type (mirrors ItemConverter logic)
+   */
+  private mapItemTypeToPluginDocumentType(itemType: 'weapon' | 'armor' | 'tool' | 'gear', item: z.infer<typeof etoolsItemSchema>): string {
+    switch (itemType) {
+      case 'weapon': 
+        return 'weapon';
+      case 'armor':
+        // Check if it's a shield - shields need their own plugin document type
+        if (item.type === 'S' || item.shield) {
+          return 'shield';
+        }
+        return 'armor';
+      case 'tool': 
+        return 'tool';
+      case 'gear': 
+      default: 
+        return 'gear';
+    }
+  }
 
   // Utility methods for spellcasting
 

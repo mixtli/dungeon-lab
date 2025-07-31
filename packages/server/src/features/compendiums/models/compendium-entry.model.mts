@@ -108,7 +108,8 @@ mongooseSchema.pre('save', function(next) {
     }
   }
   
-  // Convert content-level asset IDs from string to ObjectId if needed
+  // Keep content-level asset IDs as strings - they should remain as ObjectId strings, not ObjectId objects
+  // The compendium service will handle converting them for asset lookups
   const contentDoc = this as unknown as { content?: Record<string, unknown> };
   if (contentDoc.content) {
     const assetFields = ['imageId', 'avatarId', 'defaultTokenImageId'];
@@ -116,9 +117,11 @@ mongooseSchema.pre('save', function(next) {
       const fieldValue = contentDoc.content[field];
       if (fieldValue && typeof fieldValue === 'string') {
         try {
-          contentDoc.content[field] = new mongoose.Types.ObjectId(fieldValue);
+          // Validate it's a valid ObjectId string, but keep it as string
+          new mongoose.Types.ObjectId(fieldValue);
+          // If validation passes, keep as string - no conversion needed
         } catch (_error) {
-          // If conversion fails, keep as string
+          // If validation fails, keep as string (might be a file path during import)
         }
       }
     }

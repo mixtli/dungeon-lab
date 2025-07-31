@@ -14,7 +14,7 @@ export const documentReferenceSchema = z.object({
   documentType: documentTypeSchema,
   
   // The target document's plugin-specific subtype (e.g., "weapon", "spell", "armor")
-  pluginType: z.string().min(1).optional(),
+  pluginDocumentType: z.string().min(1).optional(),
   
   // Source book/module identifier (e.g., "XPHB", "XMM")
   source: z.string().min(1).optional(),
@@ -99,7 +99,7 @@ export function createDocumentReference(
   slug: string,
   documentType: 'actor' | 'item' | 'vtt-document',
   options: {
-    pluginType?: string;
+    pluginDocumentType?: string;
     source?: string;
     metadata?: Record<string, unknown>;
   } = {}
@@ -107,7 +107,7 @@ export function createDocumentReference(
   return {
     slug,
     documentType,
-    pluginType: options.pluginType,
+    pluginDocumentType: options.pluginDocumentType,
     source: options.source,
     metadata: options.metadata
   };
@@ -120,7 +120,7 @@ export function createReferenceObject(
   slug: string,
   documentType: 'actor' | 'item' | 'vtt-document',
   options: {
-    pluginType?: string;
+    pluginDocumentType?: string;
     source?: string;
     metadata?: Record<string, unknown>;
   } = {}

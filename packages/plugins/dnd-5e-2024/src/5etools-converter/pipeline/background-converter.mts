@@ -28,6 +28,7 @@ import { dndBackgroundDataSchema, type DndBackgroundData } from '../../types/dnd
 import { extractEtoolsArray, safeEtoolsCast } from '../../5etools-types/type-utils.mjs';
 import type { Ability, ItemReferenceObject } from '../../types/dnd/common.mjs';
 import { generateSlug } from '../../types/utils.mjs';
+import { createReferenceObject } from '../../../../../shared/src/types/reference.mjs';
 
 /**
  * Input schema for 5etools background data
@@ -324,14 +325,10 @@ export class TypedBackgroundConverter extends TypedConverter<
 
     return {
       name: featName,
-      feat: {
-        _ref: {
-          documentType: 'vtt-document' as const,
-          slug: featSlug,
-          pluginType: 'feat',
-          source
-        }
-      }
+      feat: createReferenceObject(featSlug, 'vtt-document', {
+        pluginDocumentType: 'feat',
+        source
+      })
     };
   }
 
@@ -404,14 +401,10 @@ export class TypedBackgroundConverter extends TypedConverter<
         const slug = generateSlug(toolKey);
 
         tools.push({
-          tool: {
-            _ref: {
-              documentType: 'item' as const,
-              slug,
-              pluginType: 'tool',
-              source: 'xphb'
-            }
-          },
+          tool: createReferenceObject(slug, 'item', {
+            pluginDocumentType: 'tool',
+            source: 'xphb'
+          }),
           displayName
         });
       }

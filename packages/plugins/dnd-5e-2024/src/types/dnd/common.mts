@@ -263,23 +263,23 @@ export type GenericChoice = z.infer<typeof genericChoiceSchema>;
  * These are private - use the public wrapped versions below
  */
 const _backgroundReferenceSchema = documentReferenceSchema.extend({
-  pluginType: z.literal('background')
+  pluginDocumentType: z.literal('background')
 });
 
 const _speciesReferenceSchema = documentReferenceSchema.extend({
-  pluginType: z.literal('species') 
+  pluginDocumentType: z.literal('species') 
 });
 
 const _classReferenceSchema = documentReferenceSchema.extend({
-  pluginType: z.literal('class')
+  pluginDocumentType: z.literal('character-class')
 });
 
 const _spellReferenceSchema = documentReferenceSchema.extend({
-  pluginType: z.literal('spell')
+  pluginDocumentType: z.literal('spell')
 });
 
 const _featReferenceSchema = documentReferenceSchema.extend({
-  pluginType: z.literal('feat')
+  pluginDocumentType: z.literal('feat')
 });
 
 const _itemReferenceSchema = documentReferenceSchema.extend({
@@ -287,11 +287,11 @@ const _itemReferenceSchema = documentReferenceSchema.extend({
 });
 
 const _conditionReferenceSchema = documentReferenceSchema.extend({
-  pluginType: z.literal('condition')
+  pluginDocumentType: z.literal('condition')
 });
 
 const _actionReferenceSchema = documentReferenceSchema.extend({
-  pluginType: z.literal('action')
+  pluginDocumentType: z.literal('action')
 });
 
 /**

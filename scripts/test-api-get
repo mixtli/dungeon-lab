@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# Quick GET request with authentication
+# Usage: ./scripts/test-api-get <endpoint>
+# Example: ./scripts/test-api-get /api/compendiums/entries?pluginId=dnd-5e-2024
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec "$SCRIPT_DIR/test-api" GET "$@"

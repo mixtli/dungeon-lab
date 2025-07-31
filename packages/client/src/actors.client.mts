@@ -50,10 +50,10 @@ export class ActorsClient extends ApiClient {
    * Create a new actor
    */
   async createActor(data: CreateActorRequest): Promise<IActor | undefined> {
-    const formData = this.toFormData(data);
-    const response = await this.api.post<BaseAPIResponse<IActor>>('/api/actors', formData, {
+    // Always send JSON - assets should be uploaded first and IDs included in data
+    const response = await this.api.post<BaseAPIResponse<IActor>>('/api/actors', data, {
       headers: {
-        'Content-Type': 'multipart/form-data'
+        'Content-Type': 'application/json'
       }
     });
 

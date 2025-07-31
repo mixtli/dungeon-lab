@@ -154,7 +154,7 @@ describe('TypedMonsterConverter', () => {
               type: 'vtt-document',
               slug: 'detect-magic',
               source: 'xphb',
-              pluginType: 'spell'
+              pluginDocumentType: 'spell'
             }
           });
           
@@ -164,7 +164,7 @@ describe('TypedMonsterConverter', () => {
               type: 'vtt-document',
               slug: 'fear',
               source: 'xphb',
-              pluginType: 'spell'
+              pluginDocumentType: 'spell'
             }
           });
           
@@ -179,7 +179,7 @@ describe('TypedMonsterConverter', () => {
               type: 'vtt-document',
               slug: 'speak-with-dead',
               source: 'xphb',
-              pluginType: 'spell'
+              pluginDocumentType: 'spell'
             }
           });
           
@@ -190,7 +190,7 @@ describe('TypedMonsterConverter', () => {
               type: 'vtt-document',
               slug: 'vitriolic-sphere',
               source: 'xphb',
-              pluginType: 'spell'
+              pluginDocumentType: 'spell'
             }
           });
         }
@@ -439,7 +439,7 @@ describe('TypedMonsterConverter', () => {
             type: 'vtt-document',
             slug: 'detect-magic',
             source: 'xphb',
-            pluginType: 'spell'
+            pluginDocumentType: 'spell'
           }
         });
         
@@ -450,7 +450,7 @@ describe('TypedMonsterConverter', () => {
               type: 'vtt-document',
               slug: 'speak-with-dead',
               source: 'xphb',
-              pluginType: 'spell'
+              pluginDocumentType: 'spell'
             }
           },
           uses: 1

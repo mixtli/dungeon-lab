@@ -32,6 +32,7 @@ import {
 } from '../../types/dnd/item.mjs';
 import { expandWeaponProperty } from '../../types/dnd/common.mjs';
 import { safeEtoolsCast } from '../../5etools-types/type-utils.mjs';
+import { createReferenceObject } from '../../../../../shared/src/types/reference.mjs';
 
 
 /**
@@ -554,39 +555,27 @@ export class TypedItemConverter extends TypedConverter<
     }
   }
 
-  private getItemGroupReference(type: string, source?: string): { _ref: { slug: string; documentType: 'actor' | 'item' | 'vtt-document'; source?: string; pluginType?: string } } | undefined {
+  private getItemGroupReference(type: string, source?: string) {
     // Extract base type (handle pipe-separated formats like "AT|XPHB")
     const baseType = type.split('|')[0];
     const itemSource = type.includes('|') ? type.split('|')[1] : source;
     
     switch (baseType) {
       case 'AT':
-        return {
-          _ref: {
-            slug: this.generateSlug("Artisan's Tools"),
-            documentType: 'vtt-document',
-            pluginType: 'item-group',
-            source: itemSource
-          }
-        };
+        return createReferenceObject(this.generateSlug("Artisan's Tools"), 'vtt-document', {
+          pluginDocumentType: 'item-group',
+          source: itemSource
+        });
       case 'INS':
-        return {
-          _ref: {
-            slug: this.generateSlug('Musical Instrument'),
-            documentType: 'vtt-document',
-            pluginType: 'item-group',
-            source: itemSource
-          }
-        };
+        return createReferenceObject(this.generateSlug('Musical Instrument'), 'vtt-document', {
+          pluginDocumentType: 'item-group',
+          source: itemSource
+        });
       case 'GS':
-        return {
-          _ref: {
-            slug: this.generateSlug('Gaming Set'),
-            documentType: 'vtt-document',
-            pluginType: 'item-group',
-            source: itemSource
-          }
-        };
+        return createReferenceObject(this.generateSlug('Gaming Set'), 'vtt-document', {
+          pluginDocumentType: 'item-group',
+          source: itemSource
+        });
       default:
         return undefined;
     }

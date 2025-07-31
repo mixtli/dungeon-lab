@@ -3,6 +3,7 @@ import { baseSchema } from './base.schema.mjs';
 import { actorSchema } from './actor.schema.mjs';
 import { itemSchema } from './item.schema.mjs';
 import { vttDocumentSchema } from './vtt-document.schema.mjs';
+import { characterSchema } from './character.schema.mjs';
 
 // Compendium Status enum
 export const compendiumStatusSchema = z.enum([
@@ -25,7 +26,8 @@ export const importSourceSchema = z.enum([
 export const embeddedContentTypeSchema = z.enum([
   'actor',
   'item', 
-  'vtt-document'
+  'vtt-document',
+  'character'
 ]);
 
 // Discriminated union for embedded content
@@ -41,6 +43,10 @@ export const embeddedContentSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('vtt-document'),
     data: vttDocumentSchema.omit({ id: true, createdBy: true, updatedBy: true })
+  }),
+  z.object({
+    type: z.literal('character'),
+    data: characterSchema.omit({ id: true, createdBy: true, updatedBy: true })
   })
 ]);
 
@@ -48,7 +54,7 @@ export const embeddedContentSchema = z.discriminatedUnion('type', [
 export const contentFileWrapperSchema = z.object({
   entry: z.object({
     name: z.string().min(1).max(255),
-    documentType: z.enum(['actor', 'item', 'vtt-document']),
+    documentType: z.enum(['actor', 'item', 'vtt-document', 'character']),
     imageId: z.string().optional(),
     category: z.string().optional(),
     tags: z.array(z.string()).optional(),
@@ -75,7 +81,7 @@ export const compendiumSchema = baseSchema.extend({
   
   // Content statistics (based on entry.documentType)
   totalEntries: z.number().default(0),
-  entriesByType: z.record(z.enum(['actor', 'item', 'vtt-document']), z.number()).default({}),
+  entriesByType: z.record(z.enum(['actor', 'item', 'vtt-document', 'character']), z.number()).default({}),
   
   // Tags for organization
   tags: z.array(z.string()).default([]),
@@ -91,7 +97,7 @@ export const compendiumEntrySchema = baseSchema.extend({
   // Entry metadata (matches contentFileWrapperSchema.entry)
   entry: z.object({
     name: z.string().min(1).max(255),
-    documentType: z.enum(['actor', 'item', 'vtt-document']),
+    documentType: z.enum(['actor', 'item', 'vtt-document', 'character']),
     imageId: z.string().optional(), // Asset ID for entry-level image
     category: z.string().optional(),
     tags: z.array(z.string()).optional().default([]),
