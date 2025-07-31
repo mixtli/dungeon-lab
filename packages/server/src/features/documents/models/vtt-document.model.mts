@@ -9,7 +9,7 @@ import { pluginRegistry } from '../../../services/plugin-registry.service.mjs';
 
 // Create server-specific VTT document schema with ObjectId references
 const serverVTTDocumentSchema = vttDocumentSchema.extend({
-  campaignId: zId('Campaign'),
+  campaignId: zId('Campaign').optional(), // Optional - VTTDocuments are global and campaign-independent
   compendiumId: zId('Compendium').optional(),
   imageId: zId('Asset').optional(),
   thumbnailId: zId('Asset').optional(),

@@ -146,7 +146,7 @@ async function handleSubmit() {
       userData: {},
       pluginId: plugin.value.id,
       pluginData: pluginData,
-      documentType: 'actor' as const,
+      documentType: 'character' as const,
       pluginDocumentType: 'character',
       description: basicInfo.value.description || undefined,
       avatar: basicInfo.value.avatarImage instanceof File ? basicInfo.value.avatarImage : undefined,

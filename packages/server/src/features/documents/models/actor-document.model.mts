@@ -8,7 +8,7 @@ import type { IActor } from '@dungeon-lab/shared/types/index.mjs';
 
 // Create server-specific actor schema with ObjectId references and universal inventory
 const serverActorSchema = actorSchema.extend({
-  campaignId: zId('Campaign'),
+  campaignId: zId('Campaign'), // Required - actors must belong to campaigns
   compendiumId: zId('Compendium').optional(),
   imageId: zId('Asset').optional(),
   thumbnailId: zId('Asset').optional(),

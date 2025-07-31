@@ -7,7 +7,7 @@ import type { IItem } from '@dungeon-lab/shared/types/index.mjs';
 
 // Create server-specific item schema with ObjectId references
 const serverItemSchema = itemSchema.extend({
-  campaignId: zId('Campaign'),
+  campaignId: zId('Campaign'), // Required - items must belong to campaigns
   compendiumId: zId('Compendium').optional(),
   imageId: zId('Asset').optional(),
   thumbnailId: zId('Asset').optional()

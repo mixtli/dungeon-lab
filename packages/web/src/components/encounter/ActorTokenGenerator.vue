@@ -196,7 +196,7 @@ const selectedActor = computed(() => {
 });
 
 const pcActors = computed(() => {
-  return campaignCharacters.value.filter((actor: IActor) => actor.pluginDocumentType === 'character');
+  return campaignCharacters.value.filter((actor: IActor) => actor.documentType === 'character');
 });
 
 const npcActors = computed(() => {

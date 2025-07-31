@@ -20,6 +20,13 @@ import {
   actorSchemaWithVirtuals
 } from '../schemas/actor.schema.mjs';
 
+import {
+  characterSchema,
+  characterCreateSchema,
+  characterPatchSchema,  
+  characterSchemaWithVirtuals
+} from '../schemas/character.schema.mjs';
+
 import { assetSchema, assetCreateSchema, assetUpdateSchema } from '../schemas/asset.schema.mjs';
 
 // Token schemas
@@ -124,6 +131,12 @@ export type IActor = z.infer<typeof actorSchemaWithVirtuals>;
 export type IActorCreateData = z.infer<typeof actorCreateSchema>;
 export type IActorBaseData = z.infer<typeof actorSchema>;
 export type IActorPatchData = z.infer<typeof actorPatchSchema>;
+
+// Character Types
+export type ICharacter = z.infer<typeof characterSchemaWithVirtuals>;
+export type ICharacterCreateData = z.infer<typeof characterCreateSchema>;
+export type ICharacterBaseData = z.infer<typeof characterSchema>;
+export type ICharacterPatchData = z.infer<typeof characterPatchSchema>;
 
 // Asset Types
 export type IAsset = z.infer<typeof assetSchema>;

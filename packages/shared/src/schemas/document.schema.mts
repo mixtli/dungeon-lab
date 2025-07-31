@@ -8,7 +8,8 @@ import { assetSchema } from './asset.schema.mjs';
  * infrastructure/session state, not compendium content
  */
 export const documentTypeSchema = z.enum([
-  'actor',
+  'actor',      // NPCs, monsters, etc.
+  'character',  // Player characters  
   'item', 
   'vtt-document'
 ]);

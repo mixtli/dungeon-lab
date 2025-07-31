@@ -30,8 +30,8 @@ const getAvatarUrl = (character: IActor): string | undefined => {
 onMounted(async () => {
   try {
     const actors = await actorClient.getActors();
-    // Filter only character type actors
-    characters.value = actors.filter((actor: IActor) => actor.pluginDocumentType === 'character');
+    // Filter only character document types
+    characters.value = actors.filter((actor: IActor) => actor.documentType === 'character');
   } catch (err) {
     console.error('Error loading characters:', err);
     error.value = 'Failed to load characters. Please try again later.';

@@ -1,6 +1,7 @@
-import type { BaseDocument, IActor, IItem, IVTTDocument } from '@dungeon-lab/shared/types/index.mjs';
+import type { BaseDocument, IActor, ICharacter, IItem, IVTTDocument } from '@dungeon-lab/shared/types/index.mjs';
 import { DocumentModel, getDocumentModel } from '../models/document.model.mjs';
 import { ActorDocumentModel } from '../models/actor-document.model.mjs';
+import { CharacterDocumentModel } from '../models/character-document.model.mjs';
 import { ItemDocumentModel } from '../models/item-document.model.mjs';
 import { logger } from '../../../utils/logger.mjs';
 import { deepMerge } from '@dungeon-lab/shared/utils/index.mjs';
@@ -196,6 +197,124 @@ export class DocumentService {
         filter.campaignId = campaignId;
       }
       return await ActorDocumentModel.find(filter);
+    }
+  };
+
+  /**
+   * Type-specific service methods for Characters
+   */
+  static character = {
+    /**
+     * Create a new character
+     */
+    async create(characterData: Omit<ICharacter, 'id' | 'createdAt' | 'updatedAt'>): Promise<ICharacter> {
+      const character = new CharacterDocumentModel(characterData);
+      return await character.save();
+    },
+
+    /**
+     * Find characters owned by a specific user
+     */
+    async findByUser(userId: string, options?: QueryOptions): Promise<ICharacter[]> {
+      return await CharacterDocumentModel.find({ createdBy: userId }, undefined, options);
+    },
+
+    /**
+     * Find characters in a specific campaign
+     */
+    async findByCampaign(campaignId: string, options?: QueryOptions): Promise<ICharacter[]> {
+      return await CharacterDocumentModel.find({ campaignId }, undefined, options);
+    },
+
+    /**
+     * Add item to character's inventory
+     */
+    async addToInventory(
+      characterId: string,
+      inventoryItem: {
+        itemId: string;
+        quantity: number;
+        equipped?: boolean;
+        slot?: string;
+        condition?: number;
+        metadata?: Record<string, unknown>;
+      }
+    ): Promise<ICharacter | null> {
+      return await CharacterDocumentModel.findByIdAndUpdate(
+        characterId,
+        { $push: { inventory: inventoryItem } },
+        { new: true, runValidators: true }
+      );
+    },
+
+    /**
+     * Remove item from character's inventory
+     */
+    async removeFromInventory(characterId: string, itemId: string): Promise<ICharacter | null> {
+      return await CharacterDocumentModel.findByIdAndUpdate(
+        characterId,
+        { $pull: { inventory: { itemId } } },
+        { new: true }
+      );
+    },
+
+    /**
+     * Update inventory item
+     */
+    async updateInventoryItem(
+      characterId: string,
+      itemId: string,
+      updates: Partial<{
+        quantity: number;
+        equipped: boolean;
+        slot: string;
+        condition: number;
+        metadata: Record<string, unknown>;
+      }>
+    ): Promise<ICharacter | null> {
+      const updateFields: Record<string, unknown> = {};
+      Object.entries(updates).forEach(([key, value]) => {
+        updateFields[`inventory.$.${key}`] = value;
+      });
+
+      return await CharacterDocumentModel.findOneAndUpdate(
+        { _id: characterId, 'inventory.itemId': itemId },
+        { $set: updateFields },
+        { new: true, runValidators: true }
+      );
+    },
+
+    /**
+     * Find characters with specific item in inventory
+     */
+    async findWithItem(itemId: string, campaignId?: string): Promise<ICharacter[]> {
+      const filter: FilterQuery<ICharacter> = { 'inventory.itemId': itemId };
+      if (campaignId) {
+        filter.campaignId = campaignId;
+      }
+      return await CharacterDocumentModel.find(filter);
+    },
+
+    /**
+     * Join a campaign (set campaignId)
+     */
+    async joinCampaign(characterId: string, campaignId: string): Promise<ICharacter | null> {
+      return await CharacterDocumentModel.findByIdAndUpdate(
+        characterId,
+        { campaignId },
+        { new: true, runValidators: true }
+      );
+    },
+
+    /**
+     * Leave a campaign (unset campaignId)
+     */
+    async leaveCampaign(characterId: string): Promise<ICharacter | null> {
+      return await CharacterDocumentModel.findByIdAndUpdate(
+        characterId,
+        { $unset: { campaignId: 1 } },
+        { new: true }
+      );
     }
   };
 

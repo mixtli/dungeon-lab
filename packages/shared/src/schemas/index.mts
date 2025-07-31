@@ -6,6 +6,14 @@ export {
   actorSchemaWithVirtuals
 } from './actor.schema.mjs';
 
+// Character schemas
+export {
+  characterSchema,
+  characterCreateSchema,
+  characterPatchSchema,
+  characterSchemaWithVirtuals
+} from './character.schema.mjs';
+
 // Asset schemas
 export {
   assetSchema,

@@ -165,6 +165,11 @@ export async function getDocumentModel(documentType: string) {
       const { ActorDocumentModel } = await import('./actor-document.model.mjs');
       return ActorDocumentModel;
     }
+    case 'character': {
+      // Import dynamically to avoid circular dependencies
+      const { CharacterDocumentModel } = await import('./character-document.model.mjs');
+      return CharacterDocumentModel;
+    }
     case 'item': {
       // Import dynamically to avoid circular dependencies
       const { ItemDocumentModel } = await import('./item-document.model.mjs');
