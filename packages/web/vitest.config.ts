@@ -7,6 +7,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@dungeon-lab/shared': path.resolve(__dirname, '../shared/src'),
+      '@dungeon-lab/client': path.resolve(__dirname, '../client/src'),
+      '@dungeon-lab/plugin-dnd-5e-2024': path.resolve(__dirname, '../plugins/dnd-5e-2024/src'),
       '@': path.resolve(__dirname, './src'),
     },
   },

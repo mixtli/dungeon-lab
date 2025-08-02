@@ -4,6 +4,7 @@
   "version": "2.0.0",
   "description": "Dungeons & Dragons 5th Edition (2024 Rules) plugin for character creation and management",
   "author": "Dungeon Lab Team",
+  "enabled": true,
   "gameSystem": "dnd-5e-2024",
   "characterTypes": ["character", "npc"],
   "itemTypes": ["weapon", "armor", "consumable", "tool"],

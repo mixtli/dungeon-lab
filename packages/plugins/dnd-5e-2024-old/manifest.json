@@ -6,5 +6,16 @@
   "author": "Dungeon Lab Team",
   "website": "https://example.com/dnd5e2024",
   "type": "gameSystem",
-  "enabled": true
+  "enabled": false,
+  "gameSystem": "dnd-5e-2024-old",
+  "characterTypes": ["character"],
+  "itemTypes": ["weapon", "armor"],
+  "supportedFeatures": [],
+  "components": {},
+  "mechanics": {},
+  "validationSchema": {},
+  "entryPoint": "./src/index.mts",
+  "dependencies": {},
+  "devDependencies": {},
+  "license": "MIT"
 }

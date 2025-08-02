@@ -172,7 +172,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { DEFAULT_SKILLS } from './types/dnd/skills.mjs';
+import { DEFAULT_SKILLS } from '@dungeon-lab/plugin-dnd-5e-2024/types/dnd/skills.mjs';
 import type { IActor, PluginContext } from '@dungeon-lab/shared/types/index.mjs';
 
 // Props

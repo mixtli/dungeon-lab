@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router';
 import { useActorStore } from '../stores/actor.store.mjs';
 import { pluginRegistry } from '../services/plugin-registry.mts';
 import ImageUpload from '../components/common/ImageUpload.vue';
-import type { GameSystemPlugin } from '@dungeon-lab/shared/types/plugin.mjs';
+import type { GameSystemPlugin } from '@dungeon-lab/shared/types/plugin-simple.mjs';
 import { DocumentsClient, AssetsClient } from '@dungeon-lab/client/index.mjs';
 import { CreateDocumentRequest } from '@dungeon-lab/shared/types/api/index.mjs';
 import { createDocumentSchema } from '@dungeon-lab/shared/schemas/index.mjs';
@@ -132,9 +132,9 @@ onMounted(async () => {
       return;
     }
 
-    console.log('Plugin loaded successfully:', plugin.value.name);
+    console.log('Plugin loaded successfully:', plugin.value.manifest.name);
     console.log('🔍 FINAL PLUGIN STATE:');
-    console.log('  - Plugin ID:', plugin.value.id);
+    console.log('  - Plugin ID:', plugin.value.manifest.id);
     console.log('  - Plugin has validateCharacterData:', !!plugin.value.validateCharacterData);
     console.log('  - Available methods:', Object.getOwnPropertyNames(plugin.value));
     
@@ -187,7 +187,7 @@ async function handleCharacterReady(documentData: any) {
     // 1. Validate document-level structure
     const documentValidation = createDocumentSchema.safeParse({
       ...documentData,
-      pluginId: plugin.value?.id,
+      pluginId: plugin.value?.manifest.id,
       documentType: 'character',
       pluginDocumentType: 'character',
       userData: {}
@@ -202,8 +202,8 @@ async function handleCharacterReady(documentData: any) {
     // 2. Validate plugin data using plugin validation hook
     console.log('🔍 DEBUGGING PLUGIN VALIDATION:');
     console.log('  - plugin.value exists:', !!plugin.value);
-    console.log('  - plugin.value.id:', plugin.value?.id);
-    console.log('  - plugin.value.name:', plugin.value?.name);
+    console.log('  - plugin.value.id:', plugin.value?.manifest.id);
+    console.log('  - plugin.value.name:', plugin.value?.manifest.name);
     console.log('  - plugin.value.validateCharacterData exists:', !!plugin.value?.validateCharacterData);
     console.log('  - plugin.value.validateCharacterData type:', typeof plugin.value?.validateCharacterData);
     console.log('  - documentData.pluginData exists:', !!documentData.pluginData);
@@ -224,7 +224,7 @@ async function handleCharacterReady(documentData: any) {
         console.log('✅ Plugin validation passed');
       } catch (validationError) {
         console.error('💥 VALIDATION THREW ERROR:', validationError);
-        error.value = `Validation error: ${validationError.message}`;
+        error.value = `Validation error: ${validationError instanceof Error ? validationError.message : String(validationError)}`;
         return;
       }
     } else {
@@ -292,7 +292,7 @@ async function handleSubmit() {
     const documentData: CreateDocumentRequest = {
       name: basicInfo.value.name,
       userData: {},
-      pluginId: plugin.value.id,
+      pluginId: plugin.value.manifest.id,
       pluginData: {
         name: basicInfo.value.name,
         description: basicInfo.value.description

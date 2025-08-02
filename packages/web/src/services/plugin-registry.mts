@@ -1,81 +1,14 @@
 import type { 
-  GameSystemPlugin, 
+  GameSystemPlugin
+} from '@dungeon-lab/shared/types/plugin-simple.mjs';
+import type { 
   PluginContext,
   PluginManifest
 } from '@dungeon-lab/shared/types/plugin.mjs';
-import type { ComponentRegistry, ComponentMetadata } from '@dungeon-lab/shared/types/component-registry.mjs';
 import type { Component } from 'vue';
-import { MechanicsRegistryImpl } from './plugin-implementations/mechanics-registry-impl.mjs';
 import { PluginContextImpl } from './plugin-implementations/plugin-context-impl.mjs';
-import { pluginDiscoveryService } from './plugin-discovery.service.mjs';
+import { simplePluginDiscovery } from './plugin-discovery-simple.service.mjs';
 
-/**
- * Component registry implementation
- */
-class ComponentRegistryImpl implements ComponentRegistry {
-  private components = new Map<string, { component: Component; metadata: ComponentMetadata }>();
-  
-  register(id: string, component: Component, metadata?: ComponentMetadata): void {
-    if (this.components.has(id)) {
-      console.warn(`Component with id '${id}' already exists, overwriting`);
-    }
-    
-    const meta: ComponentMetadata = metadata || {
-      pluginId: 'unknown',
-      name: id
-    };
-    
-    this.components.set(id, { component, metadata: meta });
-    console.log(`[ComponentRegistry] Registered component '${id}' for plugin '${meta.pluginId}'`);
-  }
-  
-  get(id: string): Component | undefined {
-    const entry = this.components.get(id);
-    return entry?.component;
-  }
-  
-  getByPlugin(pluginId: string) {
-    const entries = [];
-    for (const [id, { component, metadata }] of this.components.entries()) {
-      if (metadata.pluginId === pluginId) {
-        entries.push({ id, component, metadata });
-      }
-    }
-    return entries;
-  }
-  
-  unregister(id: string): void {
-    const entry = this.components.get(id);
-    if (entry) {
-      this.components.delete(id);
-      console.log(`[ComponentRegistry] Unregistered component '${id}' from plugin '${entry.metadata.pluginId}'`);
-    }
-  }
-  
-  unregisterByPlugin(pluginId: string): void {
-    const componentsToRemove: string[] = [];
-    
-    for (const [id, { metadata }] of this.components.entries()) {
-      if (metadata.pluginId === pluginId) {
-        componentsToRemove.push(id);
-      }
-    }
-    
-    for (const id of componentsToRemove) {
-      this.components.delete(id);
-    }
-    
-    console.log(`[ComponentRegistry] Unregistered ${componentsToRemove.length} components for plugin '${pluginId}'`);
-  }
-  
-  list() {
-    const entries = [];
-    for (const [id, { component, metadata }] of this.components.entries()) {
-      entries.push({ id, component, metadata });
-    }
-    return entries;
-  }
-}
 
 /**
  * New manifest-based plugin registry service
@@ -84,8 +17,6 @@ export class PluginRegistryService {
   private loadedPlugins: Map<string, GameSystemPlugin> = new Map();
   private pluginContexts: Map<string, PluginContext> = new Map();
   private initialized = false;
-  private componentRegistry = new ComponentRegistryImpl();
-  private mechanicsRegistry = new MechanicsRegistryImpl();
   
   /**
    * Initialize the plugin registry with manifest-based discovery
@@ -99,11 +30,11 @@ export class PluginRegistryService {
     try {
       console.log('[PluginRegistry] 🔍 Starting manifest-based plugin discovery...');
       
-      // Discover available plugins via manifests
-      await pluginDiscoveryService.discoverPlugins();
+      // Discover available plugins using simple service
+      await simplePluginDiscovery.discoverPlugins();
       
       // Load all discovered plugins
-      const pluginIds = pluginDiscoveryService.getAvailablePluginIds();
+      const pluginIds = simplePluginDiscovery.getAvailablePluginIds();
       console.log(`[PluginRegistry] Found ${pluginIds.length} plugins to load:`, pluginIds);
       
       for (const pluginId of pluginIds) {
@@ -132,8 +63,8 @@ export class PluginRegistryService {
         return this.loadedPlugins.get(pluginId)!;
       }
       
-      // Load the plugin module via discovery service
-      const plugin = await pluginDiscoveryService.loadPluginModule(pluginId);
+      // Load the plugin module via simple discovery service
+      const plugin = await simplePluginDiscovery.loadPluginModule(pluginId);
       if (!plugin) {
         console.error(`[PluginRegistry] Failed to load plugin module: ${pluginId}`);
         return null;
@@ -145,7 +76,7 @@ export class PluginRegistryService {
       // Store the loaded plugin
       this.loadedPlugins.set(pluginId, plugin);
       
-      console.log(`[PluginRegistry] ✅ Successfully loaded and initialized: ${plugin.name}`);
+      console.log(`[PluginRegistry] ✅ Successfully loaded and initialized: ${plugin.manifest.name}`);
       return plugin;
       
     } catch (error) {
@@ -155,33 +86,23 @@ export class PluginRegistryService {
   }
   
   /**
-   * Initialize a plugin with context and register its components
+   * Initialize a plugin with context
    */
   private async initializePlugin(plugin: GameSystemPlugin): Promise<void> {
     try {
-      console.log(`[PluginRegistry] 🚀 Initializing plugin: ${plugin.name}`);
+      console.log(`[PluginRegistry] 🚀 Initializing plugin: ${plugin.manifest.name}`);
       
       // Create plugin context
       const context = this.createPluginContext(plugin);
-      this.pluginContexts.set(plugin.id, context);
+      this.pluginContexts.set(plugin.manifest.id, context);
       
-      // Call plugin onLoad
+      // Call plugin onLoad with context
       await plugin.onLoad(context);
       
-      // Register components
-      console.log(`[PluginRegistry] 📋 Registering components for ${plugin.name}`);
-      plugin.registerComponents(this.componentRegistry);
-      console.log(`[PluginRegistry] Registered components, total: ${this.componentRegistry.list().length}`);
-      
-      // Register mechanics
-      console.log(`[PluginRegistry] ⚙️ Registering mechanics for ${plugin.name}`);
-      plugin.registerMechanics(this.mechanicsRegistry);
-      console.log(`[PluginRegistry] Registered mechanics, total: ${this.mechanicsRegistry.list().length}`);
-      
-      console.log(`[PluginRegistry] ✅ Plugin ${plugin.name} fully initialized`);
+      console.log(`[PluginRegistry] ✅ Plugin ${plugin.manifest.name} fully initialized`);
       
     } catch (error) {
-      console.error(`[PluginRegistry] ❌ Failed to initialize plugin ${plugin.name}:`, error);
+      console.error(`[PluginRegistry] ❌ Failed to initialize plugin ${plugin.manifest.name}:`, error);
       throw error;
     }
   }
@@ -212,32 +133,24 @@ export class PluginRegistryService {
       await this.loadPlugin(gameSystemId);
     }
     
-    const componentId = `${gameSystemId}-${componentType}`;
-    const component = this.componentRegistry.get(componentId);
-    
-    if (component) {
-      console.log(`[PluginRegistry] ✅ Found component: ${componentId}`);
-    } else {
-      console.log(`[PluginRegistry] ❌ Component not found: ${componentId}`);
-      console.log(`[PluginRegistry] Available components:`, this.componentRegistry.list().map(c => c.id));
+    // Get plugin and ask it for the component directly
+    const plugin = this.loadedPlugins.get(gameSystemId);
+    if (!plugin) {
+      console.log(`[PluginRegistry] ❌ Plugin not found: ${gameSystemId}`);
+      return null;
     }
     
-    return component || null;
+    const component = plugin.getComponent(componentType);
+    
+    if (component) {
+      console.log(`[PluginRegistry] ✅ Found component: ${gameSystemId}-${componentType}`);
+    } else {
+      console.log(`[PluginRegistry] ❌ Component not found: ${gameSystemId}-${componentType}`);
+    }
+    
+    return component;
   }
   
-  /**
-   * Get component by direct ID
-   */
-  getComponentById(componentId: string): Component | null {
-    return this.componentRegistry.get(componentId) || null;
-  }
-  
-  /**
-   * Get all components for a game system
-   */
-  getComponentsForGameSystem(gameSystemId: string): Array<{ id: string; component: Component; metadata: ComponentMetadata }> {
-    return this.componentRegistry.getByPlugin(gameSystemId);
-  }
   
   /**
    * Get plugin context by plugin ID
@@ -250,7 +163,7 @@ export class PluginRegistryService {
    * Get plugin manifest by plugin ID
    */
   getPluginManifest(pluginId: string): PluginManifest | undefined {
-    return pluginDiscoveryService.getPluginManifest(pluginId);
+    return simplePluginDiscovery.getPluginManifest(pluginId);
   }
   
   /**
@@ -267,10 +180,6 @@ export class PluginRegistryService {
       } catch (error) {
         console.warn(`[PluginRegistry] Error during plugin unload:`, error);
       }
-      
-      // Clear registrations
-      this.componentRegistry.unregisterByPlugin(pluginId);
-      this.mechanicsRegistry.unregisterByPlugin(pluginId);
       
       // Remove from loaded plugins
       this.loadedPlugins.delete(pluginId);
@@ -289,21 +198,21 @@ export class PluginRegistryService {
     // For now, create a mock socket connection
     const mockSocket = {
       emit: (event: string, ...args: unknown[]) => {
-        console.log(`[Plugin ${plugin.id}] Socket emit:`, event, args);
+        console.log(`[Plugin ${plugin.manifest.id}] Socket emit:`, event, args);
         const lastArg = args[args.length - 1];
         if (typeof lastArg === 'function') {
           lastArg({ success: true });
         }
       },
       on: (event: string) => {
-        console.log(`[Plugin ${plugin.id}] Socket on:`, event);
+        console.log(`[Plugin ${plugin.manifest.id}] Socket on:`, event);
       },
       off: (event: string) => {
-        console.log(`[Plugin ${plugin.id}] Socket off:`, event);
+        console.log(`[Plugin ${plugin.manifest.id}] Socket off:`, event);
       }
     };
     
-    return new PluginContextImpl(mockSocket, plugin.id);
+    return new PluginContextImpl(mockSocket, plugin.manifest.id);
   }
 }
 
@@ -311,9 +220,3 @@ export class PluginRegistryService {
  * Create singleton plugin registry
  */
 export const pluginRegistry = new PluginRegistryService();
-
-/**
- * Export individual registry implementations for advanced use cases
- */
-export const componentRegistry = new ComponentRegistryImpl();
-export const mechanicsRegistry = new MechanicsRegistryImpl();

@@ -34,7 +34,7 @@ export default defineConfig(({ mode, command }) => {
         '@': path.resolve(__dirname, './src')
       },
       // Add support for TypeScript files
-      extensions: ['.mts', '.mjs', '.ts', '.js', '.jsx', '.tsx', '.json']
+      extensions: ['.mts', '.mjs', '.ts', '.js', '.jsx', '.tsx', '.json', '.vue']
     },
     optimizeDeps: {
       include: ['@dungeon-lab/shared', '@dungeon-lab/client', '@dungeon-lab/plugin-dnd-5e-2024'],

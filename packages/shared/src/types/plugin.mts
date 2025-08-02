@@ -1,5 +1,14 @@
+/**
+ * @deprecated This file contains legacy plugin interfaces with server-side API cruft.
+ * Use plugin-simple.mts instead for the clean, client-only plugin interface.
+ * 
+ * This file will be removed in a future version once all plugins are migrated
+ * to the simplified interface.
+ */
+
 import { ComponentRegistry } from './component-registry.mjs';
 import { MechanicsRegistry } from './mechanics-registry.mjs';
+import type { Component } from 'vue';
 
 /**
  * Plugin store interface for reactive state management
@@ -202,9 +211,35 @@ export interface Plugin {
  */
 export interface ValidationResult {
   success: boolean;
-  data?: any;
+  data?: unknown;
   errors?: string[];
 }
+
+/**
+ * Standard component types that plugins can provide
+ * 
+ * These represent the core UI components that game system plugins
+ * must implement. Each component type has a defined contract for
+ * props and events that must be followed.
+ * 
+ * @see plugin-contracts.mts for detailed component requirements
+ */
+export type StandardComponentType = 
+  | 'character-sheet'   // Display/edit character data
+  | 'character-creator'; // Multi-step character creation wizard
+
+/**
+ * Standard data types that plugins can validate
+ * 
+ * These represent the core data types that game systems need to
+ * validate according to their specific rules and schemas.
+ */
+export type ValidatableDataType = 
+  | 'character'   // Character/PC data
+  | 'background'  // Character background data  
+  | 'item'        // Equipment/inventory items
+  | 'spell'       // Spells and magical abilities
+  | 'feat';       // Character features and feats
 
 /**
  * Plugin manifest interface - defines plugin metadata and capabilities
@@ -273,6 +308,16 @@ export interface PluginManifest {
 
 /**
  * Game system specific plugin interface
+ * 
+ * This interface defines the contract that all game system plugins must implement.
+ * Game systems provide the core mechanics, validation, and UI components for
+ * specific tabletop RPG systems (D&D 5e, Pathfinder, etc.).
+ * 
+ * Key Principles:
+ * - Plugins provide standard components via getComponent()
+ * - Plugins validate data via validate() method
+ * - Main app never knows about specific game system details
+ * - Components must adhere to contracts defined in plugin-contracts.mts
  */
 export interface GameSystemPlugin extends Plugin {
   /** Game system type identifier */
@@ -285,8 +330,24 @@ export interface GameSystemPlugin extends Plugin {
   readonly itemTypes: string[];
   
   /**
+   * Get a standard component by type
+   * @param type Standard component type
+   * @returns Vue component or null if not supported
+   */
+  getComponent(type: StandardComponentType): Component | null;
+  
+  /**
+   * Validate data against game system rules
+   * @param type Type of data to validate
+   * @param data Data to validate
+   * @returns Validation result
+   */
+  validate(type: ValidatableDataType, data: unknown): ValidationResult;
+  
+  /**
+   * @deprecated Use validate('character', data) instead
    * Optional: Validate character data against game system rules
    * @param data Character data to validate
    */
-  validateCharacterData?(data: any): ValidationResult;
+  validateCharacterData?(data: unknown): ValidationResult;
 }

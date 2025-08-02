@@ -1,166 +1,179 @@
 /**
- * D&D 5th Edition (2024) Plugin - Minimal Version
+ * D&D 5th Edition (2024) Plugin - Simplified Version
  * 
  * This plugin implements the basic D&D 5e 2024 character sheet using the new
- * plugin architecture with Vue 3 components and TypeScript.
+ * simplified plugin architecture with manifest-based configuration.
  */
 
-import type { GameSystemPlugin, PluginContext, ValidationResult } from '@dungeon-lab/shared/types/plugin.mjs';
-import type { ComponentRegistry } from '@dungeon-lab/shared/types/component-registry.mjs';
-import type { MechanicsRegistry } from '@dungeon-lab/shared/types/mechanics-registry.mjs';
+import type { GameSystemPlugin, ValidationResult } from '@dungeon-lab/shared/types/plugin-simple.mjs';
+import type { PluginManifest } from '@dungeon-lab/shared/schemas/plugin-manifest.schema.mjs';
+import type { Component } from 'vue';
 import { validateCharacterData } from './character-validation.mjs';
 
 // Import the full featured character sheet component
-import DnD5eCharacterSheet from './character-sheet.vue';
+import DnD5eCharacterSheet from './components/character-sheet.vue';
 
 // Import the character creator component
-import DnD5eCharacterCreator from './components/character-creator/DnD5eCharacterCreator.vue';
+import DnD5eCharacterCreator from './components/character-creator.vue';
 
 /**
- * D&D 5th Edition (2024) Plugin Implementation - Minimal Version
+ * D&D 5th Edition (2024) Plugin Implementation - Simplified Version
  */
 export class DnD5e2024Plugin implements GameSystemPlugin {
-  readonly id = 'dnd-5e-2024';
-  readonly name = 'D&D 5th Edition (2024)';
-  readonly version = '2.0.0';
-  readonly description = 'Basic D&D 5th Edition (2024) character sheet';
-  readonly author = 'Dungeon Lab';
-  readonly gameSystem = 'dnd-5e-2024';
-  readonly characterTypes = ['character', 'npc'];
-  readonly itemTypes = ['weapon', 'armor', 'consumable', 'tool'];
+  /** Plugin manifest containing all metadata and capabilities */
+  readonly manifest: PluginManifest;
+  
+  constructor() {
+    // Load manifest from the manifest.json file data
+    // In a real implementation, this would be injected by the plugin loader
+    this.manifest = {
+      id: 'dnd-5e-2024',
+      name: 'D&D 5th Edition (2024)',
+      version: '2.0.0',
+      description: 'Dungeons & Dragons 5th Edition (2024 Rules) plugin for character creation and management',
+      author: 'Dungeon Lab Team',
+      enabled: true,
+      gameSystem: 'dnd-5e-2024',
+      characterTypes: ['character', 'npc'],
+      itemTypes: ['weapon', 'armor', 'consumable', 'tool'],
+      supportedFeatures: [
+        'character-creation',
+        'character-validation', 
+        'dice-rolling',
+        'character-sheet'
+      ],
+      components: {
+        'character-sheet': {
+          id: 'dnd-5e-2024-character-sheet',
+          name: 'D&D 5e Character Sheet',
+          description: 'Interactive character sheet for D&D 5e characters',
+          category: 'character',
+          props: {
+            character: { type: 'object', required: true },
+            readonly: { type: 'boolean', default: false }
+          },
+          events: {
+            'update:character': 'Emitted when character data changes',
+            'save': 'Emitted when character should be saved',
+            'roll': 'Emitted when dice should be rolled',
+            'close': 'Emitted when character sheet should be closed'
+          }
+        },
+        'character-creator': {
+          id: 'dnd-5e-2024-character-creator',
+          name: 'D&D 5e Character Creator',
+          description: 'Multi-step character creation wizard for D&D 5e',
+          category: 'character-creator',
+          props: {
+            basicInfo: { type: 'object', required: true },
+            readonly: { type: 'boolean', default: false }
+          },
+          events: {
+            'character-ready': 'Emitted when character data is complete and ready for creation',
+            'back-to-basics': 'Emitted to return to basic info step',
+            'validation-change': 'Emitted when step validation status changes'
+          }
+        }
+      },
+      mechanics: {
+        dice: {
+          id: 'dnd5e-dice',
+          name: 'D&D 5e Dice System',
+          description: 'Standard D&D 5e dice rolling mechanics',
+          category: 'dice'
+        }
+      },
+      validationSchema: {
+        character: '@/types/dnd/character.mts',
+        species: '@/types/dnd/species.mts',
+        background: '@/types/dnd/background.mts',
+        class: '@/types/dnd/character-class.mts'
+      },
+      entryPoint: './src/index.mts',
+      dependencies: {
+        '@dungeon-lab/shared': 'workspace:*'
+      },
+      devDependencies: {},
+      license: 'MIT'
+    };
+  }
+  
+  /**
+   * Get a Vue component by type
+   */
+  getComponent(type: string): Component | null {
+    console.log(`[${this.manifest.id}] Getting component: ${type}`);
+    
+    switch (type) {
+      case 'character-sheet':
+        return DnD5eCharacterSheet;
+      case 'character-creator':
+        return DnD5eCharacterCreator;
+      default:
+        console.warn(`[${this.manifest.id}] Unknown component type: ${type}`);
+        return null;
+    }
+  }
+  
+  /**
+   * Validate data against game system rules
+   */
+  validate(type: string, data: unknown): ValidationResult {
+    console.log(`[${this.manifest.id}] Validating ${type} data`);
+    
+    switch (type) {
+      case 'character':
+        return this.validateCharacterData(data);
+      default:
+        console.warn(`[${this.manifest.id}] Unknown validation type: ${type}`);
+        return {
+          success: false,
+          errors: [`Unknown validation type: ${type}`]
+        };
+    }
+  }
   
   /**
    * Plugin initialization
    */
-  async onLoad(_context: PluginContext): Promise<void> {
-    console.log(`[${this.id}] Loading D&D 5e 2024 Plugin v${this.version}`);
-    console.log(`[${this.id}] Plugin loaded successfully`);
+  async onLoad(context?: any): Promise<void> {
+    console.log(`[${this.manifest.id}] Loading D&D 5e 2024 Plugin v${this.manifest.version}`);
+    if (context) {
+      console.log(`[${this.manifest.id}] Plugin context provided - API access available`);
+    }
+    console.log(`[${this.manifest.id}] Plugin loaded successfully`);
   }
   
   /**
    * Plugin cleanup
    */
   async onUnload(): Promise<void> {
-    console.log(`[${this.id}] Unloading D&D 5e 2024 Plugin`);
+    console.log(`[${this.manifest.id}] Unloading D&D 5e 2024 Plugin`);
   }
   
   /**
-   * Register Vue components
+   * Legacy validation method for backward compatibility
+   * @deprecated Use validate('character', data) instead
    */
-  registerComponents(registry: ComponentRegistry): void {
-    console.log(`[${this.id}] Registering components`);
-    
-    // Character sheet component - direct registration (no async)
-    registry.register(
-      'dnd-5e-2024-character-sheet',
-      DnD5eCharacterSheet,
-      {
-        pluginId: this.id,
-        name: 'D&D 5e Character Sheet',
-        description: 'D&D 5e character sheet component',
-        category: 'character',
-        props: {
-          character: { type: 'object', required: true },
-          readonly: { type: 'boolean', default: false }
-        },
-        events: {
-          'update:character': 'Emitted when character data changes',
-          'save': 'Emitted when character should be saved',
-          'roll': 'Emitted when dice should be rolled',
-          'close': 'Emitted when character sheet should be closed'
-        },
-        hotReloadable: true
-      }
-    );
-    
-    // Character creator component
-    registry.register(
-      'dnd-5e-2024-character-creator',
-      DnD5eCharacterCreator,
-      {
-        pluginId: this.id,
-        name: 'D&D 5e Character Creator',
-        description: 'D&D 5e character creation wizard component',
-        category: 'character-creator',
-        props: {
-          basicInfo: { type: 'object', required: true },
-          readonly: { type: 'boolean', default: false }
-        },
-        events: {
-          'character-ready': 'Emitted when character data is complete and ready for creation',
-          'back-to-basics': 'Emitted to return to basic info step',
-          'validation-change': 'Emitted when step validation status changes'
-        },
-        hotReloadable: true
-      }
-    );
-    
-    console.log(`[${this.id}] Registered character sheet and character creator components`);
-  }
-  
-  /**
-   * Validate character data against D&D 5e 2024 schema
-   */
-  validateCharacterData(data: any): ValidationResult {
-    console.log(`[${this.id}] 🔍 PLUGIN VALIDATION METHOD CALLED`);
-    console.log(`[${this.id}] Data structure:`, {
-      hasSpecies: !!data?.species,
-      speciesFormat: data?.species,
-      hasBackground: !!data?.background,
-      backgroundFormat: data?.background
+  validateCharacterData(data: unknown): ValidationResult {
+    console.log(`[${this.manifest.id}] 🔍 PLUGIN VALIDATION METHOD CALLED`);
+    console.log(`[${this.manifest.id}] Data structure:`, {
+      hasSpecies: !!(data as any)?.species,
+      speciesFormat: (data as any)?.species,
+      hasBackground: !!(data as any)?.background,
+      backgroundFormat: (data as any)?.background
     });
     
     const result = validateCharacterData(data);
-    console.log(`[${this.id}] 🧪 Validation result:`, result);
+    console.log(`[${this.manifest.id}] 🧪 Validation result:`, result);
     
     return result;
   }
-  
-  /**
-   * Register game mechanics
-   */
-  registerMechanics(registry: MechanicsRegistry): void {
-    console.log(`[${this.id}] Registering mechanics (none for minimal version)`);
-    
-    // Basic dice mechanic only
-    const diceMechanic = {
-      id: 'dnd5e-dice',
-      name: 'D&D 5e Dice System',
-      description: 'Basic dice rolling for D&D 5e',
-      roll: (dice: string) => {
-        const match = dice.match(/(\d+)?d(\d+)/);
-        if (!match) return { total: 0, rolls: [], expression: dice, breakdown: dice };
-        
-        const count = parseInt(match[1] || '1');
-        const sides = parseInt(match[2]);
-        const rolls = Array.from({ length: count }, () => Math.floor(Math.random() * sides) + 1);
-        return { 
-          total: rolls.reduce((a, b) => a + b, 0), 
-          rolls, 
-          expression: dice,
-          breakdown: rolls.join(' + ')
-        };
-      }
-    };
-    
-    registry.register(
-      'dnd5e-dice',
-      diceMechanic,
-      {
-        pluginId: this.id,
-        name: 'D&D 5e Dice System',
-        description: 'Basic dice rolling for D&D 5e',
-        category: 'dice',
-        version: '1.0.0'
-      }
-    );
-    
-    console.log(`[${this.id}] Registered basic dice mechanic`);
-  }
 }
 
-// Export the plugin instance
-export default new DnD5e2024Plugin();
+// Export the plugin class (not instance)
+// Registry will handle singleton instantiation
+export default DnD5e2024Plugin;
 
 // Export type mappings and utilities for server-side imports
 export * from './types/foundry-mapping.mjs';

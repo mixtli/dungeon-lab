@@ -255,9 +255,19 @@ export * from './socket/index.mjs';
 export * from './mapEditor.mjs';
 
 // New Plugin Architecture
-export * from './plugin.mjs';
-export * from './component-registry.mjs';
-export * from './mechanics-registry.mjs';
+export * from './plugin-simple.mjs';  // New simplified plugin interface
+export * from './plugin-contracts.mjs';
+// Note: plugin.mjs is deprecated but some exports may still be needed during transition
+export type { 
+  Plugin,
+  PluginContext, 
+  PluginManifest,
+  ActorsAPI,
+  ItemsAPI,
+  DocumentsAPI 
+} from './plugin.mjs';  // @deprecated - use plugin-simple.mjs instead
+export * from './component-registry.mjs';  // @deprecated - will be removed
+export * from './mechanics-registry.mjs';  // @deprecated - will be removed
 
 // Game Data Structures (selective exports to avoid conflicts)
 export type { 

@@ -155,4 +155,11 @@ export {
 export * from './socket/index.mjs';
 
 // Game system schemas
-export * from './game-system-schemas.mjs'; 
+export * from './game-system-schemas.mjs';
+
+// Plugin manifest schema
+export {
+  pluginManifestSchema,
+  validatePluginManifest,
+  safeValidatePluginManifest
+} from './plugin-manifest.schema.mjs'; 

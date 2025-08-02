@@ -138,14 +138,14 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
-import { useCharacterCreation } from '../../composables/useCharacterCreation.mjs';
-import type { DndBackgroundDocument } from '../../types/dnd/background.mjs';
-import type { BasicCharacterInfo } from '../../types/character-creation.mjs';
-import Icon from '../common/Icon.vue'; // Assuming there's a common Icon component
-import ClassSelectionStep from './steps/ClassSelectionStep.vue';
-import OriginSelectionStep from './steps/OriginSelectionStep.vue';
-import AbilityScoresStep from './steps/AbilityScoresStep.vue';
-import CharacterDetailsStep from './steps/CharacterDetailsStep.vue';
+import { useCharacterCreation } from '../composables/useCharacterCreation.mjs';
+import type { DndBackgroundDocument } from '../types/dnd/background.mjs';
+import type { BasicCharacterInfo } from '../types/character-creation.mjs';
+import Icon from './common/Icon.vue'; // Assuming there's a common Icon component
+import ClassSelectionStep from './character-creator/steps/ClassSelectionStep.vue';
+import OriginSelectionStep from './character-creator/steps/OriginSelectionStep.vue';
+import AbilityScoresStep from './character-creator/steps/AbilityScoresStep.vue';
+import CharacterDetailsStep from './character-creator/steps/CharacterDetailsStep.vue';
 
 // Props
 interface Props {
