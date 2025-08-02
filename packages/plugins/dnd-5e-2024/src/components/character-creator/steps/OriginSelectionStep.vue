@@ -383,17 +383,23 @@ const selectedLanguageIds = computed(() => {
 });
 
 const firstLanguageOptions = computed(() => {
-  return availableLanguages.value.map(language => ({
-    id: language.id,
-    displayName: `${language.name} (${capitalizeFirst(language.pluginData.category === 'standard' ? 'Standard' : 'Rare')})`
-  }));
+  return availableLanguages.value
+    .filter(language => language.slug !== 'common' && language.pluginData.category !== 'rare')
+    .map(language => ({
+      id: language.id,
+      displayName: `${language.name} (${capitalizeFirst(language.pluginData.category === 'standard' ? 'Standard' : 'Rare')})`
+    }));
 });
 
 const secondLanguageOptions = computed(() => {
   // Filter out the first selected language from options
   const firstLanguageId = localData.value.selectedLanguages?.[0]?.id;
   return availableLanguages.value
-    .filter(language => language.id !== firstLanguageId)
+    .filter(language => 
+      language.id !== firstLanguageId && 
+      language.slug !== 'common' && 
+      language.pluginData.category !== 'rare'
+    )
     .map(language => ({
       id: language.id,
       displayName: `${language.name} (${capitalizeFirst(language.pluginData.category === 'standard' ? 'Standard' : 'Rare')})`

@@ -8,57 +8,6 @@
     </div>
 
     <div class="ability-scores-content">
-      <!-- Background Ability Score Selection (D&D 2024: 3 points to distribute) -->
-      <div v-if="backgroundAbilityChoices.length > 0" class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-        <h3 class="text-lg font-semibold text-blue-900 mb-3">Background Ability Score Bonuses</h3>
-        <p class="text-blue-800 text-sm mb-4">
-          Your {{ props.originData?.background?.name }} background gives you 3 points to distribute among: 
-          {{ backgroundAbilityChoices.map(choice => choice.charAt(0).toUpperCase() + choice.slice(1)).join(', ') }}
-        </p>
-        <p class="text-blue-700 text-xs mb-4">
-          You can distribute these 3 points however you want, but no single ability can receive more than +2.
-        </p>
-        
-        <div class="space-y-3">
-          <div class="flex items-center justify-between text-sm font-medium text-blue-900 mb-2">
-            <span>Points remaining: {{ backgroundPointsRemaining }}</span>
-          </div>
-          
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            <div 
-              v-for="ability in backgroundAbilityChoices" 
-              :key="ability" 
-              class="flex items-center justify-between p-3 bg-white rounded border"
-            >
-              <label class="text-sm font-medium text-gray-700 capitalize">
-                {{ ability }}
-              </label>
-              <div class="flex items-center space-x-2">
-                <button
-                  type="button"
-                  @click="adjustBackgroundBonus(ability, -1)"
-                  :disabled="(localData.backgroundChoice?.[ability as keyof BackgroundAbilityChoice] || 0) <= 0"
-                  class="w-6 h-6 rounded border border-gray-300 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-sm font-medium"
-                >
-                  −
-                </button>
-                <div class="w-8 text-center text-sm font-bold text-blue-900">
-                  +{{ localData.backgroundChoice?.[ability as keyof BackgroundAbilityChoice] || 0 }}
-                </div>
-                <button
-                  type="button"
-                  @click="adjustBackgroundBonus(ability, 1)"
-                  :disabled="(localData.backgroundChoice?.[ability as keyof BackgroundAbilityChoice] || 0) >= 2 || backgroundPointsRemaining <= 0"
-                  class="w-6 h-6 rounded border border-gray-300 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-sm font-medium"
-                >
-                  +
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <!-- Method Selection -->
       <div class="mb-6">
         <label class="block text-sm font-medium text-gray-700 mb-3">
@@ -71,7 +20,7 @@
               type="radio"
               value="standard"
               class="mr-2"
-              @change="updateAbilities"
+              @change="() => { clearScoresForMethod(); updateAbilities(); }"
             />
             <span class="text-sm text-gray-900 font-medium">Standard Array (15, 14, 13, 12, 10, 8)</span>
           </label>
@@ -81,7 +30,7 @@
               type="radio"
               value="pointbuy"
               class="mr-2"
-              @change="updateAbilities"
+              @change="() => { clearScoresForMethod(); updateAbilities(); }"
             />
             <span class="text-sm text-gray-900 font-medium">Point Buy (27 points to distribute)</span>
           </label>
@@ -91,7 +40,7 @@
               type="radio"
               value="roll"
               class="mr-2"
-              @change="updateAbilities"
+              @change="() => { clearScoresForMethod(); updateAbilities(); }"
             />
             <span class="text-sm text-gray-900 font-medium">Roll 4d6 (drop lowest)</span>
           </label>
@@ -147,8 +96,8 @@
                 Strength
               </label>
               <div class="text-lg font-bold text-gray-900">
-                {{ finalScores.strength }}
-                <span class="text-sm text-gray-500 ml-1">
+                {{ localData.strength !== undefined ? finalScores.strength : '--' }}
+                <span v-if="localData.strength !== undefined" class="text-sm text-gray-500 ml-1">
                   ({{ getModifier(finalScores.strength) >= 0 ? '+' : '' }}{{ getModifier(finalScores.strength) }})
                 </span>
               </div>
@@ -177,27 +126,15 @@
                 </button>
               </div>
               
-              <!-- Standard Array Dropdown -->
-              <div v-else-if="localData.method === 'standard'" class="flex-1">
+              <!-- Dropdown (Standard Array and Roll) -->
+              <div v-else-if="localData.method === 'standard' || (localData.method === 'roll' && localData.availableScores && localData.availableScores.length > 0)" class="flex-1">
                 <MobileSelect
                   :model-value="localData.strength || null"
-                  :options="availableStandardScores"
+                  :options="availableAbilityScores"
                   placeholder="Choose score..."
                   value-key="value"
                   label-key="label"
-                  @update:model-value="(value) => handleStandardArraySelection('strength', value)"
-                />
-              </div>
-              
-              <!-- Roll Dropdown -->
-              <div v-else-if="localData.method === 'roll' && localData.availableScores && localData.availableScores.length > 0" class="flex-1">
-                <MobileSelect
-                  :model-value="localData.strength || null"
-                  :options="availableRolledScores"
-                  placeholder="Choose score..."
-                  value-key="value"
-                  label-key="label"
-                  @update:model-value="(value) => handleRolledScoreSelection('strength', value)"
+                  @update:model-value="(value) => handleAbilitySelection('strength', value)"
                 />
               </div>
               
@@ -210,7 +147,7 @@
                 max="18"
                 class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm"
                 @input="updateAbilities"
-                :placeholder="localData.method === 'roll' ? 'Roll scores first' : '10'"
+                :placeholder="localData.method === 'roll' ? 'Roll scores first' : ''"
                 :disabled="localData.method === 'roll' && (!localData.availableScores || localData.availableScores.length === 0)"
               />
               
@@ -219,7 +156,7 @@
               </div>
             </div>
             <div class="text-xs text-gray-500 mt-1">
-              Base: {{ localData.method === 'standard' ? (localData.strength || '—') : (localData.strength || 10) }}{{ getBackgroundBonus('strength') ? ` + ${getBackgroundBonus('strength')} (bg)` : '' }}
+              Base: {{ localData.method === 'standard' ? (localData.strength || '—') : (localData.strength || '—') }}{{ getBackgroundBonus('strength') ? ` + ${getBackgroundBonus('strength')} (bg)` : '' }}
             </div>
           </div>
 
@@ -230,8 +167,8 @@
                 Dexterity
               </label>
               <div class="text-lg font-bold text-gray-900">
-                {{ finalScores.dexterity }}
-                <span class="text-sm text-gray-500 ml-1">
+                {{ localData.dexterity !== undefined ? finalScores.dexterity : '--' }}
+                <span v-if="localData.dexterity !== undefined" class="text-sm text-gray-500 ml-1">
                   ({{ getModifier(finalScores.dexterity) >= 0 ? '+' : '' }}{{ getModifier(finalScores.dexterity) }})
                 </span>
               </div>
@@ -260,27 +197,15 @@
                 </button>
               </div>
               
-              <!-- Standard Array Dropdown -->
-              <div v-else-if="localData.method === 'standard'" class="flex-1">
+              <!-- Dropdown (Standard Array and Roll) -->
+              <div v-else-if="localData.method === 'standard' || (localData.method === 'roll' && localData.availableScores && localData.availableScores.length > 0)" class="flex-1">
                 <MobileSelect
                   :model-value="localData.dexterity || null"
-                  :options="availableStandardScores"
+                  :options="availableAbilityScores"
                   placeholder="Choose score..."
                   value-key="value"
                   label-key="label"
-                  @update:model-value="(value) => handleStandardArraySelection('dexterity', value)"
-                />
-              </div>
-              
-              <!-- Roll Dropdown -->
-              <div v-else-if="localData.method === 'roll' && localData.availableScores && localData.availableScores.length > 0" class="flex-1">
-                <MobileSelect
-                  :model-value="localData.dexterity || null"
-                  :options="availableRolledScores"
-                  placeholder="Choose score..."
-                  value-key="value"
-                  label-key="label"
-                  @update:model-value="(value) => handleRolledScoreSelection('dexterity', value)"
+                  @update:model-value="(value) => handleAbilitySelection('dexterity', value)"
                 />
               </div>
               
@@ -293,7 +218,7 @@
                 max="18"
                 class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm"
                 @input="updateAbilities"
-                :placeholder="localData.method === 'roll' ? 'Roll scores first' : '10'"
+                :placeholder="localData.method === 'roll' ? 'Roll scores first' : ''"
                 :disabled="localData.method === 'roll' && (!localData.availableScores || localData.availableScores.length === 0)"
               />
               
@@ -302,7 +227,7 @@
               </div>
             </div>
             <div class="text-xs text-gray-500 mt-1">
-              Base: {{ localData.method === 'standard' ? (localData.dexterity || '—') : (localData.dexterity || 10) }}{{ getBackgroundBonus('dexterity') ? ` + ${getBackgroundBonus('dexterity')} (bg)` : '' }}
+              Base: {{ localData.method === 'standard' ? (localData.dexterity || '—') : (localData.dexterity || '—') }}{{ getBackgroundBonus('dexterity') ? ` + ${getBackgroundBonus('dexterity')} (bg)` : '' }}
             </div>
           </div>
 
@@ -313,8 +238,8 @@
                 Constitution
               </label>
               <div class="text-lg font-bold text-gray-900">
-                {{ finalScores.constitution }}
-                <span class="text-sm text-gray-500 ml-1">
+                {{ localData.constitution !== undefined ? finalScores.constitution : '--' }}
+                <span v-if="localData.constitution !== undefined" class="text-sm text-gray-500 ml-1">
                   ({{ getModifier(finalScores.constitution) >= 0 ? '+' : '' }}{{ getModifier(finalScores.constitution) }})
                 </span>
               </div>
@@ -343,27 +268,15 @@
                 </button>
               </div>
               
-              <!-- Standard Array Dropdown -->
-              <div v-else-if="localData.method === 'standard'" class="flex-1">
+              <!-- Dropdown (Standard Array and Roll) -->
+              <div v-else-if="localData.method === 'standard' || (localData.method === 'roll' && localData.availableScores && localData.availableScores.length > 0)" class="flex-1">
                 <MobileSelect
                   :model-value="localData.constitution || null"
-                  :options="availableStandardScores"
+                  :options="availableAbilityScores"
                   placeholder="Choose score..."
                   value-key="value"
                   label-key="label"
-                  @update:model-value="(value) => handleStandardArraySelection('constitution', value)"
-                />
-              </div>
-              
-              <!-- Roll Dropdown -->
-              <div v-else-if="localData.method === 'roll' && localData.availableScores && localData.availableScores.length > 0" class="flex-1">
-                <MobileSelect
-                  :model-value="localData.constitution || null"
-                  :options="availableRolledScores"
-                  placeholder="Choose score..."
-                  value-key="value"
-                  label-key="label"
-                  @update:model-value="(value) => handleRolledScoreSelection('constitution', value)"
+                  @update:model-value="(value) => handleAbilitySelection('constitution', value)"
                 />
               </div>
               
@@ -376,7 +289,7 @@
                 max="18"
                 class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm"
                 @input="updateAbilities"
-                :placeholder="localData.method === 'roll' ? 'Roll scores first' : '10'"
+                :placeholder="localData.method === 'roll' ? 'Roll scores first' : ''"
                 :disabled="localData.method === 'roll' && (!localData.availableScores || localData.availableScores.length === 0)"
               />
               
@@ -385,7 +298,7 @@
               </div>
             </div>
             <div class="text-xs text-gray-500 mt-1">
-              Base: {{ localData.method === 'standard' ? (localData.constitution || '—') : (localData.constitution || 10) }}{{ getBackgroundBonus('constitution') ? ` + ${getBackgroundBonus('constitution')} (bg)` : '' }}
+              Base: {{ localData.method === 'standard' ? (localData.constitution || '—') : (localData.constitution || '—') }}{{ getBackgroundBonus('constitution') ? ` + ${getBackgroundBonus('constitution')} (bg)` : '' }}
             </div>
           </div>
 
@@ -396,8 +309,8 @@
                 Intelligence
               </label>
               <div class="text-lg font-bold text-gray-900">
-                {{ finalScores.intelligence }}
-                <span class="text-sm text-gray-500 ml-1">
+                {{ localData.intelligence !== undefined ? finalScores.intelligence : '--' }}
+                <span v-if="localData.intelligence !== undefined" class="text-sm text-gray-500 ml-1">
                   ({{ getModifier(finalScores.intelligence) >= 0 ? '+' : '' }}{{ getModifier(finalScores.intelligence) }})
                 </span>
               </div>
@@ -426,27 +339,15 @@
                 </button>
               </div>
               
-              <!-- Standard Array Dropdown -->
-              <div v-else-if="localData.method === 'standard'" class="flex-1">
+              <!-- Dropdown (Standard Array and Roll) -->
+              <div v-else-if="localData.method === 'standard' || (localData.method === 'roll' && localData.availableScores && localData.availableScores.length > 0)" class="flex-1">
                 <MobileSelect
                   :model-value="localData.intelligence || null"
-                  :options="availableStandardScores"
+                  :options="availableAbilityScores"
                   placeholder="Choose score..."
                   value-key="value"
                   label-key="label"
-                  @update:model-value="(value) => handleStandardArraySelection('intelligence', value)"
-                />
-              </div>
-              
-              <!-- Roll Dropdown -->
-              <div v-else-if="localData.method === 'roll' && localData.availableScores && localData.availableScores.length > 0" class="flex-1">
-                <MobileSelect
-                  :model-value="localData.intelligence || null"
-                  :options="availableRolledScores"
-                  placeholder="Choose score..."
-                  value-key="value"
-                  label-key="label"
-                  @update:model-value="(value) => handleRolledScoreSelection('intelligence', value)"
+                  @update:model-value="(value) => handleAbilitySelection('intelligence', value)"
                 />
               </div>
               
@@ -459,7 +360,7 @@
                 max="18"
                 class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm"
                 @input="updateAbilities"
-                :placeholder="localData.method === 'roll' ? 'Roll scores first' : '10'"
+                :placeholder="localData.method === 'roll' ? 'Roll scores first' : ''"
                 :disabled="localData.method === 'roll' && (!localData.availableScores || localData.availableScores.length === 0)"
               />
               
@@ -468,7 +369,7 @@
               </div>
             </div>
             <div class="text-xs text-gray-500 mt-1">
-              Base: {{ localData.method === 'standard' ? (localData.intelligence || '—') : (localData.intelligence || 10) }}{{ getBackgroundBonus('intelligence') ? ` + ${getBackgroundBonus('intelligence')} (bg)` : '' }}
+              Base: {{ localData.method === 'standard' ? (localData.intelligence || '—') : (localData.intelligence || '—') }}{{ getBackgroundBonus('intelligence') ? ` + ${getBackgroundBonus('intelligence')} (bg)` : '' }}
             </div>
           </div>
 
@@ -479,8 +380,8 @@
                 Wisdom
               </label>
               <div class="text-lg font-bold text-gray-900">
-                {{ finalScores.wisdom }}
-                <span class="text-sm text-gray-500 ml-1">
+                {{ localData.wisdom !== undefined ? finalScores.wisdom : '--' }}
+                <span v-if="localData.wisdom !== undefined" class="text-sm text-gray-500 ml-1">
                   ({{ getModifier(finalScores.wisdom) >= 0 ? '+' : '' }}{{ getModifier(finalScores.wisdom) }})
                 </span>
               </div>
@@ -509,27 +410,15 @@
                 </button>
               </div>
               
-              <!-- Standard Array Dropdown -->
-              <div v-else-if="localData.method === 'standard'" class="flex-1">
+              <!-- Dropdown (Standard Array and Roll) -->
+              <div v-else-if="localData.method === 'standard' || (localData.method === 'roll' && localData.availableScores && localData.availableScores.length > 0)" class="flex-1">
                 <MobileSelect
                   :model-value="localData.wisdom || null"
-                  :options="availableStandardScores"
+                  :options="availableAbilityScores"
                   placeholder="Choose score..."
                   value-key="value"
                   label-key="label"
-                  @update:model-value="(value) => handleStandardArraySelection('wisdom', value)"
-                />
-              </div>
-              
-              <!-- Roll Dropdown -->
-              <div v-else-if="localData.method === 'roll' && localData.availableScores && localData.availableScores.length > 0" class="flex-1">
-                <MobileSelect
-                  :model-value="localData.wisdom || null"
-                  :options="availableRolledScores"
-                  placeholder="Choose score..."
-                  value-key="value"
-                  label-key="label"
-                  @update:model-value="(value) => handleRolledScoreSelection('wisdom', value)"
+                  @update:model-value="(value) => handleAbilitySelection('wisdom', value)"
                 />
               </div>
               
@@ -542,7 +431,7 @@
                 max="18"
                 class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm"
                 @input="updateAbilities"
-                :placeholder="localData.method === 'roll' ? 'Roll scores first' : '10'"
+                :placeholder="localData.method === 'roll' ? 'Roll scores first' : ''"
                 :disabled="localData.method === 'roll' && (!localData.availableScores || localData.availableScores.length === 0)"
               />
               
@@ -551,7 +440,7 @@
               </div>
             </div>
             <div class="text-xs text-gray-500 mt-1">
-              Base: {{ localData.method === 'standard' ? (localData.wisdom || '—') : (localData.wisdom || 10) }}{{ getBackgroundBonus('wisdom') ? ` + ${getBackgroundBonus('wisdom')} (bg)` : '' }}
+              Base: {{ localData.method === 'standard' ? (localData.wisdom || '—') : (localData.wisdom || '—') }}{{ getBackgroundBonus('wisdom') ? ` + ${getBackgroundBonus('wisdom')} (bg)` : '' }}
             </div>
           </div>
 
@@ -562,8 +451,8 @@
                 Charisma
               </label>
               <div class="text-lg font-bold text-gray-900">
-                {{ finalScores.charisma }}
-                <span class="text-sm text-gray-500 ml-1">
+                {{ localData.charisma !== undefined ? finalScores.charisma : '--' }}
+                <span v-if="localData.charisma !== undefined" class="text-sm text-gray-500 ml-1">
                   ({{ getModifier(finalScores.charisma) >= 0 ? '+' : '' }}{{ getModifier(finalScores.charisma) }})
                 </span>
               </div>
@@ -592,27 +481,15 @@
                 </button>
               </div>
               
-              <!-- Standard Array Dropdown -->
-              <div v-else-if="localData.method === 'standard'" class="flex-1">
+              <!-- Dropdown (Standard Array and Roll) -->
+              <div v-else-if="localData.method === 'standard' || (localData.method === 'roll' && localData.availableScores && localData.availableScores.length > 0)" class="flex-1">
                 <MobileSelect
                   :model-value="localData.charisma || null"
-                  :options="availableStandardScores"
+                  :options="availableAbilityScores"
                   placeholder="Choose score..."
                   value-key="value"
                   label-key="label"
-                  @update:model-value="(value) => handleStandardArraySelection('charisma', value)"
-                />
-              </div>
-              
-              <!-- Roll Dropdown -->
-              <div v-else-if="localData.method === 'roll' && localData.availableScores && localData.availableScores.length > 0" class="flex-1">
-                <MobileSelect
-                  :model-value="localData.charisma || null"
-                  :options="availableRolledScores"
-                  placeholder="Choose score..."
-                  value-key="value"
-                  label-key="label"
-                  @update:model-value="(value) => handleRolledScoreSelection('charisma', value)"
+                  @update:model-value="(value) => handleAbilitySelection('charisma', value)"
                 />
               </div>
               
@@ -625,7 +502,7 @@
                 max="18"
                 class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm"
                 @input="updateAbilities"
-                :placeholder="localData.method === 'roll' ? 'Roll scores first' : '10'"
+                :placeholder="localData.method === 'roll' ? 'Roll scores first' : ''"
                 :disabled="localData.method === 'roll' && (!localData.availableScores || localData.availableScores.length === 0)"
               />
               
@@ -634,7 +511,7 @@
               </div>
             </div>
             <div class="text-xs text-gray-500 mt-1">
-              Base: {{ localData.method === 'standard' ? (localData.charisma || '—') : (localData.charisma || 10) }}{{ getBackgroundBonus('charisma') ? ` + ${getBackgroundBonus('charisma')} (bg)` : '' }}
+              Base: {{ localData.method === 'standard' ? (localData.charisma || '—') : (localData.charisma || '—') }}{{ getBackgroundBonus('charisma') ? ` + ${getBackgroundBonus('charisma')} (bg)` : '' }}
             </div>
           </div>
         </div>
@@ -643,7 +520,58 @@
       <!-- Points Remaining (Point Buy) -->
       <div v-if="localData.method === 'pointbuy'" class="mt-4 p-4 bg-blue-50 rounded-lg">
         <div class="text-sm text-blue-800">
-          Points Remaining: {{ localData.pointsRemaining || 27 }}
+          Points Remaining: {{ localData.pointsRemaining ?? 27 }}
+        </div>
+      </div>
+
+      <!-- Background Ability Score Selection (D&D 2024: 3 points to distribute) -->
+      <div v-if="backgroundAbilityChoices.length > 0" class="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">
+        <h3 class="text-lg font-semibold text-blue-900 mb-3">Background Ability Score Bonuses</h3>
+        <p class="text-blue-800 text-sm mb-4">
+          Your {{ props.originData?.background?.name }} background gives you 3 points to distribute among: 
+          {{ backgroundAbilityChoices.map(choice => choice.charAt(0).toUpperCase() + choice.slice(1)).join(', ') }}
+        </p>
+        <p class="text-blue-700 text-xs mb-4">
+          You can distribute these 3 points however you want, but no single ability can receive more than +2.
+        </p>
+        
+        <div class="space-y-3">
+          <div class="flex items-center justify-between text-sm font-medium text-blue-900 mb-2">
+            <span>Points remaining: {{ backgroundPointsRemaining }}</span>
+          </div>
+          
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div 
+              v-for="ability in backgroundAbilityChoices" 
+              :key="ability" 
+              class="flex items-center justify-between p-3 bg-white rounded border"
+            >
+              <label class="text-sm font-medium text-gray-700 capitalize">
+                {{ ability }}
+              </label>
+              <div class="flex items-center space-x-2">
+                <button
+                  type="button"
+                  @click="adjustBackgroundBonus(ability, -1)"
+                  :disabled="(localData.backgroundChoice?.[ability as keyof BackgroundAbilityChoice] || 0) <= 0"
+                  class="w-6 h-6 rounded border border-gray-300 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-sm font-medium"
+                >
+                  −
+                </button>
+                <div class="w-8 text-center text-sm font-bold text-blue-900">
+                  +{{ localData.backgroundChoice?.[ability as keyof BackgroundAbilityChoice] || 0 }}
+                </div>
+                <button
+                  type="button"
+                  @click="adjustBackgroundBonus(ability, 1)"
+                  :disabled="(localData.backgroundChoice?.[ability as keyof BackgroundAbilityChoice] || 0) >= 2 || backgroundPointsRemaining <= 0"
+                  class="w-6 h-6 rounded border border-gray-300 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-sm font-medium"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -679,12 +607,12 @@ const localData = ref<Partial<AbilityScores>>({
   method: props.modelValue?.method || 'standard',
   pointsRemaining: props.modelValue?.pointsRemaining || 27,
   availableScores: props.modelValue?.availableScores || [15, 14, 13, 12, 10, 8],
-  strength: props.modelValue?.strength || 10,
-  dexterity: props.modelValue?.dexterity || 10,
-  constitution: props.modelValue?.constitution || 10,
-  intelligence: props.modelValue?.intelligence || 10,
-  wisdom: props.modelValue?.wisdom || 10,
-  charisma: props.modelValue?.charisma || 10,
+  strength: props.modelValue?.strength,
+  dexterity: props.modelValue?.dexterity,
+  constitution: props.modelValue?.constitution,
+  intelligence: props.modelValue?.intelligence,
+  wisdom: props.modelValue?.wisdom,
+  charisma: props.modelValue?.charisma,
   backgroundChoice: props.modelValue?.backgroundChoice || {
     strength: 0,
     dexterity: 0,
@@ -723,14 +651,6 @@ const backgroundAbilityChoices = computed(() => {
   return [];
 });
 
-const abilityOptions = computed(() => [
-  { value: 'strength', label: 'Strength' },
-  { value: 'dexterity', label: 'Dexterity' },
-  { value: 'constitution', label: 'Constitution' },
-  { value: 'intelligence', label: 'Intelligence' },
-  { value: 'wisdom', label: 'Wisdom' },
-  { value: 'charisma', label: 'Charisma' }
-]);
 
 // Background points system (D&D 2024: 3 points total)
 const backgroundPointsRemaining = computed(() => {
@@ -746,33 +666,22 @@ const backgroundPointsRemaining = computed(() => {
   return 3 - totalUsed;
 });
 
-// Standard Array options (dynamic based on what's already assigned)
-const availableStandardScores = computed(() => {
-  const standardArray = [15, 14, 13, 12, 10, 8];
-  const assignedScores = [
-    localData.value.strength,
-    localData.value.dexterity,
-    localData.value.constitution,
-    localData.value.intelligence,
-    localData.value.wisdom,
-    localData.value.charisma
-  ].filter(score => score !== undefined && score !== null) as number[];
-  
-  // Filter out already assigned scores
-  const availableScores = standardArray.filter(score => !assignedScores.includes(score));
-  
-  return availableScores.map(score => ({
-    value: score,
-    label: score.toString()
-  }));
-});
-
-// Rolled Scores options (dynamic based on what's already assigned)
-const availableRolledScores = computed(() => {
-  if (!localData.value.availableScores || localData.value.availableScores.length === 0) {
+// Unified ability score options (works for both standard array and roll methods)
+const availableAbilityScores = computed(() => {
+  // Determine source scores based on method
+  let sourceScores: number[];
+  if (localData.value.method === 'standard') {
+    sourceScores = [15, 14, 13, 12, 10, 8];
+  } else if (localData.value.method === 'roll') {
+    if (!localData.value.availableScores || localData.value.availableScores.length === 0) {
+      return [];
+    }
+    sourceScores = localData.value.availableScores;
+  } else {
     return [];
   }
   
+  // Get currently assigned scores
   const assignedScores = [
     localData.value.strength,
     localData.value.dexterity,
@@ -783,7 +692,7 @@ const availableRolledScores = computed(() => {
   ].filter(score => score !== undefined && score !== null) as number[];
   
   // Filter out already assigned scores
-  const availableScores = localData.value.availableScores.filter(score => !assignedScores.includes(score));
+  const availableScores = sourceScores.filter(score => !assignedScores.includes(score));
   
   return availableScores.map(score => ({
     value: score,
@@ -803,10 +712,13 @@ const finalScores = computed(() => {
   
   // For standard array and roll method, use actual score or show placeholder
   const getBaseScore = (score: number | undefined): number => {
-    if (localData.value.method === 'standard' || localData.value.method === 'roll') {
-      return score || 0; // Show 0 for unassigned in standard array and roll method
+    if (score === undefined) {
+      return 0; // Return 0 for undefined scores, display logic will handle showing "--"
     }
-    return score || 10; // Default 10 for point buy
+    if (localData.value.method === 'pointbuy' && score === undefined) {
+      return 8; // Default 8 for point buy when undefined
+    }
+    return score;
   };
   
   return {
@@ -885,47 +797,47 @@ const adjustScore = (ability: 'strength' | 'dexterity' | 'constitution' | 'intel
   updateAbilities();
 };
 
-const handleStandardArraySelection = (ability: 'strength' | 'dexterity' | 'constitution' | 'intelligence' | 'wisdom' | 'charisma', value: string | number | null) => {
-  const score = value as number;
-  
-  // Assign the new score
-  localData.value[ability] = score;
-  
-  // If we're reassigning a score that was previously used elsewhere, we need to clear that other assignment
-  if (score !== null && score !== undefined) {
-    const abilities: Array<'strength' | 'dexterity' | 'constitution' | 'intelligence' | 'wisdom' | 'charisma'> = 
-      ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'];
-    
-    // Find any other ability that has this same score and clear it
-    abilities.forEach(otherAbility => {
-      if (otherAbility !== ability && localData.value[otherAbility] === score) {
-        localData.value[otherAbility] = undefined;
-      }
-    });
-  }
-  
-  updateAbilities();
+// Clear ability scores when switching methods
+const clearScoresForMethod = () => {
+  const newData = { ...localData.value };
+  newData.strength = undefined;
+  newData.dexterity = undefined;
+  newData.constitution = undefined;
+  newData.intelligence = undefined;
+  newData.wisdom = undefined;
+  newData.charisma = undefined;
+  localData.value = newData;
 };
 
-const handleRolledScoreSelection = (ability: 'strength' | 'dexterity' | 'constitution' | 'intelligence' | 'wisdom' | 'charisma', value: string | number | null) => {
-  const score = value as number;
+// Unified ability selection handler (works for both standard array and roll methods)
+const handleAbilitySelection = (ability: 'strength' | 'dexterity' | 'constitution' | 'intelligence' | 'wisdom' | 'charisma', value: string | number | null) => {
+  const score = typeof value === 'string' ? parseInt(value) : value;
   
-  // Assign the new score
-  localData.value[ability] = score;
+  console.log('Ability selection:', { method: localData.value.method, ability, value, score });
   
-  // If we're reassigning a score that was previously used elsewhere, we need to clear that other assignment
+  // Create a new object to trigger reactivity
+  const newData = { ...localData.value };
+  
+  // If we're reassigning a score that was previously used elsewhere, we need to clear that other assignment first
   if (score !== null && score !== undefined) {
     const abilities: Array<'strength' | 'dexterity' | 'constitution' | 'intelligence' | 'wisdom' | 'charisma'> = 
       ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'];
     
     // Find any other ability that has this same score and clear it
     abilities.forEach(otherAbility => {
-      if (otherAbility !== ability && localData.value[otherAbility] === score) {
-        localData.value[otherAbility] = undefined;
+      if (otherAbility !== ability && newData[otherAbility] === score) {
+        newData[otherAbility] = undefined;
       }
     });
   }
   
+  // Assign the new score
+  newData[ability] = score !== null && score !== undefined ? score : undefined;
+  
+  // Update the reactive reference
+  localData.value = newData;
+  
+  console.log('After assignment:', { method: localData.value.method, ability, score, localData: localData.value });
   updateAbilities();
 };
 
@@ -952,8 +864,7 @@ const updateAbilities = () => {
     localData.value.availableScores = [15, 14, 13, 12, 10, 8];
     localData.value.pointsRemaining = 0;
     
-    // For standard array, clear scores when switching methods
-    // Don't auto-assign, let user choose via dropdowns
+    // Don't clear scores - let them persist for standard array
   } else if (localData.value.method === 'pointbuy') {
     localData.value.availableScores = [];
     
@@ -973,6 +884,8 @@ const updateAbilities = () => {
       localData.value.availableScores = [];
     }
     localData.value.pointsRemaining = 0;
+    
+    // Don't clear scores - let them persist for roll method like standard array
     // Don't auto-roll - let user click the button
   }
 
