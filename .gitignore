@@ -4,8 +4,6 @@ venv
 node_modules
 .envrc
 
-compendiums
-
 docs/dnd/*.pdf
 
 

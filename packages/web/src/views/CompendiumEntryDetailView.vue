@@ -115,7 +115,7 @@
                   </div>
                 </dd>
               </div>
-              <div v-if="(entry.entry.documentType === 'actor' || entry.entry.documentType === 'item') && entry.content.pluginId">
+              <div v-if="(entry.entry.documentType === 'character' || entry.entry.documentType === 'item') && entry.content.pluginId">
                 <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Game System</dt>
                 <dd class="text-sm text-gray-900 dark:text-white">{{ entry.content.pluginId }}</dd>
               </div>
@@ -195,8 +195,8 @@ const entryImageUrl = computed(() => {
     imageId?: { url: string };
   };
   
-  // For actors, prefer avatarId
-  if (entry.value.entry.documentType === 'actor') {
+  // For characters, prefer avatarId
+  if (entry.value.entry.documentType === 'character') {
     if (content.avatarId?.url) return content.avatarId.url;
     if (content.defaultTokenImageId?.url) return content.defaultTokenImageId.url;
   }

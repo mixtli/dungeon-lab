@@ -143,7 +143,7 @@ import { useCampaignStore } from '@/stores/campaign.store.mjs';
 import { useEncounterStore } from '@/stores/encounter.store.mjs';
 import { CampaignsClient } from '@dungeon-lab/client/index.mjs';
 import { ActorsClient } from '@dungeon-lab/client/index.mjs';
-import type { IActor } from '@dungeon-lab/shared/types/index.mjs';
+import type { IActor, ICharacter } from '@dungeon-lab/shared/types/index.mjs';
 
 interface TokenOptions {
   name: string;
@@ -174,7 +174,7 @@ const loadingActors = ref(false);
 const error = ref<string | null>(null);
 
 // Actor data fetched from API
-const campaignCharacters = ref<IActor[]>([]);
+const campaignCharacters = ref<(IActor | ICharacter)[]>([]);
 const monsters = ref<IActor[]>([]);
 
 const tokenOptions = ref<TokenOptions>({
@@ -192,15 +192,15 @@ const allActors = computed(() => {
 // Computed
 const selectedActor = computed(() => {
   if (!selectedActorId.value) return null;
-  return allActors.value.find((actor: IActor) => actor.id === selectedActorId.value) || null;
+  return allActors.value.find((actor) => actor.id === selectedActorId.value) || null;
 });
 
 const pcActors = computed(() => {
-  return campaignCharacters.value.filter((actor: IActor) => actor.documentType === 'actor' && actor.pluginDocumentType === 'character');
+  return campaignCharacters.value.filter((actor): actor is ICharacter => actor.documentType === 'character');
 });
 
 const npcActors = computed(() => {
-  return campaignCharacters.value.filter((actor: IActor) => actor.pluginDocumentType === 'npc');
+  return campaignCharacters.value.filter((actor): actor is IActor => actor.documentType === 'actor' && actor.pluginDocumentType === 'npc');
 });
 
 const monsterActors = computed(() => {

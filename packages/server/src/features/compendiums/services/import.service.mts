@@ -76,6 +76,13 @@ export class ImportService {
 
       // Note: Plugin validation now happens client-side only
       // Trust that client has validated plugin ID before importing
+      
+      // Create a pass-through validation plugin since validation happens client-side
+      const plugin: ValidationPlugin = {
+        validateActorData: () => ({ success: true }),
+        validateItemData: () => ({ success: true }),
+        validateDocumentData: () => ({ success: true })
+      };
 
       // Check for existing compendium - we'll update it instead of throwing an error
       existingCompendium = await CompendiumModel.findOne({

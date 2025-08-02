@@ -5,7 +5,7 @@
  * simplified plugin architecture with manifest-based configuration.
  */
 
-import { BaseGameSystemPlugin, ValidationResult } from '@dungeon-lab/shared/types/plugin.mjs';
+import { BaseGameSystemPlugin, ValidationResult, PluginContext } from '@dungeon-lab/shared/types/plugin.mjs';
 import { validateCharacterData } from './character-validation.mjs';
 
 /**
@@ -35,7 +35,7 @@ export class DnD5e2024Plugin extends BaseGameSystemPlugin {
   /**
    * Plugin initialization
    */
-  async onLoad(context?: any): Promise<void> {
+  async onLoad(context?: PluginContext): Promise<void> {
     console.log(`[${this.manifest.id}] Loading D&D 5e 2024 Plugin v${this.manifest.version}`);
     if (context) {
       console.log(`[${this.manifest.id}] Plugin context provided - API access available`);
@@ -57,10 +57,10 @@ export class DnD5e2024Plugin extends BaseGameSystemPlugin {
   validateCharacterData(data: unknown): ValidationResult {
     console.log(`[${this.manifest.id}] 🔍 PLUGIN VALIDATION METHOD CALLED`);
     console.log(`[${this.manifest.id}] Data structure:`, {
-      hasSpecies: !!(data as any)?.species,
-      speciesFormat: (data as any)?.species,
-      hasBackground: !!(data as any)?.background,
-      backgroundFormat: (data as any)?.background
+      hasSpecies: !!(data && typeof data === 'object' && 'species' in data),
+      speciesFormat: data && typeof data === 'object' && 'species' in data ? (data as Record<string, unknown>).species : undefined,
+      hasBackground: !!(data && typeof data === 'object' && 'background' in data),
+      backgroundFormat: data && typeof data === 'object' && 'background' in data ? (data as Record<string, unknown>).background : undefined
     });
     
     const result = validateCharacterData(data);

@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { PlusIcon, TrashIcon } from '@heroicons/vue/24/outline';
-import { type IActor, type IAsset, type ICampaign } from '@dungeon-lab/shared/types/index.mjs';
+import { type ICharacter, type IActor, type IAsset, type ICampaign } from '@dungeon-lab/shared/types/index.mjs';
 import { CampaignsClient } from '@dungeon-lab/client/index.mjs';
 
 const campaignsClient = new CampaignsClient();
@@ -13,13 +13,13 @@ const props = defineProps({
     required: true
   },
   characters: {
-    type: Array as () => IActor[],
+    type: Array as () => ICharacter[],
     required: false,
     default: () => []
   }
 });
 
-const localCharacters = ref<IActor[]>(props.characters || []);
+const localCharacters = ref<ICharacter[]>(props.characters || []);
 const router = useRouter();
 const isLoading = ref(!props.characters);
 const error = ref<string | null>(null);
@@ -35,8 +35,9 @@ onMounted(async () => {
       
       // Filter to only include actual characters
       if (campaignData.characters && Array.isArray(campaignData.characters)) {
-        localCharacters.value = campaignData.characters.filter(
-          (char): char is IActor => char !== null && char?.documentType === 'actor'
+        const allCharacters = campaignData.characters as (IActor | ICharacter)[];
+        localCharacters.value = allCharacters.filter(
+          (char): char is ICharacter => char !== null && char?.documentType === 'character'
         );
         console.log('Filtered characters:', localCharacters.value);
       } else {

@@ -69,7 +69,7 @@ characterMongooseSchema.virtual('campaign', {
 import { DocumentModel } from './document.model.mjs';
 
 // Create the character discriminator model directly
-export const CharacterDocumentModel = DocumentModel.discriminator<ICharacter>('Character', characterMongooseSchema);
+export const CharacterDocumentModel = DocumentModel.discriminator<ICharacter>('character', characterMongooseSchema);
 
 // Export with consistent naming
 export { CharacterDocumentModel as CharacterModel };

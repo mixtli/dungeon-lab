@@ -19,6 +19,28 @@ import {
 import { processEntries, cleanMarkupText } from '../text/markup-processor.mjs';
 import { etoolsItemSchema } from '../../5etools-types/items.mjs';
 import type { EtoolsClassData, EtoolsClassFluff, EtoolsClassFluffData, EtoolsSubclass } from '../../5etools-types/classes.mjs';
+
+// Type definitions for equipment processing
+interface EquipmentItem {
+  item: {
+    _ref: {
+      slug: string;
+      documentType: string;
+      pluginDocumentType: string;
+      source: string;
+    };
+  } | null;
+  quantity: number;
+}
+
+interface ItemReference {
+  _ref: {
+    slug: string;
+    documentType: string;
+    pluginDocumentType: string;
+    source: string;
+  };
+}
 import { etoolsClassSchema } from '../../5etools-types/classes.mjs';
 import { 
   dndCharacterClassDataSchema, 
@@ -76,8 +98,8 @@ export class TypedClassConverter extends TypedConverter<
         this.readEtoolsData('items.json')
       ]);
       
-      let baseItemCount = 0;
-      let regularItemCount = 0;
+      let _baseItemCount = 0;
+      let _regularItemCount = 0;
       
       // Process base items (uses 'baseitem' array key)
       if (baseItemsData && typeof baseItemsData === 'object' && 'baseitem' in baseItemsData && Array.isArray(baseItemsData.baseitem)) {
@@ -85,7 +107,7 @@ export class TypedClassConverter extends TypedConverter<
           if (item && typeof item === 'object' && 'name' in item && 'source' in item) {
             const key = `${String(item.name).toLowerCase()}|${String(item.source).toLowerCase()}`;
             this.itemMap.set(key, item as z.infer<typeof etoolsItemSchema>);
-            baseItemCount++;
+            _baseItemCount++;
             
           }
         }
@@ -97,7 +119,7 @@ export class TypedClassConverter extends TypedConverter<
           if (item && typeof item === 'object' && 'name' in item && 'source' in item) {
             const key = `${String(item.name).toLowerCase()}|${String(item.source).toLowerCase()}`;
             this.itemMap.set(key, item as z.infer<typeof etoolsItemSchema>);
-            regularItemCount++;
+            _regularItemCount++;
           }
         }
       }
@@ -867,7 +889,7 @@ export class TypedClassConverter extends TypedConverter<
     for (const [label, optionData] of Object.entries(defaultData)) {
       if (!Array.isArray(optionData)) continue;
 
-      const equipmentItems: Array<{ item: any; quantity: number }> = [];
+      const equipmentItems: EquipmentItem[] = [];
       let goldAmount = 0;
 
       // Process each item in this option
@@ -913,7 +935,7 @@ export class TypedClassConverter extends TypedConverter<
   /**
    * Parse equipment item reference like "greataxe|xphb" into ItemReference
    */
-  private parseEquipmentItemReference(itemString: string): any {
+  private parseEquipmentItemReference(itemString: string): ItemReference | null {
     const parts = itemString.split('|');
     if (parts.length < 1) return null;
     

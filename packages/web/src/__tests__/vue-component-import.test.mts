@@ -36,10 +36,10 @@ describe('Vue Component Import with Vitest', () => {
       console.log('Character sheet component:', characterSheet);
       
     } catch (error) {
-      console.error('❌ Vitest Vue component import failed:', error.message);
+      console.error('❌ Vitest Vue component import failed:', (error as Error).message);
       
       // Check if it's the same Vue file extension error
-      if (error.message.includes('.vue')) {
+      if ((error as Error).message.includes('.vue')) {
         console.log('🔍 Same Vue file extension issue in Vitest as tsx');
       }
       

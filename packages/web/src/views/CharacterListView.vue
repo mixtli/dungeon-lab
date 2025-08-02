@@ -1,21 +1,21 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { type IActor, type IAsset } from '@dungeon-lab/shared/types/index.mjs';
-import { ActorsClient } from '@dungeon-lab/client/index.mjs';
+import { type ICharacter, type IAsset } from '@dungeon-lab/shared/types/index.mjs';
+import { DocumentsClient } from '@dungeon-lab/client/index.mjs';
 import { PlusIcon, EyeIcon, TrashIcon } from '@heroicons/vue/24/outline';
 import { useDeviceAdaptation } from '@/composables/useDeviceAdaptation.mts';
 import { transformAssetUrl } from '@/utils/asset-utils.mjs';
 
 const router = useRouter();
-const actorClient = new ActorsClient();
-const characters = ref<IActor[]>([]);
+const documentsClient = new DocumentsClient();
+const characters = ref<ICharacter[]>([]);
 const isLoading = ref(true);
 const error = ref<string | null>(null);
 const { isMobile } = useDeviceAdaptation();
 
 // Computed property to get the avatar URL for a character
-const getAvatarUrl = (character: IActor): string | undefined => {
+const getAvatarUrl = (character: ICharacter): string | undefined => {
   if (character.avatar) {
     // Handle populated ObjectId reference
     if (typeof character.avatar === 'object') {
@@ -29,9 +29,8 @@ const getAvatarUrl = (character: IActor): string | undefined => {
 
 onMounted(async () => {
   try {
-    const actors = await actorClient.getActors();
-    // Filter only character document types
-    characters.value = actors.filter((actor: IActor) => actor.documentType === 'actor' && actor.pluginDocumentType === 'character');
+    // Type-safe call - returns ICharacter[] automatically
+    characters.value = await documentsClient.getDocuments({ documentType: 'character' });
   } catch (err) {
     console.error('Error loading characters:', err);
     error.value = 'Failed to load characters. Please try again later.';
@@ -44,7 +43,7 @@ async function handleDelete(id: string | undefined) {
   if (!id) return;
   
   try {
-    await actorClient.deleteActor(id);
+    await documentsClient.deleteDocument(id);
     // Remove the character from the list
     characters.value = characters.value.filter(char => char.id !== id);
   } catch (err) {

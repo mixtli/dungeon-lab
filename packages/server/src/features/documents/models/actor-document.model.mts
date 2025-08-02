@@ -61,7 +61,7 @@ actorMongooseSchema.virtual('inventoryItems', {
 import { DocumentModel } from './document.model.mjs';
 
 // Create the actor discriminator model directly
-export const ActorDocumentModel = DocumentModel.discriminator<IActor>('Actor', actorMongooseSchema);
+export const ActorDocumentModel = DocumentModel.discriminator<IActor>('actor', actorMongooseSchema);
 
 // Export with consistent naming
 export { ActorDocumentModel as ActorModel };

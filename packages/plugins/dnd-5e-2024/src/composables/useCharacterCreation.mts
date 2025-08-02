@@ -11,6 +11,20 @@ import type {
   FormStep,
   CharacterCreationFormData
 } from '../types/character-creation.mjs';
+
+// Type definitions for better type safety
+interface ItemGroupEntry {
+  pluginData: {
+    items: Array<string | { _ref?: { id?: string; slug?: string } }>;
+  };
+}
+
+interface ItemWithReference {
+  _ref?: {
+    id?: string;
+    slug?: string;
+  };
+}
 import type { DndCharacterClassDocument } from '../types/dnd/character-class.mjs';
 import type { DndSpeciesDocument } from '../types/dnd/species.mjs';
 import type { DndBackgroundDocument } from '../types/dnd/background.mjs';
@@ -270,7 +284,7 @@ export function useCharacterCreation() {
     }
   };
 
-  const fetchItemGroup = async (groupId: string): Promise<any> => {
+  const fetchItemGroup = async (groupId: string): Promise<ItemGroupEntry> => {
     try {
       // groupId is now an ObjectId string, use the single entry endpoint
       const entry = await compendiumClient.getCompendiumEntry(groupId);
@@ -281,7 +295,7 @@ export function useCharacterCreation() {
     }
   };
 
-  const fetchItems = async (itemIds: string[]): Promise<any[]> => {
+  const fetchItems = async (itemIds: string[]): Promise<ICompendiumEntry[]> => {
     try {
       // itemIds are now ObjectId strings, fetch each item individually
       const items = await Promise.all(
@@ -304,14 +318,14 @@ export function useCharacterCreation() {
   };
 
   // General function to get all items in a group - will be reused for other group-choice proficiencies
-  const fetchItemsInGroup = async (groupId: string): Promise<any[]> => {
+  const fetchItemsInGroup = async (groupId: string): Promise<ICompendiumEntry[]> => {
     try {
       // First get the item group
       const itemGroup = await fetchItemGroup(groupId);
       
       // Extract item IDs from the group
       // Handle both resolved ObjectIds and reference structures
-      const itemIds = itemGroup.pluginData.items.map((item: any) => {
+      const itemIds = itemGroup.pluginData.items.map((item: string | ItemWithReference) => {
         if (typeof item === 'string') {
           // Already resolved to ObjectId
           return item;
@@ -426,7 +440,7 @@ export function useCharacterCreation() {
   };
   
   // Internal transformation function to convert creator data to D&D schema
-  const transformCharacterCreatorData = (creatorData: any) => {
+  const transformCharacterCreatorData = (creatorData: CharacterCreationFormData) => {
     // Transform simple ability scores to complex D&D schema format
     const abilities = {
       strength: {

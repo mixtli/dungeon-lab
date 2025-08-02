@@ -73,4 +73,4 @@ vttDocumentMongooseSchema.pre('save', async function(next) {
 import { DocumentModel } from './document.model.mjs';
 
 // Create the VTT document discriminator model directly
-export const VTTDocumentModel = DocumentModel.discriminator<IVTTDocument>('VTTDocument', vttDocumentMongooseSchema);
+export const VTTDocumentModel = DocumentModel.discriminator<IVTTDocument>('vtt-document', vttDocumentMongooseSchema);

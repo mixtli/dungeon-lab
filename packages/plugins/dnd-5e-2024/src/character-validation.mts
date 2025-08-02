@@ -15,7 +15,7 @@ import type { ValidationResult } from '@dungeon-lab/shared/types/plugin.mjs';
  * @param data - Character data to validate
  * @returns ValidationResult with success status and validated data or errors
  */
-export function validateCharacterData(data: any): ValidationResult {
+export function validateCharacterData(data: unknown): ValidationResult {
   console.log('🔍 Validating character data:', data);
   try {
     const result = dndCharacterDataSchema.safeParse(data);
@@ -49,7 +49,7 @@ export function validateCharacterData(data: any): ValidationResult {
  * Validates partial character data (for incremental validation)
  * Uses deepPartial to allow incomplete data during character creation
  */
-export function validatePartialCharacterData(data: any): ValidationResult {
+export function validatePartialCharacterData(data: unknown): ValidationResult {
   try {
     const partialSchema = dndCharacterDataSchema.deepPartial();
     const result = partialSchema.safeParse(data);
@@ -81,6 +81,6 @@ export function validatePartialCharacterData(data: any): ValidationResult {
 /**
  * Type guard to check if data is valid D&D character data
  */
-export function isValidDndCharacterData(data: any): data is z.infer<typeof dndCharacterDataSchema> {
+export function isValidDndCharacterData(data: unknown): data is z.infer<typeof dndCharacterDataSchema> {
   return validateCharacterData(data).success;
 }

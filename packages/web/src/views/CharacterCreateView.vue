@@ -5,7 +5,7 @@ import { useActorStore } from '../stores/actor.store.mjs';
 import { pluginRegistry } from '../services/plugin-registry.mts';
 import ImageUpload from '../components/common/ImageUpload.vue';
 import type { GameSystemPlugin } from '@dungeon-lab/shared/types/plugin.mjs';
-import { DocumentsClient, AssetsClient } from '@dungeon-lab/client/index.mjs';
+import { DocumentsClient } from '@dungeon-lab/client/index.mjs';
 import { CreateDocumentRequest } from '@dungeon-lab/shared/types/api/index.mjs';
 import { createDocumentSchema } from '@dungeon-lab/shared/schemas/index.mjs';
 
@@ -18,7 +18,7 @@ interface UploadedImage {
 }
 
 const documentsClient = new DocumentsClient();
-const assetsClient = new AssetsClient();
+// const assetsClient = new AssetsClient(); // Currently unused
 const router = useRouter();
 const actorStore = useActorStore();
 const activeGameSystemId = ref<string>(localStorage.getItem('activeGameSystem') || '');
@@ -30,9 +30,10 @@ const currentStep = ref(1);
 const isSubmitting = ref(false);
 
 // Plugin component loading
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const pluginComponent = ref<any>(null);
 const pluginComponentError = ref<string | null>(null);
-const pluginData = ref<any>(null);
+// const pluginData = ref<any>(null); // Currently unused
 
 // Basic info form data - can now handle both File objects and UploadedImage objects
 const basicInfo = ref({
@@ -178,6 +179,7 @@ async function loadCharacterCreatorComponent() {
 }
 
 // Plugin component event handlers
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function handleCharacterReady(documentData: any) {
   console.log('Character document ready from plugin:', documentData);
   

@@ -26,7 +26,7 @@ itemMongooseSchema.path('userData', mongoose.Schema.Types.Mixed);
 import { DocumentModel } from './document.model.mjs';
 
 // Create the item discriminator model directly
-export const ItemDocumentModel = DocumentModel.discriminator<IItem>('Item', itemMongooseSchema);
+export const ItemDocumentModel = DocumentModel.discriminator<IItem>('item', itemMongooseSchema);
 
 // Export with consistent naming
 export { ItemDocumentModel as ItemModel };

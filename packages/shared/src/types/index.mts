@@ -257,6 +257,9 @@ export * from './mapEditor.mjs';
 // New Plugin Architecture
 export * from './plugin.mjs';  // Main plugin interface
 export * from './plugin-context.mjs';  // Plugin context types
+
+// Document Type Mapping
+export * from './document-type-map.mjs';
 export * from './plugin-contracts.mjs';
 export * from './component-registry.mjs';  // @deprecated - will be removed
 export * from './mechanics-registry.mjs';  // @deprecated - will be removed

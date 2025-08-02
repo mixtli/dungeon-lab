@@ -245,8 +245,8 @@ function getEntryImage(entry: ICompendiumEntryWithImage): string | undefined {
     imageId?: { url: string };
   };
   
-  // For actors, prefer avatarId, fallback to defaultTokenImageId
-  if (entry.entry.documentType === 'actor') {
+  // For characters, prefer avatarId, fallback to defaultTokenImageId
+  if (entry.entry.documentType === 'character') {
     if (content.avatarId?.url) {
       return content.avatarId.url;
     }

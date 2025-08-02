@@ -112,8 +112,8 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth.store.mjs';
-import type { IActor } from '@dungeon-lab/shared/types/index.mjs';
-import { InvitesClient, ActorsClient } from '@dungeon-lab/client/index.mjs';
+import type { ICharacter } from '@dungeon-lab/shared/types/index.mjs';
+import { InvitesClient, DocumentsClient } from '@dungeon-lab/client/index.mjs';
 
 // Define interface for campaign invite structure
 interface Campaign {
@@ -139,7 +139,7 @@ interface Invite {
 }
 
 const invitesClient = new InvitesClient();
-const actorsClient = new ActorsClient();
+const documentsClient = new DocumentsClient();
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -148,7 +148,7 @@ const error = ref<string | null>(null);
 const invites = ref<Invite[]>([]);
 const showCharacterSelect = ref(false);
 const loadingCharacters = ref(false);
-const compatibleCharacters = ref<IActor[]>([]);
+const compatibleCharacters = ref<ICharacter[]>([]);
 const selectedInvite = ref<Invite | null>(null);
 
 // Helper functions to handle both populated and non-populated data structures
@@ -186,13 +186,14 @@ async function loadCompatibleCharacters(gameSystemId: string) {
   loadingCharacters.value = true;
 
   try {
-    // Use ActorsClient directly instead of store
-    const actors = await actorsClient.getActors();
-    compatibleCharacters.value = actors.filter(
-      (actor: IActor) =>
-        actor.pluginId === gameSystemId && 
-        actor.createdBy === authStore.user?.id &&
-        actor.documentType === 'actor'
+    // Type-safe call - returns ICharacter[] automatically
+    const characters = await documentsClient.getDocuments({ 
+      documentType: 'character',
+      pluginId: gameSystemId 
+    });
+    // Simple business logic filtering - no type guards needed
+    compatibleCharacters.value = characters.filter(
+      char => char.createdBy === authStore.user?.id
     );
   } catch (err: unknown) {
     const errorObj = err as Error & { response?: { data?: { message?: string } } };
@@ -228,7 +229,7 @@ async function handleDecline(invite: Invite) {
   }
 }
 
-async function selectCharacter(character: IActor) {
+async function selectCharacter(character: ICharacter) {
   if (!selectedInvite.value) return;
 
   try {

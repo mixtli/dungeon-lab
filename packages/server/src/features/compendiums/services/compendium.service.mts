@@ -1,4 +1,4 @@
-import { Types } from 'mongoose';
+import { Types, PipelineStage } from 'mongoose';
 import { 
   ICompendium, 
   ICompendiumCreateData, 
@@ -547,7 +547,7 @@ export class CompendiumService {
       }
 
       // Build aggregation pipeline
-      const pipeline = [
+      const pipeline: PipelineStage[] = [
         // Join with compendiums collection to get pluginId
         {
           $lookup: {
