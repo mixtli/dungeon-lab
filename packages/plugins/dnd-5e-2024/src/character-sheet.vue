@@ -4,12 +4,12 @@
     <header class="sheet-header" @mousedown="startDrag">
       <div class="character-info">
         <div class="character-portrait">
-          {{ characterData.name.charAt(0) }}
+          {{ character.name.charAt(0) }}
         </div>
         <div class="character-details">
-          <h1 class="character-name">{{ characterData.name }}</h1>
+          <h1 class="character-name">{{ character.name }}</h1>
           <p class="character-subtitle">
-            Level {{ characterData.level }} {{ characterData.race.name }} {{ characterData.classes[0]?.name }}
+            Level {{ character.pluginData?.progression?.level || character.pluginData?.level || 1 }} {{ character.pluginData?.species?.name || character.pluginData?.race?.name || 'Human' }} {{ character.pluginData?.classes?.[0]?.class?.name || character.pluginData?.characterClass?.name || 'Fighter' }}
           </p>
         </div>
       </div>
@@ -68,7 +68,7 @@
           </div>
         </div>
         
-        <div v-if="characterData.inspiration" class="inspiration-section">
+        <div v-if="character.pluginData?.attributes?.inspiration || character.pluginData?.inspiration" class="inspiration-section">
           <div class="inspiration-indicator">
             ⭐ Inspiration
           </div>
@@ -79,14 +79,14 @@
       <div v-if="activeTab === 'abilities'" class="tab-pane abilities-tab">
         <div class="abilities-grid">
           <div 
-            v-for="(ability, abilityName) in characterData.abilities" 
+            v-for="(abilityScore, abilityName) in finalAbilities" 
             :key="abilityName"
             class="ability-card"
             @click="rollAbilityCheck(abilityName)"
             :title="'Click to roll ' + abilityName + ' check'"
           >
             <div class="ability-name">{{ abilityName.slice(0, 3).toUpperCase() }}</div>
-            <div class="ability-score">{{ ability.value }}</div>
+            <div class="ability-score">{{ abilityScore }}</div>
             <div class="ability-modifier">{{ formatModifier(abilityModifiers[abilityName]) }}</div>
           </div>
         </div>
@@ -95,14 +95,14 @@
           <h3>Saving Throws</h3>
           <div class="saves-grid">
             <div 
-              v-for="(save, abilityName) in characterData.savingThrows" 
+              v-for="(abilityScore, abilityName) in finalAbilities" 
               :key="abilityName"
               class="save-item"
               @click="rollSavingThrow(abilityName)"
               :title="'Click to roll ' + abilityName + ' save'"
             >
-              <div class="save-prof" :class="{ proficient: save.proficient }">
-                {{ save.proficient ? '●' : '○' }}
+              <div class="save-prof" :class="{ proficient: savingThrowProficiencies[abilityName] }">
+                {{ savingThrowProficiencies[abilityName] ? '●' : '○' }}
               </div>
               <div class="save-name">{{ abilityName.slice(0, 3).toUpperCase() }}</div>
               <div class="save-bonus">{{ formatModifier(savingThrowBonuses[abilityName]) }}</div>
@@ -115,7 +115,7 @@
       <div v-if="activeTab === 'skills'" class="tab-pane skills-tab">
         <div class="skills-list">
           <div 
-            v-for="(skill, skillName) in characterData.skills" 
+            v-for="(skill, skillName) in character.pluginData?.skills || DEFAULT_SKILLS" 
             :key="skillName"
             class="skill-item"
             @click="rollSkillCheck(skillName)"
@@ -172,131 +172,8 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import type { DnD5eCharacterData } from './character.mjs';
-import { DEFAULT_SKILLS } from './character.mjs';
+import { DEFAULT_SKILLS } from './types/dnd/skills.mjs';
 import type { IActor, PluginContext } from '@dungeon-lab/shared/types/index.mjs';
-
-// Interface for D&D 5e character plugin data
-interface DnD5ePluginData {
-  level?: number;
-  experience?: { current?: number; next?: number };
-  race?: { name?: string; size?: string };
-  species?: string;
-  classes?: Array<{ name: string; level: number; hitDie: number }>;
-  background?: { name?: string } | string;
-  abilities?: {
-    strength?: { value: number };
-    dexterity?: { value: number };
-    constitution?: { value: number };
-    intelligence?: { value: number };
-    wisdom?: { value: number };
-    charisma?: { value: number };
-  };
-  savingThrows?: {
-    strength?: { proficient: boolean; bonus: number };
-    dexterity?: { proficient: boolean; bonus: number };
-    constitution?: { proficient: boolean; bonus: number };
-    intelligence?: { proficient: boolean; bonus: number };
-    wisdom?: { proficient: boolean; bonus: number };
-    charisma?: { proficient: boolean; bonus: number };
-  };
-  skills?: Record<string, any>;
-  hitPoints?: { current?: number; maximum?: number; temporary?: number };
-  armorClass?: number;
-  initiative?: number;
-  speed?: number;
-  inspiration?: boolean;
-  deathSaves?: { successes?: number; failures?: number };
-  hitDice?: { current?: number; maximum?: number; type?: string };
-  spells?: any;
-  equipment?: any;
-}
-
-// Transform IActor to DnD5eCharacterData
-const characterData = computed((): DnD5eCharacterData => {
-  const actor = props.character;
-  const pluginData = actor.pluginData as DnD5ePluginData;
-  
-  return {
-    id: actor.id,
-    name: actor.name,
-    level: pluginData?.level || 1,
-    experience: {
-      current: pluginData?.experience?.current || 0,
-      next: pluginData?.experience?.next || 300,
-    },
-    race: {
-      name: pluginData?.race?.name || pluginData?.species || 'Human',
-      size: pluginData?.race?.size || 'medium',
-    },
-    classes: pluginData?.classes || [
-      { name: 'Fighter', level: 1, hitDie: 10 }
-    ],
-    background: {
-      name: (typeof pluginData?.background === 'object' && pluginData.background?.name) 
-        ? pluginData.background.name 
-        : (typeof pluginData?.background === 'string' ? pluginData.background : 'Folk Hero'),
-    },
-    abilities: {
-      strength: pluginData?.abilities?.strength || { value: 10 },
-      dexterity: pluginData?.abilities?.dexterity || { value: 10 },
-      constitution: pluginData?.abilities?.constitution || { value: 10 },
-      intelligence: pluginData?.abilities?.intelligence || { value: 10 },
-      wisdom: pluginData?.abilities?.wisdom || { value: 10 },
-      charisma: pluginData?.abilities?.charisma || { value: 10 },
-    },
-    savingThrows: {
-      strength: pluginData?.savingThrows?.strength || { proficient: false, bonus: 0 },
-      dexterity: pluginData?.savingThrows?.dexterity || { proficient: false, bonus: 0 },
-      constitution: pluginData?.savingThrows?.constitution || { proficient: false, bonus: 0 },
-      intelligence: pluginData?.savingThrows?.intelligence || { proficient: false, bonus: 0 },
-      wisdom: pluginData?.savingThrows?.wisdom || { proficient: false, bonus: 0 },
-      charisma: pluginData?.savingThrows?.charisma || { proficient: false, bonus: 0 },
-    },
-    skills: pluginData?.skills || DEFAULT_SKILLS,
-    hitPoints: {
-      current: pluginData?.hitPoints?.current || 8,
-      maximum: pluginData?.hitPoints?.maximum || 8,
-      temporary: pluginData?.hitPoints?.temporary || 0,
-    },
-    armorClass: {
-      total: pluginData?.armorClass || 10,
-      base: 10,
-      modifiers: [],
-    },
-    initiative: {
-      bonus: pluginData?.initiative || 0,
-    },
-    combat: {
-      speed: {
-        walking: pluginData?.speed || 30,
-      },
-    },
-    inspiration: pluginData?.inspiration || false,
-    deathSaves: {
-      successes: pluginData?.deathSaves?.successes || 0,
-      failures: pluginData?.deathSaves?.failures || 0,
-    },
-    hitDice: {
-      current: pluginData?.hitDice?.current || 1,
-      maximum: pluginData?.hitDice?.maximum || 1,
-      type: pluginData?.hitDice?.type || 'd10',
-    },
-    spells: pluginData?.spells || {
-      spellcastingAbility: 'intelligence',
-      spellAttackBonus: 0,
-      spellSaveDC: 8,
-      slots: {},
-      known: [],
-    },
-    equipment: pluginData?.equipment || {
-      weapons: [],
-      armor: [],
-      items: [],
-      currency: { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 },
-    },
-  };
-});
 
 // Props
 interface Props {
@@ -308,6 +185,9 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   readonly: false
 });
+
+// Use character directly - no transformation needed
+const character = computed(() => props.character);
 
 // Emits
 const emit = defineEmits<{
@@ -334,45 +214,114 @@ const tabs = [
   { id: 'notes', name: 'Notes', icon: '📝' }
 ];
 
+// Process ability scores from proper D&D schema
+const finalAbilities = computed(() => {
+  const abilities = props.character.pluginData?.abilities || {};
+  const finalScores: Record<string, number> = {};
+  
+  // Standard ability names in order
+  const abilityNames = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'];
+  
+  for (const abilityName of abilityNames) {
+    const ability = abilities[abilityName];
+    if (ability && typeof ability === 'object') {
+      // New D&D schema format: { base, racial, enhancement, override }
+      if (ability.override !== undefined) {
+        finalScores[abilityName] = ability.override;
+      } else {
+        finalScores[abilityName] = (ability.base || 10) + (ability.racial || 0) + (ability.enhancement || 0);
+      }
+    } else {
+      // Fallback for legacy format or simple numbers
+      finalScores[abilityName] = typeof ability === 'number' ? ability : 10;
+    }
+  }
+  
+  return finalScores;
+});
+
 // Computed properties for D&D 5e mechanics
 const abilityModifiers = computed(() => {
   const modifiers: Record<string, number> = {};
-  for (const [abilityName, ability] of Object.entries(characterData.value.abilities)) {
-    modifiers[abilityName] = Math.floor((ability.value - 10) / 2);
+  for (const [abilityName, abilityValue] of Object.entries(finalAbilities.value)) {
+    modifiers[abilityName] = Math.floor((abilityValue - 10) / 2);
   }
   return modifiers;
 });
 
 const proficiencyBonus = computed(() => {
-  return Math.ceil(characterData.value.level / 4) + 1;
+  // Try D&D schema first
+  const progression = props.character.pluginData?.progression;
+  if (progression?.proficiencyBonus) {
+    return progression.proficiencyBonus;
+  }
+  
+  // Calculate from level (fallback)
+  const level = progression?.level || props.character.pluginData?.level || 1;
+  return Math.ceil(level / 4) + 1;
+});
+
+// Determine saving throw proficiencies from D&D schema
+const savingThrowProficiencies = computed(() => {
+  const proficiencies: Record<string, boolean> = {};
+  const abilities = props.character.pluginData?.abilities || {};
+  
+  // Use proficiencies from the D&D schema if available
+  for (const abilityName of Object.keys(finalAbilities.value)) {
+    const ability = abilities[abilityName];
+    if (ability && typeof ability === 'object' && 'saveProficient' in ability) {
+      proficiencies[abilityName] = ability.saveProficient || false;
+    } else {
+      // Fallback: determine from character class (legacy logic)
+      proficiencies[abilityName] = false;
+      const characterClass = props.character.pluginData?.characterClass || props.character.pluginData?.classes?.[0]?.class;
+      if (characterClass?.id === 'character-class-wizard' && (abilityName === 'intelligence' || abilityName === 'wisdom')) {
+        proficiencies[abilityName] = true;
+      }
+    }
+  }
+  
+  return proficiencies;
 });
 
 const savingThrowBonuses = computed(() => {
   const bonuses: Record<string, number> = {};
-  for (const [abilityName, savingThrow] of Object.entries(characterData.value.savingThrows)) {
+  for (const abilityName of Object.keys(finalAbilities.value)) {
     const abilityMod = abilityModifiers.value[abilityName] || 0;
-    const profBonus = savingThrow.proficient ? proficiencyBonus.value : 0;
-    bonuses[abilityName] = abilityMod + profBonus + savingThrow.bonus;
+    const profBonus = savingThrowProficiencies.value[abilityName] ? proficiencyBonus.value : 0;
+    bonuses[abilityName] = abilityMod + profBonus;
   }
   return bonuses;
 });
 
 const skillBonuses = computed(() => {
   const bonuses: Record<string, number> = {};
-  const skillsData = characterData.value.skills || {};
-  for (const [skillName, skill] of Object.entries(skillsData)) {
+  const skills = props.character.pluginData?.skills || {};
+  
+  // Use D&D schema skills if available, otherwise fall back to class selection
+  const selectedSkills = props.character.pluginData?.characterClass?.selectedSkills || 
+                         props.character.pluginData?.classes?.[0]?.class?.selectedSkills || [];
+  
+  for (const [skillName, skill] of Object.entries(DEFAULT_SKILLS)) {
     const abilityMod = abilityModifiers.value[skill.ability] || 0;
     let profBonus = 0;
     
-    if (skill.proficiency === 'proficient') {
-      profBonus = proficiencyBonus.value;
-    } else if (skill.proficiency === 'expertise') {
-      profBonus = proficiencyBonus.value * 2;
-    } else if (skill.proficiency === 'half') {
-      profBonus = Math.floor(proficiencyBonus.value / 2);
+    // Check D&D schema skills first
+    const skillData = skills[skillName];
+    if (skillData && typeof skillData === 'object') {
+      if (skillData.expert) {
+        profBonus = proficiencyBonus.value * 2;
+      } else if (skillData.proficient) {
+        profBonus = proficiencyBonus.value;
+      }
+      bonuses[skillName] = abilityMod + profBonus + (skillData.bonus || 0);
+    } else {
+      // Fallback: check if skill is proficient from class selection
+      if (selectedSkills.includes(skillName)) {
+        profBonus = proficiencyBonus.value;
+      }
+      bonuses[skillName] = abilityMod + profBonus;
     }
-    
-    bonuses[skillName] = abilityMod + profBonus + skill.modifiers.reduce((sum, mod) => sum + mod, 0);
   }
   return bonuses;
 });
@@ -383,30 +332,62 @@ const passivePerception = computed(() => {
 });
 
 const armorClassDisplay = computed(() => {
-  return characterData.value.armorClass.total;
+  const attributes = props.character.pluginData?.attributes;
+  if (attributes?.armorClass?.value) {
+    return attributes.armorClass.value;
+  }
+  return props.character.pluginData?.armorClass || 10;
 });
 
 const hitPointsDisplay = computed(() => {
-  return `${characterData.value.hitPoints.current}/${characterData.value.hitPoints.maximum}`;
+  const attributes = props.character.pluginData?.attributes;
+  if (attributes?.hitPoints) {
+    return `${attributes.hitPoints.current}/${attributes.hitPoints.maximum}`;
+  }
+  const hitPoints = props.character.pluginData?.hitPoints || { current: 8, maximum: 8 };
+  return `${hitPoints.current}/${hitPoints.maximum}`;
 });
 
 const speedDisplay = computed(() => {
-  return `${characterData.value.combat.speed.walking} ft`;
+  const attributes = props.character.pluginData?.attributes;
+  if (attributes?.movement?.walk) {
+    return `${attributes.movement.walk} ft`;
+  }
+  const speed = props.character.pluginData?.speed || 30;
+  return `${speed} ft`;
 });
 
 const initiativeBonus = computed(() => {
   const dexMod = abilityModifiers.value.dexterity || 0;
-  const bonus = dexMod + (characterData.value.initiative?.bonus || 0);
+  const attributes = props.character.pluginData?.attributes;
+  let initBonus = 0;
+  
+  if (attributes?.initiative?.bonus !== undefined) {
+    initBonus = attributes.initiative.bonus;
+  } else {
+    initBonus = props.character.pluginData?.initiative || 0;
+  }
+  
+  const bonus = dexMod + initBonus;
   return bonus >= 0 ? `+${bonus}` : `${bonus}`;
 });
 
 // Reactive notes for textarea editing
 const characterNotes = computed({
   get() {
-    return characterData.value.notes || '';
+    // Try D&D schema format first, then fallback to legacy
+    return props.character.pluginData?.roleplay?.backstory || 
+           props.character.pluginData?.notes || '';
   },
   set(value: string) {
-    updateCharacter({ notes: value });
+    // Update both for compatibility
+    updateCharacter({ 
+      notes: value,
+      roleplay: { 
+        ...props.character.pluginData?.roleplay,
+        backstory: value 
+      }
+    });
   }
 });
 
@@ -439,7 +420,8 @@ const rollSavingThrow = (ability: string) => {
 
 const rollSkillCheck = (skill: string) => {
   const bonus = skillBonuses.value[skill] || 0;
-  const ability = characterData.value.skills?.[skill]?.ability || '';
+  const skills = props.character.pluginData?.skills || DEFAULT_SKILLS;
+  const ability = skills[skill]?.ability || '';
   emit('roll', 'skill-check', {
     type: 'skill-check',
     skill,
@@ -452,7 +434,8 @@ const rollSkillCheck = (skill: string) => {
 
 const rollInitiative = () => {
   const dexModifier = abilityModifiers.value.dexterity || 0;
-  const totalBonus = dexModifier + (characterData.value.initiative?.bonus || 0);
+  const initBonus = props.character.pluginData?.initiative || 0;
+  const totalBonus = dexModifier + initBonus;
   emit('roll', 'initiative', {
     type: 'initiative',
     modifier: totalBonus,
@@ -465,7 +448,7 @@ const switchTab = (tabId: string) => {
   activeTab.value = tabId;
 };
 
-const updateCharacter = (updates: Partial<DnD5eCharacterData>) => {
+const updateCharacter = (updates: Record<string, unknown>) => {
   const updatedCharacter = { ...props.character, pluginData: { ...props.character.pluginData, ...updates } };
   isDirty.value = true;
   emit('update:character', updatedCharacter);
@@ -954,7 +937,7 @@ h3 {
 onMounted(() => {
   injectStyles();
   document.addEventListener('keydown', handleKeyDown);
-  console.log('D&D 5e Character Sheet mounted for character:', characterData.value.name);
+  console.log('D&D 5e Character Sheet mounted for character:', props.character.name);
 });
 
 onUnmounted(() => {

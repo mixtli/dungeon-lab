@@ -96,7 +96,7 @@ export type EncounterPermissions = z.infer<typeof encounterPermissionsSchema>;
 // VALIDATION TYPES
 // ============================================================================
 
-export type ValidationResult = z.infer<typeof validationResultSchema>;
+export type EncounterValidationResult = z.infer<typeof validationResultSchema>;
 export type ActionValidation = z.infer<typeof actionValidationSchema>;
 export type MovementValidation = z.infer<typeof movementValidationSchema>;
 

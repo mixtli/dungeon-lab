@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
 import { DocumentService, QueryValue } from '../services/document.service.mjs';
 import { logger } from '../../../utils/logger.mjs';
-import { pluginRegistry } from '../../../services/plugin-registry.service.mjs';
 import {
   BaseAPIResponse,
   createDocumentRequestSchema,
@@ -15,10 +14,8 @@ import { createSearchParams } from '../../../utils/create.search.params.mjs';
 import { isErrorWithMessage } from '../../../utils/error.mjs';
 
 export class DocumentController {
-  private documentService: DocumentService;
-
   constructor() {
-    this.documentService = new DocumentService();
+    // No need for instance - all methods are static now
   }
 
   getDocument = async (
@@ -27,7 +24,10 @@ export class DocumentController {
   ): Promise<Response<BaseAPIResponse<BaseDocument>> | void> => {
     try {
       const { id } = req.params;
-      const document = await this.documentService.getDocumentById(id);
+      const document = await DocumentService.findById(id);
+      if (!document) {
+        throw new Error('Document not found');
+      }
       res.json({
         success: true,
         data: document
@@ -57,7 +57,14 @@ export class DocumentController {
       const { id } = req.params;
       const userId = req.session.user.id;
       const validatedData = putDocumentRequestSchema.parse(req.body);
-      const document = await this.documentService.putDocument(id, validatedData, userId);
+      const updateData = {
+        ...validatedData,
+        updatedBy: userId
+      };
+      const document = await DocumentService.updateById(id, updateData);
+      if (!document) {
+        throw new Error('Document not found');
+      }
       res.json({
         success: true,
         data: document
@@ -94,7 +101,14 @@ export class DocumentController {
       const { id } = req.params;
       const userId = req.session.user.id;
       const validatedData = patchDocumentRequestSchema.parse(req.body);
-      const document = await this.documentService.patchDocument(id, validatedData, userId);
+      const updateData = {
+        ...validatedData,
+        updatedBy: userId
+      };
+      const document = await DocumentService.updateById(id, updateData);
+      if (!document) {
+        throw new Error('Document not found');
+      }
       res.json({
         success: true,
         data: document
@@ -129,7 +143,10 @@ export class DocumentController {
   ): Promise<Response<BaseAPIResponse<void>> | void> => {
     try {
       const { id } = req.params;
-      await this.documentService.deleteDocument(id);
+      const deleted = await DocumentService.deleteById(id);
+      if (!deleted) {
+        throw new Error('Document not found');
+      }
       res.json({
         success: true,
         data: null
@@ -158,26 +175,18 @@ export class DocumentController {
     try {
       const userId = req.session.user.id;
       const validatedData = createDocumentRequestSchema.parse(req.body);
-      const plugin = pluginRegistry.getPlugin(validatedData.pluginId);
+      // Note: Plugin validation now happens client-side only
+      // Server trusts that client has already validated plugin data
 
-      if (!plugin) {
-        return res.status(400).json({
-          success: false,
-          data: null,
-          error: 'Invalid game system ID'
-        });
-      }
+      // Auto-generate slug from name if not provided
+      const documentData = {
+        ...validatedData,
+        slug: validatedData.slug || this.generateSlugFromName(validatedData.name),
+        createdBy: userId,
+        updatedBy: userId
+      };
 
-      const data = plugin.validateVTTDocumentData?.(validatedData.pluginDocumentType, validatedData.pluginData) || { success: true };
-      if (!data.success) {
-        return res.status(400).json({
-          success: false,
-          data: null,
-          error: data.error instanceof Error ? data.error.message : 'Invalid document data'
-        });
-      }
-
-      const document = await this.documentService.createDocument(validatedData, userId);
+      const document = await DocumentService.create(documentData);
       res.status(201).json({
         success: true,
         data: document
@@ -199,6 +208,19 @@ export class DocumentController {
     }
   };
 
+  /**
+   * Generate a URL-friendly slug from a name
+   */
+  private generateSlugFromName(name: string): string {
+    return name
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
+      .replace(/\s+/g, '-') // Replace spaces with hyphens
+      .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
+      .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
+  }
+
   searchDocuments = async (
     req: Request<object, object, object, SearchDocumentsQuery>,
     res: Response<BaseAPIResponse<BaseDocument[]>>
@@ -207,7 +229,17 @@ export class DocumentController {
       // Convert dot notation in query params to nested objects
       const query = createSearchParams(req.query as Record<string, QueryValue>);
 
-      const documents = await this.documentService.searchDocuments(query);
+      // Convert query to case-insensitive regex for string values
+      const mongoQuery = Object.entries(query).reduce((acc, [key, value]) => {
+        if (typeof value === 'string' && !key.includes('.')) {
+          acc[key] = new RegExp(value, 'i');
+        } else {
+          acc[key] = value;
+        }
+        return acc;
+      }, {} as Record<string, QueryValue>);
+      
+      const documents = await DocumentService.find(mongoQuery);
       res.json({
         success: true,
         data: documents

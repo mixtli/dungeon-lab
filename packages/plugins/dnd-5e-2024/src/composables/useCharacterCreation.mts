@@ -350,9 +350,8 @@ export function useCharacterCreation() {
       throw new Error('Character data is not complete or valid');
     }
 
-    // Transform plugin data into character document format
-    // This will be specific to the character document schema
-    return {
+    // First gather the creator format data (same as before)
+    const creatorData = {
       // Basic info from main system
       name: basicInfo.name,
       description: basicInfo.description,
@@ -381,13 +380,12 @@ export function useCharacterCreation() {
       languages: characterData.origin.selectedLanguages.map(lang => lang.name),
       abilityScores: {
         method: characterData.abilities.method,
-        // Final scores include background bonuses
-        strength: characterData.abilities.strength + (characterData.abilities.backgroundChoice.plus2 === 'strength' ? 2 : 0) + (characterData.abilities.backgroundChoice.plus1 === 'strength' ? 1 : 0),
-        dexterity: characterData.abilities.dexterity + (characterData.abilities.backgroundChoice.plus2 === 'dexterity' ? 2 : 0) + (characterData.abilities.backgroundChoice.plus1 === 'dexterity' ? 1 : 0),
-        constitution: characterData.abilities.constitution + (characterData.abilities.backgroundChoice.plus2 === 'constitution' ? 2 : 0) + (characterData.abilities.backgroundChoice.plus1 === 'constitution' ? 1 : 0),
-        intelligence: characterData.abilities.intelligence + (characterData.abilities.backgroundChoice.plus2 === 'intelligence' ? 2 : 0) + (characterData.abilities.backgroundChoice.plus1 === 'intelligence' ? 1 : 0),
-        wisdom: characterData.abilities.wisdom + (characterData.abilities.backgroundChoice.plus2 === 'wisdom' ? 2 : 0) + (characterData.abilities.backgroundChoice.plus1 === 'wisdom' ? 1 : 0),
-        charisma: characterData.abilities.charisma + (characterData.abilities.backgroundChoice.plus2 === 'charisma' ? 2 : 0) + (characterData.abilities.backgroundChoice.plus1 === 'charisma' ? 1 : 0),
+        strength: characterData.abilities.strength,
+        dexterity: characterData.abilities.dexterity,
+        constitution: characterData.abilities.constitution,
+        intelligence: characterData.abilities.intelligence,
+        wisdom: characterData.abilities.wisdom,
+        charisma: characterData.abilities.charisma,
         backgroundChoice: characterData.abilities.backgroundChoice
       },
       alignment: characterData.details.alignment,
@@ -408,6 +406,200 @@ export function useCharacterCreation() {
       backstory: characterData.details.backstory,
       allies: characterData.details.allies,
       additionalFeatures: characterData.details.additionalFeatures
+    };
+    
+    // Now transform creator data to proper D&D schema format
+    const transformedPluginData = transformCharacterCreatorData(creatorData);
+    
+    // Return complete document structure
+    return {
+      // Document-level fields
+      name: creatorData.name,
+      description: creatorData.description || '',
+      // Only include image fields if they have actual values (not null)
+      ...(creatorData.avatarImage && { imageId: creatorData.avatarImage }),
+      ...(creatorData.tokenImage && { thumbnailId: creatorData.tokenImage }),
+      
+      // Plugin-specific data in proper D&D schema format
+      pluginData: transformedPluginData
+    };
+  };
+  
+  // Internal transformation function to convert creator data to D&D schema
+  const transformCharacterCreatorData = (creatorData: any) => {
+    // Transform simple ability scores to complex D&D schema format
+    const abilities = {
+      strength: {
+        base: creatorData.abilityScores.strength,
+        racial: creatorData.abilityScores.backgroundChoice?.plus2 === 'strength' ? 2 : 
+                creatorData.abilityScores.backgroundChoice?.plus1 === 'strength' ? 1 : 0,
+        enhancement: 0,
+        saveProficient: creatorData.characterClass.id === 'character-class-wizard' ? false : false, // Wizard has Int/Wis saves
+        saveBonus: 0
+      },
+      dexterity: {
+        base: creatorData.abilityScores.dexterity,
+        racial: creatorData.abilityScores.backgroundChoice?.plus2 === 'dexterity' ? 2 : 
+                creatorData.abilityScores.backgroundChoice?.plus1 === 'dexterity' ? 1 : 0,
+        enhancement: 0,
+        saveProficient: false,
+        saveBonus: 0
+      },
+      constitution: {
+        base: creatorData.abilityScores.constitution,
+        racial: creatorData.abilityScores.backgroundChoice?.plus2 === 'constitution' ? 2 : 
+                creatorData.abilityScores.backgroundChoice?.plus1 === 'constitution' ? 1 : 0,
+        enhancement: 0,
+        saveProficient: false,
+        saveBonus: 0
+      },
+      intelligence: {
+        base: creatorData.abilityScores.intelligence,
+        racial: creatorData.abilityScores.backgroundChoice?.plus2 === 'intelligence' ? 2 : 
+                creatorData.abilityScores.backgroundChoice?.plus1 === 'intelligence' ? 1 : 0,
+        enhancement: 0,
+        saveProficient: creatorData.characterClass.id === 'character-class-wizard',
+        saveBonus: 0
+      },
+      wisdom: {
+        base: creatorData.abilityScores.wisdom,
+        racial: creatorData.abilityScores.backgroundChoice?.plus2 === 'wisdom' ? 2 : 
+                creatorData.abilityScores.backgroundChoice?.plus1 === 'wisdom' ? 1 : 0,
+        enhancement: 0,
+        saveProficient: creatorData.characterClass.id === 'character-class-wizard',
+        saveBonus: 0
+      },
+      charisma: {
+        base: creatorData.abilityScores.charisma,
+        racial: creatorData.abilityScores.backgroundChoice?.plus2 === 'charisma' ? 2 : 
+                creatorData.abilityScores.backgroundChoice?.plus1 === 'charisma' ? 1 : 0,
+        enhancement: 0,
+        saveProficient: false,
+        saveBonus: 0
+      }
+    };
+    
+    // Build proper D&D schema structure
+    return {
+      name: creatorData.name,
+      
+      // Character origin (2024 system)
+      species: {
+        id: creatorData.species.id,
+        name: creatorData.species.name
+      },
+      background: {
+        id: creatorData.background.id,
+        name: creatorData.background.name
+      },
+      
+      // Character classes (array format for multiclassing)
+      classes: [{
+        class: {
+          id: creatorData.characterClass.id,
+          name: creatorData.characterClass.name
+        },
+        level: 1
+      }],
+      
+      // Character progression
+      progression: {
+        level: 1,
+        experiencePoints: 0,
+        proficiencyBonus: 2,
+        classLevels: {
+          [creatorData.characterClass.id]: 1
+        },
+        hitDice: {
+          [creatorData.characterClass.id]: {
+            total: 1,
+            used: 0
+          }
+        }
+      },
+      
+      // Core attributes with defaults
+      attributes: {
+        hitPoints: {
+          current: 8, // Base + Con modifier - simplified for now
+          maximum: 8,
+          temporary: 0
+        },
+        armorClass: {
+          value: 10,
+          calculation: 'natural' as const
+        },
+        initiative: {
+          bonus: 0,
+          advantage: false
+        },
+        movement: {
+          walk: 30
+        },
+        deathSaves: {
+          successes: 0,
+          failures: 0
+        },
+        exhaustion: 0,
+        inspiration: false
+      },
+      
+      // Ability scores
+      abilities,
+      
+      // Skills (simplified - mark selected skills as proficient)
+      skills: {
+        // This would need to be populated based on selected skills
+        // For now, we'll create a basic structure
+      },
+      
+      // Proficiencies
+      proficiencies: {
+        armor: [],
+        weapons: [],
+        tools: [],
+        languages: creatorData.languages || []
+      },
+      
+      // Inventory with defaults
+      inventory: {
+        equipped: {},
+        carried: [],
+        attunedItems: [],
+        currency: {
+          platinum: 0,
+          gold: 0,
+          electrum: 0,
+          silver: 0,
+          copper: 0
+        }
+      },
+      
+      // Features and feats
+      features: {
+        classFeatures: [],
+        feats: [],
+        speciesTraits: []
+      },
+      
+      // Roleplaying information
+      roleplay: {
+        alignment: creatorData.alignment,
+        personality: creatorData.personality?.traits || '',
+        ideals: creatorData.personality?.ideals || '',
+        bonds: creatorData.personality?.bonds || '',
+        flaws: creatorData.personality?.flaws || '',
+        appearance: `Age: ${creatorData.personalDetails?.age || ''}, Height: ${creatorData.personalDetails?.height || ''}, Weight: ${creatorData.personalDetails?.weight || ''}`,
+        backstory: creatorData.backstory || ''
+      },
+      
+      // Character size (default Medium for most species)
+      size: 'medium' as const,
+      
+      // Source information
+      source: 'character-creator',
+      creationDate: new Date(),
+      lastModified: new Date()
     };
   };
 

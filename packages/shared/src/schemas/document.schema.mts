@@ -69,6 +69,17 @@ export const createDocumentSchema = baseDocumentSchema.omit({
   id: true,
   createdBy: true,
   updatedBy: true
+}).extend({
+  // Make slug optional for creation - will be auto-generated from name if not provided
+  slug: z
+    .string()
+    .min(1)
+    .max(255)
+    .regex(
+      /^[a-z0-9-]+$/,
+      'Slug must be lowercase with no spaces, only hyphens and numbers allowed'
+    )
+    .optional()
 });
 
 /**

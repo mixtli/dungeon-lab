@@ -50,10 +50,15 @@ export interface OriginSelection {
   selectedLanguages: LanguageSelection[];
 }
 
-// Background ability score choice (+2 and +1)
+// Background ability score choice (D&D 2024: 3 points to distribute, max +2 per ability)
 export interface BackgroundAbilityChoice {
-  plus2: 'strength' | 'dexterity' | 'constitution' | 'intelligence' | 'wisdom' | 'charisma' | null;
-  plus1: 'strength' | 'dexterity' | 'constitution' | 'intelligence' | 'wisdom' | 'charisma' | null;
+  // Map of ability name to bonus points (0-2)
+  strength: number;
+  dexterity: number;
+  constitution: number;
+  intelligence: number;
+  wisdom: number;
+  charisma: number;
 }
 
 // Ability scores
@@ -61,13 +66,13 @@ export interface AbilityScores {
   method: 'standard' | 'pointbuy' | 'roll';
   pointsRemaining: number;
   availableScores: number[];
-  // Base scores before any bonuses
-  strength: number;
-  dexterity: number;
-  constitution: number;
-  intelligence: number;
-  wisdom: number;
-  charisma: number;
+  // Base scores before any bonuses (optional during assignment process)
+  strength?: number;
+  dexterity?: number;
+  constitution?: number;
+  intelligence?: number;
+  wisdom?: number;
+  charisma?: number;
   // Background ability score choices
   backgroundChoice: BackgroundAbilityChoice;
 }
@@ -155,27 +160,45 @@ export const originSelectionSchema = z.object({
 });
 
 export const backgroundAbilityChoiceSchema = z.object({
-  plus2: z.enum(['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma']).nullable(),
-  plus1: z.enum(['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma']).nullable()
+  strength: z.number().int().min(0).max(2),
+  dexterity: z.number().int().min(0).max(2),
+  constitution: z.number().int().min(0).max(2),
+  intelligence: z.number().int().min(0).max(2),
+  wisdom: z.number().int().min(0).max(2),
+  charisma: z.number().int().min(0).max(2)
+}).refine((data) => {
+  // Total points must equal 3
+  const totalPoints = data.strength + data.dexterity + data.constitution + 
+                     data.intelligence + data.wisdom + data.charisma;
+  return totalPoints === 3;
+}, {
+  message: 'Background ability score bonuses must total exactly 3 points'
 });
 
 export const abilityScoresSchema = z.object({
   method: z.enum(['standard', 'pointbuy', 'roll']),
   pointsRemaining: z.number().int().min(0).max(27),
   availableScores: z.array(z.number().int()),
-  strength: z.number().int().min(3).max(20),
-  dexterity: z.number().int().min(3).max(20),
-  constitution: z.number().int().min(3).max(20),
-  intelligence: z.number().int().min(3).max(20),
-  wisdom: z.number().int().min(3).max(20),
-  charisma: z.number().int().min(3).max(20),
+  strength: z.number().int().min(3).max(20).optional(),
+  dexterity: z.number().int().min(3).max(20).optional(),
+  constitution: z.number().int().min(3).max(20).optional(),
+  intelligence: z.number().int().min(3).max(20).optional(),
+  wisdom: z.number().int().min(3).max(20).optional(),
+  charisma: z.number().int().min(3).max(20).optional(),
   backgroundChoice: backgroundAbilityChoiceSchema
 }).refine((data) => {
-  // Validate that +2 and +1 are different abilities
-  return data.backgroundChoice.plus2 !== data.backgroundChoice.plus1 || 
-         (data.backgroundChoice.plus2 === null && data.backgroundChoice.plus1 === null);
+  // For final validation, ensure all ability scores are assigned when method is standard or roll
+  if (data.method === 'standard' || data.method === 'roll') {
+    return data.strength !== undefined && 
+           data.dexterity !== undefined && 
+           data.constitution !== undefined && 
+           data.intelligence !== undefined && 
+           data.wisdom !== undefined && 
+           data.charisma !== undefined;
+  }
+  return true;
 }, {
-  message: '+2 and +1 bonuses must be applied to different abilities'
+  message: 'All ability scores must be assigned when using standard array or roll method'
 });
 
 export const characterDetailsSchema = z.object({

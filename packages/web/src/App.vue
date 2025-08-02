@@ -7,7 +7,6 @@ import { useSocketStore } from './stores/socket.store.mts';
 import { useAuthStore } from './stores/auth.store.mts';
 import { useDeviceAdaptation } from './composables/useDeviceAdaptation.mts';
 import { watch } from 'vue';
-import { pluginRegistry } from './services/plugin-registry.mts';
 
 const store = useSocketStore();
 const authStore = useAuthStore();
@@ -20,7 +19,7 @@ watch(
   (isAuthenticated) => {
     if (isAuthenticated) {
       store.initSocket();
-      pluginRegistry.initializePlugins();
+      // Note: Plugin registry is now initialized in main.mts during app startup
     } else {
       store.disconnect();
     }

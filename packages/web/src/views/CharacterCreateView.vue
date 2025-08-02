@@ -2,11 +2,12 @@
 import { ref, computed, onMounted, watch, markRaw } from 'vue';
 import { useRouter } from 'vue-router';
 import { useActorStore } from '../stores/actor.store.mjs';
-import { pluginRegistry } from '@/services/plugin-registry.mts';
+import { pluginRegistry } from '../services/plugin-registry.mts';
 import ImageUpload from '../components/common/ImageUpload.vue';
 import type { GameSystemPlugin } from '@dungeon-lab/shared/types/plugin.mjs';
 import { DocumentsClient, AssetsClient } from '@dungeon-lab/client/index.mjs';
 import { CreateDocumentRequest } from '@dungeon-lab/shared/types/api/index.mjs';
+import { createDocumentSchema } from '@dungeon-lab/shared/schemas/index.mjs';
 
 interface UploadedImage {
   url: string;
@@ -109,12 +110,20 @@ onMounted(async () => {
   try {
     // Try to get the plugin from the registry first
     plugin.value = pluginRegistry.getGameSystemPlugin(activeGameSystemId.value) as GameSystemPlugin;
+    console.log('🔍 INITIAL PLUGIN LOADING:');
+    console.log('  - Initial plugin from registry:', !!plugin.value);
+    console.log('  - Initial plugin has validateCharacterData:', !!plugin.value?.validateCharacterData);
     
     if (!plugin.value) {
       console.log('Plugin not found in registry, attempting to load it...');
       // Initialize plugin registry and load the plugin if it's not already loaded
-      await pluginRegistry.initialize();
-      plugin.value = await pluginRegistry.loadGameSystemPlugin(activeGameSystemId.value) as GameSystemPlugin;
+      // Note: The registry should already be initialized in main.mts, but let's ensure plugin is loaded
+      plugin.value = await pluginRegistry.loadPlugin(activeGameSystemId.value) as GameSystemPlugin;
+      
+      console.log('🔍 AFTER INITIALIZE PLUGINS:');
+      console.log('  - Plugin loaded:', !!plugin.value);
+      console.log('  - Plugin has validateCharacterData:', !!plugin.value?.validateCharacterData);
+      console.log('  - Plugin validateCharacterData type:', typeof plugin.value?.validateCharacterData);
     }
 
     if (!plugin.value) {
@@ -124,6 +133,10 @@ onMounted(async () => {
     }
 
     console.log('Plugin loaded successfully:', plugin.value.name);
+    console.log('🔍 FINAL PLUGIN STATE:');
+    console.log('  - Plugin ID:', plugin.value.id);
+    console.log('  - Plugin has validateCharacterData:', !!plugin.value.validateCharacterData);
+    console.log('  - Available methods:', Object.getOwnPropertyNames(plugin.value));
     
     // Load the character creator component
     await loadCharacterCreatorComponent();
@@ -165,12 +178,89 @@ async function loadCharacterCreatorComponent() {
 }
 
 // Plugin component event handlers
-function handleCharacterReady(characterData: any) {
-  console.log('Character ready from plugin:', characterData);
-  pluginData.value = characterData;
+async function handleCharacterReady(documentData: any) {
+  console.log('Character document ready from plugin:', documentData);
   
-  // Proceed to create the character
-  handleSubmit();
+  try {
+    isSubmitting.value = true;
+    
+    // 1. Validate document-level structure
+    const documentValidation = createDocumentSchema.safeParse({
+      ...documentData,
+      pluginId: plugin.value?.id,
+      documentType: 'character',
+      pluginDocumentType: 'character',
+      userData: {}
+    });
+    
+    if (!documentValidation.success) {
+      console.error('Document validation failed:', documentValidation.error);
+      error.value = 'Document structure validation failed';
+      return;
+    }
+    
+    // 2. Validate plugin data using plugin validation hook
+    console.log('🔍 DEBUGGING PLUGIN VALIDATION:');
+    console.log('  - plugin.value exists:', !!plugin.value);
+    console.log('  - plugin.value.id:', plugin.value?.id);
+    console.log('  - plugin.value.name:', plugin.value?.name);
+    console.log('  - plugin.value.validateCharacterData exists:', !!plugin.value?.validateCharacterData);
+    console.log('  - plugin.value.validateCharacterData type:', typeof plugin.value?.validateCharacterData);
+    console.log('  - documentData.pluginData exists:', !!documentData.pluginData);
+    console.log('  - documentData.pluginData.species:', documentData.pluginData?.species);
+    
+    if (plugin.value?.validateCharacterData && documentData.pluginData) {
+      console.log('🧪 CALLING PLUGIN VALIDATION');
+      try {
+        const pluginValidation = plugin.value.validateCharacterData(documentData.pluginData);
+        console.log('🧪 VALIDATION RESULT:', pluginValidation);
+        
+        if (!pluginValidation.success) {
+          console.error('❌ Plugin validation failed:', pluginValidation.errors);
+          error.value = `Character data validation failed: ${pluginValidation.errors?.join(', ')}`;
+          return;
+        }
+        
+        console.log('✅ Plugin validation passed');
+      } catch (validationError) {
+        console.error('💥 VALIDATION THREW ERROR:', validationError);
+        error.value = `Validation error: ${validationError.message}`;
+        return;
+      }
+    } else {
+      console.log('❌ PLUGIN VALIDATION SKIPPED - CONDITIONS NOT MET');
+      if (!plugin.value) console.log('   - No plugin.value');
+      if (!plugin.value?.validateCharacterData) console.log('   - No validateCharacterData method');
+      if (!documentData.pluginData) console.log('   - No pluginData');
+    }
+    
+    // 3. Save the validated document
+    const response = await documentsClient.createDocument(documentValidation.data);
+    sessionStorage.removeItem('actorCreationState');
+
+    // Set current actor in the store if created successfully
+    if (response && response.id) {
+      await actorStore.setCurrentActor(response.id);
+    }
+
+    // Navigate to the character sheet
+    if (response) {
+      router.push({ name: 'character-sheet', params: { id: response.id } });
+    } else {
+      error.value = 'Failed to create character: No response data';
+    }
+    
+  } catch (err) {
+    console.error('Failed to create character:', err);
+    if (err instanceof Error) {
+      error.value = `Error creating character: ${err.message}`;
+    } else {
+      error.value = 'An unknown error occurred while creating the character';
+    }
+  } finally {
+    isSubmitting.value = false;
+    isLoading.value = false;
+  }
 }
 
 function handleBackToBasics() {
@@ -189,7 +279,8 @@ function handleNext() {
   }
 }
 
-// Handle form submission
+// Legacy handleSubmit - now handled by handleCharacterReady directly
+// This function is now only used when plugin component is missing
 async function handleSubmit() {
   try {
     isSubmitting.value = true;
@@ -197,50 +288,15 @@ async function handleSubmit() {
     // Check if plugin is available
     if (!plugin.value) return;
 
-    // Upload images first if they exist
-    let avatarAssetId: string | undefined;
-    let tokenAssetId: string | undefined;
-
-    if (basicInfo.value.avatarImage instanceof File) {
-      try {
-        const formData = new FormData();
-        formData.append('file', basicInfo.value.avatarImage);
-        const avatarAsset = await assetsClient.uploadAsset(formData);
-        avatarAssetId = avatarAsset.id;
-      } catch (err) {
-        console.warn('Failed to upload avatar image:', err);
-      }
-    }
-
-    if (basicInfo.value.tokenImage instanceof File) {
-      try {
-        const formData = new FormData();
-        formData.append('file', basicInfo.value.tokenImage);
-        const tokenAsset = await assetsClient.uploadAsset(formData);
-        tokenAssetId = tokenAsset.id;
-      } catch (err) {
-        console.warn('Failed to upload token image:', err);
-      }
-    }
-
-    // Use plugin data if available, otherwise fallback to basic info
-    const finalPluginData = pluginData.value || {
-      name: basicInfo.value.name,
-      description: basicInfo.value.description
-    };
-
-    // Add asset IDs to plugin data if we have them
-    if (avatarAssetId || tokenAssetId) {
-      finalPluginData.avatarImage = avatarAssetId;
-      finalPluginData.tokenImage = tokenAssetId;
-    }
-
-    // Create a proper document request object
+    // Create basic document when no plugin component is available
     const documentData: CreateDocumentRequest = {
       name: basicInfo.value.name,
       userData: {},
       pluginId: plugin.value.id,
-      pluginData: finalPluginData,
+      pluginData: {
+        name: basicInfo.value.name,
+        description: basicInfo.value.description
+      },
       documentType: 'character' as const,
       pluginDocumentType: 'character',
       description: basicInfo.value.description || undefined

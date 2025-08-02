@@ -3,7 +3,6 @@ import { ICampaign, ICampaignPatchData, IUser, IGameSession, IEncounter } from '
 import { CampaignModel } from '../models/campaign.model.mjs';
 import { DocumentService } from '../../documents/services/document.service.mjs';
 import { logger } from '../../../utils/logger.mjs';
-import { pluginRegistry } from '../../../services/plugin-registry.service.mjs';
 import { deepMerge } from '@dungeon-lab/shared/utils/index.mjs';
 import { UserModel } from '../../../models/user.model.mjs';
 import { GameSessionModel } from '../models/game-session.model.mjs';
@@ -110,11 +109,8 @@ export class CampaignService {
         updatedBy: userObjectId.toString()
       };
 
-      // Validate that the plugin exists
-      const gameSystem = pluginRegistry.getGameSystemPlugin(campaignData.pluginId.toString());
-      if (!gameSystem) {
-        throw new Error('Invalid plugin');
-      }
+      // Note: Plugin validation now happens client-side only
+      // Server trusts that client has already validated plugin data
       const user = await UserModel.findById(userId);
       if (user?.isAdmin) {
         if (data.createdBy) {

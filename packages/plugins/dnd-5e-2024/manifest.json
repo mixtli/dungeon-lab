@@ -1,0 +1,69 @@
+{
+  "id": "dnd-5e-2024",
+  "name": "D&D 5th Edition (2024)",
+  "version": "2.0.0",
+  "description": "Dungeons & Dragons 5th Edition (2024 Rules) plugin for character creation and management",
+  "author": "Dungeon Lab Team",
+  "gameSystem": "dnd-5e-2024",
+  "characterTypes": ["character", "npc"],
+  "itemTypes": ["weapon", "armor", "consumable", "tool"],
+  "supportedFeatures": [
+    "character-creation",
+    "character-validation",
+    "dice-rolling",
+    "character-sheet"
+  ],
+  "components": {
+    "character-sheet": {
+      "id": "dnd-5e-2024-character-sheet",
+      "name": "D&D 5e Character Sheet",
+      "description": "Interactive character sheet for D&D 5e characters",
+      "category": "character",
+      "props": {
+        "character": { "type": "object", "required": true },
+        "readonly": { "type": "boolean", "default": false }
+      },
+      "events": {
+        "update:character": "Emitted when character data changes",
+        "save": "Emitted when character should be saved",
+        "roll": "Emitted when dice should be rolled",
+        "close": "Emitted when character sheet should be closed"
+      }
+    },
+    "character-creator": {
+      "id": "dnd-5e-2024-character-creator",
+      "name": "D&D 5e Character Creator",
+      "description": "Multi-step character creation wizard for D&D 5e",
+      "category": "character-creator",
+      "props": {
+        "basicInfo": { "type": "object", "required": true },
+        "readonly": { "type": "boolean", "default": false }
+      },
+      "events": {
+        "character-ready": "Emitted when character data is complete and ready for creation",
+        "back-to-basics": "Emitted to return to basic info step",
+        "validation-change": "Emitted when step validation status changes"
+      }
+    }
+  },
+  "mechanics": {
+    "dice": {
+      "id": "dnd5e-dice",
+      "name": "D&D 5e Dice System",
+      "description": "Standard D&D 5e dice rolling mechanics",
+      "category": "dice"
+    }
+  },
+  "validationSchema": {
+    "character": "@/types/dnd/character.mts",
+    "species": "@/types/dnd/species.mts",
+    "background": "@/types/dnd/background.mts",
+    "class": "@/types/dnd/character-class.mts"
+  },
+  "entryPoint": "./src/index.mts",
+  "dependencies": {
+    "@dungeon-lab/shared": "workspace:*"
+  },
+  "devDependencies": {},
+  "license": "MIT"
+}

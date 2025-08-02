@@ -1,8 +1,8 @@
 <template>
   <div class="origin-selection-step">
     <div class="step-header mb-6">
-      <h2 class="text-2xl font-bold text-gray-900">Choose Your Origin</h2>
-      <p class="text-gray-600 mt-2">
+      <h2 class="text-3xl font-bold text-gray-900">Choose Your Origin</h2>
+      <p class="text-gray-600 mt-2 text-base">
         Select your character's species and background, which provide racial traits and life experiences.
       </p>
     </div>
@@ -29,7 +29,7 @@
         <!-- Species Selection -->
         <div class="space-y-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">
+            <label class="block text-base font-semibold text-gray-800 mb-2">
               Species
             </label>
             <MobileSelect
@@ -46,7 +46,7 @@
           <!-- Lineage/Subrace Selection -->
           <div v-if="selectedSpecies && availableLineages.length > 0" class="space-y-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">
+              <label class="block text-base font-semibold text-gray-800 mb-2">
                 {{ selectedSpecies.name }} Lineage
               </label>
               <MobileSelect
@@ -63,7 +63,7 @@
 
           <!-- Species details section -->
           <div v-if="selectedSpecies" class="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-4">
-            <h3 class="text-lg font-semibold text-gray-900">
+            <h3 class="text-xl font-bold text-gray-900">
               {{ selectedSpecies.name }}
               <span v-if="localData.species?.subspecies" class="text-blue-600">
                 ({{ localData.species.subspecies }})
@@ -71,38 +71,38 @@
             </h3>
             
             <!-- Species description -->
-            <p class="text-gray-900 text-sm">{{ selectedSpecies.pluginData.description }}</p>
+            <p class="text-gray-900 text-base">{{ selectedSpecies.pluginData.description }}</p>
             
             <!-- Basic species info -->
-            <div class="grid grid-cols-2 gap-4 text-sm">
+            <div class="grid grid-cols-2 gap-4 text-base">
               <div>
-                <span class="font-medium text-gray-700">Size:</span>
-                <span class="ml-2 text-gray-900">{{ selectedSpecies.pluginData.size.category }}</span>
+                <span class="font-bold text-gray-800">Size:</span>
+                <span class="ml-2 text-gray-900">{{ capitalizeFirst(selectedSpecies.pluginData.size.category) }}</span>
               </div>
               <div>
-                <span class="font-medium text-gray-700">Speed:</span>
+                <span class="font-bold text-gray-800">Speed:</span>
                 <span class="ml-2 text-gray-900">{{ getDisplaySpeed }} ft</span>
               </div>
             </div>
             
             <!-- Creature Type -->
-            <div class="text-sm">
-              <span class="font-medium text-gray-700">Type:</span>
-              <span class="ml-2 text-gray-900">{{ selectedSpecies.pluginData.creatureType }}</span>
+            <div class="text-base">
+              <span class="font-bold text-gray-800">Type:</span>
+              <span class="ml-2 text-gray-900">{{ capitalizeFirst(selectedSpecies.pluginData.creatureType) }}</span>
             </div>
             
             <!-- Selected lineage benefits -->
             <div v-if="selectedLineage" class="bg-blue-50 border border-blue-200 rounded p-3 space-y-2">
-              <h4 class="font-medium text-blue-900">{{ selectedLineage.name }} Benefits:</h4>
-              <p class="text-sm text-blue-800">{{ selectedLineage.level1Benefits }}</p>
+              <h4 class="font-bold text-blue-900 text-base">{{ selectedLineage.name }} Benefits:</h4>
+              <p class="text-base text-blue-800">{{ selectedLineage.level1Benefits }}</p>
             </div>
             
             <!-- Species Traits -->
             <div v-if="selectedSpecies.pluginData.traits.length > 0" class="space-y-2">
-              <h4 class="font-medium text-gray-700">Traits:</h4>
+              <h4 class="font-bold text-gray-800 text-base">Traits:</h4>
               <div class="space-y-2">
-                <div v-for="trait in selectedSpecies.pluginData.traits" :key="trait.name" class="text-sm">
-                  <span class="font-medium text-gray-900">{{ trait.name }}:</span>
+                <div v-for="trait in selectedSpecies.pluginData.traits" :key="trait.name" class="text-base">
+                  <span class="font-bold text-gray-900">{{ trait.name }}:</span>
                   <span class="ml-1 text-gray-700">{{ trait.description }}</span>
                 </div>
               </div>
@@ -113,7 +113,7 @@
         <!-- Background Selection -->
         <div class="space-y-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">
+            <label class="block text-base font-semibold text-gray-800 mb-2">
               Background
             </label>
             <MobileSelect
@@ -129,32 +129,32 @@
 
           <!-- Background details section -->
           <div v-if="selectedBackground" class="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-4">
-            <h3 class="text-lg font-semibold text-gray-900">{{ selectedBackground.name }}</h3>
+            <h3 class="text-xl font-bold text-gray-900">{{ selectedBackground.name }}</h3>
             
             <!-- Background description -->
-            <p class="text-gray-900 text-sm">{{ selectedBackground.pluginData.description }}</p>
+            <p class="text-gray-900 text-base">{{ selectedBackground.pluginData.description }}</p>
             
             <!-- Skill Proficiencies -->
-            <div v-if="selectedBackground.pluginData.skillProficiencies.length > 0" class="text-sm">
-              <span class="font-medium text-gray-700">Skill Proficiencies:</span>
-              <span class="ml-2 text-gray-900">{{ selectedBackground.pluginData.skillProficiencies.join(', ') }}</span>
+            <div v-if="selectedBackground.pluginData.skillProficiencies.length > 0" class="text-base">
+              <span class="font-bold text-gray-800">Skill Proficiencies:</span>
+              <span class="ml-2 text-gray-900">{{ capitalizeSkills(selectedBackground.pluginData.skillProficiencies) }}</span>
             </div>
             
             <!-- Tool Proficiencies -->
-            <div v-if="selectedBackground.pluginData.toolProficiencies" class="text-sm">
-              <span class="font-medium text-gray-700">Tool Proficiencies:</span>
+            <div v-if="selectedBackground.pluginData.toolProficiencies" class="text-base">
+              <span class="font-bold text-gray-800">Tool Proficiencies:</span>
               <span class="ml-2 text-gray-900">{{ formatToolProficiencies(selectedBackground.pluginData.toolProficiencies) }}</span>
             </div>
             
             <!-- Ability Score Choices (2024: moved from species to backgrounds) -->
-            <div v-if="selectedBackground.pluginData.abilityScores.length > 0" class="text-sm">
-              <span class="font-medium text-gray-700">Ability Score Choice:</span>
-              <span class="ml-2 text-gray-900">Choose +2 and +1 from {{ selectedBackground.pluginData.abilityScores.join(', ') }}</span>
+            <div v-if="selectedBackground.pluginData.abilityScores.length > 0" class="text-base">
+              <span class="font-bold text-gray-800">Ability Score Choice:</span>
+              <span class="ml-2 text-gray-900">Choose +2 and +1 from {{ capitalizeAbilities(selectedBackground.pluginData.abilityScores) }}</span>
             </div>
             
             <!-- Origin Feat -->
-            <div class="text-sm">
-              <span class="font-medium text-gray-700">Origin Feat:</span>
+            <div class="text-base">
+              <span class="font-bold text-gray-800">Origin Feat:</span>
               <span class="ml-2 text-gray-900">{{ selectedBackground.pluginData.originFeat.name }}</span>
             </div>
           </div>
@@ -162,7 +162,7 @@
 
         <!-- Equipment Package Selection -->
         <div v-if="selectedBackground && selectedBackground.pluginData.equipment">
-          <label class="block text-sm font-medium text-gray-700 mb-2">
+          <label class="block text-base font-semibold text-gray-800 mb-2">
             Equipment Package
           </label>
           <div class="space-y-3">
@@ -175,16 +175,16 @@
                 @change="updateOrigin"
               />
               <div class="flex-1">
-                <div class="font-medium text-gray-900">Equipment Package</div>
-                <div class="text-sm text-gray-600 mb-2">Starting equipment package</div>
+                <div class="font-bold text-gray-900 text-base">Equipment Package</div>
+                <div class="text-base text-gray-600 mb-2">Starting equipment package</div>
                 
                 <!-- Show equipment items -->
-                <div v-if="equipmentDisplay" class="text-sm text-gray-700 mb-2">
+                <div v-if="equipmentDisplay" class="text-base text-gray-700 mb-2">
                   {{ equipmentDisplay.items }}
                 </div>
                 
                 <!-- Show gold if any -->
-                <div v-if="equipmentDisplay?.gold" class="text-sm text-green-600 font-medium">
+                <div v-if="equipmentDisplay?.gold" class="text-base text-green-600 font-bold">
                   + {{ equipmentDisplay.gold }} GP
                 </div>
               </div>
@@ -199,11 +199,11 @@
                 @change="updateOrigin"
               />
               <div class="flex-1">
-                <div class="font-medium text-gray-900">Buy Equipment</div>
-                <div class="text-sm text-gray-600 mb-2">Start with gold pieces to purchase your own equipment and gear.</div>
+                <div class="font-bold text-gray-900 text-base">Buy Equipment</div>
+                <div class="text-base text-gray-600 mb-2">Start with gold pieces to purchase your own equipment and gear.</div>
                 
                 <!-- Show gold amount -->
-                <div class="text-sm text-green-600 font-medium">
+                <div class="text-base text-green-600 font-bold">
                   {{ selectedBackground.pluginData.equipment?.goldAlternative || 50 }} GP
                 </div>
               </div>
@@ -213,7 +213,7 @@
 
         <!-- Additional Languages -->
         <div class="space-y-4">
-          <label class="block text-sm font-medium text-gray-700 mb-2">
+          <label class="block text-base font-semibold text-gray-800 mb-2">
             Additional Languages (Choose 2)
           </label>
           
@@ -221,42 +221,47 @@
           <div v-if="languagesLoading" class="bg-blue-50 border border-blue-200 rounded-lg p-3">
             <div class="flex items-center">
               <Icon name="loading" class="w-4 h-4 text-blue-600 mr-2 animate-spin" />
-              <span class="text-blue-800 text-sm">Loading languages...</span>
+              <span class="text-blue-800 text-base">Loading languages...</span>
             </div>
           </div>
           
-          <!-- Language selection -->
-          <div v-else-if="availableLanguages.length > 0" class="space-y-3">
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-64 overflow-y-auto border border-gray-200 rounded-lg p-3">
-              <label
-                v-for="language in availableLanguages"
-                :key="language.id"
-                class="flex items-center p-2 border border-gray-200 rounded cursor-pointer hover:bg-gray-50 transition-colors"
-                :class="{
-                  'bg-blue-50 border-blue-300': selectedLanguageIds.includes(language.id),
-                  'opacity-50 cursor-not-allowed': selectedLanguageIds.length >= 2 && !selectedLanguageIds.includes(language.id)
-                }"
-              >
-                <input
-                  type="checkbox"
-                  :value="language.id"
-                  :checked="selectedLanguageIds.includes(language.id)"
-                  :disabled="selectedLanguageIds.length >= 2 && !selectedLanguageIds.includes(language.id)"
-                  @change="handleLanguageToggle(language)"
-                  class="mr-2"
-                />
-                <div class="flex-1 min-w-0">
-                  <div class="font-medium text-gray-900 text-sm">{{ language.name }}</div>
-                  <div v-if="language.pluginData.category" class="text-xs text-gray-600">
-                    {{ language.pluginData.category === 'standard' ? 'Standard' : 'Rare' }}
-                  </div>
-                </div>
+          <!-- Language selection dropdowns -->
+          <div v-else-if="availableLanguages.length > 0" class="space-y-4">
+            <!-- First Language -->
+            <div>
+              <label class="block text-base font-medium text-gray-700 mb-2">
+                First Language
               </label>
+              <MobileSelect
+                :model-value="localData.selectedLanguages?.[0]?.id || null"
+                :options="firstLanguageOptions"
+                placeholder="Select first language..."
+                :disabled="languagesLoading"
+                value-key="id"
+                label-key="displayName"
+                @update:model-value="handleFirstLanguageSelection"
+              />
+            </div>
+
+            <!-- Second Language -->
+            <div>
+              <label class="block text-base font-medium text-gray-700 mb-2">
+                Second Language
+              </label>
+              <MobileSelect
+                :model-value="localData.selectedLanguages?.[1]?.id || null"
+                :options="secondLanguageOptions"
+                placeholder="Select second language..."
+                :disabled="languagesLoading"
+                value-key="id"
+                label-key="displayName"
+                @update:model-value="handleSecondLanguageSelection"
+              />
             </div>
             
             <!-- Selected languages summary -->
-            <div v-if="localData.selectedLanguages && localData.selectedLanguages.length > 0" class="text-sm text-gray-700">
-              <span class="font-medium">Selected:</span>
+            <div v-if="localData.selectedLanguages && localData.selectedLanguages.length > 0" class="text-base text-gray-700">
+              <span class="font-bold">Selected:</span>
               {{ localData.selectedLanguages.map(l => l.name).join(', ') }}
               <span class="text-gray-500">({{ localData.selectedLanguages.length }}/2)</span>
             </div>
@@ -266,7 +271,7 @@
           <div v-else-if="languagesError" class="bg-red-50 border border-red-200 rounded-lg p-3">
             <div class="flex items-center">
               <Icon name="error" class="w-4 h-4 text-red-600 mr-2" />
-              <span class="text-red-800 text-sm">{{ languagesError }}</span>
+              <span class="text-red-800 text-base">{{ languagesError }}</span>
             </div>
           </div>
         </div>
@@ -320,9 +325,12 @@ const localData = ref<Partial<OriginSelection>>({
   selectedLanguages: props.modelValue?.selectedLanguages || []
 });
 
-// Ensure selectedLanguages is always an array
+// Ensure selectedLanguages is always a mutable array
 if (!localData.value.selectedLanguages) {
   localData.value.selectedLanguages = [];
+} else {
+  // Create a new array from the existing one to ensure it's mutable
+  localData.value.selectedLanguages = [...localData.value.selectedLanguages];
 }
 
 // Compendium data
@@ -374,6 +382,24 @@ const selectedLanguageIds = computed(() => {
   return localData.value.selectedLanguages?.map(lang => lang.id) || [];
 });
 
+const firstLanguageOptions = computed(() => {
+  return availableLanguages.value.map(language => ({
+    id: language.id,
+    displayName: `${language.name} (${capitalizeFirst(language.pluginData.category === 'standard' ? 'Standard' : 'Rare')})`
+  }));
+});
+
+const secondLanguageOptions = computed(() => {
+  // Filter out the first selected language from options
+  const firstLanguageId = localData.value.selectedLanguages?.[0]?.id;
+  return availableLanguages.value
+    .filter(language => language.id !== firstLanguageId)
+    .map(language => ({
+      id: language.id,
+      displayName: `${language.name} (${capitalizeFirst(language.pluginData.category === 'standard' ? 'Standard' : 'Rare')})`
+    }));
+});
+
 const equipmentDisplay = computed(() => {
   if (!selectedBackground.value?.pluginData.equipment?.equipmentPackage?.items) {
     return null;
@@ -419,6 +445,20 @@ const getDisplaySpeed = computed(() => {
   
   return baseSpeed;
 });
+
+// Utility methods for display formatting
+const capitalizeFirst = (str: string): string => {
+  if (!str) return '';
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+};
+
+const capitalizeSkills = (skills: string[]): string => {
+  return skills.map(skill => capitalizeFirst(skill)).join(', ');
+};
+
+const capitalizeAbilities = (abilities: string[]): string => {
+  return abilities.map(ability => capitalizeFirst(ability)).join(', ');
+};
 
 // Methods
 const loadData = async () => {
@@ -549,21 +589,61 @@ const handleBackgroundSelection = (value: string | number | null) => {
   updateOrigin();
 };
 
-const handleLanguageToggle = (language: DndLanguageDocument) => {
-  const currentSelection = localData.value.selectedLanguages || [];
-  const languageSelection: LanguageSelection = {
-    id: language.id,
-    name: language.name
-  };
+const handleFirstLanguageSelection = (value: string | number | null) => {
+  const languageId = value as string;
+  const language = availableLanguages.value.find(lang => lang.id === languageId);
   
-  const isSelected = currentSelection.some(lang => lang.id === language.id);
+  if (language) {
+    const languageSelection: LanguageSelection = {
+      id: language.id,
+      name: language.name
+    };
+    
+    // Create new array with first language set
+    const currentSecond = localData.value.selectedLanguages?.[1];
+    
+    // If the second language is the same as the first, only keep the first
+    if (currentSecond?.id === languageId) {
+      localData.value.selectedLanguages = [languageSelection];
+    } else {
+      // Keep the second language if it exists and is different
+      localData.value.selectedLanguages = currentSecond 
+        ? [languageSelection, currentSecond]
+        : [languageSelection];
+    }
+  } else {
+    // Clear first language - keep only second language if it exists
+    const currentSecond = localData.value.selectedLanguages?.[1];
+    localData.value.selectedLanguages = currentSecond ? [currentSecond] : [];
+  }
   
-  if (isSelected) {
-    // Remove language
-    localData.value.selectedLanguages = currentSelection.filter(lang => lang.id !== language.id);
-  } else if (currentSelection.length < 2) {
-    // Add language (only if less than 2 selected)
-    localData.value.selectedLanguages = [...currentSelection, languageSelection];
+  updateOrigin();
+};
+
+const handleSecondLanguageSelection = (value: string | number | null) => {
+  const languageId = value as string;
+  const language = availableLanguages.value.find(lang => lang.id === languageId);
+  
+  if (language) {
+    const languageSelection: LanguageSelection = {
+      id: language.id,
+      name: language.name
+    };
+    
+    // Create new array with second language set
+    const currentFirst = localData.value.selectedLanguages?.[0];
+    
+    if (currentFirst) {
+      // We have a first language, add second
+      localData.value.selectedLanguages = [currentFirst, languageSelection];
+    } else {
+      // No first language, set this as first language
+      localData.value.selectedLanguages = [languageSelection];
+    }
+  } else {
+    // Clear second language - keep only first language if it exists
+    const currentFirst = localData.value.selectedLanguages?.[0];
+    localData.value.selectedLanguages = currentFirst ? [currentFirst] : [];
   }
   
   updateOrigin();
@@ -576,6 +656,13 @@ const updateOrigin = () => {
   
   emit('validate');
 };
+
+// Export utility functions for template access
+defineExpose({
+  capitalizeFirst,
+  capitalizeSkills,
+  capitalizeAbilities
+});
 
 // Load data on component mount
 onMounted(() => {

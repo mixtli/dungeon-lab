@@ -25,8 +25,8 @@
       "@dungeon-lab/shared/*": ["../shared/src/*"],
       "@dungeon-lab/client": ["../client/src"],
       "@dungeon-lab/client/*": ["../client/src/*"],
-      "@dungeon-lab/plugins/dnd-5e-2024": ["../plugins/dnd-5e-2024/src"],
-      "@dungeon-lab/plugins/dnd-5e-2024/*": ["../plugins/dnd-5e-2024/src/*"],
+      "@dungeon-lab/plugin-dnd-5e-2024": ["../plugins/dnd-5e-2024/src"],
+      "@dungeon-lab/plugin-dnd-5e-2024/*": ["../plugins/dnd-5e-2024/src/*"],
       "*": ["../../node_modules/*"]
     }
   },

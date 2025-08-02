@@ -1,4 +1,5 @@
 {
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "permissions": {
     "allow": [
       "WebFetch(domain:docs.anthropic.com)",
@@ -68,7 +69,9 @@
       "mcp__mongo-lens__list-databases",
       "Bash(./scripts/upload-pack.sh:*)",
       "Bash(./bin/upload-pack.sh:*)",
-      "Bash(bash:*)"
+      "Bash(bash:*)",
+      "mcp__mongo-lens__current-database",
+      "mcp__playwright__browser_navigate_back"
     ],
     "additionalDirectories": [
       "/Users/mixtli/checkouts/5etools-src"

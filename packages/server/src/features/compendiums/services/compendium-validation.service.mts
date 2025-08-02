@@ -1,5 +1,4 @@
 import { logger } from '../../../utils/logger.mjs';
-import { pluginRegistry } from '../../../services/plugin-registry.service.mjs';
 
 export interface ValidationResult {
   success: boolean;
@@ -9,7 +8,8 @@ export interface ValidationResult {
 
 export class CompendiumValidationService {
   /**
-   * Validate actor data against plugin schema
+   * Validate actor data - now just does basic validation
+   * Plugin-specific validation moved to client-side
    */
   async validateActorData(
     pluginId: string,
@@ -17,15 +17,17 @@ export class CompendiumValidationService {
     data: unknown
   ): Promise<ValidationResult> {
     try {
-      const plugin = pluginRegistry.getPlugin(pluginId);
-      if (!plugin) {
+      // Basic validation - just check that data is an object
+      if (typeof data !== 'object' || data === null) {
         return {
           success: false,
-          error: new Error(`Plugin ${pluginId} not found`)
+          error: new Error('Actor data must be an object')
         };
       }
 
-      return plugin.validateActorData?.(actorType, data) || { success: true, data };
+      // Note: Plugin-specific validation now happens client-side only
+      logger.debug(`Basic validation passed for actor data (plugin: ${pluginId}, type: ${actorType})`);
+      return { success: true, data };
     } catch (error) {
       logger.error('Error validating actor data:', error);
       return {
@@ -36,7 +38,8 @@ export class CompendiumValidationService {
   }
 
   /**
-   * Validate item data against plugin schema
+   * Validate item data - now just does basic validation
+   * Plugin-specific validation moved to client-side
    */
   async validateItemData(
     pluginId: string,
@@ -44,15 +47,17 @@ export class CompendiumValidationService {
     data: unknown
   ): Promise<ValidationResult> {
     try {
-      const plugin = pluginRegistry.getPlugin(pluginId);
-      if (!plugin) {
+      // Basic validation - just check that data is an object
+      if (typeof data !== 'object' || data === null) {
         return {
           success: false,
-          error: new Error(`Plugin ${pluginId} not found`)
+          error: new Error('Item data must be an object')
         };
       }
 
-      return plugin.validateItemData?.(itemType, data) || { success: true, data };
+      // Note: Plugin-specific validation now happens client-side only
+      logger.debug(`Basic validation passed for item data (plugin: ${pluginId}, type: ${itemType})`);
+      return { success: true, data };
     } catch (error) {
       logger.error('Error validating item data:', error);
       return {
@@ -63,7 +68,8 @@ export class CompendiumValidationService {
   }
 
   /**
-   * Validate VTT document data against plugin schema
+   * Validate VTT document data - now just does basic validation
+   * Plugin-specific validation moved to client-side
    */
   async validateVTTDocumentData(
     pluginId: string,
@@ -71,15 +77,17 @@ export class CompendiumValidationService {
     data: unknown
   ): Promise<ValidationResult> {
     try {
-      const plugin = pluginRegistry.getPlugin(pluginId);
-      if (!plugin) {
+      // Basic validation - just check that data is an object
+      if (typeof data !== 'object' || data === null) {
         return {
           success: false,
-          error: new Error(`Plugin ${pluginId} not found`)
+          error: new Error('VTT document data must be an object')
         };
       }
 
-      return plugin.validateVTTDocumentData?.(documentType, data) || { success: true, data };
+      // Note: Plugin-specific validation now happens client-side only
+      logger.debug(`Basic validation passed for VTT document data (plugin: ${pluginId}, type: ${documentType})`);
+      return { success: true, data };
     } catch (error) {
       logger.error('Error validating VTT document data:', error);
       return {
@@ -164,7 +172,8 @@ export class CompendiumValidationService {
   }
 
   /**
-   * Validate compendium metadata
+   * Validate compendium metadata - now just basic validation
+   * Plugin existence check removed since plugins are client-side only
    */
   validateCompendiumMetadata(data: {
     pluginId: string;
@@ -173,15 +182,6 @@ export class CompendiumValidationService {
     [key: string]: unknown; // Allow additional properties
   }): ValidationResult {
     try {
-      // Check if plugin exists
-      const plugin = pluginRegistry.getPlugin(data.pluginId);
-      if (!plugin) {
-        return {
-          success: false,
-          error: new Error(`Plugin ${data.pluginId} not found`)
-        };
-      }
-
       // Validate required fields
       if (!data.name || data.name.trim().length === 0) {
         return {
@@ -204,7 +204,8 @@ export class CompendiumValidationService {
         };
       }
 
-      // Additional validations can be added here
+      // Note: Plugin existence check removed - plugins are client-side only now
+      logger.debug(`Basic compendium metadata validation passed for plugin: ${data.pluginId}`);
       
       return { success: true, data };
     } catch (error) {

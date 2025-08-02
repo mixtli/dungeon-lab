@@ -1,11 +1,10 @@
 import type { BaseDocument, IActor, ICharacter, IItem, IVTTDocument } from '@dungeon-lab/shared/types/index.mjs';
-import { DocumentModel, getDocumentModel } from '../models/document.model.mjs';
+import { DocumentModel } from '../models/document.model.mjs';
 import { ActorDocumentModel } from '../models/actor-document.model.mjs';
 import { CharacterDocumentModel } from '../models/character-document.model.mjs';
 import { ItemDocumentModel } from '../models/item-document.model.mjs';
-import { logger } from '../../../utils/logger.mjs';
-import { deepMerge } from '@dungeon-lab/shared/utils/index.mjs';
-import type { FilterQuery, UpdateQuery, QueryOptions } from 'mongoose';
+import { VTTDocumentModel } from '../models/vtt-document.model.mjs';
+import mongoose, { type FilterQuery, UpdateQuery, QueryOptions } from 'mongoose';
 
 // Define a type for document query values
 export type QueryValue = string | number | boolean | RegExp | Date | object;
@@ -18,13 +17,33 @@ export type QueryValue = string | number | boolean | RegExp | Date | object;
 export class DocumentService {
   
   /**
-   * Create a new document of any type
+   * Create a new document of any type using proper discriminator routing
    */
   static async create<T extends BaseDocument>(
     documentData: Omit<T, 'id' | 'createdAt' | 'updatedAt'>
   ): Promise<T> {
-    const Model = await getDocumentModel(documentData.documentType);
-    const document = new Model(documentData);
+    // Extract documentType and remove it from the data (discriminator keys are auto-set)
+    const { documentType, ...dataWithoutDiscriminator } = documentData;
+    
+    // Route to the appropriate discriminator model
+    let document: mongoose.Document;
+    switch (documentType) {
+      case 'actor':
+        document = new ActorDocumentModel(dataWithoutDiscriminator);
+        break;
+      case 'character':
+        document = new CharacterDocumentModel(dataWithoutDiscriminator);
+        break;
+      case 'item':
+        document = new ItemDocumentModel(dataWithoutDiscriminator);
+        break;
+      case 'vtt-document':
+        document = new VTTDocumentModel(dataWithoutDiscriminator);
+        break;
+      default:
+        throw new Error(`Unsupported document type: ${documentType}`);
+    }
+    
     return await document.save() as unknown as T;
   }
 
@@ -496,113 +515,4 @@ export class DocumentService {
     }
   };
 
-  // Legacy methods for backward compatibility with existing VTT Document service
-  async getDocumentById(id: string): Promise<IVTTDocument> {
-    try {
-      const document = await DocumentService.findById<IVTTDocument>(id);
-      if (!document) {
-        throw new Error('Document not found');
-      }
-      return document;
-    } catch (error) {
-      logger.error('Error fetching document:', error);
-      throw error;
-    }
-  }
-
-  async createDocument(document: Omit<IVTTDocument, 'id'>, userId: string): Promise<IVTTDocument> {
-    try {
-      const documentData = {
-        ...document,
-        createdBy: userId,
-        updatedBy: userId
-      };
-
-      return await DocumentService.vttDocument.create(documentData);
-    } catch (error) {
-      logger.error('Error creating document:', error);
-      throw error;
-    }
-  }
-
-  async patchDocument(
-    id: string,
-    document: Partial<IVTTDocument>,
-    userId: string
-  ): Promise<IVTTDocument> {
-    try {
-      const existingDocument = await DocumentService.findById<IVTTDocument>(id);
-      if (!existingDocument) {
-        throw new Error('Document not found');
-      }
-
-      const updateData = {
-        ...document,
-        updatedBy: userId
-      };
-
-      const obj = existingDocument;
-      const mergedData = deepMerge(obj, updateData);
-      
-      const updated = await DocumentService.updateById<IVTTDocument>(id, mergedData);
-      if (!updated) {
-        throw new Error('Failed to update document');
-      }
-
-      return updated;
-    } catch (error) {
-      logger.error('Error patching document:', error);
-      throw error;
-    }
-  }
-
-  async putDocument(
-    id: string,
-    document: Omit<IVTTDocument, 'id'>,
-    userId: string
-  ): Promise<IVTTDocument> {
-    try {
-      const updateData = {
-        ...document,
-        updatedBy: userId
-      };
-
-      const updated = await DocumentService.updateById<IVTTDocument>(id, updateData);
-      if (!updated) {
-        throw new Error('Document not found');
-      }
-
-      return updated;
-    } catch (error) {
-      logger.error('Error updating document:', error);
-      throw error;
-    }
-  }
-
-  async deleteDocument(id: string): Promise<void> {
-    await DocumentService.deleteById(id);
-  }
-
-  async searchDocuments(query: Record<string, QueryValue>): Promise<IVTTDocument[]> {
-    try {
-      // Convert query to case-insensitive regex for string values
-      // Only convert simple string values, not nested paths
-      const mongoQuery = Object.entries(query).reduce((acc, [key, value]) => {
-        if (typeof value === 'string' && !key.includes('.')) {
-          acc[key] = new RegExp(value, 'i');
-        } else {
-          acc[key] = value;
-        }
-        return acc;
-      }, {} as Record<string, QueryValue>);
-
-      // Add filter for VTT documents only
-      const vttQuery = { ...mongoQuery, documentType: 'vtt-document' };
-      
-      return await DocumentService.find<IVTTDocument>(vttQuery);
-    } catch (error) {
-      logger.error('Error searching documents:', error);
-      throw new Error('Failed to search documents');
-    }
-  }
 }

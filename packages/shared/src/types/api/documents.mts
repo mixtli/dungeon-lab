@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { vttDocumentSchema } from '../../schemas/vtt-document.schema.mjs';
 import { createDocumentSchema, baseDocumentSchema } from '../../schemas/document.schema.mjs';
 import { baseAPIResponseSchema } from './base.mjs';
 

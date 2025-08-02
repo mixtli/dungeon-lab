@@ -149,6 +149,9 @@ export interface Plugin {
   /** Plugin author */
   readonly author?: string;
   
+  /** Plugin manifest (optional for backward compatibility) */
+  readonly manifest?: PluginManifest;
+  
   /**
    * Called when the plugin is loaded into the system
    * @param context Plugin context with access to APIs and services
@@ -195,6 +198,80 @@ export interface Plugin {
 }
 
 /**
+ * Validation result interface for plugin data validation
+ */
+export interface ValidationResult {
+  success: boolean;
+  data?: any;
+  errors?: string[];
+}
+
+/**
+ * Plugin manifest interface - defines plugin metadata and capabilities
+ */
+export interface PluginManifest {
+  /** Unique plugin identifier */
+  id: string;
+  
+  /** Display name of the plugin */
+  name: string;
+  
+  /** Plugin version */
+  version: string;
+  
+  /** Plugin description */
+  description?: string;
+  
+  /** Plugin author */
+  author?: string;
+  
+  /** Game system type identifier (for game system plugins) */
+  gameSystem?: string;
+  
+  /** Supported character types */
+  characterTypes?: string[];
+  
+  /** Supported item types */
+  itemTypes?: string[];
+  
+  /** List of supported features */
+  supportedFeatures?: string[];
+  
+  /** Component definitions */
+  components?: Record<string, {
+    id: string;
+    name: string;
+    description?: string;
+    category?: string;
+    props?: Record<string, any>;
+    events?: Record<string, string>;
+  }>;
+  
+  /** Mechanics definitions */
+  mechanics?: Record<string, {
+    id: string;
+    name: string;
+    description?: string;
+    category?: string;
+  }>;
+  
+  /** Schema references for validation */
+  validationSchema?: Record<string, string>;
+  
+  /** Entry point file path */
+  entryPoint: string;
+  
+  /** Plugin dependencies */
+  dependencies?: Record<string, string>;
+  
+  /** Development dependencies */
+  devDependencies?: Record<string, string>;
+  
+  /** License */
+  license?: string;
+}
+
+/**
  * Game system specific plugin interface
  */
 export interface GameSystemPlugin extends Plugin {
@@ -206,4 +283,10 @@ export interface GameSystemPlugin extends Plugin {
   
   /** Supported item types */
   readonly itemTypes: string[];
+  
+  /**
+   * Optional: Validate character data against game system rules
+   * @param data Character data to validate
+   */
+  validateCharacterData?(data: any): ValidationResult;
 }

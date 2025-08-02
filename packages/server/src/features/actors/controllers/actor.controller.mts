@@ -5,7 +5,6 @@ import { isErrorWithMessage } from '../../../utils/error.mjs';
 import { ActorService } from '../services/actor.service.mjs';
 import { BaseAPIResponse } from '@dungeon-lab/shared/types/api/index.mjs';
 import { IActor } from '@dungeon-lab/shared/types/index.mjs';
-import { pluginRegistry } from '../../../services/plugin-registry.service.mjs';
 import {
   putActorRequestSchema,
   createActorRequestSchema,
@@ -133,25 +132,8 @@ export class ActorController {
       });
     }
 
-    const plugin = pluginRegistry.getPlugin(validatedData.pluginId);
-    if (!plugin) {
-      return res.status(400).json({
-        success: false,
-        data: null,
-        error: 'Invalid plugin ID'
-      });
-    }
-    const result = plugin.validateActorData?.(validatedData.pluginDocumentType, data) || { success: true, data };
-
-    if (!result.success) {
-      console.log(result.error?.message || 'Validation failed');
-      return res.status(422).json({
-        success: false,
-        data: null,
-        error: result.error?.message || 'Validation failed',
-        error_details: (result.error as { issues?: unknown[] })?.issues || []
-      });
-    }
+    // Note: Plugin validation now happens client-side only
+    // Server trusts that client has already validated plugin data
 
     // Destructure validatedData while renaming avatar and token to bypass unused variable warnings
     const { avatar: _avatar, token: _token, ...actorData } = validatedData;

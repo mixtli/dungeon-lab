@@ -1,14 +1,13 @@
 import type { 
   GameSystemPlugin, 
-  PluginContext
+  PluginContext,
+  PluginManifest
 } from '@dungeon-lab/shared/types/plugin.mjs';
 import type { ComponentRegistry, ComponentMetadata } from '@dungeon-lab/shared/types/component-registry.mjs';
 import type { Component } from 'vue';
 import { MechanicsRegistryImpl } from './plugin-implementations/mechanics-registry-impl.mjs';
 import { PluginContextImpl } from './plugin-implementations/plugin-context-impl.mjs';
-
-// Static import for D&D 5e plugin using package dependency
-import DnD5ePlugin from '@dungeon-lab/plugin-dnd-5e-2024';
+import { pluginDiscoveryService } from './plugin-discovery.service.mjs';
 
 /**
  * Component registry implementation
@@ -78,150 +77,150 @@ class ComponentRegistryImpl implements ComponentRegistry {
   }
 }
 
-
-
-
 /**
- * Main plugin registry service
+ * New manifest-based plugin registry service
  */
 export class PluginRegistryService {
-  private clientPlugins: Map<string, GameSystemPlugin> = new Map();
   private loadedPlugins: Map<string, GameSystemPlugin> = new Map();
   private pluginContexts: Map<string, PluginContext> = new Map();
   private initialized = false;
   private componentRegistry = new ComponentRegistryImpl();
   private mechanicsRegistry = new MechanicsRegistryImpl();
   
-  constructor() {
-    // Initialize with real registries
-  }
-  
   /**
-   * Initialize the plugin registry
+   * Initialize the plugin registry with manifest-based discovery
    */
   async initialize(): Promise<void> {
     if (this.initialized) {
-      console.log('Plugin registry already initialized');
+      console.log('[PluginRegistry] Already initialized');
       return;
     }
     
     try {
-      console.log('Initializing plugin registry...');
+      console.log('[PluginRegistry] 🔍 Starting manifest-based plugin discovery...');
       
-      // APIs are now handled by the actual server, no need for mocks
+      // Discover available plugins via manifests
+      await pluginDiscoveryService.discoverPlugins();
       
-      // Load plugins from server
-      await this.loadPluginsFromServer();
+      // Load all discovered plugins
+      const pluginIds = pluginDiscoveryService.getAvailablePluginIds();
+      console.log(`[PluginRegistry] Found ${pluginIds.length} plugins to load:`, pluginIds);
+      
+      for (const pluginId of pluginIds) {
+        await this.loadPlugin(pluginId);
+      }
       
       this.initialized = true;
-      console.log('Plugin registry initialized successfully');
+      console.log(`[PluginRegistry] ✅ Initialization complete - ${this.loadedPlugins.size} plugins loaded`);
+      
     } catch (error) {
-      console.error('Failed to initialize plugin registry:', error);
+      console.error('[PluginRegistry] ❌ Failed to initialize:', error);
       throw error;
     }
   }
   
   /**
-   * Initialize plugins method for compatibility
+   * Load a specific plugin by ID
    */
-  async initializePlugins(): Promise<void> {
-    await this.initialize();
-    
-    // After loading plugins from server, also try to load the D&D plugin directly
-    await this.loadDnD5ePlugin();
+  async loadPlugin(pluginId: string): Promise<GameSystemPlugin | null> {
+    try {
+      console.log(`[PluginRegistry] 📦 Loading plugin: ${pluginId}`);
+      
+      // Check if already loaded
+      if (this.loadedPlugins.has(pluginId)) {
+        console.log(`[PluginRegistry] Plugin ${pluginId} already loaded`);
+        return this.loadedPlugins.get(pluginId)!;
+      }
+      
+      // Load the plugin module via discovery service
+      const plugin = await pluginDiscoveryService.loadPluginModule(pluginId);
+      if (!plugin) {
+        console.error(`[PluginRegistry] Failed to load plugin module: ${pluginId}`);
+        return null;
+      }
+      
+      // Initialize the plugin
+      await this.initializePlugin(plugin);
+      
+      // Store the loaded plugin
+      this.loadedPlugins.set(pluginId, plugin);
+      
+      console.log(`[PluginRegistry] ✅ Successfully loaded and initialized: ${plugin.name}`);
+      return plugin;
+      
+    } catch (error) {
+      console.error(`[PluginRegistry] ❌ Failed to load plugin ${pluginId}:`, error);
+      return null;
+    }
   }
   
   /**
-   * Get all plugins
+   * Initialize a plugin with context and register its components
+   */
+  private async initializePlugin(plugin: GameSystemPlugin): Promise<void> {
+    try {
+      console.log(`[PluginRegistry] 🚀 Initializing plugin: ${plugin.name}`);
+      
+      // Create plugin context
+      const context = this.createPluginContext(plugin);
+      this.pluginContexts.set(plugin.id, context);
+      
+      // Call plugin onLoad
+      await plugin.onLoad(context);
+      
+      // Register components
+      console.log(`[PluginRegistry] 📋 Registering components for ${plugin.name}`);
+      plugin.registerComponents(this.componentRegistry);
+      console.log(`[PluginRegistry] Registered components, total: ${this.componentRegistry.list().length}`);
+      
+      // Register mechanics
+      console.log(`[PluginRegistry] ⚙️ Registering mechanics for ${plugin.name}`);
+      plugin.registerMechanics(this.mechanicsRegistry);
+      console.log(`[PluginRegistry] Registered mechanics, total: ${this.mechanicsRegistry.list().length}`);
+      
+      console.log(`[PluginRegistry] ✅ Plugin ${plugin.name} fully initialized`);
+      
+    } catch (error) {
+      console.error(`[PluginRegistry] ❌ Failed to initialize plugin ${plugin.name}:`, error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Get all loaded plugins
    */
   getPlugins(): GameSystemPlugin[] {
-    // Return client-side plugins that are available
-    // These are loaded from the server and cached locally
-    return Array.from(this.clientPlugins.values());
+    return Array.from(this.loadedPlugins.values());
   }
   
   /**
-   * Initialize and load plugins from server
-   */
-  async loadPluginsFromServer(): Promise<void> {
-    try {
-      // Fetch plugins from server API
-      const response = await fetch('/api/plugins');
-      if (!response.ok) {
-        throw new Error(`Failed to fetch plugins: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to fetch plugins');
-      }
-      
-      // Convert server plugins to client plugins
-      for (const serverPlugin of data.data) {
-        const clientPlugin: GameSystemPlugin = {
-          gameSystem: serverPlugin.config.id,
-          characterTypes: ['character', 'npc'],
-          itemTypes: ['weapon', 'armor', 'consumable', 'tool'],
-          id: serverPlugin.config.id,
-          name: serverPlugin.config.name,
-          version: serverPlugin.config.version || '1.0.0',
-          description: serverPlugin.config.description,
-          author: serverPlugin.config.author,
-          async onLoad() {
-            console.log(`Loading ${serverPlugin.config.name} plugin`);
-          },
-          async onUnload() {
-            console.log(`Unloading ${serverPlugin.config.name} plugin`);
-          },
-          registerComponents() {
-            console.log(`Registering ${serverPlugin.config.name} components`);
-          },
-          registerMechanics() {
-            console.log(`Registering ${serverPlugin.config.name} mechanics`);
-          }
-        };
-        
-        this.clientPlugins.set(clientPlugin.id, clientPlugin);
-      }
-      
-      console.log(`Loaded ${this.clientPlugins.size} plugins from server`);
-    } catch (error) {
-      console.error('Failed to load plugins from server:', error);
-      console.log('No fallback plugin available - will try direct plugin loading');
-    }
-  }
-  
-  
-  /**
-   * Get a specific game system plugin
+   * Get a specific plugin by ID
    */
   getGameSystemPlugin(id: string): GameSystemPlugin | null {
-    return this.clientPlugins.get(id) || null;
-  }
-  
-  /**
-   * Load a game system plugin
-   */
-  async loadGameSystemPlugin(id: string): Promise<GameSystemPlugin | null> {
-    const plugin = this.getGameSystemPlugin(id);
-    if (plugin && !this.loadedPlugins.has(id)) {
-      await this.initializePlugin(plugin);
-    }
-    return plugin;
+    return this.loadedPlugins.get(id) || null;
   }
   
   /**
    * Get a component by game system and component type
    */
   async getComponent(gameSystemId: string, componentType: string): Promise<Component | null> {
-    console.log(`[PluginRegistry] Getting component: ${gameSystemId}-${componentType}`);
-    await this.ensurePluginLoaded(gameSystemId);
+    console.log(`[PluginRegistry] 🔍 Getting component: ${gameSystemId}-${componentType}`);
+    
+    // Ensure plugin is loaded
+    if (!this.loadedPlugins.has(gameSystemId)) {
+      console.log(`[PluginRegistry] Plugin not loaded, attempting to load: ${gameSystemId}`);
+      await this.loadPlugin(gameSystemId);
+    }
     
     const componentId = `${gameSystemId}-${componentType}`;
     const component = this.componentRegistry.get(componentId);
     
-    console.log(`[PluginRegistry] Component found:`, !!component);
-    console.log(`[PluginRegistry] Available components:`, this.componentRegistry.list().map(c => c.id));
+    if (component) {
+      console.log(`[PluginRegistry] ✅ Found component: ${componentId}`);
+    } else {
+      console.log(`[PluginRegistry] ❌ Component not found: ${componentId}`);
+      console.log(`[PluginRegistry] Available components:`, this.componentRegistry.list().map(c => c.id));
+    }
     
     return component || null;
   }
@@ -234,30 +233,6 @@ export class PluginRegistryService {
   }
   
   /**
-   * Get plugin context by plugin ID
-   */
-  getPluginContext(pluginId: string): PluginContext | undefined {
-    return this.pluginContexts.get(pluginId);
-  }
-  
-  /**
-   * Force re-initialization of a plugin (for debugging)
-   */
-  async forceReinitializePlugin(gameSystemId: string): Promise<void> {
-    console.log(`[PluginRegistry] Force re-initializing plugin: ${gameSystemId}`);
-    
-    // Remove from loaded plugins to force re-init
-    this.loadedPlugins.delete(gameSystemId);
-    
-    // Clear any existing components for this plugin
-    this.componentRegistry.unregisterByPlugin(gameSystemId);
-    this.mechanicsRegistry.unregisterByPlugin(gameSystemId);
-    
-    // Force reload
-    await this.ensurePluginLoaded(gameSystemId);
-  }
-  
-  /**
    * Get all components for a game system
    */
   getComponentsForGameSystem(gameSystemId: string): Array<{ id: string; component: Component; metadata: ComponentMetadata }> {
@@ -265,88 +240,45 @@ export class PluginRegistryService {
   }
   
   /**
-   * Ensure a plugin is loaded and initialized
+   * Get plugin context by plugin ID
    */
-  private async ensurePluginLoaded(gameSystemId: string): Promise<GameSystemPlugin | null> {
-    console.log(`[PluginRegistry] Ensuring plugin loaded: ${gameSystemId}`);
-    console.log(`[PluginRegistry] Currently loaded plugins:`, Array.from(this.loadedPlugins.keys()));
+  getPluginContext(pluginId: string): PluginContext | undefined {
+    return this.pluginContexts.get(pluginId);
+  }
+  
+  /**
+   * Get plugin manifest by plugin ID
+   */
+  getPluginManifest(pluginId: string): PluginManifest | undefined {
+    return pluginDiscoveryService.getPluginManifest(pluginId);
+  }
+  
+  /**
+   * Force reload a plugin (for debugging/development)
+   */
+  async reloadPlugin(pluginId: string): Promise<void> {
+    console.log(`[PluginRegistry] 🔄 Reloading plugin: ${pluginId}`);
     
-    if (!this.loadedPlugins.has(gameSystemId)) {
-      console.log(`[PluginRegistry] Plugin not loaded, loading now...`);
-      const plugin = await this.loadGameSystemPlugin(gameSystemId);
-      if (plugin) {
-        await this.initializePlugin(plugin);
-      }
-      return plugin;
-    }
-    return this.loadedPlugins.get(gameSystemId) || null;
-  }
-  
-  /**
-   * Initialize a plugin with context and register its components
-   */
-  private async initializePlugin(plugin: GameSystemPlugin): Promise<void> {
-    try {
-      console.log(`[PluginRegistry] Initializing plugin: ${plugin.name}`);
-      
-      // Create plugin context
-      const context = this.createPluginContext(plugin);
-      
-      // Store context for later retrieval
-      this.pluginContexts.set(plugin.id, context);
-      
-      // Call plugin onLoad
-      await plugin.onLoad(context);
-      
-      // Register components
-      console.log(`[PluginRegistry] Calling registerComponents for ${plugin.name}`);
-      plugin.registerComponents(this.componentRegistry);
-      console.log(`[PluginRegistry] Components registered, now have:`, this.componentRegistry.list().length);
-      
-      // Register mechanics
-      console.log(`[PluginRegistry] Calling registerMechanics for ${plugin.name}`);
-      plugin.registerMechanics(this.mechanicsRegistry);
-      console.log(`[PluginRegistry] Mechanics registered, now have:`, this.mechanicsRegistry.list().length);
-      
-      // Mark as loaded
-      this.loadedPlugins.set(plugin.id, plugin);
-      
-      console.log(`[PluginRegistry] Plugin ${plugin.name} initialized successfully`);
-    } catch (error) {
-      console.error(`[PluginRegistry] Failed to initialize plugin ${plugin.name}:`, error);
-      throw error;
-    }
-  }
-  
-  /**
-   * Load the D&D 5e plugin using static import
-   */
-  private async loadDnD5ePlugin(): Promise<void> {
-    try {
-      console.log('[PluginRegistry] Loading D&D 5e plugin via static import...');
-      
-      if (DnD5ePlugin) {
-        console.log('[PluginRegistry] Plugin imported successfully:', DnD5ePlugin.name);
-        console.log('[PluginRegistry] Plugin ID:', DnD5ePlugin.id);
-        
-        // Add to client plugins
-        this.clientPlugins.set(DnD5ePlugin.id, DnD5ePlugin);
-        
-        // Initialize if not already loaded
-        if (!this.loadedPlugins.has(DnD5ePlugin.id)) {
-          console.log('[PluginRegistry] Initializing D&D 5e plugin...');
-          await this.initializePlugin(DnD5ePlugin);
-        } else {
-          console.log('[PluginRegistry] D&D 5e plugin already loaded');
-        }
-      } else {
-        console.error('[PluginRegistry] DnD5ePlugin import returned null/undefined');
+    // Unload existing plugin
+    const existingPlugin = this.loadedPlugins.get(pluginId);
+    if (existingPlugin) {
+      try {
+        await existingPlugin.onUnload();
+      } catch (error) {
+        console.warn(`[PluginRegistry] Error during plugin unload:`, error);
       }
       
-      console.log('[PluginRegistry] D&D 5e plugin loading completed');
-    } catch (error) {
-      console.error('[PluginRegistry] Failed to load D&D 5e plugin:', error);
+      // Clear registrations
+      this.componentRegistry.unregisterByPlugin(pluginId);
+      this.mechanicsRegistry.unregisterByPlugin(pluginId);
+      
+      // Remove from loaded plugins
+      this.loadedPlugins.delete(pluginId);
+      this.pluginContexts.delete(pluginId);
     }
+    
+    // Reload the plugin
+    await this.loadPlugin(pluginId);
   }
   
   /**
@@ -354,11 +286,10 @@ export class PluginRegistryService {
    */
   private createPluginContext(plugin: GameSystemPlugin): PluginContext {
     // TODO: Get real socket connection from socket store
-    // For now, create a mock socket connection that implements SocketConnection interface
+    // For now, create a mock socket connection
     const mockSocket = {
       emit: (event: string, ...args: unknown[]) => {
         console.log(`[Plugin ${plugin.id}] Socket emit:`, event, args);
-        // If last arg is a callback, call it with success
         const lastArg = args[args.length - 1];
         if (typeof lastArg === 'function') {
           lastArg({ success: true });
@@ -372,10 +303,8 @@ export class PluginRegistryService {
       }
     };
     
-    // Use the real PluginContextImpl
     return new PluginContextImpl(mockSocket, plugin.id);
   }
-  
 }
 
 /**

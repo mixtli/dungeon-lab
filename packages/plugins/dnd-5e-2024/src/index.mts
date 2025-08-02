@@ -5,9 +5,10 @@
  * plugin architecture with Vue 3 components and TypeScript.
  */
 
-import type { GameSystemPlugin, PluginContext } from '@dungeon-lab/shared/types/plugin.mjs';
+import type { GameSystemPlugin, PluginContext, ValidationResult } from '@dungeon-lab/shared/types/plugin.mjs';
 import type { ComponentRegistry } from '@dungeon-lab/shared/types/component-registry.mjs';
 import type { MechanicsRegistry } from '@dungeon-lab/shared/types/mechanics-registry.mjs';
+import { validateCharacterData } from './character-validation.mjs';
 
 // Import the full featured character sheet component
 import DnD5eCharacterSheet from './character-sheet.vue';
@@ -95,6 +96,24 @@ export class DnD5e2024Plugin implements GameSystemPlugin {
     );
     
     console.log(`[${this.id}] Registered character sheet and character creator components`);
+  }
+  
+  /**
+   * Validate character data against D&D 5e 2024 schema
+   */
+  validateCharacterData(data: any): ValidationResult {
+    console.log(`[${this.id}] 🔍 PLUGIN VALIDATION METHOD CALLED`);
+    console.log(`[${this.id}] Data structure:`, {
+      hasSpecies: !!data?.species,
+      speciesFormat: data?.species,
+      hasBackground: !!data?.background,
+      backgroundFormat: data?.background
+    });
+    
+    const result = validateCharacterData(data);
+    console.log(`[${this.id}] 🧪 Validation result:`, result);
+    
+    return result;
   }
   
   /**

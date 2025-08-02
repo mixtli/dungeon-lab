@@ -3,7 +3,6 @@ import type { ICompendium } from '@dungeon-lab/shared/types/index.mjs';
 import { logger } from '../../../utils/logger.mjs';
 import { ZipProcessorService } from '../../../services/zip-processor.service.mjs';
 import { transactionService } from '../../../services/transaction.service.mjs';
-import { pluginRegistry } from '../../../services/plugin-registry.service.mjs';
 import { createAsset } from '../../../utils/asset-upload.utils.mjs';
 import { CompendiumModel } from '../models/compendium.model.mjs';
 import { CompendiumEntryModel } from '../models/compendium-entry.model.mjs';
@@ -75,11 +74,8 @@ export class ImportService {
       const processedZip = await this.zipProcessor.processZipFile(zipBuffer);
       const manifest = processedZip.manifest;
 
-      // Validate plugin exists
-      const plugin = pluginRegistry.getPlugin(manifest.pluginId);
-      if (!plugin) {
-        throw new Error(`Plugin not found: ${manifest.pluginId}`);
-      }
+      // Note: Plugin validation now happens client-side only
+      // Trust that client has validated plugin ID before importing
 
       // Check for existing compendium - we'll update it instead of throwing an error
       existingCompendium = await CompendiumModel.findOne({

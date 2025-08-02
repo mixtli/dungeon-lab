@@ -5,7 +5,6 @@ import { baseMongooseZodSchema } from '../../../models/base.model.schema.mjs';
 import { createMongoSchema } from '../../../models/zod-to-mongo.mjs';
 import { zId } from '@zodyac/zod-mongoose';
 import type { IVTTDocument } from '@dungeon-lab/shared/types/index.mjs';
-import { pluginRegistry } from '../../../services/plugin-registry.service.mjs';
 
 // Create server-specific VTT document schema with ObjectId references
 const serverVTTDocumentSchema = vttDocumentSchema.extend({
@@ -44,19 +43,8 @@ vttDocumentMongooseSchema.pre('validate', function(next) {
 // Add validation middleware for plugin data and slug uniqueness
 vttDocumentMongooseSchema.pre('save', async function(next) {
   try {
-    // Only validate pluginData field if it's modified
-    if (this.isModified('pluginData')) {
-      const plugin = pluginRegistry.getPlugin(this.get('pluginId') as string);
-      if (!plugin) {
-        throw new Error(`Plugin ${this.get('pluginId')} not found`);
-      }
-      const isValid = plugin.validateVTTDocumentData?.(this.get('pluginDocumentType') as string, this.get('pluginData')) || { success: true };
-      if (!isValid.success) {
-        throw new Error(
-          `Invalid document data for plugin ${this.get('pluginId')} and type ${this.get('pluginDocumentType')}`
-        );
-      }
-    }
+    // Note: Plugin validation now happens client-side only
+    // Server-side validation removed to support manifest-based plugin system
 
     // Check for duplicate slug if slug is modified
     if (this.isModified('slug')) {

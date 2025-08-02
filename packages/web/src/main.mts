@@ -49,10 +49,10 @@ async function initializeApp() {
     }
     
     // Auto-load plugins from environment variable if specified
-    // Note: Plugin loading is now handled by server auto-discovery
+    // Note: Plugin loading is now handled by client-side manifest discovery
     const autoLoadPlugins = import.meta.env.VITE_AUTO_LOAD_PLUGINS;
     if (autoLoadPlugins) {
-      console.log('⚠️ VITE_AUTO_LOAD_PLUGINS is deprecated - plugins are now loaded via server auto-discovery');
+      console.log('⚠️ VITE_AUTO_LOAD_PLUGINS is deprecated - plugins are now loaded via manifest-based discovery');
     }
     
     console.log('🎉 Application initialization complete');
