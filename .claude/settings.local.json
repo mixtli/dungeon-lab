@@ -71,7 +71,8 @@
       "Bash(./bin/upload-pack.sh:*)",
       "Bash(bash:*)",
       "mcp__mongo-lens__current-database",
-      "mcp__playwright__browser_navigate_back"
+      "mcp__playwright__browser_navigate_back",
+      "WebFetch(domain:vite.dev)"
     ],
     "additionalDirectories": [
       "/Users/mixtli/checkouts/5etools-src"

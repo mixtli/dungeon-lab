@@ -48,11 +48,11 @@ const isCreateForm = computed(() => !isEditMode.value);
 const gameSystems = computed(() => {
   return pluginRegistry
     .getPlugins()
-    .filter((plugin: GameSystemPlugin) => plugin.gameSystem && !!plugin.id)
+    .filter((plugin: GameSystemPlugin) => plugin.manifest.gameSystem && !!plugin.manifest.id)
     .map((plugin: GameSystemPlugin) => ({
-      id: plugin.id,
-      name: plugin.name,
-      description: plugin.description || '',
+      id: plugin.manifest.id,
+      name: plugin.manifest.name,
+      description: plugin.manifest.description || '',
     }));
 });
 

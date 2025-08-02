@@ -50,7 +50,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
+import type { Component } from 'vue';
 import type { IActor } from '@dungeon-lab/shared/types/index.mjs';
 import { pluginRegistry } from '../../services/plugin-registry.mts';
 import PluginContainer from '../common/PluginContainer.vue';
@@ -68,32 +69,33 @@ const emit = defineEmits<{
   (e: 'roll', rollType: string, data: Record<string, unknown>): void;
 }>();
 
-// Get the character sheet component directly from the plugin registry (synchronous)
-const characterSheetComponent = computed(() => {
-  console.log('[CharacterSheetModal] Character game system ID:', props.character?.pluginId);
+// Get the character sheet component from the plugin registry (async)
+const characterSheetComponent = ref<Component | null>(null);
+
+// Watch for character changes and load the appropriate component
+watch(() => props.character?.pluginId, async (pluginId) => {
+  console.log('[CharacterSheetModal] Character game system ID:', pluginId);
   
-  if (!props.character?.pluginId) {
-    return null;
+  if (!pluginId) {
+    characterSheetComponent.value = null;
+    return;
   }
 
-  // For D&D 5e 2024, get component directly from plugin registry
-  if (props.character.pluginId === 'dnd5e-2024' || props.character.pluginId === 'dnd-5e-2024') {
-    // Try the direct component ID (as registered by the plugin)
-    const component = pluginRegistry.getComponentById('dnd-5e-2024-character-sheet');
+  try {
+    // Use the new async getComponent API
+    const component = await pluginRegistry.getComponent(pluginId, 'character-sheet');
     if (component) {
-      console.log('[CharacterSheetModal] D&D 5e character sheet found by direct ID');
-      return component;
+      console.log('[CharacterSheetModal] Character sheet component loaded successfully');
+      characterSheetComponent.value = component;
     } else {
-      console.warn('[CharacterSheetModal] D&D 5e character sheet component not found in registry');
-      return null;
+      console.warn('[CharacterSheetModal] Character sheet component not found for plugin:', pluginId);
+      characterSheetComponent.value = null;
     }
+  } catch (error) {
+    console.error('[CharacterSheetModal] Failed to load character sheet component:', error);
+    characterSheetComponent.value = null;
   }
-
-  // Add support for other game systems here
-  // if (props.character.pluginId === 'pathfinder') { ... }
-  
-  return null;
-});
+}, { immediate: true });
 
 // Pass the raw character data directly to the plugin component
 // The plugin is responsible for interpreting and providing fallbacks for its own data structure

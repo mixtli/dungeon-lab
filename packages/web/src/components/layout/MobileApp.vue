@@ -18,7 +18,7 @@ watch(
   (isAuthenticated) => {
     if (isAuthenticated) {
       store.initSocket();
-      pluginRegistry.initializePlugins();
+      pluginRegistry.initialize();
     } else {
       store.disconnect();
     }

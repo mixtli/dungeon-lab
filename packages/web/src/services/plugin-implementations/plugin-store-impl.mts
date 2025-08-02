@@ -1,4 +1,4 @@
-import type { PluginStore } from '@dungeon-lab/shared/types/plugin.mjs';
+import type { PluginStore } from '@dungeon-lab/shared/types/plugin-context.mjs';
 
 /**
  * Concrete implementation of PluginStore interface

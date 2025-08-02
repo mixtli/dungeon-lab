@@ -51,8 +51,8 @@ const gameSystem = computed(() => {
   const plugin = pluginRegistry.getGameSystemPlugin(String(campaign.value.pluginId));
   return plugin
     ? {
-        name: plugin.name,
-        description: plugin.description,
+        name: plugin.manifest.name,
+        description: plugin.manifest.description,
       }
     : null;
 });

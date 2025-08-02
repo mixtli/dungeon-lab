@@ -63,12 +63,12 @@ class PluginDevTools {
     const plugin = pluginRegistry.getGameSystemPlugin(pluginId);
     if (plugin) {
       console.log(`[Dev Tools] Plugin info:`, {
-        id: plugin.id,
-        name: plugin.name,
-        version: plugin.version,
-        description: plugin.description,
-        author: plugin.author,
-        gameSystem: plugin.gameSystem
+        id: plugin.manifest.id,
+        name: plugin.manifest.name,
+        version: plugin.manifest.version,
+        description: plugin.manifest.description,
+        author: plugin.manifest.author,
+        gameSystem: plugin.manifest.gameSystem
       });
     } else {
       console.log(`[Dev Tools] Plugin not found: ${pluginId}`);
@@ -123,9 +123,9 @@ class PluginDevTools {
     
     for (const plugin of plugins) {
       try {
-        await this.unloadPlugin(plugin.id);
+        await this.unloadPlugin(plugin.manifest.id);
       } catch (error) {
-        console.error(`[Dev Tools] Failed to unload ${plugin.id}:`, error);
+        console.error(`[Dev Tools] Failed to unload ${plugin.manifest.id}:`, error);
       }
     }
     

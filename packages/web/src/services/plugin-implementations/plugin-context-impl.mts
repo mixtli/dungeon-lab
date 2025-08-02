@@ -12,7 +12,7 @@ import type {
   ItemData,
   ItemFilters,
   DocumentData
-} from '@dungeon-lab/shared/types/plugin.mjs';
+} from '@dungeon-lab/shared/types/plugin-context.mjs';
 
 import { PluginStoreImpl } from './plugin-store-impl.mjs';
 import { PluginEventSystemImpl } from './plugin-event-system-impl.mjs';

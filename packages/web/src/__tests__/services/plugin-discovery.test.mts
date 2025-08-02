@@ -1,15 +1,15 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { SimplePluginDiscoveryService } from '../../services/plugin-discovery-simple.service.mts';
+import { PluginDiscoveryService } from '../../services/plugin-discovery.service.mts';
 
 /**
- * Test for SimplePluginDiscoveryService to reproduce browser issues
+ * Test for PluginDiscoveryService to reproduce browser issues
  */
 
-describe('SimplePluginDiscoveryService', () => {
-  let service: SimplePluginDiscoveryService;
+describe('PluginDiscoveryService', () => {
+  let service: PluginDiscoveryService;
 
   beforeEach(() => {
-    service = new SimplePluginDiscoveryService();
+    service = new PluginDiscoveryService();
   });
 
   it('should discover manifests correctly', async () => {

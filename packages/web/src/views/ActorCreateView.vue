@@ -69,7 +69,11 @@ const errorMessage = ref<string | null>(null);
 
 // Get all available game systems that support character creation
 const availableGameSystems = computed(() => {
-  return pluginRegistry.getPlugins();
+  return pluginRegistry.getPlugins().map(plugin => ({
+    id: plugin.manifest.id,
+    name: plugin.manifest.name,
+    description: plugin.manifest.description || ''
+  }));
 });
 
 function selectGameSystem(systemId: string) {

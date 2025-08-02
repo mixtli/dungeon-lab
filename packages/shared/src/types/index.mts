@@ -255,17 +255,9 @@ export * from './socket/index.mjs';
 export * from './mapEditor.mjs';
 
 // New Plugin Architecture
-export * from './plugin-simple.mjs';  // New simplified plugin interface
+export * from './plugin.mjs';  // Main plugin interface
+export * from './plugin-context.mjs';  // Plugin context types
 export * from './plugin-contracts.mjs';
-// Note: plugin.mjs is deprecated but some exports may still be needed during transition
-export type { 
-  Plugin,
-  PluginContext, 
-  PluginManifest,
-  ActorsAPI,
-  ItemsAPI,
-  DocumentsAPI 
-} from './plugin.mjs';  // @deprecated - use plugin-simple.mjs instead
 export * from './component-registry.mjs';  // @deprecated - will be removed
 export * from './mechanics-registry.mjs';  // @deprecated - will be removed
 

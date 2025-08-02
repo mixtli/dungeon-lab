@@ -1,13 +1,15 @@
 import type { 
   GameSystemPlugin
-} from '@dungeon-lab/shared/types/plugin-simple.mjs';
+} from '@dungeon-lab/shared/types/plugin.mjs';
 import type { 
-  PluginContext,
+  PluginContext
+} from '@dungeon-lab/shared/types/plugin-context.mjs';
+import type { 
   PluginManifest
 } from '@dungeon-lab/shared/types/plugin.mjs';
 import type { Component } from 'vue';
 import { PluginContextImpl } from './plugin-implementations/plugin-context-impl.mjs';
-import { simplePluginDiscovery } from './plugin-discovery-simple.service.mjs';
+import { pluginDiscoveryService } from './plugin-discovery.service.mjs';
 
 
 /**
@@ -30,11 +32,11 @@ export class PluginRegistryService {
     try {
       console.log('[PluginRegistry] 🔍 Starting manifest-based plugin discovery...');
       
-      // Discover available plugins using simple service
-      await simplePluginDiscovery.discoverPlugins();
+      // Discover available plugins using discovery service
+      await pluginDiscoveryService.discoverPlugins();
       
       // Load all discovered plugins
-      const pluginIds = simplePluginDiscovery.getAvailablePluginIds();
+      const pluginIds = pluginDiscoveryService.getAvailablePluginIds();
       console.log(`[PluginRegistry] Found ${pluginIds.length} plugins to load:`, pluginIds);
       
       for (const pluginId of pluginIds) {
@@ -63,8 +65,8 @@ export class PluginRegistryService {
         return this.loadedPlugins.get(pluginId)!;
       }
       
-      // Load the plugin module via simple discovery service
-      const plugin = await simplePluginDiscovery.loadPluginModule(pluginId);
+      // Load the plugin module via discovery service
+      const plugin = await pluginDiscoveryService.loadPluginModule(pluginId);
       if (!plugin) {
         console.error(`[PluginRegistry] Failed to load plugin module: ${pluginId}`);
         return null;
@@ -140,7 +142,7 @@ export class PluginRegistryService {
       return null;
     }
     
-    const component = plugin.getComponent(componentType);
+    const component = await plugin.getComponent(componentType);
     
     if (component) {
       console.log(`[PluginRegistry] ✅ Found component: ${gameSystemId}-${componentType}`);
@@ -163,7 +165,7 @@ export class PluginRegistryService {
    * Get plugin manifest by plugin ID
    */
   getPluginManifest(pluginId: string): PluginManifest | undefined {
-    return simplePluginDiscovery.getPluginManifest(pluginId);
+    return pluginDiscoveryService.getPluginManifest(pluginId);
   }
   
   /**

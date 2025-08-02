@@ -58,7 +58,7 @@ onMounted(async () => {
         } else {
           // Try to load the plugin
           try {
-            await pluginRegistry.loadGameSystemPlugin(pluginId.value);
+            await pluginRegistry.loadPlugin(pluginId.value);
             isPluginLoaded.value = true;
           } catch (e) {
             console.error('Failed to load plugin:', e);

@@ -1,5 +1,5 @@
 import type { PluginManifest } from '@dungeon-lab/shared/schemas/plugin-manifest.schema.mjs';
-import type { GameSystemPlugin } from '@dungeon-lab/shared/types/plugin-simple.mjs';
+import type { GameSystemPlugin } from '@dungeon-lab/shared/types/plugin.mjs';
 
 /**
  * Simple Plugin Discovery Service
@@ -16,7 +16,7 @@ export interface DiscoveredPlugin {
   instance: GameSystemPlugin;
 }
 
-export class SimplePluginDiscoveryService {
+export class PluginDiscoveryService {
   private plugins = new Map<string, DiscoveredPlugin>();
   private initialized = false;
 
@@ -72,16 +72,18 @@ export class SimplePluginDiscoveryService {
 
           // Step 5: Import the plugin module using Vite's resolved import
           const pluginLoader = pluginModules[pluginPath];
-          const pluginModule = await pluginLoader();
-          const PluginClass = pluginModule.default || pluginModule;
+          const pluginModule = await pluginLoader() as new (manifest: PluginManifest) => GameSystemPlugin;
+          const PluginClass = pluginModule
+          console.log('🔌 Plugin class:', PluginClass);
+          console.log('module', pluginModule);
 
           if (!PluginClass || typeof PluginClass !== 'function') {
             console.error(`❌ Plugin ${manifest.id} does not export a valid class`);
             continue;
           }
 
-          // Step 6: Create plugin instance (registry will initialize with context)
-          const instance = new PluginClass();
+          // Step 6: Create plugin instance with manifest injection
+          const instance = new PluginClass(manifest);
           console.log(`✅ Plugin instance created: ${instance.manifest.name}`);
 
           // Store the plugin
@@ -156,4 +158,4 @@ export class SimplePluginDiscoveryService {
 }
 
 // Export singleton instance
-export const simplePluginDiscovery = new SimplePluginDiscoveryService();
+export const pluginDiscoveryService = new PluginDiscoveryService();

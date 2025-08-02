@@ -1,4 +1,4 @@
-import type { PluginEventSystem } from '@dungeon-lab/shared/types/plugin.mjs';
+import type { PluginEventSystem } from '@dungeon-lab/shared/types/plugin-context.mjs';
 
 /**
  * Concrete implementation of PluginEventSystem interface

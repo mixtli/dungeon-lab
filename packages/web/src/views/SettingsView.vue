@@ -38,7 +38,7 @@ async function handleGameSystemChange(event: Event) {
 
   // Call onLoad handler for the new game system
   // Only load the selected plugin now
-  const newPlugin = await pluginRegistry.loadGameSystemPlugin(newGameSystemId);
+  const newPlugin = await pluginRegistry.loadPlugin(newGameSystemId);
   if (newPlugin?.onLoad) {
     // Mock context for now
     const mockContext = {
