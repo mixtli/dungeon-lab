@@ -3,7 +3,6 @@ import { actorSchema } from '@dungeon-lab/shared/schemas/index.mjs';
 import { referenceOrObjectIdSchema } from '@dungeon-lab/shared/types/reference.mjs';
 import {
   spellReferenceObjectSchema,
-  featReferenceObjectSchema,
   itemReferenceObjectSchema,
   abilitySchema,
   skillSchema,
@@ -274,12 +273,8 @@ export const characterFeaturesSchema = z.object({
     }).optional()
   })).default([]),
   
-  /** Character feats */
-  feats: z.array(z.object({
-    feat: featReferenceObjectSchema,
-    source: z.enum(['origin', 'asi_replacement', 'bonus']),
-    level: z.number().min(1).max(20).optional()
-  })).default([]),
+  /** Character feats - array of resolved feat ObjectIds */
+  feats: z.array(z.string().regex(/^[0-9a-fA-F]{24}$/, 'Must be a valid ObjectId')).default([]),
   
   /** Species traits */
   speciesTraits: z.array(z.object({
@@ -303,6 +298,9 @@ export const dndCharacterDataSchema = z.object({
   /** Character origin (2024 system) */
   species: referenceOrObjectIdSchema,
   background: referenceOrObjectIdSchema,
+  
+  /** Selected lineage/subspecies (e.g., "Drow" for Elves) */
+  lineage: z.string().optional(),
   
   /** Character classes */
   classes: z.array(z.object({
@@ -340,9 +338,9 @@ export const dndCharacterDataSchema = z.object({
     
     // Tool proficiencies - resolved from class/background choices with expertise tracking
     // Each tool tracks both proficiency and expertise status (rogues can get expertise)
-    // Tool references should be resolved ObjectIds, not group-choice objects
+    // Supports ObjectId strings (resolved), reference objects (unresolved), and filter objects
     tools: z.array(z.object({
-      tool: itemReferenceObjectSchema,
+      tool: proficiencyEntrySchema,
       proficient: z.boolean().default(true),
       expert: z.boolean().default(false)
     })).default([]),

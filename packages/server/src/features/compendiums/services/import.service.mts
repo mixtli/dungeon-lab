@@ -8,11 +8,18 @@ import { CompendiumModel } from '../models/compendium.model.mjs';
 import { CompendiumEntryModel } from '../models/compendium-entry.model.mjs';
 // Removed unused model imports
 import { ImportProgress, CompendiumManifest, ValidationResult } from '@dungeon-lab/shared/schemas/import.schema.mjs';
+import { 
+  contentFileWrapperSchema,
+  actorSchema,
+  itemSchema, 
+  vttDocumentSchema,
+  characterSchema
+} from '@dungeon-lab/shared/schemas/index.mjs';
 
 interface ProcessedContent {
   entry: {
     name: string;
-    documentType: 'actor' | 'item' | 'vtt-document';
+    documentType: 'actor' | 'item' | 'vtt-document' | 'character';
     imageId?: string;
     category?: string;
     tags?: string[];
@@ -22,10 +29,11 @@ interface ProcessedContent {
   originalPath: string;
 }
 
-interface ValidationPlugin {
-  validateActorData?: (subtype: string, data: unknown) => { success: boolean; data?: unknown; error?: Error };
-  validateItemData?: (subtype: string, data: unknown) => { success: boolean; data?: unknown; error?: Error };
-  validateDocumentData?: (subtype: string, data: unknown) => { success: boolean; data?: unknown; error?: Error };
+// Validation result interface
+interface ValidationResult {
+  success: boolean;
+  data?: unknown;
+  error?: Error;
 }
 
 interface ProcessedImportData {
@@ -74,15 +82,7 @@ export class ImportService {
       const processedZip = await this.zipProcessor.processZipFile(zipBuffer);
       const manifest = processedZip.manifest;
 
-      // Note: Plugin validation now happens client-side only
-      // Trust that client has validated plugin ID before importing
-      
-      // Create a pass-through validation plugin since validation happens client-side
-      const plugin: ValidationPlugin = {
-        validateActorData: (_subtype: string, data: unknown) => ({ success: true, data }),
-        validateItemData: (_subtype: string, data: unknown) => ({ success: true, data }),
-        validateDocumentData: (_subtype: string, data: unknown) => ({ success: true, data })
-      };
+      // Note: Server-side validation of known schemas, plugin-specific data remains flexible
 
       // Check for existing compendium - we'll update it instead of throwing an error
       existingCompendium = await CompendiumModel.findOne({
@@ -104,8 +104,7 @@ export class ImportService {
       });
 
       const { processedContent, errors: _validationErrors } = await this.processContentFiles(
-        processedZip.contentFiles, 
-        plugin,
+        processedZip.contentFiles,
         (processed, total) => this.updateProgress(progressCallback, {
           stage: 'validating',
           processedItems: processed,
@@ -386,11 +385,10 @@ export class ImportService {
   }
 
   /**
-   * Process and validate content files using plugin schemas
+   * Process and validate content files using server schemas
    */
   private async processContentFiles(
     contentFiles: Map<string, Buffer>,
-    plugin: ValidationPlugin,
     progressCallback?: (processed: number, total: number) => void
   ): Promise<{ processedContent: ProcessedContent[]; errors: string[] }> {
     const processedContent: ProcessedContent[] = [];
@@ -403,9 +401,10 @@ export class ImportService {
         const contentText = buffer.toString('utf-8');
         const fileData = JSON.parse(contentText);
 
-        // Expect wrapper format with entry and content
-        if (!fileData.entry || !fileData.content) {
-          const errorMsg = `Invalid file format: ${filePath} - expected {entry, content} structure`;
+        // Step 1: Validate wrapper format using server schema
+        const wrapperValidation = contentFileWrapperSchema.safeParse(fileData);
+        if (!wrapperValidation.success) {
+          const errorMsg = `Invalid file format: ${filePath} - ${wrapperValidation.error.message}`;
           logger.warn(errorMsg);
           errors.push(errorMsg);
           processedFiles++;
@@ -413,41 +412,26 @@ export class ImportService {
           continue;
         }
 
-        // Extract entry metadata and content
-        const entry = {
-          name: fileData.entry.name,
-          documentType: fileData.entry.documentType as 'actor' | 'item' | 'vtt-document',
-          imageId: fileData.entry.imageId,
-          category: fileData.entry.category,
-          tags: fileData.entry.tags || [],
-          sortOrder: fileData.entry.sortOrder || 0
-        };
-        const content = fileData.content;
+        const { entry, content } = wrapperValidation.data;
 
-        // Validate entry.documentType
-        if (!['actor', 'item', 'vtt-document'].includes(entry.documentType)) {
-          const errorMsg = `Invalid entry type: ${entry.documentType} in ${filePath}`;
-          logger.warn(errorMsg);
-          errors.push(errorMsg);
-          processedFiles++;
-          progressCallback?.(processedFiles, totalFiles);
-          continue;
-        }
-
-        // Validate using plugin (simplified - no complex subtype logic needed)
-        const validationResult = this.validateContent(plugin, entry.documentType, '', content);
+        // Step 2: Validate content against appropriate server schema based on documentType
+        const contentValidation = this.validateContentAgainstSchema(entry.documentType, content);
         
-        if (!validationResult.success) {
-          const errorMsg = `Validation failed for ${filePath}: ${validationResult.error?.message}`;
+        if (!contentValidation.success) {
+          const errorMsg = `Content validation failed for ${filePath}: ${contentValidation.error?.message}`;
           logger.warn(errorMsg);
           errors.push(errorMsg);
-        } else {
-          processedContent.push({
-            entry,
-            content: validationResult.data,
-            originalPath: filePath
-          });
+          processedFiles++;
+          progressCallback?.(processedFiles, totalFiles);
+          continue;
         }
+
+        // Add validated content to processed list
+        processedContent.push({
+          entry,
+          content: contentValidation.data,
+          originalPath: filePath
+        });
 
         processedFiles++;
         progressCallback?.(processedFiles, totalFiles);
@@ -560,16 +544,49 @@ export class ImportService {
   // REMOVED: determineContentType method - no longer needed!
   // Content type is now taken directly from entry.type in the upload format
 
-  private validateContent(plugin: ValidationPlugin, type: string, subtype: string, data: unknown): { success: boolean; data?: unknown; error?: Error } {
-    switch (type) {
-      case 'actor':
-        return plugin.validateActorData?.(subtype, data) || { success: true, data };
-      case 'item':
-        return plugin.validateItemData?.(subtype, data) || { success: true, data };
-      case 'vtt-document':
-        return plugin.validateDocumentData?.(subtype, data) || { success: true, data };
-      default:
-        return { success: false, error: new Error(`Unknown content type: ${type}`) };
+  /**
+   * Validate content against the appropriate server schema based on document type
+   */
+  private validateContentAgainstSchema(documentType: string, data: unknown): ValidationResult {
+    try {
+      let schema;
+      
+      switch (documentType) {
+        case 'actor':
+          schema = actorSchema;
+          break;
+        case 'item':
+          schema = itemSchema;
+          break;
+        case 'vtt-document':
+          schema = vttDocumentSchema;
+          break;
+        case 'character':
+          schema = characterSchema;
+          break;
+        default:
+          return { 
+            success: false, 
+            error: new Error(`Unknown document type: ${documentType}`) 
+          };
+      }
+
+      // Use safeParse to validate against the schema
+      const result = schema.safeParse(data);
+      
+      if (result.success) {
+        return { success: true, data: result.data };
+      } else {
+        return { 
+          success: false, 
+          error: new Error(`Schema validation failed: ${result.error.message}`) 
+        };
+      }
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error instanceof Error ? error : new Error(String(error)) 
+      };
     }
   }
 

@@ -1,6 +1,8 @@
 import { reactive, computed, readonly } from 'vue';
 import { CompendiumsClient } from '@dungeon-lab/client/index.mjs';
 import type { ICompendiumEntry } from '@dungeon-lab/shared/types/index.mjs';
+import { resolveReferenceOrObjectId, resolveMultipleReferences } from '@dungeon-lab/shared/utils/index.mjs';
+import type { ReferenceOrObjectId } from '@dungeon-lab/shared/types/reference.mjs';
 import type {
   CharacterCreationState,
   ClassSelection,
@@ -356,6 +358,15 @@ export function useCharacterCreation() {
     }
   };
 
+  // Reference resolution utilities using the composable's compendium client
+  const resolveReference = async (reference: ReferenceOrObjectId, fallback = 'Unknown'): Promise<string> => {
+    return resolveReferenceOrObjectId(reference, compendiumClient, { fallback });
+  };
+
+  const resolveReferences = async (references: ReferenceOrObjectId[], fallback = 'Unknown'): Promise<string[]> => {
+    return resolveMultipleReferences(references, compendiumClient, { fallback });
+  };
+
   // Character creation completion
   const getCharacterData = (): CharacterCreationFormData | null => {
     if (!validateCompleteForm()) {
@@ -579,6 +590,9 @@ export function useCharacterCreation() {
       species: creatorData.origin.species.id,
       background: creatorData.origin.background.id,
       
+      // Selected lineage/subspecies (e.g., "Drow" for Elves)
+      lineage: creatorData.origin.species.subspecies,
+      
       // Character classes (array format for multiclassing) - send ObjectIds
       classes: [{
         class: creatorData.class.id,
@@ -683,10 +697,19 @@ export function useCharacterCreation() {
         armor: [...(classData.pluginData.proficiencies.armor || [])],
         weapons: [...(classData.pluginData.proficiencies.weapons || [])],
         tools: [
-          ...(classData.pluginData.proficiencies.tools || []),
+          // Convert class tool proficiencies to character schema format
+          ...(classData.pluginData.proficiencies.tools || []).map((tool: any) => ({
+            tool,
+            proficient: true,
+            expert: false
+          })),
           // Add background tool proficiencies (handle both fixed array and choice structure)
           ...(Array.isArray(backgroundData.pluginData.toolProficiencies) 
-              ? backgroundData.pluginData.toolProficiencies 
+              ? backgroundData.pluginData.toolProficiencies.map((tool: any) => ({
+                  tool,
+                  proficient: true,
+                  expert: false
+                }))
               : []) // For now, skip choice-based tool proficiencies (TODO: handle genericChoiceSchema)
         ],
         languages: creatorData.origin.selectedLanguages?.map(lang => lang.id) || [] // Send ObjectIds
@@ -708,8 +731,61 @@ export function useCharacterCreation() {
       
       // Features and feats
       features: {
-        classFeatures: [],
-        feats: [],
+        classFeatures: (() => {
+          const classFeatures: Array<{
+            name: string;
+            class: string;
+            level: number;
+            description?: string;
+            uses?: {
+              current: number;
+              maximum: number;
+              per: 'short' | 'long' | 'turn' | 'round' | 'encounter' | 'daily';
+            };
+          }> = [];
+          
+          // Add level 1 class features
+          const level1Features = classData.pluginData.features.filter(feature => feature.level === 1);
+          
+          for (const feature of level1Features) {
+            const characterFeature: any = {
+              name: feature.name,
+              class: creatorData.class.id, // Class ObjectId
+              level: feature.level,
+              description: feature.description
+            };
+            
+            // Transform uses from class definition to character runtime state
+            if (feature.uses) {
+              characterFeature.uses = {
+                current: feature.uses.value, // Start with full uses
+                maximum: feature.uses.value,
+                per: feature.uses.per
+              };
+            }
+            
+            classFeatures.push(characterFeature);
+          }
+          
+          return classFeatures;
+        })(),
+        feats: (() => {
+          const feats: string[] = [];
+          
+          // Add origin feat from background
+          if (backgroundData.pluginData.originFeat?.feat) {
+            const originFeatRef = backgroundData.pluginData.originFeat.feat;
+            if (typeof originFeatRef === 'string') {
+              // Already resolved ObjectId string
+              feats.push(originFeatRef);
+            } else if (originFeatRef && typeof originFeatRef === 'object' && '_ref' in originFeatRef) {
+              // Reference object - this shouldn't happen in runtime but handle gracefully
+              console.warn('Origin feat is unresolved reference, skipping:', originFeatRef);
+            }
+          }
+          
+          return feats;
+        })(),
         speciesTraits: []
       },
       
@@ -769,6 +845,10 @@ export function useCharacterCreation() {
     fetchItemGroup,
     fetchItems,
     fetchItemsInGroup,
+    
+    // Reference resolution
+    resolveReference,
+    resolveReferences,
     
     // State management
     resetState,

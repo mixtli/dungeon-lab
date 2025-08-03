@@ -307,8 +307,8 @@ interface Emits {
 
 const emit = defineEmits<Emits>();
 
-// Composable for data fetching
-const { fetchSpecies, fetchBackgrounds, fetchLanguages } = useCharacterCreation();
+// Composable for data fetching and reference resolution
+const { fetchSpecies, fetchBackgrounds, fetchLanguages, resolveReference } = useCharacterCreation();
 
 // Local reactive data
 const localData = ref<Partial<OriginSelection>>({
@@ -341,6 +341,10 @@ const loading = ref(false);
 const error = ref<string | null>(null);
 const languagesLoading = ref(false);
 const languagesError = ref<string | null>(null);
+
+// Tool proficiency resolution state
+const resolvedToolProficiencies = ref<Map<string, string>>(new Map());
+const resolvingTools = ref<Set<string>>(new Set());
 
 // Computed
 const isValid = computed(() => {
@@ -512,21 +516,83 @@ const formatToolProficiencies = (proficiencies: any): string => {
   
   // Handle array of tool proficiencies (fixed list)
   if (Array.isArray(proficiencies)) {
-    return proficiencies.map(prof => {
+    return proficiencies.map((prof: any) => {
+      // If it's a string that looks like an ObjectId, try to resolve it
       if (typeof prof === 'string') {
-        return prof;
-      } else if (prof.displayName) {
-        return prof.displayName;
-      } else if (prof.tool && prof.tool._ref) {
-        return formatItemName(prof.tool._ref.slug);
+        if (/^[0-9a-fA-F]{24}$/.test(prof)) {
+          // ObjectId string - check if we have it resolved already
+          const resolved = resolvedToolProficiencies.value.get(prof);
+          if (resolved) {
+            return resolved;
+          }
+          
+          // If currently resolving, show loading
+          if (resolvingTools.value.has(prof)) {
+            return 'Loading...';
+          }
+          
+          // Start resolving the ObjectId
+          resolvingTools.value.add(prof);
+          resolveReference(prof).then(name => {
+            resolvedToolProficiencies.value.set(prof, name);
+            resolvingTools.value.delete(prof);
+          }).catch(() => {
+            resolvedToolProficiencies.value.set(prof, formatItemName(prof));
+            resolvingTools.value.delete(prof);
+          });
+          
+          return 'Loading...';
+        } else {
+          // Regular string, return as-is
+          return prof;
+        }
+      } 
+      
+      // Handle reference object
+      else if (prof && typeof prof === 'object' && prof._ref) {
+        return formatItemName(prof._ref.slug || 'unknown-tool');
       }
+      
+      // Handle tool object with reference
+      else if (prof && prof.tool) {
+        if (typeof prof.tool === 'string' && /^[0-9a-fA-F]{24}$/.test(prof.tool)) {
+          // ObjectId string in tool property
+          const resolved = resolvedToolProficiencies.value.get(prof.tool);
+          if (resolved) {
+            return resolved;
+          }
+          
+          if (resolvingTools.value.has(prof.tool)) {
+            return 'Loading...';
+          }
+          
+          resolvingTools.value.add(prof.tool);
+          resolveReference(prof.tool).then(name => {
+            resolvedToolProficiencies.value.set(prof.tool, name);
+            resolvingTools.value.delete(prof.tool);
+          }).catch(() => {
+            resolvedToolProficiencies.value.set(prof.tool, formatItemName(prof.tool));
+            resolvingTools.value.delete(prof.tool);
+          });
+          
+          return 'Loading...';
+        } else if (prof.tool._ref) {
+          return formatItemName(prof.tool._ref.slug || 'unknown-tool');
+        }
+      }
+      
+      // Handle displayName fallback
+      else if (prof && prof.displayName) {
+        return prof.displayName;
+      }
+      
       return 'Unknown Tool';
     }).join(', ');
   }
   
   // Handle choice structure (generic choice)
   if (proficiencies.options && proficiencies.count) {
-    return `Choose ${proficiencies.count} from ${proficiencies.options.map((opt: any) => opt.name).join(', ')}`;
+    return `Choose ${proficiencies.count} from ${proficiencies.options.map((opt: any) => opt.name || 'Unknown').join(', ')}`;
   }
   
   return 'None';

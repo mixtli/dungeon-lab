@@ -5,4 +5,7 @@ export { deepMerge } from './deepMerge.mjs';
 export * from './data-serialization.mjs';
 
 // Slug generation utilities
-export * from './slug.mjs'; 
+export * from './slug.mjs';
+
+// Reference resolution utilities
+export * from './reference-resolver.mjs'; 
