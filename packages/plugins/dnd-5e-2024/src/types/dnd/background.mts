@@ -3,9 +3,9 @@ import { vttDocumentSchema } from '@dungeon-lab/shared/schemas/index.mjs';
 import { 
   abilitySchema, 
   currencyTypeSchema, 
-  genericChoiceSchema,
   itemReferenceObjectSchema,
-  featReferenceObjectSchema
+  featReferenceObjectSchema,
+  proficiencyEntrySchema
 } from './common.mjs';
 
 /**
@@ -39,13 +39,6 @@ export const backgroundEquipmentSchema = z.object({
   currency: currencyTypeSchema.default('gp')
 });
 
-/**
- * Tool proficiency schema with document references
- */
-export const toolProficiencySchema = z.object({
-  tool: itemReferenceObjectSchema,
-  displayName: z.string()
-});
 
 /**
  * Complete D&D 2024 Background Schema
@@ -69,14 +62,11 @@ export const dndBackgroundDataSchema = z.object({
   skillProficiencies: z.array(z.string()).length(2),
   
   /** 
-   * 2024: Tool proficiencies - can be fixed list OR player choice
-   * Fixed example: Thieves' Tools for Criminal
-   * Choice example: "Choose one kind of Gaming Set" for Soldier
+   * 2024: Tool proficiencies granted by background
+   * May include group-choice objects that require player selection during character creation
+   * Examples: "Choose one artisan's tool", "Thieves' Tools"
    */
-  toolProficiencies: z.union([
-    z.array(toolProficiencySchema), // Fixed proficiencies
-    genericChoiceSchema // Choice between options
-  ]).optional(),
+  toolProficiencies: z.array(proficiencyEntrySchema).optional(),
   
   /** 2024: Equipment following "Choose A or B" pattern */
   equipment: backgroundEquipmentSchema,
@@ -101,7 +91,6 @@ export const dndBackgroundDocumentSchema = vttDocumentSchema.extend({
 export type DndBackgroundData = z.infer<typeof dndBackgroundDataSchema>;
 export type DndBackgroundDocument = z.infer<typeof dndBackgroundDocumentSchema>;
 export type DndBackgroundEquipment = z.infer<typeof backgroundEquipmentSchema>;
-export type DndToolProficiency = z.infer<typeof toolProficiencySchema>;
 
 /**
  * Available backgrounds in D&D 2024 (16 total)

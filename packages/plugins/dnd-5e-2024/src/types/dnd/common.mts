@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { documentReferenceSchema, referenceObjectSchema } from '@dungeon-lab/shared/types/reference.mjs';
+import { documentReferenceSchema, referenceObjectSchema, referenceOrObjectIdSchema } from '@dungeon-lab/shared/types/reference.mjs';
 
 
 /**
@@ -43,19 +43,91 @@ export type Condition = z.infer<typeof conditionSchema>;
 
 // D&D 5e 2024 Languages are now compendium documents - use referenceOrObjectIdSchema
 
-// D&D 5e 2024 Armor Proficiencies
+// D&D 5e 2024 Armor Proficiencies (matches compendium document format)
 export const ARMOR_PROFICIENCIES = [
-  'light armor', 'medium armor', 'heavy armor', 'shields'
+  'light', 'medium', 'heavy', 'shield'
 ] as const;
 export const armorProficiencySchema = z.enum(ARMOR_PROFICIENCIES);
 export type ArmorProficiency = z.infer<typeof armorProficiencySchema>;
 
-// D&D 5e 2024 Weapon Proficiencies
+// D&D 5e 2024 Weapon Proficiencies (matches compendium document format)
 export const WEAPON_PROFICIENCIES = [
-  'simple weapons', 'martial weapons', 'specific'
+  'simple', 'martial', 'specific'
 ] as const;
 export const weaponProficiencySchema = z.enum(WEAPON_PROFICIENCIES);
 export type WeaponProficiency = z.infer<typeof weaponProficiencySchema>;
+
+/**
+ * Filter constraint for complex proficiency requirements
+ * Parsed from 5etools {@filter} syntax like:
+ * "Martial weapons that have the {@filter Finesse or Light|items|type=martial weapon|property=finesse;light} property"
+ */
+export const proficiencyFilterConstraintSchema = z.object({
+  /** Display text shown to users */
+  displayText: z.string(),
+  /** Base item type constraint (e.g., "martial weapon", "simple weapon") */
+  itemType: z.string().optional(),
+  /** Weapon category constraint (e.g., "martial", "simple") */
+  category: z.string().optional(),
+  /** Required weapon properties (e.g., ["finesse", "light"]) */
+  properties: z.array(z.string()).optional(),
+  /** Additional filter parameters */
+  additionalFilters: z.record(z.string(), z.any()).optional()
+});
+
+// Forward declare item reference schema for use in proficiency entries
+export const itemReferenceObjectSchema = referenceObjectSchema;
+
+/**
+ * Proficiency entry schema for weapons and tools that supports complex proficiency types.
+ * 
+ * Used in:
+ * - Class documents (can include group-choice for player selection)
+ * - Background documents (can include group-choice for player selection)  
+ * - Character documents (should only contain resolved proficiencies - no group-choice)
+ * 
+ * NOTE: group-choice objects are only valid in compendium documents (classes/backgrounds).
+ * During character creation, players resolve these choices and only the selected items
+ * appear in the final character document.
+ * 
+ * Supports multiple formats:
+ * 1. Document reference (specific tool/weapon ObjectId or reference)
+ * 2. Filter constraint (e.g., "martial weapons with finesse property")  
+ * 3. Item group selection (e.g., "choose one artisan's tool" - compendium only)
+ */
+export const proficiencyEntrySchema = z.union([
+  // Direct proficiency grant - specific item reference or ObjectId
+  // Example: reference to "Longsword" or "Thieves' Tools"
+  referenceOrObjectIdSchema,
+  
+  // Filter-based proficiency - items matching specific criteria
+  // Example: "martial weapons with finesse property"
+  z.object({
+    type: z.literal('filter'),
+    constraint: proficiencyFilterConstraintSchema
+  }),
+  
+  // Group choice proficiency - choose N items from an item group
+  // Example: "choose one artisan's tool", "choose 2 musical instruments"
+  // IMPORTANT: Only valid in class/background documents, NOT in character documents
+  z.object({
+    type: z.literal('group-choice'),
+    group: z.object({
+      _ref: z.object({
+        slug: z.string(),
+        documentType: z.literal('vtt-document'),
+        pluginDocumentType: z.literal('item-group'),
+        source: z.string()
+      })
+    }),
+    count: z.number(),
+    displayText: z.string()
+  })
+]);
+
+export type ProficiencyFilterConstraint = z.infer<typeof proficiencyFilterConstraintSchema>;
+export type ProficiencyEntry = z.infer<typeof proficiencyEntrySchema>;
+
 // Language type removed - use referenceOrObjectIdSchema for language references
 
 // D&D 5e 2024 Alignments (slug format)
@@ -297,7 +369,6 @@ export const speciesReferenceObjectSchema = referenceObjectSchema;
 export const classReferenceObjectSchema = referenceObjectSchema;
 export const spellReferenceObjectSchema = referenceObjectSchema;
 export const featReferenceObjectSchema = referenceObjectSchema;
-export const itemReferenceObjectSchema = referenceObjectSchema;
 export const conditionReferenceObjectSchema = referenceObjectSchema;
 export const actionReferenceObjectSchema = referenceObjectSchema;
 

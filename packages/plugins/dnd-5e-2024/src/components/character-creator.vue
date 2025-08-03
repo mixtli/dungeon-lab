@@ -270,14 +270,14 @@ const handleBackToBasics = () => {
   emit('back-to-basics');
 };
 
-const handleCreateCharacter = () => {
+const handleCreateCharacter = async () => {
   try {
     if (!validateCompleteForm()) {
       console.error('Character data is not valid');
       return;
     }
     
-    const completeCharacterData = createCompleteCharacterData(props.basicInfo);
+    const completeCharacterData = await createCompleteCharacterData(props.basicInfo);
     emit('character-ready', completeCharacterData);
   } catch (error) {
     console.error('Failed to create character:', error);

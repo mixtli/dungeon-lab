@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { vttDocumentSchema } from '@dungeon-lab/shared/schemas/index.mjs';
-import { abilitySchema, restTypeSchema, spellcastingAbilitySchema, spellcastingTypeSchema, spellPreparationSchema, spellReferenceObjectSchema, itemReferenceObjectSchema } from './common.mjs';
+import { abilitySchema, restTypeSchema, spellcastingAbilitySchema, spellcastingTypeSchema, spellPreparationSchema, spellReferenceObjectSchema, itemReferenceObjectSchema, proficiencyEntrySchema, armorProficiencySchema } from './common.mjs';
 
 /**
  * D&D 5e 2024 Character Class Runtime Types
@@ -11,59 +11,6 @@ import { abilitySchema, restTypeSchema, spellcastingAbilitySchema, spellcastingT
  * Compendium types are auto-derived from these with id→_ref conversion.
  */
 
-/**
- * Filter constraint for complex proficiency requirements
- * Parsed from 5etools {@filter} syntax like:
- * "Martial weapons that have the {@filter Finesse or Light|items|type=martial weapon|property=finesse;light} property"
- */
-export const proficiencyFilterConstraintSchema = z.object({
-  /** Display text shown to users */
-  displayText: z.string(),
-  /** Base item type constraint (e.g., "martial weapon", "simple weapon") */
-  itemType: z.string().optional(),
-  /** Weapon category constraint (e.g., "martial", "simple") */
-  category: z.string().optional(),
-  /** Required weapon properties (e.g., ["finesse", "light"]) */
-  properties: z.array(z.string()).optional(),
-  /** Additional filter parameters */
-  additionalFilters: z.record(z.string(), z.any()).optional()
-});
-
-/**
- * Enhanced proficiency entry supporting three types:
- * 1. Simple string (e.g., "simple", "light armor")
- * 2. Document reference (e.g., Thieves' Tools)
- * 3. Filter constraint (e.g., martial weapons with finesse or light property)
- */
-export const proficiencyEntrySchema = z.union([
-  // Simple string proficiency
-  z.string(),
-  // Document reference proficiency (items like tools)
-  z.object({
-    type: z.literal('reference'),
-    item: itemReferenceObjectSchema,
-    displayText: z.string()
-  }),
-  // Filter constraint proficiency (complex weapon filters)
-  z.object({
-    type: z.literal('filter'),
-    constraint: proficiencyFilterConstraintSchema
-  }),
-  // Item group selection proficiency (choose N items from group)
-  z.object({
-    type: z.literal('group-choice'),
-    group: z.object({
-      _ref: z.object({
-        slug: z.string(),
-        documentType: z.literal('vtt-document'),
-        pluginDocumentType: z.literal('item-group'),
-        source: z.string()
-      })
-    }),
-    count: z.number(),
-    displayText: z.string()
-  })
-]);
 
 /**
  * 2024 Weapon Mastery system
@@ -144,10 +91,22 @@ export const dndCharacterClassDataSchema = z.object({
   
   /** Proficiencies granted at 1st level */
   proficiencies: z.object({
-    armor: z.array(proficiencyEntrySchema),
+    // Armor proficiencies - classes grant specific armor categories
+    // Use simple enum values: 'light', 'medium', 'heavy', 'shield'
+    armor: z.array(armorProficiencySchema),
+    
+    // Weapon proficiencies - can include player choices
+    // May contain group-choice objects that require resolution during character creation
     weapons: z.array(proficiencyEntrySchema),
+    
+    // Tool proficiencies - can include player choices
+    // May contain group-choice objects that require resolution during character creation
     tools: z.array(proficiencyEntrySchema),
+    
+    // Saving throw proficiencies - always specific abilities
     savingThrows: z.array(abilitySchema),
+    
+    // Skill proficiencies - handled separately with choice structure
     skills: z.object({
       count: z.number(),
       choices: z.array(z.string())
@@ -209,8 +168,6 @@ export const dndCharacterClassDocumentSchema = vttDocumentSchema.extend({
 /**
  * Runtime type exports
  */
-export type ProficiencyFilterConstraint = z.infer<typeof proficiencyFilterConstraintSchema>;
-export type ProficiencyEntry = z.infer<typeof proficiencyEntrySchema>;
 export type WeaponMastery = z.infer<typeof weaponMasterySchema>;
 export type ClassFeature = z.infer<typeof classFeatureSchema>;
 export type Subclass = z.infer<typeof subclassSchema>;

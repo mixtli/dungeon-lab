@@ -12,7 +12,7 @@ import {
   alignmentSchema,
   creatureSizeSchema,
   armorProficiencySchema,
-  weaponProficiencySchema
+  proficiencyEntrySchema
 } from './common.mjs';
 
 /**
@@ -101,6 +101,8 @@ export const characterAbilitiesSchema = z.object({
     racial: z.number().default(0),
     enhancement: z.number().default(0),
     override: z.number().optional(),
+    modifier: z.number(),
+    total: z.number(),
     saveProficient: z.boolean().default(false),
     saveBonus: z.number().default(0)
   }),
@@ -109,6 +111,8 @@ export const characterAbilitiesSchema = z.object({
     racial: z.number().default(0),
     enhancement: z.number().default(0),
     override: z.number().optional(),
+    modifier: z.number(),
+    total: z.number(),
     saveProficient: z.boolean().default(false),
     saveBonus: z.number().default(0)
   }),
@@ -117,6 +121,8 @@ export const characterAbilitiesSchema = z.object({
     racial: z.number().default(0),
     enhancement: z.number().default(0),
     override: z.number().optional(),
+    modifier: z.number(),
+    total: z.number(),
     saveProficient: z.boolean().default(false),
     saveBonus: z.number().default(0)
   }),
@@ -125,6 +131,8 @@ export const characterAbilitiesSchema = z.object({
     racial: z.number().default(0),
     enhancement: z.number().default(0),
     override: z.number().optional(),
+    modifier: z.number(),
+    total: z.number(),
     saveProficient: z.boolean().default(false),
     saveBonus: z.number().default(0)
   }),
@@ -133,6 +141,8 @@ export const characterAbilitiesSchema = z.object({
     racial: z.number().default(0),
     enhancement: z.number().default(0),
     override: z.number().optional(),
+    modifier: z.number(),
+    total: z.number(),
     saveProficient: z.boolean().default(false),
     saveBonus: z.number().default(0)
   }),
@@ -141,6 +151,8 @@ export const characterAbilitiesSchema = z.object({
     racial: z.number().default(0),
     enhancement: z.number().default(0),
     override: z.number().optional(),
+    modifier: z.number(),
+    total: z.number(),
     saveProficient: z.boolean().default(false),
     saveBonus: z.number().default(0)
   })
@@ -317,13 +329,25 @@ export const dndCharacterDataSchema = z.object({
   
   /** Proficiencies */
   proficiencies: z.object({
+    // Armor proficiencies - simple enum values only
+    // Characters either have proficiency with an armor category or they don't
     armor: z.array(armorProficiencySchema).default([]),
-    weapons: z.array(weaponProficiencySchema).default([]),
+    
+    // Weapon proficiencies - resolved from class/background choices
+    // Should contain only referenceOrObjectId or filter objects
+    // MUST NOT contain group-choice objects (choices should be resolved)
+    weapons: z.array(proficiencyEntrySchema).default([]),
+    
+    // Tool proficiencies - resolved from class/background choices with expertise tracking
+    // Each tool tracks both proficiency and expertise status (rogues can get expertise)
+    // Tool references should be resolved ObjectIds, not group-choice objects
     tools: z.array(z.object({
       tool: itemReferenceObjectSchema,
       proficient: z.boolean().default(true),
       expert: z.boolean().default(false)
     })).default([]),
+    
+    // Language proficiencies - always specific language references
     languages: z.array(referenceOrObjectIdSchema).default([])
   }),
   

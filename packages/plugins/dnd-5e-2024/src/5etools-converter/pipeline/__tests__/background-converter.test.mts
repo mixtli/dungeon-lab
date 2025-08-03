@@ -41,17 +41,16 @@ describe('TypedBackgroundConverter', () => {
         expect(sage.pluginData.abilityScores).toEqual(['constitution', 'intelligence', 'wisdom']);
         expect(sage.pluginData.skillProficiencies).toEqual(['arcana', 'history']);
         expect(sage.pluginData.toolProficiencies).toHaveLength(1);
-        expect(sage.pluginData.toolProficiencies?.[0].displayName).toBe('Calligrapher\'s Supplies');
-        expect(sage.pluginData.toolProficiencies?.[0].tool._ref).toBeDefined();
-        expect(sage.pluginData.toolProficiencies?.[0].tool._ref.slug).toBe('calligraphers-supplies');
-        expect(sage.pluginData.toolProficiencies?.[0].tool._ref.type).toBe('item');
-        expect(sage.pluginData.toolProficiencies?.[0].tool._ref.pluginType).toBe('tool');
-        expect(sage.pluginData.toolProficiencies?.[0].tool._ref.source).toBe('xphb');
+        expect(sage.pluginData.toolProficiencies?.[0]._ref).toBeDefined();
+        expect(sage.pluginData.toolProficiencies?.[0]._ref.slug).toBe('calligraphers-supplies');
+        expect(sage.pluginData.toolProficiencies?.[0]._ref.documentType).toBe('item');
+        expect(sage.pluginData.toolProficiencies?.[0]._ref.pluginDocumentType).toBe('tool');
+        expect(sage.pluginData.toolProficiencies?.[0]._ref.source).toBe('xphb');
         expect(sage.pluginData.originFeat.name).toBe('Magic Initiate');
         expect(sage.pluginData.originFeat.feat._ref).toBeDefined();
-        expect(sage.pluginData.originFeat.feat._ref?.slug).toBe('magic-initiate-wizard');
-        expect(sage.pluginData.originFeat.feat._ref?.type).toBe('vtt-document');
-        expect(sage.pluginData.originFeat.feat._ref?.pluginType).toBe('feat');
+        expect(sage.pluginData.originFeat.feat._ref?.slug).toBe('magic-initiate');
+        expect(sage.pluginData.originFeat.feat._ref?.documentType).toBe('vtt-document');
+        expect(sage.pluginData.originFeat.feat._ref?.pluginDocumentType).toBe('feat');
         expect(sage.pluginData.originFeat.feat._ref?.source).toBe('xphb');
         expect(sage.pluginData.source).toBe('XPHB');
         expect(sage.pluginData.page).toBe(183);
@@ -73,9 +72,9 @@ describe('TypedBackgroundConverter', () => {
         expect(acolyte.pluginData.skillProficiencies).toEqual(['insight', 'religion']);
         expect(acolyte.pluginData.originFeat.name).toBe('Magic Initiate');
         expect(acolyte.pluginData.originFeat.feat._ref).toBeDefined();
-        expect(acolyte.pluginData.originFeat.feat._ref?.slug).toBe('magic-initiate-cleric');
-        expect(acolyte.pluginData.originFeat.feat._ref?.type).toBe('vtt-document');
-        expect(acolyte.pluginData.originFeat.feat._ref?.pluginType).toBe('feat');
+        expect(acolyte.pluginData.originFeat.feat._ref?.slug).toBe('magic-initiate');
+        expect(acolyte.pluginData.originFeat.feat._ref?.documentType).toBe('vtt-document');
+        expect(acolyte.pluginData.originFeat.feat._ref?.pluginDocumentType).toBe('feat');
         expect(acolyte.pluginData.originFeat.feat._ref?.source).toBe('xphb');
         expect(acolyte.pluginData.source).toBe('XPHB');
       }
@@ -126,12 +125,15 @@ describe('TypedBackgroundConverter', () => {
         const quarterstaff = items.find(item => item.name === 'Quarterstaff');
         expect(quarterstaff?.item._ref).toBeDefined();
         expect(quarterstaff?.item._ref?.slug).toBe('quarterstaff');
-        expect(quarterstaff?.item._ref?.type).toBe('item');
+        expect(quarterstaff?.item._ref?.documentType).toBe('item');
+        expect(quarterstaff?.item._ref?.pluginDocumentType).toBe('weapon');
         expect(quarterstaff?.item._ref?.source).toBe('xphb');
         
         const supplies = items.find(item => item.name === 'Calligrapher\'s Supplies');
         expect(supplies?.item._ref).toBeDefined();
         expect(supplies?.item._ref?.slug).toBe('calligraphers-supplies');
+        expect(supplies?.item._ref?.documentType).toBe('item');
+        expect(supplies?.item._ref?.pluginDocumentType).toBe('tool');
         expect(supplies?.item._ref?.source).toBe('xphb');
       }
     });
@@ -153,6 +155,46 @@ describe('TypedBackgroundConverter', () => {
         
         // Currency should always be gp for backgrounds
         expect(equipment.currency).toBe('gp');
+      }
+    });
+
+    it('should correctly determine item types from 5etools data', async () => {
+      const result = await converter.convertBackgrounds();
+      expect(result.success).toBe(true);
+      
+      // Find backgrounds with known equipment types to test
+      const sage = result.results.find(bg => bg.pluginData.name === 'Sage');
+      expect(sage).toBeDefined();
+      
+      const items = sage!.pluginData.equipment.equipmentPackage.items;
+      
+      // Book should be type "gear" (5etools type "G")
+      const book = items.find(item => item.name.toLowerCase().includes('book'));
+      if (book?.item) {
+        expect(book.item._ref?.pluginDocumentType).toBe('gear');
+      }
+      
+      // Quarterstaff should be type "weapon" (5etools type "M" for melee)
+      const quarterstaff = items.find(item => item.name === 'Quarterstaff');
+      if (quarterstaff?.item) {
+        expect(quarterstaff.item._ref?.pluginDocumentType).toBe('weapon');
+      }
+      
+      // Calligrapher's Supplies should be type "tool" (5etools type "AT" for artisan tools)
+      const supplies = items.find(item => item.name === "Calligrapher's Supplies");
+      if (supplies?.item) {
+        expect(supplies.item._ref?.pluginDocumentType).toBe('tool');
+      }
+      
+      // Test across all backgrounds to ensure no items have the old hardcoded "equipment" type
+      for (const background of result.results) {
+        const allItems = background.pluginData.equipment.equipmentPackage.items;
+        for (const item of allItems) {
+          if (item.item?._ref?.pluginDocumentType) {
+            expect(item.item._ref.pluginDocumentType).not.toBe('equipment');
+            expect(['gear', 'weapon', 'tool', 'armor', 'shield']).toContain(item.item._ref.pluginDocumentType);
+          }
+        }
       }
     });
 

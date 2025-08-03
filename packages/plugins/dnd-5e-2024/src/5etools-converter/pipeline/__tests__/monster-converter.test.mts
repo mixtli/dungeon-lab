@@ -151,7 +151,7 @@ describe('TypedMonsterConverter', () => {
           const detectMagic = spellcasting.spells.atWill![0];
           expect(detectMagic).toEqual({
             _ref: {
-              type: 'vtt-document',
+              documentType: 'vtt-document',
               slug: 'detect-magic',
               source: 'xphb',
               pluginDocumentType: 'spell'
@@ -161,7 +161,7 @@ describe('TypedMonsterConverter', () => {
           const fear = spellcasting.spells.atWill![1];
           expect(fear).toEqual({
             _ref: {
-              type: 'vtt-document',
+              documentType: 'vtt-document',
               slug: 'fear',
               source: 'xphb',
               pluginDocumentType: 'spell'
@@ -176,7 +176,7 @@ describe('TypedMonsterConverter', () => {
           expect(speakWithDead.uses).toBe(1);
           expect(speakWithDead.spell).toEqual({
             _ref: {
-              type: 'vtt-document',
+              documentType: 'vtt-document',
               slug: 'speak-with-dead',
               source: 'xphb',
               pluginDocumentType: 'spell'
@@ -187,7 +187,7 @@ describe('TypedMonsterConverter', () => {
           expect(vitriolicSphere.uses).toBe(1);
           expect(vitriolicSphere.spell).toEqual({
             _ref: {
-              type: 'vtt-document',
+              documentType: 'vtt-document',
               slug: 'vitriolic-sphere',
               source: 'xphb',
               pluginDocumentType: 'spell'
@@ -436,7 +436,7 @@ describe('TypedMonsterConverter', () => {
         // 2. Spells should be proper _ref structures, not embedded 5etools markup
         expect(spellcasting.spells.atWill![0]).toEqual({
           _ref: {
-            type: 'vtt-document',
+            documentType: 'vtt-document',
             slug: 'detect-magic',
             source: 'xphb',
             pluginDocumentType: 'spell'
@@ -447,7 +447,7 @@ describe('TypedMonsterConverter', () => {
         expect(spellcasting.spells.daily![0]).toEqual({
           spell: {
             _ref: {
-              type: 'vtt-document',
+              documentType: 'vtt-document',
               slug: 'speak-with-dead',
               source: 'xphb',
               pluginDocumentType: 'spell'

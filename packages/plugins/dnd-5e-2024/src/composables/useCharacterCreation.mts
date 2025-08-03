@@ -370,7 +370,7 @@ export function useCharacterCreation() {
     };
   };
 
-  const createCompleteCharacterData = (basicInfo: BasicCharacterInfo): Record<string, unknown> => {
+  const createCompleteCharacterData = async (basicInfo: BasicCharacterInfo): Promise<Record<string, unknown>> => {
     const characterData = getCharacterData();
     if (!characterData) {
       throw new Error('Character data is not complete or valid');
@@ -434,8 +434,8 @@ export function useCharacterCreation() {
       additionalFeatures: characterData.details.additionalFeatures
     };
     
-    // Now transform creator data to proper D&D schema format
-    const transformedPluginData = transformCharacterCreatorData(creatorData);
+    // Now transform character data directly to proper D&D schema format
+    const transformedPluginData = await transformCharacterCreatorData(characterData, basicInfo);
     
     // Return complete document structure
     return {
@@ -452,70 +452,136 @@ export function useCharacterCreation() {
   };
   
   // Internal transformation function to convert creator data to D&D schema
-  const transformCharacterCreatorData = (creatorData: CharacterCreationFormData) => {
+  const transformCharacterCreatorData = async (creatorData: CharacterCreationFormData, basicInfo: BasicCharacterInfo) => {
+    // Fetch compendium documents for class, species, and background
+    const [classDocument, speciesDocument, backgroundDocument] = await Promise.all([
+      compendiumClient.getCompendiumEntry(creatorData.class.id),
+      compendiumClient.getCompendiumEntry(creatorData.origin.species.id),
+      compendiumClient.getCompendiumEntry(creatorData.origin.background.id)
+    ]);
+    
+    const classData = classDocument.content as DndCharacterClassDocument;
+    const speciesData = speciesDocument.content as DndSpeciesDocument;
+    const backgroundData = backgroundDocument.content as DndBackgroundDocument;
+    
+    // Helper function to calculate ability modifier
+    const calculateAbilityModifier = (score: number): number => {
+      return Math.floor((score - 10) / 2);
+    };
+    
+    // Helper function to calculate total ability score (base + racial + enhancement, or override)
+    const calculateAbilityTotal = (base: number, racial: number, enhancement: number, override?: number): number => {
+      return override ?? (base + racial + enhancement);
+    };
+    
+    // Get saving throw proficiencies from class data
+    const classSavingThrows = classData.pluginData.proficiencies.savingThrows || [];
+    
     // Transform simple ability scores to complex D&D schema format
     const abilities = {
-      strength: {
-        base: creatorData.abilityScores.strength,
-        racial: creatorData.abilityScores.backgroundChoice?.plus2 === 'strength' ? 2 : 
-                creatorData.abilityScores.backgroundChoice?.plus1 === 'strength' ? 1 : 0,
-        enhancement: 0,
-        saveProficient: creatorData.characterClass.id === 'character-class-wizard' ? false : false, // Wizard has Int/Wis saves
-        saveBonus: 0
-      },
-      dexterity: {
-        base: creatorData.abilityScores.dexterity,
-        racial: creatorData.abilityScores.backgroundChoice?.plus2 === 'dexterity' ? 2 : 
-                creatorData.abilityScores.backgroundChoice?.plus1 === 'dexterity' ? 1 : 0,
-        enhancement: 0,
-        saveProficient: false,
-        saveBonus: 0
-      },
-      constitution: {
-        base: creatorData.abilityScores.constitution,
-        racial: creatorData.abilityScores.backgroundChoice?.plus2 === 'constitution' ? 2 : 
-                creatorData.abilityScores.backgroundChoice?.plus1 === 'constitution' ? 1 : 0,
-        enhancement: 0,
-        saveProficient: false,
-        saveBonus: 0
-      },
-      intelligence: {
-        base: creatorData.abilityScores.intelligence,
-        racial: creatorData.abilityScores.backgroundChoice?.plus2 === 'intelligence' ? 2 : 
-                creatorData.abilityScores.backgroundChoice?.plus1 === 'intelligence' ? 1 : 0,
-        enhancement: 0,
-        saveProficient: creatorData.characterClass.id === 'character-class-wizard',
-        saveBonus: 0
-      },
-      wisdom: {
-        base: creatorData.abilityScores.wisdom,
-        racial: creatorData.abilityScores.backgroundChoice?.plus2 === 'wisdom' ? 2 : 
-                creatorData.abilityScores.backgroundChoice?.plus1 === 'wisdom' ? 1 : 0,
-        enhancement: 0,
-        saveProficient: creatorData.characterClass.id === 'character-class-wizard',
-        saveBonus: 0
-      },
-      charisma: {
-        base: creatorData.abilityScores.charisma,
-        racial: creatorData.abilityScores.backgroundChoice?.plus2 === 'charisma' ? 2 : 
-                creatorData.abilityScores.backgroundChoice?.plus1 === 'charisma' ? 1 : 0,
-        enhancement: 0,
-        saveProficient: false,
-        saveBonus: 0
-      }
+      strength: (() => {
+        const base = creatorData.abilities.strength;
+        const racial = creatorData.abilities.backgroundChoice?.strength || 0;
+        const enhancement = 0;
+        const total = calculateAbilityTotal(base, racial, enhancement);
+        return {
+          base,
+          racial,
+          enhancement,
+          modifier: calculateAbilityModifier(total),
+          total,
+          saveProficient: classSavingThrows.includes('strength'),
+          saveBonus: 0
+        };
+      })(),
+      dexterity: (() => {
+        const base = creatorData.abilities.dexterity;
+        const racial = creatorData.abilities.backgroundChoice?.dexterity || 0;
+        const enhancement = 0;
+        const total = calculateAbilityTotal(base, racial, enhancement);
+        return {
+          base,
+          racial,
+          enhancement,
+          modifier: calculateAbilityModifier(total),
+          total,
+          saveProficient: classSavingThrows.includes('dexterity'),
+          saveBonus: 0
+        };
+      })(),
+      constitution: (() => {
+        const base = creatorData.abilities.constitution;
+        const racial = creatorData.abilities.backgroundChoice?.constitution || 0;
+        const enhancement = 0;
+        const total = calculateAbilityTotal(base, racial, enhancement);
+        return {
+          base,
+          racial,
+          enhancement,
+          modifier: calculateAbilityModifier(total),
+          total,
+          saveProficient: classSavingThrows.includes('constitution'),
+          saveBonus: 0
+        };
+      })(),
+      intelligence: (() => {
+        const base = creatorData.abilities.intelligence;
+        const racial = creatorData.abilities.backgroundChoice?.intelligence || 0;
+        const enhancement = 0;
+        const total = calculateAbilityTotal(base, racial, enhancement);
+        return {
+          base,
+          racial,
+          enhancement,
+          modifier: calculateAbilityModifier(total),
+          total,
+          saveProficient: classSavingThrows.includes('intelligence'),
+          saveBonus: 0
+        };
+      })(),
+      wisdom: (() => {
+        const base = creatorData.abilities.wisdom;
+        const racial = creatorData.abilities.backgroundChoice?.wisdom || 0;
+        const enhancement = 0;
+        const total = calculateAbilityTotal(base, racial, enhancement);
+        return {
+          base,
+          racial,
+          enhancement,
+          modifier: calculateAbilityModifier(total),
+          total,
+          saveProficient: classSavingThrows.includes('wisdom'),
+          saveBonus: 0
+        };
+      })(),
+      charisma: (() => {
+        const base = creatorData.abilities.charisma;
+        const racial = creatorData.abilities.backgroundChoice?.charisma || 0;
+        const enhancement = 0;
+        const total = calculateAbilityTotal(base, racial, enhancement);
+        return {
+          base,
+          racial,
+          enhancement,
+          modifier: calculateAbilityModifier(total),
+          total,
+          saveProficient: classSavingThrows.includes('charisma'),
+          saveBonus: 0
+        };
+      })()
     };
     
     // Build proper D&D schema structure
     return {
-      name: creatorData.name,
+      name: basicInfo.name,
       
       // Character origin (2024 system) - send ObjectIds
-      species: creatorData.species.id,
-      background: creatorData.background.id,
+      species: creatorData.origin.species.id,
+      background: creatorData.origin.background.id,
       
       // Character classes (array format for multiclassing) - send ObjectIds
       classes: [{
-        class: creatorData.characterClass.id,
+        class: creatorData.class.id,
         level: 1
       }],
       
@@ -525,29 +591,34 @@ export function useCharacterCreation() {
         experiencePoints: 0,
         proficiencyBonus: 2,
         classLevels: {
-          [creatorData.characterClass.id]: 1
+          [creatorData.class.id]: 1
         },
         hitDice: {
-          [creatorData.characterClass.id]: {
+          [creatorData.class.id]: {
             total: 1,
             used: 0
           }
         }
       },
       
-      // Core attributes with defaults
+      // Core attributes calculated from class and ability scores
       attributes: {
-        hitPoints: {
-          current: 8, // Base + Con modifier - simplified for now
-          maximum: 8,
-          temporary: 0
-        },
+        hitPoints: (() => {
+          const hitDie = classData.pluginData.hitDie;
+          const conModifier = abilities.constitution.modifier;
+          const maxHP = hitDie + conModifier;
+          return {
+            current: maxHP,
+            maximum: maxHP,
+            temporary: 0
+          };
+        })(),
         armorClass: {
-          value: 10,
+          value: 10 + abilities.dexterity.modifier, // Base AC + Dex modifier
           calculation: 'natural' as const
         },
         initiative: {
-          bonus: 0,
+          bonus: abilities.dexterity.modifier,
           advantage: false
         },
         movement: {
@@ -564,18 +635,61 @@ export function useCharacterCreation() {
       // Ability scores
       abilities,
       
-      // Skills (simplified - mark selected skills as proficient)
-      skills: {
-        // This would need to be populated based on selected skills
-        // For now, we'll create a basic structure
-      },
+      // Skills - mark selected skills as proficient from class and background
+      skills: (() => {
+        const skillsObj: Record<string, { proficient: boolean; expert: boolean; bonus: number; advantage: boolean; disadvantage: boolean }> = {};
+        
+        // Initialize all skills as not proficient
+        const allSkills = [
+          'acrobatics', 'animal handling', 'arcana', 'athletics', 'deception',
+          'history', 'insight', 'intimidation', 'investigation', 'medicine',
+          'nature', 'perception', 'performance', 'persuasion', 'religion',
+          'sleight of hand', 'stealth', 'survival'
+        ];
+        
+        allSkills.forEach(skill => {
+          skillsObj[skill] = {
+            proficient: false,
+            expert: false,
+            bonus: 0,
+            advantage: false,
+            disadvantage: false
+          };
+        });
+        
+        // Mark class selected skills as proficient
+        if (creatorData.class.selectedSkills) {
+          creatorData.class.selectedSkills.forEach(skill => {
+            if (skillsObj[skill]) {
+              skillsObj[skill].proficient = true;
+            }
+          });
+        }
+        
+        // Mark background skills as proficient (backgrounds grant 2 fixed skills)
+        if (backgroundData.pluginData.skillProficiencies) {
+          backgroundData.pluginData.skillProficiencies.forEach(skill => {
+            if (skillsObj[skill]) {
+              skillsObj[skill].proficient = true;
+            }
+          });
+        }
+        
+        return skillsObj;
+      })(),
       
-      // Proficiencies
+      // Proficiencies - combine class and background proficiencies
       proficiencies: {
-        armor: [],
-        weapons: [],
-        tools: [],
-        languages: creatorData.languages || [] // Send ObjectIds
+        armor: [...(classData.pluginData.proficiencies.armor || [])],
+        weapons: [...(classData.pluginData.proficiencies.weapons || [])],
+        tools: [
+          ...(classData.pluginData.proficiencies.tools || []),
+          // Add background tool proficiencies (handle both fixed array and choice structure)
+          ...(Array.isArray(backgroundData.pluginData.toolProficiencies) 
+              ? backgroundData.pluginData.toolProficiencies 
+              : []) // For now, skip choice-based tool proficiencies (TODO: handle genericChoiceSchema)
+        ],
+        languages: creatorData.origin.selectedLanguages?.map(lang => lang.id) || [] // Send ObjectIds
       },
       
       // Inventory with defaults
@@ -601,13 +715,13 @@ export function useCharacterCreation() {
       
       // Roleplaying information
       roleplay: {
-        alignment: creatorData.alignment,
-        personality: creatorData.personality.traits || '',
-        ideals: creatorData.personality.ideals || '',
-        bonds: creatorData.personality.bonds || '',
-        flaws: creatorData.personality.flaws || '',
-        appearance: `Age: ${creatorData.personalDetails.age || ''}, Height: ${creatorData.personalDetails.height || ''}, Weight: ${creatorData.personalDetails.weight || ''}`,
-        backstory: creatorData.backstory || ''
+        alignment: creatorData.details.alignment,
+        personality: creatorData.details.personalityTraits || '',
+        ideals: creatorData.details.ideals || '',
+        bonds: creatorData.details.bonds || '',
+        flaws: creatorData.details.flaws || '',
+        appearance: `Age: ${creatorData.details.age || ''}, Height: ${creatorData.details.height || ''}, Weight: ${creatorData.details.weight || ''}`,
+        backstory: creatorData.details.backstory || ''
       },
       
       // Character size (default Medium for most species)

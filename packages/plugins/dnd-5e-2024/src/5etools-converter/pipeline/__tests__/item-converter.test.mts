@@ -14,7 +14,7 @@ import type { DndItemData } from '../../../types/dnd/item.mjs';
 interface ItemGroupReference {
   _ref: {
     slug: string;
-    type: string;
+    documentType: string;
     pluginDocumentType: string;
     source: string;
   };
@@ -23,7 +23,7 @@ interface ItemGroupReference {
 interface ItemReference {
   _ref: {
     slug: string;
-    type: string;
+    documentType: string;
     source?: string;
   };
 }
@@ -111,7 +111,7 @@ describe('TypedItemConverter', () => {
         for (const itemRef of items) {
           expect(itemRef._ref).toBeDefined();
           expect(itemRef._ref.slug).toBeDefined();
-          expect(itemRef._ref.type).toBe('item');
+          expect(itemRef._ref.documentType).toBe('item');
           expect(typeof itemRef._ref.slug).toBe('string');
           expect(itemRef._ref.source).toBeDefined();
         }
@@ -196,8 +196,8 @@ describe('TypedItemConverter', () => {
         expect(pluginData.itemGroup).toBeDefined();
         expect(pluginData.itemGroup?._ref).toBeDefined();
         expect(pluginData.itemGroup?._ref.slug).toBe('artisans-tools');
-        expect(pluginData.itemGroup?._ref.type).toBe('vtt-document');
-        expect(pluginData.itemGroup?._ref.pluginType).toBe('item-group');
+        expect(pluginData.itemGroup?._ref.documentType).toBe('vtt-document');
+        expect(pluginData.itemGroup?._ref.pluginDocumentType).toBe('item-group');
         expect(pluginData.itemGroup?._ref.source).toBe('XPHB');
       }
     });
@@ -222,8 +222,8 @@ describe('TypedItemConverter', () => {
         expect(pluginData.itemGroup).toBeDefined();
         expect(pluginData.itemGroup?._ref).toBeDefined();
         expect(pluginData.itemGroup?._ref.slug).toBe('musical-instrument');
-        expect(pluginData.itemGroup?._ref.type).toBe('vtt-document');
-        expect(pluginData.itemGroup?._ref.pluginType).toBe('item-group');
+        expect(pluginData.itemGroup?._ref.documentType).toBe('vtt-document');
+        expect(pluginData.itemGroup?._ref.pluginDocumentType).toBe('item-group');
       }
     });
 
@@ -246,8 +246,8 @@ describe('TypedItemConverter', () => {
         expect(pluginData.itemGroup).toBeDefined();
         expect(pluginData.itemGroup?._ref).toBeDefined();
         expect(pluginData.itemGroup?._ref.slug).toBe('gaming-set');
-        expect(pluginData.itemGroup?._ref.type).toBe('vtt-document');
-        expect(pluginData.itemGroup?._ref.pluginType).toBe('item-group');
+        expect(pluginData.itemGroup?._ref.documentType).toBe('vtt-document');
+        expect(pluginData.itemGroup?._ref.pluginDocumentType).toBe('item-group');
       }
     });
   });
@@ -357,7 +357,7 @@ describe('TypedItemConverter', () => {
           expect(typeof itemRef._ref.slug).toBe('string');
           expect(itemRef._ref.slug.length).toBeGreaterThan(0);
           
-          expect(itemRef._ref.type).toBe('item');
+          expect(itemRef._ref.documentType).toBe('item');
           
           // Source is optional but should be string if present
           if (itemRef._ref.source) {
@@ -389,8 +389,8 @@ describe('TypedItemConverter', () => {
         expect(typeof itemGroup?._ref.slug).toBe('string');
         expect(itemGroup?._ref.slug.length).toBeGreaterThan(0);
         
-        expect(itemGroup?._ref.type).toBe('vtt-document');
-        expect(itemGroup?._ref.pluginType).toBe('item-group');
+        expect(itemGroup?._ref.documentType).toBe('vtt-document');
+        expect(itemGroup?._ref.pluginDocumentType).toBe('item-group');
         
         // Source should match tool source
         if (itemGroup?._ref.source) {

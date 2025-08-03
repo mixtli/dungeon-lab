@@ -44,11 +44,9 @@ interface ItemReference {
 import { etoolsClassSchema } from '../../5etools-types/classes.mjs';
 import { 
   dndCharacterClassDataSchema, 
-  type DndCharacterClassData,
-  type ProficiencyEntry,
-  type ProficiencyFilterConstraint
+  type DndCharacterClassData
 } from '../../types/dnd/character-class.mjs';
-import { ABILITY_ABBREVIATION_MAP, expandSpellcastingAbility, spellReferenceObjectSchema, type SpellReferenceObject, SKILLS_2024 } from '../../types/dnd/common.mjs';
+import { ABILITY_ABBREVIATION_MAP, expandSpellcastingAbility, spellReferenceObjectSchema, type SpellReferenceObject, SKILLS_2024, type ProficiencyEntry, type ProficiencyFilterConstraint } from '../../types/dnd/common.mjs';
 import { safeEtoolsCast } from '../../5etools-types/type-utils.mjs';
 
 // ClassDocument type is now imported from the validators file
@@ -337,17 +335,41 @@ export class TypedClassConverter extends TypedConverter<
       .replace(/\s+/g, '-');
 
     return {
-      type: 'reference',
-      item: {
-        _ref: {
-          slug,
-          documentType: 'item',
-          pluginDocumentType: 'tool', // Assuming tools for now, could be enhanced
-          source: source.toLowerCase()
-        }
-      },
-      displayText: itemName
+      _ref: {
+        slug,
+        documentType: 'item',
+        pluginDocumentType: 'tool', // Assuming tools for now, could be enhanced
+        source: source.toLowerCase()
+      }
     };
+  }
+
+  /**
+   * Parse weapon category strings (simple, martial) into filter objects
+   */
+  private parseWeaponCategory(categoryString: string): ProficiencyEntry | string {
+    const category = categoryString.toLowerCase().trim();
+    
+    switch (category) {
+      case 'simple':
+        return {
+          type: 'filter',
+          constraint: {
+            displayText: 'Simple weapons',
+            category: 'simple'
+          }
+        };
+      case 'martial':
+        return {
+          type: 'filter', 
+          constraint: {
+            displayText: 'Martial weapons',
+            category: 'martial'
+          }
+        };
+      default:
+        return categoryString; // Return as-is if not a recognized category
+    }
   }
 
   /**
@@ -437,20 +459,21 @@ export class TypedClassConverter extends TypedConverter<
       skills: { count: 0, choices: [] }
     };
 
-    // Extract armor proficiencies
+    // Extract armor proficiencies - always simple enum values for classes
     if (input.startingProficiencies?.armor) {
       proficiencies.armor = input.startingProficiencies.armor.map(armor => {
         if (typeof armor === 'string') {
-          // Try to parse as item reference or filter, otherwise return as string
-          const itemRef = this.parseItemReference(armor);
-          if (itemRef !== armor) return itemRef;
+          // Convert 5etools armor strings to enum values
+          const armorLower = armor.toLowerCase();
+          if (armorLower.includes('light')) return 'light' as const;
+          if (armorLower.includes('medium')) return 'medium' as const;
+          if (armorLower.includes('heavy')) return 'heavy' as const;
+          if (armorLower.includes('shield')) return 'shield' as const;
           
-          const filterRef = this.parseFilterConstraint(armor);
-          if (filterRef !== armor) return filterRef;
-          
-          return armor; // Return as simple string
+          // Return as-is if already in correct format - cast to prevent type errors
+          return armor as 'light' | 'medium' | 'heavy' | 'shield';
         }
-        return 'Light armor'; // Fallback for non-string types
+        return 'light' as const; // Fallback to light armor
       });
     }
 
@@ -458,14 +481,19 @@ export class TypedClassConverter extends TypedConverter<
     if (input.startingProficiencies?.weapons) {
       proficiencies.weapons = input.startingProficiencies.weapons.map(weapon => {
         if (typeof weapon === 'string') {
-          // Try to parse as item reference or filter, otherwise return as string
+          // Try to parse as item reference first
           const itemRef = this.parseItemReference(weapon);
           if (itemRef !== weapon) return itemRef;
           
+          // Try to parse as filter constraint
           const filterRef = this.parseFilterConstraint(weapon);
           if (filterRef !== weapon) return filterRef;
           
-          return weapon; // Return as simple string
+          // Handle weapon category strings (simple, martial)
+          const categoryFilter = this.parseWeaponCategory(weapon);
+          if (categoryFilter !== weapon) return categoryFilter;
+          
+          return weapon; // Return as simple string (shouldn't happen with valid weapon proficiencies)
         }
         return 'Simple weapons'; // Fallback for non-string types
       });
@@ -511,8 +539,8 @@ export class TypedClassConverter extends TypedConverter<
               
               // Replace any existing simple tool references with the group choice
               proficiencies.tools = proficiencies.tools.filter(tool => 
-                !(typeof tool === 'object' && tool.type === 'reference' && 
-                  tool.item._ref.slug === groupInfo.slug)
+                !(typeof tool === 'object' && '_ref' in tool && 
+                  tool._ref.slug === groupInfo.slug)
               );
               proficiencies.tools.push(groupChoice);
             }

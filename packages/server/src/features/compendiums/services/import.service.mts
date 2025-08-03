@@ -79,9 +79,9 @@ export class ImportService {
       
       // Create a pass-through validation plugin since validation happens client-side
       const plugin: ValidationPlugin = {
-        validateActorData: () => ({ success: true }),
-        validateItemData: () => ({ success: true }),
-        validateDocumentData: () => ({ success: true })
+        validateActorData: (_subtype: string, data: unknown) => ({ success: true, data }),
+        validateItemData: (_subtype: string, data: unknown) => ({ success: true, data }),
+        validateDocumentData: (_subtype: string, data: unknown) => ({ success: true, data })
       };
 
       // Check for existing compendium - we'll update it instead of throwing an error
@@ -332,7 +332,7 @@ export class ImportService {
         originalPath: contentItem.originalPath
       }
     });
-
+    
     await compendiumEntry.save(); // This properly triggers pre-save middleware
   }
 

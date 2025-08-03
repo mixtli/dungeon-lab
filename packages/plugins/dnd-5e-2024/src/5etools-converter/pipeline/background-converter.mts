@@ -17,6 +17,7 @@ import {
   type PluginDocumentType
 } from '../validation/document-validators.mjs';
 import { processEntries } from '../text/markup-processor.mjs';
+import { etoolsItemSchema } from '../../5etools-types/items.mjs';
 import type { 
   EtoolsBackground, 
   EtoolsBackgroundData, 
@@ -81,6 +82,7 @@ export class TypedBackgroundConverter extends TypedConverter<
   BackgroundDocument
 > {
   private fluffMap = new Map<string, EtoolsBackgroundFluff>();
+  private itemMap = new Map<string, z.infer<typeof etoolsItemSchema>>();
 
   protected getInputSchema() {
     return etoolsBackgroundSchema;
@@ -159,6 +161,48 @@ export class TypedBackgroundConverter extends TypedConverter<
   }
 
   /**
+   * Load item data from 5etools sources for item type lookup
+   */
+  private async loadItemData(): Promise<void> {
+    try {
+      // Load base items and regular items
+      const [baseItemsData, itemsData] = await Promise.all([
+        this.readEtoolsData('items-base.json'),
+        this.readEtoolsData('items.json')
+      ]);
+      
+      let baseItemCount = 0;
+      let regularItemCount = 0;
+      
+      // Process base items (uses 'baseitem' array key)
+      if (baseItemsData && typeof baseItemsData === 'object' && 'baseitem' in baseItemsData && Array.isArray(baseItemsData.baseitem)) {
+        for (const item of baseItemsData.baseitem) {
+          if (item && typeof item === 'object' && 'name' in item && 'source' in item) {
+            const key = `${String(item.name).toLowerCase()}|${String(item.source).toLowerCase()}`;
+            this.itemMap.set(key, item as z.infer<typeof etoolsItemSchema>);
+            baseItemCount++;
+          }
+        }
+      }
+      
+      // Process regular items
+      if (itemsData && typeof itemsData === 'object' && 'item' in itemsData && Array.isArray(itemsData.item)) {
+        for (const item of itemsData.item) {
+          if (item && typeof item === 'object' && 'name' in item && 'source' in item) {
+            const key = `${String(item.name).toLowerCase()}|${String(item.source).toLowerCase()}`;
+            this.itemMap.set(key, item as z.infer<typeof etoolsItemSchema>);
+            regularItemCount++;
+          }
+        }
+      }
+      
+      this.log(`Loaded ${baseItemCount + regularItemCount} items (${baseItemCount} base, ${regularItemCount} regular) for type determination`);
+    } catch (error) {
+      this.log('Failed to load item data for type determination:', error);
+    }
+  }
+
+  /**
    * Convert array of backgrounds using the new pipeline
    */
   public async convertBackgrounds(): Promise<{
@@ -172,6 +216,9 @@ export class TypedBackgroundConverter extends TypedConverter<
       
       // Load fluff data for enhanced descriptions and images
       await this.loadFluffData();
+      
+      // Load item data for equipment type determination
+      await this.loadItemData();
       
       const results: BackgroundDocument[] = [];
       const errors: string[] = [];
@@ -234,6 +281,62 @@ export class TypedBackgroundConverter extends TypedConverter<
   /**
    * Private helper methods for background-specific parsing
    */
+
+  /**
+   * Determine item type from 5etools item data (mirrors ItemConverter logic)
+   */
+  private determineItemType(item: z.infer<typeof etoolsItemSchema>): 'weapon' | 'armor' | 'tool' | 'gear' {
+    // Check explicit boolean flags first
+    if (item.weapon || item.firearm) return 'weapon';
+    if (item.armor || item.shield) return 'armor';
+    
+    // Check type codes if available
+    if (item.type) {
+      // Extract base type (handle pipe-separated formats like "AT|XPHB")
+      const baseType = item.type.split('|')[0];
+      
+      switch (baseType) {
+        case 'M': case 'R': // Melee, Ranged
+          return 'weapon';
+        case 'LA': case 'MA': case 'HA': case 'S': // Light Armor, Medium Armor, Heavy Armor, Shield
+          return 'armor';
+        case 'AT': case 'T': case 'GS': case 'INS': // Artisan Tools, Tools, Gaming Sets, Instruments
+          return 'tool';
+        case 'G': case 'A': case 'P': case 'WD': case 'RD': case 'RG': // Gear, Ammunition, Potions, Wondrous, Rod, Ring
+        default:
+          return 'gear';
+      }
+    }
+    
+    // For items without type (magic items), check name patterns or other properties
+    if (item.bonusWeapon || item.dmg1 || item.damage) return 'weapon';
+    if (item.bonusAc || item.ac) return 'armor';
+    if (item.wondrous || item.staff || item.wand || item.rod) return 'gear';
+    
+    // Default fallback
+    return 'gear';
+  }
+
+  /**
+   * Map item type to plugin document type
+   */
+  private mapItemTypeToPluginDocumentType(itemType: 'weapon' | 'armor' | 'tool' | 'gear', item: z.infer<typeof etoolsItemSchema>): string {
+    switch (itemType) {
+      case 'weapon': 
+        return 'weapon';
+      case 'armor':
+        // Check if it's a shield - shields need their own plugin document type
+        if (item.type === 'S' || item.shield) {
+          return 'shield';
+        }
+        return 'armor';
+      case 'tool': 
+        return 'tool';
+      case 'gear': 
+      default: 
+        return 'gear';
+    }
+  }
 
   private parseAbilityScores(ability: unknown): DndBackgroundData['abilityScores'] {
     if (!Array.isArray(ability) || ability.length === 0) {
@@ -371,7 +474,7 @@ export class TypedBackgroundConverter extends TypedConverter<
       return undefined;
     }
 
-    const tools: Array<{ tool: ItemReferenceObject, displayName: string }> = [];
+    const tools: Array<ItemReferenceObject> = [];
 
     for (const proficiencyObject of toolProficiencies) {
       if (!proficiencyObject || typeof proficiencyObject !== 'object') {
@@ -397,31 +500,18 @@ export class TypedBackgroundConverter extends TypedConverter<
         }
 
         // Handle specific tool names
-        const displayName = this.formatToolName(toolKey);
         const slug = generateSlug(toolKey);
 
-        tools.push({
-          tool: createReferenceObject(slug, 'item', {
-            pluginDocumentType: 'tool',
-            source: 'xphb'
-          }),
-          displayName
-        });
+        tools.push(createReferenceObject(slug, 'item', {
+          pluginDocumentType: 'tool',
+          source: 'xphb'
+        }));
       }
     }
 
     return tools.length > 0 ? tools : undefined;
   }
 
-  /**
-   * Format tool name to proper display format
-   */
-  private formatToolName(toolName: string): string {
-    return toolName
-      .split(' ')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join(' ');
-  }
 
   private parseEquipment(startingEquipment: unknown): DndBackgroundData['equipment'] {
     // Handle the array structure from 5etools
@@ -571,6 +661,28 @@ export class TypedBackgroundConverter extends TypedConverter<
     // Handle item name mappings for 2024 D&D rule changes
     itemName = this.mapItemName(itemName);
 
+    // Look up the actual item to determine its type
+    let pluginDocumentType = 'gear'; // Default fallback
+    
+    // Try to find the item in our loaded item data
+    const itemKey = `${itemName.toLowerCase()}|${source.toLowerCase()}`;
+    const foundItem = this.itemMap.get(itemKey);
+    
+    if (foundItem) {
+      // Use the actual item type from 5etools data
+      const itemType = this.determineItemType(foundItem);
+      pluginDocumentType = this.mapItemTypeToPluginDocumentType(itemType, foundItem);
+    } else {
+      // Try with original name if mapping didn't work
+      const originalItemKey = `${parts[0].toLowerCase()}|${source.toLowerCase()}`;
+      const originalFoundItem = this.itemMap.get(originalItemKey);
+      
+      if (originalFoundItem) {
+        const itemType = this.determineItemType(originalFoundItem);
+        pluginDocumentType = this.mapItemTypeToPluginDocumentType(itemType, originalFoundItem);
+      }
+    }
+
     // Generate the slug from the mapped item name
     const slug = generateSlug(itemName);
 
@@ -578,6 +690,7 @@ export class TypedBackgroundConverter extends TypedConverter<
     return {
       _ref: {
         documentType: 'item' as const,
+        pluginDocumentType,
         slug,
         source: source.toLowerCase()
       }

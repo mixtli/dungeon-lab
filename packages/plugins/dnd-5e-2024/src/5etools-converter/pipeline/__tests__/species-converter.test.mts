@@ -253,8 +253,8 @@ describe('TypedSpeciesConverter - Comprehensive Tests', () => {
       const cantripRef = spellProgression.cantrips![0].spell;
       
       expect(cantripRef._ref).toBeDefined();
-      expect(cantripRef._ref.type).toBe('vtt-document');
-      expect(cantripRef._ref.pluginType).toBe('spell');
+      expect(cantripRef._ref.documentType).toBe('vtt-document');
+      expect(cantripRef._ref.pluginDocumentType).toBe('spell');
       expect(cantripRef._ref.slug).toBe('dancing-lights');
       expect(cantripRef._ref.source).toBe('XPHB');
     });
@@ -263,8 +263,8 @@ describe('TypedSpeciesConverter - Comprehensive Tests', () => {
       const spellRef = spellProgression.spellsByLevel!['3'][0].spell;
       
       expect(spellRef._ref).toBeDefined();
-      expect(spellRef._ref.type).toBe('vtt-document');
-      expect(spellRef._ref.pluginType).toBe('spell');
+      expect(spellRef._ref.documentType).toBe('vtt-document');
+      expect(spellRef._ref.pluginDocumentType).toBe('spell');
       expect(spellRef._ref.slug).toBe('faerie-fire');
       expect(spellRef._ref.source).toBe('XPHB');
     });
