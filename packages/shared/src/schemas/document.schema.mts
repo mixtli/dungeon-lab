@@ -59,7 +59,10 @@ export const baseDocumentSchema = baseSchema.extend({
   
   // Asset references (for images, avatars, etc.)
   imageId: z.string().optional(),
-  thumbnailId: z.string().optional()
+  thumbnailId: z.string().optional(),
+  
+  // Owner reference (for items owned by characters/actors)
+  ownerId: z.string().optional()
 });
 
 /**

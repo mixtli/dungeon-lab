@@ -8,7 +8,7 @@ import type { BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
 
 // Create server-specific base document schema with ObjectId references
 const serverBaseDocumentSchema = baseDocumentSchema.extend({
-  campaignId: zId('Campaign'),
+  campaignId: zId('Campaign').optional(),
   compendiumId: zId('Compendium').optional(),
   imageId: zId('Asset').optional(),
   thumbnailId: zId('Asset').optional(),
@@ -54,12 +54,12 @@ baseMongooseSchema.index({ 'inventory.itemId': 1 });                    // Find 
 baseMongooseSchema.index({ campaignId: 1, 'inventory.itemId': 1 });     // Campaign-scoped inventory queries
 baseMongooseSchema.index({ 'inventory.equipped': 1, 'inventory.slot': 1 }); // Find equipped items by slot
 
-// Slug uniqueness for VTT documents (sparse index - only applies to documents with slug)
+// Slug index for VTT documents (non-unique since items can have duplicate slugs)
 baseMongooseSchema.index({ 
   slug: 1, 
   pluginId: 1, 
   documentType: 1 
-}, { unique: true, sparse: true });
+}, { sparse: true });
 
 // Text search index
 baseMongooseSchema.index({ 

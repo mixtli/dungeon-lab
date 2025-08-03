@@ -7,10 +7,11 @@ import type { IItem } from '@dungeon-lab/shared/types/index.mjs';
 
 // Create server-specific item schema with ObjectId references
 const serverItemSchema = itemSchema.extend({
-  campaignId: zId('Campaign'), // Required - items must belong to campaigns
+  campaignId: zId('Campaign').optional(), // Optional - items created during character creation don't belong to campaigns
   compendiumId: zId('Compendium').optional(),
   imageId: zId('Asset').optional(),
-  thumbnailId: zId('Asset').optional()
+  thumbnailId: zId('Asset').optional(),
+  ownerId: zId('Document').optional() // Reference to owning character/actor document
 });
 
 // Create the discriminator schema (omit documentType as it's handled by discriminator)

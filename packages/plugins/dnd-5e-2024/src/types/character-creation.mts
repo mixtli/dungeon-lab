@@ -20,7 +20,7 @@ export interface ClassSelection {
   name: string;
   selectedSkills: string[];
   selectedTools: ToolGroupSelection[];  // New: tool group selections
-  selectedEquipment: 'A' | 'B';
+  selectedEquipment: string; // Label of selected equipment choice (e.g., "Option A")
 }
 
 // Species data
@@ -133,7 +133,7 @@ export const classSelectionSchema = z.object({
   name: z.string().min(1),
   selectedSkills: z.array(z.string()),
   selectedTools: z.array(toolGroupSelectionSchema),
-  selectedEquipment: z.enum(['A', 'B'])
+  selectedEquipment: z.string().min(1)
 });
 
 export const speciesSelectionSchema = z.object({

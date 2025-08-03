@@ -1,8 +1,10 @@
 import { reactive, computed, readonly } from 'vue';
-import { CompendiumsClient } from '@dungeon-lab/client/index.mjs';
+import { CompendiumsClient, DocumentsClient } from '@dungeon-lab/client/index.mjs';
 import type { ICompendiumEntry } from '@dungeon-lab/shared/types/index.mjs';
 import { resolveReferenceOrObjectId, resolveMultipleReferences } from '@dungeon-lab/shared/utils/index.mjs';
 import type { ReferenceOrObjectId } from '@dungeon-lab/shared/types/reference.mjs';
+import { processCharacterEquipment } from '../utils/equipment-processor.mjs';
+import type { EquipmentSelections } from '../utils/equipment-processor.mjs';
 import type {
   CharacterCreationState,
   ClassSelection,
@@ -61,8 +63,9 @@ export function useCharacterCreation() {
     isValid: false
   });
 
-  // Create compendium client instance
+  // Create client instances
   const compendiumClient = new CompendiumsClient();
+  const documentsClient = new DocumentsClient();
 
   // Computed properties
   const currentStepData = computed(() => FORM_STEPS[state.currentStep]);
@@ -387,92 +390,86 @@ export function useCharacterCreation() {
       throw new Error('Character data is not complete or valid');
     }
 
-    // First gather the creator format data (same as before)
-    const creatorData = {
-      // Basic info from main system
-      name: basicInfo.name,
-      description: basicInfo.description,
-      avatarImage: basicInfo.avatarImage,
-      tokenImage: basicInfo.tokenImage,
+    try {
+      // Transform character data to proper D&D schema format with empty inventory
+      const transformedPluginData = await transformCharacterCreatorData(characterData, basicInfo);
       
-      // D&D 5e specific data
-      gameSystem: 'dnd-5e-2024',
-      characterClass: {
-        id: characterData.class.id,
-        name: characterData.class.name,
-        selectedSkills: characterData.class.selectedSkills,
-        selectedTools: characterData.class.selectedTools,
-        selectedEquipment: characterData.class.selectedEquipment
-      },
-      species: {
-        id: characterData.origin.species.id,
-        name: characterData.origin.species.name,
-        subspecies: characterData.origin.species.subspecies
-      },
-      background: {
-        id: characterData.origin.background.id,
-        name: characterData.origin.background.name,
-        selectedEquipment: characterData.origin.background.selectedEquipment
-      },
-      languages: characterData.origin.selectedLanguages.map(lang => lang.id),
-      abilityScores: {
-        method: characterData.abilities.method,
-        strength: characterData.abilities.strength,
-        dexterity: characterData.abilities.dexterity,
-        constitution: characterData.abilities.constitution,
-        intelligence: characterData.abilities.intelligence,
-        wisdom: characterData.abilities.wisdom,
-        charisma: characterData.abilities.charisma,
-        backgroundChoice: characterData.abilities.backgroundChoice
-      },
-      alignment: characterData.details.alignment,
-      personalDetails: {
-        age: characterData.details.age,
-        height: characterData.details.height,
-        weight: characterData.details.weight,
-        eyes: characterData.details.eyes,
-        hair: characterData.details.hair,
-        skin: characterData.details.skin
-      },
-      personality: {
-        traits: characterData.details.personalityTraits,
-        ideals: characterData.details.ideals,
-        bonds: characterData.details.bonds,
-        flaws: characterData.details.flaws
-      },
-      backstory: characterData.details.backstory,
-      allies: characterData.details.allies,
-      additionalFeatures: characterData.details.additionalFeatures
-    };
-    
-    // Now transform character data directly to proper D&D schema format
-    const transformedPluginData = await transformCharacterCreatorData(characterData, basicInfo);
-    
-    // Return complete document structure
-    return {
-      // Document-level fields
-      name: creatorData.name,
-      description: creatorData.description || '',
-      // Only include image fields if they have actual values (not null)
-      ...(creatorData.avatarImage && { imageId: creatorData.avatarImage }),
-      ...(creatorData.tokenImage && { thumbnailId: creatorData.tokenImage }),
-      
-      // Plugin-specific data in proper D&D schema format
-      pluginData: transformedPluginData
-    };
+      // STEP 1: Create character document with empty inventory
+      const characterDocument = await documentsClient.createDocument({
+        // Document-level fields
+        name: basicInfo.name,
+        description: basicInfo.description || '',
+        documentType: 'character',
+        pluginDocumentType: 'character',
+        pluginId: 'dnd-5e-2024',
+        userData: {},
+        // Only include image fields if they have actual values (not null)
+        ...(basicInfo.avatarImage && { imageId: basicInfo.avatarImage }),
+        ...(basicInfo.tokenImage && { thumbnailId: basicInfo.tokenImage }),
+        
+        // Plugin-specific data in proper D&D schema format with empty inventory
+        pluginData: transformedPluginData
+      });
+
+      if (!characterDocument || !characterDocument.id) {
+        throw new Error('Failed to create character document');
+      }
+
+      // STEP 2: Create equipment items with character as owner
+      const equipmentSelections: EquipmentSelections = {
+        classEquipment: characterData.class.selectedEquipment,
+        backgroundEquipment: characterData.origin.background.selectedEquipment
+      };
+
+      // Fetch class and background documents for equipment processing
+      const [classDocument, backgroundDocument] = await Promise.all([
+        compendiumClient.getCompendiumEntry(characterData.class.id),
+        compendiumClient.getCompendiumEntry(characterData.origin.background.id)
+      ]);
+
+      const createdEquipment = await processCharacterEquipment(
+        equipmentSelections,
+        classDocument.content as any, // DndCharacterClassDocument
+        backgroundDocument.content as any, // DndBackgroundDocument
+        characterDocument.id
+      );
+
+      // STEP 3: Update character document with equipment inventory
+      const updatedCharacter = await documentsClient.patchDocument(characterDocument.id, {
+        pluginData: {
+          ...transformedPluginData,
+          inventory: {
+            equipped: {
+              armor: createdEquipment.armor,
+              shield: createdEquipment.shield,
+              weapons: createdEquipment.weapons,
+              accessories: createdEquipment.accessories
+            },
+            carried: createdEquipment.carried,
+            attunedItems: [],
+            currency: createdEquipment.startingMoney
+          }
+        }
+      });
+
+      // Return the complete character document
+      return updatedCharacter || characterDocument;
+
+    } catch (error) {
+      console.error('Failed to create character with equipment:', error);
+      throw error;
+    }
   };
   
   // Internal transformation function to convert creator data to D&D schema
   const transformCharacterCreatorData = async (creatorData: CharacterCreationFormData, basicInfo: BasicCharacterInfo) => {
     // Fetch compendium documents for class, species, and background
-    const [classDocument, speciesDocument, backgroundDocument] = await Promise.all([
+    const [classDocument, backgroundDocument] = await Promise.all([
       compendiumClient.getCompendiumEntry(creatorData.class.id),
-      compendiumClient.getCompendiumEntry(creatorData.origin.species.id),
       compendiumClient.getCompendiumEntry(creatorData.origin.background.id)
     ]);
     
     const classData = classDocument.content as DndCharacterClassDocument;
-    const speciesData = speciesDocument.content as DndSpeciesDocument;
     const backgroundData = backgroundDocument.content as DndBackgroundDocument;
     
     // Helper function to calculate ability modifier
@@ -491,7 +488,7 @@ export function useCharacterCreation() {
     // Transform simple ability scores to complex D&D schema format
     const abilities = {
       strength: (() => {
-        const base = creatorData.abilities.strength;
+        const base = creatorData.abilities.strength || 10;
         const racial = creatorData.abilities.backgroundChoice?.strength || 0;
         const enhancement = 0;
         const total = calculateAbilityTotal(base, racial, enhancement);
@@ -506,7 +503,7 @@ export function useCharacterCreation() {
         };
       })(),
       dexterity: (() => {
-        const base = creatorData.abilities.dexterity;
+        const base = creatorData.abilities.dexterity || 10;
         const racial = creatorData.abilities.backgroundChoice?.dexterity || 0;
         const enhancement = 0;
         const total = calculateAbilityTotal(base, racial, enhancement);
@@ -521,7 +518,7 @@ export function useCharacterCreation() {
         };
       })(),
       constitution: (() => {
-        const base = creatorData.abilities.constitution;
+        const base = creatorData.abilities.constitution || 10;
         const racial = creatorData.abilities.backgroundChoice?.constitution || 0;
         const enhancement = 0;
         const total = calculateAbilityTotal(base, racial, enhancement);
@@ -536,7 +533,7 @@ export function useCharacterCreation() {
         };
       })(),
       intelligence: (() => {
-        const base = creatorData.abilities.intelligence;
+        const base = creatorData.abilities.intelligence || 10;
         const racial = creatorData.abilities.backgroundChoice?.intelligence || 0;
         const enhancement = 0;
         const total = calculateAbilityTotal(base, racial, enhancement);
@@ -551,7 +548,7 @@ export function useCharacterCreation() {
         };
       })(),
       wisdom: (() => {
-        const base = creatorData.abilities.wisdom;
+        const base = creatorData.abilities.wisdom || 10;
         const racial = creatorData.abilities.backgroundChoice?.wisdom || 0;
         const enhancement = 0;
         const total = calculateAbilityTotal(base, racial, enhancement);
@@ -566,7 +563,7 @@ export function useCharacterCreation() {
         };
       })(),
       charisma: (() => {
-        const base = creatorData.abilities.charisma;
+        const base = creatorData.abilities.charisma || 10;
         const racial = creatorData.abilities.backgroundChoice?.charisma || 0;
         const enhancement = 0;
         const total = calculateAbilityTotal(base, racial, enhancement);
@@ -804,9 +801,7 @@ export function useCharacterCreation() {
       size: 'medium' as const,
       
       // Source information
-      source: 'character-creator',
-      creationDate: new Date(),
-      lastModified: new Date()
+      source: 'character-creator'
     };
   };
 

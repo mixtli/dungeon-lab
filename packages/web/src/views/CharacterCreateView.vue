@@ -186,6 +186,24 @@ async function handleCharacterReady(documentData: any) {
   try {
     isSubmitting.value = true;
     
+    // Check if this is already a created document (has an id)
+    if (documentData.id) {
+      console.log('Character already created, skipping creation step');
+      
+      // Clear session storage
+      sessionStorage.removeItem('actorCreationState');
+      
+      // Set current actor in the store
+      await actorStore.setCurrentActor(documentData.id);
+      
+      // Navigate to the character sheet
+      router.push({ name: 'character-sheet', params: { id: documentData.id } });
+      return;
+    }
+    
+    // Legacy flow: create the character document
+    console.log('Creating new character document');
+    
     // 1. Validate document-level structure
     const documentValidation = createDocumentSchema.safeParse({
       ...documentData,

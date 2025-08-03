@@ -3,7 +3,6 @@ import { actorSchema } from '@dungeon-lab/shared/schemas/index.mjs';
 import { referenceOrObjectIdSchema } from '@dungeon-lab/shared/types/reference.mjs';
 import {
   spellReferenceObjectSchema,
-  itemReferenceObjectSchema,
   abilitySchema,
   skillSchema,
   restTypeSchema,
@@ -205,48 +204,47 @@ export const characterSpellcastingSchema = z.object({
 
 /**
  * Equipment and inventory system
+ * 
+ * Items are now references to actual Item documents (ObjectIds).
+ * Runtime properties like quantity, condition, enhancement are stored on the Item documents.
+ * Character inventory only tracks character-specific state: equipped slots, mastery activation, etc.
  */
 export const characterInventorySchema = z.object({
   /** Equipped items */
   equipped: z.object({
-    armor: z.object({
-      item: itemReferenceObjectSchema.optional(),
-      ac: z.number().optional(),
-      enhancementBonus: z.number().default(0)
-    }).optional(),
+    /** Equipped armor (ObjectId reference to Item document) */
+    armor: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Must be a valid ObjectId').optional(),
     
-    shield: z.object({
-      item: itemReferenceObjectSchema.optional(),
-      ac: z.number().optional(),
-      enhancementBonus: z.number().default(0)
-    }).optional(),
+    /** Equipped shield (ObjectId reference to Item document) */
+    shield: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Must be a valid ObjectId').optional(),
+
     
-    /** 2024: Weapon mastery tracking */
+    /** 2024: Equipped weapons with character-specific mastery state */
     weapons: z.array(z.object({
-      item: itemReferenceObjectSchema,
+      /** ObjectId reference to Item document */
+      item: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Must be a valid ObjectId'),
+      /** Equipment slot */
       slot: z.enum(['main_hand', 'off_hand', 'two_handed']),
-      masteryActive: z.boolean().default(false),
-      enhancementBonus: z.number().default(0)
+      /** Whether character is using weapon mastery (character ability, not item property) */
+      masteryActive: z.boolean().default(false)
     })).default([]),
     
+    /** Equipped accessories (rings, amulets, etc.) */
     accessories: z.array(z.object({
-      item: itemReferenceObjectSchema,
-      slot: z.string() // ring, amulet, etc.
+      /** ObjectId reference to Item document */
+      item: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Must be a valid ObjectId'),
+      /** Equipment slot (ring, amulet, etc.) */
+      slot: z.string()
     })).default([])
   }),
   
-  /** Carried items */
-  carried: z.array(z.object({
-    item: itemReferenceObjectSchema,
-    quantity: z.number().min(1).default(1),
-    identified: z.boolean().default(true),
-    location: z.string().optional() // backpack, belt pouch, etc.
-  })).default([]),
+  /** Carried items (ObjectId references to Item documents) */
+  carried: z.array(z.string().regex(/^[0-9a-fA-F]{24}$/, 'Must be a valid ObjectId')).default([]),
   
-  /** Attuned magical items (max 3) */
-  attunedItems: z.array(itemReferenceObjectSchema).max(3).default([]),
+  /** Attuned magical items (max 3) - ObjectId references to Item documents */
+  attunedItems: z.array(z.string().regex(/^[0-9a-fA-F]{24}$/, 'Must be a valid ObjectId')).max(3).default([]),
   
-  /** Currency */
+  /** Character's currency */
   currency: z.object({
     platinum: z.number().min(0).default(0),
     gold: z.number().min(0).default(0),

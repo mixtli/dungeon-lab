@@ -720,13 +720,45 @@ const availableAbilityScores = computed(() => {
     localData.value.charisma
   ].filter(score => score !== undefined && score !== null) as number[];
   
-  // Filter out already assigned scores
-  const availableScores = sourceScores.filter(score => !assignedScores.includes(score));
+  // Count how many times each score is assigned
+  const assignedCounts = new Map<number, number>();
+  assignedScores.forEach(score => {
+    assignedCounts.set(score, (assignedCounts.get(score) || 0) + 1);
+  });
   
-  return availableScores.map(score => ({
-    value: score,
-    label: score.toString()
-  }));
+  // Build available scores by removing only the assigned count of each score
+  const availableScores: number[] = [];
+  const sourceCounts = new Map<number, number>();
+  
+  // Count occurrences in source scores
+  sourceScores.forEach(score => {
+    sourceCounts.set(score, (sourceCounts.get(score) || 0) + 1);
+  });
+  
+  // For each unique score, add the unassigned instances to available
+  sourceCounts.forEach((totalCount, score) => {
+    const assignedCount = assignedCounts.get(score) || 0;
+    const availableCount = totalCount - assignedCount;
+    
+    for (let i = 0; i < availableCount; i++) {
+      availableScores.push(score);
+    }
+  });
+  
+  // Add the clear option at the beginning, then the available scores
+  const options = [{
+    value: null,
+    label: "-- Clear --"
+  }];
+  
+  availableScores.forEach(score => {
+    options.push({
+      value: score,
+      label: score.toString()
+    });
+  });
+  
+  return options;
 });
 
 // Calculate ability modifier from score
@@ -847,17 +879,40 @@ const handleAbilitySelection = (ability: 'strength' | 'dexterity' | 'constitutio
   // Create a new object to trigger reactivity
   const newData = { ...localData.value };
   
-  // If we're reassigning a score that was previously used elsewhere, we need to clear that other assignment first
+  // If we're assigning a score, check if we need to clear other assignments
   if (score !== null && score !== undefined) {
+    // Determine source scores based on method
+    let sourceScores: number[];
+    if (newData.method === 'standard') {
+      sourceScores = [15, 14, 13, 12, 10, 8];
+    } else if (newData.method === 'roll') {
+      sourceScores = newData.availableScores || [];
+    } else {
+      sourceScores = [];
+    }
+    
+    // Count how many of this score are available in total
+    const totalAvailable = sourceScores.filter(s => s === score).length;
+    
+    // Count how many of this score are currently assigned (excluding the current ability)
     const abilities: Array<'strength' | 'dexterity' | 'constitution' | 'intelligence' | 'wisdom' | 'charisma'> = 
       ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'];
     
-    // Find any other ability that has this same score and clear it
-    abilities.forEach(otherAbility => {
-      if (otherAbility !== ability && newData[otherAbility] === score) {
-        newData[otherAbility] = undefined;
+    const currentlyAssigned = abilities
+      .filter(otherAbility => otherAbility !== ability)
+      .filter(otherAbility => newData[otherAbility] === score)
+      .length;
+    
+    // Only clear other assignments if we would exceed the available count
+    if (currentlyAssigned >= totalAvailable) {
+      // Find the first other ability with this score and clear it
+      const abilityToClear = abilities.find(otherAbility => 
+        otherAbility !== ability && newData[otherAbility] === score
+      );
+      if (abilityToClear) {
+        newData[abilityToClear] = undefined;
       }
-    });
+    }
   }
   
   // Assign the new score
