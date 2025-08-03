@@ -265,11 +265,14 @@ export class CompendiumService {
         }
       }
       
-      // Map _id to id for each entry
-      const mappedEntries = entries.map(entry => ({
-        ...entry,
-        id: entry._id?.toString?.() || entry.id,
-      }));
+      // Map _id to id for each entry and remove _id field
+      const mappedEntries = entries.map(entry => {
+        const { _id, ...rest } = entry;
+        return {
+          ...rest,
+          id: _id?.toString() || entry.id,
+        };
+      });
 
       return {
         entries: mappedEntries,
@@ -677,11 +680,14 @@ export class CompendiumService {
         }
       }
       
-      // Map _id to id for each entry
-      const mappedEntries = entries.map(entry => ({
-        ...entry,
-        id: entry._id?.toString?.() || entry.id,
-      }));
+      // Map _id to id for each entry and remove _id field
+      const mappedEntries = entries.map(entry => {
+        const { _id, ...rest } = entry;
+        return {
+          ...rest,
+          id: _id?.toString() || entry.id,
+        };
+      });
 
       return {
         entries: mappedEntries,

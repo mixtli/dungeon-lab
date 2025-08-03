@@ -1,9 +1,7 @@
 import { z } from 'zod';
 import { actorSchema } from '@dungeon-lab/shared/schemas/index.mjs';
+import { referenceOrObjectIdSchema } from '@dungeon-lab/shared/types/reference.mjs';
 import {
-  speciesReferenceObjectSchema,
-  backgroundReferenceObjectSchema,
-  classReferenceObjectSchema,
   spellReferenceObjectSchema,
   featReferenceObjectSchema,
   itemReferenceObjectSchema,
@@ -14,8 +12,7 @@ import {
   alignmentSchema,
   creatureSizeSchema,
   armorProficiencySchema,
-  weaponProficiencySchema,
-  languageSchema
+  weaponProficiencySchema
 } from './common.mjs';
 
 /**
@@ -292,15 +289,15 @@ export const dndCharacterDataSchema = z.object({
   name: z.string(),
   
   /** Character origin (2024 system) */
-  species: speciesReferenceObjectSchema,
-  background: backgroundReferenceObjectSchema,
+  species: referenceOrObjectIdSchema,
+  background: referenceOrObjectIdSchema,
   
   /** Character classes */
   classes: z.array(z.object({
-    class: classReferenceObjectSchema,
+    class: referenceOrObjectIdSchema,
     level: z.number().min(1).max(20),
     subclass: z.object({
-      subclass: classReferenceObjectSchema,
+      subclass: referenceOrObjectIdSchema,
       level: z.number().min(1).max(20)
     }).optional(),
     hitPointsRolled: z.array(z.number()).optional()
@@ -327,7 +324,7 @@ export const dndCharacterDataSchema = z.object({
       proficient: z.boolean().default(true),
       expert: z.boolean().default(false)
     })).default([]),
-    languages: z.array(languageSchema).default([])
+    languages: z.array(referenceOrObjectIdSchema).default([])
   }),
   
   /** Spellcasting */

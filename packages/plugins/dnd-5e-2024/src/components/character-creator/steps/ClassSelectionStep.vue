@@ -251,7 +251,7 @@ if (!localData.value.selectedTools) {
 }
 
 // Compendium data
-const availableClasses = ref<DndCharacterClassDocument[]>([]);
+const availableClasses = ref<Array<{entryId: string, document: DndCharacterClassDocument}>>([]);
 const loading = ref(false);
 const error = ref<string | null>(null);
 const itemNameCache = ref<Map<string, string>>(new Map());
@@ -297,7 +297,7 @@ const isValid = computed(() => {
 });
 
 const selectedClass = computed(() => {
-  return availableClasses.value.find(cls => cls.id === localData.value.id);
+  return availableClasses.value.find(cls => cls.entryId === localData.value.id)?.document;
 });
 
 const hasGroupChoiceTools = computed(() => {
@@ -305,9 +305,9 @@ const hasGroupChoiceTools = computed(() => {
 });
 
 const classSelectOptions = computed(() => {
-  return availableClasses.value.map(classDoc => ({
-    id: classDoc.id,
-    name: classDoc.name
+  return availableClasses.value.map(classItem => ({
+    id: classItem.entryId,
+    name: classItem.document.name
   }));
 });
 

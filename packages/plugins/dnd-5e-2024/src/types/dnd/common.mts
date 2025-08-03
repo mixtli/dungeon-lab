@@ -41,13 +41,7 @@ export const CONDITIONS_2024 = [
 export const conditionSchema = z.enum(CONDITIONS_2024);
 export type Condition = z.infer<typeof conditionSchema>;
 
-// D&D 5e 2024 Languages
-export const LANGUAGES_2024 = [
-  'common', 'dwarvish', 'elvish', 'giant', 'gnomish', 'goblin', 'halfling', 'orc', 
-  'abyssal', 'celestial', 'deep speech', 'draconic', 'druidic', 'ignan', 'infernal', 
-  'primordial', 'sylvan', 'terran', 'undercommon', 'telepathy'
-] as const;
-export const languageSchema = z.enum(LANGUAGES_2024);
+// D&D 5e 2024 Languages are now compendium documents - use referenceOrObjectIdSchema
 
 // D&D 5e 2024 Armor Proficiencies
 export const ARMOR_PROFICIENCIES = [
@@ -62,13 +56,13 @@ export const WEAPON_PROFICIENCIES = [
 ] as const;
 export const weaponProficiencySchema = z.enum(WEAPON_PROFICIENCIES);
 export type WeaponProficiency = z.infer<typeof weaponProficiencySchema>;
-export type Language = z.infer<typeof languageSchema>;
+// Language type removed - use referenceOrObjectIdSchema for language references
 
-// D&D 5e 2024 Alignments
+// D&D 5e 2024 Alignments (slug format)
 export const ALIGNMENTS_2024 = [
-  'lawful good', 'neutral good', 'chaotic good', 
-  'lawful neutral', 'neutral', 'chaotic neutral', 
-  'lawful evil', 'neutral evil', 'chaotic evil', 'unaligned'
+  'lawful-good', 'neutral-good', 'chaotic-good', 
+  'lawful-neutral', 'neutral', 'chaotic-neutral', 
+  'lawful-evil', 'neutral-evil', 'chaotic-evil', 'unaligned'
 ] as const;
 export const alignmentSchema = z.enum(ALIGNMENTS_2024);
 export type Alignment = z.infer<typeof alignmentSchema>;

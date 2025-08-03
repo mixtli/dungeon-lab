@@ -87,10 +87,7 @@
       <component
         :is="currentStepComponent"
         :model-value="getCurrentStepData()"
-        :origin-data="FORM_STEPS[currentStep].id === 'abilities' ? {
-          ...state.characterData.origin,
-          background: backgroundDocument
-        } : undefined"
+        :origin-data="state.characterData.origin"
         @update:model-value="handleStepDataUpdate"
         @validate="handleValidation"
         @next="handleNext"
@@ -137,9 +134,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted } from 'vue';
 import { useCharacterCreation } from '../composables/useCharacterCreation.mjs';
-import type { DndBackgroundDocument } from '../types/dnd/background.mjs';
 import type { BasicCharacterInfo } from '../types/character-creation.mjs';
 import Icon from './common/Icon.vue'; // Assuming there's a common Icon component
 import ClassSelectionStep from './character-creator/steps/ClassSelectionStep.vue';
@@ -182,28 +178,9 @@ const {
   validateCurrentStep,
   validateCompleteForm,
   createCompleteCharacterData,
-  fetchBackgrounds,
   FORM_STEPS
 } = useCharacterCreation();
 
-// Store full background document for ability scores step
-const backgroundDocument = ref<DndBackgroundDocument | null>(null);
-
-// Watch for origin changes to fetch background document
-watch(() => state.characterData.origin?.background.id, async (backgroundId) => {
-  if (backgroundId) {
-    try {
-      const backgrounds = await fetchBackgrounds();
-      backgroundDocument.value = backgrounds.find(bg => bg.id === backgroundId) || null;
-      console.log('Debug - Loaded background document:', backgroundDocument.value);
-    } catch (error) {
-      console.error('Failed to fetch background document:', error);
-      backgroundDocument.value = null;
-    }
-  } else {
-    backgroundDocument.value = null;
-  }
-}, { immediate: true });
 
 // Computed properties
 const currentStep = computed(() => state.currentStep);

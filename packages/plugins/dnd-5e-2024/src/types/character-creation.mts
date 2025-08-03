@@ -80,8 +80,8 @@ export interface AbilityScores {
 // Character details
 export interface CharacterDetails {
   alignment: 'lawful-good' | 'neutral-good' | 'chaotic-good' | 
-           'lawful-neutral' | 'true-neutral' | 'chaotic-neutral' |
-           'lawful-evil' | 'neutral-evil' | 'chaotic-evil';
+           'lawful-neutral' | 'neutral' | 'chaotic-neutral' |
+           'lawful-evil' | 'neutral-evil' | 'chaotic-evil' | 'unaligned';
   age?: string;
   height?: string;
   weight?: string;
@@ -204,8 +204,8 @@ export const abilityScoresSchema = z.object({
 export const characterDetailsSchema = z.object({
   alignment: z.enum([
     'lawful-good', 'neutral-good', 'chaotic-good',
-    'lawful-neutral', 'true-neutral', 'chaotic-neutral',
-    'lawful-evil', 'neutral-evil', 'chaotic-evil'
+    'lawful-neutral', 'neutral', 'chaotic-neutral',
+    'lawful-evil', 'neutral-evil', 'chaotic-evil', 'unaligned'
   ]),
   age: z.string().optional(),
   height: z.string().optional(),

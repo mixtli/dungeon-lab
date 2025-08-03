@@ -224,60 +224,72 @@ export function useCharacterCreation() {
   };
 
   // Compendium data fetching methods using global search
-  const fetchClasses = async (): Promise<DndCharacterClassDocument[]> => {
+  const fetchClasses = async (): Promise<Array<{entryId: string, document: DndCharacterClassDocument}>> => {
     try {
       const response = await compendiumClient.getAllCompendiumEntries({
         pluginId: 'dnd-5e-2024',
         documentType: 'vtt-document',
         pluginDocumentType: 'character-class'
       });
-      // Extract the actual D&D class documents from compendium entries
-      return response.entries.map((entry: ICompendiumEntry) => entry.content as DndCharacterClassDocument);
+      // Return both compendium entry ObjectId and document content
+      return response.entries.map((entry: ICompendiumEntry) => ({
+        entryId: entry.id,
+        document: entry.content as DndCharacterClassDocument
+      }));
     } catch (error) {
       console.error('Failed to fetch classes:', error);
       throw new Error('Failed to load character classes');
     }
   };
 
-  const fetchSpecies = async (): Promise<DndSpeciesDocument[]> => {
+  const fetchSpecies = async (): Promise<Array<{entryId: string, document: DndSpeciesDocument}>> => {
     try {
       const response = await compendiumClient.getAllCompendiumEntries({
         pluginId: 'dnd-5e-2024',
         documentType: 'vtt-document',
         pluginDocumentType: 'species'
       });
-      // Extract the actual D&D species documents from compendium entries
-      return response.entries.map((entry: ICompendiumEntry) => entry.content as DndSpeciesDocument);
+      // Return both compendium entry ObjectId and document content
+      return response.entries.map((entry: ICompendiumEntry) => ({
+        entryId: entry.id,
+        document: entry.content as DndSpeciesDocument
+      }));
     } catch (error) {
       console.error('Failed to fetch species:', error);
       throw new Error('Failed to load character species');
     }
   };
 
-  const fetchBackgrounds = async (): Promise<DndBackgroundDocument[]> => {
+  const fetchBackgrounds = async (): Promise<Array<{entryId: string, document: DndBackgroundDocument}>> => {
     try {
       const response = await compendiumClient.getAllCompendiumEntries({
         pluginId: 'dnd-5e-2024',
         documentType: 'vtt-document',
         pluginDocumentType: 'background'
       });
-      // Extract the actual D&D background documents from compendium entries
-      return response.entries.map((entry: ICompendiumEntry) => entry.content as DndBackgroundDocument);
+      // Return both compendium entry ObjectId and document content
+      return response.entries.map((entry: ICompendiumEntry) => ({
+        entryId: entry.id,
+        document: entry.content as DndBackgroundDocument
+      }));
     } catch (error) {
       console.error('Failed to fetch backgrounds:', error);
       throw new Error('Failed to load character backgrounds');
     }
   };
 
-  const fetchLanguages = async (): Promise<DndLanguageDocument[]> => {
+  const fetchLanguages = async (): Promise<Array<{entryId: string, document: DndLanguageDocument}>> => {
     try {
       const response = await compendiumClient.getAllCompendiumEntries({
         pluginId: 'dnd-5e-2024',
         documentType: 'vtt-document',
         pluginDocumentType: 'language'
       });
-      // Extract the actual D&D language documents from compendium entries
-      return response.entries.map((entry: ICompendiumEntry) => entry.content as DndLanguageDocument);
+      // Return both compendium entry ObjectId and document content
+      return response.entries.map((entry: ICompendiumEntry) => ({
+        entryId: entry.id,
+        document: entry.content as DndLanguageDocument
+      }));
     } catch (error) {
       console.error('Failed to fetch languages:', error);
       throw new Error('Failed to load languages');
@@ -391,7 +403,7 @@ export function useCharacterCreation() {
         name: characterData.origin.background.name,
         selectedEquipment: characterData.origin.background.selectedEquipment
       },
-      languages: characterData.origin.selectedLanguages.map(lang => lang.name),
+      languages: characterData.origin.selectedLanguages.map(lang => lang.id),
       abilityScores: {
         method: characterData.abilities.method,
         strength: characterData.abilities.strength,
@@ -497,22 +509,13 @@ export function useCharacterCreation() {
     return {
       name: creatorData.name,
       
-      // Character origin (2024 system)
-      species: {
-        id: creatorData.species.id,
-        name: creatorData.species.name
-      },
-      background: {
-        id: creatorData.background.id,
-        name: creatorData.background.name
-      },
+      // Character origin (2024 system) - send ObjectIds
+      species: creatorData.species.id,
+      background: creatorData.background.id,
       
-      // Character classes (array format for multiclassing)
+      // Character classes (array format for multiclassing) - send ObjectIds
       classes: [{
-        class: {
-          id: creatorData.characterClass.id,
-          name: creatorData.characterClass.name
-        },
+        class: creatorData.characterClass.id,
         level: 1
       }],
       
@@ -572,7 +575,7 @@ export function useCharacterCreation() {
         armor: [],
         weapons: [],
         tools: [],
-        languages: creatorData.languages || []
+        languages: creatorData.languages || [] // Send ObjectIds
       },
       
       // Inventory with defaults
@@ -599,11 +602,11 @@ export function useCharacterCreation() {
       // Roleplaying information
       roleplay: {
         alignment: creatorData.alignment,
-        personality: creatorData.personality?.traits || '',
-        ideals: creatorData.personality?.ideals || '',
-        bonds: creatorData.personality?.bonds || '',
-        flaws: creatorData.personality?.flaws || '',
-        appearance: `Age: ${creatorData.personalDetails?.age || ''}, Height: ${creatorData.personalDetails?.height || ''}, Weight: ${creatorData.personalDetails?.weight || ''}`,
+        personality: creatorData.personality.traits || '',
+        ideals: creatorData.personality.ideals || '',
+        bonds: creatorData.personality.bonds || '',
+        flaws: creatorData.personality.flaws || '',
+        appearance: `Age: ${creatorData.personalDetails.age || ''}, Height: ${creatorData.personalDetails.height || ''}, Weight: ${creatorData.personalDetails.weight || ''}`,
         backstory: creatorData.backstory || ''
       },
       

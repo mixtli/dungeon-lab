@@ -9,7 +9,7 @@
         <div class="character-details">
           <h1 class="character-name">{{ character.name }}</h1>
           <p class="character-subtitle">
-            Level {{ character.pluginData?.progression?.level || character.pluginData?.level || 1 }} {{ character.pluginData?.species?.name || character.pluginData?.race?.name || 'Human' }} {{ character.pluginData?.classes?.[0]?.class?.name || character.pluginData?.characterClass?.name || 'Fighter' }}
+            Level {{ (character.pluginData?.progression as any)?.level || (character.pluginData as any)?.level || 1 }} {{ speciesDisplayName }} {{ classDisplayName }}
           </p>
         </div>
       </div>
@@ -68,7 +68,7 @@
           </div>
         </div>
         
-        <div v-if="character.pluginData?.attributes?.inspiration || character.pluginData?.inspiration" class="inspiration-section">
+        <div v-if="(character.pluginData?.attributes as any)?.inspiration || (character.pluginData as any)?.inspiration" class="inspiration-section">
           <div class="inspiration-indicator">
             ⭐ Inspiration
           </div>
@@ -82,12 +82,12 @@
             v-for="(abilityScore, abilityName) in finalAbilities" 
             :key="abilityName"
             class="ability-card"
-            @click="rollAbilityCheck(abilityName)"
+            @click="rollAbilityCheck(abilityName as string)"
             :title="'Click to roll ' + abilityName + ' check'"
           >
-            <div class="ability-name">{{ abilityName.slice(0, 3).toUpperCase() }}</div>
+            <div class="ability-name">{{ (abilityName as string).slice(0, 3).toUpperCase() }}</div>
             <div class="ability-score">{{ abilityScore }}</div>
-            <div class="ability-modifier">{{ formatModifier(abilityModifiers[abilityName]) }}</div>
+            <div class="ability-modifier">{{ formatModifier(abilityModifiers[abilityName as string] || 0) }}</div>
           </div>
         </div>
         
@@ -98,14 +98,14 @@
               v-for="(abilityScore, abilityName) in finalAbilities" 
               :key="abilityName"
               class="save-item"
-              @click="rollSavingThrow(abilityName)"
+              @click="rollSavingThrow(abilityName as string)"
               :title="'Click to roll ' + abilityName + ' save'"
             >
-              <div class="save-prof" :class="{ proficient: savingThrowProficiencies[abilityName] }">
-                {{ savingThrowProficiencies[abilityName] ? '●' : '○' }}
+              <div class="save-prof" :class="{ proficient: savingThrowProficiencies[abilityName as string] }">
+                {{ savingThrowProficiencies[abilityName as string] ? '●' : '○' }}
               </div>
-              <div class="save-name">{{ abilityName.slice(0, 3).toUpperCase() }}</div>
-              <div class="save-bonus">{{ formatModifier(savingThrowBonuses[abilityName]) }}</div>
+              <div class="save-name">{{ (abilityName as string).slice(0, 3).toUpperCase() }}</div>
+              <div class="save-bonus">{{ formatModifier(savingThrowBonuses[abilityName as string] || 0) }}</div>
             </div>
           </div>
         </div>
@@ -115,10 +115,10 @@
       <div v-if="activeTab === 'skills'" class="tab-pane skills-tab">
         <div class="skills-list">
           <div 
-            v-for="(skill, skillName) in character.pluginData?.skills || DEFAULT_SKILLS" 
+            v-for="(skill, skillName) in characterSkills" 
             :key="skillName"
             class="skill-item"
-            @click="rollSkillCheck(skillName)"
+            @click="rollSkillCheck(skillName as string)"
             :title="'Click to roll ' + skillName + ' (' + skill.ability + ')'"
           >
             <div class="skill-prof" :class="skill.proficiency">
@@ -126,7 +126,7 @@
             </div>
             <div class="skill-name">{{ skillName }}</div>
             <div class="skill-ability">({{ skill.ability.slice(0, 3) }})</div>
-            <div class="skill-bonus">{{ formatModifier(skillBonuses[skillName]) }}</div>
+            <div class="skill-bonus">{{ formatModifier(skillBonuses[skillName] || 0) }}</div>
           </div>
         </div>
       </div>
@@ -171,9 +171,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { DEFAULT_SKILLS } from '@dungeon-lab/plugin-dnd-5e-2024/types/dnd/skills.mjs';
+import { ref, computed, onMounted, onUnmounted, watch, markRaw } from 'vue';
+import { CompendiumsClient } from '@dungeon-lab/client/index.mjs';
 import type { IActor, PluginContext } from '@dungeon-lab/shared/types/index.mjs';
+import type { DndCharacterClassDocument } from '../types/dnd/character-class.mjs';
+import type { DndSpeciesDocument } from '../types/dnd/species.mjs';
+import type { DndBackgroundDocument } from '../types/dnd/background.mjs';
 
 // Props
 interface Props {
@@ -186,8 +189,18 @@ const props = withDefaults(defineProps<Props>(), {
   readonly: false
 });
 
-// Use character directly - no transformation needed
-const character = computed(() => props.character);
+// Use character directly without reactive wrapper to avoid performance warnings
+const character = props.character;
+
+// Initialize compendium client for fetching documents
+const compendiumClient = new CompendiumsClient();
+
+// Compendium document data
+const speciesDocument = ref<DndSpeciesDocument | null>(null);
+const classDocument = ref<DndCharacterClassDocument | null>(null);
+const backgroundDocument = ref<DndBackgroundDocument | null>(null);
+const compendiumLoading = ref(false);
+const compendiumError = ref<string | null>(null);
 
 // Emits
 const emit = defineEmits<{
@@ -216,7 +229,7 @@ const tabs = [
 
 // Process ability scores from proper D&D schema
 const finalAbilities = computed(() => {
-  const abilities = props.character.pluginData?.abilities || {};
+  const abilities = character.pluginData?.abilities || {};
   const finalScores: Record<string, number> = {};
   
   // Standard ability names in order
@@ -251,20 +264,20 @@ const abilityModifiers = computed(() => {
 
 const proficiencyBonus = computed(() => {
   // Try D&D schema first
-  const progression = props.character.pluginData?.progression;
+  const progression = character.pluginData?.progression as any;
   if (progression?.proficiencyBonus) {
     return progression.proficiencyBonus;
   }
   
   // Calculate from level (fallback)
-  const level = progression?.level || props.character.pluginData?.level || 1;
+  const level = progression?.level || (character.pluginData as any)?.level || 1;
   return Math.ceil(level / 4) + 1;
 });
 
 // Determine saving throw proficiencies from D&D schema
 const savingThrowProficiencies = computed(() => {
   const proficiencies: Record<string, boolean> = {};
-  const abilities = props.character.pluginData?.abilities || {};
+  const abilities = character.pluginData?.abilities || {};
   
   // Use proficiencies from the D&D schema if available
   for (const abilityName of Object.keys(finalAbilities.value)) {
@@ -274,8 +287,8 @@ const savingThrowProficiencies = computed(() => {
     } else {
       // Fallback: determine from character class (legacy logic)
       proficiencies[abilityName] = false;
-      const characterClass = props.character.pluginData?.characterClass || props.character.pluginData?.classes?.[0]?.class;
-      if (characterClass?.id === 'character-class-wizard' && (abilityName === 'intelligence' || abilityName === 'wisdom')) {
+      // Use fetched class document for determining save proficiencies
+      if (classDocument.value?.pluginData?.proficiencies?.savingThrows?.includes(abilityName as 'strength' | 'dexterity' | 'constitution' | 'intelligence' | 'wisdom' | 'charisma')) {
         proficiencies[abilityName] = true;
       }
     }
@@ -294,35 +307,78 @@ const savingThrowBonuses = computed(() => {
   return bonuses;
 });
 
+// Skills structure from character data - no defaults
+const characterSkills = computed(() => {
+  const skills = character.pluginData?.skills || {};
+  
+  // Define standard D&D 5e skills with their abilities
+  const standardSkills = {
+    'acrobatics': 'dexterity',
+    'animal handling': 'wisdom',
+    'arcana': 'intelligence',
+    'athletics': 'strength',
+    'deception': 'charisma',
+    'history': 'intelligence',
+    'insight': 'wisdom',
+    'intimidation': 'charisma',
+    'investigation': 'intelligence',
+    'medicine': 'wisdom',
+    'nature': 'intelligence',
+    'perception': 'wisdom',
+    'performance': 'charisma',
+    'persuasion': 'charisma',
+    'religion': 'intelligence',
+    'sleight of hand': 'dexterity',
+    'stealth': 'dexterity',
+    'survival': 'wisdom'
+  };
+  
+  // Build skills from character data or standard list
+  const result: Record<string, { ability: string; proficiency: string }> = {};
+  
+  // Use character skills if they exist, otherwise create from standard list
+  if (Object.keys(skills).length > 0) {
+    for (const [skillName, skillData] of Object.entries(skills)) {
+      if (typeof skillData === 'object' && skillData !== null) {
+        result[skillName] = {
+          ability: skillData.ability || standardSkills[skillName as keyof typeof standardSkills] || 'wisdom',
+          proficiency: skillData.expert ? 'expertise' : 
+                      skillData.proficient ? 'proficient' : 
+                      skillData.half ? 'half' : 'none'
+        };
+      }
+    }
+  } else {
+    // Create from standard list with no proficiencies if character has no skills defined
+    for (const [skillName, ability] of Object.entries(standardSkills)) {
+      result[skillName] = {
+        ability,
+        proficiency: 'none'
+      };
+    }
+  }
+  
+  return result;
+});
+
 const skillBonuses = computed(() => {
   const bonuses: Record<string, number> = {};
-  const skills = props.character.pluginData?.skills || {};
   
-  // Use D&D schema skills if available, otherwise fall back to class selection
-  const selectedSkills = props.character.pluginData?.characterClass?.selectedSkills || 
-                         props.character.pluginData?.classes?.[0]?.class?.selectedSkills || [];
-  
-  for (const [skillName, skill] of Object.entries(DEFAULT_SKILLS)) {
+  for (const [skillName, skill] of Object.entries(characterSkills.value)) {
     const abilityMod = abilityModifiers.value[skill.ability] || 0;
     let profBonus = 0;
     
-    // Check D&D schema skills first
-    const skillData = skills[skillName];
-    if (skillData && typeof skillData === 'object') {
-      if (skillData.expert) {
-        profBonus = proficiencyBonus.value * 2;
-      } else if (skillData.proficient) {
-        profBonus = proficiencyBonus.value;
-      }
-      bonuses[skillName] = abilityMod + profBonus + (skillData.bonus || 0);
-    } else {
-      // Fallback: check if skill is proficient from class selection
-      if (selectedSkills.includes(skillName)) {
-        profBonus = proficiencyBonus.value;
-      }
-      bonuses[skillName] = abilityMod + profBonus;
+    if (skill.proficiency === 'expertise') {
+      profBonus = proficiencyBonus.value * 2;
+    } else if (skill.proficiency === 'proficient') {
+      profBonus = proficiencyBonus.value;
+    } else if (skill.proficiency === 'half') {
+      profBonus = Math.floor(proficiencyBonus.value / 2);
     }
+    
+    bonuses[skillName] = abilityMod + profBonus;
   }
+  
   return bonuses;
 });
 
@@ -332,59 +388,78 @@ const passivePerception = computed(() => {
 });
 
 const armorClassDisplay = computed(() => {
-  const attributes = props.character.pluginData?.attributes;
+  const attributes = character.pluginData?.attributes as any;
   if (attributes?.armorClass?.value) {
     return attributes.armorClass.value;
   }
-  return props.character.pluginData?.armorClass || 10;
+  return (character.pluginData as any)?.armorClass || 10;
 });
 
 const hitPointsDisplay = computed(() => {
-  const attributes = props.character.pluginData?.attributes;
+  const attributes = character.pluginData?.attributes as any;
   if (attributes?.hitPoints) {
     return `${attributes.hitPoints.current}/${attributes.hitPoints.maximum}`;
   }
-  const hitPoints = props.character.pluginData?.hitPoints || { current: 8, maximum: 8 };
+  const hitPoints = (character.pluginData as any)?.hitPoints || { current: 8, maximum: 8 };
   return `${hitPoints.current}/${hitPoints.maximum}`;
 });
 
 const speedDisplay = computed(() => {
-  const attributes = props.character.pluginData?.attributes;
+  const attributes = character.pluginData?.attributes as any;
   if (attributes?.movement?.walk) {
     return `${attributes.movement.walk} ft`;
   }
-  const speed = props.character.pluginData?.speed || 30;
+  const speed = (character.pluginData as any)?.speed || 30;
   return `${speed} ft`;
 });
 
 const initiativeBonus = computed(() => {
   const dexMod = abilityModifiers.value.dexterity || 0;
-  const attributes = props.character.pluginData?.attributes;
+  const attributes = character.pluginData?.attributes as any;
   let initBonus = 0;
   
   if (attributes?.initiative?.bonus !== undefined) {
     initBonus = attributes.initiative.bonus;
   } else {
-    initBonus = props.character.pluginData?.initiative || 0;
+    initBonus = (character.pluginData as any)?.initiative || 0;
   }
   
   const bonus = dexMod + initBonus;
   return bonus >= 0 ? `+${bonus}` : `${bonus}`;
 });
 
+// Display names from fetched compendium documents
+const speciesDisplayName = computed(() => {
+  if (compendiumLoading.value) return 'Loading...';
+  if (compendiumError.value) return 'Error loading species';
+  return speciesDocument.value?.name || 'Unknown Species';
+});
+
+const classDisplayName = computed(() => {
+  if (compendiumLoading.value) return 'Loading...';
+  if (compendiumError.value) return 'Error loading class';
+  return classDocument.value?.name || 'Unknown Class';
+});
+
+const backgroundDisplayName = computed(() => {
+  if (compendiumLoading.value) return 'Loading...';
+  if (compendiumError.value) return 'Error loading background';
+  return backgroundDocument.value?.name || 'Unknown Background';
+});
+
 // Reactive notes for textarea editing
 const characterNotes = computed({
   get() {
     // Try D&D schema format first, then fallback to legacy
-    return props.character.pluginData?.roleplay?.backstory || 
-           props.character.pluginData?.notes || '';
+    return (character.pluginData as any)?.roleplay?.backstory || 
+           (character.pluginData as any)?.notes || '';
   },
   set(value: string) {
     // Update both for compatibility
     updateCharacter({ 
       notes: value,
       roleplay: { 
-        ...props.character.pluginData?.roleplay,
+        ...(character.pluginData as any)?.roleplay,
         backstory: value 
       }
     });
@@ -420,8 +495,8 @@ const rollSavingThrow = (ability: string) => {
 
 const rollSkillCheck = (skill: string) => {
   const bonus = skillBonuses.value[skill] || 0;
-  const skills = props.character.pluginData?.skills || DEFAULT_SKILLS;
-  const ability = skills[skill]?.ability || '';
+  const skillData = characterSkills.value[skill];
+  const ability = skillData?.ability || '';
   emit('roll', 'skill-check', {
     type: 'skill-check',
     skill,
@@ -434,7 +509,7 @@ const rollSkillCheck = (skill: string) => {
 
 const rollInitiative = () => {
   const dexModifier = abilityModifiers.value.dexterity || 0;
-  const initBonus = props.character.pluginData?.initiative || 0;
+  const initBonus = (character.pluginData as any)?.initiative || 0;
   const totalBonus = dexModifier + initBonus;
   emit('roll', 'initiative', {
     type: 'initiative',
@@ -449,13 +524,13 @@ const switchTab = (tabId: string) => {
 };
 
 const updateCharacter = (updates: Record<string, unknown>) => {
-  const updatedCharacter = { ...props.character, pluginData: { ...props.character.pluginData, ...updates } };
+  const updatedCharacter = { ...character, pluginData: { ...character.pluginData, ...updates } };
   isDirty.value = true;
   emit('update:character', updatedCharacter);
 };
 
 const saveCharacter = () => {
-  emit('save', props.character);
+  emit('save', character);
   isDirty.value = false;
 };
 
@@ -496,6 +571,55 @@ const handleKeyDown = (event: KeyboardEvent) => {
     const currentIndex = tabs.findIndex(tab => tab.id === activeTab.value);
     const nextIndex = (currentIndex + 1) % tabs.length;
     switchTab(tabs[nextIndex].id);
+  }
+};
+
+// Compendium data fetching functions
+const loadCompendiumDocuments = async () => {
+  try {
+    compendiumLoading.value = true;
+    compendiumError.value = null;
+    
+    const promises = [];
+    
+    // Fetch species document if we have a species ObjectId
+    const speciesId = character.pluginData?.species;
+    if (speciesId && typeof speciesId === 'string') {
+      promises.push(
+        compendiumClient.getCompendiumEntry(speciesId)
+          .then(entry => { speciesDocument.value = markRaw(entry.content as DndSpeciesDocument); })
+          .catch(err => { console.warn('Failed to load species:', err); })
+      );
+    }
+    
+    // Fetch class document if we have a class ObjectId
+    const classId = character.pluginData?.classes?.[0]?.class;
+    if (classId && typeof classId === 'string') {
+      promises.push(
+        compendiumClient.getCompendiumEntry(classId)
+          .then(entry => { classDocument.value = markRaw(entry.content as DndCharacterClassDocument); })
+          .catch(err => { console.warn('Failed to load class:', err); })
+      );
+    }
+    
+    // Fetch background document if we have a background ObjectId
+    const backgroundId = character.pluginData?.background;
+    if (backgroundId && typeof backgroundId === 'string') {
+      promises.push(
+        compendiumClient.getCompendiumEntry(backgroundId)
+          .then(entry => { backgroundDocument.value = markRaw(entry.content as DndBackgroundDocument); })
+          .catch(err => { console.warn('Failed to load background:', err); })
+      );
+    }
+    
+    // Wait for all requests to complete
+    await Promise.all(promises);
+    
+  } catch (error) {
+    console.error('Failed to load compendium documents:', error);
+    compendiumError.value = 'Failed to load character data';
+  } finally {
+    compendiumLoading.value = false;
   }
 };
 
@@ -937,10 +1061,22 @@ h3 {
 onMounted(() => {
   injectStyles();
   document.addEventListener('keydown', handleKeyDown);
-  console.log('D&D 5e Character Sheet mounted for character:', props.character.name);
+  console.log('D&D 5e Character Sheet mounted for character:', character.name);
+  
+  // Load compendium documents
+  loadCompendiumDocuments();
 });
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeyDown);
 });
+
+// Watch for character changes and reload compendium data
+watch(() => [
+  character.pluginData?.species,
+  character.pluginData?.classes?.[0]?.class,
+  character.pluginData?.background
+], () => {
+  loadCompendiumDocuments();
+}, { deep: true });
 </script>

@@ -528,7 +528,7 @@
       <div v-if="backgroundAbilityChoices.length > 0" class="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">
         <h3 class="text-lg font-semibold text-blue-900 mb-3">Background Ability Score Bonuses</h3>
         <p class="text-blue-800 text-sm mb-4">
-          Your {{ props.originData?.background?.name }} background gives you 3 points to distribute among: 
+          Your {{ backgroundDocument?.name || props.originData?.background?.name }} background gives you 3 points to distribute among: 
           {{ backgroundAbilityChoices.map(choice => choice.charAt(0).toUpperCase() + choice.slice(1)).join(', ') }}
         </p>
         <p class="text-blue-700 text-xs mb-4">
@@ -579,8 +579,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue';
+import { ref, watch, computed, onMounted } from 'vue';
 import type { AbilityScores, OriginSelection, BackgroundAbilityChoice } from '../../../types/character-creation.mjs';
+import type { DndBackgroundDocument } from '../../../types/dnd/background.mjs';
+import { useCharacterCreation } from '../../../composables/useCharacterCreation.mjs';
 import Icon from '../../common/Icon.vue';
 import MobileSelect from '../../common/MobileSelect.vue';
 
@@ -601,6 +603,14 @@ interface Emits {
 }
 
 const emit = defineEmits<Emits>();
+
+// Composable for fetching background data
+const { fetchBackgrounds } = useCharacterCreation();
+
+// Background document state
+const backgroundDocument = ref<DndBackgroundDocument | null>(null);
+const backgroundLoading = ref(false);
+const backgroundError = ref<string | null>(null);
 
 // Local reactive data
 const localData = ref<Partial<AbilityScores>>({
@@ -627,24 +637,43 @@ const localData = ref<Partial<AbilityScores>>({
 const rollingInProgress = ref(false);
 const lastRollDetails = ref<Array<{ability: string, rolls: number[], result: number}>>([]);
 
+// Background document fetching
+const loadBackgroundDocument = async (backgroundId: string) => {
+  if (!backgroundId) {
+    backgroundDocument.value = null;
+    return;
+  }
+  
+  try {
+    backgroundLoading.value = true;
+    backgroundError.value = null;
+    
+    const backgrounds = await fetchBackgrounds();
+    const backgroundEntry = backgrounds.find(bg => bg.entryId === backgroundId);
+    
+    if (backgroundEntry) {
+      backgroundDocument.value = backgroundEntry.document;
+      console.log('Debug - Self-fetched background document:', backgroundDocument.value);
+    } else {
+      backgroundDocument.value = null;
+      backgroundError.value = 'Background not found';
+    }
+  } catch (error) {
+    console.error('Failed to fetch background document:', error);
+    backgroundDocument.value = null;
+    backgroundError.value = 'Failed to load background';
+  } finally {
+    backgroundLoading.value = false;
+  }
+};
+
 // Computed
 const backgroundAbilityChoices = computed(() => {
-  // Debug: Log the background data structure
-  console.log('Debug - originData:', props.originData);
-  console.log('Debug - background:', props.originData?.background);
-  
-  // The background is now the full DndBackgroundDocument from the parent component
-  if (props.originData?.background && 
-      typeof props.originData.background === 'object') {
-    
-    // Check for the direct pluginData.abilityScores (DndBackgroundDocument structure)
-    if ('pluginData' in props.originData.background) {
-      const pluginData = props.originData.background.pluginData as any;
-      if (pluginData?.abilityScores && Array.isArray(pluginData.abilityScores)) {
-        console.log('Debug - Found abilityScores in pluginData:', pluginData.abilityScores);
-        return pluginData.abilityScores as string[];
-      }
-    }
+  // Use self-fetched background document
+  if (backgroundDocument.value?.pluginData?.abilityScores && 
+      Array.isArray(backgroundDocument.value.pluginData.abilityScores)) {
+    console.log('Debug - Found abilityScores in self-fetched document:', backgroundDocument.value.pluginData.abilityScores);
+    return backgroundDocument.value.pluginData.abilityScores as string[];
   }
   
   console.log('Debug - No background ability scores found');
@@ -965,6 +994,15 @@ if (!props.modelValue) {
   updateAbilities();
 }
 
+// Watch for background ID changes and fetch document
+watch(() => props.originData?.background?.id, (backgroundId) => {
+  if (backgroundId) {
+    loadBackgroundDocument(backgroundId);
+  } else {
+    backgroundDocument.value = null;
+  }
+}, { immediate: true });
+
 // Watch for background ability choices changes and initialize backgroundChoice properly
 watch(() => backgroundAbilityChoices.value, (newChoices) => {
   if (newChoices.length > 0 && !localData.value.backgroundChoice) {
@@ -980,6 +1018,14 @@ watch(() => backgroundAbilityChoices.value, (newChoices) => {
     updateAbilities();
   }
 }, { immediate: true });
+
+// Load background on mount if we already have a background ID
+onMounted(() => {
+  const backgroundId = props.originData?.background?.id;
+  if (backgroundId) {
+    loadBackgroundDocument(backgroundId);
+  }
+});
 </script>
 
 <style scoped>

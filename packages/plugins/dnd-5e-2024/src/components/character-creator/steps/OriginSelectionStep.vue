@@ -334,9 +334,9 @@ if (!localData.value.selectedLanguages) {
 }
 
 // Compendium data
-const availableSpecies = ref<DndSpeciesDocument[]>([]);
-const availableBackgrounds = ref<DndBackgroundDocument[]>([]);
-const availableLanguages = ref<DndLanguageDocument[]>([]);
+const availableSpecies = ref<Array<{entryId: string, document: DndSpeciesDocument}>>([]);
+const availableBackgrounds = ref<Array<{entryId: string, document: DndBackgroundDocument}>>([]);
+const availableLanguages = ref<Array<{entryId: string, document: DndLanguageDocument}>>([]);
 const loading = ref(false);
 const error = ref<string | null>(null);
 const languagesLoading = ref(false);
@@ -357,37 +357,35 @@ const isValid = computed(() => {
 });
 
 const selectedSpecies = computed(() => {
-  return availableSpecies.value.find(species => species.id === localData.value.species?.id);
+  return availableSpecies.value.find(species => species.entryId === localData.value.species?.id)?.document;
 });
 
 const selectedBackground = computed(() => {
-  return availableBackgrounds.value.find(bg => bg.id === localData.value.background?.id);
+  return availableBackgrounds.value.find(bg => bg.entryId === localData.value.background?.id)?.document;
 });
 
 const speciesSelectOptions = computed(() => {
   return availableSpecies.value.map(species => ({
-    id: species.id,
-    name: species.name
+    id: species.entryId,
+    name: species.document.name
   }));
 });
 
 const backgroundSelectOptions = computed(() => {
   return availableBackgrounds.value.map(bg => ({
-    id: bg.id,
-    name: bg.name
+    id: bg.entryId,
+    name: bg.document.name
   }));
 });
 
-const selectedLanguageIds = computed(() => {
-  return localData.value.selectedLanguages?.map(lang => lang.id) || [];
-});
+// Removed unused selectedLanguageIds computed property
 
 const firstLanguageOptions = computed(() => {
   return availableLanguages.value
-    .filter(language => language.slug !== 'common' && language.pluginData.category !== 'rare')
+    .filter(language => language.document.slug !== 'common' && language.document.pluginData.category !== 'rare')
     .map(language => ({
-      id: language.id,
-      displayName: `${language.name} (${capitalizeFirst(language.pluginData.category === 'standard' ? 'Standard' : 'Rare')})`
+      id: language.entryId,
+      displayName: `${language.document.name} (${capitalizeFirst(language.document.pluginData.category === 'standard' ? 'Standard' : 'Rare')})`
     }));
 });
 
@@ -396,13 +394,13 @@ const secondLanguageOptions = computed(() => {
   const firstLanguageId = localData.value.selectedLanguages?.[0]?.id;
   return availableLanguages.value
     .filter(language => 
-      language.id !== firstLanguageId && 
-      language.slug !== 'common' && 
-      language.pluginData.category !== 'rare'
+      language.entryId !== firstLanguageId && 
+      language.document.slug !== 'common' && 
+      language.document.pluginData.category !== 'rare'
     )
     .map(language => ({
-      id: language.id,
-      displayName: `${language.name} (${capitalizeFirst(language.pluginData.category === 'standard' ? 'Standard' : 'Rare')})`
+      id: language.entryId,
+      displayName: `${language.document.name} (${capitalizeFirst(language.document.pluginData.category === 'standard' ? 'Standard' : 'Rare')})`
     }));
 });
 
@@ -544,13 +542,13 @@ const formatItemName = (slug: string): string => {
 };
 
 const handleSpeciesSelection = (value: string | number | null) => {
-  const speciesId = value as string;
-  const species = availableSpecies.value.find(s => s.id === speciesId);
+  const entryId = value as string;
+  const speciesItem = availableSpecies.value.find(s => s.entryId === entryId);
   
-  if (species) {
+  if (speciesItem) {
     localData.value.species = {
-      id: species.id,
-      name: species.name,
+      id: speciesItem.entryId,
+      name: speciesItem.document.name,
       subspecies: undefined // Reset subspecies when changing species
     };
   } else {
@@ -575,13 +573,13 @@ const handleLineageSelection = (value: string | number | null) => {
 };
 
 const handleBackgroundSelection = (value: string | number | null) => {
-  const backgroundId = value as string;
-  const background = availableBackgrounds.value.find(bg => bg.id === backgroundId);
+  const entryId = value as string;
+  const backgroundItem = availableBackgrounds.value.find(bg => bg.entryId === entryId);
   
-  if (background) {
+  if (backgroundItem) {
     localData.value.background = {
-      id: background.id,
-      name: background.name,
+      id: backgroundItem.entryId,
+      name: backgroundItem.document.name,
       selectedEquipment: 'package' // Default to equipment package
     };
   } else {
@@ -596,20 +594,20 @@ const handleBackgroundSelection = (value: string | number | null) => {
 };
 
 const handleFirstLanguageSelection = (value: string | number | null) => {
-  const languageId = value as string;
-  const language = availableLanguages.value.find(lang => lang.id === languageId);
+  const entryId = value as string;
+  const languageItem = availableLanguages.value.find(lang => lang.entryId === entryId);
   
-  if (language) {
+  if (languageItem) {
     const languageSelection: LanguageSelection = {
-      id: language.id,
-      name: language.name
+      id: languageItem.entryId,
+      name: languageItem.document.name
     };
     
     // Create new array with first language set
     const currentSecond = localData.value.selectedLanguages?.[1];
     
     // If the second language is the same as the first, only keep the first
-    if (currentSecond?.id === languageId) {
+    if (currentSecond?.id === entryId) {
       localData.value.selectedLanguages = [languageSelection];
     } else {
       // Keep the second language if it exists and is different
@@ -627,13 +625,13 @@ const handleFirstLanguageSelection = (value: string | number | null) => {
 };
 
 const handleSecondLanguageSelection = (value: string | number | null) => {
-  const languageId = value as string;
-  const language = availableLanguages.value.find(lang => lang.id === languageId);
+  const entryId = value as string;
+  const languageItem = availableLanguages.value.find(lang => lang.entryId === entryId);
   
-  if (language) {
+  if (languageItem) {
     const languageSelection: LanguageSelection = {
-      id: language.id,
-      name: language.name
+      id: languageItem.entryId,
+      name: languageItem.document.name
     };
     
     // Create new array with second language set

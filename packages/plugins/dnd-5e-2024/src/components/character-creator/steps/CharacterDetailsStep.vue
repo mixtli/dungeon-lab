@@ -59,7 +59,7 @@
             <input
               v-model="localData.alignment"
               type="radio"
-              value="true-neutral"
+              value="neutral"
               class="mr-2"
               @change="updateDetails"
             />
@@ -300,7 +300,6 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
 import type { CharacterDetails } from '../../../types/character-creation.mjs';
-import Icon from '../../common/Icon.vue';
 
 // Props
 interface Props {
@@ -321,7 +320,7 @@ const emit = defineEmits<Emits>();
 
 // Local reactive data
 const localData = ref<Partial<CharacterDetails>>({
-  alignment: props.modelValue?.alignment || 'true-neutral',
+  alignment: props.modelValue?.alignment || 'neutral',
   age: props.modelValue?.age || '',
   height: props.modelValue?.height || '',
   weight: props.modelValue?.weight || '',
