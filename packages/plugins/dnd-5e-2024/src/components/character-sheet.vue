@@ -653,7 +653,7 @@ const injectStyles = () => {
 .dnd5e-character-sheet {
   width: 100%;
   height: 100%;
-  min-width: 900px;
+  max-width: 100%;
   min-height: 600px;
   background: var(--dnd-parchment);
   border: 2px solid var(--dnd-brown);
@@ -665,6 +665,7 @@ const injectStyles = () => {
   flex-direction: column;
   overflow: hidden;
   position: relative;
+  box-sizing: border-box;
 }
 
 /* Header */

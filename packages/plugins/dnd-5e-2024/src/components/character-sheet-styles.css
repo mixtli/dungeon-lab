@@ -24,8 +24,9 @@
 
 /* Main Container */
 .dnd5e-character-sheet {
-  width: 576px;
-  height: 384px;
+  width: 100%;
+  max-width: 100%;
+  min-height: 384px;
   background: var(--dnd-parchment);
   border: 2px solid var(--dnd-brown);
   border-radius: 12px;
@@ -36,6 +37,7 @@
   flex-direction: column;
   overflow: hidden;
   position: relative;
+  box-sizing: border-box;
 }
 
 /* Header */
@@ -891,8 +893,9 @@
 /* Responsive Adjustments */
 @media (max-width: 400px) {
   .dnd5e-character-sheet {
-    width: 100vw;
-    height: 100vh;
+    width: 100%;
+    max-width: 100%;
+    min-height: 100vh;
     border-radius: 0;
   }
   

@@ -84,7 +84,7 @@ class AssetController {
       const assetId = req.params.id;
       const userId = req.session.user.id;
 
-      const asset = await assetService.getAssetById(assetId, userId);
+      const asset = await assetService.getAssetById(assetId, userId, true); // Skip permission check for GET requests
 
       return res.json({
         success: true,
