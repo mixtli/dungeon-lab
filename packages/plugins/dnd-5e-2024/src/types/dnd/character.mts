@@ -203,55 +203,17 @@ export const characterSpellcastingSchema = z.object({
 });
 
 /**
- * Equipment and inventory system
+ * Character currency schema
  * 
- * Items are now references to actual Item documents (ObjectIds).
- * Runtime properties like quantity, condition, enhancement are stored on the Item documents.
- * Character inventory only tracks character-specific state: equipped slots, mastery activation, etc.
+ * Equipment state moved to individual Item documents using itemState field.
+ * Character only tracks currency directly, no inventory structure needed.
  */
-export const characterInventorySchema = z.object({
-  /** Equipped items */
-  equipped: z.object({
-    /** Equipped armor (ObjectId reference to Item document) */
-    armor: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Must be a valid ObjectId').optional(),
-    
-    /** Equipped shield (ObjectId reference to Item document) */
-    shield: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Must be a valid ObjectId').optional(),
-
-    
-    /** 2024: Equipped weapons with character-specific mastery state */
-    weapons: z.array(z.object({
-      /** ObjectId reference to Item document */
-      item: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Must be a valid ObjectId'),
-      /** Equipment slot */
-      slot: z.enum(['main_hand', 'off_hand', 'two_handed']),
-      /** Whether character is using weapon mastery (character ability, not item property) */
-      masteryActive: z.boolean().default(false)
-    })).default([]),
-    
-    /** Equipped accessories (rings, amulets, etc.) */
-    accessories: z.array(z.object({
-      /** ObjectId reference to Item document */
-      item: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Must be a valid ObjectId'),
-      /** Equipment slot (ring, amulet, etc.) */
-      slot: z.string()
-    })).default([])
-  }),
-  
-  /** Carried items (ObjectId references to Item documents) */
-  carried: z.array(z.string().regex(/^[0-9a-fA-F]{24}$/, 'Must be a valid ObjectId')).default([]),
-  
-  /** Attuned magical items (max 3) - ObjectId references to Item documents */
-  attunedItems: z.array(z.string().regex(/^[0-9a-fA-F]{24}$/, 'Must be a valid ObjectId')).max(3).default([]),
-  
-  /** Character's currency */
-  currency: z.object({
-    platinum: z.number().min(0).default(0),
-    gold: z.number().min(0).default(0),
-    electrum: z.number().min(0).default(0),
-    silver: z.number().min(0).default(0),
-    copper: z.number().min(0).default(0)
-  })
+export const characterCurrencySchema = z.object({
+  platinum: z.number().min(0).default(0),
+  gold: z.number().min(0).default(0),
+  electrum: z.number().min(0).default(0),
+  silver: z.number().min(0).default(0),
+  copper: z.number().min(0).default(0)
 });
 
 /**
@@ -350,8 +312,8 @@ export const dndCharacterDataSchema = z.object({
   /** Spellcasting */
   spellcasting: characterSpellcastingSchema.optional(),
   
-  /** Inventory and equipment */
-  inventory: characterInventorySchema,
+  /** Character currency */
+  currency: characterCurrencySchema,
   
   /** Features and feats */
   features: characterFeaturesSchema,
@@ -397,5 +359,5 @@ export type CharacterAttributes = z.infer<typeof characterAttributesSchema>;
 export type CharacterAbilities = z.infer<typeof characterAbilitiesSchema>;
 export type CharacterSkills = z.infer<typeof characterSkillsSchema>;
 export type CharacterSpellcasting = z.infer<typeof characterSpellcastingSchema>;
-export type CharacterInventory = z.infer<typeof characterInventorySchema>;
+export type CharacterCurrency = z.infer<typeof characterCurrencySchema>;
 export type CharacterFeatures = z.infer<typeof characterFeaturesSchema>;

@@ -146,10 +146,14 @@ export {
 
 // VTT Document schemas
 export {
-  vttDocumentSchema,
-  vttDocumentCreateSchema,
-  vttDocumentUpdateSchema
+  vttDocumentSchema
 } from './vtt-document.schema.mjs';
+
+// VTT Document create/update schemas are part of the general discriminated union
+export {
+  createDocumentSchema as vttDocumentCreateSchema,
+  updateDocumentSchema as vttDocumentUpdateSchema
+} from './document.schema.mjs';
 
 // Socket schemas
 export * from './socket/index.mjs';

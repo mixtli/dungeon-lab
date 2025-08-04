@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { createDocumentSchema, baseDocumentSchema } from '../../schemas/document.schema.mjs';
+import { createDocumentSchema, baseDocumentSchema, updateDocumentSchema } from '../../schemas/document.schema.mjs';
 import { baseAPIResponseSchema } from './base.mjs';
 
 // Types for GET /documents (Search documents)
@@ -38,7 +38,8 @@ export const putDocumentResponseSchema = baseAPIResponseSchema.extend({
 export type PutDocumentResponse = z.infer<typeof putDocumentResponseSchema>;
 
 // Types for PATCH /documents/:id (Update document partially)
-export const patchDocumentRequestSchema = createDocumentRequestSchema.partial();
+// For discriminated unions, we use the updateDocumentSchema which handles partial updates properly
+export const patchDocumentRequestSchema = updateDocumentSchema;
 export type PatchDocumentRequest = z.infer<typeof patchDocumentRequestSchema>;
 
 export const patchDocumentResponseSchema = putDocumentResponseSchema;

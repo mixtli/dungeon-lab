@@ -384,38 +384,150 @@ export function useCharacterCreation() {
     };
   };
 
-  const createCompleteCharacterData = async (basicInfo: BasicCharacterInfo): Promise<Record<string, unknown>> => {
+  // Calculate starting gold from equipment choices
+  const calculateStartingGold = async (characterData: CharacterCreationFormData): Promise<number> => {
+    let totalGold = 0;
+
+    try {
+      // Get class document to check equipment choices
+      const classDocument = await compendiumClient.getCompendiumEntry(characterData.class.id);
+      const classData = classDocument.content as any; // DndCharacterClassDocument
+      
+      // Check if class equipment choice gives gold
+      if (classData.pluginData.startingEquipment) {
+        const selectedChoice = classData.pluginData.startingEquipment.find(
+          (option: any) => option.label === characterData.class.selectedEquipment
+        );
+        if (selectedChoice?.gold) {
+          totalGold += selectedChoice.gold;
+        }
+      }
+
+      // Check background equipment choice
+      if (characterData.origin.background.selectedEquipment === 'gold') {
+        // Background gold alternative is always 50 GP
+        totalGold += 50;
+      }
+
+      return totalGold;
+    } catch (error) {
+      console.error('Failed to calculate starting gold:', error);
+      return 0; // Default to 0 if calculation fails
+    }
+  };
+
+  // Prepare equipment items data without creating documents
+  const prepareEquipmentItemsData = async (
+    equipmentSelections: EquipmentSelections,
+    classDocument: any, // DndCharacterClassDocument
+    backgroundDocument: any // DndBackgroundDocument
+  ): Promise<any[]> => {
+    const itemsToCreate: { entryId: string; quantity: number }[] = [];
+    
+    try {
+      // Collect items from class equipment choice
+      const classData = classDocument.pluginData;
+      if (classData.startingEquipment) {
+        const selectedChoice = classData.startingEquipment.find(
+          (option: any) => option.label === equipmentSelections.classEquipment
+        );
+        if (selectedChoice?.items) {
+          for (const entry of selectedChoice.items) {
+            itemsToCreate.push({
+              entryId: entry.item, // ObjectId string
+              quantity: entry.quantity
+            });
+          }
+        }
+      }
+
+      // Collect items from background equipment choice
+      if (equipmentSelections.backgroundEquipment === 'package') {
+        const backgroundData = backgroundDocument.pluginData;
+        const equipmentPackage = backgroundData.equipment.equipmentPackage;
+        if (equipmentPackage?.items) {
+          for (const entry of equipmentPackage.items) {
+            if (entry.item) {
+              itemsToCreate.push({
+                entryId: entry.item, // ObjectId string
+                quantity: entry.quantity
+              });
+            }
+          }
+        }
+      }
+
+      // Prepare item document data from compendium entries
+      const itemsData = [];
+      for (const { entryId, quantity } of itemsToCreate) {
+        try {
+          // Get compendium entry
+          const compendiumEntry = await compendiumClient.getCompendiumEntry(entryId);
+          
+          if (!compendiumEntry || !compendiumEntry.content) {
+            console.warn(`Could not find compendium entry: ${entryId}`);
+            continue;
+          }
+
+          // Prepare item document data
+          const contentData = { ...compendiumEntry.content };
+          if (contentData.imageId && typeof contentData.imageId === 'object' && '_id' in contentData.imageId) {
+            contentData.imageId = contentData.imageId._id;
+          }
+          
+          const itemData = {
+            ...contentData,
+            // Will be set by web client: ownerId
+            // Set initial item state
+            itemState: {
+              equipped: false, // Default to not equipped
+              quantity: quantity || 1
+            }
+          };
+
+          itemsData.push(itemData);
+        } catch (error) {
+          console.error(`Failed to prepare item data from compendium entry ${entryId}:`, error);
+        }
+      }
+
+      return itemsData;
+    } catch (error) {
+      console.error('Failed to prepare equipment items data:', error);
+      return [];
+    }
+  };
+
+  const prepareCharacterCreationData = async (basicInfo: BasicCharacterInfo): Promise<{ characterData: any; itemsData: any[] }> => {
     const characterData = getCharacterData();
     if (!characterData) {
       throw new Error('Character data is not complete or valid');
     }
 
     try {
-      // Transform character data to proper D&D schema format with empty inventory
-      const transformedPluginData = await transformCharacterCreatorData(characterData, basicInfo);
+      // Calculate starting gold from equipment choices
+      const startingGold = await calculateStartingGold(characterData);
       
-      // STEP 1: Create character document with empty inventory
-      const characterDocument = await documentsClient.createDocument({
+      // Transform character data to proper D&D schema format with calculated currency
+      const transformedPluginData = await transformCharacterCreatorData(characterData, basicInfo, startingGold);
+      
+      // Prepare character document data (don't create yet)
+      const characterDocumentData = {
         // Document-level fields
         name: basicInfo.name,
         description: basicInfo.description || '',
-        documentType: 'character',
+        documentType: 'character' as const,
         pluginDocumentType: 'character',
         pluginId: 'dnd-5e-2024',
         userData: {},
-        // Only include image fields if they have actual values (not null)
-        ...(basicInfo.avatarImage && { imageId: basicInfo.avatarImage }),
-        ...(basicInfo.tokenImage && { thumbnailId: basicInfo.tokenImage }),
+        itemState: {}, // Characters don't use itemState, but field is required
+        // Image fields will be handled by the web client
         
-        // Plugin-specific data in proper D&D schema format with empty inventory
+        // Plugin-specific data in proper D&D schema format
         pluginData: transformedPluginData
-      });
+      };
 
-      if (!characterDocument || !characterDocument.id) {
-        throw new Error('Failed to create character document');
-      }
-
-      // STEP 2: Create equipment items with character as owner
+      // Prepare equipment items data (don't create yet)
       const equipmentSelections: EquipmentSelections = {
         classEquipment: characterData.class.selectedEquipment,
         backgroundEquipment: characterData.origin.background.selectedEquipment
@@ -427,42 +539,26 @@ export function useCharacterCreation() {
         compendiumClient.getCompendiumEntry(characterData.origin.background.id)
       ]);
 
-      const createdEquipment = await processCharacterEquipment(
+      const itemsData = await prepareEquipmentItemsData(
         equipmentSelections,
         classDocument.content as any, // DndCharacterClassDocument
         backgroundDocument.content as any, // DndBackgroundDocument
-        characterDocument.id
       );
 
-      // STEP 3: Update character document with equipment inventory
-      const updatedCharacter = await documentsClient.patchDocument(characterDocument.id, {
-        pluginData: {
-          ...transformedPluginData,
-          inventory: {
-            equipped: {
-              armor: createdEquipment.armor,
-              shield: createdEquipment.shield,
-              weapons: createdEquipment.weapons,
-              accessories: createdEquipment.accessories
-            },
-            carried: createdEquipment.carried,
-            attunedItems: [],
-            currency: createdEquipment.startingMoney
-          }
-        }
-      });
-
-      // Return the complete character document
-      return updatedCharacter || characterDocument;
+      // Return prepared data for web client to create
+      return {
+        characterData: characterDocumentData,
+        itemsData
+      };
 
     } catch (error) {
-      console.error('Failed to create character with equipment:', error);
+      console.error('Failed to prepare character creation data:', error);
       throw error;
     }
   };
   
   // Internal transformation function to convert creator data to D&D schema
-  const transformCharacterCreatorData = async (creatorData: CharacterCreationFormData, basicInfo: BasicCharacterInfo) => {
+  const transformCharacterCreatorData = async (creatorData: CharacterCreationFormData, basicInfo: BasicCharacterInfo, startingGold: number = 0) => {
     // Fetch compendium documents for class, species, and background
     const [classDocument, backgroundDocument] = await Promise.all([
       compendiumClient.getCompendiumEntry(creatorData.class.id),
@@ -712,18 +808,13 @@ export function useCharacterCreation() {
         languages: creatorData.origin.selectedLanguages?.map(lang => lang.id) || [] // Send ObjectIds
       },
       
-      // Inventory with defaults
-      inventory: {
-        equipped: {},
-        carried: [],
-        attunedItems: [],
-        currency: {
-          platinum: 0,
-          gold: 0,
-          electrum: 0,
-          silver: 0,
-          copper: 0
-        }
+      // Character currency (calculated from equipment choices)
+      currency: {
+        platinum: 0,
+        gold: startingGold,
+        electrum: 0,
+        silver: 0,
+        copper: 0
       },
       
       // Features and feats
@@ -850,7 +941,7 @@ export function useCharacterCreation() {
     
     // Character creation
     getCharacterData,
-    createCompleteCharacterData,
+    prepareCharacterCreationData,
     
     // Constants
     FORM_STEPS

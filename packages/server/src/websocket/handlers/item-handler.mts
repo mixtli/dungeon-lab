@@ -108,7 +108,8 @@ function itemHandler(socket: Socket<ClientToServerEvents, ServerToClientEvents>)
         ...itemData,
         documentType: 'item' as const,
         userData: (itemData as Record<string, unknown>).userData as Record<string, unknown> || {},
-        pluginData: (itemData as Record<string, unknown>).pluginData as Record<string, unknown> || {}
+        pluginData: (itemData as Record<string, unknown>).pluginData as Record<string, unknown> || {},
+        itemState: (itemData as Record<string, unknown>).itemState as Record<string, unknown> || {}
       };
       const item = await itemService.createItem(completeItemData, socket.userId);
       console.log('[Item Handler] Created item:', item.id);

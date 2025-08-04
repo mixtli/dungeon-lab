@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { pluginRegistry } from '@/services/plugin-registry.mts';
-import { PluginsClient } from '@dungeon-lab/client/plugins.client.mjs';
 
 const selectedGameSystem = ref<string>(localStorage.getItem('activeGameSystem') || '');
 const previousGameSystem = ref<string>('');
@@ -10,15 +9,20 @@ const gameSystemPluginOptions = ref<{ id: string; name: string }[]>([]);
 
 onMounted(async () => {
   try {
-    // Fetch plugin list directly from API
-    const pluginsClient = new PluginsClient();
-    const plugins = await pluginsClient.getPlugins();
-    gameSystemPluginOptions.value = plugins
-      .filter((p) => p.config.type === 'gameSystem')
-      .map((p) => ({ id: p.config.id, name: p.config.name }));
+    // Ensure plugin registry is initialized
+    await pluginRegistry.initialize();
+    
+    // Get available plugins from the frontend plugin registry
+    const plugins = pluginRegistry.getPlugins();
+    gameSystemPluginOptions.value = plugins.map(plugin => ({
+      id: plugin.manifest.id,
+      name: plugin.manifest.name
+    }));
+    
+    console.log('Available game system plugins:', gameSystemPluginOptions.value);
     previousGameSystem.value = selectedGameSystem.value;
   } catch (error) {
-    console.error('Failed to fetch plugin list:', error);
+    console.error('Failed to load plugin list:', error);
   } finally {
     loading.value = false;
   }

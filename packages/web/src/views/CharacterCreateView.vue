@@ -5,9 +5,9 @@ import { useActorStore } from '../stores/actor.store.mjs';
 import { pluginRegistry } from '../services/plugin-registry.mts';
 import ImageUpload from '../components/common/ImageUpload.vue';
 import type { GameSystemPlugin } from '@dungeon-lab/shared/types/plugin.mjs';
-import { DocumentsClient } from '@dungeon-lab/client/index.mjs';
+import { DocumentsClient, AssetsClient } from '@dungeon-lab/client/index.mjs';
 import { CreateDocumentRequest } from '@dungeon-lab/shared/types/api/index.mjs';
-import { createDocumentSchema } from '@dungeon-lab/shared/schemas/index.mjs';
+import { characterCreateSchema } from '@dungeon-lab/shared/schemas/index.mjs';
 
 interface UploadedImage {
   url: string;
@@ -18,7 +18,7 @@ interface UploadedImage {
 }
 
 const documentsClient = new DocumentsClient();
-// const assetsClient = new AssetsClient(); // Currently unused
+const assetsClient = new AssetsClient();
 const router = useRouter();
 const actorStore = useActorStore();
 const activeGameSystemId = ref<string>(localStorage.getItem('activeGameSystem') || '');
@@ -43,32 +43,6 @@ const basicInfo = ref({
   tokenImage: null as File | UploadedImage | null,
 });
 
-// Watch for changes to avatar and token images
-watch(
-  () => basicInfo.value.avatarImage,
-  newValue => {
-    console.log('Avatar image changed:', newValue);
-    if (newValue instanceof File) {
-      console.log('Avatar is a File object');
-    } else if (newValue && typeof newValue === 'object' && 'url' in newValue) {
-      console.log('Avatar is an UploadedImage object with URL:', newValue.url);
-    }
-  },
-  { deep: true }
-);
-
-watch(
-  () => basicInfo.value.tokenImage,
-  newValue => {
-    console.log('Token image changed:', newValue);
-    if (newValue instanceof File) {
-      console.log('Token is a File object');
-    } else if (newValue && typeof newValue === 'object' && 'url' in newValue) {
-      console.log('Token is an UploadedImage object with URL:', newValue.url);
-    }
-  },
-  { deep: true }
-);
 
 // Get a url from either a File or UploadedImage
 // function getUrlFromImageObject(imageObj: File | UploadedImage | null): string | null {
@@ -96,9 +70,6 @@ const canProceed = computed(() => {
 });
 
 onMounted(async () => {
-  // Debug information
-  console.log('Character Create View mounted');
-  console.log('Active game system ID:', activeGameSystemId.value);
 
   // Check if we have an active game system
   if (!activeGameSystemId.value) {
@@ -111,20 +82,11 @@ onMounted(async () => {
   try {
     // Try to get the plugin from the registry first
     plugin.value = pluginRegistry.getGameSystemPlugin(activeGameSystemId.value) as GameSystemPlugin;
-    console.log('🔍 INITIAL PLUGIN LOADING:');
-    console.log('  - Initial plugin from registry:', !!plugin.value);
-    console.log('  - Initial plugin has validateCharacterData:', !!plugin.value?.validateCharacterData);
     
     if (!plugin.value) {
-      console.log('Plugin not found in registry, attempting to load it...');
-      // Initialize plugin registry and load the plugin if it's not already loaded
+      // Initialize plugin registry and load the plugin if it's not already loaded  
       // Note: The registry should already be initialized in main.mts, but let's ensure plugin is loaded
       plugin.value = await pluginRegistry.loadPlugin(activeGameSystemId.value) as GameSystemPlugin;
-      
-      console.log('🔍 AFTER INITIALIZE PLUGINS:');
-      console.log('  - Plugin loaded:', !!plugin.value);
-      console.log('  - Plugin has validateCharacterData:', !!plugin.value?.validateCharacterData);
-      console.log('  - Plugin validateCharacterData type:', typeof plugin.value?.validateCharacterData);
     }
 
     if (!plugin.value) {
@@ -133,11 +95,6 @@ onMounted(async () => {
       return;
     }
 
-    console.log('Plugin loaded successfully:', plugin.value.manifest.name);
-    console.log('🔍 FINAL PLUGIN STATE:');
-    console.log('  - Plugin ID:', plugin.value.manifest.id);
-    console.log('  - Plugin has validateCharacterData:', !!plugin.value.validateCharacterData);
-    console.log('  - Available methods:', Object.getOwnPropertyNames(plugin.value));
     
     // Load the character creator component
     await loadCharacterCreatorComponent();
@@ -157,7 +114,6 @@ async function loadCharacterCreatorComponent() {
       return;
     }
 
-    console.log('Loading character creator component for:', activeGameSystemId.value);
     
     // Get the character creator component from the plugin registry
     const component = await pluginRegistry.getComponent(
@@ -167,7 +123,6 @@ async function loadCharacterCreatorComponent() {
     
     if (component) {
       pluginComponent.value = markRaw(component);
-      console.log('Character creator component loaded successfully');
     } else {
       console.warn('No character creator component found for game system:', activeGameSystemId.value);
       pluginComponentError.value = `No character creator available for ${activeGameSystemId.value}`;
@@ -180,82 +135,91 @@ async function loadCharacterCreatorComponent() {
 
 // Plugin component event handlers
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function handleCharacterReady(documentData: any) {
-  console.log('Character document ready from plugin:', documentData);
+async function handleCharacterReady(preparedData: any) {
   
   try {
     isSubmitting.value = true;
     
+    // Extract character data and items data from plugin response
+    const { characterData, itemsData } = preparedData;
+    
     // Check if this is already a created document (has an id)
-    if (documentData.id) {
-      console.log('Character already created, skipping creation step');
+    if (characterData?.id) {
       
       // Clear session storage
       sessionStorage.removeItem('actorCreationState');
       
       // Set current actor in the store
-      await actorStore.setCurrentActor(documentData.id);
+      await actorStore.setCurrentActor(characterData.id);
       
       // Navigate to the character sheet
-      router.push({ name: 'character-sheet', params: { id: documentData.id } });
+      router.push({ name: 'character-sheet', params: { id: characterData.id } });
       return;
     }
     
-    // Legacy flow: create the character document
-    console.log('Creating new character document');
+    // Upload images if they are File objects and get asset IDs
+    let avatarAssetId: string | undefined;
+    let tokenAssetId: string | undefined;
     
-    // 1. Validate document-level structure
-    const documentValidation = createDocumentSchema.safeParse({
-      ...documentData,
-      pluginId: plugin.value?.manifest.id,
-      documentType: 'character',
-      pluginDocumentType: 'character',
-      userData: {}
-    });
+    if (basicInfo.value.avatarImage instanceof File) {
+      const formData = new FormData();
+      formData.append('file', basicInfo.value.avatarImage);
+      const avatarAsset = await assetsClient.uploadAsset(formData);
+      avatarAssetId = avatarAsset.id;
+    }
     
-    if (!documentValidation.success) {
-      console.error('Document validation failed:', documentValidation.error);
-      error.value = 'Document structure validation failed';
+    if (basicInfo.value.tokenImage instanceof File) {
+      const formData = new FormData();
+      formData.append('file', basicInfo.value.tokenImage);
+      const tokenAsset = await assetsClient.uploadAsset(formData);
+      tokenAssetId = tokenAsset.id;
+    }
+    
+    // Create the character document using extracted character data
+    
+    // Calculate imageId based on avatar/token priority
+    let imageId: string | undefined;
+    if (avatarAssetId) {
+      imageId = avatarAssetId;
+    } else if (tokenAssetId) {
+      imageId = tokenAssetId;
+    }
+    
+    const finalDocumentData = {
+      ...characterData,
+      ...(avatarAssetId && { avatarId: avatarAssetId }),
+      ...(tokenAssetId && { defaultTokenImageId: tokenAssetId }),
+      ...(imageId && { imageId })
+    };
+    
+    // Validate character data using schema
+    const validationResult = characterCreateSchema.safeParse(finalDocumentData);
+    if (!validationResult.success) {
+      console.error('Character validation failed:', validationResult.error.issues);
+      error.value = `Character validation failed: ${validationResult.error.issues.map(issue => issue.message).join(', ')}`;
       return;
     }
     
-    // 2. Validate plugin data using plugin validation hook
-    console.log('🔍 DEBUGGING PLUGIN VALIDATION:');
-    console.log('  - plugin.value exists:', !!plugin.value);
-    console.log('  - plugin.value.id:', plugin.value?.manifest.id);
-    console.log('  - plugin.value.name:', plugin.value?.manifest.name);
-    console.log('  - plugin.value.validateCharacterData exists:', !!plugin.value?.validateCharacterData);
-    console.log('  - plugin.value.validateCharacterData type:', typeof plugin.value?.validateCharacterData);
-    console.log('  - documentData.pluginData exists:', !!documentData.pluginData);
-    console.log('  - documentData.pluginData.species:', documentData.pluginData?.species);
+    // Save the validated character document
+    const response = await documentsClient.createDocument(finalDocumentData);
     
-    if (plugin.value?.validateCharacterData && documentData.pluginData) {
-      console.log('🧪 CALLING PLUGIN VALIDATION');
-      try {
-        const pluginValidation = plugin.value.validateCharacterData(documentData.pluginData);
-        console.log('🧪 VALIDATION RESULT:', pluginValidation);
-        
-        if (!pluginValidation.success) {
-          console.error('❌ Plugin validation failed:', pluginValidation.errors);
-          error.value = `Character data validation failed: ${pluginValidation.errors?.join(', ')}`;
-          return;
+    // Create item documents if character was created successfully
+    if (response?.id && itemsData && Array.isArray(itemsData)) {
+      for (const itemData of itemsData) {
+        try {
+          const itemDocumentData = {
+            ...itemData,
+            ownerId: response.id // Set the character as owner of the item
+          };
+          
+          await documentsClient.createDocument(itemDocumentData);
+        } catch (itemError) {
+          console.error('Failed to create item document:', itemError);
+          // Continue with other items even if one fails
         }
-        
-        console.log('✅ Plugin validation passed');
-      } catch (validationError) {
-        console.error('💥 VALIDATION THREW ERROR:', validationError);
-        error.value = `Validation error: ${validationError instanceof Error ? validationError.message : String(validationError)}`;
-        return;
       }
-    } else {
-      console.log('❌ PLUGIN VALIDATION SKIPPED - CONDITIONS NOT MET');
-      if (!plugin.value) console.log('   - No plugin.value');
-      if (!plugin.value?.validateCharacterData) console.log('   - No validateCharacterData method');
-      if (!documentData.pluginData) console.log('   - No pluginData');
     }
     
-    // 3. Save the validated document
-    const response = await documentsClient.createDocument(documentValidation.data);
     sessionStorage.removeItem('actorCreationState');
 
     // Set current actor in the store if created successfully
@@ -284,12 +248,10 @@ async function handleCharacterReady(documentData: any) {
 }
 
 function handleBackToBasics() {
-  console.log('Back to basics requested');
   currentStep.value = 1;
 }
 
 function handleValidationChange(isValid: boolean) {
-  console.log('Plugin validation changed:', isValid);
   // Could update UI to show/hide navigation buttons
 }
 

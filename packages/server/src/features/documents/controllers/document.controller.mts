@@ -8,6 +8,12 @@ import {
   patchDocumentRequestSchema,
   SearchDocumentsQuery
 } from '@dungeon-lab/shared/types/api/index.mjs';
+import { 
+  characterCreateSchema,
+  actorCreateSchema,
+  itemCreateSchema,
+  vttDocumentCreateSchema
+} from '@dungeon-lab/shared/schemas/index.mjs';
 import { BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
 import { ZodError } from 'zod';
 import { createSearchParams } from '../../../utils/create.search.params.mjs';
@@ -174,7 +180,36 @@ export class DocumentController {
   ): Promise<Response<BaseAPIResponse<BaseDocument>> | void> => {
     try {
       const userId = req.session.user.id;
-      const validatedData = createDocumentRequestSchema.parse(req.body);
+      
+      // Use document-type-specific validation schema
+      let validatedData: any;
+      const documentType = req.body.documentType;
+      
+      switch (documentType) {
+        case 'character': {
+          // Use character create schema which already omits server-generated fields
+          validatedData = characterCreateSchema.parse(req.body);
+          break;
+        }
+        case 'actor': {
+          // Use actor create schema which already omits server-generated fields  
+          validatedData = actorCreateSchema.parse(req.body);
+          break;
+        }
+        case 'item': {
+          validatedData = itemCreateSchema.parse(req.body);
+          break;
+        }
+        case 'vtt-document': {
+          validatedData = vttDocumentCreateSchema.parse(req.body);
+          break;
+        }
+        default:
+          // Fallback to base document schema
+          validatedData = createDocumentRequestSchema.parse(req.body);
+          break;
+      }
+      
       // Note: Plugin validation now happens client-side only
       // Server trusts that client has already validated plugin data
 

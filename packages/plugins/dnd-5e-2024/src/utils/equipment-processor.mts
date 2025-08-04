@@ -291,13 +291,11 @@ export class EquipmentProcessor {
           ...contentData,
           // Override/add runtime properties
           ownerId, // Custom field for item ownership
-          // Set quantity if different from 1
-          ...(quantity !== 1 && {
-            pluginData: {
-              ...contentData.pluginData,
-              quantity
-            }
-          })
+          // Set initial item state
+          itemState: {
+            equipped: false, // Default to not equipped
+            quantity: quantity || 1
+          }
         });
 
         if (itemDocument && itemDocument.id) {

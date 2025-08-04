@@ -78,10 +78,12 @@ import {
 } from '../schemas/map.schema.mjs';
 
 import {
-  vttDocumentSchema,
-  vttDocumentCreateSchema,
-  vttDocumentUpdateSchema
+  vttDocumentSchema
 } from '../schemas/vtt-document.schema.mjs';
+import {
+  createDocumentSchema as vttDocumentCreateSchema,
+  updateDocumentSchema as vttDocumentUpdateSchema
+} from '../schemas/document.schema.mjs';
 
 import {
   baseDocumentSchema,

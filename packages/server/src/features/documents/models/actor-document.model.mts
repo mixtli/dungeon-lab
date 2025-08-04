@@ -35,6 +35,37 @@ const actorMongooseSchema = createMongoSchema<IActor>(
 actorMongooseSchema.path('pluginData', mongoose.Schema.Types.Mixed);
 actorMongooseSchema.path('userData', mongoose.Schema.Types.Mixed);
 
+// Add actor-specific indexes
+actorMongooseSchema.index({ avatarId: 1 });
+actorMongooseSchema.index({ defaultTokenImageId: 1 });
+
+// Universal inventory indexes (for actors)
+actorMongooseSchema.index({ 'inventory.itemId': 1 });                    // Find actors with specific items
+actorMongooseSchema.index({ campaignId: 1, 'inventory.itemId': 1 });     // Campaign-scoped inventory queries
+actorMongooseSchema.index({ 'inventory.equipped': 1, 'inventory.slot': 1 }); // Find equipped items by slot
+
+// Add inventory validation middleware
+actorMongooseSchema.pre('save', async function(next) {
+  try {
+    // Campaign boundary validation for inventory
+    if (this.campaignId && this.inventory && Array.isArray(this.inventory)) {
+      for (const invItem of this.inventory) {
+        if (invItem.itemId) {
+          // Import DocumentModel here to avoid circular dependency
+          const { DocumentModel } = await import('./document.model.mjs');
+          const referencedItem = await DocumentModel.findById(invItem.itemId);
+          if (referencedItem && referencedItem.campaignId?.toString() !== this.campaignId.toString()) {
+            throw new Error(`Item ${invItem.itemId} does not belong to campaign ${this.campaignId}`);
+          }
+        }
+      }
+    }
+    next();
+  } catch (error) {
+    next(error as Error);
+  }
+});
+
 // Add actor-specific virtual properties
 actorMongooseSchema.virtual('avatar', {
   ref: 'Asset',

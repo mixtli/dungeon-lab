@@ -2,28 +2,75 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { type ICharacter, type IAsset } from '@dungeon-lab/shared/types/index.mjs';
-import { DocumentsClient } from '@dungeon-lab/client/index.mjs';
+import { DocumentsClient, AssetsClient } from '@dungeon-lab/client/index.mjs';
 import { PlusIcon, EyeIcon, TrashIcon } from '@heroicons/vue/24/outline';
 import { useDeviceAdaptation } from '@/composables/useDeviceAdaptation.mts';
 import { transformAssetUrl } from '@/utils/asset-utils.mjs';
 
 const router = useRouter();
 const documentsClient = new DocumentsClient();
+const assetsClient = new AssetsClient();
 const characters = ref<ICharacter[]>([]);
 const isLoading = ref(true);
 const error = ref<string | null>(null);
 const { isMobile } = useDeviceAdaptation();
 
-// Computed property to get the avatar URL for a character
-const getAvatarUrl = (character: ICharacter): string | undefined => {
-  if (character.avatar) {
-    // Handle populated ObjectId reference
-    if (typeof character.avatar === 'object') {
+// Cache for asset URLs to avoid repeated API calls
+const assetUrlCache = ref<Map<string, string>>(new Map());
+
+// Function to get the avatar URL for a character
+const getAvatarUrl = async (character: ICharacter): Promise<string | undefined> => {
+  try {
+    // First, try to get avatar from populated reference (if available)
+    if (character.avatar && typeof character.avatar === 'object') {
       const asset = character.avatar as unknown as IAsset;
       return transformAssetUrl(asset.url as string);
     }
+    
+    // Next, try avatarId (preferred for characters)
+    const assetId = (character as any).avatarId || character.imageId;
+    if (assetId) {
+      // Check cache first
+      if (assetUrlCache.value.has(assetId)) {
+        return assetUrlCache.value.get(assetId);
+      }
+      
+      // Fetch asset from API
+      const asset = await assetsClient.getAsset(assetId);
+      if (asset && asset.url) {
+        const transformedUrl = transformAssetUrl(asset.url);
+        // Cache the result
+        assetUrlCache.value.set(assetId, transformedUrl);
+        return transformedUrl;
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to load avatar for character:', character.name, err);
   }
+  
   return undefined;
+};
+
+// Reactive avatar URLs for each character
+const characterAvatars = ref<Map<string, string>>(new Map());
+
+// Load avatar URLs for all characters
+const loadCharacterAvatars = async () => {
+  const avatarPromises = characters.value.map(async (character) => {
+    if (character.id) {
+      const avatarUrl = await getAvatarUrl(character);
+      if (avatarUrl) {
+        characterAvatars.value.set(character.id, avatarUrl);
+      }
+    }
+  });
+  
+  await Promise.all(avatarPromises);
+};
+
+// Get cached avatar URL for a character
+const getCachedAvatarUrl = (character: ICharacter): string | undefined => {
+  return character.id ? characterAvatars.value.get(character.id) : undefined;
 };
 
 
@@ -31,6 +78,9 @@ onMounted(async () => {
   try {
     // Type-safe call - returns ICharacter[] automatically
     characters.value = await documentsClient.getDocuments({ documentType: 'character' });
+    
+    // Load avatar URLs for all characters
+    await loadCharacterAvatars();
   } catch (err) {
     console.error('Error loading characters:', err);
     error.value = 'Failed to load characters. Please try again later.';
@@ -120,8 +170,8 @@ function handleCreate() {
         >
           <div class="aspect-square bg-gray-200 relative">
             <img
-              v-if="getAvatarUrl(character)"
-              :src="getAvatarUrl(character) || ''"
+              v-if="getCachedAvatarUrl(character)"
+              :src="getCachedAvatarUrl(character) || ''"
               :alt="character.name || 'Character'"
               class="w-full h-full object-contain"
             />

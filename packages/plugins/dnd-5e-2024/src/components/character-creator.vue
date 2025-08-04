@@ -177,7 +177,7 @@ const {
   updateCharacterDetails,
   validateCurrentStep,
   validateCompleteForm,
-  createCompleteCharacterData,
+  prepareCharacterCreationData,
   FORM_STEPS
 } = useCharacterCreation();
 
@@ -277,10 +277,10 @@ const handleCreateCharacter = async () => {
       return;
     }
     
-    const completeCharacterData = await createCompleteCharacterData(props.basicInfo);
-    emit('character-ready', completeCharacterData);
+    const preparedData = await prepareCharacterCreationData(props.basicInfo);
+    emit('character-ready', preparedData);
   } catch (error) {
-    console.error('Failed to create character:', error);
+    console.error('Failed to prepare character data:', error);
     // Could emit an error event or show user feedback
   }
 };

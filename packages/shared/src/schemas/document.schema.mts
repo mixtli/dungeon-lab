@@ -15,10 +15,9 @@ export const documentTypeSchema = z.enum([
 ]);
 
 /**
- * Base document schema that all document types extend
- * This provides the unified structure for the document collection
+ * Common fields shared by all document types
  */
-export const baseDocumentSchema = baseSchema.extend({
+const baseDocumentFields = {
   // Document metadata
   name: z.string().min(1).max(255),
   description: z.string().optional(),
@@ -32,9 +31,6 @@ export const baseDocumentSchema = baseSchema.extend({
       /^[a-z0-9-]+$/,
       'Slug must be lowercase with no spaces, only hyphens and numbers allowed'
     ),
-  
-  // Discriminator field for document type
-  documentType: documentTypeSchema,
   
   // Plugin-specific document subtype (e.g., 'character', 'weapon', 'spell')
   pluginDocumentType: z.string().min(1),
@@ -51,29 +47,83 @@ export const baseDocumentSchema = baseSchema.extend({
   // Plugin-specific data (flexible structure)
   pluginData: z.record(z.string(), z.unknown()).default({}),
   
+  // Plugin-managed item state (equipped, quantity, condition, etc.)
+  itemState: z.record(z.string(), z.unknown()).default({}),
+  
   // User-specific data (for player notes, preferences, etc.)
   userData: z.record(z.string(), z.any()).default({}),
   
   // Compendium reference (optional - only set for compendium content)
   compendiumId: z.string().optional(),
   
-  // Asset references (for images, avatars, etc.)
+  // Basic asset references (shared by all document types)
   imageId: z.string().optional(),
-  thumbnailId: z.string().optional(),
+  thumbnailId: z.string().optional()
+};
+
+/**
+ * Character document schema - includes avatar and token image fields
+ */
+export const characterDocumentSchema = baseSchema.extend({
+  ...baseDocumentFields,
+  documentType: z.literal('character'),
+  
+  // Character/Actor specific image fields
+  avatarId: z.string().optional(),
+  defaultTokenImageId: z.string().optional()
+});
+
+/**
+ * Actor document schema - includes avatar and token image fields
+ */
+export const actorDocumentSchema = baseSchema.extend({
+  ...baseDocumentFields,
+  documentType: z.literal('actor'),
+  
+  // Character/Actor specific image fields
+  avatarId: z.string().optional(),
+  defaultTokenImageId: z.string().optional()
+});
+
+/**
+ * Item document schema - includes owner reference
+ */
+export const itemDocumentSchema = baseSchema.extend({
+  ...baseDocumentFields,
+  documentType: z.literal('item'),
   
   // Owner reference (for items owned by characters/actors)
   ownerId: z.string().optional()
 });
 
 /**
- * Schema for creating documents (omits auto-generated fields)
+ * VTT document schema - basic fields only
  */
-export const createDocumentSchema = baseDocumentSchema.omit({
-  id: true,
-  createdBy: true,
-  updatedBy: true
-}).extend({
-  // Make slug optional for creation - will be auto-generated from name if not provided
+export const vttDocumentSchema = baseSchema.extend({
+  ...baseDocumentFields,
+  documentType: z.literal('vtt-document')
+});
+
+/**
+ * Discriminated union of all document types
+ * This ensures each document type gets exactly the fields it should have
+ */
+export const baseDocumentSchema = z.discriminatedUnion('documentType', [
+  characterDocumentSchema,
+  actorDocumentSchema,
+  itemDocumentSchema,
+  vttDocumentSchema
+]);
+
+/**
+ * Create document schemas (omit auto-generated fields)
+ */
+const createCharacterDocumentSchema = baseSchema.extend({
+  ...baseDocumentFields,
+  documentType: z.literal('character'),
+  avatarId: z.string().optional(),
+  defaultTokenImageId: z.string().optional(),
+  // Make slug optional for creation
   slug: z
     .string()
     .min(1)
@@ -83,22 +133,132 @@ export const createDocumentSchema = baseDocumentSchema.omit({
       'Slug must be lowercase with no spaces, only hyphens and numbers allowed'
     )
     .optional()
+}).omit({
+  id: true,
+  createdBy: true,
+  updatedBy: true
+});
+
+const createActorDocumentSchema = baseSchema.extend({
+  ...baseDocumentFields,
+  documentType: z.literal('actor'),
+  avatarId: z.string().optional(),
+  defaultTokenImageId: z.string().optional(),
+  // Make slug optional for creation
+  slug: z
+    .string()
+    .min(1)
+    .max(255)
+    .regex(
+      /^[a-z0-9-]+$/,
+      'Slug must be lowercase with no spaces, only hyphens and numbers allowed'
+    )
+    .optional()
+}).omit({
+  id: true,
+  createdBy: true,
+  updatedBy: true
+});
+
+const createItemDocumentSchema = baseSchema.extend({
+  ...baseDocumentFields,
+  documentType: z.literal('item'),
+  ownerId: z.string().optional(),
+  // Make slug optional for creation
+  slug: z
+    .string()
+    .min(1)
+    .max(255)
+    .regex(
+      /^[a-z0-9-]+$/,
+      'Slug must be lowercase with no spaces, only hyphens and numbers allowed'
+    )
+    .optional()
+}).omit({
+  id: true,
+  createdBy: true,
+  updatedBy: true
+});
+
+const createVttDocumentSchema = baseSchema.extend({
+  ...baseDocumentFields,
+  documentType: z.literal('vtt-document'),
+  // Make slug optional for creation
+  slug: z
+    .string()
+    .min(1)
+    .max(255)
+    .regex(
+      /^[a-z0-9-]+$/,
+      'Slug must be lowercase with no spaces, only hyphens and numbers allowed'
+    )
+    .optional()
+}).omit({
+  id: true,
+  createdBy: true,
+  updatedBy: true
 });
 
 /**
- * Schema for updating documents (all fields optional)
+ * Schema for creating documents (discriminated union)
  */
-export const updateDocumentSchema = baseDocumentSchema.deepPartial();
+export const createDocumentSchema = z.discriminatedUnion('documentType', [
+  createCharacterDocumentSchema,
+  createActorDocumentSchema,
+  createItemDocumentSchema,
+  createVttDocumentSchema
+]);
+
+/**
+ * Schema for updating documents (all fields optional)
+ * Note: For discriminated unions, we use a more flexible approach
+ */
+export const updateDocumentSchema = z.object({
+  // Base fields that can be updated
+  name: z.string().min(1).max(255).optional(),
+  description: z.string().optional(),
+  slug: z
+    .string()
+    .min(1)
+    .max(255)
+    .regex(
+      /^[a-z0-9-]+$/,
+      'Slug must be lowercase with no spaces, only hyphens and numbers allowed'
+    )
+    .optional(),
+  pluginDocumentType: z.string().min(1).optional(),
+  pluginId: z.string().min(1).optional(),
+  source: z.string().min(1).optional(),
+  campaignId: z.string().optional(),
+  pluginData: z.record(z.string(), z.unknown()).optional(),
+  itemState: z.record(z.string(), z.unknown()).optional(),
+  userData: z.record(z.string(), z.any()).optional(),
+  compendiumId: z.string().optional(),
+  
+  // Asset references (all document types)
+  imageId: z.string().optional(),
+  thumbnailId: z.string().optional(),
+  
+  // Character/Actor specific fields
+  avatarId: z.string().optional(),
+  defaultTokenImageId: z.string().optional(),
+  
+  // Item specific fields
+  ownerId: z.string().optional()
+}).partial();
 
 /**
  * Document schema with virtual asset relationships
  * Note: compendium relationship removed to avoid circular dependency
+ * For discriminated unions, we use intersection to add virtuals
  */
-export const documentSchemaWithVirtuals = baseDocumentSchema.extend({
-  // Virtual asset relationships (properly typed)
-  image: assetSchema.optional(),
-  thumbnail: assetSchema.optional()
-});
+export const documentSchemaWithVirtuals = baseDocumentSchema.and(
+  z.object({
+    // Virtual asset relationships (properly typed)
+    image: assetSchema.optional(),
+    thumbnail: assetSchema.optional()
+  })
+);
 
 export type DocumentType = z.infer<typeof documentTypeSchema>;
 export type BaseDocument = z.infer<typeof baseDocumentSchema>;

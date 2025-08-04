@@ -1,19 +1,14 @@
 import { z } from 'zod';
-import { baseDocumentSchema } from './document.schema.mjs';
+import { itemDocumentSchema } from './document.schema.mjs';
 
-// Item schema - extends base document with VTT-specific fields
-export const itemSchema = baseDocumentSchema.extend({
-  // Discriminator value - use literal for proper type inference
-  documentType: z.literal('item'),
-  
-  // Plugin subtypes: 'weapon', 'armor', 'tool', 'consumable', etc.
-  pluginDocumentType: z.string().min(1)
+// Item schema - uses item document schema (no additional fields needed currently)
+export const itemSchema = itemDocumentSchema;
 
-  // Note: Other fields now come from baseDocumentSchema:
-  // - name, description, pluginId, campaignId, compendiumId, imageId
-  // - pluginData (replaces 'data'), userData
-  // - Game-specific fields like weight, cost should go in pluginData
-});
+// Note: All fields come from itemDocumentSchema:
+// - name, description, pluginId, campaignId, compendiumId, imageId, thumbnailId
+// - ownerId (item-specific for ownership)
+// - pluginData (replaces 'data'), userData, itemState
+// - Game-specific fields like weight, cost should go in pluginData
 
 export const itemCreateSchema = itemSchema
   .omit({
