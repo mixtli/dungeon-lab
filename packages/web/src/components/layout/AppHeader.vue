@@ -52,7 +52,7 @@ function handleThemeToggle() {
 
 <template>
   <header class="fixed top-0 left-0 right-0 z-50 bg-parchment dark:bg-obsidian shadow-lg border-b border-stone-400 dark:border-stone-600">
-    <div class="container mx-auto px-4">
+    <div class="px-3">
       <div class="flex justify-between items-center h-16">
         <!-- Logo -->
         <RouterLink to="/" class="flex items-center">

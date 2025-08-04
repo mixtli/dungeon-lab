@@ -7,6 +7,13 @@ import { ActorsClient } from '@dungeon-lab/client/index.mjs';
 import { useActorStore } from '../stores/actor.store.mjs';
 import CharacterSheetContainer from '../components/character/CharacterSheetContainer.vue';
 
+// Props to allow configuring the display mode
+const props = withDefaults(defineProps<{
+  mode?: 'standalone' | 'popover';
+}>(), {
+  mode: 'standalone' // Default to standalone when accessed via route
+});
+
 const route = useRoute();
 const router = useRouter();
 const actorStore = useActorStore();
@@ -20,7 +27,11 @@ const error = ref<string | null>(null);
 const pluginId = ref('');
 const isPluginLoaded = ref(false);
 
-// Floating window state
+// Display mode detection
+const isPopoverMode = computed(() => props.mode === 'popover');
+const isStandaloneMode = computed(() => props.mode === 'standalone');
+
+// Floating window state (only used in popover mode)
 const isVisible = ref(true);
 const isMinimized = ref(false);
 const position = ref({ x: 200, y: 100 });
@@ -195,8 +206,8 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <!-- Teleport the floating window to the body to render over everything -->
-  <Teleport to="body">
+  <!-- Popover Mode: Floating window -->
+  <Teleport v-if="isPopoverMode" to="body">
     <div
       v-if="isVisible"
       class="character-sheet-floating-window"
@@ -272,6 +283,41 @@ onUnmounted(() => {
       </div>
     </div>
   </Teleport>
+
+  <!-- Standalone Mode: Full page layout -->
+  <div v-if="isStandaloneMode" class="character-sheet-standalone">
+    <div v-if="isLoading" class="loading-standalone">
+      <div class="spinner"></div>
+      <p>Loading character...</p>
+    </div>
+
+    <div v-else-if="error" class="error-standalone">
+      <h2>Error</h2>
+      <p>{{ error }}</p>
+    </div>
+
+    <div v-else-if="!character" class="not-found-standalone">
+      <h2>Character Not Found</h2>
+      <p>The character you're looking for doesn't exist or has been deleted.</p>
+    </div>
+
+    <div v-else-if="!isPluginLoaded" class="plugin-error-standalone">
+      <h2>Game System Not Available</h2>
+      <p>The game system plugin required for this character is not available.</p>
+    </div>
+
+    <div v-else class="character-content-standalone">
+      <CharacterSheetContainer
+        :show="true"
+        :character="character"
+        :readonly="false"
+        @close="router.push('/')"
+        @update:character="handleCharacterUpdate"
+        @save="handleCharacterSave"
+        @roll="handleRoll"
+      />
+    </div>
+  </div>
 </template>
 
 <style scoped>
@@ -445,5 +491,78 @@ onUnmounted(() => {
 
 .character-sheet-floating-window {
   animation: windowFadeIn 0.2s ease-out;
+}
+
+/* Standalone Mode Styles */
+.character-sheet-standalone {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #f5f5f5;
+  overflow: hidden;
+}
+
+.character-content-standalone {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+}
+
+.loading-standalone,
+.error-standalone,
+.not-found-standalone,
+.plugin-error-standalone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  text-align: center;
+  padding: 20px;
+  background: #f5f5f5;
+}
+
+.error-standalone,
+.not-found-standalone,
+.plugin-error-standalone {
+  color: #dc3545;
+}
+
+.error-standalone h2,
+.not-found-standalone h2,
+.plugin-error-standalone h2 {
+  color: #dc3545;
+  margin: 0 0 16px 0;
+  font-size: 1.5rem;
+}
+
+.loading-standalone {
+  color: #666;
+}
+
+.loading-standalone .spinner {
+  border: 4px solid rgba(0, 0, 0, 0.1);
+  border-left-color: #007bff;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+  margin-bottom: 20px;
+}
+
+/* Character Sheet Width Constraints for Standalone Mode */
+.character-content-standalone :deep(.dnd5e-character-sheet) {
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+  /* Override the problematic min-width that causes overflow */
+  min-width: 0;
+}
+
+.character-content-standalone :deep(.character-sheet-container) {
+  max-width: 100%;
+  box-sizing: border-box;
 }
 </style>
