@@ -27,8 +27,9 @@ export class TemplateService {
     compendiumEntry: ICompendiumEntry,
     overrides: Partial<ITemplateOverrides> = {},
     userId: string,
-    campaignId?: string
-  ): Promise<unknown> {
+    campaignId?: string,
+    options: { skipIfExists?: boolean } = {}
+  ): Promise<unknown | null> {
     const { content, entry } = compendiumEntry;
     
     try {
@@ -62,7 +63,19 @@ export class TemplateService {
         }
 
         case 'character': {
-          // Characters can exist without campaigns and are never from compendium
+          // Characters use create-only workflow when skipIfExists is true
+          if (options.skipIfExists) {
+            // Check for existing character by compendiumEntryId
+            const existingCharacter = await CharacterDocumentModel.findOne({
+              compendiumEntryId: compendiumEntry.id
+            });
+
+            if (existingCharacter) {
+              logger.info(`Skipping existing character: ${existingCharacter.name} (compendiumEntryId: ${compendiumEntry.id})`);
+              return null; // Signal that this was skipped
+            }
+          }
+
           // Validate campaign if provided
           if (campaignId) {
             const campaign = await CampaignModel.findById(campaignId);
@@ -71,7 +84,7 @@ export class TemplateService {
             }
           }
           // Strip out problematic fields from content
-          const { id, ...cleanContent } = content;
+          const { id: _charId, ...cleanContent } = content;
           
           const characterData = {
             ...cleanContent,
@@ -82,12 +95,14 @@ export class TemplateService {
             createdBy: userId,                   // Required - characters owned by users
             createdAt: new Date(),
             updatedBy: userId,
-            // Source tracking (rare case - pre-made character templates)
+            // Source tracking with compendiumEntryId
+            compendiumEntryId: compendiumEntry.id, // Track which entry this came from
             sourceCompendiumId: compendiumEntry.compendiumId,
             sourceEntryId: compendiumEntry.id,
             sourceVersion: compendiumEntry.contentVersion
           }
 
+          logger.info(`Creating new character: ${content.name} (compendiumEntryId: ${compendiumEntry.id})`);
           return await CharacterDocumentModel.create(characterData);
         }
           
@@ -119,17 +134,11 @@ export class TemplateService {
         }
           
         case 'vtt-document': {
-          // VTTDocuments are global, immutable, and singleton
-          // Check if instance already exists for this compendium entry
+          // VTTDocuments use create-or-update workflow based ONLY on compendiumEntryId
+          // Check for existing document by compendiumEntryId only - no fallback
           const existingDocument = await VTTDocumentModel.findOne({
-            sourceEntryId: compendiumEntry.id,
-            sourceCompendiumId: compendiumEntry.compendiumId
+            compendiumEntryId: compendiumEntry.id
           });
-
-          if (existingDocument) {
-            logger.info(`Returning existing VTTDocument instance for entry ${compendiumEntry.id}`);
-            return existingDocument;
-          }
 
           // Strip out problematic fields from content
           const { id: _vttId, ...cleanVttContent } = content;
@@ -139,17 +148,33 @@ export class TemplateService {
             ...overrides,
             // Ownership rules for VTTDocuments
             campaignId: undefined, // Global - not tied to any campaign
-            createdBy: userId,     // Track who first instantiated it
-            createdAt: new Date(),
             updatedBy: userId,
-            // Source tracking
+            // Source tracking with compendiumEntryId
+            compendiumEntryId: compendiumEntry.id, // Track which entry this came from
             sourceCompendiumId: compendiumEntry.compendiumId,
             sourceEntryId: compendiumEntry.id,
             sourceVersion: compendiumEntry.contentVersion
-          }
+          };
 
-          // Create new singleton instance
-          return await VTTDocumentModel.create(documentData);
+          if (existingDocument) {
+            // Update existing document
+            logger.info(`Updating existing VTTDocument instance for slug ${content.slug}`);
+            const updatedDocument = await VTTDocumentModel.findByIdAndUpdate(
+              existingDocument._id,
+              documentData,
+              { new: true, runValidators: true }
+            );
+            return updatedDocument;
+          } else {
+            // Create new document
+            logger.info(`Creating new VTTDocument instance for slug ${content.slug}`);
+            const newDocumentData = {
+              ...documentData,
+              createdBy: userId,     // Track who first instantiated it
+              createdAt: new Date()
+            };
+            return await VTTDocumentModel.create(newDocumentData);
+          }
         }
           
         default: {

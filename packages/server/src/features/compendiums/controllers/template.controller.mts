@@ -21,7 +21,7 @@ export class TemplateController {
   async instantiateTemplate(req: Request, res: Response): Promise<void> {
     try {
       const { compendiumId, entryId } = req.params;
-      const { overrides = {}, campaignId } = req.body;
+      const { overrides = {}, campaignId, skipIfExists = false } = req.body;
       
       if (!req.session?.user?.id) {
         res.status(401).json({ error: 'User not authenticated' });
@@ -45,17 +45,33 @@ export class TemplateController {
         return;
       }
 
+      // Convert MongoDB document to proper format with id field
+      const entryWithId = {
+        ...entry,
+        id: entry._id.toString()
+      };
+
       const instance = await this.templateService.createFromTemplate(
-        entry as unknown as ICompendiumEntryDocument,
+        entryWithId as unknown as ICompendiumEntryDocument,
         overrides,
         req.session.user.id,
-        campaignId
+        campaignId,
+        { skipIfExists }
       );
 
-      res.status(201).json({
-        success: true,
-        data: instance
-      });
+      if (instance === null) {
+        // Document was skipped because it already exists
+        res.status(200).json({
+          success: true,
+          skipped: true,
+          message: 'Document already exists, skipped creation'
+        });
+      } else {
+        res.status(201).json({
+          success: true,
+          data: instance
+        });
+      }
     } catch (error) {
       logger.error('Error instantiating template:', error);
       res.status(500).json({ 

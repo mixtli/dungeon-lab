@@ -255,14 +255,21 @@ export class CompendiumsClient extends ApiClient {
   /**
    * Instantiate a template from a compendium entry
    */
-  async instantiateTemplate(compendiumId: string, entryId: string, overrides?: Record<string, unknown>): Promise<IEmbeddedContent> {
-    const response = await this.api.post<BaseAPIResponse<IEmbeddedContent>>(`/api/compendiums/${compendiumId}/entries/${entryId}/instantiate`, {
-      overrides: overrides || {}
+  async instantiateTemplate(compendiumId: string, entryId: string, overrides?: Record<string, unknown>, options?: { skipIfExists?: boolean }): Promise<IEmbeddedContent | null> {
+    const response = await this.api.post<BaseAPIResponse<IEmbeddedContent | { skipped: boolean; message: string }>>(`/api/compendiums/${compendiumId}/entries/${entryId}/instantiate`, {
+      overrides: overrides || {},
+      skipIfExists: options?.skipIfExists || false
     });
     if (!response.data || !response.data.success) {
       throw new Error(response.data?.error || 'Failed to instantiate template');
     }
-    return response.data.data;
+    
+    // Check if the document was skipped
+    if ('skipped' in response.data.data && response.data.data.skipped) {
+      return null; // Indicate that the document was skipped
+    }
+    
+    return response.data.data as IEmbeddedContent;
   }
 
   /**

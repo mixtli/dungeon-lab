@@ -17,6 +17,7 @@ const RegisterView = () => import('@/views/auth/RegisterView.vue');
 const GoogleCallbackView = () => import('@/views/auth/GoogleCallbackView.vue');
 const NotFoundView = () => import('@/views/NotFoundView.vue');
 const PluginManagerView = () => import('@/views/plugin/PluginManagerView.vue');
+const AdminDashboardView = () => import('@/views/AdminDashboardView.vue');
 const ChatView = () => import('@/views/ChatView.vue');
 const SettingsView = () => import('@/views/SettingsView.vue');
 const ProfileView = () => import('@/views/ProfileView.vue');
@@ -369,6 +370,16 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: true
     },
     children: [
+      {
+        path: 'dashboard',
+        name: 'admin-dashboard',
+        component: AdminDashboardView,
+        meta: {
+          title: 'Admin Dashboard',
+          requiresAuth: true,
+          requiresAdmin: true
+        }
+      },
       {
         path: 'plugins',
         name: 'plugin-manager',

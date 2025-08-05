@@ -56,6 +56,9 @@ const baseDocumentFields = {
   // Compendium reference (optional - only set for compendium content)
   compendiumId: z.string().optional(),
   
+  // Compendium entry reference (optional - tracks which entry this was created from)
+  compendiumEntryId: z.string().optional(),
+  
   // Basic asset references (shared by all document types)
   imageId: z.string().optional(),
   thumbnailId: z.string().optional()

@@ -52,10 +52,9 @@ export class CompendiumService {
       if (filters?.isPublic !== undefined) query.isPublic = filters.isPublic;
       
       const compendiums = await CompendiumModel.find(query)
-        .sort({ name: 1 })
-        .lean();
+        .sort({ name: 1 });
       
-      return compendiums;
+      return compendiums.map(comp => comp.toObject());
     } catch (error) {
       logger.error('Error fetching compendiums:', error);
       throw new Error('Failed to get compendiums');

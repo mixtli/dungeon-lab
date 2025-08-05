@@ -205,6 +205,15 @@ function handleThemeToggle() {
               class="absolute right-0 w-48 mt-2 py-1 bg-white dark:bg-stone border border-stone-300 dark:border-stone-600 rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200"
             >
               <RouterLink
+                v-if="authStore.user?.isAdmin"
+                to="/admin/dashboard"
+                class="block px-4 py-2 text-sm nav-text hover:bg-stone-100 dark:hover:bg-stone-600"
+              >
+                <i class="fas fa-shield-alt mr-2"></i>
+                Admin Dashboard
+              </RouterLink>
+              <div v-if="authStore.user?.isAdmin" class="border-t border-gray-200 dark:border-gray-600 my-1"></div>
+              <RouterLink
                 to="/profile"
                 class="block px-4 py-2 text-sm nav-text hover:bg-stone-100 dark:hover:bg-stone-600"
               >
