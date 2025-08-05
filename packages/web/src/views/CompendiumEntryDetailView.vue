@@ -49,10 +49,58 @@
             </div>
           </div>
           
-          <button @click="$router.go(-1)" class="btn-secondary">
-            <i class="fas fa-arrow-left mr-2"></i>
-            Back
-          </button>
+          <div class="flex space-x-3">
+            <button 
+              @click="createDocument" 
+              :disabled="creating"
+              class="btn-primary"
+            >
+              <i :class="creating ? 'fas fa-spinner fa-spin' : 'fas fa-plus'" class="mr-2"></i>
+              {{ creating ? 'Creating...' : 'Create Document' }}
+            </button>
+            
+            <button @click="$router.go(-1)" class="btn-secondary">
+              <i class="fas fa-arrow-left mr-2"></i>
+              Back
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Success Message -->
+      <div v-if="createSuccess" class="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
+        <div class="flex items-center">
+          <div class="flex-shrink-0">
+            <i class="fas fa-check-circle text-green-400"></i>
+          </div>
+          <div class="ml-3">
+            <p class="text-sm font-medium text-green-800">
+              Document created successfully! Redirecting...
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Error Message -->
+      <div v-if="createError" class="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+        <div class="flex items-center">
+          <div class="flex-shrink-0">
+            <i class="fas fa-exclamation-circle text-red-400"></i>
+          </div>
+          <div class="ml-3">
+            <p class="text-sm font-medium text-red-800">{{ createError }}</p>
+          </div>
+          <div class="ml-auto pl-3">
+            <div class="-mx-1.5 -my-1.5">
+              <button 
+                @click="createError = null"
+                type="button" 
+                class="inline-flex bg-red-50 rounded-md p-1.5 text-red-500 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-red-50 focus:ring-red-600"
+              >
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -157,16 +205,20 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { CompendiumsClient } from '@dungeon-lab/client/index.mjs';
 import type { ICompendiumEntry, ICompendium } from '@dungeon-lab/shared/types/index.mjs';
 
 const route = useRoute();
+const router = useRouter();
 const compendiumsClient = new CompendiumsClient();
 const loading = ref(true);
 const error = ref<string | null>(null);
 const entry = ref<ICompendiumEntry | null>(null);
 const compendium = ref<ICompendium | null>(null);
+const creating = ref(false);
+const createSuccess = ref(false);
+const createError = ref<string | null>(null);
 
 // Extended interface for entries with populated image objects
 interface ICompendiumEntryWithImage extends ICompendiumEntry {
@@ -255,6 +307,40 @@ function formatPluginData(data: Record<string, unknown>): string {
     return JSON.stringify(data, null, 2);
   } catch {
     return 'Invalid JSON data';
+  }
+}
+
+// Create document from template
+async function createDocument() {
+  if (!entry.value || !compendium.value) return;
+  
+  try {
+    creating.value = true;
+    createError.value = null;
+    
+    const compendiumId = route.params.compendiumId as string;
+    const entryId = route.params.entryId as string;
+    
+    // Call the instantiate template API
+    const document = await compendiumsClient.instantiateTemplate(compendiumId, entryId);
+    
+    createSuccess.value = true;
+    
+    // Show success message briefly then navigate to the new document
+    setTimeout(() => {
+      // Navigate to the documents list or the specific document if we have an ID
+      if (document && typeof document === 'object' && 'id' in document) {
+        router.push({ name: 'document-detail', params: { id: (document as any).id } });
+      } else {
+        router.push({ name: 'documents' });
+      }
+    }, 1000);
+    
+  } catch (err) {
+    console.error('Error creating document:', err);
+    createError.value = err instanceof Error ? err.message : 'Failed to create document';
+  } finally {
+    creating.value = false;
   }
 }
 

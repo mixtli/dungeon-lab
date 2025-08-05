@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { CompendiumEntryModel } from '../models/compendium-entry.model.mjs';
+import { CompendiumModel } from '../models/compendium.model.mjs';
 import { TemplateService } from '../services/template.service.mjs';
 import { logger } from '../../../utils/logger.mjs';
 import type { ICompendiumEntry } from '@dungeon-lab/shared/types/index.mjs';
@@ -27,22 +28,20 @@ export class TemplateController {
         return;
       }
 
+      // First, resolve the compendium slug to its ObjectId
+      const compendium = await CompendiumModel.findOne({ slug: compendiumId }).lean();
+      if (!compendium) {
+        res.status(404).json({ error: 'Compendium not found' });
+        return;
+      }
+
       const entry = await CompendiumEntryModel.findOne({
         _id: entryId,
-        compendiumId
+        compendiumId: compendium._id
       }).lean();
 
       if (!entry) {
         res.status(404).json({ error: 'Compendium entry not found' });
-        return;
-      }
-
-      // Validate campaignId is provided for actors and items
-      if ((entry.entry.documentType === 'actor' || entry.entry.documentType === 'item') && !campaignId) {
-        res.status(400).json({ 
-          error: `Campaign ID is required when instantiating ${entry.entry.documentType} documents`,
-          details: `${entry.entry.documentType} documents must belong to a campaign`
-        });
         return;
       }
 
@@ -76,9 +75,16 @@ export class TemplateController {
       const { compendiumId, entryId } = req.params;
       const newData = req.body;
 
+      // First, resolve the compendium slug to its ObjectId
+      const compendium = await CompendiumModel.findOne({ slug: compendiumId }).lean();
+      if (!compendium) {
+        res.status(404).json({ error: 'Compendium not found' });
+        return;
+      }
+
       const entry = await CompendiumEntryModel.findOne({
         _id: entryId,
-        compendiumId
+        compendiumId: compendium._id
       }).lean();
 
       if (!entry) {
@@ -106,9 +112,16 @@ export class TemplateController {
     try {
       const { compendiumId, entryId } = req.params;
 
+      // First, resolve the compendium slug to its ObjectId
+      const compendium = await CompendiumModel.findOne({ slug: compendiumId }).lean();
+      if (!compendium) {
+        res.status(404).json({ error: 'Compendium not found' });
+        return;
+      }
+
       const entry = await CompendiumEntryModel.findOne({
         _id: entryId,
-        compendiumId
+        compendiumId: compendium._id
       }).lean();
 
       if (!entry) {

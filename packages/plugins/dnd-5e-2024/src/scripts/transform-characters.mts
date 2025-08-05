@@ -487,13 +487,8 @@ function transformCharacter(legacy: LegacyCharacterData): ContentFileWrapper {
     'survival': { proficient: false, expert: false, bonus: 0, advantage: false, disadvantage: false }
   };
 
-  // Transform inventory
-  const inventory = legacy.data.equipment.map(item => ({
-    itemId: item.id,
-    quantity: item.quantity,
-    equipped: false, // Default to unequipped
-    metadata: {}
-  }));
+  // Remove inventory for now - will handle equipment in a separate transformation
+  const inventory: any[] = [];
 
   // Transform class features
   const classFeatures = legacy.data.features.map(feature => ({
@@ -510,7 +505,7 @@ function transformCharacter(legacy: LegacyCharacterData): ContentFileWrapper {
     slug,
     pluginDocumentType: 'character',
     pluginId: 'dnd-5e-2024',
-    documentType: 'actor',
+    documentType: 'character',
     source: 'custom',
     
     // Use asset paths from legacy data (these will need to be processed separately)
@@ -653,7 +648,7 @@ function transformCharacter(legacy: LegacyCharacterData): ContentFileWrapper {
   return {
     entry: {
       name: legacy.name,
-      documentType: 'actor',
+      documentType: 'character',
       imageId: undefined, // Will be set by the asset copying logic
       category: 'Characters',
       tags: ['character', 'custom'],
@@ -725,7 +720,7 @@ async function createZipFile(sourceDir: string, targetZipPath: string): Promise<
  */
 async function main() {
   const charactersDir = path.resolve(__dirname, '../../data/characters');
-  const outputDir = path.resolve(__dirname, '../../transformed-characters');
+  const outputDir = path.resolve(__dirname, '../../packs/custom-characters');
   
   // Create output directory structure like 5etools converter
   const contentDir = path.join(outputDir, 'content', 'characters');

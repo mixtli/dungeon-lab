@@ -19,7 +19,7 @@
     "data": null
   },
   "data": {
-    "species": "celestial",
+    "species": "human",
     "classes": [
       {
         "name": "wizard",
@@ -111,17 +111,17 @@
     "features": [
       {
         "name": "Arcane Recovery",
-        "source": "Wizard",
+        "source": "wizard",
         "description": "Once per day when you finish a short rest, you can choose expended spell slots to recover."
       },
       {
         "name": "Spell Mastery",
-        "source": "Wizard",
+        "source": "wizard",
         "description": "You can cast certain 1st and 2nd level spells at will."
       },
       {
         "name": "Signature Spells",
-        "source": "Wizard",
+        "source": "wizard",
         "description": "You gain mastery over two powerful spells and can cast them with very little effort."
       }
     ],

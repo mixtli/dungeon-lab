@@ -70,9 +70,11 @@ export class TemplateService {
               throw new Error(`Campaign with ID ${campaignId} not found`);
             }
           }
-
-          return await CharacterDocumentModel.create({
-            ...content,
+          // Strip out problematic fields from content
+          const { id, ...cleanContent } = content;
+          
+          const characterData = {
+            ...cleanContent,
             ...overrides,
             // Ownership rules for characters
             campaignId: campaignId || undefined, // Optional - characters can exist without campaigns
@@ -84,7 +86,9 @@ export class TemplateService {
             sourceCompendiumId: compendiumEntry.compendiumId,
             sourceEntryId: compendiumEntry.id,
             sourceVersion: compendiumEntry.contentVersion
-          });
+          }
+
+          return await CharacterDocumentModel.create(characterData);
         }
           
         case 'item': {
@@ -127,9 +131,11 @@ export class TemplateService {
             return existingDocument;
           }
 
-          // Create new singleton instance
-          return await VTTDocumentModel.create({
-            ...content,
+          // Strip out problematic fields from content
+          const { id: _vttId, ...cleanVttContent } = content;
+          
+          const documentData = {
+            ...cleanVttContent,
             ...overrides,
             // Ownership rules for VTTDocuments
             campaignId: undefined, // Global - not tied to any campaign
@@ -140,7 +146,10 @@ export class TemplateService {
             sourceCompendiumId: compendiumEntry.compendiumId,
             sourceEntryId: compendiumEntry.id,
             sourceVersion: compendiumEntry.contentVersion
-          });
+          }
+
+          // Create new singleton instance
+          return await VTTDocumentModel.create(documentData);
         }
           
         default: {

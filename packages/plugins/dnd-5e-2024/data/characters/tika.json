@@ -27,7 +27,7 @@
         "hitDiceType": "d8"
       }
     ],
-    "background": "tavern server",
+    "background": "acolyte",
     "alignment": "neutral-good",
     "experiencePoints": 0,
     "proficiencyBonus": 2,
