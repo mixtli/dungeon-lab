@@ -1,0 +1,132 @@
+{
+  "userData": {
+    "uuid": "9002C447-75DB-4F1B-B77A-48FE5F768E8C"
+  },
+  "name": "Tanis",
+  "description": "A natural leader torn between his human and elven heritage, Tanis Half-Elven embodies both wisdom and inner conflict. His tactical mind and diplomatic nature make him a respected figure among his companions, while his internal struggles with identity and love add depth to his character. Despite his doubts, his leadership abilities and moral compass guide the group through their darkest hours.",
+  "avatar": {
+    "url": "images/character_tokens/dragonlance/tanis.png",
+    "type": "image/png",
+    "size": 0,
+    "name": "tanis.png",
+    "data": null
+  },
+  "token": {
+    "url": "images/character_tokens/dragonlance/tanis.png",
+    "type": "image/png",
+    "size": 0,
+    "name": "tanis.png",
+    "data": null
+  },
+  "data": {
+    "species": "half-elf",
+    "classes": [
+      {
+        "name": "ranger",
+        "level": 1,
+        "hitDiceType": "d10"
+      }
+    ],
+    "background": "wanderer",
+    "alignment": "neutral-good",
+    "experiencePoints": 0,
+    "proficiencyBonus": 2,
+    "armorClass": 10,
+    "initiative": 2,
+    "speed": 30,
+    "hitPoints": {
+      "maximum": 11,
+      "current": 11,
+      "temporary": 0
+    },
+    "hitDice": {
+      "total": 1,
+      "current": 1,
+      "type": "d10"
+    },
+    "abilities": {
+      "strength": {
+        "score": 10,
+        "modifier": 0,
+        "savingThrow": {
+          "proficient": false,
+          "bonus": 0
+        }
+      },
+      "dexterity": {
+        "score": 10,
+        "modifier": 0,
+        "savingThrow": {
+          "proficient": false,
+          "bonus": 0
+        }
+      },
+      "constitution": {
+        "score": 10,
+        "modifier": 0,
+        "savingThrow": {
+          "proficient": false,
+          "bonus": 0
+        }
+      },
+      "intelligence": {
+        "score": 10,
+        "modifier": 0,
+        "savingThrow": {
+          "proficient": false,
+          "bonus": 0
+        }
+      },
+      "wisdom": {
+        "score": 10,
+        "modifier": 0,
+        "savingThrow": {
+          "proficient": false,
+          "bonus": 0
+        }
+      },
+      "charisma": {
+        "score": 10,
+        "modifier": 0,
+        "savingThrow": {
+          "proficient": false,
+          "bonus": 0
+        }
+      }
+    },
+    "equipment": [
+      {
+        "id": "longbow",
+        "quantity": 1
+      },
+      {
+        "id": "longsword",
+        "quantity": 1
+      },
+      {
+        "id": "studded-leather",
+        "quantity": 1
+      }
+    ],
+    "features": [
+      {
+        "name": "Favored Enemy",
+        "source": "Ranger",
+        "description": "You have significant experience studying, tracking, hunting, and even talking to a certain type of enemy."
+      },
+      {
+        "name": "Natural Explorer",
+        "source": "Ranger",
+        "description": "You are particularly familiar with one type of natural environment and are adept at traveling and surviving in such regions."
+      }
+    ],
+    "biography": {
+      "appearance": "A tall half-elf with reddish-brown hair and beard, bearing the features of both his elven and human heritage",
+      "backstory": "Born to a human mother and elven father, Tanis was raised among the Qualinesti elves but never fully accepted. He left to explore the world and find his own place in it.",
+      "personalityTraits": "Thoughtful and diplomatic, often caught between two worlds",
+      "ideals": "Balance - Finding harmony between different peoples and ways of life",
+      "bonds": "Deeply connected to both his human and elven heritage",
+      "flaws": "Sometimes plagued by self-doubt and questions of identity"
+    }
+  }
+}

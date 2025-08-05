@@ -1,0 +1,122 @@
+{
+  "userData": {
+    "uuid": "FF085E57-47D2-4D48-9755-20B4A5A20080"
+  },
+  "name": "Gimli",
+  "description": "A proud dwarven warrior whose fierce loyalty and mighty axe make him a formidable member of the Fellowship. Son of Glóin, he initially carries his people's ancient prejudices, but through his friendship with Legolas, he helps bridge the divide between elves and dwarves. His skill in battle is matched only by his passionate defense of dwarven culture and his growing appreciation for the beauty of the elven realms.",
+  "avatar": {
+    "url": "images/character_tokens/middle_earth/gimli.png",
+    "type": "image/png",
+    "size": 0,
+    "name": "gimli.png",
+    "data": null
+  },
+  "token": {
+    "url": "images/character_tokens/middle_earth/gimli.png",
+    "type": "image/png",
+    "size": 0,
+    "name": "gimli.png",
+    "data": null
+  },
+  "data": {
+    "species": "dwarf",
+    "classes": [
+      {
+        "name": "Fighter",
+        "level": 1,
+        "hitDiceType": "d10"
+      }
+    ],
+    "background": "soldier",
+    "alignment": "lawful-good",
+    "experiencePoints": 0,
+    "proficiencyBonus": 2,
+    "armorClass": 10,
+    "initiative": 0,
+    "speed": 25,
+    "hitPoints": {
+      "maximum": 10,
+      "current": 10,
+      "temporary": 0
+    },
+    "hitDice": {
+      "total": 1,
+      "current": 1,
+      "type": "d10"
+    },
+    "abilities": {
+      "strength": {
+        "score": 10,
+        "modifier": 0,
+        "savingThrow": {
+          "proficient": false,
+          "bonus": 0
+        }
+      },
+      "dexterity": {
+        "score": 10,
+        "modifier": 0,
+        "savingThrow": {
+          "proficient": false,
+          "bonus": 0
+        }
+      },
+      "constitution": {
+        "score": 10,
+        "modifier": 0,
+        "savingThrow": {
+          "proficient": false,
+          "bonus": 0
+        }
+      },
+      "intelligence": {
+        "score": 10,
+        "modifier": 0,
+        "savingThrow": {
+          "proficient": false,
+          "bonus": 0
+        }
+      },
+      "wisdom": {
+        "score": 10,
+        "modifier": 0,
+        "savingThrow": {
+          "proficient": false,
+          "bonus": 0
+        }
+      },
+      "charisma": {
+        "score": 10,
+        "modifier": 0,
+        "savingThrow": {
+          "proficient": false,
+          "bonus": 0
+        }
+      }
+    },
+    "equipment": [],
+    "features": [
+      {
+        "name": "Darkvision",
+        "source": "Dwarf",
+        "description": "You can see in dim light within 60 feet of you as if it were bright light, and in darkness as if it were dim light."
+      },
+      {
+        "name": "Dwarven Resilience",
+        "source": "Dwarf",
+        "description": "You have advantage on saving throws against poison, and you have resistance against poison damage."
+      },
+      {
+        "name": "Second Wind",
+        "source": "Fighter",
+        "description": "You have a limited well of stamina that you can draw on to protect yourself from harm. On your turn, you can use a bonus action to regain hit points equal to 1d10 + your fighter level."
+      }
+    ],
+    "biography": {
+      "appearance": "Stout and sturdy dwarf with a long, braided beard. Known for his impressive axe-wielding skills.",
+      "personality": "Proud, loyal, and fierce in battle. Has a friendly rivalry with Legolas.",
+      "background": "Son of Glóin, member of the Fellowship of the Ring, and skilled warrior of the Dwarven kingdoms.",
+      "alignment": "Lawful Good - Follows a strict code of honor and loyalty to his friends and people."
+    }
+  }
+}
