@@ -176,4 +176,47 @@ export class DocumentsClient extends ApiClient {
       throw new Error(response.data.error || 'Failed to delete document');
     }
   }
+
+  /**
+   * Resolve ObjectId references in documents to ensure they point to documents rather than compendium entries
+   * @param documentIds - Array of document IDs to resolve references for
+   * @returns Resolution result with statistics and details
+   */
+  async resolveDocumentReferences(documentIds: string[]): Promise<{
+    processed: number;
+    resolved: number;
+    created: number;
+    errors: number;
+    details: Array<{
+      documentId: string;
+      fieldPath: string;
+      originalObjectId: string;
+      resolvedObjectId?: string;
+      action: 'kept_existing' | 'resolved_to_document' | 'created_document' | 'error';
+      error?: string;
+    }>;
+  }> {
+    const response = await this.api.post<BaseAPIResponse<{
+      processed: number;
+      resolved: number;
+      created: number;
+      errors: number;
+      details: Array<{
+        documentId: string;
+        fieldPath: string;
+        originalObjectId: string;
+        resolvedObjectId?: string;
+        action: 'kept_existing' | 'resolved_to_document' | 'created_document' | 'error';
+        error?: string;
+      }>;
+    }>>('/api/documents/resolve-references', {
+      documentIds
+    });
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to resolve document references');
+    }
+    
+    return response.data.data;
+  }
 }

@@ -2,11 +2,12 @@
 import { computed, onMounted, ref } from 'vue';
 import { useAuthStore } from '@/stores/auth.store.mjs';
 import { useRouter } from 'vue-router';
-import { CompendiumsClient } from '@dungeon-lab/client/index.mjs';
+import { CompendiumsClient, DocumentsClient } from '@dungeon-lab/client/index.mjs';
 
 const authStore = useAuthStore();
 const router = useRouter();
 const compendiumsClient = new CompendiumsClient();
+const documentsClient = new DocumentsClient();
 
 // Bulk operations state
 const bulkOperations = ref({
@@ -19,6 +20,13 @@ const bulkOperations = ref({
     updated: 0,
     failed: 0,
     details: [] as Array<{ entryName: string; success: boolean; wasUpdate?: boolean; error?: string; documentId?: string }>
+  },
+  referenceResolution: {
+    resolving: false,
+    processed: 0,
+    resolved: 0,
+    created: 0,
+    errors: 0
   }
 });
 
@@ -34,6 +42,13 @@ const characterBulkOperations = ref({
     skipped: 0,
     failed: 0,
     details: [] as Array<{ entryName: string; success: boolean; wasSkipped?: boolean; error?: string; documentId?: string }>
+  },
+  referenceResolution: {
+    resolving: false,
+    processed: 0,
+    resolved: 0,
+    created: 0,
+    errors: 0
   }
 });
 
@@ -154,6 +169,33 @@ async function generateAllVTTDocuments() {
       }
     }
 
+    // Phase 2: Resolve document references
+    console.log('Starting reference resolution phase...');
+    bulkOperations.value.referenceResolution.resolving = true;
+    
+    try {
+      // Get all document IDs that were successfully created/updated
+      const documentIds = bulkOperations.value.results.details
+        .filter(detail => detail.success && detail.documentId)
+        .map(detail => detail.documentId!);
+
+      if (documentIds.length > 0) {
+        const resolutionResult = await documentsClient.resolveDocumentReferences(documentIds);
+        
+        bulkOperations.value.referenceResolution.processed = resolutionResult.processed;
+        bulkOperations.value.referenceResolution.resolved = resolutionResult.resolved;
+        bulkOperations.value.referenceResolution.created = resolutionResult.created;
+        bulkOperations.value.referenceResolution.errors = resolutionResult.errors;
+        
+        console.log(`Reference resolution completed: ${resolutionResult.resolved} resolved, ${resolutionResult.created} auto-created, ${resolutionResult.errors} errors`);
+      }
+    } catch (error) {
+      console.error('Reference resolution failed:', error);
+      bulkOperations.value.referenceResolution.errors = 1;
+    } finally {
+      bulkOperations.value.referenceResolution.resolving = false;
+    }
+
     bulkOperations.value.success = true;
     console.log(`Bulk operation completed: ${bulkOperations.value.results.successful} successful, ${bulkOperations.value.results.failed} failed`);
     
@@ -255,6 +297,33 @@ async function generateAllCharacterDocuments() {
       }
     }
 
+    // Phase 2: Resolve document references
+    console.log('Starting character reference resolution phase...');
+    characterBulkOperations.value.referenceResolution.resolving = true;
+    
+    try {
+      // Get all document IDs that were successfully created (not skipped)
+      const documentIds = characterBulkOperations.value.results.details
+        .filter(detail => detail.success && !detail.wasSkipped && detail.documentId)
+        .map(detail => detail.documentId!);
+
+      if (documentIds.length > 0) {
+        const resolutionResult = await documentsClient.resolveDocumentReferences(documentIds);
+        
+        characterBulkOperations.value.referenceResolution.processed = resolutionResult.processed;
+        characterBulkOperations.value.referenceResolution.resolved = resolutionResult.resolved;
+        characterBulkOperations.value.referenceResolution.created = resolutionResult.created;
+        characterBulkOperations.value.referenceResolution.errors = resolutionResult.errors;
+        
+        console.log(`Character reference resolution completed: ${resolutionResult.resolved} resolved, ${resolutionResult.created} auto-created, ${resolutionResult.errors} errors`);
+      }
+    } catch (error) {
+      console.error('Character reference resolution failed:', error);
+      characterBulkOperations.value.referenceResolution.errors = 1;
+    } finally {
+      characterBulkOperations.value.referenceResolution.resolving = false;
+    }
+
     characterBulkOperations.value.success = true;
     console.log(`Character bulk operation completed: ${characterBulkOperations.value.results.created} created, ${characterBulkOperations.value.results.skipped} skipped, ${characterBulkOperations.value.results.failed} failed`);
     
@@ -277,6 +346,13 @@ function clearBulkResults() {
     failed: 0,
     details: []
   };
+  bulkOperations.value.referenceResolution = {
+    resolving: false,
+    processed: 0,
+    resolved: 0,
+    created: 0,
+    errors: 0
+  };
 }
 
 // Function to clear character results
@@ -290,6 +366,13 @@ function clearCharacterBulkResults() {
     skipped: 0,
     failed: 0,
     details: []
+  };
+  characterBulkOperations.value.referenceResolution = {
+    resolving: false,
+    processed: 0,
+    resolved: 0,
+    created: 0,
+    errors: 0
   };
 }
 </script>
@@ -389,12 +472,21 @@ function clearCharacterBulkResults() {
                   <i class="fas fa-check-circle text-green-400 mr-2"></i>
                   <span class="text-sm font-medium text-green-800">Bulk Operation Completed</span>
                 </div>
-                <div class="text-sm text-green-700">
-                  <p>Total entries processed: {{ bulkOperations.results.total }}</p>
-                  <p>Successful: {{ bulkOperations.results.successful }}</p>
-                  <p v-if="bulkOperations.results.updated > 0">Updated existing: {{ bulkOperations.results.updated }}</p>
-                  <p>Created new: {{ bulkOperations.results.successful - bulkOperations.results.updated }}</p>
-                  <p v-if="bulkOperations.results.failed > 0">Failed: {{ bulkOperations.results.failed }}</p>
+                <div class="text-sm text-green-700 space-y-1">
+                  <div>Total entries processed: {{ bulkOperations.results.total }}</div>
+                  <div>Successful: {{ bulkOperations.results.successful }}</div>
+                  <div v-if="bulkOperations.results.updated > 0">Updated existing: {{ bulkOperations.results.updated }}</div>
+                  <div>Created new: {{ bulkOperations.results.successful - bulkOperations.results.updated }}</div>
+                  <div v-if="bulkOperations.results.failed > 0" class="text-red-600">Failed: {{ bulkOperations.results.failed }}</div>
+                  
+                  <!-- Reference Resolution Status -->
+                  <div v-if="bulkOperations.referenceResolution.processed > 0" class="pt-2 border-t border-green-200">
+                    <div class="font-medium text-green-800 mb-1">Reference Resolution:</div>
+                    <div>Documents processed: {{ bulkOperations.referenceResolution.processed }}</div>
+                    <div>References resolved: {{ bulkOperations.referenceResolution.resolved }}</div>
+                    <div v-if="bulkOperations.referenceResolution.created > 0">Documents auto-created: {{ bulkOperations.referenceResolution.created }}</div>
+                    <div v-if="bulkOperations.referenceResolution.errors > 0" class="text-red-600">Resolution errors: {{ bulkOperations.referenceResolution.errors }}</div>
+                  </div>
                 </div>
                 <button @click="clearBulkResults" class="mt-2 text-sm text-green-600 hover:text-green-800">
                   Clear Results
@@ -420,10 +512,17 @@ function clearCharacterBulkResults() {
             <div v-else-if="bulkOperations.generating" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <div class="flex items-center">
                 <i class="fas fa-spinner fa-spin text-blue-400 mr-2"></i>
-                <span class="text-sm font-medium text-blue-800">Processing VTT-document entries...</span>
+                <span class="text-sm font-medium text-blue-800">
+                  {{ bulkOperations.referenceResolution.resolving ? 'Resolving document references...' : 'Processing VTT-document entries...' }}
+                </span>
               </div>
               <div v-if="bulkOperations.results.total > 0" class="mt-2 text-sm text-blue-700">
-                Progress: {{ bulkOperations.results.successful + bulkOperations.results.failed }} / {{ bulkOperations.results.total }}
+                <div v-if="!bulkOperations.referenceResolution.resolving">
+                  Document Creation: {{ bulkOperations.results.successful + bulkOperations.results.failed }} / {{ bulkOperations.results.total }}
+                </div>
+                <div v-else>
+                  Reference Resolution: {{ bulkOperations.referenceResolution.processed }} documents processed
+                </div>
               </div>
             </div>
           </div>
@@ -478,6 +577,15 @@ function clearCharacterBulkResults() {
                 <div v-if="characterBulkOperations.results.failed > 0" class="text-red-600">
                   Failed: {{ characterBulkOperations.results.failed }}
                 </div>
+                
+                <!-- Reference Resolution Status -->
+                <div v-if="characterBulkOperations.referenceResolution.processed > 0" class="pt-2 border-t border-green-200">
+                  <div class="font-medium text-green-800 mb-1">Reference Resolution:</div>
+                  <div>Documents processed: {{ characterBulkOperations.referenceResolution.processed }}</div>
+                  <div>References resolved: {{ characterBulkOperations.referenceResolution.resolved }}</div>
+                  <div v-if="characterBulkOperations.referenceResolution.created > 0">Documents auto-created: {{ characterBulkOperations.referenceResolution.created }}</div>
+                  <div v-if="characterBulkOperations.referenceResolution.errors > 0" class="text-red-600">Resolution errors: {{ characterBulkOperations.referenceResolution.errors }}</div>
+                </div>
               </div>
               <button @click="clearCharacterBulkResults" class="mt-2 text-sm text-green-600 hover:text-green-800">
                 Clear Results
@@ -502,10 +610,17 @@ function clearCharacterBulkResults() {
             <div v-else-if="characterBulkOperations.generating" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <div class="flex items-center">
                 <i class="fas fa-spinner fa-spin text-blue-400 mr-2"></i>
-                <span class="text-sm font-medium text-blue-800">Processing character entries...</span>
+                <span class="text-sm font-medium text-blue-800">
+                  {{ characterBulkOperations.referenceResolution.resolving ? 'Resolving character references...' : 'Processing character entries...' }}
+                </span>
               </div>
               <div v-if="characterBulkOperations.results.total > 0" class="mt-2 text-sm text-blue-700">
-                Progress: {{ characterBulkOperations.results.successful + characterBulkOperations.results.failed }} / {{ characterBulkOperations.results.total }}
+                <div v-if="!characterBulkOperations.referenceResolution.resolving">
+                  Character Creation: {{ characterBulkOperations.results.successful + characterBulkOperations.results.failed }} / {{ characterBulkOperations.results.total }}
+                </div>
+                <div v-else>
+                  Reference Resolution: {{ characterBulkOperations.referenceResolution.processed }} documents processed
+                </div>
               </div>
             </div>
           </div>

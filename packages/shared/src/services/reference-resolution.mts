@@ -80,8 +80,8 @@ export function buildCompendiumIndex(entries: IndexableCompendiumEntry[]): Compe
   };
   
   for (const entry of entries) {
-    const key = `${entry.slug}:${entry.documentType}:${entry.source || ''}`;
-    const keyType = `${entry.slug}:${entry.documentType}`;
+    const key = `${entry.slug}:${entry.documentType}:${entry.pluginDocumentType || ''}:${entry.source || ''}`;
+    const keyType = `${entry.slug}:${entry.documentType}:${entry.pluginDocumentType || ''}`;
     
     // Primary index
     index.bySlugTypeSource.set(key, entry._id);
@@ -116,16 +116,16 @@ export function resolveReference(
   ref: DocumentReference,
   index: CompendiumIndex
 ): ResolutionAttempt {
-  // Try exact match first
-  const exactKey = `${ref.slug}:${ref.documentType}:${ref.source || ''}`;
+  // Try exact match first (slug + documentType + pluginDocumentType + source)
+  const exactKey = `${ref.slug}:${ref.documentType}:${ref.pluginDocumentType || ''}:${ref.source || ''}`;
   const exactMatch = index.bySlugTypeSource.get(exactKey);
   
   if (exactMatch) {
     return { success: true, objectId: exactMatch };
   }
   
-  // Try without source
-  const typeKey = `${ref.slug}:${ref.documentType}`;
+  // Try without source (slug + documentType + pluginDocumentType)
+  const typeKey = `${ref.slug}:${ref.documentType}:${ref.pluginDocumentType || ''}`;
   const typeMatches = index.bySlugType.get(typeKey);
   
   if (typeMatches && typeMatches.length === 1) {
@@ -140,12 +140,8 @@ export function resolveReference(
     };
   }
   
-  // Try slug only (very fuzzy)
-  const slugMatches = index.bySlug.get(ref.slug);
-  if (slugMatches && slugMatches.length === 1) {
-    // Single match across all types - probably safe
-    return { success: true, objectId: slugMatches[0] };
-  }
+  // Do not fall back to slug-only matching - this is too permissive and can match wrong types
+  // References should specify the correct documentType and pluginDocumentType to be resolved
   
   return { success: false, reason: 'not_found' };
 }

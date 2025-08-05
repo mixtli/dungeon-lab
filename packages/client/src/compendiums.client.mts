@@ -264,8 +264,8 @@ export class CompendiumsClient extends ApiClient {
       throw new Error(response.data?.error || 'Failed to instantiate template');
     }
     
-    // Check if the document was skipped
-    if ('skipped' in response.data.data && response.data.data.skipped) {
+    // Check if the document was skipped (controller returns skipped: true when skipIfExists and document exists)
+    if ('skipped' in response.data && response.data.skipped) {
       return null; // Indicate that the document was skipped
     }
     

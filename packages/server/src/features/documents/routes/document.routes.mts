@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { DocumentController } from '../controllers/document.controller.mjs';
+import { DocumentReferenceResolutionController } from '../controllers/document-reference-resolution.controller.mjs';
 import { createPathSchema, oapi } from '../../../oapi.mjs';
 import { validateRequest } from '../../../middleware/validation.middleware.mjs';
 import { authenticate } from '../../../middleware/auth.middleware.mjs';
@@ -14,8 +15,9 @@ import {
 } from '@dungeon-lab/shared/types/api/index.mjs';
 import { vttDocumentSchema } from '@dungeon-lab/shared/schemas/index.mjs';
 
-// Initialize controller
+// Initialize controllers
 const documentController = new DocumentController();
+const documentReferenceResolutionController = new DocumentReferenceResolutionController();
 
 // Create router
 const router = Router();
@@ -213,6 +215,61 @@ router.put(
   ),
   validateRequest(putDocumentRequestSchema),
   documentController.putDocument
+);
+
+// Document reference resolution schemas
+const resolveReferencesRequestSchema = z.object({
+  documentIds: z.array(z.string())
+});
+
+const resolveReferencesResponseSchema = baseAPIResponseSchema.extend({
+  data: z.object({
+    processed: z.number(),
+    resolved: z.number(),
+    created: z.number(),
+    errors: z.number(),
+    details: z.array(z.object({
+      documentId: z.string(),
+      fieldPath: z.string(),
+      originalObjectId: z.string(),
+      resolvedObjectId: z.string().optional(),
+      action: z.enum(['kept_existing', 'resolved_to_document', 'created_document', 'error']),
+      error: z.string().optional()
+    }))
+  })
+});
+
+// Resolve document references
+router.post(
+  '/resolve-references',
+  oapi.validPath(
+    createPathSchema({
+      description: 'Resolve ObjectId references in documents to ensure they point to documents rather than compendium entries',
+      requestBody: {
+        content: {
+          'application/json': {
+            schema: resolveReferencesRequestSchema.openapi({
+              description: 'Resolve references request'
+            })
+          }
+        }
+      },
+      responses: {
+        200: {
+          description: 'References resolved successfully',
+          content: {
+            'application/json': {
+              schema: resolveReferencesResponseSchema.openapi({
+                description: 'Resolve references response'
+              })
+            }
+          }
+        }
+      }
+    })
+  ),
+  validateRequest(resolveReferencesRequestSchema),
+  documentReferenceResolutionController.resolveDocumentReferences
 );
 
 export { router as documentRoutes };

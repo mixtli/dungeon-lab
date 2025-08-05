@@ -36,26 +36,28 @@ export class TemplateService {
       // Create appropriate instance type with ownership rules
       switch (entry.documentType) {
         case 'actor': {
-          // Actors MUST be owned by users and MUST belong to campaigns
-          if (!campaignId) {
-            throw new Error('Campaign ID is required when creating actor instances');
+          // Actors prefer to belong to campaigns, but can be global for auto-creation
+          if (campaignId) {
+            // Verify campaign exists if provided
+            const campaign = await CampaignModel.findById(campaignId);
+            if (!campaign) {
+              throw new Error(`Campaign with ID ${campaignId} not found`);
+            }
           }
 
-          // Verify campaign exists
-          const campaign = await CampaignModel.findById(campaignId);
-          if (!campaign) {
-            throw new Error(`Campaign with ID ${campaignId} not found`);
-          }
+          // Strip out problematic fields from content
+          const { id: _actorId, ...cleanActorContent } = content;
 
           return await ActorDocumentModel.create({
-            ...content,
+            ...cleanActorContent,
             ...overrides,
             // Ownership rules for actors
-            campaignId,          // Required - actors belong to campaigns
-            createdBy: userId,   // Required - actors owned by users
+            ...(campaignId && { campaignId }), // Optional - actors can be global for auto-creation
+            createdBy: userId,                   // Required - actors owned by users
             createdAt: new Date(),
             updatedBy: userId,
             // Source tracking
+            compendiumEntryId: compendiumEntry.id, // Track which entry this came from
             sourceCompendiumId: compendiumEntry.compendiumId,
             sourceEntryId: compendiumEntry.id,
             sourceVersion: compendiumEntry.contentVersion
@@ -90,7 +92,7 @@ export class TemplateService {
             ...cleanContent,
             ...overrides,
             // Ownership rules for characters
-            campaignId: campaignId || undefined, // Optional - characters can exist without campaigns
+            ...(campaignId && { campaignId }), // Optional - characters can exist without campaigns
             compendiumId: undefined,             // Never from compendium - characters are player-created
             createdBy: userId,                   // Required - characters owned by users
             createdAt: new Date(),
@@ -107,26 +109,31 @@ export class TemplateService {
         }
           
         case 'item': {
-          // Items MUST belong to campaigns and are owned by Game Master by default
-          if (!campaignId) {
-            throw new Error('Campaign ID is required when creating item instances');
+          // Items prefer to belong to campaigns, but can be global for auto-creation
+          let gameMasterId = userId; // Default to the creating user
+          
+          if (campaignId) {
+            // Validate campaign if provided
+            const campaign = await CampaignModel.findById(campaignId);
+            if (!campaign) {
+              throw new Error(`Campaign with ID ${campaignId} not found`);
+            }
+            gameMasterId = campaign.gameMasterId;
           }
 
-          // Get campaign to find the Game Master
-          const campaign = await CampaignModel.findById(campaignId);
-          if (!campaign) {
-            throw new Error(`Campaign with ID ${campaignId} not found`);
-          }
+          // Strip out problematic fields from content
+          const { id: _itemId, ...cleanItemContent } = content;
 
           return await ItemDocumentModel.create({
-            ...content,
+            ...cleanItemContent,
             ...overrides,
             // Ownership rules for items
-            campaignId,                    // Required - items belong to campaigns
-            createdBy: campaign.gameMasterId, // Items owned by GM by default
+            ...(campaignId && { campaignId }), // Optional - items can be global for auto-creation
+            createdBy: gameMasterId,            // GM if campaign provided, otherwise creating user
             createdAt: new Date(),
             updatedBy: userId, // User who performed the instantiation
             // Source tracking
+            compendiumEntryId: compendiumEntry.id, // Track which entry this came from
             sourceCompendiumId: compendiumEntry.compendiumId,
             sourceEntryId: compendiumEntry.id,
             sourceVersion: compendiumEntry.contentVersion
