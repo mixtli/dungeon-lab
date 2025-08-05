@@ -183,16 +183,6 @@ function stopResize() {
 }
 
 // Character sheet event handlers
-function handleCharacterUpdate(updatedCharacter: IActor) {
-  character.value = updatedCharacter;
-  // Could also sync with server here
-}
-
-function handleCharacterSave(character: IActor) {
-  // Handle saving the character
-  console.log('Saving character:', character);
-}
-
 function handleRoll(rollType: string, data: Record<string, unknown>) {
   // Handle dice rolls
   console.log('Roll:', rollType, data);
@@ -263,8 +253,6 @@ onUnmounted(() => {
             :character="character"
             :readonly="false"
             @close="closeWindow"
-            @update:character="handleCharacterUpdate"
-            @save="handleCharacterSave"
             @roll="handleRoll"
           />
         </div>
@@ -312,8 +300,6 @@ onUnmounted(() => {
         :character="character"
         :readonly="false"
         @close="router.push('/')"
-        @update:character="handleCharacterUpdate"
-        @save="handleCharacterSave"
         @roll="handleRoll"
       />
     </div>

@@ -21,6 +21,14 @@
       </div>
       <div class="header-actions">
         <button 
+          v-if="!readonly"
+          @click="toggleEditMode" 
+          class="edit-toggle-btn"
+          :title="editMode ? 'Switch to View Mode' : 'Switch to Edit Mode'"
+        >
+          {{ editMode ? '👁️' : '✏️' }}
+        </button>
+        <button 
           v-if="editMode && !readonly" 
           @click="saveCharacter" 
           class="save-btn"
@@ -270,6 +278,7 @@ const emit = defineEmits<{
   'save': [character: IActor];
   'roll': [rollType: string, data: Record<string, unknown>];
   'close': [];
+  'toggle-edit-mode': [];
 }>();
 
 // Component state
@@ -679,6 +688,10 @@ const saveCharacter = () => {
   emit('save', character.value);
 };
 
+const toggleEditMode = () => {
+  emit('toggle-edit-mode');
+};
+
 const closeSheet = () => {
   // Emit close event to parent
   emit('close');
@@ -900,7 +913,7 @@ const injectStyles = () => {
   gap: 8px;
 }
 
-.save-btn, .close-btn {
+.edit-toggle-btn, .save-btn, .close-btn {
   width: 32px;
   height: 32px;
   border: none;
@@ -916,7 +929,7 @@ const injectStyles = () => {
   backdrop-filter: blur(4px);
 }
 
-.save-btn:hover:not(:disabled), .close-btn:hover {
+.edit-toggle-btn:hover, .save-btn:hover:not(:disabled), .close-btn:hover {
   background: rgba(255, 255, 255, 0.3);
   transform: scale(1.05);
 }

@@ -29,7 +29,6 @@
           :character="sheet.character"
           :readonly="false"
           @close="characterSheetStore.closeCharacterSheet(sheetId)"
-          @save="handleCharacterSave"
           @roll="handleRoll"
         />
       </div>
@@ -51,14 +50,11 @@
 <script setup lang="ts">
 import { ref, onUnmounted, onMounted } from 'vue';
 import { useCharacterSheetStore } from '../../stores/character-sheet.store.mjs';
-import { useActorStore } from '../../stores/actor.store.mjs';
 import { pluginRegistry } from '../../services/plugin-registry.mts';
-import type { IActor } from '@dungeon-lab/shared/types/index.mjs';
 import type { FloatingCharacterSheet } from '../../stores/character-sheet.store.mjs';
 import CharacterSheetContainer from './CharacterSheetContainer.vue';
 
 const characterSheetStore = useCharacterSheetStore();
-const actorStore = useActorStore();
 
 // Drag and resize state
 const isDragging = ref(false);
@@ -165,17 +161,6 @@ function stopResize() {
 }
 
 // Character sheet event handlers
-async function handleCharacterSave(character: IActor) {
-  try {
-    await actorStore.updateActor(character.id, {
-      name: character.name,
-      pluginData: character.pluginData
-    });
-    console.log('Character saved:', character.name);
-  } catch (error) {
-    console.error('Failed to save character:', error);
-  }
-}
 
 function handleRoll(rollType: string, data: Record<string, unknown>) {
   console.log('Roll:', rollType, data);

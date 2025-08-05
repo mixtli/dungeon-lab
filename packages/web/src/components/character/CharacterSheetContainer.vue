@@ -1,28 +1,5 @@
 <template>
   <div v-if="show" class="character-sheet-container">
-    <!-- Edit Mode Controls -->
-    <div v-if="!readonly && characterSheetComponent" class="edit-controls">
-      <button 
-        @click="toggleEditMode" 
-        class="edit-toggle-btn"
-        :class="{ 'edit-mode-active': editMode }"
-      >
-        <i :class="editMode ? 'mdi mdi-eye' : 'mdi mdi-pencil'"></i>
-        {{ editMode ? 'View Mode' : 'Edit Mode' }}
-      </button>
-      
-      <div v-if="editMode && hasUnsavedChanges" class="save-controls">
-        <button @click="handleSave" :disabled="isSaving" class="save-btn">
-          <i class="mdi mdi-content-save"></i>
-          {{ isSaving ? 'Saving...' : 'Save' }}
-        </button>
-        <button @click="handleCancel" class="cancel-btn">
-          <i class="mdi mdi-close"></i>
-          Cancel
-        </button>
-      </div>
-    </div>
-
     <!-- Plugin Container with Style Isolation -->
     <PluginContainer
       width="100%"
@@ -39,6 +16,7 @@
         :readonly="readonly"
         @update:items="handleItemsChange"
         @save="handleSave"
+        @toggle-edit-mode="toggleEditMode"
         @roll="handleRoll"
         @close="$emit('close')"
       />
@@ -90,7 +68,6 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'close'): void;
   (e: 'update:character', character: IActor): void;
-  (e: 'save', character: IActor): void;
   (e: 'roll', rollType: string, data: Record<string, unknown>): void;
 }>();
 
@@ -113,7 +90,6 @@ const characterState = computed(() => {
 const reactiveCharacter = computed(() => characterState.value?.character || null);
 const reactiveItems = computed(() => characterState.value?.items || ref([]));
 const hasUnsavedChanges = computed(() => characterState.value?.hasUnsavedChanges?.value ?? false);
-const isSaving = computed(() => characterState.value?.isSaving?.value ?? false);
 
 // Watch for character changes to reinitialize state
 // The composable handles the actual state management
@@ -175,9 +151,8 @@ const handleSave = async () => {
   try {
     await characterState.value.save();
     
-    // Emit to parent for any external coordination needed
+    // Emit to parent for reactive updates
     if (reactiveCharacter.value?.value) {
-      emit('save', reactiveCharacter.value.value);
       emit('update:character', reactiveCharacter.value.value);
     }
   } catch (error) {
@@ -206,97 +181,11 @@ function getActiveGameSystem() {
 .character-sheet-container {
   width: 100%;
   height: 100%;
-  display: flex;
-  flex-direction: column;
 }
 
-/* Edit Controls */
-.edit-controls {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 16px;
-  background: #f8f9fa;
-  border-bottom: 1px solid #e9ecef;
-  flex-shrink: 0;
-}
-
-.edit-toggle-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  background: #6c757d;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.edit-toggle-btn:hover {
-  background: #5a6268;
-}
-
-.edit-toggle-btn.edit-mode-active {
-  background: #28a745;
-}
-
-.edit-toggle-btn.edit-mode-active:hover {
-  background: #218838;
-}
-
-.save-controls {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.save-btn {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 12px;
-  background: #28a745;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.save-btn:hover:not(:disabled) {
-  background: #218838;
-}
-
-.save-btn:disabled {
-  background: #6c757d;
-  cursor: not-allowed;
-}
-
-.cancel-btn {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 12px;
-  background: #dc3545;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.cancel-btn:hover {
-  background: #c82333;
-}
-
-/* Plugin Container takes remaining space */
+/* Plugin Container takes full space */
 .character-sheet-container .plugin-container {
-  flex: 1;
-  overflow: hidden;
+  width: 100%;
+  height: 100%;
 }
 </style>
