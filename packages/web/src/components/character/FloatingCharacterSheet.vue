@@ -29,7 +29,6 @@
           :character="sheet.character"
           :readonly="false"
           @close="characterSheetStore.closeCharacterSheet(sheetId)"
-          @update:character="(character) => characterSheetStore.updateCharacter(sheetId, character)"
           @save="handleCharacterSave"
           @roll="handleRoll"
         />
@@ -75,7 +74,7 @@ const resizeStartSize = ref({ width: 0, height: 0 });
 const eventCleanups = ref<Array<() => void>>([]);
 
 // Fallback support - show framework chrome if plugin doesn't emit events
-const showFallbackChrome = ref(false);
+const showFallbackChrome = ref(true); // Always show fallback chrome for now
 const fallbackTimeout = ref<number | null>(null);
 
 function getSheetStyle(sheet: FloatingCharacterSheet) {
@@ -196,7 +195,8 @@ onMounted(() => {
       if (pluginId === 'dnd5e-2024' || pluginId === 'dnd-5e-2024') {
         pluginId = 'dnd-5e-2024';
       }
-      return pluginRegistry.getPluginContext(pluginId) !== undefined;
+      const plugin = pluginRegistry.getGameSystemPlugin(pluginId);
+      return plugin?.getContext() !== undefined;
     });
     
     if (!hasActivePlugin) {
@@ -224,48 +224,8 @@ onUnmounted(() => {
 
 // Setup event listeners for plugin window events
 function setupPluginEventListeners() {
-  // Listen for events from all character sheets
-  for (const [sheetId, sheet] of characterSheetStore.floatingSheets) {
-    const gameSystemId = sheet.character.pluginId;
-    let pluginId = gameSystemId;
-    
-    // Map game system ID to plugin ID
-    if (pluginId === 'dnd5e-2024' || pluginId === 'dnd-5e-2024') {
-      pluginId = 'dnd-5e-2024';
-    }
-    
-    const context = pluginRegistry.getPluginContext(pluginId);
-    if (context?.events) {
-      // Listen for window close events
-      const closeCleanup = context.events.on('window:close', () => {
-        characterSheetStore.closeCharacterSheet(sheetId);
-      });
-      eventCleanups.value.push(closeCleanup);
-      
-      // Listen for drag start events
-      const dragCleanup = context.events.on('window:drag-start', (data: { startX: number; startY: number }) => {
-        // Find which sheet this event is for by checking which character sheet is currently active
-        // For now, we'll handle drag for the most recently focused sheet
-        const sheets = Array.from(characterSheetStore.floatingSheets.values());
-        const topSheet = sheets.reduce((top, current) => 
-          current.zIndex > top.zIndex ? current : top
-        );
-        
-        if (topSheet) {
-          isDragging.value = true;
-          currentSheetId.value = topSheet.id;
-          dragStartX.value = data.startX;
-          dragStartY.value = data.startY;
-          dragStartPos.value = { ...topSheet.position };
-          
-          document.addEventListener('mousemove', handleDrag);
-          document.addEventListener('mouseup', stopDrag);
-          document.body.style.cursor = 'grabbing';
-        }
-      });
-      eventCleanups.value.push(dragCleanup);
-    }
-  }
+  // TODO: Implement plugin event handling when needed
+  // For now, use fallback chrome for all window management
 }
 </script>
 

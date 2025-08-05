@@ -10,6 +10,7 @@ import type { GameSystemPlugin, ValidationResult } from '../types/plugin.mjs';
  * - Dynamic component loading from the plugin's components directory
  * - Manifest management through constructor injection
  * - Component caching for performance
+ * - Plugin context storage and access
  * - Standardized error handling
  * 
  * Plugin developers should extend this class and implement only the 
@@ -18,6 +19,9 @@ import type { GameSystemPlugin, ValidationResult } from '../types/plugin.mjs';
 export abstract class BaseGameSystemPlugin implements GameSystemPlugin {
   /** Plugin manifest containing all metadata and capabilities */
   readonly manifest: PluginManifest;
+  
+  /** Plugin context for API access and shared services */
+  protected context?: PluginContext;
   
   /** Cache for component import promises to avoid repeated imports */
   private componentCache = new Map<string, Promise<Component | null>>();
@@ -85,9 +89,20 @@ export abstract class BaseGameSystemPlugin implements GameSystemPlugin {
   abstract validate(type: string, data: unknown): ValidationResult;
   
   /**
-   * Plugin initialization lifecycle method
+   * Get the plugin context for API access
+   * @returns Plugin context if available
    */
-  abstract onLoad(context?: PluginContext): Promise<void>;
+  getContext(): PluginContext | undefined {
+    return this.context;
+  }
+  
+  /**
+   * Plugin initialization lifecycle method
+   * Base implementation stores the context - concrete plugins should call super.onLoad()
+   */
+  async onLoad(context?: PluginContext): Promise<void> {
+    this.context = context;
+  }
   
   /**
    * Plugin cleanup lifecycle method

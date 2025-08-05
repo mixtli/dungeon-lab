@@ -42,6 +42,9 @@ async function initializeApp() {
     await pluginRegistry.initialize();
     console.log('✅ Plugin registry initialized');
     
+    // Make plugin registry available globally for shared utilities
+    (window as any).__DUNGEON_LAB_PLUGIN_REGISTRY__ = pluginRegistry;
+    
     // Load development tools in dev mode
     if (import.meta.env.DEV) {
       await import('./utils/plugin-dev-tools.mjs');

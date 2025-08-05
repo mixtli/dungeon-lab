@@ -1,19 +1,43 @@
 <template>
   <div v-if="show" class="character-sheet-container">
+    <!-- Edit Mode Controls -->
+    <div v-if="!readonly && characterSheetComponent" class="edit-controls">
+      <button 
+        @click="toggleEditMode" 
+        class="edit-toggle-btn"
+        :class="{ 'edit-mode-active': editMode }"
+      >
+        <i :class="editMode ? 'mdi mdi-eye' : 'mdi mdi-pencil'"></i>
+        {{ editMode ? 'View Mode' : 'Edit Mode' }}
+      </button>
+      
+      <div v-if="editMode && hasUnsavedChanges" class="save-controls">
+        <button @click="handleSave" :disabled="isSaving" class="save-btn">
+          <i class="mdi mdi-content-save"></i>
+          {{ isSaving ? 'Saving...' : 'Save' }}
+        </button>
+        <button @click="handleCancel" class="cancel-btn">
+          <i class="mdi mdi-close"></i>
+          Cancel
+        </button>
+      </div>
+    </div>
+
     <!-- Plugin Container with Style Isolation -->
     <PluginContainer
       width="100%"
       height="100%"
       background-color="#ffffff"
     >
-      <!-- D&D 5e Character Sheet Component -->
+      <!-- Character Sheet Component -->
       <component
         :is="characterSheetComponent"
-        v-if="characterSheetComponent && character"
-        :character="characterSheetData"
-        :context="pluginContext"
+        v-if="characterSheetComponent && reactiveCharacter"
+        :character="reactiveCharacter"
+        :items="reactiveItems"
+        :edit-mode="editMode"
         :readonly="readonly"
-        @update:character="handleCharacterUpdate"
+        @update:items="handleItemsChange"
         @save="handleSave"
         @roll="handleRoll"
         @close="$emit('close')"
@@ -50,10 +74,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import type { Component } from 'vue';
-import type { IActor } from '@dungeon-lab/shared/types/index.mjs';
+import type { IActor, IItem } from '@dungeon-lab/shared/types/index.mjs';
 import { pluginRegistry } from '../../services/plugin-registry.mts';
+import { useCharacterState } from '../../composables/useCharacterState.mjs';
 import PluginContainer from '../common/PluginContainer.vue';
 
 const props = defineProps<{
@@ -69,12 +94,37 @@ const emit = defineEmits<{
   (e: 'roll', rollType: string, data: Record<string, unknown>): void;
 }>();
 
-// Get the character sheet component from the plugin registry (async)
+// Component state
 const characterSheetComponent = ref<Component | null>(null);
+const editMode = ref(false);
+
+// Character state management using composable
+const characterState = computed(() => {
+  if (!props.character) return null;
+  
+  return useCharacterState(props.character, {
+    enableWebSocket: props.readonly, // Game mode uses WebSocket
+    enableAutoSave: false, // Disable auto-save - manual save only
+    readonly: props.readonly
+  });
+});
+
+// Reactive character and items from composable
+const reactiveCharacter = computed(() => characterState.value?.character || null);
+const reactiveItems = computed(() => characterState.value?.items || ref([]));
+const hasUnsavedChanges = computed(() => characterState.value?.hasUnsavedChanges?.value ?? false);
+const isSaving = computed(() => characterState.value?.isSaving?.value ?? false);
+
+// Watch for character changes to reinitialize state
+// The composable handles the actual state management
+watch(() => props.character, () => {
+  // Character state will be recreated via computed when character changes
+  console.log('[CharacterSheetContainer] Character changed, state will be recomputed');
+}, { immediate: true });
 
 // Watch for character changes and load the appropriate component
 watch(() => props.character?.pluginId, async (pluginId) => {
-  console.log('[CharacterSheetModal] Character game system ID:', pluginId);
+  console.log('[CharacterSheetContainer] Character game system ID:', pluginId);
   
   if (!pluginId) {
     characterSheetComponent.value = null;
@@ -85,74 +135,67 @@ watch(() => props.character?.pluginId, async (pluginId) => {
     // Use the new async getComponent API
     const component = await pluginRegistry.getComponent(pluginId, 'character-sheet');
     if (component) {
-      console.log('[CharacterSheetModal] Character sheet component loaded successfully');
+      console.log('[CharacterSheetContainer] Character sheet component loaded successfully');
       characterSheetComponent.value = component;
     } else {
-      console.warn('[CharacterSheetModal] Character sheet component not found for plugin:', pluginId);
+      console.warn('[CharacterSheetContainer] Character sheet component not found for plugin:', pluginId);
       characterSheetComponent.value = null;
     }
   } catch (error) {
-    console.error('[CharacterSheetModal] Failed to load character sheet component:', error);
+    console.error('[CharacterSheetContainer] Failed to load character sheet component:', error);
     characterSheetComponent.value = null;
   }
 }, { immediate: true });
 
-// Pass the raw character data directly to the plugin component
-// The plugin is responsible for interpreting and providing fallbacks for its own data structure
-const characterSheetData = computed(() => {
-  if (!props.character) return null;
-  
-  // Just pass the raw IActor - the plugin component should handle its own data transformation
-  return props.character;
-});
-
-// Get plugin context for event communication
-const pluginContext = computed(() => {
-  if (!props.character?.pluginId) return null;
-  
-  // Map game system ID to plugin ID
-  let pluginId = props.character.pluginId;
-  if (pluginId === 'dnd5e-2024' || pluginId === 'dnd-5e-2024') {
-    pluginId = 'dnd-5e-2024';
+// Edit mode controls
+const toggleEditMode = () => {
+  if (editMode.value && hasUnsavedChanges.value) {
+    // Ask for confirmation if there are unsaved changes
+    if (confirm('You have unsaved changes. Do you want to discard them?')) {
+      handleCancel();
+    }
+  } else {
+    editMode.value = !editMode.value;
   }
-  
-  return pluginRegistry.getPluginContext(pluginId);
-});
+};
 
-function handleCharacterUpdate(updatedCharacter: Record<string, unknown>) {
-  if (!props.character) return;
-  
-  // Convert back to IActor format and emit
-  const updatedActor: IActor = {
-    ...props.character,
-    name: (updatedCharacter.name as string) || props.character.name,
-    pluginData: {
-      ...props.character.pluginData,
-      ...updatedCharacter,
-    },
-  };
-  
-  emit('update:character', updatedActor);
-}
+// Character changes are handled automatically through direct v-model binding in the plugin component
+// No longer need handleCharacterChange - changes are applied directly to the reactive character ref
 
-function handleSave(character: Record<string, unknown>) {
-  if (!props.character) return;
-  
-  const updatedActor: IActor = {
-    ...props.character,
-    name: (character.name as string) || props.character.name,
-    pluginData: {
-      ...props.character.pluginData,
-      ...character,
-    },
-  };
-  
-  emit('save', updatedActor);
-}
+const handleItemsChange = (newItems: IItem[]) => {
+  // Items changes would be handled through the composable
+  // For now, just track the change
+  console.log('[CharacterSheetContainer] Items changed:', newItems.length);
+};
 
-function handleRoll(rollType: string, data: Record<string, unknown>) {
+// Save functionality delegated to composable
+const handleSave = async () => {
+  if (!characterState.value) return;
+  
+  try {
+    await characterState.value.save();
+    
+    // Emit to parent for any external coordination needed
+    if (reactiveCharacter.value?.value) {
+      emit('save', reactiveCharacter.value.value);
+      emit('update:character', reactiveCharacter.value.value);
+    }
+  } catch (error) {
+    console.error('[CharacterSheetContainer] Save failed:', error);
+    // TODO: Show user-friendly error message
+  }
+};
+
+const handleCancel = () => {
+  if (!characterState.value) return;
+  
+  characterState.value.reset();
+  editMode.value = false;
+};
+
+const handleRoll = (rollType: string, data: Record<string, unknown>) => {
   emit('roll', rollType, data);
-}
+};
 
 function getActiveGameSystem() {
   return localStorage.getItem('activeGameSystem') || localStorage.getItem('activeGameSession') || 'none';
@@ -163,6 +206,97 @@ function getActiveGameSystem() {
 .character-sheet-container {
   width: 100%;
   height: 100%;
-  display: block;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Edit Controls */
+.edit-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+  flex-shrink: 0;
+}
+
+.edit-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.edit-toggle-btn:hover {
+  background: #5a6268;
+}
+
+.edit-toggle-btn.edit-mode-active {
+  background: #28a745;
+}
+
+.edit-toggle-btn.edit-mode-active:hover {
+  background: #218838;
+}
+
+.save-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.save-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.save-btn:hover:not(:disabled) {
+  background: #218838;
+}
+
+.save-btn:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+}
+
+.cancel-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cancel-btn:hover {
+  background: #c82333;
+}
+
+/* Plugin Container takes remaining space */
+.character-sheet-container .plugin-container {
+  flex: 1;
+  overflow: hidden;
 }
 </style>

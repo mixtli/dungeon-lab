@@ -42,38 +42,8 @@ async function handleGameSystemChange(event: Event) {
 
   // Call onLoad handler for the new game system
   // Only load the selected plugin now
-  const newPlugin = await pluginRegistry.loadPlugin(newGameSystemId);
-  if (newPlugin?.onLoad) {
-    // Mock context for now
-    const mockContext = {
-      api: { 
-        actors: {
-          create: async () => ({ id: '', name: '', type: '', gameSystemId: '', data: {}, createdAt: '', updatedAt: '' }),
-          get: async () => ({ id: '', name: '', type: '', gameSystemId: '', data: {}, createdAt: '', updatedAt: '' }),
-          update: async () => ({ id: '', name: '', type: '', gameSystemId: '', data: {}, createdAt: '', updatedAt: '' }),
-          delete: async () => {},
-          list: async () => []
-        }, 
-        items: {
-          create: async () => ({ id: '', name: '', type: '', gameSystemId: '', data: {}, createdAt: '', updatedAt: '' }),
-          get: async () => ({ id: '', name: '', type: '', gameSystemId: '', data: {}, createdAt: '', updatedAt: '' }),
-          update: async () => ({ id: '', name: '', type: '', gameSystemId: '', data: {}, createdAt: '', updatedAt: '' }),
-          delete: async () => {},
-          list: async () => []
-        }, 
-        documents: {
-          create: async () => ({ id: '', name: '', type: '', content: {}, pluginId: '', createdAt: '', updatedAt: '' }),
-          get: async () => ({ id: '', name: '', type: '', content: {}, pluginId: '', createdAt: '', updatedAt: '' }),
-          update: async () => ({ id: '', name: '', type: '', content: {}, pluginId: '', createdAt: '', updatedAt: '' }),
-          delete: async () => {},
-          search: async () => []
-        } 
-      },
-      store: { get: () => undefined, set: () => {}, subscribe: () => () => {} },
-      events: { emit: () => {}, on: () => () => {} }
-    };
-    await newPlugin.onLoad(mockContext);
-  }
+  // Load plugin - the registry will create the proper context and call onLoad
+  await pluginRegistry.loadPlugin(newGameSystemId);
 
   // Update localStorage and previous game system reference
   localStorage.setItem('activeGameSystem', newGameSystemId);

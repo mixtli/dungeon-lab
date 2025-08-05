@@ -8,4 +8,7 @@ export * from './data-serialization.mjs';
 export * from './slug.mjs';
 
 // Reference resolution utilities
-export * from './reference-resolver.mjs'; 
+export * from './reference-resolver.mjs';
+
+// Plugin context utilities
+export * from './plugin-context.mjs'; 

@@ -36,6 +36,7 @@ export class DnD5e2024Plugin extends BaseGameSystemPlugin {
    * Plugin initialization
    */
   async onLoad(context?: PluginContext): Promise<void> {
+    await super.onLoad(context);
     console.log(`[${this.manifest.id}] Loading D&D 5e 2024 Plugin v${this.manifest.version}`);
     if (context) {
       console.log(`[${this.manifest.id}] Plugin context provided - API access available`);

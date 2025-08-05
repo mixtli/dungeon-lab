@@ -1,12 +1,15 @@
 /**
  * Plugin Context Types
  * 
- * This file contains all the interfaces and types related to plugin context,
- * including API interfaces, store, events, and data types.
+ * This file contains interfaces for the minimal plugin context that provides
+ * read-only data access and plugin-specific UI state management.
  */
 
+import type { BaseDocument, ICompendiumEntry } from './index.mjs';
+
 /**
- * Plugin store interface for reactive state management
+ * Plugin store interface for reactive state management of plugin-specific UI state
+ * (e.g., active tabs, expanded sections, UI preferences)
  */
 export interface PluginStore {
   get<T>(key: string): T | undefined;
@@ -15,121 +18,41 @@ export interface PluginStore {
 }
 
 /**
- * Plugin event system interface
+ * Search query interface for documents
  */
-export interface PluginEventSystem {
-  emit<T = unknown>(event: string, data?: T): void;
-  on<T = unknown>(event: string, handler: (data: T) => void): () => void;
-}
-
-/**
- * Actors API interface
- */
-export interface ActorsAPI {
-  create(data: CreateActorData): Promise<ActorData>;
-  get(id: string): Promise<ActorData>;
-  update(id: string, data: Partial<ActorData>): Promise<ActorData>;
-  delete(id: string): Promise<void>;
-  list(filters?: ActorFilters): Promise<ActorData[]>;
-}
-
-/**
- * Items API interface
- */
-export interface ItemsAPI {
-  create(data: CreateItemData): Promise<ItemData>;
-  get(id: string): Promise<ItemData>;
-  update(id: string, data: Partial<ItemData>): Promise<ItemData>;
-  delete(id: string): Promise<void>;
-  list(filters?: ItemFilters): Promise<ItemData[]>;
-}
-
-/**
- * Documents API interface
- */
-export interface DocumentsAPI {
-  create(data: CreateDocumentData): Promise<DocumentData>;
-  get(id: string): Promise<DocumentData>;
-  update(id: string, data: Partial<DocumentData>): Promise<DocumentData>;
-  delete(id: string): Promise<void>;
-  search(query: DocumentSearchQuery): Promise<DocumentData[]>;
-}
-
-/**
- * Base data types
- */
-export interface CreateActorData {
-  name: string;
-  type: string;
-  gameSystemId: string;
-  data: Record<string, unknown>;
-}
-
-export interface ActorData extends CreateActorData {
-  id: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface ActorFilters {
-  type?: string;
-  gameSystemId?: string;
-  name?: string;
-}
-
-export interface CreateItemData {
-  name: string;
-  type: string;
-  gameSystemId: string;
-  data: Record<string, unknown>;
-}
-
-export interface ItemData extends CreateItemData {
-  id: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface ItemFilters {
-  type?: string;
-  gameSystemId?: string;
-  name?: string;
-}
-
-export interface CreateDocumentData {
-  name: string;
-  type: string;
-  content: Record<string, unknown>;
-  pluginId: string;
-}
-
-export interface DocumentData extends CreateDocumentData {
-  id: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
 export interface DocumentSearchQuery {
   query?: string;
-  type?: string;
+  documentType?: string;
   pluginId?: string;
   limit?: number;
+  [key: string]: unknown; // Allow additional query parameters
 }
 
 /**
- * Plugin context provides access to the application context
+ * Search query interface for compendium entries
+ */
+export interface CompendiumSearchQuery {
+  search?: string;
+  pluginId?: string;
+  documentType?: string;
+  pluginDocumentType?: string;
+  category?: string;
+  isActive?: boolean;
+  limit?: number;
+  [key: string]: unknown; // Allow additional query parameters
+}
+
+/**
+ * Plugin context provides minimal read-only access to application data
+ * and plugin-specific UI state management
  */
 export interface PluginContext {
-  /** Application API endpoints */
-  api: {
-    actors: ActorsAPI;
-    items: ItemsAPI;
-    documents: DocumentsAPI;
-  };
+  /** Read-only data access for ancillary display information */
+  getDocument(id: string): Promise<BaseDocument>;
+  searchDocuments(query: DocumentSearchQuery): Promise<BaseDocument[]>;
+  getCompendiumEntry(id: string): Promise<ICompendiumEntry>;
+  searchCompendiumEntries(query: CompendiumSearchQuery): Promise<ICompendiumEntry[]>;
   
-  /** Reactive store for plugin state */
+  /** Reactive store for plugin UI state */
   store: PluginStore;
-  
-  /** Event system for communication */
-  events: PluginEventSystem;
 }

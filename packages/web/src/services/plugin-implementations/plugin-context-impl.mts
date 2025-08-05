@@ -1,226 +1,87 @@
+/**
+ * Minimal Plugin Context Implementation
+ * 
+ * Provides read-only data access and plugin-specific UI state management.
+ */
+
 import type { 
   PluginContext, 
-  ActorsAPI, 
-  ItemsAPI, 
-  DocumentsAPI,
   PluginStore,
-  PluginEventSystem,
-  CreateActorData,
-  ActorData,
-  ActorFilters,
-  CreateItemData,
-  ItemData,
-  ItemFilters,
-  DocumentData
+  DocumentSearchQuery,
+  CompendiumSearchQuery
 } from '@dungeon-lab/shared/types/plugin-context.mjs';
-
-import { PluginStoreImpl } from './plugin-store-impl.mjs';
-import { PluginEventSystemImpl } from './plugin-event-system-impl.mjs';
-
-/**
- * Socket connection interface for plugin context
- * This matches the socket.io client interface pattern
- */
-export interface SocketConnection {
-  emit(event: string, ...args: unknown[]): void;
-  on(event: string, listener: (...args: unknown[]) => void): void;
-  off(event: string, listener?: (...args: unknown[]) => void): void;
-}
+import type { BaseDocument, ICompendiumEntry } from '@dungeon-lab/shared/types/index.mjs';
+import { ReactivePluginStore } from '../plugin-store.mjs';
+import { CompendiumsClient } from '@dungeon-lab/client/index.mjs';
+import { DocumentsClient } from '@dungeon-lab/client/index.mjs';
 
 /**
- * Socket-based ActorsAPI implementation
- */
-class SocketActorsAPI implements ActorsAPI {
-  constructor(private socket: SocketConnection) {}
-  
-  async create(data: CreateActorData): Promise<ActorData> {
-    return new Promise((resolve, reject) => {
-      this.socket.emit('actor:create', data, (response: { success: boolean; data?: ActorData; error?: string }) => {
-        if (response.success && response.data) {
-          resolve(response.data);
-        } else {
-          reject(new Error(response.error || 'Failed to create actor'));
-        }
-      });
-    });
-  }
-  
-  async get(id: string): Promise<ActorData> {
-    return new Promise((resolve, reject) => {
-      this.socket.emit('actor:get', { id }, (response: { success: boolean; data?: ActorData; error?: string }) => {
-        if (response.success && response.data) {
-          resolve(response.data);
-        } else {
-          reject(new Error(response.error || 'Failed to get actor'));
-        }
-      });
-    });
-  }
-  
-  async update(id: string, data: Partial<ActorData>): Promise<ActorData> {
-    return new Promise((resolve, reject) => {
-      this.socket.emit('actor:update', { id, ...data }, (response: { success: boolean; data?: ActorData; error?: string }) => {
-        if (response.success && response.data) {
-          resolve(response.data);
-        } else {
-          reject(new Error(response.error || 'Failed to update actor'));
-        }
-      });
-    });
-  }
-  
-  async delete(id: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      this.socket.emit('actor:delete', { id }, (response: { success: boolean; error?: string }) => {
-        if (response.success) {
-          resolve();
-        } else {
-          reject(new Error(response.error || 'Failed to delete actor'));
-        }
-      });
-    });
-  }
-  
-  async list(filters?: ActorFilters): Promise<ActorData[]> {
-    return new Promise((resolve, reject) => {
-      this.socket.emit('actor:list', { filters }, (response: { success: boolean; data?: ActorData[]; error?: string }) => {
-        if (response.success && response.data) {
-          resolve(response.data);
-        } else {
-          reject(new Error(response.error || 'Failed to list actors'));
-        }
-      });
-    });
-  }
-}
-
-/**
- * Socket-based ItemsAPI implementation
- */
-class SocketItemsAPI implements ItemsAPI {
-  constructor(private socket: SocketConnection) {}
-  
-  async create(data: CreateItemData): Promise<ItemData> {
-    return new Promise((resolve, reject) => {
-      this.socket.emit('item:create', data, (response: { success: boolean; data?: ItemData; error?: string }) => {
-        if (response.success && response.data) {
-          resolve(response.data);
-        } else {
-          reject(new Error(response.error || 'Failed to create item'));
-        }
-      });
-    });
-  }
-  
-  async get(id: string): Promise<ItemData> {
-    return new Promise((resolve, reject) => {
-      this.socket.emit('item:get', { id }, (response: { success: boolean; data?: ItemData; error?: string }) => {
-        if (response.success && response.data) {
-          resolve(response.data);
-        } else {
-          reject(new Error(response.error || 'Failed to get item'));
-        }
-      });
-    });
-  }
-  
-  async update(id: string, data: Partial<ItemData>): Promise<ItemData> {
-    return new Promise((resolve, reject) => {
-      this.socket.emit('item:update', { id, ...data }, (response: { success: boolean; data?: ItemData; error?: string }) => {
-        if (response.success && response.data) {
-          resolve(response.data);
-        } else {
-          reject(new Error(response.error || 'Failed to update item'));
-        }
-      });
-    });
-  }
-  
-  async delete(id: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      this.socket.emit('item:delete', { id }, (response: { success: boolean; error?: string }) => {
-        if (response.success) {
-          resolve();
-        } else {
-          reject(new Error(response.error || 'Failed to delete item'));
-        }
-      });
-    });
-  }
-  
-  async list(filters?: ItemFilters): Promise<ItemData[]> {
-    return new Promise((resolve, reject) => {
-      this.socket.emit('item:list', { filters }, (response: { success: boolean; data?: ItemData[]; error?: string }) => {
-        if (response.success && response.data) {
-          resolve(response.data);
-        } else {
-          reject(new Error(response.error || 'Failed to list items'));
-        }
-      });
-    });
-  }
-}
-
-/**
- * Socket-based DocumentsAPI implementation (placeholder)
- */
-class SocketDocumentsAPI implements DocumentsAPI {
-  constructor() {
-    // Documents API not yet implemented - socket parameter ignored for now
-  }
-  
-  async create(): Promise<DocumentData> {
-    // Documents API not yet implemented in socket layer
-    throw new Error('Documents API not yet implemented');
-  }
-  
-  async get(): Promise<DocumentData> {
-    throw new Error('Documents API not yet implemented');
-  }
-  
-  async update(): Promise<DocumentData> {
-    throw new Error('Documents API not yet implemented');
-  }
-  
-  async delete(): Promise<void> {
-    throw new Error('Documents API not yet implemented');
-  }
-  
-  async search(): Promise<DocumentData[]> {
-    throw new Error('Documents API not yet implemented');
-  }
-}
-
-/**
- * Socket-based PluginContext implementation
- * Provides real plugin context that connects to the socket infrastructure
+ * Minimal PluginContext implementation focused on read-only data access
+ * and plugin-specific UI state management
  */
 export class PluginContextImpl implements PluginContext {
-  public readonly api: {
-    actors: ActorsAPI;
-    items: ItemsAPI;
-    documents: DocumentsAPI;
-  };
-  
   public readonly store: PluginStore;
-  public readonly events: PluginEventSystem;
+  private compendiumsClient: CompendiumsClient;
+  private documentsClient: DocumentsClient;
   
-  constructor(
-    private socket: SocketConnection,
-    private pluginId: string
-  ) {
-    // Initialize API clients
-    this.api = {
-      actors: new SocketActorsAPI(socket),
-      items: new SocketItemsAPI(socket),
-      documents: new SocketDocumentsAPI()
-    };
+  constructor(private pluginId: string) {
+    // Initialize plugin-scoped store
+    this.store = new ReactivePluginStore();
     
-    // Initialize plugin-scoped store and event system
-    this.store = new PluginStoreImpl();
-    this.events = new PluginEventSystemImpl(pluginId);
+    // Initialize API clients for read-only operations
+    this.compendiumsClient = new CompendiumsClient();
+    this.documentsClient = new DocumentsClient();
     
-    console.log(`[PluginContext] Created context for plugin '${pluginId}'`);
+    console.log(`[PluginContext] Created minimal context for plugin '${pluginId}'`);
+  }
+  
+  /**
+   * Get a document by ID for display purposes
+   */
+  async getDocument(id: string): Promise<BaseDocument> {
+    try {
+      return await this.documentsClient.getDocument(id);
+    } catch (error) {
+      console.error(`[PluginContext] Failed to get document ${id}:`, error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Search documents for display purposes
+   */
+  async searchDocuments(query: DocumentSearchQuery): Promise<BaseDocument[]> {
+    try {
+      return await this.documentsClient.searchDocuments(query);
+    } catch (error) {
+      console.error('[PluginContext] Failed to search documents:', error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Get a compendium entry by ID for display purposes
+   */
+  async getCompendiumEntry(id: string): Promise<ICompendiumEntry> {
+    try {
+      return await this.compendiumsClient.getCompendiumEntry(id);
+    } catch (error) {
+      console.error(`[PluginContext] Failed to get compendium entry ${id}:`, error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Search compendium entries for display purposes
+   */
+  async searchCompendiumEntries(query: CompendiumSearchQuery): Promise<ICompendiumEntry[]> {
+    try {
+      const result = await this.compendiumsClient.getAllCompendiumEntries(query);
+      return result.entries;
+    } catch (error) {
+      console.error('[PluginContext] Failed to search compendium entries:', error);
+      throw error;
+    }
   }
   
   /**
@@ -231,21 +92,11 @@ export class PluginContextImpl implements PluginContext {
   }
   
   /**
-   * Get direct access to the socket for plugin-specific events
-   */
-  getSocket(): SocketConnection {
-    return this.socket;
-  }
-  
-  /**
    * Cleanup resources when plugin is unloaded
    */
   destroy(): void {
-    // Clear store (cast to implementation to access clear method)
-    (this.store as PluginStoreImpl).clear();
-    
-    // Remove all event listeners (cast to implementation to access removeAllListeners method)
-    (this.events as PluginEventSystemImpl).removeAllListeners();
+    // Clear store
+    (this.store as ReactivePluginStore).clear();
     
     console.log(`[PluginContext] Destroyed context for plugin '${this.pluginId}'`);
   }
@@ -254,6 +105,6 @@ export class PluginContextImpl implements PluginContext {
 /**
  * Factory function to create PluginContext instances
  */
-export function createPluginContext(socket: SocketConnection, pluginId: string): PluginContext {
-  return new PluginContextImpl(socket, pluginId);
+export function createPluginContext(pluginId: string): PluginContext {
+  return new PluginContextImpl(pluginId);
 }

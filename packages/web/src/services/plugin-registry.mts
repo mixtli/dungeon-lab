@@ -8,7 +8,7 @@ import type {
   PluginManifest
 } from '@dungeon-lab/shared/types/plugin.mjs';
 import type { Component } from 'vue';
-import { PluginContextImpl } from './plugin-implementations/plugin-context-impl.mjs';
+import { createPluginContext } from './plugin-implementations/plugin-context-impl.mjs';
 import { pluginDiscoveryService } from './plugin-discovery.service.mjs';
 
 
@@ -17,7 +17,6 @@ import { pluginDiscoveryService } from './plugin-discovery.service.mjs';
  */
 export class PluginRegistryService {
   private loadedPlugins: Map<string, GameSystemPlugin> = new Map();
-  private pluginContexts: Map<string, PluginContext> = new Map();
   private initialized = false;
   
   /**
@@ -94,11 +93,8 @@ export class PluginRegistryService {
     try {
       console.log(`[PluginRegistry] 🚀 Initializing plugin: ${plugin.manifest.name}`);
       
-      // Create plugin context
+      // Create plugin context and pass to plugin onLoad
       const context = this.createPluginContext(plugin);
-      this.pluginContexts.set(plugin.manifest.id, context);
-      
-      // Call plugin onLoad with context
       await plugin.onLoad(context);
       
       console.log(`[PluginRegistry] ✅ Plugin ${plugin.manifest.name} fully initialized`);
@@ -154,12 +150,6 @@ export class PluginRegistryService {
   }
   
   
-  /**
-   * Get plugin context by plugin ID
-   */
-  getPluginContext(pluginId: string): PluginContext | undefined {
-    return this.pluginContexts.get(pluginId);
-  }
   
   /**
    * Get plugin manifest by plugin ID
@@ -185,7 +175,6 @@ export class PluginRegistryService {
       
       // Remove from loaded plugins
       this.loadedPlugins.delete(pluginId);
-      this.pluginContexts.delete(pluginId);
     }
     
     // Reload the plugin
@@ -196,25 +185,7 @@ export class PluginRegistryService {
    * Create plugin context for a plugin
    */
   private createPluginContext(plugin: GameSystemPlugin): PluginContext {
-    // TODO: Get real socket connection from socket store
-    // For now, create a mock socket connection
-    const mockSocket = {
-      emit: (event: string, ...args: unknown[]) => {
-        console.log(`[Plugin ${plugin.manifest.id}] Socket emit:`, event, args);
-        const lastArg = args[args.length - 1];
-        if (typeof lastArg === 'function') {
-          lastArg({ success: true });
-        }
-      },
-      on: (event: string) => {
-        console.log(`[Plugin ${plugin.manifest.id}] Socket on:`, event);
-      },
-      off: (event: string) => {
-        console.log(`[Plugin ${plugin.manifest.id}] Socket off:`, event);
-      }
-    };
-    
-    return new PluginContextImpl(mockSocket, plugin.manifest.id);
+    return createPluginContext(plugin.manifest.id);
   }
 }
 

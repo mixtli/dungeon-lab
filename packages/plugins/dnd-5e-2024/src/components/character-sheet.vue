@@ -7,14 +7,24 @@
           {{ character.name.charAt(0) }}
         </div>
         <div class="character-details">
-          <h1 class="character-name">{{ character.name }}</h1>
+          <h1 v-if="!editMode || readonly" class="character-name">{{ character.name }}</h1>
+          <input 
+            v-else
+            v-model="character.name"
+            class="character-name-input"
+            type="text"
+          />
           <p class="character-subtitle">
             Level {{ (character.pluginData?.progression as any)?.level || (character.pluginData as any)?.level || 1 }} {{ speciesDisplayName }} {{ classDisplayName }}
           </p>
         </div>
       </div>
       <div class="header-actions">
-        <button @click="saveCharacter" :disabled="readonly || !isDirty" class="save-btn">
+        <button 
+          v-if="editMode && !readonly" 
+          @click="saveCharacter" 
+          class="save-btn"
+        >
           💾
         </button>
         <button @click="closeSheet" class="close-btn">
@@ -42,21 +52,65 @@
       <!-- Overview Tab -->
       <div v-if="activeTab === 'overview'" class="tab-pane overview-tab">
         <div class="stats-grid">
-          <div class="stat-card" @click="rollInitiative" title="Click to roll initiative">
+          <div class="stat-card" @click="rollInitiative" :title="editMode && !readonly ? 'Initiative Bonus' : 'Click to roll initiative'">
             <div class="stat-label">Initiative</div>
-            <div class="stat-value">{{ initiativeBonus }}</div>
+            <div v-if="!editMode || readonly" class="stat-value">{{ initiativeBonus }}</div>
+            <input 
+              v-else
+              v-model.number="initiativeBonusValue"
+              class="stat-input"
+              type="number"
+              min="-10"
+              max="20"
+              @click.stop
+            />
           </div>
           <div class="stat-card">
             <div class="stat-label">Armor Class</div>
-            <div class="stat-value">{{ armorClassDisplay }}</div>
+            <div v-if="!editMode || readonly" class="stat-value">{{ armorClassDisplay }}</div>
+            <input 
+              v-else
+              v-model.number="armorClassValue"
+              class="stat-input"
+              type="number"
+              min="1"
+              max="30"
+            />
           </div>
           <div class="stat-card">
             <div class="stat-label">Hit Points</div>
-            <div class="stat-value">{{ hitPointsDisplay }}</div>
+            <div v-if="!editMode || readonly" class="stat-value">{{ hitPointsDisplay }}</div>
+            <div v-else class="hit-points-edit">
+              <input 
+                v-model.number="hitPointsCurrent"
+                class="stat-input hp-current"
+                type="number"
+                min="0"
+                :max="hitPointsMax"
+              />
+              <span class="hp-separator">/</span>
+              <input 
+                v-model.number="hitPointsMax"
+                class="stat-input hp-max"
+                type="number"
+                min="1"
+                max="999"
+              />
+            </div>
           </div>
           <div class="stat-card">
             <div class="stat-label">Speed</div>
-            <div class="stat-value">{{ speedDisplay }}</div>
+            <div v-if="!editMode || readonly" class="stat-value">{{ speedDisplay }}</div>
+            <div v-else class="speed-edit">
+              <input 
+                v-model.number="speedValue"
+                class="stat-input speed-input"
+                type="number"
+                min="0"
+                max="999"
+              />
+              <span class="speed-unit">ft</span>
+            </div>
           </div>
           <div class="stat-card">
             <div class="stat-label">Prof. Bonus</div>
@@ -79,14 +133,25 @@
       <div v-if="activeTab === 'abilities'" class="tab-pane abilities-tab">
         <div class="abilities-grid">
           <div 
-            v-for="(abilityScore, abilityName) in finalAbilities" 
+            v-for="(_, abilityName) in finalAbilities" 
             :key="abilityName"
             class="ability-card"
-            @click="rollAbilityCheck(abilityName as string)"
-            :title="'Click to roll ' + abilityName + ' check'"
+            @click="!editMode || readonly ? rollAbilityCheck(abilityName as string) : null"
+            :title="editMode && !readonly ? abilityName + ' score' : 'Click to roll ' + abilityName + ' check'"
+            :class="{ 'non-clickable': editMode && !readonly }"
           >
             <div class="ability-name">{{ (abilityName as string).slice(0, 3).toUpperCase() }}</div>
-            <div class="ability-score">{{ abilityScore }}</div>
+            <div v-if="!editMode || readonly" class="ability-score">{{ finalAbilities[abilityName as string] }}</div>
+            <input 
+              v-else
+              :value="finalAbilities[abilityName as string]"
+              @input="updateAbilityScore(abilityName as string, ($event.target as HTMLInputElement).valueAsNumber)"
+              class="ability-score-input"
+              type="number"
+              min="1"
+              max="30"
+              @click.stop
+            />
             <div class="ability-modifier">{{ formatModifier(abilityModifiers[abilityName as string] || 0) }}</div>
           </div>
         </div>
@@ -158,7 +223,7 @@
           <div class="notes-editor">
             <textarea 
               v-model="characterNotes" 
-              :readonly="readonly"
+              :readonly="readonly || !editMode"
               class="notes-textarea" 
               placeholder="Write your character notes here..."
               rows="8"
@@ -171,17 +236,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch, markRaw } from 'vue';
-import { CompendiumsClient } from '@dungeon-lab/client/index.mjs';
-import type { IActor, PluginContext } from '@dungeon-lab/shared/types/index.mjs';
+import { ref, computed, onMounted, onUnmounted, watch, markRaw, type Ref } from 'vue';
+import type { IActor, IItem } from '@dungeon-lab/shared/types/index.mjs';
 import type { DndCharacterClassDocument } from '../types/dnd/character-class.mjs';
 import type { DndSpeciesDocument } from '../types/dnd/species.mjs';
 import type { DndBackgroundDocument } from '../types/dnd/background.mjs';
+import { getPluginContext } from '@dungeon-lab/shared/utils/plugin-context.mjs';
 
 // Props
 interface Props {
-  character: IActor;
-  context?: PluginContext;
+  character: Ref<IActor>;
+  items: Ref<IItem[]>;
+  editMode: boolean;
   readonly?: boolean;
 }
 
@@ -189,11 +255,8 @@ const props = withDefaults(defineProps<Props>(), {
   readonly: false
 });
 
-// Use character directly without reactive wrapper to avoid performance warnings
+// Use reactive character directly  
 const character = props.character;
-
-// Initialize compendium client for fetching documents
-const compendiumClient = new CompendiumsClient();
 
 // Compendium document data
 const speciesDocument = ref<DndSpeciesDocument | null>(null);
@@ -204,7 +267,6 @@ const compendiumError = ref<string | null>(null);
 
 // Emits
 const emit = defineEmits<{
-  'update:character': [character: IActor];
   'save': [character: IActor];
   'roll': [rollType: string, data: Record<string, unknown>];
   'close': [];
@@ -212,7 +274,89 @@ const emit = defineEmits<{
 
 // Component state
 const activeTab = ref('overview');
-const isDirty = ref(false);
+
+// Direct v-model computed properties for character editing
+
+// Initiative bonus - direct binding to character.pluginData.attributes.initiative.bonus
+const initiativeBonusValue = computed({
+  get() {
+    const attributes = character.value.pluginData?.attributes as any;
+    return attributes?.initiative?.bonus || (character.value.pluginData as any)?.initiative || 0;
+  },
+  set(value: number) {
+    if (!character.value.pluginData) character.value.pluginData = {};
+    if (!(character.value.pluginData as any).attributes) (character.value.pluginData as any).attributes = {};
+    if (!(character.value.pluginData as any).attributes.initiative) (character.value.pluginData as any).attributes.initiative = {};
+    (character.value.pluginData as any).attributes.initiative.bonus = value;
+    // Also update legacy format
+    (character.value.pluginData as any).initiative = value;
+  }
+});
+
+// Armor class - direct binding to character.pluginData.attributes.armorClass.value
+const armorClassValue = computed({
+  get() {
+    const attributes = character.value.pluginData?.attributes as any;
+    return attributes?.armorClass?.value || (character.value.pluginData as any)?.armorClass || 10;
+  },
+  set(value: number) {
+    if (!character.value.pluginData) character.value.pluginData = {};
+    if (!(character.value.pluginData as any).attributes) (character.value.pluginData as any).attributes = {};
+    (character.value.pluginData as any).attributes.armorClass = { value };
+    // Also update legacy format
+    (character.value.pluginData as any).armorClass = value;
+  }
+});
+
+// Hit points current - direct binding to character.pluginData.attributes.hitPoints.current
+const hitPointsCurrent = computed({
+  get() {
+    const attributes = character.value.pluginData?.attributes as any;
+    return attributes?.hitPoints?.current || (character.value.pluginData as any)?.hitPoints?.current || 8;
+  },
+  set(value: number) {
+    if (!character.value.pluginData) character.value.pluginData = {};
+    if (!(character.value.pluginData as any).attributes) (character.value.pluginData as any).attributes = {};
+    if (!(character.value.pluginData as any).attributes.hitPoints) (character.value.pluginData as any).attributes.hitPoints = {};
+    (character.value.pluginData as any).attributes.hitPoints.current = value;
+    // Also update legacy format
+    if (!(character.value.pluginData as any).hitPoints) (character.value.pluginData as any).hitPoints = {};
+    (character.value.pluginData as any).hitPoints.current = value;
+  }
+});
+
+// Hit points max - direct binding to character.pluginData.attributes.hitPoints.maximum
+const hitPointsMax = computed({
+  get() {
+    const attributes = character.value.pluginData?.attributes as any;
+    return attributes?.hitPoints?.maximum || (character.value.pluginData as any)?.hitPoints?.maximum || 8;
+  },
+  set(value: number) {
+    if (!character.value.pluginData) character.value.pluginData = {};
+    if (!(character.value.pluginData as any).attributes) (character.value.pluginData as any).attributes = {};
+    if (!(character.value.pluginData as any).attributes.hitPoints) (character.value.pluginData as any).attributes.hitPoints = {};
+    (character.value.pluginData as any).attributes.hitPoints.maximum = value;
+    // Also update legacy format
+    if (!(character.value.pluginData as any).hitPoints) (character.value.pluginData as any).hitPoints = {};
+    (character.value.pluginData as any).hitPoints.maximum = value;
+  }
+});
+
+// Speed - direct binding to character.pluginData.attributes.movement.walk
+const speedValue = computed({
+  get() {
+    const attributes = character.value.pluginData?.attributes as any;
+    return attributes?.movement?.walk || (character.value.pluginData as any)?.speed || 30;
+  },
+  set(value: number) {
+    if (!character.value.pluginData) character.value.pluginData = {};
+    if (!(character.value.pluginData as any).attributes) (character.value.pluginData as any).attributes = {};
+    if (!(character.value.pluginData as any).attributes.movement) (character.value.pluginData as any).attributes.movement = {};
+    (character.value.pluginData as any).attributes.movement.walk = value;
+    // Also update legacy format
+    (character.value.pluginData as any).speed = value;
+  }
+});
 
 // Tab definitions
 const tabs = [
@@ -229,7 +373,7 @@ const tabs = [
 
 // Process ability scores from proper D&D schema
 const finalAbilities = computed(() => {
-  const abilities = character.pluginData?.abilities || {};
+  const abilities = (character.value.pluginData as any)?.abilities || {};
   const finalScores: Record<string, number> = {};
   
   // Standard ability names in order
@@ -253,6 +397,19 @@ const finalAbilities = computed(() => {
   return finalScores;
 });
 
+// Ability score update method - directly updates character.pluginData.abilities[ability].override
+const updateAbilityScore = (abilityName: string, newScore: number) => {
+  if (isNaN(newScore) || newScore < 1 || newScore > 30) return;
+  
+  // Ensure abilities structure exists
+  if (!character.value.pluginData) character.value.pluginData = {};
+  if (!(character.value.pluginData as any).abilities) (character.value.pluginData as any).abilities = {};
+  if (!(character.value.pluginData as any).abilities[abilityName]) (character.value.pluginData as any).abilities[abilityName] = {};
+  
+  // Set the override value directly
+  (character.value.pluginData as any).abilities[abilityName].override = newScore;
+};
+
 // Computed properties for D&D 5e mechanics
 const abilityModifiers = computed(() => {
   const modifiers: Record<string, number> = {};
@@ -264,20 +421,20 @@ const abilityModifiers = computed(() => {
 
 const proficiencyBonus = computed(() => {
   // Try D&D schema first
-  const progression = character.pluginData?.progression as any;
+  const progression = character.value.pluginData?.progression as any;
   if (progression?.proficiencyBonus) {
     return progression.proficiencyBonus;
   }
   
   // Calculate from level (fallback)
-  const level = progression?.level || (character.pluginData as any)?.level || 1;
+  const level = progression?.level || (character.value.pluginData as any)?.level || 1;
   return Math.ceil(level / 4) + 1;
 });
 
 // Determine saving throw proficiencies from D&D schema
 const savingThrowProficiencies = computed(() => {
   const proficiencies: Record<string, boolean> = {};
-  const abilities = character.pluginData?.abilities || {};
+  const abilities = (character.value.pluginData as any)?.abilities || {};
   
   // Use proficiencies from the D&D schema if available
   for (const abilityName of Object.keys(finalAbilities.value)) {
@@ -309,7 +466,7 @@ const savingThrowBonuses = computed(() => {
 
 // Skills structure from character data - no defaults
 const characterSkills = computed(() => {
-  const skills = character.pluginData?.skills || {};
+  const skills = character.value.pluginData?.skills || {};
   
   // Define standard D&D 5e skills with their abilities
   const standardSkills = {
@@ -340,11 +497,12 @@ const characterSkills = computed(() => {
   if (Object.keys(skills).length > 0) {
     for (const [skillName, skillData] of Object.entries(skills)) {
       if (typeof skillData === 'object' && skillData !== null) {
+        const skill = skillData as any; // Type assertion for plugin data
         result[skillName] = {
-          ability: skillData.ability || standardSkills[skillName as keyof typeof standardSkills] || 'wisdom',
-          proficiency: skillData.expert ? 'expertise' : 
-                      skillData.proficient ? 'proficient' : 
-                      skillData.half ? 'half' : 'none'
+          ability: skill.ability || standardSkills[skillName as keyof typeof standardSkills] || 'wisdom',
+          proficiency: skill.expert ? 'expertise' : 
+                      skill.proficient ? 'proficient' : 
+                      skill.half ? 'half' : 'none'
         };
       }
     }
@@ -388,40 +546,40 @@ const passivePerception = computed(() => {
 });
 
 const armorClassDisplay = computed(() => {
-  const attributes = character.pluginData?.attributes as any;
+  const attributes = character.value.pluginData?.attributes as any;
   if (attributes?.armorClass?.value) {
     return attributes.armorClass.value;
   }
-  return (character.pluginData as any)?.armorClass || 10;
+  return (character.value.pluginData as any)?.armorClass || 10;
 });
 
 const hitPointsDisplay = computed(() => {
-  const attributes = character.pluginData?.attributes as any;
+  const attributes = character.value.pluginData?.attributes as any;
   if (attributes?.hitPoints) {
     return `${attributes.hitPoints.current}/${attributes.hitPoints.maximum}`;
   }
-  const hitPoints = (character.pluginData as any)?.hitPoints || { current: 8, maximum: 8 };
+  const hitPoints = (character.value.pluginData as any)?.hitPoints || { current: 8, maximum: 8 };
   return `${hitPoints.current}/${hitPoints.maximum}`;
 });
 
 const speedDisplay = computed(() => {
-  const attributes = character.pluginData?.attributes as any;
+  const attributes = character.value.pluginData?.attributes as any;
   if (attributes?.movement?.walk) {
     return `${attributes.movement.walk} ft`;
   }
-  const speed = (character.pluginData as any)?.speed || 30;
+  const speed = (character.value.pluginData as any)?.speed || 30;
   return `${speed} ft`;
 });
 
 const initiativeBonus = computed(() => {
   const dexMod = abilityModifiers.value.dexterity || 0;
-  const attributes = character.pluginData?.attributes as any;
+  const attributes = character.value.pluginData?.attributes as any;
   let initBonus = 0;
   
   if (attributes?.initiative?.bonus !== undefined) {
     initBonus = attributes.initiative.bonus;
   } else {
-    initBonus = (character.pluginData as any)?.initiative || 0;
+    initBonus = (character.value.pluginData as any)?.initiative || 0;
   }
   
   const bonus = dexMod + initBonus;
@@ -441,28 +599,20 @@ const classDisplayName = computed(() => {
   return classDocument.value?.name || 'Unknown Class';
 });
 
-const backgroundDisplayName = computed(() => {
-  if (compendiumLoading.value) return 'Loading...';
-  if (compendiumError.value) return 'Error loading background';
-  return backgroundDocument.value?.name || 'Unknown Background';
-});
 
-// Reactive notes for textarea editing
+// Notes - direct binding to character.pluginData.roleplay.backstory
 const characterNotes = computed({
   get() {
     // Try D&D schema format first, then fallback to legacy
-    return (character.pluginData as any)?.roleplay?.backstory || 
-           (character.pluginData as any)?.notes || '';
+    return (character.value.pluginData as any)?.roleplay?.backstory || 
+           (character.value.pluginData as any)?.notes || '';
   },
   set(value: string) {
-    // Update both for compatibility
-    updateCharacter({ 
-      notes: value,
-      roleplay: { 
-        ...(character.pluginData as any)?.roleplay,
-        backstory: value 
-      }
-    });
+    if (!character.value.pluginData) character.value.pluginData = {};
+    if (!(character.value.pluginData as any).roleplay) (character.value.pluginData as any).roleplay = {};
+    (character.value.pluginData as any).roleplay.backstory = value;
+    // Also update legacy format
+    (character.value.pluginData as any).notes = value;
   }
 });
 
@@ -509,7 +659,7 @@ const rollSkillCheck = (skill: string) => {
 
 const rollInitiative = () => {
   const dexModifier = abilityModifiers.value.dexterity || 0;
-  const initBonus = (character.pluginData as any)?.initiative || 0;
+  const initBonus = (character.value.pluginData as any)?.initiative || 0;
   const totalBonus = dexModifier + initBonus;
   emit('roll', 'initiative', {
     type: 'initiative',
@@ -523,27 +673,18 @@ const switchTab = (tabId: string) => {
   activeTab.value = tabId;
 };
 
-const updateCharacter = (updates: Record<string, unknown>) => {
-  const updatedCharacter = { ...character, pluginData: { ...character.pluginData, ...updates } };
-  isDirty.value = true;
-  emit('update:character', updatedCharacter);
-};
+// Removed updateCharacter method - direct v-model binding handles all updates
 
 const saveCharacter = () => {
-  emit('save', character);
-  isDirty.value = false;
+  emit('save', character.value);
 };
 
 const closeSheet = () => {
-  // Emit window event via plugin context if available
-  if (props.context?.events) {
-    props.context.events.emit('window:close');
-  }
-  // Also emit the regular close event for backwards compatibility
+  // Emit close event to parent
   emit('close');
 };
 
-// Window drag functionality
+// Window drag functionality (simplified)
 const startDrag = (event: MouseEvent) => {
   // Don't start drag if clicking on buttons or other interactive elements
   const target = event.target as HTMLElement;
@@ -551,14 +692,7 @@ const startDrag = (event: MouseEvent) => {
     return;
   }
   
-  // Emit drag start event via plugin context if available
-  if (props.context?.events) {
-    props.context.events.emit('window:drag-start', {
-      startX: event.clientX,
-      startY: event.clientY
-    });
-  }
-  
+  // For now, just prevent default. Window management handled by parent.
   event.preventDefault();
 };
 
@@ -574,7 +708,7 @@ const handleKeyDown = (event: KeyboardEvent) => {
   }
 };
 
-// Compendium data fetching functions
+// Compendium data fetching functions using PluginContext
 const loadCompendiumDocuments = async () => {
   try {
     compendiumLoading.value = true;
@@ -582,31 +716,39 @@ const loadCompendiumDocuments = async () => {
     
     const promises = [];
     
+    // Get plugin context using shared utility
+    const context = getPluginContext();
+    if (!context) {
+      console.warn('[CharacterSheet] Plugin context not available for compendium loading');
+      return;
+    }
+    
     // Fetch species document if we have a species ObjectId
-    const speciesId = character.pluginData?.species;
+    const speciesId = character.value.pluginData?.species;
     if (speciesId && typeof speciesId === 'string') {
       promises.push(
-        compendiumClient.getCompendiumEntry(speciesId)
+        context.getCompendiumEntry(speciesId)
           .then(entry => { speciesDocument.value = markRaw(entry.content as DndSpeciesDocument); })
           .catch(err => { console.warn('Failed to load species:', err); })
       );
     }
     
     // Fetch class document if we have a class ObjectId
-    const classId = character.pluginData?.classes?.[0]?.class;
+    const classes = character.value.pluginData?.classes as any[];
+    const classId = classes?.[0]?.class;
     if (classId && typeof classId === 'string') {
       promises.push(
-        compendiumClient.getCompendiumEntry(classId)
+        context.getCompendiumEntry(classId)
           .then(entry => { classDocument.value = markRaw(entry.content as DndCharacterClassDocument); })
           .catch(err => { console.warn('Failed to load class:', err); })
       );
     }
     
     // Fetch background document if we have a background ObjectId
-    const backgroundId = character.pluginData?.background;
+    const backgroundId = character.value.pluginData?.background;
     if (backgroundId && typeof backgroundId === 'string') {
       promises.push(
-        compendiumClient.getCompendiumEntry(backgroundId)
+        context.getCompendiumEntry(backgroundId)
           .then(entry => { backgroundDocument.value = markRaw(entry.content as DndBackgroundDocument); })
           .catch(err => { console.warn('Failed to load background:', err); })
       );
@@ -722,6 +864,26 @@ const injectStyles = () => {
   overflow: hidden;
   text-overflow: ellipsis;
   text-shadow: 1px 1px 2px var(--dnd-shadow);
+}
+
+.character-name-input {
+  font-family: 'Cinzel', serif;
+  font-size: 16px;
+  font-weight: bold;
+  margin: 0;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 2px solid var(--dnd-gold);
+  border-radius: 4px;
+  color: var(--dnd-red);
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.character-name-input:focus {
+  background: var(--dnd-white);
+  border-color: var(--dnd-red);
+  box-shadow: 0 0 0 2px rgba(210, 0, 0, 0.2);
 }
 
 .character-subtitle {
@@ -933,6 +1095,44 @@ const injectStyles = () => {
   font-weight: 500;
 }
 
+.ability-score-input {
+  width: 60px;
+  background: var(--dnd-white);
+  border: 2px solid var(--dnd-gold);
+  border-radius: 4px;
+  padding: 2px 4px;
+  font-size: 18px;
+  font-weight: bold;
+  font-family: 'Cinzel', serif;
+  color: var(--dnd-red);
+  text-align: center;
+  outline: none;
+  transition: all 0.2s ease;
+  appearance: textfield;
+  margin-bottom: 2px;
+}
+
+.ability-score-input:focus {
+  border-color: var(--dnd-red);
+  box-shadow: 0 0 0 2px rgba(210, 0, 0, 0.2);
+}
+
+.ability-score-input::-webkit-outer-spin-button,
+.ability-score-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.ability-card.non-clickable {
+  cursor: default;
+}
+
+.ability-card.non-clickable:hover {
+  border-color: var(--dnd-brown-light);
+  transform: none;
+  box-shadow: 0 2px 4px var(--dnd-shadow-light);
+}
+
 /* Common styles for sections */
 h3 {
   font-family: 'Cinzel', serif;
@@ -1027,6 +1227,73 @@ h3 {
   border-color: var(--dnd-red);
 }
 
+/* Stat input fields */
+.stat-input {
+  width: 100%;
+  background: var(--dnd-white);
+  border: 2px solid var(--dnd-gold);
+  border-radius: 4px;
+  padding: 2px 4px;
+  font-size: 16px;
+  font-weight: bold;
+  font-family: 'Cinzel', serif;
+  color: var(--dnd-red);
+  text-align: center;
+  outline: none;
+  transition: all 0.2s ease;
+  appearance: textfield;
+}
+
+.stat-input:focus {
+  border-color: var(--dnd-red);
+  box-shadow: 0 0 0 2px rgba(210, 0, 0, 0.2);
+}
+
+/* Spinbutton controls are now visible for better UX */
+
+/* Hit points edit layout */
+.hit-points-edit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-family: 'Cinzel', serif;
+  font-weight: bold;
+  color: var(--dnd-red);
+}
+
+.hp-current, .hp-max {
+  width: 40px;
+  font-size: 14px;
+}
+
+.hp-separator {
+  font-size: 16px;
+  font-weight: bold;
+  color: var(--dnd-red);
+}
+
+/* Speed edit layout */
+.speed-edit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-family: 'Cinzel', serif;
+  font-weight: bold;
+  color: var(--dnd-red);
+}
+
+.speed-input {
+  width: 50px;
+  font-size: 14px;
+}
+
+.speed-unit {
+  font-size: 12px;
+  color: var(--dnd-gray);
+}
+
 /* Empty states */
 .empty-state {
   text-align: center;
@@ -1062,7 +1329,9 @@ h3 {
 onMounted(() => {
   injectStyles();
   document.addEventListener('keydown', handleKeyDown);
-  console.log('D&D 5e Character Sheet mounted for character:', character.name);
+  console.log('D&D 5e Character Sheet mounted for character:', character.value.name);
+  
+  // No longer need to initialize editable fields - direct v-model binding
   
   // Load compendium documents
   loadCompendiumDocuments();
@@ -1073,11 +1342,14 @@ onUnmounted(() => {
 });
 
 // Watch for character changes and reload compendium data
-watch(() => [
-  character.pluginData?.species,
-  character.pluginData?.classes?.[0]?.class,
-  character.pluginData?.background
-], () => {
+watch(() => {
+  const classes = character.value.pluginData?.classes as any[];
+  return [
+    character.value.pluginData?.species,
+    classes?.[0]?.class,
+    character.value.pluginData?.background
+  ];
+}, () => {
   loadCompendiumDocuments();
 }, { deep: true });
 </script>
