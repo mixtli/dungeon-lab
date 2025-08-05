@@ -40,6 +40,10 @@ const MapEditorView = () => import('@/views/map/MapEditorView.vue');
 const AssetListView = () => import('@/views/AssetListView.vue');
 const AssetDetailView = () => import('@/views/AssetDetailView.vue');
 
+// Document views
+const DocumentListView = () => import('@/views/DocumentListView.vue');
+const DocumentDetailView = () => import('@/views/DocumentDetailView.vue');
+
 // Compendium views
 const CompendiumListView = () => import('@/views/CompendiumListView.vue');
 const CompendiumDetailView = () => import('@/views/CompendiumDetailView.vue');
@@ -129,6 +133,25 @@ const routes: RouteRecordRaw[] = [
         component: AssetDetailView,
         meta: {
           title: 'Asset Details',
+          requiresAuth: true
+        }
+      },
+      // Document routes
+      {
+        path: 'documents',
+        name: 'documents',
+        component: DocumentListView,
+        meta: {
+          title: 'All Documents',
+          requiresAuth: true
+        }
+      },
+      {
+        path: 'documents/:id',
+        name: 'document-detail',
+        component: DocumentDetailView,
+        meta: {
+          title: 'Document Details',
           requiresAuth: true
         }
       },
