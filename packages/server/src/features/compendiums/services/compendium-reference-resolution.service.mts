@@ -1,6 +1,7 @@
 import { Types } from 'mongoose';
 import { CompendiumReferenceResolver } from '@dungeon-lab/shared/services/compendium-reference-resolver.mjs';
 import { CompendiumEntryModel } from '../models/compendium-entry.model.mjs';
+import { CompendiumModel } from '../models/compendium.model.mjs';
 import { logger } from '../../../utils/logger.mjs';
 import type { BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
 
@@ -29,23 +30,57 @@ export class ServerCompendiumReferenceResolutionService {
     logger.info(`Starting reference resolution for compendium: ${compendiumId}`);
 
     try {
+      // Get the current compendium to find its plugin
+      const currentCompendium = await CompendiumModel.findById(compendiumId).lean();
+      if (!currentCompendium) {
+        throw new Error(`Compendium not found: ${compendiumId}`);
+      }
+
       const result = await this.resolver.resolveCompendiumReferences(
         compendiumId,
         
-        // Get all entries from this compendium
+        // Get all entries from ALL compendiums in the same plugin
         async () => {
+          // Find all compendiums for this plugin
+          const allCompendiums = await CompendiumModel.find({ 
+            pluginId: currentCompendium.pluginId 
+          }).lean();
+          
+          const allCompendiumIds = allCompendiums.map(c => c._id);
+          
+          // Get entries from all compendiums in this plugin
           const entries = await CompendiumEntryModel.find({ 
-            compendiumId: new Types.ObjectId(compendiumId) 
+            compendiumId: { $in: allCompendiumIds }
           }).lean();
           
           // Transform to match IndexableCompendiumEntry interface
-          return entries.map(entry => ({
+          // Sort so entries from the current compendium come first (for prioritization)
+          const transformedEntries = entries.map(entry => ({
             _id: entry._id,
             slug: (entry.content as BaseDocument)?.slug || entry.entry?.name?.toLowerCase().replace(/\s+/g, '-') || 'unknown',
             documentType: entry.entry?.documentType || 'unknown',
-            pluginType: (entry.content as BaseDocument)?.pluginDocumentType || entry.entry?.documentType,
+            pluginDocumentType: (entry.content as BaseDocument)?.pluginDocumentType || entry.entry?.documentType,
             source: (entry.content as BaseDocument)?.source || undefined,
-            pluginData: (entry.content || {}) as Record<string, unknown>
+            pluginData: (entry.content || {}) as Record<string, unknown>,
+            // Add metadata for prioritization
+            _isCurrentCompendium: entry.compendiumId.toString() === compendiumId
+          }));
+          
+          // Sort to prioritize current compendium entries first
+          const sortedEntries = transformedEntries.sort((a, b) => {
+            if (a._isCurrentCompendium && !b._isCurrentCompendium) return -1;
+            if (!a._isCurrentCompendium && b._isCurrentCompendium) return 1;
+            return 0;
+          });
+          
+          // Remove metadata before returning
+          return sortedEntries.map(entry => ({
+            _id: entry._id,
+            slug: entry.slug,
+            documentType: entry.documentType,
+            pluginDocumentType: entry.pluginDocumentType,
+            source: entry.source,
+            pluginData: entry.pluginData
           }));
         },
         
@@ -93,6 +128,8 @@ export class ServerCompendiumReferenceResolutionService {
     totalReferences: number;
   }> {
     return await this.resolver.getUnresolvedReferenceStats(async () => {
+      // Only get entries from the target compendium for stats
+      // (but they would be resolved against all compendiums in the plugin)
       const entries = await CompendiumEntryModel.find({ 
         compendiumId: new Types.ObjectId(compendiumId) 
       }).lean();
@@ -128,16 +165,37 @@ export class ServerCompendiumReferenceResolutionService {
       throw new Error(`Entry not found: ${entryId}`);
     }
 
-    // Build index for the entire compendium
-    const entries = await CompendiumEntryModel.find({ 
-      compendiumId: new Types.ObjectId(compendiumId) 
+    // Get the current compendium to find its plugin
+    const currentCompendium = await CompendiumModel.findById(compendiumId).lean();
+    if (!currentCompendium) {
+      throw new Error(`Compendium not found: ${compendiumId}`);
+    }
+
+    // Find all compendiums for this plugin and build index for all entries
+    const allCompendiums = await CompendiumModel.find({ 
+      pluginId: currentCompendium.pluginId 
     }).lean();
     
-    const indexableEntries = entries.map(e => ({
+    const allCompendiumIds = allCompendiums.map(c => c._id);
+    
+    const entries = await CompendiumEntryModel.find({ 
+      compendiumId: { $in: allCompendiumIds }
+    }).lean();
+    
+    // Sort entries to prioritize current compendium first
+    const sortedEntries = entries.sort((a, b) => {
+      const aIsCurrentCompendium = a.compendiumId.toString() === compendiumId;
+      const bIsCurrentCompendium = b.compendiumId.toString() === compendiumId;
+      if (aIsCurrentCompendium && !bIsCurrentCompendium) return -1;
+      if (!aIsCurrentCompendium && bIsCurrentCompendium) return 1;
+      return 0;
+    });
+    
+    const indexableEntries = sortedEntries.map(e => ({
       _id: e._id,
       slug: (e.content as BaseDocument)?.slug || e.entry?.name?.toLowerCase().replace(/\s+/g, '-') || 'unknown',
       documentType: e.entry?.documentType || 'unknown',
-      pluginType: (e.content as BaseDocument)?.pluginDocumentType || e.entry?.documentType,
+      pluginDocumentType: (e.content as BaseDocument)?.pluginDocumentType || e.entry?.documentType,
       source: (e.content as BaseDocument)?.source || undefined,
       pluginData: e.content || {}
     }));

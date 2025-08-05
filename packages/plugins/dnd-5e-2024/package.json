@@ -26,7 +26,8 @@
     "generate:compendium:all": "tsx src/scripts/generate-compendium-pack.mts --no-srd-only --output-dir ./packs/dnd-5e-2024-all",
     "generate:backgrounds": "tsx generate-backgrounds.mts",
     "create:minimal-pack": "tsx src/scripts/create-minimal-test-pack.mts",
-    "test:conversion": "tsx src/scripts/test-conversion.mts"
+    "test:conversion": "tsx src/scripts/test-conversion.mts",
+    "transform:characters": "tsx src/scripts/transform-characters.mts"
   },
   "dependencies": {
     "@dungeon-lab/shared": "file:../../shared/src",
