@@ -28,7 +28,7 @@ const getAvatarUrl = async (character: ICharacter): Promise<string | undefined> 
     }
     
     // Next, try avatarId (preferred for characters)
-    const assetId = (character as any).avatarId || character.imageId;
+    const assetId = ('avatarId' in character ? (character as { avatarId?: string }).avatarId : undefined) || character.imageId;
     if (assetId) {
       // Check cache first
       if (assetUrlCache.value.has(assetId)) {

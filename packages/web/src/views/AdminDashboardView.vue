@@ -152,7 +152,7 @@ async function generateAllVTTDocuments() {
           entryName: entry.entry.name,
           success: true,
           wasUpdate: !!wasUpdate,
-          documentId: document && typeof document === 'object' && 'id' in document ? (document as any).id : undefined
+          documentId: document && typeof document === 'object' && 'id' in document ? (document as Record<string, unknown>).id as string : undefined
         });
         
         console.log(`✓ ${wasUpdate ? 'Updated' : 'Created'} document for: ${entry.entry.name}`);
@@ -277,7 +277,7 @@ async function generateAllCharacterDocuments() {
             entryName: entry.entry.name,
             success: true,
             wasSkipped: false,
-            documentId: document && typeof document === 'object' && 'id' in document ? (document as any).id : undefined
+            documentId: document && typeof document === 'object' && 'id' in document ? (document as Record<string, unknown>).id as string : undefined
           });
           console.log(`✓ Created character document for: ${entry.entry.name}`);
         }

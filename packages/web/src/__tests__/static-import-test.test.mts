@@ -15,7 +15,21 @@ describe('Static Import Test', () => {
     expect(typeof DnD5e2024Plugin).toBe('function');
     
     // Try to instantiate
-    const plugin = new DnD5e2024Plugin();
+    const testManifest = {
+      id: 'dnd-5e-2024',
+      name: 'D&D 5th Edition (2024)',
+      version: '2.0.0',
+      description: 'D&D 5e 2024 game system plugin',
+      author: 'Test',
+      gameSystem: 'dnd-5e-2024',
+      enabled: true,
+      characterTypes: ['character', 'npc'],
+      itemTypes: ['weapon', 'armor', 'consumable', 'tool'],
+      validationTypes: ['character', 'item', 'actor', 'vtt-document'],
+      entryPoint: './dist/index.mjs',
+      keywords: ['dnd', '5e', '2024']
+    };
+    const plugin = new DnD5e2024Plugin(testManifest);
     expect(plugin).toBeDefined();
     expect(plugin.manifest.id).toBe('dnd-5e-2024');
     

@@ -29,8 +29,9 @@ interface ProcessedContent {
   originalPath: string;
 }
 
-// Validation result interface
-interface ValidationResult {
+// Using ValidationResult from shared schema (imported above)
+// Internal validation result for schema validation with data
+interface InternalValidationResult {
   success: boolean;
   data?: unknown;
   error?: Error;
@@ -547,7 +548,7 @@ export class ImportService {
   /**
    * Validate content against the appropriate server schema based on document type
    */
-  private validateContentAgainstSchema(documentType: string, data: unknown): ValidationResult {
+  private validateContentAgainstSchema(documentType: string, data: unknown): InternalValidationResult {
     try {
       let schema;
       

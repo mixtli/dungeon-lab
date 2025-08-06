@@ -294,6 +294,7 @@ export class TypedItemConverter extends TypedConverter<
         pluginDocumentType: 'item-group',
         description: this.extractDescription(input),
         userData: {},
+        itemState: {},
         pluginData: {
           name: input.name,
           description: this.extractDescription(input),

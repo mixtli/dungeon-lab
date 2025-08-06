@@ -746,7 +746,7 @@ const availableAbilityScores = computed(() => {
   });
   
   // Add the clear option at the beginning, then the available scores
-  const options = [{
+  const options: Array<{ value: number | null; label: string }> = [{
     value: null,
     label: "-- Clear --"
   }];

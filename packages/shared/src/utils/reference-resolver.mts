@@ -197,8 +197,8 @@ export async function resolveReferenceOrObjectId(
       } else {
         // Multiple matches - try to find exact match by slug
         const exactMatch = entries.find(entry => 
-          (entry.content as any)?.slug === ref.slug ||
-          (entry.entry as any)?.slug === ref.slug
+          (entry.content && typeof entry.content === 'object' && 'slug' in entry.content && entry.content.slug === ref.slug) ||
+          (entry.entry && typeof entry.entry === 'object' && 'slug' in entry.entry && entry.entry.slug === ref.slug)
         );
         if (exactMatch) {
           resolvedName = extractEntryName(exactMatch) || (returnIdOnFail ? ref.slug || 'Unknown Reference' : fallback);
@@ -259,7 +259,7 @@ export async function resolveMultipleReferences(
 function extractEntryName(entry: ICompendiumEntry): string | null {
   // Try content.name first (plugin data)
   if (entry.content && typeof entry.content === 'object' && 'name' in entry.content) {
-    const name = (entry.content as any).name;
+    const name = entry.content.name;
     if (typeof name === 'string' && name.trim()) {
       return name.trim();
     }
@@ -267,15 +267,15 @@ function extractEntryName(entry: ICompendiumEntry): string | null {
   
   // Try entry.name (document name)
   if (entry.entry && typeof entry.entry === 'object' && 'name' in entry.entry) {
-    const name = (entry.entry as any).name;
+    const name = entry.entry.name;
     if (typeof name === 'string' && name.trim()) {
       return name.trim();
     }
   }
   
   // Try top-level name field
-  if ('name' in entry && typeof (entry as any).name === 'string') {
-    const name = (entry as any).name;
+  if ('name' in entry && typeof entry.name === 'string') {
+    const name = entry.name;
     if (name.trim()) {
       return name.trim();
     }

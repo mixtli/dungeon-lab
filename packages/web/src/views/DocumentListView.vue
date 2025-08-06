@@ -2,14 +2,14 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { RouterLink } from 'vue-router';
 import { DocumentsClient, AssetsClient } from '@dungeon-lab/client/index.mjs';
-import type { BaseDocument, IAsset, DocumentType } from '@dungeon-lab/shared/types/index.mjs';
+import type { BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
 import { EyeIcon, TrashIcon, MagnifyingGlassIcon } from '@heroicons/vue/24/outline';
 import { useDeviceAdaptation } from '@/composables/useDeviceAdaptation.mts';
 import { transformAssetUrl } from '@/utils/asset-utils.mjs';
 
 const documentsClient = new DocumentsClient();
 const assetsClient = new AssetsClient();
-const { isMobile } = useDeviceAdaptation();
+useDeviceAdaptation();
 
 // State for documents and UI
 const documents = ref<BaseDocument[]>([]);
@@ -99,7 +99,8 @@ const assetUrlCache = ref<Map<string, string>>(new Map());
 const getThumbnailUrl = async (document: BaseDocument): Promise<string | undefined> => {
   try {
     // Check various possible image field names
-    const imageId = (document as any).imageId || (document as any).avatarId || (document as any).thumbnailId;
+    const docWithImages = document as { imageId?: string; avatarId?: string; thumbnailId?: string };
+    const imageId = docWithImages.imageId || docWithImages.avatarId || docWithImages.thumbnailId;
     if (imageId) {
       // Check cache first
       if (assetUrlCache.value.has(imageId)) {
@@ -165,7 +166,7 @@ async function loadDocuments() {
   error.value = null;
   
   try {
-    const searchParams: any = {};
+    const searchParams: Record<string, unknown> = {};
     
     // Add search filter
     if (filters.value.search.trim()) {
@@ -374,7 +375,7 @@ watch(() => filters.value.documentType, handleFilterChange);
                 </span>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {{ formatDate(document.createdAt || '') }}
+                {{ ('createdAt' in document && document.createdAt) ? formatDate((document.createdAt as Date).toISOString()) : '-' }}
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <div class="flex justify-end space-x-2">

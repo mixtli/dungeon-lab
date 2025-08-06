@@ -1,13 +1,10 @@
 <script setup lang="ts">
 import { RouterView } from 'vue-router';
-import { useRoute } from 'vue-router';
-import { computed } from 'vue';
 import AppHeader from '@/components/layout/AppHeader.vue';
 import AppFooter from '@/components/layout/AppFooter.vue';
 import { useDeviceAdaptation } from '@/composables/useDeviceAdaptation.mts';
 
 const { isMobile, isPhone } = useDeviceAdaptation();
-const route = useRoute();
 
 // All routes now use the same standard container layout
 </script>

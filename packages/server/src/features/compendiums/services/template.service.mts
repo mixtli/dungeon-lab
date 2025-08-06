@@ -118,7 +118,9 @@ export class TemplateService {
             if (!campaign) {
               throw new Error(`Campaign with ID ${campaignId} not found`);
             }
-            gameMasterId = campaign.gameMasterId;
+            if (campaign.gameMasterId) {
+              gameMasterId = campaign.gameMasterId;
+            }
           }
 
           // Strip out problematic fields from content

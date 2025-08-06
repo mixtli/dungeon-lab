@@ -22,23 +22,23 @@ import type { EtoolsClassData, EtoolsClassFluff, EtoolsClassFluffData, EtoolsSub
 
 // Type definitions for equipment processing
 interface EquipmentItem {
-  item: {
-    _ref: {
-      slug: string;
-      documentType: string;
-      pluginDocumentType: string;
-      source: string;
-    };
-  } | null;
+  item: ItemReference;
   quantity: number;
 }
 
 interface ItemReference {
   _ref: {
+    documentType: "actor" | "item" | "vtt-document" | "character";
     slug: string;
-    documentType: string;
-    pluginDocumentType: string;
-    source: string;
+    source?: string;
+    metadata?: Record<string, unknown>;
+    pluginDocumentType?: string;
+  };
+  _error?: {
+    reason: "not_found" | "ambiguous" | "invalid";
+    attemptedAt: Date;
+    message?: string;
+    candidates?: string[];
   };
 }
 import { etoolsClassSchema } from '../../5etools-types/classes.mjs';
@@ -982,7 +982,7 @@ export class TypedClassConverter extends TypedConverter<
     return {
       _ref: {
         slug,
-        documentType: 'vtt-document',
+        documentType: 'vtt-document' as const,
         pluginDocumentType,
         source: source.toLowerCase()
       }

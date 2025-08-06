@@ -1,7 +1,4 @@
 {
-  "userData": {
-    "uuid": "6EE103EE-E433-4DB0-BD9D-00BC0F16018A"
-  },
   "name": "Fellowship of the Ring",
   "setting": "Middle Earth",
   "description": "Cast the one ring into the fires of Mordor",
@@ -15,6 +12,5 @@
     "7FA76F73-2395-46CF-9708-7B50B00BB674",
     "A12F6D8D-988B-42B4-A134-F3F0BBF48437"
   ],
-  "encounters": {},
   "start_date": "T.A. 3018"
 }

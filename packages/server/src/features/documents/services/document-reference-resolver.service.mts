@@ -3,7 +3,7 @@ import { logger } from '../../../utils/logger.mjs';
 import { TemplateService } from '../../compendiums/services/template.service.mjs';
 import { CompendiumEntryModel } from '../../compendiums/models/compendium-entry.model.mjs';
 import { DocumentModel } from '../models/document.model.mjs';
-import type { BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
+import { ICompendiumEntry } from '@dungeon-lab/shared/types/index.mjs';
 
 /**
  * Result of document reference resolution attempt
@@ -134,7 +134,7 @@ export class DocumentReferenceResolverService {
     if (processedContent !== document) {
       await DocumentModel.findByIdAndUpdate(
         documentId,
-        processedContent as any, // Type assertion needed due to complex discriminated union
+        processedContent as Record<string, unknown>, // Type assertion needed due to complex discriminated union
         { new: true }
       );
     }
@@ -279,7 +279,7 @@ export class DocumentReferenceResolverService {
 
         // Use the template service to create the document
         const createdDocument = await this.templateService.createFromTemplate(
-          entryWithId as any,
+          entryWithId as ICompendiumEntry,
           {}, // no overrides
           userId,
           undefined, // no campaignId for auto-created documents
@@ -316,8 +316,8 @@ export class DocumentReferenceResolverService {
     return {
       success: true,
       resolvedObjectId: objectId,
-      action: 'kept_existing',
-      reason: 'non_document_reference'
+      action: 'kept_existing'
+      // reason is optional, omitting it for non-document references
     };
   }
 }

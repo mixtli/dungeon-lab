@@ -330,7 +330,7 @@ async function createDocument() {
     setTimeout(() => {
       // Navigate to the documents list or the specific document if we have an ID
       if (document && typeof document === 'object' && 'id' in document) {
-        router.push({ name: 'document-detail', params: { id: (document as any).id } });
+        router.push({ name: 'document-detail', params: { id: (document as { id: string }).id } });
       } else {
         router.push({ name: 'documents' });
       }

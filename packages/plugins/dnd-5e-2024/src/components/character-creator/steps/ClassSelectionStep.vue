@@ -512,7 +512,7 @@ const loadToolGroups = async () => {
       
       toolGroup.items = items.map(item => ({
         id: item.id,
-        name: item.name
+        name: item.entry.name
       }));
       toolGroup.loading = false;
       

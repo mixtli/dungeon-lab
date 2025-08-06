@@ -1,5 +1,14 @@
 import type { PluginContext } from '../types/plugin-context.mjs';
 
+// Extend Window interface to include the plugin registry
+declare global {
+  interface Window {
+    __DUNGEON_LAB_PLUGIN_REGISTRY__?: {
+      getGameSystemPlugin(id: string): { getContext(): PluginContext | undefined } | null;
+    };
+  }
+}
+
 /**
  * Get the plugin context for the currently active game system
  * 
@@ -26,9 +35,9 @@ export function getPluginContext(): PluginContext | undefined {
     // and import the appropriate registry
     let pluginRegistry;
     
-    if (typeof window !== 'undefined' && (window as any).__DUNGEON_LAB_PLUGIN_REGISTRY__) {
+    if (typeof window !== 'undefined' && window.__DUNGEON_LAB_PLUGIN_REGISTRY__) {
       // Web environment - use global registry
-      pluginRegistry = (window as any).__DUNGEON_LAB_PLUGIN_REGISTRY__;
+      pluginRegistry = window.__DUNGEON_LAB_PLUGIN_REGISTRY__;
     } else {
       console.warn('[getPluginContext] Plugin registry not available in this environment');
       return undefined;

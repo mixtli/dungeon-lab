@@ -2,8 +2,8 @@
 import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { DocumentsClient, AssetsClient } from '@dungeon-lab/client/index.mjs';
-import type { BaseDocument, IAsset } from '@dungeon-lab/shared/types/index.mjs';
-import { ArrowLeftIcon, TrashIcon, CalendarIcon, TagIcon, UserIcon } from '@heroicons/vue/24/outline';
+import type { BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
+import { ArrowLeftIcon, TrashIcon, CalendarIcon, TagIcon } from '@heroicons/vue/24/outline';
 import { transformAssetUrl } from '@/utils/asset-utils.mjs';
 
 const route = useRoute();
@@ -48,7 +48,8 @@ const loadDocumentImage = async (doc: BaseDocument) => {
   imageLoading.value = true;
   try {
     // Check various possible image field names
-    const imageId = (doc as any).imageId || (doc as any).avatarId || (doc as any).thumbnailId;
+    const docWithImages = doc as { imageId?: string; avatarId?: string; thumbnailId?: string };
+    const imageId = docWithImages.imageId || docWithImages.avatarId || docWithImages.thumbnailId;
     if (imageId) {
       const asset = await assetsClient.getAsset(imageId);
       if (asset && asset.url) {
@@ -116,7 +117,7 @@ const goBack = () => {
 };
 
 // Format plugin data for display
-const formatPluginData = (data: any): string => {
+const formatPluginData = (data: Record<string, unknown>): string => {
   if (!data || typeof data !== 'object') return '';
   
   try {
@@ -129,7 +130,8 @@ const formatPluginData = (data: any): string => {
 // Check if plugin data should be displayed
 const shouldShowPluginData = computed(() => {
   if (!document.value) return false;
-  const pluginData = (document.value as any).pluginData;
+  const docWithPluginData = document.value as { pluginData?: Record<string, unknown> };
+  const pluginData = docWithPluginData.pluginData;
   return pluginData && typeof pluginData === 'object' && Object.keys(pluginData).length > 0;
 });
 
@@ -224,13 +226,13 @@ onMounted(loadDocument);
 
               <!-- Metadata -->
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-500">
-                <div v-if="document.createdAt" class="flex items-center">
+                <div v-if="'createdAt' in document && document.createdAt" class="flex items-center">
                   <CalendarIcon class="h-4 w-4 mr-2" />
-                  <span>Created: {{ formatDate(document.createdAt) }}</span>
+                  <span>Created: {{ formatDate((document.createdAt as Date).toISOString()) }}</span>
                 </div>
-                <div v-if="document.updatedAt" class="flex items-center">
+                <div v-if="'updatedAt' in document && document.updatedAt" class="flex items-center">
                   <CalendarIcon class="h-4 w-4 mr-2" />
-                  <span>Updated: {{ formatDate(document.updatedAt) }}</span>
+                  <span>Updated: {{ formatDate((document.updatedAt as Date).toISOString()) }}</span>
                 </div>
                 <div v-if="(document as any).pluginId" class="flex items-center">
                   <TagIcon class="h-4 w-4 mr-2" />

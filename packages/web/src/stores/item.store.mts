@@ -188,6 +188,7 @@ export const useItemStore = defineStore('item', () => {
         slug: item.slug || item.name?.toLowerCase().replace(/\s+/g, '-') || '',
         userData: item.userData || {},
         pluginData: item.pluginData || {},
+        itemState: item.itemState || {}, // Ensure itemState is always defined
         pluginId: item.pluginId || 'unknown',
         documentType: item.documentType || 'item',
         pluginDocumentType: item.pluginDocumentType || 'unknown'
@@ -203,6 +204,7 @@ export const useItemStore = defineStore('item', () => {
         slug: updatedItem.slug || updatedItem.name?.toLowerCase().replace(/\s+/g, '-') || '',
         userData: updatedItem.userData || {},
         pluginData: updatedItem.pluginData || {},
+        itemState: updatedItem.itemState || {}, // Ensure itemState is always defined
         pluginId: updatedItem.pluginId || 'unknown',
         documentType: updatedItem.documentType || 'item',
         pluginDocumentType: updatedItem.pluginDocumentType || 'unknown'

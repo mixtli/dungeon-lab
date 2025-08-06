@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, markRaw } from 'vue';
+import { ref, computed, onMounted, markRaw } from 'vue';
 import { useRouter } from 'vue-router';
 import { useActorStore } from '../stores/actor.store.mjs';
 import { pluginRegistry } from '../services/plugin-registry.mts';
@@ -251,7 +251,7 @@ function handleBackToBasics() {
   currentStep.value = 1;
 }
 
-function handleValidationChange(isValid: boolean) {
+function handleValidationChange() {
   // Could update UI to show/hide navigation buttons
 }
 
@@ -279,6 +279,7 @@ async function handleSubmit() {
         name: basicInfo.value.name,
         description: basicInfo.value.description
       },
+      itemState: {}, // Required property for document creation
       documentType: 'character' as const,
       pluginDocumentType: 'character',
       description: basicInfo.value.description || undefined

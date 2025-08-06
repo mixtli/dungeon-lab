@@ -294,7 +294,7 @@ describe('Proficiencies Parsing', () => {
         const weaponProfs = rogue.pluginData.proficiencies.weapons;
         
         // Should have both simple strings and filter objects
-        const hasString = weaponProfs.some((p: ProficiencyEntry) => typeof p === 'string');
+        const _hasString = weaponProfs.some((p: ProficiencyEntry) => typeof p === 'string');
         const hasFilter = weaponProfs.some((p: ProficiencyEntry) => 
           typeof p === 'object' && 'type' in p && p.type === 'filter'
         );

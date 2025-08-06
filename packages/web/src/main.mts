@@ -1,6 +1,16 @@
 import './assets/styles/main.css';
 import '@mdi/font/css/materialdesignicons.css';
 import { createApp } from 'vue';
+
+// Extend Window interface to include the plugin registry
+declare global {
+  interface Window {
+    __DUNGEON_LAB_PLUGIN_REGISTRY__?: {
+      getGameSystemPlugin(id: string): { getContext(): unknown } | null;
+      [key: string]: unknown;
+    };
+  }
+}
 import { createPinia } from 'pinia';
 import piniaPluginPersistedstate from 'pinia-plugin-persistedstate';
 import App from './App.vue';
@@ -43,7 +53,16 @@ async function initializeApp() {
     console.log('✅ Plugin registry initialized');
     
     // Make plugin registry available globally for shared utilities
-    (window as any).__DUNGEON_LAB_PLUGIN_REGISTRY__ = pluginRegistry;
+    window.__DUNGEON_LAB_PLUGIN_REGISTRY__ = {
+      getGameSystemPlugin: (id: string) => {
+        const plugin = pluginRegistry.getGameSystemPlugin(id);
+        // Check if plugin has getContext method (plugins extend BasePlugin)
+        if (plugin && typeof (plugin as unknown as { getContext?: () => unknown }).getContext === 'function') {
+          return { getContext: () => (plugin as unknown as { getContext: () => unknown }).getContext() };
+        }
+        return null;
+      }
+    };
     
     // Load development tools in dev mode
     if (import.meta.env.DEV) {

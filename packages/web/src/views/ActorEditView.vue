@@ -146,6 +146,7 @@ async function handleSubmit(event: Event) {
       userData: {},
       pluginId: 'dnd-5e-2024', // Hardcode for now - ideally would get from the actual actor
       pluginData: {},
+      itemState: {}, // Required property
       documentType: 'actor' as const,
       pluginDocumentType: 'character',
     };

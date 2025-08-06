@@ -1,5 +1,21 @@
 import { describe, it, expect } from 'vitest';
 
+// Helper function to create test manifest
+const createTestManifest = () => ({
+  id: 'dnd-5e-2024',
+  name: 'D&D 5th Edition (2024)',
+  version: '2.0.0',
+  description: 'D&D 5e 2024 game system plugin',
+  author: 'Test',
+  gameSystem: 'dnd-5e-2024',
+  enabled: true,
+  characterTypes: ['character', 'npc'],
+  itemTypes: ['weapon', 'armor', 'consumable', 'tool'],
+  validationTypes: ['character', 'item', 'actor', 'vtt-document'],
+  entryPoint: './dist/index.mjs',
+  keywords: ['dnd', '5e', '2024']
+});
+
 /**
  * Vite Glob Import Test
  * 
@@ -40,8 +56,8 @@ describe('Vite Glob Imports - Path Resolution Test', () => {
     expect(typeof DnD5e2024Plugin).toBe('function');
     console.log('✅ Plugin class imported successfully');
     
-    // Create plugin instance
-    const plugin = new DnD5e2024Plugin();
+    // Create plugin instance with test manifest
+    const plugin = new DnD5e2024Plugin(createTestManifest());
     expect(plugin).toBeDefined();
     expect(plugin.manifest).toBeDefined();
     expect(plugin.manifest.id).toBe('dnd-5e-2024');
@@ -56,29 +72,28 @@ describe('Vite Glob Imports - Path Resolution Test', () => {
 
   it('should access Vue components from the imported plugin', async () => {
     const { default: DnD5e2024Plugin } = await import('@dungeon-lab/plugin-dnd-5e-2024/index.mjs');
-    const plugin = new DnD5e2024Plugin();
+    const plugin = new DnD5e2024Plugin(createTestManifest());
     
     // Test character sheet component
-    const characterSheet = plugin.getComponent('character-sheet');
+    const characterSheet = await plugin.getComponent('character-sheet');
     expect(characterSheet).toBeDefined();
-    expect(characterSheet).toHaveProperty('name', 'character-sheet');
-    console.log('✅ Character sheet component loaded:', characterSheet?.name);
+    console.log('✅ Character sheet component loaded:', characterSheet);
     
     // Test character creator component  
-    const characterCreator = plugin.getComponent('character-creator');
+    const characterCreator = await plugin.getComponent('character-creator');
     expect(characterCreator).toBeDefined();
     // expect(characterCreator).toHaveProperty('props'); // Component props interface varies
     console.log('✅ Character creator component loaded');
     
     // Test unknown component returns null
-    const unknownComponent = plugin.getComponent('unknown-component');
+    const unknownComponent = await plugin.getComponent('unknown-component');
     expect(unknownComponent).toBeNull();
     console.log('✅ Unknown component correctly returns null');
   });
 
   it('should test plugin validation functionality', async () => {
     const { default: DnD5e2024Plugin } = await import('@dungeon-lab/plugin-dnd-5e-2024/index.mjs');
-    const plugin = new DnD5e2024Plugin();
+    const plugin = new DnD5e2024Plugin(createTestManifest());
     
     // Test character validation
     const result = plugin.validate('character', { 

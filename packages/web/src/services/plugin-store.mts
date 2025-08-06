@@ -9,11 +9,12 @@ import { reactive, watch } from 'vue';
 import type { PluginStore } from '@dungeon-lab/shared/types/plugin-context.mjs';
 
 export class ReactivePluginStore implements PluginStore {
-  private state = reactive(new Map<string, any>());
+  private state = reactive(new Map<string, unknown>());
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private watchers = new Map<string, Set<(value: any) => void>>();
 
   get<T>(key: string): T | undefined {
-    return this.state.get(key);
+    return this.state.get(key) as T | undefined;
   }
 
   set<T>(key: string, value: T): void {
@@ -41,7 +42,7 @@ export class ReactivePluginStore implements PluginStore {
     // Set up Vue watcher for reactivity
     const stopWatcher = watch(
       () => this.state.get(key),
-      (newValue) => callback(newValue),
+      (newValue) => callback(newValue as T),
       { immediate: false }
     );
     

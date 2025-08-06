@@ -181,6 +181,7 @@ export const useActorStore = defineStore(
           slug: updatedActor.slug || updatedActor.name?.toLowerCase().replace(/\s+/g, '-') || '',
           userData: updatedActor.userData || {},
           pluginData: updatedActor.pluginData || {},
+          itemState: updatedActor.itemState || {}, // Ensure itemState is always defined
           pluginId: updatedActor.pluginId || 'unknown',
           documentType: updatedActor.documentType || 'actor',
           pluginDocumentType: updatedActor.pluginDocumentType || 'unknown'

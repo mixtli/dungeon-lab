@@ -168,7 +168,7 @@
           <h3>Saving Throws</h3>
           <div class="saves-grid">
             <div 
-              v-for="(abilityScore, abilityName) in finalAbilities" 
+              v-for="(_, abilityName) in finalAbilities" 
               :key="abilityName"
               class="save-item"
               @click="rollSavingThrow(abilityName as string)"

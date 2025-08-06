@@ -181,7 +181,9 @@ onMounted(() => {
         pluginId = 'dnd-5e-2024';
       }
       const plugin = pluginRegistry.getGameSystemPlugin(pluginId);
-      return plugin?.getContext() !== undefined;
+      // Check if plugin has getContext method (plugins extend BasePlugin)
+      return plugin && typeof (plugin as unknown as { getContext?: () => unknown }).getContext === 'function' &&
+             (plugin as unknown as { getContext: () => unknown }).getContext() !== undefined;
     });
     
     if (!hasActivePlugin) {

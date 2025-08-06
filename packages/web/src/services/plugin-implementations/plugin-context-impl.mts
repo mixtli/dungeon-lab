@@ -40,7 +40,15 @@ export class PluginContextImpl implements PluginContext {
    */
   async getDocument(id: string): Promise<BaseDocument> {
     try {
-      return await this.documentsClient.getDocument(id);
+      const document = await this.documentsClient.getDocument(id);
+      if (!document) {
+        throw new Error(`Document ${id} not found`);
+      }
+      // Ensure itemState is always defined
+      if (!document.itemState) {
+        document.itemState = {};
+      }
+      return document;
     } catch (error) {
       console.error(`[PluginContext] Failed to get document ${id}:`, error);
       throw error;
@@ -76,7 +84,7 @@ export class PluginContextImpl implements PluginContext {
    */
   async searchCompendiumEntries(query: CompendiumSearchQuery): Promise<ICompendiumEntry[]> {
     try {
-      const result = await this.compendiumsClient.getAllCompendiumEntries(query);
+      const result = await this.compendiumsClient.getAllCompendiumEntries(query as Record<string, string | number | boolean>);
       return result.entries;
     } catch (error) {
       console.error('[PluginContext] Failed to search compendium entries:', error);

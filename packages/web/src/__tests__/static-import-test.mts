@@ -16,7 +16,21 @@ console.log('- Plugin class imported successfully:', typeof DnD5e2024Plugin);
 
 // Try to instantiate the plugin
 try {
-  const plugin = new DnD5e2024Plugin();
+  const testManifest = {
+    id: 'dnd-5e-2024',
+    name: 'D&D 5th Edition (2024)',
+    version: '2.0.0',
+    description: 'D&D 5e 2024 game system plugin',
+    author: 'Test',
+    gameSystem: 'dnd-5e-2024',
+    enabled: true,
+    characterTypes: ['character', 'npc'],
+    itemTypes: ['weapon', 'armor', 'consumable', 'tool'],
+    validationTypes: ['character', 'item', 'actor', 'vtt-document'],
+    entryPoint: './dist/index.mjs',
+    keywords: ['dnd', '5e', '2024']
+  };
+  const plugin = new DnD5e2024Plugin(testManifest);
   console.log('- Plugin instantiated successfully:', plugin.manifest.name);
 } catch (error) {
   console.error('- Plugin instantiation failed:', error);

@@ -6,7 +6,7 @@
  * - Game mode (with WebSocket updates)
  */
 
-import { ref, watch, onUnmounted, type Ref } from 'vue';
+import { ref, onUnmounted, type Ref } from 'vue';
 import type { IActor, IItem } from '@dungeon-lab/shared/types/index.mjs';
 import { DocumentsClient } from '@dungeon-lab/client/index.mjs';
 import { useSocketStore } from '../stores/socket.store.mjs';
@@ -47,8 +47,6 @@ export function useCharacterState(
 ): CharacterStateReturn {
   const {
     enableWebSocket = false,
-    enableAutoSave = false,
-    autoSaveDelay = 2000,
     readonly = false
   } = options;
 

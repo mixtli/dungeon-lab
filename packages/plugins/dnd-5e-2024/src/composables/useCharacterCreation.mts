@@ -1,9 +1,8 @@
 import { reactive, computed, readonly } from 'vue';
-import { CompendiumsClient, DocumentsClient } from '@dungeon-lab/client/index.mjs';
+import { CompendiumsClient } from '@dungeon-lab/client/index.mjs';
 import type { ICompendiumEntry } from '@dungeon-lab/shared/types/index.mjs';
 import { resolveReferenceOrObjectId, resolveMultipleReferences } from '@dungeon-lab/shared/utils/index.mjs';
 import type { ReferenceOrObjectId } from '@dungeon-lab/shared/types/reference.mjs';
-import { processCharacterEquipment } from '../utils/equipment-processor.mjs';
 import type { EquipmentSelections } from '../utils/equipment-processor.mjs';
 import type {
   CharacterCreationState,
@@ -15,6 +14,7 @@ import type {
   FormStep,
   CharacterCreationFormData
 } from '../types/character-creation.mjs';
+import type { DndCharacterClassDocument, DndBackgroundDocument, DndSpeciesDocument } from '../types/dnd/index.mjs';
 
 // Type definitions for better type safety
 interface ItemGroupEntry {
@@ -29,9 +29,6 @@ interface ItemWithReference {
     slug?: string;
   };
 }
-import type { DndCharacterClassDocument } from '../types/dnd/character-class.mjs';
-import type { DndSpeciesDocument } from '../types/dnd/species.mjs';
-import type { DndBackgroundDocument } from '../types/dnd/background.mjs';
 import type { DndLanguageDocument } from '../types/dnd/language.mjs';
 import {
   classSelectionSchema,
@@ -65,7 +62,6 @@ export function useCharacterCreation() {
 
   // Create client instances
   const compendiumClient = new CompendiumsClient();
-  const documentsClient = new DocumentsClient();
 
   // Computed properties
   const currentStepData = computed(() => FORM_STEPS[state.currentStep]);
@@ -351,7 +347,7 @@ export function useCharacterCreation() {
           return item._ref.id || item._ref.slug;
         }
         return item;
-      }).filter(Boolean);
+      }).filter((item): item is string => Boolean(item) && typeof item === 'string');
       
       // Fetch all items in the group
       return await fetchItems(itemIds);
@@ -391,12 +387,12 @@ export function useCharacterCreation() {
     try {
       // Get class document to check equipment choices
       const classDocument = await compendiumClient.getCompendiumEntry(characterData.class.id);
-      const classData = classDocument.content as any; // DndCharacterClassDocument
+      const classData = classDocument.content as DndCharacterClassDocument;
       
       // Check if class equipment choice gives gold
       if (classData.pluginData.startingEquipment) {
         const selectedChoice = classData.pluginData.startingEquipment.find(
-          (option: any) => option.label === characterData.class.selectedEquipment
+          (option: { label: string; gold?: number }) => option.label === characterData.class.selectedEquipment
         );
         if (selectedChoice?.gold) {
           totalGold += selectedChoice.gold;
@@ -419,9 +415,9 @@ export function useCharacterCreation() {
   // Prepare equipment items data without creating documents
   const prepareEquipmentItemsData = async (
     equipmentSelections: EquipmentSelections,
-    classDocument: any, // DndCharacterClassDocument
-    backgroundDocument: any // DndBackgroundDocument
-  ): Promise<any[]> => {
+    classDocument: DndCharacterClassDocument,
+    backgroundDocument: DndBackgroundDocument
+  ): Promise<Array<{ entryId: string; quantity: number }>> => {
     const itemsToCreate: { entryId: string; quantity: number }[] = [];
     
     try {
@@ -429,13 +425,16 @@ export function useCharacterCreation() {
       const classData = classDocument.pluginData;
       if (classData.startingEquipment) {
         const selectedChoice = classData.startingEquipment.find(
-          (option: any) => option.label === equipmentSelections.classEquipment
+          (option: unknown) => (option as { label: string }).label === equipmentSelections.classEquipment
         );
-        if (selectedChoice?.items) {
-          for (const entry of selectedChoice.items) {
+        if (selectedChoice && typeof selectedChoice === 'object' && 'items' in selectedChoice && Array.isArray((selectedChoice as { items: unknown[] }).items)) {
+          for (const entry of (selectedChoice as { items: Array<{ item: unknown; quantity: number }> }).items) {
+            const entryId = typeof entry.item === 'string' ? entry.item : 
+                           (entry.item && typeof entry.item === 'object' && '_ref' in entry.item ? 
+                            (entry.item as { _ref: { slug?: string } })._ref?.slug : undefined) || 'unknown';
             itemsToCreate.push({
-              entryId: entry.item, // ObjectId string
-              quantity: entry.quantity
+              entryId,
+              quantity: entry.quantity || 1
             });
           }
         }
@@ -448,9 +447,12 @@ export function useCharacterCreation() {
         if (equipmentPackage?.items) {
           for (const entry of equipmentPackage.items) {
             if (entry.item) {
+              const entryId = typeof entry.item === 'string' ? entry.item : 
+                           (entry.item && typeof entry.item === 'object' && '_ref' in entry.item ? 
+                            (entry.item as { _ref: { slug?: string } })._ref?.slug : undefined) || 'unknown';
               itemsToCreate.push({
-                entryId: entry.item, // ObjectId string
-                quantity: entry.quantity
+                entryId,
+                quantity: entry.quantity || 1
               });
             }
           }
@@ -498,7 +500,7 @@ export function useCharacterCreation() {
     }
   };
 
-  const prepareCharacterCreationData = async (basicInfo: BasicCharacterInfo): Promise<{ characterData: any; itemsData: any[] }> => {
+  const prepareCharacterCreationData = async (basicInfo: BasicCharacterInfo): Promise<{ characterData: unknown; itemsData: Array<{ entryId: string; quantity: number }> }> => {
     const characterData = getCharacterData();
     if (!characterData) {
       throw new Error('Character data is not complete or valid');
@@ -541,8 +543,8 @@ export function useCharacterCreation() {
 
       const itemsData = await prepareEquipmentItemsData(
         equipmentSelections,
-        classDocument.content as any, // DndCharacterClassDocument
-        backgroundDocument.content as any, // DndBackgroundDocument
+        classDocument.content as DndCharacterClassDocument,
+        backgroundDocument.content as DndBackgroundDocument,
       );
 
       // Return prepared data for web client to create
@@ -791,18 +793,30 @@ export function useCharacterCreation() {
         weapons: [...(classData.pluginData.proficiencies.weapons || [])],
         tools: [
           // Convert class tool proficiencies to character schema format
-          ...(classData.pluginData.proficiencies.tools || []).map((tool: any) => ({
-            tool,
-            proficient: true,
-            expert: false
-          })),
+          ...(classData.pluginData.proficiencies.tools || []).map((tool: unknown) => {
+            const toolName = typeof tool === 'string' ? tool : 
+                           (tool && typeof tool === 'object' && '_ref' in tool ? (tool as { _ref: { slug?: string } })._ref?.slug : undefined) || 
+                           (tool && typeof tool === 'object' && 'constraint' in tool ? (tool as { constraint: { displayText?: string } }).constraint?.displayText : undefined) || 
+                           'unknown-tool';
+            return {
+              tool: toolName,
+              proficient: true,
+              expert: false
+            };
+          }),
           // Add background tool proficiencies (handle both fixed array and choice structure)
           ...(Array.isArray(backgroundData.pluginData.toolProficiencies) 
-              ? backgroundData.pluginData.toolProficiencies.map((tool: any) => ({
-                  tool,
-                  proficient: true,
-                  expert: false
-                }))
+              ? backgroundData.pluginData.toolProficiencies.map((tool: unknown) => {
+                  const toolName = typeof tool === 'string' ? tool : 
+                                 (tool && typeof tool === 'object' && '_ref' in tool ? (tool as { _ref: { slug?: string } })._ref?.slug : undefined) || 
+                                 (tool && typeof tool === 'object' && 'constraint' in tool ? (tool as { constraint: { displayText?: string } }).constraint?.displayText : undefined) || 
+                                 'unknown-tool';
+                  return {
+                    tool: toolName,
+                    proficient: true,
+                    expert: false
+                  };
+                })
               : []) // For now, skip choice-based tool proficiencies (TODO: handle genericChoiceSchema)
         ],
         languages: creatorData.origin.selectedLanguages?.map(lang => lang.id) || [] // Send ObjectIds
@@ -836,7 +850,13 @@ export function useCharacterCreation() {
           const level1Features = classData.pluginData.features.filter(feature => feature.level === 1);
           
           for (const feature of level1Features) {
-            const characterFeature: any = {
+            const characterFeature: {
+              name: string;
+              class: string;
+              level: number;
+              description: string;
+              [key: string]: unknown;
+            } = {
               name: feature.name,
               class: creatorData.class.id, // Class ObjectId
               level: feature.level,

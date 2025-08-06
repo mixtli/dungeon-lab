@@ -182,7 +182,7 @@ export class DocumentController {
       const userId = req.session.user.id;
       
       // Use document-type-specific validation schema
-      let validatedData: any;
+      let validatedData: unknown;
       const documentType = req.body.documentType;
       
       switch (documentType) {
@@ -214,14 +214,15 @@ export class DocumentController {
       // Server trusts that client has already validated plugin data
 
       // Auto-generate slug from name if not provided
+      const data = validatedData as Record<string, unknown>;
       const documentData = {
-        ...validatedData,
-        slug: validatedData.slug || this.generateSlugFromName(validatedData.name),
+        ...data,
+        slug: (data.slug as string) || this.generateSlugFromName(data.name as string),
         createdBy: userId,
         updatedBy: userId
       };
 
-      const document = await DocumentService.create(documentData);
+      const document = await DocumentService.create(documentData as Omit<BaseDocument, 'id' | 'createdAt' | 'updatedAt'>);
       res.status(201).json({
         success: true,
         data: document

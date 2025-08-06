@@ -177,7 +177,7 @@ interface TransformedCharacterDocument {
   }>;
   
   // User data
-  userData: Record<string, any>;
+  userData: Record<string, unknown>;
   
   // Plugin data
   pluginData: {
@@ -466,7 +466,7 @@ function transformCharacter(legacy: LegacyCharacterData): ContentFileWrapper {
   });
 
   // Initialize skills (all skills unproficient by default)
-  const skills: Record<string, any> = {
+  const skills: Record<string, { proficient: boolean; expert: boolean; bonus: number; advantage: boolean; disadvantage: boolean }> = {
     'acrobatics': { proficient: false, expert: false, bonus: 0, advantage: false, disadvantage: false },
     'animal-handling': { proficient: false, expert: false, bonus: 0, advantage: false, disadvantage: false },
     'arcana': { proficient: false, expert: false, bonus: 0, advantage: false, disadvantage: false },
@@ -488,7 +488,14 @@ function transformCharacter(legacy: LegacyCharacterData): ContentFileWrapper {
   };
 
   // Remove inventory for now - will handle equipment in a separate transformation
-  const inventory: any[] = [];
+  const inventory: Array<{
+    itemId: string;
+    quantity: number;
+    equipped: boolean;
+    slot?: string;
+    condition?: number;
+    metadata?: Record<string, unknown>;
+  }> = [];
 
   // Transform class features
   const classFeatures = legacy.data.features.map(feature => ({
