@@ -213,13 +213,13 @@ async function editItem(item: IItem): Promise<void> {
 
 async function duplicateItem(item: IItem): Promise<void> {
   try {
-    const duplicatedData = {
-      ...item,
-      name: `${item.name} (Copy)`,
-      campaignId: item.campaignId || '', // Ensure campaignId is provided
-      id: undefined // Let server generate new ID
-    };
     // TODO: Implement item creation via game state updates
+    // const duplicatedData = {
+    //   ...item,
+    //   name: `${item.name} (Copy)`,
+    //   campaignId: item.campaignId || '', // Ensure campaignId is provided
+    //   id: undefined // Let server generate new ID
+    // };
     // await gameStateStore.createItem(duplicatedData);
     console.log('Duplicated item:', item.name);
   } catch (error) {

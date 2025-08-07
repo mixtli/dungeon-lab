@@ -14,8 +14,8 @@ import { fileURLToPath } from 'url';
 import mongoose from 'mongoose';
 
 // Import models from the server package
-import { CampaignModel } from '../../../../server/src/features/campaigns/models/campaign.model.mjs';
-import { DocumentModel } from '../../../../server/src/features/documents/models/document.model.mjs';
+import { CampaignModel } from '../features/campaigns/models/campaign.model.mjs';
+import { DocumentModel } from '../features/documents/models/document.model.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -55,7 +55,7 @@ class CampaignImporter {
   }
 
   async loadCampaignFiles(): Promise<CampaignData[]> {
-    const campaignsDir = path.join(__dirname, '../../data/campaigns');
+    const campaignsDir = path.join(__dirname, '../../../plugins/dnd-5e-2024/data/campaigns');
     console.log(`📂 Loading campaigns from: ${campaignsDir}`);
 
     try {

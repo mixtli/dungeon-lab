@@ -294,22 +294,13 @@ export const useGameStateStore = defineStore(
         return new Promise((resolve) => {
           socketStore.emit('gameState:update', update, (response: StateUpdateResponse) => {
             if (response.success) {
-              // Apply changes locally only after server confirmation
-              applyStateOperations(operations);
-              
-              if (response.newVersion) {
-                gameStateVersion.value = response.newVersion;
-              }
-              if (response.newHash) {
-                gameStateHash.value = response.newHash;
-              }
-
-
-              console.log('State update successful', { 
+              console.log('State update sent successfully', { 
                 updateId: update.id,
-                newVersion: response.newVersion 
+                willReceiveBroadcast: true 
               });
-
+              // NOTE: State will be updated via gameState:updated broadcast
+              // This ensures GM follows same pattern as all other clients
+              
               resolve(response);
             } else {
               console.error('State update failed', { 

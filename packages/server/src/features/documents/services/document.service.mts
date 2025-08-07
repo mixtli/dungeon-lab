@@ -487,23 +487,25 @@ export class DocumentService {
     }> {
       const errors: string[] = [];
 
-      // Find all actors with inventory
+      // Find all actors in the campaign
       const actors = await ActorDocumentModel.find({ 
-        campaignId, 
-        inventory: { $exists: true, $ne: [] } 
+        campaignId
       });
 
-      // Check that all inventory items belong to the same campaign
+      // Check that all items owned by actors belong to the same campaign
       for (const actor of actors) {
         const actorDoc = actor as IActor;
-        if (actorDoc.inventory) {
-          for (const invItem of actorDoc.inventory) {
-            const item = await DocumentModel.findById(invItem.itemId);
-            if (item && item.campaignId?.toString() !== campaignId) {
-              errors.push(
-                `Actor ${actorDoc.name} (${actorDoc.id}) has inventory item ${invItem.itemId} from different campaign ${item.campaignId}`
-              );
-            }
+        // Find items owned by this actor using relationship-based inventory
+        const ownedItems = await DocumentModel.find({ 
+          ownerId: actorDoc.id,
+          documentType: 'item'
+        });
+        
+        for (const item of ownedItems) {
+          if (item.campaignId?.toString() !== campaignId) {
+            errors.push(
+              `Actor ${actorDoc.name} (${actorDoc.id}) has owned item ${item.id} from different campaign ${item.campaignId}`
+            );
           }
         }
       }
