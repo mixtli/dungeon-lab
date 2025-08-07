@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router';
 import { useGameSessionStore } from '../../stores/game-session.store.mjs';
 import { useSocketStore } from '../../stores/socket.store.mjs';
 import { useChatStore, type ChatMessage } from '../../stores/chat.store.mts';
-import { useActorStore } from '../../stores/actor.store.mts';
+import { useGameStateStore } from '../../stores/game-state.store.mjs';
 import { ChatbotsClient } from '@dungeon-lab/client/index.mjs';
 import { useMentions } from '../../composables/useMentions.mjs';
 import { useNotifications } from '../../composables/useNotifications.mjs';
@@ -49,7 +49,7 @@ const route = useRoute();
 const gameSessionStore = useGameSessionStore();
 const socketStore = useSocketStore();
 const chatStore = useChatStore();
-const actorStore = useActorStore();
+const gameStateStore = useGameStateStore();
 
 const chatbotsClient = new ChatbotsClient();
 const messageInput = ref('');
@@ -73,7 +73,7 @@ const messages = computed(() => {
   
   const allMessages = chatStore.messages;
   const currentUserId = socketStore.userId;
-  const currentActorId = actorStore.currentActor?.id;
+  const currentActorId = gameStateStore.selectedCharacter?.id;
   
   // Filter messages based on active chat context
   if (activeChatContext.value.type === 'campaign') {
@@ -143,7 +143,7 @@ function isSystemMessage(message: ChatMessage): boolean {
 
 // Get message styling classes
 function getMessageClasses(message: ChatMessage): string[] {
-  const isOwnMessage = message.senderId === socketStore.userId || message.senderId === actorStore.currentActor?.id;
+  const isOwnMessage = message.senderId === socketStore.userId || message.senderId === gameStateStore.selectedCharacter?.id;
   
   if (isBotMessage(message)) {
     return [
@@ -169,7 +169,7 @@ function getMessageClasses(message: ChatMessage): string[] {
 
 // Get sender name styling classes
 function getSenderNameClasses(message: ChatMessage): string[] {
-  const isOwnMessage = message.senderId === socketStore.userId || message.senderId === actorStore.currentActor?.id;
+  const isOwnMessage = message.senderId === socketStore.userId || message.senderId === gameStateStore.selectedCharacter?.id;
   
   if (isBotMessage(message)) {
     return ['text-secondary-100 font-semibold'];
@@ -184,7 +184,7 @@ function getSenderNameClasses(message: ChatMessage): string[] {
 
 // Get timestamp styling classes
 function getTimestampClasses(message: ChatMessage): string[] {
-  const isOwnMessage = message.senderId === socketStore.userId || message.senderId === actorStore.currentActor?.id;
+  const isOwnMessage = message.senderId === socketStore.userId || message.senderId === gameStateStore.selectedCharacter?.id;
   
   if (isBotMessage(message)) {
     return ['text-secondary-200'];
@@ -291,7 +291,7 @@ function sendMessage() {
     recipientId,
     activeChatContext: activeChatContext.value,
     currentUserId: socketStore.userId,
-    currentActorId: actorStore.currentActor?.id
+    currentActorId: gameStateStore.selectedCharacter?.id
   });
 
   // Use the chat store to send the message
@@ -339,7 +339,7 @@ async function updateChatContexts() {
 
     // Add Characters (excluding current user's own character)
     if (gameSessionStore.currentSession.characters) {
-      const currentActorId = actorStore.currentActor?.id;
+      const currentActorId = gameStateStore.selectedCharacter?.id;
       for (const character of gameSessionStore.currentSession.characters) {
         if (character.id && character.id !== currentActorId) {
           contexts.push({
@@ -506,7 +506,7 @@ onUnmounted(() => {
         <template v-if="messages.length && activeChatContext">
           <div v-for="message in messages" :key="message.id" :class="[
             'flex',
-            message.senderId === socketStore.userId || message.senderId === actorStore.currentActor?.id 
+            message.senderId === socketStore.userId || message.senderId === gameStateStore.selectedCharacter?.id 
               ? 'justify-end' 
               : 'justify-start'
           ]">

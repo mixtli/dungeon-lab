@@ -1,10 +1,10 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import type { IActor } from '@dungeon-lab/shared/types/index.mjs';
+import type { ICharacter } from '@dungeon-lab/shared/types/index.mjs';
 
 export interface FloatingCharacterSheet {
   id: string;
-  character: IActor;
+  character: ICharacter;
   position: { x: number; y: number };
   size: { width: number; height: number };
   zIndex: number;
@@ -14,7 +14,7 @@ export const useCharacterSheetStore = defineStore('characterSheet', () => {
   const floatingSheets = ref<Map<string, FloatingCharacterSheet>>(new Map());
   let nextZIndex = 1000;
 
-  function openCharacterSheet(character: IActor) {
+  function openCharacterSheet(character: ICharacter) {
     const id = `character-sheet-${character.id}`;
     
     // If already open, just bring to front
@@ -64,7 +64,7 @@ export const useCharacterSheetStore = defineStore('characterSheet', () => {
   }
 
 
-  function updateCharacter(id: string, character: IActor) {
+  function updateCharacter(id: string, character: ICharacter) {
     const sheet = floatingSheets.value.get(id);
     if (sheet) {
       sheet.character = character;

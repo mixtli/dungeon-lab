@@ -58,12 +58,12 @@
 import { ref, computed, watch, nextTick } from 'vue';
 import { useChatStore, type ChatMessage } from '../../../stores/chat.store.mts';
 import { useSocketStore } from '../../../stores/socket.store.mts';
-import { useActorStore } from '../../../stores/actor.store.mts';
+import { useGameStateStore } from '../../../stores/game-state.store.mjs';
 import { useGameSessionStore } from '../../../stores/game-session.store.mts';
 
 const chatStore = useChatStore();
 const socketStore = useSocketStore();
-const actorStore = useActorStore();
+const gameStateStore = useGameStateStore();
 const gameSessionStore = useGameSessionStore();
 
 const currentMessage = ref('');
@@ -85,7 +85,7 @@ function getMessageClass(message: ChatMessage): string {
   
   // Check if message is from current user
   const isOwnMessage = message.senderId === socketStore.userId || 
-                      message.senderId === actorStore.currentActor?.id;
+                      message.senderId === gameStateStore.selectedCharacter?.id;
   
   if (isOwnMessage) {
     return 'message message-player-own';

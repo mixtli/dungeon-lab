@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch, computed } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import type { ICampaign } from '@dungeon-lab/shared/types/index.mjs';
 import { CampaignsClient } from '@dungeon-lab/client/index.mjs';

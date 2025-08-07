@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue';
-import { useActorStore } from '../../stores/actor.store.mjs';
+import { useGameStateStore } from '../../stores/game-state.store.mjs';
 import { ActorsClient } from '@dungeon-lab/client/index.mjs';
 import type { IActor } from '@dungeon-lab/shared/types/index.mjs';
 import { useGameSessionStore } from '../../stores/game-session.store.mjs';
 
-const actorStore = useActorStore();
+const gameStateStore = useGameStateStore();
 const gameSessionStore = useGameSessionStore();
 const actorClient = new ActorsClient();
 
@@ -14,10 +14,13 @@ const loading = ref(false);
 const error = ref<string | null>(null);
 
 const selectedCharacterId = computed({
-  get: () => actorStore.currentActor?.id || '',
+  get: () => gameStateStore.selectedCharacter?.id || '',
   set: async (value: string) => {
     if (value) {
-      await actorStore.setCurrentActor(value);
+      const character = gameStateStore.characters.find(c => c.id === value);
+      if (character) {
+        gameStateStore.selectedCharacter = character;
+      }
     }
   }
 });

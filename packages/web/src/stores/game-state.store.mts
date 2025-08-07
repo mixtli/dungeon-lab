@@ -73,6 +73,29 @@ export const useGameStateStore = defineStore(
     const items = computed<IItem[]>(() => gameState.value?.items || []);
     const currentEncounter = computed<IEncounter | null>(() => gameState.value?.currentEncounter || null);
 
+    // ============================================================================
+    // ITEM RELATIONSHIP HELPERS (Plugin-Agnostic)
+    // ============================================================================
+
+    /**
+     * Get all items owned by a specific character/actor
+     * @param ownerId - Character or Actor ID
+     * @returns Array of items where item.ownerId matches the provided ID
+     */
+    const getCharacterItems = computed(() => (ownerId: string): IItem[] => {
+      if (!gameState.value) return [];
+      return gameState.value.items.filter(item => item.ownerId === ownerId);
+    });
+
+    /**
+     * Get count of items owned by a character/actor
+     * @param ownerId - Character or Actor ID  
+     * @returns Number of items owned
+     */
+    const getCharacterItemCount = computed(() => (ownerId: string): number => {
+      return getCharacterItems.value(ownerId).length;
+    });
+
     // Plugin data access
     const pluginData = computed(() => gameState.value?.pluginData || {});
 
@@ -608,6 +631,10 @@ export const useGameStateStore = defineStore(
       hasGameState,
       isInSession,
       canUpdate,
+
+      // Item relationship helpers (plugin-agnostic)
+      getCharacterItems,
+      getCharacterItemCount,
 
       // Session management
       joinGameSession,

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, markRaw } from 'vue';
 import { useRouter } from 'vue-router';
-import { useActorStore } from '../stores/actor.store.mjs';
+import { useGameStateStore } from '../stores/game-state.store.mjs';
 import { pluginRegistry } from '../services/plugin-registry.mts';
 import ImageUpload from '../components/common/ImageUpload.vue';
 import type { GameSystemPlugin } from '@dungeon-lab/shared/types/plugin.mjs';
@@ -20,7 +20,7 @@ interface UploadedImage {
 const documentsClient = new DocumentsClient();
 const assetsClient = new AssetsClient();
 const router = useRouter();
-const actorStore = useActorStore();
+const gameStateStore = useGameStateStore();
 const activeGameSystemId = ref<string>(localStorage.getItem('activeGameSystem') || '');
 const isLoading = ref(true);
 const error = ref<string | null>(null);
@@ -149,8 +149,8 @@ async function handleCharacterReady(preparedData: any) {
       // Clear session storage
       sessionStorage.removeItem('actorCreationState');
       
-      // Set current actor in the store
-      await actorStore.setCurrentActor(characterData.id);
+      // Set current character in the game state store
+      gameStateStore.selectedCharacter = characterData;
       
       // Navigate to the character sheet
       router.push({ name: 'character-sheet', params: { id: characterData.id } });
@@ -222,9 +222,9 @@ async function handleCharacterReady(preparedData: any) {
     
     sessionStorage.removeItem('actorCreationState');
 
-    // Set current actor in the store if created successfully
+    // Set current character in the game state store if created successfully
     if (response && response.id) {
-      await actorStore.setCurrentActor(response.id);
+      gameStateStore.selectedCharacter = response;
     }
 
     // Navigate to the character sheet
@@ -289,9 +289,9 @@ async function handleSubmit() {
     const response = await documentsClient.createDocument(documentData);
     sessionStorage.removeItem('actorCreationState');
 
-    // Set current actor in the store if created successfully
+    // Set current character in the game state store if created successfully
     if (response && response.id) {
-      await actorStore.setCurrentActor(response.id);
+      gameStateStore.selectedCharacter = response;
     }
 
     // Navigate to the character sheet

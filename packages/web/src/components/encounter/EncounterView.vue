@@ -40,7 +40,7 @@
         <div class="encounter-content" ref="mapContainerRef">
         <!-- Pixi Map Viewer -->
         <PixiMapViewer
-          v-if="encounter.mapId && !encounterStore.loading"
+          v-if="encounter.mapId && !gameStateStore.loading"
           :map-id="encounter.mapId"
           :tokens="encounterTokens"
           :platform="deviceConfig.type"
@@ -182,7 +182,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
-import { useEncounterStore } from '../../stores/encounter.store.mjs';
+import { useGameStateStore } from '../../stores/game-state.store.mjs';
 import { useGameSessionStore } from '../../stores/game-session.store.mts';
 import { useSocketStore } from '../../stores/socket.store.mjs';
 import { useDeviceAdaptation } from '../../composables/useDeviceAdaptation.mjs';
@@ -209,7 +209,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 // Composables
 const route = useRoute();
-const encounterStore = useEncounterStore();
+const gameStateStore = useGameStateStore();
 const gameSessionStore = useGameSessionStore();
 const socketStore = useSocketStore();
 const { deviceConfig, deviceClass } = useDeviceAdaptation();
@@ -263,11 +263,12 @@ const isSocketConnected = ref(true);
 const encounterParticipants = ref<string[]>([]);
 
 // Computed
-const encounter = computed(() => encounterStore.currentEncounter);
+const encounter = computed(() => gameStateStore.currentEncounter);
 
 // Convert encounter tokens to format expected by PixiMapViewer
 const encounterTokens = computed(() => {
-  const tokens = encounterStore.encounterTokens;
+  // TODO: Tokens will be part of currentEncounter in the new system
+  const tokens = gameStateStore.currentEncounter?.tokens || [];
   return tokens.map((token: Token) => ({
     id: token.id,
     name: token.name,
@@ -304,7 +305,8 @@ const loadEncounter = async () => {
     loading.value = true;
     error.value = null;
     
-    await encounterStore.fetchEncounter(currentEncounterId.value);
+    // Encounters are automatically loaded when game session is joined
+    // The currentEncounter will be available from gameStateStore
     
     if (!encounter.value) {
       error.value = 'Encounter not found';
@@ -339,7 +341,8 @@ const handleTokenSelection = (tokenId: string) => {
   if (!encounter.value) return;
   
   // Find the token in the encounter
-  selectedToken.value = encounterStore.encounterTokens.find((t: Token) => t.id === tokenId) || null;
+  const tokens = gameStateStore.currentEncounter?.tokens || [];
+  selectedToken.value = tokens.find((t: Token) => t.id === tokenId) || null;
   
   // Close context menu if open
   contextMenuToken.value = null;
@@ -348,16 +351,13 @@ const handleTokenSelection = (tokenId: string) => {
 const handleTokenMoved = (tokenId: string, x: number, y: number, elevation: number = 0) => {
   if (!encounter.value) return;
   
-  // Update token position in local state
-  const token = encounterStore.encounterTokens.find((t: Token) => t.id === tokenId);
-  if (token) {
-    token.position.x = x;
-    token.position.y = y;
-    token.position.elevation = elevation;
-    
-    // Send update via socket
-    encounterStore.moveToken(tokenId, { x, y, elevation });
-  }
+  // TODO: Implement token movement via game state updates
+  // This would require GM authority and state operations like:
+  // await gameStateStore.updateGameState([
+  //   { path: `currentEncounter.tokens.${tokenIndex}.position.x`, operation: 'set', value: x },
+  //   { path: `currentEncounter.tokens.${tokenIndex}.position.y`, operation: 'set', value: y }
+  // ]);
+  console.log('Token moved:', tokenId, x, y, elevation);
 };
 
 const handleViewportChange = (newViewport: { x: number; y: number; scale: number }) => {
@@ -473,16 +473,15 @@ const handleTokenAction = (action: string) => {
 const removeTokenFromEncounter = (tokenId: string) => {
   if (!encounter.value) return;
   
-  // Update local state - tokens are managed by the store
-  encounterStore.encounterTokens = encounterStore.encounterTokens.filter((t: Token) => t.id !== tokenId);
+  // TODO: Implement token deletion via game state updates
+  // This would require GM authority and state operations
   
   // If this was the selected token, deselect it
   if (selectedToken.value?.id === tokenId) {
     selectedToken.value = null;
   }
   
-  // Send update via socket
-  encounterStore.deleteToken(tokenId);
+  console.log('Delete token:', tokenId);
 };
 
 // Handle tokens created from ActorTokenGenerator
@@ -592,7 +591,8 @@ const handleTokenUpdate = (updatedToken: Token) => {
   // Update token in encounter store
   // Include all required fields from CreateTokenData
   const { name, imageUrl, size, position, isVisible, isPlayerControlled, conditions } = updatedToken;
-  encounterStore.updateToken(updatedToken.id, {
+  // TODO: Implement token update via game state updates
+  console.log('Update token:', updatedToken.id, {
     name,
     imageUrl,
     size,

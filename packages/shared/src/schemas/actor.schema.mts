@@ -3,19 +3,12 @@ import { actorDocumentSchema } from './document.schema.mjs';
 import { assetSchema } from './asset.schema.mjs';
 // import { deepPartial } from '../utils/deepPartial.mjs';
 
-// Actor schema - extends actor document schema with additional fields
+// Actor schema - extends actor document schema 
 export const actorSchema = actorDocumentSchema.extend({
-  // Universal inventory system
-  inventory: z.array(z.object({
-    itemId: z.string(),                    // Reference to Item document
-    quantity: z.number().min(0),
-    equipped: z.boolean().default(false),
-    slot: z.string().optional(),
-    condition: z.number().min(0).max(100).optional(),
-    metadata: z.record(z.string(), z.unknown()).optional()
-  })).default([]).optional()
-
-  // Note: Other fields now come from actorDocumentSchema:
+  // Note: Inventory is handled via item.ownerId relationships, not embedded arrays
+  // Items owned by this actor can be found by filtering items where item.ownerId === actor.id
+  
+  // Note: Other fields come from actorDocumentSchema:
   // - name, description, pluginId, campaignId, compendiumId, imageId
   // - avatarId, defaultTokenImageId (actor-specific)
   // - pluginData (replaces 'data'), userData (replaces old userData)

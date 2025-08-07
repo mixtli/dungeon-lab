@@ -7,7 +7,7 @@ import { useCampaignStore } from './campaign.store.mts';
 import { CampaignsClient, ActorsClient } from '@dungeon-lab/client/index.mjs';
 import type { JoinCallback } from '@dungeon-lab/shared/types/socket/index.mjs';
 // import { useChatStore } from './chat.store.mts';
-import { useEncounterStore } from './encounter.store.mts';
+// Encounter functionality now handled by game-state.store.mts
 
 export const useGameSessionStore = defineStore(
   'gameSession',
@@ -131,10 +131,9 @@ export const useGameSessionStore = defineStore(
                   const actor = response.data.characters?.find((c) => c.id === actorId);
                   if (actor) {
                     currentCharacter.value = actor;
-                    // Also set the current actor in the actor store
-                    const { useActorStore } = await import('./actor.store.mjs');
-                    const actorStore = useActorStore();
-                    actorStore.currentActor = actor;
+                    // TODO: Update game state store with selected character
+                    // const gameStateStore = useGameStateStore();
+                    // gameStateStore.selectedCharacter = actor;
                   }
                 }
 
@@ -259,9 +258,9 @@ export const useGameSessionStore = defineStore(
             console.log('[GameSession Store] Updated currentEncounterId:', data.encounterId);
             console.log('[GameSession Store] Current session now:', currentSession.value);
           }
-          // Save the encounter to the encounter store
-          const encounterStore = useEncounterStore();
-          encounterStore.currentEncounter = data.encounter as typeof encounterStore.currentEncounter;
+          // TODO: Save the encounter to the game state store
+          // const gameStateStore = useGameStateStore();
+          // gameStateStore.currentEncounter = data.encounter;
           // System message is now sent from server, no need to send from client
         }
       });

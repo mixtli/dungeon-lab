@@ -2,7 +2,7 @@
 // LEGACY FILE: This will be rewritten as part of the new Encounter Implementation
 import { onMounted, ref, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useEncounterStore } from '../../stores/encounter.store.mjs';
+import { useGameStateStore } from '../../stores/game-state.store.mjs';
 import { useSocketStore } from '../../stores/socket.store.mjs';
 import { useAuthStore } from '../../stores/auth.store.mjs';
 import { useGameSessionStore } from '../../stores/game-session.store.mjs';
@@ -14,11 +14,13 @@ const campaignsClient = new CampaignsClient();
 const mapsClient = new MapsClient();
 const route = useRoute();
 const router = useRouter();
-const encounterStore = useEncounterStore();
+const gameStateStore = useGameStateStore();
 const socketStore = useSocketStore();
 const authStore = useAuthStore();
 const gameSessionStore = useGameSessionStore();
 const loadError = ref<string | null>(null);
+const loading = ref(false);
+const error = ref<string | null>(null);
 const campaignName = ref<string>('');
 const mapData = ref<IMap | null>(null);
 
@@ -39,9 +41,10 @@ const getThumbnailUrl = (map: IMap): string | undefined => {
 };
 
 const isGameMaster = computed(() => {
-  const result = encounterStore.currentEncounter?.createdBy === authStore.user?.id;
+  // TODO: Implement encounter access via gameStateStore.currentEncounter
+  const result = gameStateStore.currentEncounter?.createdBy === authStore.user?.id;
   console.log('[Debug] isGameMaster check:', {
-    encounterCreatedBy: encounterStore.currentEncounter?.createdBy,
+    encounterCreatedBy: gameStateStore.currentEncounter?.createdBy,
     currentUserId: authStore.user?.id,
     isGameMaster: result,
   });
@@ -49,38 +52,53 @@ const isGameMaster = computed(() => {
 });
 
 const canStartEncounter = computed(() => {
-  const result = isGameMaster.value && encounterStore.currentEncounter?.status === 'ready';
+  const result = isGameMaster.value && gameStateStore.currentEncounter?.status === 'ready';
   console.log('[Debug] canStartEncounter check:', {
     isGameMaster: isGameMaster.value,
-    encounterStatus: encounterStore.currentEncounter?.status,
+    encounterStatus: gameStateStore.currentEncounter?.status,
     canStart: result,
   });
   return result;
 });
 
 const canSetReady = computed(() => {
-  const result = isGameMaster.value && encounterStore.currentEncounter?.status === 'draft';
+  const result = isGameMaster.value && gameStateStore.currentEncounter?.status === 'draft';
   console.log('[Debug] canSetReady check:', {
     isGameMaster: isGameMaster.value,
-    encounterStatus: encounterStore.currentEncounter?.status,
+    encounterStatus: gameStateStore.currentEncounter?.status,
     canSetReady: result,
   });
   return result;
 });
 
 const canStopEncounter = computed(() => {
-  const result = isGameMaster.value && encounterStore.currentEncounter?.status === 'in_progress';
+  const result = isGameMaster.value && gameStateStore.currentEncounter?.status === 'in_progress';
   console.log('[Debug] canStopEncounter check:', {
     isGameMaster: isGameMaster.value,
-    encounterStatus: encounterStore.currentEncounter?.status,
+    encounterStatus: gameStateStore.currentEncounter?.status,
     canStop: result,
   });
   return result;
 });
 
 const canRun = computed(() => {
-  return !!encounterStore.currentEncounter;
+  return !!gameStateStore.currentEncounter;
 });
+
+/**
+ * Get participant name by ID from characters and actors
+ */
+function getParticipantName(participantId: string): string {
+  // Look for the participant in characters first
+  const character = gameStateStore.characters.find(c => c.id === participantId);
+  if (character) return character.name;
+  
+  // Then look in actors
+  const actor = gameStateStore.actors.find(a => a.id === participantId);
+  if (actor) return actor.name;
+  
+  return 'Unknown Participant';
+}
 
 onMounted(async () => {
   console.log('[Debug] Component mounted');
@@ -89,10 +107,11 @@ onMounted(async () => {
 
     // First fetch the encounter to get its data
     console.log('[Debug] Fetching encounter:', { encounterId });
-    await encounterStore.fetchEncounter(encounterId);
+    // TODO: Implement encounter fetching via REST API
+    // await gameStateStore.fetchEncounter(encounterId);
 
     // Get campaignId from the encounter data
-    const campaignId = encounterStore.currentEncounter?.campaignId;
+    const campaignId = gameStateStore.currentEncounter?.campaignId;
     if (!campaignId) {
       throw new Error('Campaign ID not found in encounter data');
     }
@@ -106,7 +125,7 @@ onMounted(async () => {
     }
 
     // Fetch map data if mapId exists
-    const mapId = encounterStore.currentEncounter?.mapId;
+    const mapId = gameStateStore.currentEncounter?.mapId;
     if (mapId) {
       try {
         const mapIdString = typeof mapId === 'object' ? (mapId as { id: string }).id : mapId;
@@ -171,16 +190,16 @@ onMounted(async () => {
 async function handleStartEncounter() {
   console.log('[Debug] Start Encounter clicked');
 
-  if (!encounterStore.currentEncounter || !gameSessionStore.currentSession) {
+  if (!gameStateStore.currentEncounter || !gameSessionStore.currentSession) {
     console.warn('[Debug] Missing required data:', {
-      hasEncounter: !!encounterStore.currentEncounter,
+      hasEncounter: !!gameStateStore.currentEncounter,
       hasSession: !!gameSessionStore.currentSession,
     });
     return;
   }
 
   const encounterId = route.params.id as string;
-  const campaignId = encounterStore.currentEncounter.campaignId;
+  const campaignId = gameStateStore.currentEncounter.campaignId;
 
   console.log('[Debug] Preparing to emit socket event:', {
     encounterId,
@@ -232,19 +251,19 @@ async function handleStartEncounter() {
     }
 
     // Update encounter status to in_progress
-    await encounterStore.updateEncounterStatus(encounterId, 'in_progress');
+    // TODO: Implement encounter status updates via REST API
+    // await gameStateStore.updateEncounterStatus(encounterId, 'in_progress');
   } catch (error) {
     console.error('[Debug] Failed to start encounter:', error);
   }
 }
 
 async function handleSetReady() {
-  if (!encounterStore.currentEncounter) return;
-
-  const encounterId = route.params.id as string;
+  if (!gameStateStore.currentEncounter) return;
 
   try {
-    await encounterStore.updateEncounterStatus(encounterId, 'ready');
+    // TODO: Implement encounter status updates via REST API
+    // await gameStateStore.updateEncounterStatus(route.params.id as string, 'ready');
   } catch (error) {
     console.error('Failed to set encounter ready:', error);
   }
@@ -253,16 +272,16 @@ async function handleSetReady() {
 async function handleStopEncounter() {
   console.log('[Debug] Stop Encounter clicked');
 
-  if (!encounterStore.currentEncounter || !gameSessionStore.currentSession) {
+  if (!gameStateStore.currentEncounter || !gameSessionStore.currentSession) {
     console.warn('[Debug] Missing required data:', {
-      hasEncounter: !!encounterStore.currentEncounter,
+      hasEncounter: !!gameStateStore.currentEncounter,
       hasSession: !!gameSessionStore.currentSession,
     });
     return;
   }
 
   const encounterId = route.params.id as string;
-  const campaignId = encounterStore.currentEncounter.campaignId;
+  const campaignId = gameStateStore.currentEncounter.campaignId;
 
   console.log('[Debug] Preparing to emit socket event:', {
     encounterId,
@@ -287,7 +306,8 @@ async function handleStopEncounter() {
     }
 
     // Update encounter status back to ready
-    await encounterStore.updateEncounterStatus(encounterId, 'ready');
+    // TODO: Implement encounter status updates via REST API
+    // await gameStateStore.updateEncounterStatus(encounterId, 'ready');
   } catch (error) {
     console.error('[Debug] Failed to stop encounter:', error);
   }
@@ -297,7 +317,7 @@ async function handleStopEncounter() {
 <template>
   <div class="p-4">
     <!-- Loading State -->
-    <div v-if="encounterStore.loading" class="flex justify-center items-center">
+    <div v-if="loading" class="flex justify-center items-center">
       <div
         class="animate-spin rounded-full h-8 w-8 border-4 border-blue-500 border-t-transparent"
       ></div>
@@ -305,14 +325,14 @@ async function handleStopEncounter() {
     </div>
 
     <!-- Error State -->
-    <div v-else-if="encounterStore.error || loadError" class="text-red-500 text-center">
-      {{ encounterStore.error || loadError }}
+    <div v-else-if="error || loadError" class="text-red-500 text-center">
+      {{ error || loadError }}
     </div>
 
     <!-- Encounter Details -->
-    <div v-else-if="encounterStore.currentEncounter" class="max-w-2xl mx-auto">
+    <div v-else-if="gameStateStore.currentEncounter" class="max-w-2xl mx-auto">
       <div class="flex justify-between items-center mb-6">
-        <h1 class="text-2xl font-bold">{{ encounterStore.currentEncounter.name }}</h1>
+        <h1 class="text-2xl font-bold">{{ gameStateStore.currentEncounter.name }}</h1>
 
         <div class="flex gap-2">
           <!-- Set Ready Button (Game Master Only, Draft Status) -->
@@ -411,26 +431,26 @@ async function handleStopEncounter() {
         <span
           class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize"
           :class="{
-            'bg-gray-100 text-gray-800': encounterStore.currentEncounter.status === 'draft',
-            'bg-blue-100 text-blue-800': encounterStore.currentEncounter.status === 'ready',
-            'bg-green-100 text-green-800': encounterStore.currentEncounter.status === 'in_progress',
-            'bg-purple-100 text-purple-800': encounterStore.currentEncounter.status === 'completed',
+            'bg-gray-100 text-gray-800': gameStateStore.currentEncounter.status === 'draft',
+            'bg-blue-100 text-blue-800': gameStateStore.currentEncounter.status === 'ready',
+            'bg-green-100 text-green-800': gameStateStore.currentEncounter.status === 'in_progress',
+            'bg-purple-100 text-purple-800': gameStateStore.currentEncounter.status === 'completed',
           }"
         >
-          {{ encounterStore.currentEncounter.status.replace('_', ' ') }}
+          {{ gameStateStore.currentEncounter.status.replace('_', ' ') }}
         </span>
       </div>
 
       <!-- Description if available -->
-      <p v-if="encounterStore.currentEncounter.description" class="mt-4 text-gray-600">
-        {{ encounterStore.currentEncounter.description }}
+      <p v-if="gameStateStore.currentEncounter.description" class="mt-4 text-gray-600">
+        {{ gameStateStore.currentEncounter.description }}
       </p>
 
       <!-- Campaign link -->
-      <div v-if="encounterStore.currentEncounter.campaignId" class="mt-6 bg-stone dark:bg-stone-700 p-4 rounded-lg shadow-sm border border-stone-300 dark:border-stone-600">
+      <div v-if="gameStateStore.currentEncounter.campaignId" class="mt-6 bg-stone dark:bg-stone-700 p-4 rounded-lg shadow-sm border border-stone-300 dark:border-stone-600">
         <h3 class="text-sm uppercase text-gold font-bold">⚔️ Campaign</h3>
         <router-link
-          :to="{ name: 'campaign-detail', params: { id: encounterStore.currentEncounter.campaignId } }"
+          :to="{ name: 'campaign-detail', params: { id: gameStateStore.currentEncounter.campaignId } }"
           class="mt-1 text-onyx dark:text-parchment font-medium hover:text-gold hover:underline block"
         >
           {{ campaignName || 'View Campaign' }}
@@ -438,11 +458,11 @@ async function handleStopEncounter() {
       </div>
 
       <!-- Map info if available -->
-      <div v-if="encounterStore.currentEncounter.mapId" class="mt-6 bg-stone dark:bg-stone-700 rounded-lg shadow-sm border border-stone-300 dark:border-stone-600 overflow-hidden">
+      <div v-if="gameStateStore.currentEncounter.mapId" class="mt-6 bg-stone dark:bg-stone-700 rounded-lg shadow-sm border border-stone-300 dark:border-stone-600 overflow-hidden">
         <div class="p-4 border-b border-stone-300 dark:border-stone-600">
           <h3 class="text-sm uppercase text-gold font-bold">🗺️ Map</h3>
           <router-link
-            :to="{ name: 'map-edit', params: { id: typeof encounterStore.currentEncounter.mapId === 'object' ? (encounterStore.currentEncounter.mapId as any).id : encounterStore.currentEncounter.mapId } }"
+            :to="{ name: 'map-edit', params: { id: typeof gameStateStore.currentEncounter.mapId === 'object' ? (gameStateStore.currentEncounter.mapId as any).id : gameStateStore.currentEncounter.mapId } }"
             class="text-onyx dark:text-parchment font-medium hover:text-gold hover:underline"
           >
             {{ mapData?.name || 'Map loaded' }}
@@ -467,8 +487,8 @@ async function handleStopEncounter() {
         <h2 class="text-lg font-medium mb-2">Participants</h2>
         <div
           v-if="
-            !encounterStore.currentEncounter.participants ||
-            encounterStore.currentEncounter.participants.length === 0
+            !gameStateStore.currentEncounter.participants ||
+            gameStateStore.currentEncounter.participants.length === 0
           "
           class="text-gray-500"
         >
@@ -476,11 +496,11 @@ async function handleStopEncounter() {
         </div>
         <ul v-else class="space-y-2">
           <li
-            v-for="participant in encounterStore.currentEncounter.participants"
-            :key="participant?.id || Math.random()"
+            v-for="participantId in gameStateStore.currentEncounter.participants"
+            :key="participantId"
             class="p-2 bg-gray-50 rounded flex items-center"
           >
-            <span>{{ participant?.name || 'Unknown Actor' }}</span>
+            <span>{{ getParticipantName(participantId) }}</span>
           </li>
         </ul>
       </div>

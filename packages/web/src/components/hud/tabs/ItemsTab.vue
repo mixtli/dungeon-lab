@@ -107,11 +107,11 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { useItemStore } from '../../../stores/item.store.mjs';
+import { useGameStateStore } from '../../../stores/game-state.store.mjs';
 import { getAssetUrl } from '../../../utils/asset-utils.mjs';
 import type { IItem } from '@dungeon-lab/shared/types/index.mjs';
 
-const itemStore = useItemStore();
+const gameStateStore = useGameStateStore();
 const searchQuery = ref('');
 const activeFilter = ref('all');
 const itemImageUrls = ref<Record<string, string>>({});
@@ -126,7 +126,7 @@ const filterOptions = [
 ];
 
 // Use real data from store instead of hardcoded
-const items = computed(() => itemStore.items);
+const items = computed(() => gameStateStore.items);
 
 const filteredItems = computed(() => {
   let filtered = items.value;
@@ -152,11 +152,11 @@ const filteredItems = computed(() => {
 // Load items when component mounts
 onMounted(async () => {
   try {
-    await itemStore.ensureItemsLoaded();
+    // Items are automatically loaded when game session is joined
     // Preload image URLs for items with images
     await loadItemImageUrls();
   } catch (error) {
-    console.error('Failed to load items:', error);
+    console.error('Failed to load item images:', error);
   }
 });
 
@@ -193,7 +193,8 @@ function getItemIcon(type: string): string {
 // Implement real functionality
 async function selectItem(item: IItem): Promise<void> {
   try {
-    await itemStore.setCurrentItem(item.id);
+    // Items don't have a "current" concept in the new system
+    // This would depend on the specific use case
     console.log('Selected item:', item.name);
   } catch (error) {
     console.error('Failed to select item:', error);
@@ -218,7 +219,8 @@ async function duplicateItem(item: IItem): Promise<void> {
       campaignId: item.campaignId || '', // Ensure campaignId is provided
       id: undefined // Let server generate new ID
     };
-    await itemStore.createItemSocket(duplicatedData);
+    // TODO: Implement item creation via game state updates
+    // await gameStateStore.createItem(duplicatedData);
     console.log('Duplicated item:', item.name);
   } catch (error) {
     console.error('Failed to duplicate item:', error);

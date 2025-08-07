@@ -94,11 +94,11 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { useActorStore } from '../../../stores/actor.store.mjs';
+import { useGameStateStore } from '../../../stores/game-state.store.mjs';
 import { useCharacterSheetStore } from '../../../stores/character-sheet.store.mjs';
 import type { IActor } from '@dungeon-lab/shared/types/index.mjs';
 
-const actorStore = useActorStore();
+const gameStateStore = useGameStateStore();
 const characterSheetStore = useCharacterSheetStore();
 const searchQuery = ref('');
 const activeFilter = ref('all');
@@ -111,7 +111,7 @@ const filterOptions = [
 ];
 
 // Use real data from store instead of hardcoded
-const actors = computed(() => actorStore.actors);
+const actors = computed(() => gameStateStore.actors);
 
 const filteredActors = computed(() => {
   let filtered = actors.value;
@@ -133,19 +133,16 @@ const filteredActors = computed(() => {
   return filtered;
 });
 
-// Load actors when component mounts
+// Actors are automatically loaded when game session is joined
 onMounted(async () => {
-  try {
-    await actorStore.ensureActorsLoaded();
-  } catch (error) {
-    console.error('Failed to load actors:', error);
-  }
+  // No need to manually load actors - they come from game state
 });
 
-// Implement real functionality
+// Implement real functionality  
 async function selectActor(actor: IActor): Promise<void> {
   try {
-    await actorStore.setCurrentActor(actor.id);
+    // Actors don't have a "current" concept in the new system
+    // This would depend on the specific use case
     console.log('Selected actor:', actor.name);
   } catch (error) {
     console.error('Failed to select actor:', error);

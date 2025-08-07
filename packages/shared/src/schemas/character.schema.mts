@@ -2,19 +2,11 @@ import { z } from 'zod';
 import { characterDocumentSchema } from './document.schema.mjs';
 import { assetSchema } from './asset.schema.mjs';
 
-// Character schema - extends character document schema with additional fields
+// Character schema - extends character document schema
 export const characterSchema = characterDocumentSchema.extend({
+  // Note: Inventory is handled via item.ownerId relationships, not embedded arrays
+  // Items owned by this character can be found by filtering items where item.ownerId === character.id
   
-  // Enhanced inventory system (characters have full inventory management)
-  inventory: z.array(z.object({
-    itemId: z.string(),                    // Reference to Item document
-    quantity: z.number().min(0),
-    equipped: z.boolean().default(false),
-    slot: z.string().optional(),
-    condition: z.number().min(0).max(100).optional(),
-    metadata: z.record(z.string(), z.unknown()).optional()
-  })).default([])
-
   // Note: All game-specific fields (level, experience, classes, etc.) 
   // are handled in pluginData to maintain plugin agnostic design
   // Other fields come from characterDocumentSchema:

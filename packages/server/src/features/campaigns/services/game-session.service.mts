@@ -8,6 +8,7 @@ import { GameSessionModel } from '../models/game-session.model.mjs';
 import { CampaignModel } from '../models/campaign.model.mjs';
 import { logger } from '../../../utils/logger.mjs';
 import { CampaignService } from './campaign.service.mjs';
+import { GameStateService } from './game-state.service.mjs';
 
 // Add an interface for filter parameters
 interface GameSessionFilter {
@@ -17,6 +18,12 @@ interface GameSessionFilter {
 
 
 export class GameSessionService {
+  private gameStateService: GameStateService;
+
+  constructor() {
+    this.gameStateService = new GameStateService();
+  }
+
   async getGameSessions(userId: string, filter?: GameSessionFilter): Promise<IGameSession[]> {
     console.log("getGameSessions userId", userId);
     try {
@@ -79,7 +86,13 @@ export class GameSessionService {
       };
 
       const session = await GameSessionModel.create(sessionData);
-      return session;
+      
+      // Initialize game state for the new session
+      await this.gameStateService.initializeGameState(session.id, data.campaignId);
+      
+      // Return the session with initialized game state
+      const initializedSession = await GameSessionModel.findById(session.id).exec();
+      return initializedSession || session;
     } catch (error) {
       logger.error('Error creating game session:', error);
       throw new Error('Failed to create game session');

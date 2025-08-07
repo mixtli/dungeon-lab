@@ -1,7 +1,6 @@
 <!-- eslint-disable vue/multi-word-component-names -->
 <script setup lang="ts">
 import { ref } from 'vue';
-import { useRouter } from 'vue-router';
 import { useGameSessionStore } from '../../stores/game-session.store.mjs';
 import { useAuthStore } from '../../stores/auth.store.mjs';
 import { GameSessionsClient } from '@dungeon-lab/client/index.mjs';
@@ -17,7 +16,6 @@ const emit = defineEmits<{
   (e: 'created', sessionId: string): void;
 }>();
 
-const router = useRouter();
 const gameSessionStore = useGameSessionStore();
 const authStore = useAuthStore();
 
@@ -57,7 +55,7 @@ async function handleSubmit() {
       description: sessionDescription.value,
       campaignId: props.campaignId,
       gameMasterId: authStore.user.id,
-      status: scheduleType.value === 'now' ? 'active' : 'paused',
+      status: scheduleType.value === 'now' ? 'active' as const : 'paused' as const,
       participantIds: [],
       characterIds: [],
       settings: {
@@ -66,7 +64,7 @@ async function handleSubmit() {
             ? new Date(`${scheduledDate.value}T${scheduledTime.value}`).toISOString()
             : undefined,
       },
-    } as const;
+    };
 
     const session = await gameSessionClient.createGameSession(sessionData);
 

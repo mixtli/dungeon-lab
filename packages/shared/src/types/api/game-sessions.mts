@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { gameSessionSchema } from '../../schemas/game-session.schema.mjs';
+import { gameSessionSchema, gameSessionCreateSchema } from '../../schemas/game-session.schema.mjs';
 import { baseAPIResponseSchema } from './base.mjs';
 import type { IGameSession } from '../index.mjs';
 // Game Session API Types
@@ -12,12 +12,9 @@ export interface GameSessionResponse {
   data: IGameSession;
 }
 
-export const createGameSessionSchema = gameSessionSchema.omit({
-  id: true,
-  participantIds: true
-});
-
-export type CreateGameSessionRequest = z.infer<typeof createGameSessionSchema>;
+// Re-export shared schema for backward compatibility with server controller
+export { gameSessionCreateSchema as createGameSessionSchema };
+export type CreateGameSessionRequest = z.infer<typeof gameSessionCreateSchema>;
 
 export interface GameSessionStatusUpdateRequest {
   status: 'active' | 'paused' | 'ended' | 'scheduled';
@@ -67,7 +64,7 @@ export const createGameSessionResponseSchema = baseAPIResponseSchema.extend({
 export type CreateGameSessionResponse = z.infer<typeof createGameSessionResponseSchema>;
 
 // Types for PUT/PATCH /game-sessions/:id (Update game session)
-export const updateGameSessionSchema = createGameSessionSchema.partial();
+export const updateGameSessionSchema = gameSessionCreateSchema.partial();
 export type UpdateGameSessionRequest = z.infer<typeof updateGameSessionSchema>;
 
 export const updateGameSessionResponseSchema = baseAPIResponseSchema.extend({

@@ -7,7 +7,7 @@ import type {
   ClientToServerEvents
 } from '@dungeon-lab/shared/types/socket/index.mjs';
 import { useGameSessionStore } from './game-session.store.mts';
-import { useActorStore } from './actor.store.mts';
+import { useGameStateStore } from './game-state.store.mjs';
 import type { ParsedMessage, Mention } from '@dungeon-lab/shared/types/chat.mjs';
 
 export interface ChatContext {
@@ -42,7 +42,7 @@ export const useChatStore = defineStore(
     const messages = ref<ChatMessage[]>([]);
     const socketStore = useSocketStore();
     const gameSessionStore = useGameSessionStore();
-    const actorStore = useActorStore();
+    const gameStateStore = useGameStateStore();
     const currentSessionId = ref<string | null>(null);
 
     // Watch for socket changes to setup listeners
@@ -130,7 +130,7 @@ export const useChatStore = defineStore(
       }
       
       // If sender is the current actor for the current user
-      if (actorStore.currentActor?.id === senderId && senderType === 'actor') return 'You';
+      if (gameStateStore.selectedCharacter?.id === senderId && senderType === 'actor') return 'You';
       
       // If sender is the game master for this session, show as "Game Master"
       if (gameSessionStore.currentSession?.gameMasterId === senderId && senderType === 'user') {
@@ -195,7 +195,7 @@ export const useChatStore = defineStore(
       const isGameMaster = gameSessionStore.isGameMaster;
       
       // Use the current actor if set in actor store (unless user is game master)
-      const currentActor = !isGameMaster ? (actorStore.currentActor || gameSessionStore.currentCharacter) : null;
+      const currentActor = !isGameMaster ? (gameStateStore.selectedCharacter || gameSessionStore.currentCharacter) : null;
       
       // Extract mentions from the message content
       const mentions = extractMentions(content, chatContexts);

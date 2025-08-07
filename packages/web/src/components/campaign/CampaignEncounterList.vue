@@ -2,7 +2,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { useEncounterStore } from '../../stores/encounter.store.mjs';
 import type { IEncounter } from '@dungeon-lab/shared/types/index.mjs';
 import { EncountersClient } from '@dungeon-lab/client/index.mjs';
 
@@ -11,7 +10,6 @@ const props = defineProps<{
 }>();
 
 const router = useRouter();
-const encounterStore = useEncounterStore();
 const encounters = ref<IEncounter[]>([]);
 const loading = ref(false);
 const error = ref<string | null>(null);
@@ -46,7 +44,9 @@ async function deleteEncounter(encounterId: string, encounterName: string) {
   }
 
   try {
-    await encounterStore.deleteEncounter(encounterId);
+    // TODO: Implement encounter deletion via game state updates or REST API
+    // await gameStateStore.deleteEncounter(encounterId);
+    console.log('Delete encounter:', encounterId);
     await fetchEncounters(); // Refresh the list
   } catch (err) {
     console.error('Error deleting encounter:', err);

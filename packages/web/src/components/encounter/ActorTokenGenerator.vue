@@ -140,7 +140,7 @@
 import { ref, computed, watch, onMounted } from 'vue';
 import { useAuthStore } from '@/stores/auth.store.mjs';
 import { useCampaignStore } from '@/stores/campaign.store.mjs';
-import { useEncounterStore } from '@/stores/encounter.store.mjs';
+import { useGameStateStore } from '@/stores/game-state.store.mjs';
 import { CampaignsClient } from '@dungeon-lab/client/index.mjs';
 import { ActorsClient } from '@dungeon-lab/client/index.mjs';
 import type { IActor, ICharacter } from '@dungeon-lab/shared/types/index.mjs';
@@ -159,7 +159,7 @@ const emit = defineEmits<{
 
 const authStore = useAuthStore();
 const campaignStore = useCampaignStore();
-const encounterStore = useEncounterStore();
+const gameStateStore = useGameStateStore();
 
 // API clients
 const campaignsClient = new CampaignsClient();
@@ -240,16 +240,17 @@ const createTokens = async () => {
     }
 
     for (let i = 0; i < tokenCount.value; i++) {
-      const tokenName = tokenOptions.value.name || selectedActor.value.name;
-      const finalName = tokenCount.value > 1 ? `${tokenName} ${i + 1}` : tokenName;
-      
-      // Create token using createTokenFromActor
-      await encounterStore.createTokenFromActor({
-        actorId: selectedActorId.value,
-        name: finalName,
-        isVisible: !tokenOptions.value.isHidden,
-        position: { x: 0, y: 0, elevation: 0 } // Position will be set by the placement mode later
-      });
+      // TODO: Replace with game state update operation
+      // const tokenName = tokenOptions.value.name || selectedActor.value.name;
+      // const finalName = tokenCount.value > 1 ? `${tokenName} ${i + 1}` : tokenName;
+      // 
+      // Create token using createTokenFromActor  
+      // await gameStateStore.createTokenFromActor({
+      //   actorId: selectedActorId.value,
+      //   name: finalName,
+      //   isVisible: !tokenOptions.value.isHidden,
+      //   position: { x: 0, y: 0, elevation: 0 } // Position will be set by the placement mode later
+      // });
     }
 
     // Close the modal and notify parent
@@ -270,7 +271,7 @@ onMounted(async () => {
   
   try {
     // Get campaign ID from the encounter or campaign store
-    let campaignId: string | undefined = encounterStore.currentEncounter?.campaignId;
+    let campaignId: string | undefined = gameStateStore.currentEncounter?.campaignId;
     if (!campaignId && campaignStore.currentCampaign?.id) {
       campaignId = campaignStore.currentCampaign.id.toString();
     }
