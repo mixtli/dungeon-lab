@@ -2,7 +2,8 @@ import {
   ServerGameState,
   StateOperation,
   StateUpdate,
-  StateUpdateResponse
+  StateUpdateResponse,
+  IGameSession
 } from '@dungeon-lab/shared/types/index.mjs';
 import { GameSessionModel } from '../models/game-session.model.mjs';
 import { 
@@ -419,7 +420,7 @@ export class GameStateService {
   /**
    * Get session with retry logic for high-concurrency scenarios
    */
-  private async getSessionWithRetry(sessionId: string, retries = 3): Promise<any> {
+  private async getSessionWithRetry(sessionId: string, retries = 3): Promise<IGameSession | null> {
     for (let i = 0; i < retries; i++) {
       try {
         const session = await GameSessionModel.findById(sessionId).exec();

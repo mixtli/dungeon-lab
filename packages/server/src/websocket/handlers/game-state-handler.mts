@@ -12,8 +12,17 @@ import type {
   StateUpdate,
   StateUpdateResponse,
   StateUpdateBroadcast,
-  ServerGameState
+  IGameSessionPopulated,
+  IGameSessionPopulatedDocument,
+  IUser
 } from '@dungeon-lab/shared/types/index.mjs';
+import {
+  gameStateRequestFullCallbackSchema,
+  gameSessionJoinCallbackSchema,
+  gameSessionLeaveCallbackSchema,
+  gameSessionEndCallbackSchema
+} from '@dungeon-lab/shared/schemas/socket/game-state.mjs';
+import { z } from 'zod';
 
 /**
  * Unified game state handler for GM-authority state management
@@ -26,20 +35,6 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
   const syncService = new GameStateSyncService();
   const gameSessionService = new GameSessionService();
 
-  // Helper function to emit game state errors
-  const emitGameStateError = (sessionId: string, error: any) => {
-    const errorEvent = {
-      sessionId,
-      error: {
-        code: error.code || 'UNKNOWN_ERROR',
-        message: error.message || 'An unknown error occurred',
-        currentVersion: error.currentVersion,
-        currentHash: error.currentHash
-      }
-    };
-    socket.emit('gameState:error', errorEvent);
-    logger.warn(`Game state error for user ${userId}:`, errorEvent);
-  };
 
   // Helper function to check if user is GM of the session
   const isUserGameMaster = async (sessionId: string): Promise<boolean> => {
@@ -71,7 +66,7 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
 
   socket.on('gameState:update', async (stateUpdate: StateUpdate, callback?: (response: StateUpdateResponse) => void) => {
     try {
-      const { sessionId, source } = stateUpdate;
+      const { sessionId, source = 'gm' } = stateUpdate;
       logger.info('Game state update received:', { sessionId, version: stateUpdate.version, operationCount: stateUpdate.operations.length, source, userId });
 
       // Only GM can update game state (unless it's a system update)
@@ -100,7 +95,8 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
           operations: stateUpdate.operations,
           newVersion: response.newVersion,
           expectedHash: response.newHash || '',
-          timestamp: Date.now()
+          timestamp: Date.now(),
+          source: stateUpdate.source || 'gm'
         };
 
         socket.to(`session:${sessionId}`).emit('gameState:updated', broadcast);
@@ -125,7 +121,7 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
   // GAME STATE FULL REFRESH (ALL PLAYERS)
   // ============================================================================
 
-  socket.on('gameState:requestFull', async (sessionId: string, callback?: (response: any) => void) => {
+  socket.on('gameState:requestFull', async (sessionId: string, callback?: (response: z.infer<typeof gameStateRequestFullCallbackSchema>) => void) => {
     try {
       logger.info('Full game state requested:', { sessionId, userId });
 
@@ -152,11 +148,14 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
 
       // Return full state
       const response = {
-        sessionId,
-        gameState: gameStateData.gameState,
-        gameStateVersion: gameStateData.gameStateVersion,
-        gameStateHash: gameStateData.gameStateHash,
-        timestamp: Date.now()
+        success: true,
+        data: {
+          sessionId,
+          gameState: gameStateData.gameState,
+          gameStateVersion: gameStateData.gameStateVersion,
+          gameStateHash: gameStateData.gameStateHash || '',
+          timestamp: Date.now()
+        }
       };
       callback?.(response);
 
@@ -176,7 +175,7 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
   // SESSION MANAGEMENT
   // ============================================================================
 
-  socket.on('gameSession:join', async (sessionId: string, callback?: (response: any) => void) => {
+  socket.on('gameSession:join', async (sessionId: string, callback?: (response: z.infer<typeof gameSessionJoinCallbackSchema>) => void) => {
     try {
       logger.info('Session join requested:', { sessionId, userId });
 
@@ -202,7 +201,7 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
         .populate('campaign')
         .populate('gameMaster') 
         .populate('participants')
-        .exec();
+        .exec() as IGameSessionPopulatedDocument | null;
 
       if (!populatedSession) {
         const response = {
@@ -214,14 +213,14 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
       }
 
       // Broadcast join event to other session participants
-      const user = populatedSession.participants?.find((p: any) => p._id.toString() === userId) || 
-                   (populatedSession.gameMaster as any)?._id?.toString() === userId ? populatedSession.gameMaster : null;
+      const user = populatedSession.participants?.find((p: IUser) => p.id === userId) || 
+                   (populatedSession.gameMaster?.id === userId ? populatedSession.gameMaster : null);
       
       if (user) {
         const joinEvent = {
           sessionId,
           userId,
-          userName: (user as any).name || 'Unknown User',
+          userName: user.username || user.displayName || 'Unknown User',
           isGM: populatedSession.gameMasterId === userId,
           timestamp: Date.now()
         };
@@ -247,12 +246,12 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
     }
   });
 
-  socket.on('gameSession:leave', async (sessionId: string, callback?: (response: any) => void) => {
+  socket.on('gameSession:leave', async (sessionId: string, callback?: (response: z.infer<typeof gameSessionLeaveCallbackSchema>) => void) => {
     try {
       logger.info('Session leave requested:', { sessionId, userId });
 
       // Get session info before removing user
-      const session = await GameSessionModel.findById(sessionId).populate('participants gameMaster').exec();
+      const session = await GameSessionModel.findById(sessionId).populate('participants gameMaster').exec() as IGameSessionPopulated | null;
       if (!session) {
         const response = {
           success: false,
@@ -286,15 +285,15 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
       await socket.leave(`session:${sessionId}`);
 
       // Get user info for broadcast
-      const user = session.participants?.find((p: any) => p._id.toString() === userId) || 
-                   (session.gameMaster as any)?._id?.toString() === userId ? session.gameMaster : null;
+      const user = session.participants?.find((p: IUser) => p.id === userId) || 
+                   (session.gameMaster?.id === userId ? session.gameMaster : null);
       
       if (user) {
         // Broadcast to other session participants
         const leaveEvent = {
           sessionId,
           userId,
-          userName: (user as any).name || 'Unknown User',
+          userName: user.username || user.displayName || 'Unknown User',
           timestamp: Date.now()
         };
         socket.to(`session:${sessionId}`).emit('gameSession:left', leaveEvent);
@@ -320,7 +319,7 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
   // SESSION END
   // ============================================================================
 
-  socket.on('gameSession:end', async (sessionId: string, callback?: (response: any) => void) => {
+  socket.on('gameSession:end', async (sessionId: string, callback?: (response: z.infer<typeof gameSessionEndCallbackSchema>) => void) => {
     try {
       logger.info('Session end requested:', { sessionId, userId });
 

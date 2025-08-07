@@ -106,7 +106,7 @@ import {
   gameSessionEndArgsSchema,
   gameStateUpdatedSchema,
   gameStateErrorSchema,
-  gameStateFullResponseSchema,
+  gameStateFullDataSchema,
   gameSessionJoinedSchema,
   gameSessionLeftSchema,
   gameSessionEndedSchema,
@@ -116,6 +116,12 @@ import {
   gameSessionLeaveCallbackSchema,
   gameSessionEndCallbackSchema
 } from './game-state.mjs';
+
+import {
+  baseSocketCallbackSchema,
+  socketCallbackWithDataSchema,
+  socketCallbackWithFieldsSchema
+} from './base-callback.schema.mjs';
 
 // Re-export all schemas for backwards compatibility
 export {
@@ -205,7 +211,7 @@ export {
   gameSessionEndArgsSchema,
   gameStateUpdatedSchema,
   gameStateErrorSchema,
-  gameStateFullResponseSchema,
+  gameStateFullDataSchema,
   gameSessionJoinedSchema,
   gameSessionLeftSchema,
   gameSessionEndedSchema,
@@ -213,7 +219,12 @@ export {
   gameStateRequestFullCallbackSchema,
   gameSessionJoinCallbackSchema,
   gameSessionLeaveCallbackSchema,
-  gameSessionEndCallbackSchema
+  gameSessionEndCallbackSchema,
+  
+  // Base callback schemas
+  baseSocketCallbackSchema,
+  socketCallbackWithDataSchema,
+  socketCallbackWithFieldsSchema
 };
 
 // ============================================================================

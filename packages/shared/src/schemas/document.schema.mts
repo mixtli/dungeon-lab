@@ -69,7 +69,7 @@ const baseDocumentFields = {
  */
 export const characterDocumentSchema = baseSchema.extend({
   ...baseDocumentFields,
-  documentType: z.literal('character'),
+  documentType: z.string().default('character'),
   
   // Character/Actor specific image fields
   avatarId: z.string().optional(),
@@ -81,7 +81,7 @@ export const characterDocumentSchema = baseSchema.extend({
  */
 export const actorDocumentSchema = baseSchema.extend({
   ...baseDocumentFields,
-  documentType: z.literal('actor'),
+  documentType: z.string().default('actor'),
   
   // Character/Actor specific image fields
   avatarId: z.string().optional(),
@@ -93,7 +93,7 @@ export const actorDocumentSchema = baseSchema.extend({
  */
 export const itemDocumentSchema = baseSchema.extend({
   ...baseDocumentFields,
-  documentType: z.literal('item'),
+  documentType: z.string().default('item'),
   
   // Owner reference (for items owned by characters/actors)
   ownerId: z.string().optional()
@@ -104,14 +104,14 @@ export const itemDocumentSchema = baseSchema.extend({
  */
 export const vttDocumentSchema = baseSchema.extend({
   ...baseDocumentFields,
-  documentType: z.literal('vtt-document')
+  documentType: z.string().default('vtt-document')
 });
 
 /**
- * Discriminated union of all document types
+ * Union of all document types
  * This ensures each document type gets exactly the fields it should have
  */
-export const baseDocumentSchema = z.discriminatedUnion('documentType', [
+export const baseDocumentSchema = z.union([
   characterDocumentSchema,
   actorDocumentSchema,
   itemDocumentSchema,

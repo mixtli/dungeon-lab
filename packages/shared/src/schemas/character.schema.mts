@@ -4,8 +4,6 @@ import { assetSchema } from './asset.schema.mjs';
 
 // Character schema - extends character document schema with additional fields
 export const characterSchema = characterDocumentSchema.extend({
-  // Character-specific campaign association rules
-  compendiumId: z.undefined(),          // Characters are never from compendium
   
   // Enhanced inventory system (characters have full inventory management)
   inventory: z.array(z.object({

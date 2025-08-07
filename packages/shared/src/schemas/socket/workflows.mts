@@ -1,25 +1,20 @@
 import { z } from 'zod';
+import { socketCallbackWithFieldsSchema } from './base-callback.schema.mjs';
 
 // ============================================================================
 // WORKFLOW AND MAP SCHEMAS
 // ============================================================================
 
-export const mapGenerationResponseSchema = z.object({
-  success: z.boolean(),
-  flowRunId: z.string(),
-  error: z.string().optional()
+export const mapGenerationResponseSchema = socketCallbackWithFieldsSchema({
+  flowRunId: z.string()
 });
 
-export const mapEditResponseSchema = z.object({
-  success: z.boolean(),
-  flowRunId: z.string(),
-  error: z.string().optional()
+export const mapEditResponseSchema = socketCallbackWithFieldsSchema({
+  flowRunId: z.string()
 });
 
-export const mapFeatureDetectionResponseSchema = z.object({
-  success: z.boolean(),
-  flowRunId: z.string(),
-  error: z.string().optional()
+export const mapFeatureDetectionResponseSchema = socketCallbackWithFieldsSchema({
+  flowRunId: z.string()
 });
 
 export const workflowProgressArgsSchema = z.object({

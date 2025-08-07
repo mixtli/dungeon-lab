@@ -199,6 +199,19 @@ export type ICreateGameSession = z.infer<typeof gameSessionCreateSchema>;
 export type GameSessionStatusType = z.infer<typeof GameSessionStatus>;
 export type IGameSessionPatchData = z.infer<typeof gameSessionPatchSchema>;
 
+// MongoDB populated document types
+// Used when Mongoose populate() transforms ObjectId references to full objects
+export interface IGameSessionPopulated extends Omit<IGameSession, 'gameMaster' | 'participants'> {
+  gameMaster?: IUser;     // Populated user object (not ObjectId)
+  participants: IUser[];  // Populated user objects (not ObjectId[])
+}
+
+// Mongoose document interface that includes Mongoose methods
+export interface IGameSessionPopulatedDocument extends IGameSessionPopulated {
+  toObject(): IGameSessionPopulated;
+  id: string;
+}
+
 // Server Game State Types
 export type ServerGameState = z.infer<typeof serverGameStateSchema>;
 

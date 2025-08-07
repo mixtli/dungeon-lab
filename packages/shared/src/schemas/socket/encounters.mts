@@ -2,6 +2,7 @@ import { z } from 'zod';
 import {
   encounterSchema
 } from '../../schemas/encounters.schema.mjs';
+import { socketCallbackWithDataSchema } from './base-callback.schema.mjs';
 
 // ============================================================================
 // ENCOUNTER STATE EVENTS
@@ -70,11 +71,7 @@ export const encounterErrorSchema = z.object({
 // CALLBACK SCHEMAS
 // ============================================================================
 
-export const encounterCallbackSchema = z.object({
-  success: z.boolean(),
-  data: z.unknown().optional(),
-  error: z.string().optional()
-});
+export const encounterCallbackSchema = socketCallbackWithDataSchema(z.unknown());
 
 
 // ============================================================================

@@ -37,6 +37,7 @@ class CharacterOwnershipReassigner {
     console.log('✅ Connected to MongoDB');
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async findUsers(): Promise<{ user1: any, user2: any }> {
     console.log('👥 Looking for test users...');
     

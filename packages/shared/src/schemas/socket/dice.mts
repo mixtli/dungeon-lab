@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { baseSocketCallbackSchema } from './base-callback.schema.mjs';
 
 // ============================================================================
 // DICE ROLLING SCHEMAS
@@ -40,10 +41,7 @@ export const rollResponseSchema = z.object({
   gameSessionId: z.string()
 });
 
-export const rollCallbackSchema = z.object({
-  success: z.boolean(),
-  error: z.string().optional()
-});
+export const rollCallbackSchema = baseSocketCallbackSchema;
 
 // ============================================================================
 // CLIENT-TO-SERVER EVENT SCHEMAS

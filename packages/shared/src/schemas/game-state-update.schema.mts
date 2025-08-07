@@ -33,7 +33,7 @@ export const stateUpdateSchema = z.object({
   version: z.string(),                        // Current state version (for optimistic concurrency)
   operations: z.array(stateOperationSchema).min(1), // Array of operations to apply
   timestamp: z.number(),                      // Client timestamp when update was created
-  source: z.enum(['gm', 'system']).default('gm') // Source of the update
+  source: z.enum(['gm', 'system']) // Source of the update
 });
 
 /**

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { gameSessionResponseSchema } from '../game-session.schema.mjs';
+import { socketCallbackWithDataSchema } from './base-callback.schema.mjs';
 
 // ============================================================================
 // CHAT AND MESSAGING SCHEMAS
@@ -27,11 +28,7 @@ export const messageMetadataSchema = z.object({
   mentions: z.array(mentionSchema).optional()
 });
 
-export const joinCallbackSchema = z.object({
-  success: z.boolean(),
-  data: gameSessionResponseSchema.optional(),
-  error: z.string().optional()
-});
+export const joinCallbackSchema = socketCallbackWithDataSchema(gameSessionResponseSchema);
 
 // ============================================================================
 // CHATBOT SCHEMAS

@@ -16,7 +16,7 @@ export const serverGameStateSchema = z.object({
   items: z.array(itemSchema).default([]),            // All campaign items
   
   // Active encounter (fully populated with related data)
-  currentEncounter: encounterSchema.nullable(),
+  currentEncounter: encounterSchema.nullable().default(null),
   
   // Plugin-specific state
   pluginData: z.record(z.string(), z.unknown()).default({})

@@ -1,14 +1,11 @@
 import { z } from 'zod';
+import { socketCallbackWithDataSchema } from './base-callback.schema.mjs';
 
 // ============================================================================
 // PLUGIN SCHEMAS
 // ============================================================================
 
-export const pluginActionCallbackSchema = z.object({
-  success: z.boolean(),
-  data: z.any(),
-  error: z.string().optional()
-});
+export const pluginActionCallbackSchema = socketCallbackWithDataSchema(z.any());
 
 export const pluginStateUpdateSchema = z.object({
   pluginId: z.string(),

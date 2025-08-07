@@ -4,26 +4,61 @@ import {
   stateUpdateResponseSchema, 
   stateUpdateBroadcastSchema 
 } from '../game-state-update.schema.mjs';
+import {
+  baseSocketCallbackSchema,
+  socketCallbackWithDataSchema,
+  socketCallbackWithFieldsSchema
+} from './base-callback.schema.mjs';
+
+// Callback schemas for client-to-server events (defined first for reference)
+export const gameStateUpdateCallbackSchema = stateUpdateResponseSchema;
+
+// Full state response data for reconnection/refresh
+export const gameStateFullDataSchema = z.object({
+  sessionId: z.string(),
+  gameState: z.unknown(), // ServerGameState - using unknown to avoid circular imports
+  gameStateVersion: z.string(),
+  gameStateHash: z.string(),
+  timestamp: z.number()
+});
+
+// Full state callback with consistent success/error pattern
+export const gameStateRequestFullCallbackSchema = socketCallbackWithDataSchema(gameStateFullDataSchema);
+
+export const gameSessionJoinCallbackSchema = socketCallbackWithFieldsSchema({
+  session: z.unknown().optional() // Populated session data
+});
+
+export const gameSessionLeaveCallbackSchema = baseSocketCallbackSchema;
+
+export const gameSessionEndCallbackSchema = socketCallbackWithFieldsSchema({
+  sessionId: z.string().optional()
+});
 
 // Client-to-server event argument schemas
 export const gameStateUpdateArgsSchema = z.tuple([
-  stateUpdateSchema
+  stateUpdateSchema,
+  z.function().args(gameStateUpdateCallbackSchema).optional() // callback
 ]);
 
 export const gameStateRequestFullArgsSchema = z.tuple([
-  z.string() // sessionId
+  z.string(), // sessionId
+  z.function().args(gameStateRequestFullCallbackSchema).optional() // callback
 ]);
 
 export const gameSessionJoinArgsSchema = z.tuple([
-  z.string() // sessionId
+  z.string(), // sessionId
+  z.function().args(gameSessionJoinCallbackSchema).optional() // callback
 ]);
 
 export const gameSessionLeaveArgsSchema = z.tuple([
-  z.string() // sessionId
+  z.string(), // sessionId
+  z.function().args(gameSessionLeaveCallbackSchema).optional() // callback
 ]);
 
 export const gameSessionEndArgsSchema = z.tuple([
-  z.string() // sessionId
+  z.string(), // sessionId
+  z.function().args(gameSessionEndCallbackSchema).optional() // callback
 ]);
 
 // Server-to-client event schemas
@@ -37,15 +72,6 @@ export const gameStateErrorSchema = z.object({
     currentVersion: z.string().optional(),
     currentHash: z.string().optional()
   })
-});
-
-// Full state response for reconnection/refresh
-export const gameStateFullResponseSchema = z.object({
-  sessionId: z.string(),
-  gameState: z.unknown(), // ServerGameState - using unknown to avoid circular imports
-  gameStateVersion: z.string(),
-  gameStateHash: z.string(),
-  timestamp: z.number()
 });
 
 // Session management schemas
@@ -70,21 +96,3 @@ export const gameSessionEndedSchema = z.object({
   timestamp: z.number()
 });
 
-// Callback schemas for client-to-server events
-export const gameStateUpdateCallbackSchema = stateUpdateResponseSchema;
-export const gameStateRequestFullCallbackSchema = gameStateFullResponseSchema;
-export const gameSessionJoinCallbackSchema = z.object({
-  success: z.boolean(),
-  sessionId: z.string().optional(),
-  error: z.string().optional()
-});
-export const gameSessionLeaveCallbackSchema = z.object({
-  success: z.boolean(),
-  error: z.string().optional()
-});
-
-export const gameSessionEndCallbackSchema = z.object({
-  success: z.boolean(),
-  sessionId: z.string().optional(),
-  error: z.string().optional()
-});
