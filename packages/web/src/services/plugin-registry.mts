@@ -185,7 +185,9 @@ export class PluginRegistryService {
    * Create plugin context for a plugin
    */
   private createPluginContext(plugin: GameSystemPlugin): PluginContext {
-    return createPluginContext(plugin.manifest.id);
+    // Check if we should include game state context
+    // This will be determined by checking if there's an active game session
+    return createPluginContext(plugin.manifest.id, { includeGameState: true });
   }
 }
 

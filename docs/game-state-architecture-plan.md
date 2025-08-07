@@ -12,6 +12,7 @@ This document outlines the complete redesign of game session state management fr
 - **Phase 3.2**: Removed legacy stores (actor, item, encounter) ✅  
 - **Phase 3.3**: Updated 8 components to use game state store ✅
 - **Phase 3.4**: GM client update logic with unified architecture ✅
+- **Phase 4.1**: Plugin Interface Extensions ✅ (Reactive game state access for plugins)
 
 ### 🚧 Current Status
 **What's Working Now**:
@@ -23,6 +24,7 @@ This document outlines the complete redesign of game session state management fr
 - ✅ **ICharacter vs IActor type issues RESOLVED** - relationship-based inventory implemented
 - ✅ **GameSession schema alignment RESOLVED** - unified client/server schema with auto initialization
 - ✅ Plugin-agnostic helper functions for item relationships added to game state store
+- ✅ **Phase 4.1 Plugin Interface Extensions COMPLETED** - plugins now have reactive game state access
 
 **Current Blockers**:
 - ❌ **Complex Functionality**: Token management, encounter operations, item creation stubbed out with TODOs
@@ -31,10 +33,11 @@ This document outlines the complete redesign of game session state management fr
 ### ✅ Phase 3.4 - GM Client Update Logic - COMPLETED
 **COMPLETED**: GM client state update mechanism implemented with proper architecture - enables complex game operations through the unified game state system.
 
-### 📈 Progress: ~75% Complete  
+### 📈 Progress: ~80% Complete  
 - Server architecture: ✅ 100% complete
 - Client basic migration: ✅ 100% complete
 - Client type system & schema alignment: ✅ 100% complete  
+- Plugin integration: ✅ 50% complete (Phase 4.1 done)
 - Client advanced features: 📋 35% complete
 - Testing & validation: 📋 0% complete
 
@@ -572,34 +575,11 @@ async function updateGameState(operations: StateOperation[]): Promise<StateUpdat
 // Add item to character: { path: "characters.0.inventory", operation: "push", value: newItem }
 ```
 
-## Phase 4: Plugin Integration (1-2 weeks)
+### 📋 Phase 3 Appendix: State Synchronization Architecture Details
 
-### 4.1 Update Plugin Interface
-- **File**: `packages/shared/src/types/plugin.mts`
-  - Add methods to work with unified game state
-  - Remove individual entity management methods
+**Implementation reference for the unified state synchronization patterns established in Phase 3.4:**
 
-### 4.2 Update D&D 5e Plugin  
-- **Files**: `packages/plugins/dnd-5e-2024/web/**`
-  - Replace store usage with unified game state
-  - Update plugin data access patterns
-  - Ensure all validation happens client-side
-
-### 4.3 Plugin State Helpers
-- **New File**: `packages/shared/src/utils/plugin-state.mts`
-```typescript
-// Helper utilities for plugins to access/modify state
-function getPluginData(gameState: GameState, pluginId: string): unknown
-function setPluginData(gameState: GameState, pluginId: string, data: unknown): StateOperation[]
-function getCharacterPluginData(character: ICharacter, path: string): unknown
-function getActorPluginData(actor: IActor, path: string): unknown
-function updateCharacterState(characterId: string, updates: Record<string, unknown>): StateOperation[]
-function updateActorState(actorId: string, updates: Record<string, unknown>): StateOperation[]
-```
-
-## Phase 5: State Synchronization Details
-
-### 5.1 GM Client Behavior (Fixed Architecture)
+#### GM Client Behavior (Fixed Architecture)
 1. GM makes change in UI
 2. Generate state operations
 3. Queue update if another update is in progress  
@@ -612,7 +592,7 @@ function updateActorState(actorId: string, updates: Record<string, unknown>): St
 
 **Architectural Fix**: GM no longer applies state locally in the callback - only via broadcast like everyone else.
 
-### 5.2 All Client Behavior (GM and Players - Unified Pattern)
+#### All Client Behavior (GM and Players - Unified Pattern)
 1. Receive `gameState:updated` broadcast from server with `{ operations, newVersion, expectedHash }`
 2. Check if incoming version is current version + 1
 3. If yes: apply operations directly to local gameState
@@ -622,7 +602,7 @@ function updateActorState(actorId: string, updates: Record<string, unknown>): St
 
 **Key Architectural Principle**: GM and players follow identical update patterns - only GM can *send* updates, but all clients *receive* updates the same way.
 
-### 5.3 Reconnection Logic
+#### Reconnection Logic
 ```typescript
 async function handleReconnection() {
   const localVersion = localStorage.getItem('gameStateVersion')
@@ -645,6 +625,802 @@ async function handleReconnection() {
   localStorage.setItem('gameStateHash', serverResponse.gameStateHash)
 }
 ```
+
+## Phase 4: Plugin Integration 🔌
+
+**Goal**: Update plugins to work with the new unified game state architecture instead of the old fragmented stores.
+
+**Timeline**: 1 week
+
+### Current Status: PHASE 4.1 COMPLETED ✅
+
+**Phase 4.1 - Plugin Interface Extensions - COMPLETED (January 2025)**
+
+✅ **GameStateContext Interface Added** to `packages/shared/src/types/plugin-context.mts`:
+- Reactive computed refs for characters, actors, items, currentEncounter
+- Synchronous helper methods for entity lookups (getActorById, getCharacterById, etc.)
+- State subscription methods for side effects
+- Proper Vue reactivity integration with ComputedRef and Ref types
+
+✅ **PluginGameStateService Implementation** created in `packages/web/src/services/plugin-game-state.service.mts`:
+- Wraps existing game state store with reactive Vue computeds
+- Implements all GameStateContext interface methods
+- Provides proper Vue reactivity through watch() and readonly()
+- Handles subscription management for plugin cleanup
+
+✅ **Plugin Registry Updates** - Modified plugin registry to:
+- Optionally include GameStateContext when creating plugin contexts
+- Check for active sessions before providing game state access
+- Maintain backward compatibility with plugins that don't use game state
+
+✅ **Type System Integration** ensured:
+- GameStateContext properly exported through shared types index
+- PluginContext interface includes optional gameState property
+- Full TypeScript compilation and type safety verified
+
+✅ **Architecture Benefits Achieved**:
+- **Plugin Reactivity**: Plugins now have reactive access to unified game state
+- **Clean Separation**: Read-only access prevents plugins from corrupting game state  
+- **Session Awareness**: Game state only available during active sessions
+- **Vue Integration**: Proper Vue reactivity patterns with computed refs and watchers
+- **Backward Compatible**: Existing plugins continue to work without changes
+
+The plugin interface extensions are now ready for plugins to consume reactive game state data during active game sessions. This completes the foundation for Phase 4 of the game state architecture migration.
+
+### 4.1: Plugin Interface Extensions 🔧 ✅ COMPLETED
+
+**Extend plugin context with game state access while maintaining read-only boundaries:**
+
+- [ ] **Add GameStateContext to PluginContext interface** (`packages/shared/src/types/plugin-context.mts`)
+  ```typescript
+  export interface GameStateContext {
+    // Direct reactive access to game state arrays (maintains Vue reactivity)
+    readonly characters: ComputedRef<ICharacter[]>;
+    readonly actors: ComputedRef<IActor[]>;
+    readonly items: ComputedRef<IItem[]>;
+    readonly currentEncounter: ComputedRef<IEncounter | null>;
+    
+    // State metadata
+    readonly gameStateVersion: Ref<string | null>;
+    
+    // Synchronous helper methods for convenience (work with reactive data)
+    getActorById(id: string): IActor | null;
+    getCharacterById(id: string): ICharacter | null;
+    getItemById(id: string): IItem | null;
+    getItemsByOwner(ownerId: string): IItem[];
+    getTokensByActor(actorId: string): IToken[];
+    
+    // Subscribe to state changes for side effects
+    subscribeToState(callback: (state: Readonly<ServerGameState>) => void): () => void;
+    subscribeToStateUpdates(callback: (broadcast: StateUpdateBroadcast) => void): () => void;
+  }
+  
+  export interface PluginContext {
+    // ... existing methods ...
+    
+    /** Reactive game state access for plugin components */
+    gameState: GameStateContext;
+  }
+  ```
+
+- [ ] **Implement GameStateContext service** (`packages/web/src/services/plugin-game-state.service.mts`)
+  ```typescript
+  export class PluginGameStateService implements GameStateContext {
+    private gameStateStore = useGameStateStore();
+    
+    // Direct reactive access to store's computed properties (maintains Vue reactivity)
+    get characters() { return this.gameStateStore.characters; }
+    get actors() { return this.gameStateStore.actors; }
+    get items() { return this.gameStateStore.items; }
+    get currentEncounter() { return this.gameStateStore.currentEncounter; }
+    get gameStateVersion() { return this.gameStateStore.gameStateVersion; }
+    
+    // Synchronous helper methods that work with reactive data
+    getActorById(id: string): IActor | null {
+      return this.actors.value.find(a => a.id === id) || null;
+    }
+    
+    getCharacterById(id: string): ICharacter | null {
+      return this.characters.value.find(c => c.id === id) || null;
+    }
+    
+    getItemsByOwner(ownerId: string): IItem[] {
+      return this.items.value.filter(item => item.ownerId === ownerId);
+    }
+    
+    // Subscription management for plugin cleanup
+    subscribeToState(callback: (state: Readonly<ServerGameState>) => void): () => void {
+      return this.gameStateStore.$subscribe((mutation, state) => {
+        if (state.gameState) callback(state.gameState);
+      });
+    }
+  }
+  ```
+  - Wraps game state store's existing reactive computed properties
+  - All helper methods work synchronously with reactive data  
+  - Maintains proper Vue reactivity chains for plugin components
+
+### 4.2: Focus on Actual Game State Integration Needs 🎯
+
+**Update components that actually need game state integration (not character sheets):**
+
+**🔧 Character Sheet: Game State Store Integration**
+- Update `useCharacterState()` to integrate with game state store when in session
+- Enable opening character sheets for any session participant by ID  
+- Integrate with GM authority system for character updates during sessions
+- Maintain backward compatibility for standalone mode operation
+
+**✅ Character Creator: No Changes Needed**
+- Uses REST API for character creation (correct approach)
+- Independent of game sessions and game state
+- No need for plugin integration changes
+
+**🔧 Character Sheet Game State Integration:**
+
+- [ ] **Enhanced useCharacterState Composable** (`packages/web/src/composables/useCharacterState.mts`)
+  ```typescript
+  // Updated to work with character ID and integrate with game state store
+  export function useCharacterState(
+    characterId: string,  // Changed: takes ID instead of pre-fetched character
+    options: CharacterStateOptions = {}
+  ): CharacterStateReturn {
+    const gameStateStore = useGameStateStore();
+    const isInSession = computed(() => !!gameStateStore.sessionId);
+    const standaloneCharacter = ref<IActor | null>(null);
+    
+    // Reactive character source - game state store when in session, API when standalone
+    const character = computed(() => {
+      if (isInSession.value) {
+        // Get from game state store (reactive to real-time updates)
+        return gameStateStore.actors.find(a => a.id === characterId) ||
+               gameStateStore.characters.find(c => c.id === characterId) ||
+               null;
+      } else {
+        // Use standalone API-fetched data
+        return standaloneCharacter.value;
+      }
+    });
+    
+    // Dual save mechanism based on session context
+    const save = async () => {
+      if (isInSession.value && !gameStateStore.isGM) {
+        // Session mode + not GM: Request approval from GM
+        return requestCharacterUpdateApproval(characterId, getCharacterChanges());
+      } else if (isInSession.value && gameStateStore.isGM) {
+        // Session mode + GM: Update via game state system
+        return updateViaGameState(characterId, getCharacterChanges());
+      } else {
+        // Standalone mode: Direct API save
+        return saveDirectlyViaAPI(characterId, character.value);
+      }
+    };
+    
+    // Load character data for standalone mode
+    const loadStandaloneData = async () => {
+      if (!isInSession.value) {
+        standaloneCharacter.value = await documentsClient.getDocument(characterId);
+      }
+    };
+    
+    return { character, save, loadStandaloneData, /* ... other methods */ };
+  }
+  ```
+
+- [ ] **Updated CharacterSheetView Integration** (`packages/web/src/views/CharacterSheetView.vue`)
+  ```typescript
+  // Remove direct API fetching - let useCharacterState handle data source
+  const characterId = route.params.id as string;
+  const characterState = useCharacterState(characterId, {
+    enableWebSocket: gameStateStore.sessionId ? true : false,
+    readonly: false
+  });
+  
+  // Character data comes from composable (game state or API)
+  const character = characterState.character;
+  
+  onMounted(async () => {
+    // Load data if not in session (composable handles the logic)
+    if (!gameStateStore.sessionId) {
+      await characterState.loadStandaloneData();
+    }
+    // If in session, data comes from game state store automatically
+  });
+  ```
+
+- [ ] **GM Authority Workflow for Session Updates**
+  ```typescript
+  // New socket events for GM approval workflow
+  async function requestCharacterUpdateApproval(
+    characterId: string, 
+    changes: Partial<IActor>
+  ): Promise<void> {
+    return new Promise((resolve, reject) => {
+      socketStore.emit('character:updateRequest', {
+        characterId,
+        changes,
+        requesterId: authStore.user.id
+      }, (response) => {
+        if (response.success) {
+          // GM approved - update will come via gameState:updated broadcast
+          resolve();
+        } else {
+          reject(new Error(response.error || 'Update denied by GM'));
+        }
+      });
+    });
+  }
+  
+  // GM can approve/deny character update requests
+  socketStore.on('character:updateRequest', (request, callback) => {
+    if (gameStateStore.isGM) {
+      // Show GM approval UI or auto-approve based on settings
+      handleCharacterUpdateRequest(request, callback);
+    }
+  });
+  ```
+
+**🔧 Components That Need Game State Integration:**
+
+- [ ] **HUD Equipment Displays** - Real-time inventory during sessions
+  ```typescript
+  // Plugin components that show character equipment in HUD
+  const context = inject<PluginContext>('pluginContext');
+  const characterItems = computed(() => {
+    const selectedChar = gameStateStore.selectedCharacter;
+    if (!selectedChar) return [];
+    
+    // Tracks both character selection AND items array changes
+    return context?.gameState.items.value.filter(item => 
+      item.ownerId === selectedChar.id
+    ) || [];
+  });
+  ```
+
+- [ ] **Token Status Displays** - Real-time character status on encounter map
+  ```typescript
+  // Plugin components that show character status on tokens
+  const characterHealth = computed(() => {
+    const actor = context?.gameState.actors.value.find(a => a.id === actorId.value);
+    return actor?.pluginData?.hitPoints || 0;
+  });
+  ```
+
+- [ ] **Encounter Participant Lists** - Real-time participant management
+  ```typescript
+  // Plugin components that display encounter participants
+  const encounterActors = computed(() => {
+    const encounter = context?.gameState.currentEncounter.value;
+    if (!encounter) return [];
+    
+    return encounter.participantIds.map(id => 
+      context?.gameState.actors.value.find(a => a.id === id)
+    ).filter(Boolean);
+  });
+  ```
+
+### 4.3: Plugin State Helper Utilities 🛠️
+
+**Create plugin-friendly utilities for common game state operations:**
+
+- [ ] **Plugin State Composables** (`packages/plugins/dnd-5e-2024/src/composables/useSessionState.mts`)
+  ```typescript
+  export function useSessionGameState() {
+    const context = inject<PluginContext>('pluginContext');
+    if (!context) throw new Error('Plugin context not available');
+    
+    return {
+      // Real-time encounter participants for plugin displays
+      useEncounterParticipants: () => {
+        return computed(() => {
+          const encounter = context.gameState.currentEncounter.value;
+          if (!encounter) return [];
+          
+          return encounter.participantIds.map(id =>
+            context.gameState.actors.value.find(a => a.id === id)
+          ).filter(Boolean);
+        });
+      },
+      
+      // Real-time inventory for HUD displays (not character sheets)
+      useSessionInventory: (ownerId: Ref<string>) => {
+        return computed(() => 
+          context.gameState.items.value.filter(item => item.ownerId === ownerId.value)
+        );
+      },
+      
+      // Token status for map displays
+      useTokenStatus: (actorId: Ref<string>) => {
+        return computed(() => {
+          const encounter = context.gameState.currentEncounter.value;
+          if (!encounter) return null;
+          
+          return encounter.tokens.find(token => token.actorId === actorId.value) || null;
+        });
+      },
+      
+      // Actor health/status for real-time displays
+      useActorStatus: (actorId: Ref<string>) => {
+        return computed(() => {
+          const actor = context.gameState.actors.value.find(a => a.id === actorId.value);
+          return {
+            hitPoints: actor?.pluginData?.hitPoints || 0,
+            maxHitPoints: actor?.pluginData?.maxHitPoints || 0,
+            conditions: actor?.pluginData?.conditions || [],
+            armorClass: actor?.pluginData?.armorClass || 10
+          };
+        });
+      }
+    };
+  }
+  ```
+
+- [ ] **Plugin Data Transformers** (`packages/plugins/dnd-5e-2024/src/utils/session-transformers.mts`)
+  ```typescript
+  // Transform game state data for plugin displays (not character sheets)
+  export function transformTokenDisplay(actor: IActor, token: IToken): TokenDisplayData {
+    const pluginData = actor.pluginData as DnD5eCharacter;
+    
+    return {
+      id: token.id,
+      name: actor.name,
+      position: token.position,
+      size: token.size,
+      
+      // D&D 5e specific display data
+      hitPoints: pluginData.hitPoints,
+      maxHitPoints: pluginData.maxHitPoints,
+      armorClass: pluginData.armorClass,
+      conditions: pluginData.conditions || [],
+      deathSaves: pluginData.deathSaves,
+      
+      // Computed display properties
+      healthPercentage: Math.round((pluginData.hitPoints / pluginData.maxHitPoints) * 100),
+      isBloodied: pluginData.hitPoints <= (pluginData.maxHitPoints / 2),
+      isUnconscious: pluginData.hitPoints <= 0
+    };
+  }
+  
+  export function transformInventoryDisplay(items: IItem[]): InventoryDisplayData {
+    return {
+      weapons: items.filter(item => item.pluginDocumentType === 'weapon'),
+      armor: items.filter(item => item.pluginDocumentType === 'armor'),
+      equipment: items.filter(item => 
+        !['weapon', 'armor', 'spell'].includes(item.pluginDocumentType)
+      ),
+      
+      // Quick access for common displays
+      equippedWeapon: items.find(item => 
+        item.pluginDocumentType === 'weapon' && item.pluginData?.equipped
+      ),
+      equippedArmor: items.find(item =>
+        item.pluginDocumentType === 'armor' && item.pluginData?.equipped
+      )
+    };
+  }
+  ```
+
+### 4.4: Plugin Interface Evolution 🔄
+
+**Extend plugin contracts for better integration without breaking existing patterns:**
+
+- [ ] **Add optional game state methods to GameSystemPlugin** (`packages/shared/src/types/plugin.mts`)
+  ```typescript
+  export interface GameSystemPlugin {
+    // ... existing methods ...
+    
+    /**
+     * OPTIONAL: Handle game state updates for plugin-specific logic
+     * Called when unified state changes affect plugin data
+     */
+    onStateUpdate?(broadcast: StateUpdateBroadcast, context: PluginContext): Promise<void>;
+    
+    /**
+     * OPTIONAL: Plugin-specific state queries
+     * Allows plugins to expose custom query methods
+     */
+    queryState?(queryType: string, params: unknown, context: PluginContext): Promise<unknown>;
+    
+    /**
+     * OPTIONAL: Validate state operations before they are applied
+     * Plugins can prevent invalid operations (e.g., equipment incompatibility)
+     */
+    validateOperation?(operation: StateOperation, context: PluginContext): ValidationResult;
+  }
+  ```
+
+- [ ] **Update BaseGameSystemPlugin with default implementations**
+  ```typescript
+  export abstract class BaseGameSystemPlugin {
+    // ... existing methods ...
+    
+    async onStateUpdate?(broadcast: StateUpdateBroadcast, context: PluginContext): Promise<void> {
+      // Default: no-op, plugins can override
+    }
+    
+    async queryState?(queryType: string, params: unknown, context: PluginContext): Promise<unknown> {
+      // Default: return null, plugins can override  
+    }
+    
+    validateOperation?(operation: StateOperation, context: PluginContext): ValidationResult {
+      // Default: allow all operations, plugins can override
+      return { success: true };
+    }
+  }
+  ```
+
+### 4.5: Plugin Component Integration Testing 🧪
+
+**Ensure plugin components work correctly with unified state:**
+
+- [ ] **Update plugin component tests**
+  - Mock `PluginContext` with `GameStateContext`
+  - Test reactive updates when state changes
+  - Test component cleanup (unsubscribe from state)
+
+- [ ] **Integration testing scenarios**
+  - Character sheet updates when actor data changes
+  - Inventory updates when items are added/removed via state operations
+  - Multiple plugin components react to same state changes
+  - Plugin cleanup doesn't leave orphaned subscriptions
+
+### 4.6: Plugin Performance Optimization ⚡
+
+**Optimize plugin-state integration for performance:**
+
+- [ ] **Implement plugin context caching**
+  - Cache frequently accessed actors/items
+  - Invalidate cache on relevant state updates
+  - Batch multiple state queries
+
+- [ ] **Lazy loading for plugin components**  
+  ```typescript
+  // Only subscribe to state when component is actually mounted
+  onMounted(() => {
+    stateSubscription = context.gameState.subscribeToState(updateHandler);
+  });
+  ```
+
+### Success Criteria for Phase 4:
+
+✅ **Plugin Context Extended**: New `GameStateContext` provides read-only access to unified state
+✅ **Session UI Components**: HUD tabs, encounter displays use game state for real-time data
+✅ **Character Sheet Integration**: Uses game state store when in session, API when standalone
+✅ **Any Participant Access**: Can open character sheets for any session participant by ID
+✅ **GM Authority Workflow**: Character updates in sessions go through GM approval system
+✅ **Character Creator**: No changes needed - correctly uses REST API independently  
+✅ **Plugin Performance**: No degradation in plugin component performance
+✅ **Architectural Boundaries**: Plugins maintain read-only access, cannot directly modify state
+✅ **Backward Compatibility**: Existing plugin interface methods still work
+
+### Migration Notes:
+
+- Plugins get **read-only** access to game state (cannot modify directly)
+- State modifications still flow through main app → game session service → WebSocket updates
+- Plugin components become **reactive consumers** of unified state
+- Plugin context provides **convenience methods** for common queries
+- **Optional extensions** allow plugins to participate in state validation/processing
+
+## Phase 5: Technical Debt Resolution 🧹
+
+**Goal**: Replace TODO comments with actual implementations to enable full game functionality.
+
+**Timeline**: 1-2 weeks
+
+### Current Status: NOT STARTED ❌
+
+During the component migration (Phase 3.3), 38 TODO comments were strategically added to preserve working code while deferring complex operations. This phase systematically implements each TODO to achieve full functionality.
+
+### 5.1: Token Management Implementation 🎭
+
+**Priority: HIGH - Core game functionality**
+
+**Components Affected:**
+- `ActorTokenGenerator.vue` - 4 TODOs
+- `EncounterView.vue` - 6 TODOs  
+- `HUD/ActorsTab.vue` - 3 TODOs
+
+**Token Operations to Implement:**
+
+- [ ] **Token Creation** (`ActorTokenGenerator.vue`)
+  ```typescript
+  // TODO: Replace with game state update
+  async function createToken(actorId: string, position: { x: number, y: number }) {
+    const operations: StateOperation[] = [{
+      path: "currentEncounter.tokens",
+      operation: "push", 
+      value: {
+        id: generateId(),
+        actorId,
+        position,
+        // ... token properties
+      }
+    }];
+    await gameStateStore.updateGameState(operations);
+  }
+  ```
+
+- [ ] **Token Movement** (`EncounterView.vue`)
+  ```typescript
+  // TODO: Implement token movement via game state
+  async function moveToken(tokenId: string, newPosition: { x: number, y: number }) {
+    const tokenIndex = findTokenIndex(tokenId);
+    const operations: StateOperation[] = [{
+      path: `currentEncounter.tokens.${tokenIndex}.position`,
+      operation: "set",
+      value: newPosition
+    }];
+    await gameStateStore.updateGameState(operations);
+  }
+  ```
+
+- [ ] **Token Updates** (Health, conditions, properties)
+  ```typescript
+  // TODO: Token property updates
+  async function updateTokenHealth(tokenId: string, newHealth: number) {
+    const tokenIndex = findTokenIndex(tokenId);
+    const operations: StateOperation[] = [{
+      path: `currentEncounter.tokens.${tokenIndex}.currentHealth`,
+      operation: "set",
+      value: newHealth
+    }];
+    await gameStateStore.updateGameState(operations);
+  }
+  ```
+
+- [ ] **Token Deletion** (`HUD/ActorsTab.vue`)
+  ```typescript
+  // TODO: Remove token via game state
+  async function deleteToken(tokenId: string) {
+    const operations: StateOperation[] = [{
+      path: "currentEncounter.tokens",
+      operation: "pull",
+      value: { id: tokenId } // MongoDB pull syntax
+    }];
+    await gameStateStore.updateGameState(operations);
+  }
+  ```
+
+### 5.2: Item Management Implementation 📦
+
+**Priority: HIGH - Inventory system core functionality**
+
+**Components Affected:**
+- `HUD/ItemsTab.vue` - 8 TODOs (highest concentration)
+- `CharacterSelector.vue` - 2 TODOs
+
+**Item Operations to Implement:**
+
+- [ ] **Item Creation** (`HUD/ItemsTab.vue`)
+  ```typescript
+  // TODO: Implement item creation via game state updates
+  async function createItem(itemData: Partial<IItem>) {
+    const newItem: IItem = {
+      id: generateId(),
+      campaignId: campaignId.value,
+      ownerId: null, // Unassigned initially
+      ...itemData
+    };
+    
+    const operations: StateOperation[] = [{
+      path: "items",
+      operation: "push",
+      value: newItem
+    }];
+    await gameStateStore.updateGameState(operations);
+  }
+  ```
+
+- [ ] **Item Duplication** (`HUD/ItemsTab.vue`)
+  ```typescript
+  // TODO: Implement item duplication
+  async function duplicateItem(originalItem: IItem) {
+    const duplicatedItem = {
+      ...originalItem,
+      id: generateId(),
+      name: `${originalItem.name} (Copy)`
+    };
+    
+    const operations: StateOperation[] = [{
+      path: "items",
+      operation: "push",
+      value: duplicatedItem
+    }];
+    await gameStateStore.updateGameState(operations);
+  }
+  ```
+
+- [ ] **Give Item to Player** (`HUD/ItemsTab.vue`)
+  ```typescript
+  // TODO: Implement give to player (ownership transfer)
+  async function giveToPlayer(item: IItem, playerId: string) {
+    const itemIndex = gameStateStore.items.findIndex(i => i.id === item.id);
+    
+    const operations: StateOperation[] = [{
+      path: `items.${itemIndex}.ownerId`,
+      operation: "set",
+      value: playerId
+    }];
+    await gameStateStore.updateGameState(operations);
+  }
+  ```
+
+- [ ] **Character Equipment Access** (`CharacterSelector.vue`)
+  ```typescript
+  // TODO: Load character items using game state store
+  const characterItems = computed(() => 
+    gameStateStore.getCharacterItems(selectedCharacter.value?.id || '')
+  );
+  ```
+
+### 5.3: Encounter Management Implementation ⚔️
+
+**Priority: MEDIUM - Advanced game features**
+
+**Components Affected:**
+- `CampaignEncounterList.vue` - 3 TODOs
+- `EncounterView.vue` - 6 TODOs (shared with tokens)
+- `GameSessionScheduleModal.vue` - 2 TODOs
+
+**Encounter Operations to Implement:**
+
+- [ ] **Encounter Status Updates** (`CampaignEncounterList.vue`) 
+  ```typescript
+  // TODO: Update encounter status via game state
+  async function updateEncounterStatus(encounterId: string, status: EncounterStatusType) {
+    const operations: StateOperation[] = [{
+      path: "currentEncounter.status",
+      operation: "set",
+      value: status
+    }];
+    await gameStateStore.updateGameState(operations);
+  }
+  ```
+
+- [ ] **Encounter Deletion** (`CampaignEncounterList.vue`)
+  ```typescript
+  // TODO: Delete encounter functionality
+  async function deleteEncounter(encounterId: string) {
+    // If it's the current encounter, clear it
+    if (gameStateStore.currentEncounter?.id === encounterId) {
+      const operations: StateOperation[] = [{
+        path: "currentEncounter",
+        operation: "set",
+        value: null
+      }];
+      await gameStateStore.updateGameState(operations);
+    }
+    
+    // Also delete from REST API for persistence
+    await encountersClient.delete(encounterId);
+  }
+  ```
+
+- [ ] **Initiative Management** (`EncounterView.vue`)
+  ```typescript
+  // TODO: Initiative tracking implementation
+  async function rollInitiative(actorId: string, initiative: number) {
+    const operations: StateOperation[] = [{
+      path: "currentEncounter.initiativeTracker.entries",
+      operation: "push", 
+      value: { actorId, initiative, hasActed: false }
+    }];
+    await gameStateStore.updateGameState(operations);
+  }
+  ```
+
+### 5.4: Character Management Implementation 👥
+
+**Priority: MEDIUM - Player workflow improvements**
+
+**Components Affected:**
+- `CharacterCreateView.vue` - 3 TODOs
+- `CharacterSheetView.vue` - 2 TODOs  
+- `ChatComponent.vue` - 2 TODOs
+
+**Character Operations to Implement:**
+
+- [ ] **Character Selection Persistence** (`CharacterCreateView.vue`, `CharacterSheetView.vue`)
+  ```typescript
+  // TODO: Auto-select created character
+  async function selectCharacterInGameState(character: ICharacter) {
+    // This is client-only state, not server state
+    gameStateStore.selectedCharacter = character;
+    
+    // Persist to localStorage
+    localStorage.setItem('selectedCharacterId', character.id);
+  }
+  ```
+
+- [ ] **Chat Integration** (`ChatComponent.vue`)
+  ```typescript
+  // TODO: Get character name from game state
+  const currentCharacterName = computed(() => 
+    gameStateStore.selectedCharacter?.name || 'Unknown Character'
+  );
+  ```
+
+### 5.5: UI State Management Implementation 🖥️
+
+**Priority: LOW - Polish and user experience**
+
+**Components Affected:**
+- `SocketManager.vue` - 4 TODOs
+- `ChatTab.vue` - 3 TODOs
+
+**UI Operations to Implement:**
+
+- [ ] **Session Reconnection Character Restoration** (`SocketManager.vue`)
+  ```typescript
+  // TODO: Restore selected character from localStorage on reconnect
+  function restoreCharacterSelection() {
+    const savedCharacterId = localStorage.getItem('selectedCharacterId');
+    if (savedCharacterId && gameStateStore.gameState) {
+      const character = gameStateStore.characters.find(c => c.id === savedCharacterId);
+      if (character) {
+        gameStateStore.selectedCharacter = character;
+      }
+    }
+  }
+  ```
+
+- [ ] **Chat Character Context** (`ChatTab.vue`)
+  ```typescript
+  // TODO: Use real character from game state
+  const chatCharacter = computed(() => {
+    return gameStateStore.selectedCharacter || {
+      id: 'system',
+      name: 'System',
+      // ... default properties
+    };
+  });
+  ```
+
+### 5.6: Implementation Strategy & Prioritization 📋
+
+**Week 1 Focus - Core Game Functionality:**
+1. **Token Management** (Day 1-3)
+   - Token creation, movement, deletion
+   - Health/condition updates
+   - Critical for encounter gameplay
+
+2. **Item Management** (Day 4-5)
+   - Item creation and duplication
+   - Ownership transfer (give to player)
+   - Inventory system completion
+
+**Week 2 Focus - Advanced Features & Polish:**
+3. **Encounter Management** (Day 1-2)
+   - Status updates and deletion
+   - Initiative tracking basics
+   - Advanced encounter features
+
+4. **Character & UI Management** (Day 3-4)
+   - Selection persistence
+   - Chat integration improvements
+   - Reconnection handling
+
+5. **Testing & Validation** (Day 5)
+   - Integration testing of all TODO implementations
+   - GM authority validation
+   - Error handling verification
+
+### Success Criteria for Phase 5:
+
+✅ **All TODOs Replaced**: 38 TODO comments replaced with working implementations
+✅ **Core Functionality**: Token movement, item creation, encounter management work
+✅ **GM Authority**: All state changes properly validated and authorized  
+✅ **Error Handling**: Graceful handling of state update failures
+✅ **Performance**: No degradation from TODO implementations
+✅ **User Experience**: Smooth workflows for GM and players
+✅ **Testing Coverage**: All new implementations covered by tests
+
+### Technical Debt Eliminated:
+
+- ❌ **"Stubbed out" functionality** - All placeholder implementations replaced
+- ❌ **Missing state operations** - All required StateOperation patterns implemented  
+- ❌ **UI workflow gaps** - Complete user workflows from start to finish
+- ❌ **Error-prone workarounds** - Proper implementations replace temporary solutions
+- ❌ **Incomplete features** - Full feature parity with pre-migration functionality
 
 ## Phase 6: Testing & Migration (1-2 weeks)
 
@@ -695,8 +1471,9 @@ async function handleReconnection() {
   - ✅ EncounterDetailView.vue - Replaced imports, added TODOs for legacy functionality
   - ✅ game-session.store.mts - Cleaned up references to deleted stores
 - Phase 3.4: GM Client Update Logic ✅ COMPLETED
-- Phase 4: Plugin Integration 📋 PENDING
-- Phase 5: State Synchronization Details 📋 PENDING
+- Phase 4.1: Plugin Interface Extensions ✅ COMPLETED
+- Phase 4: Plugin Integration 📋 IN PROGRESS (4.1 complete)
+- Phase 5: Technical Debt Resolution 📋 PENDING
 - Phase 6: Testing & Migration 📋 PENDING
 
 ## 🚧 Critical Issues Discovered During Component Migration

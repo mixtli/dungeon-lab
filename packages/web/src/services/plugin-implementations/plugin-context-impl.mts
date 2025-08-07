@@ -8,12 +8,19 @@ import type {
   PluginContext, 
   PluginStore,
   DocumentSearchQuery,
-  CompendiumSearchQuery
+  CompendiumSearchQuery,
+  GameStateContext
 } from '@dungeon-lab/shared/types/plugin-context.mjs';
 import type { BaseDocument, ICompendiumEntry } from '@dungeon-lab/shared/types/index.mjs';
 import { ReactivePluginStore } from '../plugin-store.mjs';
 import { CompendiumsClient } from '@dungeon-lab/client/index.mjs';
 import { DocumentsClient } from '@dungeon-lab/client/index.mjs';
+import { createPluginGameStateService } from '../plugin-game-state.service.mjs';
+import { useGameStateStore } from '../../stores/game-state.store.mjs';
+
+export interface PluginContextOptions {
+  includeGameState?: boolean;
+}
 
 /**
  * Minimal PluginContext implementation focused on read-only data access
@@ -21,10 +28,11 @@ import { DocumentsClient } from '@dungeon-lab/client/index.mjs';
  */
 export class PluginContextImpl implements PluginContext {
   public readonly store: PluginStore;
+  public readonly gameState?: GameStateContext;
   private compendiumsClient: CompendiumsClient;
   private documentsClient: DocumentsClient;
   
-  constructor(private pluginId: string) {
+  constructor(private pluginId: string, options: PluginContextOptions = {}) {
     // Initialize plugin-scoped store
     this.store = new ReactivePluginStore();
     
@@ -32,7 +40,20 @@ export class PluginContextImpl implements PluginContext {
     this.compendiumsClient = new CompendiumsClient();
     this.documentsClient = new DocumentsClient();
     
-    console.log(`[PluginContext] Created minimal context for plugin '${pluginId}'`);
+    // Optionally initialize game state context
+    if (options.includeGameState) {
+      const gameStateStore = useGameStateStore();
+      
+      // Only provide game state context if there's an active session
+      if (gameStateStore.isInSession) {
+        this.gameState = createPluginGameStateService();
+        console.log(`[PluginContext] Created context with game state for plugin '${pluginId}'`);
+      } else {
+        console.log(`[PluginContext] Created context without game state (no active session) for plugin '${pluginId}'`);
+      }
+    } else {
+      console.log(`[PluginContext] Created minimal context for plugin '${pluginId}'`);
+    }
   }
   
   /**
@@ -113,6 +134,6 @@ export class PluginContextImpl implements PluginContext {
 /**
  * Factory function to create PluginContext instances
  */
-export function createPluginContext(pluginId: string): PluginContext {
-  return new PluginContextImpl(pluginId);
+export function createPluginContext(pluginId: string, options?: PluginContextOptions): PluginContext {
+  return new PluginContextImpl(pluginId, options);
 }

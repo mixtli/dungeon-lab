@@ -5,7 +5,8 @@
  * read-only data access and plugin-specific UI state management.
  */
 
-import type { BaseDocument, ICompendiumEntry } from './index.mjs';
+import type { ComputedRef, Ref } from 'vue';
+import type { BaseDocument, ICompendiumEntry, ICharacter, IActor, IItem, IEncounter, IToken, ServerGameState, StateUpdateBroadcast } from './index.mjs';
 
 /**
  * Plugin store interface for reactive state management of plugin-specific UI state
@@ -43,6 +44,32 @@ export interface CompendiumSearchQuery {
 }
 
 /**
+ * Game state context provides reactive read-only access to unified game state
+ * for plugin components during active game sessions
+ */
+export interface GameStateContext {
+  // Direct reactive access to game state arrays (maintains Vue reactivity)
+  readonly characters: ComputedRef<ICharacter[]>;
+  readonly actors: ComputedRef<IActor[]>;
+  readonly items: ComputedRef<IItem[]>;
+  readonly currentEncounter: ComputedRef<IEncounter | null>;
+  
+  // State metadata
+  readonly gameStateVersion: Ref<string | null>;
+  
+  // Synchronous helper methods for convenience (work with reactive data)
+  getActorById(id: string): IActor | null;
+  getCharacterById(id: string): ICharacter | null;
+  getItemById(id: string): IItem | null;
+  getItemsByOwner(ownerId: string): IItem[];
+  getTokensByActor(actorId: string): IToken[];
+  
+  // Subscribe to state changes for side effects
+  subscribeToState(callback: (state: Readonly<ServerGameState>) => void): () => void;
+  subscribeToStateUpdates(callback: (broadcast: StateUpdateBroadcast) => void): () => void;
+}
+
+/**
  * Plugin context provides minimal read-only access to application data
  * and plugin-specific UI state management
  */
@@ -55,4 +82,7 @@ export interface PluginContext {
   
   /** Reactive store for plugin UI state */
   store: PluginStore;
+  
+  /** Game state context (available only during active game sessions) */
+  gameState?: GameStateContext;
 }
