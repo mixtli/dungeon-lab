@@ -11,6 +11,7 @@ This document outlines the complete redesign of game session state management fr
 - **Phase 3.1**: Created unified game state store ✅
 - **Phase 3.2**: Removed legacy stores (actor, item, encounter) ✅  
 - **Phase 3.3**: Updated 8 components to use game state store ✅
+- **Phase 3.4**: GM client update logic with unified architecture ✅
 
 ### 🚧 Current Status
 **What's Working Now**:
@@ -27,8 +28,8 @@ This document outlines the complete redesign of game session state management fr
 - ❌ **Complex Functionality**: Token management, encounter operations, item creation stubbed out with TODOs
 - ❌ **Legacy Components**: EncounterDetailView needs complete rewrite
 
-### 🎯 Next Priority: Phase 3.4 - GM Client Update Logic
-**Immediate Goal**: Implement GM client state update mechanism to enable complex game operations through the unified game state system.
+### ✅ Phase 3.4 - GM Client Update Logic - COMPLETED
+**COMPLETED**: GM client state update mechanism implemented with proper architecture - enables complex game operations through the unified game state system.
 
 ### 📈 Progress: ~75% Complete  
 - Server architecture: ✅ 100% complete
@@ -510,47 +511,55 @@ interface GameStateStore {
 - ✅ `packages/web/src/views/encounter/EncounterDetailView.vue` - Replaced imports, added TODOs for legacy functionality
 - ✅ `packages/web/src/stores/game-session.store.mts` - Cleaned up references to deleted stores
 
-### 3.4 GM Client Update Logic 🔄 **NEXT PRIORITY**
-**Status**: Ready to implement - this is the critical missing piece that enables complex game operations.
+### 3.4 GM Client Update Logic ✅ COMPLETED
+**Status**: **IMPLEMENTED** - GM client update logic with fixed architecture enables complex game operations.
 
 **Purpose**: Implement the client-side mechanism for GMs to send state updates to the server through the unified game state system. This will enable all the complex functionality currently stubbed out with TODOs.
 
-**Key Requirements**:
-- Sequential update processing (no concurrent updates)
-- Update queuing when updates are in progress  
-- Optimistic concurrency control with version checking
-- Error handling and retry logic
-- Integration with existing game state store
+**Implemented Features**:
+- ✅ Sequential update processing (no concurrent updates)
+- ✅ Update queuing when updates are in progress  
+- ✅ Optimistic concurrency control with version checking
+- ✅ Error handling with proper socket.io callbacks
+- ✅ Integration with existing game state store
+- ✅ **Architectural Fix**: GM follows same state update pattern as all other clients
+- ✅ **Unified Pattern**: All clients receive updates via `gameState:updated` broadcast
+- ✅ **Proper Error Handling**: Socket callbacks handle errors without local state changes
 
 **Implementation**:
 ```typescript
-// GM sends updates sequentially
-async function updateGameState(operations: StateOperation[]) {
+// GM sends updates sequentially (with proper socket.io syntax)
+async function updateGameState(operations: StateOperation[]): Promise<StateUpdateResponse> {
   if (isUpdating.value) {
+    // Queue update if another is in progress
     updateQueue.value.push({ operations })
-    return
+    return { success: true }
   }
   
   isUpdating.value = true
   try {
     const update: StateUpdate = {
-      id: generateId(),
-      sessionId: sessionId.value,
-      version: stateVersion.value,
+      id: generateUpdateId(),
+      sessionId: sessionId.value!,
+      version: gameStateVersion.value!,
       operations,
       timestamp: Date.now(),
       source: 'gm'
     }
     
-    const result = await socketRequest('gameState:update', update)
-    
-    if (result.success) {
-      // Apply changes locally only after server confirmation
-      applyStateOperations(operations)
-      stateVersion.value = result.newVersion
-    } else {
-      handleUpdateError(result.error)
-    }
+    return new Promise((resolve) => {
+      socketStore.emit('gameState:update', update, (response: StateUpdateResponse) => {
+        if (response.success) {
+          console.log('State update sent successfully - will receive broadcast');
+          // NOTE: State will be updated via gameState:updated broadcast
+          // This ensures GM follows same pattern as all other clients
+          resolve(response);
+        } else {
+          handleUpdateError(response.error);
+          resolve(response);
+        }
+      });
+    });
   } finally {
     isUpdating.value = false
     processUpdateQueue()
@@ -590,23 +599,28 @@ function updateActorState(actorId: string, updates: Record<string, unknown>): St
 
 ## Phase 5: State Synchronization Details
 
-### 5.1 GM Client Behavior
+### 5.1 GM Client Behavior (Fixed Architecture)
 1. GM makes change in UI
 2. Generate state operations
 3. Queue update if another update is in progress  
-4. Send update to server with current version
-5. Wait for server response
-6. On success: apply changes locally, update version
-7. On failure: handle error (refresh state, retry, etc.)
-8. Process next queued update if any
+4. Send update to server with current version using `socket.emit('gameState:update', update, callback)`
+5. Wait for server response in callback (for error handling only)
+6. **Wait for broadcast**: GM receives `gameState:updated` broadcast like all other clients
+7. On broadcast: apply changes locally, update version (same as players)
+8. On failure: handle error (refresh state, retry, etc.)
+9. Process next queued update if any
 
-### 5.2 Player Client Behavior
+**Architectural Fix**: GM no longer applies state locally in the callback - only via broadcast like everyone else.
+
+### 5.2 All Client Behavior (GM and Players - Unified Pattern)
 1. Receive `gameState:updated` broadcast from server with `{ operations, newVersion, expectedHash }`
 2. Check if incoming version is current version + 1
 3. If yes: apply operations directly to local gameState
 4. Generate hash of updated local state and compare with expectedHash
 5. If hash matches: update local version and continue
 6. If version wrong OR hash mismatch: request full state refresh
+
+**Key Architectural Principle**: GM and players follow identical update patterns - only GM can *send* updates, but all clients *receive* updates the same way.
 
 ### 5.3 Reconnection Logic
 ```typescript
@@ -680,7 +694,7 @@ async function handleReconnection() {
   - ✅ CharacterSheetView.vue - Updated character loading from ActorsClient
   - ✅ EncounterDetailView.vue - Replaced imports, added TODOs for legacy functionality
   - ✅ game-session.store.mts - Cleaned up references to deleted stores
-- Phase 3.4: GM Client Update Logic 📋 PENDING
+- Phase 3.4: GM Client Update Logic ✅ COMPLETED
 - Phase 4: Plugin Integration 📋 PENDING
 - Phase 5: State Synchronization Details 📋 PENDING
 - Phase 6: Testing & Migration 📋 PENDING
