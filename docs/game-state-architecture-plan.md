@@ -14,27 +14,31 @@ This document outlines the complete redesign of game session state management fr
 
 ### Server vs Client State Structure
 
-**Server State (stored in GameSession.gameState):**
+**Server Database Structure (GameSession document):**
 ```typescript
+interface GameSession {
+  // ... existing fields (campaignId, gameMasterId, etc.)
+  
+  // Pure game state data
+  gameState: ServerGameState
+  
+  // State metadata (stored at GameSession level)
+  gameStateVersion: string
+  gameStateHash: string     // Hash of entire gameState for integrity verification
+  lastStateUpdate: number
+}
+
 interface ServerGameState {
-  // Game entities (all campaign-associated)
+  // Game entities (all campaign-associated) - pure data, no metadata
   characters: ICharacter[]  // Player characters
   actors: IActor[]          // NPCs, monsters, etc.
   items: IItem[]           // All campaign items
   
-  // Active elements only (no historical data)
-  currentEncounter: {
-    encounter: IEncounter
-    map: IMap | null        // Fully hydrated map data
-    tokens: IToken[]        // Current encounter tokens
-  } | null
+  // Active encounter only (no historical data)
+  currentEncounter: IEncounter | null
   
   // Plugin-specific state
   pluginData: Record<string, unknown>
-  
-  // Version info
-  stateVersion: string
-  lastUpdated: number
 }
 ```
 
@@ -43,6 +47,8 @@ interface ServerGameState {
 interface GameStateStore {
   // === SERVER-CONTROLLED STATE (wrapped) ===
   gameState: ServerGameState | null
+  gameStateVersion: string | null
+  gameStateHash: string | null
   
   // === CLIENT-ONLY STATE ===
   // Session metadata
@@ -71,71 +77,219 @@ const selectedChar = gameStateStore.selectedCharacter
 const isLoading = gameStateStore.loading
 ```
 
-## Phase 1: Foundation & Data Models (1-2 weeks)
+## Phase 1: Foundation & Data Models ✅ COMPLETED
 
-### 1.1 Database Schema Updates
-- **File**: `packages/shared/src/schemas/game-session.schema.mts`
-  - Add `gameState` field containing complete session state
-  - Add `stateVersion` field for optimistic concurrency control  
-  - Add `pluginData` field for opaque plugin-specific state
-  - Add `lastStateUpdate` timestamp field
+### 1.1 Database Schema Updates ✅
+- **File**: `packages/shared/src/schemas/game-session.schema.mts` ✅
+  - ✅ Added `gameState` field containing complete session state (ServerGameState)
+  - ✅ Added `gameStateVersion` field for optimistic concurrency control (incrementing string, default "0")
+  - ✅ Added `gameStateHash` field for state integrity verification
+  - ✅ Added `lastStateUpdate` timestamp field
+  - ✅ **Removed duplicated fields**: `characterIds`, `currentEncounterId` (now in gameState)
+  - ✅ **Kept**: `participantIds` for session access control
 
-- **File**: `packages/server/src/features/campaigns/models/game-session.model.mts`
-  - Update mongoose schema to support new fields
-  - Add Mixed type for gameState field
-  - Add indexes for version and timestamp queries
+- **File**: `packages/server/src/features/campaigns/models/game-session.model.mts` ✅
+  - ✅ Updated mongoose schema to support new fields
+  - ✅ Added Mixed type for gameState field
+  - ✅ Removed deprecated characterIds field handling
+  - ✅ Added indexes for gameStateVersion and lastStateUpdate queries
 
-### 1.2 State Update Schema
-- **New File**: `packages/shared/src/schemas/game-state-update.schema.mts`
+### 1.2 Server Game State Schema ✅
+- **New File**: `packages/shared/src/schemas/server-game-state.schema.mts` ✅
+  - ✅ Defines ServerGameState structure with characters, actors, items
+  - ✅ Uses `currentEncounter: IEncounter | null` (simplified from complex nested structure)
+  - ✅ Clean separation with no metadata fields in game state
+
+### 1.3 State Update Schema ✅
+- **New File**: `packages/shared/src/schemas/game-state-update.schema.mts` ✅
 ```typescript
 interface StateUpdate {
   id: string
   sessionId: string
-  version: string
+  version: string           // Incrementing version for optimistic concurrency
   operations: StateOperation[]
   timestamp: number
   source: 'gm' | 'system'
 }
 
 interface StateOperation {
-  path: string          // "characters.0.hitPoints"
+  path: string              // "characters.0.pluginData.hitPoints"
   operation: 'set' | 'unset' | 'inc' | 'push' | 'pull'
   value: unknown
-  previous?: unknown    // For rollbacks
+  previous?: unknown        // For rollbacks
+}
+
+// Comprehensive error handling with specific error codes
+interface StateUpdateResponse {
+  success: boolean
+  newVersion?: string
+  newHash?: string          // For integrity verification
+  error?: {
+    code: 'VERSION_CONFLICT' | 'VALIDATION_ERROR' | 'TRANSACTION_FAILED' | 'SESSION_NOT_FOUND' | 'PERMISSION_DENIED'
+    message: string
+    currentVersion?: string
+    currentHash?: string
+  }
 }
 ```
 
-## Phase 2: Backend Implementation (2-3 weeks)
-
-### 2.1 Remove Legacy Code
-**DELETE ENTIRE DIRECTORIES:**
-- `packages/server/src/aggregates/` - Remove entire aggregate system
-- `packages/server/src/websocket/handlers/actor-handler.mts`
-- `packages/server/src/websocket/handlers/item-handler.mts` 
-- `packages/server/src/websocket/handlers/move-handler.mts`
-
-### 2.2 New Unified Game Session Handler
-- **New File**: `packages/server/src/websocket/handlers/game-state-handler.mts`
+### 1.4 State Integrity System ✅
+- **New File**: `packages/shared/src/utils/state-hash.mts` ✅
 ```typescript
-// Key socket events:
-socket.on('gameState:update', async (update: StateUpdate, callback))
-socket.on('gameState:requestFull', async (sessionId: string, callback))
-socket.on('gameSession:join', async (sessionId: string, callback))
-socket.on('gameSession:leave', async (sessionId: string, callback))
+function generateStateHash(gameState: ServerGameState): string {
+  // Hash the pure game state data for integrity verification
+  return hash(JSON.stringify(gameState, sortObjectKeys))
+}
+
+function validateStateIntegrity(gameState: ServerGameState, expectedHash: string): boolean {
+  return generateStateHash(gameState) === expectedHash
+}
+
+function incrementStateVersion(currentVersion: string | null): string {
+  // Simple incrementing version: "0" -> "1" -> "2" etc.
+  const current = parseInt(currentVersion || '0') || 0;
+  return (current + 1).toString();
+}
+
+function isValidNextVersion(currentVersion: string | null, incomingVersion: string): boolean {
+  // Check if incoming version is exactly current + 1
+  const expected = incrementStateVersion(currentVersion);
+  return expected === incomingVersion;
+}
 ```
 
-### 2.3 State Management Service
-- **New File**: `packages/server/src/features/campaigns/services/game-state.service.mts`
-  - Apply atomic state updates with MongoDB transactions  
-  - Validate state structure (not plugin logic)
-  - Handle version conflicts
-  - Dual update: game session state + backing models (actors, items, etc.)
+### 1.5 Type System Updates ✅
+- **File**: `packages/shared/src/types/index.mts` ✅
+  - ✅ Added ServerGameState type export
+  - ✅ Added StateOperation, StateUpdate, StateUpdateResponse, StateUpdateBroadcast type exports
+  - ✅ Proper import organization for all new schemas
 
-### 2.4 Update Socket Server
+## Phase 2: Backend Implementation (2-3 weeks)
+
+### 2.1 Remove Legacy Code ✅ COMPLETED
+**DELETE ENTIRE DIRECTORIES:**
+- ✅ `packages/server/src/aggregates/` - Remove entire aggregate system
+- ✅ `packages/server/src/websocket/handlers/actor-handler.mts`
+- ✅ `packages/server/src/websocket/handlers/item-handler.mts` 
+- ✅ `packages/server/src/websocket/handlers/move-handler.mts`
+- ✅ Updated `handlers/index.mts` to remove imports for deleted handlers
+
+### 2.2 New Unified Game Session Handler ✅ COMPLETED
+- **New File**: `packages/server/src/websocket/handlers/game-state-handler.mts` ✅
+  - ✅ Implements GM-authority state updates with optimistic concurrency control
+  - ✅ Sequential state update processing with version validation
+  - ✅ State integrity verification using SHA-256 hashing
+  - ✅ Session-based permission checking (GM for updates, participants for reads)
+  - ✅ Full state refresh mechanism for reconnection scenarios
+  - ✅ Session join/leave management with real-time broadcasts
+  - ✅ Comprehensive error handling with specific error codes
+  - ✅ Simplified state operation processing (set, unset, inc, push, pull)
+  - ✅ Registered with socket handler registry
+
+```typescript
+// Key socket events implemented:
+socket.on('gameState:update', async (update: StateUpdate, callback))       // GM only
+socket.on('gameState:requestFull', async (sessionId: string, callback))    // All participants  
+socket.on('gameSession:join', async (sessionId: string, callback))         // Session management
+socket.on('gameSession:leave', async (sessionId: string, callback))        // Session management
+
+// Broadcasts to clients:
+socket.emit('gameState:updated', StateUpdateBroadcast)     // Real-time state sync
+socket.emit('gameState:error', GameStateError)            // Error notifications
+socket.emit('gameSession:joined', GameSessionJoined)      // User join notifications
+socket.emit('gameSession:left', GameSessionLeft)          // User leave notifications
+```
+
+### 2.3 State Management Service ✅ COMPLETED
+- **New File**: `packages/server/src/features/campaigns/services/game-state.service.mts` ✅
+  - ✅ Apply atomic state updates to gameState only (no dual updates during gameplay)
+  - ✅ Validate state structure with comprehensive checks (not plugin logic)
+  - ✅ Handle version conflicts with optimistic concurrency control
+  - ✅ Generate state hash after each update for integrity verification
+  - ✅ **Defense in depth**: Both version AND hash checks in atomic MongoDB updates
+  - ✅ Proper path parsing for nested state operations (characters.0.pluginData.hitPoints)
+  - ✅ Full operation support: set, unset, inc, push, pull with deep object navigation
+  - ✅ State initialization for new sessions with campaign data loading placeholder
+  - ✅ Comprehensive error handling with specific error codes and detailed diagnostics
+  - ✅ Retry logic for high-concurrency scenarios
+  - ✅ **PERFORMANCE OPTION**: Manual direct MongoDB updates available when needed
+  - ✅ **SAFE BY DEFAULT**: Always uses full validation unless explicitly overridden
+  - ✅ Optional hash-check skipping for performance (manual control only)
+  - ✅ Performance metrics and logging for monitoring optimization impact
+  - ✅ Simple, predictable behavior - no automatic complexity detection
+  
+### 2.4 Backing Store Synchronization
+- **New File**: `packages/server/src/features/campaigns/services/game-state-sync.service.mts`
+  - `syncGameStateToBackingModels()` function to update backing models from gameState
+  - Called at strategic times: session end, GM leaves, periodic intervals
+  - Handles syncing characters → Character documents, actors → Actor documents, etc.
+  - **Future**: Will be replaced with event sourcing for real-time sync
+
+### 2.5 State Integrity System
+- **New File**: `packages/shared/src/utils/state-hash.mts`
+```typescript
+function generateStateHash(gameState: ServerGameState): string {
+  // Hash the pure game state data for integrity verification
+  return hash(JSON.stringify(gameState, sortObjectKeys))
+}
+
+function validateStateIntegrity(
+  gameState: ServerGameState, 
+  expectedHash: string
+): boolean {
+  return generateStateHash(gameState) === expectedHash
+}
+```
+
+### 2.6 Update Socket Server
 - **File**: `packages/server/src/websocket/socket-server.mts`
   - Remove references to aggregate system
   - Integrate new game-state-handler
   - Update session joining logic
+
+### 2.7 Legacy Socket Event Cleanup
+With the unified game state system, many socket events become redundant and should be removed:
+
+**Socket Events to REMOVE (replaced by gameState:update):**
+- **Token Events**: `token:moved`, `token:created`, `token:updated`, `token:deleted` (server-to-client)
+- **Token Client Events**: `token:move`, `token:create`, `token:update`, `token:delete` (client-to-server)
+- **Actor Events**: `actor:created`, `actor:updated`, `actor:deleted` (server-to-client)
+- **Actor Client Events**: `actor:list`, `actor:get`, `actor:update`, `actor:delete` (client-to-server)
+- **Item Events**: `item:created`, `item:updated`, `item:deleted` (server-to-client)
+- **Item Client Events**: `item:list`, `item:get`, `item:create`, `item:update`, `item:delete` (client-to-server)
+- **Combat State Events**: `initiative:rolled`, `initiative:updated`, `initiative:reordered`
+- **Turn Management**: `turn:changed`, `turn:skipped`, `turn:delayed`
+- **Action Events**: `action:executed`, `action:validated` 
+- **Effect Events**: `effect:applied`, `effect:removed`, `effect:expired`
+- **Movement Events**: `move` (if used for token movement)
+
+**Socket Events to KEEP (separate from game state):**
+- Chat events (separate system)
+- Dice roll events (separate from game state)
+- Session management: `encounter:started`, `encounter:stopped`, `user:joined`, `user:left`
+- GM authority & heartbeat events
+- Workflow events (map generation, etc.)
+- New `gameState:*` and `gameSession:*` events
+
+**Files to Clean Up:**
+- **File**: `packages/shared/src/schemas/socket/index.mts`
+  - Remove legacy event definitions from `serverToClientEvents` and `clientToServerEvents`
+  - Remove imports for deprecated event schemas
+- **Delete Files**: `packages/shared/src/schemas/socket/actors.mts`
+- **Delete Files**: `packages/shared/src/schemas/socket/items.mts`
+- **Update File**: `packages/shared/src/schemas/socket/encounters.mts`
+  - Remove token, initiative, turn, action, and effect event schemas
+  - Keep encounter lifecycle events (start/stop/pause/end)
+- **File**: `packages/shared/src/types/socket/index.mts`
+  - Remove type exports for deleted events
+- **Update**: Any remaining handler files that reference deleted events
+
+**Benefits of Cleanup:**
+- Removes ~25+ redundant socket events
+- Simplifies client-server communication model
+- Eliminates complex event coordination between multiple handlers
+- Reduces bundle size and complexity
+- Enforces unified state management architecture
 
 ## Phase 3: Frontend Implementation (2-3 weeks)
 
@@ -209,8 +363,8 @@ async function updateGameState(operations: StateOperation[]) {
 
 // Example state operations (paths are within gameState):
 // Update character HP: { path: "characters.0.pluginData.hitPoints", operation: "set", value: 45 }
-// Add actor to encounter: { path: "currentEncounter.tokens", operation: "push", value: newToken }
-// Update encounter phase: { path: "currentEncounter.encounter.status", operation: "set", value: "active" }
+// Update encounter status: { path: "currentEncounter.status", operation: "set", value: "active" }
+// Add item to character: { path: "characters.0.inventory", operation: "push", value: newItem }
 ```
 
 ## Phase 4: Plugin Integration (1-2 weeks)
@@ -251,26 +405,34 @@ function updateActorState(actorId: string, updates: Record<string, unknown>): St
 8. Process next queued update if any
 
 ### 5.2 Player Client Behavior
-1. Receive `gameState:updated` broadcast from server
+1. Receive `gameState:updated` broadcast from server with `{ operations, newVersion, expectedHash }`
 2. Check if incoming version is current version + 1
-3. If yes: apply operations directly
-4. If no: request full state refresh
-5. Update local version after successful application
+3. If yes: apply operations directly to local gameState
+4. Generate hash of updated local state and compare with expectedHash
+5. If hash matches: update local version and continue
+6. If version wrong OR hash mismatch: request full state refresh
 
 ### 5.3 Reconnection Logic
 ```typescript
 async function handleReconnection() {
   const localVersion = localStorage.getItem('gameStateVersion')
+  const localHash = localStorage.getItem('gameStateHash')
   const serverResponse = await socketRequest('gameState:requestFull', sessionId)
   
-  if (localVersion === serverResponse.gameState.stateVersion) {
-    // State is current, no action needed
+  if (localVersion === serverResponse.gameStateVersion && 
+      localHash === serverResponse.gameStateHash) {
+    // State is current and integrity verified, no action needed
     return
   }
   
   // Replace entire server state with fresh data from server
   gameState.value = serverResponse.gameState
-  localStorage.setItem('gameStateVersion', serverResponse.gameState.stateVersion)
+  gameStateVersion.value = serverResponse.gameStateVersion
+  gameStateHash.value = serverResponse.gameStateHash
+  
+  // Update localStorage
+  localStorage.setItem('gameStateVersion', serverResponse.gameStateVersion)
+  localStorage.setItem('gameStateHash', serverResponse.gameStateHash)
 }
 ```
 
@@ -296,11 +458,22 @@ async function handleReconnection() {
 
 ## Implementation Priority Order
 
-1. **Week 1-2**: Database schema + backend state service
+1. **Week 1-2**: Database schema + backend state service + socket event cleanup
 2. **Week 3-4**: New unified store + remove legacy stores  
 3. **Week 5-6**: Update all components to use new store
 4. **Week 7-8**: Plugin integration + testing
 5. **Week 9**: Migration + cleanup
+
+**Updated Phase Sequence:**
+- Phase 1: Foundation & Data Models ✅ COMPLETED
+- Phase 2.1: Remove Legacy Code ✅ COMPLETED  
+- Phase 2.2: New Unified Game Session Handler (IN PROGRESS)
+- Phase 2.3-2.6: Backend Implementation
+- Phase 2.7: Legacy Socket Event Cleanup (NEW)
+- Phase 3: Frontend Implementation
+- Phase 4: Plugin Integration
+- Phase 5: State Synchronization Details
+- Phase 6: Testing & Migration
 
 ## Key Implementation Notes
 
@@ -319,7 +492,8 @@ interface StateUpdateResponse {
 ```
 
 ### Persistence Strategy
-- **Server state**: `gameState` object persisted to localStorage with version
+- **Server state**: `gameState` object persisted to localStorage with version and hash
+- **State integrity**: Both `gameStateVersion` and `gameStateHash` stored for verification
 - **Client state**: `selectedCharacter`, UI state not persisted (reset on page load)
 - **Session metadata**: `sessionId`, `isGM` persisted to localStorage
 - Chat store remains separate and persisted independently  
@@ -337,11 +511,38 @@ interface StateUpdateResponse {
 - `gameState:error` - Server reports update failures
 - `gameState:requestFull` - Client requests complete state
 
+## Synchronization Strategy
+
+### During Active Sessions
+- **Only gameState is updated** in real-time during gameplay
+- No complex dual updates to backing models (Character, Actor, Item documents)
+- Better performance and simpler server logic
+- All players see consistent state via gameState synchronization
+
+### Backing Store Sync Points
+- **Session End**: Full sync when session status changes to 'ended'
+- **GM Disconnect**: Sync when GM leaves session (preserves progress)
+- **Periodic Intervals**: Optional background sync every N minutes
+- **Server Shutdown**: Graceful sync during maintenance
+
+### Benefits
+- **Performance**: No double writes during gameplay
+- **Simplicity**: No complex path parsing or transaction coordination
+- **Reliability**: Single source of truth during active sessions
+- **Flexibility**: Can optimize sync timing based on usage patterns
+
+### Future Evolution
+- Current approach provides data to understand usage patterns
+- Can migrate to event sourcing for real-time sync when needed
+- Enables performance optimization based on real-world data
+
 ## Core Principles Enforced
 - **GM Authority**: GM client is ultimate authority for all game state changes
 - **Sequential Updates**: GM sends one state update at a time, waits for server confirmation
 - **Trust-Based**: Server trusts GM client, only validates overall structure
-- **Simple Start**: Begin with straightforward dual updates, evolve to event sourcing later
+- **Simple Synchronization**: During sessions, only update gameState. Sync to backing models at strategic times
+- **Performance First**: Avoid complex dual updates and path parsing during gameplay
+- **Evolution Path**: Design enables future event sourcing when patterns are understood
 
 ## Estimated Timeline: 8-9 weeks total
 

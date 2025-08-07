@@ -14,8 +14,7 @@ import { ObjectId } from 'mongodb';
 const gameSessionSchemaMongoose = gameSessionSchema.merge(baseMongooseZodSchema).extend({
   campaignId: zId('Campaign'),
   gameMasterId: zId('User'),
-  participantIds: z.array(zId('User')),
-  characterIds: z.array(zId('Document')).default([])
+  participantIds: z.array(zId('User'))
 });
 
 /**
@@ -54,27 +53,8 @@ mongooseSchema.path('participantIds').set(function (value: (ObjectId | string)[]
   });
 });
 
-mongooseSchema.path('characterIds').get(function (value: ObjectId[] | undefined) {
-  return value?.map((id) => id.toString());
-});
-
-// Add a setter for characterIds to convert string IDs to ObjectId
-mongooseSchema.path('characterIds').set(function (value: (ObjectId | string)[]) {
-  if (!value) return value;
-  
-  return value.map(id => {
-    // If it's already an ObjectId, leave it as is
-    if (id instanceof ObjectId) return id;
-    
-    // Otherwise try to convert string to ObjectId
-    try {
-      return new ObjectId(id);
-    } catch (error) {
-      console.error('Failed to convert characterId to ObjectId:', id, error);
-      return id; // Return original value if conversion fails
-    }
-  });
-});
+// gameState field uses Mixed type for flexible game state storage
+mongooseSchema.path('gameState', mongoose.Schema.Types.Mixed);
 
 mongooseSchema.virtual('campaign', {
   ref: 'Campaign',
@@ -97,16 +77,10 @@ mongooseSchema.virtual('participants', {
   justOne: false
 });
 
-mongooseSchema.virtual('characters', {
-  ref: 'Document',
-  localField: 'characterIds',
-  foreignField: '_id',
-  match: { documentType: 'character' },
-  justOne: false
-});
-
-// Add indexes for common queries
-mongooseSchema.index({ campaign: 1, isActive: 1 });
+// Add indexes for common queries and new fields
+mongooseSchema.index({ campaignId: 1, status: 1 });
+mongooseSchema.index({ gameStateVersion: 1 });
+mongooseSchema.index({ lastStateUpdate: 1 });
 
 /**
  * GameSession model

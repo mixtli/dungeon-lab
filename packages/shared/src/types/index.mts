@@ -66,6 +66,18 @@ import {
   gameSessionWithVirtualsSchema
 } from '../schemas/game-session.schema.mjs';
 
+import {
+  serverGameStateSchema
+} from '../schemas/server-game-state.schema.mjs';
+
+import {
+  stateOperationSchema,
+  stateUpdateSchema,
+  stateUpdateResponseSchema,
+  stateUpdateBroadcastSchema,
+  StateOperationType
+} from '../schemas/game-state-update.schema.mjs';
+
 import { inviteSchema, inviteStatusSchema } from '../schemas/invite.schema.mjs';
 
 import { itemSchema, itemCreateSchema } from '../schemas/item.schema.mjs';
@@ -186,6 +198,16 @@ export type IGameSession = z.infer<typeof gameSessionWithVirtualsSchema>;
 export type ICreateGameSession = z.infer<typeof gameSessionCreateSchema>;
 export type GameSessionStatusType = z.infer<typeof GameSessionStatus>;
 export type IGameSessionPatchData = z.infer<typeof gameSessionPatchSchema>;
+
+// Server Game State Types
+export type ServerGameState = z.infer<typeof serverGameStateSchema>;
+
+// State Update Types
+export type StateOperation = z.infer<typeof stateOperationSchema>;
+export type StateUpdate = z.infer<typeof stateUpdateSchema>;
+export type StateUpdateResponse = z.infer<typeof stateUpdateResponseSchema>;
+export type StateUpdateBroadcast = z.infer<typeof stateUpdateBroadcastSchema>;
+export type StateOperationTypeEnum = z.infer<typeof StateOperationType>;
 
 // Invite Types
 export type IInvite = z.infer<typeof inviteSchema>;

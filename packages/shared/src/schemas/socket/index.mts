@@ -161,6 +161,23 @@ import {
   networkQualitySchema
 } from './heartbeat.mjs';
 
+import {
+  // Game state management schemas
+  gameStateUpdateArgsSchema,
+  gameStateRequestFullArgsSchema,
+  gameSessionJoinArgsSchema,
+  gameSessionLeaveArgsSchema,
+  gameStateUpdatedSchema,
+  gameStateErrorSchema,
+  gameStateFullResponseSchema,
+  gameSessionJoinedSchema,
+  gameSessionLeftSchema,
+  gameStateUpdateCallbackSchema,
+  gameStateRequestFullCallbackSchema,
+  gameSessionJoinCallbackSchema,
+  gameSessionLeaveCallbackSchema
+} from './game-state.mjs';
+
 // Re-export all schemas for backwards compatibility
 export {
   // Chat schemas
@@ -292,7 +309,22 @@ export {
   connectionTimeoutSchema,
   gmReconnectionSchema,
   heartbeatConfigSchema,
-  networkQualitySchema
+  networkQualitySchema,
+  
+  // Game state management schemas
+  gameStateUpdateArgsSchema,
+  gameStateRequestFullArgsSchema,
+  gameSessionJoinArgsSchema,
+  gameSessionLeaveArgsSchema,
+  gameStateUpdatedSchema,
+  gameStateErrorSchema,
+  gameStateFullResponseSchema,
+  gameSessionJoinedSchema,
+  gameSessionLeftSchema,
+  gameStateUpdateCallbackSchema,
+  gameStateRequestFullCallbackSchema,
+  gameSessionJoinCallbackSchema,
+  gameSessionLeaveCallbackSchema
 };
 
 // ============================================================================
@@ -351,7 +383,13 @@ export const serverToClientEvents = z.object({
   'heartbeat:ping': z.function().args(gmHeartbeatPingSchema).returns(z.void()),
   'heartbeat:timeout': z.function().args(connectionTimeoutSchema).returns(z.void()),
   'heartbeat:reconnection': z.function().args(gmReconnectionSchema).returns(z.void()),
-  'heartbeat:quality': z.function().args(networkQualitySchema).returns(z.void())
+  'heartbeat:quality': z.function().args(networkQualitySchema).returns(z.void()),
+  
+  // Game state management events
+  'gameState:updated': z.function().args(gameStateUpdatedSchema).returns(z.void()),
+  'gameState:error': z.function().args(gameStateErrorSchema).returns(z.void()),
+  'gameSession:joined': z.function().args(gameSessionJoinedSchema).returns(z.void()),
+  'gameSession:left': z.function().args(gameSessionLeftSchema).returns(z.void())
 });
 
 export const clientToServerEvents = z.object({
@@ -393,5 +431,11 @@ export const clientToServerEvents = z.object({
   
   // GM heartbeat events
   'heartbeat:pong': z.function().args(gmHeartbeatPongSchema).returns(z.void()),
-  'heartbeat:config': z.function().args(heartbeatConfigSchema).returns(z.void())
+  'heartbeat:config': z.function().args(heartbeatConfigSchema).returns(z.void()),
+  
+  // Game state management events
+  'gameState:update': z.function().args(...gameStateUpdateArgsSchema.items).returns(z.void()),
+  'gameState:requestFull': z.function().args(...gameStateRequestFullArgsSchema.items).returns(z.void()),
+  'gameSession:join': z.function().args(...gameSessionJoinArgsSchema.items).returns(z.void()),
+  'gameSession:leave': z.function().args(...gameSessionLeaveArgsSchema.items).returns(z.void())
 });

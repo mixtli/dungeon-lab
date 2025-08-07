@@ -3,26 +3,37 @@ import { baseSchema } from './base.schema.mjs';
 import { userSchema } from './user.schema.mjs';
 import { campaignSchema } from './campaign.schema.mjs';
 import { baseDocumentSchema } from './document.schema.mjs';
+import { serverGameStateSchema } from './server-game-state.schema.mjs';
 // Game Session Status enum
 export const GameSessionStatus = z.enum(['active', 'paused', 'ended', 'scheduled']);
 
 // Base GameSession schema
 export const gameSessionSchema = baseSchema.extend({
+  // Session metadata (not duplicated in gameState)
   name: z.string().min(1).max(255),
   campaignId: z.string(),
+  gameMasterId: z.string(),
   description: z.string().optional(),
   status: GameSessionStatus.default('scheduled'),
-  participantIds: z.array(z.string()).default([]), // User IDs of the participants in the game session.
-  characterIds: z.array(z.string()).default([]), // Character IDs of the participants in the game session.
-  gameMasterId: z.string(),
-  currentEncounterId: z.string().optional(), // Currently active encounter ID
-  settings: z.record(z.string(), z.unknown()).optional()
+  settings: z.record(z.string(), z.unknown()).optional(),
+  
+  // User management (for session access control - not duplicated in gameState)
+  participantIds: z.array(z.string()).default([]), // User IDs of participants in session
+  
+  // Unified game state fields
+  gameState: serverGameStateSchema.nullable().default(null), // Complete session state
+  gameStateVersion: z.string().default('0'),                 // Incrementing version for optimistic concurrency control
+  gameStateHash: z.string().nullable().default(null),        // Hash for state integrity verification
+  lastStateUpdate: z.number().nullable().default(null)       // Timestamp of last state update
 });
 
 export const gameSessionCreateSchema = gameSessionSchema.omit({
   id: true,
   participantIds: true,
-  characterIds: true,
+  gameState: true,
+  gameStateVersion: true,
+  gameStateHash: true,
+  lastStateUpdate: true
 });
 
 export const gameSessionWithVirtualsSchema = gameSessionSchema.extend({
