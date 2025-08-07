@@ -218,12 +218,22 @@ socket.emit('gameSession:left', GameSessionLeft)          // User leave notifica
   - ✅ Performance metrics and logging for monitoring optimization impact
   - ✅ Simple, predictable behavior - no automatic complexity detection
   
-### 2.4 Backing Store Synchronization
-- **New File**: `packages/server/src/features/campaigns/services/game-state-sync.service.mts`
-  - `syncGameStateToBackingModels()` function to update backing models from gameState
-  - Called at strategic times: session end, GM leaves, periodic intervals
-  - Handles syncing characters → Character documents, actors → Actor documents, etc.
+### 2.4 Backing Store Synchronization ✅ COMPLETED
+- **New File**: `packages/server/src/features/campaigns/services/game-state-sync.service.mts` ✅
+  - `syncGameStateToBackingModels()` function to update backing models from gameState ✅
+  - Called at strategic times: session end, GM leaves, periodic intervals ✅
+  - Handles syncing characters → Character documents, actors → Actor documents, etc. ✅
   - **Future**: Will be replaced with event sourcing for real-time sync
+- **New File**: `packages/server/src/features/campaigns/services/periodic-sync.service.mts` ✅
+  - Background periodic sync service with configurable intervals ✅
+  - Batch processing with rate limiting for multiple sessions ✅
+  - Integrated into server startup and shutdown processes ✅
+- **Updated File**: `packages/server/src/websocket/handlers/game-state-handler.mts` ✅
+  - Added sync triggers for session end and GM disconnect events ✅
+  - Added `gameSession:end` event handler for proper session termination ✅
+  - Enhanced disconnect handling to sync when GM disconnects unexpectedly ✅
+- **Updated File**: `packages/shared/src/schemas/socket/game-state.mts` ✅
+  - Added `gameSessionEndArgsSchema`, `gameSessionEndedSchema`, `gameSessionEndCallbackSchema` ✅
 
 ### 2.5 State Integrity System
 - **New File**: `packages/shared/src/utils/state-hash.mts`
@@ -467,8 +477,11 @@ async function handleReconnection() {
 **Updated Phase Sequence:**
 - Phase 1: Foundation & Data Models ✅ COMPLETED
 - Phase 2.1: Remove Legacy Code ✅ COMPLETED  
-- Phase 2.2: New Unified Game Session Handler (IN PROGRESS)
-- Phase 2.3-2.6: Backend Implementation
+- Phase 2.2: New Unified Game Session Handler ✅ COMPLETED
+- Phase 2.3: State Service with Performance Options ✅ COMPLETED
+- Phase 2.4: Backing Store Synchronization ✅ COMPLETED
+- Phase 2.5: State Integrity System (IN PROGRESS)
+- Phase 2.6: Update Socket Server  
 - Phase 2.7: Legacy Socket Event Cleanup (NEW)
 - Phase 3: Frontend Implementation
 - Phase 4: Plugin Integration

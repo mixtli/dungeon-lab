@@ -22,6 +22,10 @@ export const gameSessionLeaveArgsSchema = z.tuple([
   z.string() // sessionId
 ]);
 
+export const gameSessionEndArgsSchema = z.tuple([
+  z.string() // sessionId
+]);
+
 // Server-to-client event schemas
 export const gameStateUpdatedSchema = stateUpdateBroadcastSchema;
 
@@ -60,6 +64,12 @@ export const gameSessionLeftSchema = z.object({
   timestamp: z.number()
 });
 
+export const gameSessionEndedSchema = z.object({
+  sessionId: z.string(),
+  endedBy: z.string(),
+  timestamp: z.number()
+});
+
 // Callback schemas for client-to-server events
 export const gameStateUpdateCallbackSchema = stateUpdateResponseSchema;
 export const gameStateRequestFullCallbackSchema = gameStateFullResponseSchema;
@@ -70,5 +80,11 @@ export const gameSessionJoinCallbackSchema = z.object({
 });
 export const gameSessionLeaveCallbackSchema = z.object({
   success: z.boolean(),
+  error: z.string().optional()
+});
+
+export const gameSessionEndCallbackSchema = z.object({
+  success: z.boolean(),
+  sessionId: z.string().optional(),
   error: z.string().optional()
 });

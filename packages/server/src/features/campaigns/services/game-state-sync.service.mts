@@ -1,0 +1,406 @@
+import mongoose from 'mongoose';
+import { logger } from '../../../utils/logger.mjs';
+import { GameSessionModel } from '../models/game-session.model.mjs';
+import type { ICharacter, IActor, IItem, IEncounter } from '@dungeon-lab/shared/types/index.mjs';
+
+// Import backing models
+import { CharacterDocumentModel } from '../../documents/models/character-document.model.mjs';
+import { ActorDocumentModel } from '../../documents/models/actor-document.model.mjs';
+import { ItemDocumentModel } from '../../documents/models/item-document.model.mjs';
+import { EncounterModel } from '../../encounters/models/encounter.model.mjs';
+
+/**
+ * Result of a sync operation
+ */
+interface SyncResult {
+  success: boolean;
+  entitiesUpdated: {
+    characters: number;
+    actors: number;
+    items: number;
+    encounters: number;
+  };
+  errors: string[];
+  duration: number;
+}
+
+/**
+ * Options for sync operations
+ */
+interface SyncOptions {
+  dryRun?: boolean;          // Don't actually update, just report what would be done
+  forceUpdate?: boolean;     // Update even if no changes detected
+  timeout?: number;          // Max time to spend syncing (ms)
+}
+
+/**
+ * Service for synchronizing unified game state back to backing models
+ * Called at strategic times: session end, GM disconnect, periodic intervals
+ */
+export class GameStateSyncService {
+
+  /**
+   * Sync game state to backing models for a specific session
+   */
+  async syncGameStateToBackingModels(
+    sessionId: string, 
+    reason: 'session-end' | 'gm-disconnect' | 'periodic' | 'manual',
+    options: SyncOptions = {}
+  ): Promise<SyncResult> {
+    const startTime = Date.now();
+    const result: SyncResult = {
+      success: false,
+      entitiesUpdated: { characters: 0, actors: 0, items: 0, encounters: 0 },
+      errors: [],
+      duration: 0
+    };
+
+    try {
+      logger.info('Starting game state sync', { sessionId, reason, options });
+
+      // Get session with game state
+      const session = await GameSessionModel.findById(sessionId).exec();
+      if (!session || !session.gameState) {
+        result.errors.push('Session not found or has no game state');
+        result.duration = Date.now() - startTime;
+        return result;
+      }
+
+      const gameState = session.gameState;
+      const campaignId = session.campaignId;
+
+      // Use transaction for atomicity
+      const syncSession = await mongoose.startSession();
+      
+      try {
+        await syncSession.withTransaction(async () => {
+          // Sync each entity type
+          result.entitiesUpdated.characters = await this.syncCharacters(
+            gameState.characters, 
+            campaignId, 
+            options, 
+            syncSession
+          );
+          
+          result.entitiesUpdated.actors = await this.syncActors(
+            gameState.actors, 
+            campaignId, 
+            options, 
+            syncSession
+          );
+          
+          result.entitiesUpdated.items = await this.syncItems(
+            gameState.items, 
+            campaignId, 
+            options, 
+            syncSession
+          );
+          
+          result.entitiesUpdated.encounters = await this.syncEncounter(
+            gameState.currentEncounter, 
+            campaignId, 
+            options, 
+            syncSession
+          );
+        });
+
+        result.success = true;
+        logger.info('Game state sync completed successfully', { 
+          sessionId, 
+          reason, 
+          entitiesUpdated: result.entitiesUpdated,
+          duration: Date.now() - startTime 
+        });
+
+      } catch (error) {
+        result.errors.push(`Transaction failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        logger.error('Game state sync transaction failed', { sessionId, reason, error });
+      } finally {
+        await syncSession.endSession();
+      }
+
+    } catch (error) {
+      result.errors.push(`Sync failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      logger.error('Game state sync failed', { sessionId, reason, error });
+    }
+
+    result.duration = Date.now() - startTime;
+    return result;
+  }
+
+  /**
+   * Sync multiple sessions (for periodic cleanup)
+   */
+  async syncMultipleSessions(
+    sessionIds: string[], 
+    reason: 'periodic' | 'manual' = 'periodic',
+    options: SyncOptions = {}
+  ): Promise<{ results: SyncResult[]; summary: { total: number; successful: number; failed: number } }> {
+    const results: SyncResult[] = [];
+    
+    logger.info('Starting batch sync', { sessionCount: sessionIds.length, reason });
+
+    for (const sessionId of sessionIds) {
+      try {
+        const result = await this.syncGameStateToBackingModels(sessionId, reason, options);
+        results.push(result);
+        
+        // Add delay between syncs to avoid overwhelming the database
+        if (sessionIds.length > 1 && !options.dryRun) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      } catch (error) {
+        results.push({
+          success: false,
+          entitiesUpdated: { characters: 0, actors: 0, items: 0, encounters: 0 },
+          errors: [`Sync failed: ${error instanceof Error ? error.message : 'Unknown error'}`],
+          duration: 0
+        });
+      }
+    }
+
+    const summary = {
+      total: results.length,
+      successful: results.filter(r => r.success).length,
+      failed: results.filter(r => !r.success).length
+    };
+
+    logger.info('Batch sync completed', { summary, reason });
+    return { results, summary };
+  }
+
+  // ============================================================================
+  // PRIVATE SYNC METHODS
+  // ============================================================================
+
+  /**
+   * Sync characters from game state to Character documents
+   */
+  private async syncCharacters(
+    characters: ICharacter[], 
+    campaignId: string, 
+    options: SyncOptions,
+    session: mongoose.ClientSession
+  ): Promise<number> {
+    let updated = 0;
+
+    for (const character of characters) {
+      try {
+        if (options.dryRun) {
+          logger.debug('DRY RUN: Would sync character', { characterId: character.id, name: character.name });
+          updated++;
+          continue;
+        }
+
+        // Update or create character document
+        const updateResult = await CharacterDocumentModel.updateOne(
+          { _id: character.id },
+          { 
+            $set: {
+              ...character,
+              campaignId,
+              updatedAt: new Date()
+            }
+          },
+          { 
+            upsert: true, 
+            session,
+            setDefaultsOnInsert: true
+          }
+        ).exec();
+
+        if (updateResult.modifiedCount > 0 || updateResult.upsertedCount > 0) {
+          updated++;
+        }
+
+      } catch (error) {
+        logger.warn('Failed to sync character', { 
+          characterId: character.id, 
+          error: error instanceof Error ? error.message : 'Unknown error' 
+        });
+      }
+    }
+
+    return updated;
+  }
+
+  /**
+   * Sync actors from game state to Actor documents
+   */
+  private async syncActors(
+    actors: IActor[], 
+    campaignId: string, 
+    options: SyncOptions,
+    session: mongoose.ClientSession
+  ): Promise<number> {
+    let updated = 0;
+
+    for (const actor of actors) {
+      try {
+        if (options.dryRun) {
+          logger.debug('DRY RUN: Would sync actor', { actorId: actor.id, name: actor.name });
+          updated++;
+          continue;
+        }
+
+        const updateResult = await ActorDocumentModel.updateOne(
+          { _id: actor.id },
+          { 
+            $set: {
+              ...actor,
+              campaignId,
+              updatedAt: new Date()
+            }
+          },
+          { 
+            upsert: true, 
+            session,
+            setDefaultsOnInsert: true
+          }
+        ).exec();
+
+        if (updateResult.modifiedCount > 0 || updateResult.upsertedCount > 0) {
+          updated++;
+        }
+
+      } catch (error) {
+        logger.warn('Failed to sync actor', { 
+          actorId: actor.id, 
+          error: error instanceof Error ? error.message : 'Unknown error' 
+        });
+      }
+    }
+
+    return updated;
+  }
+
+  /**
+   * Sync items from game state to Item documents
+   */
+  private async syncItems(
+    items: IItem[], 
+    campaignId: string, 
+    options: SyncOptions,
+    session: mongoose.ClientSession
+  ): Promise<number> {
+    let updated = 0;
+
+    for (const item of items) {
+      try {
+        if (options.dryRun) {
+          logger.debug('DRY RUN: Would sync item', { itemId: item.id, name: item.name });
+          updated++;
+          continue;
+        }
+
+        const updateResult = await ItemDocumentModel.updateOne(
+          { _id: item.id },
+          { 
+            $set: {
+              ...item,
+              campaignId,
+              updatedAt: new Date()
+            }
+          },
+          { 
+            upsert: true, 
+            session,
+            setDefaultsOnInsert: true
+          }
+        ).exec();
+
+        if (updateResult.modifiedCount > 0 || updateResult.upsertedCount > 0) {
+          updated++;
+        }
+
+      } catch (error) {
+        logger.warn('Failed to sync item', { 
+          itemId: item.id, 
+          error: error instanceof Error ? error.message : 'Unknown error' 
+        });
+      }
+    }
+
+    return updated;
+  }
+
+  /**
+   * Sync current encounter from game state to Encounter document
+   */
+  private async syncEncounter(
+    currentEncounter: IEncounter | null, 
+    campaignId: string, 
+    options: SyncOptions,
+    session: mongoose.ClientSession
+  ): Promise<number> {
+    if (!currentEncounter) {
+      return 0;
+    }
+
+    try {
+      if (options.dryRun) {
+        logger.debug('DRY RUN: Would sync encounter', { 
+          encounterId: currentEncounter.id, 
+          name: currentEncounter.name 
+        });
+        return 1;
+      }
+
+      const updateResult = await EncounterModel.updateOne(
+        { _id: currentEncounter.id },
+        { 
+          $set: {
+            ...currentEncounter,
+            campaignId,
+            updatedAt: new Date()
+          }
+        },
+        { 
+          upsert: true, 
+          session,
+          setDefaultsOnInsert: true
+        }
+      ).exec();
+
+      return updateResult.modifiedCount > 0 || updateResult.upsertedCount > 0 ? 1 : 0;
+
+    } catch (error) {
+      logger.warn('Failed to sync encounter', { 
+        encounterId: currentEncounter.id, 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      });
+      return 0;
+    }
+  }
+
+  /**
+   * Get sessions that need periodic sync
+   */
+  async getSessionsNeedingSync(
+    maxAge: number = 1000 * 60 * 30 // 30 minutes
+  ): Promise<string[]> {
+    try {
+      const cutoffTime = Date.now() - maxAge;
+      
+      const sessions = await GameSessionModel.find({
+        status: 'active',
+        gameState: { $ne: null },
+        lastStateUpdate: { $lt: cutoffTime }
+      }).select('_id').exec();
+
+      return sessions.map(s => s.id);
+    } catch (error) {
+      logger.error('Failed to get sessions needing sync', { error });
+      return [];
+    }
+  }
+
+  /**
+   * Clean up backing models for ended sessions
+   */
+  async cleanupEndedSessions(sessionIds: string[]): Promise<void> {
+    // TODO: Implement cleanup logic for ended sessions
+    // This could involve archiving or removing stale data
+    logger.info('Cleanup for ended sessions requested', { sessionCount: sessionIds.length });
+  }
+}

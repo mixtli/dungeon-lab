@@ -3,6 +3,7 @@ import { socketHandlerRegistry } from '../handler-registry.mjs';
 import { logger } from '../../utils/logger.mjs';
 import { GameSessionModel } from '../../features/campaigns/models/game-session.model.mjs';
 import { GameStateService } from '../../features/campaigns/services/game-state.service.mjs';
+import { GameStateSyncService } from '../../features/campaigns/services/game-state-sync.service.mjs';
 // State hash utilities now handled by GameStateService
 import type {
   ServerToClientEvents,
@@ -21,6 +22,7 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
   const userId = socket.userId;
   const isAdmin = socket.isAdmin || false;
   const gameStateService = new GameStateService();
+  const syncService = new GameStateSyncService();
 
   // Helper function to emit game state errors
   const emitGameStateError = (sessionId: string, error: any) => {
@@ -228,11 +230,28 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
     try {
       logger.info('Session leave requested:', { sessionId, userId });
 
+      // Check if user is GM and trigger sync before leaving
+      const session = await GameSessionModel.findById(sessionId).populate('participants gameMaster').exec();
+      const isGM = session?.gameMasterId === userId;
+      
+      if (isGM && session?.gameState) {
+        logger.info('GM leaving session - triggering sync to backing models:', { sessionId, userId });
+        try {
+          const syncResult = await syncService.syncGameStateToBackingModels(sessionId, 'gm-disconnect');
+          logger.info('GM disconnect sync completed:', { 
+            sessionId, 
+            success: syncResult.success, 
+            entitiesUpdated: syncResult.entitiesUpdated 
+          });
+        } catch (error) {
+          logger.warn('GM disconnect sync failed (non-fatal):', { sessionId, error });
+        }
+      }
+
       // Leave socket room
       await socket.leave(`session:${sessionId}`);
 
       // Get user info for broadcast
-      const session = await GameSessionModel.findById(sessionId).populate('participants gameMaster').exec();
       const user = session?.participants?.find((p: any) => p._id.toString() === userId) || 
                    (session?.gameMaster as any)?._id?.toString() === userId ? session.gameMaster : null;
       
@@ -264,11 +283,113 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
   });
 
   // ============================================================================
+  // SESSION END
+  // ============================================================================
+
+  socket.on('gameSession:end', async (sessionId: string, callback?: (response: any) => void) => {
+    try {
+      logger.info('Session end requested:', { sessionId, userId });
+
+      // Only GM can end sessions
+      if (!(await isUserGameMaster(sessionId))) {
+        const response = {
+          success: false,
+          error: 'Only the game master can end sessions'
+        };
+        callback?.(response);
+        return;
+      }
+
+      // Update session status to ended
+      const session = await GameSessionModel.findByIdAndUpdate(
+        sessionId,
+        { status: 'ended', endedAt: new Date() },
+        { new: true }
+      ).exec();
+
+      if (!session) {
+        const response = {
+          success: false,
+          error: 'Session not found'
+        };
+        callback?.(response);
+        return;
+      }
+
+      // Sync game state to backing models before ending
+      if (session.gameState) {
+        logger.info('Session ending - triggering sync to backing models:', { sessionId });
+        try {
+          const syncResult = await syncService.syncGameStateToBackingModels(sessionId, 'session-end');
+          logger.info('Session end sync completed:', { 
+            sessionId, 
+            success: syncResult.success, 
+            entitiesUpdated: syncResult.entitiesUpdated 
+          });
+        } catch (error) {
+          logger.warn('Session end sync failed (non-fatal):', { sessionId, error });
+        }
+      }
+
+      // Broadcast session end to all participants
+      const endEvent = {
+        sessionId,
+        endedBy: userId,
+        timestamp: Date.now()
+      };
+      socket.to(`session:${sessionId}`).emit('gameSession:ended', endEvent);
+      socket.emit('gameSession:ended', endEvent);
+
+      const response = {
+        success: true,
+        sessionId
+      };
+      callback?.(response);
+
+      logger.info('Session ended successfully:', { sessionId, userId });
+
+    } catch (error) {
+      logger.error('Error ending session:', error);
+      const response = {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to end session'
+      };
+      callback?.(response);
+    }
+  });
+
+  // ============================================================================
   // CONNECTION MANAGEMENT
   // ============================================================================
 
-  socket.on('disconnect', () => {
+  socket.on('disconnect', async () => {
     logger.info(`User ${userId} disconnected from game state socket`);
+    
+    // Check if the disconnecting user is a GM in any active sessions and trigger sync
+    try {
+      const activeSessions = await GameSessionModel.find({
+        gameMasterId: userId,
+        status: 'active',
+        gameState: { $ne: null }
+      }).select('_id').exec();
+
+      for (const session of activeSessions) {
+        logger.info('GM unexpectedly disconnected - triggering sync:', { sessionId: session.id, userId });
+        try {
+          const syncResult = await syncService.syncGameStateToBackingModels(session.id, 'gm-disconnect');
+          logger.info('GM disconnect sync completed:', { 
+            sessionId: session.id, 
+            success: syncResult.success, 
+            entitiesUpdated: syncResult.entitiesUpdated 
+          });
+        } catch (error) {
+          logger.warn('GM disconnect sync failed (non-fatal):', { sessionId: session.id, error });
+        }
+      }
+    } catch (error) {
+      logger.error('Error handling GM disconnect sync:', { userId, error });
+    }
+    
     // Socket.io automatically handles leaving rooms on disconnect
   });
 }

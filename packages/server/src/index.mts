@@ -8,6 +8,7 @@ import { backgroundJobService } from './services/background-job.service.mjs';
 import { initializeJobs } from './jobs/index.mjs';
 import { logger } from './utils/logger.mjs';
 import { SocketServer } from './websocket/socket-server.mjs';
+import { periodicSyncService } from './features/campaigns/services/periodic-sync.service.mjs';
 
 console.log('Starting server...');
 
@@ -47,6 +48,10 @@ async function startServer() {
     // Initialize and register background jobs
     await initializeJobs();
 
+    // Start periodic game state sync service
+    periodicSyncService.start(1000 * 60 * 15); // Sync every 15 minutes
+    logger.info('Periodic sync service started');
+
     // Create HTTP server
     const httpServer = createServer(app);
 
@@ -65,6 +70,8 @@ async function startServer() {
     // Handle shutdown
     process.on('SIGTERM', async () => {
       logger.info('SIGTERM received. Shutting down...');
+      periodicSyncService.stop();
+      logger.info('Periodic sync service stopped');
       await backgroundJobService.shutdown();
       await mongoose.disconnect();
       socketServer.close();
