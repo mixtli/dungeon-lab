@@ -95,14 +95,6 @@ fetchMaps();
         {{ error }}
       </div>
 
-      <!-- Debug info -->
-      <div class="mb-4 p-4 bg-gray-50 border border-gray-200 rounded-md">
-        <p>Selected Map ID: "{{ formData.mapId }}"</p>
-        <p>Available Maps:</p>
-        <ul>
-          <li v-for="map in maps" :key="map.id">{{ map.name }} (ID: {{ map.id }})</li>
-        </ul>
-      </div>
 
       <form @submit.prevent="handleSubmit" class="space-y-6">
         <div>
@@ -139,7 +131,6 @@ fetchMaps();
             name="map"
             v-model="formData.mapId"
             required
-            @change="() => console.log('Map selected:', formData.mapId)"
             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
           >
             <option value="" disabled>Select a map</option>

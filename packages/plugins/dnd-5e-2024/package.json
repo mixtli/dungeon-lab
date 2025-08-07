@@ -27,7 +27,9 @@
     "generate:backgrounds": "tsx generate-backgrounds.mts",
     "create:minimal-pack": "tsx src/scripts/create-minimal-test-pack.mts",
     "test:conversion": "tsx src/scripts/test-conversion.mts",
-    "transform:characters": "tsx src/scripts/transform-characters.mts"
+    "transform:characters": "tsx src/scripts/transform-characters.mts",
+    "import:campaigns": "tsx src/scripts/import-campaigns.mts",
+    "import:campaigns:dry-run": "tsx src/scripts/import-campaigns.mts --dry-run"
   },
   "dependencies": {
     "@dungeon-lab/shared": "file:../../shared/src",

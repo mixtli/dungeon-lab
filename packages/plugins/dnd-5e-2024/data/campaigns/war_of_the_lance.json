@@ -1,5 +1,6 @@
 {
   "name": "War of the Lance",
+  "pluginId": "dnd-5e-2024",
   "setting": "Dragonlance",
   "description": "Defeat the Dragonarmies of Queen Takhisis",
   "characters": [

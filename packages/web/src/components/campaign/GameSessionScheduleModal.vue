@@ -71,19 +71,7 @@ async function handleSubmit() {
     const session = await gameSessionClient.createGameSession(sessionData);
 
     if (session?.id) {
-      if (scheduleType.value === 'now') {
-        // Redirect to game session page
-        router.push({
-          name: 'game-session',
-          params: {
-            campaignId: props.campaignId,
-            id: session.id,
-          },
-        });
-      } else {
-        emit('created', session.id);
-      }
-
+      emit('created', session.id);
       emit('close');
     }
   } catch (err) {

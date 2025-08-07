@@ -2,7 +2,10 @@
 import type { ICampaign } from '@dungeon-lab/shared/types/index.mjs';
 import { PencilIcon, TrashIcon, EyeIcon } from '@heroicons/vue/24/outline';
 
-defineProps<{ campaign: ICampaign }>();
+defineProps<{ 
+  campaign: ICampaign;
+  userRole: 'gm' | 'player';
+}>();
 defineEmits(['view', 'edit', 'delete']);
 </script>
 
@@ -30,6 +33,17 @@ defineEmits(['view', 'edit', 'delete']);
         {{ campaign.status === 'active' ? '🟢 ' + campaign.status : 
            campaign.status === 'paused' ? '⏸️ ' + campaign.status : 
            '📁 ' + campaign.status }}
+      </span>
+    </td>
+    <td class="px-6 py-5">
+      <span
+        :class="{
+          'px-3 py-1 text-xs font-bold rounded-full shadow-sm border': true,
+          'bg-gold text-obsidian border-gold': userRole === 'gm',
+          'bg-arcane text-white border-arcane dark:bg-secondary-600 dark:border-secondary-600': userRole === 'player',
+        }"
+      >
+        {{ userRole === 'gm' ? '👑 GM' : '👤 Player' }}
       </span>
     </td>
     <td class="px-6 py-5 text-sm text-ash dark:text-stone-300 font-medium">

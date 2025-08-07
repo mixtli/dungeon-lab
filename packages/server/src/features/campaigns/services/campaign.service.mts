@@ -22,10 +22,6 @@ export class CampaignService {
     try {
       const userObjectId = new Types.ObjectId(userId);
 
-      // First get all actors belonging to the user
-      const userActors = await DocumentService.find({ createdBy: userId, documentType: 'actor' });
-      const actorIds = userActors.map((actor) => actor.id);
-
       // Convert query to case-insensitive regex for string values
       // Only convert simple string values, not nested paths
       const mongoQuery = Object.entries(query).reduce((acc, [key, value]) => {
@@ -40,13 +36,21 @@ export class CampaignService {
 
       let campaigns: ICampaign[] = [];
       if (user?.isAdmin) {
-        campaigns = await CampaignModel.find().exec();
+        campaigns = await CampaignModel.find(mongoQuery).exec();
       } else {
-        // Find campaigns where user is either the GM or has a character as a member
+        // First get all user's characters that have a campaignId
+        const userCharacters = await DocumentService.find({ 
+          createdBy: userId, 
+          documentType: 'character',
+          campaignId: { $exists: true }
+        });
+        const campaignIds = userCharacters.map((character) => character.campaignId).filter(Boolean);
+
+        // Find campaigns where user is either the GM or has characters in the campaign
         // AND apply any additional search filters
         campaigns = await CampaignModel.find({
           $and: [
-            { $or: [{ gameMasterId: userObjectId }, { characterIds: { $in: actorIds } }] },
+            { $or: [{ gameMasterId: userObjectId }, { _id: { $in: campaignIds } }] },
             mongoQuery // Add the search query as an additional filter
           ]
         }).populate('gameMaster', 'username displayName').populate('characters');
@@ -82,12 +86,12 @@ export class CampaignService {
   }
 
   async getCampaignUsers(campaignId: string): Promise<IUser[]> {
-    const campaign = await CampaignModel.findById(campaignId).populate('characters').exec();
+    const campaign = await CampaignModel.findById(campaignId).exec();
     if (!campaign) {
       throw new Error('Campaign not found');
     }
-    const actors = await DocumentService.find({ _id: { $in: campaign.characterIds }, documentType: 'actor' });
-    const usersPromises = actors.map(async (actor) => await UserModel.findById(actor.createdBy));
+    const characters = await DocumentService.find({ campaignId, documentType: 'character' });
+    const usersPromises = characters.map(async (character) => await UserModel.findById(character.createdBy));
     const users = await Promise.all(usersPromises);
     return users.filter((user) => user !== null) as IUser[];
   }
@@ -97,11 +101,11 @@ export class CampaignService {
   //   return users.some((user) => user.id === userId);
   // }
 
-  async createCampaign(data: Omit<ICampaign,  'id' | 'characters' | 'characterIds' | 'createdAt' | 'updatedAt'>, userId: string): Promise<ICampaign> {
+  async createCampaign(data: Omit<ICampaign,  'id' | 'characters' | 'createdAt' | 'updatedAt'>, userId: string): Promise<ICampaign> {
     try {
       const userObjectId = new Types.ObjectId(userId);
 
-      // Initialize with empty members array - members will be added later as actors
+      // Members will be added by setting campaignId on character documents
       const campaignData = {
         ...data,
         gameMasterId: userObjectId.toString(),
@@ -177,13 +181,15 @@ export class CampaignService {
       }
 
       // Check if user is GM or has a character in the campaign
-      const userActors = await DocumentService.find({ createdBy: userId, documentType: 'actor' });
-      const actorIds = userActors.map((actor) => actor.id);
-
       const isGM = campaign.gameMasterId?.toString() === userId;
-      const hasCharacter = campaign.characterIds.some((characterId) =>
-        actorIds.includes(characterId.toString())
-      );
+      
+      // Check if user has any characters in this campaign
+      const userCharactersInCampaign = await DocumentService.find({
+        campaignId,
+        createdBy: userId,
+        documentType: 'character'
+      });
+      const hasCharacter = userCharactersInCampaign.length > 0;
 
       return isGM || hasCharacter || isAdmin;
     } catch (error) {
@@ -205,11 +211,11 @@ export class CampaignService {
       return true;
     }
     
-    // Check if user has any characters in this campaign by looking at the actors
+    // Check if user has any characters in this campaign
     const userCharactersInCampaign = await DocumentService.find({
-      _id: { $in: campaign.characterIds },
+      campaignId,
       createdBy: userId,
-      documentType: 'actor'
+      documentType: 'character'
     });
     
     return userCharactersInCampaign.length > 0;
@@ -222,26 +228,16 @@ export class CampaignService {
         throw new Error('Campaign not found');
       }
 
-      // // Check if user is the Game Master
-      // const isGM = campaign.gameMasterId?.toString() === actorId;
-      // if (isGM) {
-      //   return true;
-      // }
-
-      // Get the actor
-      const actor = await DocumentService.findById(actorId);
-      if (!actor || actor.documentType !== 'actor') {
-        throw new Error('Actor not found');
+      // Get the character/actor document
+      const character = await DocumentService.findById(actorId);
+      if (!character || character.documentType !== 'character') {
+        throw new Error('Character not found');
       }
 
-      // Check if any of the user's actors are members of the campaign
-      const isMember = campaign.characterIds.some((characterId) =>
-        actor.id === characterId.toString()
-      );
-
-      return isMember;
+      // Check if this character belongs to the campaign
+      return character.campaignId === campaignId;
     } catch (error) {
-      logger.error('Error checking if user is campaign member:', error);
+      logger.error('Error checking if character is campaign member:', error);
       throw new Error('Failed to check campaign membership');
     }
   }
@@ -288,8 +284,6 @@ export class CampaignService {
       };
 
       const mergedData = deepMerge(obj, updateData) as ICampaign;
-      // unique characterIds
-      mergedData.characterIds = [...new Set(mergedData.characterIds)];
       campaign.set(mergedData);
       await campaign.save();
       return campaign;

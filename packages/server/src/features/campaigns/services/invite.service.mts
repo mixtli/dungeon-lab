@@ -3,6 +3,7 @@ import { FilterQuery, Types } from 'mongoose';
 import { UserModel } from '../../../models/user.model.mjs';
 import { InviteModel } from '../models/invite.model.mjs';
 import { CampaignService } from './campaign.service.mjs';
+import { DocumentService } from '../../documents/services/document.service.mjs';
 import type { InviteStatusType } from '@dungeon-lab/shared/types/index.mjs';
 
 export class InviteService {
@@ -124,18 +125,15 @@ export class InviteService {
         throw new Error('Actor ID is required when accepting an invite');
       }
 
-      // Add actor to campaign members (not the user)
-      const campaign = await this.campaignService.getCampaign(invite.campaignId.toString());
-
-      // Check if the actor already exists in members
-      if (!campaign.characterIds.includes(actorId)) {
-        await this.campaignService.updateCampaign(
-          invite.campaignId.toString(),
-          {
-            characterIds: [...campaign.characterIds, actorId] // Add actor, not user
-          },
-          userId
-        );
+      // Add character to campaign by setting campaignId on the character document
+      const character = await DocumentService.findById(actorId);
+      if (character && character.documentType === 'character') {
+        // Only set campaignId if it's not already set to this campaign
+        if (character.campaignId !== invite.campaignId.toString()) {
+          await DocumentService.updateById(actorId, {
+            campaignId: invite.campaignId.toString()
+          });
+        }
       }
     }
 

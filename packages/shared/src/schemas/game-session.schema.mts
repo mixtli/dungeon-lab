@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { baseSchema } from './base.schema.mjs';
 import { userSchema } from './user.schema.mjs';
 import { campaignSchema } from './campaign.schema.mjs';
-import { actorSchema } from './actor.schema.mjs';
+import { baseDocumentSchema } from './document.schema.mjs';
 // Game Session Status enum
 export const GameSessionStatus = z.enum(['active', 'paused', 'ended', 'scheduled']);
 
@@ -26,14 +26,14 @@ export const gameSessionCreateSchema = gameSessionSchema.omit({
 });
 
 export const gameSessionWithVirtualsSchema = gameSessionSchema.extend({
-  characters: z.array(actorSchema).default([]),
+  characters: z.array(baseDocumentSchema).default([]),
   gameMaster: userSchema.optional(),
   campaign: campaignSchema.optional(),
   participants: z.array(userSchema).default([]),
 });
 
 export const gameSessionResponseSchema = gameSessionSchema.extend({
-  characters: z.array(actorSchema).default([]),
+  characters: z.array(baseDocumentSchema).default([]),
   participants: z.array(userSchema).default([]),
   gameMaster: userSchema.optional(),
   campaign: campaignSchema.optional()

@@ -2,6 +2,7 @@
   "name": "Fellowship of the Ring",
   "setting": "Middle Earth",
   "description": "Cast the one ring into the fires of Mordor",
+  "pluginId": "dnd-5e-2024",
   "characters": [
     "4C8D1F07-4DB0-4008-A48B-AF974DB0CE73",
     "74CFAF61-BA5A-4954-8B1D-D452F1B6905E",

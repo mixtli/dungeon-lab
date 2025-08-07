@@ -2,10 +2,11 @@ import '../../types/socket-io.d.ts';
 import { Socket } from 'socket.io';
 import { socketHandlerRegistry } from '../handler-registry.mjs';
 import { ActorService } from '../../features/actors/services/actor.service.mjs';
+import { DocumentService } from '../../features/documents/services/document.service.mjs';
 import { GameSessionModel } from '../../features/campaigns/models/game-session.model.mjs';
 import { CampaignModel } from '../../features/campaigns/models/campaign.model.mjs';
 import type { ClientToServerEvents, ServerToClientEvents } from '@dungeon-lab/shared/types/socket/index.mjs';
-import type { IActor } from '@dungeon-lab/shared/types/index.mjs';
+import type { IActor, ICharacter } from '@dungeon-lab/shared/types/index.mjs';
 
 /**
  * Socket handler for actor operations
@@ -46,11 +47,17 @@ function actorHandler(socket: Socket<ClientToServerEvents, ServerToClientEvents>
           const gameSession = await GameSessionModel.findById(socket.gameSessionId);
           if (gameSession?.campaignId) {
             const campaign = await CampaignModel.findById(gameSession.campaignId);
-            if (campaign?.characterIds?.length && campaign.pluginId === pluginId) {
-              // Get campaign actors that the user doesn't already own
-              const campaignActorIds = campaign.characterIds.filter(id => 
-                !userActors.some(actor => actor.id === id)
-              );
+            if (campaign && campaign.pluginId === pluginId) {
+              // Get campaign characters that the user doesn't already own
+              const campaignCharacters = await DocumentService.find({
+                campaignId: gameSession.campaignId.toString(),
+                documentType: 'character',
+                pluginId: pluginId
+              }) as ICharacter[];
+              
+              const campaignActorIds = campaignCharacters
+                .filter((character: ICharacter) => !userActors.some(actor => actor.id === character.id))
+                .map((character: ICharacter) => character.id);
               
               if (campaignActorIds.length > 0) {
                 campaignActors = await actorService.searchActors({

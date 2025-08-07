@@ -1,13 +1,11 @@
-import mongoose, { ObjectId } from 'mongoose';
+import mongoose from 'mongoose';
 import { ICampaign } from '@dungeon-lab/shared/types/index.mjs';
 import { campaignSchema } from '@dungeon-lab/shared/schemas/index.mjs';
 import { baseMongooseZodSchema } from '../../../models/base.model.schema.mjs';
 import { createMongoSchema } from '../../../models/zod-to-mongo.mjs';
 import { zId } from '@zodyac/zod-mongoose';
-import { z } from '../../../utils/zod.mjs';
 
 const campaignSchemaMongoose = campaignSchema.merge(baseMongooseZodSchema).extend({
-  characterIds: z.array(zId('Actor')),
   gameMasterId: zId('User')
 });
 
@@ -16,12 +14,6 @@ const mongooseSchema = createMongoSchema<ICampaign>(campaignSchemaMongoose);
 // Override pluginData to use Mixed type for flexible plugin data
 mongooseSchema.path('pluginData', mongoose.Schema.Types.Mixed);
 
-mongooseSchema.path('characterIds').get(function (value: ObjectId[]) {
-  return value.map((p: ObjectId) => p.toString());
-});
-mongooseSchema.path('characterIds').set(function (value: string[]) {
-  return value.map((p: string) => new mongoose.Types.ObjectId(p));
-});
 mongooseSchema.path('gameMasterId').set(function (value: string) {
   return new mongoose.Types.ObjectId(value);
 });
@@ -38,9 +30,9 @@ mongooseSchema.virtual('gameMaster', {
 
 mongooseSchema.virtual('characters', {
   ref: 'Document',
-  localField: 'characterIds',
-  foreignField: '_id',
-  match: { documentType: 'actor' },
+  localField: '_id',
+  foreignField: 'campaignId',
+  match: { documentType: 'character' },
   justOne: false
 });
 

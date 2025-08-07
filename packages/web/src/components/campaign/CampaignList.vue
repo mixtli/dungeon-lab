@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import type { ICampaign } from '@dungeon-lab/shared/types/index.mjs';
 import { CampaignsClient } from '@dungeon-lab/client/index.mjs';
 import { useDeviceAdaptation } from '@/composables/useDeviceAdaptation.mts';
+import { useAuthStore } from '@/stores/auth.store.mjs';
 import CampaignListItemMobile from './CampaignListItemMobile.vue';
 import CampaignListItem from './CampaignListItem.vue';
 
@@ -15,6 +16,7 @@ const emit = defineEmits<{
 // Clients and stores
 const campaignClient = new CampaignsClient();
 const router = useRouter();
+const authStore = useAuthStore();
 
 // State
 const loading = ref(false);
@@ -22,6 +24,11 @@ const campaigns = ref<ICampaign[]>([]);
 const error = ref<string | null>(null);
 
 const { isMobile } = useDeviceAdaptation();
+
+// Helper function to determine user role in a campaign
+function getUserRole(campaign: ICampaign): 'gm' | 'player' {
+  return campaign.gameMasterId === authStore.user?.id ? 'gm' : 'player';
+}
 
 // Watch for changes in the campaigns array and emit the count
 watch(campaigns, (newCampaigns) => {
@@ -96,6 +103,7 @@ async function confirmDeleteCampaign(campaign: ICampaign) {
           v-for="campaign in campaigns"
           :key="campaign.id || ''"
           :campaign="campaign"
+          :user-role="getUserRole(campaign)"
           @view="viewCampaign"
           @delete="confirmDeleteCampaign"
         />
@@ -107,6 +115,7 @@ async function confirmDeleteCampaign(campaign: ICampaign) {
               <th class="px-6 py-4 text-left text-xs font-bold text-gold uppercase tracking-wider">⚔️ Campaign Name</th>
               <th class="px-6 py-4 text-left text-xs font-bold text-gold uppercase tracking-wider">🎲 Game System</th>
               <th class="px-6 py-4 text-left text-xs font-bold text-gold uppercase tracking-wider">📊 Status</th>
+              <th class="px-6 py-4 text-left text-xs font-bold text-gold uppercase tracking-wider">👑 Role</th>
               <th class="px-6 py-4 text-left text-xs font-bold text-gold uppercase tracking-wider">📅 Created</th>
               <th class="px-6 py-4 text-right text-xs font-bold text-gold uppercase tracking-wider">⚙️ Actions</th>
             </tr>
@@ -116,6 +125,7 @@ async function confirmDeleteCampaign(campaign: ICampaign) {
               v-for="campaign in campaigns"
               :key="campaign.id || ''"
               :campaign="campaign"
+              :user-role="getUserRole(campaign)"
               @view="viewCampaign"
               @edit="id => router.push({ name: 'campaign-edit', params: { id } })"
               @delete="confirmDeleteCampaign"

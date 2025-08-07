@@ -542,14 +542,8 @@ export class ActorService {
           return [];
         }
 
-        // If the campaign has a members array containing actor IDs
-        if (campaign.characterIds && Array.isArray(campaign.characterIds)) {
-          // Add condition to filter by actor IDs in campaign.members
-          params._id = { $in: campaign.characterIds };
-        } else {
-          // If the schema has actors directly in the campaign document
-          params.campaignId = campaignId;
-        }
+        // Filter by campaignId to get characters in this campaign
+        params.campaignId = campaignId;
       }
 
       // Execute the query with all conditions

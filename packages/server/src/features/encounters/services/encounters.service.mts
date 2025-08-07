@@ -1052,12 +1052,13 @@ export class EncounterService {
       }
 
       // Check if user has a character in the campaign
-      const userActors = await DocumentService.find({ createdBy: userId, documentType: 'actor' });
-      const actorIds = userActors.map(actor => actor.id);
+      const userCharactersInCampaign = await DocumentService.find({
+        campaignId: campaign.id,
+        createdBy: userId,
+        documentType: 'character'
+      });
 
-      return campaign.characterIds.some(characterId =>
-        actorIds.includes(characterId.toString())
-      );
+      return userCharactersInCampaign.length > 0;
     } catch (error) {
       logger.error('Error checking campaign access:', error);
       return false;

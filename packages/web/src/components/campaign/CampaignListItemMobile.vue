@@ -4,7 +4,10 @@ import { useSwipe } from '@vueuse/core';
 import { TrashIcon } from '@heroicons/vue/24/outline';
 import type { ICampaign } from '@dungeon-lab/shared/types/index.mjs';
 
-defineProps<{ campaign: ICampaign }>();
+defineProps<{ 
+  campaign: ICampaign;
+  userRole: 'gm' | 'player';
+}>();
 defineEmits(['view', 'delete']);
 
 const rowRef = ref(null);
@@ -51,8 +54,19 @@ watch(isSwiping, (swiping) => {
       <!-- Campaign content -->
       <div class="flex-1 flex items-center justify-between">
         <div class="flex-1 min-w-0">
-          <div class="font-medium text-gray-900 truncate text-[17px]">
-            {{ campaign.name }}
+          <div class="flex items-center gap-2">
+            <div class="font-medium text-gray-900 truncate text-[17px]">
+              {{ campaign.name }}
+            </div>
+            <span
+              :class="{
+                'px-2 py-0.5 text-xs font-bold rounded-full': true,
+                'bg-yellow-100 text-yellow-800': userRole === 'gm',
+                'bg-blue-100 text-blue-800': userRole === 'player',
+              }"
+            >
+              {{ userRole === 'gm' ? '👑 GM' : '👤 Player' }}
+            </span>
           </div>
           <div v-if="campaign.description" class="text-sm text-gray-500 truncate mt-1">
             {{ campaign.description }}

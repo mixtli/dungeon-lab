@@ -15,7 +15,7 @@ const gameSessionSchemaMongoose = gameSessionSchema.merge(baseMongooseZodSchema)
   campaignId: zId('Campaign'),
   gameMasterId: zId('User'),
   participantIds: z.array(zId('User')),
-  characterIds: z.array(zId('Actor')).default([])
+  characterIds: z.array(zId('Document')).default([])
 });
 
 /**
@@ -98,9 +98,10 @@ mongooseSchema.virtual('participants', {
 });
 
 mongooseSchema.virtual('characters', {
-  ref: 'Actor',
+  ref: 'Document',
   localField: 'characterIds',
   foreignField: '_id',
+  match: { documentType: 'character' },
   justOne: false
 });
 

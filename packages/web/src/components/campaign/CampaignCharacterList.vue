@@ -56,13 +56,14 @@ async function handleRemove(characterId: string) {
   if (!campaign.value?.id) return;
 
   try {
-    // Update campaign with the character removed from characterIds
-    const updatedCharacterIds = campaign.value.characterIds.filter((id: string) => id !== characterId);
-    await campaignsClient.updateCampaign(campaign.value.id, {
-      characterIds: updatedCharacterIds
-    });
+    // Remove character from campaign by clearing their campaignId
+    // Note: This would typically be done through a character/document API client
+    // For now, we'll use the campaign client's character management if available
+    // TODO: Implement character.leaveCampaign() or document update API
+    console.warn('Character removal not yet implemented with new architecture');
+    error.value = 'Character removal feature needs to be updated for the new architecture';
 
-    // Update local list
+    // Update local list for now
     localCharacters.value = localCharacters.value.filter(char => char.id !== undefined && char.id !== characterId);
   } catch (err) {
     console.error('Error removing character:', err);

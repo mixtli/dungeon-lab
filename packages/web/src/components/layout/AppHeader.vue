@@ -30,7 +30,7 @@ function handleLoginClick() {
 function logout() {
   closeMenu();
   authStore.logout();
-  router.push('/auth/login');
+  router.push('/');
 }
 
 function goToChat() {
