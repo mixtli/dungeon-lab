@@ -235,27 +235,35 @@ socket.emit('gameSession:left', GameSessionLeft)          // User leave notifica
 - **Updated File**: `packages/shared/src/schemas/socket/game-state.mts` ✅
   - Added `gameSessionEndArgsSchema`, `gameSessionEndedSchema`, `gameSessionEndCallbackSchema` ✅
 
-### 2.5 State Integrity System
-- **New File**: `packages/shared/src/utils/state-hash.mts`
-```typescript
-function generateStateHash(gameState: ServerGameState): string {
-  // Hash the pure game state data for integrity verification
-  return hash(JSON.stringify(gameState, sortObjectKeys))
-}
+### 2.5 State Integrity System ✅ COMPLETED
+- **New File**: `packages/shared/src/utils/state-hash.mts` ✅
+  - `generateStateHash()` - SHA-256 hashing with consistent object key sorting ✅
+  - `validateStateIntegrity()` - Hash-based state corruption detection ✅  
+  - `incrementStateVersion()` - Simple integer version management ✅
+  - `isValidNextVersion()` - Version conflict detection ✅
+- **Integration**: Fully integrated into `game-state.service.mts` ✅
+  - Defense-in-depth verification using BOTH version and hash checks ✅
+  - Atomic database updates with integrity validation ✅
+  - Comprehensive error handling for state corruption scenarios ✅
 
-function validateStateIntegrity(
-  gameState: ServerGameState, 
-  expectedHash: string
-): boolean {
-  return generateStateHash(gameState) === expectedHash
-}
-```
-
-### 2.6 Update Socket Server
-- **File**: `packages/server/src/websocket/socket-server.mts`
-  - Remove references to aggregate system
-  - Integrate new game-state-handler
-  - Update session joining logic
+### 2.6 Update Socket Server ✅ COMPLETED
+- **File**: `packages/server/src/websocket/socket-server.mts` ✅
+  - No aggregate system references found - already clean ✅
+  - New game-state-handler already integrated via handler registry ✅
+  - Consolidated session joining logic - removed duplicate systems ✅
+- **Enhanced File**: `packages/server/src/websocket/handlers/game-state-handler.mts` ✅
+  - Enhanced `gameSession:join` with user participation management ✅
+  - Added full GameSession data return in callback ✅  
+  - Enhanced `gameSession:leave` with participant cleanup ✅
+- **Removed Legacy Complexity**: ✅
+  - Removed legacy `joinSession`/`leaveSession` event handlers ✅
+  - Removed `handleJoinSession()` and `handleLeaveSession()` methods ✅
+  - Removed unused actor room management (`actor:${actorId}` rooms) ✅
+  - Cleaned up unused imports (GameSessionModel, JoinCallback, sendSystemMessage) ✅
+- **Room Strategy**: Simplified to exactly what was requested ✅
+  - `session:${sessionId}` - for session-wide broadcasts to all players ✅
+  - `user:${userId}` - for user-specific targeted messages ✅
+  - Removed unused actor rooms - nobody was emitting to them ✅
 
 ### 2.7 Legacy Socket Event Cleanup
 With the unified game state system, many socket events become redundant and should be removed:
@@ -480,8 +488,8 @@ async function handleReconnection() {
 - Phase 2.2: New Unified Game Session Handler ✅ COMPLETED
 - Phase 2.3: State Service with Performance Options ✅ COMPLETED
 - Phase 2.4: Backing Store Synchronization ✅ COMPLETED
-- Phase 2.5: State Integrity System (IN PROGRESS)
-- Phase 2.6: Update Socket Server  
+- Phase 2.5: State Integrity System ✅ COMPLETED
+- Phase 2.6: Update Socket Server ✅ COMPLETED  
 - Phase 2.7: Legacy Socket Event Cleanup (NEW)
 - Phase 3: Frontend Implementation
 - Phase 4: Plugin Integration

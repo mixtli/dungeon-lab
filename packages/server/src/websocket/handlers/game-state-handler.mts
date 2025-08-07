@@ -4,6 +4,7 @@ import { logger } from '../../utils/logger.mjs';
 import { GameSessionModel } from '../../features/campaigns/models/game-session.model.mjs';
 import { GameStateService } from '../../features/campaigns/services/game-state.service.mjs';
 import { GameStateSyncService } from '../../features/campaigns/services/game-state-sync.service.mjs';
+import { GameSessionService } from '../../features/campaigns/services/game-session.service.mjs';
 // State hash utilities now handled by GameStateService
 import type {
   ServerToClientEvents,
@@ -23,6 +24,7 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
   const isAdmin = socket.isAdmin || false;
   const gameStateService = new GameStateService();
   const syncService = new GameStateSyncService();
+  const gameSessionService = new GameSessionService();
 
   // Helper function to emit game state errors
   const emitGameStateError = (sessionId: string, error: any) => {
@@ -178,39 +180,58 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
     try {
       logger.info('Session join requested:', { sessionId, userId });
 
-      // Check if user is in session
+      // Check if user has access to this session (as participant or GM)
       if (!(await isUserInSession(sessionId))) {
         const response = {
           success: false,
-          error: 'Access denied: not in session'
+          error: 'Access denied: not a participant in this session'
         };
         callback?.(response);
         return;
       }
 
-      // Join socket room for real-time updates
-      await socket.join(`session:${sessionId}`);
+      // Add user to session participants (if not already added)
+      await gameSessionService.addParticipantToSession(sessionId, userId);
 
-      // Get user info for broadcast
-      const session = await GameSessionModel.findById(sessionId).populate('participants gameMaster').exec();
-      const user = session?.participants?.find((p: any) => p._id.toString() === userId) || 
-                   (session?.gameMaster as any)?._id?.toString() === userId ? session.gameMaster : null;
+      // Join socket room for real-time updates  
+      await socket.join(`session:${sessionId}`);
+      logger.info('User joined socket room:', { sessionId, userId });
+
+      // Get fully populated session data to return to client
+      const populatedSession = await GameSessionModel.findById(sessionId)
+        .populate('campaign')
+        .populate('gameMaster') 
+        .populate('participants')
+        .exec();
+
+      if (!populatedSession) {
+        const response = {
+          success: false,
+          error: 'Session not found'
+        };
+        callback?.(response);
+        return;
+      }
+
+      // Broadcast join event to other session participants
+      const user = populatedSession.participants?.find((p: any) => p._id.toString() === userId) || 
+                   (populatedSession.gameMaster as any)?._id?.toString() === userId ? populatedSession.gameMaster : null;
       
       if (user) {
-        // Broadcast to other session participants
         const joinEvent = {
           sessionId,
           userId,
           userName: (user as any).name || 'Unknown User',
-          isGM: session?.gameMasterId === userId,
+          isGM: populatedSession.gameMasterId === userId,
           timestamp: Date.now()
         };
         socket.to(`session:${sessionId}`).emit('gameSession:joined', joinEvent);
       }
 
+      // Return full session data to client
       const response = {
         success: true,
-        sessionId
+        session: populatedSession.toObject()
       };
       callback?.(response);
 
@@ -230,11 +251,21 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
     try {
       logger.info('Session leave requested:', { sessionId, userId });
 
-      // Check if user is GM and trigger sync before leaving
+      // Get session info before removing user
       const session = await GameSessionModel.findById(sessionId).populate('participants gameMaster').exec();
-      const isGM = session?.gameMasterId === userId;
+      if (!session) {
+        const response = {
+          success: false,
+          error: 'Session not found'
+        };
+        callback?.(response);
+        return;
+      }
+
+      const isGM = session.gameMasterId === userId;
       
-      if (isGM && session?.gameState) {
+      // If GM is leaving and there's game state, trigger sync
+      if (isGM && session.gameState) {
         logger.info('GM leaving session - triggering sync to backing models:', { sessionId, userId });
         try {
           const syncResult = await syncService.syncGameStateToBackingModels(sessionId, 'gm-disconnect');
@@ -248,12 +279,15 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
         }
       }
 
+      // Remove user from session participants
+      await gameSessionService.removeParticipantFromSession(sessionId, userId);
+
       // Leave socket room
       await socket.leave(`session:${sessionId}`);
 
       // Get user info for broadcast
-      const user = session?.participants?.find((p: any) => p._id.toString() === userId) || 
-                   (session?.gameMaster as any)?._id?.toString() === userId ? session.gameMaster : null;
+      const user = session.participants?.find((p: any) => p._id.toString() === userId) || 
+                   (session.gameMaster as any)?._id?.toString() === userId ? session.gameMaster : null;
       
       if (user) {
         // Broadcast to other session participants
@@ -276,7 +310,7 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
     } catch (error) {
       logger.error('Error leaving session:', error);
       const response = {
-        success: true // Always succeed for leave operations
+        success: true // Always succeed for leave operations to avoid client issues
       };
       callback?.(response);
     }
