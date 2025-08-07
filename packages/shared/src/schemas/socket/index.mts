@@ -57,42 +57,7 @@ import {
 } from './workflows.mjs';
 
 import {
-  // Token events
-  tokenMoveSchema,
-  tokenMovedSchema,
-  tokenMoveCallbackSchema,
-  tokenCreateSchema,
-  tokenCreatedSchema,
-  tokenUpdateSchema,
-  tokenUpdatedSchema,
-  tokenDeleteSchema,
-  tokenDeletedSchema,
-  // Initiative events
-  initiativeRollSchema,
-  initiativeRolledSchema,
-  initiativeUpdateSchema,
-  initiativeUpdatedSchema,
-  initiativeReorderSchema,
-  initiativeReorderedSchema,
-  // Turn management
-  turnNextSchema,
-  turnChangedSchema,
-  turnSkipSchema,
-  turnSkippedSchema,
-  turnDelaySchema,
-  turnDelayedSchema,
-  // Action events
-  actionExecuteSchema,
-  actionExecutedSchema,
-  actionValidateSchema,
-  actionValidatedSchema,
-  // Effect events
-  effectApplySchema,
-  effectAppliedSchema,
-  effectRemoveSchema,
-  effectRemovedSchema,
-  effectExpiredSchema,
-  // Encounter state
+  // Encounter lifecycle events
   encounterStartSchema,
   encounterStartedSchema,
   encounterStoppedSchema,
@@ -102,38 +67,9 @@ import {
   encounterEndedSchema,
   // Error events
   encounterErrorSchema,
-  encounterCallbackSchema,
-  // Client-to-server args schemas
-  tokenMoveArgsSchema,
-  tokenCreateArgsSchema,
-  tokenUpdateArgsSchema,
-  tokenDeleteArgsSchema
+  encounterCallbackSchema
 } from './encounters.mjs';
 
-import {
-  // Actor event schemas
-  actorCallbackSchema,
-  actorListArgsSchema,
-  actorGetArgsSchema,
-  actorUpdateArgsSchema,
-  actorDeleteArgsSchema,
-  actorCreatedSchema,
-  actorUpdatedSchema,
-  actorDeletedSchema
-} from './actors.mjs';
-
-import {
-  // Item event schemas
-  itemCallbackSchema,
-  itemListArgsSchema,
-  itemGetArgsSchema,
-  itemCreateArgsSchema,
-  itemUpdateArgsSchema,
-  itemDeleteArgsSchema,
-  itemCreatedSchema,
-  itemUpdatedSchema,
-  itemDeletedSchema
-} from './items.mjs';
 
 import {
   // GM-Authoritative action schemas (server-agnostic)
@@ -167,15 +103,18 @@ import {
   gameStateRequestFullArgsSchema,
   gameSessionJoinArgsSchema,
   gameSessionLeaveArgsSchema,
+  gameSessionEndArgsSchema,
   gameStateUpdatedSchema,
   gameStateErrorSchema,
   gameStateFullResponseSchema,
   gameSessionJoinedSchema,
   gameSessionLeftSchema,
+  gameSessionEndedSchema,
   gameStateUpdateCallbackSchema,
   gameStateRequestFullCallbackSchema,
   gameSessionJoinCallbackSchema,
-  gameSessionLeaveCallbackSchema
+  gameSessionLeaveCallbackSchema,
+  gameSessionEndCallbackSchema
 } from './game-state.mjs';
 
 // Re-export all schemas for backwards compatibility
@@ -226,70 +165,17 @@ export {
   mapEditArgsSchema,
   mapDetectFeaturesArgsSchema,
   
-  // Encounter event schemas  
-  tokenMoveSchema,
-  tokenMovedSchema,
-  tokenMoveCallbackSchema,
-  tokenCreateSchema,
-  tokenCreatedSchema,
-  tokenUpdateSchema,
-  tokenUpdatedSchema,
-  tokenDeleteSchema,
-  tokenDeletedSchema,
-  initiativeRollSchema,
-  initiativeRolledSchema,
-  initiativeUpdateSchema,
-  initiativeUpdatedSchema,
-  initiativeReorderSchema,
-  initiativeReorderedSchema,
-  turnNextSchema,
-  turnChangedSchema,
-  turnSkipSchema,
-  turnSkippedSchema,
-  turnDelaySchema,
-  turnDelayedSchema,
-  actionExecuteSchema,
-  actionExecutedSchema,
-  actionValidateSchema,
-  actionValidatedSchema,
-  effectApplySchema,
-  effectAppliedSchema,
-  effectRemoveSchema,
-  effectRemovedSchema,
-  effectExpiredSchema,
+  // Encounter lifecycle schemas  
   encounterStartSchema,
   encounterStartedSchema,
+  encounterStoppedSchema,
   encounterPauseSchema,
   encounterPausedSchema,
   encounterEndSchema,
   encounterEndedSchema,
   encounterErrorSchema,
   encounterCallbackSchema,
-  tokenMoveArgsSchema,
-  tokenCreateArgsSchema,
-  tokenUpdateArgsSchema,
-  tokenDeleteArgsSchema,
   
-  // Actor schemas
-  actorCallbackSchema,
-  actorListArgsSchema,
-  actorGetArgsSchema,
-  actorUpdateArgsSchema,
-  actorDeleteArgsSchema,
-  actorCreatedSchema,
-  actorUpdatedSchema,
-  actorDeletedSchema,
-  
-  // Item schemas
-  itemCallbackSchema,
-  itemListArgsSchema,
-  itemGetArgsSchema,
-  itemCreateArgsSchema,
-  itemUpdateArgsSchema,
-  itemDeleteArgsSchema,
-  itemCreatedSchema,
-  itemUpdatedSchema,
-  itemDeletedSchema,
   
   // GM-Authoritative action schemas (server-agnostic)
   gameActionRequestSchema,
@@ -316,15 +202,18 @@ export {
   gameStateRequestFullArgsSchema,
   gameSessionJoinArgsSchema,
   gameSessionLeaveArgsSchema,
+  gameSessionEndArgsSchema,
   gameStateUpdatedSchema,
   gameStateErrorSchema,
   gameStateFullResponseSchema,
   gameSessionJoinedSchema,
   gameSessionLeftSchema,
+  gameSessionEndedSchema,
   gameStateUpdateCallbackSchema,
   gameStateRequestFullCallbackSchema,
   gameSessionJoinCallbackSchema,
-  gameSessionLeaveCallbackSchema
+  gameSessionLeaveCallbackSchema,
+  gameSessionEndCallbackSchema
 };
 
 // ============================================================================
@@ -357,18 +246,6 @@ export const serverToClientEvents = z.object({
   'encounter:error': z.function().args(encounterErrorSchema).returns(z.void()),
   'user:joined': z.function().args(userJoinedSessionSchema).returns(z.void()),
   'user:left': z.function().args(userLeftSessionSchema).returns(z.void()),
-  'token:moved': z.function().args(tokenMovedSchema).returns(z.void()),
-  'token:created': z.function().args(tokenCreatedSchema).returns(z.void()),
-  'token:updated': z.function().args(tokenUpdatedSchema).returns(z.void()),
-  'token:deleted': z.function().args(tokenDeletedSchema).returns(z.void()),
-  // Actor events
-  'actor:created': z.function().args(actorCreatedSchema).returns(z.void()),
-  'actor:updated': z.function().args(actorUpdatedSchema).returns(z.void()),
-  'actor:deleted': z.function().args(actorDeletedSchema).returns(z.void()),
-  // Item events
-  'item:created': z.function().args(itemCreatedSchema).returns(z.void()),
-  'item:updated': z.function().args(itemUpdatedSchema).returns(z.void()),
-  'item:deleted': z.function().args(itemDeletedSchema).returns(z.void()),
   
   // GM-Authoritative action events (server routes without understanding game logic)
   'action:result': z.function().args(gameActionResultSchema).returns(z.void()),
@@ -389,7 +266,8 @@ export const serverToClientEvents = z.object({
   'gameState:updated': z.function().args(gameStateUpdatedSchema).returns(z.void()),
   'gameState:error': z.function().args(gameStateErrorSchema).returns(z.void()),
   'gameSession:joined': z.function().args(gameSessionJoinedSchema).returns(z.void()),
-  'gameSession:left': z.function().args(gameSessionLeftSchema).returns(z.void())
+  'gameSession:left': z.function().args(gameSessionLeftSchema).returns(z.void()),
+  'gameSession:ended': z.function().args(gameSessionEndedSchema).returns(z.void())
 });
 
 export const clientToServerEvents = z.object({
@@ -405,22 +283,6 @@ export const clientToServerEvents = z.object({
   'map:generate': z.function().args(...mapGenerateArgsSchema.items).returns(z.void()),
   'map:edit': z.function().args(...mapEditArgsSchema.items).returns(z.void()),
   'map:detect-features': z.function().args(...mapDetectFeaturesArgsSchema.items).returns(z.void()),
-  // Encounter events - room management now handled via session rooms
-  'token:move': z.function().args(...tokenMoveArgsSchema.items).returns(z.void()),
-  'token:create': z.function().args(...tokenCreateArgsSchema.items).returns(z.void()),
-  'token:update': z.function().args(...tokenUpdateArgsSchema.items).returns(z.void()),
-  'token:delete': z.function().args(...tokenDeleteArgsSchema.items).returns(z.void()),
-  // Actor events (with callbacks)
-  'actor:list': z.function().args(...actorListArgsSchema.items).returns(z.void()),
-  'actor:get': z.function().args(...actorGetArgsSchema.items).returns(z.void()),
-  'actor:update': z.function().args(...actorUpdateArgsSchema.items).returns(z.void()),
-  'actor:delete': z.function().args(...actorDeleteArgsSchema.items).returns(z.void()),
-  // Item events (with callbacks)
-  'item:list': z.function().args(...itemListArgsSchema.items).returns(z.void()),
-  'item:get': z.function().args(...itemGetArgsSchema.items).returns(z.void()),
-  'item:create': z.function().args(...itemCreateArgsSchema.items).returns(z.void()),
-  'item:update': z.function().args(...itemUpdateArgsSchema.items).returns(z.void()),
-  'item:delete': z.function().args(...itemDeleteArgsSchema.items).returns(z.void()),
   
   // GM-Authoritative action events (server-agnostic routing)
   'action:request': z.function().args(gameActionRequestSchema).returns(z.void()),
@@ -437,5 +299,6 @@ export const clientToServerEvents = z.object({
   'gameState:update': z.function().args(...gameStateUpdateArgsSchema.items).returns(z.void()),
   'gameState:requestFull': z.function().args(...gameStateRequestFullArgsSchema.items).returns(z.void()),
   'gameSession:join': z.function().args(...gameSessionJoinArgsSchema.items).returns(z.void()),
-  'gameSession:leave': z.function().args(...gameSessionLeaveArgsSchema.items).returns(z.void())
+  'gameSession:leave': z.function().args(...gameSessionLeaveArgsSchema.items).returns(z.void()),
+  'gameSession:end': z.function().args(...gameSessionEndArgsSchema.items).returns(z.void())
 });

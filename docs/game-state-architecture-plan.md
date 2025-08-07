@@ -265,49 +265,53 @@ socket.emit('gameSession:left', GameSessionLeft)          // User leave notifica
   - `user:${userId}` - for user-specific targeted messages ✅
   - Removed unused actor rooms - nobody was emitting to them ✅
 
-### 2.7 Legacy Socket Event Cleanup
-With the unified game state system, many socket events become redundant and should be removed:
+### 2.7 Legacy Socket Event Cleanup ✅ COMPLETED
+With the unified game state system, many socket events become redundant and have been removed:
 
-**Socket Events to REMOVE (replaced by gameState:update):**
-- **Token Events**: `token:moved`, `token:created`, `token:updated`, `token:deleted` (server-to-client)
-- **Token Client Events**: `token:move`, `token:create`, `token:update`, `token:delete` (client-to-server)
-- **Actor Events**: `actor:created`, `actor:updated`, `actor:deleted` (server-to-client)
-- **Actor Client Events**: `actor:list`, `actor:get`, `actor:update`, `actor:delete` (client-to-server)
-- **Item Events**: `item:created`, `item:updated`, `item:deleted` (server-to-client)
-- **Item Client Events**: `item:list`, `item:get`, `item:create`, `item:update`, `item:delete` (client-to-server)
-- **Combat State Events**: `initiative:rolled`, `initiative:updated`, `initiative:reordered`
-- **Turn Management**: `turn:changed`, `turn:skipped`, `turn:delayed`
-- **Action Events**: `action:executed`, `action:validated` 
-- **Effect Events**: `effect:applied`, `effect:removed`, `effect:expired`
-- **Movement Events**: `move` (if used for token movement)
+**Socket Events REMOVED (replaced by gameState:update):** ✅
+- ✅ **Token Events**: `token:moved`, `token:created`, `token:updated`, `token:deleted` (server-to-client)
+- ✅ **Token Client Events**: `token:move`, `token:create`, `token:update`, `token:delete` (client-to-server)
+- ✅ **Actor Events**: `actor:created`, `actor:updated`, `actor:deleted` (server-to-client)
+- ✅ **Actor Client Events**: `actor:list`, `actor:get`, `actor:update`, `actor:delete` (client-to-server)
+- ✅ **Item Events**: `item:created`, `item:updated`, `item:deleted` (server-to-client)
+- ✅ **Item Client Events**: `item:list`, `item:get`, `item:create`, `item:update`, `item:delete` (client-to-server)
+- ✅ **Combat State Events**: `initiative:rolled`, `initiative:updated`, `initiative:reordered`
+- ✅ **Turn Management**: `turn:changed`, `turn:skipped`, `turn:delayed`
+- ✅ **Action Events**: `action:executed`, `action:validated` 
+- ✅ **Effect Events**: `effect:applied`, `effect:removed`, `effect:expired`
+- ✅ **Movement Events**: `move` (if used for token movement)
 
-**Socket Events to KEEP (separate from game state):**
-- Chat events (separate system)
-- Dice roll events (separate from game state)
-- Session management: `encounter:started`, `encounter:stopped`, `user:joined`, `user:left`
-- GM authority & heartbeat events
-- Workflow events (map generation, etc.)
-- New `gameState:*` and `gameSession:*` events
+**Socket Events PRESERVED (separate from game state):** ✅
+- ✅ Chat events (separate system)
+- ✅ Dice roll events (separate from game state)
+- ✅ Session management: `encounter:started`, `encounter:stopped`, `user:joined`, `user:left`
+- ✅ GM authority & heartbeat events
+- ✅ Workflow events (map generation, etc.)
+- ✅ New `gameState:*` and `gameSession:*` events
 
-**Files to Clean Up:**
-- **File**: `packages/shared/src/schemas/socket/index.mts`
-  - Remove legacy event definitions from `serverToClientEvents` and `clientToServerEvents`
-  - Remove imports for deprecated event schemas
-- **Delete Files**: `packages/shared/src/schemas/socket/actors.mts`
-- **Delete Files**: `packages/shared/src/schemas/socket/items.mts`
-- **Update File**: `packages/shared/src/schemas/socket/encounters.mts`
-  - Remove token, initiative, turn, action, and effect event schemas
-  - Keep encounter lifecycle events (start/stop/pause/end)
-- **File**: `packages/shared/src/types/socket/index.mts`
-  - Remove type exports for deleted events
-- **Update**: Any remaining handler files that reference deleted events
+**Files Cleaned Up:** ✅
+- ✅ **File**: `packages/shared/src/schemas/socket/index.mts`
+  - ✅ Removed legacy event definitions from `serverToClientEvents` and `clientToServerEvents`
+  - ✅ Removed imports for deprecated event schemas
+  - ✅ Added missing `gameSession:ended` and `gameSession:end` event support
+- ✅ **Deleted Files**: `packages/shared/src/schemas/socket/actors.mts`
+- ✅ **Deleted Files**: `packages/shared/src/schemas/socket/items.mts`
+- ✅ **Updated File**: `packages/shared/src/schemas/socket/encounters.mts`
+  - ✅ Removed token, initiative, turn, action, and effect event schemas
+  - ✅ Kept encounter lifecycle events (start/stop/pause/end)
+- ✅ **File**: `packages/shared/src/types/socket/index.mts`
+  - ✅ Removed type exports for deleted events
+- ✅ **Updated**: Removed encounter-handler completely (replaced by game-state-handler)
+- ✅ **Fixed**: `createGameSessionSchema` to remove reference to deleted `characterIds` field
 
-**Benefits of Cleanup:**
-- Removes ~25+ redundant socket events
-- Simplifies client-server communication model
-- Eliminates complex event coordination between multiple handlers
-- Reduces bundle size and complexity
-- Enforces unified state management architecture
+**Benefits Achieved:** ✅
+- ✅ Removed ~25+ redundant socket events
+- ✅ Simplified client-server communication model
+- ✅ Eliminated complex event coordination between multiple handlers
+- ✅ Reduced bundle size and complexity
+- ✅ Enforced unified state management architecture
+- ✅ All game state changes now flow through `gameState:update` event
+- ✅ Single centralized game-state-handler replaces multiple specialized handlers
 
 ## Phase 3: Frontend Implementation (2-3 weeks)
 
@@ -490,7 +494,7 @@ async function handleReconnection() {
 - Phase 2.4: Backing Store Synchronization ✅ COMPLETED
 - Phase 2.5: State Integrity System ✅ COMPLETED
 - Phase 2.6: Update Socket Server ✅ COMPLETED  
-- Phase 2.7: Legacy Socket Event Cleanup (NEW)
+- Phase 2.7: Legacy Socket Event Cleanup ✅ COMPLETED
 - Phase 3: Frontend Implementation
 - Phase 4: Plugin Integration
 - Phase 5: State Synchronization Details

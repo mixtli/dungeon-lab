@@ -40,44 +40,7 @@ export type MapGenerationRequest = z.infer<typeof socketTypes.mapGenerationReque
 export type MapEditRequest = z.infer<typeof socketTypes.mapEditRequestSchema>;
 export type MapFeatureDetectionRequest = z.infer<typeof socketTypes.mapFeatureDetectionRequestSchema>;
 
-// Export encounter socket types
-// Note: EncounterJoin, EncounterLeave, and EncounterJoinCallback removed - using session-based architecture
-
-export type TokenMove = z.infer<typeof encounterSocketSchemas.tokenMoveSchema>;
-export type TokenMoved = z.infer<typeof encounterSocketSchemas.tokenMovedSchema>;
-export type TokenMoveCallback = z.infer<typeof encounterSocketSchemas.tokenMoveCallbackSchema>;
-
-export type TokenCreate = z.infer<typeof encounterSocketSchemas.tokenCreateSchema>;
-export type TokenCreated = z.infer<typeof encounterSocketSchemas.tokenCreatedSchema>;
-export type TokenUpdate = z.infer<typeof encounterSocketSchemas.tokenUpdateSchema>;
-export type TokenUpdated = z.infer<typeof encounterSocketSchemas.tokenUpdatedSchema>;
-export type TokenDelete = z.infer<typeof encounterSocketSchemas.tokenDeleteSchema>;
-export type TokenDeleted = z.infer<typeof encounterSocketSchemas.tokenDeletedSchema>;
-
-export type InitiativeRoll = z.infer<typeof encounterSocketSchemas.initiativeRollSchema>;
-export type InitiativeRolled = z.infer<typeof encounterSocketSchemas.initiativeRolledSchema>;
-export type InitiativeUpdate = z.infer<typeof encounterSocketSchemas.initiativeUpdateSchema>;
-export type InitiativeUpdated = z.infer<typeof encounterSocketSchemas.initiativeUpdatedSchema>;
-export type InitiativeReorder = z.infer<typeof encounterSocketSchemas.initiativeReorderSchema>;
-export type InitiativeReordered = z.infer<typeof encounterSocketSchemas.initiativeReorderedSchema>;
-
-export type TurnNext = z.infer<typeof encounterSocketSchemas.turnNextSchema>;
-export type TurnChanged = z.infer<typeof encounterSocketSchemas.turnChangedSchema>;
-export type TurnSkip = z.infer<typeof encounterSocketSchemas.turnSkipSchema>;
-export type TurnSkipped = z.infer<typeof encounterSocketSchemas.turnSkippedSchema>;
-export type TurnDelay = z.infer<typeof encounterSocketSchemas.turnDelaySchema>;
-export type TurnDelayed = z.infer<typeof encounterSocketSchemas.turnDelayedSchema>;
-
-export type ActionExecute = z.infer<typeof encounterSocketSchemas.actionExecuteSchema>;
-export type ActionExecuted = z.infer<typeof encounterSocketSchemas.actionExecutedSchema>;
-export type ActionValidate = z.infer<typeof encounterSocketSchemas.actionValidateSchema>;
-export type ActionValidated = z.infer<typeof encounterSocketSchemas.actionValidatedSchema>;
-
-export type EffectApply = z.infer<typeof encounterSocketSchemas.effectApplySchema>;
-export type EffectApplied = z.infer<typeof encounterSocketSchemas.effectAppliedSchema>;
-export type EffectRemove = z.infer<typeof encounterSocketSchemas.effectRemoveSchema>;
-export type EffectRemoved = z.infer<typeof encounterSocketSchemas.effectRemovedSchema>;
-export type EffectExpired = z.infer<typeof encounterSocketSchemas.effectExpiredSchema>;
+// Export encounter lifecycle socket types
 
 export type EncounterStart = z.infer<typeof encounterSocketSchemas.encounterStartSchema>;
 export type EncounterStarted = z.infer<typeof encounterSocketSchemas.encounterStartedSchema>;
@@ -90,12 +53,6 @@ export type EncounterEnded = z.infer<typeof encounterSocketSchemas.encounterEnde
 export type EncounterError = z.infer<typeof encounterSocketSchemas.encounterErrorSchema>;
 export type EncounterCallback = z.infer<typeof encounterSocketSchemas.encounterCallbackSchema>;
 
-// Export actor and item socket types
-import * as actorSocketSchemas from '../../schemas/socket/actors.mjs';
-import * as itemSocketSchemas from '../../schemas/socket/items.mjs';
-
-export type ActorCallback = z.infer<typeof actorSocketSchemas.actorCallbackSchema>;
-export type ItemCallback = z.infer<typeof itemSocketSchemas.itemCallbackSchema>;
 
 // Export GM-Authoritative socket types (server-agnostic action handling)
 import * as actionSchemas from '../../schemas/socket/actions.mjs';
