@@ -3,6 +3,7 @@ import { ref, onMounted, computed, watch } from 'vue';
 import type { IActor } from '@dungeon-lab/shared/types/index.mjs';
 import { ActorsClient } from '@dungeon-lab/client/index.mjs';
 import { useGameSessionStore } from '../../stores/game-session.store.mts';
+import { useGameStateStore } from '../../stores/game-state.store.mts';
 import { useAuthStore } from '../../stores/auth.store.mts';
 import { GameSessionsClient } from '@dungeon-lab/client/game-sessions.client.mts';
 import { useAssetUrl } from '../../composables/useAssetUrl.mts';
@@ -20,6 +21,7 @@ const emit = defineEmits<{
 
 const actorsClient = new ActorsClient();
 const gameSessionStore = useGameSessionStore();
+const gameStateStore = useGameStateStore();
 const authStore = useAuthStore();
 const gameSessionsClient = new GameSessionsClient();
 const { transformAssetUrl } = useAssetUrl();
@@ -69,19 +71,47 @@ async function fetchCharacters() {
   }
 }
 
-function selectCharacter(actor: IActor) {
-  gameSessionStore.joinSession(props.sessionId, actor.id);
-  emit('characterSelected', actor);
-  emit('close');
+async function selectCharacter(actor: IActor) {
+  try {
+    loading.value = true;
+    error.value = null;
+    
+    // Use the Game Session Store to join session
+    await gameSessionStore.joinSession(props.sessionId);
+    
+    console.log('Successfully joined session with character:', actor.name);
+    // Set the selected character in game state
+    gameStateStore.selectedCharacter = actor;
+    emit('characterSelected', actor);
+    emit('close');
+  } catch (err) {
+    console.error('Error joining session with character:', err);
+    error.value = err instanceof Error ? err.message : 'Failed to join session';
+  } finally {
+    loading.value = false;
+  }
 }
 
 function close() {
   emit('close');
 }
 
-function joinWithoutCharacter() {
-  gameSessionStore.joinSession(props.sessionId);
-  emit('close');
+async function joinWithoutCharacter() {
+  try {
+    loading.value = true;
+    error.value = null;
+    
+    // Use the Game Session Store to join session
+    await gameSessionStore.joinSession(props.sessionId);
+    
+    console.log('Successfully joined session without character');
+    emit('close');
+  } catch (err) {
+    console.error('Error joining session:', err);
+    error.value = err instanceof Error ? err.message : 'Failed to join session';
+  } finally {
+    loading.value = false;
+  }
 }
 
 const isGameMasterForSession = computed(() => {

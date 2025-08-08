@@ -87,13 +87,14 @@ export function incrementStateVersion(currentVersion: string | null): string {
 }
 
 /**
- * Check if an incoming version is the expected next version
+ * Check if an incoming version matches the current server version
  * 
  * @param currentVersion - Current version on server
- * @param incomingVersion - Version from client request
- * @returns true if incoming version is current + 1
+ * @param incomingVersion - Version from client request (should match current server version)
+ * @returns true if incoming version matches current server version
  */
 export function isValidNextVersion(currentVersion: string | null, incomingVersion: string): boolean {
-  const expected = incrementStateVersion(currentVersion);
-  return expected === incomingVersion;
+  // Client should send their current version, which should match server's current version
+  const serverVersion = currentVersion || '0';
+  return serverVersion === incomingVersion;
 }

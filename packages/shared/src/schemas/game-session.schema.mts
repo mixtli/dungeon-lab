@@ -29,6 +29,7 @@ export const gameSessionSchema = baseSchema.extend({
 
 export const gameSessionCreateSchema = gameSessionSchema.omit({
   id: true,
+  gameMasterId: true,  // Should be inferred from authenticated user
   participantIds: true,
   gameState: true,
   gameStateVersion: true,

@@ -2,7 +2,6 @@ import { defineStore } from 'pinia';
 import { io, Socket } from 'socket.io-client';
 import { onMounted, ref, watch } from 'vue';
 import { useAuthStore } from './auth.store.mts';
-import { useGameSessionStore } from './game-session.store.mts';
 // import { useEncounterStore } from './encounter.store.mts';
 import {
   ClientToServerEvents,
@@ -137,14 +136,6 @@ export const useSocketStore = defineStore(
           }
         }, 5000);
 
-        // Add encounter:stopped listener
-        const gameSessionStore = useGameSessionStore();
-        socket.value?.on('encounter:stopped', (event: { encounterId: string; sessionId: string; timestamp?: Date }) => {
-          console.log('[Socket] encounter:stopped received', event);
-          if (gameSessionStore.currentSession && gameSessionStore.currentSession.currentEncounterId === event.encounterId) {
-            gameSessionStore.currentSession.currentEncounterId = undefined;
-          }
-        });
       });
     }
 

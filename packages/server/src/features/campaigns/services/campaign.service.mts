@@ -90,7 +90,7 @@ export class CampaignService {
     if (!campaign) {
       throw new Error('Campaign not found');
     }
-    const characters = await DocumentService.find({ campaignId, documentType: 'character' });
+    const characters = await DocumentService.find({ campaignId, documentType: 'character' }, { populate: ['avatar', 'defaultTokenImage'] });
     const usersPromises = characters.map(async (character) => await UserModel.findById(character.createdBy));
     const users = await Promise.all(usersPromises);
     return users.filter((user) => user !== null) as IUser[];

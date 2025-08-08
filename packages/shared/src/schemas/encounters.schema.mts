@@ -136,11 +136,8 @@ export const effectApplicationSchema = z.object({
 // ============================================================================
 
 export const EncounterStatusEnum = z.enum([
-  'draft',
-  'ready', 
-  'in_progress',
-  'paused',
-  'completed'
+  'stopped',
+  'in_progress'
 ]);
 
 export const encounterSettingsSchema = z.object({
@@ -160,7 +157,7 @@ export const encounterSchema = baseSchema.extend({
   description: z.string().optional(),
   campaignId: z.string(),
   mapId: z.string(),
-  status: EncounterStatusEnum.default('draft'),
+  status: EncounterStatusEnum.default('stopped'),
   initiative: initiativeTrackerSchema.default({}),
   effects: z.array(effectSchema).default([]),
   tokens: z.array(tokenSchema).default([]),

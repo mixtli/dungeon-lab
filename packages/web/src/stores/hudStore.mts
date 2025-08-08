@@ -49,6 +49,13 @@ export const useHUDStore = defineStore('hud', () => {
         component: 'ActorsTab',
         visible: true
       },
+      characters: {
+        id: 'characters',
+        title: 'Characters',
+        icon: 'mdi-account',
+        component: 'CharactersTab',
+        visible: true
+      },
       items: {
         id: 'items',
         title: 'Items',

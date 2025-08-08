@@ -375,9 +375,8 @@ export class GameStateService {
         };
       }
 
-      // TODO: Load campaign data (characters, items, etc.) when we implement Phase 2.4
-      // For now, initialize with empty state
-      const initialGameState: ServerGameState = this.getInitialGameState();
+      // Load campaign data (characters, actors, items)
+      const initialGameState = await this.loadCampaignData(campaignId);
       
       const initialVersion = '1';
       const initialHash = generateStateHash(initialGameState);
@@ -394,7 +393,14 @@ export class GameStateService {
         }
       ).exec();
 
-      logger.info('Game state initialized', { sessionId, campaignId, version: initialVersion });
+      logger.info('Game state initialized', { 
+        sessionId, 
+        campaignId, 
+        version: initialVersion,
+        charactersCount: initialGameState.characters.length,
+        actorsCount: initialGameState.actors.length,
+        itemsCount: initialGameState.items.length
+      });
 
       return {
         success: true,
@@ -416,6 +422,101 @@ export class GameStateService {
   // ============================================================================
   // PRIVATE METHODS
   // ============================================================================
+
+  /**
+   * Load campaign data (characters, actors, items) for game state initialization
+   */
+  private async loadCampaignData(campaignId: string): Promise<ServerGameState> {
+    try {
+      // Import models dynamically to avoid circular dependencies
+      const { DocumentModel } = await import('../../documents/models/document.model.mjs');
+      const { Types } = await import('mongoose');
+      
+      // Convert campaignId string to ObjectId for proper Mongoose querying
+      const campaignObjectId = new Types.ObjectId(campaignId);
+      
+      logger.info('Loading campaign data', { campaignId, campaignObjectId: campaignObjectId.toString() });
+      
+      // Load all campaign-associated documents
+      const [characters, actors, campaignItems] = await Promise.all([
+        // Load characters belonging to this campaign with avatar and token assets
+        DocumentModel.find({ 
+          campaignId: campaignObjectId, 
+          documentType: 'character' 
+        }).populate(['avatar', 'defaultTokenImage']).exec(),
+        
+        // Load actors (NPCs, monsters) belonging to this campaign
+        DocumentModel.find({ 
+          campaignId: campaignObjectId, 
+          documentType: 'actor' 
+        }).exec(),
+        
+        // Load items belonging to this campaign
+        DocumentModel.find({ 
+          campaignId: campaignObjectId, 
+          documentType: 'item' 
+        }).exec()
+      ]);
+
+      logger.info('Loaded campaign documents', { 
+        campaignId,
+        charactersCount: characters.length,
+        actorsCount: actors.length,
+        campaignItemsCount: campaignItems.length
+      });
+
+      // Load inventory items for all characters
+      const allInventoryItemIds: string[] = [];
+      for (const character of characters) {
+        if (character.inventory && Array.isArray(character.inventory)) {
+          for (const invItem of character.inventory) {
+            if (invItem.itemId && !allInventoryItemIds.includes(invItem.itemId.toString())) {
+              allInventoryItemIds.push(invItem.itemId.toString());
+            }
+          }
+        }
+      }
+
+      // Load inventory items if any exist
+      let inventoryItems: any[] = [];
+      if (allInventoryItemIds.length > 0) {
+        const inventoryItemObjectIds = allInventoryItemIds.map(id => new Types.ObjectId(id));
+        inventoryItems = await DocumentModel.find({
+          _id: { $in: inventoryItemObjectIds },
+          documentType: 'item'
+        }).exec();
+        
+        logger.info('Loaded inventory items', { 
+          campaignId,
+          inventoryItemIds: allInventoryItemIds,
+          inventoryItemsCount: inventoryItems.length
+        });
+      }
+
+      // Combine campaign items and inventory items
+      const allItems = [...campaignItems, ...inventoryItems];
+
+      logger.info('Final campaign data loaded', { 
+        campaignId,
+        charactersCount: characters.length,
+        actorsCount: actors.length,
+        totalItemsCount: allItems.length
+      });
+
+      // Convert Mongoose documents to plain objects to avoid circular references in hash generation
+      return {
+        characters: characters.map(doc => doc.toObject()), // Convert from Mongoose documents to plain objects
+        actors: actors.map(doc => doc.toObject()),         // Convert from Mongoose documents to plain objects
+        items: allItems.map(doc => doc.toObject()),        // Convert from Mongoose documents to plain objects
+        currentEncounter: null,                            // No active encounter initially
+        pluginData: {}                                     // Empty plugin data initially
+      };
+    } catch (error) {
+      logger.error('Error loading campaign data:', error);
+      // Fall back to empty state if loading fails
+      return this.getInitialGameState();
+    }
+  }
 
   /**
    * Get session with retry logic for high-concurrency scenarios

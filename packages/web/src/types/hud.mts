@@ -19,6 +19,7 @@ export type SidebarTabType =
   | 'chat'
   | 'combat'
   | 'actors'
+  | 'characters'
   | 'items';
 
 export interface SidebarTab {

@@ -82,7 +82,12 @@ export class GameSessionService {
         gameMasterId: userObjectId,
         participantIds: [userObjectId],
         createdBy: userObjectId,
-        updatedBy: userObjectId
+        updatedBy: userObjectId,
+        // Explicitly set gameState to null to avoid validation issues during creation
+        gameState: null,
+        gameStateVersion: '0',
+        gameStateHash: null,
+        lastStateUpdate: null
       };
 
       const session = await GameSessionModel.create(sessionData);
@@ -95,7 +100,8 @@ export class GameSessionService {
       return initializedSession || session;
     } catch (error) {
       logger.error('Error creating game session:', error);
-      throw new Error('Failed to create game session');
+      // Preserve the original error message instead of masking it
+      throw error instanceof Error ? error : new Error('Failed to create game session');
     }
   }
 
@@ -194,8 +200,7 @@ export class GameSessionService {
 
       // Return the updated session
       const updatedSession = await GameSessionModel.findById(sessionId)
-        .populate('campaign')
-        .populate('characters');
+        .populate('campaign');
       
       if (!updatedSession) {
         throw new Error('Game session not found after update');
@@ -237,8 +242,7 @@ export class GameSessionService {
 
       // Return the updated session
       const updatedSession = await GameSessionModel.findById(sessionId)
-        .populate('campaign')
-        .populate('characters');
+        .populate('campaign');
       
       if (!updatedSession) {
         throw new Error('Game session not found after update');

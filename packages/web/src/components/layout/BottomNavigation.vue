@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 // import { useAuthStore } from '../../stores/auth.store.mts';
 import { useGameSessionStore } from '../../stores/game-session.store.mts';
+import { useGameStateStore } from '../../stores/game-state.store.mts';
 import { useNotificationStore } from '../../stores/notification.store.mts';
 import { 
   ChatBubbleLeftRightIcon, 
@@ -31,6 +32,7 @@ const router = useRouter();
 const route = useRoute();
 // const authStore = useAuthStore();
 const gameSessionStore = useGameSessionStore();
+const gameStateStore = useGameStateStore();
 const notificationStore = useNotificationStore();
 
 // Navigation tabs configuration
@@ -65,13 +67,13 @@ const tabs = computed(() => [
     navigate: () => {
       console.log('[BottomNav] Encounter button clicked');
       console.log('[BottomNav] Current session:', gameSessionStore.currentSession);
-      console.log('[BottomNav] Current encounter ID:', gameSessionStore.currentSession?.currentEncounterId);
+      console.log('[BottomNav] Current encounter ID:', gameStateStore.currentEncounter?.id);
       
-      if (gameSessionStore.currentSession?.currentEncounterId) {
+      if (gameStateStore.currentEncounter?.id) {
         router.push({ 
           name: 'encounter-run', 
           params: { 
-            id: gameSessionStore.currentSession.currentEncounterId 
+            id: gameStateStore.currentEncounter.id 
           } 
         });
       } else {

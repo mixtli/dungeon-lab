@@ -97,28 +97,37 @@ export class GameSessionController {
     req: Request<object, object, z.infer<typeof createGameSessionSchema>>,
     res: Response<BaseAPIResponse<IGameSession>>
   ): Promise<Response<BaseAPIResponse<IGameSession>> | void> => {
-    const validatedData = createGameSessionSchema.parse(req.body);
+    try {
+      const validatedData = createGameSessionSchema.parse(req.body);
 
-    // Create a session object with required fields that the service expects
-    // The service will add the missing fields (gameMasterId, participants, etc.)
-    const sessionData = {
-      name: validatedData.name,
-      campaignId: validatedData.campaignId,
-      description: validatedData.description,
-      status: validatedData.status || 'scheduled',
-      settings: validatedData.settings
-      // These will be set by the service but needed for type compatibility
-    } as IGameSession;
+      // Create a session object with required fields that the service expects
+      // The service will add the missing fields (gameMasterId, participants, etc.)
+      const sessionData = {
+        name: validatedData.name,
+        campaignId: validatedData.campaignId,
+        description: validatedData.description,
+        status: validatedData.status || 'scheduled',
+        settings: validatedData.settings
+        // These will be set by the service but needed for type compatibility
+      } as IGameSession;
 
-    const session = await this.gameSessionService.createGameSession(
-      sessionData,
-      req.session.user.id
-    );
+      const session = await this.gameSessionService.createGameSession(
+        sessionData,
+        req.session.user.id
+      );
 
-    return res.status(201).json({
-      success: true,
-      data: session
-    });
+      return res.status(201).json({
+        success: true,
+        data: session
+      });
+    } catch (error) {
+      console.error('Error in createGameSession controller:', error);
+      return res.status(500).json({
+        success: false,
+        data: null,
+        error: error instanceof Error ? error.message : 'Failed to create game session'
+      });
+    }
   };
 
   updateGameSession = async (

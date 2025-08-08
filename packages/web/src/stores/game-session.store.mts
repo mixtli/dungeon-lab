@@ -5,7 +5,11 @@ import { useAuthStore } from './auth.store.mts';
 import { useSocketStore } from './socket.store.mjs';
 import { useCampaignStore } from './campaign.store.mts';
 import { CampaignsClient, ActorsClient } from '@dungeon-lab/client/index.mjs';
-import type { JoinCallback } from '@dungeon-lab/shared/types/socket/index.mjs';
+import type { z } from 'zod';
+import {
+  gameSessionJoinCallbackSchema,
+  gameSessionLeaveCallbackSchema
+} from '@dungeon-lab/shared/schemas/socket/game-state.mjs';
 // import { useChatStore } from './chat.store.mts';
 // Encounter functionality now handled by game-state.store.mts
 
@@ -39,8 +43,10 @@ export const useGameSessionStore = defineStore(
         await socketStore.initSocket();
       }
       if (currentSession.value) {
-        console.log('Existing session found on mount, waiting for socket connection');
+        console.log('Existing session found on mount (restored from persistence), waiting for socket connection');
         attemptJoinSession();
+      } else {
+        console.log('No persisted session found');
       }
     });
 
@@ -115,20 +121,20 @@ export const useGameSessionStore = defineStore(
         }
 
         return new Promise<IGameSession>((resolve, reject) => {
-          console.log('Emitting joinSession event');
+          console.log('Emitting gameSession:join event');
           socketStore.socket?.emit(
-            'joinSession',
+            'gameSession:join',
             sessionId,
-            actorId,
-            async (response: JoinCallback) => {
-              console.log('joinSession response', response);
-              if (response.success && response.data) {
-                currentSession.value = response.data;
+            async (response: z.infer<typeof gameSessionJoinCallbackSchema>) => {
+              console.log('gameSession:join response', response);
+              if (response.success && response.session) {
+                currentSession.value = response.session as IGameSession;
 
                 // If joining with an actor, set it as the current character
                 if (actorId) {
                   // Find the actor in the session's characters
-                  const actor = response.data.characters?.find((c) => c.id === actorId);
+                  const session = response.session as IGameSession;
+                  const actor = session.characters?.find((c) => c.id === actorId);
                   if (actor) {
                     currentCharacter.value = actor;
                     // TODO: Update game state store with selected character
@@ -138,9 +144,10 @@ export const useGameSessionStore = defineStore(
                 }
 
                 // Fetch and set the active campaign
-                if (response.data.campaignId) {
+                const session = response.session as IGameSession;
+                if (session.campaignId) {
                   try {
-                    const campaign = await campaignClient.getCampaign(response.data.campaignId);
+                    const campaign = await campaignClient.getCampaign(session.campaignId);
                     campaignStore.setActiveCampaign(campaign);
                   } catch (err) {
                     console.error('Error fetching campaign for session:', err);
@@ -152,7 +159,7 @@ export const useGameSessionStore = defineStore(
                 // Register socket listeners for this session
                 registerSessionListeners(sessionId);
 
-                resolve(response.data);
+                resolve(session);
               } else {
                 const errorMsg = response.error || 'Failed to join game session';
                 error.value = errorMsg;
@@ -187,17 +194,13 @@ export const useGameSessionStore = defineStore(
       if (!socketStore.socket) return;
 
       // Remove any existing listeners to prevent duplicates
-      socketStore.socket.off('userJoinedSession');
-      socketStore.socket.off('userLeftSession');
+      socketStore.socket.off('gameSession:joined');
+      socketStore.socket.off('gameSession:left');
       socketStore.socket.off('encounter:started');
-      // Commented out events that aren't in the socket type definitions yet
-      // socketStore.socket.off('gameSession:update');
-      // socketStore.socket.off('gameSession:end');
-      // socketStore.socket.off('gameState:update');
 
       // Listen for user joined events
-      socketStore.socket.on('userJoinedSession', async (data: { userId: string, sessionId: string, actorId?: string }) => {
-        console.log('[Socket] Received userJoinedSession event:', data);
+      socketStore.socket.on('gameSession:joined', async (data: { userId: string, sessionId: string, actorId?: string }) => {
+        console.log('[Socket] Received gameSession:joined event:', data);
         
         if (data.sessionId === sessionId && data.actorId) {
           try {
@@ -222,13 +225,13 @@ export const useGameSessionStore = defineStore(
       });
 
       // Handle user left session events
-      socketStore.socket.on('userLeftSession', (data: { 
+      socketStore.socket.on('gameSession:left', (data: { 
         userId: string, 
         sessionId: string, 
         actorIds: string[],
         characterNames: string[]
       }) => {
-        console.log('[Socket] Received userLeftSession event:', data);
+        console.log('[Socket] Received gameSession:left event:', data);
         
         if (data.sessionId === sessionId) {
           // Remove characters from the current session
@@ -291,17 +294,27 @@ export const useGameSessionStore = defineStore(
 
     function leaveSession() {
       if (currentSession.value && socketStore.socket) {
-        if (currentSession.value.id) {
-          socketStore.socket.emit('leaveSession', currentSession.value.id);
+        const sessionId = currentSession.value.id;
+        if (sessionId) {
+          console.log('Emitting gameSession:leave event');
+          socketStore.socket.emit(
+            'gameSession:leave', 
+            sessionId, 
+            (response: z.infer<typeof gameSessionLeaveCallbackSchema>) => {
+              console.log('gameSession:leave response', response);
+              if (response.success) {
+                console.log('Successfully left session');
+              } else {
+                console.error('Failed to leave session:', response.error);
+              }
+            }
+          );
         }
 
         // Remove listeners
-        socketStore.socket.off('userJoinedSession');
-        socketStore.socket.off('userLeftSession');
-        // Commented out events that aren't in the socket type definitions yet
-        // socketStore.socket.off('gameSession:update');
-        // socketStore.socket.off('gameSession:end');
-        // socketStore.socket.off('gameState:update');
+        socketStore.socket.off('gameSession:joined');
+        socketStore.socket.off('gameSession:left');
+        socketStore.socket.off('encounter:started');
 
         clearSession();
       }

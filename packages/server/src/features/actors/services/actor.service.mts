@@ -22,7 +22,7 @@ export class ActorService {
   async getAllActors(type?: string): Promise<IActor[]> {
     try {
       const filter = type ? { documentType: 'actor', pluginDocumentType: type } : { documentType: 'actor' };
-      const actors = await DocumentService.find<IActor>(filter, { populate: ['avatar', 'token'] });
+      const actors = await DocumentService.find<IActor>(filter, { populate: ['avatar', 'defaultTokenImage'] });
       return actors;
     } catch (error) {
       logger.error('Error fetching actors:', error);
@@ -32,7 +32,7 @@ export class ActorService {
 
   async getActorById(id: string): Promise<IActor> {
     try {
-      const actor = await DocumentService.findById<IActor>(id, { populate: ['avatar', 'token'] });
+      const actor = await DocumentService.findById<IActor>(id, { populate: ['avatar', 'defaultTokenImage'] });
       if (!actor) {
         throw new Error('Actor not found');
       }
@@ -46,7 +46,7 @@ export class ActorService {
   async getActors(campaignId: string): Promise<IActor[]> {
     try {
       const filter = { campaignId, documentType: 'actor' };
-      const actors = await DocumentService.find<IActor>(filter, { populate: ['avatar', 'token'] });
+      const actors = await DocumentService.find<IActor>(filter, { populate: ['avatar', 'defaultTokenImage'] });
       return actors;
     } catch (error) {
       logger.error('Error getting actors:', error);
@@ -110,7 +110,7 @@ export class ActorService {
         this.generateActorToken(actor.id, userId);
       }
       // Return the actor with populated avatar and token
-      const updatedActor = await DocumentService.findById<IActor>(actor.id, { populate: ['avatar', 'token'] });
+      const updatedActor = await DocumentService.findById<IActor>(actor.id, { populate: ['avatar', 'defaultTokenImage'] });
       if (!updatedActor) {
         throw new Error('Actor not found after creation');
       }
@@ -204,7 +204,7 @@ export class ActorService {
       }
 
       // Return with populated fields
-      const actorWithPopulation = await DocumentService.findById<IActor>(id, { populate: ['avatar', 'token'] });
+      const actorWithPopulation = await DocumentService.findById<IActor>(id, { populate: ['avatar', 'defaultTokenImage'] });
       if (!actorWithPopulation) {
         throw new Error('Actor not found after update');
       }
@@ -300,7 +300,7 @@ export class ActorService {
       }
 
       // Return with populated fields
-      const actorWithPopulation = await DocumentService.findById<IActor>(id, { populate: ['avatar', 'token'] });
+      const actorWithPopulation = await DocumentService.findById<IActor>(id, { populate: ['avatar', 'defaultTokenImage'] });
       if (!actorWithPopulation) {
         throw new Error('Actor not found after update');
       }
@@ -358,7 +358,7 @@ export class ActorService {
       }
 
       // Return with populated fields
-      const actorWithPopulation = await DocumentService.findById<IActor>(id, { populate: ['avatar', 'token'] });
+      const actorWithPopulation = await DocumentService.findById<IActor>(id, { populate: ['avatar', 'defaultTokenImage'] });
       if (!actorWithPopulation) {
         throw new Error('Actor not found after update');
       }
@@ -422,7 +422,7 @@ export class ActorService {
       }
 
       // Return with populated fields
-      const actorWithPopulation = await DocumentService.findById<IActor>(id, { populate: ['avatar', 'token'] });
+      const actorWithPopulation = await DocumentService.findById<IActor>(id, { populate: ['avatar', 'defaultTokenImage'] });
       if (!actorWithPopulation) {
         throw new Error('Actor not found after update');
       }
@@ -547,7 +547,7 @@ export class ActorService {
       }
 
       // Execute the query with all conditions
-      return await DocumentService.find<IActor>(params, { populate: ['avatar', 'token'] });
+      return await DocumentService.find<IActor>(params, { populate: ['avatar', 'defaultTokenImage'] });
     } catch (error) {
       logger.error('Error searching actors:', error);
       throw new Error('Failed to search actors');

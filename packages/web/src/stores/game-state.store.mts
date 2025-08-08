@@ -10,16 +10,13 @@ import type {
   ICharacter,
   IActor,
   IItem,
-  IEncounter,
-  IGameSessionPopulated
+  IEncounter
 } from '@dungeon-lab/shared/types/index.mjs';
 import {
-  gameSessionJoinCallbackSchema,
-  gameSessionLeaveCallbackSchema,
   gameStateRequestFullCallbackSchema
 } from '@dungeon-lab/shared/schemas/socket/game-state.mjs';
 import { useSocketStore } from './socket.store.mjs';
-import { useAuthStore } from './auth.store.mjs';
+import { useGameSessionStore } from './game-session.store.mjs';
 
 /**
  * Unified Game State Store
@@ -29,17 +26,18 @@ import { useAuthStore } from './auth.store.mjs';
  * and character-sheet stores.
  * 
  * Key Principles:
- * - GM Authority: GM client sends updates, players receive broadcasts
+ * - GM Authority: GM client sends updates, players receive broadcasts (authority comes from Game Session Store)
  * - Sequential Updates: GM updates are queued and processed one at a time
  * - Version Control: Optimistic concurrency with version tracking
  * - State Integrity: Hash verification prevents corruption
  * - Single Source of Truth: All game entities in one reactive object
+ * - Session Aware: Operates within sessions managed by Game Session Store
  */
 export const useGameStateStore = defineStore(
   'gameState',
   () => {
     const socketStore = useSocketStore();
-    const authStore = useAuthStore();
+    const gameSessionStore = useGameSessionStore();
 
     // ============================================================================
     // REACTIVE STATE
@@ -49,10 +47,6 @@ export const useGameStateStore = defineStore(
     const gameState = ref<ServerGameState | null>(null);
     const gameStateVersion = ref<string | null>(null);
     const gameStateHash = ref<string | null>(null);
-
-    // Client-only state
-    const sessionId = ref<string | null>(null);
-    const isGM = ref<boolean>(false);
     
     // UI state
     const selectedCharacter = ref<ICharacter | null>(null);
@@ -62,6 +56,9 @@ export const useGameStateStore = defineStore(
     // Update management (GM only)
     const isUpdating = ref<boolean>(false);
     const updateQueue = ref<StateUpdate[]>([]);
+    
+    // Initialization tracking to prevent race condition clearing
+    const isInitialized = ref<boolean>(false);
 
     // ============================================================================
     // COMPUTED PROPERTIES - DATA ACCESS
@@ -99,115 +96,66 @@ export const useGameStateStore = defineStore(
     // Plugin data access
     const pluginData = computed(() => gameState.value?.pluginData || {});
 
-    // Session info
+    // Session info (from Game Session Store)
     const hasGameState = computed(() => gameState.value !== null);
-    const isInSession = computed(() => sessionId.value !== null);
-    const canUpdate = computed(() => isGM.value && hasGameState.value);
+    const isInSession = computed(() => gameSessionStore.currentSession !== null);
+    const canUpdate = computed(() => gameSessionStore.isGameMaster && hasGameState.value);
 
     // ============================================================================
-    // CORE METHODS - SESSION MANAGEMENT
+    // CORE METHODS - GAME STATE MANAGEMENT
     // ============================================================================
-
-    /**
-     * Join a game session and initialize state
-     */
-    async function joinGameSession(targetSessionId: string): Promise<boolean> {
-      try {
-        loading.value = true;
-        error.value = null;
-
-        if (!socketStore.socket) {
-          throw new Error('Socket not connected');
-        }
-
-        // Join session via socket
-        return new Promise((resolve, reject) => {
-          socketStore.emit('gameSession:join', targetSessionId, (response: z.infer<typeof gameSessionJoinCallbackSchema>) => {
-            if (response.success && response.session) {
-              sessionId.value = targetSessionId;
-              const session = response.session as IGameSessionPopulated;
-              isGM.value = session.gameMasterId === authStore.user?.id;
-              
-              console.log('Joined game session successfully', { 
-                sessionId: targetSessionId, 
-                isGM: isGM.value 
-              });
-
-              // Request initial game state
-              requestFullState();
-              resolve(true);
-            } else {
-              const errorMsg = response.error || 'Failed to join session';
-              error.value = errorMsg;
-              reject(new Error(errorMsg));
-            }
-          });
-        });
-
-      } catch (err) {
-        const errorMsg = err instanceof Error ? err.message : 'Failed to join session';
-        error.value = errorMsg;
-        console.error('Error joining game session:', { sessionId: targetSessionId, error: err });
-        return false;
-      } finally {
-        loading.value = false;
-      }
-    }
-
-    /**
-     * Leave the current game session
-     */
-    async function leaveGameSession(): Promise<void> {
-      try {
-        if (!sessionId.value || !socketStore.socket) return;
-
-        return new Promise((resolve, reject) => {
-          socketStore.emit('gameSession:leave', sessionId.value!, (response: z.infer<typeof gameSessionLeaveCallbackSchema>) => {
-            if (response.success) {
-              clearState();
-              resolve();
-            } else {
-              reject(new Error(response.error || 'Failed to leave session'));
-            }
-          });
-        });
-
-      } catch (err) {
-        console.error('Error leaving game session:', err);
-        // Always clear state on error to avoid stuck state
-        clearState();
-      }
-    }
 
     /**
      * Request full game state from server
      */
     async function requestFullState(): Promise<void> {
       try {
-        if (!sessionId.value || !socketStore.socket) {
+        const currentSessionId = gameSessionStore.currentSession?.id;
+        const socketConnected = socketStore.connected;
+        const socketExists = !!socketStore.socket;
+        
+        console.log('[GameState] requestFullState called', { 
+          currentSessionId, 
+          socketConnected, 
+          socketExists 
+        });
+        
+        if (!currentSessionId || !socketStore.socket) {
+          const error = `Missing requirements: sessionId=${currentSessionId}, socket=${socketExists}, connected=${socketConnected}`;
+          console.error('[GameState] Cannot request full state:', error);
           throw new Error('No active session or socket connection');
         }
 
         loading.value = true;
         error.value = null;
 
+        console.log('[GameState] Emitting gameState:requestFull for session:', currentSessionId);
+
         return new Promise((resolve, reject) => {
-          socketStore.emit('gameState:requestFull', sessionId.value!, (response: z.infer<typeof gameStateRequestFullCallbackSchema>) => {
+          socketStore.emit('gameState:requestFull', currentSessionId, (response: z.infer<typeof gameStateRequestFullCallbackSchema>) => {
+            console.log('[GameState] gameState:requestFull response received:', { 
+              success: response.success, 
+              hasData: !!response.data,
+              error: response.error 
+            });
+            
             if (response.success && response.data) {
               // Update state with server data
               gameState.value = response.data.gameState as ServerGameState;
               gameStateVersion.value = response.data.gameStateVersion;
               gameStateHash.value = response.data.gameStateHash;
 
-
-              console.log('Game state refreshed from server', { 
+              console.log('[GameState] Game state refreshed from server', { 
                 version: gameStateVersion.value,
-                hash: gameStateHash.value 
+                hash: gameStateHash.value,
+                hasCharacters: gameState.value?.characters?.length || 0,
+                hasCurrentEncounter: !!gameState.value?.currentEncounter
               });
 
               resolve();
             } else {
               const errorMsg = response.error || 'Failed to get game state';
+              console.error('[GameState] Game state request failed:', errorMsg);
               error.value = errorMsg;
               reject(new Error(errorMsg));
             }
@@ -217,7 +165,7 @@ export const useGameStateStore = defineStore(
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : 'Failed to refresh state';
         error.value = errorMsg;
-        console.error('Error requesting full state:', err);
+        console.error('[GameState] Error requesting full state:', err);
         throw err;
       } finally {
         loading.value = false;
@@ -243,9 +191,15 @@ export const useGameStateStore = defineStore(
 
       // Queue update if another update is in progress
       if (isUpdating.value) {
+        const currentSessionId = gameSessionStore.currentSession?.id;
+        
+        if (!currentSessionId) {
+          throw new Error('No active session');
+        }
+
         const queuedUpdate: StateUpdate = {
           id: generateUpdateId(),
-          sessionId: sessionId.value!,
+          sessionId: currentSessionId,
           version: gameStateVersion.value!,
           operations,
           timestamp: Date.now(),
@@ -276,9 +230,15 @@ export const useGameStateStore = defineStore(
       isUpdating.value = true;
       
       try {
+        const currentSessionId = gameSessionStore.currentSession?.id;
+        
+        if (!currentSessionId) {
+          throw new Error('No active session');
+        }
+
         const update: StateUpdate = {
           id: generateUpdateId(),
-          sessionId: sessionId.value!,
+          sessionId: currentSessionId,
           version: gameStateVersion.value!,
           operations,
           timestamp: Date.now(),
@@ -475,20 +435,19 @@ export const useGameStateStore = defineStore(
     // ============================================================================
 
     /**
-     * Clear all state (on disconnect/leave)
+     * Clear game state (called when leaving session or on errors)
      */
     function clearState(): void {
       gameState.value = null;
       gameStateVersion.value = null;
       gameStateHash.value = null;
-      sessionId.value = null;
-      isGM.value = false;
       selectedCharacter.value = null;
       error.value = null;
       isUpdating.value = false;
       updateQueue.value = [];
+      // Note: Don't reset isInitialized here, we want to keep track that initialization completed
       
-      console.log('Game state cleared');
+      console.log('[GameState] Game state cleared');
     }
 
     /**
@@ -533,7 +492,7 @@ export const useGameStateStore = defineStore(
     // ============================================================================
 
     /**
-     * Setup socket event handlers
+     * Setup socket event handlers for game state operations
      */
     function setupSocketHandlers(): void {
       const socket = socketStore.socket;
@@ -542,20 +501,10 @@ export const useGameStateStore = defineStore(
       // Clean up existing listeners
       socket.off('gameState:updated');
       socket.off('gameState:error');
-      socket.off('gameSession:joined');
-      socket.off('gameSession:left');
 
-      // Setup new listeners
+      // Setup game state listeners only
       socket.on('gameState:updated', handleGameStateUpdated);
       socket.on('gameState:error', handleGameStateError);
-      
-      socket.on('gameSession:joined', (data: { sessionId: string; userId: string; userName: string; isGM: boolean; timestamp: number }) => {
-        console.log('User joined session', data);
-      });
-      
-      socket.on('gameSession:left', (data: { sessionId: string; userId: string; userName: string; timestamp: number }) => {
-        console.log('User left session', data);
-      });
 
       console.log('Game state socket handlers setup complete');
     }
@@ -581,19 +530,64 @@ export const useGameStateStore = defineStore(
       (isConnected) => {
         if (isConnected) {
           setupSocketHandlers();
-          
-          // If we have a session from persistence, verify it's still valid
-          if (sessionId.value) {
-            console.log('Reconnected to socket, verifying session state');
-            requestFullState().catch(() => {
-              console.warn('Failed to verify session state on reconnect, clearing');
-              clearState();
-            });
-          }
         } else {
           console.log('Socket disconnected');
         }
       }
+    );
+
+    // Initialize game state if session already exists (handles timing issue where session join happens before store initialization)
+    const initializeIfSessionExists = async () => {
+      // Give a small delay to allow Game Session Store to load from sessionStorage
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      const existingSessionId = gameSessionStore.currentSession?.id;
+      console.log('[GameState] Store initialized, checking for existing session:', existingSessionId);
+      
+      if (existingSessionId) {
+        console.log('[GameState] Found existing session on store init, requesting game state:', existingSessionId);
+        try {
+          await requestFullState();
+        } catch (error) {
+          console.error('[GameState] Failed to load game state for existing session:', error);
+        }
+      } else {
+        console.log('[GameState] No existing session found on store init');
+      }
+      
+      // Mark as initialized after the check completes
+      isInitialized.value = true;
+      console.log('[GameState] Store initialization complete');
+    };
+
+    // Call initialization check immediately
+    initializeIfSessionExists();
+
+    // Watch for Game Session Store changes to initialize/clear game state
+    watch(
+      () => gameSessionStore.currentSession?.id,
+      (newSessionId, oldSessionId) => {
+        console.log('[GameState] Game session ID changed', { 
+          newSessionId, 
+          oldSessionId, 
+          isInitialized: isInitialized.value 
+        });
+        
+        if (newSessionId && newSessionId !== oldSessionId) {
+          // New session - request game state
+          console.log('[GameState] Requesting game state for new session:', newSessionId);
+          requestFullState().catch((error) => {
+            console.error('[GameState] Failed to load game state for session:', error);
+          });
+        } else if (!newSessionId && oldSessionId && isInitialized.value) {
+          // Session ended - but only clear if we're past initialization to avoid race conditions
+          console.log('[GameState] Session ended after initialization, clearing game state');
+          clearState();
+        } else if (!newSessionId && oldSessionId && !isInitialized.value) {
+          console.log('[GameState] Session appears ended but during initialization - skipping clear to avoid race condition');
+        }
+      },
+      { immediate: false } // Changed to false since we handle initialization explicitly above
     );
 
 
@@ -606,12 +600,11 @@ export const useGameStateStore = defineStore(
       gameState: readonly(gameState),
       gameStateVersion: readonly(gameStateVersion),
       gameStateHash: readonly(gameStateHash),
-      sessionId: readonly(sessionId),
-      isGM: readonly(isGM),
       selectedCharacter,
       loading: readonly(loading),
       error: readonly(error),
       isUpdating: readonly(isUpdating),
+      isInitialized: readonly(isInitialized),
 
       // Computed data access
       characters,
@@ -627,9 +620,7 @@ export const useGameStateStore = defineStore(
       getCharacterItems,
       getCharacterItemCount,
 
-      // Session management
-      joinGameSession,
-      leaveGameSession,
+      // Game state management
       requestFullState,
 
       // State updates (GM only)
@@ -643,7 +634,7 @@ export const useGameStateStore = defineStore(
     persist: {
       key: 'game-state-store',
       storage: localStorage,
-      pick: ['gameState', 'gameStateVersion', 'gameStateHash', 'sessionId', 'isGM']
+      pick: ['gameState', 'gameStateVersion', 'gameStateHash', 'selectedCharacter']
     }
   }
 );

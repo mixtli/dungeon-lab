@@ -1,15 +1,15 @@
 <template>
-  <div class="actors-tab">
-    <div class="actors-header">
-      <h4>Actors</h4>
-      <div class="actors-controls">
-        <button class="control-button" title="Add Actor">
+  <div class="characters-tab">
+    <div class="characters-header">
+      <h4>Characters</h4>
+      <div class="characters-controls">
+        <button class="control-button" title="Add Character">
           <i class="mdi mdi-plus"></i>
         </button>
-        <button class="control-button" title="Import Actors">
+        <button class="control-button" title="Import Characters">
           <i class="mdi mdi-upload"></i>
         </button>
-        <button class="control-button" title="Actor Settings">
+        <button class="control-button" title="Character Settings">
           <i class="mdi mdi-cog"></i>
         </button>
       </div>
@@ -21,7 +21,7 @@
         <input
           v-model="searchQuery"
           type="text"
-          placeholder="Search actors..."
+          placeholder="Search characters..."
           class="search-input"
         />
       </div>
@@ -39,36 +39,41 @@
       </div>
     </div>
 
-    <div class="actors-list">
+    <div class="characters-list">
       <div
-        v-for="actor in filteredActors"
-        :key="actor.id"
-        class="actor-card"
-        :class="`actor-${actor.pluginDocumentType}`"
-        @click="selectActor(actor)"
-        @dblclick="openCharacterSheet(actor)"
+        v-for="character in filteredCharacters"
+        :key="character.id"
+        class="character-card"
+        :class="`character-${character.pluginDocumentType || 'pc'}`"
+        @click="selectCharacter(character)"
+        @dblclick="openCharacterSheet(character)"
       >
-        <div class="actor-avatar">
-          <img v-if="actor.avatar?.url" :src="actor.avatar.url" :alt="actor.name" />
-          <img v-else-if="actor.token?.url" :src="actor.token.url" :alt="actor.name" />
-          <i v-else class="mdi mdi-account-circle"></i>
+        <div class="character-avatar">
+          <img 
+            v-if="getCharacterImageUrl(character)" 
+            :src="getCharacterImageUrl(character)!" 
+            :alt="character.name"
+            @error="(e) => (e.target as HTMLImageElement).style.display = 'none'"
+          />
+          <i v-else class="mdi mdi-account"></i>
         </div>
         
-        <div class="actor-info">
-          <div class="actor-name">{{ actor.name }}</div>
-          <div class="actor-details">
-            <span class="actor-type">{{ actor.pluginDocumentType }}</span>
+        <div class="character-info">
+          <div class="character-name">{{ character.name }}</div>
+          <div class="character-details">
+            <span class="character-type">{{ character.pluginDocumentType || 'PC' }}</span>
+            <span v-if="character.level" class="character-level">Level {{ character.level }}</span>
           </div>
         </div>
 
-        <div class="actor-actions">
-          <button class="action-button" title="Character Sheet" @click.stop="openCharacterSheet(actor)">
+        <div class="character-actions">
+          <button class="action-button" title="Character Sheet" @click.stop="openCharacterSheet(character)">
             <i class="mdi mdi-file-document"></i>
           </button>
-          <button class="action-button" title="Add to Encounter" @click.stop="addToEncounter(actor)">
+          <button class="action-button" title="Add to Encounter" @click.stop="addToEncounter(character)">
             <i class="mdi mdi-plus-circle"></i>
           </button>
-          <button class="action-button" title="Edit Actor" @click.stop="editActor(actor)">
+          <button class="action-button" title="Edit Character" @click.stop="editCharacter(character)">
             <i class="mdi mdi-pencil"></i>
           </button>
         </div>
@@ -76,17 +81,17 @@
     </div>
 
     <div class="quick-actions">
-      <button class="quick-action-button">
+      <button class="quick-action-button" @click="createCharacter">
         <i class="mdi mdi-account-plus"></i>
         Create Character
       </button>
-      <button class="quick-action-button">
-        <i class="mdi mdi-sword-cross"></i>
-        Create Monster
+      <button class="quick-action-button" @click="importCharacter">
+        <i class="mdi mdi-upload"></i>
+        Import Character
       </button>
-      <button class="quick-action-button">
+      <button class="quick-action-button" @click="manageParty">
         <i class="mdi mdi-account-group"></i>
-        Create NPC
+        Manage Party
       </button>
     </div>
   </div>
@@ -97,7 +102,8 @@ import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useGameStateStore } from '../../../stores/game-state.store.mjs';
 import { useCharacterSheetStore } from '../../../stores/character-sheet.store.mjs';
-import type { IActor, StateOperation } from '@dungeon-lab/shared/types/index.mjs';
+import { transformAssetUrl } from '../../../utils/asset-utils.mjs';
+import type { ICharacter, StateOperation } from '@dungeon-lab/shared/types/index.mjs';
 
 const gameStateStore = useGameStateStore();
 const characterSheetStore = useCharacterSheetStore();
@@ -107,131 +113,152 @@ const activeFilter = ref('all');
 
 const filterOptions = [
   { id: 'all', label: 'All' },
-  { id: 'character', label: 'Characters' },
-  { id: 'monster', label: 'Monsters' },
-  { id: 'npc', label: 'NPCs' }
+  { id: 'pc', label: 'Players' },
+  { id: 'npc', label: 'NPCs' },
+  { id: 'companion', label: 'Companions' }
 ];
 
 // Use real data from store instead of hardcoded
-const actors = computed(() => gameStateStore.actors);
+const characters = computed(() => gameStateStore.characters);
 
-const filteredActors = computed(() => {
-  let filtered = actors.value;
+const filteredCharacters = computed(() => {
+  let filtered = characters.value;
 
   // Filter by type
   if (activeFilter.value !== 'all') {
-    filtered = filtered.filter((actor: { pluginDocumentType: string; }) => actor.pluginDocumentType === activeFilter.value);
+    filtered = filtered.filter((character: { pluginDocumentType: string; }) => 
+      (character.pluginDocumentType || 'pc') === activeFilter.value
+    );
   }
 
   // Filter by search query
   if (searchQuery.value.trim()) {
     const query = searchQuery.value.toLowerCase();
-    filtered = filtered.filter((actor: { name: string; pluginDocumentType: string; }) => 
-      actor.name.toLowerCase().includes(query) ||
-      actor.pluginDocumentType.toLowerCase().includes(query)
+    filtered = filtered.filter((character: { name: string; pluginDocumentType: string; }) => 
+      character.name.toLowerCase().includes(query) ||
+      (character.pluginDocumentType || 'pc').toLowerCase().includes(query)
     );
   }
 
   return filtered;
 });
 
-// Actors are automatically loaded when game session is joined
+// Helper function to get character image URL with proper transformation
+function getCharacterImageUrl(character: ICharacter): string | null {
+  // First try avatar, then defaultTokenImage, both properly transformed
+  if (character.avatar?.url) {
+    return transformAssetUrl(character.avatar.url);
+  } else if (character.defaultTokenImage?.url) {
+    return transformAssetUrl(character.defaultTokenImage.url);
+  }
+  return null;
+}
+
+// Characters are automatically loaded when game session is joined
 onMounted(async () => {
-  // No need to manually load actors - they come from game state
+  // No need to manually load characters - they come from game state
 });
 
 // Implement real functionality  
-async function selectActor(actor: IActor): Promise<void> {
+async function selectCharacter(character: ICharacter): Promise<void> {
   try {
-    // Actors don't have a "current" concept in the new system
-    // This would depend on the specific use case
-    console.log('Selected actor:', actor.name);
+    // Set the selected character in the game state store
+    gameStateStore.selectedCharacter = character;
+    console.log('Selected character:', character.name);
   } catch (error) {
-    console.error('Failed to select actor:', error);
+    console.error('Failed to select character:', error);
   }
 }
 
-async function addToEncounter(actor: IActor): Promise<void> {
-  console.log('Adding to encounter:', actor);
+async function addToEncounter(character: ICharacter): Promise<void> {
+  console.log('Adding character to encounter:', character);
   
   if (!gameStateStore.currentEncounter) {
-    console.error('No active encounter to add actor to');
+    console.error('No active encounter to add character to');
     return;
   }
   
   // Validate GM permissions
   if (!gameStateStore.canUpdate) {
-    console.warn('Only the GM can add actors to encounters');
+    console.warn('Only the GM can add characters to encounters');
     return;
   }
   
   try {
-    // Check if actor is already a participant
+    // Check if character is already a participant
     const isAlreadyParticipant = gameStateStore.currentEncounter.participants?.some(
-      participantId => participantId === actor.id
+      participantId => participantId === character.id
     );
     
     if (isAlreadyParticipant) {
-      console.log('Actor is already a participant in this encounter');
+      console.log('Character is already a participant in this encounter');
       return;
     }
     
-    // Add actor as a participant using game state operations
+    // Add character as a participant using game state operations
     const operations: StateOperation[] = [{
       path: 'currentEncounter.participants',
       operation: 'push',
-      value: actor.id
+      value: character.id
     }];
     
     const response = await gameStateStore.updateGameState(operations);
     
     if (response.success) {
-      console.log('Actor added to encounter successfully:', actor.name);
+      console.log('Character added to encounter successfully:', character.name);
     } else {
-      console.error('Failed to add actor to encounter:', response.error?.message);
+      console.error('Failed to add character to encounter:', response.error?.message);
     }
   } catch (error) {
-    console.error('Failed to add actor to encounter:', error);
+    console.error('Failed to add character to encounter:', error);
   }
 }
 
-async function editActor(actor: IActor): Promise<void> {
-  console.log('Editing actor:', actor);
+async function editCharacter(character: ICharacter): Promise<void> {
+  console.log('Editing character:', character);
   
   try {
-    // For characters, navigate to character creation/edit view
-    if (actor.documentType === 'character') {
-      await router.push(`/characters/${actor.id}/edit`);
-    } else {
-      // For other actor types (monsters, NPCs), navigate to a generic actor edit view
-      // For now, we'll navigate to the character edit view as a fallback
-      // In a full implementation, this would be a dedicated actor editor
-      await router.push(`/actors/${actor.id}/edit`);
-    }
+    // Navigate to character edit view
+    await router.push(`/character/${character.id}`);
   } catch (error) {
-    console.error('Failed to navigate to actor editor:', error);
-    // Fallback: could show a modal editor or error message
-    console.warn('Actor editing not fully implemented for this actor type');
+    console.error('Failed to navigate to character editor:', error);
   }
 }
 
 // Character sheet functions
-function openCharacterSheet(actor: IActor): void {
-  characterSheetStore.openCharacterSheet(actor);
+function openCharacterSheet(character: ICharacter): void {
+  characterSheetStore.openCharacterSheet(character);
 }
 
+// Quick action functions
+async function createCharacter(): Promise<void> {
+  try {
+    await router.push('/character/create');
+  } catch (error) {
+    console.error('Failed to navigate to character creation:', error);
+  }
+}
 
+function importCharacter(): void {
+  // TODO: Implement character import functionality
+  console.log('Import character functionality not yet implemented');
+}
+
+function manageParty(): void {
+  // TODO: Implement party management functionality
+  console.log('Party management functionality not yet implemented');
+}
 </script>
 
 <style scoped>
-.actors-tab {
+.characters-tab {
   height: 100%;
   display: flex;
   flex-direction: column;
   background: transparent;
 }
 
-.actors-header {
+.characters-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -239,13 +266,13 @@ function openCharacterSheet(actor: IActor): void {
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.actors-header h4 {
+.characters-header h4 {
   color: white;
   margin: 0;
   font-weight: 600;
 }
 
-.actors-controls {
+.characters-controls {
   display: flex;
   gap: 4px;
 }
@@ -337,7 +364,7 @@ function openCharacterSheet(actor: IActor): void {
   border-color: rgba(59, 130, 246, 0.8);
 }
 
-.actors-list {
+.characters-list {
   flex: 1;
   overflow-y: auto;
   padding: 16px;
@@ -346,7 +373,7 @@ function openCharacterSheet(actor: IActor): void {
   gap: 12px;
 }
 
-.actor-card {
+.character-card {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -358,25 +385,25 @@ function openCharacterSheet(actor: IActor): void {
   transition: all 0.2s ease;
 }
 
-.actor-card:hover {
+.character-card:hover {
   background: rgba(255, 255, 255, 0.1);
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
-.actor-card.actor-character {
+.character-card.character-pc {
   border-left: 3px solid #3b82f6;
 }
 
-.actor-card.actor-monster {
-  border-left: 3px solid #ef4444;
-}
-
-.actor-card.actor-npc {
+.character-card.character-npc {
   border-left: 3px solid #22c55e;
 }
 
-.actor-avatar {
+.character-card.character-companion {
+  border-left: 3px solid #f59e0b;
+}
+
+.character-avatar {
   width: 40px;
   height: 40px;
   background: rgba(255, 255, 255, 0.1);
@@ -388,47 +415,52 @@ function openCharacterSheet(actor: IActor): void {
   overflow: hidden;
 }
 
-.actor-avatar img {
+.character-avatar img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.actor-avatar i {
+.character-avatar i {
   font-size: 20px;
 }
 
-.actor-info {
+.character-info {
   flex: 1;
   min-width: 0;
 }
 
-.actor-name {
+.character-name {
   color: white;
   font-weight: 600;
   font-size: 14px;
   margin-bottom: 4px;
 }
 
-.actor-details {
+.character-details {
   display: flex;
   gap: 8px;
 }
 
-.actor-type {
+.character-type {
   color: rgba(255, 255, 255, 0.6);
   font-size: 12px;
   text-transform: capitalize;
 }
 
-.actor-actions {
+.character-level {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+}
+
+.character-actions {
   display: flex;
   gap: 4px;
   opacity: 0;
   transition: opacity 0.2s ease;
 }
 
-.actor-card:hover .actor-actions {
+.character-card:hover .character-actions {
   opacity: 1;
 }
 
@@ -482,21 +514,21 @@ function openCharacterSheet(actor: IActor): void {
 }
 
 /* Scrollbar styling */
-.actors-list::-webkit-scrollbar {
+.characters-list::-webkit-scrollbar {
   width: 6px;
 }
 
-.actors-list::-webkit-scrollbar-track {
+.characters-list::-webkit-scrollbar-track {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 3px;
 }
 
-.actors-list::-webkit-scrollbar-thumb {
+.characters-list::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.3);
   border-radius: 3px;
 }
 
-.actors-list::-webkit-scrollbar-thumb:hover {
+.characters-list::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.5);
 }
 </style>

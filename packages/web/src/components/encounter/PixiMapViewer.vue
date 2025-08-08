@@ -49,13 +49,11 @@ import type { IMapResponse } from '@dungeon-lab/shared/types/api/maps.mjs';
 import type { Token } from '@dungeon-lab/shared/types/tokens.mjs';
 import type { Platform } from '@/services/encounter/PixiMapRenderer.mjs';
 import { MapsClient } from '@dungeon-lab/client/index.mjs';
-import { useEncounterStore } from '@/stores/encounter.store.mjs';
 import { checkWallCollision, pixelsToGrid } from '@/utils/collision-detection.mjs';
 import { transformAssetUrl } from '@/utils/asset-utils.mjs';
 
-// Initialize maps client and stores
+// Initialize maps client
 const mapsClient = new MapsClient();
-const encounterStore = useEncounterStore();
 
 // Props
 interface Props {
@@ -503,9 +501,9 @@ const handleTokenDragEnd = async (tokenId: string, position: { x: number; y: num
   console.log('[PixiMapViewer] Snapped position:', snappedPosition);
   
   // Get current token elevation
-  const token = encounterStore.encounterTokens.find(t => t.id === tokenId);
+  const token = props.tokens?.find((t: Token) => t.id === tokenId);
   if (!token) {
-    console.log('[PixiMapViewer] Token not found in store:', tokenId);
+    console.log('[PixiMapViewer] Token not found in props:', tokenId);
     return;
   }
   
@@ -529,13 +527,8 @@ const handleTokenDragEnd = async (tokenId: string, position: { x: number; y: num
   }
   
   console.log('[PixiMapViewer] No wall collision detected, allowing movement');
-  // Move token through store (this will emit the socket event)
-  // TEMPORARILY DISABLE SNAP-TO-GRID - use raw position instead
-  await encounterStore.moveToken(tokenId, {
-    x: position.x, // Use raw position instead of snappedPosition.x
-    y: position.y, // Use raw position instead of snappedPosition.y
-    elevation: token.position.elevation
-  });
+  // Emit the token moved event to parent (EncounterView will handle the state update)
+  emit('token-moved', tokenId, position.x, position.y);
   
   // Reset drag state
   isDragging.value = false;
@@ -559,8 +552,8 @@ const handleKeyDown = async (event: KeyboardEvent) => {
   // Prevent default browser behavior
   event.preventDefault();
   
-  // Get current token from store
-  const token = encounterStore.encounterTokens.find(t => t.id === selectedTokenId.value);
+  // Get current token from props
+  const token = props.tokens?.find((t: Token) => t.id === selectedTokenId.value);
   if (!token) {
     return;
   }
@@ -605,12 +598,8 @@ const handleKeyDown = async (event: KeyboardEvent) => {
   }
   
   console.log('[PixiMapViewer] No wall collision detected, allowing keyboard movement');
-  // Move token through store (same as drag end)
-  await encounterStore.moveToken(selectedTokenId.value, {
-    x: newX,
-    y: newY,
-    elevation: token.position.elevation
-  });
+  // Emit the token moved event to parent (EncounterView will handle the state update)
+  emit('token-moved', selectedTokenId.value, newX, newY);
 };
 
 // Watchers

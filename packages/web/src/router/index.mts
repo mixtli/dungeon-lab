@@ -267,12 +267,14 @@ const routes: RouteRecordRaw[] = [
           requiresAuth: true
         }
       },
+      // Legacy route removed - encounters are now run through the parameterless /encounter route
+      // which displays whatever encounter is active in the current game state
       {
-        path: 'encounters/:id/run',
-        name: 'encounter-run',
+        path: 'encounter',
+        name: 'active-encounter',
         component: EncounterView,
         meta: {
-          title: 'Run Encounter',
+          title: 'Active Encounter',
           requiresAuth: true
         }
       },

@@ -143,7 +143,7 @@ import { useCampaignStore } from '@/stores/campaign.store.mjs';
 import { useGameStateStore } from '@/stores/game-state.store.mjs';
 import { CampaignsClient } from '@dungeon-lab/client/index.mjs';
 import { ActorsClient } from '@dungeon-lab/client/index.mjs';
-import type { IActor, ICharacter } from '@dungeon-lab/shared/types/index.mjs';
+import type { IActor, ICharacter, IToken, StateOperation, TokenSizeType } from '@dungeon-lab/shared/types/index.mjs';
 
 interface TokenOptions {
   name: string;
@@ -215,6 +215,67 @@ const isGM = computed(() => {
   return authStore.user?.isAdmin || false;
 });
 
+// Utility functions
+const generateTokenId = (): string => {
+  return `token_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+};
+
+const getTokenSizeFromActor = (actor: IActor | ICharacter): TokenSizeType => {
+  // Try to get size from plugin data first
+  const pluginSize = actor.pluginData?.size as TokenSizeType;
+  if (pluginSize && ['tiny', 'small', 'medium', 'large', 'huge', 'gargantuan'].includes(pluginSize)) {
+    return pluginSize;
+  }
+  
+  // Default to medium for characters and NPCs, or use type-based defaults
+  if (actor.documentType === 'character') return 'medium';
+  if (actor.pluginDocumentType === 'npc') return 'medium';
+  
+  // Default to medium for unknown types
+  return 'medium';
+};
+
+const generateTokenPositions = (count: number, mode: 'click' | 'grid' | 'random'): Array<{ x: number, y: number, elevation: number }> => {
+  const positions: Array<{ x: number, y: number, elevation: number }> = [];
+  
+  switch (mode) {
+    case 'grid':
+      // Arrange in a grid pattern starting from (0,0)
+      const gridSize = Math.ceil(Math.sqrt(count));
+      for (let i = 0; i < count; i++) {
+        const row = Math.floor(i / gridSize);
+        const col = i % gridSize;
+        positions.push({ 
+          x: col * 5, // 5-foot grid spacing
+          y: row * 5, 
+          elevation: 0 
+        });
+      }
+      break;
+      
+    case 'random':
+      // Generate random positions in a 20x20 area
+      for (let i = 0; i < count; i++) {
+        positions.push({
+          x: Math.floor(Math.random() * 20) * 5, // Random 0-95 in 5-foot increments
+          y: Math.floor(Math.random() * 20) * 5,
+          elevation: 0
+        });
+      }
+      break;
+      
+    case 'click':
+    default:
+      // Default position (0,0) - user will place manually
+      for (let i = 0; i < count; i++) {
+        positions.push({ x: 0, y: 0, elevation: 0 });
+      }
+      break;
+  }
+  
+  return positions;
+};
+
 // Methods
 const onActorSelected = () => {
   if (selectedActor.value) {
@@ -227,6 +288,18 @@ const onActorSelected = () => {
 const createTokens = async () => {
   if (!selectedActorId.value || !selectedActor.value) return;
   
+  // Validate we have an active encounter
+  if (!gameStateStore.currentEncounter) {
+    error.value = 'No active encounter. Please start an encounter first.';
+    return;
+  }
+  
+  // Validate GM permissions
+  if (!gameStateStore.canUpdate) {
+    error.value = 'Only the GM can create tokens.';
+    return;
+  }
+  
   loading.value = true;
   error.value = null;
   
@@ -234,24 +307,58 @@ const createTokens = async () => {
     const tokenIds: string[] = [];
     
     // Validate that we have a valid image URL
-    const imageUrl = selectedActor.value.token?.url || selectedActor.value.avatar?.url;
+    const imageUrl = selectedActor.value.defaultTokenImageId || selectedActor.value.avatarId || selectedActor.value.imageId;
     if (!imageUrl) {
       throw new Error('No token or avatar image available for this actor');
     }
-
+    
+    // Generate positions based on placement mode
+    const positions = generateTokenPositions(tokenCount.value, placementMode.value);
+    
+    // Create state operations for each token
+    const operations: StateOperation[] = [];
+    
     for (let i = 0; i < tokenCount.value; i++) {
-      // TODO: Replace with game state update operation
-      // const tokenName = tokenOptions.value.name || selectedActor.value.name;
-      // const finalName = tokenCount.value > 1 ? `${tokenName} ${i + 1}` : tokenName;
-      // 
-      // Create token using createTokenFromActor  
-      // await gameStateStore.createTokenFromActor({
-      //   actorId: selectedActorId.value,
-      //   name: finalName,
-      //   isVisible: !tokenOptions.value.isHidden,
-      //   position: { x: 0, y: 0, elevation: 0 } // Position will be set by the placement mode later
-      // });
+      const tokenName = tokenOptions.value.name || selectedActor.value.name;
+      const finalName = tokenCount.value > 1 ? `${tokenName} ${i + 1}` : tokenName;
+      const tokenId = generateTokenId();
+      
+      // Create the token object based on the token schema
+      const newToken: Omit<IToken, 'id' | 'createdBy' | 'updatedBy'> = {
+        name: finalName,
+        imageUrl: imageUrl, // This should be a full URL, but we're using the ID for now
+        size: getTokenSizeFromActor(selectedActor.value),
+        encounterId: gameStateStore.currentEncounter.id,
+        position: positions[i],
+        actorId: selectedActorId.value,
+        isVisible: !tokenOptions.value.isHidden,
+        isPlayerControlled: selectedActor.value.documentType === 'character',
+        conditions: [],
+        version: 1,
+        data: {
+          scale: tokenOptions.value.scale,
+          randomizedHP: tokenOptions.value.randomizeHP && isMonster.value
+        }
+      };
+      
+      // Add the push operation to create this token
+      operations.push({
+        path: 'currentEncounter.tokens',
+        operation: 'push',
+        value: { id: tokenId, ...newToken }
+      });
+      
+      tokenIds.push(tokenId);
     }
+    
+    // Execute the state update
+    const response = await gameStateStore.updateGameState(operations);
+    
+    if (!response.success) {
+      throw new Error(response.error?.message || 'Failed to create tokens');
+    }
+    
+    console.log(`Successfully created ${tokenIds.length} tokens`);
 
     // Close the modal and notify parent
     emit('tokensCreated', tokenIds);

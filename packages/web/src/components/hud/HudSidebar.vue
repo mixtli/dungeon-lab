@@ -45,6 +45,7 @@
       <div id="chat-sidebar-target" v-show="hud.store.sidebar.activeTab === 'chat' && !isTabFloating('chat')"></div>
       <div id="combat-sidebar-target" v-show="hud.store.sidebar.activeTab === 'combat' && !isTabFloating('combat')"></div>
       <div id="actors-sidebar-target" v-show="hud.store.sidebar.activeTab === 'actors' && !isTabFloating('actors')"></div>
+      <div id="characters-sidebar-target" v-show="hud.store.sidebar.activeTab === 'characters' && !isTabFloating('characters')"></div>
       <div id="items-sidebar-target" v-show="hud.store.sidebar.activeTab === 'items' && !isTabFloating('items')"></div>
     </div>
 
@@ -282,6 +283,7 @@ function isTabFloating(tabType: SidebarTabType): boolean {
 #chat-sidebar-target,
 #combat-sidebar-target,
 #actors-sidebar-target,
+#characters-sidebar-target,
 #items-sidebar-target {
   height: 100%;
   display: flex;

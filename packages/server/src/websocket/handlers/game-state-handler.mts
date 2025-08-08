@@ -1,5 +1,6 @@
 import { Socket } from 'socket.io';
 import { socketHandlerRegistry } from '../handler-registry.mjs';
+import { SocketServer } from '../socket-server.mjs';
 import { logger } from '../../utils/logger.mjs';
 import { GameSessionModel } from '../../features/campaigns/models/game-session.model.mjs';
 import { GameStateService } from '../../features/campaigns/services/game-state.service.mjs';
@@ -99,7 +100,10 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
           source: stateUpdate.source || 'gm'
         };
 
-        socket.to(`session:${sessionId}`).emit('gameState:updated', broadcast);
+        // Broadcast to ALL clients in the session room (including the GM who sent the update)
+        // This ensures consistent state updates for all participants
+        const io = SocketServer.getInstance().socketIo;
+        io.to(`session:${sessionId}`).emit('gameState:updated', broadcast);
       }
 
       callback?.(response);
@@ -310,6 +314,56 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
       logger.error('Error leaving session:', error);
       const response = {
         success: true // Always succeed for leave operations to avoid client issues
+      };
+      callback?.(response);
+    }
+  });
+
+  // ============================================================================
+  // GAME STATE SYNC
+  // ============================================================================
+
+  socket.on('gameState:syncEncounter', async (sessionId: string, callback?: (response: { success: boolean; error?: string }) => void) => {
+    try {
+      logger.info('Encounter sync requested:', { sessionId, userId });
+
+      // Only GM can trigger encounter sync
+      if (!(await isUserGameMaster(sessionId))) {
+        const response = {
+          success: false,
+          error: 'Only the game master can sync encounters'
+        };
+        callback?.(response);
+        return;
+      }
+
+      // Trigger sync of current encounter to backing store
+      const syncResult = await syncService.syncGameStateToBackingModels(sessionId, 'manual');
+      
+      if (syncResult.success) {
+        logger.info('Encounter sync completed:', { 
+          sessionId, 
+          entitiesUpdated: syncResult.entitiesUpdated.encounters 
+        });
+        
+        const response = {
+          success: true
+        };
+        callback?.(response);
+      } else {
+        logger.error('Encounter sync failed:', { sessionId, errors: syncResult.errors });
+        const response = {
+          success: false,
+          error: syncResult.errors.join('; ') || 'Failed to sync encounter'
+        };
+        callback?.(response);
+      }
+
+    } catch (error) {
+      logger.error('Error syncing encounter:', error);
+      const response = {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to sync encounter'
       };
       callback?.(response);
     }
