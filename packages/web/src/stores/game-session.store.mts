@@ -5,6 +5,7 @@ import { useAuthStore } from './auth.store.mts';
 import { useSocketStore } from './socket.store.mjs';
 import { useCampaignStore } from './campaign.store.mts';
 import { CampaignsClient, ActorsClient } from '@dungeon-lab/client/index.mjs';
+import { gmActionHandlerService } from '../services/gm-action-handler.service.mjs';
 import type { z } from 'zod';
 import {
   gameSessionJoinCallbackSchema,
@@ -152,6 +153,13 @@ export const useGameSessionStore = defineStore(
                   } catch (err) {
                     console.error('Error fetching campaign for session:', err);
                   }
+                }
+
+                // Initialize GM action handler if this user is the GM
+                const isGM = session.gameMasterId === authStore.user?.id;
+                if (isGM) {
+                  console.log('[GameSession] User is GM - initializing action handler');
+                  gmActionHandlerService.init();
                 }
 
                 loading.value = false;

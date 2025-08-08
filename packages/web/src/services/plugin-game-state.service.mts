@@ -67,13 +67,16 @@ export class PluginGameStateService implements GameStateContext {
     });
   }
 
-  getTokensByActor(actorId: string): IToken[] {
+  getTokensByDocument(documentId: string, documentType?: string): IToken[] {
     const encounter = this.currentEncounter.value;
     if (!encounter || !encounter.tokens) {
       return [];
     }
     
-    return encounter.tokens.filter(token => token.actorId === actorId);
+    return encounter.tokens.filter(token => 
+      token.documentId === documentId && 
+      (!documentType || token.documentType === documentType)
+    );
   }
 
   // Subscribe to state changes for side effects

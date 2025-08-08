@@ -1,6 +1,6 @@
 // Export all encounter models
 export { EncounterModel } from './models/encounter.model.mjs';
-export { TokenModel } from './models/token.model.mjs';
+// TokenModel removed - tokens are now embedded in encounters
 export { InitiativeEntryModel } from './models/initiative.model.mjs';
 export { EffectModel } from './models/effect.model.mjs';
 

@@ -1,8 +1,7 @@
 import { Types } from 'mongoose';
 import { logger } from '../../../utils/logger.mjs';
-import { IEncounter, IToken, EncounterStatusType, IActor } from '@dungeon-lab/shared/types/index.mjs';
+import { IEncounter, IToken, EncounterStatusType } from '@dungeon-lab/shared/types/index.mjs';
 import { EncounterModel } from '../models/encounter.model.mjs';
-import { TokenModel } from '../models/token.model.mjs';
 import { CampaignModel } from '../../campaigns/models/campaign.model.mjs';
 import { MapModel } from '../../maps/models/map.model.mjs';
 import { DocumentService } from '../../documents/services/document.service.mjs';
@@ -12,27 +11,11 @@ import {
   updateEncounterSchema,
   EncounterStatusEnum
 } from '@dungeon-lab/shared/schemas/encounters.schema.mjs';
-import {
-  createTokenSchema,
-  updateTokenSchema
-} from '@dungeon-lab/shared/schemas/tokens.schema.mjs';
 
 // Type definitions for service methods
 type CreateEncounterData = z.infer<typeof createEncounterSchema>;
 type UpdateEncounterData = z.infer<typeof updateEncounterSchema>;
-type CreateTokenData = z.infer<typeof createTokenSchema>;
-type UpdateTokenData = z.infer<typeof updateTokenSchema>;
 
-// Options type for createTokenFromActor method
-type CreateTokenOptions = {
-  userId: string;
-  isAdmin: boolean;
-  position?: { x: number; y: number; elevation?: number };
-  name?: string;
-  size?: 'tiny' | 'small' | 'medium' | 'large' | 'huge' | 'gargantuan';
-  isVisible?: boolean;
-  isPlayerControlled?: boolean;
-};
 
 export class EncounterService {
   // ============================================================================
@@ -251,8 +234,7 @@ export class EncounterService {
         throw new Error('Access denied');
       }
 
-      // Delete all tokens first
-      await TokenModel.deleteMany({ encounterId }).exec();
+      // Note: Tokens are now embedded in encounters, so they're deleted automatically
 
       // Delete the encounter
       const deletedEncounter = await EncounterModel.findByIdAndDelete(encounterId).exec();
@@ -303,446 +285,15 @@ export class EncounterService {
     }
   }
 
-  // ============================================================================
-  // TOKEN MANAGEMENT
-  // ============================================================================
-
-  /**
-   * Get all tokens for an encounter
-   */
-  async getTokens(
-    encounterId: string,
-    userId: string,
-    isAdmin: boolean
-  ): Promise<IToken[]> {
-    try {
-      // Check encounter access
-      const hasAccess = await this.checkEncounterAccess(encounterId, userId, isAdmin);
-      if (!hasAccess) {
-        throw new Error('Access denied');
-      }
-
-      const tokens = await TokenModel.find({ encounterId })
-        .sort({ createdAt: 1 })
-        .lean()
-        .exec();
-
-      return tokens;
-    } catch (error) {
-      if (error instanceof Error && 
-          ['Encounter not found', 'Access denied'].includes(error.message)) {
-        throw error;
-      }
-      logger.error('Error getting tokens:', error);
-      throw new Error('Failed to get tokens');
-    }
-  }
-
-  /**
-   * Create a new token
-   */
-  async createToken(
-    encounterId: string,
-    data: CreateTokenData,
-    userId: string,
-    isAdmin: boolean
-  ): Promise<IToken> {
-    try {
-      // Check encounter access
-      const hasAccess = await this.checkEncounterModifyAccess(encounterId, userId, isAdmin);
-      if (!hasAccess) {
-        throw new Error('Access denied');
-      }
-
-      // Validate position (basic validation - can be enhanced)
-      if (data.position.x < 0 || data.position.y < 0) {
-        throw new Error('Invalid position');
-      }
-
-      const userObjectId = new Types.ObjectId(userId);
-      const encounterObjectId = new Types.ObjectId(encounterId);
-
-      const tokenData = {
-        ...data,
-        encounterId: encounterObjectId,
-        createdBy: userObjectId,
-        updatedBy: userObjectId,
-        version: 1
-      };
-
-      const token = new TokenModel(tokenData);
-      await token.save();
-
-      return token.toObject();
-    } catch (error) {
-      if (error instanceof Error && 
-          ['Encounter not found', 'Access denied', 'Invalid position'].includes(error.message)) {
-        throw error;
-      }
-      logger.error('Error creating token:', error);
-      throw new Error('Failed to create token');
-    }
-  }
-
-  /**
-   * Update a token
-   */
-  async updateToken(
-    encounterId: string,
-    tokenId: string,
-    data: UpdateTokenData,
-    userId: string,
-    isAdmin: boolean
-  ): Promise<IToken> {
-    try {
-      if (!Types.ObjectId.isValid(tokenId)) {
-        throw new Error('Token not found');
-      }
-
-      // Check encounter access
-      const hasAccess = await this.checkTokenControlAccess(encounterId, tokenId, userId, isAdmin);
-      if (!hasAccess) {
-        throw new Error('Access denied');
-      }
-
-      // Validate position if provided
-      if (data.position && (data.position.x < 0 || data.position.y < 0)) {
-        throw new Error('Invalid position');
-      }
-
-      const userObjectId = new Types.ObjectId(userId);
-      const updateData = {
-        ...data,
-        updatedBy: userObjectId
-      };
-
-      const updatedToken = await TokenModel.findOneAndUpdate(
-        { _id: tokenId, encounterId },
-        updateData,
-        { new: true, lean: true }
-      ).exec();
-
-      if (!updatedToken) {
-        throw new Error('Token not found');
-      }
-
-      return updatedToken;
-    } catch (error) {
-      if (error instanceof Error && 
-          ['Token not found', 'Access denied', 'Invalid position'].includes(error.message)) {
-        throw error;
-      }
-      logger.error('Error updating token:', error);
-      throw new Error('Failed to update token');
-    }
-  }
-
-  /**
-   * Delete a token
-   */
-  async deleteToken(
-    encounterId: string,
-    tokenId: string,
-    userId: string,
-    isAdmin: boolean
-  ): Promise<void> {
-    try {
-      if (!Types.ObjectId.isValid(tokenId)) {
-        throw new Error('Token not found');
-      }
-
-      // Check encounter access
-      const hasAccess = await this.checkEncounterModifyAccess(encounterId, userId, isAdmin);
-      if (!hasAccess) {
-        throw new Error('Access denied');
-      }
-
-      const deletedToken = await TokenModel.findOneAndDelete({
-        _id: tokenId,
-        encounterId
-      }).exec();
-
-      if (!deletedToken) {
-        throw new Error('Token not found');
-      }
-    } catch (error) {
-      if (error instanceof Error && 
-          ['Token not found', 'Access denied'].includes(error.message)) {
-        throw error;
-      }
-      logger.error('Error deleting token:', error);
-      throw new Error('Failed to delete token');
-    }
-  }
-
-  /**
-   * Add a token to an encounter (alias for createToken for socket compatibility)
-   */
-  async addToken(
-    encounterId: string,
-    data: CreateTokenData,
-    userId: string,
-    isAdmin: boolean = false
-  ): Promise<IToken> {
-    return this.createToken(encounterId, data, userId, isAdmin);
-  }
-
-  /**
-   * Create a token from an existing actor
-   * This generates a token instance from an actor template using the actor's defaultTokenImageId
-   */
-  async createTokenFromActor(
-    encounterId: string,
-    actorId: string,
-    options: CreateTokenOptions
-  ): Promise<IToken> {
-    try {
-      if (!Types.ObjectId.isValid(encounterId)) {
-        throw new Error('Encounter not found');
-      }
-      
-      if (!Types.ObjectId.isValid(actorId)) {
-        throw new Error('Actor not found');
-      }
-
-      // Check encounter access
-      const hasAccess = await this.checkEncounterModifyAccess(encounterId, options.userId, options.isAdmin);
-      if (!hasAccess) {
-        throw new Error('Access denied');
-      }
-
-      // Validate position
-      const position = { 
-        x: options.position?.x || 0, 
-        y: options.position?.y || 0, 
-        elevation: options.position?.elevation || 0 
-      };
-      if (!this.validateTokenPosition(position)) {
-        throw new Error('Invalid position');
-      }
-
-      // Get the actor to access its properties
-      const actor = await DocumentService.findById<IActor>(actorId);
-      
-      if (!actor || actor.documentType !== 'actor') {
-        throw new Error('Actor not found');
-      }
-
-      const tokenData: CreateTokenData = {
-        name: options.name || actor.name,
-        imageUrl: actor.token?.url || actor.avatar?.url || '',
-        size: options.size || 'medium',
-        encounterId,
-        position: position,
-        actorId: actor.id,
-        isVisible: options.isVisible ?? true,
-        isPlayerControlled: options.isPlayerControlled ?? false,
-        data: actor.pluginData || {}, // Copy the actor's plugin data
-        conditions: []
-      };
-
-      // Create and save token
-      const token = new TokenModel(tokenData);
-      await token.save();
-
-      // Add token to encounter's tokens array
-      await EncounterModel.findByIdAndUpdate(
-        encounterId,
-        { $push: { tokens: token._id } }
-      ).exec();
-
-      return token.toObject();
-    } catch (error) {
-      if (error instanceof Error && 
-          ['Encounter not found', 'Actor not found', 'Access denied', 'Invalid position'].includes(error.message)) {
-        throw error;
-      }
-      logger.error('Error creating token from actor:', error);
-      throw new Error('Failed to create token from actor');
-    }
-  }
-
-  /**
-   * Duplicate an existing token multiple times
-   * Creates multiple instances of the same token with offset positions
-   */
-  async duplicateToken(
-    encounterId: string,
-    tokenId: string,
-    count: number = 1,
-    offsetX: number = 1,
-    offsetY: number = 0,
-    userId: string,
-    isAdmin: boolean = false
-  ): Promise<IToken[]> {
-    try {
-      if (!Types.ObjectId.isValid(encounterId)) {
-        throw new Error('Encounter not found');
-      }
-      
-      if (!Types.ObjectId.isValid(tokenId)) {
-        throw new Error('Token not found');
-      }
-
-      // Validate count
-      if (count < 1 || count > 20) { // Limit to prevent abuse
-        throw new Error('Invalid duplication count (must be between 1 and 20)');
-      }
-
-      // Check encounter access
-      const hasAccess = await this.checkEncounterModifyAccess(encounterId, userId, isAdmin);
-      if (!hasAccess) {
-        throw new Error('Access denied');
-      }
-
-      // Get the original token
-      const originalToken = await TokenModel.findOne({ 
-        _id: tokenId, 
-        encounterId 
-      }).lean().exec();
-      
-      if (!originalToken) {
-        throw new Error('Token not found');
-      }
-
-      const userObjectId = new Types.ObjectId(userId);
-      const encounterObjectId = new Types.ObjectId(encounterId);
-      const createdTokens: IToken[] = [];
-
-      // Create the specified number of duplicates
-      for (let i = 0; i < count; i++) {
-        // Calculate new position with offset
-        const position = {
-          x: originalToken.position.x + (offsetX * (i + 1)),
-          y: originalToken.position.y + (offsetY * (i + 1))
-        };
-
-        // Validate the new position
-        if (!this.validateTokenPosition(position)) {
-          logger.warn(`Skipping token duplicate at position (${position.x}, ${position.y}) - invalid position`);
-          continue;
-        }
-
-        // Create a new token based on the original
-        const tokenData = {
-          ...originalToken,
-          _id: new Types.ObjectId(), // Generate new ID
-          position,
-          name: `${originalToken.name} ${i + 1}`, // Append number to name
-          createdBy: userObjectId,
-          updatedBy: userObjectId,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        };
-
-        if ('id' in tokenData) {
-          delete (tokenData as { id?: string }).id;
-        }
-
-        // Create and save token
-        const token = new TokenModel(tokenData);
-        await token.save();
-
-        // Add token to encounter's tokens array
-        await EncounterModel.findByIdAndUpdate(
-          encounterObjectId,
-          { $push: { tokens: token._id } }
-        ).exec();
-
-        createdTokens.push(token.toObject());
-      }
-
-      return createdTokens;
-    } catch (error) {
-      if (error instanceof Error && 
-          ['Encounter not found', 'Token not found', 'Access denied', 'Invalid duplication count (must be between 1 and 20)'].includes(error.message)) {
-        throw error;
-      }
-      logger.error('Error duplicating token:', error);
-      throw new Error('Failed to duplicate token');
-    }
-  }
-
-  /**
-   * Remove a token from an encounter (alias for deleteToken for socket compatibility)
-   */
-  async removeToken(
-    encounterId: string,
-    tokenId: string,
-    userId: string,
-    isAdmin: boolean = false
-  ): Promise<void> {
-    return this.deleteToken(encounterId, tokenId, userId, isAdmin);
-  }
 
   // ============================================================================
   // REAL-TIME OPERATIONS
   // ============================================================================
 
-  /**
-   * Move a token to a new position (optimized for real-time updates)
-   */
-  async moveToken(
-    encounterId: string,
-    tokenId: string,
-    position: { x: number; y: number },
-    userId: string,
-    skipPermissionCheck = false
-  ): Promise<IToken> {
-    try {
-      if (!Types.ObjectId.isValid(tokenId)) {
-        throw new Error('Token not found');
-      }
+  // NOTE: Token operations moved to game state system
+  // Real-time token movement will be handled through game state updates
 
-      // Check token control permissions (can be skipped if already validated at socket layer)
-      if (!skipPermissionCheck) {
-        const hasAccess = await this.checkTokenControlAccess(encounterId, tokenId, userId, false);
-        if (!hasAccess) {
-          throw new Error('Access denied');
-        }
-      }
-
-      // Validate position
-      if (!this.validateTokenPosition(position)) {
-        throw new Error('Invalid position');
-      }
-
-      const userObjectId = new Types.ObjectId(userId);
-      const updateData = {
-        position,
-        updatedBy: userObjectId,
-        updatedAt: new Date()
-      };
-
-      const updatedToken = await TokenModel.findOneAndUpdate(
-        { _id: tokenId, encounterId },
-        updateData,
-        { new: true, lean: true }
-      ).exec();
-
-      if (!updatedToken) {
-        throw new Error('Token not found');
-      }
-
-      return updatedToken;
-    } catch (error) {
-      if (error instanceof Error && 
-          ['Token not found', 'Access denied', 'Invalid position'].includes(error.message)) {
-        throw error;
-      }
-      logger.error('Error moving token:', error);
-      throw new Error('Failed to move token');
-    }
-  }
-
-  /**
-   * Validate token position
-   */
-  private validateTokenPosition(position: { x: number; y: number }): boolean {
-    // Basic validation - can be enhanced with map boundaries, collision detection, etc.
-    return position.x >= 0 && position.y >= 0 && 
-           Number.isFinite(position.x) && Number.isFinite(position.y);
-  }
+  // NOTE: Token position validation moved to game state system
 
   /**
    * Get complete encounter state for real-time synchronization
@@ -764,8 +315,8 @@ export class EncounterService {
       // Get encounter data
       const encounter = await this.getEncounter(encounterId, userId, isAdmin);
       
-      // Get all tokens
-      const tokens = await this.getTokens(encounterId, userId, isAdmin);
+      // Note: Tokens are now embedded in encounters
+      const tokens = encounter.tokens || [];
 
       // Calculate permissions
       const permissions = await this.calculateUserPermissions(encounterId, userId, isAdmin, tokens);
@@ -798,15 +349,12 @@ export class EncounterService {
       const canView = await this.checkEncounterAccess(encounterId, userId, isAdmin);
       const canModify = await this.checkEncounterModifyAccess(encounterId, userId, isAdmin);
       
-      // Check which tokens user can control
+      // Check which tokens user can control (simplified - will be moved to game state)
       const canControl: string[] = [];
       for (const token of tokens) {
-        const hasControl = await this.checkTokenControlAccess(
-          encounterId, 
-          token.id, 
-          userId, 
-          isAdmin
-        );
+        // For now, players can control their own tokens, GMs can control all
+        const hasControl = isAdmin || canModify || 
+          (token.isPlayerControlled && token.documentId); // Will need document ownership check
         if (hasControl) {
           canControl.push(token.id);
         }
@@ -827,50 +375,7 @@ export class EncounterService {
     }
   }
 
-  /**
-   * Batch update multiple tokens (for performance optimization)
-   */
-  async batchUpdateTokens(
-    encounterId: string,
-    updates: Array<{
-      tokenId: string;
-      data: Partial<UpdateTokenData>;
-    }>,
-    userId: string,
-    isAdmin: boolean
-  ): Promise<IToken[]> {
-    try {
-      const updatedTokens: IToken[] = [];
-      
-      // Process updates sequentially to maintain data consistency
-      for (const update of updates) {
-        try {
-          // Ensure updatedBy is set for each update
-          const updateData = {
-            ...update.data,
-            updatedBy: userId
-          };
-          
-          const updatedToken = await this.updateToken(
-            encounterId,
-            update.tokenId,
-            updateData,
-            userId,
-            isAdmin
-          );
-          updatedTokens.push(updatedToken);
-        } catch (error) {
-          logger.warn(`Failed to update token ${update.tokenId}:`, error);
-          // Continue with other updates even if one fails
-        }
-      }
-
-      return updatedTokens;
-    } catch (error) {
-      logger.error('Error in batch token update:', error);
-      throw new Error('Failed to batch update tokens');
-    }
-  }
+  // NOTE: Batch token updates moved to game state system
 
   /**
    * Add participant to encounter (for room management)
@@ -916,28 +421,7 @@ export class EncounterService {
   /**
    * Validate if user can perform a specific action on a token
    */
-  async validateTokenAction(
-    encounterId: string,
-    tokenId: string,
-    _action: string,
-    userId: string,
-    isAdmin: boolean
-  ): Promise<boolean> {
-    try {
-      // Check basic token control access
-      const hasControl = await this.checkTokenControlAccess(encounterId, tokenId, userId, isAdmin);
-      if (!hasControl) {
-        return false;
-      }
-
-      // For now, all actions are allowed if user has control
-      // In the future, this could check turn-based restrictions, action points, etc.
-      return true;
-    } catch (error) {
-      logger.error('Error validating token action:', error);
-      return false;
-    }
-  }
+  // NOTE: Token action validation moved to game state system
 
   // ============================================================================
   // PERMISSION CHECKING METHODS
@@ -996,39 +480,7 @@ export class EncounterService {
     }
   }
 
-  /**
-   * Check if user has access to control a specific token
-   */
-  private async checkTokenControlAccess(
-    encounterId: string,
-    tokenId: string,
-    userId: string,
-    isAdmin: boolean
-  ): Promise<boolean> {
-    try {
-      if (isAdmin) return true;
-
-      const token = await TokenModel.findOne({ _id: tokenId, encounterId }).exec();
-      if (!token) {
-        throw new Error('Token not found');
-      }
-
-      // Check if user is GM
-      const hasModifyAccess = await this.checkEncounterModifyAccess(encounterId, userId, isAdmin);
-      if (hasModifyAccess) return true;
-
-      // Check if token is player-controlled and user owns the associated actor
-      if (token.isPlayerControlled && token.actorId) {
-        const actor = await DocumentService.findById(token.actorId);
-        return actor?.createdBy?.toString() === userId;
-      }
-
-      return false;
-    } catch (error) {
-      logger.error('Error checking token control access:', error);
-      return false;
-    }
-  }
+  // NOTE: Token permission checking moved to game state system
 
   /**
    * Check if user has access to a campaign

@@ -62,7 +62,7 @@ export interface GameStateContext {
   getCharacterById(id: string): ICharacter | null;
   getItemById(id: string): IItem | null;
   getItemsByOwner(ownerId: string): IItem[];
-  getTokensByActor(actorId: string): IToken[];
+  getTokensByDocument(documentId: string, documentType?: string): IToken[];
   
   // Subscribe to state changes for side effects
   subscribeToState(callback: (state: Readonly<ServerGameState>) => void): () => void;

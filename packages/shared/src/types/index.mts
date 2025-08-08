@@ -301,6 +301,9 @@ export * from './plugin-contracts.mjs';
 export * from './component-registry.mjs';  // @deprecated - will be removed
 export * from './mechanics-registry.mjs';  // @deprecated - will be removed
 
+// Game Action System Types
+export * from './game-actions.mjs';
+
 // Game Data Structures (selective exports to avoid conflicts)
 export type { 
   BaseGameEntity,

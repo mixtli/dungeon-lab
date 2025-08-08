@@ -69,54 +69,85 @@ export class GameStateSyncService {
       const gameState = session.gameState;
       const campaignId = session.campaignId;
 
-      // Use transaction for atomicity
-      const syncSession = await mongoose.startSession();
+      // Try to use transaction for atomicity, fallback to non-transactional for standalone MongoDB
+      let syncSession: mongoose.ClientSession | null = null;
+      let useTransaction = true;
       
       try {
+        syncSession = await mongoose.startSession();
+        
+        // Test if transactions are supported
         await syncSession.withTransaction(async () => {
+          // Empty transaction to test support
+        });
+      } catch (error) {
+        // Transactions not supported (standalone MongoDB), proceed without them
+        if (error instanceof Error && error.message.includes('Transaction numbers are only allowed')) {
+          logger.warn('MongoDB transactions not supported, falling back to non-transactional sync');
+          useTransaction = false;
+          if (syncSession) {
+            await syncSession.endSession();
+            syncSession = null;
+          }
+        } else {
+          throw error;
+        }
+      }
+      
+      try {
+        const syncOperation = async (session: mongoose.ClientSession | null) => {
           // Sync each entity type
           result.entitiesUpdated.characters = await this.syncCharacters(
             gameState.characters, 
             campaignId, 
             options, 
-            syncSession
+            session
           );
           
           result.entitiesUpdated.actors = await this.syncActors(
             gameState.actors, 
             campaignId, 
             options, 
-            syncSession
+            session
           );
           
           result.entitiesUpdated.items = await this.syncItems(
             gameState.items, 
             campaignId, 
             options, 
-            syncSession
+            session
           );
           
           result.entitiesUpdated.encounters = await this.syncEncounter(
             gameState.currentEncounter, 
             campaignId, 
             options, 
-            syncSession
+            session
           );
-        });
+        };
+
+        if (useTransaction && syncSession) {
+          await syncSession.withTransaction(() => syncOperation(syncSession));
+        } else {
+          await syncOperation(null);
+        }
 
         result.success = true;
         logger.info('Game state sync completed successfully', { 
           sessionId, 
           reason, 
           entitiesUpdated: result.entitiesUpdated,
-          duration: Date.now() - startTime 
+          duration: Date.now() - startTime,
+          useTransaction
         });
 
       } catch (error) {
-        result.errors.push(`Transaction failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        logger.error('Game state sync transaction failed', { sessionId, reason, error });
+        result.errors.push(`Sync failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        logger.error('Game state sync failed', { sessionId, reason, error, useTransaction });
       } finally {
-        await syncSession.endSession();
+        if (syncSession) {
+          await syncSession.endSession();
+        }
       }
 
     } catch (error) {
@@ -180,7 +211,7 @@ export class GameStateSyncService {
     characters: ICharacter[], 
     campaignId: string, 
     options: SyncOptions,
-    session: mongoose.ClientSession
+    session: mongoose.ClientSession | null
   ): Promise<number> {
     let updated = 0;
 
@@ -204,7 +235,7 @@ export class GameStateSyncService {
           },
           { 
             upsert: true, 
-            session,
+            ...(session && { session }),
             setDefaultsOnInsert: true
           }
         ).exec();
@@ -231,7 +262,7 @@ export class GameStateSyncService {
     actors: IActor[], 
     campaignId: string, 
     options: SyncOptions,
-    session: mongoose.ClientSession
+    session: mongoose.ClientSession | null
   ): Promise<number> {
     let updated = 0;
 
@@ -254,7 +285,7 @@ export class GameStateSyncService {
           },
           { 
             upsert: true, 
-            session,
+            ...(session && { session }),
             setDefaultsOnInsert: true
           }
         ).exec();
@@ -281,7 +312,7 @@ export class GameStateSyncService {
     items: IItem[], 
     campaignId: string, 
     options: SyncOptions,
-    session: mongoose.ClientSession
+    session: mongoose.ClientSession | null
   ): Promise<number> {
     let updated = 0;
 
@@ -304,7 +335,7 @@ export class GameStateSyncService {
           },
           { 
             upsert: true, 
-            session,
+            ...(session && { session }),
             setDefaultsOnInsert: true
           }
         ).exec();
@@ -331,7 +362,7 @@ export class GameStateSyncService {
     currentEncounter: IEncounter | null, 
     campaignId: string, 
     options: SyncOptions,
-    session: mongoose.ClientSession
+    session: mongoose.ClientSession | null
   ): Promise<number> {
     if (!currentEncounter) {
       return 0;
@@ -357,7 +388,7 @@ export class GameStateSyncService {
         },
         { 
           upsert: true, 
-          session,
+          ...(session && { session }),
           setDefaultsOnInsert: true
         }
       ).exec();

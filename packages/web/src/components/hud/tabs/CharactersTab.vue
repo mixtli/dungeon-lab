@@ -44,9 +44,15 @@
         v-for="character in filteredCharacters"
         :key="character.id"
         class="character-card"
-        :class="`character-${character.pluginDocumentType || 'pc'}`"
+        :class="[
+          `character-${character.pluginDocumentType || 'pc'}`,
+          { 'is-dragging': isDragging && draggedCharacter?.id === character.id }
+        ]"
+        draggable="true"
         @click="selectCharacter(character)"
         @dblclick="openCharacterSheet(character)"
+        @dragstart="handleDragStart($event, character)"
+        @dragend="handleDragEnd"
       >
         <div class="character-avatar">
           <img 
@@ -110,6 +116,10 @@ const characterSheetStore = useCharacterSheetStore();
 const router = useRouter();
 const searchQuery = ref('');
 const activeFilter = ref('all');
+
+// Drag and drop state
+const isDragging = ref(false);
+const draggedCharacter = ref<ICharacter | null>(null);
 
 const filterOptions = [
   { id: 'all', label: 'All' },
@@ -247,6 +257,64 @@ function importCharacter(): void {
 function manageParty(): void {
   // TODO: Implement party management functionality
   console.log('Party management functionality not yet implemented');
+}
+
+// ============================================================================
+// DRAG AND DROP FUNCTIONALITY
+// ============================================================================
+
+function handleDragStart(event: DragEvent, character: ICharacter): void {
+  if (!event.dataTransfer) return;
+  
+  // Set drag state
+  isDragging.value = true;
+  draggedCharacter.value = character;
+  
+  // Set transfer data for drop handling
+  const dragData = {
+    type: 'document-token',
+    documentId: character.id,
+    documentType: character.documentType,
+    name: character.name,
+    imageUrl: getCharacterImageUrl(character)
+  };
+  
+  event.dataTransfer.setData('application/json', JSON.stringify(dragData));
+  event.dataTransfer.effectAllowed = 'copy';
+  
+  // Set custom drag image if we have a character image
+  const imageUrl = getCharacterImageUrl(character);
+  if (imageUrl) {
+    const dragImage = new Image();
+    dragImage.src = imageUrl;
+    dragImage.onload = () => {
+      // Scale the image for dragging
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        canvas.width = 64;
+        canvas.height = 64;
+        ctx.drawImage(dragImage, 0, 0, 64, 64);
+        
+        // Add a subtle border
+        ctx.strokeStyle = 'rgba(59, 130, 246, 0.8)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(0, 0, 64, 64);
+        
+        event.dataTransfer?.setDragImage(canvas, 32, 32);
+      }
+    };
+  }
+  
+  console.log(`Started dragging character: ${character.name}`);
+}
+
+function handleDragEnd(): void {
+  // Reset drag state
+  isDragging.value = false;
+  draggedCharacter.value = null;
+  
+  console.log('Drag ended');
 }
 </script>
 
@@ -389,6 +457,13 @@ function manageParty(): void {
   background: rgba(255, 255, 255, 0.1);
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.character-card.is-dragging {
+  opacity: 0.5;
+  transform: scale(0.95);
+  background: rgba(59, 130, 246, 0.2);
+  border-color: rgba(59, 130, 246, 0.5);
 }
 
 .character-card.character-pc {

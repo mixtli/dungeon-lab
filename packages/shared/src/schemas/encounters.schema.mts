@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { baseSchema } from './base.schema.mjs';
 import { positionSchema } from './position.schema.mjs';
 import { tokenSchema } from './tokens.schema.mjs';
+import { mapSchemaWithVirtuals } from './map.schema.mjs';
 
 // ============================================================================
 // POSITION AND MOVEMENT SCHEMAS
@@ -157,6 +158,7 @@ export const encounterSchema = baseSchema.extend({
   description: z.string().optional(),
   campaignId: z.string(),
   mapId: z.string(),
+  currentMap: mapSchemaWithVirtuals.nullable().optional(),
   status: EncounterStatusEnum.default('stopped'),
   initiative: initiativeTrackerSchema.default({}),
   effects: z.array(effectSchema).default([]),

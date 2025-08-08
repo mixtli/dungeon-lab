@@ -23,10 +23,8 @@ const botManagerConfig = {
 const botManager = new BotManager(botManagerConfig);
 const chatbotController = new ChatbotController(botManager);
 
-// Initialize bot manager
-botManager.initialize().catch(error => {
-  console.error('Failed to initialize bot manager:', error);
-});
+// Note: Bot manager initialization is now handled in the main server startup
+// after MongoDB connection is established
 
 const router = Router();
 

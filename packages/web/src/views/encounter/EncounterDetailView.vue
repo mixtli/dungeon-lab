@@ -244,11 +244,30 @@ async function handleStartEncounter() {
 
     console.log('[Debug] Loading encounter into game session via socket...');
 
-    // Step 3: Create state operation to set the current encounter
+    // Step 3: Populate encounter with complete map data (including UVTT walls)
+    let encounterWithMap = { ...encounter };
+    if (encounter.mapId && mapData.value) {
+      console.log('[Debug] Populating encounter currentMap with complete map data including UVTT');
+      encounterWithMap.currentMap = mapData.value;
+      console.log('[Debug] Map UVTT data:', {
+        hasUvtt: !!mapData.value.uvtt,
+        hasLineOfSight: !!mapData.value.uvtt?.line_of_sight,
+        hasObjectsLineOfSight: !!mapData.value.uvtt?.objects_line_of_sight,
+        lineOfSightCount: mapData.value.uvtt?.line_of_sight?.length || 0,
+        objectsLineOfSightCount: mapData.value.uvtt?.objects_line_of_sight?.length || 0
+      });
+    } else {
+      console.warn('[Debug] Missing mapId or mapData - currentMap will not be populated', {
+        hasMapId: !!encounter.mapId,
+        hasMapData: !!mapData.value
+      });
+    }
+
+    // Step 4: Create state operation to set the current encounter with populated map
     const stateOperation = {
       path: 'currentEncounter',
       operation: 'set' as const,
-      value: encounter
+      value: encounterWithMap
     };
 
     // Apply the state update through the game state store (socket-based)

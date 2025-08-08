@@ -31,11 +31,19 @@
     <!-- Main Encounter View - Fullscreen with AppHeader -->
     <div v-else-if="encounter" class="encounter-view-fullscreen" :style="hudLayoutStyle">
         <!-- Main Content Area - Canvas -->
-        <div class="encounter-content" ref="mapContainerRef">
+        <div 
+          class="encounter-content" 
+          ref="mapContainerRef"
+          :data-drag-over="isDragOver"
+          @dragover.prevent="handleDragOver"
+          @drop="handleDrop"
+          @dragenter.prevent="handleDragEnter" 
+          @dragleave="handleDragLeave"
+        >
         <!-- Pixi Map Viewer -->
         <PixiMapViewer
-          v-if="encounter.mapId && !gameStateStore.loading"
-          :map-id="encounter.mapId"
+          v-if="gameStateStore.currentEncounter?.currentMap && !gameStateStore.loading"
+          :map-data="gameStateStore.currentEncounter.currentMap"
           :tokens="encounterTokens"
           :platform="deviceConfig.type"
           :show-walls="showWalls"
@@ -151,13 +159,12 @@
       </div>
     </div>
 
-    <!-- Actor Token Generator -->
-    <ActorTokenGenerator
+    <!-- Document Token Generator -->
+    <DocumentTokenGenerator
       v-if="showTokenGenerator && encounter?.id"
-      :encounter-id="encounter.id"
       @tokensCreated="handleTokensCreated"
       @close="showTokenGenerator = false"
-      class="actor-token-generator-modal"
+      class="document-token-generator-modal"
     />
     
     <!-- Token State Manager -->
@@ -177,10 +184,11 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useGameStateStore } from '../../stores/game-state.store.mjs';
 import { useDeviceAdaptation } from '../../composables/useDeviceAdaptation.mjs';
+import { usePlayerActions } from '../../composables/usePlayerActions.mjs';
 // Encounter socket functionality removed - using session-based architecture
 import PixiMapViewer from './PixiMapViewer.vue';
 import HUD from '../hud/HUD.vue';
-import ActorTokenGenerator from './ActorTokenGenerator.vue';
+import DocumentTokenGenerator from './DocumentTokenGenerator.vue';
 import TokenContextMenu from './TokenContextMenu.vue';
 import TokenStateManager from './TokenStateManager.vue';
 import EncounterDebugInfo from './EncounterDebugInfo.vue';
@@ -194,6 +202,7 @@ import MapContextMenu from './MapContextMenu.vue';
 // Composables
 const gameStateStore = useGameStateStore();
 const { deviceConfig, deviceClass } = useDeviceAdaptation();
+const { requestTokenMove } = usePlayerActions();
 const authStore = useAuthStore();
 
 // Encounter socket functionality removed - using session-based architecture through encounter store
@@ -257,8 +266,8 @@ const encounterTokens = computed(() => {
     version: token.version,
     createdBy: token.createdBy,
     updatedBy: token.updatedBy,
-    actorId: token.actorId,
-    itemId: token.itemId,
+    documentId: token.documentId,
+    documentType: token.documentType,
     notes: token.notes,
     data: token.data || {}
   }));
@@ -299,41 +308,29 @@ const handleTokenSelection = (tokenId: string) => {
 const handleTokenMoved = async (tokenId: string, x: number, y: number) => {
   if (!encounter.value) return;
   
-  // Validate GM permissions
-  if (!gameStateStore.canUpdate) {
-    console.warn('Only GM can move tokens');
-    return;
-  }
-  
-  // Find the token index in the encounter
-  const tokenIndex = encounter.value.tokens?.findIndex(token => token.id === tokenId);
-  if (tokenIndex === undefined || tokenIndex === -1) {
+  const token = encounter.value.tokens?.find(t => t.id === tokenId);
+  if (!token) {
     console.error('Token not found:', tokenId);
     return;
   }
   
   try {
-    // Get the current token to preserve elevation
-    const currentToken = encounter.value.tokens![tokenIndex];
-    const elevation = currentToken?.position?.elevation || 0;
+    // Use the new action request system for token movement
+    const elevation = token.position?.elevation || 0;
+    const result = await requestTokenMove(tokenId, { x, y, elevation });
     
-    // Create state operations to update token position
-    const operations: StateOperation[] = [
-      { path: `currentEncounter.tokens.${tokenIndex}.position.x`, operation: 'set', value: x },
-      { path: `currentEncounter.tokens.${tokenIndex}.position.y`, operation: 'set', value: y },
-      { path: `currentEncounter.tokens.${tokenIndex}.position.elevation`, operation: 'set', value: elevation }
-    ];
-    
-    const response = await gameStateStore.updateGameState(operations);
-    
-    if (!response.success) {
-      console.error('Failed to move token:', response.error?.message);
-      return;
+    if (result.success && result.approved) {
+      console.log('Token movement approved and executed:', tokenId, x, y, elevation);
+    } else if (result.success && !result.approved) {
+      console.log('Token movement requested, awaiting GM approval:', tokenId);
+      // TODO: Show notification to player that movement is pending approval
+    } else {
+      console.error('Token movement failed:', result.error);
+      // TODO: Show error notification to user
     }
-    
-    console.log('Token moved successfully:', tokenId, x, y, elevation);
   } catch (error) {
-    console.error('Failed to move token:', error);
+    console.error('Failed to request token movement:', error);
+    // TODO: Show error notification to user
   }
 };
 
@@ -410,6 +407,10 @@ const showMapContextMenu = ref(false);
 // Context menu state
 const contextMenuToken = ref<Token | null>(null);
 const contextMenuPosition = ref({ x: 0, y: 0 });
+
+// Drag and drop state
+const isDragOver = ref(false);
+const dragEnterCount = ref(0);
 
 // Wall highlighting state
 const showWalls = ref(false);
@@ -571,6 +572,123 @@ const handleMapContextMenuAction = (action: string) => {
   showMapContextMenu.value = false;
 };
 
+// ============================================================================
+// DRAG AND DROP FUNCTIONALITY
+// ============================================================================
+
+const handleDragEnter = (event: DragEvent) => {
+  event.preventDefault();
+  dragEnterCount.value++;
+  
+  if (dragEnterCount.value === 1) {
+    isDragOver.value = true;
+    console.log('Drag entered encounter area');
+  }
+};
+
+const handleDragLeave = () => {
+  dragEnterCount.value--;
+  
+  if (dragEnterCount.value === 0) {
+    isDragOver.value = false;
+    console.log('Drag left encounter area');
+  }
+};
+
+const handleDragOver = (event: DragEvent) => {
+  event.preventDefault();
+  
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'copy';
+  }
+};
+
+const handleDrop = async (event: DragEvent) => {
+  event.preventDefault();
+  
+  // Reset drag state
+  isDragOver.value = false;
+  dragEnterCount.value = 0;
+  
+  if (!event.dataTransfer) {
+    console.error('No data transfer available on drop');
+    return;
+  }
+
+  // Validate GM permissions
+  if (!gameStateStore.canUpdate) {
+    console.warn('Only the GM can create tokens by dragging');
+    return;
+  }
+
+  try {
+    // Get drag data
+    const dragDataStr = event.dataTransfer.getData('application/json');
+    if (!dragDataStr) {
+      console.error('No drag data found');
+      return;
+    }
+
+    const dragData = JSON.parse(dragDataStr);
+    console.log('Drop data:', dragData);
+
+    // Validate drag data
+    if (dragData.type !== 'document-token') {
+      console.error('Invalid drag data type:', dragData.type);
+      return;
+    }
+
+    // Get the document from game state
+    const allDocuments = [
+      ...gameStateStore.characters,
+      ...gameStateStore.actors,
+      ...gameStateStore.items
+    ];
+    
+    const document = allDocuments.find(doc => doc.id === dragData.documentId);
+    if (!document) {
+      console.error('Document not found:', dragData.documentId);
+      return;
+    }
+
+    // Calculate world coordinates from drop position
+    const mapContainer = mapContainerRef.value;
+    if (!mapContainer) {
+      console.error('Map container not found');
+      return;
+    }
+
+    const rect = mapContainer.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+
+    // Convert screen coordinates to world coordinates
+    // For now, using a simple 1:1 mapping - this would need to account for viewport transform
+    const worldX = Math.round(x);
+    const worldY = Math.round(y);
+
+    console.log(`Dropping ${document.name} at screen(${x}, ${y}) -> world(${worldX}, ${worldY})`);
+
+    // Create token using the new method
+    const tokenId = await gameStateStore.createTokenFromDocument(document, {
+      x: worldX,
+      y: worldY,
+      elevation: 0
+    });
+
+    console.log(`Successfully created token ${tokenId} for document ${document.name}`);
+
+  } catch (error) {
+    console.error('Error handling drop:', error);
+    
+    // Show user-friendly error message
+    if (error instanceof Error) {
+      // You could show a toast notification here
+      console.error('Failed to create token:', error.message);
+    }
+  }
+};
+
 // Lifecycle
 onMounted(() => {
   initializeEncounter();
@@ -698,6 +816,28 @@ const hudLayoutStyle = computed(() => {
   position: relative;
   margin: 0;
   padding: 0;
+  transition: all 0.2s ease;
+}
+
+.encounter-content[data-drag-over="true"] {
+  background-color: rgba(59, 130, 246, 0.1);
+  box-shadow: inset 0 0 20px rgba(59, 130, 246, 0.3);
+}
+
+.encounter-content[data-drag-over="true"]::before {
+  content: 'Drop to create token';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(59, 130, 246, 0.9);
+  color: white;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  z-index: 1000;
+  pointer-events: none;
 }
 
 .encounter-overlays {

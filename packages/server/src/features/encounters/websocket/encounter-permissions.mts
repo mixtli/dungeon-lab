@@ -1,9 +1,8 @@
 import { Types } from 'mongoose';
 import { logger } from '../../../utils/logger.mjs';
 import { EncounterModel } from '../models/encounter.model.mjs';
-import { TokenModel } from '../models/token.model.mjs';
-import { CampaignModel } from '../../campaigns/models/campaign.model.mjs';
-import { DocumentService } from '../../documents/services/document.service.mjs';
+// TokenModel removed - tokens are now embedded in encounters
+// Imports removed - permission checking moved to game state system
 
 export interface EncounterPermissions {
   canView: boolean;
@@ -74,61 +73,7 @@ export class EncounterPermissionValidator {
     }
   }
 
-  /**
-   * Check if user can control a specific token
-   */
-  async canControlToken(
-    tokenId: string,
-    userId: string,
-    isAdmin: boolean = false
-  ): Promise<boolean> {
-    try {
-      if (!Types.ObjectId.isValid(tokenId)) {
-        return false;
-      }
-
-      const token = await TokenModel.findById(tokenId).lean().exec();
-
-      if (!token) {
-        return false;
-      }
-
-      // Admin can control any token
-      if (isAdmin) {
-        return true;
-      }
-
-      // Get the encounter and campaign manually (population wasn't working)
-      const encounter = await EncounterModel.findById(token.encounterId).lean().exec();
-      if (!encounter) {
-        return false;
-      }
-
-      const campaign = await CampaignModel.findById(encounter.campaignId).lean().exec();
-      if (!campaign) {
-        return false;
-      }
-
-      // Game Master can control any token
-      if (campaign.gameMasterId?.toString() === userId) {
-        return true;
-      }
-
-      // Players can only control their own tokens
-      if (token.actorId) {
-        // Check if the actor belongs to the user
-        const actor = await DocumentService.findOne({ _id: token.actorId, documentType: 'actor' });
-        return actor?.createdBy?.toString() === userId;
-      }
-
-      // If no actorId, check if token is player-controlled and created by user
-      return token.isPlayerControlled && token.createdBy?.toString() === userId;
-
-    } catch (error) {
-      logger.error('Error checking token control permissions:', error);
-      return false;
-    }
-  }
+  // NOTE: Token control permissions moved to game state system
 
   /**
    * Check if user can view an encounter
@@ -206,20 +151,7 @@ export class EncounterPermissionValidator {
     }
   }
 
-  /**
-   * Validate token control access and throw error if denied
-   */
-  async validateTokenControl(
-    tokenId: string,
-    userId: string,
-    isAdmin: boolean = false
-  ): Promise<void> {
-    const canControl = await this.canControlToken(tokenId, userId, isAdmin);
-    
-    if (!canControl) {
-      throw new Error(`Access denied: cannot control token ${tokenId}`);
-    }
-  }
+  // NOTE: Token validation moved to game state system
 
   private allPermissions(): EncounterPermissions {
     return {

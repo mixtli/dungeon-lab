@@ -164,8 +164,8 @@ const tokenTypeLabel = computed(() => {
     return 'Player Character';
   }
   
-  if (props.token.actorId) {
-    return 'Actor Token';
+  if (props.token.documentId && props.token.documentType) {
+    return `${props.token.documentType.charAt(0).toUpperCase() + props.token.documentType.slice(1)} Token`;
   }
   
   return 'Game Token';

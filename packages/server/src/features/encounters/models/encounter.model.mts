@@ -18,6 +18,10 @@ const mongooseSchema = createMongoSchema<IEncounter>(encounterSchemaMongoose);
 // Set Mixed type for the encounter data field
 mongooseSchema.path('data', mongoose.Schema.Types.Mixed);
 
+// Set Mixed type for embedded token data fields to handle complex plugin-specific data
+// This prevents "Cast to embedded failed" errors during encounter sync operations
+mongooseSchema.path('tokens.$.data', mongoose.Schema.Types.Mixed);
+
 // Add getters and setters for campaignId to handle ObjectId conversion
 mongooseSchema.path('campaignId').set(function (value: string) {
   return new mongoose.Types.ObjectId(value);

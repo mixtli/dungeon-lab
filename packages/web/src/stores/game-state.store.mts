@@ -10,13 +10,17 @@ import type {
   ICharacter,
   IActor,
   IItem,
-  IEncounter
+  IEncounter,
+  BaseDocument,
+  TokenSizeType
 } from '@dungeon-lab/shared/types/index.mjs';
 import {
   gameStateRequestFullCallbackSchema
 } from '@dungeon-lab/shared/schemas/socket/game-state.mjs';
 import { useSocketStore } from './socket.store.mjs';
 import { useGameSessionStore } from './game-session.store.mjs';
+import { useAuthStore } from './auth.store.mjs';
+import { transformAssetUrl } from '../utils/asset-utils.mjs';
 
 /**
  * Unified Game State Store
@@ -38,6 +42,7 @@ export const useGameStateStore = defineStore(
   () => {
     const socketStore = useSocketStore();
     const gameSessionStore = useGameSessionStore();
+    const authStore = useAuthStore();
 
     // ============================================================================
     // REACTIVE STATE
@@ -592,6 +597,112 @@ export const useGameStateStore = defineStore(
 
 
     // ============================================================================
+    // TOKEN MANAGEMENT
+    // ============================================================================
+
+    /**
+     * Create a token from any BaseDocument at a specific position
+     * This is the primary method for drag-and-drop token creation
+     */
+    const createTokenFromDocument = async (
+      document: BaseDocument, 
+      position: { x: number; y: number; elevation?: number },
+      options: {
+        name?: string;
+        isHidden?: boolean;
+        scale?: number;
+        isPlayerControlled?: boolean;
+      } = {}
+    ) => {
+      if (!gameState.value?.currentEncounter) {
+        throw new Error('No active encounter to create token in');
+      }
+
+      // Validate GM permissions
+      if (!canUpdate.value) {
+        throw new Error('Only the GM can create tokens');
+      }
+
+      // Generate unique token ID
+      const tokenId = `token_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+
+      // Get token image URL from document, with preference for token over avatar
+      // Token images are specifically for map/encounter display
+      let tokenImage: string | undefined;
+      
+      // Documents with virtuals include token, avatar, and image asset objects
+      const documentWithAssets = document as {
+        token?: { url: string };
+        avatar?: { url: string };
+        image?: { url: string };
+      };
+      
+      if (documentWithAssets.token?.url) {
+        tokenImage = transformAssetUrl(documentWithAssets.token.url);
+      } else if (documentWithAssets.avatar?.url) {
+        tokenImage = transformAssetUrl(documentWithAssets.avatar.url);
+      } else if (documentWithAssets.image?.url) {
+        tokenImage = transformAssetUrl(documentWithAssets.image.url);
+      }
+
+      if (!tokenImage) {
+        throw new Error('Document must have a token image URL (avatar.url, token.url, or image.url)');
+      }
+
+      // Determine token size from document plugin data
+      const getTokenSizeFromDocument = (doc: BaseDocument): TokenSizeType => {
+        const pluginSize = doc.pluginData?.size as TokenSizeType;
+        if (pluginSize && ['tiny', 'small', 'medium', 'large', 'huge', 'gargantuan'].includes(pluginSize)) {
+          return pluginSize;
+        }
+        
+        // Default to medium for characters, or use type-based defaults
+        if (doc.documentType === 'character') return 'medium';
+        if (doc.pluginDocumentType === 'npc') return 'medium';
+        
+        return 'medium';
+      };
+
+      const tokenData = {
+        id: tokenId,
+        name: options.name || document.name,
+        imageUrl: tokenImage,
+        size: getTokenSizeFromDocument(document),
+        encounterId: gameState.value.currentEncounter.id,
+        position: {
+          x: position.x,
+          y: position.y,
+          elevation: position.elevation || 0
+        },
+        documentId: document.id,
+        documentType: document.documentType,
+        notes: '',
+        isVisible: !options.isHidden,
+        isPlayerControlled: options.isPlayerControlled ?? (document.documentType === 'character'),
+        data: document.pluginData || {},
+        conditions: [],
+        version: 1,
+        createdBy: authStore.user?.id || '',
+        updatedBy: authStore.user?.id || ''
+      };
+
+      const operations: StateOperation[] = [{
+        path: 'currentEncounter.tokens',
+        operation: 'push',
+        value: tokenData
+      }];
+
+      const response = await updateGameState(operations);
+
+      if (response.success) {
+        console.log(`Created token for document: ${document.name} at position:`, position);
+        return tokenId;
+      } else {
+        throw new Error(response.error?.message || 'Failed to create token');
+      }
+    };
+
+    // ============================================================================
     // PUBLIC API
     // ============================================================================
 
@@ -625,6 +736,9 @@ export const useGameStateStore = defineStore(
 
       // State updates (GM only)
       updateGameState,
+
+      // Token management
+      createTokenFromDocument,
 
       // Utilities
       clearState

@@ -27,9 +27,28 @@ export function checkWallCollision(
     return false; // No UVTT data, movement allowed
   }
 
+  // Get pixels per grid for coordinate conversion
+  const pixelsPerGrid = mapData.uvtt.resolution?.pixels_per_grid || 120; // Default to 120 if not specified
+  
+  console.log(`[CollisionDetection] Using pixels_per_grid: ${pixelsPerGrid} for coordinate conversion`);
+  console.log(`[CollisionDetection] Token positions in pixels - from: ${JSON.stringify(currentPos)} to: ${JSON.stringify(targetPos)}`);
+  
+  // Convert pixel positions to grid units (UVTT wall data is in grid units)
+  const currentGridPos: Point = {
+    x: currentPos.x / pixelsPerGrid,
+    y: currentPos.y / pixelsPerGrid
+  };
+  
+  const targetGridPos: Point = {
+    x: targetPos.x / pixelsPerGrid,
+    y: targetPos.y / pixelsPerGrid
+  };
+  
+  console.log(`[CollisionDetection] Converted to grid units - from: ${JSON.stringify(currentGridPos)} to: ${JSON.stringify(targetGridPos)}`);
+
   const movementLine: LineSegment = {
-    start: currentPos,
-    end: targetPos
+    start: currentGridPos,
+    end: targetGridPos
   };
 
   // Debug: Log wall data availability
@@ -55,8 +74,19 @@ export function checkWallCollision(
     }
   }
   
-  console.log(`[CollisionDetection] Checking movement from ${JSON.stringify(currentPos)} to ${JSON.stringify(targetPos)}`);
   console.log(`[CollisionDetection] Available walls: ${lineOfSightSegments} line_of_sight segments (from ${lineOfSightPolylines} polylines), ${objectsLineOfSightSegments} objects_line_of_sight segments (from ${objectsLineOfSightPolylines} polylines)`);
+  
+  // Debug: Log sample wall coordinates to verify they're in grid units
+  if (mapData.uvtt.objects_line_of_sight && mapData.uvtt.objects_line_of_sight.length > 0) {
+    const firstWall = mapData.uvtt.objects_line_of_sight[0];
+    if (Array.isArray(firstWall) && firstWall.length >= 2) {
+      console.log(`[CollisionDetection] Sample wall coordinates (should be grid units):`, {
+        start: firstWall[0],
+        end: firstWall[1],
+        wallLength: firstWall.length
+      });
+    }
+  }
 
   // Check intersection with line_of_sight walls (polylines)
   if (mapData.uvtt.line_of_sight && Array.isArray(mapData.uvtt.line_of_sight)) {

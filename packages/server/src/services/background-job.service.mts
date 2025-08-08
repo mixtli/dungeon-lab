@@ -19,7 +19,7 @@ class BackgroundJobService {
     // Create Pulse instance with MongoDB connection
     this.pulse = new Pulse({
       db: { 
-        address: config.mongoUri, // Updated to match the actual property name from config
+        address: config.mongoUri,
         collection: 'backgroundJobs'
       },
       defaultConcurrency: 5,

@@ -9,6 +9,7 @@ import { initializeJobs } from './jobs/index.mjs';
 import { logger } from './utils/logger.mjs';
 import { SocketServer } from './websocket/socket-server.mjs';
 import { periodicSyncService } from './features/campaigns/services/periodic-sync.service.mjs';
+import { botManager } from './features/chatbots/routes.mjs';
 
 console.log('Starting server...');
 
@@ -19,6 +20,33 @@ console.log('CLIENT_URL:', process.env.CLIENT_URL);
 console.log('NODE_ENV:', process.env.NODE_ENV);
 
 const PORT = process.env.PORT || 3000;
+
+/**
+ * Ensure MongoDB is fully ready for operations with retries
+ */
+async function waitForMongoReady(): Promise<void> {
+  const maxRetries = 10;
+  const retryDelay = 1000; // 1 second
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      // Simple ping to ensure database is responsive
+      await mongoose.connection.db?.admin().ping();
+      console.log('MongoDB is ready for operations');
+      return;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.log(`MongoDB readiness check attempt ${attempt}/${maxRetries} failed:`, errorMessage);
+      
+      if (attempt === maxRetries) {
+        throw new Error(`MongoDB not ready after ${maxRetries} attempts`);
+      }
+      
+      // Wait before next attempt
+      await new Promise(resolve => setTimeout(resolve, retryDelay));
+    }
+  }
+}
 
 async function startServer() {
   try {
@@ -33,6 +61,18 @@ async function startServer() {
     await mongoose.connect(config.mongoUri);
     console.log('Connected to MongoDB');
 
+    // Wait for MongoDB to be fully ready for operations
+    await waitForMongoReady();
+
+    // Initialize bot manager now that MongoDB is ready
+    try {
+      await botManager.initialize();
+      logger.info('Bot Manager initialized successfully');
+    } catch (error) {
+      logger.error('Failed to initialize Bot Manager:', error);
+      // Continue server startup even if bot manager fails
+    }
+
     // Configure Passport
     configurePassport();
     console.log('Passport configured');
@@ -41,9 +81,14 @@ async function startServer() {
     const app = await createApp();
 
 
-    // Initialize background job service
-    await backgroundJobService.initialize();
-    logger.info('Background job service initialized');
+    // Initialize background job service (also waits for MongoDB to be ready)
+    try {
+      await backgroundJobService.initialize();
+      logger.info('Background job service initialized');
+    } catch (error) {
+      logger.error('Failed to initialize background job service:', error);
+      // Continue server startup even if background jobs fail
+    }
 
     // Initialize and register background jobs
     await initializeJobs();

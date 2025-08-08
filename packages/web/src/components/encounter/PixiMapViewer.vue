@@ -49,7 +49,6 @@ import type { IMapResponse } from '@dungeon-lab/shared/types/api/maps.mjs';
 import type { Token } from '@dungeon-lab/shared/types/tokens.mjs';
 import type { Platform } from '@/services/encounter/PixiMapRenderer.mjs';
 import { MapsClient } from '@dungeon-lab/client/index.mjs';
-import { checkWallCollision, pixelsToGrid } from '@/utils/collision-detection.mjs';
 import { transformAssetUrl } from '@/utils/asset-utils.mjs';
 
 // Initialize maps client
@@ -507,26 +506,7 @@ const handleTokenDragEnd = async (tokenId: string, position: { x: number; y: num
     return;
   }
   
-  // Check for wall collision before allowing movement
-  const currentGridPos = pixelsToGrid(token.position.x, token.position.y, gridSize);
-  const targetGridPos = pixelsToGrid(position.x, position.y, gridSize);
-  
-  // Use grid coordinates with center offset (0.5, 0.5) to represent cell centers
-  const currentCenter = { x: currentGridPos.x + 0.5, y: currentGridPos.y + 0.5 };
-  const targetCenter = { x: targetGridPos.x + 0.5, y: targetGridPos.y + 0.5 };
-  
-  console.log('[PixiMapViewer] Collision check - Current:', currentCenter, 'Target:', targetCenter);
-  
-  if (checkWallCollision(currentCenter, targetCenter, currentMap.value)) {
-    console.log('[PixiMapViewer] Movement blocked by wall collision');
-    // Reset drag state without moving token
-    isDragging.value = false;
-    dragStartPos.value = null;
-    draggedTokenId.value = null;
-    return;
-  }
-  
-  console.log('[PixiMapViewer] No wall collision detected, allowing movement');
+  console.log('[PixiMapViewer] Token drag ended, sending movement request');
   // Emit the token moved event to parent (EncounterView will handle the state update)
   emit('token-moved', tokenId, position.x, position.y);
   
@@ -582,22 +562,7 @@ const handleKeyDown = async (event: KeyboardEvent) => {
   
   console.log(`[PixiMapViewer] Keyboard move: ${event.key} from: {x: ${token.position.x}, y: ${token.position.y}} to: {x: ${newX}, y: ${newY}}`);
   
-  // Check for wall collision before allowing movement
-  const currentGridPos = pixelsToGrid(token.position.x, token.position.y, gridSize);
-  const targetGridPos = pixelsToGrid(newX, newY, gridSize);
-  
-  // Use grid coordinates with center offset (0.5, 0.5) to represent cell centers
-  const currentCenter = { x: currentGridPos.x + 0.5, y: currentGridPos.y + 0.5 };
-  const targetCenter = { x: targetGridPos.x + 0.5, y: targetGridPos.y + 0.5 };
-  
-  console.log('[PixiMapViewer] Keyboard collision check - Current:', currentCenter, 'Target:', targetCenter);
-  
-  if (checkWallCollision(currentCenter, targetCenter, currentMap.value)) {
-    console.log('[PixiMapViewer] Keyboard movement blocked by wall collision');
-    return;
-  }
-  
-  console.log('[PixiMapViewer] No wall collision detected, allowing keyboard movement');
+  console.log('[PixiMapViewer] Keyboard movement, sending movement request');
   // Emit the token moved event to parent (EncounterView will handle the state update)
   emit('token-moved', selectedTokenId.value, newX, newY);
 };
@@ -609,8 +574,17 @@ watch(() => props.mapId, async (newMapId) => {
   }
 }, { immediate: false });
 
-watch(() => props.mapData, async (newMapData) => {
+watch(() => props.mapData, async (newMapData, oldMapData) => {
+  console.log('[PixiMapViewer] Map data watcher triggered:', {
+    hasNewMapData: !!newMapData,
+    hasOldMapData: !!oldMapData,
+    newMapName: newMapData?.name,
+    oldMapName: oldMapData?.name,
+    isInitialized: isInitialized.value
+  });
+  
   if (newMapData && isInitialized.value) {
+    console.log('[PixiMapViewer] Loading map from game state:', newMapData.name);
     await loadMapData(newMapData);
   }
 }, { immediate: false });
