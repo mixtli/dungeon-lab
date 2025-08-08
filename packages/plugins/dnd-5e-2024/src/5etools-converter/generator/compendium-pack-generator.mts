@@ -44,7 +44,7 @@ type TypedConverter =
   | TypedSenseConverter;
 
 interface DocumentLike {
-  documentType: 'actor' | 'item' | 'vtt-document';
+  documentType: 'actor' | 'item' | 'vtt-document' | 'character';
   pluginDocumentType: string;
   name: string;
   imageId?: string;
@@ -52,7 +52,7 @@ interface DocumentLike {
 }
 
 export interface WrapperContent {
-  type: 'actor' | 'item' | 'vtt-document';
+  type: 'actor' | 'item' | 'vtt-document' | 'character';
   wrapper: IContentFileWrapper;
   originalPath?: string;
 }
@@ -282,20 +282,23 @@ export class CompendiumPackGenerator {
       
       // Create wrappers from documents
       for (const document of typedResult.results) {
+        // Type guard to ensure document matches DocumentLike interface
+        const typedDocument = document as DocumentLike;
+        
         const wrapper: IContentFileWrapper = {
           entry: {
-            name: document.name,
-            documentType: this.getContentTypeFromDocument(document),
-            imageId: document.imageId,
-            category: this.getCategoryFromDocument(document),
-            tags: this.getTagsFromDocument(document),
+            name: typedDocument.name,
+            documentType: this.getContentTypeFromDocument(typedDocument),
+            imageId: typedDocument.imageId,
+            category: this.getCategoryFromDocument(typedDocument),
+            tags: this.getTagsFromDocument(typedDocument),
             sortOrder: 0
           },
           content: document
         };
         
         wrapperContent.push({
-          type: this.getContentTypeFromDocument(document),
+          type: this.getContentTypeFromDocument(typedDocument),
           wrapper: wrapper
         });
       }
@@ -318,17 +321,15 @@ export class CompendiumPackGenerator {
     }
   }
 
-  private getContentTypeFromDocument(document: DocumentLike): 'actor' | 'item' | 'vtt-document' {
-    // Check the actual documentType field from the document
-    if (document.documentType === 'actor') {
-      return 'actor';
-    }
-    if (document.documentType === 'item') {
-      return 'item';
-    }
-    if (document.documentType === 'vtt-document') {
-      return 'vtt-document';
-    }
+  private getContentTypeFromDocument(document: DocumentLike): 'actor' | 'item' | 'vtt-document' | 'character' {
+    // Add type guard for proper literal type inference
+    const docType = document.documentType as 'actor' | 'item' | 'vtt-document' | 'character';
+    
+    if (docType === 'actor') return 'actor';
+    if (docType === 'item') return 'item'; 
+    if (docType === 'character') return 'character';
+    if (docType === 'vtt-document') return 'vtt-document';
+    
     // Default fallback
     return 'vtt-document';
   }
@@ -585,6 +586,8 @@ export class CompendiumPackGenerator {
           }
         }
         return 'documents';
+      case 'character':
+        return 'characters';
       default:
         throw new Error(`Unknown content type: ${type}. Content should not go to misc directory.`);
     }

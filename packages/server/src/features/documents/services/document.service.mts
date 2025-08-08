@@ -150,72 +150,17 @@ export class DocumentService {
     },
 
     /**
-     * Add item to actor's inventory
+     * Get actor's inventory using ownerId relationships
      */
-    async addToInventory(
-      actorId: string,
-      inventoryItem: {
-        itemId: string;
-        quantity: number;
-        equipped?: boolean;
-        slot?: string;
-        condition?: number;
-        metadata?: Record<string, unknown>;
-      }
-    ): Promise<IActor | null> {
-      return await ActorDocumentModel.findByIdAndUpdate(
-        actorId,
-        { $push: { inventory: inventoryItem } },
-        { new: true, runValidators: true }
-      );
+    async getInventory(actorId: string, campaignId?: string): Promise<IItem[]> {
+      return await DocumentService.inventory.getOwnedItems(actorId, campaignId);
     },
 
     /**
-     * Remove item from actor's inventory
+     * Get actor's inventory with populated asset data
      */
-    async removeFromInventory(actorId: string, itemId: string): Promise<IActor | null> {
-      return await ActorDocumentModel.findByIdAndUpdate(
-        actorId,
-        { $pull: { inventory: { itemId } } },
-        { new: true }
-      );
-    },
-
-    /**
-     * Update inventory item
-     */
-    async updateInventoryItem(
-      actorId: string,
-      itemId: string,
-      updates: Partial<{
-        quantity: number;
-        equipped: boolean;
-        slot: string;
-        condition: number;
-        metadata: Record<string, unknown>;
-      }>
-    ): Promise<IActor | null> {
-      const updateFields: Record<string, unknown> = {};
-      Object.entries(updates).forEach(([key, value]) => {
-        updateFields[`inventory.$.${key}`] = value;
-      });
-
-      return await ActorDocumentModel.findOneAndUpdate(
-        { _id: actorId, 'inventory.itemId': itemId },
-        { $set: updateFields },
-        { new: true, runValidators: true }
-      );
-    },
-
-    /**
-     * Find actors with specific item in inventory
-     */
-    async findWithItem(itemId: string, campaignId?: string): Promise<IActor[]> {
-      const filter: FilterQuery<IActor> = { 'inventory.itemId': itemId };
-      if (campaignId) {
-        filter.campaignId = campaignId;
-      }
-      return await ActorDocumentModel.find(filter);
+    async getInventoryPopulated(actorId: string, campaignId?: string): Promise<IItem[]> {
+      return await DocumentService.inventory.getOwnedItemsPopulated(actorId, campaignId);
     }
   };
 
@@ -246,72 +191,17 @@ export class DocumentService {
     },
 
     /**
-     * Add item to character's inventory
+     * Get character's inventory using ownerId relationships
      */
-    async addToInventory(
-      characterId: string,
-      inventoryItem: {
-        itemId: string;
-        quantity: number;
-        equipped?: boolean;
-        slot?: string;
-        condition?: number;
-        metadata?: Record<string, unknown>;
-      }
-    ): Promise<ICharacter | null> {
-      return await CharacterDocumentModel.findByIdAndUpdate(
-        characterId,
-        { $push: { inventory: inventoryItem } },
-        { new: true, runValidators: true }
-      );
+    async getInventory(characterId: string, campaignId?: string): Promise<IItem[]> {
+      return await DocumentService.inventory.getOwnedItems(characterId, campaignId);
     },
 
     /**
-     * Remove item from character's inventory
+     * Get character's inventory with populated asset data
      */
-    async removeFromInventory(characterId: string, itemId: string): Promise<ICharacter | null> {
-      return await CharacterDocumentModel.findByIdAndUpdate(
-        characterId,
-        { $pull: { inventory: { itemId } } },
-        { new: true }
-      );
-    },
-
-    /**
-     * Update inventory item
-     */
-    async updateInventoryItem(
-      characterId: string,
-      itemId: string,
-      updates: Partial<{
-        quantity: number;
-        equipped: boolean;
-        slot: string;
-        condition: number;
-        metadata: Record<string, unknown>;
-      }>
-    ): Promise<ICharacter | null> {
-      const updateFields: Record<string, unknown> = {};
-      Object.entries(updates).forEach(([key, value]) => {
-        updateFields[`inventory.$.${key}`] = value;
-      });
-
-      return await CharacterDocumentModel.findOneAndUpdate(
-        { _id: characterId, 'inventory.itemId': itemId },
-        { $set: updateFields },
-        { new: true, runValidators: true }
-      );
-    },
-
-    /**
-     * Find characters with specific item in inventory
-     */
-    async findWithItem(itemId: string, campaignId?: string): Promise<ICharacter[]> {
-      const filter: FilterQuery<ICharacter> = { 'inventory.itemId': itemId };
-      if (campaignId) {
-        filter.campaignId = campaignId;
-      }
-      return await CharacterDocumentModel.find(filter);
+    async getInventoryPopulated(characterId: string, campaignId?: string): Promise<IItem[]> {
+      return await DocumentService.inventory.getOwnedItemsPopulated(characterId, campaignId);
     },
 
     /**
@@ -513,6 +403,73 @@ export class DocumentService {
       return {
         valid: errors.length === 0,
         errors
+      };
+    }
+  };
+
+  /**
+   * Inventory management using ownerId relationships
+   */
+  static inventory = {
+    /**
+     * Get all items owned by a character or actor
+     */
+    async getOwnedItems(ownerId: string, campaignId?: string): Promise<IItem[]> {
+      const filter: FilterQuery<IItem> = { 
+        ownerId,
+        documentType: 'item'
+      };
+      if (campaignId) {
+        filter.campaignId = campaignId;
+      }
+      return await DocumentService.find<IItem>(filter);
+    },
+
+    /**
+     * Get owned items with population of asset data
+     */
+    async getOwnedItemsPopulated(ownerId: string, campaignId?: string): Promise<IItem[]> {
+      const filter: FilterQuery<IItem> = { 
+        ownerId,
+        documentType: 'item'
+      };
+      if (campaignId) {
+        filter.campaignId = campaignId;
+      }
+      return await ItemDocumentModel.find(filter)
+        .populate('image')
+        .populate('thumbnail');
+    },
+
+    /**
+     * Set item owner (transfer ownership)
+     */
+    async setOwner(itemId: string, newOwnerId: string | null): Promise<IItem | null> {
+      return await DocumentService.updateById<IItem>(itemId, { 
+        ownerId: newOwnerId || undefined 
+      });
+    },
+
+    /**
+     * Get inventory summary for an owner
+     */
+    async getInventorySummary(ownerId: string, campaignId?: string): Promise<{
+      totalItems: number;
+      itemsByType: Record<string, number>;
+      items: IItem[];
+    }> {
+      const items = await this.getOwnedItems(ownerId, campaignId);
+      
+      const itemsByType: Record<string, number> = {};
+      items.forEach(item => {
+        const type = item.pluginDocumentType || 'unknown';
+        itemsByType[type] = (itemsByType[type] || 0) + 1;
+      });
+
+      return {
+        totalItems: items.length,
+        itemsByType,
+        items
       };
     }
   };

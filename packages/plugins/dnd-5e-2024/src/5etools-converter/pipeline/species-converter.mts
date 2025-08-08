@@ -317,8 +317,7 @@ export class TypedSpeciesConverter extends TypedConverter<
     return lineages.length > 0 ? lineages : undefined;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private extractLevel1Benefits(spellObj: any): string {
+  private extractLevel1Benefits(spellObj: { name?: string; [key: string]: unknown }): string {
     // Extract the first level benefits based on the lineage
     if (spellObj.name === 'Drow') {
       return 'The range of your Darkvision increases to 120 feet. You also know the Dancing Lights cantrip.';
@@ -331,8 +330,11 @@ export class TypedSpeciesConverter extends TypedConverter<
     return `You gain special abilities as part of the ${spellObj.name} lineage.`;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private extractSpellProgression(spellObj: any): DndSpellProgression | undefined {
+  private extractSpellProgression(spellObj: {
+    ability?: { choose?: string[] };
+    known?: Record<string, unknown>;
+    [key: string]: unknown;
+  }): DndSpellProgression | undefined {
     // Handle spellcasting ability choice
     let spellcastingAbility: DndSpellProgression['spellcastingAbility'];
     if (spellObj.ability?.choose && Array.isArray(spellObj.ability.choose)) {
@@ -358,15 +360,15 @@ export class TypedSpeciesConverter extends TypedConverter<
             replaceable: false
           });
         }
-      } else if (level1Spells._ && Array.isArray(level1Spells._)) {
+      } else if (typeof level1Spells === 'object' && level1Spells && '_' in level1Spells && Array.isArray((level1Spells as { _: unknown[] })._)) {
         // Handle choice format like {"_": [{"choose": "level=0|class=Wizard"}]}
-        for (const choice of level1Spells._) {
-          if (choice.choose) {
+        for (const choice of (level1Spells as { _: unknown[] })._) {
+          if (typeof choice === 'object' && choice && 'choose' in choice) {
             cantrips.push({
               spell: this.generateSpellRef('prestidigitation'), // Default
               replaceable: true,
               replacementOptions: {
-                filter: choice.choose,
+                filter: (choice as { choose: string }).choose,
                 description: 'Any cantrip from the Wizard spell list'
               }
             });

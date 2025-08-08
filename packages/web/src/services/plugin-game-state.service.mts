@@ -61,11 +61,10 @@ export class PluginGameStateService implements GameStateContext {
   }
 
   getItemsByOwner(ownerId: string): IItem[] {
-    return this.items.value.filter(item => 
-      (item as any).ownerId === ownerId || 
-      (item as any).characterId === ownerId ||
-      (item as any).actorId === ownerId
-    );
+    return this.items.value.filter(item => {
+      // IItem has ownerId property from itemDocumentSchema for ownership relationships
+      return item.ownerId === ownerId;
+    });
   }
 
   getTokensByActor(actorId: string): IToken[] {
@@ -81,7 +80,7 @@ export class PluginGameStateService implements GameStateContext {
   subscribeToState(callback: (state: Readonly<ServerGameState>) => void): () => void {
     // Watch the gameState ref for changes and call the callback
     return watch(
-      this.gameStateStore.gameState,
+      () => this.gameStateStore.gameState,
       (newState) => {
         if (newState) {
           callback(readonly(newState) as Readonly<ServerGameState>);
@@ -97,16 +96,16 @@ export class PluginGameStateService implements GameStateContext {
     let previousVersion = this.gameStateStore.gameStateVersion;
     
     return watch(
-      this.gameStateStore.gameStateVersion,
+      () => this.gameStateStore.gameStateVersion,
       (newVersion) => {
         if (newVersion && previousVersion && newVersion !== previousVersion) {
           // Create a minimal broadcast-like object for plugin compatibility
           const broadcast: StateUpdateBroadcast = {
-            sessionId: this.gameStateStore.sessionId || '',
+            sessionId: '', // Game state store doesn't expose sessionId directly
             newVersion,
             operations: [], // We don't have access to the actual operations
             expectedHash: this.gameStateStore.gameStateHash || '',
-            source: 'unknown',
+            source: 'system',
             timestamp: Date.now()
           };
           

@@ -21,7 +21,8 @@ import {
   gameStateRequestFullCallbackSchema,
   gameSessionJoinCallbackSchema,
   gameSessionLeaveCallbackSchema,
-  gameSessionEndCallbackSchema
+  gameSessionEndCallbackSchema,
+  gameStateSyncEncounterCallbackSchema
 } from '@dungeon-lab/shared/schemas/socket/game-state.mjs';
 import { z } from 'zod';
 
@@ -323,7 +324,7 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
   // GAME STATE SYNC
   // ============================================================================
 
-  socket.on('gameState:syncEncounter', async (sessionId: string, callback?: (response: { success: boolean; error?: string }) => void) => {
+  socket.on('gameState:syncEncounter', async (sessionId: string, callback?: (response: z.infer<typeof gameStateSyncEncounterCallbackSchema>) => void) => {
     try {
       logger.info('Encounter sync requested:', { sessionId, userId });
 
@@ -338,6 +339,7 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
       }
 
       // Trigger sync of current encounter to backing store
+      const syncService = new GameStateSyncService();
       const syncResult = await syncService.syncGameStateToBackingModels(sessionId, 'manual');
       
       if (syncResult.success) {

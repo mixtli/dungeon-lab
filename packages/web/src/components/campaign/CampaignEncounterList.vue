@@ -65,6 +65,7 @@ const statusColors = {
   in_progress: 'bg-success-100 text-success-800 border-success-300',
   paused: 'bg-accent-100 text-accent-800 border-accent-300',
   completed: 'bg-nature-100 text-nature-800 border-nature-300',
+  stopped: 'bg-red-100 text-red-800 border-red-300 dark:bg-red-900 dark:text-red-200 dark:border-red-500',
 } as const;
 </script>
 

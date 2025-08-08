@@ -228,16 +228,16 @@ export const useGameSessionStore = defineStore(
       socketStore.socket.on('gameSession:left', (data: { 
         userId: string, 
         sessionId: string, 
-        actorIds: string[],
-        characterNames: string[]
+        userName: string,
+        timestamp: number
       }) => {
         console.log('[Socket] Received gameSession:left event:', data);
         
         if (data.sessionId === sessionId) {
-          // Remove characters from the current session
+          // Remove characters owned by the user who left the session
           if (currentSession.value && currentSession.value.characters) {
             currentSession.value.characters = currentSession.value.characters.filter(
-              character => !data.actorIds.includes(character.id)
+              character => character.createdBy !== data.userId
             );
           }
           
@@ -255,13 +255,11 @@ export const useGameSessionStore = defineStore(
         console.log('[Socket] Received encounter:started event:', data);
         
         if (data.sessionId === sessionId) {
-          // Update the current session with the new encounter ID
-          if (currentSession.value) {
-            currentSession.value.currentEncounterId = data.encounterId;
-            console.log('[GameSession Store] Updated currentEncounterId:', data.encounterId);
-            console.log('[GameSession Store] Current session now:', currentSession.value);
-          }
-          // TODO: Save the encounter to the game state store
+          // The encounter info is managed in gameState.currentEncounter, not as a separate property
+          // This event indicates an encounter was started, but the actual encounter data
+          // comes through the game state updates
+          console.log('[GameSession Store] Encounter started:', data.encounterId);
+          // The encounter will be set via game state updates from gameState store
           // const gameStateStore = useGameStateStore();
           // gameStateStore.currentEncounter = data.encounter;
           // System message is now sent from server, no need to send from client

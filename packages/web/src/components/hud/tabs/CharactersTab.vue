@@ -62,7 +62,7 @@
           <div class="character-name">{{ character.name }}</div>
           <div class="character-details">
             <span class="character-type">{{ character.pluginDocumentType || 'PC' }}</span>
-            <span v-if="character.level" class="character-level">Level {{ character.level }}</span>
+            <span v-if="character.pluginData?.level" class="character-level">Level {{ character.pluginData.level }}</span>
           </div>
         </div>
 
@@ -145,11 +145,11 @@ const filteredCharacters = computed(() => {
 
 // Helper function to get character image URL with proper transformation
 function getCharacterImageUrl(character: ICharacter): string | null {
-  // First try avatar, then defaultTokenImage, both properly transformed
+  // First try avatar, then token (via defaultTokenImageId), both properly transformed
   if (character.avatar?.url) {
     return transformAssetUrl(character.avatar.url);
-  } else if (character.defaultTokenImage?.url) {
-    return transformAssetUrl(character.defaultTokenImage.url);
+  } else if (character.token?.url) {
+    return transformAssetUrl(character.token.url);
   }
   return null;
 }

@@ -92,7 +92,7 @@ export class EncountersClient extends ApiClient {
    */
   async updateEncounterStatus(
     encounterId: string,
-    status: 'draft' | 'ready' | 'in_progress' | 'completed'
+    status: 'draft' | 'ready' | 'in_progress' | 'completed' | 'stopped'
   ): Promise<IEncounter> {
     const response = await this.api.patch<BaseAPIResponse<IEncounter>>(
       `/api/encounters/${encounterId}/status`,

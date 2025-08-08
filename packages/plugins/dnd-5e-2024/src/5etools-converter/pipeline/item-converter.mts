@@ -30,7 +30,7 @@ import {
   type DndGearData,
   type DndToolData
 } from '../../types/dnd/item.mjs';
-import { expandWeaponProperty } from '../../types/dnd/common.mjs';
+import { expandWeaponProperty, damageTypeSchema, type DamageType } from '../../types/dnd/common.mjs';
 import { safeEtoolsCast } from '../../5etools-types/type-utils.mjs';
 import { createReferenceObject } from '../../../../../shared/src/types/reference.mjs';
 
@@ -641,8 +641,8 @@ export class TypedItemConverter extends TypedConverter<
     return !!reqAttune;
   }
 
-  private mapDamageType(dmgType: string): any {
-    const typeMap: Record<string, string> = {
+  private mapDamageType(dmgType: string): DamageType {
+    const typeMap: Record<string, DamageType> = {
       'B': 'bludgeoning',
       'P': 'piercing', 
       'S': 'slashing',
@@ -657,7 +657,12 @@ export class TypedItemConverter extends TypedConverter<
       'R': 'radiant',
       'T': 'thunder'
     };
-    return typeMap[dmgType] || dmgType.toLowerCase();
+    const mapped = typeMap[dmgType];
+    if (mapped) return mapped;
+    
+    // Validate the damage type is actually valid
+    const validationType = damageTypeSchema.safeParse(dmgType.toLowerCase());
+    return validationType.success ? validationType.data : 'bludgeoning';
   }
 
   private mapItemTypeToPluginDocumentType(pluginData: DndItemData): PluginDocumentType {

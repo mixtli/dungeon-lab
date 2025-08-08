@@ -35,6 +35,9 @@ export const gameSessionEndCallbackSchema = socketCallbackWithFieldsSchema({
   sessionId: z.string().optional()
 });
 
+// Sync encounter callback - simple success/error response
+export const gameStateSyncEncounterCallbackSchema = baseSocketCallbackSchema;
+
 // Client-to-server event argument schemas
 export const gameStateUpdateArgsSchema = z.tuple([
   stateUpdateSchema,
@@ -59,6 +62,11 @@ export const gameSessionLeaveArgsSchema = z.tuple([
 export const gameSessionEndArgsSchema = z.tuple([
   z.string(), // sessionId
   z.function().args(gameSessionEndCallbackSchema).optional() // callback
+]);
+
+export const gameStateSyncEncounterArgsSchema = z.tuple([
+  z.string(), // sessionId
+  z.function().args(gameStateSyncEncounterCallbackSchema).optional() // callback
 ]);
 
 // Server-to-client event schemas

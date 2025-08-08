@@ -175,10 +175,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
-import { useRoute } from 'vue-router';
 import { useGameStateStore } from '../../stores/game-state.store.mjs';
-import { useGameSessionStore } from '../../stores/game-session.store.mts';
-import { useSocketStore } from '../../stores/socket.store.mjs';
 import { useDeviceAdaptation } from '../../composables/useDeviceAdaptation.mjs';
 // Encounter socket functionality removed - using session-based architecture
 import PixiMapViewer from './PixiMapViewer.vue';
@@ -195,19 +192,9 @@ import MapContextMenu from './MapContextMenu.vue';
 // No props needed - EncounterView always displays the current encounter from game state
 
 // Composables
-const route = useRoute();
 const gameStateStore = useGameStateStore();
-const gameSessionStore = useGameSessionStore();
-const socketStore = useSocketStore();
 const { deviceConfig, deviceClass } = useDeviceAdaptation();
 const authStore = useAuthStore();
-
-// Always use the current encounter from game state - no route params needed
-
-// Check if current user is GM
-const isGameMaster = computed(() => {
-  return gameSessionStore.isGameMaster;
-});
 
 // Encounter socket functionality removed - using session-based architecture through encounter store
 

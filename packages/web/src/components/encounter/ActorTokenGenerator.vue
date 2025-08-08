@@ -239,7 +239,7 @@ const generateTokenPositions = (count: number, mode: 'click' | 'grid' | 'random'
   const positions: Array<{ x: number, y: number, elevation: number }> = [];
   
   switch (mode) {
-    case 'grid':
+    case 'grid': {
       // Arrange in a grid pattern starting from (0,0)
       const gridSize = Math.ceil(Math.sqrt(count));
       for (let i = 0; i < count; i++) {
@@ -252,6 +252,7 @@ const generateTokenPositions = (count: number, mode: 'click' | 'grid' | 'random'
         });
       }
       break;
+    }
       
     case 'random':
       // Generate random positions in a 20x20 area

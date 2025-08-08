@@ -1,10 +1,9 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Convert any value to lowercase string
  * @param value Value to convert to lowercase
  * @returns Lowercase string
  */
-export function toLowercase(value: any): string {
+export function toLowercase(value: unknown): string {
   if (value === null || value === undefined) {
     return '';
   }
@@ -62,24 +61,25 @@ export function cleanRuleText(text: string): string {
  * @param entries Array of entry objects or strings
  * @returns Extracted text as a string
  */
-export function extractTextFromEntries(entries: any[]): string {
+export function extractTextFromEntries(entries: unknown[]): string {
   if (!entries || !Array.isArray(entries)) {
     return '';
   }
   
   return entries
-    .filter(entry => typeof entry === 'string' || (entry && entry.entries) || (entry && entry.items))
+    .filter(entry => typeof entry === 'string' || (typeof entry === 'object' && entry && ('entries' in entry || 'items' in entry)))
     .map(entry => {
       if (typeof entry === 'string') {
         return cleanRuleText(entry);
-      } else if (entry.entries) {
+      } else if (typeof entry === 'object' && entry && 'entries' in entry) {
         // Handle nested entries
-        return extractTextFromEntries(entry.entries);
-      } else if (entry.items) {
+        return extractTextFromEntries((entry as { entries: unknown }).entries as unknown[]);
+      } else if (typeof entry === 'object' && entry && 'items' in entry) {
         // Handle lists
-        return extractTextFromEntries(entry.items.map((item: any) => 
+        return extractTextFromEntries(((entry as { items: unknown[] }).items).map((item: unknown) => 
           typeof item === 'string' ? item : 
-          (item.entries ? item.entries : (item.entry ? item.entry : ''))
+          (typeof item === 'object' && item && 'entries' in item ? (item as { entries: unknown }).entries : 
+           typeof item === 'object' && item && 'entry' in item ? (item as { entry: unknown }).entry : '')
         ));
       }
       return '';
@@ -120,7 +120,7 @@ export function normalizeSize(size: string[]): 'tiny' | 'small' | 'medium' | 'la
  * @param skillsData Array of skill objects
  * @returns Array of skill names
  */
-export function normalizeSkillProficiencies(skillsData: any[]): string[] {
+export function normalizeSkillProficiencies(skillsData: unknown[]): string[] {
   if (!skillsData || !Array.isArray(skillsData)) {
     return [];
   }
@@ -131,7 +131,7 @@ export function normalizeSkillProficiencies(skillsData: any[]): string[] {
     if (typeof skillItem === 'object' && skillItem !== null) {
       // Skills are objects where keys are skill names and values are true
       Object.keys(skillItem).forEach(skill => {
-        if (skillItem[skill] === true) {
+        if ((skillItem as Record<string, unknown>)[skill] === true) {
           skills.push(toLowercase(skill));
         }
       });
@@ -146,7 +146,7 @@ export function normalizeSkillProficiencies(skillsData: any[]): string[] {
  * @param toolsData Array of tool objects
  * @returns Array of tool names
  */
-export function normalizeToolProficiencies(toolsData: any[]): string[] {
+export function normalizeToolProficiencies(toolsData: unknown[]): string[] {
   if (!toolsData || !Array.isArray(toolsData)) {
     return [];
   }
@@ -157,7 +157,7 @@ export function normalizeToolProficiencies(toolsData: any[]): string[] {
     if (typeof toolItem === 'object' && toolItem !== null) {
       // Tools are objects where keys are tool names and values are true
       Object.keys(toolItem).forEach(tool => {
-        if (toolItem[tool] === true) {
+        if ((toolItem as Record<string, unknown>)[tool] === true) {
           tools.push(toLowercase(tool));
         }
       });
@@ -172,7 +172,7 @@ export function normalizeToolProficiencies(toolsData: any[]): string[] {
  * @param abilityData Array of ability objects
  * @returns Array of ability names
  */
-export function normalizeAbilities(abilityData: any[]): string[] {
+export function normalizeAbilities(abilityData: unknown[]): string[] {
   if (!abilityData || !Array.isArray(abilityData)) {
     return [];
   }
@@ -181,15 +181,22 @@ export function normalizeAbilities(abilityData: any[]): string[] {
   
   for (const abilityItem of abilityData) {
     if (typeof abilityItem === 'object' && abilityItem !== null) {
-      if (abilityItem.choose && abilityItem.choose.weighted && Array.isArray(abilityItem.choose.weighted.from)) {
+      const item = abilityItem as Record<string, unknown>;
+      if (item.choose && typeof item.choose === 'object' && item.choose &&
+          'weighted' in item.choose && typeof item.choose.weighted === 'object' && item.choose.weighted &&
+          'from' in item.choose.weighted && Array.isArray(item.choose.weighted.from)) {
         // Add all abilities from weighted choices
-        abilityItem.choose.weighted.from.forEach((ability: string) => {
-          abilities.push(toLowercase(ability));
+        item.choose.weighted.from.forEach((ability: unknown) => {
+          if (typeof ability === 'string') {
+            abilities.push(toLowercase(ability));
+          }
         });
-      } else if (abilityItem.choose && Array.isArray(abilityItem.choose.from)) {
+      } else if (item.choose && typeof item.choose === 'object' && item.choose && 'from' in item.choose && Array.isArray((item.choose as { from: unknown }).from)) {
         // Add abilities from simple choices
-        abilityItem.choose.from.forEach((ability: string) => {
-          abilities.push(toLowercase(ability));
+        ((item.choose as { from: unknown[] }).from).forEach((ability: unknown) => {
+          if (typeof ability === 'string') {
+            abilities.push(toLowercase(ability));
+          }
         });
       }
     }
@@ -203,7 +210,7 @@ export function normalizeAbilities(abilityData: any[]): string[] {
  * @param spellList Spell list from 5etools data
  * @returns Array of spell names
  */
-export function processSpellList(spellList: any): string[] {
+export function processSpellList(spellList: unknown): string[] {
   if (!spellList) return [];
   
   const spells: string[] = [];
@@ -215,7 +222,7 @@ export function processSpellList(spellList: any): string[] {
         // Extract just the spell name, removing source and other annotations
         const spellName = spell.split('|')[0].split('#')[0].trim();
         spells.push(toLowercase(spellName));
-      } else if (spell && spell.choose) {
+      } else if (typeof spell === 'object' && spell && 'choose' in spell) {
         // For entries with 'choose', we can't determine exact spells,
         // so add a note about choosing from a list
         spells.push(`choose a spell from ${spell.choose}`);
@@ -223,8 +230,8 @@ export function processSpellList(spellList: any): string[] {
     });
   } else if (typeof spellList === 'object') {
     // Nested structure with levels
-    Object.keys(spellList).forEach(level => {
-      const levelSpells = spellList[level];
+    Object.keys(spellList as Record<string, unknown>).forEach(level => {
+      const levelSpells = (spellList as Record<string, unknown>)[level];
       if (Array.isArray(levelSpells)) {
         levelSpells.forEach(spell => {
           if (typeof spell === 'string') {
@@ -232,13 +239,16 @@ export function processSpellList(spellList: any): string[] {
             spells.push(toLowercase(spellName));
           }
         });
-      } else if (typeof levelSpells === 'object' && levelSpells._) {
+      } else if (typeof levelSpells === 'object' && levelSpells && '_' in levelSpells) {
         // Handle complex structures like {"_": [{"choose": "level=0|class=Wizard"}]}
-        levelSpells._.forEach((item: any) => {
-          if (item && item.choose) {
-            spells.push(`choose a spell from ${item.choose}`);
-          }
-        });
+        const levelSpellsWithUnder = levelSpells as { _: unknown[] };
+        if (Array.isArray(levelSpellsWithUnder._)) {
+          levelSpellsWithUnder._.forEach((item: unknown) => {
+            if (typeof item === 'object' && item && 'choose' in item) {
+              spells.push(`choose a spell from ${(item as { choose: string }).choose}`);
+            }
+          });
+        }
       }
     });
   }
@@ -251,7 +261,7 @@ export function processSpellList(spellList: any): string[] {
  * @param spellData Array of spell objects
  * @returns Structured spell data
  */
-export function extractSpells(spellData: any[]): Array<{
+export function extractSpells(spellData: unknown[]): Array<{
   name?: string;
   cantrips: string[];
   spells: Array<{ level: number; spells: string[] }>;
@@ -266,29 +276,34 @@ export function extractSpells(spellData: any[]): Array<{
       cantrips: string[];
       spells: Array<{ level: number; spells: string[] }>;
     } = {
-      name: spellEntry.name ? toLowercase(spellEntry.name) : undefined,
+      name: (typeof spellEntry === 'object' && spellEntry && 'name' in spellEntry && typeof (spellEntry as { name: unknown }).name === 'string') ? toLowercase((spellEntry as { name: string }).name) : undefined,
       cantrips: [],
       spells: []
     };
     
     // Process known spells (usually cantrips)
-    if (spellEntry.known) {
-      const knownSpells = processSpellList(spellEntry.known['1']);
-      result.cantrips = knownSpells;
+    if (typeof spellEntry === 'object' && spellEntry && 'known' in spellEntry && typeof (spellEntry as { known: unknown }).known === 'object' && (spellEntry as { known: unknown }).known) {
+      const knownData = (spellEntry as { known: Record<string, unknown> }).known;
+      if ('1' in knownData) {
+        const knownSpells = processSpellList(knownData['1']);
+        result.cantrips = knownSpells;
+      }
     }
     
     // Process innate spells by level
-    if (spellEntry.innate) {
-      Object.keys(spellEntry.innate).forEach(level => {
+    if (typeof spellEntry === 'object' && spellEntry && 'innate' in spellEntry && typeof (spellEntry as { innate: unknown }).innate === 'object' && (spellEntry as { innate: unknown }).innate) {
+      const innateData = (spellEntry as { innate: Record<string, unknown> }).innate;
+      Object.keys(innateData).forEach(level => {
         const levelNum = parseInt(level);
         if (!isNaN(levelNum)) {
           const levelSpells: string[] = [];
-          const levelData = spellEntry.innate[level];
+          const levelData = innateData[level];
           
           // Process spells that can be cast daily
-          if (levelData.daily) {
-            Object.keys(levelData.daily).forEach(times => {
-              levelSpells.push(...processSpellList(levelData.daily[times]));
+          if (typeof levelData === 'object' && levelData && 'daily' in levelData && typeof (levelData as { daily: unknown }).daily === 'object' && (levelData as { daily: unknown }).daily) {
+            const dailyData = (levelData as { daily: Record<string, unknown> }).daily;
+            Object.keys(dailyData).forEach(times => {
+              levelSpells.push(...processSpellList(dailyData[times]));
             });
           }
           

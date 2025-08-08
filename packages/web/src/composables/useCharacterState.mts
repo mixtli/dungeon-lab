@@ -8,6 +8,7 @@
 
 import { ref, onUnmounted, type Ref } from 'vue';
 import type { IActor, IItem } from '@dungeon-lab/shared/types/index.mjs';
+import type { CreateDocumentData } from '@dungeon-lab/shared/schemas/document.schema.mjs';
 import { DocumentsClient } from '@dungeon-lab/client/index.mjs';
 import { useSocketStore } from '../stores/socket.store.mjs';
 
@@ -20,6 +21,17 @@ export interface CharacterStateOptions {
   autoSaveDelay?: number;
   /** Whether this is readonly mode */
   readonly?: boolean;
+}
+
+/**
+ * Strip populated and database-specific fields from a character to create a valid PutDocumentRequest
+ * This removes fields that are added by the server/database but shouldn't be included in create/update requests
+ */
+function stripPopulatedFields(character: IActor): CreateDocumentData {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { id, createdBy, updatedBy, avatar, token, ...coreFields } = character;
+  
+  return coreFields as CreateDocumentData;
 }
 
 export interface CharacterStateReturn {
@@ -124,10 +136,13 @@ export function useCharacterState(
       
       console.log('[useCharacterState] Saving character with PUT (full replace):', character.value.name);
       
+      // Strip populated fields to create valid PutDocumentRequest
+      const characterData = stripPopulatedFields(character.value);
+      
       // Save character using putDocument (PUT) to replace entire document
       const updatedCharacter = await documentsClient.putDocument(
         character.value.id,
-        character.value
+        characterData
       ) as IActor;
       
       // Update state with server response

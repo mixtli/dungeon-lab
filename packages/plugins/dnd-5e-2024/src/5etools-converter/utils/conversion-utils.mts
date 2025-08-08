@@ -282,7 +282,7 @@ export interface WrapperValidationResult {
  */
 export async function validateWrapperContent(
   wrapper: unknown,
-  contentType: 'actor' | 'item' | 'vtt-document',
+  contentType: 'actor' | 'item' | 'vtt-document' | 'character',
   documentType?: string
 ): Promise<WrapperValidationResult> {
   const errors: string[] = [];

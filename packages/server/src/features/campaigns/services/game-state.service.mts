@@ -13,6 +13,9 @@ import {
   isValidNextVersion 
 } from '@dungeon-lab/shared/utils/state-hash.mjs';
 import { logger } from '../../../utils/logger.mjs';
+import { DocumentService } from '../../documents/services/document.service.mjs';
+import { DocumentModel } from '../../documents/models/document.model.mjs';
+import { Types, Document } from 'mongoose';
 
 /**
  * Options for state update operations
@@ -428,9 +431,6 @@ export class GameStateService {
    */
   private async loadCampaignData(campaignId: string): Promise<ServerGameState> {
     try {
-      // Import models dynamically to avoid circular dependencies
-      const { DocumentModel } = await import('../../documents/models/document.model.mjs');
-      const { Types } = await import('mongoose');
       
       // Convert campaignId string to ObjectId for proper Mongoose querying
       const campaignObjectId = new Types.ObjectId(campaignId);
@@ -453,8 +453,8 @@ export class GameStateService {
         
         // Load items belonging to this campaign
         DocumentModel.find({ 
-          campaignId: campaignObjectId, 
-          documentType: 'item' 
+          campaignId: campaignObjectId,
+          documentType: 'item'
         }).exec()
       ]);
 
@@ -465,20 +465,20 @@ export class GameStateService {
         campaignItemsCount: campaignItems.length
       });
 
-      // Load inventory items for all characters
+      // Load inventory items for all characters using ownerId relationships
       const allInventoryItemIds: string[] = [];
       for (const character of characters) {
-        if (character.inventory && Array.isArray(character.inventory)) {
-          for (const invItem of character.inventory) {
-            if (invItem.itemId && !allInventoryItemIds.includes(invItem.itemId.toString())) {
-              allInventoryItemIds.push(invItem.itemId.toString());
-            }
+        // Both actors and characters can have inventory via ownerId relationships
+        const ownedItems = await DocumentService.inventory.getOwnedItems(character.id, campaignId);
+        for (const item of ownedItems) {
+          if (item.id && !allInventoryItemIds.includes(item.id.toString())) {
+            allInventoryItemIds.push(item.id.toString());
           }
         }
       }
 
       // Load inventory items if any exist
-      let inventoryItems: any[] = [];
+      let inventoryItems: Document[] = [];
       if (allInventoryItemIds.length > 0) {
         const inventoryItemObjectIds = allInventoryItemIds.map(id => new Types.ObjectId(id));
         inventoryItems = await DocumentModel.find({
