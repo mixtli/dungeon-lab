@@ -3,7 +3,7 @@ import { ref, computed, watch, onMounted } from 'vue';
 import type { IGameSession, IActor } from '@dungeon-lab/shared/types/index.mjs';
 import { useAuthStore } from './auth.store.mts';
 import { useSocketStore } from './socket.store.mjs';
-import { CampaignsClient, ActorsClient } from '@dungeon-lab/client/index.mjs';
+import { ActorsClient } from '@dungeon-lab/client/index.mjs';
 import { gmActionHandlerService } from '../services/gm-action-handler.service.mjs';
 import type { z } from 'zod';
 import {
@@ -19,7 +19,6 @@ export const useGameSessionStore = defineStore(
     const authStore = useAuthStore();
     const socketStore = useSocketStore();
     // const _chatStore = useChatStore();
-    const campaignClient = new CampaignsClient();
     const actorClient = new ActorsClient();
 
     // State

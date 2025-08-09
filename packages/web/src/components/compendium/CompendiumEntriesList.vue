@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { CompendiumsClient } from '@dungeon-lab/client/index.mjs';
 import type { ICompendiumEntry, ICompendium } from '@dungeon-lab/shared/types/index.mjs';
-import { pluginRegistry } from '../../services/plugin-registry.mjs';
+import { pluginRegistry } from '../../services/plugin-registry.mts';
 
 // Props
 const props = defineProps<{
@@ -54,8 +54,15 @@ async function loadCompendiumData() {
     // Get plugin manifest and extract document types
     if (compendium.value?.pluginId) {
       const manifest = pluginRegistry.getPluginManifest(compendium.value.pluginId);
-      if (manifest?.documentTypes) {
-        availableDocumentTypes.value = manifest.documentTypes;
+      if (manifest) {
+        // Combine all available document types from the manifest
+        const documentTypes = [
+          ...manifest.characterTypes,
+          ...manifest.itemTypes,
+          ...manifest.validationTypes
+        ];
+        // Remove duplicates and filter out empty strings
+        availableDocumentTypes.value = [...new Set(documentTypes)].filter(type => type.trim() !== '');
       }
     }
   } catch (err: unknown) {
