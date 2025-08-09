@@ -514,7 +514,8 @@ export class GameStateService {
         actors: actors.map(doc => doc.toObject()),         // Convert from Mongoose documents to plain objects
         items: allItems.map(doc => doc.toObject()),        // Convert from Mongoose documents to plain objects
         currentEncounter: null,                            // No active encounter initially
-        pluginData: {}                                     // Empty plugin data initially
+        pluginData: {},                                    // Empty plugin data initially
+        turnManager: null                                  // No active turn manager initially
       };
     } catch (error) {
       logger.error('Error loading campaign data:', error);
@@ -550,7 +551,8 @@ export class GameStateService {
       actors: [],
       items: [],
       currentEncounter: null,
-      pluginData: {}
+      pluginData: {},
+      turnManager: null
     };
   }
 

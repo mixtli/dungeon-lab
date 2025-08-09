@@ -42,14 +42,6 @@ import {
 import { 
   encounterSchema, 
   EncounterStatusEnum,
-  initiativeEntrySchema,
-  initiativeTrackerSchema,
-  combatActionSchema,
-  actionResultSchema,
-  ActionTypeEnum,
-  ActionCategoryEnum,
-  effectSchema,
-  EffectTypeEnum,
   encounterSettingsSchema,
   createEncounterSchema,
   updateEncounterSchema,
@@ -77,6 +69,11 @@ import {
   stateUpdateBroadcastSchema,
   StateOperationType
 } from '../schemas/game-state-update.schema.mjs';
+
+import {
+  turnParticipantSchema,
+  turnManagerSchema
+} from '../schemas/turn-manager.schema.mjs';
 
 import { inviteSchema, inviteStatusSchema } from '../schemas/invite.schema.mjs';
 
@@ -172,19 +169,6 @@ export type EncounterStatusType = z.infer<typeof EncounterStatusEnum>;
 export type IEncounterSettings = z.infer<typeof encounterSettingsSchema>;
 export type IEncounterPermissions = z.infer<typeof encounterPermissionsSchema>;
 
-// Initiative Types
-export type IInitiativeEntry = z.infer<typeof initiativeEntrySchema>;
-export type IInitiativeTracker = z.infer<typeof initiativeTrackerSchema>;
-
-// Combat Action Types
-export type ICombatAction = z.infer<typeof combatActionSchema>;
-export type IActionResult = z.infer<typeof actionResultSchema>;
-export type ActionTypeType = z.infer<typeof ActionTypeEnum>;
-export type ActionCategoryType = z.infer<typeof ActionCategoryEnum>;
-
-// Effect Types
-export type IEffect = z.infer<typeof effectSchema>;
-export type EffectTypeType = z.infer<typeof EffectTypeEnum>;
 
 // Position Types
 
@@ -221,6 +205,10 @@ export type StateUpdate = z.infer<typeof stateUpdateSchema>;
 export type StateUpdateResponse = z.infer<typeof stateUpdateResponseSchema>;
 export type StateUpdateBroadcast = z.infer<typeof stateUpdateBroadcastSchema>;
 export type StateOperationTypeEnum = z.infer<typeof StateOperationType>;
+
+// Turn Manager Types  
+export type ITurnParticipant = z.infer<typeof turnParticipantSchema>;
+export type ITurnManager = z.infer<typeof turnManagerSchema>;
 
 // Invite Types
 export type IInvite = z.infer<typeof inviteSchema>;

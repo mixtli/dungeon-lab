@@ -74,7 +74,8 @@
       "mcp__playwright__browser_navigate_back",
       "WebFetch(domain:vite.dev)",
       "Bash(./scripts/test-api-post \"/api/compendiums/d-d-5e-srd-content-pack/entries/688f16e744421d4d0d541d4f/instantiate\" \"{}\")",
-      "mcp__playwright__browser_handle_dialog"
+      "mcp__playwright__browser_handle_dialog",
+      "mcp__perplexity__perplexity_search_web"
     ],
     "additionalDirectories": [
       "/Users/mixtli/checkouts/5etools-src"

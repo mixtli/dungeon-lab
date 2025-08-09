@@ -4,6 +4,7 @@ import { actorSchema } from './actor.schema.mjs';
 import { itemSchema } from './item.schema.mjs';
 import { encounterSchema } from './encounters.schema.mjs';
 import { campaignSchema } from './campaign.schema.mjs';
+import { turnManagerSchema } from './turn-manager.schema.mjs';
 
 /**
  * Server-side game state schema
@@ -21,6 +22,9 @@ export const serverGameStateSchema = z.object({
   
   // Active encounter (fully populated with related data)
   currentEncounter: encounterSchema.nullable().default(null),
+  
+  // Turn management
+  turnManager: turnManagerSchema.nullable().default(null),
   
   // Plugin-specific state
   pluginData: z.record(z.string(), z.unknown()).default({})

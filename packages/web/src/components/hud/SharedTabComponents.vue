@@ -11,13 +11,6 @@
       </div>
     </Teleport>
     
-    <!-- Combat Tab -->
-    <Teleport :to="getCombatTarget()" v-if="shouldRenderTab('combat')">
-      <div class="tab-content">
-        <CombatTab />
-      </div>
-    </Teleport>
-    
     <!-- Actors Tab -->
     <Teleport :to="getActorsTarget()" v-if="shouldRenderTab('actors')">
       <div class="tab-content">
@@ -53,7 +46,6 @@ import { nextTick, ref, onMounted, watch } from 'vue';
 import { useHUDStore } from '../../stores/hudStore.mjs';
 import type { SidebarTabType } from '../../types/hud.mjs';
 import ChatTab from './tabs/ChatTab.vue';
-import CombatTab from './tabs/CombatTab.vue';
 import ActorsTab from './tabs/ActorsTab.vue';
 import CharactersTab from './tabs/CharactersTab.vue';
 import ItemsTab from './tabs/ItemsTab.vue';
@@ -66,7 +58,6 @@ const targetsReady = ref(false);
 function checkTargetsExist(): boolean {
   const sidebarTargets = [
     '#chat-sidebar-target',
-    '#combat-sidebar-target', 
     '#actors-sidebar-target',
     '#characters-sidebar-target',
     '#items-sidebar-target',
@@ -138,9 +129,6 @@ function getChatTarget(): string {
   return isTabFloating('chat') ? '#chat-floating-target' : '#chat-sidebar-target';
 }
 
-function getCombatTarget(): string {
-  return isTabFloating('combat') ? '#combat-floating-target' : '#combat-sidebar-target';
-}
 
 function getActorsTarget(): string {
   return isTabFloating('actors') ? '#actors-floating-target' : '#actors-sidebar-target';

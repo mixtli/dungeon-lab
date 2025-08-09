@@ -1,23 +1,5 @@
 import { z } from 'zod';
 import {
-  // Position and movement schemas
-  
-  // Initiative schemas
-  initiativeEntrySchema,
-  initiativeTrackerSchema,
-  
-  // Combat action schemas
-  ActionTypeEnum,
-  ActionCategoryEnum,
-  actionTargetSchema,
-  combatActionSchema,
-  actionResultSchema,
-  
-  // Effect schemas
-  EffectTypeEnum,
-  effectSchema,
-  effectApplicationSchema,
-  
   // Encounter schemas
   EncounterStatusEnum,
   encounterSettingsSchema,
@@ -36,27 +18,6 @@ import {
 // Import token types from separate file
 import { Token } from './tokens.mjs';
 
-// ============================================================================
-// POSITION AND MOVEMENT TYPES
-// ============================================================================
-
-
-// ============================================================================
-// INITIATIVE TYPES
-// ============================================================================
-
-export type InitiativeEntry = z.infer<typeof initiativeEntrySchema>;
-export type InitiativeTracker = z.infer<typeof initiativeTrackerSchema>;
-
-// ============================================================================
-// COMBAT ACTION TYPES
-// ============================================================================
-
-export type ActionType = z.infer<typeof ActionTypeEnum>;
-export type ActionCategory = z.infer<typeof ActionCategoryEnum>;
-export type ActionTarget = z.infer<typeof actionTargetSchema>;
-export type CombatAction = z.infer<typeof combatActionSchema>;
-export type ActionResult = z.infer<typeof actionResultSchema>;
 
 // ============================================================================
 // ENCOUNTER TYPES
@@ -77,14 +38,6 @@ export interface ActionContext {
   round: number;
   turn: number;
 }
-
-// ============================================================================
-// EFFECT TYPES
-// ============================================================================
-
-export type EffectType = z.infer<typeof EffectTypeEnum>;
-export type Effect = z.infer<typeof effectSchema>;
-export type EffectApplication = z.infer<typeof effectApplicationSchema>;
 
 // ============================================================================
 // PERMISSION TYPES

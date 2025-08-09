@@ -1,8 +1,6 @@
 // Export all encounter models
 export { EncounterModel } from './models/encounter.model.mjs';
 // TokenModel removed - tokens are now embedded in encounters
-export { InitiativeEntryModel } from './models/initiative.model.mjs';
-export { EffectModel } from './models/effect.model.mjs';
 
 // Export controller, service, and routes
 export { EncounterController } from './controllers/encounters.controller.mjs';
@@ -16,9 +14,5 @@ export * from './validation.mjs';
 export type {
   IEncounter,
   IToken,
-  IInitiativeEntry,
-  IEffect,
-  EncounterStatusType,
-  ActionTypeType,
-  EffectTypeType
+  EncounterStatusType
 } from '@dungeon-lab/shared/types/index.mjs'; 
