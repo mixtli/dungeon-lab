@@ -155,15 +155,15 @@ router.get(
   compendiumController.getCompendiums
 );
 
-// Get compendium by slug
+// Get compendium by ID
 router.get(
   '/:id',
   oapi.validPath(
     createPathSchema({
-      description: 'Get a specific compendium by slug',
+      description: 'Get a specific compendium by ID',
       requestParams: {
         path: z.object({
-          id: z.string().describe('Compendium slug')
+          id: z.string().describe('Compendium ID')
         })
       },
       responses: {
@@ -208,7 +208,7 @@ router.put(
       description: 'Update a compendium',
       requestParams: {
         path: z.object({
-          id: z.string().describe('Compendium slug')
+          id: z.string().describe('Compendium ID')
         })
       },
       requestBody: {
@@ -238,7 +238,7 @@ router.delete(
       description: 'Delete a compendium and all its entries',
       requestParams: {
         path: z.object({
-          id: z.string().describe('Compendium slug')
+          id: z.string().describe('Compendium ID')
         })
       },
       responses: {
@@ -264,7 +264,7 @@ router.get(
       description: 'Get all entries for a compendium',
       requestParams: {
         path: z.object({
-          id: z.string().describe('Compendium slug')
+          id: z.string().describe('Compendium ID')
         }),
         query: getEntriesQuerySchema
       },
@@ -284,7 +284,7 @@ router.post(
       description: 'Create a new entry in a compendium',
       requestParams: {
         path: z.object({
-          id: z.string().describe('Compendium slug')
+          id: z.string().describe('Compendium ID')
         })
       },
       requestBody: {
@@ -315,7 +315,7 @@ router.post(
       description: 'Link existing content to a compendium',
       requestParams: {
         path: z.object({
-          id: z.string().describe('Compendium slug')
+          id: z.string().describe('Compendium ID')
         })
       },
       requestBody: {
@@ -346,7 +346,7 @@ router.get(
       description: 'Get statistics for a compendium',
       requestParams: {
         path: z.object({
-          id: z.string().describe('Compendium slug')
+          id: z.string().describe('Compendium ID')
         })
       },
       responses: {

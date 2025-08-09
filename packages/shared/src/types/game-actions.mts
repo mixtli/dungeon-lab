@@ -9,7 +9,7 @@
 /**
  * Core action types that can be requested
  */
-export type GameActionType = 'move-token';
+export type GameActionType = 'move-token' | 'add-document';
 
 /**
  * Core game action request interface
@@ -58,6 +58,15 @@ export interface MoveTokenParameters extends Record<string, unknown> {
     elevation?: number;
   };
   distance?: number;
+}
+
+/**
+ * Document addition action parameters
+ */
+export interface AddDocumentParameters extends Record<string, unknown> {
+  compendiumId: string;
+  entryId: string;
+  documentData: Record<string, unknown>;
 }
 
 /**

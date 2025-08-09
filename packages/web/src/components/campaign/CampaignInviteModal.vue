@@ -1,7 +1,7 @@
 <!-- CampaignInviteModal.vue -->
 <script setup lang="ts">
 import { ref } from 'vue';
-import { useCampaignStore } from '../../stores/campaign.store.mjs';
+import { CampaignsClient } from '@dungeon-lab/client/index.mjs';
 import type { IInvite } from '@dungeon-lab/shared/types/index.mjs';
 
 const props = defineProps<{
@@ -14,7 +14,7 @@ const emit = defineEmits<{
   (e: 'invited'): void;
 }>();
 
-const campaignStore = useCampaignStore();
+const campaignClient = new CampaignsClient();
 const email = ref('');
 const error = ref<string | null>(null);
 const loading = ref(false);
@@ -35,7 +35,7 @@ async function handleSubmit() {
       status: 'pending',
     };
 
-    await campaignStore.sendInvite(inviteData);
+    await campaignClient.sendInvite(inviteData);
     email.value = '';
     emit('invited');
     emit('close');

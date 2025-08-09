@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { useCampaignStore } from '../../stores/campaign.store.mjs';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/auth.store.mjs';
 import { pluginRegistry } from '../../services/plugin-registry.mts';
@@ -13,8 +12,7 @@ const props = defineProps<{
   isEdit?: boolean;
 }>();
 
-// Stores, clients, and router
-const campaignStore = useCampaignStore();
+// Clients and router
 const campaignClient = new CampaignsClient();
 const authStore = useAuthStore();
 const router = useRouter();
@@ -98,10 +96,6 @@ async function submitForm() {
       };
       updatedCampaign = await campaignClient.updateCampaign(props.campaignId, updateData);
       
-      // Update the active campaign in the store if this is the active one
-      if (campaignStore.currentCampaign?.id === props.campaignId) {
-        campaignStore.setActiveCampaign(updatedCampaign);
-      }
       
       router.push({ name: 'campaign-detail', params: { id: props.campaignId } });
     } else {
@@ -135,8 +129,6 @@ async function submitForm() {
 
       updatedCampaign = await campaignClient.createCampaign(createData);
       
-      // Set as active campaign
-      campaignStore.setActiveCampaign(updatedCampaign);
       
       router.push({ name: 'campaign-detail', params: { id: updatedCampaign.id } });
     }

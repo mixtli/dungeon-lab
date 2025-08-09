@@ -10,7 +10,7 @@ export const gameActionRequestSchema = z.object({
   playerId: z.string(),
   sessionId: z.string(),
   timestamp: z.number(),
-  action: z.literal('move-token'), // Only supporting move-token for now
+  action: z.enum(['move-token', 'add-document']),
   parameters: z.record(z.unknown()),
   description: z.string().optional()
 });
@@ -32,19 +32,19 @@ export const gameActionRequestArgsSchema = z.tuple([
   z.function().args(actionRequestResponseSchema).returns(z.void())
 ]);
 
-// GM request args schema - no callback, just the request
+// GM request args schema (no callback when forwarded)
 export const gameActionGmRequestArgsSchema = z.tuple([
   gameActionRequestSchema
 ]);
 
-// GM response args schema - just the response
-export const gameActionGmResponseArgsSchema = z.tuple([
+// Response args schema - GM response to server
+export const gameActionResponseArgsSchema = z.tuple([
   actionRequestResponseSchema
 ]);
 
 // Exports for socket event integration
 export type GameActionRequestArgs = z.infer<typeof gameActionRequestArgsSchema>;
 export type GameActionGmRequestArgs = z.infer<typeof gameActionGmRequestArgsSchema>;
-export type GameActionGmResponseArgs = z.infer<typeof gameActionGmResponseArgsSchema>;
+export type GameActionResponseArgs = z.infer<typeof gameActionResponseArgsSchema>;
 export type GameActionRequest = z.infer<typeof gameActionRequestSchema>;
 export type ActionRequestResponse = z.infer<typeof actionRequestResponseSchema>;

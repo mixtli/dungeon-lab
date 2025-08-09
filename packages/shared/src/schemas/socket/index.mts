@@ -88,7 +88,7 @@ import {
 import {
   gameActionRequestArgsSchema,
   gameActionGmRequestArgsSchema,
-  gameActionGmResponseArgsSchema
+  gameActionResponseArgsSchema
 } from './game-actions.mjs';
 
 import {
@@ -206,8 +206,8 @@ export const serverToClientEvents = z.object({
   'gameSession:joined': z.function().args(gameSessionJoinedSchema).returns(z.void()),
   'gameSession:left': z.function().args(gameSessionLeftSchema).returns(z.void()),
   'gameSession:ended': z.function().args(gameSessionEndedSchema).returns(z.void()),
-  // GM receives action requests from server
-  'gameAction:gmRequest': z.function().args(...gameActionGmRequestArgsSchema.items).returns(z.void())
+  // GM receives action requests forwarded from server
+  'gameAction:forward': z.function().args(...gameActionGmRequestArgsSchema.items).returns(z.void())
 });
 
 export const clientToServerEvents = z.object({
@@ -229,5 +229,5 @@ export const clientToServerEvents = z.object({
   // Game action request events
   'gameAction:request': z.function().args(...gameActionRequestArgsSchema.items).returns(z.void()),
   // GM responds to action requests
-  'gameAction:gmResponse': z.function().args(...gameActionGmResponseArgsSchema.items).returns(z.void())
+  'gameAction:response': z.function().args(...gameActionResponseArgsSchema.items).returns(z.void())
 });

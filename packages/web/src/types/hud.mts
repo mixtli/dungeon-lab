@@ -20,7 +20,8 @@ export type SidebarTabType =
   | 'combat'
   | 'actors'
   | 'characters'
-  | 'items';
+  | 'items'
+  | 'compendium';
 
 export interface SidebarTab {
   id: SidebarTabType;

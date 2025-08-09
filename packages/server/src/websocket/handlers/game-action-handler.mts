@@ -2,6 +2,7 @@ import { Socket } from 'socket.io';
 import { socketHandlerRegistry } from '../handler-registry.mjs';
 import { SocketServer } from '../socket-server.mjs';
 import { GameSessionModel } from '../../features/campaigns/models/game-session.model.mjs';
+import { CampaignService } from '../../features/campaigns/services/campaign.service.mjs';
 import { logger } from '../../utils/logger.mjs';
 import type {
   ServerToClientEvents,
@@ -24,11 +25,12 @@ const pendingCallbacks = new Map<string, {
  * Server acts as a simple message router - all validation happens in GM client
  */
 function gameActionHandler(socket: Socket<ClientToServerEvents, ServerToClientEvents>): void {
+  const campaignService = new CampaignService();
 
   /**
    * Route game action requests from players to GM client
    */
-  socket.on('gameAction:request', async (request: GameActionRequest, callback) => {
+  socket.on('gameAction:request', async (request: GameActionRequest, callback: (response: ActionRequestResponse) => void) => {
     console.log('[GameActionHandler] Handler called with request:', request);
     logger.debug('[GameActionHandler] Routing action request to GM:', { 
       action: request.action, 
@@ -50,8 +52,11 @@ function gameActionHandler(socket: Socket<ClientToServerEvents, ServerToClientEv
         });
       }
 
-      // Verify user is a session participant
-      if (!session.participantIds.includes(request.playerId) && session.gameMasterId !== request.playerId) {
+      // Verify user is authorized for this session (GM or has character in campaign)
+      const isGM = session.gameMasterId === request.playerId;
+      const hasCharacterInCampaign = await campaignService.isUserCampaignMember(request.playerId, session.campaignId);
+      
+      if (!isGM && !hasCharacterInCampaign) {
         return callback({
           success: false,
           requestId: request.id,
@@ -101,7 +106,7 @@ function gameActionHandler(socket: Socket<ClientToServerEvents, ServerToClientEv
       });
 
       // Forward request to GM client without callback
-      io.to(gmSocketId).emit('gameAction:gmRequest', request);
+      io.to(gmSocketId).emit('gameAction:forward', request);
 
     } catch (error) {
       logger.error('[GameActionHandler] Error routing action request:', error);
@@ -119,7 +124,7 @@ function gameActionHandler(socket: Socket<ClientToServerEvents, ServerToClientEv
   /**
    * Handle GM responses and call stored callbacks
    */
-  socket.on('gameAction:gmResponse', (response: ActionRequestResponse) => {
+  socket.on('gameAction:response', (response: ActionRequestResponse) => {
     console.log('[GameActionHandler] GM response received:', response);
     logger.debug('[GameActionHandler] Processing GM response:', { 
       requestId: response.requestId, 

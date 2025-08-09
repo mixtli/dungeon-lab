@@ -255,10 +255,11 @@ export class CompendiumsClient extends ApiClient {
   /**
    * Instantiate a template from a compendium entry
    */
-  async instantiateTemplate(compendiumId: string, entryId: string, overrides?: Record<string, unknown>, options?: { skipIfExists?: boolean }): Promise<IEmbeddedContent | null> {
+  async instantiateTemplate(compendiumId: string, entryId: string, overrides?: Record<string, unknown>, options?: { skipIfExists?: boolean; campaignId?: string }): Promise<IEmbeddedContent | null> {
     const response = await this.api.post<BaseAPIResponse<IEmbeddedContent | { skipped: boolean; message: string }>>(`/api/compendiums/${compendiumId}/entries/${entryId}/instantiate`, {
       overrides: overrides || {},
-      skipIfExists: options?.skipIfExists || false
+      skipIfExists: options?.skipIfExists || false,
+      campaignId: options?.campaignId
     });
     if (!response.data || !response.data.success) {
       throw new Error(response.data?.error || 'Failed to instantiate template');

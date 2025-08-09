@@ -3,6 +3,7 @@ import { characterSchema } from './character.schema.mjs';
 import { actorSchema } from './actor.schema.mjs';
 import { itemSchema } from './item.schema.mjs';
 import { encounterSchema } from './encounters.schema.mjs';
+import { campaignSchema } from './campaign.schema.mjs';
 
 /**
  * Server-side game state schema
@@ -10,6 +11,9 @@ import { encounterSchema } from './encounters.schema.mjs';
  * and synchronized with clients during active game sessions
  */
 export const serverGameStateSchema = z.object({
+  // Campaign context (read-only reference for session convenience)
+  campaign: campaignSchema.nullable().default(null),
+  
   // Game entities (all campaign-associated) - pure data, no metadata
   characters: z.array(characterSchema).default([]), // Player characters
   actors: z.array(actorSchema).default([]),          // NPCs, monsters, etc.

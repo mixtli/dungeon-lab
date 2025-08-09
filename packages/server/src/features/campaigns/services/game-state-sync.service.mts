@@ -2,12 +2,15 @@ import mongoose from 'mongoose';
 import { logger } from '../../../utils/logger.mjs';
 import { GameSessionModel } from '../models/game-session.model.mjs';
 import type { ICharacter, IActor, IItem, IEncounter } from '@dungeon-lab/shared/types/index.mjs';
+import type { z } from 'zod';
+import { campaignSchema } from '@dungeon-lab/shared/schemas/campaign.schema.mjs';
 
 // Import backing models
 import { CharacterDocumentModel } from '../../documents/models/character-document.model.mjs';
 import { ActorDocumentModel } from '../../documents/models/actor-document.model.mjs';
 import { ItemDocumentModel } from '../../documents/models/item-document.model.mjs';
 import { EncounterModel } from '../../encounters/models/encounter.model.mjs';
+import { CampaignModel } from '../models/campaign.model.mjs';
 
 /**
  * Result of a sync operation
@@ -15,6 +18,7 @@ import { EncounterModel } from '../../encounters/models/encounter.model.mjs';
 interface SyncResult {
   success: boolean;
   entitiesUpdated: {
+    campaigns: number;
     characters: number;
     actors: number;
     items: number;
@@ -50,7 +54,7 @@ export class GameStateSyncService {
     const startTime = Date.now();
     const result: SyncResult = {
       success: false,
-      entitiesUpdated: { characters: 0, actors: 0, items: 0, encounters: 0 },
+      entitiesUpdated: { campaigns: 0, characters: 0, actors: 0, items: 0, encounters: 0 },
       errors: [],
       duration: 0
     };
@@ -97,6 +101,13 @@ export class GameStateSyncService {
       try {
         const syncOperation = async (session: mongoose.ClientSession | null) => {
           // Sync each entity type
+          result.entitiesUpdated.campaigns = await this.syncCampaign(
+            gameState.campaign, 
+            campaignId, 
+            options, 
+            session
+          );
+          
           result.entitiesUpdated.characters = await this.syncCharacters(
             gameState.characters, 
             campaignId, 
@@ -183,7 +194,7 @@ export class GameStateSyncService {
       } catch (error) {
         results.push({
           success: false,
-          entitiesUpdated: { characters: 0, actors: 0, items: 0, encounters: 0 },
+          entitiesUpdated: { campaigns: 0, characters: 0, actors: 0, items: 0, encounters: 0 },
           errors: [`Sync failed: ${error instanceof Error ? error.message : 'Unknown error'}`],
           duration: 0
         });
@@ -203,6 +214,54 @@ export class GameStateSyncService {
   // ============================================================================
   // PRIVATE SYNC METHODS
   // ============================================================================
+
+  /**
+   * Sync campaign from game state to Campaign document
+   */
+  private async syncCampaign(
+    campaign: z.infer<typeof campaignSchema> | null, 
+    campaignId: string, 
+    options: SyncOptions,
+    session: mongoose.ClientSession | null
+  ): Promise<number> {
+    if (!campaign) {
+      return 0;
+    }
+
+    try {
+      if (options.dryRun) {
+        logger.debug('DRY RUN: Would sync campaign', { 
+          campaignId: campaign.id, 
+          name: campaign.name 
+        });
+        return 1;
+      }
+
+      // Update campaign document (only if it exists - don't create new campaigns from sync)
+      const updateResult = await CampaignModel.updateOne(
+        { _id: campaignId },
+        { 
+          $set: {
+            ...campaign,
+            updatedAt: new Date()
+          }
+        },
+        { 
+          ...(session && { session })
+          // Note: No upsert for campaigns - they should already exist
+        }
+      ).exec();
+
+      return updateResult.modifiedCount > 0 ? 1 : 0;
+
+    } catch (error) {
+      logger.warn('Failed to sync campaign', { 
+        campaignId: campaign.id, 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      });
+      return 0;
+    }
+  }
 
   /**
    * Sync characters from game state to Character documents

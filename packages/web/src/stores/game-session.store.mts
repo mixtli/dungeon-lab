@@ -3,7 +3,6 @@ import { ref, computed, watch, onMounted } from 'vue';
 import type { IGameSession, IActor } from '@dungeon-lab/shared/types/index.mjs';
 import { useAuthStore } from './auth.store.mts';
 import { useSocketStore } from './socket.store.mjs';
-import { useCampaignStore } from './campaign.store.mts';
 import { CampaignsClient, ActorsClient } from '@dungeon-lab/client/index.mjs';
 import { gmActionHandlerService } from '../services/gm-action-handler.service.mjs';
 import type { z } from 'zod';
@@ -19,7 +18,6 @@ export const useGameSessionStore = defineStore(
   () => {
     const authStore = useAuthStore();
     const socketStore = useSocketStore();
-    const campaignStore = useCampaignStore();
     // const _chatStore = useChatStore();
     const campaignClient = new CampaignsClient();
     const actorClient = new ActorsClient();
@@ -144,16 +142,8 @@ export const useGameSessionStore = defineStore(
                   }
                 }
 
-                // Fetch and set the active campaign
+                // Session joined successfully - campaign data will be available through game state
                 const session = response.session as IGameSession;
-                if (session.campaignId) {
-                  try {
-                    const campaign = await campaignClient.getCampaign(session.campaignId);
-                    campaignStore.setActiveCampaign(campaign);
-                  } catch (err) {
-                    console.error('Error fetching campaign for session:', err);
-                  }
-                }
 
                 // Initialize GM action handler if this user is the GM
                 const isGM = session.gameMasterId === authStore.user?.id;
@@ -328,7 +318,6 @@ export const useGameSessionStore = defineStore(
 
     function clearSession() {
       currentSession.value = null;
-      campaignStore.setActiveCampaign(null);
       currentCharacter.value = null;
       error.value = null;
     }

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useCampaignStore } from '../stores/campaign.store.mjs';
 import { pluginRegistry } from '../services/plugin-registry.mts';
 import type { ICampaign } from '@dungeon-lab/shared/types/index.mjs';
 import CampaignCharacterList from '../components/campaign/CampaignCharacterList.vue';
@@ -13,7 +12,6 @@ import { CampaignsClient } from '@dungeon-lab/client/index.mjs';
 
 const route = useRoute();
 const router = useRouter();
-const campaignStore = useCampaignStore();
 const campaignClient = new CampaignsClient();
 const loading = ref(false);
 const error = ref<string | null>(null);
@@ -91,10 +89,6 @@ async function deleteCampaign() {
   try {
     await campaignClient.deleteCampaign(campaignId);
     
-    // Clear the active campaign if it's the one being deleted
-    if (campaignStore.currentCampaign?.id === campaignId) {
-      campaignStore.setActiveCampaign(null);
-    }
     
     showNotification('Campaign deleted successfully');
     router.push({ name: 'campaigns' });
@@ -122,8 +116,6 @@ async function refreshCampaign() {
     const campaign = await campaignClient.getCampaign(campaignId);
     campaignData.value = campaign;
     
-    // Update active campaign in the store
-    campaignStore.setActiveCampaign(campaign);
   } catch (err) {
     console.error('Error refreshing campaign:', err);
   }

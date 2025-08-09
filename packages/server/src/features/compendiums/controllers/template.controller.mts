@@ -28,8 +28,8 @@ export class TemplateController {
         return;
       }
 
-      // First, resolve the compendium slug to its ObjectId
-      const compendium = await CompendiumModel.findOne({ slug: compendiumId }).lean();
+      // Get the compendium by ID
+      const compendium = await CompendiumModel.findById(compendiumId).lean();
       if (!compendium) {
         res.status(404).json({ error: 'Compendium not found' });
         return;
@@ -91,8 +91,8 @@ export class TemplateController {
       const { compendiumId, entryId } = req.params;
       const newData = req.body;
 
-      // First, resolve the compendium slug to its ObjectId
-      const compendium = await CompendiumModel.findOne({ slug: compendiumId }).lean();
+      // Get the compendium by ID
+      const compendium = await CompendiumModel.findById(compendiumId).lean();
       if (!compendium) {
         res.status(404).json({ error: 'Compendium not found' });
         return;
@@ -128,8 +128,8 @@ export class TemplateController {
     try {
       const { compendiumId, entryId } = req.params;
 
-      // First, resolve the compendium slug to its ObjectId
-      const compendium = await CompendiumModel.findOne({ slug: compendiumId }).lean();
+      // Get the compendium by ID
+      const compendium = await CompendiumModel.findById(compendiumId).lean();
       if (!compendium) {
         res.status(404).json({ error: 'Compendium not found' });
         return;

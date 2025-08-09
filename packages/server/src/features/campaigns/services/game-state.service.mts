@@ -6,6 +6,7 @@ import {
   IGameSession
 } from '@dungeon-lab/shared/types/index.mjs';
 import { GameSessionModel } from '../models/game-session.model.mjs';
+import { CampaignModel } from '../models/campaign.model.mjs';
 import { 
   generateStateHash, 
   validateStateIntegrity, 
@@ -437,8 +438,10 @@ export class GameStateService {
       
       logger.info('Loading campaign data', { campaignId, campaignObjectId: campaignObjectId.toString() });
       
-      // Load all campaign-associated documents
-      const [characters, actors, campaignItems] = await Promise.all([
+      // Load campaign and all campaign-associated documents
+      const [campaign, characters, actors, campaignItems] = await Promise.all([
+        // Load the campaign itself
+        CampaignModel.findById(campaignObjectId).exec(),
         // Load characters belonging to this campaign with avatar and token assets
         DocumentModel.find({ 
           campaignId: campaignObjectId, 
@@ -460,6 +463,7 @@ export class GameStateService {
 
       logger.info('Loaded campaign documents', { 
         campaignId,
+        campaignName: campaign?.name || 'Unknown',
         charactersCount: characters.length,
         actorsCount: actors.length,
         campaignItemsCount: campaignItems.length
@@ -505,6 +509,7 @@ export class GameStateService {
 
       // Convert Mongoose documents to plain objects to avoid circular references in hash generation
       return {
+        campaign: campaign ? campaign.toObject() : null,   // Convert campaign to plain object
         characters: characters.map(doc => doc.toObject()), // Convert from Mongoose documents to plain objects
         actors: actors.map(doc => doc.toObject()),         // Convert from Mongoose documents to plain objects
         items: allItems.map(doc => doc.toObject()),        // Convert from Mongoose documents to plain objects
@@ -540,6 +545,7 @@ export class GameStateService {
    */
   private getInitialGameState(): ServerGameState {
     return {
+      campaign: null,
       characters: [],
       actors: [],
       items: [],

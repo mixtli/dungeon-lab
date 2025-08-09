@@ -15,7 +15,6 @@ import type {
   FloatingWindow,
   Position,
   Size,
-  HUDPreferences,
   HUDConfiguration
 } from '../types/hud.mjs';
 
@@ -61,6 +60,13 @@ export const useHUDStore = defineStore('hud', () => {
         title: 'Items',
         icon: 'mdi-bag-personal',
         component: 'ItemsTab',
+        visible: true
+      },
+      compendium: {
+        id: 'compendium',
+        title: 'Compendium',
+        icon: 'mdi-book-open-variant',
+        component: 'CompendiumTab',
         visible: true
       }
     }
@@ -112,16 +118,8 @@ export const useHUDStore = defineStore('hud', () => {
   const viewport = ref<Size>({ width: 1920, height: 1080 });
   const deviceType = ref<'desktop' | 'tablet' | 'mobile'>('desktop');
 
-  const preferences = ref<HUDPreferences>({
-    sidebarWidth: 320,
-    sidebarPosition: 'right',
-    sidebarCollapsed: false,
-    toolbarPosition: { x: 20, y: 100 },
-    lastActiveTab: 'chat',
-    floatingWindows: {},
-    theme: 'dark',
-    opacity: 0.9
-  });
+  // Persistent preferences are now handled directly through store state with Pinia persist
+  // No separate preferences ref needed
 
   const configuration = ref<HUDConfiguration>({
     sidebar: {
@@ -183,9 +181,9 @@ export const useHUDStore = defineStore('hud', () => {
    */
   function initialize(): void {
     detectDeviceType();
-    loadPreferences();
     updateViewport();
     setupKeyboardShortcuts();
+    // Pinia persist automatically restores persisted state on store creation
   }
 
   /**
@@ -221,8 +219,7 @@ export const useHUDStore = defineStore('hud', () => {
   function setActiveTab(tabType: SidebarTabType): void {
     if (sidebar.value.tabs[tabType]?.visible) {
       sidebar.value.activeTab = tabType;
-      preferences.value.lastActiveTab = tabType;
-      savePreferences();
+      // lastActiveTab is now stored directly in sidebar.activeTab, no separate preference needed
     }
   }
 
@@ -231,7 +228,7 @@ export const useHUDStore = defineStore('hud', () => {
    */
   function toggleSidebar(): void {
     sidebar.value.visible = !sidebar.value.visible;
-    savePreferences();
+    // Pinia persist handles saving automatically
   }
 
   /**
@@ -239,8 +236,7 @@ export const useHUDStore = defineStore('hud', () => {
    */
   function toggleSidebarCollapsed(): void {
     sidebar.value.collapsed = !sidebar.value.collapsed;
-    preferences.value.sidebarCollapsed = sidebar.value.collapsed;
-    savePreferences();
+    // Pinia persist handles saving automatically
   }
 
   /**
@@ -250,8 +246,7 @@ export const useHUDStore = defineStore('hud', () => {
     const minWidth = configuration.value.sidebar.minWidth;
     const maxWidth = configuration.value.sidebar.maxWidth;
     sidebar.value.width = Math.max(minWidth, Math.min(width, maxWidth));
-    preferences.value.sidebarWidth = sidebar.value.width;
-    savePreferences();
+    // Pinia persist handles saving automatically
   }
 
   /**
@@ -259,8 +254,7 @@ export const useHUDStore = defineStore('hud', () => {
    */
   function setSidebarPosition(position: 'left' | 'right'): void {
     sidebar.value.position = position;
-    preferences.value.sidebarPosition = position;
-    savePreferences();
+    // Pinia persist handles saving automatically
   }
 
   /**
@@ -278,7 +272,7 @@ export const useHUDStore = defineStore('hud', () => {
         }
       }
       
-      savePreferences();
+      // Pinia persist handles saving automatically
     }
   }
 
@@ -325,8 +319,7 @@ export const useHUDStore = defineStore('hud', () => {
    */
   function setToolbarPosition(position: Position): void {
     toolbar.value.position = position;
-    preferences.value.toolbarPosition = position;
-    savePreferences();
+    // Pinia persist handles saving automatically
   }
 
   /**
@@ -378,7 +371,7 @@ export const useHUDStore = defineStore('hud', () => {
     floatingWindows.value[windowId] = window;
     
     // Tab will automatically be hidden from sidebar due to visibleTabs computed property
-    savePreferences();
+    // Pinia persist handles saving automatically
 
     return windowId;
   }
@@ -395,7 +388,7 @@ export const useHUDStore = defineStore('hud', () => {
     
     // Set as active tab
     setActiveTab(window.tabType);
-    savePreferences();
+    // Pinia persist handles saving automatically
   }
 
   /**
@@ -407,7 +400,7 @@ export const useHUDStore = defineStore('hud', () => {
 
     // Remove floating window (tab will automatically show in sidebar)
     delete floatingWindows.value[windowId];
-    savePreferences();
+    // Pinia persist handles saving automatically
   }
 
   /**
@@ -417,8 +410,7 @@ export const useHUDStore = defineStore('hud', () => {
     const window = floatingWindows.value[windowId];
     if (window) {
       window.position = position;
-      // Immediately save to localStorage so position persists on reload
-      savePreferences();
+      // Pinia persist handles saving automatically with immediate effect
     }
   }
 
@@ -429,8 +421,7 @@ export const useHUDStore = defineStore('hud', () => {
     const window = floatingWindows.value[windowId];
     if (window) {
       window.size = size;
-      // Immediately save to localStorage so size persists on reload
-      savePreferences();
+      // Pinia persist handles saving automatically with immediate effect
     }
   }
 
@@ -451,7 +442,7 @@ export const useHUDStore = defineStore('hud', () => {
     const window = floatingWindows.value[windowId];
     if (window) {
       window.minimized = !window.minimized;
-      savePreferences();
+      // Pinia persist handles saving automatically
     }
   }
 
@@ -472,60 +463,7 @@ export const useHUDStore = defineStore('hud', () => {
     // Tab shortcuts could be added here
   }
 
-  /**
-   * Load preferences from localStorage
-   */
-  function loadPreferences(): void {
-    try {
-      const stored = localStorage.getItem('dungeon-lab-hud-preferences');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        
-        // Ensure floatingWindows field exists for backward compatibility
-        if (!parsed.floatingWindows) {
-          parsed.floatingWindows = {};
-        }
-        
-        preferences.value = { ...preferences.value, ...parsed };
-        
-        // Apply preferences to state
-        sidebar.value.width = preferences.value.sidebarWidth;
-        sidebar.value.position = preferences.value.sidebarPosition;
-        sidebar.value.collapsed = preferences.value.sidebarCollapsed;
-        sidebar.value.activeTab = preferences.value.lastActiveTab;
-        toolbar.value.position = preferences.value.toolbarPosition;
-        
-        // Restore floating windows
-        Object.entries(preferences.value.floatingWindows).forEach(([windowId, windowData]) => {
-          floatingWindows.value[windowId] = windowData;
-        });
-        
-        // Clean up deprecated hiddenTabs if it exists in old preferences
-        const deprecatedPrefs = preferences.value as HUDPreferences & { hiddenTabs?: unknown };
-        if (deprecatedPrefs.hiddenTabs) {
-          console.log('[HUD] Cleaning up deprecated hiddenTabs preference');
-          delete deprecatedPrefs.hiddenTabs;
-          savePreferences();
-        }
-      }
-    } catch (error) {
-      console.warn('Failed to load HUD preferences:', error);
-    }
-  }
-
-  /**
-   * Save preferences to localStorage
-   */
-  function savePreferences(): void {
-    try {
-      // Update floating windows in preferences before saving
-      preferences.value.floatingWindows = { ...floatingWindows.value };
-      
-      localStorage.setItem('dungeon-lab-hud-preferences', JSON.stringify(preferences.value));
-    } catch (error) {
-      console.warn('Failed to save HUD preferences:', error);
-    }
-  }
+  // Manual localStorage functions removed - Pinia persist handles this automatically
 
   /**
    * Reset to default configuration
@@ -548,7 +486,7 @@ export const useHUDStore = defineStore('hud', () => {
       sidebar.value.tabs[tabType as SidebarTabType].visible = true;
     });
 
-    savePreferences();
+    // Pinia persist handles saving automatically
   }
 
   return {
@@ -559,7 +497,6 @@ export const useHUDStore = defineStore('hud', () => {
     nextZIndex,
     viewport,
     deviceType,
-    preferences,
     configuration,
 
     // Getters
@@ -600,8 +537,11 @@ export const useHUDStore = defineStore('hud', () => {
     toggleFloatingWindowMinimized,
 
     // Utilities
-    resetToDefaults,
-    loadPreferences,
-    savePreferences
+    resetToDefaults
   };
+}, {
+  persist: {
+    storage: localStorage,
+    key: 'dungeon-lab-hud-preferences'
+  }
 });

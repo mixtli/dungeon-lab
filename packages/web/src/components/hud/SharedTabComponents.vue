@@ -38,6 +38,13 @@
         <ItemsTab />
       </div>
     </Teleport>
+    
+    <!-- Compendium Tab -->
+    <Teleport :to="getCompendiumTarget()" v-if="shouldRenderTab('compendium')">
+      <div class="tab-content">
+        <CompendiumTab />
+      </div>
+    </Teleport>
   </template>
 </template>
 
@@ -50,6 +57,7 @@ import CombatTab from './tabs/CombatTab.vue';
 import ActorsTab from './tabs/ActorsTab.vue';
 import CharactersTab from './tabs/CharactersTab.vue';
 import ItemsTab from './tabs/ItemsTab.vue';
+import CompendiumTab from './tabs/CompendiumTab.vue';
 
 const hudStore = useHUDStore();
 const targetsReady = ref(false);
@@ -61,7 +69,8 @@ function checkTargetsExist(): boolean {
     '#combat-sidebar-target', 
     '#actors-sidebar-target',
     '#characters-sidebar-target',
-    '#items-sidebar-target'
+    '#items-sidebar-target',
+    '#compendium-sidebar-target'
   ];
   
   // Check that sidebar targets exist
@@ -143,6 +152,10 @@ function getCharactersTarget(): string {
 
 function getItemsTarget(): string {
   return isTabFloating('items') ? '#items-floating-target' : '#items-sidebar-target';
+}
+
+function getCompendiumTarget(): string {
+  return isTabFloating('compendium') ? '#compendium-floating-target' : '#compendium-sidebar-target';
 }
 </script>
 

@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useGameSessionStore } from '../../stores/game-session.store.mjs';
-import { useCampaignStore } from '../../stores/campaign.store.mjs';
+import { useGameStateStore } from '../../stores/game-state.store.mjs';
 
 const gameSessionStore = useGameSessionStore();
-const campaignStore = useCampaignStore();
+const gameStateStore = useGameStateStore();
 const isDropdownOpen = ref(false);
 
 // Toggle dropdown visibility
@@ -66,7 +66,7 @@ const activeParticipants = computed(() => {
         </span>
         <div class="flex items-center space-x-1">
           <span class="text-sm text-gray-700 dark:text-gray-200">
-            {{ campaignStore.currentCampaign?.name }}
+            {{ gameStateStore.gameState?.campaign?.name || 'No Campaign' }}
           </span>
           <span
             v-if="!gameSessionStore.isGameMaster && gameSessionStore.currentCharacter"

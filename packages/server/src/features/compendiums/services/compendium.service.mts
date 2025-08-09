@@ -62,11 +62,11 @@ export class CompendiumService {
   }
 
   /**
-   * Get compendium by slug
+   * Get compendium by ID
    */
-  async getCompendiumById(slug: string): Promise<ICompendium> {
+  async getCompendiumById(id: string): Promise<ICompendium> {
     try {
-      const compendium = await CompendiumModel.findOne({ slug }).lean();
+      const compendium = await CompendiumModel.findById(id).lean();
       if (!compendium) {
         throw new Error('Compendium not found');
       }
@@ -97,12 +97,12 @@ export class CompendiumService {
   }
 
   /**
-   * Update compendium by slug
+   * Update compendium by ID
    */
-  async updateCompendium(slug: string, data: ICompendiumUpdateData, updatedBy: string): Promise<ICompendium> {
+  async updateCompendium(id: string, data: ICompendiumUpdateData, updatedBy: string): Promise<ICompendium> {
     try {
-      const compendium = await CompendiumModel.findOneAndUpdate(
-        { slug },
+      const compendium = await CompendiumModel.findByIdAndUpdate(
+        id,
         { ...data, updatedBy },
         { new: true, runValidators: true }
       ).lean();
@@ -119,14 +119,14 @@ export class CompendiumService {
   }
 
   /**
-   * Delete compendium and all its entries by slug
+   * Delete compendium and all its entries by ID
    */
-  async deleteCompendium(slug: string): Promise<void> {
+  async deleteCompendium(id: string): Promise<void> {
     try {
       const session = await CompendiumModel.startSession();
       await session.withTransaction(async () => {
-        // First find the compendium to get its ObjectId
-        const compendium = await CompendiumModel.findOne({ slug }).session(session);
+        // Find the compendium by ID
+        const compendium = await CompendiumModel.findById(id).session(session);
         if (!compendium) {
           throw new Error('Compendium not found');
         }
@@ -134,8 +134,8 @@ export class CompendiumService {
         // Delete all entries using the ObjectId
         await CompendiumEntryModel.deleteMany({ compendiumId: compendium._id }).session(session);
         
-        // Delete the compendium by slug
-        await CompendiumModel.findOneAndDelete({ slug }).session(session);
+        // Delete the compendium by ID
+        await CompendiumModel.findByIdAndDelete(id).session(session);
       });
     } catch (error) {
       logger.error('Error deleting compendium:', error);
@@ -144,9 +144,9 @@ export class CompendiumService {
   }
 
   /**
-   * Get all entries for a compendium by slug
+   * Get all entries for a compendium by ID
    */
-  async getCompendiumEntries(slug: string, filters?: {
+  async getCompendiumEntries(id: string, filters?: {
     contentType?: string;
     pluginDocumentType?: string;
     isActive?: boolean;
@@ -163,8 +163,8 @@ export class CompendiumService {
     limit: number;
   }> {
     try {
-      // First find the compendium to get its ObjectId
-      const compendium = await CompendiumModel.findOne({ slug }).lean();
+      // Get the compendium by ID
+      const compendium = await CompendiumModel.findById(id).lean();
       if (!compendium) {
         throw new Error('Compendium not found');
       }
@@ -403,74 +403,6 @@ export class CompendiumService {
     }
   }
 
-  /**
-   * Link existing content to compendium by slug
-   * NOTE: This method is designed for the old schema where content was stored separately.
-   * With the new embedded content schema, this method is no longer needed.
-   */
-  /*
-  async linkContentToCompendium(
-    compendiumSlug: string, 
-    contentType: 'Actor' | 'Item' | 'VTTDocument',
-    contentId: string,
-    entryData: Partial<ICompendiumEntryCreateData>,
-    createdBy: string
-  ): Promise<ICompendiumEntry> {
-    try {
-      // First find the compendium to get its ObjectId
-      const compendium = await CompendiumModel.findOne({ slug: compendiumSlug }).lean();
-      if (!compendium) {
-        throw new Error('Compendium not found');
-      }
-
-      // Verify content exists
-      let content;
-      let contentName = '';
-      
-      switch (contentType) {
-        case 'Actor':
-          content = await ActorModel.findById(contentId);
-          contentName = content?.name || '';
-          break;
-        case 'Item':
-          content = await ItemModel.findById(contentId);
-          contentName = content?.name || '';
-          break;
-        case 'VTTDocument':
-          content = await VTTDocumentModel.findById(contentId);
-          contentName = content?.name || '';
-          break;
-      }
-      
-      if (!content) {
-        throw new Error(`${contentType} with ID ${contentId} not found`);
-      }
-      
-      // Create entry using the ObjectId
-      const entry = await this.createCompendiumEntry({
-        compendiumId: compendium._id.toString(),
-        contentType,
-        contentId,
-        name: entryData.name || contentName,
-        tags: entryData.tags || [],
-        category: entryData.category,
-        sortOrder: entryData.sortOrder || 0,
-        isActive: entryData.isActive !== undefined ? entryData.isActive : true,
-        userData: entryData.userData,
-        sourceId: entryData.sourceId,
-        sourceData: entryData.sourceData
-      }, createdBy);
-      
-      // Update content with compendium reference using ObjectId
-      await this.updateContentCompendiumId(contentType, contentId, compendium._id.toString());
-      
-      return entry;
-    } catch (error) {
-      logger.error('Error linking content to compendium:', error);
-      throw new Error('Failed to link content to compendium');
-    }
-  }
-  */
 
   /**
    * Unlink content from compendium
@@ -491,32 +423,6 @@ export class CompendiumService {
     }
   }
 
-  /**
-   * Update content's compendiumId field
-   * NOTE: This method is designed for the old schema where content was stored separately.
-   * With the new embedded content schema, this method is no longer needed.
-   */
-  /*
-  private async updateContentCompendiumId(
-    contentType: 'Actor' | 'Item' | 'VTTDocument',
-    contentId: string,
-    compendiumId: string | null
-  ): Promise<void> {
-    const update = compendiumId ? { compendiumId } : { $unset: { compendiumId: 1 } };
-    
-    switch (contentType) {
-      case 'Actor':
-        await ActorModel.findByIdAndUpdate(contentId, update);
-        break;
-      case 'Item':
-        await ItemModel.findByIdAndUpdate(contentId, update);
-        break;
-      case 'VTTDocument':
-        await VTTDocumentModel.findByIdAndUpdate(contentId, update);
-        break;
-    }
-  }
-  */
 
   /**
    * Get all entries across all compendiums with optional filtering using aggregation
@@ -539,48 +445,52 @@ export class CompendiumService {
     limit: number;
   }> {
     try {
-      // Build match stage for aggregation
-      const matchStage: Record<string, unknown> = {};
-      
-      if (filters?.documentType) matchStage['entry.documentType'] = filters.documentType;
-      if (filters?.pluginDocumentType) matchStage['content.pluginDocumentType'] = filters.pluginDocumentType;
-      if (filters?.isActive !== undefined) matchStage.isActive = filters.isActive;
-      if (filters?.category) matchStage.category = filters.category;
-      if (filters?.search) {
-        matchStage.$text = { $search: filters.search };
-      }
-
       // Build aggregation pipeline
-      const pipeline: PipelineStage[] = [
-        // Join with compendiums collection to get pluginId
-        {
-          $lookup: {
-            from: 'compendia',
-            localField: 'compendiumId',
-            foreignField: '_id',
-            as: 'compendium'
+      const pipeline: PipelineStage[] = [];
+      
+      // If we have a text search, it MUST be the first stage
+      if (filters?.search) {
+        pipeline.push({
+          $match: {
+            $text: { $search: filters.search }
           }
-        },
-        // Unwind compendium array (should only be one)
-        {
-          $unwind: '$compendium'
-        },
-        // Add compendium fields to root for easier filtering
-        {
-          $addFields: {
-            'compendium.pluginId': '$compendium.pluginId'
-          }
-        }
-      ];
-
-      // Add pluginId filter if specified
-      if (filters?.pluginId) {
-        matchStage['compendium.pluginId'] = filters.pluginId;
+        });
       }
-
-      // Add match stage if we have filters
-      if (Object.keys(matchStage).length > 0) {
-        pipeline.push({ $match: matchStage });
+      
+      // Join with compendiums collection to get pluginId
+      pipeline.push({
+        $lookup: {
+          from: 'compendia',
+          localField: 'compendiumId',
+          foreignField: '_id',
+          as: 'compendium'
+        }
+      });
+      
+      // Unwind compendium array (should only be one)
+      pipeline.push({
+        $unwind: '$compendium'
+      });
+      
+      // Add compendium fields to root for easier filtering
+      pipeline.push({
+        $addFields: {
+          'compendium.pluginId': '$compendium.pluginId'
+        }
+      });
+      
+      // Build the main match stage for other filters
+      const mainMatchStage: Record<string, unknown> = {};
+      
+      if (filters?.documentType) mainMatchStage['entry.documentType'] = filters.documentType;
+      if (filters?.pluginDocumentType) mainMatchStage['content.pluginDocumentType'] = filters.pluginDocumentType;
+      if (filters?.isActive !== undefined) mainMatchStage.isActive = filters.isActive;
+      if (filters?.category) mainMatchStage.category = filters.category;
+      if (filters?.pluginId) mainMatchStage['compendium.pluginId'] = filters.pluginId;
+      
+      // Add the main match stage if we have filters
+      if (Object.keys(mainMatchStage).length > 0) {
+        pipeline.push({ $match: mainMatchStage });
       }
 
       // Build sort stage
@@ -705,14 +615,14 @@ export class CompendiumService {
   /**
    * Get compendium statistics
    */
-  async getCompendiumStats(slug: string): Promise<{
+  async getCompendiumStats(id: string): Promise<{
     totalEntries: number;
     entriesByType: Record<string, number>;
     entriesByCategory: Record<string, number>;
   }> {
     try {
-      // First find the compendium to get its ObjectId
-      const compendium = await CompendiumModel.findOne({ slug }).lean();
+      // Get the compendium by ID
+      const compendium = await CompendiumModel.findById(id).lean();
       if (!compendium) {
         throw new Error('Compendium not found');
       }

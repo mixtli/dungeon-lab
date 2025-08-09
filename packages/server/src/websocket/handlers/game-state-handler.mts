@@ -6,6 +6,7 @@ import { GameSessionModel } from '../../features/campaigns/models/game-session.m
 import { GameStateService } from '../../features/campaigns/services/game-state.service.mjs';
 import { GameStateSyncService } from '../../features/campaigns/services/game-state-sync.service.mjs';
 import { GameSessionService } from '../../features/campaigns/services/game-session.service.mjs';
+import { CampaignService } from '../../features/campaigns/services/campaign.service.mjs';
 // State hash utilities now handled by GameStateService
 import type {
   ServerToClientEvents,
@@ -36,6 +37,7 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
   const gameStateService = new GameStateService();
   const syncService = new GameStateSyncService();
   const gameSessionService = new GameSessionService();
+  const campaignService = new CampaignService();
 
 
   // Helper function to check if user is GM of the session
@@ -50,12 +52,17 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
     }
   };
 
-  // Helper function to check if user is in session
-  const isUserInSession = async (sessionId: string): Promise<boolean> => {
+  // Helper function to check if user is authorized to access session
+  const isUserAuthorizedForSession = async (sessionId: string): Promise<boolean> => {
     try {
       const session = await GameSessionModel.findById(sessionId).exec();
       if (!session) return false;
-      return isAdmin || session.participantIds.includes(userId) || session.gameMasterId === userId;
+      
+      // Admin or GM can always access
+      if (isAdmin || session.gameMasterId === userId) return true;
+      
+      // Check if user has character in the session's campaign
+      return await campaignService.isUserCampaignMember(userId, session.campaignId);
     } catch (error) {
       logger.error('Error checking session membership:', error);
       return false;
@@ -131,7 +138,7 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
       logger.info('Full game state requested:', { sessionId, userId });
 
       // Check if user is in session
-      if (!(await isUserInSession(sessionId))) {
+      if (!(await isUserAuthorizedForSession(sessionId))) {
         const response = {
           success: false,
           error: 'Access denied: not in session'
@@ -185,7 +192,7 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
       logger.info('Session join requested:', { sessionId, userId });
 
       // Check if user has access to this session (as participant or GM)
-      if (!(await isUserInSession(sessionId))) {
+      if (!(await isUserAuthorizedForSession(sessionId))) {
         const response = {
           success: false,
           error: 'Access denied: not a participant in this session'

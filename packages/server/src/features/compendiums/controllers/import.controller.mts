@@ -545,19 +545,19 @@ export class ImportController {
         return;
       }
 
-      const { id: compendiumSlug } = req.params;
+      const { id: compendiumId } = req.params;
       
-      if (!compendiumSlug) {
+      if (!compendiumId) {
         res.status(400).json({
           success: false,
-          error: 'Compendium slug is required'
+          error: 'Compendium ID is required'
         });
         return;
       }
 
-      // First lookup the compendium by slug to get its ObjectId
+      // Get the compendium by ID
       const { CompendiumModel } = await import('../models/compendium.model.mjs');
-      const compendium = await CompendiumModel.findOne({ slug: compendiumSlug }).lean();
+      const compendium = await CompendiumModel.findById(compendiumId).lean();
       
       if (!compendium) {
         res.status(404).json({

@@ -73,7 +73,8 @@
       "mcp__mongo-lens__current-database",
       "mcp__playwright__browser_navigate_back",
       "WebFetch(domain:vite.dev)",
-      "Bash(./scripts/test-api-post \"/api/compendiums/d-d-5e-srd-content-pack/entries/688f16e744421d4d0d541d4f/instantiate\" \"{}\")"
+      "Bash(./scripts/test-api-post \"/api/compendiums/d-d-5e-srd-content-pack/entries/688f16e744421d4d0d541d4f/instantiate\" \"{}\")",
+      "mcp__playwright__browser_handle_dialog"
     ],
     "additionalDirectories": [
       "/Users/mixtli/checkouts/5etools-src"

@@ -7,7 +7,9 @@ const authStore = useAuthStore();
 const router = useRouter();
 
 onMounted(() => {
-  if (authStore.isAuthenticated) {
+  // Only redirect if we have a confirmed authenticated user with full user data
+  // This prevents race conditions where localStorage shows authenticated but user data isn't loaded
+  if (authStore.isAuthenticated && authStore.user && authStore.user.id) {
     router.replace('/campaigns');
   }
 });
