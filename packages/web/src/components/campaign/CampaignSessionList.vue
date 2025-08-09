@@ -119,6 +119,30 @@ async function handleUpdateSessionStatus(sessionId: string, status: SessionStatu
     loading.value = false;
   }
 }
+
+// Refresh sessions list
+async function refreshSessions() {
+  loading.value = true;
+  error.value = null;
+  
+  try {
+    console.log('Refreshing sessions for campaign:', props.campaignId);
+    sessions.value = await gameSessionClient.getGameSessions(props.campaignId);
+    console.log('Refreshed sessions:', sessions.value);
+  } catch (err) {
+    if (err instanceof Error) {
+      console.error('Error refreshing sessions:', err);
+      error.value = 'Failed to refresh sessions';
+    }
+  } finally {
+    loading.value = false;
+  }
+}
+
+// Expose methods to parent component
+defineExpose({
+  refreshSessions
+});
 </script>
 
 <template>

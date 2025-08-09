@@ -22,6 +22,7 @@ const showInviteModal = ref(false);
 const showScheduleModal = ref(false);
 const showStatusDropdown = ref(false);
 const campaignData = ref<ICampaign | null>(null);
+const sessionListRef = ref<InstanceType<typeof CampaignSessionList> | null>(null);
 
 const campaignId = route.params.id as string;
 
@@ -111,6 +112,8 @@ function showNotification(message: string) {
 function handleSessionCreated() {
   // Refresh campaign data
   refreshCampaign();
+  // Refresh session list
+  sessionListRef.value?.refreshSessions();
   showNotification('Game session scheduled successfully');
 }
 
@@ -272,7 +275,7 @@ onUnmounted(() => {
       <div class="space-y-8">
         <!-- Game Sessions Section -->
         <div class="bg-obsidian dark:bg-stone-800 rounded-lg shadow-xl overflow-hidden border border-stone-300 dark:border-stone-600">
-          <CampaignSessionList :campaignId="campaignId" @schedule-session="showScheduleModal = true" />
+          <CampaignSessionList ref="sessionListRef" :campaignId="campaignId" @schedule-session="showScheduleModal = true" />
         </div>
 
         <!-- Characters and Encounters Section - Side by Side on Desktop -->

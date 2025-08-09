@@ -24,6 +24,7 @@ const getCompendiumsQuerySchema = z.object({
 
 const getEntriesQuerySchema = z.object({
   contentType: z.string().optional(),
+  pluginDocumentType: z.string().optional(),
   isActive: z.string().transform(val => val === 'true').optional(),
   category: z.string().optional(),
   search: z.string().optional(),

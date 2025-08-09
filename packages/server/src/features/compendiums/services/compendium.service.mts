@@ -148,6 +148,7 @@ export class CompendiumService {
    */
   async getCompendiumEntries(slug: string, filters?: {
     contentType?: string;
+    pluginDocumentType?: string;
     isActive?: boolean;
     category?: string;
     search?: string;
@@ -171,6 +172,7 @@ export class CompendiumService {
       const query: Record<string, QueryValue> = { compendiumId: compendium._id };
       
       if (filters?.contentType) query['entry.documentType'] = filters.contentType;
+      if (filters?.pluginDocumentType) query['content.pluginDocumentType'] = filters.pluginDocumentType;
       if (filters?.isActive !== undefined) query.isActive = filters.isActive;
       if (filters?.category) query.category = filters.category;
       if (filters?.search) {

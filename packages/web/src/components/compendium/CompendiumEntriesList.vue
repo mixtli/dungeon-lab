@@ -2,7 +2,8 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { CompendiumsClient } from '@dungeon-lab/client/index.mjs';
-import type { ICompendiumEntry } from '@dungeon-lab/shared/types/index.mjs';
+import type { ICompendiumEntry, ICompendium } from '@dungeon-lab/shared/types/index.mjs';
+import { pluginRegistry } from '../../services/plugin-registry.mjs';
 
 // Props
 const props = defineProps<{
@@ -24,6 +25,8 @@ const error = ref<string | null>(null);
 const showDeleteModal = ref(false);
 const entryToDelete = ref<ICompendiumEntry | null>(null);
 const deleting = ref(false);
+const compendium = ref<ICompendium | null>(null);
+const availableDocumentTypes = ref<string[]>([]);
 
 // Pagination
 const currentPage = ref(1);
@@ -35,6 +38,7 @@ const totalPages = computed(() => Math.ceil(totalEntries.value / pageSize.value)
 const filters = ref({
   search: '',
   contentType: '',
+  pluginDocumentType: '',
   category: '',
   sortBy: 'createdAt:desc'
 });
@@ -42,8 +46,26 @@ const filters = ref({
 // For debouncing search input
 let searchTimeout: number | null = null;
 
+// Load compendium data to get plugin information
+async function loadCompendiumData() {
+  try {
+    compendium.value = await compendiumsClient.getCompendium(props.compendiumId);
+    
+    // Get plugin manifest and extract document types
+    if (compendium.value?.pluginId) {
+      const manifest = pluginRegistry.getPluginManifest(compendium.value.pluginId);
+      if (manifest?.documentTypes) {
+        availableDocumentTypes.value = manifest.documentTypes;
+      }
+    }
+  } catch (err: unknown) {
+    console.error('Failed to load compendium data:', err);
+  }
+}
+
 // Load entries when component mounts
 onMounted(async () => {
+  await loadCompendiumData();
   await loadEntries();
 });
 
@@ -62,6 +84,7 @@ async function loadEntries() {
     // Add filters
     if (filters.value.search) params.search = filters.value.search;
     if (filters.value.contentType) params.contentType = filters.value.contentType;
+    if (filters.value.pluginDocumentType) params.pluginDocumentType = filters.value.pluginDocumentType;
     if (filters.value.category) params.category = filters.value.category;
     
     // Add sorting
@@ -299,7 +322,7 @@ function navigateToEntry(entry: ICompendiumEntry) {
 
     <!-- Filters -->
     <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-4 mb-6">
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
         <div>
           <label class="block text-sm font-medium mb-1">Search</label>
           <input 
@@ -315,7 +338,7 @@ function navigateToEntry(entry: ICompendiumEntry) {
           <select 
             v-model="filters.contentType" 
             class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm"
-            @change="loadEntries"
+            @change="currentPage = 1; loadEntries()"
           >
             <option value="">All Types</option>
             <option value="actor">Actors</option>
@@ -324,11 +347,28 @@ function navigateToEntry(entry: ICompendiumEntry) {
           </select>
         </div>
         <div>
+          <label class="block text-sm font-medium mb-1">Plugin Document Type</label>
+          <select 
+            v-model="filters.pluginDocumentType" 
+            class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm"
+            @change="currentPage = 1; loadEntries()"
+          >
+            <option value="">All Plugin Types</option>
+            <option 
+              v-for="docType in availableDocumentTypes" 
+              :key="docType"
+              :value="docType"
+            >
+              {{ docType.charAt(0).toUpperCase() + docType.slice(1) }}
+            </option>
+          </select>
+        </div>
+        <div>
           <label class="block text-sm font-medium mb-1">Category</label>
           <select 
             v-model="filters.category" 
             class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm"
-            @change="loadEntries"
+            @change="currentPage = 1; loadEntries()"
           >
             <option value="">All Categories</option>
             <option value="core">Core</option>
@@ -342,7 +382,7 @@ function navigateToEntry(entry: ICompendiumEntry) {
           <select 
             v-model="filters.sortBy" 
             class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm"
-            @change="loadEntries"
+            @change="currentPage = 1; loadEntries()"
           >
             <option value="createdAt:desc">Newest First</option>
             <option value="createdAt:asc">Oldest First</option>

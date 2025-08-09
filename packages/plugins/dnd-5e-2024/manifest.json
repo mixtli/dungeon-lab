@@ -8,6 +8,7 @@
   "gameSystem": "dnd-5e-2024",
   "characterTypes": ["character", "npc"],
   "itemTypes": ["weapon", "armor", "consumable", "tool"],
+  "documentTypes": ["spell", "feat", "class", "background", "language", "rule", "gear", "creature", "species", "subclass"],
   "supportedFeatures": [
     "character-creation",
     "character-validation",
