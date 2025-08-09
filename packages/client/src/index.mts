@@ -1,5 +1,6 @@
 // Export client classes
 export { ActorsClient } from './actors.client.mjs';
+export { CharactersClient } from './characters.client.mjs';
 export { PluginsClient } from './plugins.client.mjs';
 export { ItemsClient } from './items.client.mjs';
 export { AssetsClient } from './assets.client.mjs';

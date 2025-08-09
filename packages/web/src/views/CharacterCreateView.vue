@@ -5,7 +5,7 @@ import { useGameStateStore } from '../stores/game-state.store.mjs';
 import { pluginRegistry } from '../services/plugin-registry.mts';
 import ImageUpload from '../components/common/ImageUpload.vue';
 import type { GameSystemPlugin } from '@dungeon-lab/shared/types/plugin.mjs';
-import { DocumentsClient, AssetsClient } from '@dungeon-lab/client/index.mjs';
+import { DocumentsClient, AssetsClient, CharactersClient } from '@dungeon-lab/client/index.mjs';
 import { CreateDocumentRequest } from '@dungeon-lab/shared/types/api/index.mjs';
 import { characterCreateSchema } from '@dungeon-lab/shared/schemas/index.mjs';
 
@@ -19,6 +19,7 @@ interface UploadedImage {
 
 const documentsClient = new DocumentsClient();
 const assetsClient = new AssetsClient();
+const charactersClient = new CharactersClient();
 const router = useRouter();
 const gameStateStore = useGameStateStore();
 const activeGameSystemId = ref<string>(localStorage.getItem('activeGameSystem') || '');
@@ -225,6 +226,22 @@ async function handleCharacterReady(preparedData: any) {
     // Set current character in the game state store if created successfully
     if (response && response.id) {
       gameStateStore.selectedCharacter = response;
+      
+      // Schedule automatic image generation if user didn't provide images
+      try {
+        if (!basicInfo.value.avatarImage) {
+          console.log('Scheduling avatar generation for character', response.id);
+          await charactersClient.generateAvatar(response.id);
+        }
+        
+        if (!basicInfo.value.tokenImage) {
+          console.log('Scheduling token generation for character', response.id);
+          await charactersClient.generateToken(response.id);
+        }
+      } catch (imageError) {
+        console.error('Failed to schedule image generation:', imageError);
+        // Don't block character creation if image generation fails
+      }
     }
 
     // Navigate to the character sheet

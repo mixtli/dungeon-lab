@@ -4,10 +4,6 @@ import { logger } from '../../../utils/logger.mjs';
 import { createAsset } from '../../../utils/asset-upload.utils.mjs';
 import { AssetModel } from '../../../features/assets/models/asset.model.mjs';
 import { backgroundJobService } from '../../../services/background-job.service.mjs';
-import {
-  ACTOR_AVATAR_GENERATION_JOB,
-  ACTOR_TOKEN_GENERATION_JOB
-} from '../jobs/actor-image.job.mjs';
 import { deepMerge, generateSlug } from '@dungeon-lab/shared/utils/index.mjs';
 import { UserModel } from '../../../models/user.model.mjs';
 import { IActorPatchData } from '@dungeon-lab/shared/types/index.mjs';
@@ -471,17 +467,7 @@ export class ActorService {
    * @param userId - ID of the user requesting the avatar generation
    */
   async generateActorAvatar(actorId: string, userId: string): Promise<void> {
-    const actor = await DocumentService.findById<IActor>(actorId);
-    if (!actor) {
-      throw new Error('Actor not found');
-    }
-
-    await backgroundJobService.scheduleJob('now', ACTOR_AVATAR_GENERATION_JOB, {
-      actorId: actor.id,
-      userId
-    });
-
-    logger.info(`Scheduled avatar generation job for actor ${actorId}`);
+    await this.scheduleImageGeneration(actorId, 'avatar', userId);
   }
 
   /**
@@ -490,17 +476,7 @@ export class ActorService {
    * @param userId - ID of the user requesting the token generation
    */
   async generateActorToken(actorId: string, userId: string): Promise<void> {
-    const actor = await DocumentService.findById<IActor>(actorId);
-    if (!actor) {
-      throw new Error('Actor not found');
-    }
-
-    await backgroundJobService.scheduleJob('now', ACTOR_TOKEN_GENERATION_JOB, {
-      actorId: actor.id,
-      userId
-    });
-
-    logger.info(`Scheduled token generation job for actor ${actorId}`);
+    await this.scheduleImageGeneration(actorId, 'token', userId);
   }
 
   /**
@@ -552,5 +528,51 @@ export class ActorService {
       logger.error('Error searching actors:', error);
       throw new Error('Failed to search actors');
     }
+  }
+
+  /**
+   * Update actor with generated image asset ID
+   * @param actorId - The ID of the actor to update
+   * @param imageType - Type of image ('avatar' or 'token')
+   * @param assetId - Asset ID of the generated image
+   * @param userId - ID of the user updating the actor
+   */
+  async updateDocumentImage(
+    actorId: string,
+    imageType: 'avatar' | 'token',
+    assetId: string,
+    userId: string
+  ): Promise<void> {
+    const field = imageType === 'avatar' ? 'avatarId' : 'defaultTokenImageId';
+    await DocumentService.updateById<IActor>(actorId, {
+      [field]: assetId,
+      updatedBy: userId
+    });
+    logger.info(`Updated actor ${actorId} with ${imageType} asset ${assetId}`);
+  }
+
+  /**
+   * Schedule image generation for an actor
+   * @param actorId - The ID of the actor
+   * @param imageType - Type of image to generate
+   * @param userId - ID of the user requesting generation
+   * @param customPrompt - Optional custom prompt
+   */
+  async scheduleImageGeneration(
+    actorId: string,
+    imageType: 'avatar' | 'token',
+    userId: string,
+    customPrompt?: string
+  ): Promise<void> {
+    const { DOCUMENT_IMAGE_GENERATION_JOB } = await import('../../documents/jobs/document-image.job.mjs');
+    
+    await backgroundJobService.scheduleJob('now', DOCUMENT_IMAGE_GENERATION_JOB, {
+      documentId: actorId,
+      imageType,
+      userId,
+      customPrompt
+    });
+
+    logger.info(`Scheduled ${imageType} generation job for actor ${actorId}`);
   }
 }

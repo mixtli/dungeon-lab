@@ -332,4 +332,28 @@ export class ItemService {
       throw new Error('Failed to search items');
     }
   }
+
+  /**
+   * Update item with generated image asset ID
+   * @param itemId - The ID of the item to update  
+   * @param imageType - Type of image (only 'image' supported for items)
+   * @param assetId - Asset ID of the generated image
+   * @param userId - ID of the user updating the item
+   */
+  async updateDocumentImage(
+    itemId: string,
+    imageType: 'image',
+    assetId: string,
+    userId: string
+  ): Promise<void> {
+    if (imageType !== 'image') {
+      throw new Error(`Unsupported image type for items: ${imageType}. Only 'image' is supported.`);
+    }
+    
+    await DocumentService.updateById<IItem>(itemId, {
+      imageId: assetId,
+      updatedBy: userId
+    });
+    logger.info(`Updated item ${itemId} with image asset ${assetId}`);
+  }
 }

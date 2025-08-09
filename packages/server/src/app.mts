@@ -9,6 +9,7 @@ import { requestLoggerMiddleware } from './middleware/request-logger.middleware.
 import { mapRoutes } from './features/maps/index.mjs';
 import { itemRoutes } from './features/items/index.mjs';
 import { actorRoutes } from './features/actors/index.mjs';
+import { characterRoutes } from './features/characters/index.mjs';
 import {
   campaignRoutes,
   gameSessionRoutes,
@@ -170,6 +171,7 @@ export async function createApp(): Promise<express.Application> {
 
   // Mount routes
   app.use('/api/actors', actorRoutes);
+  app.use('/api/characters', characterRoutes);
   app.use('/api/items', itemRoutes);
   app.use('/api/auth', authRoutes);
   app.use('/api/storage', storageRoutes);

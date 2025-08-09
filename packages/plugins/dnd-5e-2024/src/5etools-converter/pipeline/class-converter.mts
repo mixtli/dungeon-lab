@@ -982,7 +982,7 @@ export class TypedClassConverter extends TypedConverter<
     return {
       _ref: {
         slug,
-        documentType: 'vtt-document' as const,
+        documentType: 'item' as const,
         pluginDocumentType,
         source: source.toLowerCase()
       }
