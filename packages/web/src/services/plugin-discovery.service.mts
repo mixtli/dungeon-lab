@@ -1,5 +1,5 @@
 import type { PluginManifest } from '@dungeon-lab/shared/schemas/plugin-manifest.schema.mjs';
-import type { GameSystemPlugin } from '@dungeon-lab/shared/types/plugin.mjs';
+import type { GameSystemPlugin } from '@dungeon-lab/shared-ui/types/plugin.mjs';
 
 /**
  * Simple Plugin Discovery Service

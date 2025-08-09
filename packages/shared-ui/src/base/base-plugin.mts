@@ -1,5 +1,5 @@
 import type { Component } from 'vue';
-import type { PluginManifest } from '../schemas/plugin-manifest.schema.mjs';
+import type { PluginManifest } from '@dungeon-lab/shared/schemas/plugin-manifest.schema.mjs';
 import type { PluginContext } from '../types/plugin-context.mjs';
 import type { GameSystemPlugin, ValidationResult } from '../types/plugin.mjs';
 
@@ -66,7 +66,7 @@ export abstract class BaseGameSystemPlugin implements GameSystemPlugin {
   private async loadComponent(type: string): Promise<Component | null> {
     try {
       // Dynamic import with relative path from base class to plugin component
-      // From: packages/shared/src/types/base-plugin.mts
+      // From: packages/shared-ui/src/base/base-plugin.mts
       // To:   packages/plugins/{pluginId}/src/components/{type}.vue
       const componentPath = `../../../plugins/${this.manifest.id}/src/components/${type}.vue`;
       console.log(`[${this.manifest.id}] Loading component from: ${componentPath}`);

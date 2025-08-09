@@ -1,5 +1,5 @@
 import type { Component } from 'vue';
-import type { PluginManifest } from '../schemas/plugin-manifest.schema.mjs';
+import type { PluginManifest } from '@dungeon-lab/shared/schemas/plugin-manifest.schema.mjs';
 import type { PluginContext } from './plugin-context.mjs';
 
 // Export the base class for plugins to extend
@@ -7,7 +7,7 @@ export { BaseGameSystemPlugin } from '../base/base-plugin.mjs';
 
 // Re-export types for convenience
 export type { PluginContext } from './plugin-context.mjs';
-export type { PluginManifest } from '../schemas/plugin-manifest.schema.mjs';
+export type { PluginManifest } from '@dungeon-lab/shared/schemas/plugin-manifest.schema.mjs';
 
 /**
  * Simplified Plugin Architecture

@@ -11,7 +11,7 @@ import {
   validateStateIntegrity, 
   incrementStateVersion, 
   isValidNextVersion 
-} from '@dungeon-lab/shared/utils/state-hash.mjs';
+} from '../../../utils/state-hash.mjs';
 import { logger } from '../../../utils/logger.mjs';
 import { DocumentService } from '../../documents/services/document.service.mjs';
 import { DocumentModel } from '../../documents/models/document.model.mjs';

@@ -10,7 +10,7 @@ import type {
   DocumentSearchQuery,
   CompendiumSearchQuery,
   GameStateContext
-} from '@dungeon-lab/shared/types/plugin-context.mjs';
+} from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 import type { BaseDocument, ICompendiumEntry } from '@dungeon-lab/shared/types/index.mjs';
 import { ReactivePluginStore } from '../plugin-store.mjs';
 import { CompendiumsClient } from '@dungeon-lab/client/index.mjs';

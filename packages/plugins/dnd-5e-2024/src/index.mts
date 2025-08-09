@@ -5,7 +5,7 @@
  * simplified plugin architecture with manifest-based configuration.
  */
 
-import { BaseGameSystemPlugin, ValidationResult, PluginContext } from '@dungeon-lab/shared/types/plugin.mjs';
+import { BaseGameSystemPlugin, ValidationResult, PluginContext } from '@dungeon-lab/shared-ui/types/plugin.mjs';
 import { validateCharacterData } from './character-validation.mjs';
 
 /**

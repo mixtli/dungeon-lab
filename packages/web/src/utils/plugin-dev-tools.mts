@@ -1,5 +1,5 @@
 import { pluginRegistry } from '../services/plugin-registry.mjs';
-import type { GameSystemPlugin } from '@dungeon-lab/shared/types/plugin.mjs';
+import type { GameSystemPlugin } from '@dungeon-lab/shared-ui/types/plugin.mjs';
 
 /**
  * Plugin development tools for the browser console

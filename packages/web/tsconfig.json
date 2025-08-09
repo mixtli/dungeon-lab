@@ -23,6 +23,8 @@
       "@/*": ["./src/*"],
       "@dungeon-lab/shared": ["../shared/src"],
       "@dungeon-lab/shared/*": ["../shared/src/*"],
+      "@dungeon-lab/shared-ui": ["../shared-ui/src"],
+      "@dungeon-lab/shared-ui/*": ["../shared-ui/src/*"],
       "@dungeon-lab/client": ["../client/src"],
       "@dungeon-lab/client/*": ["../client/src/*"],
       "@dungeon-lab/plugin-dnd-5e-2024": ["../plugins/dnd-5e-2024/src"],
@@ -34,6 +36,7 @@
   "references": [
     { "path": "./tsconfig.node.json" },
     { "path": "../shared" },
+    { "path": "../shared-ui" },
     { "path": "../plugins/dnd-5e-2024" },
     { "path": "../client" }
   ]

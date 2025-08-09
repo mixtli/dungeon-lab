@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router';
 import { useGameStateStore } from '../stores/game-state.store.mjs';
 import { pluginRegistry } from '../services/plugin-registry.mts';
 import ImageUpload from '../components/common/ImageUpload.vue';
-import type { GameSystemPlugin } from '@dungeon-lab/shared/types/plugin.mjs';
+import type { GameSystemPlugin } from '@dungeon-lab/shared-ui/types/plugin.mjs';
 import { DocumentsClient, AssetsClient, CharactersClient } from '@dungeon-lab/client/index.mjs';
 import { CreateDocumentRequest } from '@dungeon-lab/shared/types/api/index.mjs';
 import { characterCreateSchema } from '@dungeon-lab/shared/schemas/index.mjs';

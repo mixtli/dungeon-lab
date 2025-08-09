@@ -6,7 +6,7 @@
  */
 
 import { reactive, watch } from 'vue';
-import type { PluginStore } from '@dungeon-lab/shared/types/plugin-context.mjs';
+import type { PluginStore } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 
 export class ReactivePluginStore implements PluginStore {
   private state = reactive(new Map<string, unknown>());

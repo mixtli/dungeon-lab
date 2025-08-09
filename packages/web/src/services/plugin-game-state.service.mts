@@ -7,7 +7,6 @@
 
 import { computed, watch, readonly, type ComputedRef, type Ref } from 'vue';
 import type { 
-  GameStateContext, 
   ICharacter, 
   IActor, 
   IItem, 
@@ -16,6 +15,7 @@ import type {
   ServerGameState,
   StateUpdateBroadcast
 } from '@dungeon-lab/shared/types/index.mjs';
+import type { GameStateContext } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 import { useGameStateStore } from '../stores/game-state.store.mjs';
 
 /**

@@ -6,7 +6,7 @@ import { useAuthStore } from '../../stores/auth.store.mjs';
 import { pluginRegistry } from '../../services/plugin-registry.mts';
 import { CampaignsClient } from '@dungeon-lab/client/index.mjs';
 import type { ICampaign } from '@dungeon-lab/shared/types/index.mjs';
-import type { GameSystemPlugin } from '@dungeon-lab/shared/types/plugin.mjs';
+import type { GameSystemPlugin } from '@dungeon-lab/shared-ui/types/plugin.mjs';
 
 const props = defineProps<{
   campaignId?: string;

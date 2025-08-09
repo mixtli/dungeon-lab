@@ -1,3 +1,2 @@
-// New Plugin Architecture Base Classes
-export * from './vue-component.mjs';
+// Plugin Base Classes (Vue-free)
 export * from './plugin-lifecycle.mjs'; 

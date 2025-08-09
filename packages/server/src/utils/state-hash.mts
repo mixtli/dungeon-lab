@@ -1,5 +1,5 @@
 import { createHash } from 'crypto';
-import type { ServerGameState } from '../schemas/server-game-state.schema.mjs';
+import type { ServerGameState } from '@dungeon-lab/shared/schemas/server-game-state.schema.mjs';
 
 /**
  * Sort object keys recursively to ensure consistent JSON serialization

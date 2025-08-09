@@ -23,6 +23,12 @@
       "@dungeon-lab/shared/*": [
         "../../shared/src/*"
       ],
+      "@dungeon-lab/shared-ui": [
+        "../../shared-ui/src"
+      ],
+      "@dungeon-lab/shared-ui/*": [
+        "../../shared-ui/src/*"
+      ],
       "@dungeon-lab/client": [
         "../../client/src"
       ],
@@ -50,6 +56,9 @@
   "references": [
     {
       "path": "../../shared"
+    },
+    {
+      "path": "../../shared-ui"
     },
     {
       "path": "../../client"

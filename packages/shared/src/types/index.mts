@@ -291,9 +291,8 @@ export * from './socket/index.mjs';
 // Map Editor types
 export * from './mapEditor.mjs';
 
-// New Plugin Architecture
-export * from './plugin.mjs';  // Main plugin interface
-export * from './plugin-context.mjs';  // Plugin context types
+// Plugin Architecture Types (Vue-free versions only)
+// Vue-specific plugin types are available in @dungeon-lab/shared-ui
 
 // Document Type Mapping
 export * from './document-type-map.mjs';

@@ -7,7 +7,7 @@
 
 import { z } from 'zod';
 import { dndCharacterDataSchema } from './types/dnd/character.mjs';
-import type { ValidationResult } from '@dungeon-lab/shared/types/plugin.mjs';
+import type { ValidationResult } from '@dungeon-lab/shared-ui/types/plugin.mjs';
 
 /**
  * Validates character data against the D&D 5e 2024 schema

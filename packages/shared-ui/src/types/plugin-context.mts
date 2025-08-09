@@ -6,7 +6,7 @@
  */
 
 import type { ComputedRef, Ref } from 'vue';
-import type { BaseDocument, ICompendiumEntry, ICharacter, IActor, IItem, IEncounter, IToken, ServerGameState, StateUpdateBroadcast } from './index.mjs';
+import type { BaseDocument, ICompendiumEntry, ICharacter, IActor, IItem, IEncounter, IToken, ServerGameState, StateUpdateBroadcast } from '@dungeon-lab/shared/types/index.mjs';
 
 /**
  * Plugin store interface for reactive state management of plugin-specific UI state

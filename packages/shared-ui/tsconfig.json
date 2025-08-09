@@ -1,0 +1,40 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "strict": true,
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "noUnusedLocals": true,
+    "noImplicitAny": true,
+    "sourceMap": true,
+    "jsx": "preserve",
+    "paths": {
+      "@dungeon-lab/shared": ["../shared/src"],
+      "@dungeon-lab/shared/*": ["../shared/src/*"],
+      "*": ["../../node_modules/*"]
+    },
+    "plugins": [
+      {
+        "name": "@vue/typescript-plugin",
+        "extensions": [".vue"]
+      }
+    ]
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.mjs"
+    }
+  },
+  "references": [
+    { "path": "../shared" }
+  ],
+  "include": ["src/**/*.mts", "src/**/*.ts", "src/**/*.vue"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.test.mts"]
+}

@@ -1,12 +1,8 @@
 import type { 
-  GameSystemPlugin
-} from '@dungeon-lab/shared/types/plugin.mjs';
-import type { 
-  PluginContext
-} from '@dungeon-lab/shared/types/plugin-context.mjs';
-import type { 
+  GameSystemPlugin,
+  PluginContext,
   PluginManifest
-} from '@dungeon-lab/shared/types/plugin.mjs';
+} from '@dungeon-lab/shared-ui/types/plugin.mjs';
 import type { Component } from 'vue';
 import { createPluginContext } from './plugin-implementations/plugin-context-impl.mjs';
 import { pluginDiscoveryService } from './plugin-discovery.service.mjs';
