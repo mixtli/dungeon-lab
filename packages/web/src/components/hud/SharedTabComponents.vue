@@ -38,6 +38,13 @@
         <CompendiumTab />
       </div>
     </Teleport>
+    
+    <!-- Turn Order Tab -->
+    <Teleport :to="getTurnOrderTarget()" v-if="shouldRenderTab('turnOrder')">
+      <div class="tab-content">
+        <TurnOrderTab />
+      </div>
+    </Teleport>
   </template>
 </template>
 
@@ -50,6 +57,7 @@ import ActorsTab from './tabs/ActorsTab.vue';
 import CharactersTab from './tabs/CharactersTab.vue';
 import ItemsTab from './tabs/ItemsTab.vue';
 import CompendiumTab from './tabs/CompendiumTab.vue';
+import TurnOrderTab from './tabs/TurnOrderTab.vue';
 
 const hudStore = useHUDStore();
 const targetsReady = ref(false);
@@ -61,7 +69,8 @@ function checkTargetsExist(): boolean {
     '#actors-sidebar-target',
     '#characters-sidebar-target',
     '#items-sidebar-target',
-    '#compendium-sidebar-target'
+    '#compendium-sidebar-target',
+    '#turnOrder-sidebar-target'
   ];
   
   // Check that sidebar targets exist
@@ -144,6 +153,10 @@ function getItemsTarget(): string {
 
 function getCompendiumTarget(): string {
   return isTabFloating('compendium') ? '#compendium-floating-target' : '#compendium-sidebar-target';
+}
+
+function getTurnOrderTarget(): string {
+  return isTabFloating('turnOrder') ? '#turnOrder-floating-target' : '#turnOrder-sidebar-target';
 }
 </script>
 

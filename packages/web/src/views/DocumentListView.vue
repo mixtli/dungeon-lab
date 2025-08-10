@@ -6,6 +6,7 @@ import type { BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
 import { EyeIcon, TrashIcon, MagnifyingGlassIcon } from '@heroicons/vue/24/outline';
 import { useDeviceAdaptation } from '@/composables/useDeviceAdaptation.mts';
 import { transformAssetUrl } from '@/utils/asset-utils.mjs';
+import { pluginRegistry } from '@/services/plugin-registry.mts';
 
 const documentsClient = new DocumentsClient();
 const assetsClient = new AssetsClient();
@@ -18,6 +19,7 @@ const error = ref<string | null>(null);
 const showDeleteModal = ref(false);
 const documentToDelete = ref<BaseDocument | null>(null);
 const deleting = ref(false);
+const availablePluginDocumentTypes = ref<string[]>([]);
 
 // Pagination
 const totalDocuments = ref(0);
@@ -77,6 +79,7 @@ const paginationRange = computed(() => {
 const filters = ref({
   search: '',
   documentType: '',
+  pluginDocumentType: '',
   sortBy: 'createdAt:desc'
 });
 
@@ -91,6 +94,40 @@ const documentTypeOptions = [
 
 // For debouncing search input
 let searchTimeout: number | null = null;
+
+// Load available plugin document types from active game system
+const loadAvailablePluginDocumentTypes = () => {
+  try {
+    // Get active game system from localStorage (same as compendium browser)
+    const activeGameSystem = localStorage.getItem('activeGameSystem');
+    if (!activeGameSystem) {
+      availablePluginDocumentTypes.value = [];
+      return;
+    }
+
+    // Get plugin manifest for active game system
+    const manifest = pluginRegistry.getPluginManifest(activeGameSystem);
+    if (!manifest) {
+      availablePluginDocumentTypes.value = [];
+      return;
+    }
+
+    // Combine all available document types from the manifest (like compendium browser)
+    const documentTypes = [
+      ...(manifest.characterTypes || []),
+      ...(manifest.itemTypes || []),
+      ...(manifest.documentTypes || [])
+    ];
+    
+    // Remove duplicates, filter out empty strings, and sort alphabetically
+    availablePluginDocumentTypes.value = [...new Set(documentTypes)]
+      .filter(type => type.trim() !== '')
+      .sort((a, b) => a.localeCompare(b));
+  } catch (err) {
+    console.warn('Failed to load plugin document types:', err);
+    availablePluginDocumentTypes.value = [];
+  }
+};
 
 // Cache for asset URLs to avoid repeated API calls
 const assetUrlCache = ref<Map<string, string>>(new Map());
@@ -168,6 +205,12 @@ async function loadDocuments() {
   try {
     const searchParams: Record<string, unknown> = {};
     
+    // Scope to active game system (like compendium browser)
+    const activeGameSystem = localStorage.getItem('activeGameSystem');
+    if (activeGameSystem) {
+      searchParams.pluginId = activeGameSystem;
+    }
+    
     // Add search filter
     if (filters.value.search.trim()) {
       searchParams.name = filters.value.search.trim();
@@ -176,6 +219,11 @@ async function loadDocuments() {
     // Add document type filter
     if (filters.value.documentType) {
       searchParams.documentType = filters.value.documentType;
+    }
+    
+    // Add plugin document type filter
+    if (filters.value.pluginDocumentType) {
+      searchParams.pluginDocumentType = filters.value.pluginDocumentType;
     }
     
     // For now, we'll use the simple getDocuments method
@@ -255,10 +303,14 @@ const cancelDelete = () => {
 };
 
 // Load data on mount
-onMounted(loadDocuments);
+onMounted(async () => {
+  loadAvailablePluginDocumentTypes();
+  await loadDocuments();
+});
 
 // Watch for filter changes
 watch(() => filters.value.documentType, handleFilterChange);
+watch(() => filters.value.pluginDocumentType, handleFilterChange);
 </script>
 
 <template>
@@ -270,7 +322,7 @@ watch(() => filters.value.documentType, handleFilterChange);
 
     <!-- Filters -->
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
         <!-- Search -->
         <div class="relative">
           <label for="search" class="block text-sm font-medium text-gray-700 mb-1">Search</label>
@@ -297,6 +349,25 @@ watch(() => filters.value.documentType, handleFilterChange);
           >
             <option v-for="option in documentTypeOptions" :key="option.value" :value="option.value">
               {{ option.label }}
+            </option>
+          </select>
+        </div>
+
+        <!-- Plugin Document Type Filter -->
+        <div>
+          <label for="pluginDocumentType" class="block text-sm font-medium text-gray-700 mb-1">Plugin Document Type</label>
+          <select
+            id="pluginDocumentType"
+            v-model="filters.pluginDocumentType"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="">All Plugin Types</option>
+            <option 
+              v-for="docType in availablePluginDocumentTypes" 
+              :key="docType"
+              :value="docType"
+            >
+              {{ docType.charAt(0).toUpperCase() + docType.slice(1).replace(/-/g, ' ') }}
             </option>
           </select>
         </div>
@@ -338,6 +409,7 @@ watch(() => filters.value.documentType, handleFilterChange);
             <tr>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Document</th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Plugin Type</th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
               <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
@@ -374,8 +446,14 @@ watch(() => filters.value.documentType, handleFilterChange);
                   {{ formatDocumentType(document.documentType) }}
                 </span>
               </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <span v-if="(document as any).pluginDocumentType" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  {{ (document as any).pluginDocumentType.charAt(0).toUpperCase() + (document as any).pluginDocumentType.slice(1).replace(/-/g, ' ') }}
+                </span>
+                <span v-else class="text-sm text-gray-500">-</span>
+              </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {{ ('createdAt' in document && document.createdAt) ? formatDate((document.createdAt as Date).toISOString()) : '-' }}
+                {{ ('createdAt' in document && document.createdAt) ? formatDate(document.createdAt as string) : '-' }}
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <div class="flex justify-end space-x-2">

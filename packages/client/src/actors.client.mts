@@ -35,10 +35,7 @@ export class ActorsClient extends ApiClient {
       }
     });
 
-    // Add avatar and token files if present
-    if (data.avatar instanceof File) {
-      formData.append('avatar', data.avatar);
-    }
+    // Add token files if present (avatar removed - actors don't have avatars)
 
     if (data.token instanceof File) {
       formData.append('token', data.token);
@@ -125,10 +122,7 @@ export class ActorsClient extends ApiClient {
       }
     });
 
-    // Add avatar and token files if present
-    if (data.avatar instanceof File) {
-      formData.append('avatar', data.avatar);
-    }
+    // Add token files if present (avatar removed - actors don't have avatars)
 
     if (data.token instanceof File) {
       formData.append('token', data.token);
@@ -168,10 +162,7 @@ export class ActorsClient extends ApiClient {
       }
     });
 
-    // Add avatar and token files if present
-    if (data.avatar instanceof File) {
-      formData.append('avatar', data.avatar);
-    }
+    // Add token files if present (avatar removed - actors don't have avatars)
 
     if (data.token instanceof File) {
       formData.append('token', data.token);

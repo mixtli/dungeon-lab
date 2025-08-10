@@ -243,14 +243,14 @@ const entryImageUrl = computed(() => {
   
   const content = entry.value.content as {
     avatarId?: { url: string };
-    defaultTokenImageId?: { url: string };
+    tokenImageId?: { url: string };
     imageId?: { url: string };
   };
   
   // For characters, prefer avatarId
   if (entry.value.entry.documentType === 'character') {
     if (content.avatarId?.url) return content.avatarId.url;
-    if (content.defaultTokenImageId?.url) return content.defaultTokenImageId.url;
+    if (content.tokenImageId?.url) return content.tokenImageId.url;
   }
   
   // For items and documents, use imageId

@@ -89,7 +89,7 @@ export function useHUD() {
     if (ctrl && !alt && !shift) {
       const tabShortcuts: Record<string, SidebarTabType> = {
         '1': 'chat',
-        '2': 'combat',
+        '2': 'turnOrder',
         '3': 'actors',
         '4': 'items'
       };

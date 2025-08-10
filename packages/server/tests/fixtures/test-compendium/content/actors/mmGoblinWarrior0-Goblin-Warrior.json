@@ -634,5 +634,5 @@
     }
   },
   "avatarId": "assets/Goblin.webp",
-  "defaultTokenImageId": "assets/Goblin.webp"
+  "tokenImageId": "assets/Goblin.webp"
 }

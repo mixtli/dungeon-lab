@@ -498,7 +498,7 @@ export class ImportService {
     entryMetadata?: { imageId?: string; category?: string; tags?: string[]; sortOrder?: number }
   ): Promise<{ processedData: Record<string, unknown>; entryImageId?: string }> {
     const processedData = { ...docData };
-    const imageFields = ['imageId', 'avatarId', 'defaultTokenImageId'];
+    const imageFields = ['imageId', 'avatarId', 'tokenImageId'];
 
     // Process entry-level imageId first (from wrapper format)
     let entryImageId: string | undefined;
@@ -533,6 +533,12 @@ export class ImportService {
           logger.warn(`Failed to upload asset: ${imagePath}`);
         }
       }
+    }
+
+    // Fallback: If tokenImageId is not set but imageId is, set tokenImageId to the same as imageId
+    if (!processedData.tokenImageId && processedData.imageId) {
+      processedData.tokenImageId = processedData.imageId;
+      logger.info(`Applied tokenImageId fallback for document: ${docData.name || 'unnamed'}`);
     }
 
     // Images processed (detailed logging removed for cleaner output)

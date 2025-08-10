@@ -7,12 +7,22 @@
 
 import { BaseGameSystemPlugin, ValidationResult, PluginContext } from '@dungeon-lab/shared-ui/types/plugin.mjs';
 import { validateCharacterData } from './character-validation.mjs';
+import { DnD5eTurnManager } from './turn-manager.mjs';
 
 /**
  * D&D 5th Edition (2024) Plugin Implementation - Using Base Class
  */
 export class DnD5e2024Plugin extends BaseGameSystemPlugin {
   
+  // Add turn manager instance (lazy initialization)
+  private _turnManager: DnD5eTurnManager | null = null;
+  
+  get turnManager(): DnD5eTurnManager {
+    if (!this._turnManager) {
+      this._turnManager = new DnD5eTurnManager();
+    }
+    return this._turnManager;
+  }
   
   /**
    * Validate data against game system rules

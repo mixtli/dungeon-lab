@@ -246,43 +246,7 @@ router.patch(
   actorController.patchActor
 );
 
-// Upload an actor's avatar
-router.put(
-  '/:id/avatar',
-  authenticate,
-  express.raw({
-    type: ['image/jpeg', 'image/png', 'image/webp'],
-    limit: '10mb'
-  }),
-  oapi.path(
-    createPathSchema({
-      description: 'Upload raw actor avatar image',
-      requestParams: {
-        path: z.object({ id: z.string() })
-      },
-      requestBody: {
-        content: {
-          'image/jpeg': { schema: { type: 'string', format: 'binary' } },
-          'image/png': { schema: { type: 'string', format: 'binary' } },
-          'image/webp': { schema: { type: 'string', format: 'binary' } }
-        }
-      },
-      responses: {
-        200: {
-          description: 'Actor avatar uploaded successfully',
-          content: {
-            'application/json': {
-              schema: actorResponseSchema.openapi({
-                description: 'Upload actor avatar response'
-              })
-            }
-          }
-        }
-      }
-    })
-  ),
-  actorController.uploadActorAvatar
-);
+// TODO: Avatar upload removed - actors no longer have avatars
 
 // Upload an actor's token
 router.put(
@@ -323,31 +287,7 @@ router.put(
   actorController.uploadActorToken
 );
 
-// Generate an actor's avatar using AI
-router.post(
-  '/:id/generate-avatar',
-  oapi.validPath(
-    createPathSchema({
-      description: 'Generate actor avatar using AI',
-      requestParams: {
-        path: z.object({ id: z.string() })
-      },
-      responses: {
-        200: {
-          description: 'Actor avatar generation triggered',
-          content: {
-            'application/json': {
-              schema: actorResponseSchema.openapi({
-                description: 'Generate actor avatar response'
-              })
-            }
-          }
-        }
-      }
-    })
-  ),
-  actorController.generateActorAvatar
-);
+// TODO: Avatar generation removed - actors no longer have avatars
 
 // Generate an actor's token using AI
 router.post(

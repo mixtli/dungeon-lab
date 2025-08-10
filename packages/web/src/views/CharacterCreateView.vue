@@ -189,7 +189,7 @@ async function handleCharacterReady(preparedData: any) {
     const finalDocumentData = {
       ...characterData,
       ...(avatarAssetId && { avatarId: avatarAssetId }),
-      ...(tokenAssetId && { defaultTokenImageId: tokenAssetId }),
+      ...(tokenAssetId && { tokenImageId: tokenAssetId }),
       ...(imageId && { imageId })
     };
     

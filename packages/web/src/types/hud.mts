@@ -17,11 +17,11 @@ export interface Size {
 // Sidebar Types
 export type SidebarTabType = 
   | 'chat'
-  | 'combat'
   | 'actors'
   | 'characters'
   | 'items'
-  | 'compendium';
+  | 'compendium'
+  | 'turnOrder';
 
 export interface SidebarTab {
   id: SidebarTabType;

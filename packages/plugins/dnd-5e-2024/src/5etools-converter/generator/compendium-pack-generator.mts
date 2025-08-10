@@ -469,8 +469,8 @@ export class CompendiumPackGenerator {
       if (contentData.avatarId) {
         assetPaths.push(contentData.avatarId);
       }
-      if (contentData.defaultTokenImageId) {
-        assetPaths.push(contentData.defaultTokenImageId);
+      if (contentData.tokenImageId) {
+        assetPaths.push(contentData.tokenImageId);
       }
       if (contentData.imageId) {
         assetPaths.push(contentData.imageId);

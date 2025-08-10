@@ -15,6 +15,8 @@ import {
 import { useGameSessionStore } from '../stores/game-session.store.mjs';
 import { useAuthStore } from '../stores/auth.store.mjs';
 import { useSocketStore } from '../stores/socket.store.mjs';
+import { turnManagerService } from './turn-manager.service.mjs';
+import { useGameStateStore } from '../stores/game-state.store.mjs';
 
 /**
  * Generate unique request ID
@@ -31,6 +33,7 @@ export class PlayerActionService {
   private gameSessionStore = useGameSessionStore();
   private authStore = useAuthStore();
   private socketStore = useSocketStore();
+  private gameStateStore = useGameStateStore();
 
   /**
    * Request an action to be performed
@@ -49,6 +52,56 @@ export class PlayerActionService {
 
     if (!this.authStore.user) {
       throw new Error('User not authenticated');
+    }
+
+    // Check turn-based permissions
+    const userId = this.authStore.user.id;
+    const userTokens = this.getUserTokens(userId);
+    
+    // For actions that require it to be your turn
+    if (this.requiresCurrentTurn(action)) {
+      let hasValidTurn = false;
+      
+      // For token movement, check the specific token being moved
+      if (action === 'move-token') {
+        const tokenId = parameters.tokenId as string;
+        if (!tokenId) {
+          return {
+            success: false,
+            approved: false,
+            requestId: '',
+            error: "Invalid token movement request"
+          };
+        }
+        
+        // Check if user owns the specific token being moved
+        const isUserToken = userTokens.some(token => token.id === tokenId);
+        if (!isUserToken) {
+          return {
+            success: false,
+            approved: false,
+            requestId: '',
+            error: "You don't own this token"
+          };
+        }
+        
+        // Check if that specific token can perform the action (is it their turn?)
+        hasValidTurn = turnManagerService.canPerformAction(tokenId, action);
+      } else {
+        // For other actions, check if any user token can perform the action
+        hasValidTurn = userTokens.some(token => 
+          turnManagerService.canPerformAction(token.id, action)
+        );
+      }
+      
+      if (!hasValidTurn) {
+        return {
+          success: false,
+          approved: false,
+          requestId: '',
+          error: "It's not your turn or you cannot perform this action now"
+        };
+      }
     }
 
     const request: GameActionRequest = {
@@ -84,9 +137,26 @@ export class PlayerActionService {
     });
   }
 
-
-
-
+  private requiresCurrentTurn(action: GameActionType): boolean {
+    return ['move-token', 'attack', 'cast-spell', 'use-ability'].includes(action);
+  }
+  
+  private getUserTokens(userId: string) {
+    // Get tokens owned by this user (through document ownership chain)
+    const tokens = this.gameStateStore.currentEncounter?.tokens || [];
+    const characters = this.gameStateStore.gameState?.characters || [];
+    const actors = this.gameStateStore.gameState?.actors || [];
+    
+    return tokens.filter(token => {
+      if (!token.documentId) return false;
+      
+      // Find the document this token represents (check both characters and actors)
+      const document = [...characters, ...actors].find(doc => doc.id === token.documentId);
+      
+      // Check if the user owns the document (character/actor)
+      return document?.createdBy === userId;
+    });
+  }
 }
 
 // Singleton instance

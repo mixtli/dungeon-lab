@@ -108,7 +108,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useGameStateStore } from '../../../stores/game-state.store.mjs';
 import { useCharacterSheetStore } from '../../../stores/character-sheet.store.mjs';
-import { transformAssetUrl } from '../../../utils/asset-utils.mjs';
+import { getDocumentImageUrl } from '../../../utils/document-image-utils.mjs';
 import type { ICharacter, StateOperation } from '@dungeon-lab/shared/types/index.mjs';
 
 const gameStateStore = useGameStateStore();
@@ -155,13 +155,7 @@ const filteredCharacters = computed(() => {
 
 // Helper function to get character image URL with proper transformation
 function getCharacterImageUrl(character: ICharacter): string | null {
-  // First try avatar, then token (via defaultTokenImageId), both properly transformed
-  if (character.avatar?.url) {
-    return transformAssetUrl(character.avatar.url);
-  } else if (character.token?.url) {
-    return transformAssetUrl(character.token.url);
-  }
-  return null;
+  return getDocumentImageUrl(character);
 }
 
 // Characters are automatically loaded when game session is joined

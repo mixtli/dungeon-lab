@@ -59,33 +59,29 @@ const baseDocumentFields = {
   // Compendium entry reference (optional - tracks which entry this was created from)
   compendiumEntryId: z.string().optional(),
   
-  // Basic asset references (shared by all document types)
+  // Image asset references (shared by all document types)
   imageId: z.string().optional(),
-  thumbnailId: z.string().optional()
+  thumbnailId: z.string().optional(),
+  tokenImageId: z.string().optional()
 };
 
 /**
- * Character document schema - includes avatar and token image fields
+ * Character document schema - includes avatar field
  */
 export const characterDocumentSchema = baseSchema.extend({
   ...baseDocumentFields,
   documentType: z.string().default('character'),
   
-  // Character/Actor specific image fields
-  avatarId: z.string().optional(),
-  defaultTokenImageId: z.string().optional()
+  // Character-specific image field
+  avatarId: z.string().optional()
 });
 
 /**
- * Actor document schema - includes avatar and token image fields
+ * Actor document schema - uses base fields only
  */
 export const actorDocumentSchema = baseSchema.extend({
   ...baseDocumentFields,
-  documentType: z.string().default('actor'),
-  
-  // Character/Actor specific image fields
-  avatarId: z.string().optional(),
-  defaultTokenImageId: z.string().optional()
+  documentType: z.string().default('actor')
 });
 
 /**
@@ -125,7 +121,6 @@ const createCharacterDocumentSchema = baseSchema.extend({
   ...baseDocumentFields,
   documentType: z.literal('character'),
   avatarId: z.string().optional(),
-  defaultTokenImageId: z.string().optional(),
   // Make slug optional for creation
   slug: z
     .string()
@@ -145,8 +140,6 @@ const createCharacterDocumentSchema = baseSchema.extend({
 const createActorDocumentSchema = baseSchema.extend({
   ...baseDocumentFields,
   documentType: z.literal('actor'),
-  avatarId: z.string().optional(),
-  defaultTokenImageId: z.string().optional(),
   // Make slug optional for creation
   slug: z
     .string()
@@ -241,10 +234,10 @@ export const updateDocumentSchema = z.object({
   // Asset references (all document types)
   imageId: z.string().optional(),
   thumbnailId: z.string().optional(),
+  tokenImageId: z.string().optional(),
   
-  // Character/Actor specific fields
+  // Character-specific field
   avatarId: z.string().optional(),
-  defaultTokenImageId: z.string().optional(),
   
   // Item specific fields
   ownerId: z.string().optional()

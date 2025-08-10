@@ -215,7 +215,7 @@ export abstract class TypedConverter<
         userData: {},
         pluginData,
         ...(source && { source }),
-        ...(assetPath && { imageId: assetPath })
+        ...(assetPath && { imageId: assetPath, tokenImageId: assetPath })
       } as TDocument;
       
       return {

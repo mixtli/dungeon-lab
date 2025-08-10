@@ -255,12 +255,12 @@ const createTokens = async () => {
     // Get token image from document's token, avatar, or image
     // These properties are defined on all document types as optional
     const documentWithImageProps = document as { 
-      defaultTokenImageId?: string;
+      tokenImageId?: string;
       avatarId?: string;
       imageId?: string;
     };
     const tokenImage = 
-      documentWithImageProps.defaultTokenImageId || 
+      documentWithImageProps.tokenImageId || 
       documentWithImageProps.avatarId || 
       documentWithImageProps.imageId;
     if (!tokenImage) {

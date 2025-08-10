@@ -271,17 +271,17 @@ function getEntryImage(entry: ICompendiumEntryWithImage): string | undefined {
   
   const content = entry.content as {
     avatarId?: { url: string };
-    defaultTokenImageId?: { url: string };
+    tokenImageId?: { url: string };
     imageId?: { url: string };
   };
   
-  // For characters, prefer avatarId, fallback to defaultTokenImageId
+  // For characters, prefer avatarId, fallback to tokenImageId
   if (entry.entry.documentType === 'character') {
     if (content.avatarId?.url) {
       return content.avatarId.url;
     }
-    if (content.defaultTokenImageId?.url) {
-      return content.defaultTokenImageId.url;
+    if (content.tokenImageId?.url) {
+      return content.tokenImageId.url;
     }
   }
   

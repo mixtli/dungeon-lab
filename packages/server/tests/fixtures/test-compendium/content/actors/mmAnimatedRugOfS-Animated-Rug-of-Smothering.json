@@ -623,5 +623,5 @@
     }
   },
   "avatarId": "assets/RugOfSmothering.webp",
-  "defaultTokenImageId": "assets/RugOfSmothering.webp"
+  "tokenImageId": "assets/RugOfSmothering.webp"
 }

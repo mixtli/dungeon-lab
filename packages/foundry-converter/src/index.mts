@@ -396,7 +396,7 @@ export class FoundryConverter {
     }
     
     if (tokenPath) {
-      transformedActor.defaultTokenImageId = this.generateAssetId(tokenPath);
+      transformedActor.tokenImageId = this.generateAssetId(tokenPath);
     }
   }
 

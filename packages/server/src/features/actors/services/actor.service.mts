@@ -59,9 +59,8 @@ export class ActorService {
    * @param tokenFile - Optional token file for the actor
    */
   async createActor(
-    data: Omit<IActorCreateData, 'avatar' | 'token'>,
+    data: Omit<IActorCreateData, 'token'>,
     userId: string,
-    avatarFile?: File,
     tokenFile?: File
   ): Promise<IActor> {
     try {
@@ -81,18 +80,7 @@ export class ActorService {
       // Create actor in database to get an ID
       const actor = await DocumentService.create<IActor>(actorData);
 
-      // Handle avatar file if provided
-      if (avatarFile) {
-        logger.info('Uploading provided actor avatar');
-
-        // Create asset using the createAsset method
-        const avatarAsset = await createAsset(avatarFile, 'actors', userId);
-
-        // Update the actor with the avatar ID
-        await DocumentService.updateById<IActor>(actor.id, { avatarId: avatarAsset.id });
-      } else {
-        this.generateActorAvatar(actor.id, userId);
-      }
+      // Note: Avatar functionality removed - actors no longer have avatars
       // Handle token file if provided
       if (tokenFile) {
         logger.info('Uploading provided actor token');
@@ -101,7 +89,7 @@ export class ActorService {
         const tokenAsset = await createAsset(tokenFile, 'actors/tokens', userId);
 
         // Update the actor with the token ID
-        await DocumentService.updateById<IActor>(actor.id, { defaultTokenImageId: tokenAsset.id });
+        await DocumentService.updateById<IActor>(actor.id, { tokenImageId: tokenAsset.id });
       } else {
         this.generateActorToken(actor.id, userId);
       }
@@ -128,9 +116,8 @@ export class ActorService {
    */
   async putActor(
     id: string,
-    data: Omit<IActorCreateData, 'avatar' | 'token'>,
+    data: Omit<IActorCreateData, 'token'>,
     userId: string,
-    avatarFile?: File,
     tokenFile?: File
   ): Promise<IActor> {
     try {
@@ -177,20 +164,20 @@ export class ActorService {
         const newTokenAsset = await createAsset(tokenFile, 'actors/tokens', userId);
 
         // Delete the old token asset if it exists and is different
-        if (actor.defaultTokenImageId && actor.defaultTokenImageId.toString() !== newTokenAsset.id.toString()) {
+        if (actor.tokenImageId && actor.tokenImageId.toString() !== newTokenAsset.id.toString()) {
           try {
-            const oldAsset = await AssetModel.findById(actor.defaultTokenImageId);
+            const oldAsset = await AssetModel.findById(actor.tokenImageId);
             if (oldAsset) {
               await oldAsset.deleteOne();
-              logger.info(`Deleted old token asset ${actor.defaultTokenImageId} for actor ${id}`);
+              logger.info(`Deleted old token asset ${actor.tokenImageId} for actor ${id}`);
             }
           } catch (deleteError) {
-            logger.warn(`Could not delete old token asset ${actor.defaultTokenImageId}:`, deleteError);
+            logger.warn(`Could not delete old token asset ${actor.tokenImageId}:`, deleteError);
           }
         }
 
         // Update token ID in actor data
-        updateData.defaultTokenImageId = newTokenAsset.id;
+        updateData.tokenImageId = newTokenAsset.id;
       }
 
       // Set the entire actor data (full replacement)
@@ -270,20 +257,20 @@ export class ActorService {
         const newTokenAsset = await createAsset(tokenFile, 'actors/tokens', userId);
 
         // Delete the old token asset if it exists and is different
-        if (actor.defaultTokenImageId && actor.defaultTokenImageId.toString() !== newTokenAsset.id.toString()) {
+        if (actor.tokenImageId && actor.tokenImageId.toString() !== newTokenAsset.id.toString()) {
           try {
-            const oldAsset = await AssetModel.findById(actor.defaultTokenImageId);
+            const oldAsset = await AssetModel.findById(actor.tokenImageId);
             if (oldAsset) {
               await oldAsset.deleteOne();
-              logger.info(`Deleted old token asset ${actor.defaultTokenImageId} for actor ${id}`);
+              logger.info(`Deleted old token asset ${actor.tokenImageId} for actor ${id}`);
             }
           } catch (deleteError) {
-            logger.warn(`Could not delete old token asset ${actor.defaultTokenImageId}:`, deleteError);
+            logger.warn(`Could not delete old token asset ${actor.tokenImageId}:`, deleteError);
           }
         }
 
         // Update token ID in actor data
-        updateData.defaultTokenImageId = newTokenAsset.id;
+        updateData.tokenImageId = newTokenAsset.id;
       }
 
       // Use deepMerge to only update the specified fields
@@ -390,17 +377,17 @@ export class ActorService {
 
       // Delete the old token asset if it exists and is different
       if (
-        existingActor.defaultTokenImageId &&
-        existingActor.defaultTokenImageId.toString() !== newTokenAsset.id.toString()
+        existingActor.tokenImageId &&
+        existingActor.tokenImageId.toString() !== newTokenAsset.id.toString()
       ) {
         try {
-          const oldAsset = await AssetModel.findById(existingActor.defaultTokenImageId);
+          const oldAsset = await AssetModel.findById(existingActor.tokenImageId);
           if (oldAsset) {
             await oldAsset.deleteOne();
-            logger.info(`Deleted old token asset ${existingActor.defaultTokenImageId} for actor ${id}`);
+            logger.info(`Deleted old token asset ${existingActor.tokenImageId} for actor ${id}`);
           }
         } catch (deleteError) {
-          logger.warn(`Could not delete old token asset ${existingActor.defaultTokenImageId}:`, deleteError);
+          logger.warn(`Could not delete old token asset ${existingActor.tokenImageId}:`, deleteError);
         }
       }
 
@@ -408,7 +395,7 @@ export class ActorService {
       const updatedActor = await DocumentService.updateById<IActor>(
         id,
         {
-          defaultTokenImageId: newTokenAsset.id,
+          tokenImageId: newTokenAsset.id,
           updatedBy: userId
         }
       );
@@ -543,7 +530,7 @@ export class ActorService {
     assetId: string,
     userId: string
   ): Promise<void> {
-    const field = imageType === 'avatar' ? 'avatarId' : 'defaultTokenImageId';
+    const field = imageType === 'avatar' ? 'avatarId' : 'tokenImageId';
     await DocumentService.updateById<IActor>(actorId, {
       [field]: assetId,
       updatedBy: userId

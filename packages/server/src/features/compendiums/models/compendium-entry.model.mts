@@ -112,7 +112,7 @@ mongooseSchema.pre('save', function(next) {
   // The compendium service will handle converting them for asset lookups
   const contentDoc = this as unknown as { content?: Record<string, unknown> };
   if (contentDoc.content) {
-    const assetFields = ['imageId', 'avatarId', 'defaultTokenImageId'];
+    const assetFields = ['imageId', 'avatarId', 'tokenImageId'];
     for (const field of assetFields) {
       const fieldValue = contentDoc.content[field];
       if (fieldValue && typeof fieldValue === 'string') {

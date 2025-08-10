@@ -196,6 +196,7 @@ import type { Token, StateOperation } from '@dungeon-lab/shared/types/index.mjs'
 import { useAuthStore } from '../../stores/auth.store.mjs';
 // Add import for MapContextMenu
 import MapContextMenu from './MapContextMenu.vue';
+import { turnManagerService } from '../../services/turn-manager.service.mjs';
 
 // No props needed - EncounterView always displays the current encounter from game state
 
@@ -274,7 +275,7 @@ const encounterTokens = computed(() => {
 });
 
 // Initialize encounter view - no loading needed, just use gameState
-const initializeEncounter = () => {
+const initializeEncounter = async () => {
   loading.value = true;
   error.value = null;
   
@@ -283,6 +284,18 @@ const initializeEncounter = () => {
     error.value = 'No active encounter in current session';
     loading.value = false;
     return;
+  }
+  
+  // Initialize turn manager service with current campaign's plugin ID
+  const pluginId = gameStateStore.gameState?.campaign?.pluginId;
+  if (pluginId) {
+    try {
+      await turnManagerService.initialize(pluginId);
+      console.log('[Debug] Turn manager service initialized with plugin:', pluginId);
+    } catch (error) {
+      console.warn('[Debug] Failed to initialize turn manager:', error);
+      // Don't fail encounter loading if turn manager fails to initialize
+    }
   }
   
   console.log('[Debug] EncounterView initialized with encounter:', encounter.value.id);

@@ -228,11 +228,11 @@ onMounted(loadDocument);
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-500">
                 <div v-if="'createdAt' in document && document.createdAt" class="flex items-center">
                   <CalendarIcon class="h-4 w-4 mr-2" />
-                  <span>Created: {{ formatDate((document.createdAt as Date).toISOString()) }}</span>
+                  <span>Created: {{ formatDate(document.createdAt as string) }}</span>
                 </div>
                 <div v-if="'updatedAt' in document && document.updatedAt" class="flex items-center">
                   <CalendarIcon class="h-4 w-4 mr-2" />
-                  <span>Updated: {{ formatDate((document.updatedAt as Date).toISOString()) }}</span>
+                  <span>Updated: {{ formatDate(document.updatedAt as string) }}</span>
                 </div>
                 <div v-if="(document as any).pluginId" class="flex items-center">
                   <TagIcon class="h-4 w-4 mr-2" />

@@ -34,11 +34,11 @@ export const useHUDStore = defineStore('hud', () => {
         component: 'ChatTab',
         visible: true
       },
-      combat: {
-        id: 'combat',
-        title: 'Combat',
+      turnOrder: {
+        id: 'turnOrder',
+        title: 'Turn Order',
         icon: 'mdi-sword-cross',
-        component: 'CombatTab',
+        component: 'TurnOrderTab',
         visible: true
       },
       actors: {

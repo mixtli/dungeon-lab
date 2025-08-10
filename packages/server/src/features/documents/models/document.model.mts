@@ -37,7 +37,7 @@ const serverBaseDocumentSchema = baseSchema.extend({
   
   // Character/Actor specific image fields (optional for all documents)
   avatarId: zId('Asset').optional(),
-  defaultTokenImageId: zId('Asset').optional(),
+  tokenImageId: zId('Asset').optional(),
   
   // Item specific fields
   ownerId: zId('Document').optional()
@@ -80,7 +80,7 @@ baseMongooseSchema.index({
 // Asset references for population
 baseMongooseSchema.index({ imageId: 1 });
 baseMongooseSchema.index({ avatarId: 1 });
-baseMongooseSchema.index({ defaultTokenImageId: 1 });
+baseMongooseSchema.index({ tokenImageId: 1 });
 
 // User ownership and recent documents
 baseMongooseSchema.index({ createdBy: 1 });
@@ -159,7 +159,7 @@ baseMongooseSchema.virtual('avatar', {
 
 baseMongooseSchema.virtual('defaultTokenImage', {
   ref: 'Asset',
-  localField: 'defaultTokenImageId',
+  localField: 'tokenImageId',
   foreignField: '_id',
   justOne: true
 });

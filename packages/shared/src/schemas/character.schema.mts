@@ -11,7 +11,7 @@ export const characterSchema = characterDocumentSchema.extend({
   // are handled in pluginData to maintain plugin agnostic design
   // Other fields come from characterDocumentSchema:
   // - name, description, pluginId, campaignId, imageId, thumbnailId
-  // - avatarId, defaultTokenImageId (character-specific)
+  // - avatarId (character-specific), tokenImageId (from base)
   // - pluginData, userData, itemState
 });
 
@@ -28,7 +28,7 @@ export const characterCreateSchema = characterSchema
     slug: characterSchema.shape.slug.optional(),
     // Allow both asset IDs (from web client) and file uploads (from API clients)
     avatarId: characterSchema.shape.avatarId.optional(),  // Keep asset ID field
-    defaultTokenImageId: characterSchema.shape.defaultTokenImageId.optional(),  // Keep asset ID field
+    tokenImageId: characterSchema.shape.tokenImageId.optional(),  // Keep asset ID field
     avatar: z.instanceof(File).optional(),  // Optional file upload
     token: z.instanceof(File).optional()    // Optional file upload
   });

@@ -13,7 +13,7 @@ const serverCharacterSchema = characterSchema.extend({
   imageId: zId('Asset').optional(),
   thumbnailId: zId('Asset').optional(),
   avatarId: zId('Asset').optional(),
-  defaultTokenImageId: zId('Asset').optional(),
+  tokenImageId: zId('Asset').optional(),
   
   // Enhanced inventory system (for characters only)
   inventory: z.array(z.object({
@@ -37,7 +37,7 @@ characterMongooseSchema.path('userData', mongoose.Schema.Types.Mixed);
 
 // Add character-specific indexes
 characterMongooseSchema.index({ avatarId: 1 });
-characterMongooseSchema.index({ defaultTokenImageId: 1 });
+characterMongooseSchema.index({ tokenImageId: 1 });
 
 // Enhanced inventory indexes (for characters)
 characterMongooseSchema.index({ 'inventory.itemId': 1 });                    // Find characters with specific items
@@ -76,7 +76,7 @@ characterMongooseSchema.virtual('avatar', {
 
 characterMongooseSchema.virtual('defaultTokenImage', {
   ref: 'Asset',
-  localField: 'defaultTokenImageId',
+  localField: 'tokenImageId',
   foreignField: '_id',
   justOne: true
 });

@@ -1,6 +1,7 @@
 import type { Component } from 'vue';
 import type { PluginManifest } from '@dungeon-lab/shared/schemas/plugin-manifest.schema.mjs';
 import type { PluginContext } from './plugin-context.mjs';
+import type { BaseTurnManagerPlugin } from '../base/base-turn-manager.mjs';
 
 // Export the base class for plugins to extend
 export { BaseGameSystemPlugin } from '../base/base-plugin.mjs';
@@ -90,6 +91,12 @@ export interface GameSystemPlugin {
    * Simple lifecycle method for plugin cleanup
    */
   onUnload(): Promise<void>;
+  
+  /**
+   * Turn manager for game-specific turn order and action permissions
+   * Optional - plugins can provide turn manager implementations
+   */
+  turnManager?: BaseTurnManagerPlugin;
   
   /**
    * @deprecated Use validate('character', data) instead

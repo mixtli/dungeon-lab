@@ -10,7 +10,7 @@ export const actorSchema = actorDocumentSchema.extend({
   
   // Note: Other fields come from actorDocumentSchema:
   // - name, description, pluginId, campaignId, compendiumId, imageId
-  // - avatarId, defaultTokenImageId (actor-specific)
+  // - tokenImageId (from base, no actor-specific image fields)
   // - pluginData (replaces 'data'), userData (replaces old userData)
 });
 
@@ -25,15 +25,12 @@ export const actorCreateSchema = actorSchema
     // Make slug optional on create - it will be auto-generated from name if not provided
     slug: actorSchema.shape.slug.optional(),
     // Allow both asset IDs (from web client) and file uploads (from API clients)
-    avatarId: actorSchema.shape.avatarId.optional(),  // Keep asset ID field
-    defaultTokenImageId: actorSchema.shape.defaultTokenImageId.optional(),  // Keep asset ID field
-    avatar: z.instanceof(File).optional(),  // Optional file upload
+    tokenImageId: actorSchema.shape.tokenImageId.optional(),  // Keep asset ID field
     token: z.instanceof(File).optional()    // Optional file upload
   });
 
 export const actorSchemaWithVirtuals = actorSchema.extend({
-  token: assetSchema.optional(),
-  avatar: assetSchema.optional()
+  token: assetSchema.optional()
 });
 
 export const actorPatchSchema = actorSchema.deepPartial();

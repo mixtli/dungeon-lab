@@ -119,8 +119,7 @@ export class ActorController {
     // Validate request body
     const validatedData = createActorRequestSchema.parse(req.body);
 
-    // Get the avatar and token files from req.assets
-    const avatarFile = req.assets?.avatar?.[0];
+    // Get the token file from req.assets
     const tokenFile = req.assets?.token?.[0];
 
     const data = validatedData.pluginData;
@@ -135,14 +134,13 @@ export class ActorController {
     // Note: Plugin validation now happens client-side only
     // Server trusts that client has already validated plugin data
 
-    // Destructure validatedData while renaming avatar and token to bypass unused variable warnings
-    const { avatar: _avatar, token: _token, ...actorData } = validatedData;
+    // Destructure validatedData while renaming token to bypass unused variable warnings
+    const { token: _token, ...actorData } = validatedData;
 
     // Create the actor using the service
     const actor = await this.actorService.createActor(
       actorData,
       req.session.user.id,
-      avatarFile,
       tokenFile
     );
 
@@ -178,17 +176,15 @@ export class ActorController {
       });
     }
 
-    // Get avatar and token files from req.assets if present
-    const avatarFile = req.assets?.avatar?.[0];
+    // Get token file from req.assets if present
     const tokenFile = req.assets?.token?.[0];
 
-    const { avatar: _avatar, token: _token, ...actorData } = validatedData;
+    const { token: _token, ...actorData } = validatedData;
     // Update the actor using the service
     const actor = await this.actorService.putActor(
       req.params.id,
       actorData,
       req.session.user.id,
-      avatarFile,
       tokenFile
     );
 
@@ -217,8 +213,8 @@ export class ActorController {
 
     try {
       // Extract only the fields from validatedData that are needed by patchActor
-      // Omit the avatar and token fields which are causing type issues and rename with underscore prefix
-      const { avatar: _avatar, token: _token, ...restData } = validatedData;
+      // Omit the token field which is causing type issues and rename with underscore prefix
+      const { token: _token, ...restData } = validatedData;
 
       // Add the id from the route parameter
       const actorData = { ...restData, id: req.params.id };
@@ -239,63 +235,7 @@ export class ActorController {
     }
   };
 
-  /**
-   * Upload an actor's avatar
-   * @route PUT /api/actors/:id/avatar
-   * @access Private
-   */
-  uploadActorAvatar = async (
-    req: Request<{ id: string }>,
-    res: Response
-  ): Promise<Response<BaseAPIResponse<IActor>>> => {
-    const userId = req.session.user?.id;
-    if (!userId) {
-      return res.status(403).json({ success: false, data: null, error: 'Access denied' });
-    }
-
-    try {
-      // Get the raw image data from the request body
-      const imageBuffer = req.body as Buffer;
-      const contentType = req.headers['content-type'] || 'image/jpeg';
-
-      if (!imageBuffer || imageBuffer.length === 0) {
-        return res.status(400).json({
-          success: false,
-          data: null,
-          error: 'No image data provided'
-        });
-      }
-
-      // Validate content type
-      const validMimes = ['image/jpeg', 'image/png', 'image/webp'];
-      if (!validMimes.includes(contentType)) {
-        return res.status(400).json({
-          success: false,
-          data: null,
-          error: 'Invalid image type. Please upload JPEG, PNG, or WebP'
-        });
-      }
-
-      // Create a File object from the buffer
-      const file = new File([imageBuffer], `avatar_${Date.now()}.${contentType.split('/')[1]}`, {
-        type: contentType
-      });
-
-      const actor = await this.actorService.updateActorAvatar(req.params.id, file, userId);
-
-      if (!actor) {
-        return res.status(404).json({ success: false, data: null, error: 'Actor not found' });
-      }
-      return res.json({ success: true, data: actor, error: null });
-    } catch (error) {
-      logger.error('Error uploading actor avatar:', error);
-      return res.status(500).json({
-        success: false,
-        data: null,
-        error: isErrorWithMessage(error) ? error.message : 'Internal server error'
-      });
-    }
-  };
+  // TODO: Avatar functionality removed - actors no longer have avatars
 
   /**
    * Upload an actor's token
@@ -355,32 +295,7 @@ export class ActorController {
     }
   };
 
-  /**
-   * Generate an actor's avatar using AI
-   * @route POST /api/actors/:id/generate-avatar
-   * @access Private
-   */
-  generateActorAvatar = async (
-    req: Request<{ id: string }>,
-    res: Response
-  ): Promise<Response<BaseAPIResponse<IActor>>> => {
-    const userId = req.session.user?.id;
-    if (!userId) {
-      return res.status(403).json({ success: false, data: null, error: 'Access denied' });
-    }
-
-    try {
-      await this.actorService.generateActorAvatar(req.params.id, userId);
-      return res.json({ success: true, error: null });
-    } catch (error) {
-      logger.error('Error generating actor avatar:', error);
-      return res.status(500).json({
-        success: false,
-        data: null,
-        error: isErrorWithMessage(error) ? error.message : 'Internal server error'
-      });
-    }
-  };
+  // TODO: Avatar generation functionality removed - actors no longer have avatars
 
   /**
    * Generate an actor's token using AI

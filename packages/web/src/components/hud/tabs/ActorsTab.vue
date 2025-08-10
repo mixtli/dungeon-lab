@@ -49,8 +49,12 @@
         @dblclick="openCharacterSheet(actor)"
       >
         <div class="actor-avatar">
-          <img v-if="actor.avatar?.url" :src="actor.avatar.url" :alt="actor.name" />
-          <img v-else-if="actor.token?.url" :src="actor.token.url" :alt="actor.name" />
+          <img 
+            v-if="getDocumentImageUrl(actor)" 
+            :src="getDocumentImageUrl(actor)!" 
+            :alt="actor.name"
+            @error="(e) => (e.target as HTMLImageElement).style.display = 'none'"
+          />
           <i v-else class="mdi mdi-account-circle"></i>
         </div>
         
@@ -97,6 +101,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useGameStateStore } from '../../../stores/game-state.store.mjs';
 import { useCharacterSheetStore } from '../../../stores/character-sheet.store.mjs';
+import { getDocumentImageUrl } from '../../../utils/document-image-utils.mjs';
 import type { IActor, StateOperation } from '@dungeon-lab/shared/types/index.mjs';
 
 const gameStateStore = useGameStateStore();

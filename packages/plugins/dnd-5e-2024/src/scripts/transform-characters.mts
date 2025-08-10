@@ -166,7 +166,7 @@ interface TransformedCharacterDocument {
   
   // Actor-specific fields
   avatarId?: string;
-  defaultTokenImageId?: string;
+  tokenImageId?: string;
   inventory?: Array<{
     itemId: string;
     quantity: number;
@@ -517,7 +517,7 @@ function transformCharacter(legacy: LegacyCharacterData): ContentFileWrapper {
     
     // Use asset paths from legacy data (these will need to be processed separately)
     avatarId: undefined, // Will need to upload assets separately
-    defaultTokenImageId: undefined, // Will need to upload assets separately
+    tokenImageId: undefined, // Will need to upload assets separately
     
     inventory,
     userData: legacy.userData || {},
@@ -775,7 +775,7 @@ async function main() {
           assetsDir
         );
         if (tokenPath) {
-          transformed.content.defaultTokenImageId = tokenPath;
+          transformed.content.tokenImageId = tokenPath;
           // Use avatar for entry imageId, fall back to token
           if (!transformed.entry.imageId) {
             transformed.entry.imageId = tokenPath;

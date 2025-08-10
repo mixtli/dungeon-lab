@@ -58,7 +58,8 @@ export const searchDocumentsQuerySchema = z
   .object({
     name: z.string().optional(),
     pluginId: z.string().optional(),
-    documentType: z.string().optional()
+    documentType: z.string().optional(),
+    pluginDocumentType: z.string().optional()
   })
   .passthrough(); // Allow additional query parameters
 

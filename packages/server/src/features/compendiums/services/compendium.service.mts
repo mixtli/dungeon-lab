@@ -20,7 +20,7 @@ export type CompendiumDocument = ICompendium;
 interface IEmbeddedContentData {
   avatarId?: { toString(): string };
   imageId?: { toString(): string };
-  defaultTokenImageId?: { toString(): string };
+  tokenImageId?: { toString(): string };
   [key: string]: unknown;
 }
 
@@ -237,9 +237,9 @@ export class CompendiumService {
             assetFieldMap[content.imageId.toString()] = 'content.imageId';
           }
           
-          if (content.defaultTokenImageId) {
-            assetIds.push(content.defaultTokenImageId.toString());
-            assetFieldMap[content.defaultTokenImageId.toString()] = 'content.defaultTokenImageId';
+          if (content.tokenImageId) {
+            assetIds.push(content.tokenImageId.toString());
+            assetFieldMap[content.tokenImageId.toString()] = 'content.tokenImageId';
           }
         }
         
@@ -317,9 +317,9 @@ export class CompendiumService {
           assetIds.push(content.imageId.toString());
           assetFieldMap[content.imageId.toString()] = 'content.imageId';
         }
-        if (content.defaultTokenImageId) {
-          assetIds.push(content.defaultTokenImageId.toString());
-          assetFieldMap[content.defaultTokenImageId.toString()] = 'content.defaultTokenImageId';
+        if (content.tokenImageId) {
+          assetIds.push(content.tokenImageId.toString());
+          assetFieldMap[content.tokenImageId.toString()] = 'content.tokenImageId';
         }
       }
       if (assetIds.length > 0) {
@@ -562,9 +562,9 @@ export class CompendiumService {
             assetFieldMap[content.imageId.toString()] = 'content.imageId';
           }
           
-          if (content.defaultTokenImageId) {
-            assetIds.push(content.defaultTokenImageId.toString());
-            assetFieldMap[content.defaultTokenImageId.toString()] = 'content.defaultTokenImageId';
+          if (content.tokenImageId) {
+            assetIds.push(content.tokenImageId.toString());
+            assetFieldMap[content.tokenImageId.toString()] = 'content.tokenImageId';
           }
         }
         

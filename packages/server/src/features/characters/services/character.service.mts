@@ -18,7 +18,7 @@ export class CharacterService {
     assetId: string,
     userId: string
   ): Promise<void> {
-    const field = imageType === 'avatar' ? 'avatarId' : 'defaultTokenImageId';
+    const field = imageType === 'avatar' ? 'avatarId' : 'tokenImageId';
     await DocumentService.updateById<ICharacter>(characterId, {
       [field]: assetId,
       updatedBy: userId
