@@ -1,6 +1,7 @@
 import { Types } from 'mongoose';
 import { ICampaign, ICampaignPatchData, IUser, IGameSession, IEncounter } from '@dungeon-lab/shared/types/index.mjs';
 import { CampaignModel } from '../models/campaign.model.mjs';
+import { GameStateModel } from '../models/game-state.model.mjs';
 import { DocumentService } from '../../documents/services/document.service.mjs';
 import { logger } from '../../../utils/logger.mjs';
 import { deepMerge } from '@dungeon-lab/shared/utils/index.mjs';
@@ -40,7 +41,7 @@ export class CampaignService {
       } else {
         // First get all user's characters that have a campaignId
         const userCharacters = await DocumentService.find({ 
-          createdBy: userId, 
+          $or: [{ ownerId: userId }, { createdBy: userId }], // Check both ownerId and createdBy for backwards compatibility
           documentType: 'character',
           campaignId: { $exists: true }
         });
@@ -90,7 +91,7 @@ export class CampaignService {
     if (!campaign) {
       throw new Error('Campaign not found');
     }
-    const characters = await DocumentService.find({ campaignId, documentType: 'character' }, { populate: ['avatar', 'defaultTokenImage'] });
+    const characters = await DocumentService.find({ campaignId, documentType: 'character' }, { populate: ['avatar', 'tokenImage'] });
     const usersPromises = characters.map(async (character) => await UserModel.findById(character.createdBy));
     const users = await Promise.all(usersPromises);
     return users.filter((user) => user !== null) as IUser[];
@@ -110,6 +111,7 @@ export class CampaignService {
         ...data,
         gameMasterId: userObjectId.toString(),
         createdBy: userObjectId.toString(),
+        ownerId: userObjectId.toString(), // Set ownerId for new campaigns
         updatedBy: userObjectId.toString()
       };
 
@@ -119,13 +121,37 @@ export class CampaignService {
       if (user?.isAdmin) {
         if (data.createdBy) {
           campaignData.createdBy = data.createdBy;
+          campaignData.ownerId = data.createdBy; // Keep ownership consistent
         }
         if (data.gameMasterId) {
           campaignData.gameMasterId = data.gameMasterId;
         }
       }
 
+      // Create the campaign first
       const campaign = await CampaignModel.create(campaignData);
+
+      // Create initial GameState for the campaign
+      const gameState = await GameStateModel.create({
+        campaignId: campaign.id,
+        campaign: campaign,
+        characters: [],
+        actors: [],
+        items: [],
+        currentEncounter: null,
+        turnManager: null,
+        pluginData: {},
+        version: '1',
+        hash: null,
+        lastUpdate: Date.now(),
+        createdBy: userId,
+        updatedBy: userId
+      });
+
+      // Link the GameState to the Campaign
+      campaign.gameStateId = gameState.id;
+      await campaign.save();
+
       return campaign;
     } catch (error) {
       logger.error('Error creating campaign:', error);
@@ -186,7 +212,7 @@ export class CampaignService {
       // Check if user has any characters in this campaign
       const userCharactersInCampaign = await DocumentService.find({
         campaignId,
-        createdBy: userId,
+        $or: [{ ownerId: userId }, { createdBy: userId }], // Check both ownerId and createdBy for backwards compatibility
         documentType: 'character'
       });
       const hasCharacter = userCharactersInCampaign.length > 0;

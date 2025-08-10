@@ -44,6 +44,9 @@ const baseDocumentFields = {
   // Campaign association (documents belong to campaigns)
   campaignId: z.string().optional(),
   
+  // Owner reference (user who owns this document)
+  ownerId: z.string().optional(),
+  
   // Plugin-specific data (flexible structure)
   pluginData: z.record(z.string(), z.unknown()).default({}),
   
@@ -85,14 +88,11 @@ export const actorDocumentSchema = baseSchema.extend({
 });
 
 /**
- * Item document schema - includes owner reference
+ * Item document schema - uses base fields (ownerId inherited from baseDocumentFields)
  */
 export const itemDocumentSchema = baseSchema.extend({
   ...baseDocumentFields,
-  documentType: z.string().default('item'),
-  
-  // Owner reference (for items owned by characters/actors)
-  ownerId: z.string().optional()
+  documentType: z.string().default('item')
 });
 
 /**
@@ -159,7 +159,6 @@ const createActorDocumentSchema = baseSchema.extend({
 const createItemDocumentSchema = baseSchema.extend({
   ...baseDocumentFields,
   documentType: z.literal('item'),
-  ownerId: z.string().optional(),
   // Make slug optional for creation
   slug: z
     .string()
@@ -226,6 +225,7 @@ export const updateDocumentSchema = z.object({
   pluginId: z.string().min(1).optional(),
   source: z.string().min(1).optional(),
   campaignId: z.string().optional(),
+  ownerId: z.string().optional(),
   pluginData: z.record(z.string(), z.unknown()).optional(),
   itemState: z.record(z.string(), z.unknown()).optional(),
   userData: z.record(z.string(), z.any()).optional(),
@@ -237,10 +237,7 @@ export const updateDocumentSchema = z.object({
   tokenImageId: z.string().optional(),
   
   // Character-specific field
-  avatarId: z.string().optional(),
-  
-  // Item specific fields
-  ownerId: z.string().optional()
+  avatarId: z.string().optional()
 }).partial();
 
 /**
@@ -251,8 +248,8 @@ export const updateDocumentSchema = z.object({
 export const documentSchemaWithVirtuals = baseDocumentSchema.and(
   z.object({
     // Virtual asset relationships (properly typed)
-    image: assetSchema.optional(),
-    thumbnail: assetSchema.optional()
+    image: assetSchema.nullable().optional(),
+    thumbnail: assetSchema.nullable().optional()
   })
 );
 

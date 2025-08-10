@@ -34,20 +34,19 @@ export const encounterSchema = baseSchema.extend({
   description: z.string().optional(),
   campaignId: z.string(),
   mapId: z.string(),
+  ownerId: z.string().optional(), // Owner of the encounter (usually the game master)
   currentMap: mapSchemaWithVirtuals.nullable().optional(),
   status: EncounterStatusEnum.default('stopped'),
   tokens: z.array(tokenSchema).default([]),
   settings: encounterSettingsSchema.optional(),
-  participants: z.array(z.string()).default([]),
-  version: z.number().int().min(1).default(1)
+  participants: z.array(z.string()).default([])
 });
 
 export const createEncounterSchema = encounterSchema.omit({
   id: true,
   createdBy: true,
   updatedBy: true,
-  tokens: true,
-  version: true
+  tokens: true
 });
 
 export const updateEncounterSchema = encounterSchema
@@ -72,7 +71,7 @@ export const encounterEventSchema = z.object({
   type: z.string(),
   data: z.record(z.string(), z.unknown()),
   userId: z.string(),
-  timestamp: z.date().default(() => new Date())
+  timestamp: z.string().default(() => new Date().toISOString())
 });
 
 // ============================================================================

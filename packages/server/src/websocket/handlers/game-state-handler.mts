@@ -3,6 +3,8 @@ import { socketHandlerRegistry } from '../handler-registry.mjs';
 import { SocketServer } from '../socket-server.mjs';
 import { logger } from '../../utils/logger.mjs';
 import { GameSessionModel } from '../../features/campaigns/models/game-session.model.mjs';
+import { CampaignModel } from '../../features/campaigns/models/campaign.model.mjs';
+import { GameStateModel } from '../../features/campaigns/models/game-state.model.mjs';
 import { GameStateService } from '../../features/campaigns/services/game-state.service.mjs';
 import { GameStateSyncService } from '../../features/campaigns/services/game-state-sync.service.mjs';
 import { GameSessionService } from '../../features/campaigns/services/game-session.service.mjs';
@@ -40,12 +42,26 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
   const campaignService = new CampaignService();
 
 
-  // Helper function to check if user is GM of the session
+  // Helper function to check if user is GM of the campaign
+  const isUserCampaignGameMaster = async (campaignId: string): Promise<boolean> => {
+    try {
+      const campaign = await CampaignModel.findById(campaignId).exec();
+      if (!campaign) return false;
+      return isAdmin || campaign.gameMasterId === userId;
+    } catch (error) {
+      logger.error('Error checking GM status:', error);
+      return false;
+    }
+  };
+  
+  // Helper function to check if user is GM of the session (for backwards compatibility)
   const isUserGameMaster = async (sessionId: string): Promise<boolean> => {
     try {
       const session = await GameSessionModel.findById(sessionId).exec();
       if (!session) return false;
-      return isAdmin || session.gameMasterId === userId;
+      const campaign = await CampaignModel.findById(session.campaignId).exec();
+      if (!campaign) return false;
+      return isAdmin || campaign.gameMasterId === userId;
     } catch (error) {
       logger.error('Error checking GM status:', error);
       return false;
@@ -75,11 +91,25 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
 
   socket.on('gameState:update', async (stateUpdate: StateUpdate, callback?: (response: StateUpdateResponse) => void) => {
     try {
-      const { sessionId, source = 'gm' } = stateUpdate;
-      logger.info('Game state update received:', { sessionId, version: stateUpdate.version, operationCount: stateUpdate.operations.length, source, userId });
+      const { gameStateId, source = 'gm' } = stateUpdate;
+      logger.info('Game state update received:', { gameStateId, version: stateUpdate.version, operationCount: stateUpdate.operations.length, source, userId });
+
+      // Get the GameState document to find the associated campaign
+      const gameStateDoc = await GameStateModel.findById(gameStateId).exec();
+      if (!gameStateDoc) {
+        const response: StateUpdateResponse = {
+          success: false,
+          error: {
+            code: 'GAMESTATE_NOT_FOUND',
+            message: 'Game state not found'
+          }
+        };
+        callback?.(response);
+        return;
+      }
 
       // Only GM can update game state (unless it's a system update)
-      if (source !== 'system' && !(await isUserGameMaster(sessionId))) {
+      if (source !== 'system' && !(await isUserCampaignGameMaster(gameStateDoc.campaignId))) {
         const response: StateUpdateResponse = {
           success: false,
           error: {
@@ -100,7 +130,7 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
       // Broadcast update to all session participants if successful
       if (response.success && response.newVersion) {
         const broadcast: StateUpdateBroadcast = {
-          sessionId,
+          gameStateId,
           operations: stateUpdate.operations,
           newVersion: response.newVersion,
           expectedHash: response.newHash || '',
@@ -108,10 +138,18 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
           source: stateUpdate.source || 'gm'
         };
 
-        // Broadcast to ALL clients in the session room (including the GM who sent the update)
+        // Find active sessions that use this campaign's GameState
+        const activeSessions = await GameSessionModel.find({ 
+          campaignId: gameStateDoc.campaignId, 
+          status: 'active' 
+        }).exec();
+
+        // Broadcast to ALL clients in all active session rooms for this campaign
         // This ensures consistent state updates for all participants
         const io = SocketServer.getInstance().socketIo;
-        io.to(`session:${sessionId}`).emit('gameState:updated', broadcast);
+        for (const session of activeSessions) {
+          io.to(`session:${session.id}`).emit('gameState:updated', broadcast);
+        }
       }
 
       callback?.(response);
@@ -147,12 +185,23 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
         return;
       }
 
-      // Use service to get game state
-      const gameStateData = await gameStateService.getGameState(sessionId);
-      if (!gameStateData) {
+      // First get the session to find the campaign
+      const session = await GameSessionModel.findById(sessionId).exec();
+      if (!session) {
         const response = {
           success: false,
           error: 'Session not found'
+        };
+        callback?.(response);
+        return;
+      }
+      
+      // Use service to get game state for the campaign
+      const gameStateData = await gameStateService.getGameState(session.campaignId);
+      if (!gameStateData) {
+        const response = {
+          success: false,
+          error: 'Game state not found for campaign'
         };
         callback?.(response);
         return;
@@ -276,7 +325,8 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
       const isGM = session.gameMasterId === userId;
       
       // If GM is leaving and there's game state, trigger sync
-      if (isGM && session.gameState) {
+      const gameStateExists = await GameStateModel.findOne({ campaignId: session.campaignId }).exec();
+      if (isGM && gameStateExists) {
         logger.info('GM leaving session - triggering sync to backing models:', { sessionId, userId });
         try {
           const syncResult = await syncService.syncGameStateToBackingModels(sessionId, 'gm-disconnect');
@@ -413,7 +463,8 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
       }
 
       // Sync game state to backing models before ending
-      if (session.gameState) {
+      const gameStateExists = await GameStateModel.findOne({ campaignId: session.campaignId }).exec();
+      if (gameStateExists) {
         logger.info('Session ending - triggering sync to backing models:', { sessionId });
         try {
           const syncResult = await syncService.syncGameStateToBackingModels(sessionId, 'session-end');
@@ -465,21 +516,24 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
     try {
       const activeSessions = await GameSessionModel.find({
         gameMasterId: userId,
-        status: 'active',
-        gameState: { $ne: null }
-      }).select('_id').exec();
+        status: 'active'
+      }).select('_id campaignId').exec();
 
       for (const session of activeSessions) {
-        logger.info('GM unexpectedly disconnected - triggering sync:', { sessionId: session.id, userId });
-        try {
+        // Check if campaign has active GameState
+        const gameStateExists = await GameStateModel.findOne({ campaignId: session.campaignId }).exec();
+        if (gameStateExists) {
+          logger.info('GM unexpectedly disconnected - triggering sync:', { sessionId: session.id, userId });
+          try {
           const syncResult = await syncService.syncGameStateToBackingModels(session.id, 'gm-disconnect');
           logger.info('GM disconnect sync completed:', { 
             sessionId: session.id, 
             success: syncResult.success, 
             entitiesUpdated: syncResult.entitiesUpdated 
           });
-        } catch (error) {
-          logger.warn('GM disconnect sync failed (non-fatal):', { sessionId: session.id, error });
+          } catch (error) {
+            logger.warn('GM disconnect sync failed (non-fatal):', { sessionId: session.id, error });
+          }
         }
       }
     } catch (error) {

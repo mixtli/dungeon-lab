@@ -198,13 +198,6 @@ export class EncounterController {
             data: null
           });
         }
-        if (error.message === 'Version conflict') {
-          return res.status(409).json({
-            success: false,
-            error: 'Version conflict - encounter was modified by another user',
-            data: null
-          });
-        }
       }
       logger.error('Error updating encounter:', error);
       return res.status(500).json({

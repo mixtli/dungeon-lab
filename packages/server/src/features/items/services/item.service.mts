@@ -50,6 +50,7 @@ export class ItemService {
         ...data,
         slug: data.slug || generateSlug(data.name),
         createdBy: userId,
+        ownerId: userId, // Set ownerId for new items
         updatedBy: userId
       };
 
@@ -119,7 +120,9 @@ export class ItemService {
         throw new Error('Item not found');
       }
 
-      return item.createdBy === userId || isAdmin;
+      // Check ownerId first, fallback to createdBy for backwards compatibility
+      const ownerId = item.ownerId || item.createdBy;
+      return ownerId === userId || isAdmin;
     } catch (error) {
       logger.error('Error checking user permission:', error);
       throw new Error('Failed to check user permission');

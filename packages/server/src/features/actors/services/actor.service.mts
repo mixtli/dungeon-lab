@@ -18,7 +18,7 @@ export class ActorService {
   async getAllActors(type?: string): Promise<IActor[]> {
     try {
       const filter = type ? { documentType: 'actor', pluginDocumentType: type } : { documentType: 'actor' };
-      const actors = await DocumentService.find<IActor>(filter, { populate: ['avatar', 'defaultTokenImage'] });
+      const actors = await DocumentService.find<IActor>(filter, { populate: ['tokenImage'] });
       return actors;
     } catch (error) {
       logger.error('Error fetching actors:', error);
@@ -28,7 +28,7 @@ export class ActorService {
 
   async getActorById(id: string): Promise<IActor> {
     try {
-      const actor = await DocumentService.findById<IActor>(id, { populate: ['avatar', 'defaultTokenImage'] });
+      const actor = await DocumentService.findById<IActor>(id, { populate: ['tokenImage'] });
       if (!actor) {
         throw new Error('Actor not found');
       }
@@ -42,7 +42,7 @@ export class ActorService {
   async getActors(campaignId: string): Promise<IActor[]> {
     try {
       const filter = { campaignId, documentType: 'actor' };
-      const actors = await DocumentService.find<IActor>(filter, { populate: ['avatar', 'defaultTokenImage'] });
+      const actors = await DocumentService.find<IActor>(filter, { populate: ['tokenImage'] });
       return actors;
     } catch (error) {
       logger.error('Error getting actors:', error);
@@ -51,15 +51,14 @@ export class ActorService {
   }
 
   /**
-   * Create an actor with optional avatar and token files
+   * Create an actor with optional token file
    *
    * @param data - The actor data
    * @param userId - ID of the user creating the actor
-   * @param avatarFile - Optional avatar file for the actor
    * @param tokenFile - Optional token file for the actor
    */
   async createActor(
-    data: Omit<IActorCreateData, 'token'>,
+    data: Omit<IActorCreateData, 'tokenImage'>,
     userId: string,
     tokenFile?: File
   ): Promise<IActor> {
@@ -68,6 +67,7 @@ export class ActorService {
         ...data,
         slug: data.slug || generateSlug(data.name),
         createdBy: userId,
+        ownerId: userId, // Set ownerId for new actors
         updatedBy: userId
       };
 
@@ -75,6 +75,7 @@ export class ActorService {
       const user = await UserModel.findById(userId);
       if (user?.isAdmin && 'createdBy' in data && typeof data.createdBy === 'string') {
         actorData.createdBy = data.createdBy;
+        actorData.ownerId = data.createdBy; // Keep ownership consistent with createdBy when admin creates for other users
       }
 
       // Create actor in database to get an ID
@@ -93,8 +94,8 @@ export class ActorService {
       } else {
         this.generateActorToken(actor.id, userId);
       }
-      // Return the actor with populated avatar and token
-      const updatedActor = await DocumentService.findById<IActor>(actor.id, { populate: ['avatar', 'defaultTokenImage'] });
+      // Return the actor with populated token
+      const updatedActor = await DocumentService.findById<IActor>(actor.id, { populate: ['tokenImage'] });
       if (!updatedActor) {
         throw new Error('Actor not found after creation');
       }
@@ -106,17 +107,16 @@ export class ActorService {
   }
 
   /**
-   * Update an actor with optional new avatar and token files (full replacement)
+   * Update an actor with optional new token file (full replacement)
    *
    * @param id - The ID of the actor to update
    * @param data - New data for the actor
    * @param userId - ID of the user updating the actor
-   * @param avatarFile - Optional new avatar file
    * @param tokenFile - Optional new token file
    */
   async putActor(
     id: string,
-    data: Omit<IActorCreateData, 'token'>,
+    data: Omit<IActorCreateData, 'tokenImage'>,
     userId: string,
     tokenFile?: File
   ): Promise<IActor> {
@@ -131,30 +131,6 @@ export class ActorService {
         slug: data.slug || generateSlug(data.name),
         updatedBy: userId
       };
-
-      // Handle avatar file if provided
-      if (avatarFile) {
-        logger.info(`Updating actor ${id} with new avatar`);
-
-        // Create asset using the createAsset method
-        const newAvatarAsset = await createAsset(avatarFile, 'actors', userId);
-
-        // Delete the old avatar asset if it exists and is different
-        if (actor.avatarId && actor.avatarId.toString() !== newAvatarAsset.id.toString()) {
-          try {
-            const oldAsset = await AssetModel.findById(actor.avatarId);
-            if (oldAsset) {
-              await oldAsset.deleteOne();
-              logger.info(`Deleted old avatar asset ${actor.avatarId} for actor ${id}`);
-            }
-          } catch (deleteError) {
-            logger.warn(`Could not delete old avatar asset ${actor.avatarId}:`, deleteError);
-          }
-        }
-
-        // Update avatar ID in actor data
-        updateData.avatarId = newAvatarAsset.id;
-      }
 
       // Handle token file if provided
       if (tokenFile) {
@@ -187,7 +163,7 @@ export class ActorService {
       }
 
       // Return with populated fields
-      const actorWithPopulation = await DocumentService.findById<IActor>(id, { populate: ['avatar', 'defaultTokenImage'] });
+      const actorWithPopulation = await DocumentService.findById<IActor>(id, { populate: ['tokenImage'] });
       if (!actorWithPopulation) {
         throw new Error('Actor not found after update');
       }
@@ -199,19 +175,17 @@ export class ActorService {
   }
 
   /**
-   * Partially update an actor with optional new avatar and token files
+   * Partially update an actor with optional new token file
    *
    * @param id - The ID of the actor to update
    * @param data - Partial data for the actor
    * @param userId - ID of the user updating the actor
-   * @param avatarFile - Optional new avatar file
    * @param tokenFile - Optional new token file
    */
   async patchActor(
     id: string,
     data: IActorPatchData,
     userId: string,
-    avatarFile?: File,
     tokenFile?: File
   ): Promise<IActor> {
     try {
@@ -224,30 +198,6 @@ export class ActorService {
         ...data,
         updatedBy: userId
       };
-
-      // Handle avatar file if provided
-      if (avatarFile) {
-        logger.info(`Updating actor ${id} with new avatar`);
-
-        // Create asset using the createAsset method
-        const newAvatarAsset = await createAsset(avatarFile, 'actors', userId);
-
-        // Delete the old avatar asset if it exists and is different
-        if (actor.avatarId && actor.avatarId.toString() !== newAvatarAsset.id.toString()) {
-          try {
-            const oldAsset = await AssetModel.findById(actor.avatarId);
-            if (oldAsset) {
-              await oldAsset.deleteOne();
-              logger.info(`Deleted old avatar asset ${actor.avatarId} for actor ${id}`);
-            }
-          } catch (deleteError) {
-            logger.warn(`Could not delete old avatar asset ${actor.avatarId}:`, deleteError);
-          }
-        }
-
-        // Update avatar ID in actor data
-        updateData.avatarId = newAvatarAsset.id;
-      }
 
       // Handle token file if provided
       if (tokenFile) {
@@ -283,7 +233,7 @@ export class ActorService {
       }
 
       // Return with populated fields
-      const actorWithPopulation = await DocumentService.findById<IActor>(id, { populate: ['avatar', 'defaultTokenImage'] });
+      const actorWithPopulation = await DocumentService.findById<IActor>(id, { populate: ['tokenImage'] });
       if (!actorWithPopulation) {
         throw new Error('Actor not found after update');
       }
@@ -294,69 +244,6 @@ export class ActorService {
     }
   }
 
-  /**
-   * Update an actor's avatar with a file
-   * @param id - The ID of the actor to update
-   * @param file - The file object
-   * @param userId - ID of the user updating the actor
-   */
-  async updateActorAvatar(id: string, file: File, userId: string): Promise<IActor> {
-    try {
-      // Get existing actor
-      const existingActor = await DocumentService.findById<IActor>(id);
-      if (!existingActor) {
-        throw new Error('Actor not found');
-      }
-
-      // Create the asset
-      const newAvatarAsset = await createAsset(file, 'actors/avatars', userId);
-
-      // Delete the old avatar asset if it exists and is different
-      if (
-        existingActor.avatarId &&
-        existingActor.avatarId.toString() !== newAvatarAsset.id.toString()
-      ) {
-        try {
-          const oldAsset = await AssetModel.findById(existingActor.avatarId);
-          if (oldAsset) {
-            await oldAsset.deleteOne();
-            logger.info(`Deleted old avatar asset ${existingActor.avatarId} for actor ${id}`);
-          }
-        } catch (deleteError) {
-          logger.warn(`Could not delete old avatar asset ${existingActor.avatarId}:`, deleteError);
-        }
-      }
-
-      // Update the actor with the new avatar ID
-      const updatedActor = await DocumentService.updateById<IActor>(
-        id,
-        {
-          avatarId: newAvatarAsset.id,
-          updatedBy: userId
-        }
-      );
-
-      if (!updatedActor) {
-        throw new Error('Actor not found after update');
-      }
-
-      // Return with populated fields
-      const actorWithPopulation = await DocumentService.findById<IActor>(id, { populate: ['avatar', 'defaultTokenImage'] });
-      if (!actorWithPopulation) {
-        throw new Error('Actor not found after update');
-      }
-
-      return actorWithPopulation;
-    } catch (error) {
-      logger.error(`Error updating actor avatar ${id}:`, error);
-      if (error instanceof Error && error.message.includes('Actor not found')) {
-        throw error;
-      }
-      throw new Error(
-        `Failed to update actor avatar: ${error instanceof Error ? error.message : String(error)}`
-      );
-    }
-  }
 
   /**
    * Update an actor's token with a file
@@ -405,7 +292,7 @@ export class ActorService {
       }
 
       // Return with populated fields
-      const actorWithPopulation = await DocumentService.findById<IActor>(id, { populate: ['avatar', 'defaultTokenImage'] });
+      const actorWithPopulation = await DocumentService.findById<IActor>(id, { populate: ['tokenImage'] });
       if (!actorWithPopulation) {
         throw new Error('Actor not found after update');
       }
@@ -441,21 +328,15 @@ export class ActorService {
         throw new Error('Actor not found');
       }
 
-      return actor.createdBy?.toString() === userId || isAdmin;
+      // Check ownerId first, fallback to createdBy for backwards compatibility
+      const ownerId = actor.ownerId || actor.createdBy;
+      return ownerId?.toString() === userId || isAdmin;
     } catch (error) {
       logger.error('Error checking user permission:', error);
       throw new Error('Failed to check user permission');
     }
   }
 
-  /**
-   * Generate an actor's avatar
-   * @param actorId - The ID of the actor
-   * @param userId - ID of the user requesting the avatar generation
-   */
-  async generateActorAvatar(actorId: string, userId: string): Promise<void> {
-    await this.scheduleImageGeneration(actorId, 'avatar', userId);
-  }
 
   /**
    * Generate an actor's token
@@ -510,7 +391,7 @@ export class ActorService {
       }
 
       // Execute the query with all conditions
-      return await DocumentService.find<IActor>(params, { populate: ['avatar', 'defaultTokenImage'] });
+      return await DocumentService.find<IActor>(params, { populate: ['tokenImage'] });
     } catch (error) {
       logger.error('Error searching actors:', error);
       throw new Error('Failed to search actors');
@@ -520,19 +401,22 @@ export class ActorService {
   /**
    * Update actor with generated image asset ID
    * @param actorId - The ID of the actor to update
-   * @param imageType - Type of image ('avatar' or 'token')
+   * @param imageType - Type of image ('token' only - avatars not supported for actors)
    * @param assetId - Asset ID of the generated image
    * @param userId - ID of the user updating the actor
    */
   async updateDocumentImage(
     actorId: string,
-    imageType: 'avatar' | 'token',
+    imageType: 'token',
     assetId: string,
     userId: string
   ): Promise<void> {
-    const field = imageType === 'avatar' ? 'avatarId' : 'tokenImageId';
+    if (imageType !== 'token') {
+      throw new Error('Actors only support token images, not avatars');
+    }
+    
     await DocumentService.updateById<IActor>(actorId, {
-      [field]: assetId,
+      tokenImageId: assetId,
       updatedBy: userId
     });
     logger.info(`Updated actor ${actorId} with ${imageType} asset ${assetId}`);
@@ -541,16 +425,20 @@ export class ActorService {
   /**
    * Schedule image generation for an actor
    * @param actorId - The ID of the actor
-   * @param imageType - Type of image to generate
+   * @param imageType - Type of image to generate ('token' only - avatars not supported for actors)
    * @param userId - ID of the user requesting generation
    * @param customPrompt - Optional custom prompt
    */
   async scheduleImageGeneration(
     actorId: string,
-    imageType: 'avatar' | 'token',
+    imageType: 'token',
     userId: string,
     customPrompt?: string
   ): Promise<void> {
+    if (imageType !== 'token') {
+      throw new Error('Actors only support token image generation, not avatars');
+    }
+    
     const { DOCUMENT_IMAGE_GENERATION_JOB } = await import('../../documents/jobs/document-image.job.mjs');
     
     await backgroundJobService.scheduleJob('now', DOCUMENT_IMAGE_GENERATION_JOB, {

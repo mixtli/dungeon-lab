@@ -8,6 +8,7 @@ import {
 } from '@dungeon-lab/shared/types/api/index.mjs';
 import { IGameSession, IGameSessionPatchData } from '@dungeon-lab/shared/types/index.mjs';
 import { z } from 'zod';
+import { getSocketServer } from '../../../websocket/socket-server.mjs';
 
 export class GameSessionController {
   constructor(private gameSessionService: GameSessionService) {}
@@ -194,5 +195,168 @@ export class GameSessionController {
 
     await this.gameSessionService.deleteGameSession(req.params.id);
     return res.status(204).send();
+  };
+
+  startGameSession = async (
+    req: Request<{ id: string }>,
+    res: Response<BaseAPIResponse<IGameSession>>
+  ): Promise<Response<BaseAPIResponse<IGameSession>> | void> => {
+    try {
+      const sessionId = req.params.id;
+      const userId = req.session.user.id;
+
+      // Check if user is the game master
+      const session = await this.gameSessionService.getGameSession(sessionId);
+      if (session.gameMasterId !== userId && !req.session.user.isAdmin) {
+        return res.status(403).json({
+          success: false,
+          data: null,
+          error: 'Only the game master can start sessions'
+        });
+      }
+
+      const updatedSession = await this.gameSessionService.startSession(sessionId, userId);
+      
+      return res.json({
+        success: true,
+        data: updatedSession
+      });
+    } catch (error) {
+      console.error('Error in startGameSession controller:', error);
+      return res.status(500).json({
+        success: false,
+        data: null,
+        error: error instanceof Error ? error.message : 'Failed to start game session'
+      });
+    }
+  };
+
+  pauseGameSession = async (
+    req: Request<{ id: string }>,
+    res: Response<BaseAPIResponse<IGameSession>>
+  ): Promise<Response<BaseAPIResponse<IGameSession>> | void> => {
+    try {
+      const sessionId = req.params.id;
+      const userId = req.session.user.id;
+
+      // Check if user is the game master
+      const session = await this.gameSessionService.getGameSession(sessionId);
+      if (session.gameMasterId !== userId && !req.session.user.isAdmin) {
+        return res.status(403).json({
+          success: false,
+          data: null,
+          error: 'Only the game master can pause sessions'
+        });
+      }
+
+      const updatedSession = await this.gameSessionService.pauseSession(sessionId, userId);
+      
+      // Emit WebSocket event to all session participants
+      const socketServer = getSocketServer();
+      const pauseEvent = {
+        sessionId,
+        pausedBy: userId,
+        timestamp: Date.now()
+      };
+      socketServer.socketIo.to(`session:${sessionId}`).emit('gameSession:paused', pauseEvent);
+      
+      return res.json({
+        success: true,
+        data: updatedSession
+      });
+    } catch (error) {
+      console.error('Error in pauseGameSession controller:', error);
+      return res.status(500).json({
+        success: false,
+        data: null,
+        error: error instanceof Error ? error.message : 'Failed to pause game session'
+      });
+    }
+  };
+
+  resumeGameSession = async (
+    req: Request<{ id: string }>,
+    res: Response<BaseAPIResponse<IGameSession>>
+  ): Promise<Response<BaseAPIResponse<IGameSession>> | void> => {
+    try {
+      const sessionId = req.params.id;
+      const userId = req.session.user.id;
+
+      // Check if user is the game master
+      const session = await this.gameSessionService.getGameSession(sessionId);
+      if (session.gameMasterId !== userId && !req.session.user.isAdmin) {
+        return res.status(403).json({
+          success: false,
+          data: null,
+          error: 'Only the game master can resume sessions'
+        });
+      }
+
+      const updatedSession = await this.gameSessionService.resumeSession(sessionId, userId);
+      
+      // Emit WebSocket event to all session participants
+      const socketServer = getSocketServer();
+      const resumeEvent = {
+        sessionId,
+        resumedBy: userId,
+        timestamp: Date.now()
+      };
+      socketServer.socketIo.to(`session:${sessionId}`).emit('gameSession:resumed', resumeEvent);
+      
+      return res.json({
+        success: true,
+        data: updatedSession
+      });
+    } catch (error) {
+      console.error('Error in resumeGameSession controller:', error);
+      return res.status(500).json({
+        success: false,
+        data: null,
+        error: error instanceof Error ? error.message : 'Failed to resume game session'
+      });
+    }
+  };
+
+  endGameSession = async (
+    req: Request<{ id: string }>,
+    res: Response<BaseAPIResponse<IGameSession>>
+  ): Promise<Response<BaseAPIResponse<IGameSession>> | void> => {
+    try {
+      const sessionId = req.params.id;
+      const userId = req.session.user.id;
+
+      // Check if user is the game master
+      const session = await this.gameSessionService.getGameSession(sessionId);
+      if (session.gameMasterId !== userId && !req.session.user.isAdmin) {
+        return res.status(403).json({
+          success: false,
+          data: null,
+          error: 'Only the game master can end sessions'
+        });
+      }
+
+      const updatedSession = await this.gameSessionService.endSession(sessionId, userId);
+      
+      // Emit WebSocket event to all session participants
+      const socketServer = getSocketServer();
+      const endEvent = {
+        sessionId,
+        endedBy: userId,
+        timestamp: Date.now()
+      };
+      socketServer.socketIo.to(`session:${sessionId}`).emit('gameSession:ended', endEvent);
+      
+      return res.json({
+        success: true,
+        data: updatedSession
+      });
+    } catch (error) {
+      console.error('Error in endGameSession controller:', error);
+      return res.status(500).json({
+        success: false,
+        data: null,
+        error: error instanceof Error ? error.message : 'Failed to end game session'
+      });
+    }
   };
 }

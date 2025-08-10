@@ -29,6 +29,15 @@ I prefer brutal honesty over and realistic takes instead of being lead on paths 
   - etc.
 - The MCP server handles all browser automation needs
 
+### **DO NOT WRITE CODE FOR BACKWARD COMPATABILITY** 
+- This is a greenfield project
+- It is not deployed to production
+- We can re-initialize the database from scratch
+- Do not write migrations for existing data unless I ask you to
+- Do not leave behind legacy code
+- Do not add code for backward compatability
+- If you see legacy code while you're reading the source, let me know and suggest removing it.
+
 ## Project Overview
 
 Dungeon Lab is a Virtual Table Top (VTT) system for Table Top Role Playing Games (TTRPGs) with an extensible plugin architecture to support multiple game systems. The project is built as a modern web application with real-time collaboration features.

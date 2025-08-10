@@ -223,9 +223,6 @@ router.patch(
         404: {
           description: 'Encounter not found'
         },
-        409: {
-          description: 'Version conflict'
-        },
         500: {
           description: 'Internal server error'
         }

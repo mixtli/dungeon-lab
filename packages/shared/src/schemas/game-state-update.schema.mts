@@ -29,7 +29,7 @@ export const stateOperationSchema = z.object({
  */
 export const stateUpdateSchema = z.object({
   id: z.string(),                             // Unique ID for this update request
-  sessionId: z.string(),                      // Game session this update applies to
+  gameStateId: z.string(),                    // GameState document ID this update applies to
   version: z.string(),                        // Current state version (for optimistic concurrency)
   operations: z.array(stateOperationSchema).min(1), // Array of operations to apply
   timestamp: z.number(),                      // Client timestamp when update was created
@@ -48,7 +48,7 @@ export const stateUpdateResponseSchema = z.object({
       'VERSION_CONFLICT',                      // Client version doesn't match server
       'VALIDATION_ERROR',                      // State operation failed validation
       'TRANSACTION_FAILED',                    // Database transaction failed
-      'SESSION_NOT_FOUND',                     // Game session doesn't exist
+      'GAMESTATE_NOT_FOUND',                   // Game state doesn't exist
       'PERMISSION_DENIED'                      // User lacks permission for this operation
     ]),
     message: z.string(),
@@ -62,7 +62,7 @@ export const stateUpdateResponseSchema = z.object({
  * Sent to all clients when server successfully applies an update
  */
 export const stateUpdateBroadcastSchema = z.object({
-  sessionId: z.string(),
+  gameStateId: z.string(),                     // GameState document ID that was updated
   operations: z.array(stateOperationSchema),
   newVersion: z.string(),
   expectedHash: z.string(),                    // Hash clients should have after applying operations

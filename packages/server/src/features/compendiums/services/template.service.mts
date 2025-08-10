@@ -48,12 +48,13 @@ export class TemplateService {
           // Strip out problematic fields from content
           const { id: _actorId, ...cleanActorContent } = content;
 
-          return await ActorDocumentModel.create({
+          const actor = await ActorDocumentModel.create({
             ...cleanActorContent,
             ...overrides,
             // Ownership rules for actors
             ...(campaignId && { campaignId }), // Optional - actors can be global for auto-creation
             createdBy: userId,                   // Required - actors owned by users
+            ownerId: userId,                     // Set ownerId for new actors
             createdAt: new Date(),
             updatedBy: userId,
             // Source tracking
@@ -62,6 +63,10 @@ export class TemplateService {
             sourceEntryId: compendiumEntry.id,
             sourceVersion: compendiumEntry.contentVersion
           });
+          
+          // Populate tokenImage for the returned actor
+          await actor.populate('tokenImage');
+          return actor;
         }
 
         case 'character': {
@@ -95,6 +100,7 @@ export class TemplateService {
             ...(campaignId && { campaignId }), // Optional - characters can exist without campaigns
             compendiumId: undefined,             // Never from compendium - characters are player-created
             createdBy: userId,                   // Required - characters owned by users
+            ownerId: userId,                     // Set ownerId for new characters
             createdAt: new Date(),
             updatedBy: userId,
             // Source tracking with compendiumEntryId
@@ -180,6 +186,7 @@ export class TemplateService {
             const newDocumentData = {
               ...documentData,
               createdBy: userId,     // Track who first instantiated it
+              ownerId: userId,       // Set ownerId for new VTTDocuments
               createdAt: new Date()
             };
             return await VTTDocumentModel.create(newDocumentData);

@@ -21,14 +21,12 @@ const route = useRoute();
 const isLoading = ref(true);
 const error = ref<string | null>(null);
 const isSubmitting = ref(false);
-const isGeneratingAvatar = ref(false);
 const isGeneratingToken = ref(false);
 
-// Basic info form data
+// Basic info form data (actors only have tokens, not avatars)
 const basicInfo = ref({
   name: '',
   description: '',
-  avatarImage: null as File | UploadedImage | null,
   tokenImage: null as File | UploadedImage | null,
 });
 
@@ -47,18 +45,10 @@ onMounted(async () => {
       return;
     }
 
-    // Set form data
+    // Set form data (actors only have token images)
     basicInfo.value = {
       name: actor.name || '',
       description: actor.description || '',
-      avatarImage: actor.avatarId
-        ? {
-            url: (actor.avatarId as unknown as IAsset).url,
-            path: (actor.avatarId as unknown as IAsset).path,
-            size: (actor.avatarId as unknown as IAsset).size,
-            type: (actor.avatarId as unknown as IAsset).type,
-          }
-        : null,
       tokenImage: actor.tokenImageId
         ? {
             url: (actor.tokenImageId as unknown as IAsset).url,
@@ -80,52 +70,32 @@ onMounted(async () => {
   }
 });
 
-// Generate new image using AI
-async function generateNewImage(type: 'avatar' | 'token') {
+// Generate new token image using AI (actors only support tokens, not avatars)
+async function generateNewTokenImage() {
   const actorId = route.params.id as string;
-  if (type === 'avatar') {
-    isGeneratingAvatar.value = true;
-  } else {
-    isGeneratingToken.value = true;
-  }
+  isGeneratingToken.value = true;
   
   try {
     error.value = null;
     
-    if (type === 'avatar') {
-      const updatedActor = await actorClient.generateActorAvatar(actorId);
-      if (updatedActor && updatedActor.avatarId) {
-        basicInfo.value.avatarImage = {
-          url: (updatedActor.avatarId as unknown as IAsset).url,
-          path: (updatedActor.avatarId as unknown as IAsset).path,
-          size: (updatedActor.avatarId as unknown as IAsset).size,
-          type: (updatedActor.avatarId as unknown as IAsset).type,
-        };
-      }
-    } else {
-      const updatedActor = await actorClient.generateActorToken(actorId);
-      if (updatedActor && updatedActor.tokenImageId) {
-        basicInfo.value.tokenImage = {
-          url: (updatedActor.tokenImageId as unknown as IAsset).url,
-          path: (updatedActor.tokenImageId as unknown as IAsset).path,
-          size: (updatedActor.tokenImageId as unknown as IAsset).size,
-          type: (updatedActor.tokenImageId as unknown as IAsset).type,
-        };
-      }
+    const updatedActor = await actorClient.generateActorToken(actorId);
+    if (updatedActor && updatedActor.tokenImageId) {
+      basicInfo.value.tokenImage = {
+        url: (updatedActor.tokenImageId as unknown as IAsset).url,
+        path: (updatedActor.tokenImageId as unknown as IAsset).path,
+        size: (updatedActor.tokenImageId as unknown as IAsset).size,
+        type: (updatedActor.tokenImageId as unknown as IAsset).type,
+      };
     }
   } catch (err) {
-    console.error(`Failed to generate ${type}:`, err);
+    console.error('Failed to generate token:', err);
     if (err instanceof Error) {
-      error.value = `Error generating ${type}: ${err.message}`;
+      error.value = `Error generating token: ${err.message}`;
     } else {
-      error.value = `An unknown error occurred while generating ${type}`;
+      error.value = 'An unknown error occurred while generating token';
     }
   } finally {
-    if (type === 'avatar') {
-      isGeneratingAvatar.value = false;
-    } else {
-      isGeneratingToken.value = false;
-    }
+    isGeneratingToken.value = false;
   }
 }
 
@@ -136,12 +106,11 @@ async function handleSubmit(event: Event) {
     isSubmitting.value = true;
     const actorId = route.params.id as string;
 
-    // Prepare the update request
+    // Prepare the update request (actors only support tokens, not avatars)
     const updateData = {
       name: basicInfo.value.name,
       description: basicInfo.value.description,
-      avatar: basicInfo.value.avatarImage instanceof File ? basicInfo.value.avatarImage : undefined,
-      token: basicInfo.value.tokenImage instanceof File ? basicInfo.value.tokenImage : undefined,
+      tokenImage: basicInfo.value.tokenImage instanceof File ? basicInfo.value.tokenImage : undefined,
       // Add required fields from the existing actor
       userData: {},
       pluginId: 'dnd-5e-2024', // Hardcode for now - ideally would get from the actual actor
@@ -172,7 +141,7 @@ async function handleSubmit(event: Event) {
 <template>
   <div class="max-w-3xl mx-auto p-6">
     <div class="bg-white rounded-lg shadow-md p-6">
-      <h1 class="text-2xl font-bold text-gray-900 mb-6">Edit Character</h1>
+      <h1 class="text-2xl font-bold text-gray-900 mb-6">Edit Actor</h1>
 
       <!-- Loading State -->
       <div v-if="isLoading" class="flex justify-center items-center p-8">
@@ -207,7 +176,7 @@ async function handleSubmit(event: Event) {
       <form v-else @submit.prevent="handleSubmit" class="space-y-6" enctype="multipart/form-data">
         <!-- Name -->
         <div class="form-group">
-          <label for="name" class="block text-sm font-medium text-gray-700">Character Name</label>
+          <label for="name" class="block text-sm font-medium text-gray-700">Actor Name</label>
           <input
             type="text"
             id="name"
@@ -230,127 +199,66 @@ async function handleSubmit(event: Event) {
           ></textarea>
         </div>
 
-        <!-- Images -->
+        <!-- Token Image (Actors only support tokens, not avatars) -->
         <div class="space-y-4">
-          <h3 class="text-lg font-medium text-gray-900">Character Images</h3>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div class="form-group space-y-4">
-              <label class="block text-sm font-medium text-gray-700">Avatar</label>
-              <ImageUpload v-model="basicInfo.avatarImage" type="avatar" />
-              <div class="flex flex-col space-y-2">
-                <div v-if="basicInfo.avatarImage" class="text-xs text-gray-500">
-                  {{
-                    typeof basicInfo.avatarImage === 'object' &&
-                    'lastModified' in basicInfo.avatarImage
-                      ? 'New file selected'
-                      : 'Current image'
-                  }}
-                </div>
-                <button
-                  type="button"
-                  @click="generateNewImage('avatar')"
-                  :disabled="isGeneratingAvatar"
-                  class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-                >
-                  <svg
-                    v-if="isGeneratingAvatar"
-                    class="animate-spin -ml-1 mr-2 h-5 w-5 text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      class="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      stroke-width="4"
-                    ></circle>
-                    <path
-                      class="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                  <svg
-                    v-else
-                    class="-ml-1 mr-2 h-5 w-5 text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke-width="1.5"
-                    stroke="currentColor"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z"
-                    />
-                  </svg>
-                  {{ isGeneratingAvatar ? 'Generating Avatar...' : 'Generate New Avatar with AI' }}
-                </button>
+          <h3 class="text-lg font-medium text-gray-900">Actor Token</h3>
+          
+          <div class="form-group space-y-4">
+            <label class="block text-sm font-medium text-gray-700">Token Image</label>
+            <ImageUpload v-model="basicInfo.tokenImage" type="token" />
+            <div class="flex flex-col space-y-2">
+              <div v-if="basicInfo.tokenImage" class="text-xs text-gray-500">
+                {{
+                  typeof basicInfo.tokenImage === 'object' &&
+                  'lastModified' in basicInfo.tokenImage
+                    ? 'New file selected'
+                    : 'Current image'
+                }}
               </div>
-            </div>
-
-            <div class="form-group space-y-4">
-              <label class="block text-sm font-medium text-gray-700">Token</label>
-              <ImageUpload v-model="basicInfo.tokenImage" type="token" />
-              <div class="flex flex-col space-y-2">
-                <div v-if="basicInfo.tokenImage" class="text-xs text-gray-500">
-                  {{
-                    typeof basicInfo.tokenImage === 'object' &&
-                    'lastModified' in basicInfo.tokenImage
-                      ? 'New file selected'
-                      : 'Current image'
-                  }}
-                </div>
-                <button
-                  type="button"
-                  @click="generateNewImage('token')"
-                  :disabled="isGeneratingToken"
-                  class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+              <button
+                type="button"
+                @click="generateNewTokenImage"
+                :disabled="isGeneratingToken"
+                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+              >
+                <svg
+                  v-if="isGeneratingToken"
+                  class="animate-spin -ml-1 mr-2 h-5 w-5 text-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
                 >
-                  <svg
-                    v-if="isGeneratingToken"
-                    class="animate-spin -ml-1 mr-2 h-5 w-5 text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      class="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      stroke-width="4"
-                    ></circle>
-                    <path
-                      class="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                  <svg
-                    v-else
-                    class="-ml-1 mr-2 h-5 w-5 text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke-width="1.5"
+                  <circle
+                    class="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
                     stroke="currentColor"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z"
-                    />
-                  </svg>
-                  {{ isGeneratingToken ? 'Generating Token...' : 'Generate New Token with AI' }}
-                </button>
-              </div>
+                    stroke-width="4"
+                  ></circle>
+                  <path
+                    class="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+                <svg
+                  v-else
+                  class="-ml-1 mr-2 h-5 w-5 text-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke-width="1.5"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z"
+                  />
+                </svg>
+                {{ isGeneratingToken ? 'Generating Token...' : 'Generate New Token with AI' }}
+              </button>
             </div>
           </div>
         </div>

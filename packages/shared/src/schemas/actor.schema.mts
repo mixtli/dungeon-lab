@@ -26,11 +26,11 @@ export const actorCreateSchema = actorSchema
     slug: actorSchema.shape.slug.optional(),
     // Allow both asset IDs (from web client) and file uploads (from API clients)
     tokenImageId: actorSchema.shape.tokenImageId.optional(),  // Keep asset ID field
-    token: z.instanceof(File).optional()    // Optional file upload
+    tokenImage: z.instanceof(File).optional()    // Optional file upload
   });
 
 export const actorSchemaWithVirtuals = actorSchema.extend({
-  token: assetSchema.optional()
+  tokenImage: assetSchema.nullable().optional()
 });
 
 export const actorPatchSchema = actorSchema.deepPartial();

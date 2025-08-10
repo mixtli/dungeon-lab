@@ -37,8 +37,8 @@ export const importJobSchema = z.object({
   progress: importProgressSchema,
   compendiumId: z.string().optional(),
   error: z.string().optional(),
-  createdAt: z.date(),
-  updatedAt: z.date()
+  createdAt: z.string(),
+  updatedAt: z.string()
 });
 
 export const validationResultSchema = z.object({

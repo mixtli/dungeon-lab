@@ -43,7 +43,7 @@ export function createMongoSchema<T>(
     },
   });
   baseMongoSchema.virtual('id').get(function() {
-    return this._id!.toString();
+    return this._id?.toString();
   })
   baseMongoSchema.virtual('id').set(function(v: string) {
     this._id = new ObjectId(v);

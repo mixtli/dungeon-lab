@@ -21,13 +21,13 @@ export const encounterStartedSchema = z.object({
   sessionId: z.string(),
   encounterId: z.string(),
   encounter: encounterSchema,
-  timestamp: z.date().default(() => new Date())
+  timestamp: z.string().default(() => new Date().toISOString())
 });
 
 export const encounterStoppedSchema = z.object({
   sessionId: z.string(),
   encounterId: z.string(),
-  timestamp: z.date().default(() => new Date())
+  timestamp: z.string().default(() => new Date().toISOString())
 });
 
 export const encounterPauseSchema = z.object({
@@ -39,7 +39,7 @@ export const encounterPausedSchema = z.object({
   encounterId: z.string(),
   status: z.literal('paused'),
   userId: z.string(),
-  timestamp: z.date().default(() => new Date())
+  timestamp: z.string().default(() => new Date().toISOString())
 });
 
 export const encounterEndSchema = z.object({
@@ -52,7 +52,7 @@ export const encounterEndedSchema = z.object({
   encounterId: z.string(),
   status: z.literal('completed'),
   userId: z.string(),
-  timestamp: z.date().default(() => new Date())
+  timestamp: z.string().default(() => new Date().toISOString())
 });
 
 // ============================================================================
@@ -64,7 +64,7 @@ export const encounterErrorSchema = z.object({
   error: z.string(),
   code: z.string().optional(),
   details: z.record(z.string(), z.unknown()).optional(),
-  timestamp: z.date().default(() => new Date())
+  timestamp: z.string().default(() => new Date().toISOString())
 });
 
 // ============================================================================

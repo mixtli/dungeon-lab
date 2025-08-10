@@ -12,7 +12,6 @@ import { ObjectId } from 'mongodb';
 //export interface GameSessionDocument extends Omit<IGameSession, 'id'>, BaseDocument {}
 
 const gameSessionSchemaMongoose = gameSessionSchema
-  .omit({ gameState: true }) // Exclude gameState from Zod validation
   .merge(baseMongooseZodSchema).extend({
     campaignId: zId('Campaign'),
     gameMasterId: zId('User'),
@@ -55,13 +54,7 @@ mongooseSchema.path('participantIds').set(function (value: (ObjectId | string)[]
   });
 });
 
-// Add gameState field manually to avoid Zod validation issues
-mongooseSchema.add({
-  gameState: {
-    type: mongoose.Schema.Types.Mixed,
-    default: null
-  }
-});
+// GameState is now handled by a separate GameState model
 
 mongooseSchema.virtual('campaign', {
   ref: 'Campaign',
@@ -84,10 +77,8 @@ mongooseSchema.virtual('participants', {
   justOne: false
 });
 
-// Add indexes for common queries and new fields
+// Add indexes for common queries
 mongooseSchema.index({ campaignId: 1, status: 1 });
-mongooseSchema.index({ gameStateVersion: 1 });
-mongooseSchema.index({ lastStateUpdate: 1 });
 
 /**
  * GameSession model

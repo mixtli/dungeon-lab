@@ -183,6 +183,111 @@ router.delete(
   gameSessionController.deleteGameSession
 );
 
+// Session state management endpoints
+router.post(
+  '/:id/start',
+  authenticate,
+  oapi.validPath(
+    createPathSchema({
+      description: 'Start a scheduled game session',
+      requestParams: {
+        path: z.object({ id: z.string() })
+      },
+      responses: {
+        200: {
+          description: 'Game session started successfully',
+          content: {
+            'application/json': {
+              schema: getGameSessionResponseSchema.openapi({
+                description: 'Start game session response'
+              })
+            }
+          }
+        }
+      }
+    })
+  ),
+  gameSessionController.startGameSession
+);
+
+router.post(
+  '/:id/pause',
+  authenticate,
+  oapi.validPath(
+    createPathSchema({
+      description: 'Pause an active game session',
+      requestParams: {
+        path: z.object({ id: z.string() })
+      },
+      responses: {
+        200: {
+          description: 'Game session paused successfully',
+          content: {
+            'application/json': {
+              schema: getGameSessionResponseSchema.openapi({
+                description: 'Pause game session response'
+              })
+            }
+          }
+        }
+      }
+    })
+  ),
+  gameSessionController.pauseGameSession
+);
+
+router.post(
+  '/:id/resume',
+  authenticate,
+  oapi.validPath(
+    createPathSchema({
+      description: 'Resume a paused game session',
+      requestParams: {
+        path: z.object({ id: z.string() })
+      },
+      responses: {
+        200: {
+          description: 'Game session resumed successfully',
+          content: {
+            'application/json': {
+              schema: getGameSessionResponseSchema.openapi({
+                description: 'Resume game session response'
+              })
+            }
+          }
+        }
+      }
+    })
+  ),
+  gameSessionController.resumeGameSession
+);
+
+router.post(
+  '/:id/end',
+  authenticate,
+  oapi.validPath(
+    createPathSchema({
+      description: 'End an active or paused game session',
+      requestParams: {
+        path: z.object({ id: z.string() })
+      },
+      responses: {
+        200: {
+          description: 'Game session ended successfully',
+          content: {
+            'application/json': {
+              schema: getGameSessionResponseSchema.openapi({
+                description: 'End game session response'
+              })
+            }
+          }
+        }
+      }
+    })
+  ),
+  gameSessionController.endGameSession
+);
+
 // Add route for getting sessions by campaign ID using query parameter
 router.get(
   '/campaign',

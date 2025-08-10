@@ -88,6 +88,9 @@ export const mapSchema = baseSchema.extend({
   // Direct asset references using string IDs (will be ObjectId in server models via zId)
   thumbnailId: z.string().optional(),
   imageId: z.string().optional(),
+  
+  // Owner reference
+  ownerId: z.string().optional(), // Owner of the map (usually the game master)
 
   // Grid information
   //gridColumns: z.coerce.number().int().positive(),
@@ -104,8 +107,8 @@ export const mapSchema = baseSchema.extend({
 });
 
 export const mapSchemaWithVirtuals = mapSchema.extend({
-  thumbnail: assetSchema.optional(),
-  image: assetSchema.optional()
+  thumbnail: assetSchema.nullable().optional(),
+  image: assetSchema.nullable().optional()
 });
 
 // Schema for map creation that includes an optional image field for validation

@@ -41,9 +41,13 @@ export const assetSchema = z.object({
   // Will be converted to ObjectId with zId('User') on the server
   createdBy: z.string(),
 
+  // Reference to the user who owns this asset
+  // Will be converted to ObjectId with zId('User') on the server
+  ownerId: z.string().optional(),
+
   // Created and updated timestamps (handled by Mongoose)
-  createdAt: z.date().optional(),
-  updatedAt: z.date().optional()
+  createdAt: z.string().optional(),
+  updatedAt: z.string().optional()
 });
 
 /**

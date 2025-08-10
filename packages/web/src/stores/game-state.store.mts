@@ -204,7 +204,7 @@ export const useGameStateStore = defineStore(
 
         const queuedUpdate: StateUpdate = {
           id: generateUpdateId(),
-          sessionId: currentSessionId,
+          gameStateId: gameState.value!.id,
           version: gameStateVersion.value!,
           operations,
           timestamp: Date.now(),
@@ -243,7 +243,7 @@ export const useGameStateStore = defineStore(
 
         const update: StateUpdate = {
           id: generateUpdateId(),
-          sessionId: currentSessionId,
+          gameStateId: gameState.value!.id,
           version: gameStateVersion.value!,
           operations,
           timestamp: Date.now(),
@@ -630,15 +630,15 @@ export const useGameStateStore = defineStore(
       // Token images are specifically for map/encounter display
       let tokenImage: string | undefined;
       
-      // Documents with virtuals include token, avatar, and image asset objects
+      // Documents with virtuals include tokenImage, avatar, and image asset objects
       const documentWithAssets = document as {
-        token?: { url: string };
+        tokenImage?: { url: string };
         avatar?: { url: string };
         image?: { url: string };
       };
       
-      if (documentWithAssets.token?.url) {
-        tokenImage = transformAssetUrl(documentWithAssets.token.url);
+      if (documentWithAssets.tokenImage?.url) {
+        tokenImage = transformAssetUrl(documentWithAssets.tokenImage.url);
       } else if (documentWithAssets.avatar?.url) {
         tokenImage = transformAssetUrl(documentWithAssets.avatar.url);
       } else if (documentWithAssets.image?.url) {
@@ -646,7 +646,7 @@ export const useGameStateStore = defineStore(
       }
 
       if (!tokenImage) {
-        throw new Error('Document must have a token image URL (avatar.url, token.url, or image.url)');
+        throw new Error('Document must have a token image URL (tokenImage.url, avatar.url, or image.url)');
       }
 
       // Determine token size from document plugin data

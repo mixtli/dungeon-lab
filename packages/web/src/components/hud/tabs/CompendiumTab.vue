@@ -354,8 +354,8 @@ function getEntryImageUrl(entry: ICompendiumEntry): string | null {
   if (entry.content?.avatar?.url) {
     return transformAssetUrl(entry.content.avatar.url);
   }
-  if (entry.content?.token?.url) {
-    return transformAssetUrl(entry.content.token.url);
+  if (entry.content?.tokenImage?.url) {
+    return transformAssetUrl(entry.content.tokenImage.url);
   }
   if (entry.content?.image?.url) {
     return transformAssetUrl(entry.content.image.url);

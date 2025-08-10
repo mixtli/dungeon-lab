@@ -22,6 +22,8 @@ export const campaignSchema = baseSchema.extend({
   pluginData: z.record(z.string(), z.unknown()).default({}),
   
   gameMasterId: z.string().optional(), // This is the User ID of the game master.
+  gameStateId: z.string().optional(), // Reference to the campaign's GameState
+  ownerId: z.string().optional(), // Owner of the campaign (usually the game master)
   status: campaignStatusSchema.default('active'),
   setting: z.string().optional(),
   startDate: z.string().default(new Date().toISOString())
@@ -36,6 +38,7 @@ export const campaignCreateSchema = campaignSchema.omit({
 export const campaignWithVirtualsSchema = campaignSchema.extend({
   characters: z.array(actorSchema).default([]),
   gameMaster: userSchema.optional(),
+  gameState: z.unknown().optional(), // GameState will be populated at runtime
 });
 
 export const campaignPatchSchema = campaignSchema.deepPartial();

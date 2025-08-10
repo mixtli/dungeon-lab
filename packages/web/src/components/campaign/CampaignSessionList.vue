@@ -102,11 +102,11 @@ async function handleDeleteSession(sessionId: string, sessionName: string) {
   }
 }
 
-// Update session status
-async function handleUpdateSessionStatus(sessionId: string, status: SessionStatus) {
+// Start session
+async function handleStartSession(sessionId: string) {
   try {
     loading.value = true;
-    const updatedSession = await gameSessionClient.updateGameSessionStatus(sessionId, status);
+    const updatedSession = await gameSessionClient.startGameSession(sessionId);
     
     // Update the session in the array
     const index = sessions.value.findIndex(s => s.id === sessionId);
@@ -114,7 +114,61 @@ async function handleUpdateSessionStatus(sessionId: string, status: SessionStatu
       sessions.value[index] = updatedSession;
     }
   } catch (err: unknown) {
-    error.value = err instanceof Error ? err.message : 'Failed to update session status';
+    error.value = err instanceof Error ? err.message : 'Failed to start session';
+  } finally {
+    loading.value = false;
+  }
+}
+
+// Pause session
+async function handlePauseSession(sessionId: string) {
+  try {
+    loading.value = true;
+    const updatedSession = await gameSessionClient.pauseGameSession(sessionId);
+    
+    // Update the session in the array
+    const index = sessions.value.findIndex(s => s.id === sessionId);
+    if (index !== -1 && updatedSession) {
+      sessions.value[index] = updatedSession;
+    }
+  } catch (err: unknown) {
+    error.value = err instanceof Error ? err.message : 'Failed to pause session';
+  } finally {
+    loading.value = false;
+  }
+}
+
+// Resume session
+async function handleResumeSession(sessionId: string) {
+  try {
+    loading.value = true;
+    const updatedSession = await gameSessionClient.resumeGameSession(sessionId);
+    
+    // Update the session in the array
+    const index = sessions.value.findIndex(s => s.id === sessionId);
+    if (index !== -1 && updatedSession) {
+      sessions.value[index] = updatedSession;
+    }
+  } catch (err: unknown) {
+    error.value = err instanceof Error ? err.message : 'Failed to resume session';
+  } finally {
+    loading.value = false;
+  }
+}
+
+// End session
+async function handleEndSession(sessionId: string) {
+  try {
+    loading.value = true;
+    const updatedSession = await gameSessionClient.endGameSession(sessionId);
+    
+    // Update the session in the array
+    const index = sessions.value.findIndex(s => s.id === sessionId);
+    if (index !== -1 && updatedSession) {
+      sessions.value[index] = updatedSession;
+    }
+  } catch (err: unknown) {
+    error.value = err instanceof Error ? err.message : 'Failed to end session';
   } finally {
     loading.value = false;
   }
@@ -202,7 +256,7 @@ defineExpose({
                 </button>
                 <button
                   v-if="isGameMaster(session)"
-                  @click="handleUpdateSessionStatus(session.id!, 'paused')"
+                  @click="handlePauseSession(session.id!)"
                   class="inline-flex items-center p-2 rounded-md shadow-sm text-accent-700 hover:bg-accent-100 focus:outline-none transition-all duration-200"
                   title="Pause Session"
                 >
@@ -210,7 +264,7 @@ defineExpose({
                 </button>
                 <button
                   v-if="isGameMaster(session)"
-                  @click="handleUpdateSessionStatus(session.id!, 'ended')"
+                  @click="handleEndSession(session.id!)"
                   class="inline-flex items-center p-2 rounded-md shadow-sm text-error-700 hover:bg-error-100 focus:outline-none transition-all duration-200"
                   title="End Session"
                 >
@@ -253,7 +307,7 @@ defineExpose({
               <div class="flex space-x-2">
                 <button
                   v-if="isGameMaster(session) && !activeSessions.length"
-                  @click="handleUpdateSessionStatus(session.id!, 'active')"
+                  @click="handleStartSession(session.id!)"
                   class="btn btn-success text-sm shadow-lg"
                 >
                   🚀 Start Session
@@ -304,14 +358,14 @@ defineExpose({
               <div class="flex space-x-2">
                 <button
                   v-if="isGameMaster(session) && !activeSessions.length"
-                  @click="handleUpdateSessionStatus(session.id!, 'active')"
+                  @click="handleResumeSession(session.id!)"
                   class="btn btn-success text-sm shadow-lg"
                 >
                   ▶️ Resume Session
                 </button>
                 <button
                   v-if="isGameMaster(session)"
-                  @click="handleUpdateSessionStatus(session.id!, 'ended')"
+                  @click="handleEndSession(session.id!)"
                   class="inline-flex items-center p-2 rounded-md shadow-sm text-error-700 hover:bg-error-100 focus:outline-none transition-all duration-200"
                   title="End Session"
                 >

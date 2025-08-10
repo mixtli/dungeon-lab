@@ -139,8 +139,7 @@ export class EncounterService {
           currentRound: 1,
           isActive: false
         },
-        effects: [],
-        version: 1
+        effects: []
       };
 
       const encounter = new EncounterModel(encounterData);
@@ -183,31 +182,20 @@ export class EncounterService {
         updatedBy: userObjectId
       };
 
-      // Handle optimistic locking if version is provided
-      const query: Record<string, unknown> = { _id: encounterId };
-      if (data.version) {
-        query.version = data.version;
-        updateData.version = data.version + 1;
-      }
-
-      const updatedEncounter = await EncounterModel.findOneAndUpdate(
-        query,
-        updateData,
+      const updatedEncounter = await EncounterModel.findByIdAndUpdate(
+        encounterId, 
+        updateData, 
         { new: true }
       ).exec();
-      //const updatedEncounter = await EncounterModel.findByIdAndUpdate(encounterId, updateData, { new: true }).exec();
 
       if (!updatedEncounter) {
-        if (data.version) {
-          throw new Error('Version conflict');
-        }
         throw new Error('Encounter not found');
       }
 
       return updatedEncounter;
     } catch (error) {
       if (error instanceof Error && 
-          ['Encounter not found', 'Access denied', 'Version conflict'].includes(error.message)) {
+          ['Encounter not found', 'Access denied'].includes(error.message)) {
         throw error;
       }
       logger.error('Error updating encounter:', error);
@@ -506,7 +494,7 @@ export class EncounterService {
       // Check if user has a character in the campaign
       const userCharactersInCampaign = await DocumentService.find({
         campaignId: campaign.id,
-        createdBy: userId,
+        $or: [{ ownerId: userId }, { createdBy: userId }], // Check both ownerId and createdBy for backwards compatibility
         documentType: 'character'
       });
 
@@ -528,7 +516,7 @@ export class EncounterService {
       const gmCampaigns = await CampaignModel.find({ gameMasterId: userObjectId }).exec();
 
       // Get user's actors
-      const userActors = await DocumentService.find({ createdBy: userId, documentType: 'actor' });
+      const userActors = await DocumentService.find({ $or: [{ ownerId: userId }, { createdBy: userId }], documentType: 'actor' });
       const actorIds = userActors.map(actor => new Types.ObjectId(actor.id));
 
       // Get campaigns where user has characters

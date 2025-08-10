@@ -30,15 +30,14 @@ export class ActorsClient extends ApiClient {
     Object.entries(data).forEach(([key, value]) => {
       if (key === 'data' || key === 'userData') {
         formData.append(key, JSON.stringify(value));
-      } else if (value !== undefined && value !== null && key !== 'avatar' && key !== 'token') {
+      } else if (value !== undefined && value !== null && key !== 'tokenImage') {
         formData.append(key, value.toString());
       }
     });
 
-    // Add token files if present (avatar removed - actors don't have avatars)
-
-    if (data.token instanceof File) {
-      formData.append('token', data.token);
+    // Add token files if present (actors only support tokens, not avatars)
+    if (data.tokenImage instanceof File) {
+      formData.append('tokenImage', data.tokenImage);
     }
     return formData;
   }
@@ -117,15 +116,14 @@ export class ActorsClient extends ApiClient {
     Object.entries(data).forEach(([key, value]) => {
       if (key === 'data' || key === 'userData') {
         formData.append(key, JSON.stringify(value));
-      } else if (value !== undefined && value !== null && key !== 'avatar' && key !== 'token') {
+      } else if (value !== undefined && value !== null && key !== 'tokenImage') {
         formData.append(key, value.toString());
       }
     });
 
-    // Add token files if present (avatar removed - actors don't have avatars)
-
-    if (data.token instanceof File) {
-      formData.append('token', data.token);
+    // Add token files if present (actors only support tokens, not avatars)
+    if (data.tokenImage instanceof File) {
+      formData.append('tokenImage', data.tokenImage);
     }
 
     const response = await this.api.put<BaseAPIResponse<IActor>>(
@@ -157,15 +155,14 @@ export class ActorsClient extends ApiClient {
         if (value) {
           formData.append(key, JSON.stringify(value));
         }
-      } else if (value !== undefined && value !== null && key !== 'avatar' && key !== 'token') {
+      } else if (value !== undefined && value !== null && key !== 'tokenImage') {
         formData.append(key, value.toString());
       }
     });
 
-    // Add token files if present (avatar removed - actors don't have avatars)
-
-    if (data.token instanceof File) {
-      formData.append('token', data.token);
+    // Add token files if present (actors only support tokens, not avatars)
+    if (data.tokenImage instanceof File) {
+      formData.append('tokenImage', data.tokenImage);
     }
 
     const response = await this.api.patch<BaseAPIResponse<IActor>>(
@@ -195,26 +192,6 @@ export class ActorsClient extends ApiClient {
     }
   }
 
-  /**
-   * Upload an actor's avatar
-   */
-  async uploadActorAvatar(actorId: string, file: File): Promise<IActor | undefined> {
-    const response = await this.api.put<BaseAPIResponse<IActor>>(
-      `/api/actors/${actorId}/avatar`,
-      file,
-      {
-        headers: {
-          'Content-Type': file.type
-        }
-      }
-    );
-
-    if (!response.data.success) {
-      throw new Error(response.data.error || 'Failed to upload actor avatar');
-    }
-
-    return response.data.data;
-  }
 
   /**
    * Upload an actor's token
@@ -237,20 +214,6 @@ export class ActorsClient extends ApiClient {
     return response.data.data;
   }
 
-  /**
-   * Generate an actor's avatar using AI
-   */
-  async generateActorAvatar(actorId: string): Promise<IActor | undefined> {
-    const response = await this.api.post<BaseAPIResponse<IActor>>(
-      `/api/actors/${actorId}/generate-avatar`
-    );
-
-    if (!response.data.success) {
-      throw new Error(response.data.error || 'Failed to generate actor avatar');
-    }
-
-    return response.data.data;
-  }
 
   /**
    * Generate an actor's token using AI

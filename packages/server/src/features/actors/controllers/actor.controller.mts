@@ -120,7 +120,7 @@ export class ActorController {
     const validatedData = createActorRequestSchema.parse(req.body);
 
     // Get the token file from req.assets
-    const tokenFile = req.assets?.token?.[0];
+    const tokenFile = req.assets?.tokenImage?.[0];
 
     const data = validatedData.pluginData;
     if (!data) {
@@ -134,8 +134,8 @@ export class ActorController {
     // Note: Plugin validation now happens client-side only
     // Server trusts that client has already validated plugin data
 
-    // Destructure validatedData while renaming token to bypass unused variable warnings
-    const { token: _token, ...actorData } = validatedData;
+    // Destructure validatedData while renaming tokenImage to bypass unused variable warnings
+    const { tokenImage: _tokenImage, ...actorData } = validatedData;
 
     // Create the actor using the service
     const actor = await this.actorService.createActor(
@@ -177,9 +177,9 @@ export class ActorController {
     }
 
     // Get token file from req.assets if present
-    const tokenFile = req.assets?.token?.[0];
+    const tokenFile = req.assets?.tokenImage?.[0];
 
-    const { token: _token, ...actorData } = validatedData;
+    const { tokenImage: _tokenImage, ...actorData } = validatedData;
     // Update the actor using the service
     const actor = await this.actorService.putActor(
       req.params.id,
@@ -213,8 +213,8 @@ export class ActorController {
 
     try {
       // Extract only the fields from validatedData that are needed by patchActor
-      // Omit the token field which is causing type issues and rename with underscore prefix
-      const { token: _token, ...restData } = validatedData;
+      // Omit the tokenImage field which is causing type issues and rename with underscore prefix
+      const { tokenImage: _tokenImage, ...restData } = validatedData;
 
       // Add the id from the route parameter
       const actorData = { ...restData, id: req.params.id };

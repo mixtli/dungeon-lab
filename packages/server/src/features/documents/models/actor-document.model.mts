@@ -11,7 +11,6 @@ const serverActorSchema = actorSchema.extend({
   compendiumId: zId('Compendium').optional(),
   imageId: zId('Asset').optional(),
   thumbnailId: zId('Asset').optional(),
-  avatarId: zId('Asset').optional(),
   tokenImageId: zId('Asset').optional()
   // Note: Inventory handled via item.ownerId relationships, not embedded arrays
 });
@@ -26,19 +25,11 @@ actorMongooseSchema.path('pluginData', mongoose.Schema.Types.Mixed);
 actorMongooseSchema.path('userData', mongoose.Schema.Types.Mixed);
 
 // Add actor-specific indexes
-actorMongooseSchema.index({ avatarId: 1 });
 actorMongooseSchema.index({ tokenImageId: 1 });
 
 
 // Add actor-specific virtual properties
-actorMongooseSchema.virtual('avatar', {
-  ref: 'Asset',
-  localField: 'avatarId',
-  foreignField: '_id',
-  justOne: true
-});
-
-actorMongooseSchema.virtual('defaultTokenImage', {
+actorMongooseSchema.virtual('tokenImage', {
   ref: 'Asset',
   localField: 'tokenImageId',
   foreignField: '_id',

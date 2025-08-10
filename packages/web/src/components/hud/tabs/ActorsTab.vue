@@ -44,9 +44,15 @@
         v-for="actor in filteredActors"
         :key="actor.id"
         class="actor-card"
-        :class="`actor-${actor.pluginDocumentType}`"
+        :class="[
+          `actor-${actor.pluginDocumentType}`,
+          { 'is-dragging': isDragging && draggedActor?.id === actor.id }
+        ]"
+        draggable="true"
         @click="selectActor(actor)"
         @dblclick="openCharacterSheet(actor)"
+        @dragstart="handleDragStart($event, actor)"
+        @dragend="handleDragEnd"
       >
         <div class="actor-avatar">
           <img 
@@ -109,6 +115,10 @@ const characterSheetStore = useCharacterSheetStore();
 const router = useRouter();
 const searchQuery = ref('');
 const activeFilter = ref('all');
+
+// Drag and drop state
+const isDragging = ref(false);
+const draggedActor = ref<IActor | null>(null);
 
 const filterOptions = [
   { id: 'all', label: 'All' },
@@ -225,6 +235,57 @@ function openCharacterSheet(actor: IActor): void {
   characterSheetStore.openCharacterSheet(actor);
 }
 
+// ============================================================================
+// DRAG AND DROP FUNCTIONALITY
+// ============================================================================
+
+function handleDragStart(event: DragEvent, actor: IActor): void {
+  if (!event.dataTransfer) return;
+  
+  // Set drag state
+  isDragging.value = true;
+  draggedActor.value = actor;
+  
+  // Set transfer data for drop handling
+  const dragData = {
+    type: 'document-token',
+    documentId: actor.id,
+    documentType: actor.documentType,
+    name: actor.name,
+    imageUrl: getDocumentImageUrl(actor)
+  };
+  
+  event.dataTransfer.setData('application/json', JSON.stringify(dragData));
+  event.dataTransfer.effectAllowed = 'copy';
+  
+  // Set custom drag image if we have an actor image
+  const imageUrl = getDocumentImageUrl(actor);
+  if (imageUrl) {
+    const dragImage = new Image();
+    dragImage.src = imageUrl;
+    dragImage.onload = () => {
+      // Scale the image for dragging
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        canvas.width = 64;
+        canvas.height = 64;
+        ctx.drawImage(dragImage, 0, 0, 64, 64);
+        event.dataTransfer?.setDragImage(canvas, 32, 32);
+      }
+    };
+  }
+  
+  console.log(`Started dragging actor: ${actor.name}`);
+}
+
+function handleDragEnd(): void {
+  // Reset drag state
+  isDragging.value = false;
+  draggedActor.value = null;
+  
+  console.log('Drag ended');
+}
 
 </script>
 
@@ -379,6 +440,13 @@ function openCharacterSheet(actor: IActor): void {
 
 .actor-card.actor-npc {
   border-left: 3px solid #22c55e;
+}
+
+.actor-card.is-dragging {
+  opacity: 0.5;
+  transform: scale(0.95);
+  background: rgba(59, 130, 246, 0.2);
+  border-color: rgba(59, 130, 246, 0.5);
 }
 
 .actor-avatar {

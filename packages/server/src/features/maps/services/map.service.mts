@@ -54,11 +54,13 @@ export class MapService {
         gridRows: 0, // Placeholder, will be calculated after image processing
         aspectRatio: 1, // Placeholder, will be calculated after image processing
         createdBy: userId,
+        ownerId: userId, // Set ownerId for new maps
         updatedBy: userId
       };
       const user = await UserModel.findById(userId);
       if (user?.isAdmin && data.createdBy) {
         mapData.createdBy = data.createdBy;
+        mapData.ownerId = data.createdBy; // Keep ownership consistent
       }
 
       // Create map in database to get an ID
@@ -406,7 +408,7 @@ export class MapService {
 
   async getAllMaps(userId: string): Promise<IMap[]> {
     try {
-      const maps = await MapModel.find({ createdBy: userId })
+      const maps = await MapModel.find({ $or: [{ ownerId: userId }, { createdBy: userId }] })
         .populate('image')
         .populate('thumbnail');
       return maps;
@@ -662,6 +664,7 @@ export class MapService {
         aspectRatio,
         uvtt: validUvttData,
         createdBy: userId,
+        ownerId: userId, // Set ownerId for new maps
         updatedBy: userId
       };
       

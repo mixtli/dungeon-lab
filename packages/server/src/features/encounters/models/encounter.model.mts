@@ -10,7 +10,8 @@ import { zId } from '@zodyac/zod-mongoose';
  */
 const encounterSchemaMongoose = encounterSchema.merge(baseMongooseZodSchema).extend({
   campaignId: zId('Campaign'),
-  mapId: zId('Map')
+  mapId: zId('Map'),
+  ownerId: zId('User').optional() // Reference to encounter owner
 });
 
 const mongooseSchema = createMongoSchema<IEncounter>(encounterSchemaMongoose);
@@ -36,6 +37,13 @@ mongooseSchema.path('mapId').get(function (value: ObjectId) {
   return value.toString();
 });
 
+mongooseSchema.path('ownerId').set(function (value: string | undefined) {
+  return value ? new mongoose.Types.ObjectId(value) : undefined;
+});
+mongooseSchema.path('ownerId').get(function (value: ObjectId | undefined) {
+  return value ? value.toString() : undefined;
+});
+
 // Add indexes for performance optimization
 mongooseSchema.index({ campaignId: 1, status: 1 }); // Find active encounters by campaign
 mongooseSchema.index({ status: 1 }); // Filter by status (draft, ready, in_progress, paused, completed)
@@ -44,9 +52,8 @@ mongooseSchema.index({ createdAt: -1 }); // Recent encounters for listing
 mongooseSchema.index({ 'participants': 1 }); // Find encounters where a specific user is participating
 mongooseSchema.index({ mapId: 1 }); // Find encounters using a specific map
 
-// Add optimistic locking support to prevent concurrent modification conflicts
-// When multiple users edit the same encounter, version field prevents data loss
-mongooseSchema.set('versionKey', 'version');
+// Disable Mongoose versioning - encounters use GameState versioning for real-time operations
+mongooseSchema.set('versionKey', false);
 
 /**
  * Encounter model
@@ -64,6 +71,9 @@ mongooseSchema.set('versionKey', 'version');
  * - effects: Array of temporary effects (buffs, debuffs, conditions) active in encounter
  * - settings: Configuration options like grid size, auto-roll initiative, turn timers
  * - participants: Array of user IDs who can view/interact with this encounter
- * - version: Optimistic locking field to prevent concurrent update conflicts
+ * 
+ * Note: Encounters no longer use versioning for optimistic locking. Real-time operations
+ * are handled through GameState versioning system which provides better conflict resolution
+ * for collaborative editing scenarios.
  */
 export const EncounterModel = mongoose.model<IEncounter>('Encounter', mongooseSchema); 

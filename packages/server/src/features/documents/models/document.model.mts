@@ -39,8 +39,8 @@ const serverBaseDocumentSchema = baseSchema.extend({
   avatarId: zId('Asset').optional(),
   tokenImageId: zId('Asset').optional(),
   
-  // Item specific fields
-  ownerId: zId('Document').optional()
+  // Owner reference (user who owns this document)
+  ownerId: zId('User').optional()
 });
 
 // Create the base Mongoose schema
@@ -84,6 +84,7 @@ baseMongooseSchema.index({ tokenImageId: 1 });
 
 // User ownership and recent documents
 baseMongooseSchema.index({ createdBy: 1 });
+baseMongooseSchema.index({ ownerId: 1 });
 baseMongooseSchema.index({ updatedAt: -1 });
 
 // Validation middleware for unified documents
@@ -128,6 +129,14 @@ baseMongooseSchema.pre('save', async function(next) {
 baseMongooseSchema.path('pluginData', mongoose.Schema.Types.Mixed);
 baseMongooseSchema.path('userData', mongoose.Schema.Types.Mixed);
 
+// Add getter/setter for ownerId ObjectId conversion
+baseMongooseSchema.path('ownerId').get(function (value: mongoose.Types.ObjectId | undefined) {
+  return value?.toString();
+});
+baseMongooseSchema.path('ownerId').set(function (value: string | undefined) {
+  return value ? new mongoose.Types.ObjectId(value) : undefined;
+});
+
 // Add virtual properties for common asset relationships
 baseMongooseSchema.virtual('image', {
   ref: 'Asset',
@@ -157,7 +166,7 @@ baseMongooseSchema.virtual('avatar', {
   justOne: true
 });
 
-baseMongooseSchema.virtual('defaultTokenImage', {
+baseMongooseSchema.virtual('tokenImage', {
   ref: 'Asset',
   localField: 'tokenImageId',
   foreignField: '_id',

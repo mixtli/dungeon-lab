@@ -8,5 +8,5 @@ export const inviteSchema = baseSchema.extend({
   campaignId: z.string(),
   email: z.string().email(),
   status: inviteStatusSchema.default('pending'),
-  expiresAt: z.date().optional()
+  expiresAt: z.string().optional()
 });

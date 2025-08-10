@@ -93,6 +93,7 @@ export class InviteService {
       ...data,
       campaignId: new Types.ObjectId(campaignId),
       createdBy: userId,
+      ownerId: userId, // Set ownerId for new invites
       updatedBy: userId
     });
 

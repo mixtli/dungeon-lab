@@ -194,6 +194,9 @@ export const useGameSessionStore = defineStore(
       socketStore.socket.off('gameSession:joined');
       socketStore.socket.off('gameSession:left');
       socketStore.socket.off('encounter:started');
+      socketStore.socket.off('gameSession:paused');
+      socketStore.socket.off('gameSession:resumed');
+      socketStore.socket.off('gameSession:ended');
 
       // Listen for user joined events
       socketStore.socket.on('gameSession:joined', async (data: { userId: string, sessionId: string, actorId?: string }) => {
@@ -263,20 +266,29 @@ export const useGameSessionStore = defineStore(
         }
       });
 
-      // TODO: Implement these handlers when the server API is finalized
-      // socketStore.socket.on('gameSession:update', (data: GameSessionWithId) => {
-      //   if (data.id === sessionId) {
-      //     console.log('[Socket] Received gameSession:update event:', data);
-      //     currentSession.value = data;
-      //   }
-      // });
+      // Handle session paused events
+      socketStore.socket.on('gameSession:paused', (data: { sessionId: string, pausedBy: string, timestamp: number }) => {
+        if (data.sessionId === sessionId && currentSession.value) {
+          console.log('[Socket] Received gameSession:paused event:', data);
+          currentSession.value.status = 'paused';
+        }
+      });
 
-      // socketStore.socket.on('gameSession:end', (data: { sessionId: string }) => {
-      //   if (data.sessionId === sessionId) {
-      //     console.log('[Socket] Received gameSession:end event:', data);
-      //     clearSession();
-      //   }
-      // });
+      // Handle session resumed events
+      socketStore.socket.on('gameSession:resumed', (data: { sessionId: string, resumedBy: string, timestamp: number }) => {
+        if (data.sessionId === sessionId && currentSession.value) {
+          console.log('[Socket] Received gameSession:resumed event:', data);
+          currentSession.value.status = 'active';
+        }
+      });
+
+      // Handle session ended events
+      socketStore.socket.on('gameSession:ended', (data: { sessionId: string, endedBy: string, timestamp: number }) => {
+        if (data.sessionId === sessionId) {
+          console.log('[Socket] Received gameSession:ended event:', data);
+          clearSession();
+        }
+      });
 
       // socketStore.socket.on('gameState:update', (data: GameStateUpdate) => {
       //   if (data.sessionId === sessionId) {
@@ -310,6 +322,9 @@ export const useGameSessionStore = defineStore(
         socketStore.socket.off('gameSession:joined');
         socketStore.socket.off('gameSession:left');
         socketStore.socket.off('encounter:started');
+        socketStore.socket.off('gameSession:paused');
+        socketStore.socket.off('gameSession:resumed');
+        socketStore.socket.off('gameSession:ended');
 
         clearSession();
       }

@@ -74,7 +74,8 @@ export async function createAsset(
       size,
       type: mimetype,
       name: originalname,
-      createdBy: new Types.ObjectId(userId)
+      createdBy: new Types.ObjectId(userId),
+      ownerId: new Types.ObjectId(userId)
     });
     
     // Return the asset document
@@ -133,7 +134,8 @@ export async function createAssetsFromZip(
           size: buffer.length,
           type: mimetype,
           name: fileName,
-          createdBy: new Types.ObjectId(userId)
+          createdBy: new Types.ObjectId(userId),
+          ownerId: new Types.ObjectId(userId)
         };
 
         const asset = session 

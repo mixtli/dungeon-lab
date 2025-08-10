@@ -55,7 +55,7 @@ export const chatErrorResponseSchema = z.object({
 // Health Status schema
 export const healthStatusSchema = z.object({
   healthy: z.boolean(),
-  timestamp: z.date(),
+  timestamp: z.string(),
   responseTime: z.number(),
   error: z.string().optional()
 });
@@ -80,10 +80,10 @@ export const chatbotConfigSchema = z.object({
   gameSystem: z.string().min(1).max(100),
   enabled: z.boolean(),
   healthStatus: z.enum(['healthy', 'unhealthy', 'unknown']),
-  lastHealthCheck: z.date().optional(),
+  lastHealthCheck: z.string().optional(),
   capabilities: botCapabilitiesSchema.optional(),
-  createdAt: z.date(),
-  updatedAt: z.date(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
   createdBy: z.string()
 });
 
@@ -94,7 +94,7 @@ export const chatbotMessageSchema = z.object({
   sessionId: z.string(),
   botId: z.string(),
   userId: z.string().optional(),
-  timestamp: z.date(),
+  timestamp: z.string(),
   processingTime: z.number().optional(),
   sources: z.array(messageSourceSchema).optional()
 });

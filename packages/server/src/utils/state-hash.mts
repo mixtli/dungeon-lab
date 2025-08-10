@@ -1,5 +1,5 @@
 import { createHash } from 'crypto';
-import type { ServerGameState } from '@dungeon-lab/shared/schemas/server-game-state.schema.mjs';
+import type { ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
 
 /**
  * Sort object keys recursively to ensure consistent JSON serialization
@@ -32,10 +32,10 @@ function sortObjectKeys(obj: unknown): unknown {
  * Generate a hash of the game state for integrity verification
  * Uses SHA-256 to create a consistent hash of the pure game state data
  * 
- * @param gameState - The server game state to hash
+ * @param gameState - The server game state with virtuals to hash (no id field in this type)
  * @returns SHA-256 hash as hexadecimal string
  */
-export function generateStateHash(gameState: ServerGameState): string {
+export function generateStateHash(gameState: ServerGameStateWithVirtuals): string {
   try {
     // Sort keys to ensure consistent serialization
     const sortedState = sortObjectKeys(gameState);
@@ -57,12 +57,12 @@ export function generateStateHash(gameState: ServerGameState): string {
 /**
  * Validate state integrity by comparing expected hash with actual hash
  * 
- * @param gameState - The server game state to validate
+ * @param gameState - The server game state with virtuals to validate
  * @param expectedHash - The expected hash value
  * @returns true if state integrity is valid, false otherwise
  */
 export function validateStateIntegrity(
-  gameState: ServerGameState, 
+  gameState: ServerGameStateWithVirtuals, 
   expectedHash: string
 ): boolean {
   try {

@@ -88,6 +88,7 @@ class AssetService {
         ...assetData,
         name,
         createdBy: userId,
+        ownerId: userId, // Set ownerId for new assets
         url,
         size: file.size,
         type: file.mimetype
@@ -203,12 +204,12 @@ class AssetService {
    * @param userId - The ID of the user
    */
   async checkUserPermission(assetId: string, userId: string): Promise<boolean> {
-    const asset = await AssetModel.findById(assetId).select('createdBy'); // Fetch only the necessary field
+    const asset = await AssetModel.findById(assetId).select('ownerId createdBy'); // Fetch ownership fields
     if (!asset) {
       // If asset not found, user certainly doesn't have permission
       return false;
     }
-    return asset.isOwnedBy(userId); // Use the instance method
+    return asset.isOwnedBy(userId); // Use the instance method (now checks ownerId with fallback)
   }
 
   /**
@@ -238,7 +239,7 @@ class AssetService {
    * @param userId - Optional user ID to filter by
    */
   async getAssetStats(userId?: string): Promise<{ totalCount: number; totalSize: number }> {
-    const filter = userId ? { createdBy: userId } : {};
+    const filter = userId ? { $or: [{ ownerId: userId }, { createdBy: userId }] } : {};
 
     const totalCount = await AssetModel.countDocuments(filter);
     const totalSize = await AssetModel.aggregate([
@@ -257,7 +258,7 @@ class AssetService {
    * @param userId - The ID of the user
    */
   async getAssetsByUser(userId: string): Promise<AssetDocument[]> {
-    return AssetModel.find({ createdBy: userId }).sort({ createdAt: -1 }) as Promise<
+    return AssetModel.find({ $or: [{ ownerId: userId }, { createdBy: userId }] }).sort({ createdAt: -1 }) as Promise<
       AssetDocument[]
     >;
   }

@@ -35,8 +35,8 @@ export const characterCreateSchema = characterSchema
 
 export const characterSchemaWithVirtuals = characterSchema.extend({
   // Virtual asset relationships
-  token: assetSchema.optional(),
-  avatar: assetSchema.optional()
+  tokenImage: assetSchema.nullable().optional(),
+  avatar: assetSchema.nullable().optional()
 });
 
 export const characterPatchSchema = characterSchema.deepPartial();

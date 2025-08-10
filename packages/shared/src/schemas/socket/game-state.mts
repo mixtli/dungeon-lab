@@ -104,3 +104,15 @@ export const gameSessionEndedSchema = z.object({
   timestamp: z.number()
 });
 
+export const gameSessionPausedSchema = z.object({
+  sessionId: z.string(),
+  pausedBy: z.string(),
+  timestamp: z.number()
+});
+
+export const gameSessionResumedSchema = z.object({
+  sessionId: z.string(),
+  resumedBy: z.string(),
+  timestamp: z.number()
+});
+

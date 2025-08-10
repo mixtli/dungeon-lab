@@ -69,9 +69,6 @@
           </div>
           
           <div class="participant-status">
-            <span v-if="index === (turnManager?.currentTurn ?? -1)" class="current-indicator">
-              👑 Current Turn
-            </span>
             <span v-if="participant.hasActed" class="acted-indicator">
               ✓ Acted
             </span>
@@ -230,7 +227,7 @@ function canPerformAction(actionType: string): boolean {
 }
 
 .participant-item.current-turn {
-  @apply bg-blue-100 border-blue-300;
+  @apply bg-blue-600 text-white border-blue-700 font-semibold;
 }
 
 .participant-item.has-acted {
@@ -271,7 +268,7 @@ function canPerformAction(actionType: string): boolean {
 }
 
 .initiative-score {
-  @apply bg-gray-100 px-2 py-1 rounded text-sm font-mono;
+  @apply bg-gray-100 text-gray-900 px-2 py-1 rounded text-sm font-mono;
 }
 
 .action-btn:disabled {

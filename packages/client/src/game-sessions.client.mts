@@ -4,7 +4,6 @@ import {
   BaseAPIResponse,
   CreateGameSessionRequest,
   UpdateGameSessionRequest,
-  GameSessionStatusUpdateRequest,
   DeleteAPIResponse
 } from '@dungeon-lab/shared/types/api/index.mjs';
 
@@ -97,20 +96,49 @@ export class GameSessionsClient extends ApiClient {
   }
 
   /**
-   * Update a game session status
+   * Start a scheduled game session
    */
-  async updateGameSessionStatus(
-    sessionId: string,
-    status: 'active' | 'paused' | 'ended' | 'scheduled'
-  ): Promise<IGameSession> {
-    const request: GameSessionStatusUpdateRequest = { status };
-    const response = await this.api.patch<BaseAPIResponse<IGameSession>>(
-      `/api/game-sessions/${sessionId}/status`,
-      request
+  async startGameSession(sessionId: string): Promise<IGameSession> {
+    const response = await this.api.post<BaseAPIResponse<IGameSession>>(
+      `/api/game-sessions/${sessionId}/start`
     );
 
     if (!response.data.success) {
-      throw new Error(response.data.error || 'Failed to update game session status');
+      throw new Error(response.data.error || 'Failed to start game session');
+    }
+    if (!response.data.data) {
+      throw new Error('Game session not found');
+    }
+    return response.data.data;
+  }
+
+  /**
+   * Pause an active game session
+   */
+  async pauseGameSession(sessionId: string): Promise<IGameSession> {
+    const response = await this.api.post<BaseAPIResponse<IGameSession>>(
+      `/api/game-sessions/${sessionId}/pause`
+    );
+
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to pause game session');
+    }
+    if (!response.data.data) {
+      throw new Error('Game session not found');
+    }
+    return response.data.data;
+  }
+
+  /**
+   * Resume a paused game session
+   */
+  async resumeGameSession(sessionId: string): Promise<IGameSession> {
+    const response = await this.api.post<BaseAPIResponse<IGameSession>>(
+      `/api/game-sessions/${sessionId}/resume`
+    );
+
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to resume game session');
     }
     if (!response.data.data) {
       throw new Error('Game session not found');
@@ -128,22 +156,6 @@ export class GameSessionsClient extends ApiClient {
     }
   }
 
-  /**
-   * Start a game session
-   */
-  async startGameSession(sessionId: string): Promise<IGameSession> {
-    const response = await this.api.post<BaseAPIResponse<IGameSession>>(
-      `/api/game-sessions/${sessionId}/start`
-    );
-
-    if (!response.data.success) {
-      throw new Error(response.data.error || 'Failed to start game session');
-    }
-    if (!response.data.data) {
-      throw new Error('Game session not found');
-    }
-    return response.data.data;
-  }
 
   /**
    * End a game session

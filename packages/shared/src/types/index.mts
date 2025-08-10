@@ -59,7 +59,8 @@ import {
 } from '../schemas/game-session.schema.mjs';
 
 import {
-  serverGameStateSchema
+  serverGameStateSchema,
+  serverGameStateWithVirtualsSchema
 } from '../schemas/server-game-state.schema.mjs';
 
 import {
@@ -198,6 +199,7 @@ export interface IGameSessionPopulatedDocument extends IGameSessionPopulated {
 
 // Server Game State Types
 export type ServerGameState = z.infer<typeof serverGameStateSchema>;
+export type ServerGameStateWithVirtuals = z.infer<typeof serverGameStateWithVirtualsSchema>;
 
 // State Update Types
 export type StateOperation = z.infer<typeof stateOperationSchema>;

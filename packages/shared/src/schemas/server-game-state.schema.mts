@@ -1,17 +1,20 @@
 import { z } from 'zod';
-import { characterSchema } from './character.schema.mjs';
-import { actorSchema } from './actor.schema.mjs';
+import { characterSchema, characterSchemaWithVirtuals } from './character.schema.mjs';
+import { actorSchema, actorSchemaWithVirtuals } from './actor.schema.mjs';
 import { itemSchema } from './item.schema.mjs';
 import { encounterSchema } from './encounters.schema.mjs';
-import { campaignSchema } from './campaign.schema.mjs';
+import { campaignSchema, campaignWithVirtualsSchema } from './campaign.schema.mjs';
 import { turnManagerSchema } from './turn-manager.schema.mjs';
 
 /**
- * Server-side game state schema
+ * Server-side game state schema (without populated assets)
  * This represents the complete game state as stored on the server
  * and synchronized with clients during active game sessions
  */
 export const serverGameStateSchema = z.object({
+  // GameState document ID for direct reference
+  id: z.string(),
+  
   // Campaign context (read-only reference for session convenience)
   campaign: campaignSchema.nullable().default(null),
   
@@ -30,4 +33,29 @@ export const serverGameStateSchema = z.object({
   pluginData: z.record(z.string(), z.unknown()).default({})
 });
 
+/**
+ * Server-side game state schema with populated assets/virtuals
+ * This represents the game state with all assets populated, ready for clients
+ * This is what should be stored in the GameState.state field and sent to clients
+ */
+export const serverGameStateWithVirtualsSchema = z.object({
+  // Campaign context with populated assets (read-only reference for session convenience)
+  campaign: campaignWithVirtualsSchema.nullable().default(null),
+  
+  // Game entities with populated assets - client-ready data
+  characters: z.array(characterSchemaWithVirtuals).default([]), // Player characters with avatar/tokenImage
+  actors: z.array(actorSchemaWithVirtuals).default([]),          // NPCs, monsters, etc. with tokenImage
+  items: z.array(itemSchema).default([]),                        // All campaign items (no special assets typically)
+  
+  // Active encounter (fully populated with related data including map assets)
+  currentEncounter: encounterSchema.nullable().default(null),
+  
+  // Turn management
+  turnManager: turnManagerSchema.nullable().default(null),
+  
+  // Plugin-specific state
+  pluginData: z.record(z.string(), z.unknown()).default({})
+});
+
 export type ServerGameState = z.infer<typeof serverGameStateSchema>;
+export type ServerGameStateWithVirtuals = z.infer<typeof serverGameStateWithVirtualsSchema>;

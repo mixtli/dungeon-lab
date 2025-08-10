@@ -28,8 +28,8 @@ async function updateDocumentImage(
 ): Promise<void> {
   switch (document.documentType) {
     case 'actor': {
-      if (imageType !== 'avatar' && imageType !== 'token') {
-        throw new Error(`Unsupported image type for actors: ${imageType}`);
+      if (imageType !== 'token') {
+        throw new Error(`Actors only support token images, not ${imageType}`);
       }
       // Import ActorService dynamically to avoid circular dependencies
       const { ActorService } = await import('../../actors/services/actor.service.mjs');

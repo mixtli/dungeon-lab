@@ -77,6 +77,8 @@ import {
   gameSessionJoinedSchema,
   gameSessionLeftSchema,
   gameSessionEndedSchema,
+  gameSessionPausedSchema,
+  gameSessionResumedSchema,
   gameStateUpdateCallbackSchema,
   gameStateRequestFullCallbackSchema,
   gameSessionJoinCallbackSchema,
@@ -159,6 +161,8 @@ export {
   gameSessionJoinedSchema,
   gameSessionLeftSchema,
   gameSessionEndedSchema,
+  gameSessionPausedSchema,
+  gameSessionResumedSchema,
   gameStateUpdateCallbackSchema,
   gameStateRequestFullCallbackSchema,
   gameSessionJoinCallbackSchema,
@@ -206,6 +210,8 @@ export const serverToClientEvents = z.object({
   'gameSession:joined': z.function().args(gameSessionJoinedSchema).returns(z.void()),
   'gameSession:left': z.function().args(gameSessionLeftSchema).returns(z.void()),
   'gameSession:ended': z.function().args(gameSessionEndedSchema).returns(z.void()),
+  'gameSession:paused': z.function().args(gameSessionPausedSchema).returns(z.void()),
+  'gameSession:resumed': z.function().args(gameSessionResumedSchema).returns(z.void()),
   // GM receives action requests forwarded from server
   'gameAction:forward': z.function().args(...gameActionGmRequestArgsSchema.items).returns(z.void())
 });

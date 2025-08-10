@@ -20,7 +20,8 @@ type IPortal = z.infer<typeof portalSchema>;
 const serverMapSchema = mapSchema.extend({
   // Convert string IDs to ObjectIds for asset references
   thumbnailId: zId('Asset').optional(),
-  imageId: zId('Asset').optional()
+  imageId: zId('Asset').optional(),
+  ownerId: zId('User').optional() // Reference to map owner
 });
 
 // serverMapSchema.extend({
@@ -105,6 +106,9 @@ mongooseSchema.path('imageId').get(function (value: ObjectId | undefined) {
   return value?.toString();
 });
 mongooseSchema.path('thumbnailId').get(function (value: ObjectId | undefined) {
+  return value?.toString();
+});
+mongooseSchema.path('ownerId').get(function (value: ObjectId | undefined) {
   return value?.toString();
 });
 

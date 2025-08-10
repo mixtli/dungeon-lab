@@ -25,6 +25,7 @@ const baseTokenSchema = z.object({
   position: gridPositionSchema,
   documentId: z.string().optional(),
   documentType: z.string().optional(),
+  ownerId: z.string().optional(), // Owner of the token (usually the player or GM)
   notes: z.string().optional(),
   isVisible: z.boolean(),
   isPlayerControlled: z.boolean(),

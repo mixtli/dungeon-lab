@@ -74,7 +74,7 @@ characterMongooseSchema.virtual('avatar', {
   justOne: true
 });
 
-characterMongooseSchema.virtual('defaultTokenImage', {
+characterMongooseSchema.virtual('tokenImage', {
   ref: 'Asset',
   localField: 'tokenImageId',
   foreignField: '_id',

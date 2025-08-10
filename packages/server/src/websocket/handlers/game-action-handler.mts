@@ -52,6 +52,30 @@ function gameActionHandler(socket: Socket<ClientToServerEvents, ServerToClientEv
         });
       }
 
+      // Check if session is paused - block all actions when paused
+      if (session.status === 'paused') {
+        return callback({
+          success: false,
+          requestId: request.id,
+          error: {
+            code: 'SESSION_PAUSED',
+            message: 'Cannot perform actions while session is paused'
+          }
+        });
+      }
+
+      // Check if session is not active
+      if (session.status !== 'active') {
+        return callback({
+          success: false,
+          requestId: request.id,
+          error: {
+            code: 'SESSION_INACTIVE',
+            message: `Cannot perform actions when session status is: ${session.status}`
+          }
+        });
+      }
+
       // Verify user is authorized for this session (GM or has character in campaign)
       const isGM = session.gameMasterId === request.playerId;
       const hasCharacterInCampaign = await campaignService.isUserCampaignMember(request.playerId, session.campaignId);

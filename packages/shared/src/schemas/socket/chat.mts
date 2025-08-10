@@ -24,7 +24,7 @@ export const messageParticipantSchema = z.object({
 export const messageMetadataSchema = z.object({
   sender: messageParticipantSchema,
   recipient: messageParticipantSchema,
-  timestamp: z.date().optional(),
+  timestamp: z.string().optional(),
   mentions: z.array(mentionSchema).optional()
 });
 

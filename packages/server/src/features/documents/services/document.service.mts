@@ -180,7 +180,7 @@ export class DocumentService {
      * Find characters owned by a specific user
      */
     async findByUser(userId: string, options?: QueryOptions): Promise<ICharacter[]> {
-      return await CharacterDocumentModel.find({ createdBy: userId }, undefined, options);
+      return await CharacterDocumentModel.find({ $or: [{ ownerId: userId }, { createdBy: userId }] }, undefined, options);
     },
 
     /**

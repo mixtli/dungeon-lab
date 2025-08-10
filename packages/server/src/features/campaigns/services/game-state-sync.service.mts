@@ -161,13 +161,13 @@ export class GameStateSyncService {
         }
       }
 
-    } catch (error) {
-      result.errors.push(`Sync failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      logger.error('Game state sync failed', { sessionId, reason, error });
-    }
+      } catch (error) {
+        result.errors.push(`Sync failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        logger.error('Game state sync failed', { sessionId, reason, error });
+      }
 
-    result.duration = Date.now() - startTime;
-    return result;
+      result.duration = Date.now() - startTime;
+      return result;
   }
 
   /**

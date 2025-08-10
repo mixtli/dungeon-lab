@@ -19,7 +19,8 @@ function generateMinioPath(userId: string, assetId: string, filename: string): s
  */
 const assetSchemaMongoose = assetSchema.merge(baseMongooseZodSchema).extend({
   // Only require user reference
-  createdBy: zId('User')
+  createdBy: zId('User'),
+  ownerId: zId('User').optional()
 });
 
 /**
@@ -29,6 +30,7 @@ const mongooseSchema = createMongoSchema(assetSchemaMongoose);
 
 // Define indexes for efficient querying
 mongooseSchema.index({ createdBy: 1 });
+mongooseSchema.index({ ownerId: 1 }); // Index for efficient ownership queries
 
 /**
  * Get a pre-signed URL for temporarily accessing the asset
@@ -60,7 +62,9 @@ mongooseSchema.methods.updateMetadata = async function (newMetadata: Record<stri
  * @returns Boolean indicating ownership
  */
 mongooseSchema.methods.isOwnedBy = function (userId: string) {
-  return this.createdBy.toString() === userId;
+  // Check ownerId first, fallback to createdBy for backwards compatibility
+  const ownerId = this.ownerId || this.createdBy;
+  return ownerId.toString() === userId;
 };
 
 /**

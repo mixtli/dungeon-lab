@@ -6,7 +6,9 @@ import { createMongoSchema } from '../../../models/zod-to-mongo.mjs';
 import { zId } from '@zodyac/zod-mongoose';
 
 const campaignSchemaMongoose = campaignSchema.merge(baseMongooseZodSchema).extend({
-  gameMasterId: zId('User')
+  gameMasterId: zId('User'),
+  gameStateId: zId('GameState').optional(), // Reference to campaign's game state
+  ownerId: zId('User').optional() // Reference to campaign owner
 });
 
 const mongooseSchema = createMongoSchema<ICampaign>(campaignSchemaMongoose);
@@ -21,9 +23,30 @@ mongooseSchema.path('gameMasterId').get(function (value: string) {
   return value.toString();
 });
 
+mongooseSchema.path('gameStateId').set(function (value: string | undefined) {
+  return value ? new mongoose.Types.ObjectId(value) : undefined;
+});
+mongooseSchema.path('gameStateId').get(function (value: string | undefined) {
+  return value ? value.toString() : undefined;
+});
+
+mongooseSchema.path('ownerId').set(function (value: string | undefined) {
+  return value ? new mongoose.Types.ObjectId(value) : undefined;
+});
+mongooseSchema.path('ownerId').get(function (value: string | undefined) {
+  return value ? value.toString() : undefined;
+});
+
 mongooseSchema.virtual('gameMaster', {
   ref: 'User',
   localField: 'gameMasterId',
+  foreignField: '_id',
+  justOne: true
+});
+
+mongooseSchema.virtual('gameState', {
+  ref: 'GameState',
+  localField: 'gameStateId',
   foreignField: '_id',
   justOne: true
 });

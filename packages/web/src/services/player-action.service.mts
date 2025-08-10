@@ -142,19 +142,25 @@ export class PlayerActionService {
   }
   
   private getUserTokens(userId: string) {
-    // Get tokens owned by this user (through document ownership chain)
+    // Get tokens owned by this user (direct ownership via ownerId)
     const tokens = this.gameStateStore.currentEncounter?.tokens || [];
-    const characters = this.gameStateStore.gameState?.characters || [];
-    const actors = this.gameStateStore.gameState?.actors || [];
     
     return tokens.filter(token => {
+      // Direct ownership check via ownerId field
+      if (token.ownerId === userId) {
+        return true;
+      }
+      
+      // Fallback to document ownership chain for backwards compatibility
+      // This can be removed once all tokens have ownerId set
       if (!token.documentId) return false;
       
-      // Find the document this token represents (check both characters and actors)
+      const characters = this.gameStateStore.gameState?.characters || [];
+      const actors = this.gameStateStore.gameState?.actors || [];
       const document = [...characters, ...actors].find(doc => doc.id === token.documentId);
       
-      // Check if the user owns the document (character/actor)
-      return document?.createdBy === userId;
+      // Check if the user owns the document (character/actor) or the document has direct ownerId
+      return document?.ownerId === userId || document?.createdBy === userId;
     });
   }
 }

@@ -1,11 +1,12 @@
 import {
   ServerGameState,
+  ServerGameStateWithVirtuals,
   StateOperation,
   StateUpdate,
-  StateUpdateResponse,
-  IGameSession
+  StateUpdateResponse
 } from '@dungeon-lab/shared/types/index.mjs';
-import { GameSessionModel } from '../models/game-session.model.mjs';
+import { serverGameStateWithVirtualsSchema } from '@dungeon-lab/shared/schemas/server-game-state.schema.mjs';
+import { GameStateModel } from '../models/game-state.model.mjs';
 import { CampaignModel } from '../models/campaign.model.mjs';
 import { 
   generateStateHash, 
@@ -28,11 +29,26 @@ interface StateUpdateOptions {
 
 /**
  * Service for managing game state operations with atomic updates and version control
+ * 
+ * ARCHITECTURAL DECISION - SINGLE VERSIONING SYSTEM:
+ * This service implements the primary versioning system for all real-time game operations.
+ * Encounters, characters, and other game entities do NOT use individual versioning for
+ * real-time operations - they delegate to GameState versioning instead.
+ * 
+ * Why GameState-only versioning?
+ * - Prevents version conflicts between entity updates and state updates
+ * - Provides atomic updates across multiple entities in a single operation
+ * - Simplifies conflict resolution in collaborative editing scenarios
+ * - Ensures consistent state across all clients through single source of truth
+ * 
+ * Entity-level versioning (like encounter.version) is only used for:
+ * - Administrative operations (create, delete, metadata changes)
+ * - Non-real-time updates that don't affect game state
  */
 export class GameStateService {
   
   /**
-   * Apply a state update to a game session with optimistic concurrency control
+   * Apply a state update to a campaign's game state with optimistic concurrency control
    * Defaults to full validation for safety and predictability
    */
   async applyStateUpdate(stateUpdate: StateUpdate, options: StateUpdateOptions = {}): Promise<StateUpdateResponse> {
@@ -43,7 +59,7 @@ export class GameStateService {
       const result = await this.applyDirectUpdate(stateUpdate);
       if (options.enableMetrics) {
         logger.info('Direct update completed', { 
-          sessionId: stateUpdate.sessionId,
+          gameStateId: stateUpdate.gameStateId,
           duration: Date.now() - startTime,
           operationCount: stateUpdate.operations.length,
           method: 'direct-update'
@@ -60,32 +76,32 @@ export class GameStateService {
    * Apply state update using direct MongoDB operations (performance optimized)
    */
   private async applyDirectUpdate(stateUpdate: StateUpdate): Promise<StateUpdateResponse> {
-    const { sessionId, version, operations } = stateUpdate;
+    const { gameStateId, version, operations } = stateUpdate;
     
     try {
       // Build MongoDB update operations
       const mongoOps = this.buildMongoOperations(operations);
       
-      // Apply operations directly with version check (no hash check for performance)
-      const updateResult = await GameSessionModel.updateOne(
+      // Apply operations directly with version check (no hash for performance)
+      const updateResult = await GameStateModel.updateOne(
         { 
-          _id: sessionId,
-          gameStateVersion: version // Only version check - no hash for performance
+          _id: gameStateId,
+          version: version // Only version check - no hash for performance
         },
         {
           ...mongoOps,
           $set: {
             ...(mongoOps.$set || {}),
-            gameStateVersion: String(parseInt(version) + 1),
-            lastStateUpdate: Date.now()
+            version: String(parseInt(version) + 1),
+            lastUpdate: Date.now()
           }
         }
       ).exec();
 
       if (updateResult.matchedCount === 0) {
         // Check current version to provide specific error
-        const currentSession = await GameSessionModel.findById(sessionId)
-          .select('gameStateVersion')
+        const currentGameState = await GameStateModel.findById(gameStateId)
+          .select('version')
           .exec();
         
         return {
@@ -93,7 +109,7 @@ export class GameStateService {
           error: {
             code: 'VERSION_CONFLICT',
             message: 'State version conflict - refresh and try again',
-            currentVersion: currentSession?.gameStateVersion,
+            currentVersion: currentGameState?.version,
             currentHash: undefined
           }
         };
@@ -122,40 +138,44 @@ export class GameStateService {
    * Apply state update using full read-modify-write approach (with hash integrity)
    */
   private async applyFullStateUpdate(stateUpdate: StateUpdate, options: StateUpdateOptions, startTime: number): Promise<StateUpdateResponse> {
-    const { sessionId, version, operations, source } = stateUpdate;
+    const { gameStateId, version, operations, source } = stateUpdate;
     
     try {
-      // Get current session with retry logic for high-concurrency scenarios
-      const session = await this.getSessionWithRetry(sessionId);
-      if (!session) {
+      // Get current game state with retry logic for high-concurrency scenarios
+      const gameState = await this.getGameStateByIdWithRetry(gameStateId);
+      if (!gameState) {
         return {
           success: false,
           error: {
-            code: 'SESSION_NOT_FOUND',
-            message: 'Game session not found'
+            code: 'GAMESTATE_NOT_FOUND',
+            message: 'Game state not found'
           }
         };
       }
 
       // Validate version for optimistic concurrency control
-      if (!isValidNextVersion(session.gameStateVersion, version)) {
+      if (!isValidNextVersion(gameState.version, version)) {
         return {
           success: false,
           error: {
             code: 'VERSION_CONFLICT',
             message: 'State version conflict - another update was applied',
-            currentVersion: session.gameStateVersion,
-            currentHash: session.gameStateHash || undefined
+            currentVersion: gameState.version,
+            currentHash: gameState.hash || undefined
           }
         };
       }
 
-      // Get current game state or initialize if null
-      const currentGameState: ServerGameState = session.gameState || this.getInitialGameState();
+      // Extract current server game state from the GameState document
+      // Use Zod parsing to ensure proper defaults and validation
+      const storedStateData = JSON.parse(JSON.stringify(gameState.state));
+      
+      // Parse with Zod schema to restore any missing default values
+      const currentServerGameState: ServerGameStateWithVirtuals = serverGameStateWithVirtualsSchema.parse(storedStateData);
 
       // Validate current state integrity if hash exists
-      if (session.gameStateHash && !validateStateIntegrity(currentGameState, session.gameStateHash)) {
-        logger.error('State integrity validation failed', { sessionId, currentVersion: session.gameStateVersion });
+      if (gameState.hash && !validateStateIntegrity(currentServerGameState, gameState.hash)) {
+        logger.error('State integrity validation failed', { gameStateId, currentVersion: gameState.version });
         return {
           success: false,
           error: {
@@ -166,9 +186,9 @@ export class GameStateService {
       }
 
       // Apply all operations atomically
-      let updatedGameState: ServerGameState;
+      let updatedServerGameState: ServerGameStateWithVirtuals;
       try {
-        updatedGameState = await this.applyOperations(currentGameState, operations);
+        updatedServerGameState = await this.applyOperations(currentServerGameState, operations);
       } catch (error) {
         return {
           success: false,
@@ -180,7 +200,7 @@ export class GameStateService {
       }
 
       // Validate the updated state structure
-      const validationResult = this.validateGameState(updatedGameState);
+      const validationResult = this.validateGameState(updatedServerGameState);
       if (!validationResult.isValid) {
         return {
           success: false,
@@ -192,52 +212,52 @@ export class GameStateService {
       }
 
       // Generate new version and hash
-      const newVersion = incrementStateVersion(session.gameStateVersion);
-      const newHash = generateStateHash(updatedGameState);
+      const newVersion = incrementStateVersion(gameState.version);
+      const newHash = generateStateHash(updatedServerGameState);
 
-      // Update session atomically with BOTH version and hash verification for defense in depth
-      const updateResult = await GameSessionModel.updateOne(
+      // Update GameState atomically with BOTH version and hash verification for defense in depth
+      const updateResult = await GameStateModel.updateOne(
         { 
-          _id: sessionId,
-          gameStateVersion: session.gameStateVersion, // Version check - prevents concurrent updates
-          gameStateHash: session.gameStateHash        // Hash check - prevents corruption/partial writes
+          _id: gameStateId,
+          version: gameState.version, // Version check - prevents concurrent updates
+          hash: gameState.hash        // Hash check - prevents corruption/partial writes
         },
         {
           $set: {
-            gameState: updatedGameState,
-            gameStateVersion: newVersion,
-            gameStateHash: newHash,
-            lastStateUpdate: Date.now()
+            state: updatedServerGameState,  // Update the entire state with client-ready data
+            version: newVersion,
+            hash: newHash,
+            lastUpdate: Date.now()
           }
         }
       ).exec();
 
       // Check if update was successful (version or hash conflict check)
       if (updateResult.matchedCount === 0) {
-        // Re-fetch session to determine if it was version conflict or hash corruption
-        const currentSession = await GameSessionModel.findById(sessionId)
-          .select('gameStateVersion gameStateHash')
+        // Re-fetch game state to determine if it was version conflict or hash corruption
+        const currentGameState = await GameStateModel.findById(gameStateId)
+          .select('version hash')
           .exec();
         
-        if (currentSession) {
-          if (currentSession.gameStateVersion !== session.gameStateVersion) {
+        if (currentGameState) {
+          if (currentGameState.version !== gameState.version) {
             return {
               success: false,
               error: {
                 code: 'VERSION_CONFLICT',
                 message: 'State was modified by another process during update',
-                currentVersion: currentSession.gameStateVersion,
-                currentHash: currentSession.gameStateHash || undefined
+                currentVersion: currentGameState.version,
+                currentHash: currentGameState.hash || undefined
               }
             };
-          } else if (currentSession.gameStateHash !== session.gameStateHash) {
+          } else if (currentGameState.hash !== gameState.hash) {
             return {
               success: false,
               error: {
                 code: 'VALIDATION_ERROR',
                 message: 'State integrity check failed - data corruption detected',
-                currentVersion: currentSession.gameStateVersion,
-                currentHash: currentSession.gameStateHash || undefined
+                currentVersion: currentGameState.version,
+                currentHash: currentGameState.hash || undefined
               }
             };
           }
@@ -254,8 +274,8 @@ export class GameStateService {
       }
 
       logger.info('Game state updated successfully', { 
-        sessionId, 
-        oldVersion: session.gameStateVersion, 
+        gameStateId, 
+        oldVersion: gameState.version, 
         newVersion,
         operationCount: operations.length,
         source,
@@ -295,7 +315,8 @@ export class GameStateService {
     };
 
     for (const operation of operations) {
-      const mongoPath = `gameState.${operation.path}`;
+      // Prefix all paths with 'state.' since we're now storing everything in the state field
+      const mongoPath = `state.${operation.path}`;
       
       switch (operation.operation) {
         case 'set':
@@ -327,26 +348,30 @@ export class GameStateService {
   }
 
   /**
-   * Get full game state for a session
+   * Get full game state for a campaign
    */
-  async getGameState(sessionId: string): Promise<{
+  async getGameState(campaignId: string): Promise<{
     gameState: ServerGameState | null;
     gameStateVersion: string;
     gameStateHash: string | null;
   } | null> {
     try {
-      const session = await GameSessionModel.findById(sessionId)
-        .select('gameState gameStateVersion gameStateHash')
-        .exec();
+      const gameStateDoc = await GameStateModel.findOne({ campaignId }).exec();
       
-      if (!session) {
+      if (!gameStateDoc) {
         return null;
       }
 
+      // Extract the state and add an id field to match ServerGameState interface
+      const serverGameState: ServerGameState = {
+        id: gameStateDoc.id,
+        ...JSON.parse(JSON.stringify(gameStateDoc.state))
+      };
+
       return {
-        gameState: session.gameState,
-        gameStateVersion: session.gameStateVersion,
-        gameStateHash: session.gameStateHash
+        gameState: serverGameState,
+        gameStateVersion: gameStateDoc.version,
+        gameStateHash: gameStateDoc.hash
       };
     } catch (error) {
       logger.error('Error getting game state:', error);
@@ -355,55 +380,45 @@ export class GameStateService {
   }
 
   /**
-   * Initialize game state for a new session from campaign data
+   * Initialize or refresh game state for a campaign from campaign data
    */
-  async initializeGameState(sessionId: string, campaignId: string): Promise<StateUpdateResponse> {
+  async initializeGameState(campaignId: string): Promise<StateUpdateResponse> {
     try {
-      const session = await GameSessionModel.findById(sessionId).exec();
-      if (!session) {
-        return {
-          success: false,
-          error: {
-            code: 'SESSION_NOT_FOUND',
-            message: 'Game session not found'
-          }
-        };
-      }
-
-      // Don't reinitialize if gameState already exists
-      if (session.gameState) {
+      // Check if GameState already exists
+      const existingGameState = await GameStateModel.findOne({ campaignId }).exec();
+      if (existingGameState) {
         return {
           success: true,
-          newVersion: session.gameStateVersion,
-          newHash: session.gameStateHash || undefined
+          newVersion: existingGameState.version,
+          newHash: existingGameState.hash || undefined
         };
       }
 
       // Load campaign data (characters, actors, items)
-      const initialGameState = await this.loadCampaignData(campaignId);
+      const initialGameData = await this.loadCampaignData(campaignId);
+      
+      // Parse with Zod schema to ensure consistent defaults and structure (same as validation)
+      const parsedInitialState = serverGameStateWithVirtualsSchema.parse(initialGameData.state);
       
       const initialVersion = '1';
-      const initialHash = generateStateHash(initialGameState);
+      const initialHash = generateStateHash(parsedInitialState);
 
-      await GameSessionModel.updateOne(
-        { _id: sessionId },
-        {
-          $set: {
-            gameState: initialGameState,
-            gameStateVersion: initialVersion,
-            gameStateHash: initialHash,
-            lastStateUpdate: Date.now()
-          }
-        }
-      ).exec();
+      // Create new GameState document with new metadata + state structure
+      await GameStateModel.create({
+        campaignId,
+        state: parsedInitialState,  // Store the Zod-parsed state with consistent structure
+        version: initialVersion,
+        hash: initialHash,
+        lastUpdate: Date.now()
+        // createdBy and updatedBy are optional, let Mongoose handle them
+      });
 
       logger.info('Game state initialized', { 
-        sessionId, 
         campaignId, 
         version: initialVersion,
-        charactersCount: initialGameState.characters.length,
-        actorsCount: initialGameState.actors.length,
-        itemsCount: initialGameState.items.length
+        charactersCount: initialGameData.state.characters.length,
+        actorsCount: initialGameData.state.actors.length,
+        itemsCount: initialGameData.state.items.length
       });
 
       return {
@@ -429,8 +444,9 @@ export class GameStateService {
 
   /**
    * Load campaign data (characters, actors, items) for game state initialization
+   * Returns the new state structure with populated assets
    */
-  private async loadCampaignData(campaignId: string): Promise<ServerGameState> {
+  private async loadCampaignData(campaignId: string): Promise<{ state: ServerGameStateWithVirtuals }> {
     try {
       
       // Convert campaignId string to ObjectId for proper Mongoose querying
@@ -446,13 +462,13 @@ export class GameStateService {
         DocumentModel.find({ 
           campaignId: campaignObjectId, 
           documentType: 'character' 
-        }).populate(['avatar', 'defaultTokenImage']).exec(),
+        }).populate(['avatar', 'tokenImage']).exec(),
         
-        // Load actors (NPCs, monsters) belonging to this campaign
+        // Load actors (NPCs, monsters) belonging to this campaign with token assets
         DocumentModel.find({ 
           campaignId: campaignObjectId, 
           documentType: 'actor' 
-        }).exec(),
+        }).populate(['tokenImage']).exec(),
         
         // Load items belonging to this campaign
         DocumentModel.find({ 
@@ -463,7 +479,10 @@ export class GameStateService {
 
       logger.info('Loaded campaign documents', { 
         campaignId,
+        campaignFound: !!campaign,
+        campaignIsNull: campaign === null,
         campaignName: campaign?.name || 'Unknown',
+        actualCampaignId: campaign?.id,
         charactersCount: characters.length,
         actorsCount: actors.length,
         campaignItemsCount: campaignItems.length
@@ -507,15 +526,92 @@ export class GameStateService {
         totalItemsCount: allItems.length
       });
 
-      // Convert Mongoose documents to plain objects to avoid circular references in hash generation
+      // Convert Mongoose documents to plain objects with consistent ObjectId serialization
+      // Use JSON.parse(JSON.stringify()) to ensure ObjectIds are converted to strings consistently
+      const charactersPlain = characters.map(doc => {
+        const obj = JSON.parse(JSON.stringify(doc.toObject()));
+        // Clean up ownerId if it's been populated with full User object instead of ObjectId string
+        if (obj.ownerId && typeof obj.ownerId === 'object') {
+          // Remove the populated user object completely since we only need the ObjectId string
+          delete obj.ownerId;
+        }
+        return obj;
+      });
+      const actorsPlain = actors.map(doc => {
+        const obj = JSON.parse(JSON.stringify(doc.toObject()));
+        // Clean up ownerId if it's been populated with full User object instead of ObjectId string  
+        if (obj.ownerId && typeof obj.ownerId === 'object') {
+          // Remove the populated user object completely since we only need the ObjectId string
+          delete obj.ownerId;
+        }
+        return obj;
+      });
+
+      // Validate that asset population worked correctly
+      const charactersWithoutAssets = charactersPlain.filter((char: any) => {
+        return (char.tokenImageId && !char.tokenImage) || (char.avatarId && !char.avatar);
+      });
+      
+      const actorsWithoutAssets = actorsPlain.filter((actor: any) => {
+        return actor.tokenImageId && !actor.tokenImage;
+      });
+
+      if (charactersWithoutAssets.length > 0) {
+        logger.warn(`⚠️  Found ${charactersWithoutAssets.length} characters with missing asset population`, {
+          campaignId,
+          characterIds: charactersWithoutAssets.map(c => c.id)
+        });
+        charactersWithoutAssets.forEach((char: any) => {
+          logger.warn(`  - Character "${char.name}" (${char.id}): tokenImageId=${char.tokenImageId}, avatarId=${char.avatarId}, hasTokenImage=${!!char.tokenImage}, hasAvatar=${!!char.avatar}`);
+        });
+      }
+
+      if (actorsWithoutAssets.length > 0) {
+        logger.warn(`⚠️  Found ${actorsWithoutAssets.length} actors with missing asset population`, {
+          campaignId,
+          actorIds: actorsWithoutAssets.map(a => a.id)
+        });
+        actorsWithoutAssets.forEach((actor: any) => {
+          logger.warn(`  - Actor "${actor.name}" (${actor.id}): tokenImageId=${actor.tokenImageId}, hasTokenImage=${!!actor.tokenImage}`);
+        });
+      }
+
+      // Log successful asset population counts for validation
+      const charactersWithAssets = charactersPlain.filter((char: any) => char.tokenImage || char.avatar).length;
+      const actorsWithAssets = actorsPlain.filter((actor: any) => actor.tokenImage).length;
+      
+      if (charactersWithAssets > 0 || actorsWithAssets > 0) {
+        logger.info(`✅ Asset population successful: ${charactersWithAssets} characters and ${actorsWithAssets} actors have populated assets`);
+      }
+
+      // Clean up campaign ownerId if needed with consistent ObjectId serialization
+      const campaignPlain = campaign ? JSON.parse(JSON.stringify(campaign.toObject())) : null;
+      if (campaignPlain?.ownerId && typeof campaignPlain.ownerId === 'object') {
+        // Remove the populated user object completely since we only need the ObjectId string
+        delete campaignPlain.ownerId;
+      }
+
+      // Clean up items ownerIds with consistent ObjectId serialization
+      const itemsPlain = allItems.map(doc => {
+        const obj = JSON.parse(JSON.stringify(doc.toObject()));
+        // Clean up ownerId if it's been populated with full User object instead of ObjectId string
+        if (obj.ownerId && typeof obj.ownerId === 'object') {
+          // Remove the populated user object completely since we only need the ObjectId string
+          delete obj.ownerId;
+        }
+        return obj;
+      });
+
       return {
-        campaign: campaign ? campaign.toObject() : null,   // Convert campaign to plain object
-        characters: characters.map(doc => doc.toObject()), // Convert from Mongoose documents to plain objects
-        actors: actors.map(doc => doc.toObject()),         // Convert from Mongoose documents to plain objects
-        items: allItems.map(doc => doc.toObject()),        // Convert from Mongoose documents to plain objects
-        currentEncounter: null,                            // No active encounter initially
-        pluginData: {},                                    // Empty plugin data initially
-        turnManager: null                                  // No active turn manager initially
+        state: {
+          campaign: campaignPlain,                           // Convert campaign to plain object
+          characters: charactersPlain,                       // Convert from Mongoose documents to plain objects
+          actors: actorsPlain,                               // Convert from Mongoose documents to plain objects
+          items: itemsPlain,                                 // Convert from Mongoose documents to plain objects
+          currentEncounter: null,                            // No active encounter initially
+          pluginData: {},                                    // Empty plugin data initially
+          turnManager: null                                  // No active turn manager initially
+        }
       };
     } catch (error) {
       logger.error('Error loading campaign data:', error);
@@ -524,14 +620,15 @@ export class GameStateService {
     }
   }
 
+
   /**
-   * Get session with retry logic for high-concurrency scenarios
+   * Get game state by ID with retry logic for high-concurrency scenarios
    */
-  private async getSessionWithRetry(sessionId: string, retries = 3): Promise<IGameSession | null> {
+  private async getGameStateByIdWithRetry(gameStateId: string, retries = 3): Promise<import('../models/game-state.model.mjs').IGameStateDocument | null> {
     for (let i = 0; i < retries; i++) {
       try {
-        const session = await GameSessionModel.findById(sessionId).exec();
-        return session;
+        const gameState = await GameStateModel.findById(gameStateId).exec();
+        return gameState;
       } catch (error) {
         if (i === retries - 1) throw error;
         // Wait briefly before retry
@@ -544,22 +641,24 @@ export class GameStateService {
   /**
    * Get initial empty game state structure
    */
-  private getInitialGameState(): ServerGameState {
+  private getInitialGameState(): { state: ServerGameStateWithVirtuals } {
     return {
-      campaign: null,
-      characters: [],
-      actors: [],
-      items: [],
-      currentEncounter: null,
-      pluginData: {},
-      turnManager: null
+      state: {
+        campaign: null,
+        characters: [],
+        actors: [],
+        items: [],
+        currentEncounter: null,
+        pluginData: {},
+        turnManager: null
+      }
     };
   }
 
   /**
    * Apply multiple state operations to game state
    */
-  private async applyOperations(gameState: ServerGameState, operations: StateOperation[]): Promise<ServerGameState> {
+  private async applyOperations(gameState: ServerGameStateWithVirtuals, operations: StateOperation[]): Promise<ServerGameStateWithVirtuals> {
     let currentState = JSON.parse(JSON.stringify(gameState)); // Deep clone
 
     for (const operation of operations) {
@@ -572,7 +671,7 @@ export class GameStateService {
   /**
    * Apply a single state operation using proper path parsing
    */
-  private applyOperation(gameState: ServerGameState, operation: StateOperation): ServerGameState {
+  private applyOperation(gameState: ServerGameStateWithVirtuals, operation: StateOperation): ServerGameStateWithVirtuals {
     const { path, operation: op, value } = operation;
 
     try {
@@ -580,7 +679,7 @@ export class GameStateService {
       const pathSegments = this.parsePath(path);
       
       // Navigate to target location
-      const { parent, key } = this.navigateToParent(gameState, pathSegments);
+      const { parent, key } = this.navigateToParent(gameState as Record<string, unknown>, pathSegments);
 
       // Apply operation
       switch (op) {
@@ -699,7 +798,7 @@ export class GameStateService {
   /**
    * Validate game state structure
    */
-  private validateGameState(gameState: ServerGameState): { isValid: boolean; error?: string } {
+  private validateGameState(gameState: ServerGameStateWithVirtuals): { isValid: boolean; error?: string } {
     try {
       // Basic structure validation
       if (!gameState || typeof gameState !== 'object') {
@@ -722,8 +821,8 @@ export class GameStateService {
         return { isValid: false, error: 'currentEncounter must be null or an object' };
       }
 
-      // pluginData must be an object
-      if (!gameState.pluginData || typeof gameState.pluginData !== 'object') {
+      // pluginData must be an object (allow undefined/null and default to empty object)
+      if (gameState.pluginData !== undefined && gameState.pluginData !== null && typeof gameState.pluginData !== 'object') {
         return { isValid: false, error: 'pluginData must be an object' };
       }
 

@@ -82,18 +82,15 @@ export class GameSessionService {
         gameMasterId: userObjectId,
         participantIds: [userObjectId],
         createdBy: userObjectId,
+        ownerId: userObjectId, // Set ownerId for new game sessions
         updatedBy: userObjectId,
-        // Explicitly set gameState to null to avoid validation issues during creation
-        gameState: null,
-        gameStateVersion: '0',
-        gameStateHash: null,
-        lastStateUpdate: null
+        // GameState is now handled by a separate GameState model
       };
 
       const session = await GameSessionModel.create(sessionData);
       
-      // Initialize game state for the new session
-      await this.gameStateService.initializeGameState(session.id, data.campaignId);
+      // Initialize game state for the campaign if not already done
+      await this.gameStateService.initializeGameState(data.campaignId);
       
       // Return the session with initialized game state
       const initializedSession = await GameSessionModel.findById(session.id).exec();
@@ -253,5 +250,205 @@ export class GameSessionService {
       logger.error('Error removing participant from session:', error);
       throw new Error(`Failed to remove participant from session: ${error instanceof Error ? error.message : String(error)}`);
     }
+  }
+
+  /**
+   * Start a scheduled game session
+   * @param sessionId - ID of the game session to start
+   * @param userId - ID of the user starting the session (must be GM)
+   * @returns The updated game session
+   */
+  async startSession(sessionId: string, userId: string): Promise<IGameSession> {
+    try {
+      const session = await GameSessionModel.findById(sessionId);
+      if (!session) {
+        throw new Error('Game session not found');
+      }
+
+      // Validate state transition
+      if (session.status !== 'scheduled') {
+        throw new Error(`Cannot start session from status: ${session.status}`);
+      }
+
+      // Check for existing active/paused sessions in the campaign
+      const existingActiveSessions = await GameSessionModel.find({
+        campaignId: session.campaignId,
+        status: { $in: ['active', 'paused'] }
+      });
+
+      if (existingActiveSessions.length > 0) {
+        throw new Error('Another session is already active or paused for this campaign');
+      }
+
+      // Update session to active
+      const updatedSession = await GameSessionModel.findByIdAndUpdate(
+        sessionId,
+        {
+          status: 'active',
+          actualStartTime: new Date(),
+          updatedBy: userId
+        },
+        { new: true }
+      );
+
+      if (!updatedSession) {
+        throw new Error('Failed to update session');
+      }
+
+      logger.info(`Session ${sessionId} started by user ${userId}`);
+      return updatedSession;
+    } catch (error) {
+      logger.error('Error starting session:', error);
+      throw error instanceof Error ? error : new Error('Failed to start session');
+    }
+  }
+
+  /**
+   * Pause an active game session
+   * @param sessionId - ID of the game session to pause
+   * @param userId - ID of the user pausing the session (must be GM)
+   * @returns The updated game session
+   */
+  async pauseSession(sessionId: string, userId: string): Promise<IGameSession> {
+    try {
+      const session = await GameSessionModel.findById(sessionId);
+      if (!session) {
+        throw new Error('Game session not found');
+      }
+
+      // Validate state transition
+      if (session.status !== 'active') {
+        throw new Error(`Cannot pause session from status: ${session.status}`);
+      }
+
+      // Update session to paused
+      const updatedSession = await GameSessionModel.findByIdAndUpdate(
+        sessionId,
+        {
+          status: 'paused',
+          updatedBy: userId
+        },
+        { new: true }
+      );
+
+      if (!updatedSession) {
+        throw new Error('Failed to update session');
+      }
+
+      logger.info(`Session ${sessionId} paused by user ${userId}`);
+      return updatedSession;
+    } catch (error) {
+      logger.error('Error pausing session:', error);
+      throw error instanceof Error ? error : new Error('Failed to pause session');
+    }
+  }
+
+  /**
+   * Resume a paused game session
+   * @param sessionId - ID of the game session to resume
+   * @param userId - ID of the user resuming the session (must be GM)
+   * @returns The updated game session
+   */
+  async resumeSession(sessionId: string, userId: string): Promise<IGameSession> {
+    try {
+      const session = await GameSessionModel.findById(sessionId);
+      if (!session) {
+        throw new Error('Game session not found');
+      }
+
+      // Validate state transition
+      if (session.status !== 'paused') {
+        throw new Error(`Cannot resume session from status: ${session.status}`);
+      }
+
+      // Check for other active sessions in the campaign
+      const existingActiveSessions = await GameSessionModel.find({
+        campaignId: session.campaignId,
+        status: 'active',
+        _id: { $ne: sessionId }
+      });
+
+      if (existingActiveSessions.length > 0) {
+        throw new Error('Another session is already active for this campaign');
+      }
+
+      // Update session to active
+      const updatedSession = await GameSessionModel.findByIdAndUpdate(
+        sessionId,
+        {
+          status: 'active',
+          updatedBy: userId
+        },
+        { new: true }
+      );
+
+      if (!updatedSession) {
+        throw new Error('Failed to update session');
+      }
+
+      logger.info(`Session ${sessionId} resumed by user ${userId}`);
+      return updatedSession;
+    } catch (error) {
+      logger.error('Error resuming session:', error);
+      throw error instanceof Error ? error : new Error('Failed to resume session');
+    }
+  }
+
+  /**
+   * End a game session
+   * @param sessionId - ID of the game session to end
+   * @param userId - ID of the user ending the session (must be GM)
+   * @returns The updated game session
+   */
+  async endSession(sessionId: string, userId: string): Promise<IGameSession> {
+    try {
+      const session = await GameSessionModel.findById(sessionId);
+      if (!session) {
+        throw new Error('Game session not found');
+      }
+
+      // Validate state transition
+      if (!this.validateStateTransition(session.status, 'ended')) {
+        throw new Error(`Cannot end session from status: ${session.status}`);
+      }
+
+      // Update session to ended
+      const updatedSession = await GameSessionModel.findByIdAndUpdate(
+        sessionId,
+        {
+          status: 'ended',
+          actualEndTime: new Date(),
+          updatedBy: userId
+        },
+        { new: true }
+      );
+
+      if (!updatedSession) {
+        throw new Error('Failed to update session');
+      }
+
+      logger.info(`Session ${sessionId} ended by user ${userId}`);
+      return updatedSession;
+    } catch (error) {
+      logger.error('Error ending session:', error);
+      throw error instanceof Error ? error : new Error('Failed to end session');
+    }
+  }
+
+  /**
+   * Validate if a session state transition is allowed
+   * @param fromStatus - Current session status
+   * @param toStatus - Target session status
+   * @returns true if transition is valid
+   */
+  validateStateTransition(fromStatus: string, toStatus: string): boolean {
+    const validTransitions: Record<string, string[]> = {
+      scheduled: ['active', 'ended'],
+      active: ['paused', 'ended'],
+      paused: ['active', 'ended'],
+      ended: [] // No transitions from ended state
+    };
+
+    return validTransitions[fromStatus]?.includes(toStatus) ?? false;
   }
 }

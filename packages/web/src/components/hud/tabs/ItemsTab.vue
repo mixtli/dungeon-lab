@@ -44,8 +44,14 @@
         v-for="item in filteredItems"
         :key="item.id"
         class="item-card"
-        :class="`item-${item.pluginData?.rarity || 'common'}`"
+        :class="[
+          `item-${item.pluginData?.rarity || 'common'}`,
+          { 'is-dragging': isDragging && draggedItem?.id === item.id }
+        ]"
+        draggable="true"
         @click="selectItem(item)"
+        @dragstart="handleDragStart($event, item)"
+        @dragend="handleDragEnd"
       >
         <div class="item-icon">
           <img v-if="item.imageId && itemImageUrls[item.imageId]" :src="itemImageUrls[item.imageId]" :alt="item.name" />
@@ -115,6 +121,10 @@ const gameStateStore = useGameStateStore();
 const searchQuery = ref('');
 const activeFilter = ref('all');
 const itemImageUrls = ref<Record<string, string>>({});
+
+// Drag and drop state
+const isDragging = ref(false);
+const draggedItem = ref<IItem | null>(null);
 
 const filterOptions = [
   { id: 'all', label: 'All' },
@@ -226,6 +236,67 @@ async function duplicateItem(item: IItem): Promise<void> {
     console.error('Failed to duplicate item:', error);
   }
 }
+
+// Helper function to get item image URL  
+function getItemImageUrl(item: IItem): string | null {
+  if (item.imageId && itemImageUrls.value[item.imageId]) {
+    return itemImageUrls.value[item.imageId];
+  }
+  return null;
+}
+
+// ============================================================================
+// DRAG AND DROP FUNCTIONALITY
+// ============================================================================
+
+function handleDragStart(event: DragEvent, item: IItem): void {
+  if (!event.dataTransfer) return;
+  
+  // Set drag state
+  isDragging.value = true;
+  draggedItem.value = item;
+  
+  // Set transfer data for drop handling
+  const dragData = {
+    type: 'document-token',
+    documentId: item.id,
+    documentType: item.documentType,
+    name: item.name,
+    imageUrl: getItemImageUrl(item)
+  };
+  
+  event.dataTransfer.setData('application/json', JSON.stringify(dragData));
+  event.dataTransfer.effectAllowed = 'copy';
+  
+  // Set custom drag image if we have an item image
+  const imageUrl = getItemImageUrl(item);
+  if (imageUrl) {
+    const dragImage = new Image();
+    dragImage.src = imageUrl;
+    dragImage.onload = () => {
+      // Scale the image for dragging
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        canvas.width = 64;
+        canvas.height = 64;
+        ctx.drawImage(dragImage, 0, 0, 64, 64);
+        event.dataTransfer?.setDragImage(canvas, 32, 32);
+      }
+    };
+  }
+  
+  console.log(`Started dragging item: ${item.name}`);
+}
+
+function handleDragEnd(): void {
+  // Reset drag state
+  isDragging.value = false;
+  draggedItem.value = null;
+  
+  console.log('Drag ended');
+}
+
 </script>
 
 <style scoped>
@@ -388,6 +459,13 @@ async function duplicateItem(item: IItem): Promise<void> {
 
 .item-card.item-legendary {
   border-left: 3px solid #f59e0b;
+}
+
+.item-card.is-dragging {
+  opacity: 0.5;
+  transform: scale(0.95);
+  background: rgba(59, 130, 246, 0.2);
+  border-color: rgba(59, 130, 246, 0.5);
 }
 
 .item-icon {
