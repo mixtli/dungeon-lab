@@ -1,5 +1,5 @@
 import { createHash } from 'crypto';
-// Removed unused Types import
+import mongoose from 'mongoose';
 import { ICompendiumEntry } from '@dungeon-lab/shared/types/index.mjs';
 import { CompendiumEntryModel } from '../models/compendium-entry.model.mjs';
 import { ActorDocumentModel } from '../../documents/models/actor-document.model.mjs';
@@ -54,7 +54,7 @@ export class TemplateService {
             // Ownership rules for actors
             ...(campaignId && { campaignId }), // Optional - actors can be global for auto-creation
             createdBy: userId,                   // Required - actors owned by users
-            ownerId: userId,                     // Set ownerId for new actors
+            ownerId: new mongoose.Types.ObjectId(userId), // Set ownerId for new actors
             createdAt: new Date(),
             updatedBy: userId,
             // Source tracking
@@ -100,7 +100,7 @@ export class TemplateService {
             ...(campaignId && { campaignId }), // Optional - characters can exist without campaigns
             compendiumId: undefined,             // Never from compendium - characters are player-created
             createdBy: userId,                   // Required - characters owned by users
-            ownerId: userId,                     // Set ownerId for new characters
+            ownerId: new mongoose.Types.ObjectId(userId), // Set ownerId for new characters
             createdAt: new Date(),
             updatedBy: userId,
             // Source tracking with compendiumEntryId
@@ -186,7 +186,7 @@ export class TemplateService {
             const newDocumentData = {
               ...documentData,
               createdBy: userId,     // Track who first instantiated it
-              ownerId: userId,       // Set ownerId for new VTTDocuments
+              ownerId: new mongoose.Types.ObjectId(userId), // Set ownerId for new VTTDocuments
               createdAt: new Date()
             };
             return await VTTDocumentModel.create(newDocumentData);

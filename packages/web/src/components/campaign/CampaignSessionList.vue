@@ -25,9 +25,6 @@ const sessions = ref<IGameSession[]>([]);
 
 const gameSessionClient = new GameSessionsClient();
 
-// Add new refs
-const showCharacterSelector = ref(false);
-const selectedSessionId = ref('');
 
 // Fetch sessions on mount
 onMounted(async () => {
@@ -68,10 +65,13 @@ const pausedSessions = computed(
   () => sessions.value.filter(session => session.status === ('paused' as SessionStatus)) || []
 );
 
-function joinSession(sessionId: string) {
-  // Show character selector modal instead of joining immediately
-  selectedSessionId.value = sessionId;
-  showCharacterSelector.value = true;
+async function joinSession(sessionId: string) {
+  try {
+    await gameSessionStore.joinSession(sessionId);
+  } catch (error) {
+    console.error('Failed to join session:', error);
+    // Error handling is already done in the store
+  }
 }
 
 function formatTime(isoString: string) {
@@ -409,14 +409,5 @@ defineExpose({
       </div>
     </div>
 
-    <!-- Character Selector Modal -->
-    <CharacterSelector
-      v-if="showCharacterSelector"
-      :show="showCharacterSelector"
-      :campaign-id="props.campaignId"
-      :session-id="selectedSessionId"
-      @close="showCharacterSelector = false"
-      @character-selected="showCharacterSelector = false"
-    />
   </div>
 </template>

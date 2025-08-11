@@ -31,10 +31,10 @@
       <div class="sidebar-controls">
         <button
           class="control-button"
-          title="Close Sidebar"
-          @click="hud.toggleSidebar"
+          title="Collapse Sidebar"
+          @click="hud.toggleSidebarCollapsed"
         >
-          <i class="mdi mdi-close"></i>
+          <i class="mdi mdi-chevron-double-left" :class="{ 'mdi-chevron-double-right': hud.store.sidebar.position === 'left' }"></i>
         </button>
       </div>
     </div>

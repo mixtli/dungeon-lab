@@ -4,10 +4,6 @@ import { zId } from '@zodyac/zod-mongoose';
 import { IMap } from '@dungeon-lab/shared/types/index.mjs';
 import { baseMongooseZodSchema } from '../../../models/base.model.schema.mjs';
 import { createMongoSchema } from '../../../models/zod-to-mongo.mjs';
-import { portalSchema } from '@dungeon-lab/shared/schemas/index.mjs';
-import { z } from '../../../utils/zod.mjs';
-
-type IPortal = z.infer<typeof portalSchema>;
 
 /**
  * Map document interface extending the base Map interface
@@ -39,47 +35,8 @@ const serverMapSchema = mapSchema.extend({
  */
 const mongooseSchema = createMongoSchema<IMap>(serverMapSchema.merge(baseMongooseZodSchema));
 
-mongooseSchema.path('uvtt.line_of_sight').get(function (value: {x: number, y: number}[][]) {
-  if (!value) return undefined;
-  return value.map((wall) => wall.map((point) => ({x: point.x, y: point.y})))
-});
-
-mongooseSchema.path('uvtt.line_of_sight').set(function (value: {x: number, y: number}[][]) {
-  const result = value.map((wall) => wall.map((point) => ({x: point.x, y: point.y})));
-  console.log(result);
-  return result;
-});
-
-mongooseSchema.path('uvtt.objects_line_of_sight').get(function (value: {x: number, y: number}[][]) {
-  if (!value) return undefined;
-  return value.map((wall) => wall.map((point) => ({x: point.x, y: point.y})))
-});
-
-mongooseSchema.path('uvtt.objects_line_of_sight').set(function (value: {x: number, y: number}[][]) {
-  const result = value.map((wall) => wall.map((point) => ({x: point.x, y: point.y})));
-  console.log(result);
-  return result;
-});
-mongooseSchema.path('uvtt.portals').get(function (value: (IPortal & {_id: string})[]) {
-  if (!value) return undefined;
-  return value.map((portal) => {
-    const { _id, ...portalWithoutId } = portal;
-    if (portalWithoutId.bounds) {
-      portalWithoutId.bounds = portalWithoutId.bounds.map((bound: {x: number, y: number}) => ({x: bound.x, y: bound.y}));
-    }
-    return portalWithoutId;
-  });
-  
-});
-
-mongooseSchema.path('uvtt.portals').set(function (value: (IPortal & {_id: string})[]) {
-  const result = value.map((portal) => {
-    const { _id, ...portalWithoutId } = portal;
-    portalWithoutId.bounds = portalWithoutId.bounds.map((bound: {x: number, y: number}) => ({x: bound.x, y: bound.y}));
-    return portalWithoutId;
-  });
-  return result;
-});
+// Override the uvtt field to use Mixed type to avoid _id issues with nested arrays
+mongooseSchema.path('uvtt', mongoose.Schema.Types.Mixed);
 
 // Fix line 31 - properly disable _id for nested array elements
 // if (mongooseSchema.paths.uvtt && mongooseSchema.paths.uvtt.schema) {

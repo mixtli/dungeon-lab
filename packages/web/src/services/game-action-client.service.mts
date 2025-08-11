@@ -33,6 +33,70 @@ export class GameActionClientService {
   }
 
   /**
+   * Send a "start-encounter" request to the GM
+   */
+  async requestStartEncounter(encounterId: string): Promise<ActionRequestResponse> {
+    const currentSession = this.gameSessionStore.currentSession;
+    const currentUser = this.authStore.user;
+    
+    if (!currentSession || !currentUser) {
+      return {
+        success: false,
+        requestId: '',
+        error: {
+          code: 'NO_SESSION_OR_USER',
+          message: 'No active session or user'
+        }
+      };
+    }
+
+    const request: GameActionRequest = {
+      id: this.generateRequestId(),
+      action: 'start-encounter',
+      playerId: currentUser.id,
+      sessionId: currentSession.id,
+      timestamp: Date.now(),
+      parameters: { encounterId }
+    };
+
+    console.log('[GameActionClient] Sending start-encounter request:', request.id);
+
+    return this.sendRequest(request);
+  }
+
+  /**
+   * Send a "stop-encounter" request to the GM
+   */
+  async requestStopEncounter(encounterId: string): Promise<ActionRequestResponse> {
+    const currentSession = this.gameSessionStore.currentSession;
+    const currentUser = this.authStore.user;
+    
+    if (!currentSession || !currentUser) {
+      return {
+        success: false,
+        requestId: '',
+        error: {
+          code: 'NO_SESSION_OR_USER',
+          message: 'No active session or user'
+        }
+      };
+    }
+
+    const request: GameActionRequest = {
+      id: this.generateRequestId(),
+      action: 'stop-encounter',
+      playerId: currentUser.id,
+      sessionId: currentSession.id,
+      timestamp: Date.now(),
+      parameters: { encounterId }
+    };
+
+    console.log('[GameActionClient] Sending stop-encounter request:', request.id);
+
+    return this.sendRequest(request);
+  }
+
+  /**
    * Send an "end-turn" request to the GM
    */
   async requestEndTurn(): Promise<ActionRequestResponse> {

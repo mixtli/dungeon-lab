@@ -23,6 +23,9 @@ mongooseSchema.path('data', mongoose.Schema.Types.Mixed);
 // This prevents "Cast to embedded failed" errors during encounter sync operations
 mongooseSchema.path('tokens', mongoose.Schema.Types.Mixed);
 
+// Set Mixed type for currentMap to handle complex nested map data and prevent validation issues
+mongooseSchema.path('currentMap', mongoose.Schema.Types.Mixed);
+
 // Add getters and setters for campaignId to handle ObjectId conversion
 mongooseSchema.path('campaignId').set(function (value: string) {
   return new mongoose.Types.ObjectId(value);

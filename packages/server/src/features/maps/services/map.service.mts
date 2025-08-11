@@ -260,6 +260,16 @@ export class MapService {
         throw new Error('Map not found');
       }
 
+      // Validate UVTT data if present
+      if (data.uvtt) {
+        try {
+          data.uvtt = uvttSchema.parse(data.uvtt);
+        } catch (error) {
+          logger.error('UVTT validation failed during map update:', error);
+          throw new Error(`Invalid UVTT data: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+
       // Prepare update data
       const mapUpdateData: IMapUpdateData = { ...data, updatedBy: userId };
 
@@ -483,6 +493,16 @@ export class MapService {
         throw new Error('Map not found');
       }
 
+      // Validate UVTT data if present
+      if (data.uvtt) {
+        try {
+          data.uvtt = uvttSchema.parse(data.uvtt);
+        } catch (error) {
+          logger.error('UVTT validation failed during map PUT:', error);
+          throw new Error(`Invalid UVTT data: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+
       const userObjectId = new Types.ObjectId(userId);
       const updateData = {
         ...data,
@@ -535,6 +555,16 @@ export class MapService {
       const map = await MapModel.findById(id);
       if (!map) {
         throw new Error('Map not found');
+      }
+
+      // Validate UVTT data if present
+      if (data.uvtt) {
+        try {
+          data.uvtt = uvttSchema.parse(data.uvtt);
+        } catch (error) {
+          logger.error('UVTT validation failed during map PATCH:', error);
+          throw new Error(`Invalid UVTT data: ${error instanceof Error ? error.message : String(error)}`);
+        }
       }
 
       const updateData = {

@@ -3,21 +3,19 @@
 import { onMounted, ref, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useGameStateStore } from '../../stores/game-state.store.mjs';
-import { useSocketStore } from '../../stores/socket.store.mjs';
-import { useAuthStore } from '../../stores/auth.store.mjs';
 import { useGameSessionStore } from '../../stores/game-session.store.mts';
 import { IGameSession, IMap, IAsset, IEncounter } from '@dungeon-lab/shared/types/index.mjs';
 import { GameSessionsClient, CampaignsClient, MapsClient, EncountersClient } from '@dungeon-lab/client/index.mjs';
+import { GameActionClientService } from '../../services/game-action-client.service.mjs';
 
 const gameSessionClient = new GameSessionsClient();
 const campaignsClient = new CampaignsClient();
 const mapsClient = new MapsClient();
 const encountersClient = new EncountersClient();
+const gameActionClient = new GameActionClientService();
 const route = useRoute();
 const router = useRouter();
 const gameStateStore = useGameStateStore();
-const socketStore = useSocketStore();
-const authStore = useAuthStore();
 const gameSessionStore = useGameSessionStore();
 const loadError = ref<string | null>(null);
 const loading = ref(false);
@@ -43,39 +41,16 @@ const getThumbnailUrl = (map: IMap): string | undefined => {
   return undefined;
 };
 
-const isGameMaster = computed(() => {
-  // Check if user is GM for the encounter (from fetched encounter data) or active encounter
-  const encounterCreatedBy = encounterData.value?.createdBy || gameStateStore.currentEncounter?.createdBy;
-  const result = encounterCreatedBy === authStore.user?.id;
-  console.log('[Debug] isGameMaster check:', {
-    encounterCreatedBy,
-    currentUserId: authStore.user?.id,
-    isGameMaster: result,
-  });
-  return result;
-});
-
 const canStartEncounter = computed(() => {
   const encounterStatus = encounterData.value?.status || gameStateStore.currentEncounter?.status;
-  const result = isGameMaster.value && encounterStatus === 'stopped';
-  console.log('[Debug] canStartEncounter check:', {
-    isGameMaster: isGameMaster.value,
-    encounterStatus,
-    canStart: result,
-  });
-  return result;
+  const hasSession = !!gameSessionStore.currentSession;
+  return hasSession && encounterStatus === 'stopped';
 });
-
 
 const canStopEncounter = computed(() => {
   const encounterStatus = encounterData.value?.status || gameStateStore.currentEncounter?.status;
-  const result = isGameMaster.value && encounterStatus === 'in_progress';
-  console.log('[Debug] canStopEncounter check:', {
-    isGameMaster: isGameMaster.value,
-    encounterStatus,
-    canStop: result,
-  });
-  return result;
+  const hasSession = !!gameSessionStore.currentSession;
+  return hasSession && encounterStatus === 'in_progress';
 });
 
 const isEncounterActive = computed(() => {
@@ -170,11 +145,8 @@ onMounted(async () => {
 
 
 async function handleStartEncounter() {
-  console.log('[Debug] Start Encounter clicked');
-
   const encounter = encounterData.value || gameStateStore.currentEncounter;
   if (!encounter) {
-    console.warn('[Debug] No encounter data available');
     error.value = 'No encounter data available';
     return;
   }
@@ -184,115 +156,24 @@ async function handleStartEncounter() {
     error.value = null;
     successMessage.value = null;
 
-    console.log('[Debug] Starting encounter workflow:', {
-      encounterId: encounter.id,
-      encounterName: encounter.name,
-      campaignId: encounter.campaignId
-    });
-
-    // Step 1: Validate that user is already in an active session
-    console.log('[Debug] Validating current session...');
+    console.log('[EncounterDetail] Requesting start encounter:', encounter.id);
     
-    if (!gameSessionStore.currentSession) {
-      console.error('[Debug] No current session found');
-      error.value = 'Please join a game session first before starting encounters.';
-      return;
-    }
-
-    if (gameSessionStore.currentSession.status !== 'active') {
-      console.error('[Debug] Current session is not active:', gameSessionStore.currentSession.status);
-      error.value = 'Current session is not active. Please join an active game session.';
-      return;
-    }
-
-    if (gameSessionStore.currentSession.campaignId !== encounter.campaignId) {
-      console.error('[Debug] Session campaign mismatch:', {
-        sessionCampaign: gameSessionStore.currentSession.campaignId,
-        encounterCampaign: encounter.campaignId
-      });
-      error.value = 'Current session is for a different campaign. Please join the correct session.';
-      return;
-    }
-
-    console.log('[Debug] Session validation passed:', {
-      sessionId: gameSessionStore.currentSession.id,
-      campaignId: gameSessionStore.currentSession.campaignId
-    });
-
-    // Step 2: Wait for game state to be loaded and check GM authority
-    let retryCount = 0;
-    const maxRetries = 5;
+    const response = await gameActionClient.requestStartEncounter(encounter.id);
     
-    while (retryCount < maxRetries && !gameStateStore.hasGameState) {
-      console.log(`[Debug] Waiting for game state to load... (attempt ${retryCount + 1}/${maxRetries})`);
-      await new Promise(resolve => setTimeout(resolve, 500));
-      retryCount++;
-    }
-
-    if (!gameStateStore.hasGameState) {
-      console.warn('[Debug] Game state not loaded after joining session');
-      error.value = 'Failed to load game state. Please try again.';
-      return;
-    }
-
-    // Step 3: Check if we can update game state (GM authority)
-    if (!gameStateStore.canUpdate) {
-      console.warn('[Debug] Cannot update game state - not GM or no session');
-      error.value = 'Only the Game Master can start encounters';
-      return;
-    }
-
-    console.log('[Debug] Loading encounter into game session via socket...');
-
-    // Step 3: Populate encounter with complete map data (including UVTT walls)
-    let encounterWithMap = { ...encounter };
-    if (encounter.mapId && mapData.value) {
-      console.log('[Debug] Populating encounter currentMap with complete map data including UVTT');
-      encounterWithMap.currentMap = mapData.value;
-      console.log('[Debug] Map UVTT data:', {
-        hasUvtt: !!mapData.value.uvtt,
-        hasLineOfSight: !!mapData.value.uvtt?.line_of_sight,
-        hasObjectsLineOfSight: !!mapData.value.uvtt?.objects_line_of_sight,
-        lineOfSightCount: mapData.value.uvtt?.line_of_sight?.length || 0,
-        objectsLineOfSightCount: mapData.value.uvtt?.objects_line_of_sight?.length || 0
-      });
-    } else {
-      console.warn('[Debug] Missing mapId or mapData - currentMap will not be populated', {
-        hasMapId: !!encounter.mapId,
-        hasMapData: !!mapData.value
-      });
-    }
-
-    // Step 4: Create state operation to set the current encounter with populated map
-    const stateOperation = {
-      path: 'currentEncounter',
-      operation: 'set' as const,
-      value: encounterWithMap
-    };
-
-    // Apply the state update through the game state store (socket-based)
-    const result = await gameStateStore.updateGameState([stateOperation]);
-    
-    if (result.success) {
-      console.log('[Debug] Successfully loaded encounter into session via socket');
+    if (response.success) {
+      successMessage.value = 'Encounter started successfully!';
+      console.log('[EncounterDetail] Encounter start request successful');
       
-      // Update encounter status to in_progress via API (non-blocking)
-      encountersClient.updateEncounterStatus(encounter.id, 'in_progress')
-        .then(() => {
-          console.log('[Debug] Encounter status updated to in_progress');
-        })
-        .catch((statusError) => {
-          console.warn('[Debug] Failed to update encounter status (non-critical):', statusError);
-        });
-      
-      // Redirect to the new active encounter route
-      router.push({ name: 'active-encounter' });
+      // Navigate to active encounter after short delay to show success message
+      setTimeout(() => {
+        router.push({ name: 'active-encounter' });
+      }, 1500);
     } else {
-      console.error('[Debug] Failed to load encounter into session:', result.error);
-      error.value = result.error?.message || 'Failed to start encounter';
+      console.error('[EncounterDetail] Encounter start request failed:', response.error);
+      error.value = response.error?.message || 'Failed to start encounter';
     }
   } catch (err) {
-    console.error('[Debug] Error starting encounter:', err);
+    console.error('[EncounterDetail] Error requesting start encounter:', err);
     error.value = err instanceof Error ? err.message : 'Failed to start encounter';
   } finally {
     loading.value = false;
@@ -301,21 +182,9 @@ async function handleStartEncounter() {
 
 
 async function handleStopEncounter() {
-  console.log('[Debug] Stop Encounter clicked');
-
   const encounter = encounterData.value || gameStateStore.currentEncounter;
-  if (!encounter || !gameSessionStore.currentSession) {
-    console.warn('[Debug] Missing required data:', {
-      hasEncounter: !!encounter,
-      hasSession: !!gameSessionStore.currentSession,
-    });
-    error.value = 'Missing encounter or session data';
-    return;
-  }
-
-  if (!gameStateStore.canUpdate) {
-    console.warn('[Debug] Cannot update game state - not GM or no session');
-    error.value = 'Only the Game Master can stop encounters';
+  if (!encounter) {
+    error.value = 'No encounter data available';
     return;
   }
 
@@ -323,110 +192,25 @@ async function handleStopEncounter() {
     loading.value = true;
     error.value = null;
     successMessage.value = null;
+
+    console.log('[EncounterDetail] Requesting stop encounter:', encounter.id);
     
-    const sessionId = gameSessionStore.currentSession.id;
-    console.log('[Debug] Starting stop encounter workflow:', {
-      encounterId: encounter.id,
-      sessionId,
-      isCurrentEncounter: gameStateStore.currentEncounter?.id === encounter.id
-    });
-
-    // Check if this encounter is the currently active encounter
-    const isActiveEncounter = gameStateStore.currentEncounter?.id === encounter.id;
+    const response = await gameActionClient.requestStopEncounter(encounter.id);
     
-    if (isActiveEncounter) {
-      console.log('[Debug] Stopping active encounter via game state socket');
+    if (response.success) {
+      successMessage.value = 'Encounter stopped successfully!';
+      console.log('[EncounterDetail] Encounter stop request successful');
       
-      // Step 1: Update encounter status to 'stopped' in game state
-      console.log('[Debug] Step 1: Setting encounter status to stopped');
-      const statusOperation = {
-        path: 'currentEncounter.status',
-        operation: 'set' as const,
-        value: 'stopped'
-      };
-      
-      const statusResult = await gameStateStore.updateGameState([statusOperation]);
-      if (!statusResult.success) {
-        console.error('[Debug] Failed to update encounter status:', statusResult.error);
-        error.value = statusResult.error?.message || 'Failed to update encounter status';
-        return;
-      }
-      console.log('[Debug] Step 1 completed: Encounter status set to stopped');
-
-      // Step 2: Trigger sync to backing database
-      console.log('[Debug] Step 2: Syncing encounter to database');
-      return new Promise<void>((resolve, reject) => {
-        if (!socketStore.socket) {
-          reject(new Error('Socket not available'));
-          return;
-        }
-
-        socketStore.socket.emit('gameState:syncEncounter', sessionId, (response: { success: boolean; error?: string }) => {
-          if (response.success) {
-            console.log('[Debug] Step 2 completed: Encounter synced to database');
-            
-            // Step 3: Clear current encounter from game state
-            console.log('[Debug] Step 3: Clearing current encounter from game state');
-            const clearOperation = {
-              path: 'currentEncounter',
-              operation: 'unset' as const
-            };
-            
-            gameStateStore.updateGameState([clearOperation]).then((clearResult) => {
-              if (clearResult.success) {
-                console.log('[Debug] Step 3 completed: Current encounter cleared from game state');
-                console.log('[Debug] Stop encounter workflow completed successfully');
-                
-                // Set success message before navigation
-                successMessage.value = 'Encounter stopped successfully';
-                
-                // Navigate back to campaign or encounters list after a short delay to show success
-                setTimeout(() => {
-                  router.push({ name: 'campaign-detail', params: { id: encounter.campaignId } });
-                }, 1500);
-                resolve();
-              } else {
-                console.error('[Debug] Failed to clear current encounter:', clearResult.error);
-                error.value = clearResult.error?.message || 'Failed to clear encounter from game state';
-                reject(new Error(clearResult.error?.message || 'Failed to clear encounter'));
-              }
-            }).catch((clearError) => {
-              console.error('[Debug] Error clearing current encounter:', clearError);
-              error.value = 'Failed to clear encounter from game state';
-              reject(clearError);
-            });
-            
-          } else {
-            console.error('[Debug] Failed to sync encounter to database:', response.error);
-            error.value = response.error || 'Failed to sync encounter to database';
-            reject(new Error(response.error || 'Sync failed'));
-          }
-        });
-      });
+      // Navigate back to campaign after short delay to show success message
+      setTimeout(() => {
+        router.push({ name: 'campaign-detail', params: { id: encounter.campaignId } });
+      }, 1500);
     } else {
-      // Handle inactive encounters via REST API
-      console.log('[Debug] Stopping inactive encounter via REST API');
-      
-      try {
-        await encountersClient.updateEncounterStatus(encounter.id, 'stopped');
-        console.log('[Debug] Successfully stopped inactive encounter via REST API');
-        
-        // Set success message before navigation
-        successMessage.value = 'Encounter stopped successfully';
-        
-        // Navigate back to campaign or encounters list after a short delay to show success
-        setTimeout(() => {
-          router.push({ name: 'campaign-detail', params: { id: encounter.campaignId } });
-        }, 1500);
-      } catch (restError) {
-        console.error('[Debug] Failed to stop encounter via REST API:', restError);
-        error.value = restError instanceof Error ? restError.message : 'Failed to stop encounter';
-        throw restError;
-      }
+      console.error('[EncounterDetail] Encounter stop request failed:', response.error);
+      error.value = response.error?.message || 'Failed to stop encounter';
     }
-    
   } catch (err) {
-    console.error('[Debug] Error in stop encounter workflow:', err);
+    console.error('[EncounterDetail] Error requesting stop encounter:', err);
     error.value = err instanceof Error ? err.message : 'Failed to stop encounter';
   } finally {
     loading.value = false;
@@ -497,7 +281,7 @@ async function handleStopEncounter() {
 
         <div class="flex gap-2">
 
-          <!-- Start Encounter Button (Game Master Only) -->
+          <!-- Start Encounter Button -->
           <button
             v-if="canStartEncounter"
             @click="handleStartEncounter"
@@ -524,7 +308,7 @@ async function handleStopEncounter() {
             {{ loading ? 'Starting...' : 'Start Encounter' }}
           </button>
 
-          <!-- Stop Encounter Button (Game Master Only, In Progress Status) -->
+          <!-- Stop Encounter Button -->
           <button
             v-if="canStopEncounter"
             @click="handleStopEncounter"

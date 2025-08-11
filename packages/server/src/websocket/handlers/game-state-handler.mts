@@ -25,7 +25,8 @@ import {
   gameSessionJoinCallbackSchema,
   gameSessionLeaveCallbackSchema,
   gameSessionEndCallbackSchema,
-  gameStateSyncEncounterCallbackSchema
+  gameStateReinitializeCallbackSchema,
+  gameStateCheckStatusCallbackSchema
 } from '@dungeon-lab/shared/schemas/socket/game-state.mjs';
 import { z } from 'zod';
 
@@ -377,56 +378,6 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
     }
   });
 
-  // ============================================================================
-  // GAME STATE SYNC
-  // ============================================================================
-
-  socket.on('gameState:syncEncounter', async (sessionId: string, callback?: (response: z.infer<typeof gameStateSyncEncounterCallbackSchema>) => void) => {
-    try {
-      logger.info('Encounter sync requested:', { sessionId, userId });
-
-      // Only GM can trigger encounter sync
-      if (!(await isUserGameMaster(sessionId))) {
-        const response = {
-          success: false,
-          error: 'Only the game master can sync encounters'
-        };
-        callback?.(response);
-        return;
-      }
-
-      // Trigger sync of current encounter to backing store
-      const syncService = new GameStateSyncService();
-      const syncResult = await syncService.syncGameStateToBackingModels(sessionId, 'manual');
-      
-      if (syncResult.success) {
-        logger.info('Encounter sync completed:', { 
-          sessionId, 
-          entitiesUpdated: syncResult.entitiesUpdated.encounters 
-        });
-        
-        const response = {
-          success: true
-        };
-        callback?.(response);
-      } else {
-        logger.error('Encounter sync failed:', { sessionId, errors: syncResult.errors });
-        const response = {
-          success: false,
-          error: syncResult.errors.join('; ') || 'Failed to sync encounter'
-        };
-        callback?.(response);
-      }
-
-    } catch (error) {
-      logger.error('Error syncing encounter:', error);
-      const response = {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to sync encounter'
-      };
-      callback?.(response);
-    }
-  });
 
   // ============================================================================
   // SESSION END
@@ -612,6 +563,141 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
       callback?.({
         success: false,
         error: error instanceof Error ? error.message : 'Failed to reset game state hash'
+      });
+    }
+  });
+
+  // ============================================================================
+  // RE-INITIALIZE GAME STATE (GM ONLY)
+  // ============================================================================
+
+  socket.on('gameState:reinitialize', async (sessionId: string, callback?: (response: z.infer<typeof gameStateReinitializeCallbackSchema>) => void) => {
+    try {
+      logger.info('Game state re-initialize requested:', { sessionId, userId });
+
+      // Only GM can re-initialize game state
+      if (!(await isUserGameMaster(sessionId))) {
+        const response = {
+          success: false,
+          error: 'Only the game master can re-initialize the game state'
+        };
+        callback?.(response);
+        return;
+      }
+
+      // Get the game session to find the campaign
+      const gameSession = await GameSessionModel.findById(sessionId).exec();
+
+      if (!gameSession) {
+        const response = {
+          success: false,
+          error: 'Game session not found'
+        };
+        callback?.(response);
+        return;
+      }
+
+      // Re-initialize game state using the game state service
+      const reinitializeResult = await gameStateService.reinitializeGameState(gameSession.campaignId);
+      
+      if (reinitializeResult.success) {
+        logger.info('Game state re-initialized successfully:', { 
+          sessionId, 
+          campaignId: gameSession.campaignId,
+          newVersion: reinitializeResult.newVersion
+        });
+        
+        callback?.({
+          success: true
+        });
+      } else {
+        logger.error('Game state re-initialization failed:', { sessionId, error: reinitializeResult.error });
+        callback?.({
+          success: false,
+          error: reinitializeResult.error?.message || 'Failed to re-initialize game state'
+        });
+      }
+
+    } catch (error) {
+      logger.error('Error re-initializing game state:', error);
+      callback?.({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to re-initialize game state'
+      });
+    }
+  });
+
+  // ============================================================================
+  // CHECK GAME STATE STATUS (GM ONLY)
+  // ============================================================================
+
+  socket.on('gameState:checkStatus', async (sessionId: string, callback?: (response: z.infer<typeof gameStateCheckStatusCallbackSchema>) => void) => {
+    try {
+      logger.info('Game state check status requested:', { sessionId, userId });
+
+      // Only GM can check game state status
+      if (!(await isUserGameMaster(sessionId))) {
+        const response = {
+          success: false,
+          error: 'Only the game master can check the game state status'
+        };
+        callback?.(response);
+        return;
+      }
+
+      // Get the game session to find the campaign
+      const gameSession = await GameSessionModel.findById(sessionId).exec();
+
+      if (!gameSession) {
+        const response = {
+          success: false,
+          error: 'Game session not found'
+        };
+        callback?.(response);
+        return;
+      }
+
+      // Find game state using the reliable pattern used throughout the codebase
+      const gameStateDoc = await GameStateModel.findOne({ campaignId: gameSession.campaignId }).exec();
+      
+      if (!gameStateDoc) {
+        const response = {
+          success: false,
+          error: 'No game state found for this session'
+        };
+        callback?.(response);
+        return;
+      }
+
+      // Check game state status using the game state service
+      const statusResult = await gameStateService.checkGameStateStatus(gameStateDoc.id);
+      
+      if (statusResult.success) {
+        logger.info('Game state status checked successfully:', { 
+          sessionId, 
+          gameStateId: gameStateDoc.id,
+          isHashValid: statusResult.isHashValid
+        });
+        
+        callback?.({
+          success: true,
+          isHashValid: statusResult.isHashValid,
+          storedHash: statusResult.storedHash,
+          calculatedHash: statusResult.calculatedHash
+        });
+      } else {
+        logger.error('Game state status check failed:', { sessionId, error: statusResult.error });
+        callback?.({
+          success: false,
+          error: statusResult.error || 'Failed to check game state status'
+        });
+      }
+
+    } catch (error) {
+      logger.error('Error checking game state status:', error);
+      callback?.({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to check game state status'
       });
     }
   });

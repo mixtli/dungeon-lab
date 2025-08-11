@@ -452,10 +452,18 @@ export class GMActionHandlerService {
    */
   private async handleEndTurn(request: GameActionRequest) {
     console.log('[GMActionHandler] Processing end turn request from:', request.playerId);
+    console.log('[GMActionHandler] Current game state:', {
+      hasTurnManager: !!this.gameStateStore.gameState?.turnManager,
+      isActive: this.gameStateStore.gameState?.turnManager?.isActive,
+      currentTurn: this.gameStateStore.gameState?.turnManager?.currentTurn,
+      round: this.gameStateStore.gameState?.turnManager?.round,
+      participantCount: this.gameStateStore.gameState?.turnManager?.participants?.length
+    });
 
     try {
       // Check if we have active turn order
       if (!this.gameStateStore.gameState?.turnManager?.isActive) {
+        console.log('[GMActionHandler] No active turn order, rejecting end turn request');
         return this.socketStore.emit('gameAction:response', {
           success: false,
           requestId: request.id,
@@ -469,11 +477,29 @@ export class GMActionHandlerService {
       const turnManager = this.gameStateStore.gameState.turnManager;
       const currentParticipant = turnManager.participants[turnManager.currentTurn];
 
+      console.log('[GMActionHandler] Current turn state:', {
+        currentParticipant: currentParticipant ? {
+          tokenId: currentParticipant.tokenId,
+          actorId: currentParticipant.actorId,
+          hasActed: currentParticipant.hasActed
+        } : null,
+        currentTurn: turnManager.currentTurn,
+        round: turnManager.round
+      });
+
       // Permission check: GM can always end turns, current player can end their own turn
       const isGM = request.playerId === this.gameSessionStore.currentSession?.gameMasterId;
       const isCurrentPlayerTurn = await this.isPlayerOwnsTurnParticipant(request.playerId, currentParticipant);
 
+      console.log('[GMActionHandler] Permission check:', {
+        isGM,
+        isCurrentPlayerTurn,
+        requestPlayerId: request.playerId,
+        gmUserId: this.gameSessionStore.currentSession?.gameMasterId
+      });
+
       if (!isGM && !isCurrentPlayerTurn) {
+        console.log('[GMActionHandler] Permission denied for end turn request');
         return this.socketStore.emit('gameAction:response', {
           success: false,
           requestId: request.id,
@@ -488,20 +514,36 @@ export class GMActionHandlerService {
 
       // Execute the turn advancement using the turn manager service
       // Since we're in the GM client, this will work correctly
-      const continued = await turnManagerService.nextTurn();
+      try {
+        console.log('[GMActionHandler] Calling turnManagerService.nextTurn()...');
+        const continued = await turnManagerService.nextTurn();
+        console.log('[GMActionHandler] turnManagerService.nextTurn() completed successfully:', { continued });
 
-      const response = {
-        success: true,
-        approved: true,
-        requestId: request.id
-      };
+        const response = {
+          success: true,
+          approved: true,
+          requestId: request.id
+        };
 
-      console.log('[GMActionHandler] Turn ended successfully:', {
-        continued,
-        requestId: request.id
-      });
+        console.log('[GMActionHandler] Turn ended successfully, sending response:', {
+          continued,
+          requestId: request.id,
+          response
+        });
 
-      this.socketStore.emit('gameAction:response', response);
+        this.socketStore.emit('gameAction:response', response);
+
+      } catch (turnError) {
+        console.error('[GMActionHandler] Error during turn advancement:', turnError);
+        this.socketStore.emit('gameAction:response', {
+          success: false,
+          requestId: request.id,
+          error: {
+            code: 'TURN_ADVANCEMENT_FAILED',
+            message: `Failed to advance turn: ${turnError instanceof Error ? turnError.message : 'Unknown error'}`
+          }
+        });
+      }
 
     } catch (error) {
       console.error('[GMActionHandler] Error processing end turn:', error);
@@ -510,7 +552,7 @@ export class GMActionHandlerService {
         requestId: request.id,
         error: {
           code: 'END_TURN_ERROR',
-          message: 'Failed to process end turn request'
+          message: `Failed to process end turn request: ${error instanceof Error ? error.message : 'Unknown error'}`
         }
       });
     }

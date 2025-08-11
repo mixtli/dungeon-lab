@@ -29,3 +29,11 @@ Now, for the stop workflow, it's very similar except the server will update the 
 7. Server sets the state on the encounter to 'stopped'
 8. Server sends success callback
 9. GM client then sends a gameState:update message to set currentEncounter to null.
+10. Normal workflow completes, clients get updated.
+
+
+The point of all this is that encounters "happen" during sessions.  And during a session, the encounter state is kept as part of the game state.  So when we start an encounter, we need to initialize the game state, but when we stop an encounter, we need to sync our changes back to the encounter and clear the game state.
+
+The other point is that we want to follow our existing architectural principles such as GM authority.  See docs/architecture/*.md.  Much of this is already implemented.  We have an action handler that is run by the GM, a state update mechanism that must be adhered to, etc.
+
+

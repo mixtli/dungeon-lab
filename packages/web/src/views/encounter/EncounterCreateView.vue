@@ -16,7 +16,6 @@ const formData = ref({
   name: '',
   description: '',
   mapId: '',
-  status: 'draft' as const,
   participants: [] as string[],
   settings: {},
 });

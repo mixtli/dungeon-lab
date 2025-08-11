@@ -35,8 +35,6 @@ export const gameSessionEndCallbackSchema = socketCallbackWithFieldsSchema({
   sessionId: z.string().optional()
 });
 
-// Sync encounter callback - simple success/error response
-export const gameStateSyncEncounterCallbackSchema = baseSocketCallbackSchema;
 
 // Client-to-server event argument schemas
 export const gameStateUpdateArgsSchema = z.tuple([
@@ -64,10 +62,6 @@ export const gameSessionEndArgsSchema = z.tuple([
   z.function().args(gameSessionEndCallbackSchema).optional() // callback
 ]);
 
-export const gameStateSyncEncounterArgsSchema = z.tuple([
-  z.string(), // sessionId
-  z.function().args(gameStateSyncEncounterCallbackSchema).optional() // callback
-]);
 
 // Server-to-client event schemas
 export const gameStateUpdatedSchema = stateUpdateBroadcastSchema;
@@ -129,5 +123,27 @@ export const gameStateResetHashCallbackSchema = socketCallbackWithFieldsSchema({
 export const gameStateResetHashArgsSchema = z.tuple([
   z.string(), // sessionId
   z.function().args(gameStateResetHashCallbackSchema).optional() // callback
+]);
+
+// Re-initialize game state callback response
+export const gameStateReinitializeCallbackSchema = baseSocketCallbackSchema;
+
+// Re-initialize game state arguments: sessionId + callback
+export const gameStateReinitializeArgsSchema = z.tuple([
+  z.string(), // sessionId
+  z.function().args(gameStateReinitializeCallbackSchema).optional() // callback
+]);
+
+// Check game state status callback response
+export const gameStateCheckStatusCallbackSchema = socketCallbackWithFieldsSchema({
+  isHashValid: z.boolean().optional(),
+  storedHash: z.string().optional(),
+  calculatedHash: z.string().optional()
+});
+
+// Check game state status arguments: sessionId + callback
+export const gameStateCheckStatusArgsSchema = z.tuple([
+  z.string(), // sessionId
+  z.function().args(gameStateCheckStatusCallbackSchema).optional() // callback
 ]);
 

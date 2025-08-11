@@ -4,6 +4,7 @@ import { pluginRegistry } from '@/services/plugin-registry.mts';
 import { useGameSessionStore } from '@/stores/game-session.store.mjs';
 import { useSocketStore } from '@/stores/socket.store.mjs';
 import { useNotificationStore } from '@/stores/notification.store.mjs';
+import { useGameStateStore } from '@/stores/game-state.store.mjs';
 
 const selectedGameSystem = ref<string>(localStorage.getItem('activeGameSystem') || '');
 const previousGameSystem = ref<string>('');
@@ -12,11 +13,15 @@ const gameSystemPluginOptions = ref<{ id: string; name: string }[]>([]);
 
 // Debug operations state
 const hashResetLoading = ref(false);
+const reinitializeLoading = ref(false);
+const checkStatusLoading = ref(false);
+const statusResult = ref<{ isHashValid: boolean; storedHash?: string; calculatedHash?: string } | null>(null);
 
 // Store instances
 const gameSessionStore = useGameSessionStore();
 const socketStore = useSocketStore();
 const notificationStore = useNotificationStore();
+const gameStateStore = useGameStateStore();
 
 onMounted(async () => {
   try {
@@ -109,6 +114,127 @@ async function resetGameStateHash() {
     hashResetLoading.value = false;
   }
 }
+
+async function reinitializeGameState() {
+  if (!gameSessionStore.currentSession?.id) {
+    notificationStore.addNotification({
+      message: 'No active game session',
+      type: 'error'
+    });
+    return;
+  }
+
+  if (!gameSessionStore.isGameMaster) {
+    notificationStore.addNotification({
+      message: 'Only the Game Master can re-initialize the game state',
+      type: 'error'
+    });
+    return;
+  }
+
+  try {
+    reinitializeLoading.value = true;
+    
+    return new Promise<void>((resolve, reject) => {
+      socketStore.emit('gameState:reinitialize', gameSessionStore.currentSession!.id, async (response: { success: boolean; error?: string }) => {
+        if (response.success) {
+          // CRITICAL: Refresh client state after server re-initializes
+          try {
+            await gameStateStore.requestFullState();
+            notificationStore.addNotification({
+              message: 'Game state re-initialized successfully',
+              type: 'success'
+            });
+            resolve();
+          } catch (refreshError) {
+            console.error('Failed to refresh game state after reinitialize:', refreshError);
+            notificationStore.addNotification({
+              message: 'Game state re-initialized but failed to refresh. Please refresh the page.',
+              type: 'warning'
+            });
+            resolve(); // Still resolve because the server operation succeeded
+          }
+        } else {
+          const error = response.error || 'Failed to re-initialize game state';
+          notificationStore.addNotification({
+            message: error,
+            type: 'error'
+          });
+          reject(new Error(error));
+        }
+      });
+    });
+  } catch (error) {
+    console.error('Failed to re-initialize game state:', error);
+    notificationStore.addNotification({
+      message: 'Failed to re-initialize game state',
+      type: 'error'
+    });
+  } finally {
+    reinitializeLoading.value = false;
+  }
+}
+
+async function checkGameStateStatus() {
+  if (!gameSessionStore.currentSession?.id) {
+    notificationStore.addNotification({
+      message: 'No active game session',
+      type: 'error'
+    });
+    return;
+  }
+
+  if (!gameSessionStore.isGameMaster) {
+    notificationStore.addNotification({
+      message: 'Only the Game Master can check the game state status',
+      type: 'error'
+    });
+    return;
+  }
+
+  try {
+    checkStatusLoading.value = true;
+    statusResult.value = null; // Clear previous result
+    
+    return new Promise<void>((resolve, reject) => {
+      socketStore.emit('gameState:checkStatus', gameSessionStore.currentSession!.id, (response: { success: boolean; error?: string; isHashValid?: boolean; storedHash?: string; calculatedHash?: string }) => {
+        if (response.success && response.isHashValid !== undefined) {
+          statusResult.value = {
+            isHashValid: response.isHashValid,
+            storedHash: response.storedHash,
+            calculatedHash: response.calculatedHash
+          };
+          
+          const statusMessage = response.isHashValid 
+            ? 'Game state hash is valid ✓'
+            : 'Game state hash is invalid ✗ - State may be corrupted';
+          
+          notificationStore.addNotification({
+            message: statusMessage,
+            type: response.isHashValid ? 'success' : 'warning'
+          });
+          
+          resolve();
+        } else {
+          const error = response.error || 'Failed to check game state status';
+          notificationStore.addNotification({
+            message: error,
+            type: 'error'
+          });
+          reject(new Error(error));
+        }
+      });
+    });
+  } catch (error) {
+    console.error('Failed to check game state status:', error);
+    notificationStore.addNotification({
+      message: 'Failed to check game state status',
+      type: 'error'
+    });
+  } finally {
+    checkStatusLoading.value = false;
+  }
+}
 </script>
 
 <template>
@@ -170,6 +296,52 @@ async function resetGameStateHash() {
           >
             <div v-if="hashResetLoading" class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
             <span>{{ hashResetLoading ? 'Resetting...' : 'Reset Hash' }}</span>
+          </button>
+        </div>
+
+        <div class="operation-item">
+          <div class="operation-info">
+            <h3 class="text-base font-medium text-onyx dark:text-parchment">Re-initialize Game State</h3>
+            <p class="text-sm text-onyx/70 dark:text-parchment/70 mt-1">
+              Completely rebuilds game state from campaign data (characters, actors, items). This is a "nuclear option" - use only when game state is corrupted.
+            </p>
+          </div>
+          <button 
+            @click="reinitializeGameState"
+            :disabled="reinitializeLoading"
+            class="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white rounded-lg font-medium transition-colors duration-200 flex items-center gap-2"
+          >
+            <div v-if="reinitializeLoading" class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+            <span>{{ reinitializeLoading ? 'Re-initializing...' : 'Re-initialize Game State' }}</span>
+          </button>
+        </div>
+
+        <div class="operation-item">
+          <div class="operation-info">
+            <h3 class="text-base font-medium text-onyx dark:text-parchment">Check Game State Status</h3>
+            <p class="text-sm text-onyx/70 dark:text-parchment/70 mt-1">
+              Validates whether the current game state hash matches the stored data. Use to diagnose "State integrity validation failed" errors.
+            </p>
+            <div v-if="statusResult" class="mt-2 p-2 rounded border">
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-medium" 
+                      :class="statusResult.isHashValid ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
+                  {{ statusResult.isHashValid ? '✓ Hash Valid' : '✗ Hash Invalid' }}
+                </span>
+              </div>
+              <div v-if="statusResult.storedHash && statusResult.calculatedHash" class="text-xs text-onyx/60 dark:text-parchment/60 mt-1">
+                <div>Stored: {{ statusResult.storedHash }}</div>
+                <div>Current: {{ statusResult.calculatedHash }}</div>
+              </div>
+            </div>
+          </div>
+          <button 
+            @click="checkGameStateStatus"
+            :disabled="checkStatusLoading"
+            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg font-medium transition-colors duration-200 flex items-center gap-2"
+          >
+            <div v-if="checkStatusLoading" class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+            <span>{{ checkStatusLoading ? 'Checking...' : 'Check Status' }}</span>
           </button>
         </div>
       </div>

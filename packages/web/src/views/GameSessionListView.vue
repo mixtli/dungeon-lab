@@ -14,10 +14,6 @@ const error = ref<string | null>(null);
 const allSessions = ref<IGameSession[]>([]);
 const gameSessionStore = useGameSessionStore();
 
-// Add state for character selector
-const showCharacterSelector = ref(false);
-const selectedSessionId = ref('');
-const selectedCampaignId = ref('');
 
 // Fetch sessions on mount
 onMounted(async () => {
@@ -54,18 +50,17 @@ const futureSessions = computed(() =>
     })
 );
 
-function joinSession(sessionId: string, campaignId: string) {
-  // Store session and campaign ID
-  selectedSessionId.value = sessionId;
-  selectedCampaignId.value = campaignId;
-  // Show character selector
-  showCharacterSelector.value = true;
+async function joinSession(sessionId: string) {
+  try {
+    await gameSessionStore.joinSession(sessionId);
+    // Navigate to chat after successful join
+    router.push({ name: 'chat' });
+  } catch (error) {
+    console.error('Failed to join session:', error);
+    // Error handling is already done in the store
+  }
 }
 
-function onCharacterSelected() {
-  showCharacterSelector.value = false;
-  router.push({ name: 'chat' });
-}
 
 function formatTime(isoString: string) {
   return new Date(isoString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -113,7 +108,7 @@ function formatTime(isoString: string) {
               <!-- Conditional Join/Leave Button -->
               <button
                 v-if="session.id !== gameSessionStore.currentSession?.id"
-                @click="joinSession(session.id, session.campaignId)"
+                @click="joinSession(session.id)"
                 class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
               >
                 Join Session
@@ -172,14 +167,5 @@ function formatTime(isoString: string) {
       </div>
     </div>
 
-    <!-- Character Selector Modal -->
-    <CharacterSelector
-      v-if="showCharacterSelector"
-      :show="showCharacterSelector"
-      :campaign-id="selectedCampaignId"
-      :session-id="selectedSessionId"
-      @close="showCharacterSelector = false"
-      @character-selected="onCharacterSelected"
-    />
   </div>
 </template>

@@ -19,7 +19,9 @@ import {
 import { logger } from '../../../utils/logger.mjs';
 import { DocumentService } from '../../documents/services/document.service.mjs';
 import { DocumentModel } from '../../documents/models/document.model.mjs';
-import { Types, Document } from 'mongoose';
+import mongoose, { Types, Document } from 'mongoose';
+import deepDiffDefault from 'deep-diff';
+const deepDiff = deepDiffDefault;
 
 /**
  * Options for state update operations
@@ -213,9 +215,13 @@ export class GameStateService {
         };
       }
 
-      // Generate new version and hash
+      // Parse the updated state with Zod schema (same parsing used during verification)
+      // This ensures hash consistency by removing timestamp fields like createdAt/updatedAt
+      const parsedUpdatedServerGameState: ServerGameStateWithVirtuals = serverGameStateWithVirtualsSchema.parse(updatedServerGameState);
+
+      // Generate new version and hash from the parsed state
       const newVersion = incrementStateVersion(gameState.version);
-      const newHash = generateStateHash(updatedServerGameState);
+      const newHash = generateStateHash(parsedUpdatedServerGameState);
 
       // Update GameState atomically with BOTH version and hash verification for defense in depth
       const updateResult = await GameStateModel.updateOne(
@@ -226,7 +232,7 @@ export class GameStateService {
         },
         {
           $set: {
-            state: updatedServerGameState,  // Update the entire state with client-ready data
+            state: parsedUpdatedServerGameState,  // Update the entire state with parsed client-ready data
             version: newVersion,
             hash: newHash,
             lastUpdate: Date.now()
@@ -284,6 +290,12 @@ export class GameStateService {
         duration: options.enableMetrics ? Date.now() - startTime : undefined,
         method: 'full-state-update'
       });
+
+      // Post-save verification to detect data corruption
+      await this.verifyPostSaveState(gameStateId, parsedUpdatedServerGameState, newHash, {
+        method: 'full-state-update',
+        operationCount: operations.length
+      }, operations);
 
       return {
         success: true,
@@ -440,6 +452,103 @@ export class GameStateService {
     }
   }
 
+  /**
+   * Re-initialize game state from scratch by deleting existing state and rebuilding from campaign data
+   * This is a "nuclear option" for when game state gets corrupted
+   */
+  async reinitializeGameState(campaignId: string): Promise<StateUpdateResponse> {
+    try {
+      logger.info('Re-initializing game state from scratch', { campaignId });
+
+      // Delete existing GameState if it exists
+      const deletedCount = await GameStateModel.deleteOne({ campaignId }).exec();
+      if (deletedCount.deletedCount > 0) {
+        logger.info('Deleted existing game state', { campaignId, deletedCount: deletedCount.deletedCount });
+      }
+
+      // Use existing initializeGameState method to rebuild from campaign data
+      // This will load fresh data from campaign's characters, actors, items
+      const result = await this.initializeGameState(campaignId);
+
+      if (result.success) {
+        logger.info('Game state re-initialized successfully', { 
+          campaignId, 
+          newVersion: result.newVersion,
+          newHash: result.newHash?.substring(0, 16) + '...'
+        });
+      }
+
+      return result;
+    } catch (error) {
+      logger.error('Error re-initializing game state:', error);
+      return {
+        success: false,
+        error: {
+          code: 'TRANSACTION_FAILED',
+          message: 'Failed to re-initialize game state'
+        }
+      };
+    }
+  }
+
+  /**
+   * Check game state status by validating hash integrity
+   * This is a debugging method to diagnose state corruption issues
+   */
+  async checkGameStateStatus(gameStateId: string): Promise<{
+    success: boolean;
+    isHashValid: boolean;
+    storedHash?: string;
+    calculatedHash?: string;
+    error?: string;
+  }> {
+    try {
+      logger.info('Checking game state status', { gameStateId });
+
+      // Get the current game state from database
+      const gameState = await GameStateModel.findById(gameStateId).exec();
+      if (!gameState) {
+        return {
+          success: false,
+          isHashValid: false,
+          error: 'Game state not found'
+        };
+      }
+
+      // Parse the state data with Zod schema to ensure consistency
+      const currentServerGameState: ServerGameStateWithVirtuals = serverGameStateWithVirtualsSchema.parse(gameState.state);
+      
+      // Generate fresh hash from current state
+      const calculatedHash = generateStateHash(currentServerGameState);
+      const storedHash = gameState.hash || '';
+      
+      // Validate state integrity using existing utility
+      const isHashValid = validateStateIntegrity(currentServerGameState, storedHash);
+      
+      logger.info('Game state status check completed', { 
+        gameStateId, 
+        isHashValid,
+        storedHash: storedHash.substring(0, 16) + '...',
+        calculatedHash: calculatedHash.substring(0, 16) + '...'
+      });
+
+      return {
+        success: true,
+        isHashValid,
+        storedHash: storedHash.substring(0, 16) + '...',
+        calculatedHash: calculatedHash.substring(0, 16) + '...'
+      };
+
+    } catch (error) {
+      logger.error('Failed to check game state status', { gameStateId, error });
+      return {
+        success: false,
+        isHashValid: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred'
+      };
+    }
+  }
+
   // ============================================================================
   // PRIVATE METHODS
   // ============================================================================
@@ -478,6 +587,29 @@ export class GameStateService {
           documentType: 'item'
         }).exec()
       ]);
+
+      // Debug logging right after document queries - BEFORE any processing
+      logger.debug('[OWNERID-DEBUG] Documents immediately after query', {
+        campaignId,
+        firstCharacterRaw: characters.length > 0 ? {
+          name: characters[0].name,
+          ownerId: characters[0].ownerId,
+          ownerIdType: typeof characters[0].ownerId,
+          ownerIdConstructor: characters[0].ownerId?.constructor?.name,
+          isMongooseDocument: characters[0] instanceof mongoose.Document,
+          toObjectOwnerId: characters[0].toObject().ownerId,
+          jsonOwnerId: JSON.parse(JSON.stringify(characters[0].toObject())).ownerId
+        } : 'No characters',
+        firstActorRaw: actors.length > 0 ? {
+          name: actors[0].name,
+          ownerId: actors[0].ownerId,
+          ownerIdType: typeof actors[0].ownerId,
+          ownerIdConstructor: actors[0].ownerId?.constructor?.name,
+          isMongooseDocument: actors[0] instanceof mongoose.Document,
+          toObjectOwnerId: actors[0].toObject().ownerId,
+          jsonOwnerId: JSON.parse(JSON.stringify(actors[0].toObject())).ownerId
+        } : 'No actors'
+      });
 
       logger.info('Loaded campaign documents', { 
         campaignId,
@@ -532,8 +664,24 @@ export class GameStateService {
       // Use JSON.parse(JSON.stringify()) to ensure ObjectIds are converted to strings consistently
       const charactersPlain = characters.map(doc => {
         const obj = JSON.parse(JSON.stringify(doc.toObject()));
+        // Log ownerId value before cleanup to understand what we're dealing with
+        if (obj.ownerId) {
+          logger.debug('[OWNERID-DEBUG] Character ownerId before cleanup', {
+            characterName: obj.name,
+            characterId: obj._id,
+            ownerIdValue: obj.ownerId,
+            ownerIdType: typeof obj.ownerId,
+            isObject: typeof obj.ownerId === 'object',
+            stringified: JSON.stringify(obj.ownerId)
+          });
+        }
         // Clean up ownerId if it's been populated with full User object instead of ObjectId string
         if (obj.ownerId && typeof obj.ownerId === 'object') {
+          logger.debug('[OWNERID-DEBUG] Removing object ownerId from character', {
+            characterName: obj.name,
+            characterId: obj._id,
+            removedOwnerId: obj.ownerId
+          });
           // Remove the populated user object completely since we only need the ObjectId string
           delete obj.ownerId;
         }
@@ -541,8 +689,24 @@ export class GameStateService {
       });
       const actorsPlain = actors.map(doc => {
         const obj = JSON.parse(JSON.stringify(doc.toObject()));
+        // Log ownerId value before cleanup to understand what we're dealing with
+        if (obj.ownerId) {
+          logger.debug('[OWNERID-DEBUG] Actor ownerId before cleanup', {
+            actorName: obj.name,
+            actorId: obj._id,
+            ownerIdValue: obj.ownerId,
+            ownerIdType: typeof obj.ownerId,
+            isObject: typeof obj.ownerId === 'object',
+            stringified: JSON.stringify(obj.ownerId)
+          });
+        }
         // Clean up ownerId if it's been populated with full User object instead of ObjectId string  
         if (obj.ownerId && typeof obj.ownerId === 'object') {
+          logger.debug('[OWNERID-DEBUG] Removing object ownerId from actor', {
+            actorName: obj.name,
+            actorId: obj._id,
+            removedOwnerId: obj.ownerId
+          });
           // Remove the populated user object completely since we only need the ObjectId string
           delete obj.ownerId;
         }
@@ -602,6 +766,31 @@ export class GameStateService {
           delete obj.ownerId;
         }
         return obj;
+      });
+
+      // Log final ownerId values that end up in game state
+      logger.debug('[OWNERID-DEBUG] Final game state ownerId values', {
+        campaignId,
+        charactersWithOwnerId: charactersPlain.filter(char => char.ownerId).map(char => ({
+          name: char.name,
+          id: char._id,
+          ownerId: char.ownerId,
+          ownerIdType: typeof char.ownerId
+        })),
+        actorsWithOwnerId: actorsPlain.filter(actor => actor.ownerId).map(actor => ({
+          name: actor.name,
+          id: actor._id,
+          ownerId: actor.ownerId,
+          ownerIdType: typeof actor.ownerId
+        })),
+        charactersWithoutOwnerId: charactersPlain.filter(char => !char.ownerId).map(char => ({
+          name: char.name,
+          id: char._id
+        })),
+        actorsWithoutOwnerId: actorsPlain.filter(actor => !actor.ownerId).map(actor => ({
+          name: actor.name,
+          id: actor._id
+        }))
       });
 
       return {
@@ -832,6 +1021,151 @@ export class GameStateService {
     } catch (error) {
       return { isValid: false, error: `Validation error: ${error instanceof Error ? error.message : 'Unknown error'}` };
     }
+  }
+
+  /**
+   * Verify that the state we just saved to MongoDB matches what we intended to save
+   * This helps diagnose data corruption issues by comparing expected vs. actual saved state
+   */
+  private async verifyPostSaveState(
+    gameStateId: string, 
+    expectedState: ServerGameStateWithVirtuals, 
+    expectedHash: string,
+    context: { method: string; operationCount?: number },
+    operations: StateOperation[]
+  ): Promise<void> {
+    try {
+      // Re-fetch the state that was just saved to MongoDB
+      const gameState = await GameStateModel.findById(gameStateId).exec();
+      if (!gameState) {
+        logger.error('Post-save verification: Game state not found after save', { gameStateId, context });
+        return;
+      }
+
+      // Use the raw retrieved state directly (no parsing) since it was already parsed before save
+      // This ensures hash consistency with the saved data
+      const retrievedState: ServerGameStateWithVirtuals = gameState.state;
+      
+      // Generate hash of the retrieved state
+      const retrievedHash = generateStateHash(retrievedState);
+      const storedHash = gameState.hash || '';
+
+      // Compare hashes
+      if (expectedHash === retrievedHash && expectedHash === storedHash) {
+        logger.info('Post-save hash verification passed ✓', { 
+          gameStateId, 
+          expectedHash: expectedHash.substring(0, 16) + '...', 
+          retrievedHash: retrievedHash.substring(0, 16) + '...',
+          storedHash: storedHash.substring(0, 16) + '...',
+          context
+        });
+        return;
+      }
+
+      // Hash mismatch detected - perform detailed analysis
+      logger.error('Post-save hash verification FAILED ✗', { 
+        gameStateId, 
+        expectedHash: expectedHash.substring(0, 16) + '...', 
+        retrievedHash: retrievedHash.substring(0, 16) + '...',
+        storedHash: storedHash.substring(0, 16) + '...',
+        context 
+      });
+
+      // Log the operations that led to this corruption
+      logger.error('Operations that led to corruption:', {
+        gameStateId,
+        operationsCount: operations.length,
+        operations: operations.map(op => ({
+          operation: op.operation,
+          path: op.path,
+          valueType: typeof op.value,
+          valuePreview: typeof op.value === 'string' ? op.value.substring(0, 100) : 
+                       typeof op.value === 'object' ? JSON.stringify(op.value).substring(0, 100) :
+                       String(op.value)
+        }))
+      });
+
+      // Perform deep diff analysis
+      const differences = deepDiff.diff(expectedState, retrievedState);
+      
+      if (differences && differences.length > 0) {
+        logger.error('Data corruption detected - diff analysis:', {
+          gameStateId,
+          totalDifferences: differences.length,
+          context
+        });
+
+        // Log first few differences with details
+        const maxDiffsToLog = 5;
+        differences.slice(0, maxDiffsToLog).forEach((diff, index: number) => {
+          let diffDescription = '';
+          const path = diff.path ? diff.path.join('.') : 'root';
+          
+          switch (diff.kind) {
+            case 'N': // New property added
+              diffDescription = `NEW at path '${path}': ${JSON.stringify(diff.rhs)}`;
+              break;
+            case 'D': // Property deleted
+              diffDescription = `DELETE at path '${path}': ${JSON.stringify(diff.lhs)}`;
+              break;
+            case 'E': // Property edited
+              diffDescription = `EDIT at path '${path}': ${JSON.stringify(diff.lhs)} → ${JSON.stringify(diff.rhs)}`;
+              break;
+            case 'A': // Array change
+              diffDescription = `ARRAY at path '${path}[${diff.index}]': ${diff.item?.kind === 'N' ? 'ADDED' : diff.item?.kind === 'D' ? 'REMOVED' : 'MODIFIED'}`;
+              break;
+            default:
+              diffDescription = `UNKNOWN change at path '${path}'`;
+          }
+          
+          logger.error(`  - Difference ${index + 1}: ${diffDescription}`, { gameStateId });
+        });
+
+        if (differences.length > maxDiffsToLog) {
+          logger.error(`  - ... and ${differences.length - maxDiffsToLog} more differences`, { gameStateId });
+        }
+
+        // Additional structural analysis
+        const expectedStats = this.getStateStatistics(expectedState);
+        const retrievedStats = this.getStateStatistics(retrievedState);
+        
+        logger.error('State structure comparison:', {
+          gameStateId,
+          expected: expectedStats,
+          retrieved: retrievedStats,
+          context
+        });
+      } else {
+        logger.error('Hash mismatch but no structural differences detected - possible serialization issue', {
+          gameStateId,
+          expectedLength: JSON.stringify(expectedState).length,
+          retrievedLength: JSON.stringify(retrievedState).length,
+          context
+        });
+      }
+
+    } catch (error) {
+      logger.error('Post-save verification failed due to error:', { 
+        gameStateId, 
+        error: error instanceof Error ? error.message : String(error),
+        context 
+      });
+    }
+  }
+
+  /**
+   * Get basic statistics about game state structure for comparison
+   */
+  private getStateStatistics(state: ServerGameStateWithVirtuals): Record<string, unknown> {
+    return {
+      charactersCount: state.characters?.length || 0,
+      actorsCount: state.actors?.length || 0,
+      itemsCount: state.items?.length || 0,
+      hasCurrentEncounter: !!state.currentEncounter,
+      hasTurnManager: !!state.turnManager,
+      pluginDataKeys: state.pluginData ? Object.keys(state.pluginData).length : 0,
+      jsonSize: JSON.stringify(state).length
+    };
   }
 
   /**

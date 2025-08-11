@@ -73,7 +73,6 @@ import {
   gameSessionJoinArgsSchema,
   gameSessionLeaveArgsSchema,
   gameSessionEndArgsSchema,
-  gameStateSyncEncounterArgsSchema,
   gameStateUpdatedSchema,
   gameStateErrorSchema,
   gameStateFullDataSchema,
@@ -87,9 +86,12 @@ import {
   gameSessionJoinCallbackSchema,
   gameSessionLeaveCallbackSchema,
   gameSessionEndCallbackSchema,
-  gameStateSyncEncounterCallbackSchema,
   gameStateResetHashCallbackSchema,
-  gameStateResetHashArgsSchema
+  gameStateResetHashArgsSchema,
+  gameStateReinitializeCallbackSchema,
+  gameStateReinitializeArgsSchema,
+  gameStateCheckStatusCallbackSchema,
+  gameStateCheckStatusArgsSchema
 } from './game-state.mjs';
 
 import {
@@ -162,7 +164,6 @@ export {
   gameSessionJoinArgsSchema,
   gameSessionLeaveArgsSchema,
   gameSessionEndArgsSchema,
-  gameStateSyncEncounterArgsSchema,
   gameStateUpdatedSchema,
   gameStateErrorSchema,
   gameStateFullDataSchema,
@@ -176,9 +177,12 @@ export {
   gameSessionJoinCallbackSchema,
   gameSessionLeaveCallbackSchema,
   gameSessionEndCallbackSchema,
-  gameStateSyncEncounterCallbackSchema,
   gameStateResetHashCallbackSchema,
   gameStateResetHashArgsSchema,
+  gameStateReinitializeCallbackSchema,
+  gameStateReinitializeArgsSchema,
+  gameStateCheckStatusCallbackSchema,
+  gameStateCheckStatusArgsSchema,
   
   // Base callback schemas
   baseSocketCallbackSchema,
@@ -236,8 +240,9 @@ export const clientToServerEvents = z.object({
   // Game state management events
   'gameState:update': z.function().args(...gameStateUpdateArgsSchema.items).returns(z.void()),
   'gameState:requestFull': z.function().args(...gameStateRequestFullArgsSchema.items).returns(z.void()),
-  'gameState:syncEncounter': z.function().args(...gameStateSyncEncounterArgsSchema.items).returns(z.void()),
   'gameState:resetHash': z.function().args(...gameStateResetHashArgsSchema.items).returns(z.void()),
+  'gameState:reinitialize': z.function().args(...gameStateReinitializeArgsSchema.items).returns(z.void()),
+  'gameState:checkStatus': z.function().args(...gameStateCheckStatusArgsSchema.items).returns(z.void()),
   'gameSession:join': z.function().args(...gameSessionJoinArgsSchema.items).returns(z.void()),
   'gameSession:leave': z.function().args(...gameSessionLeaveArgsSchema.items).returns(z.void()),
   'gameSession:end': z.function().args(...gameSessionEndArgsSchema.items).returns(z.void()),

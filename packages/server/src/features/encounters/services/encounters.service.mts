@@ -119,8 +119,8 @@ export class EncounterService {
         throw new Error('Only the game master can create encounters');
       }
 
-      // Verify map exists
-      const map = await MapModel.findById(mapObjectId).exec();
+      // Verify map exists and populate virtual fields
+      const map = await MapModel.findById(mapObjectId).populate('image').populate('thumbnail').exec();
       if (!map) {
         throw new Error('Map not found');
       }
@@ -130,6 +130,7 @@ export class EncounterService {
         ...data,
         campaignId: campaignObjectId,
         mapId: mapObjectId,
+        currentMap: map.toObject(), // Copy map data to encounter for GM modifications
         createdBy: userObjectId,
         updatedBy: userObjectId,
         tokens: [],
