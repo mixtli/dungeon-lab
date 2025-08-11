@@ -5,7 +5,6 @@ import { useTheme } from '../../composables/useTheme.mjs';
 import { useAuthStore } from '../../stores/auth.store.mjs';
 import { useGameSessionStore } from '../../stores/game-session.store.mjs';
 import { SunIcon, MoonIcon, Bars3Icon, XMarkIcon } from '@heroicons/vue/24/solid';
-import CharacterSelector from '../common/CharacterSelector.vue';
 import SessionInfoDropdown from '../common/SessionInfoDropdown.vue';
 
 const router = useRouter();
@@ -153,10 +152,6 @@ function handleThemeToggle() {
           <!-- Session Info Dropdown -->
           <SessionInfoDropdown v-if="gameSessionStore.currentSession" />
 
-          <!-- Character Selector -->
-          <div v-if="authStore.isAuthenticated && gameSessionStore.currentSession" class="w-40">
-            <CharacterSelector />
-          </div>
 
           <!-- Chat Button -->
           <button
@@ -357,11 +352,6 @@ function handleThemeToggle() {
           <SessionInfoDropdown />
         </div>
 
-        <!-- Character Selector for Mobile -->
-        <div v-if="authStore.isAuthenticated && gameSessionStore.currentSession" class="px-3 py-2">
-          <div class="text-sm font-medium nav-text-light mb-1">Your Character</div>
-          <CharacterSelector />
-        </div>
 
         <!-- Admin Tools Section (for admin users only) -->
         <template v-if="authStore.isAuthenticated && authStore.user?.isAdmin">

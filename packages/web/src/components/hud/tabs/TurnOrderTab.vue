@@ -1,38 +1,29 @@
 <template>
-  <div class="turn-order-tab">
-    <div v-if="!isInTurnOrder" class="turn-order-setup">
-      <h3>Turn Order Setup</h3>
-      <p>Set up turn order for this scene</p>
+  <div class="turn-order-tab space-y-4">
+    <div v-if="!isInTurnOrder" class="turn-order-setup space-y-4">
+      <div class="text-center">
+        <h3 class="text-lg font-semibold mb-2">Turn Order Setup</h3>
+        <p class="text-gray-600 mb-4">Set up turn order for this scene</p>
+      </div>
       
       <!-- Primary action: Always available, universal -->
-      <button @click="startTurnBasedMode" class="btn-primary">
-        {{ calculateButtonLabel }}
-      </button>
-      
-      <!-- Secondary button removed from setup phase - only needed when turn order is active -->
+      <div class="flex justify-center">
+        <button @click="startTurnBasedMode" class="btn-primary">
+          {{ calculateButtonLabel }}
+        </button>
+      </div>
     </div>
     
-    <div v-else class="turn-order-active">
-      <div class="turn-order-header">
-        <h3>Turn Order - Round {{ turnManager?.round }}</h3>
-        <div class="header-controls">
-          <!-- Recalculate button for systems that support it -->
-          <button 
-            v-if="showCalculateButton"
-            @click="calculateInitiative" 
-            class="btn-secondary"
-          >
-            🎲 {{ calculateButtonLabel }}
-          </button>
-          <button @click="endTurnBasedMode" class="btn-danger">End Turn Order</button>
-        </div>
+    <div v-else class="turn-order-active space-y-4">
+      <!-- Centered Round Header -->
+      <div class="text-center">
+        <h3 class="text-xl font-bold">Round {{ turnManager?.round }}</h3>
       </div>
       
       <!-- Main feature: Drag-and-drop initiative tracker (always available) -->
       <div class="initiative-tracker">
-        <div class="tracker-header">
-          <h4>Initiative Order</h4>
-          <span v-if="allowsManualReordering" class="drag-hint">
+        <div v-if="allowsManualReordering" class="text-center mb-2">
+          <span class="drag-hint text-sm text-gray-500 italic">
             🔄 Drag to reorder
           </span>
         </div>
@@ -58,7 +49,11 @@
           </div>
           
           <div class="participant-info">
-            <span class="participant-name">{{ participant.name }}</span>
+            <div class="participant-name-section">
+              <span v-if="isControlledByCurrentUser(participant)" class="control-indicator">🔵</span>
+              <span class="participant-name">{{ participant.name }}</span>
+              <span v-if="participant.hasActed" class="acted-checkmark">✓</span>
+            </div>
             <span 
               v-if="participant.turnOrder > 0" 
               class="initiative-score"
@@ -67,39 +62,21 @@
               {{ participant.turnOrder }}
             </span>
           </div>
-          
-          <div class="participant-status">
-            <span v-if="participant.hasActed" class="acted-indicator">
-              ✓ Acted
-            </span>
-          </div>
         </div>
       </div>
       
-      <div class="turn-controls" v-if="gameStateStore.canUpdate">
-        <button @click="nextTurn" class="btn-primary">Next Turn</button>
-      </div>
-      
-      <div class="action-availability" v-if="currentParticipant">
-        <h4>Available Actions</h4>
-        <div class="action-buttons">
-          <button 
-            :disabled="!canPerformAction('attack')"
-            class="action-btn"
-          >
-            ⚔️ Attack
+      <!-- Turn Controls -->
+      <div class="turn-controls-section space-y-3">
+        <div v-if="isInTurnOrder" class="flex justify-center">
+          <button @click="endTurn" class="standard-button bg-green-600 hover:bg-green-700">
+            ➤ End Turn
           </button>
-          <button 
-            :disabled="!canPerformAction('cast-spell')"
-            class="action-btn"
-          >
-            ✨ Cast Spell
-          </button>
-          <button 
-            :disabled="!canPerformAction('move')"
-            class="action-btn"
-          >
-            🏃 Move
+        </div>
+        
+        <!-- Roll Initiative at bottom -->
+        <div v-if="showCalculateButton" class="flex justify-center">
+          <button @click="calculateInitiative" class="standard-button bg-blue-600 hover:bg-blue-700">
+            🎲 {{ calculateButtonLabel }}
           </button>
         </div>
       </div>
@@ -110,10 +87,13 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useGameStateStore } from '../../../stores/game-state.store.mjs';
+import { useAuthStore } from '../../../stores/auth.store.mjs';
 import { turnManagerService } from '../../../services/turn-manager.service.mjs';
+import { gameActionClientService } from '../../../services/game-action-client.service.mjs';
 import { useNotificationStore } from '../../../stores/notification.store.mjs';
 
 const gameStateStore = useGameStateStore();
+const authStore = useAuthStore();
 const notificationStore = useNotificationStore();
 
 const turnManager = computed(() => gameStateStore.gameState?.turnManager);
@@ -131,6 +111,12 @@ const showCalculateButton = computed(() => plugin.value?.showCalculateButton() ?
 
 // Drag-and-drop state
 const draggedIndex = ref<number | null>(null);
+
+// Check if current user controls this participant's token
+function isControlledByCurrentUser(participant: any): boolean {
+  const token = gameStateStore.currentEncounter?.tokens?.find(t => t.id === participant.tokenId);
+  return token?.ownerId === authStore.user?.id;
+}
 
 async function startTurnBasedMode() {
   try {
@@ -157,11 +143,19 @@ async function startTurnBasedMode() {
 
 async function calculateInitiative() {
   try {
-    await turnManagerService.recalculateInitiative();
-    notificationStore.addNotification({ message: 'Initiative calculated!', type: 'success' });
+    const response = await gameActionClientService.requestRollInitiative();
+    
+    if (response.success) {
+      // Success notification will come from game state updates
+      console.log('Roll initiative request approved');
+    } else {
+      const errorMessage = response.error?.message || 'Failed to roll initiative';
+      console.error('Roll initiative request failed:', errorMessage);
+      notificationStore.addNotification({ message: errorMessage, type: 'error' });
+    }
   } catch (error) {
-    console.error('Failed to calculate initiative:', error);
-    notificationStore.addNotification({ message: 'Failed to calculate initiative', type: 'error' });
+    console.error('Failed to send roll initiative request:', error);
+    notificationStore.addNotification({ message: 'Failed to send roll initiative request', type: 'error' });
   }
 }
 
@@ -192,15 +186,21 @@ async function onDrop(event: DragEvent, dropIndex: number) {
   draggedIndex.value = null;
 }
 
-async function nextTurn() {
+async function endTurn() {
   try {
-    const continued = await turnManagerService.nextTurn();
-    if (!continued) {
-      notificationStore.addNotification({ message: 'Turn-based mode ended', type: 'info' });
+    const response = await gameActionClientService.requestEndTurn();
+    
+    if (response.success) {
+      // Success notification will come from game state updates
+      console.log('Turn end request approved');
+    } else {
+      const errorMessage = response.error?.message || 'Failed to end turn';
+      console.error('Turn end request failed:', errorMessage);
+      notificationStore.addNotification({ message: errorMessage, type: 'error' });
     }
   } catch (error) {
-    console.error('Failed to advance turn:', error);
-    notificationStore.addNotification({ message: 'Failed to advance turn', type: 'error' });
+    console.error('Failed to send end turn request:', error);
+    notificationStore.addNotification({ message: 'Failed to send turn end request', type: 'error' });
   }
 }
 
@@ -213,12 +213,6 @@ async function endTurnBasedMode() {
   }
 }
 
-function canPerformAction(actionType: string): boolean {
-  const participantId = currentParticipant.value?.id;
-  if (!participantId) return false;
-  
-  return turnManagerService.canPerformAction(participantId, actionType);
-}
 </script>
 
 <style scoped>
@@ -255,23 +249,36 @@ function canPerformAction(actionType: string): boolean {
   @apply text-sm text-gray-500 italic;
 }
 
-.tracker-header {
-  @apply flex justify-between items-center mb-2 pb-2 border-b;
-}
-
-.header-controls {
-  @apply flex gap-2;
-}
-
 .participant-info {
   @apply flex-1 flex justify-between items-center;
+}
+
+.participant-name-section {
+  @apply flex items-center gap-1;
+}
+
+.control-indicator {
+  @apply text-blue-500 text-sm;
+}
+
+.acted-checkmark {
+  @apply text-green-500 font-bold;
 }
 
 .initiative-score {
   @apply bg-gray-100 text-gray-900 px-2 py-1 rounded text-sm font-mono;
 }
 
-.action-btn:disabled {
-  @apply opacity-50 cursor-not-allowed;
+/* Standardized button styling for all turn order buttons */
+.standard-button {
+  @apply px-4 py-2 text-base font-medium text-white;
+  @apply rounded-lg shadow-md hover:shadow-lg;
+  @apply transition-all duration-200;
+  @apply border border-transparent;
+  @apply min-w-32;
+}
+
+.standard-button:hover {
+  @apply transform scale-105;
 }
 </style>

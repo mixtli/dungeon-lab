@@ -831,4 +831,49 @@ export class GameStateService {
       return { isValid: false, error: `Validation error: ${error instanceof Error ? error.message : 'Unknown error'}` };
     }
   }
+
+  /**
+   * Reset the hash for a corrupted game state
+   * Recalculates the hash from current state data and updates the database
+   */
+  async resetStateHash(gameStateId: string): Promise<{ success: boolean; error?: string; newHash?: string }> {
+    try {
+      logger.info('Resetting state hash', { gameStateId });
+
+      // Get the current game state from database
+      const gameState = await GameStateModel.findById(gameStateId).exec();
+      if (!gameState) {
+        return { success: false, error: 'Game state not found' };
+      }
+
+      // Parse the state data with Zod schema to ensure consistency
+      const currentServerGameState: ServerGameStateWithVirtuals = serverGameStateWithVirtualsSchema.parse(gameState.state);
+      
+      // Generate fresh hash from current state
+      const newHash = generateStateHash(currentServerGameState);
+      
+      // Update the hash in database
+      await GameStateModel.findByIdAndUpdate(gameStateId, {
+        hash: newHash
+      }).exec();
+
+      logger.info('State hash reset successfully', { 
+        gameStateId, 
+        oldHash: gameState.hash?.substring(0, 16) + '...',
+        newHash: newHash.substring(0, 16) + '...'
+      });
+
+      return { 
+        success: true, 
+        newHash 
+      };
+
+    } catch (error) {
+      logger.error('Failed to reset state hash', { gameStateId, error });
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Unknown error occurred' 
+      };
+    }
+  }
 }

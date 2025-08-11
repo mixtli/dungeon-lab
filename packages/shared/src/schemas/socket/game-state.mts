@@ -116,3 +116,18 @@ export const gameSessionResumedSchema = z.object({
   timestamp: z.number()
 });
 
+// ============================================================================
+// DEBUG OPERATIONS
+// ============================================================================
+
+// Reset hash callback response
+export const gameStateResetHashCallbackSchema = socketCallbackWithFieldsSchema({
+  newHash: z.string().optional()
+});
+
+// Reset hash arguments: sessionId + callback
+export const gameStateResetHashArgsSchema = z.tuple([
+  z.string(), // sessionId
+  z.function().args(gameStateResetHashCallbackSchema).optional() // callback
+]);
+

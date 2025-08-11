@@ -542,6 +542,79 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
     
     // Socket.io automatically handles leaving rooms on disconnect
   });
+
+  // ============================================================================
+  // DEBUG OPERATIONS
+  // ============================================================================
+
+  socket.on('gameState:resetHash', async (sessionId: string, callback?: (response: { success: boolean; error?: string; newHash?: string }) => void) => {
+    try {
+      logger.info('Game state hash reset requested:', { sessionId, userId });
+
+      // Only GM can reset hash
+      if (!(await isUserGameMaster(sessionId))) {
+        const response = {
+          success: false,
+          error: 'Only the game master can reset the game state hash'
+        };
+        callback?.(response);
+        return;
+      }
+
+      // Get the game session to find the campaign
+      const gameSession = await GameSessionModel.findById(sessionId).exec();
+
+      if (!gameSession) {
+        const response = {
+          success: false,
+          error: 'Game session not found'
+        };
+        callback?.(response);
+        return;
+      }
+
+      // Find game state using the reliable pattern used throughout the codebase
+      const gameStateDoc = await GameStateModel.findOne({ campaignId: gameSession.campaignId }).exec();
+      
+      if (!gameStateDoc) {
+        const response = {
+          success: false,
+          error: 'No game state found for this session'
+        };
+        callback?.(response);
+        return;
+      }
+
+      // Reset the hash using the game state service
+      const resetResult = await gameStateService.resetStateHash(gameStateDoc.id);
+      
+      if (resetResult.success) {
+        logger.info('Game state hash reset successfully:', { 
+          sessionId, 
+          gameStateId: gameStateDoc.id,
+          newHash: resetResult.newHash?.substring(0, 16) + '...'
+        });
+        
+        callback?.({
+          success: true,
+          newHash: resetResult.newHash
+        });
+      } else {
+        logger.error('Game state hash reset failed:', { sessionId, error: resetResult.error });
+        callback?.({
+          success: false,
+          error: resetResult.error || 'Failed to reset game state hash'
+        });
+      }
+
+    } catch (error) {
+      logger.error('Error resetting game state hash:', error);
+      callback?.({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to reset game state hash'
+      });
+    }
+  });
 }
 
 // ============================================================================

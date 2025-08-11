@@ -10,6 +10,7 @@ import {
   type MoveTokenParameters,
   type AddDocumentParameters
 } from '@dungeon-lab/shared/types/index.mjs';
+import { turnManagerService } from './turn-manager.service.mjs';
 import { useGameSessionStore } from '../stores/game-session.store.mjs';
 import { useGameStateStore } from '../stores/game-state.store.mjs';
 import { useSocketStore } from '../stores/socket.store.mjs';
@@ -87,6 +88,12 @@ export class GMActionHandlerService {
         break;
       case 'add-document':
         this.handleDocumentAddition(request);
+        break;
+      case 'end-turn':
+        this.handleEndTurn(request);
+        break;
+      case 'roll-initiative':
+        this.handleRollInitiative(request);
         break;
       default:
         this.socketStore.emit('gameAction:response', {
@@ -428,6 +435,153 @@ export class GMActionHandlerService {
         }
       });
     }
+  }
+
+  /**
+   * Handle end turn requests from players
+   */
+  private async handleEndTurn(request: GameActionRequest) {
+    console.log('[GMActionHandler] Processing end turn request from:', request.playerId);
+
+    try {
+      // Check if we have active turn order
+      if (!this.gameStateStore.gameState?.turnManager?.isActive) {
+        return this.socketStore.emit('gameAction:response', {
+          success: false,
+          requestId: request.id,
+          error: {
+            code: 'NO_ACTIVE_TURN_ORDER',
+            message: 'No active turn order'
+          }
+        });
+      }
+
+      const turnManager = this.gameStateStore.gameState.turnManager;
+      const currentParticipant = turnManager.participants[turnManager.currentTurn];
+
+      // Permission check: GM can always end turns, current player can end their own turn
+      const isGM = request.playerId === this.gameSessionStore.currentSession?.gameMasterId;
+      const isCurrentPlayerTurn = await this.isPlayerOwnsTurnParticipant(request.playerId, currentParticipant);
+
+      if (!isGM && !isCurrentPlayerTurn) {
+        return this.socketStore.emit('gameAction:response', {
+          success: false,
+          requestId: request.id,
+          error: {
+            code: 'NOT_YOUR_TURN',
+            message: 'You can only end your own turn'
+          }
+        });
+      }
+
+      console.log('[GMActionHandler] End turn request authorized, executing turn advancement');
+
+      // Execute the turn advancement using the turn manager service
+      // Since we're in the GM client, this will work correctly
+      const continued = await turnManagerService.nextTurn();
+
+      const response = {
+        success: true,
+        approved: true,
+        requestId: request.id
+      };
+
+      console.log('[GMActionHandler] Turn ended successfully:', {
+        continued,
+        requestId: request.id
+      });
+
+      this.socketStore.emit('gameAction:response', response);
+
+    } catch (error) {
+      console.error('[GMActionHandler] Error processing end turn:', error);
+      this.socketStore.emit('gameAction:response', {
+        success: false,
+        requestId: request.id,
+        error: {
+          code: 'END_TURN_ERROR',
+          message: 'Failed to process end turn request'
+        }
+      });
+    }
+  }
+
+  /**
+   * Handle roll initiative requests from players
+   */
+  private async handleRollInitiative(request: GameActionRequest) {
+    console.log('[GMActionHandler] Processing roll initiative request from:', request.playerId);
+
+    try {
+      // Check if we have active turn order
+      if (!this.gameStateStore.gameState?.turnManager?.isActive) {
+        return this.socketStore.emit('gameAction:response', {
+          success: false,
+          requestId: request.id,
+          error: {
+            code: 'NO_ACTIVE_TURN_ORDER',
+            message: 'No active turn order'
+          }
+        });
+      }
+
+      // For now, only allow GM to reroll initiative
+      // In the future, we might allow players to reroll their own initiative
+      const isGM = request.playerId === this.gameSessionStore.currentSession?.gameMasterId;
+      if (!isGM) {
+        return this.socketStore.emit('gameAction:response', {
+          success: false,
+          requestId: request.id,
+          error: {
+            code: 'GM_ONLY_ACTION',
+            message: 'Only the GM can reroll initiative'
+          }
+        });
+      }
+
+      console.log('[GMActionHandler] Roll initiative request authorized, executing');
+
+      // Execute the initiative recalculation using the turn manager service
+      await turnManagerService.recalculateInitiative();
+
+      const response = {
+        success: true,
+        approved: true,
+        requestId: request.id
+      };
+
+      console.log('[GMActionHandler] Initiative rolled successfully:', {
+        requestId: request.id
+      });
+
+      this.socketStore.emit('gameAction:response', response);
+
+    } catch (error) {
+      console.error('[GMActionHandler] Error processing roll initiative:', error);
+      this.socketStore.emit('gameAction:response', {
+        success: false,
+        requestId: request.id,
+        error: {
+          code: 'ROLL_INITIATIVE_ERROR',
+          message: 'Failed to process roll initiative request'
+        }
+      });
+    }
+  }
+
+  /**
+   * Check if a player owns the current turn participant
+   */
+  private async isPlayerOwnsTurnParticipant(playerId: string, participant: any): Promise<boolean> {
+    // Check if the player owns the document associated with this participant's token
+    const token = this.gameStateStore.currentEncounter?.tokens?.find(t => t.id === participant.tokenId);
+    if (!token) return false;
+
+    // Find the document that created this token
+    const document = this.gameStateStore.characters.find(c => c.id === token.documentId) ||
+                     this.gameStateStore.actors.find(a => a.id === token.documentId);
+
+    return document?.createdBy === playerId;
   }
 
   /**

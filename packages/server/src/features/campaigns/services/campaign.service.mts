@@ -148,9 +148,6 @@ export class CampaignService {
         updatedBy: userId
       });
 
-      // Link the GameState to the Campaign
-      campaign.gameStateId = gameState.id;
-      await campaign.save();
 
       return campaign;
     } catch (error) {

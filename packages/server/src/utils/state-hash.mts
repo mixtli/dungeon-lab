@@ -67,7 +67,20 @@ export function validateStateIntegrity(
 ): boolean {
   try {
     const actualHash = generateStateHash(gameState);
-    return actualHash === expectedHash;
+    const isValid = actualHash === expectedHash;
+    
+    if (!isValid) {
+      console.error('Hash validation failed:', {
+        expectedHash: expectedHash.substring(0, 16) + '...',
+        actualHash: actualHash.substring(0, 16) + '...',
+        gameStateKeys: Object.keys(gameState),
+        charactersCount: gameState.characters?.length || 0,
+        actorsCount: gameState.actors?.length || 0,
+        itemsCount: gameState.items?.length || 0
+      });
+    }
+    
+    return isValid;
   } catch (error) {
     console.error('Error validating state integrity:', error);
     return false;

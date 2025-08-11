@@ -30,9 +30,6 @@ export function checkWallCollision(
   // Get pixels per grid for coordinate conversion
   const pixelsPerGrid = mapData.uvtt.resolution?.pixels_per_grid || 120; // Default to 120 if not specified
   
-  console.log(`[CollisionDetection] Using pixels_per_grid: ${pixelsPerGrid} for coordinate conversion`);
-  console.log(`[CollisionDetection] Token positions in pixels - from: ${JSON.stringify(currentPos)} to: ${JSON.stringify(targetPos)}`);
-  
   // Convert pixel positions to grid units (UVTT wall data is in grid units)
   const currentGridPos: Point = {
     x: currentPos.x / pixelsPerGrid,
@@ -43,50 +40,12 @@ export function checkWallCollision(
     x: targetPos.x / pixelsPerGrid,
     y: targetPos.y / pixelsPerGrid
   };
-  
-  console.log(`[CollisionDetection] Converted to grid units - from: ${JSON.stringify(currentGridPos)} to: ${JSON.stringify(targetGridPos)}`);
 
   const movementLine: LineSegment = {
     start: currentGridPos,
     end: targetGridPos
   };
 
-  // Debug: Log wall data availability
-  const lineOfSightPolylines = mapData.uvtt.line_of_sight?.length || 0;
-  const objectsLineOfSightPolylines = mapData.uvtt.objects_line_of_sight?.length || 0;
-  
-  // Count actual line segments
-  let lineOfSightSegments = 0;
-  if (mapData.uvtt.line_of_sight) {
-    for (const polyline of mapData.uvtt.line_of_sight) {
-      if (Array.isArray(polyline) && polyline.length >= 2) {
-        lineOfSightSegments += polyline.length - 1;
-      }
-    }
-  }
-  
-  let objectsLineOfSightSegments = 0;
-  if (mapData.uvtt.objects_line_of_sight) {
-    for (const polyline of mapData.uvtt.objects_line_of_sight) {
-      if (Array.isArray(polyline) && polyline.length >= 2) {
-        objectsLineOfSightSegments += polyline.length - 1;
-      }
-    }
-  }
-  
-  console.log(`[CollisionDetection] Available walls: ${lineOfSightSegments} line_of_sight segments (from ${lineOfSightPolylines} polylines), ${objectsLineOfSightSegments} objects_line_of_sight segments (from ${objectsLineOfSightPolylines} polylines)`);
-  
-  // Debug: Log sample wall coordinates to verify they're in grid units
-  if (mapData.uvtt.objects_line_of_sight && mapData.uvtt.objects_line_of_sight.length > 0) {
-    const firstWall = mapData.uvtt.objects_line_of_sight[0];
-    if (Array.isArray(firstWall) && firstWall.length >= 2) {
-      console.log(`[CollisionDetection] Sample wall coordinates (should be grid units):`, {
-        start: firstWall[0],
-        end: firstWall[1],
-        wallLength: firstWall.length
-      });
-    }
-  }
 
   // Check intersection with line_of_sight walls (polylines)
   if (mapData.uvtt.line_of_sight && Array.isArray(mapData.uvtt.line_of_sight)) {
@@ -147,17 +106,6 @@ function lineSegmentsIntersect(line1: LineSegment, line2: LineSegment): boolean 
   const d3 = direction(p1, p2, p3);
   const d4 = direction(p1, p2, p4);
 
-  // Debug logging for failed intersections
-  const isMovementVertical = p1.x === p2.x;
-  const isWallHorizontal = p3.y === p4.y;
-  
-  if (isMovementVertical && isWallHorizontal) {
-    console.log(`[CollisionDetection] Checking vertical movement vs horizontal wall:`);
-    console.log(`  Movement: (${p1.x}, ${p1.y}) to (${p2.x}, ${p2.y})`);
-    console.log(`  Wall: (${p3.x}, ${p3.y}) to (${p4.x}, ${p4.y})`);
-    console.log(`  Directions: d1=${d1}, d2=${d2}, d3=${d3}, d4=${d4}`);
-    console.log(`  Main condition: ${((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))}`);
-  }
 
   if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
       ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) {

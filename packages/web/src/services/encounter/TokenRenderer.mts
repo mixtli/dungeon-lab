@@ -222,7 +222,6 @@ export class TokenRenderer {
       }
       tokenRoot.x = position.x;
       tokenRoot.y = position.y;
-      console.log('[TokenRenderer] positioned tokenRoot at world coordinates:', position, 'for token:', token.id);
 
       // Add the sprite to the container
       tokenRoot.addChild(sprite);
@@ -269,7 +268,6 @@ export class TokenRenderer {
     const tokenRoot = tokenData.root as TokenContainer;
     tokenRoot.x = position.x;
     tokenRoot.y = position.y;
-    console.log('[TokenRenderer] updateToken: positioned tokenRoot at world coordinates:', position, 'for token:', token.id);
     
     // Update stored token data
     tokenData.token = token;
@@ -306,7 +304,6 @@ export class TokenRenderer {
     const tokenRoot = tokenData.root as TokenContainer;
     // Snap position to grid if enabled
     const finalPosition = this.snapToGrid(newPosition);
-    console.log('[TokenRenderer] moveToken - original position:', newPosition, 'snapped position:', finalPosition);
     if (animate) {
       // Smooth animation to new position
       this.animateTokenMovement(tokenRoot, finalPosition);
@@ -475,25 +472,20 @@ export class TokenRenderer {
   private configureTokenSprite(sprite: TokenSprite, token: Token): void {
     // Set token ID for reference
     sprite.tokenId = token.id;
-    console.log('[TokenRenderer] configureTokenSprite set tokenId', token.id);
     
     // Snap position to grid if enabled
     let position = { x: token.position.x, y: token.position.y };
     if (this._snapToGrid) {
       position = this.snapToGrid(position);
-      console.log('[TokenRenderer] snapped position to grid:', position);
     }
     
     // Set sprite position relative to its parent container (tokenRoot)
     // The tokenRoot will be positioned at world coordinates, so sprite should be at (0, 0)
-    console.log('[TokenRenderer] configureTokenSprite setting sprite position to (0, 0) relative to tokenRoot', token.id);
     sprite.x = 0;
     sprite.y = 0;
-    console.log('[TokenRenderer] sprite positioned at (0, 0) relative to tokenRoot, tokenRoot will be positioned at world coordinates:', position);
     
     // Calculate size based on grid size and token size
     const size = this.getGridBasedTokenSize(token.size || 'medium');
-    console.log('[TokenRenderer] calculated grid-based size:', size, 'for token size:', token.size || 'medium');
     
     // Set anchor to center
     sprite.anchor.set(0.5);
@@ -501,7 +493,6 @@ export class TokenRenderer {
     // Scale sprite to match desired size
     const scale = size / Math.max(sprite.width, sprite.height);
     sprite.scale.set(scale);
-    console.log('[TokenRenderer] set sprite scale to:', scale);
     
     // Enable interactivity
     sprite.eventMode = 'static';
@@ -611,7 +602,6 @@ export class TokenRenderer {
    * Handle pointer down event
    */
   private handlePointerDown(sprite: TokenSprite, event: PIXI.FederatedPointerEvent): void {
-    console.log('[TokenRenderer] pointerdown', sprite.tokenId, event);
     if (!sprite.tokenId) return;
     // Store original position before any potential drag
     sprite.originalPosition = { x: sprite.x, y: sprite.y };
@@ -629,10 +619,6 @@ export class TokenRenderer {
         stage.on('pointerup', this.handleStageDragEnd, this);
         stage.on('pointerupoutside', this.handleStageDragEnd, this);
       }
-      console.log('[TokenRenderer] prepared for potential drag', sprite.tokenId, {
-        spritePos: { x: sprite.x, y: sprite.y },
-        globalPos: { x: event.global.x, y: event.global.y }
-      });
     }
     // Always emit click event for external handlers
     if (this.eventHandlers.click) {
@@ -655,8 +641,6 @@ export class TokenRenderer {
     const sprite = this._dragTarget;
     if (!sprite.tokenId) return;
     
-    console.log('[TokenRenderer] stage drag move', sprite.tokenId, event);
-    
     // Calculate distance from initial mouse position
     const deltaX = event.global.x - this._dragStartGlobal.x;
     const deltaY = event.global.y - this._dragStartGlobal.y;
@@ -669,15 +653,9 @@ export class TokenRenderer {
         this._isDragging = true;
         sprite.dragging = true;
         
-        console.log('[TokenRenderer] drag threshold exceeded, starting drag', sprite.tokenId, {
-          distance,
-          threshold: this._dragThreshold
-        });
-        
         // Emit drag start event
         if (this.eventHandlers.dragStart) {
           const currentPos = { x: sprite.x, y: sprite.y };
-          console.log('[TokenRenderer] calling dragStart handler', sprite.tokenId, currentPos);
           this.eventHandlers.dragStart(sprite.tokenId, currentPos);
         }
       } else {
@@ -687,15 +665,9 @@ export class TokenRenderer {
     }
     
     // Continue dragging - update sprite position
-    console.log('[TokenRenderer] before move - sprite position:', { x: sprite.x, y: sprite.y });
-    
     const newPosition = this.calculateDragPosition(sprite, event);
-    console.log('[TokenRenderer] calculated new position:', newPosition);
-    
     sprite.x = newPosition.x;
     sprite.y = newPosition.y;
-    
-    console.log('[TokenRenderer] after move - sprite position:', { x: sprite.x, y: sprite.y });
     
     // Emit drag move event
     if (this.eventHandlers.dragMove) {
@@ -711,8 +683,6 @@ export class TokenRenderer {
     
     const sprite = this._dragTarget;
     if (!sprite.tokenId) return;
-    
-    console.log('[TokenRenderer] stage drag end', sprite.tokenId);
     
     // Remove stage-level event listeners
     const stage = this.tokenContainer.parent;
@@ -737,14 +707,10 @@ export class TokenRenderer {
       if (hasMoved) {
         // Snap the final position to grid
         const snappedPosition = this.snapToGrid(currentPos);
-        console.log('[TokenRenderer] Final drag position before snap:', currentPos);
-        console.log('[TokenRenderer] Final drag position after snap:', snappedPosition);
         
         // Check if the snapped position is within map bounds
         if (!isPositionWithinBounds(snappedPosition, this._mapData)) {
-          console.log('[TokenRenderer] Position is outside map bounds, clamping to bounds');
           const clampedPosition = clampPositionToBounds(snappedPosition, this._mapData);
-          console.log('[TokenRenderer] Clamped position:', clampedPosition);
           
           // Update sprite to clamped position
           sprite.x = clampedPosition.x;
@@ -752,9 +718,7 @@ export class TokenRenderer {
           
           // Emit drag end event with clamped position
           if (this.eventHandlers.dragEnd) {
-            console.log('[TokenRenderer] Calling dragEnd handler with clamped position:', sprite.tokenId, clampedPosition);
             this.eventHandlers.dragEnd(sprite.tokenId, clampedPosition);
-            console.log('[TokenRenderer] dragEnd handler called');
           }
         } else {
           // Position is within bounds, use snapped position
@@ -763,9 +727,7 @@ export class TokenRenderer {
           
           // Emit drag end event with snapped position
           if (this.eventHandlers.dragEnd) {
-            console.log('[TokenRenderer] Calling dragEnd handler with snapped position:', sprite.tokenId, snappedPosition);
             this.eventHandlers.dragEnd(sprite.tokenId, snappedPosition);
-            console.log('[TokenRenderer] dragEnd handler called');
           }
         }
       } else {
@@ -774,11 +736,9 @@ export class TokenRenderer {
           sprite.x = originalPos.x;
           sprite.y = originalPos.y;
         }
-        console.log('[TokenRenderer] Token did not move, no server update needed');
       }
     } else {
       // This was a click (not a drag) - handle selection
-      console.log('[TokenRenderer] handling click selection for', sprite.tokenId);
       
       // Toggle selection
       if (this.selectedTokenId === sprite.tokenId) {
@@ -807,7 +767,6 @@ export class TokenRenderer {
    * Handle pointer up event
    */
   private handlePointerUp(sprite: TokenSprite): void {
-    console.log('[TokenRenderer] pointerup', sprite.tokenId, 'dragging:', sprite.dragging);
     // The stage drag end handler will handle all the drag/selection logic
   }
   
@@ -828,15 +787,6 @@ export class TokenRenderer {
     const worldDx = dx / scale;
     const worldDy = dy / scale;
 
-    console.log('[TokenRenderer] calculateDragPosition', {
-      dragStartX: this._dragStartPosition.x,
-      dragStartY: this._dragStartPosition.y,
-      eventGlobal: { x: event.global.x, y: event.global.y },
-      dragStartGlobal: this._dragStartGlobal,
-      screenDelta: { dx, dy },
-      scale: scale,
-      worldDelta: { worldDx, worldDy }
-    });
 
     return {
       x: this._dragStartPosition.x + worldDx,

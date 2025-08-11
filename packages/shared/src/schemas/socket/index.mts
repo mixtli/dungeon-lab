@@ -84,7 +84,9 @@ import {
   gameSessionJoinCallbackSchema,
   gameSessionLeaveCallbackSchema,
   gameSessionEndCallbackSchema,
-  gameStateSyncEncounterCallbackSchema
+  gameStateSyncEncounterCallbackSchema,
+  gameStateResetHashCallbackSchema,
+  gameStateResetHashArgsSchema
 } from './game-state.mjs';
 
 import {
@@ -169,6 +171,8 @@ export {
   gameSessionLeaveCallbackSchema,
   gameSessionEndCallbackSchema,
   gameStateSyncEncounterCallbackSchema,
+  gameStateResetHashCallbackSchema,
+  gameStateResetHashArgsSchema,
   
   // Base callback schemas
   baseSocketCallbackSchema,
@@ -229,6 +233,7 @@ export const clientToServerEvents = z.object({
   'gameState:update': z.function().args(...gameStateUpdateArgsSchema.items).returns(z.void()),
   'gameState:requestFull': z.function().args(...gameStateRequestFullArgsSchema.items).returns(z.void()),
   'gameState:syncEncounter': z.function().args(...gameStateSyncEncounterArgsSchema.items).returns(z.void()),
+  'gameState:resetHash': z.function().args(...gameStateResetHashArgsSchema.items).returns(z.void()),
   'gameSession:join': z.function().args(...gameSessionJoinArgsSchema.items).returns(z.void()),
   'gameSession:leave': z.function().args(...gameSessionLeaveArgsSchema.items).returns(z.void()),
   'gameSession:end': z.function().args(...gameSessionEndArgsSchema.items).returns(z.void()),

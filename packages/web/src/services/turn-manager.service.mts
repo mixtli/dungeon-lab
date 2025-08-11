@@ -6,7 +6,11 @@ import type { StateOperation } from '@dungeon-lab/shared/types/index.mjs';
 
 export class TurnManagerService {
   private plugin: BaseTurnManagerPlugin | null = null;
-  private gameStateStore = useGameStateStore();
+  
+  // Lazy-loaded store to avoid initialization order issues
+  private get gameStateStore() {
+    return useGameStateStore();
+  }
   
   async initialize(pluginId: string): Promise<void> {
     const gameSystemPlugin = pluginRegistry.getGameSystemPlugin(pluginId);

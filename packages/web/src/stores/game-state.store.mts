@@ -683,7 +683,8 @@ export const useGameStateStore = defineStore(
         conditions: [],
         version: 1,
         createdBy: authStore.user?.id || '',
-        updatedBy: authStore.user?.id || ''
+        updatedBy: authStore.user?.id || '',
+        ownerId: document.ownerId || authStore.user?.id || ''
       };
 
       const operations: StateOperation[] = [{
@@ -691,6 +692,26 @@ export const useGameStateStore = defineStore(
         operation: 'push',
         value: tokenData
       }];
+
+      // If turn order is active, add new token as participant
+      if (gameState.value.turnManager?.isActive) {
+        const newParticipant = {
+          id: tokenId,
+          name: tokenData.name,
+          actorId: tokenData.documentId,
+          tokenId: tokenId,
+          hasActed: false,
+          turnOrder: 0 // Start with 0 initiative
+        };
+        
+        operations.push({
+          path: 'turnManager.participants',
+          operation: 'push',
+          value: newParticipant
+        });
+        
+        console.log(`Adding token to active turn order: ${tokenData.name}`);
+      }
 
       const response = await updateGameState(operations);
 

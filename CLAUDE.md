@@ -107,6 +107,15 @@ The system uses a hybrid approach:
 - **WebSockets** - Real-time features (token movement, dice rolls, chat)
 - Service abstractions encapsulate protocol details from client code
 
+
+## **IMPORTANT:  Game Master authoratative**
+- During a game, all state changes are made by the GM client sending a gameState:update message.  
+- PLAYERS ARE NOT ALLOWED TO DIRECTLY MAKE STATE CHANGES
+- PLAYERS AND GMS both send requests to change the state with a gameAction:request message
+- The GM Client receives that message, validates it, optionally asks the GM for manual approval depending on the request, and sends the STATE change.
+- The GM CLIENT also makes state change requests in the SAME WAY.  The GM CLIENT sends gameAction:request like any other client.  The GM Client doesn't bypass the request system and make state changes without receiving a request first.  This avoids needless conditional logic and potential inconsistencies.
+
+
 ## Technology Stack
 
 ### Frontend (packages/web)
