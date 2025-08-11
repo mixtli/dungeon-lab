@@ -49,11 +49,8 @@ import {
   // Encounter lifecycle events
   encounterStartSchema,
   encounterStartedSchema,
+  encounterStopSchema,
   encounterStoppedSchema,
-  encounterPauseSchema,
-  encounterPausedSchema,
-  encounterEndSchema,
-  encounterEndedSchema,
   // Error events
   encounterErrorSchema,
   encounterCallbackSchema
@@ -142,11 +139,8 @@ export {
   // Encounter lifecycle schemas  
   encounterStartSchema,
   encounterStartedSchema,
+  encounterStopSchema,
   encounterStoppedSchema,
-  encounterPauseSchema,
-  encounterPausedSchema,
-  encounterEndSchema,
-  encounterEndedSchema,
   encounterErrorSchema,
   encounterCallbackSchema,
   
@@ -225,7 +219,7 @@ export const clientToServerEvents = z.object({
   diceRoll: z.function().args(diceRollRequestSchema).returns(z.void()),
   roll: z.function().args(...rollArgsSchema.items).returns(z.void()),
   'encounter:start': z.function().args(encounterStartSchema).returns(z.void()),
-  'encounter:stop': z.function().args(encounterEndSchema).returns(z.void()),
+  'encounter:stop': z.function().args(encounterStopSchema).returns(z.void()),
   'map:generate': z.function().args(...mapGenerateArgsSchema.items).returns(z.void()),
   'map:edit': z.function().args(...mapEditArgsSchema.items).returns(z.void()),
   'map:detect-features': z.function().args(...mapDetectFeaturesArgsSchema.items).returns(z.void()),

@@ -6,13 +6,9 @@
  * should be handled by plugins.
  */
 
-/**
- * Core action types that can be requested
- */
-export type GameActionType = 'move-token' | 'add-document' | 'end-turn' | 'roll-initiative';
-
 // Re-export Zod-inferred types as single source of truth
 export type {
+  GameActionType,
   GameActionRequest,
   ActionRequestResponse
 } from '../schemas/socket/game-actions.mjs';
@@ -65,6 +61,20 @@ export type EndTurnParameters = Record<string, unknown>;
  */
 export interface RollInitiativeParameters extends Record<string, unknown> {
   participants?: string[]; // Optional: specific participants to reroll
+}
+
+/**
+ * Start encounter action parameters
+ */
+export interface StartEncounterParameters extends Record<string, unknown> {
+  encounterId: string;
+}
+
+/**
+ * Stop encounter action parameters
+ */
+export interface StopEncounterParameters extends Record<string, unknown> {
+  encounterId: string;
 }
 
 /**

@@ -46,7 +46,7 @@ mongooseSchema.path('ownerId').get(function (value: ObjectId | undefined) {
 
 // Add indexes for performance optimization
 mongooseSchema.index({ campaignId: 1, status: 1 }); // Find active encounters by campaign
-mongooseSchema.index({ status: 1 }); // Filter by status (draft, ready, in_progress, paused, completed)
+mongooseSchema.index({ status: 1 }); // Filter by status (stopped, in_progress)
 mongooseSchema.index({ updatedAt: -1 }); // Recently modified encounters for activity feeds
 mongooseSchema.index({ createdAt: -1 }); // Recent encounters for listing
 mongooseSchema.index({ 'participants': 1 }); // Find encounters where a specific user is participating
@@ -65,7 +65,7 @@ mongooseSchema.set('versionKey', false);
  * Key fields explained:
  * - campaignId: Links to the parent campaign this encounter belongs to (stored as ObjectId)
  * - mapId: References the map/scene where this encounter takes place
- * - status: Lifecycle state (draft -> ready -> in_progress -> paused/completed)
+ * - status: Lifecycle state (stopped -> in_progress -> stopped)
  * - tokens: Array of all tokens (characters, NPCs, objects) in this encounter
  * - initiative: Embedded initiative tracker with turn order and round counting
  * - effects: Array of temporary effects (buffs, debuffs, conditions) active in encounter

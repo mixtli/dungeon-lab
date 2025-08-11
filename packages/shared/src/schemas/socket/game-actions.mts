@@ -4,13 +4,23 @@ import { z } from 'zod';
  * Socket schemas for GameAction request/response system
  */
 
+// Extract game action type enum as single source of truth
+export const gameActionTypeSchema = z.enum([
+  'move-token',
+  'add-document', 
+  'end-turn',
+  'roll-initiative',
+  'start-encounter',
+  'stop-encounter'
+]);
+
 // Basic GameAction request schema
 export const gameActionRequestSchema = z.object({
   id: z.string(),
   playerId: z.string(),
   sessionId: z.string(),
   timestamp: z.number(),
-  action: z.enum(['move-token', 'add-document', 'end-turn', 'roll-initiative']),
+  action: gameActionTypeSchema,
   parameters: z.record(z.unknown()),
   description: z.string().optional()
 });
@@ -48,3 +58,4 @@ export type GameActionGmRequestArgs = z.infer<typeof gameActionGmRequestArgsSche
 export type GameActionResponseArgs = z.infer<typeof gameActionResponseArgsSchema>;
 export type GameActionRequest = z.infer<typeof gameActionRequestSchema>;
 export type ActionRequestResponse = z.infer<typeof actionRequestResponseSchema>;
+export type GameActionType = z.infer<typeof gameActionTypeSchema>;
