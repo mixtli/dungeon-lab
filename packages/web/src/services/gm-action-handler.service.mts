@@ -8,7 +8,11 @@
 import { 
   type GameActionRequest, 
   type MoveTokenParameters,
-  type AddDocumentParameters
+  type AddDocumentParameters,
+  type StartEncounterParameters,
+  type StopEncounterParameters,
+  type EncounterStartCallback,
+  type EncounterStopCallback
 } from '@dungeon-lab/shared/types/index.mjs';
 import { turnManagerService } from './turn-manager.service.mjs';
 import { useGameSessionStore } from '../stores/game-session.store.mjs';
@@ -94,6 +98,12 @@ export class GMActionHandlerService {
         break;
       case 'roll-initiative':
         this.handleRollInitiative(request);
+        break;
+      case 'start-encounter':
+        this.handleStartEncounter(request);
+        break;
+      case 'stop-encounter':
+        this.handleStopEncounter(request);
         break;
       default:
         this.socketStore.emit('gameAction:response', {
@@ -564,6 +574,209 @@ export class GMActionHandlerService {
         error: {
           code: 'ROLL_INITIATIVE_ERROR',
           message: 'Failed to process roll initiative request'
+        }
+      });
+    }
+  }
+
+  /**
+   * Handle start encounter requests
+   */
+  private async handleStartEncounter(request: GameActionRequest) {
+    const params = request.parameters as StartEncounterParameters;
+    
+    console.log('[GMActionHandler] Processing start encounter request:', {
+      encounterId: params.encounterId,
+      playerId: request.playerId
+    });
+
+    try {
+      // Only GM can start encounters
+      const isGM = request.playerId === this.gameSessionStore.currentSession?.gameMasterId;
+      if (!isGM) {
+        return this.socketStore.emit('gameAction:response', {
+          success: false,
+          requestId: request.id,
+          error: {
+            code: 'GM_ONLY_ACTION',
+            message: 'Only the Game Master can start encounters'
+          }
+        });
+      }
+
+      // Check if there's already an active encounter
+      if (this.gameStateStore.currentEncounter) {
+        return this.socketStore.emit('gameAction:response', {
+          success: false,
+          requestId: request.id,
+          error: {
+            code: 'ENCOUNTER_ALREADY_ACTIVE',
+            message: 'An encounter is already active'
+          }
+        });
+      }
+
+      // Call the server-side encounter:start handler
+      this.socketStore.socket?.emit('encounter:start', { encounterId: params.encounterId }, (response: EncounterStartCallback) => {
+        if (response.success && response.data) {
+          // Server returned the encounter data, now set it in game state
+          console.log('[GMActionHandler] Server approved encounter start, updating game state');
+          
+          const operations = [{
+            path: 'currentEncounter',
+            operation: 'set' as const,
+            value: response.data
+          }];
+
+          this.gameStateStore.updateGameState(operations).then((updateResult) => {
+            if (updateResult.success) {
+              console.log('[GMActionHandler] Encounter start completed successfully');
+              this.socketStore.emit('gameAction:response', {
+                success: true,
+                approved: true,
+                requestId: request.id
+              });
+            } else {
+              console.error('[GMActionHandler] Failed to update game state after encounter start');
+              this.socketStore.emit('gameAction:response', {
+                success: false,
+                requestId: request.id,
+                error: {
+                  code: 'STATE_UPDATE_FAILED',
+                  message: updateResult.error?.message || 'Failed to update game state'
+                }
+              });
+            }
+          });
+        } else {
+          console.error('[GMActionHandler] Server rejected encounter start:', response.error);
+          this.socketStore.emit('gameAction:response', {
+            success: false,
+            requestId: request.id,
+            error: response.error 
+              ? (typeof response.error === 'string' 
+                  ? { code: 'ENCOUNTER_START_FAILED', message: response.error } 
+                  : response.error)
+              : { code: 'ENCOUNTER_START_FAILED', message: 'Failed to start encounter' }
+          });
+        }
+      });
+
+    } catch (error) {
+      console.error('[GMActionHandler] Error processing start encounter:', error);
+      this.socketStore.emit('gameAction:response', {
+        success: false,
+        requestId: request.id,
+        error: {
+          code: 'START_ENCOUNTER_ERROR',
+          message: 'Failed to process start encounter request'
+        }
+      });
+    }
+  }
+
+  /**
+   * Handle stop encounter requests
+   */
+  private async handleStopEncounter(request: GameActionRequest) {
+    const params = request.parameters as StopEncounterParameters;
+    
+    console.log('[GMActionHandler] Processing stop encounter request:', {
+      encounterId: params.encounterId,
+      playerId: request.playerId
+    });
+
+    try {
+      // Only GM can stop encounters
+      const isGM = request.playerId === this.gameSessionStore.currentSession?.gameMasterId;
+      if (!isGM) {
+        return this.socketStore.emit('gameAction:response', {
+          success: false,
+          requestId: request.id,
+          error: {
+            code: 'GM_ONLY_ACTION',
+            message: 'Only the Game Master can stop encounters'
+          }
+        });
+      }
+
+      // Check if there's an active encounter to stop
+      if (!this.gameStateStore.currentEncounter) {
+        return this.socketStore.emit('gameAction:response', {
+          success: false,
+          requestId: request.id,
+          error: {
+            code: 'NO_ACTIVE_ENCOUNTER',
+            message: 'No encounter is currently active'
+          }
+        });
+      }
+
+      // Verify the encounter ID matches
+      if (this.gameStateStore.currentEncounter.id !== params.encounterId) {
+        return this.socketStore.emit('gameAction:response', {
+          success: false,
+          requestId: request.id,
+          error: {
+            code: 'ENCOUNTER_MISMATCH',
+            message: 'The specified encounter is not the currently active encounter'
+          }
+        });
+      }
+
+      // Call the server-side encounter:stop handler
+      this.socketStore.socket?.emit('encounter:stop', { encounterId: params.encounterId }, (response: EncounterStopCallback) => {
+        if (response.success) {
+          // Server approved the stop, now clear currentEncounter from game state
+          console.log('[GMActionHandler] Server approved encounter stop, clearing game state');
+          
+          const operations = [{
+            path: 'currentEncounter',
+            operation: 'unset' as const
+          }];
+
+          this.gameStateStore.updateGameState(operations).then((updateResult) => {
+            if (updateResult.success) {
+              console.log('[GMActionHandler] Encounter stop completed successfully');
+              this.socketStore.emit('gameAction:response', {
+                success: true,
+                approved: true,
+                requestId: request.id
+              });
+            } else {
+              console.error('[GMActionHandler] Failed to update game state after encounter stop');
+              this.socketStore.emit('gameAction:response', {
+                success: false,
+                requestId: request.id,
+                error: {
+                  code: 'STATE_UPDATE_FAILED',
+                  message: updateResult.error?.message || 'Failed to update game state'
+                }
+              });
+            }
+          });
+        } else {
+          console.error('[GMActionHandler] Server rejected encounter stop:', response.error);
+          this.socketStore.emit('gameAction:response', {
+            success: false,
+            requestId: request.id,
+            error: response.error 
+              ? (typeof response.error === 'string' 
+                  ? { code: 'ENCOUNTER_STOP_FAILED', message: response.error } 
+                  : response.error)
+              : { code: 'ENCOUNTER_STOP_FAILED', message: 'Failed to stop encounter' }
+          });
+        }
+      });
+
+    } catch (error) {
+      console.error('[GMActionHandler] Error processing stop encounter:', error);
+      this.socketStore.emit('gameAction:response', {
+        success: false,
+        requestId: request.id,
+        error: {
+          code: 'STOP_ENCOUNTER_ERROR',
+          message: 'Failed to process stop encounter request'
         }
       });
     }

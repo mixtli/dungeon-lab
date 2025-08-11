@@ -498,6 +498,36 @@ export class GameStateSyncService {
   }
 
   /**
+   * Sync a single encounter from game state to backing model
+   * Public method for targeted encounter syncing
+   */
+  async syncSingleEncounter(
+    currentEncounter: IEncounter | null,
+    campaignId: string,
+    options: SyncOptions = {}
+  ): Promise<{ success: boolean; updated: boolean; error?: string }> {
+    try {
+      const updated = await this.syncEncounter(currentEncounter, campaignId, options, null);
+      return {
+        success: true,
+        updated: updated > 0
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      logger.error('Failed to sync single encounter', { 
+        encounterId: currentEncounter?.id, 
+        campaignId, 
+        error: errorMessage 
+      });
+      return {
+        success: false,
+        updated: false,
+        error: errorMessage
+      };
+    }
+  }
+
+  /**
    * Clean up backing models for ended sessions
    */
   async cleanupEndedSessions(sessionIds: string[]): Promise<void> {

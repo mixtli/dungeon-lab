@@ -45,5 +45,7 @@ export type EncounterStopped = z.infer<typeof encounterSocketSchemas.encounterSt
 
 export type EncounterError = z.infer<typeof encounterSocketSchemas.encounterErrorSchema>;
 export type EncounterCallback = z.infer<typeof encounterSocketSchemas.encounterCallbackSchema>;
+export type EncounterStartCallback = z.infer<typeof encounterSocketSchemas.encounterStartCallbackSchema>;
+export type EncounterStopCallback = z.infer<typeof encounterSocketSchemas.encounterStopCallbackSchema>;
 
 

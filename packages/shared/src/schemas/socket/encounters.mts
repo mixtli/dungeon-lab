@@ -2,7 +2,7 @@ import { z } from 'zod';
 import {
   encounterSchema
 } from '../../schemas/encounters.schema.mjs';
-import { socketCallbackWithDataSchema } from './base-callback.schema.mjs';
+import { socketCallbackWithDataSchema, baseSocketCallbackSchema } from './base-callback.schema.mjs';
 
 // ============================================================================
 // ENCOUNTER STATE EVENTS
@@ -49,7 +49,20 @@ export const encounterErrorSchema = z.object({
 // CALLBACK SCHEMAS
 // ============================================================================
 
+export const encounterStartCallbackSchema = socketCallbackWithDataSchema(encounterSchema);
+export const encounterStopCallbackSchema = baseSocketCallbackSchema;
 export const encounterCallbackSchema = socketCallbackWithDataSchema(z.unknown());
+
+// Client-to-server event argument schemas (with callbacks)
+export const encounterStartArgsSchema = z.tuple([
+  encounterStartSchema,
+  z.function().args(encounterStartCallbackSchema).optional() // callback
+]);
+
+export const encounterStopArgsSchema = z.tuple([
+  encounterStopSchema,
+  z.function().args(encounterStopCallbackSchema).optional() // callback
+]);
 
 
 // ============================================================================
@@ -62,4 +75,6 @@ export type EncounterStop = z.infer<typeof encounterStopSchema>;
 export type EncounterStopped = z.infer<typeof encounterStoppedSchema>;
 
 export type EncounterError = z.infer<typeof encounterErrorSchema>;
+export type EncounterStartCallback = z.infer<typeof encounterStartCallbackSchema>;
+export type EncounterStopCallback = z.infer<typeof encounterStopCallbackSchema>;
 export type EncounterCallback = z.infer<typeof encounterCallbackSchema>; 

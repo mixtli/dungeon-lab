@@ -193,7 +193,6 @@ export const useGameSessionStore = defineStore(
       // Remove any existing listeners to prevent duplicates
       socketStore.socket.off('gameSession:joined');
       socketStore.socket.off('gameSession:left');
-      socketStore.socket.off('encounter:started');
       socketStore.socket.off('gameSession:paused');
       socketStore.socket.off('gameSession:resumed');
       socketStore.socket.off('gameSession:ended');
@@ -247,22 +246,6 @@ export const useGameSessionStore = defineStore(
           if (data.userId === authStore.user?.id) {
             currentCharacter.value = null;
           }
-        }
-      });
-
-      // Handle encounter started events
-      socketStore.socket.on('encounter:started', (data: { sessionId: string, encounterId: string, encounter: unknown, timestamp?: string }) => {
-        console.log('[Socket] Received encounter:started event:', data);
-        
-        if (data.sessionId === sessionId) {
-          // The encounter info is managed in gameState.currentEncounter, not as a separate property
-          // This event indicates an encounter was started, but the actual encounter data
-          // comes through the game state updates
-          console.log('[GameSession Store] Encounter started:', data.encounterId);
-          // The encounter will be set via game state updates from gameState store
-          // const gameStateStore = useGameStateStore();
-          // gameStateStore.currentEncounter = data.encounter;
-          // System message is now sent from server, no need to send from client
         }
       });
 
@@ -321,7 +304,6 @@ export const useGameSessionStore = defineStore(
         // Remove listeners
         socketStore.socket.off('gameSession:joined');
         socketStore.socket.off('gameSession:left');
-        socketStore.socket.off('encounter:started');
         socketStore.socket.off('gameSession:paused');
         socketStore.socket.off('gameSession:resumed');
         socketStore.socket.off('gameSession:ended');

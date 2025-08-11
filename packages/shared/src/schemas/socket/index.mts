@@ -53,7 +53,13 @@ import {
   encounterStoppedSchema,
   // Error events
   encounterErrorSchema,
-  encounterCallbackSchema
+  // Callback schemas
+  encounterStartCallbackSchema,
+  encounterStopCallbackSchema,
+  encounterCallbackSchema,
+  // Args schemas
+  encounterStartArgsSchema,
+  encounterStopArgsSchema
 } from './encounters.mjs';
 
 
@@ -142,7 +148,13 @@ export {
   encounterStopSchema,
   encounterStoppedSchema,
   encounterErrorSchema,
+  // Encounter callback schemas
+  encounterStartCallbackSchema,
+  encounterStopCallbackSchema,
   encounterCallbackSchema,
+  // Encounter args schemas
+  encounterStartArgsSchema,
+  encounterStopArgsSchema,
   
   // Game state management schemas
   gameStateUpdateArgsSchema,
@@ -197,8 +209,6 @@ export const serverToClientEvents = z.object({
   'chatbot:response': z.function().args(chatbotResponseSchema).returns(z.void()),
   'chatbot:error': z.function().args(chatbotErrorSchema).returns(z.void()),
   // Encounter events
-  'encounter:started': z.function().args(encounterStartedSchema).returns(z.void()),
-  'encounter:stopped': z.function().args(encounterStoppedSchema).returns(z.void()),
   'encounter:error': z.function().args(encounterErrorSchema).returns(z.void()),
   'user:joined': z.function().args(userJoinedSessionSchema).returns(z.void()),
   'user:left': z.function().args(userLeftSessionSchema).returns(z.void()),
@@ -218,8 +228,8 @@ export const clientToServerEvents = z.object({
   chat: z.function().args(...chatMessageArgsSchema.items).returns(z.void()),
   diceRoll: z.function().args(diceRollRequestSchema).returns(z.void()),
   roll: z.function().args(...rollArgsSchema.items).returns(z.void()),
-  'encounter:start': z.function().args(encounterStartSchema).returns(z.void()),
-  'encounter:stop': z.function().args(encounterStopSchema).returns(z.void()),
+  'encounter:start': z.function().args(...encounterStartArgsSchema.items).returns(z.void()),
+  'encounter:stop': z.function().args(...encounterStopArgsSchema.items).returns(z.void()),
   'map:generate': z.function().args(...mapGenerateArgsSchema.items).returns(z.void()),
   'map:edit': z.function().args(...mapEditArgsSchema.items).returns(z.void()),
   'map:detect-features': z.function().args(...mapDetectFeaturesArgsSchema.items).returns(z.void()),
