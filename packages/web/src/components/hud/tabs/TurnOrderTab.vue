@@ -98,10 +98,6 @@ const notificationStore = useNotificationStore();
 
 const turnManager = computed(() => gameStateStore.gameState?.turnManager);
 const isInTurnOrder = computed(() => turnManager.value?.isActive ?? false);
-const currentParticipant = computed(() => {
-  const tm = turnManager.value;
-  return tm?.participants[tm.currentTurn] || null;
-});
 
 // Get plugin capabilities for UI behavior
 const plugin = computed(() => turnManagerService.getPlugin());
@@ -113,7 +109,7 @@ const showCalculateButton = computed(() => plugin.value?.showCalculateButton() ?
 const draggedIndex = ref<number | null>(null);
 
 // Check if current user controls this participant's token
-function isControlledByCurrentUser(participant: any): boolean {
+function isControlledByCurrentUser(participant: { tokenId?: string; actorId?: string }): boolean {
   const token = gameStateStore.currentEncounter?.tokens?.find(t => t.id === participant.tokenId);
   return token?.ownerId === authStore.user?.id;
 }
@@ -204,14 +200,6 @@ async function endTurn() {
   }
 }
 
-async function endTurnBasedMode() {
-  try {
-    await turnManagerService.endTurnOrder();
-    notificationStore.addNotification({ message: 'Turn-based mode ended', type: 'success' });
-  } catch (error) {
-    console.error('Failed to end turn-based mode:', error);
-  }
-}
 
 </script>
 

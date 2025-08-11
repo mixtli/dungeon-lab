@@ -21,7 +21,7 @@ export function sendSystemMessage(
       type: 'session' as const,
       id: sessionId
     },
-    timestamp: new Date()
+    timestamp: new Date().toISOString()
   };
 
   io.to(`session:${sessionId}`).emit('chat', metadata, message);

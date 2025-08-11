@@ -101,7 +101,7 @@ function getMessageClass(message: ChatMessage): string {
 }
 
 // Format timestamp
-function formatTime(timestamp: Date): string {
+function formatTime(timestamp: string): string {
   return new Date(timestamp).toLocaleTimeString([], { 
     hour: '2-digit', 
     minute: '2-digit' 

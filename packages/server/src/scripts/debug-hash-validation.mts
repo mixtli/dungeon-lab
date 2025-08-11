@@ -1,7 +1,7 @@
 import { GameStateService } from '../features/campaigns/services/game-state.service.mjs';
 import { serverGameStateWithVirtualsSchema } from '@dungeon-lab/shared/schemas/server-game-state.schema.mjs';
 import { generateStateHash } from '../utils/state-hash.mjs';
-import { logger } from '../utils/logger.mjs';
+// import { logger } from '../utils/logger.mjs';
 import mongoose from 'mongoose';
 import { config } from '../config/index.mjs';
 
@@ -58,12 +58,28 @@ async function debugHashValidation() {
     
     // 6. Also test the fresh data generation path
     console.log('\n\n🔄 TESTING FRESH DATA GENERATION PATH:');
-    console.log('📋 Step 6: Loading fresh campaign data...');
-    const rawData = await (gameStateService as any).loadCampaignData(campaignId);
-    const rawState = rawData.state;
+    console.log('📋 Step 6: Reinitializing game state with fresh campaign data...');
+    const reinitResult = await gameStateService.initializeGameState(campaignId);
+    if (!reinitResult.success) {
+      console.log(`❌ Failed to reinitialize game state: ${reinitResult.error?.message}`);
+      return;
+    }
+    
+    // Get the fresh state data
+    const freshStateData = await gameStateService.getGameState(campaignId);
+    if (!freshStateData) {
+      console.log(`❌ Failed to get game state after reinitialization`);
+      return;
+    }
+    const rawState = freshStateData.gameState;
+    if (!rawState) {
+      console.log(`❌ No game state data found after reinitialization`);
+      return;
+    }
     
     console.log('🔨 Step 7: Generating hash of fresh raw data...');
-    const rawHash = generateStateHash(rawState);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rawHash = generateStateHash(rawState as any); // Type assertion for debug script
     console.log(`Fresh raw data hash: ${rawHash}`);
     
     console.log('📝 Step 8: Parsing fresh data with Zod schema...');
@@ -90,19 +106,19 @@ async function debugHashValidation() {
       const rawJson = JSON.stringify(rawState, null, 2);
       const parsedJson = JSON.stringify(parsedState, null, 2);
       
-      console.log('Raw data structure keys:', Object.keys(rawState));
+      console.log('Raw data structure keys:', Object.keys(rawState!));
       console.log('Parsed data structure keys:', Object.keys(parsedState));
       
       // Check for differences in nested structures
       console.log('\nCampaign comparison:');
-      console.log('Raw campaign:', rawState.campaign ? 'present' : 'null');
+      console.log('Raw campaign:', rawState!.campaign ? 'present' : 'null');
       console.log('Parsed campaign:', parsedState.campaign ? 'present' : 'null');
       
       console.log('\nCharacters comparison:');
-      console.log('Raw characters count:', rawState.characters?.length || 0);
+      console.log('Raw characters count:', rawState!.characters?.length || 0);
       console.log('Parsed characters count:', parsedState.characters?.length || 0);
       
-      if (rawState.characters?.length > 0) {
+      if (rawState!.characters?.length > 0) {
         const rawChar = rawState.characters[0];
         const parsedChar = parsedState.characters[0];
         console.log('First character raw keys:', Object.keys(rawChar || {}));
@@ -110,10 +126,10 @@ async function debugHashValidation() {
         
         // Check specific fields that might be different
         console.log('\nFirst character field comparison:');
-        console.log('Raw createdAt type:', typeof rawChar?.createdAt);
-        console.log('Parsed createdAt type:', typeof parsedChar?.createdAt);
-        console.log('Raw updatedAt type:', typeof rawChar?.updatedAt);
-        console.log('Parsed updatedAt type:', typeof parsedChar?.updatedAt);
+        // console.log('Raw createdAt type:', typeof rawChar?.createdAt);
+        // console.log('Parsed createdAt type:', typeof parsedChar?.createdAt);
+        // console.log('Raw updatedAt type:', typeof rawChar?.updatedAt);
+        // console.log('Parsed updatedAt type:', typeof parsedChar?.updatedAt);
       }
       
       // Save detailed comparison to files for analysis

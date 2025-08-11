@@ -108,7 +108,7 @@ function formatFileSize(bytes?: number): string {
 }
 
 // Format date
-function formatDate(dateString?: Date): string {
+function formatDate(dateString?: string): string {
   if (!dateString) return '';
   const date = new Date(dateString);
   return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();

@@ -132,15 +132,17 @@ export class CampaignService {
       const campaign = await CampaignModel.create(campaignData);
 
       // Create initial GameState for the campaign
-      const gameState = await GameStateModel.create({
+      await GameStateModel.create({
         campaignId: campaign.id,
-        campaign: campaign,
-        characters: [],
-        actors: [],
-        items: [],
-        currentEncounter: null,
-        turnManager: null,
-        pluginData: {},
+        state: {
+          campaign: campaign,
+          characters: [],
+          actors: [],
+          items: [],
+          currentEncounter: null,
+          turnManager: null,
+          pluginData: {}
+        },
         version: '1',
         hash: null,
         lastUpdate: Date.now(),

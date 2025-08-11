@@ -115,8 +115,7 @@ const loadAvailablePluginDocumentTypes = () => {
     // Combine all available document types from the manifest (like compendium browser)
     const documentTypes = [
       ...(manifest.characterTypes || []),
-      ...(manifest.itemTypes || []),
-      ...(manifest.documentTypes || [])
+      ...(manifest.itemTypes || [])
     ];
     
     // Remove duplicates, filter out empty strings, and sort alphabetically

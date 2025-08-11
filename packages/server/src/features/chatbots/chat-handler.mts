@@ -301,7 +301,7 @@ export class ChatbotChatHandler {
         recipient: messageType === 'direct' ? 
           originalMetadata.sender : // Reply to sender for direct messages
           originalMetadata.recipient, // Reply to room for mentions
-        timestamp: new Date()
+        timestamp: new Date().toISOString()
       };
 
       if (messageType === 'direct') {
@@ -358,7 +358,7 @@ export class ChatbotChatHandler {
         recipient: messageType === 'direct' ? 
           originalMetadata.sender : // Reply to sender for direct messages
           originalMetadata.recipient, // Reply to room for mentions
-        timestamp: new Date()
+        timestamp: new Date().toISOString()
       };
 
       const errorResponseText = `⚠️ ${errorMessage}`;

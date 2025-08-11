@@ -31,7 +31,7 @@ function chatSocketHandler(socket: Socket<ClientToServerEvents, ServerToClientEv
     
     // Set timestamp if not provided
     if (!metadata.timestamp) {
-      metadata.timestamp = new Date();
+      metadata.timestamp = new Date().toISOString();
     }
 
     console.log("Sending chat message to room", roomName);

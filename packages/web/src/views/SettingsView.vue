@@ -82,7 +82,7 @@ async function resetGameStateHash() {
     hashResetLoading.value = true;
     
     return new Promise<void>((resolve, reject) => {
-      socketStore.emit('gameState:resetHash', gameSessionStore.currentSession!.id, (response: any) => {
+      socketStore.emit('gameState:resetHash', gameSessionStore.currentSession!.id, (response: { success: boolean; error?: string }) => {
         if (response.success) {
           notificationStore.addNotification({
             message: 'Game state hash reset successfully',

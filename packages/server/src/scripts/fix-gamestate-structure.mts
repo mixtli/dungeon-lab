@@ -56,10 +56,10 @@ async function fixGameStateStructure(dryRun = false) {
         // Extract current state
         const currentState = JSON.parse(JSON.stringify(gameState.state));
         let needsUpdate = false;
-        let changes: string[] = [];
+        const changes: string[] = [];
 
         // Fix 1: Ensure pluginData field exists
-        if (!currentState.hasOwnProperty('pluginData')) {
+        if (!Object.prototype.hasOwnProperty.call(currentState, 'pluginData')) {
           currentState.pluginData = {};
           needsUpdate = true;
           changes.push('Added missing pluginData field');
@@ -77,7 +77,7 @@ async function fixGameStateStructure(dryRun = false) {
         };
 
         for (const [field, defaultValue] of Object.entries(requiredFields)) {
-          if (!currentState.hasOwnProperty(field)) {
+          if (!Object.prototype.hasOwnProperty.call(currentState, field)) {
             currentState[field] = defaultValue;
             needsUpdate = true;
             changes.push(`Added missing ${field} field`);

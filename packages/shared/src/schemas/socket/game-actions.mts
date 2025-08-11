@@ -10,7 +10,7 @@ export const gameActionRequestSchema = z.object({
   playerId: z.string(),
   sessionId: z.string(),
   timestamp: z.number(),
-  action: z.enum(['move-token', 'add-document']),
+  action: z.enum(['move-token', 'add-document', 'end-turn', 'roll-initiative']),
   parameters: z.record(z.unknown()),
   description: z.string().optional()
 });

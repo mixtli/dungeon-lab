@@ -22,7 +22,7 @@ export interface ChatMessage {
   content: string;
   senderId: string;
   senderName: string;
-  timestamp: Date;
+  timestamp: string;
   isSystem?: boolean;
   recipientId?: string;
   recipientType?: 'user' | 'actor' | 'session' | 'system' | 'bot';
@@ -90,7 +90,7 @@ export const useChatStore = defineStore(
             content: message,
             senderId: metadata.sender.id || 'system',
             senderName: senderName,
-            timestamp: metadata.timestamp || new Date(),
+            timestamp: metadata.timestamp || new Date().toISOString(),
             isSystem: metadata.sender.type === 'system',
             recipientId: metadata.recipient?.id,
             recipientType: metadata.recipient?.type
@@ -105,7 +105,7 @@ export const useChatStore = defineStore(
             content: message,
             senderId: 'system',
             senderName: 'System',
-            timestamp: new Date(),
+            timestamp: new Date().toISOString(),
             isSystem: true
           };
 
@@ -214,7 +214,7 @@ export const useChatStore = defineStore(
           type: 'session' as 'user' | 'system' | 'actor' | 'session' | 'bot',
           id: currentSessionId.value || gameSessionStore.currentSession?.id || undefined
         },
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
         mentions: mentions.length > 0 ? mentions : undefined
       };
 
@@ -244,7 +244,7 @@ export const useChatStore = defineStore(
         content,
         senderId: metadata.sender.id || 'unknown',
         senderName: 'You', // Always show "You" for messages sent by the current user/actor
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
         isSystem: false,
         recipientId: metadata.recipient?.id,
         recipientType: metadata.recipient?.type

@@ -1,4 +1,3 @@
-import { z } from 'zod';
 import { characterDocumentSchema } from './document.schema.mjs';
 import { assetSchema } from './asset.schema.mjs';
 
@@ -26,11 +25,9 @@ export const characterCreateSchema = characterSchema
   .extend({
     // Make slug optional on create - it will be auto-generated from name if not provided
     slug: characterSchema.shape.slug.optional(),
-    // Allow both asset IDs (from web client) and file uploads (from API clients)
-    avatarId: characterSchema.shape.avatarId.optional(),  // Keep asset ID field
-    tokenImageId: characterSchema.shape.tokenImageId.optional(),  // Keep asset ID field
-    avatar: z.instanceof(File).optional(),  // Optional file upload
-    token: z.instanceof(File).optional()    // Optional file upload
+    // Asset ID fields (assets uploaded separately)
+    avatarId: characterSchema.shape.avatarId.optional(),
+    tokenImageId: characterSchema.shape.tokenImageId.optional()
   });
 
 export const characterSchemaWithVirtuals = characterSchema.extend({

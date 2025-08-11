@@ -62,16 +62,28 @@ export class GameStateSyncService {
     try {
       logger.info('Starting game state sync', { sessionId, reason, options });
 
-      // Get session with game state
+      // Get session
       const session = await GameSessionModel.findById(sessionId).exec();
-      if (!session || !session.gameState) {
-        result.errors.push('Session not found or has no game state');
+      if (!session) {
+        result.errors.push('Session not found');
         result.duration = Date.now() - startTime;
         return result;
       }
 
-      const gameState = session.gameState;
       const campaignId = session.campaignId;
+      
+      // Get game state separately (GameState is now handled by a separate model)
+      const { GameStateService } = await import('./game-state.service.mjs');
+      const gameStateService = new GameStateService();
+      const gameStateResult = await gameStateService.getGameState(campaignId);
+      
+      if (!gameStateResult || !gameStateResult.gameState) {
+        result.errors.push('Game state not found for campaign');
+        result.duration = Date.now() - startTime;
+        return result;
+      }
+
+      const gameState = gameStateResult.gameState;
 
       // Try to use transaction for atomicity, fallback to non-transactional for standalone MongoDB
       let syncSession: mongoose.ClientSession | null = null;

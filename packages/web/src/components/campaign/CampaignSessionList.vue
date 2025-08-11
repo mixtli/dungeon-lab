@@ -9,7 +9,6 @@ import { GameSessionStatus } from '@dungeon-lab/shared/schemas/index.mjs';
 import type { z } from 'zod';
 import type { IGameSession } from '@dungeon-lab/shared/types/index.mjs';
 import { GameSessionsClient } from '@dungeon-lab/client/index.mjs';
-import CharacterSelector from './CharacterSelector.vue';
 
 type SessionStatus = z.infer<typeof GameSessionStatus>;
 

@@ -6,7 +6,6 @@ import { useBackNavigation } from '../../composables/useBackNavigation.mts';
 import { useAuthStore } from '../../stores/auth.store.mjs';
 import { useGameSessionStore } from '../../stores/game-session.store.mjs';
 import { ArrowLeftIcon, Bars3Icon, XMarkIcon, SunIcon, MoonIcon, PlusIcon, PencilSquareIcon } from '@heroicons/vue/24/solid';
-import CharacterSelector from '../common/CharacterSelector.vue';
 import SessionInfoDropdown from '../common/SessionInfoDropdown.vue';
 
 const router = useRouter();
@@ -201,11 +200,6 @@ const mobileMenuItems = computed(() => {
         <SessionInfoDropdown />
       </div>
 
-      <!-- Character Selector (if in game session) -->
-      <div v-if="authStore.isAuthenticated && gameSessionStore.currentSession" class="px-4 py-2">
-        <div class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Your Character</div>
-        <CharacterSelector />
-      </div>
 
       <!-- Theme Toggle -->
       <button

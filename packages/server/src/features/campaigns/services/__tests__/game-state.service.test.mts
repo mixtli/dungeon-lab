@@ -1,11 +1,24 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { GameStateService } from '../game-state.service.mjs';
 import { GameStateModel } from '../../models/game-state.model.mjs';
+// Unused imports needed for mocking
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { CampaignModel } from '../../models/campaign.model.mjs';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { DocumentService } from '../../../documents/services/document.service.mjs';
 import { generateStateHash } from '../../../../utils/state-hash.mjs';
 import { serverGameStateWithVirtualsSchema } from '@dungeon-lab/shared/schemas/server-game-state.schema.mjs';
 import { Types } from 'mongoose';
+
+// Test type interfaces
+interface MockQuery {
+  exec: () => Promise<unknown>;
+}
+
+interface MockGameStateDocument {
+  id?: string;
+  campaignId?: string;
+}
 
 // Mock dependencies
 vi.mock('../../models/game-state.model.mjs');
@@ -18,7 +31,7 @@ describe('GameStateService', () => {
   let gameStateService: GameStateService;
   
   const mockCampaignId = new Types.ObjectId().toString();
-  const mockGameStateId = new Types.ObjectId().toString();
+  const _mockGameStateId = new Types.ObjectId().toString();
   
   beforeEach(() => {
     gameStateService = new GameStateService();
@@ -29,7 +42,7 @@ describe('GameStateService', () => {
     describe('initializeGameState', () => {
       it('should use Zod-parsed data for hash generation to match validation flow', async () => {
         // Mock campaign data
-        const mockCampaign = {
+        const _mockCampaign = {
           _id: new Types.ObjectId(mockCampaignId),
           name: 'Test Campaign',
           gameMasterId: new Types.ObjectId(),
@@ -77,10 +90,10 @@ describe('GameStateService', () => {
         // Mock GameState.findOne to return null (no existing game state)
         vi.mocked(GameStateModel.findOne).mockReturnValueOnce({
           exec: vi.fn().mockResolvedValueOnce(null)
-        } as any);
+        } as MockQuery);
 
         // Mock loadCampaignData to return our test data
-        vi.spyOn(gameStateService as any, 'loadCampaignData')
+        vi.spyOn(gameStateService as GameStateService & { loadCampaignData: (id: string) => Promise<unknown> }, 'loadCampaignData')
           .mockResolvedValueOnce(mockInitialGameData);
         
         // Mock Zod parsing to return data with defaults
@@ -91,7 +104,7 @@ describe('GameStateService', () => {
         vi.mocked(generateStateHash).mockReturnValueOnce(expectedHash);
 
         // Mock GameState.create
-        vi.mocked(GameStateModel.create).mockResolvedValueOnce({} as any);
+        vi.mocked(GameStateModel.create).mockResolvedValueOnce({} as MockGameStateDocument);
 
         // Call the method
         await gameStateService.initializeGameState(mockCampaignId);
@@ -133,10 +146,10 @@ describe('GameStateService', () => {
         // Mock GameState.findOne to return null (no existing game state)
         vi.mocked(GameStateModel.findOne).mockReturnValueOnce({
           exec: vi.fn().mockResolvedValueOnce(null)
-        } as any);
+        } as MockQuery);
 
         // Mock loadCampaignData to return our test data
-        vi.spyOn(gameStateService as any, 'loadCampaignData')
+        vi.spyOn(gameStateService as GameStateService & { loadCampaignData: (id: string) => Promise<unknown> }, 'loadCampaignData')
           .mockResolvedValueOnce({ state: rawStateData });
 
         // Mock Zod parsing
@@ -147,11 +160,11 @@ describe('GameStateService', () => {
         vi.mocked(generateStateHash)
           .mockImplementationOnce((data) => {
             // Simulate hash difference based on presence of pluginData
-            return data.hasOwnProperty('pluginData') ? 'hash-with-plugin-data' : 'hash-without-plugin-data';
+            return Object.prototype.hasOwnProperty.call(data, 'pluginData') ? 'hash-with-plugin-data' : 'hash-without-plugin-data';
           });
 
         // Mock GameState.create
-        vi.mocked(GameStateModel.create).mockResolvedValueOnce({} as any);
+        vi.mocked(GameStateModel.create).mockResolvedValueOnce({} as MockGameStateDocument);
 
         // Call the method
         await gameStateService.initializeGameState(mockCampaignId);

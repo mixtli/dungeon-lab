@@ -7,11 +7,13 @@
 
 import { transformAssetUrl } from './asset-utils.mjs';
 import type { ICharacter, IActor } from '@dungeon-lab/shared/types/index.mjs';
+import { assetSchema } from '@dungeon-lab/shared/schemas/asset.schema.mjs';
+import type { z } from 'zod';
 
 // Union type for any document that has image fields
 type DocumentWithImages = ICharacter | IActor | {
-  avatar?: { url: string };
-  tokenImage?: { url: string };
+  avatar?: z.infer<typeof assetSchema> | null;
+  tokenImage?: z.infer<typeof assetSchema> | null;
 };
 
 /**
@@ -20,11 +22,19 @@ type DocumentWithImages = ICharacter | IActor | {
  * @returns Transformed asset URL or null if no image available
  */
 export function getDocumentImageUrl(document: DocumentWithImages): string | null {
-  // First try avatar, then tokenImage (via tokenImageId), both properly transformed
-  if (document.avatar?.url) {
-    return transformAssetUrl(document.avatar.url);
-  } else if (document.tokenImage?.url) {
+  // For characters, prefer avatar; for other documents, use tokenImage
+  if ('documentType' in document && document.documentType === 'character') {
+    // This is a character - check for avatar first
+    const character = document as ICharacter;
+    if (character.avatar?.url) {
+      return transformAssetUrl(character.avatar.url);
+    }
+  }
+  
+  // For all documents (including characters if no avatar), try tokenImage
+  if (document.tokenImage?.url) {
     return transformAssetUrl(document.tokenImage.url);
   }
+  
   return null;
 }

@@ -9,33 +9,19 @@
 /**
  * Core action types that can be requested
  */
-export type GameActionType = 'move-token' | 'add-document';
+export type GameActionType = 'move-token' | 'add-document' | 'end-turn' | 'roll-initiative';
 
-/**
- * Core game action request interface
- */
-export interface GameActionRequest {
-  id: string;
-  playerId: string;
-  sessionId: string;
-  timestamp: number;
-  action: GameActionType;
-  parameters: Record<string, unknown>;
-  description?: string;
-}
+// Re-export Zod-inferred types as single source of truth
+export type {
+  GameActionRequest,
+  ActionRequestResponse
+} from '../schemas/socket/game-actions.mjs';
 
-/**
- * Response to an action request
- */
-export interface ActionRequestResponse {
-  success: boolean;
-  approved?: boolean;
-  requestId: string;
-  error?: {
-    code: string;
-    message: string;
-  };
-}
+// Import for use in interfaces below
+import type {
+  GameActionRequest,
+  ActionRequestResponse
+} from '../schemas/socket/game-actions.mjs';
 
 /**
  * Result of requesting an action
@@ -67,6 +53,18 @@ export interface AddDocumentParameters extends Record<string, unknown> {
   compendiumId: string;
   entryId: string;
   documentData: Record<string, unknown>;
+}
+
+/**
+ * End turn action parameters
+ */
+export type EndTurnParameters = Record<string, unknown>;
+
+/**
+ * Roll initiative action parameters
+ */
+export interface RollInitiativeParameters extends Record<string, unknown> {
+  participants?: string[]; // Optional: specific participants to reroll
 }
 
 /**

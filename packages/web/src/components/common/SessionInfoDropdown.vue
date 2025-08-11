@@ -99,7 +99,8 @@ const activeParticipants = computed(() => {
     <div 
       v-if="isDropdownOpen" 
       v-click-outside="closeDropdown"
-      class="absolute left-0 mt-2 w-60 py-2 bg-white dark:bg-gray-700 rounded-md shadow-lg z-10"
+      class="absolute left-0 mt-2 w-60 py-2 bg-white dark:bg-gray-700 rounded-md shadow-lg"
+      style="z-index: 70;"
     >
       <div class="px-4 py-2 border-b border-gray-200 dark:border-gray-600">
         <h3 class="font-medium text-gray-700 dark:text-gray-200">Session Participants</h3>

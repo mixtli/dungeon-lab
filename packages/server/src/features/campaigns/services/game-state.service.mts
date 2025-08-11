@@ -3,7 +3,9 @@ import {
   ServerGameStateWithVirtuals,
   StateOperation,
   StateUpdate,
-  StateUpdateResponse
+  StateUpdateResponse,
+  ICharacter,
+  IActor
 } from '@dungeon-lab/shared/types/index.mjs';
 import { serverGameStateWithVirtualsSchema } from '@dungeon-lab/shared/schemas/server-game-state.schema.mjs';
 import { GameStateModel } from '../models/game-state.model.mjs';
@@ -548,11 +550,11 @@ export class GameStateService {
       });
 
       // Validate that asset population worked correctly
-      const charactersWithoutAssets = charactersPlain.filter((char: any) => {
+      const charactersWithoutAssets = charactersPlain.filter((char: ICharacter) => {
         return (char.tokenImageId && !char.tokenImage) || (char.avatarId && !char.avatar);
       });
       
-      const actorsWithoutAssets = actorsPlain.filter((actor: any) => {
+      const actorsWithoutAssets = actorsPlain.filter((actor: IActor) => {
         return actor.tokenImageId && !actor.tokenImage;
       });
 
@@ -561,7 +563,7 @@ export class GameStateService {
           campaignId,
           characterIds: charactersWithoutAssets.map(c => c.id)
         });
-        charactersWithoutAssets.forEach((char: any) => {
+        charactersWithoutAssets.forEach((char: ICharacter) => {
           logger.warn(`  - Character "${char.name}" (${char.id}): tokenImageId=${char.tokenImageId}, avatarId=${char.avatarId}, hasTokenImage=${!!char.tokenImage}, hasAvatar=${!!char.avatar}`);
         });
       }
@@ -571,14 +573,14 @@ export class GameStateService {
           campaignId,
           actorIds: actorsWithoutAssets.map(a => a.id)
         });
-        actorsWithoutAssets.forEach((actor: any) => {
+        actorsWithoutAssets.forEach((actor: IActor) => {
           logger.warn(`  - Actor "${actor.name}" (${actor.id}): tokenImageId=${actor.tokenImageId}, hasTokenImage=${!!actor.tokenImage}`);
         });
       }
 
       // Log successful asset population counts for validation
-      const charactersWithAssets = charactersPlain.filter((char: any) => char.tokenImage || char.avatar).length;
-      const actorsWithAssets = actorsPlain.filter((actor: any) => actor.tokenImage).length;
+      const charactersWithAssets = charactersPlain.filter((char: ICharacter) => char.tokenImage || char.avatar).length;
+      const actorsWithAssets = actorsPlain.filter((actor: IActor) => actor.tokenImage).length;
       
       if (charactersWithAssets > 0 || actorsWithAssets > 0) {
         logger.info(`✅ Asset population successful: ${charactersWithAssets} characters and ${actorsWithAssets} actors have populated assets`);

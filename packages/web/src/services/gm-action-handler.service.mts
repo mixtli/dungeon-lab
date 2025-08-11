@@ -572,7 +572,7 @@ export class GMActionHandlerService {
   /**
    * Check if a player owns the current turn participant
    */
-  private async isPlayerOwnsTurnParticipant(playerId: string, participant: any): Promise<boolean> {
+  private async isPlayerOwnsTurnParticipant(playerId: string, participant: { tokenId?: string; actorId?: string }): Promise<boolean> {
     // Check if the player owns the document associated with this participant's token
     const token = this.gameStateStore.currentEncounter?.tokens?.find(t => t.id === participant.tokenId);
     if (!token) return false;

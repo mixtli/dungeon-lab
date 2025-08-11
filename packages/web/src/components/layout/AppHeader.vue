@@ -50,7 +50,7 @@ function handleThemeToggle() {
 </script>
 
 <template>
-  <header class="sticky top-0 z-50 bg-parchment dark:bg-obsidian shadow-lg border-b border-stone-400 dark:border-stone-600">
+  <header class="sticky top-0 bg-parchment dark:bg-obsidian shadow-lg border-b border-stone-400 dark:border-stone-600" style="z-index: 60;">
     <div class="px-3">
       <div class="flex justify-between items-center h-16">
         <!-- Logo -->
@@ -88,6 +88,7 @@ function handleThemeToggle() {
             </button>
             <div
               class="absolute left-0 w-48 mt-2 py-1 bg-white dark:bg-stone border border-stone-300 dark:border-stone-600 rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200"
+              style="z-index: 70;"
             >
               <RouterLink
                 to="/"
@@ -198,6 +199,7 @@ function handleThemeToggle() {
             </button>
             <div
               class="absolute right-0 w-48 mt-2 py-1 bg-white dark:bg-stone border border-stone-300 dark:border-stone-600 rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200"
+              style="z-index: 70;"
             >
               <RouterLink
                 v-if="authStore.user?.isAdmin"

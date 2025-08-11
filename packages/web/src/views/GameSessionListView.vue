@@ -6,7 +6,6 @@ import { useGameSessionStore } from '../stores/game-session.store.mjs';
 import router from '@/router/index.mjs';
 import { GameSessionsClient } from '@dungeon-lab/client/index.mjs';
 import type { IGameSession } from '@dungeon-lab/shared/types/index.mjs';
-import CharacterSelector from '../components/campaign/CharacterSelector.vue';
 
 const gameSessionClient = new GameSessionsClient();
 

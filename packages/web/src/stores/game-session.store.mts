@@ -251,7 +251,7 @@ export const useGameSessionStore = defineStore(
       });
 
       // Handle encounter started events
-      socketStore.socket.on('encounter:started', (data: { sessionId: string, encounterId: string, encounter: unknown, timestamp?: Date }) => {
+      socketStore.socket.on('encounter:started', (data: { sessionId: string, encounterId: string, encounter: unknown, timestamp?: string }) => {
         console.log('[Socket] Received encounter:started event:', data);
         
         if (data.sessionId === sessionId) {

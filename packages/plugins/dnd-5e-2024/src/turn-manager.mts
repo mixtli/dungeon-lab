@@ -94,20 +94,20 @@ export class DnD5eTurnManager extends BaseTurnManagerPlugin {
   }
   
   // Lifecycle hooks for D&D specific logic
-  async onTurnOrderStart(turnManager: ITurnManager): Promise<void> {
+  async onTurnOrderStart(_turnManager: ITurnManager): Promise<void> {
     console.log('D&D turn-based scene begins');
   }
   
-  async onTurnOrderEnd(turnManager: ITurnManager): Promise<void> {
+  async onTurnOrderEnd(_turnManager: ITurnManager): Promise<void> {
     console.log('D&D turn-based scene ends');
   }
   
-  async onTurnStart(participant: ITurnParticipant, turnManager: ITurnManager): Promise<void> {
+  async onTurnStart(participant: ITurnParticipant, _turnManager: ITurnManager): Promise<void> {
     // D&D turn start effects (e.g., ongoing damage, condition checks)
     console.log(`${participant.name}'s turn begins (Initiative: ${participant.participantData?.totalInitiative})`);
   }
   
-  async onTurnEnd(participant: ITurnParticipant, turnManager: ITurnManager): Promise<void> {
+  async onTurnEnd(participant: ITurnParticipant, _turnManager: ITurnManager): Promise<void> {
     // D&D turn end effects
     console.log(`${participant.name}'s turn ends`);
   }
@@ -121,7 +121,7 @@ export class DnD5eTurnManager extends BaseTurnManagerPlugin {
     console.log(`Round ${turnManager.round} ends`);
   }
   
-  private async getActorData(actorId?: string): Promise<Record<string, unknown>> {
+  private async getActorData(_actorId?: string): Promise<Record<string, unknown>> {
     // TODO: Implementation to get actor data from game state
     // For now, return a default actor with average dexterity
     return {

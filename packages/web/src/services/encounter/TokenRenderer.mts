@@ -473,11 +473,7 @@ export class TokenRenderer {
     // Set token ID for reference
     sprite.tokenId = token.id;
     
-    // Snap position to grid if enabled
-    let position = { x: token.position.x, y: token.position.y };
-    if (this._snapToGrid) {
-      position = this.snapToGrid(position);
-    }
+    // Note: Position snapping is handled by the parent tokenRoot container
     
     // Set sprite position relative to its parent container (tokenRoot)
     // The tokenRoot will be positioned at world coordinates, so sprite should be at (0, 0)
@@ -558,8 +554,8 @@ export class TokenRenderer {
     sprite.on('pointerdown', this.handlePointerDown.bind(this, sprite));
     // Remove pointermove from individual sprites - we'll use stage-level listeners during drag
     // sprite.on('pointermove', this.handlePointerMove.bind(this, sprite));
-    sprite.on('pointerup', this.handlePointerUp.bind(this, sprite));
-    sprite.on('pointerupoutside', this.handlePointerUp.bind(this, sprite));
+    sprite.on('pointerup', this.handlePointerUp.bind(this));
+    sprite.on('pointerupoutside', this.handlePointerUp.bind(this));
     // Hover effects
     sprite.on('pointerover', this.handlePointerOver.bind(this, sprite));
     sprite.on('pointerout', this.handlePointerOut.bind(this, sprite));
@@ -766,7 +762,7 @@ export class TokenRenderer {
   /**
    * Handle pointer up event
    */
-  private handlePointerUp(sprite: TokenSprite): void {
+  private handlePointerUp(): void {
     // The stage drag end handler will handle all the drag/selection logic
   }
   

@@ -8,19 +8,12 @@
 
 import { 
   type GameActionRequest, 
-  type ActionRequestResponse 
+  type ActionRequestResponse
 } from '@dungeon-lab/shared/types/index.mjs';
 import { useGameSessionStore } from '../stores/game-session.store.mjs';
 import { useAuthStore } from '../stores/auth.store.mjs';
 import { useSocketStore } from '../stores/socket.store.mjs';
 
-export interface EndTurnParameters {
-  // No additional parameters needed for end turn
-}
-
-export interface RollInitiativeParameters {
-  participants?: string[]; // Optional: specific participants to reroll
-}
 
 /**
  * Game Action Client Service - sends requests to GM client
@@ -62,7 +55,8 @@ export class GameActionClientService {
       action: 'end-turn',
       playerId: currentUser.id,
       sessionId: currentSession.id,
-      parameters: {} as EndTurnParameters
+      timestamp: Date.now(),
+      parameters: {}
     };
 
     console.log('[GameActionClient] Sending end-turn request:', request.id);
@@ -93,7 +87,8 @@ export class GameActionClientService {
       action: 'roll-initiative',
       playerId: currentUser.id,
       sessionId: currentSession.id,
-      parameters: { participants } as RollInitiativeParameters
+      timestamp: Date.now(),
+      parameters: { participants }
     };
 
     console.log('[GameActionClient] Sending roll-initiative request:', request.id);

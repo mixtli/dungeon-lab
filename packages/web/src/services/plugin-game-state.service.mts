@@ -104,7 +104,7 @@ export class PluginGameStateService implements GameStateContext {
         if (newVersion && previousVersion && newVersion !== previousVersion) {
           // Create a minimal broadcast-like object for plugin compatibility
           const broadcast: StateUpdateBroadcast = {
-            sessionId: '', // Game state store doesn't expose sessionId directly
+            gameStateId: this.gameStateStore.gameState?.id || '',
             newVersion,
             operations: [], // We don't have access to the actual operations
             expectedHash: this.gameStateStore.gameStateHash || '',

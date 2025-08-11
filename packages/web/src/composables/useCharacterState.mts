@@ -7,7 +7,7 @@
  */
 
 import { ref, onUnmounted, type Ref } from 'vue';
-import type { IActor, IItem } from '@dungeon-lab/shared/types/index.mjs';
+import type { ICharacter, IItem } from '@dungeon-lab/shared/types/index.mjs';
 import type { CreateDocumentData } from '@dungeon-lab/shared/schemas/document.schema.mjs';
 import { DocumentsClient } from '@dungeon-lab/client/index.mjs';
 import { useSocketStore } from '../stores/socket.store.mjs';
@@ -27,16 +27,16 @@ export interface CharacterStateOptions {
  * Strip populated and database-specific fields from a character to create a valid PutDocumentRequest
  * This removes fields that are added by the server/database but shouldn't be included in create/update requests
  */
-function stripPopulatedFields(character: IActor): CreateDocumentData {
+function stripPopulatedFields(character: ICharacter): CreateDocumentData {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { id, createdBy, updatedBy, avatar, token, ...coreFields } = character;
+  const { id, createdBy, updatedBy, avatar, tokenImage, ...coreFields } = character;
   
   return coreFields as CreateDocumentData;
 }
 
 export interface CharacterStateReturn {
   /** Reactive character data */
-  character: Ref<IActor>;
+  character: Ref<ICharacter>;
   /** Reactive character items */
   items: Ref<IItem[]>;
   /** Whether there are unsaved changes */
@@ -54,7 +54,7 @@ export interface CharacterStateReturn {
 }
 
 export function useCharacterState(
-  initialCharacter: IActor,
+  initialCharacter: ICharacter,
   options: CharacterStateOptions = {}
 ): CharacterStateReturn {
   const {
@@ -63,9 +63,9 @@ export function useCharacterState(
   } = options;
 
   // Reactive state - use JSON clone to avoid structuredClone issues with complex objects
-  const character = ref<IActor>(JSON.parse(JSON.stringify(initialCharacter)));
+  const character = ref<ICharacter>(JSON.parse(JSON.stringify(initialCharacter)));
   const items = ref<IItem[]>([]);
-  const originalCharacter = ref<IActor>(JSON.parse(JSON.stringify(initialCharacter)));
+  const originalCharacter = ref<ICharacter>(JSON.parse(JSON.stringify(initialCharacter)));
   const hasUnsavedChanges = ref(false);
   const isSaving = ref(false);
 
@@ -79,7 +79,7 @@ export function useCharacterState(
     const socket = socketStore.socket;
     
     if (socket) {
-      const handleCharacterUpdate = (update: Partial<IActor>) => {
+      const handleCharacterUpdate = (update: Partial<ICharacter>) => {
         console.log('[useCharacterState] Received WebSocket character update:', update);
         
         // Apply server updates directly to character
@@ -143,7 +143,7 @@ export function useCharacterState(
       const updatedCharacter = await documentsClient.putDocument(
         character.value.id,
         characterData
-      ) as IActor;
+      ) as ICharacter;
       
       // Update state with server response
       character.value = updatedCharacter;
