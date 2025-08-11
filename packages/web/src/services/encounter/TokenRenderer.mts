@@ -525,7 +525,7 @@ export class TokenRenderer {
       return this.textureCache.get(transformedUrl)!;
     }
     
-    // Load texture
+    // Load texture with timeout and fallback
     try {
       console.log('[TokenRenderer] Loading token texture:', {
         original: token.imageUrl,
@@ -533,7 +533,7 @@ export class TokenRenderer {
         tokenName: token.name
       });
       
-      const texture = await PIXI.Assets.load(transformedUrl);
+      const texture = await this.loadTokenTextureWithTimeout(transformedUrl);
       
       // Cache for reuse (use transformed URL as cache key)
       this.textureCache.set(transformedUrl, texture);
@@ -543,6 +543,50 @@ export class TokenRenderer {
       console.error(`Failed to load token texture: ${transformedUrl}`, error);
       return PIXI.Texture.from(defaultTokenUrl);
     }
+  }
+
+  /**
+   * Load texture using HTMLImageElement (direct approach)
+   */
+  private async loadTokenTextureWithTimeout(imageUrl: string, timeoutMs: number = 10000): Promise<PIXI.Texture> {
+    // Use HTMLImageElement directly instead of PIXI.Assets.load for reliability
+    return this.loadTokenTextureFromHTMLImage(imageUrl, timeoutMs);
+  }
+
+  /**
+   * Load texture using HTMLImageElement for tokens
+   */
+  private async loadTokenTextureFromHTMLImage(imageUrl: string, timeoutMs: number = 10000): Promise<PIXI.Texture> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      
+      // Set up timeout
+      const timeout = setTimeout(() => {
+        img.onload = null;
+        img.onerror = null;
+        reject(new Error(`HTMLImage load timeout after ${timeoutMs}ms`));
+      }, timeoutMs);
+      
+      img.onload = () => {
+        clearTimeout(timeout);
+        try {
+          // Create PIXI texture from the loaded image
+          const texture = PIXI.Texture.from(img);
+          resolve(texture);
+        } catch (textureError) {
+          reject(new Error(`Failed to create PIXI texture from HTMLImage: ${textureError instanceof Error ? textureError.message : textureError}`));
+        }
+      };
+      
+      img.onerror = (event) => {
+        clearTimeout(timeout);
+        reject(new Error(`HTMLImage load error: ${event instanceof ErrorEvent ? event.message : 'Unknown error'}`));
+      };
+      
+      console.log('[TokenRenderer] Loading token texture with HTMLImageElement:', imageUrl);
+      img.src = imageUrl;
+    });
   }
   
   /**

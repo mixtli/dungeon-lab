@@ -14,6 +14,7 @@ const serverCharacterSchema = characterSchema.extend({
   thumbnailId: zId('Asset').optional(),
   avatarId: zId('Asset').optional(),
   tokenImageId: zId('Asset').optional(),
+  ownerId: zId('User').optional(), // Owner reference (user who owns this document)
   
   // Enhanced inventory system (for characters only)
   inventory: z.array(z.object({

@@ -190,18 +190,64 @@ export class EncounterMapRenderer {
       const transformedUrl = transformAssetUrl(imageUrl);
       console.log('[PixiMapRenderer] Loading background image:', transformedUrl);
       
-      // Create texture from transformed URL
-      const texture = await PIXI.Assets.load(transformedUrl);
+      // Create texture from transformed URL with timeout and fallback
+      const texture = await this.loadTextureWithTimeout(transformedUrl);
       
       // Create sprite and add to map container
       this.backgroundSprite = new PIXI.Sprite(texture);
       this.backgroundSprite.label = 'background';
       this.mapContainer.addChild(this.backgroundSprite);
       
+      console.log('[PixiMapRenderer] Background image loaded successfully');
+      
     } catch (error) {
       console.error('Failed to load background image:', error);
       throw error;
     }
+  }
+
+  /**
+   * Load texture using HTMLImageElement (direct approach)
+   */
+  private async loadTextureWithTimeout(imageUrl: string, timeoutMs: number = 10000): Promise<PIXI.Texture> {
+    // Use HTMLImageElement directly instead of PIXI.Assets.load for reliability
+    return this.loadTextureFromHTMLImage(imageUrl, timeoutMs);
+  }
+
+  /**
+   * Load texture using HTMLImageElement
+   */
+  private async loadTextureFromHTMLImage(imageUrl: string, timeoutMs: number = 10000): Promise<PIXI.Texture> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      
+      // Set up timeout
+      const timeout = setTimeout(() => {
+        img.onload = null;
+        img.onerror = null;
+        reject(new Error(`HTMLImage load timeout after ${timeoutMs}ms`));
+      }, timeoutMs);
+      
+      img.onload = () => {
+        clearTimeout(timeout);
+        try {
+          // Create PIXI texture from the loaded image
+          const texture = PIXI.Texture.from(img);
+          resolve(texture);
+        } catch (textureError) {
+          reject(new Error(`Failed to create PIXI texture from HTMLImage: ${textureError instanceof Error ? textureError.message : textureError}`));
+        }
+      };
+      
+      img.onerror = (event) => {
+        clearTimeout(timeout);
+        reject(new Error(`HTMLImage load error: ${event instanceof ErrorEvent ? event.message : 'Unknown error'}`));
+      };
+      
+      console.log('[PixiMapRenderer] Loading background image with HTMLImageElement:', imageUrl);
+      img.src = imageUrl;
+    });
   }
   
 

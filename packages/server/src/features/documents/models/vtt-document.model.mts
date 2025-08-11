@@ -12,6 +12,7 @@ const serverVTTDocumentSchema = vttDocumentSchema.extend({
   compendiumId: zId('Compendium').optional(),
   imageId: zId('Asset').optional(),
   thumbnailId: zId('Asset').optional(),
+  ownerId: zId('User').optional(), // Owner reference (user who owns this document)
   slug: z.string().min(1)
 });
 

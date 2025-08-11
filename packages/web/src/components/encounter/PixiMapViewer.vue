@@ -4,7 +4,7 @@
     class="pixi-map-viewer"
     :class="[
       `platform-${platform}`,
-      { 'is-loading': !isInitialized || isLoading }
+      { 'is-loading': !isLoaded || isLoading }
     ]"
   >
     <!-- Canvas container -->
@@ -20,7 +20,7 @@
     </div>
 
     <!-- Loading overlay -->
-    <div v-if="!isInitialized || isLoading" class="loading-overlay">
+    <div v-if="!isLoaded || isLoading" class="loading-overlay">
       <div class="loading-spinner">
         <div class="spinner"></div>
         <p class="loading-text">{{ loadingText }}</p>
@@ -142,6 +142,7 @@ const draggedTokenId = ref<string | null>(null);
 const loadingText = computed(() => {
   if (!isInitialized.value) return 'Initializing map viewer...';
   if (isLoading.value) return 'Loading map...';
+  if (!isLoaded.value) return 'Preparing map...';
   return 'Loading...';
 });
 
