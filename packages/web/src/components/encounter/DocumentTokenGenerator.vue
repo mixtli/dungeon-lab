@@ -141,6 +141,7 @@
 import { ref, computed, watch } from 'vue';
 import { useAuthStore } from '@/stores/auth.store.mjs';
 import { useGameStateStore } from '@/stores/game-state.store.mjs';
+import { useGameSessionStore } from '@/stores/game-session.store.mjs';
 import type { BaseDocument, StateOperation, TokenSizeType } from '@dungeon-lab/shared/types/index.mjs';
 
 interface TokenOptions {
@@ -157,6 +158,7 @@ const emit = defineEmits<{
 
 const authStore = useAuthStore();
 const gameStateStore = useGameStateStore();
+const gameSessionStore = useGameSessionStore();
 
 // State
 const selectedDocumentId = ref<string>('');
@@ -194,7 +196,7 @@ const isMonster = computed(() => {
 });
 
 const isGM = computed(() => {
-  return authStore.user?.isAdmin || false;
+  return gameSessionStore.isGameMaster;
 });
 
 const encounter = computed(() => gameStateStore.currentEncounter);

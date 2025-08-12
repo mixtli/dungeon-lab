@@ -903,7 +903,7 @@ export class GameStateService {
           if (Array.isArray(parent[key])) {
             const array = parent[key] as unknown[];
             const index = array.findIndex((item: unknown) => 
-              this.deepEqual(item, value)
+              this.matchesQuery(item, value)
             );
             if (index > -1) {
               array.splice(index, 1);
@@ -954,6 +954,32 @@ export class GameStateService {
 
     const key = pathSegments[pathSegments.length - 1];
     return { parent: current, key };
+  }
+
+  /**
+   * Check if an item matches a query object (MongoDB-style matching)
+   * Used for $pull operations - matches if all query fields are present in the item
+   */
+  private matchesQuery(item: unknown, query: unknown): boolean {
+    if (query == null || typeof query !== 'object') {
+      return this.deepEqual(item, query);
+    }
+    
+    if (item == null || typeof item !== 'object') {
+      return false;
+    }
+    
+    const queryObj = query as Record<string, unknown>;
+    const itemObj = item as Record<string, unknown>;
+    
+    // Check if all query fields match the corresponding item fields
+    for (const [key, value] of Object.entries(queryObj)) {
+      if (!(key in itemObj) || !this.deepEqual(itemObj[key], value)) {
+        return false;
+      }
+    }
+    
+    return true;
   }
 
   /**

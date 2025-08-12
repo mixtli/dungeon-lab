@@ -7,6 +7,7 @@ import { z } from 'zod';
 // Extract game action type enum as single source of truth
 export const gameActionTypeSchema = z.enum([
   'move-token',
+  'remove-token',
   'add-document', 
   'end-turn',
   'roll-initiative',

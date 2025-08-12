@@ -7,6 +7,7 @@
 
 import { 
   type MoveTokenParameters,
+  type RemoveTokenParameters,
   type ActionRequestResult
 } from '@dungeon-lab/shared/types/index.mjs';
 import { playerActionService } from '../services/player-action.service.mjs';
@@ -59,12 +60,33 @@ export function usePlayerActions() {
 
 
   /**
+   * Request token removal
+   */
+  const requestTokenRemove = async (tokenId: string): Promise<ActionRequestResult> => {
+    const token = gameStateStore.currentEncounter?.tokens?.find(t => t.id === tokenId);
+    
+    if (!token) {
+      throw new Error('Token not found');
+    }
+
+    const params: RemoveTokenParameters = {
+      tokenId,
+      tokenName: token.name
+    };
+
+    return playerActionService.requestAction('remove-token', params, {
+      description: `Remove token "${token.name}"`
+    });
+  };
+
+  /**
    * Request generic action
    */
   const requestAction = playerActionService.requestAction.bind(playerActionService);
 
   return {
     requestTokenMove,
+    requestTokenRemove,
     requestAction
   };
 }

@@ -42,6 +42,7 @@
         >
         <!-- Pixi Map Viewer -->
         <PixiMapViewer
+          ref="pixiMapViewer"
           v-if="gameStateStore.currentEncounter?.currentMap && !gameStateStore.loading"
           :map-data="gameStateStore.currentEncounter.currentMap"
           :tokens="encounterTokens"
@@ -203,7 +204,7 @@ import { turnManagerService } from '../../services/turn-manager.service.mjs';
 // Composables
 const gameStateStore = useGameStateStore();
 const { deviceConfig, deviceClass } = useDeviceAdaptation();
-const { requestTokenMove } = usePlayerActions();
+const { requestTokenMove, requestTokenRemove } = usePlayerActions();
 const authStore = useAuthStore();
 
 // Encounter socket functionality removed - using session-based architecture through encounter store
@@ -230,6 +231,7 @@ const tokenManagerAction = ref<'damage' | 'heal'>();
 
 // Position tracking for token placement
 const mapContainerRef = ref<HTMLElement | null>(null);
+const pixiMapViewer = ref<InstanceType<typeof PixiMapViewer> | null>(null);
 const lastClickPosition = ref<{ x: number; y: number; elevation: number } | undefined>(undefined);
 
 // Viewport state
@@ -434,10 +436,11 @@ const showLights = ref(false); // Default: lights hidden
 
 
 // Handle token action from context menu
-const handleTokenAction = (action: string) => {
+const handleTokenAction = async (action: string) => {
   if (!contextMenuToken.value) return;
   
   const tokenId = contextMenuToken.value.id;
+  const tokenName = contextMenuToken.value.name;
   
   switch (action) {
     case 'move':
@@ -449,9 +452,28 @@ const handleTokenAction = (action: string) => {
       handleTokenSelection(tokenId);
       break;
     case 'remove':
-      // Remove token from encounter
-      if (confirm(`Remove token "${contextMenuToken.value.name}"?`)) {
-        removeTokenFromEncounter(tokenId);
+      // Remove token from encounter using the new request system
+      if (confirm(`Remove token "${tokenName}"?`)) {
+        try {
+          const result = await requestTokenRemove(tokenId);
+          
+          if (result.success && result.approved) {
+            console.log('Token removal approved and executed:', tokenId);
+            // If this was the selected token, deselect it
+            if (selectedToken.value?.id === tokenId) {
+              selectedToken.value = null;
+            }
+          } else if (result.success && !result.approved) {
+            console.log('Token removal requested, awaiting GM approval:', tokenId);
+            // TODO: Show notification to user that removal is pending approval
+          } else {
+            console.error('Token removal failed:', result.error);
+            // TODO: Show error notification to user
+          }
+        } catch (error) {
+          console.error('Failed to request token removal:', error);
+          // TODO: Show error notification to user
+        }
       }
       break;
   }
@@ -460,48 +482,6 @@ const handleTokenAction = (action: string) => {
   contextMenuToken.value = null;
 };
 
-// Remove token from encounter
-const removeTokenFromEncounter = async (tokenId: string) => {
-  if (!encounter.value) return;
-  
-  // Validate GM permissions
-  if (!gameStateStore.canUpdate) {
-    console.warn('Only GM can delete tokens');
-    return;
-  }
-  
-  // Find the token to delete
-  const token = encounter.value.tokens?.find(t => t.id === tokenId);
-  if (!token) {
-    console.error('Token not found:', tokenId);
-    return;
-  }
-  
-  try {
-    // Create state operation to remove the token
-    const operations: StateOperation[] = [{
-      path: 'currentEncounter.tokens',
-      operation: 'pull',
-      value: { id: tokenId } // MongoDB pull syntax to remove by ID
-    }];
-    
-    const response = await gameStateStore.updateGameState(operations);
-    
-    if (!response.success) {
-      console.error('Failed to delete token:', response.error?.message);
-      return;
-    }
-    
-    // If this was the selected token, deselect it
-    if (selectedToken.value?.id === tokenId) {
-      selectedToken.value = null;
-    }
-    
-    console.log('Token deleted successfully:', tokenId);
-  } catch (error) {
-    console.error('Failed to delete token:', error);
-  }
-};
 
 // Handle tokens created from ActorTokenGenerator
 const handleTokensCreated = async (tokenIds: string[]) => {
@@ -666,21 +646,28 @@ const handleDrop = async (event: DragEvent) => {
 
     // Calculate world coordinates from drop position
     const mapContainer = mapContainerRef.value;
+    const pixiViewer = pixiMapViewer.value;
+    
     if (!mapContainer) {
       console.error('Map container not found');
       return;
     }
+    
+    if (!pixiViewer) {
+      console.error('PixiMapViewer not available for coordinate conversion');
+      return;
+    }
 
     const rect = mapContainer.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
+    const screenX = event.clientX - rect.left;
+    const screenY = event.clientY - rect.top;
 
-    // Convert screen coordinates to world coordinates
-    // For now, using a simple 1:1 mapping - this would need to account for viewport transform
-    const worldX = Math.round(x);
-    const worldY = Math.round(y);
+    // Convert screen coordinates to world coordinates using proper PIXI transformation
+    const worldCoords = pixiViewer.screenToWorld(screenX, screenY);
+    const worldX = Math.round(worldCoords.x);
+    const worldY = Math.round(worldCoords.y);
 
-    console.log(`Dropping ${document.name} at screen(${x}, ${y}) -> world(${worldX}, ${worldY})`);
+    console.log(`Dropping ${document.name} at screen(${screenX}, ${screenY}) -> world(${worldX}, ${worldY})`);
 
     // Create token using the new method
     const tokenId = await gameStateStore.createTokenFromDocument(document, {

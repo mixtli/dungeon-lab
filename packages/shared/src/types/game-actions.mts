@@ -43,6 +43,14 @@ export interface MoveTokenParameters extends Record<string, unknown> {
 }
 
 /**
+ * Token removal action parameters
+ */
+export interface RemoveTokenParameters extends Record<string, unknown> {
+  tokenId: string;
+  tokenName: string; // For user-friendly messaging
+}
+
+/**
  * Document addition action parameters
  */
 export interface AddDocumentParameters extends Record<string, unknown> {

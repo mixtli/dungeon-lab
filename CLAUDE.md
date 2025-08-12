@@ -114,6 +114,7 @@ The system uses a hybrid approach:
 - PLAYERS AND GMS both send requests to change the state with a gameAction:request message
 - The GM Client receives that message, validates it, optionally asks the GM for manual approval depending on the request, and sends the STATE change.
 - The GM CLIENT also makes state change requests in the SAME WAY.  The GM CLIENT sends gameAction:request like any other client.  The GM Client doesn't bypass the request system and make state changes without receiving a request first.  This avoids needless conditional logic and potential inconsistencies.
+- In short, the GM Client asks as both a client (the GM plays as NPCs and potentially other characters, so it acts like any other client), and as a sort of server, the processes all requests to change the state via gameState:request, and sends state changes via gameState:update.  When acting as a client, the GM client must go through the same process as any other player client, it sends a gameAction:request to request state changes.  It just so happens that for the GM, the request comes back to themselves where the client code validates it and applies the state change.  This keeps the flow consistent and allows us to avoid inconsistencies in implementation.  The GM client should NEVER bypass the request system and make state changes directly.  No conditional logic to bypass the normal flow when the GM is acting as both client and server. 
 
 
 ## Technology Stack

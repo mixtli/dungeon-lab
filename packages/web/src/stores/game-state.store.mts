@@ -368,9 +368,13 @@ export const useGameStateStore = defineStore(
           
         case 'pull':
           if (Array.isArray(current[finalKey])) {
-            current[finalKey] = (current[finalKey] as unknown[]).filter((item: unknown) => 
-              JSON.stringify(item) !== JSON.stringify(operation.value)
+            const array = current[finalKey] as unknown[];
+            const index = array.findIndex((item: unknown) => 
+              matchesQuery(item, operation.value)
             );
+            if (index > -1) {
+              array.splice(index, 1);
+            }
           }
           break;
       }
@@ -468,6 +472,65 @@ export const useGameStateStore = defineStore(
     function incrementVersion(currentVersion: string | null): string {
       const current = parseInt(currentVersion || '0') || 0;
       return (current + 1).toString();
+    }
+
+    /**
+     * Check if an item matches a MongoDB-style query object
+     * @param item - The item to test
+     * @param query - The query object with field/value pairs to match
+     * @returns true if all query fields match the corresponding item fields
+     */
+    function matchesQuery(item: unknown, query: unknown): boolean {
+      if (query == null || typeof query !== 'object') {
+        return deepEqual(item, query);
+      }
+      
+      if (item == null || typeof item !== 'object') {
+        return false;
+      }
+      
+      const queryObj = query as Record<string, unknown>;
+      const itemObj = item as Record<string, unknown>;
+      
+      // Check if all query fields match the corresponding item fields
+      for (const [key, value] of Object.entries(queryObj)) {
+        if (!(key in itemObj) || !deepEqual(itemObj[key], value)) {
+          return false;
+        }
+      }
+      
+      return true;
+    }
+
+    /**
+     * Deep equality comparison for primitive values and simple objects
+     */
+    function deepEqual(a: unknown, b: unknown): boolean {
+      if (a === b) return true;
+      
+      if (a == null || b == null) return a === b;
+      
+      if (typeof a !== typeof b) return false;
+      
+      if (typeof a === 'object') {
+        const aObj = a as Record<string, unknown>;
+        const bObj = b as Record<string, unknown>;
+        
+        const aKeys = Object.keys(aObj);
+        const bKeys = Object.keys(bObj);
+        
+        if (aKeys.length !== bKeys.length) return false;
+        
+        for (const key of aKeys) {
+          if (!(key in bObj) || !deepEqual(aObj[key], bObj[key])) {
+            return false;
+          }
+        }
+        
+        return true;
+      }
+      
+      return false;
     }
 
     /**

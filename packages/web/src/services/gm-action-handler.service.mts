@@ -8,6 +8,7 @@
 import { 
   type GameActionRequest, 
   type MoveTokenParameters,
+  type RemoveTokenParameters,
   type AddDocumentParameters,
   type StartEncounterParameters,
   type StopEncounterParameters,
@@ -89,6 +90,9 @@ export class GMActionHandlerService {
     switch (request.action) {
       case 'move-token':
         this.handleTokenMovement(request);
+        break;
+      case 'remove-token':
+        this.handleTokenRemoval(request);
         break;
       case 'add-document':
         this.handleDocumentAddition(request);
@@ -277,6 +281,111 @@ export class GMActionHandlerService {
         error: {
           code: 'MOVEMENT_ERROR',
           message: 'Failed to process token movement'
+        }
+      });
+    }
+  }
+
+  /**
+   * Handle token removal validation and execution
+   */
+  private async handleTokenRemoval(request: GameActionRequest) {
+    const params = request.parameters as RemoveTokenParameters;
+    
+    console.log('[GMActionHandler] Processing token removal:', {
+      tokenId: params.tokenId,
+      tokenName: params.tokenName
+    });
+
+    try {
+      // Validate we have an active encounter
+      if (!this.gameStateStore.currentEncounter) {
+        return this.socketStore.emit('gameAction:response', {
+          success: false,
+          requestId: request.id,
+          error: {
+            code: 'NO_ACTIVE_ENCOUNTER',
+            message: 'No active encounter for token removal'
+          }
+        });
+      }
+
+      // Find the token
+      const token = this.gameStateStore.currentEncounter.tokens?.find(t => t.id === params.tokenId);
+      if (!token) {
+        return this.socketStore.emit('gameAction:response', {
+          success: false,
+          requestId: request.id,
+          error: {
+            code: 'TOKEN_NOT_FOUND',
+            message: 'Token not found in current encounter'
+          }
+        });
+      }
+
+      // Permission check - GM can always remove tokens
+      const isGM = request.playerId === this.gameSessionStore.currentSession?.gameMasterId;
+      
+      if (!isGM) {
+        // Players can only request removal of their own tokens
+        // For now, deny all non-GM requests to maintain GM authority
+        console.log('[GMActionHandler] Non-GM attempted token removal, denying request:', {
+          playerId: request.playerId,
+          tokenId: params.tokenId
+        });
+        
+        return this.socketStore.emit('gameAction:response', {
+          success: false,
+          requestId: request.id,
+          error: {
+            code: 'PERMISSION_DENIED',
+            message: 'Only the Game Master can remove tokens'
+          }
+        });
+      }
+
+      // Token removal is valid - execute via game state update
+      const operations = [{
+        path: 'currentEncounter.tokens',
+        operation: 'pull' as const,
+        value: { id: params.tokenId } // MongoDB pull syntax to remove by ID
+      }];
+
+      // Execute the game state update
+      const updateResult = await this.gameStateStore.updateGameState(operations);
+      
+      if (updateResult.success) {
+        console.log('[GMActionHandler] Token removal approved and executed:', {
+          tokenId: params.tokenId,
+          tokenName: params.tokenName
+        });
+        
+        const response = {
+          success: true,
+          approved: true,
+          requestId: request.id
+        };
+        console.log('[GMActionHandler] Sending response via socket:', response);
+        this.socketStore.emit('gameAction:response', response);
+      } else {
+        this.socketStore.emit('gameAction:response', {
+          success: false,
+          requestId: request.id,
+          error: {
+            code: 'STATE_UPDATE_FAILED',
+            message: updateResult.error?.message || 'Failed to update game state'
+          }
+        });
+      }
+
+    } catch (error) {
+      console.error('[GMActionHandler] Error processing token removal:', error);
+      this.socketStore.emit('gameAction:response', {
+        success: false,
+        requestId: request.id,
+        error: {
+          code: 'REMOVAL_ERROR',
+          message: 'Failed to process token removal'
         }
       });
     }

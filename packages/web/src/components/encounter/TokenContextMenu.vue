@@ -4,6 +4,12 @@
     :style="menuStyle"
     class="token-context-menu"
     @click.stop
+    @mousedown.stop
+    @mousemove.stop
+    @mouseup.stop
+    @wheel.stop
+    @dragstart.prevent
+    @contextmenu.prevent
   >
     <div class="menu-header">
       <div class="token-info">
@@ -130,7 +136,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { useAuthStore } from '@/stores/auth.store.mjs';
+import { useGameSessionStore } from '@/stores/game-session.store.mjs';
 import type { Token } from '@dungeon-lab/shared/types/tokens.mjs';
 
 interface Props {
@@ -146,11 +152,11 @@ const emit = defineEmits<{
   action: [action: string, token: Token];
 }>();
 
-const authStore = useAuthStore();
+const gameSessionStore = useGameSessionStore();
 
 // Computed
 const isGM = computed(() => {
-  return authStore.user?.isAdmin || false;
+  return gameSessionStore.isGameMaster;
 });
 
 const isPlayerControlled = computed(() => {
@@ -195,10 +201,8 @@ const controlLabel = computed(() => {
 
 const menuStyle = computed(() => {
   return {
-    position: 'absolute' as const,
     top: `${props.position.y}px`,
-    left: `${props.position.x}px`,
-    zIndex: 1000
+    left: `${props.position.x}px`
   };
 });
 
@@ -213,8 +217,11 @@ const handleAction = (action: string) => {
 
 <style scoped>
 .token-context-menu {
-  @apply bg-neutral-900 text-white border border-gray-700 rounded-lg shadow-xl min-w-64 max-w-80 max-h-96 overflow-y-auto z-50;
+  @apply bg-neutral-900 text-white border border-gray-700 rounded-lg shadow-xl min-w-64 max-w-80 max-h-96 overflow-y-auto;
   user-select: none;
+  pointer-events: auto;
+  z-index: 9999;
+  position: fixed;
 }
 
 .menu-header {
