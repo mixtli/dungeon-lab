@@ -197,6 +197,17 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
         return;
       }
       
+      // Get the GameState document to extract its ID
+      const gameStateDoc = await GameStateModel.findOne({ campaignId: session.campaignId }).exec();
+      if (!gameStateDoc) {
+        const response = {
+          success: false,
+          error: 'Game state not found for campaign'
+        };
+        callback?.(response);
+        return;
+      }
+
       // Use service to get game state for the campaign
       const gameStateData = await gameStateService.getGameState(session.campaignId);
       if (!gameStateData) {
@@ -208,11 +219,12 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
         return;
       }
 
-      // Return full state
+      // Return full state with separate gameStateId
       const response = {
         success: true,
         data: {
           sessionId,
+          gameStateId: gameStateDoc.id, // Add gameState document ID separately
           gameState: gameStateData.gameState,
           gameStateVersion: gameStateData.gameStateVersion,
           gameStateHash: gameStateData.gameStateHash || '',

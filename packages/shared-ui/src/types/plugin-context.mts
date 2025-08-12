@@ -6,7 +6,7 @@
  */
 
 import type { ComputedRef, Ref } from 'vue';
-import type { BaseDocument, ICompendiumEntry, ICharacter, IActor, IItem, IEncounter, IToken, ServerGameState, StateUpdateBroadcast } from '@dungeon-lab/shared/types/index.mjs';
+import type { BaseDocument, ICompendiumEntry, ICharacter, IActor, IItem, IEncounter, IToken, ServerGameStateWithVirtuals, StateUpdateBroadcast } from '@dungeon-lab/shared/types/index.mjs';
 
 /**
  * Plugin store interface for reactive state management of plugin-specific UI state
@@ -65,7 +65,7 @@ export interface GameStateContext {
   getTokensByDocument(documentId: string, documentType?: string): IToken[];
   
   // Subscribe to state changes for side effects
-  subscribeToState(callback: (state: Readonly<ServerGameState>) => void): () => void;
+  subscribeToState(callback: (state: Readonly<ServerGameStateWithVirtuals>) => void): () => void;
   subscribeToStateUpdates(callback: (broadcast: StateUpdateBroadcast) => void): () => void;
 }
 

@@ -12,7 +12,7 @@ import type {
   IItem, 
   IEncounter, 
   IToken,
-  ServerGameState,
+  ServerGameStateWithVirtuals,
   StateUpdateBroadcast
 } from '@dungeon-lab/shared/types/index.mjs';
 import type { GameStateContext } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
@@ -80,13 +80,13 @@ export class PluginGameStateService implements GameStateContext {
   }
 
   // Subscribe to state changes for side effects
-  subscribeToState(callback: (state: Readonly<ServerGameState>) => void): () => void {
+  subscribeToState(callback: (state: Readonly<ServerGameStateWithVirtuals>) => void): () => void {
     // Watch the gameState ref for changes and call the callback
     return watch(
       () => this.gameStateStore.gameState,
       (newState) => {
         if (newState) {
-          callback(readonly(newState) as Readonly<ServerGameState>);
+          callback(readonly(newState) as Readonly<ServerGameStateWithVirtuals>);
         }
       },
       { immediate: true }
@@ -104,7 +104,7 @@ export class PluginGameStateService implements GameStateContext {
         if (newVersion && previousVersion && newVersion !== previousVersion) {
           // Create a minimal broadcast-like object for plugin compatibility
           const broadcast: StateUpdateBroadcast = {
-            gameStateId: this.gameStateStore.gameState?.id || '',
+            gameStateId: '', // GameState document ID not available to client - plugins don't need this
             newVersion,
             operations: [], // We don't have access to the actual operations
             expectedHash: this.gameStateStore.gameStateHash || '',

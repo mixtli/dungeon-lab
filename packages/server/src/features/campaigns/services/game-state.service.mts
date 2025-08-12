@@ -366,7 +366,7 @@ export class GameStateService {
    * Get full game state for a campaign
    */
   async getGameState(campaignId: string): Promise<{
-    gameState: ServerGameState | null;
+    gameState: ServerGameStateWithVirtuals | null;
     gameStateVersion: string;
     gameStateHash: string | null;
   } | null> {
@@ -377,11 +377,9 @@ export class GameStateService {
         return null;
       }
 
-      // Extract the state and add an id field to match ServerGameState interface
-      const serverGameState: ServerGameState = {
-        id: gameStateDoc.id,
-        ...JSON.parse(JSON.stringify(gameStateDoc.state))
-      };
+      // Extract the state directly - no artificial id field needed
+      // This ensures consistency with hash generation which uses the same data structure
+      const serverGameState: ServerGameStateWithVirtuals = JSON.parse(JSON.stringify(gameStateDoc.state));
 
       return {
         gameState: serverGameState,

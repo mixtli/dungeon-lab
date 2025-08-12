@@ -16,6 +16,7 @@ export const gameStateUpdateCallbackSchema = stateUpdateResponseSchema;
 // Full state response data for reconnection/refresh
 export const gameStateFullDataSchema = z.object({
   sessionId: z.string(),
+  gameStateId: z.string(), // GameState document ID (separate from content)
   gameState: z.unknown(), // ServerGameState - using unknown to avoid circular imports
   gameStateVersion: z.string(),
   gameStateHash: z.string(),

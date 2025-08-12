@@ -2,7 +2,6 @@ import { defineStore } from 'pinia';
 import { ref, computed, watch, readonly } from 'vue';
 import { z } from 'zod';
 import type { 
-  ServerGameState,
   StateUpdate, 
   StateUpdateResponse,
   StateUpdateBroadcast,
@@ -54,7 +53,8 @@ export const useGameStateStore = defineStore(
     // ============================================================================
 
     // Server-controlled state (wrapped for integrity)
-    const gameState = ref<ServerGameState | null>(null);
+    const gameState = ref<ServerGameStateWithVirtuals | null>(null);
+    const gameStateId = ref<string | null>(null); // GameState document ID (separate from content)
     const gameStateVersion = ref<string | null>(null);
     const gameStateHash = ref<string | null>(null);
     
@@ -150,8 +150,9 @@ export const useGameStateStore = defineStore(
             });
             
             if (response.success && response.data) {
-              // Update state with server data
-              gameState.value = response.data.gameState as ServerGameState;
+              // Update state with server data (cast from unknown to typed)
+              gameState.value = response.data.gameState as ServerGameStateWithVirtuals;
+              gameStateId.value = response.data.gameStateId; // Extract gameState document ID
               gameStateVersion.value = response.data.gameStateVersion;
               gameStateHash.value = response.data.gameStateHash;
 
@@ -211,7 +212,7 @@ export const useGameStateStore = defineStore(
 
         const queuedUpdate: StateUpdate = {
           id: generateUpdateId(),
-          gameStateId: gameState.value!.id,
+          gameStateId: '', // GameState document ID not available to client
           version: gameStateVersion.value!,
           operations,
           timestamp: Date.now(),
@@ -250,7 +251,7 @@ export const useGameStateStore = defineStore(
 
         const update: StateUpdate = {
           id: generateUpdateId(),
-          gameStateId: gameState.value!.id,
+          gameStateId: gameStateId.value!,
           version: gameStateVersion.value!,
           operations,
           timestamp: Date.now(),
@@ -319,13 +320,13 @@ export const useGameStateStore = defineStore(
     /**
      * Apply state operations to local game state
      * Uses shared GameStateOperations for consistency with server
+     * Both client and server now use identical ServerGameStateWithVirtuals type
      */
     function applyStateOperations(operations: StateOperation[]): void {
       if (!gameState.value) return;
 
-      // The operations work on the generic state structure, but we need to cast to ServerGameStateWithVirtuals
-      // for the operations API since it has the same core structure but may have additional virtuals
-      gameState.value = GameStateOperations.applyOperations(gameState.value as unknown as ServerGameStateWithVirtuals, operations) as ServerGameState;
+      // Apply operations directly - no type casting needed since types are now consistent
+      gameState.value = GameStateOperations.applyOperations(gameState.value, operations);
     }
 
 
@@ -397,6 +398,7 @@ export const useGameStateStore = defineStore(
      */
     function clearState(): void {
       gameState.value = null;
+      gameStateId.value = null;
       gameStateVersion.value = null;
       gameStateHash.value = null;
       selectedCharacter.value = null;
@@ -705,6 +707,7 @@ export const useGameStateStore = defineStore(
     return {
       // State (read-only)
       gameState: readonly(gameState),
+      gameStateId: readonly(gameStateId),
       gameStateVersion: readonly(gameStateVersion),
       gameStateHash: readonly(gameStateHash),
       selectedCharacter,
@@ -744,7 +747,7 @@ export const useGameStateStore = defineStore(
     persist: {
       key: 'game-state-store',
       storage: localStorage,
-      pick: ['gameState', 'gameStateVersion', 'gameStateHash', 'selectedCharacter']
+      pick: ['gameState', 'gameStateId', 'gameStateVersion', 'gameStateHash', 'selectedCharacter']
     }
   }
 );

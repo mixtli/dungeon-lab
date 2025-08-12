@@ -56,8 +56,14 @@ import { useGameStateStore } from '@/stores/game-state.store.mjs';
 const mapsClient = new MapsClient();
 const gameStateStore = useGameStateStore();
 
-// Track previous hash to prevent unnecessary map reloads
-const previousGameStateHash = ref<string | null>(null);
+// Track previous map data to detect actual map changes (not token movements)
+const previousMapData = ref<{
+  id?: string;
+  name?: string;
+  imageUrl?: string;
+  uvttData?: any;
+  settings?: any;
+} | null>(null);
 
 // Props
 interface Props {
@@ -581,28 +587,38 @@ watch(() => props.mapId, async (newMapId) => {
 }, { immediate: false });
 
 watch(() => props.mapData, async (newMapData, oldMapData) => {
-  const currentHash = gameStateStore.gameStateHash;
-  
   console.log('[PixiMapViewer] Map data watcher triggered:', {
     hasNewMapData: !!newMapData,
     hasOldMapData: !!oldMapData,
     newMapName: newMapData?.name,
     oldMapName: oldMapData?.name,
-    isInitialized: isInitialized.value,
-    currentHash: currentHash?.substring(0, 16) + '...',
-    previousHash: previousGameStateHash.value?.substring(0, 16) + '...'
+    isInitialized: isInitialized.value
   });
   
-  // Only reload if hash actually changed (real state change) or if no previous hash exists
-  if (currentHash && currentHash === previousGameStateHash.value) {
-    console.log('[PixiMapViewer] Skipping map reload - no hash change detected');
+  if (!newMapData || !isInitialized.value) {
     return;
   }
   
-  if (newMapData && isInitialized.value) {
-    console.log('[PixiMapViewer] Hash changed, reloading map:', newMapData.name);
-    previousGameStateHash.value = currentHash;
+  // Check if actual map content changed (not just token positions)
+  const hasMapChanged = !previousMapData.value || 
+    previousMapData.value.id !== newMapData.id ||
+    previousMapData.value.name !== newMapData.name ||
+    previousMapData.value.imageUrl !== newMapData.image?.url ||
+    JSON.stringify(previousMapData.value.uvttData) !== JSON.stringify(newMapData.uvtt) ||
+    JSON.stringify(previousMapData.value.settings) !== JSON.stringify(newMapData.settings);
+  
+  if (hasMapChanged) {
+    console.log('[PixiMapViewer] Map content changed, reloading map:', newMapData.name);
+    previousMapData.value = {
+      id: newMapData.id,
+      name: newMapData.name,
+      imageUrl: newMapData.image?.url,
+      uvttData: newMapData.uvtt,
+      settings: newMapData.settings
+    };
     await loadMapData(newMapData);
+  } else {
+    console.log('[PixiMapViewer] Map content unchanged, skipping reload');
   }
 }, { immediate: false });
 
@@ -696,8 +712,16 @@ onMounted(async () => {
     await fetchAndLoadMap(props.mapId);
   }
   
-  // Initialize hash tracking after initial map load
-  previousGameStateHash.value = gameStateStore.gameStateHash;
+  // Initialize map data tracking after initial map load
+  if (props.mapData) {
+    previousMapData.value = {
+      id: props.mapData.id,
+      name: props.mapData.name,
+      imageUrl: props.mapData.image?.url,
+      uvttData: props.mapData.uvtt,
+      settings: props.mapData.settings
+    };
+  }
   
   if (props.tokens && props.tokens.length > 0) {
     console.log('[PixiMapViewer] Loading initial tokens in onMounted:', props.tokens);
