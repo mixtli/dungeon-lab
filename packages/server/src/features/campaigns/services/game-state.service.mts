@@ -14,8 +14,9 @@ import {
   generateStateHash, 
   validateStateIntegrity, 
   incrementStateVersion, 
-  isValidNextVersion 
-} from '../../../utils/state-hash.mjs';
+  isValidNextVersion,
+  GameStateOperations
+} from '@dungeon-lab/shared/utils/index.mjs';
 import { logger } from '../../../utils/logger.mjs';
 import { DocumentService } from '../../documents/services/document.service.mjs';
 import { DocumentModel } from '../../documents/models/document.model.mjs';
@@ -850,167 +851,9 @@ export class GameStateService {
    * Apply multiple state operations to game state
    */
   private async applyOperations(gameState: ServerGameStateWithVirtuals, operations: StateOperation[]): Promise<ServerGameStateWithVirtuals> {
-    let currentState = JSON.parse(JSON.stringify(gameState)); // Deep clone
-
-    for (const operation of operations) {
-      currentState = this.applyOperation(currentState, operation);
-    }
-
-    return currentState;
+    return GameStateOperations.applyOperations(gameState, operations);
   }
 
-  /**
-   * Apply a single state operation using proper path parsing
-   */
-  private applyOperation(gameState: ServerGameStateWithVirtuals, operation: StateOperation): ServerGameStateWithVirtuals {
-    const { path, operation: op, value } = operation;
-
-    try {
-      // Parse path into segments
-      const pathSegments = this.parsePath(path);
-      
-      // Navigate to target location
-      const { parent, key } = this.navigateToParent(gameState as Record<string, unknown>, pathSegments);
-
-      // Apply operation
-      switch (op) {
-        case 'set':
-          parent[key] = value;
-          break;
-          
-        case 'unset':
-          if (Array.isArray(parent)) {
-            parent.splice(parseInt(key), 1);
-          } else {
-            delete parent[key];
-          }
-          break;
-          
-        case 'inc': {
-          const currentValue = typeof parent[key] === 'number' ? parent[key] : 0;
-          parent[key] = currentValue + (typeof value === 'number' ? value : 1);
-          break;
-        }
-          
-        case 'push':
-          if (!Array.isArray(parent[key])) {
-            parent[key] = [];
-          }
-          (parent[key] as unknown[]).push(value);
-          break;
-          
-        case 'pull':
-          if (Array.isArray(parent[key])) {
-            const array = parent[key] as unknown[];
-            const index = array.findIndex((item: unknown) => 
-              this.matchesQuery(item, value)
-            );
-            if (index > -1) {
-              array.splice(index, 1);
-            }
-          }
-          break;
-          
-        default:
-          throw new Error(`Unknown operation: ${op}`);
-      }
-
-      return gameState;
-    } catch (error) {
-      throw new Error(`Failed to apply operation ${op} at path ${path}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
-
-  /**
-   * Parse a path string into segments, handling array indices and nested properties
-   */
-  private parsePath(path: string): string[] {
-    // Handle paths like "characters.0.pluginData.hitPoints" or "characters[0].name"
-    return path
-      .replace(/\[(\d+)\]/g, '.$1') // Convert array notation to dot notation
-      .split('.')
-      .filter(segment => segment.length > 0);
-  }
-
-  /**
-   * Navigate to the parent object/array of the target property
-   */
-  private navigateToParent(obj: Record<string, unknown>, pathSegments: string[]): { parent: Record<string, unknown>; key: string } {
-    let current = obj;
-    
-    // Navigate to parent (all segments except the last)
-    for (let i = 0; i < pathSegments.length - 1; i++) {
-      const segment = pathSegments[i];
-      
-      if (current[segment] === undefined) {
-        // Create intermediate objects/arrays as needed
-        const nextSegment = pathSegments[i + 1];
-        const isNextSegmentArrayIndex = /^\d+$/.test(nextSegment);
-        current[segment] = isNextSegmentArrayIndex ? [] : {};
-      }
-      
-      current = current[segment] as Record<string, unknown>;
-    }
-
-    const key = pathSegments[pathSegments.length - 1];
-    return { parent: current, key };
-  }
-
-  /**
-   * Check if an item matches a query object (MongoDB-style matching)
-   * Used for $pull operations - matches if all query fields are present in the item
-   */
-  private matchesQuery(item: unknown, query: unknown): boolean {
-    if (query == null || typeof query !== 'object') {
-      return this.deepEqual(item, query);
-    }
-    
-    if (item == null || typeof item !== 'object') {
-      return false;
-    }
-    
-    const queryObj = query as Record<string, unknown>;
-    const itemObj = item as Record<string, unknown>;
-    
-    // Check if all query fields match the corresponding item fields
-    for (const [key, value] of Object.entries(queryObj)) {
-      if (!(key in itemObj) || !this.deepEqual(itemObj[key], value)) {
-        return false;
-      }
-    }
-    
-    return true;
-  }
-
-  /**
-   * Deep equality check for objects/arrays
-   */
-  private deepEqual(a: unknown, b: unknown): boolean {
-    if (a === b) return true;
-    if (a == null || b == null) return false;
-    if (typeof a !== typeof b) return false;
-    
-    if (typeof a === 'object') {
-      if (Array.isArray(a) !== Array.isArray(b)) return false;
-      
-      const keysA = Object.keys(a);
-      const keysB = Object.keys(b);
-      
-      if (keysA.length !== keysB.length) return false;
-      
-      for (const key of keysA) {
-        const aObj = a as Record<string, unknown>;
-        const bObj = b as Record<string, unknown>;
-        if (!keysB.includes(key) || !this.deepEqual(aObj[key], bObj[key])) {
-          return false;
-        }
-      }
-      
-      return true;
-    }
-    
-    return false;
-  }
 
   /**
    * Validate game state structure

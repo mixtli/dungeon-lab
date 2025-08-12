@@ -252,6 +252,15 @@ const encounter = computed(() => gameStateStore.currentEncounter);
 const encounterTokens = computed(() => {
   // Tokens are now part of currentEncounter in the unified game state
   const tokens = gameStateStore.currentEncounter?.tokens || [];
+  
+  console.log('[EncounterView] encounterTokens computed property called', {
+    encounterExists: !!gameStateStore.currentEncounter,
+    tokensArray: tokens,
+    tokenCount: tokens.length,
+    tokenIds: tokens.map(t => t.id),
+    gameStateLoading: gameStateStore.loading
+  });
+  
   return tokens.map((token: Token) => ({
     id: token.id,
     name: token.name,

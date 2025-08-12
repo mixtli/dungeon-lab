@@ -78,7 +78,10 @@
       "mcp__perplexity__perplexity_search_web",
       "mcp__mongodb__aggregate",
       "mcp__context7__resolve-library-id",
-      "mcp__context7__get-library-docs"
+      "mcp__context7__get-library-docs",
+      "mcp__playwright__browser_drag",
+      "WebFetch(domain:vue3-pixi.vercel.app)",
+      "WebFetch(domain:github.com)"
     ],
     "additionalDirectories": [
       "/Users/mixtli/checkouts/5etools-src"

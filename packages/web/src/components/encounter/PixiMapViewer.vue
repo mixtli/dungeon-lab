@@ -50,9 +50,14 @@ import type { Token } from '@dungeon-lab/shared/types/tokens.mjs';
 import type { Platform } from '@/services/encounter/PixiMapRenderer.mjs';
 import { MapsClient } from '@dungeon-lab/client/index.mjs';
 import { transformAssetUrl } from '@/utils/asset-utils.mjs';
+import { useGameStateStore } from '@/stores/game-state.store.mjs';
 
-// Initialize maps client
+// Initialize maps client and game state store
 const mapsClient = new MapsClient();
+const gameStateStore = useGameStateStore();
+
+// Track previous hash to prevent unnecessary map reloads
+const previousGameStateHash = ref<string | null>(null);
 
 // Props
 interface Props {
@@ -576,16 +581,27 @@ watch(() => props.mapId, async (newMapId) => {
 }, { immediate: false });
 
 watch(() => props.mapData, async (newMapData, oldMapData) => {
+  const currentHash = gameStateStore.gameStateHash;
+  
   console.log('[PixiMapViewer] Map data watcher triggered:', {
     hasNewMapData: !!newMapData,
     hasOldMapData: !!oldMapData,
     newMapName: newMapData?.name,
     oldMapName: oldMapData?.name,
-    isInitialized: isInitialized.value
+    isInitialized: isInitialized.value,
+    currentHash: currentHash?.substring(0, 16) + '...',
+    previousHash: previousGameStateHash.value?.substring(0, 16) + '...'
   });
   
+  // Only reload if hash actually changed (real state change) or if no previous hash exists
+  if (currentHash && currentHash === previousGameStateHash.value) {
+    console.log('[PixiMapViewer] Skipping map reload - no hash change detected');
+    return;
+  }
+  
   if (newMapData && isInitialized.value) {
-    console.log('[PixiMapViewer] Loading map from game state:', newMapData.name);
+    console.log('[PixiMapViewer] Hash changed, reloading map:', newMapData.name);
+    previousGameStateHash.value = currentHash;
     await loadMapData(newMapData);
   }
 }, { immediate: false });
@@ -594,11 +610,16 @@ watch(() => props.tokens, async (newTokens, oldTokens) => {
   console.log('[PixiMapViewer] Tokens watcher triggered:', { 
     newCount: newTokens?.length || 0, 
     oldCount: oldTokens?.length || 0,
-    isInitialized: isInitialized.value 
+    isInitialized: isInitialized.value,
+    tokenIds: newTokens?.map(t => t.id) || [],
+    hasCanvas: !!canvasRef.value
   });
   
   if (!newTokens || newTokens.length === 0) {
-    console.log('[PixiMapViewer] No tokens to load');
+    console.log('[PixiMapViewer] No tokens to load - clearing existing tokens');
+    if (isInitialized.value) {
+      clearAllTokens();
+    }
     return;
   }
   
@@ -607,8 +628,13 @@ watch(() => props.tokens, async (newTokens, oldTokens) => {
     return;
   }
   
-  console.log('[PixiMapViewer] Loading tokens:', newTokens);
-  await loadTokens(newTokens);
+  console.log('[PixiMapViewer] Loading tokens:', newTokens.map(t => ({ id: t.id, name: t.name, position: t.position })));
+  try {
+    await loadTokens(newTokens);
+    console.log('[PixiMapViewer] Token loading completed successfully');
+  } catch (error) {
+    console.error('[PixiMapViewer] Token loading failed:', error);
+  }
 }, { deep: true });
 
 watch(viewportState, (newViewport) => {
@@ -653,6 +679,13 @@ watch(() => props.showLights, (newValue) => {
 let preventContextMenu: ((e: MouseEvent) => void) | null = null;
 
 onMounted(async () => {
+  console.log('[PixiMapViewer] 🚀 Component mounted, initializing...', {
+    hasMapData: !!props.mapData,
+    mapId: props.mapId,
+    tokenCount: props.tokens?.length || 0,
+    componentId: Math.random().toString(36).substring(2, 8)
+  });
+  
   await nextTick();
   await initializeViewer();
   
@@ -662,6 +695,9 @@ onMounted(async () => {
   } else if (props.mapId) {
     await fetchAndLoadMap(props.mapId);
   }
+  
+  // Initialize hash tracking after initial map load
+  previousGameStateHash.value = gameStateStore.gameStateHash;
   
   if (props.tokens && props.tokens.length > 0) {
     console.log('[PixiMapViewer] Loading initial tokens in onMounted:', props.tokens);
@@ -690,6 +726,11 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+  console.log('[PixiMapViewer] 💥 Component unmounting, cleaning up...', {
+    isInitialized: isInitialized.value,
+    tokenCount: tokenCount.value
+  });
+  
   if (props.autoResize) {
     window.removeEventListener('resize', handleResize);
   }

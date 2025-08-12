@@ -12,11 +12,16 @@ import type {
   IItem,
   IEncounter,
   BaseDocument,
-  TokenSizeType
+  TokenSizeType,
+  ServerGameStateWithVirtuals
 } from '@dungeon-lab/shared/types/index.mjs';
 import {
   gameStateRequestFullCallbackSchema
 } from '@dungeon-lab/shared/schemas/socket/game-state.mjs';
+import {
+  GameStateOperations,
+  generateStateHash
+} from '@dungeon-lab/shared/utils/index.mjs';
 import { useSocketStore } from './socket.store.mjs';
 import { useGameSessionStore } from './game-session.store.mjs';
 import { useAuthStore } from './auth.store.mjs';
@@ -154,7 +159,9 @@ export const useGameStateStore = defineStore(
                 version: gameStateVersion.value,
                 hash: gameStateHash.value,
                 hasCharacters: gameState.value?.characters?.length || 0,
-                hasCurrentEncounter: !!gameState.value?.currentEncounter
+                hasCurrentEncounter: !!gameState.value?.currentEncounter,
+                encounterTokenCount: gameState.value?.currentEncounter?.tokens?.length || 0,
+                encounterTokenIds: gameState.value?.currentEncounter?.tokens?.map(t => t.id) || []
               });
 
               resolve();
@@ -311,74 +318,16 @@ export const useGameStateStore = defineStore(
 
     /**
      * Apply state operations to local game state
-     * This mirrors the server-side operation processing
+     * Uses shared GameStateOperations for consistency with server
      */
     function applyStateOperations(operations: StateOperation[]): void {
       if (!gameState.value) return;
 
-      for (const op of operations) {
-        applyOperation(gameState.value, op);
-      }
+      // The operations work on the generic state structure, but we need to cast to ServerGameStateWithVirtuals
+      // for the operations API since it has the same core structure but may have additional virtuals
+      gameState.value = GameStateOperations.applyOperations(gameState.value as unknown as ServerGameStateWithVirtuals, operations) as ServerGameState;
     }
 
-    /**
-     * Apply a single state operation to the game state object
-     */
-    function applyOperation(state: ServerGameState, operation: StateOperation): void {
-      const path = operation.path;
-      const pathParts = path.split('.');
-
-      // Navigate to the target object/array
-      let current: Record<string, unknown> = state as Record<string, unknown>;
-
-      for (let i = 0; i < pathParts.length - 1; i++) {
-        const key = pathParts[i];
-        
-        if (current[key] === undefined) {
-          // Create missing intermediate objects
-          current[key] = {};
-        }
-        current = current[key] as Record<string, unknown>;
-      }
-
-      const finalKey = pathParts[pathParts.length - 1];
-
-      // Apply the operation
-      switch (operation.operation) {
-        case 'set':
-          current[finalKey] = operation.value;
-          break;
-          
-        case 'unset':
-          delete current[finalKey];
-          break;
-          
-        case 'inc': {
-          const currentValue = typeof current[finalKey] === 'number' ? current[finalKey] : 0;
-          current[finalKey] = currentValue + (operation.value as number);
-          break;
-        }
-          
-        case 'push':
-          if (!Array.isArray(current[finalKey])) {
-            current[finalKey] = [];
-          }
-          (current[finalKey] as unknown[]).push(operation.value);
-          break;
-          
-        case 'pull':
-          if (Array.isArray(current[finalKey])) {
-            const array = current[finalKey] as unknown[];
-            const index = array.findIndex((item: unknown) => 
-              matchesQuery(item, operation.value)
-            );
-            if (index > -1) {
-              array.splice(index, 1);
-            }
-          }
-          break;
-      }
-    }
 
     // ============================================================================
     // SOCKET EVENT HANDLERS
@@ -412,9 +361,9 @@ export const useGameStateStore = defineStore(
       gameStateVersion.value = broadcast.newVersion;
       gameStateHash.value = broadcast.expectedHash;
 
-      // Verify state integrity
-      if (!verifyStateIntegrity()) {
-        console.warn('State integrity check failed, requesting full refresh');
+      // Verify state integrity with expected hash
+      if (!verifyStateIntegrity(broadcast.expectedHash)) {
+        console.warn('Client-side hash verification failed after applying operations, requesting full state refresh');
         requestFullState();
         return;
       }
@@ -475,71 +424,34 @@ export const useGameStateStore = defineStore(
     }
 
     /**
-     * Check if an item matches a MongoDB-style query object
-     * @param item - The item to test
-     * @param query - The query object with field/value pairs to match
-     * @returns true if all query fields match the corresponding item fields
-     */
-    function matchesQuery(item: unknown, query: unknown): boolean {
-      if (query == null || typeof query !== 'object') {
-        return deepEqual(item, query);
-      }
-      
-      if (item == null || typeof item !== 'object') {
-        return false;
-      }
-      
-      const queryObj = query as Record<string, unknown>;
-      const itemObj = item as Record<string, unknown>;
-      
-      // Check if all query fields match the corresponding item fields
-      for (const [key, value] of Object.entries(queryObj)) {
-        if (!(key in itemObj) || !deepEqual(itemObj[key], value)) {
-          return false;
-        }
-      }
-      
-      return true;
-    }
-
-    /**
-     * Deep equality comparison for primitive values and simple objects
-     */
-    function deepEqual(a: unknown, b: unknown): boolean {
-      if (a === b) return true;
-      
-      if (a == null || b == null) return a === b;
-      
-      if (typeof a !== typeof b) return false;
-      
-      if (typeof a === 'object') {
-        const aObj = a as Record<string, unknown>;
-        const bObj = b as Record<string, unknown>;
-        
-        const aKeys = Object.keys(aObj);
-        const bKeys = Object.keys(bObj);
-        
-        if (aKeys.length !== bKeys.length) return false;
-        
-        for (const key of aKeys) {
-          if (!(key in bObj) || !deepEqual(aObj[key], bObj[key])) {
-            return false;
-          }
-        }
-        
-        return true;
-      }
-      
-      return false;
-    }
-
-    /**
      * Verify state integrity using hash
      */
-    function verifyStateIntegrity(): boolean {
-      // TODO: Implement hash verification when needed
-      // For now, always return true to avoid blocking updates
-      return true;
+    function verifyStateIntegrity(expectedHash: string): boolean {
+      if (!gameState.value) {
+        console.error('Cannot verify hash: game state is null');
+        return false;
+      }
+
+      try {
+        const calculatedHash = generateStateHash(gameState.value as unknown as ServerGameStateWithVirtuals);
+        const isValid = calculatedHash === expectedHash;
+        
+        if (!isValid) {
+          console.error('Client-side hash mismatch after applying operations', {
+            expected: expectedHash.substring(0, 16) + '...',
+            calculated: calculatedHash.substring(0, 16) + '...',
+            gameStateKeys: Object.keys(gameState.value),
+            charactersCount: gameState.value.characters?.length || 0,
+            actorsCount: gameState.value.actors?.length || 0,
+            itemsCount: gameState.value.items?.length || 0
+          });
+        }
+        
+        return isValid;
+      } catch (error) {
+        console.error('Error verifying state integrity on client:', error);
+        return false;
+      }
     }
 
     /**
