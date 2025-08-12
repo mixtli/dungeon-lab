@@ -50,11 +50,9 @@ import type { Token } from '@dungeon-lab/shared/types/tokens.mjs';
 import type { Platform } from '@/services/encounter/PixiMapRenderer.mjs';
 import { MapsClient } from '@dungeon-lab/client/index.mjs';
 import { transformAssetUrl } from '@/utils/asset-utils.mjs';
-import { useGameStateStore } from '@/stores/game-state.store.mjs';
 
-// Initialize maps client and game state store
+// Initialize maps client
 const mapsClient = new MapsClient();
-const gameStateStore = useGameStateStore();
 
 // Track previous map data to detect actual map changes (not token movements)
 const previousMapData = ref<{
@@ -62,7 +60,6 @@ const previousMapData = ref<{
   name?: string;
   imageUrl?: string;
   uvttData?: any;
-  settings?: any;
 } | null>(null);
 
 // Props
@@ -604,8 +601,7 @@ watch(() => props.mapData, async (newMapData, oldMapData) => {
     previousMapData.value.id !== newMapData.id ||
     previousMapData.value.name !== newMapData.name ||
     previousMapData.value.imageUrl !== newMapData.image?.url ||
-    JSON.stringify(previousMapData.value.uvttData) !== JSON.stringify(newMapData.uvtt) ||
-    JSON.stringify(previousMapData.value.settings) !== JSON.stringify(newMapData.settings);
+    JSON.stringify(previousMapData.value.uvttData) !== JSON.stringify(newMapData.uvtt);
   
   if (hasMapChanged) {
     console.log('[PixiMapViewer] Map content changed, reloading map:', newMapData.name);
@@ -613,8 +609,7 @@ watch(() => props.mapData, async (newMapData, oldMapData) => {
       id: newMapData.id,
       name: newMapData.name,
       imageUrl: newMapData.image?.url,
-      uvttData: newMapData.uvtt,
-      settings: newMapData.settings
+      uvttData: newMapData.uvtt
     };
     await loadMapData(newMapData);
   } else {
@@ -718,8 +713,7 @@ onMounted(async () => {
       id: props.mapData.id,
       name: props.mapData.name,
       imageUrl: props.mapData.image?.url,
-      uvttData: props.mapData.uvtt,
-      settings: props.mapData.settings
+      uvttData: props.mapData.uvtt
     };
   }
   

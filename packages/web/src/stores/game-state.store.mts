@@ -24,6 +24,7 @@ import {
 import { useSocketStore } from './socket.store.mjs';
 import { useGameSessionStore } from './game-session.store.mjs';
 import { useAuthStore } from './auth.store.mjs';
+import { useNotificationStore } from './notification.store.mjs';
 import { transformAssetUrl } from '../utils/asset-utils.mjs';
 
 /**
@@ -47,6 +48,7 @@ export const useGameStateStore = defineStore(
     const socketStore = useSocketStore();
     const gameSessionStore = useGameSessionStore();
     const authStore = useAuthStore();
+    const notificationStore = useNotificationStore();
 
     // ============================================================================
     // REACTIVE STATE
@@ -447,11 +449,26 @@ export const useGameStateStore = defineStore(
             actorsCount: gameState.value.actors?.length || 0,
             itemsCount: gameState.value.items?.length || 0
           });
+          
+          // Show user notification about hash validation failure
+          notificationStore.addNotification({
+            type: 'warning',
+            message: 'Game state synchronization issue detected. Resyncing with server...',
+            duration: 5000
+          });
         }
         
         return isValid;
       } catch (error) {
         console.error('Error verifying state integrity on client:', error);
+        
+        // Show user notification about hash verification error
+        notificationStore.addNotification({
+          type: 'error',
+          message: 'Unable to verify game state integrity. Please refresh the page.',
+          duration: 8000
+        });
+        
         return false;
       }
     }
