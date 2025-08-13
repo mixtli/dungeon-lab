@@ -31,11 +31,11 @@ import { assetSchema, assetCreateSchema, assetUpdateSchema } from '../schemas/as
 
 // Token schemas
 import { 
-  TokenSizeEnum,
   tokenSchema,
   createTokenSchema,
   updateTokenSchema,
-  tokenConditionSchema
+  tokenConditionSchema,
+  gridBoundsSchema
 } from '../schemas/tokens.schema.mjs';
 
 // Encounter schemas
@@ -159,8 +159,8 @@ export type IAssetUpdateData = z.infer<typeof assetUpdateSchema>;
 export type IToken = z.infer<typeof tokenSchema>;
 export type ITokenCreateData = z.infer<typeof createTokenSchema>;
 export type ITokenUpdateData = z.infer<typeof updateTokenSchema>;
-export type TokenSizeType = z.infer<typeof TokenSizeEnum>;
 export type ITokenCondition = z.infer<typeof tokenConditionSchema>;
+export type GridBounds = z.infer<typeof gridBoundsSchema>;
 
 // Encounter Types
 export type IEncounter = z.infer<typeof encounterSchema>;
@@ -268,8 +268,7 @@ export {
   type Token,
   type CreateTokenData,
   type UpdateTokenData,
-  type TokenCondition,
-  type TokenSize
+  type TokenCondition
 } from './tokens.mjs';
 
 // Encounter System Types

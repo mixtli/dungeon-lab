@@ -261,28 +261,8 @@ const encounterTokens = computed(() => {
     gameStateLoading: gameStateStore.loading
   });
   
-  return tokens.map((token: Token) => ({
-    id: token.id,
-    name: token.name,
-    imageUrl: token.imageUrl,
-    size: token.size,
-    encounterId: token.encounterId,
-    position: {
-      x: token.position.x,
-      y: token.position.y,
-      elevation: token.position.elevation
-    },
-    isVisible: token.isVisible,
-    isPlayerControlled: token.isPlayerControlled,
-    conditions: token.conditions,
-    version: token.version,
-    createdBy: token.createdBy,
-    updatedBy: token.updatedBy,
-    documentId: token.documentId,
-    documentType: token.documentType,
-    notes: token.notes,
-    data: token.data || {}
-  }));
+  // Tokens now use the new bounds format - pass them through directly
+  return tokens;
 });
 
 // Initialize encounter view - no loading needed, just use gameState
@@ -340,7 +320,7 @@ const handleTokenMoved = async (tokenId: string, x: number, y: number) => {
   
   try {
     // Use the new action request system for token movement
-    const elevation = token.position?.elevation || 0;
+    const elevation = token.bounds?.elevation || 0;
     const result = await requestTokenMove(tokenId, { x, y, elevation });
     
     if (result.success && result.approved) {
@@ -745,12 +725,11 @@ const handleTokenUpdate = async (updatedToken: Token) => {
   
   try {
     // Create state operations to update all token properties
-    const { name, imageUrl, size, position, isVisible, isPlayerControlled, conditions } = updatedToken;
+    const { name, imageUrl, bounds, isVisible, isPlayerControlled, conditions } = updatedToken;
     const operations: StateOperation[] = [
       { path: `currentEncounter.tokens.${tokenIndex}.name`, operation: 'set', value: name },
       { path: `currentEncounter.tokens.${tokenIndex}.imageUrl`, operation: 'set', value: imageUrl },
-      { path: `currentEncounter.tokens.${tokenIndex}.size`, operation: 'set', value: size },
-      { path: `currentEncounter.tokens.${tokenIndex}.position`, operation: 'set', value: position },
+      { path: `currentEncounter.tokens.${tokenIndex}.bounds`, operation: 'set', value: bounds },
       { path: `currentEncounter.tokens.${tokenIndex}.isVisible`, operation: 'set', value: isVisible },
       { path: `currentEncounter.tokens.${tokenIndex}.isPlayerControlled`, operation: 'set', value: isPlayerControlled },
       { path: `currentEncounter.tokens.${tokenIndex}.conditions`, operation: 'set', value: conditions },

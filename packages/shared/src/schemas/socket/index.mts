@@ -81,6 +81,7 @@ import {
   gameSessionEndedSchema,
   gameSessionPausedSchema,
   gameSessionResumedSchema,
+  gameStateReinitializedSchema,
   gameStateUpdateCallbackSchema,
   gameStateRequestFullCallbackSchema,
   gameSessionJoinCallbackSchema,
@@ -172,6 +173,7 @@ export {
   gameSessionEndedSchema,
   gameSessionPausedSchema,
   gameSessionResumedSchema,
+  gameStateReinitializedSchema,
   gameStateUpdateCallbackSchema,
   gameStateRequestFullCallbackSchema,
   gameSessionJoinCallbackSchema,
@@ -219,6 +221,7 @@ export const serverToClientEvents = z.object({
   // Game state management events
   'gameState:updated': z.function().args(gameStateUpdatedSchema).returns(z.void()),
   'gameState:error': z.function().args(gameStateErrorSchema).returns(z.void()),
+  'gameState:reinitialized': z.function().args(gameStateReinitializedSchema).returns(z.void()),
   'gameSession:joined': z.function().args(gameSessionJoinedSchema).returns(z.void()),
   'gameSession:left': z.function().args(gameSessionLeftSchema).returns(z.void()),
   'gameSession:ended': z.function().args(gameSessionEndedSchema).returns(z.void()),

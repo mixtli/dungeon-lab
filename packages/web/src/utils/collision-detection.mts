@@ -12,14 +12,14 @@ export interface LineSegment {
 
 /**
  * Check if a line segment intersects with any wall polygons in the map
- * @param currentPos Current position of the token
- * @param targetPos Target position of the token  
+ * @param currentGridPos Current position of the token in grid coordinates
+ * @param targetGridPos Target position of the token in grid coordinates
  * @param mapData Map data containing wall polygons
  * @returns true if movement would intersect with a wall
  */
 export function checkWallCollision(
-  currentPos: Point,
-  targetPos: Point,
+  currentGridPos: Point,
+  targetGridPos: Point,
   mapData: IMapResponse | null
 ): boolean {
   if (!mapData?.uvtt) {
@@ -27,19 +27,14 @@ export function checkWallCollision(
     return false; // No UVTT data, movement allowed
   }
 
-  // Get pixels per grid for coordinate conversion
-  const pixelsPerGrid = mapData.uvtt.resolution?.pixels_per_grid || 120; // Default to 120 if not specified
-  
-  // Convert pixel positions to grid units (UVTT wall data is in grid units)
-  const currentGridPos: Point = {
-    x: currentPos.x / pixelsPerGrid,
-    y: currentPos.y / pixelsPerGrid
-  };
-  
-  const targetGridPos: Point = {
-    x: targetPos.x / pixelsPerGrid,
-    y: targetPos.y / pixelsPerGrid
-  };
+  console.log('[CollisionDetection] Checking grid-based collision:', {
+    currentGridPos,
+    targetGridPos,
+    hasWallData: {
+      line_of_sight: !!mapData.uvtt.line_of_sight,
+      objects_line_of_sight: !!mapData.uvtt.objects_line_of_sight
+    }
+  });
 
   const movementLine: LineSegment = {
     start: currentGridPos,
@@ -87,6 +82,7 @@ export function checkWallCollision(
 
   return false; // No collision detected
 }
+
 
 
 

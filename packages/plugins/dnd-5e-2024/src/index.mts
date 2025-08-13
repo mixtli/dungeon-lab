@@ -43,6 +43,46 @@ export class DnD5e2024Plugin extends BaseGameSystemPlugin {
   }
   
   /**
+   * Get token grid size for a document (D&D creature size system)
+   */
+  getTokenGridSize(document: unknown): number {
+    try {
+      // Check if document has D&D size data
+      if (document && typeof document === 'object' && 'pluginData' in document) {
+        const pluginData = (document as { pluginData?: Record<string, unknown> }).pluginData;
+        
+        if (pluginData && typeof pluginData.size === 'string') {
+          const dndSize = pluginData.size.toLowerCase();
+          
+          // Map D&D creature sizes to grid cell multipliers
+          switch (dndSize) {
+            case 'tiny':
+              return 0.5; // Half a grid cell
+            case 'small':
+            case 'medium':
+              return 1; // One grid cell (1x1)
+            case 'large':
+              return 2; // Four grid cells (2x2)
+            case 'huge':
+              return 3; // Nine grid cells (3x3)
+            case 'gargantuan':
+              return 4; // Sixteen grid cells (4x4)
+            default:
+              console.warn(`[${this.manifest.id}] Unknown D&D size: ${dndSize}, defaulting to medium`);
+              return 1;
+          }
+        }
+      }
+      
+      // Default to medium size (1x1 grid cells)
+      return 1;
+    } catch (error) {
+      console.error(`[${this.manifest.id}] Error getting token grid size:`, error);
+      return 1;
+    }
+  }
+  
+  /**
    * Plugin initialization
    */
   async onLoad(context?: PluginContext): Promise<void> {

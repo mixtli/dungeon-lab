@@ -327,21 +327,37 @@ const fetchAndLoadMap = async (mapId: string) => {
 };
 
 const loadTokens = async (tokens: Token[]) => {
-  if (!isInitialized.value || !tokens) return;
+  console.log('[PixiMapViewer] 🟢 loadTokens called:', {
+    initialized: isInitialized.value,
+    tokensProvided: !!tokens,
+    tokenCount: tokens?.length || 0,
+    tokenData: tokens?.map(t => ({ id: t.id, name: t.name, bounds: t.bounds })) || []
+  });
+  
+  if (!isInitialized.value || !tokens) {
+    console.log('[PixiMapViewer] ⚠️ Early return: not initialized or no tokens');
+    return;
+  }
 
   try {
+    console.log('[PixiMapViewer] 🧹 Clearing existing tokens');
     // Clear existing tokens
     clearAllTokens();
     
+    console.log('[PixiMapViewer] 🔄 Adding new tokens, count:', tokens.length);
     // Add new tokens
     for (const token of tokens) {
+      console.log(`[PixiMapViewer] 🎨 Adding token ${token.id} (${token.name})`);
       await addToken(token);
+      console.log(`[PixiMapViewer] ✅ Successfully added token ${token.id}`);
     }
     
     tokenCount.value = tokens.length;
+    console.log(`[PixiMapViewer] 📊 Token loading complete, final count:`, tokenCount.value);
     
   } catch (err) {
-    console.error('Failed to load tokens:', err);
+    console.error('[PixiMapViewer] ❌ Failed to load tokens:', err);
+    throw err;
   }
 };
 
@@ -550,9 +566,11 @@ const handleKeyDown = async (event: KeyboardEvent) => {
   // Get grid size
   const gridSize = getGridSize();
   
-  // Calculate new position based on arrow key
-  let newX = token.position.x;
-  let newY = token.position.y;
+  // Calculate current center position from bounds
+  const centerGridX = (token.bounds.topLeft.x + token.bounds.bottomRight.x) / 2;
+  const centerGridY = (token.bounds.topLeft.y + token.bounds.bottomRight.y) / 2;
+  let newX = centerGridX * gridSize + gridSize / 2; // Convert to world coordinates
+  let newY = centerGridY * gridSize + gridSize / 2;
   
   switch (event.key) {
     case 'ArrowUp':
@@ -569,7 +587,7 @@ const handleKeyDown = async (event: KeyboardEvent) => {
       break;
   }
   
-  console.log(`[PixiMapViewer] Keyboard move: ${event.key} from: {x: ${token.position.x}, y: ${token.position.y}} to: {x: ${newX}, y: ${newY}}`);
+  console.log(`[PixiMapViewer] Keyboard move: ${event.key} from: {x: ${centerGridX * gridSize + gridSize / 2}, y: ${centerGridY * gridSize + gridSize / 2}} to: {x: ${newX}, y: ${newY}}`);
   
   console.log('[PixiMapViewer] Keyboard movement, sending movement request');
   // Emit the token moved event to parent (EncounterView will handle the state update)
@@ -618,16 +636,24 @@ watch(() => props.mapData, async (newMapData, oldMapData) => {
 }, { immediate: false });
 
 watch(() => props.tokens, async (newTokens, oldTokens) => {
-  console.log('[PixiMapViewer] Tokens watcher triggered:', { 
+  console.log('[PixiMapViewer] 👀 Tokens watcher triggered:', { 
     newCount: newTokens?.length || 0, 
     oldCount: oldTokens?.length || 0,
     isInitialized: isInitialized.value,
-    tokenIds: newTokens?.map(t => t.id) || [],
-    hasCanvas: !!canvasRef.value
+    newTokenIds: newTokens?.map(t => t.id) || [],
+    oldTokenIds: oldTokens?.map(t => t.id) || [],
+    hasCanvas: !!canvasRef.value,
+    detailedNewTokens: newTokens?.map(t => ({ 
+      id: t.id, 
+      name: t.name, 
+      bounds: t.bounds,
+      imageUrl: t.imageUrl,
+      isVisible: t.isVisible
+    })) || []
   });
   
   if (!newTokens || newTokens.length === 0) {
-    console.log('[PixiMapViewer] No tokens to load - clearing existing tokens');
+    console.log('[PixiMapViewer] 🧹 No tokens to load - clearing existing tokens');
     if (isInitialized.value) {
       clearAllTokens();
     }
@@ -635,16 +661,17 @@ watch(() => props.tokens, async (newTokens, oldTokens) => {
   }
   
   if (!isInitialized.value) {
-    console.log('[PixiMapViewer] Not initialized yet, skipping token load');
+    console.log('[PixiMapViewer] ⚠️ Not initialized yet, skipping token load');
     return;
   }
   
-  console.log('[PixiMapViewer] Loading tokens:', newTokens.map(t => ({ id: t.id, name: t.name, position: t.position })));
+  console.log('[PixiMapViewer] 🔄 Processing token changes...');
   try {
     await loadTokens(newTokens);
-    console.log('[PixiMapViewer] Token loading completed successfully');
+    console.log('[PixiMapViewer] ✅ Token loading completed successfully');
   } catch (error) {
-    console.error('[PixiMapViewer] Token loading failed:', error);
+    console.error('[PixiMapViewer] ❌ Token loading failed:', error);
+    throw error;
   }
 }, { deep: true });
 

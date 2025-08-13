@@ -619,6 +619,43 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
           newVersion: reinitializeResult.newVersion
         });
         
+        // Get the fresh game state to broadcast to all clients
+        const freshGameState = await gameStateService.getGameState(gameSession.campaignId);
+        
+        if (freshGameState) {
+          // Find the GameState document to get its ID
+          const gameStateDoc = await GameStateModel.findOne({ campaignId: gameSession.campaignId }).exec();
+          
+          if (gameStateDoc) {
+            // Broadcast the fresh state to ALL clients in all active session rooms for this campaign
+            const activeSessions = await GameSessionModel.find({ 
+              campaignId: gameSession.campaignId, 
+              status: 'active' 
+            }).exec();
+
+            const reinitializeBroadcast = {
+              gameStateId: gameStateDoc.id,
+              gameState: freshGameState.gameState,
+              gameStateVersion: freshGameState.gameStateVersion,
+              gameStateHash: freshGameState.gameStateHash || '',
+              timestamp: Date.now(),
+              reinitializedBy: userId
+            };
+
+            // Broadcast to ALL clients in all active session rooms for this campaign
+            const io = SocketServer.getInstance().socketIo;
+            for (const session of activeSessions) {
+              io.to(`session:${session.id}`).emit('gameState:reinitialized', reinitializeBroadcast);
+            }
+            
+            logger.info('Game state reinitialization broadcast sent to all session participants', {
+              campaignId: gameSession.campaignId,
+              sessionCount: activeSessions.length,
+              version: freshGameState.gameStateVersion
+            });
+          }
+        }
+        
         callback?.({
           success: true
         });

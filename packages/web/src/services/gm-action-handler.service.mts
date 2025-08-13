@@ -171,14 +171,29 @@ export class GMActionHandlerService {
 
       // Collision detection using game state map data
       if (this.gameStateStore.currentEncounter?.currentMap) {
-        const currentPos = { x: token.position.x, y: token.position.y };
-        const targetPos = { x: params.newPosition.x, y: params.newPosition.y };
+        // Calculate center position from bounds in grid coordinates
+        const currentGridCenterX = (token.bounds.topLeft.x + token.bounds.bottomRight.x) / 2;
+        const currentGridCenterY = (token.bounds.topLeft.y + token.bounds.bottomRight.y) / 2;
+        const currentGridPos = { x: currentGridCenterX, y: currentGridCenterY };
+        
+        // Convert target world position to grid coordinates
+        const mapData = this.gameStateStore.currentEncounter.currentMap;
+        const pixelsPerGrid = mapData.uvtt?.resolution?.pixels_per_grid || 50;
+        const targetGridPos = { 
+          x: params.newPosition.x / pixelsPerGrid, 
+          y: params.newPosition.y / pixelsPerGrid 
+        };
+        
+        console.log('[GMActionHandler] Grid-based collision detection:', {
+          currentGridPos,
+          targetGridPos,
+          pixelsPerGrid
+        });
         
         try {
-          const mapData = this.gameStateStore.currentEncounter.currentMap;
           console.log('[GMActionHandler] Using map data from game state for collision detection');
           
-          if (checkWallCollision(currentPos, targetPos, mapData)) {
+          if (checkWallCollision(currentGridPos, targetGridPos, mapData)) {
             console.log('[GMActionHandler] Movement blocked by collision detection');
             return this.socketStore.emit('gameAction:response', {
               success: false,
@@ -198,13 +213,29 @@ export class GMActionHandlerService {
         // Fallback: try to get map from mapId if currentMap is not available
         if (this.gameStateStore.currentEncounter?.mapId) {
           console.log('[GMActionHandler] Falling back to REST API for map data');
-          const currentPos = { x: token.position.x, y: token.position.y };
-          const targetPos = { x: params.newPosition.x, y: params.newPosition.y };
           
           try {
             const mapData = await this.getMapData(this.gameStateStore.currentEncounter.mapId);
             
-            if (checkWallCollision(currentPos, targetPos, mapData)) {
+            // Calculate center position from bounds in grid coordinates
+            const currentGridCenterX = (token.bounds.topLeft.x + token.bounds.bottomRight.x) / 2;
+            const currentGridCenterY = (token.bounds.topLeft.y + token.bounds.bottomRight.y) / 2;
+            const currentGridPos = { x: currentGridCenterX, y: currentGridCenterY };
+            
+            // Convert target world position to grid coordinates
+            const pixelsPerGrid = mapData.uvtt?.resolution?.pixels_per_grid || 50;
+            const targetGridPos = { 
+              x: params.newPosition.x / pixelsPerGrid, 
+              y: params.newPosition.y / pixelsPerGrid 
+            };
+            
+            console.log('[GMActionHandler] Fallback grid-based collision detection:', {
+              currentGridPos,
+              targetGridPos,
+              pixelsPerGrid
+            });
+            
+            if (checkWallCollision(currentGridPos, targetGridPos, mapData)) {
               console.log('[GMActionHandler] Movement blocked by collision detection (fallback)');
               return this.socketStore.emit('gameAction:response', {
                 success: false,
@@ -234,15 +265,45 @@ export class GMActionHandlerService {
         });
       }
 
+      // Calculate new bounds from center position, preserving token size
+      const currentBounds = token.bounds;
+      const newCenterX = params.newPosition.x;
+      const newCenterY = params.newPosition.y;
+      const newElevation = params.newPosition.elevation || currentBounds.elevation || 0;
+      
+      // Get the actual grid size from current map data
+      const currentMap = this.gameStateStore.currentEncounter?.currentMap;
+      const pixelsPerGrid = currentMap?.uvtt?.resolution?.pixels_per_grid || 50; // fallback to 50
+      
+      // Convert center world coordinates to grid coordinates
+      const centerGridX = Math.round(newCenterX / pixelsPerGrid);
+      const centerGridY = Math.round(newCenterY / pixelsPerGrid);
+      
+      // Calculate current size
+      const width = currentBounds.bottomRight.x - currentBounds.topLeft.x;
+      const height = currentBounds.bottomRight.y - currentBounds.topLeft.y;
+      
+      // Calculate new bounds centered on the new position
+      const halfWidth = Math.floor(width / 2);
+      const halfHeight = Math.floor(height / 2);
+      
+      const newBounds = {
+        topLeft: {
+          x: centerGridX - halfWidth,
+          y: centerGridY - halfHeight
+        },
+        bottomRight: {
+          x: centerGridX + width - halfWidth,
+          y: centerGridY + height - halfHeight
+        },
+        elevation: newElevation
+      };
+
       const operations = [
         {
-          path: `currentEncounter.tokens.${tokenIndex}.position`,
+          path: `currentEncounter.tokens.${tokenIndex}.bounds`,
           operation: 'set' as const,
-          value: {
-            x: params.newPosition.x,
-            y: params.newPosition.y,
-            elevation: params.newPosition.elevation || token.position.elevation || 0
-          }
+          value: newBounds
         }
       ];
 
@@ -350,6 +411,28 @@ export class GMActionHandlerService {
         operation: 'pull' as const,
         value: { id: params.tokenId } // MongoDB pull syntax to remove by ID
       }];
+      
+      // Also remove from turn order if it exists
+      if (this.gameStateStore.gameState?.turnManager?.participants) {
+        // Find the participant that has this tokenId
+        const participantToRemove = this.gameStateStore.gameState.turnManager.participants.find(
+          participant => participant.tokenId === params.tokenId
+        );
+        
+        if (participantToRemove) {
+          console.log('[GMActionHandler] Removing token from turn order:', {
+            tokenId: params.tokenId,
+            participantId: participantToRemove.id,
+            participantCount: this.gameStateStore.gameState.turnManager.participants.length
+          });
+          
+          operations.push({
+            path: 'turnManager.participants',
+            operation: 'pull' as const,
+            value: { id: participantToRemove.id } // Remove participant by ID
+          });
+        }
+      }
 
       // Execute the game state update
       const updateResult = await this.gameStateStore.updateGameState(operations);
@@ -357,7 +440,8 @@ export class GMActionHandlerService {
       if (updateResult.success) {
         console.log('[GMActionHandler] Token removal approved and executed:', {
           tokenId: params.tokenId,
-          tokenName: params.tokenName
+          tokenName: params.tokenName,
+          removedFromTurnOrder: !!this.gameStateStore.gameState?.turnManager?.participants
         });
         
         const response = {

@@ -93,6 +93,24 @@ export interface GameSystemPlugin {
   onUnload(): Promise<void>;
   
   /**
+   * Get token grid size for a document
+   * 
+   * Returns the number of grid cells that the token should occupy when placed on the map.
+   * This is a numeric value representing the side length of the square area the token occupies.
+   * 
+   * Examples:
+   * - 0.5 = tiny creature (half a grid cell)
+   * - 1 = small/medium creature (1x1 grid cells)
+   * - 2 = large creature (2x2 grid cells)
+   * - 3 = huge creature (3x3 grid cells)
+   * - 4 = gargantuan creature (4x4 grid cells)
+   * 
+   * @param document Document to get token size for
+   * @returns Grid size multiplier (default: 1 for medium size)
+   */
+  getTokenGridSize(document: unknown): number;
+  
+  /**
    * Turn manager for game-specific turn order and action permissions
    * Optional - plugins can provide turn manager implementations
    */

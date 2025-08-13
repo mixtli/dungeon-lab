@@ -89,6 +89,20 @@ export abstract class BaseGameSystemPlugin implements GameSystemPlugin {
   abstract validate(type: string, data: unknown): ValidationResult;
   
   /**
+   * Get token grid size for a document
+   * 
+   * Default implementation returns 1 (medium size). Concrete plugins should override
+   * this method to implement game-system-specific sizing logic.
+   * 
+   * @param document Document to get token size for
+   * @returns Grid size multiplier (default: 1 for medium size)
+   */
+  getTokenGridSize(document: unknown): number {
+    // Default to medium size (1x1 grid cells) for unknown documents
+    return 1;
+  }
+  
+  /**
    * Get the plugin context for API access
    * @returns Plugin context if available
    */

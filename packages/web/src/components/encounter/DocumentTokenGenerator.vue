@@ -142,7 +142,8 @@ import { ref, computed, watch } from 'vue';
 import { useAuthStore } from '@/stores/auth.store.mjs';
 import { useGameStateStore } from '@/stores/game-state.store.mjs';
 import { useGameSessionStore } from '@/stores/game-session.store.mjs';
-import type { BaseDocument, StateOperation, TokenSizeType } from '@dungeon-lab/shared/types/index.mjs';
+import { pluginTokenService } from '@/services/plugin-token.service.mjs';
+import type { BaseDocument, StateOperation } from '@dungeon-lab/shared/types/index.mjs';
 
 interface TokenOptions {
   name: string;
@@ -206,19 +207,37 @@ const generateTokenId = (): string => {
   return `token_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
 };
 
-const getTokenSizeFromDocument = (doc: BaseDocument): TokenSizeType => {
-  // Try to get size from plugin data first
-  const pluginSize = doc.pluginData?.size as TokenSizeType;
-  if (pluginSize && ['tiny', 'small', 'medium', 'large', 'huge', 'gargantuan'].includes(pluginSize)) {
-    return pluginSize;
-  }
+const getTokenGridSizeFromDocument = async (doc: BaseDocument): Promise<number> => {
+  return await pluginTokenService.getTokenGridSize(doc);
+};
+
+const createBoundsFromGridSize = (centerX: number, centerY: number, gridSize: number, elevation: number = 0) => {
+  // Convert grid size multiplier to actual grid cell count
+  const gridCells = Math.max(1, Math.round(gridSize));
   
-  // Default to medium for characters, or use type-based defaults
-  if (doc.documentType === 'character') return 'medium';
-  if (doc.pluginDocumentType === 'npc') return 'medium';
+  // Calculate bounds - for odd sizes, center aligns naturally
+  // For even sizes, we offset slightly to align with grid
+  const halfSize = Math.floor(gridCells / 2);
+  const isEven = gridCells % 2 === 0;
   
-  // Default to medium for unknown types
-  return 'medium';
+  const centerGridX = Math.round(centerX / 50); // Assuming 50px grid size
+  const centerGridY = Math.round(centerY / 50);
+  
+  // For even-sized tokens, adjust center to align with grid intersection
+  const adjustedCenterX = isEven ? centerGridX - 0.5 : centerGridX;
+  const adjustedCenterY = isEven ? centerGridY - 0.5 : centerGridY;
+  
+  return {
+    topLeft: {
+      x: Math.floor(adjustedCenterX - halfSize),
+      y: Math.floor(adjustedCenterY - halfSize)
+    },
+    bottomRight: {
+      x: Math.floor(adjustedCenterX - halfSize) + gridCells - 1,
+      y: Math.floor(adjustedCenterY - halfSize) + gridCells - 1
+    },
+    elevation
+  };
 };
 
 // Event handlers
@@ -273,19 +292,22 @@ const createTokens = async () => {
     const createdTokenIds: string[] = [];
     const operations: StateOperation[] = [];
 
+    // Get token grid size from plugin (this is async)
+    const tokenGridSize = await getTokenGridSizeFromDocument(document);
+
     for (let i = 0; i < tokenCount.value; i++) {
       const tokenId = generateTokenId();
       const tokenData = {
         id: tokenId,
         name: tokenCount.value > 1 ? `${baseName} ${i + 1}` : baseName,
         imageUrl: tokenImage,
-        size: getTokenSizeFromDocument(document),
         encounterId: encounter.value!.id,
-        position: {
-          x: 100 + (i * 50),
-          y: 100 + (i * 50),
-          elevation: 0
-        },
+        bounds: createBoundsFromGridSize(
+          100 + (i * 50), // x center
+          100 + (i * 50), // y center
+          tokenGridSize,   // grid size multiplier
+          0               // elevation
+        ),
         documentId: document.id,
         documentType: document.documentType,
         notes: '',

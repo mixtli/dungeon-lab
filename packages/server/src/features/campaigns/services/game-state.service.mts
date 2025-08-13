@@ -1,5 +1,4 @@
 import {
-  ServerGameState,
   ServerGameStateWithVirtuals,
   StateOperation,
   StateUpdate,

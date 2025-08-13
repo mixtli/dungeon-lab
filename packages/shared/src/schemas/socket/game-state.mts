@@ -111,6 +111,16 @@ export const gameSessionResumedSchema = z.object({
   timestamp: z.number()
 });
 
+// Game state reinitialization broadcast schema
+export const gameStateReinitializedSchema = z.object({
+  gameStateId: z.string(),
+  gameState: z.unknown(), // ServerGameStateWithVirtuals - using unknown to avoid circular imports
+  gameStateVersion: z.string(),
+  gameStateHash: z.string(),
+  timestamp: z.number(),
+  reinitializedBy: z.string()
+});
+
 // ============================================================================
 // DEBUG OPERATIONS
 // ============================================================================

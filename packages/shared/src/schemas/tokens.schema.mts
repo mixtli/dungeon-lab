@@ -1,9 +1,18 @@
 import { z } from 'zod';
 import { baseSchema } from './base.schema.mjs';
-import { gridPositionSchema } from './position.schema.mjs';
 
-// Define the TokenSize enum for zod
-export const TokenSizeEnum = z.enum(['tiny', 'small', 'medium', 'large', 'huge', 'gargantuan']);
+// Grid bounds schema for token positioning
+export const gridBoundsSchema = z.object({
+  topLeft: z.object({
+    x: z.number().int(),
+    y: z.number().int()
+  }),
+  bottomRight: z.object({
+    x: z.number().int(),
+    y: z.number().int()
+  }),
+  elevation: z.number()
+});
 
 // ============================================================================
 // TOKEN SCHEMAS
@@ -20,9 +29,8 @@ export const tokenConditionSchema = z.object({
 const baseTokenSchema = z.object({
   name: z.string().min(1).max(255),
   imageUrl: z.string().url(),
-  size: TokenSizeEnum,
   encounterId: z.string(),
-  position: gridPositionSchema,
+  bounds: gridBoundsSchema,
   documentId: z.string().optional(),
   documentType: z.string().optional(),
   ownerId: z.string().optional(), // Owner of the token (usually the player or GM)

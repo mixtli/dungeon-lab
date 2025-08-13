@@ -11,7 +11,6 @@ import type {
   IItem,
   IEncounter,
   BaseDocument,
-  TokenSizeType,
   ServerGameStateWithVirtuals
 } from '@dungeon-lab/shared/types/index.mjs';
 import {
@@ -26,6 +25,7 @@ import { useGameSessionStore } from './game-session.store.mjs';
 import { useAuthStore } from './auth.store.mjs';
 import { useNotificationStore } from './notification.store.mjs';
 import { transformAssetUrl } from '../utils/asset-utils.mjs';
+import { pluginTokenService } from '../services/plugin-token.service.mjs';
 
 /**
  * Unified Game State Store
@@ -391,6 +391,52 @@ export const useGameStateStore = defineStore(
       }
     }
 
+    /**
+     * Handle game state reinitialization from another client
+     */
+    function handleGameStateReinitialized(reinitializeData: {
+      gameStateId: string;
+      gameState?: unknown;
+      gameStateVersion: string;
+      gameStateHash: string;
+      timestamp: number;
+      reinitializedBy: string;
+    }): void {
+      console.log('Game state reinitialized by another user:', {
+        reinitializedBy: reinitializeData.reinitializedBy,
+        newVersion: reinitializeData.gameStateVersion,
+        timestamp: reinitializeData.timestamp
+      });
+
+      // Validate and cast the gameState
+      if (!reinitializeData.gameState) {
+        console.error('Game state reinitialization received without game state data');
+        return;
+      }
+
+      // Replace local state with the fresh state (cast from unknown)
+      gameState.value = reinitializeData.gameState as ServerGameStateWithVirtuals;
+      gameStateId.value = reinitializeData.gameStateId;
+      gameStateVersion.value = reinitializeData.gameStateVersion;
+      gameStateHash.value = reinitializeData.gameStateHash;
+
+      // Clear any pending errors
+      error.value = null;
+
+      // Show user notification
+      notificationStore.addNotification({
+        type: 'info',
+        message: 'Game state was reset by the Game Master. All data has been refreshed.',
+        duration: 6000
+      });
+
+      console.log('Local game state updated from reinitialization broadcast:', {
+        newVersion: reinitializeData.gameStateVersion,
+        hasCharacters: gameState.value?.characters?.length || 0,
+        hasCurrentEncounter: !!gameState.value?.currentEncounter
+      });
+    }
+
     // ============================================================================
     // UTILITY METHODS
     // ============================================================================
@@ -500,10 +546,12 @@ export const useGameStateStore = defineStore(
       // Clean up existing listeners
       socket.off('gameState:updated');
       socket.off('gameState:error');
+      socket.off('gameState:reinitialized');
 
       // Setup game state listeners only
       socket.on('gameState:updated', handleGameStateUpdated);
       socket.on('gameState:error', handleGameStateError);
+      socket.on('gameState:reinitialized', handleGameStateReinitialized);
 
       console.log('Game state socket handlers setup complete');
     }
@@ -643,31 +691,70 @@ export const useGameStateStore = defineStore(
         throw new Error('Document must have a token image URL (tokenImage.url, avatar.url, or image.url)');
       }
 
-      // Determine token size from document plugin data
-      const getTokenSizeFromDocument = (doc: BaseDocument): TokenSizeType => {
-        const pluginSize = doc.pluginData?.size as TokenSizeType;
-        if (pluginSize && ['tiny', 'small', 'medium', 'large', 'huge', 'gargantuan'].includes(pluginSize)) {
-          return pluginSize;
-        }
+      // Get token grid size from plugin
+      const tokenGridSize = await pluginTokenService.getTokenGridSize(document);
+      
+      // Helper function to create bounds from center position and grid size
+      const createBoundsFromGridSize = (centerX: number, centerY: number, gridSize: number, elevation: number = 0) => {
+        // Convert grid size multiplier to actual grid cell count
+        const gridCells = Math.max(1, Math.round(gridSize));
         
-        // Default to medium for characters, or use type-based defaults
-        if (doc.documentType === 'character') return 'medium';
-        if (doc.pluginDocumentType === 'npc') return 'medium';
+        // Calculate bounds - for odd sizes, center aligns naturally
+        // For even sizes, we offset slightly to align with grid
+        const halfSize = Math.floor(gridCells / 2);
+        const isEven = gridCells % 2 === 0;
         
-        return 'medium';
+        // Get the actual grid size from current map data
+        const currentMap = gameState.value?.currentEncounter?.currentMap;
+        const pixelsPerGrid = currentMap?.uvtt?.resolution?.pixels_per_grid || 50; // fallback to 50
+        
+        console.log('[GameState] createBoundsFromGridSize:', {
+          worldPosition: { centerX, centerY },
+          pixelsPerGrid,
+          gridSizeMultiplier: gridSize,
+          gridCells
+        });
+        
+        const centerGridX = Math.round(centerX / pixelsPerGrid);
+        const centerGridY = Math.round(centerY / pixelsPerGrid);
+        
+        console.log('[GameState] Grid conversion:', {
+          centerGridX,
+          centerGridY,
+          calculation: `${centerX} / ${pixelsPerGrid} = ${centerX / pixelsPerGrid} -> ${centerGridX}`
+        });
+        
+        // For even-sized tokens, adjust center to align with grid intersection
+        const adjustedCenterX = isEven ? centerGridX - 0.5 : centerGridX;
+        const adjustedCenterY = isEven ? centerGridY - 0.5 : centerGridY;
+        
+        const bounds = {
+          topLeft: {
+            x: Math.floor(adjustedCenterX - halfSize),
+            y: Math.floor(adjustedCenterY - halfSize)
+          },
+          bottomRight: {
+            x: Math.floor(adjustedCenterX - halfSize) + gridCells - 1,
+            y: Math.floor(adjustedCenterY - halfSize) + gridCells - 1
+          },
+          elevation
+        };
+        
+        console.log('[GameState] Final bounds:', bounds);
+        return bounds;
       };
 
       const tokenData = {
         id: tokenId,
         name: options.name || document.name,
         imageUrl: tokenImage,
-        size: getTokenSizeFromDocument(document),
         encounterId: gameState.value.currentEncounter.id,
-        position: {
-          x: position.x,
-          y: position.y,
-          elevation: position.elevation || 0
-        },
+        bounds: createBoundsFromGridSize(
+          position.x,
+          position.y,
+          tokenGridSize,
+          position.elevation || 0
+        ),
         documentId: document.id,
         documentType: document.documentType,
         notes: '',

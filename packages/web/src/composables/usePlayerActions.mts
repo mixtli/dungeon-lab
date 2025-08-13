@@ -41,7 +41,11 @@ export function usePlayerActions() {
       throw new Error('Token not found');
     }
 
-    const distance = calculateDistance(token.position, newPosition);
+    // Calculate center position from bounds for distance calculation
+    const currentCenterX = (token.bounds.topLeft.x + token.bounds.bottomRight.x) / 2 * 50 + 25; // Convert to world coordinates
+    const currentCenterY = (token.bounds.topLeft.y + token.bounds.bottomRight.y) / 2 * 50 + 25;
+    const currentPosition = { x: currentCenterX, y: currentCenterY, elevation: token.bounds.elevation };
+    const distance = calculateDistance(currentPosition, newPosition);
     
     // TODO: Implement proper movement range calculation based on combat state
     const remainingMovement = 30; // Default 30ft movement for now

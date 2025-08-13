@@ -122,7 +122,7 @@ export {
   tokenSchema,
   createTokenSchema,
   tokenConditionSchema,
-  TokenSizeEnum
+  gridBoundsSchema
 } from './tokens.schema.mjs';
 
 // Turn Manager schemas

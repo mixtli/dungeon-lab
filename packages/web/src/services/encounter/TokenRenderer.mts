@@ -1,5 +1,5 @@
 import * as PIXI from 'pixi.js';
-import type { Token, TokenSize } from '@dungeon-lab/shared/types/tokens.mjs';
+import type { Token } from '@dungeon-lab/shared/types/tokens.mjs';
 import type { IMapResponse } from '@dungeon-lab/shared/types/api/maps.mjs';
 import defaultTokenUrl from '@/assets/images/default_token.svg';
 import { isPositionWithinBounds, clampPositionToBounds } from '../../utils/bounds-validation.mjs';
@@ -164,70 +164,129 @@ export class TokenRenderer {
   }
   
   /**
-   * Get grid-based token size - tokens should completely fill the grid square
+   * Calculate center position from grid bounds
    */
-  private getGridBasedTokenSize(tokenSize: TokenSize): number {
-    // Base size is the grid size (tokens fill the entire grid square)
-    let multiplier = 1;
+  private getCenterFromBounds(bounds: { topLeft: { x: number; y: number }; bottomRight: { x: number; y: number } }): { x: number; y: number } {
+    console.log(`[TokenRenderer] 🧮 Calculating center from bounds:`, bounds);
     
-    // Different token sizes occupy different numbers of grid squares
-    switch (tokenSize) {
-      case 'tiny':
-        multiplier = 0.5; // Half a grid square
-        break;
-      case 'small':
-      case 'medium':
-        multiplier = 1; // One grid square
-        break;
-      case 'large':
-        multiplier = 2; // Two grid squares
-        break;
-      case 'huge':
-        multiplier = 3; // Three grid squares
-        break;
-      case 'gargantuan':
-        multiplier = 4; // Four grid squares
-        break;
-    }
+    const centerGridX = (bounds.topLeft.x + bounds.bottomRight.x) / 2;
+    const centerGridY = (bounds.topLeft.y + bounds.bottomRight.y) / 2;
     
-    return this._gridSize * multiplier;
+    console.log(`[TokenRenderer] 📐 Grid center:`, { centerGridX, centerGridY });
+    console.log(`[TokenRenderer] 📏 Grid size:`, this._gridSize);
+    
+    const worldX = centerGridX * this._gridSize + this._gridSize / 2;
+    const worldY = centerGridY * this._gridSize + this._gridSize / 2;
+    
+    console.log(`[TokenRenderer] 🌍 World coordinates:`, { worldX, worldY });
+    
+    // Convert grid coordinates to world coordinates  
+    return {
+      x: worldX,
+      y: worldY
+    };
+  }
+  
+  /**
+   * Calculate pixel size from grid bounds
+   */
+  private getPixelSizeFromBounds(bounds: { topLeft: { x: number; y: number }; bottomRight: { x: number; y: number } }): number {
+    console.log(`[TokenRenderer] 📐 Calculating pixel size from bounds:`, bounds);
+    
+    const gridWidth = bounds.bottomRight.x - bounds.topLeft.x + 1;
+    const gridHeight = bounds.bottomRight.y - bounds.topLeft.y + 1;
+    
+    console.log(`[TokenRenderer] 📊 Grid dimensions:`, { gridWidth, gridHeight });
+    
+    // Use the larger dimension for square tokens
+    const gridSize = Math.max(gridWidth, gridHeight);
+    const pixelSize = gridSize * this._gridSize;
+    
+    console.log(`[TokenRenderer] 🎯 Final pixel size:`, { gridSize, pixelSize });
+    
+    return pixelSize;
+  }
+  
+  /**
+   * Calculate new bounds from center position, preserving size
+   */
+  private updateBoundsFromCenter(currentBounds: { topLeft: { x: number; y: number }; bottomRight: { x: number; y: number }; elevation: number }, centerX: number, centerY: number): { topLeft: { x: number; y: number }; bottomRight: { x: number; y: number }; elevation: number } {
+    // Convert center world coordinates to grid coordinates
+    const centerGridX = Math.round((centerX - this._gridSize / 2) / this._gridSize);
+    const centerGridY = Math.round((centerY - this._gridSize / 2) / this._gridSize);
+    
+    // Calculate current size
+    const width = currentBounds.bottomRight.x - currentBounds.topLeft.x;
+    const height = currentBounds.bottomRight.y - currentBounds.topLeft.y;
+    
+    // Calculate new bounds centered on the new position
+    const halfWidth = Math.floor(width / 2);
+    const halfHeight = Math.floor(height / 2);
+    
+    return {
+      topLeft: {
+        x: centerGridX - halfWidth,
+        y: centerGridY - halfHeight
+      },
+      bottomRight: {
+        x: centerGridX + width - halfWidth,
+        y: centerGridY + height - halfHeight
+      },
+      elevation: currentBounds.elevation
+    };
   }
   
   /**
    * Add or update a token sprite
    */
   async addToken(token: Token): Promise<void> {
+    console.log(`[TokenRenderer] 🟢 Starting addToken for ${token.id}:`, {
+      tokenName: token.name,
+      bounds: token.bounds,
+      imageUrl: token.imageUrl,
+      isVisible: token.isVisible
+    });
+    
     try {
       // Remove existing token if it exists
       if (this.activeTokens.has(token.id)) {
+        console.log(`[TokenRenderer] 🔄 Removing existing token ${token.id}`);
         this.removeToken(token.id);
       }
 
       // Create a container for the token (tokenRoot)
       const tokenRoot = new PIXI.Container() as TokenContainer;
       tokenRoot.tokenId = token.id; // custom property for tracking
+      console.log(`[TokenRenderer] 📦 Created token container for ${token.id}`);
 
       // Get sprite from pool or create new one
+      console.log(`[TokenRenderer] 🎭 Acquiring sprite for ${token.id}`);
       const sprite = this.acquireSprite();
+      
       // Load texture for token
+      console.log(`[TokenRenderer] 🖼️ Loading texture for ${token.id}`);
       const texture = await this.getTokenTexture(token);
       sprite.texture = texture;
+      console.log(`[TokenRenderer] ✅ Texture loaded and assigned to sprite`);
+      
       // Configure sprite
+      console.log(`[TokenRenderer] ⚙️ Configuring sprite for ${token.id}`);
       this.configureTokenSprite(sprite, token);
 
-      // Position the tokenRoot container at world coordinates
-      let position = { x: token.position.x, y: token.position.y };
-      if (this._snapToGrid) {
-        position = this.snapToGrid(position);
-      }
-      tokenRoot.x = position.x;
-      tokenRoot.y = position.y;
+      // Position the tokenRoot container at world coordinates (center of bounds)
+      const centerPosition = this.getCenterFromBounds(token.bounds);
+      tokenRoot.x = centerPosition.x;
+      tokenRoot.y = centerPosition.y;
+      console.log(`[TokenRenderer] 🎯 Positioned token container at:`, { x: tokenRoot.x, y: tokenRoot.y });
 
       // Add the sprite to the container
       tokenRoot.addChild(sprite);
+      console.log(`[TokenRenderer] 🏗️ Added sprite to token container`);
 
       // Add the container to the main tokenContainer
       this.tokenContainer.addChild(tokenRoot);
+      console.log(`[TokenRenderer] 🏗️ Added token container to main container`);
+      
       // Track both root and sprite for this token
       this.activeTokens.set(token.id, {
         id: token.id,
@@ -235,8 +294,27 @@ export class TokenRenderer {
         sprite,
         token
       });
+      
+      console.log(`[TokenRenderer] 📊 Added to activeTokens map, total tokens:`, this.activeTokens.size);
+      
+      // Verify sprite is in container hierarchy
+      const childIndex = this.tokenContainer.children.indexOf(tokenRoot);
+      const spriteInRoot = tokenRoot.children.indexOf(sprite);
+      console.log(`[TokenRenderer] 🔍 Verification:`, {
+        tokenRootChildIndex: childIndex,
+        spriteInRootIndex: spriteInRoot,
+        mainContainerChildren: this.tokenContainer.children.length,
+        tokenRootChildren: tokenRoot.children.length,
+        spriteVisible: sprite.visible,
+        spriteAlpha: sprite.alpha,
+        spriteWidth: sprite.width,
+        spriteHeight: sprite.height
+      });
+      
+      console.log(`[TokenRenderer] ✅ Successfully added token ${token.id}`);
     } catch (error) {
-      console.error(`Failed to add token ${token.id}:`, error);
+      console.error(`[TokenRenderer] ❌ Failed to add token ${token.id}:`, error);
+      throw error;
     }
   }
   
@@ -260,14 +338,11 @@ export class TokenRenderer {
     // Update sprite configuration
     this.configureTokenSprite(tokenData.sprite, token);
     
-    // Position the tokenRoot container at world coordinates
-    let position = { x: token.position.x, y: token.position.y };
-    if (this._snapToGrid) {
-      position = this.snapToGrid(position);
-    }
+    // Position the tokenRoot container at world coordinates (center of bounds)
+    const centerPosition = this.getCenterFromBounds(token.bounds);
     const tokenRoot = tokenData.root as TokenContainer;
-    tokenRoot.x = position.x;
-    tokenRoot.y = position.y;
+    tokenRoot.x = centerPosition.x;
+    tokenRoot.y = centerPosition.y;
     
     // Update stored token data
     tokenData.token = token;
@@ -302,8 +377,10 @@ export class TokenRenderer {
     const tokenData = this.activeTokens.get(tokenId);
     if (!tokenData) return;
     const tokenRoot = tokenData.root as TokenContainer;
+    
     // Snap position to grid if enabled
     const finalPosition = this.snapToGrid(newPosition);
+    
     if (animate) {
       // Smooth animation to new position
       this.animateTokenMovement(tokenRoot, finalPosition);
@@ -312,12 +389,9 @@ export class TokenRenderer {
       tokenRoot.x = finalPosition.x;
       tokenRoot.y = finalPosition.y;
     }
-    // Update token data (convert to grid position with elevation)
-    tokenData.token.position = {
-      x: Math.round(finalPosition.x),
-      y: Math.round(finalPosition.y),
-      elevation: tokenData.token.position.elevation // Preserve elevation
-    };
+    
+    // Update token bounds based on new center position
+    tokenData.token.bounds = this.updateBoundsFromCenter(tokenData.token.bounds, finalPosition.x, finalPosition.y);
   }
   
   /**
@@ -470,8 +544,11 @@ export class TokenRenderer {
    * Configure sprite properties based on token data
    */
   private configureTokenSprite(sprite: TokenSprite, token: Token): void {
+    console.log(`[TokenRenderer] ⚙️ Configuring sprite for token ${token.id}`);
+    
     // Set token ID for reference
     sprite.tokenId = token.id;
+    console.log(`[TokenRenderer] 🏷️ Set token ID on sprite:`, token.id);
     
     // Note: Position snapping is handled by the parent tokenRoot container
     
@@ -479,31 +556,48 @@ export class TokenRenderer {
     // The tokenRoot will be positioned at world coordinates, so sprite should be at (0, 0)
     sprite.x = 0;
     sprite.y = 0;
+    console.log(`[TokenRenderer] 📍 Set sprite position relative to container:`, { x: sprite.x, y: sprite.y });
     
-    // Calculate size based on grid size and token size
-    const size = this.getGridBasedTokenSize(token.size || 'medium');
+    // Calculate size based on grid bounds
+    const size = this.getPixelSizeFromBounds(token.bounds);
+    console.log(`[TokenRenderer] 📏 Target size for sprite:`, size);
     
     // Set anchor to center
     sprite.anchor.set(0.5);
+    console.log(`[TokenRenderer] ⚓ Set anchor to center:`, { x: sprite.anchor.x, y: sprite.anchor.y });
     
     // Scale sprite to match desired size
+    const originalWidth = sprite.width;
+    const originalHeight = sprite.height;
     const scale = size / Math.max(sprite.width, sprite.height);
     sprite.scale.set(scale);
+    
+    console.log(`[TokenRenderer] 🔍 Sprite scaling:`, {
+      originalSize: { width: originalWidth, height: originalHeight },
+      targetSize: size,
+      scale: scale,
+      finalSize: { width: sprite.width, height: sprite.height }
+    });
     
     // Enable interactivity
     sprite.eventMode = 'static';
     sprite.cursor = 'pointer';
+    console.log(`[TokenRenderer] 🖱️ Enabled sprite interactivity`);
     
     // Setup interactive events
     this.setupSpriteEvents(sprite);
+    console.log(`[TokenRenderer] 🎯 Set up sprite events`);
     
     // Apply visual state
     if (token.id && this.selectedTokenId === token.id) {
       const tokenData = this.activeTokens.get(token.id);
       if (tokenData) {
+        console.log(`[TokenRenderer] 🎨 Applying selection visual for already selected token`);
         this.updateSelectionVisual(tokenData.root as TokenContainer, sprite, true);
       }
     }
+    
+    console.log(`[TokenRenderer] ✅ Sprite configuration complete for ${token.id}`);
   }
   
 
