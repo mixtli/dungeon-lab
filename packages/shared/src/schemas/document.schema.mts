@@ -92,7 +92,11 @@ export const actorDocumentSchema = baseSchema.extend({
  */
 export const itemDocumentSchema = baseSchema.extend({
   ...baseDocumentFields,
-  documentType: z.string().default('item')
+  documentType: z.string().default('item'),
+  
+  // Character/Actor that carries this item (for inventory management)
+  // Note: ownerId represents User ownership, carrierId represents Character/Actor ownership
+  carrierId: z.string().optional()
 });
 
 /**
@@ -159,6 +163,8 @@ const createActorDocumentSchema = baseSchema.extend({
 const createItemDocumentSchema = baseSchema.extend({
   ...baseDocumentFields,
   documentType: z.literal('item'),
+  // Character/Actor that carries this item (for inventory management)
+  carrierId: z.string().optional(),
   // Make slug optional for creation
   slug: z
     .string()

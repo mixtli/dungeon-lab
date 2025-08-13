@@ -47,6 +47,7 @@ import { ref, onMounted, onUnmounted, watch, computed, nextTick } from 'vue';
 import { usePixiMap, type UsePixiMapOptions } from '@/composables/usePixiMap.mjs';
 import type { IMapResponse } from '@dungeon-lab/shared/types/api/maps.mjs';
 import type { Token } from '@dungeon-lab/shared/types/tokens.mjs';
+import type { IUVTT } from '@dungeon-lab/shared/types/index.mjs';
 import type { Platform } from '@/services/encounter/PixiMapRenderer.mjs';
 import { MapsClient } from '@dungeon-lab/client/index.mjs';
 import { transformAssetUrl } from '@/utils/asset-utils.mjs';
@@ -59,7 +60,7 @@ const previousMapData = ref<{
   id?: string;
   name?: string;
   imageUrl?: string;
-  uvttData?: any;
+  uvttData?: IUVTT;
 } | null>(null);
 
 // Props

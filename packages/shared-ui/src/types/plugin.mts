@@ -168,6 +168,7 @@ export interface GameSystemPlugin {
 export const STANDARD_COMPONENT_TYPES = {
   CHARACTER_SHEET: 'character-sheet',
   CHARACTER_CREATOR: 'character-creator',
+  CHARACTER_CARD_INFO: 'character-card-info',
 } as const;
 
 /**

@@ -60,11 +60,17 @@ export class PluginGameStateService implements GameStateContext {
     return this.items.value.find(item => item.id === id) || null;
   }
 
-  getItemsByOwner(ownerId: string): IItem[] {
+  getItemsByCarrier(carrierId: string): IItem[] {
     return this.items.value.filter(item => {
-      // IItem has ownerId property from itemDocumentSchema for ownership relationships
-      return item.ownerId === ownerId;
+      // IItem has carrierId property from itemDocumentSchema for character/actor inventory relationships
+      return item.carrierId === carrierId;
     });
+  }
+
+  // Backward compatibility wrapper for old interface
+  getItemsByOwner(ownerId: string): IItem[] {
+    console.warn('getItemsByOwner is deprecated. Use getItemsByCarrier for character/actor inventory relationships.');
+    return this.getItemsByCarrier(ownerId);
   }
 
   getTokensByDocument(documentId: string, documentType?: string): IToken[] {

@@ -61,7 +61,7 @@ export interface GameStateContext {
   getActorById(id: string): IActor | null;
   getCharacterById(id: string): ICharacter | null;
   getItemById(id: string): IItem | null;
-  getItemsByOwner(ownerId: string): IItem[];
+  getItemsByCarrier(carrierId: string): IItem[];
   getTokensByDocument(documentId: string, documentType?: string): IToken[];
   
   // Subscribe to state changes for side effects

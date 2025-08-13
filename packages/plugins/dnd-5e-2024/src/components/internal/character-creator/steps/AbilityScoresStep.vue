@@ -580,9 +580,9 @@
 
 <script setup lang="ts">
 import { ref, watch, computed, onMounted } from 'vue';
-import type { AbilityScores, OriginSelection, BackgroundAbilityChoice } from '../../../types/character-creation.mjs';
-import type { DndBackgroundDocument } from '../../../types/dnd/background.mjs';
-import { useCharacterCreation } from '../../../composables/useCharacterCreation.mjs';
+import type { AbilityScores, OriginSelection, BackgroundAbilityChoice } from '../../../../types/character-creation.mjs';
+import type { DndBackgroundDocument } from '../../../../types/dnd/background.mjs';
+import { useCharacterCreation } from '../../../../composables/useCharacterCreation.mjs';
 import Icon from '../../common/Icon.vue';
 import MobileSelect from '../../common/MobileSelect.vue';
 

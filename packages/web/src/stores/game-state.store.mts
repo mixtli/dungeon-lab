@@ -87,22 +87,22 @@ export const useGameStateStore = defineStore(
     // ============================================================================
 
     /**
-     * Get all items owned by a specific character/actor
-     * @param ownerId - Character or Actor ID
-     * @returns Array of items where item.ownerId matches the provided ID
+     * Get all items carried by a specific character/actor
+     * @param carrierId - Character or Actor ID
+     * @returns Array of items where item.carrierId matches the provided ID
      */
-    const getCharacterItems = computed(() => (ownerId: string): IItem[] => {
+    const getCharacterItems = computed(() => (carrierId: string): IItem[] => {
       if (!gameState.value) return [];
-      return gameState.value.items.filter(item => item.ownerId === ownerId);
+      return gameState.value.items.filter(item => item.carrierId === carrierId);
     });
 
     /**
-     * Get count of items owned by a character/actor
-     * @param ownerId - Character or Actor ID  
-     * @returns Number of items owned
+     * Get count of items carried by a character/actor
+     * @param carrierId - Character or Actor ID  
+     * @returns Number of items carried
      */
-    const getCharacterItemCount = computed(() => (ownerId: string): number => {
-      return getCharacterItems.value(ownerId).length;
+    const getCharacterItemCount = computed(() => (carrierId: string): number => {
+      return getCharacterItems.value(carrierId).length;
     });
 
     // Plugin data access

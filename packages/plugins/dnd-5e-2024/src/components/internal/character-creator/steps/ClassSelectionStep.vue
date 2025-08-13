@@ -206,9 +206,9 @@
 
 <script setup lang="ts">
 import { ref, watch, computed, onMounted } from 'vue';
-import type { ClassSelection } from '../../../types/character-creation.mjs';
-import type { DndCharacterClassDocument } from '../../../types/dnd/character-class.mjs';
-import { useCharacterCreation } from '../../../composables/useCharacterCreation.mjs';
+import type { ClassSelection } from '../../../../types/character-creation.mjs';
+import type { DndCharacterClassDocument } from '../../../../types/dnd/character-class.mjs';
+import { useCharacterCreation } from '../../../../composables/useCharacterCreation.mjs';
 import { CompendiumsClient } from '@dungeon-lab/client/index.mjs';
 import Icon from '../../common/Icon.vue';
 import MobileSelect from '../../common/MobileSelect.vue';

@@ -45,7 +45,7 @@
         :key="item.id"
         class="item-card"
         :class="[
-          `item-${item.pluginData?.rarity || 'common'}`,
+          'item-common',
           { 'is-dragging': isDragging && draggedItem?.id === item.id }
         ]"
         draggable="true"
@@ -62,18 +62,8 @@
           <div class="item-name">{{ item.name }}</div>
           <div class="item-details">
             <span class="item-type">{{ item.pluginDocumentType }}</span>
-            <span v-if="item.pluginData?.rarity" class="item-rarity" :class="`rarity-${item.pluginData.rarity}`">{{ item.pluginData.rarity }}</span>
           </div>
           <div v-if="item.description" class="item-description">{{ item.description }}</div>
-          <div class="item-properties" v-if="(item.pluginData?.properties as any)?.length">
-            <span
-              v-for="property in item.pluginData.properties"
-              :key="property"
-              class="property-tag"
-            >
-              {{ property }}
-            </span>
-          </div>
         </div>
 
         <div class="item-actions">

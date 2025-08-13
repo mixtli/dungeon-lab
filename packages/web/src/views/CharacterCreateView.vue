@@ -210,7 +210,7 @@ async function handleCharacterReady(preparedData: any) {
         try {
           const itemDocumentData = {
             ...itemData,
-            ownerId: response.id // Set the character as owner of the item
+            carrierId: response.id // Set the character as carrier of the item
           };
           
           await documentsClient.createDocument(itemDocumentData);

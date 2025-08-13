@@ -246,9 +246,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, markRaw, type Ref } from 'vue';
 import type { IActor, IItem } from '@dungeon-lab/shared/types/index.mjs';
-import type { DndCharacterClassDocument } from '../types/dnd/character-class.mjs';
-import type { DndSpeciesDocument } from '../types/dnd/species.mjs';
-import type { DndBackgroundDocument } from '../types/dnd/background.mjs';
+import type { DndCharacterClassDocument } from '../../types/dnd/character-class.mjs';
+import type { DndSpeciesDocument } from '../../types/dnd/species.mjs';
+import type { DndBackgroundDocument } from '../../types/dnd/background.mjs';
 import { getPluginContext } from '@dungeon-lab/shared-ui/utils/plugin-context.mjs';
 
 // Props

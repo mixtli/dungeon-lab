@@ -114,7 +114,7 @@ export function useCharacterState(
     try {
       const characterItems = await documentsClient.searchDocuments({
         documentType: 'item',
-        'pluginData.characterId': character.value.id
+        carrierId: character.value.id
       }) as IItem[];
       
       items.value = characterItems;

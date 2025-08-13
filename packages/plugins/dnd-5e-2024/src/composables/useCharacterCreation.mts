@@ -777,7 +777,7 @@ export function useCharacterCreation() {
         
         // Mark background skills as proficient (backgrounds grant 2 fixed skills)
         if (backgroundData.pluginData.skillProficiencies) {
-          backgroundData.pluginData.skillProficiencies.forEach(skill => {
+          backgroundData.pluginData.skillProficiencies.forEach((skill: string) => {
             if (skillsObj[skill]) {
               skillsObj[skill].proficient = true;
             }
@@ -847,7 +847,7 @@ export function useCharacterCreation() {
           }> = [];
           
           // Add level 1 class features
-          const level1Features = classData.pluginData.features.filter(feature => feature.level === 1);
+          const level1Features = classData.pluginData.features.filter((feature: unknown) => (feature as { level: number }).level === 1);
           
           for (const feature of level1Features) {
             const characterFeature: {

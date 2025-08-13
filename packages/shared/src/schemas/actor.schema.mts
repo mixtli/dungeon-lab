@@ -5,8 +5,8 @@ import { assetSchema } from './asset.schema.mjs';
 
 // Actor schema - extends actor document schema 
 export const actorSchema = actorDocumentSchema.extend({
-  // Note: Inventory is handled via item.ownerId relationships, not embedded arrays
-  // Items owned by this actor can be found by filtering items where item.ownerId === actor.id
+  // Note: Inventory is handled via item.carrierId relationships, not embedded arrays
+  // Items carried by this actor can be found by filtering items where item.carrierId === actor.id
   
   // Note: Other fields come from actorDocumentSchema:
   // - name, description, pluginId, campaignId, compendiumId, imageId

@@ -3,8 +3,8 @@ import { assetSchema } from './asset.schema.mjs';
 
 // Character schema - extends character document schema
 export const characterSchema = characterDocumentSchema.extend({
-  // Note: Inventory is handled via item.ownerId relationships, not embedded arrays
-  // Items owned by this character can be found by filtering items where item.ownerId === character.id
+  // Note: Inventory is handled via item.carrierId relationships, not embedded arrays
+  // Items carried by this character can be found by filtering items where item.carrierId === character.id
   
   // Note: All game-specific fields (level, experience, classes, etc.) 
   // are handled in pluginData to maintain plugin agnostic design

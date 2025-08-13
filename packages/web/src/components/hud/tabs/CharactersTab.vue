@@ -68,7 +68,6 @@
           <div class="character-name">{{ character.name }}</div>
           <div class="character-details">
             <span class="character-type">{{ character.pluginDocumentType || 'PC' }}</span>
-            <span v-if="character.pluginData?.level" class="character-level">Level {{ character.pluginData.level }}</span>
           </div>
         </div>
 

@@ -6,6 +6,9 @@ import { DocumentsClient, AssetsClient } from '@dungeon-lab/client/index.mjs';
 import { PlusIcon, EyeIcon, TrashIcon } from '@heroicons/vue/24/outline';
 import { useDeviceAdaptation } from '@/composables/useDeviceAdaptation.mts';
 import { transformAssetUrl } from '@/utils/asset-utils.mjs';
+import { pluginRegistry } from '@/services/plugin-registry.mts';
+import { STANDARD_COMPONENT_TYPES } from '@dungeon-lab/shared-ui/types/plugin.mjs';
+import CharacterCardInfo from '@/components/CharacterCardInfo.vue';
 
 const router = useRouter();
 const documentsClient = new DocumentsClient();
@@ -71,6 +74,24 @@ const loadCharacterAvatars = async () => {
 // Get cached avatar URL for a character
 const getCachedAvatarUrl = (character: ICharacter): string | undefined => {
   return character.id ? characterAvatars.value.get(character.id) : undefined;
+};
+
+// Get character card info component for a character
+const getCharacterCardInfoComponent = async (character: ICharacter) => {
+  if (!character.pluginId) {
+    console.warn('Character has no pluginId:', character.name, character);
+    return null;
+  }
+  
+  try {
+    console.log('Getting component for character:', character.name, 'pluginId:', character.pluginId);
+    const component = await pluginRegistry.getComponent(character.pluginId, STANDARD_COMPONENT_TYPES.CHARACTER_CARD_INFO);
+    console.log('Component result:', component ? 'found' : 'not found');
+    return component;
+  } catch (error) {
+    console.warn('Failed to load character card info component:', error);
+    return null;
+  }
 };
 
 
@@ -181,14 +202,11 @@ function handleCreate() {
           </div>
 
           <div class="p-4">
-            <div class="flex justify-between items-start">
-              <div>
+            <div class="flex justify-between items-start mb-2">
+              <div class="flex-1">
                 <h3 class="text-xl font-bold text-gray-900">{{ character.name }}</h3>
-                <p v-if="character.pluginData" class="text-gray-600">
-                  Level {{ character.pluginData.level }} {{ character.pluginData.race }}
-                  {{ character.pluginData.class }}
-                </p>
               </div>
+              
               <div class="flex space-x-2">
                 <button
                   v-if="character.id"
@@ -208,13 +226,23 @@ function handleCreate() {
                 </button>
               </div>
             </div>
-
-            <div v-if="character.pluginData && (character.pluginData as any).hitPoints" class="mt-4 flex items-center justify-between">
-              <div class="text-sm font-medium text-gray-500">HP</div>
-              <div class="text-sm font-semibold text-gray-900">
-                {{ (character.pluginData as any).hitPoints.current }}/{{ (character.pluginData as any).hitPoints.maximum }}
-              </div>
-            </div>
+            
+            <!-- Dynamic plugin component for character details (full width) -->
+            <Suspense>
+              <template #default>
+                <CharacterCardInfo 
+                  v-if="character.pluginId"
+                  :character="character"
+                  :get-component="getCharacterCardInfoComponent"
+                />
+              </template>
+              <template #fallback>
+                <!-- Fallback while loading component -->
+                <p v-if="character.pluginData" class="text-gray-600">
+                  Loading character details...
+                </p>
+              </template>
+            </Suspense>
           </div>
         </div>
       </div>

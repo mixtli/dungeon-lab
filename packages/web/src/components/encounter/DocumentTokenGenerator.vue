@@ -49,11 +49,6 @@
       <div v-if="selectedDocument" class="document-preview">
         <h4>{{ selectedDocument.name }}</h4>
         <p class="document-type">{{ selectedDocument.documentType?.toUpperCase() }} - {{ selectedDocument.pluginDocumentType }}</p>
-        <div class="document-stats" v-if="selectedDocument.pluginData?.stats">
-          <span>HP: {{ (selectedDocument.pluginData.stats as any).hitPoints || 'N/A' }}</span>
-          <span>AC: {{ (selectedDocument.pluginData.stats as any).armorClass || 'N/A' }}</span>
-          <span>Speed: {{ (selectedDocument.pluginData.stats as any).speed || 'N/A' }}</span>
-        </div>
       </div>
       
       <div class="form-group">

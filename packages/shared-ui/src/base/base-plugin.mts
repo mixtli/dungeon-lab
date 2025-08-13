@@ -37,8 +37,8 @@ export abstract class BaseGameSystemPlugin implements GameSystemPlugin {
   /**
    * Get a Vue component by type using dynamic imports
    * 
-   * This method automatically loads components from the plugin's components directory:
-   * Pattern: ./components/{componentType}.vue (relative to plugin index)
+   * This method automatically loads components from the plugin's exports directory:
+   * Pattern: ./components/exports/{componentType}.vue (relative to plugin index)
    * 
    * @param type Component type identifier (e.g., 'character-sheet', 'character-creator')
    * @returns Promise resolving to Vue component or null if not found
@@ -67,8 +67,8 @@ export abstract class BaseGameSystemPlugin implements GameSystemPlugin {
     try {
       // Dynamic import with relative path from base class to plugin component
       // From: packages/shared-ui/src/base/base-plugin.mts
-      // To:   packages/plugins/{pluginId}/src/components/{type}.vue
-      const componentPath = `../../../plugins/${this.manifest.id}/src/components/${type}.vue`;
+      // To:   packages/plugins/{pluginId}/src/components/exports/{type}.vue
+      const componentPath = `../../../plugins/${this.manifest.id}/src/components/exports/${type}.vue`;
       console.log(`[${this.manifest.id}] Loading component from: ${componentPath}`);
       
       const module = await import(/* @vite-ignore */ componentPath);
@@ -97,7 +97,7 @@ export abstract class BaseGameSystemPlugin implements GameSystemPlugin {
    * @param document Document to get token size for
    * @returns Grid size multiplier (default: 1 for medium size)
    */
-  getTokenGridSize(document: unknown): number {
+  getTokenGridSize(_document: unknown): number {
     // Default to medium size (1x1 grid cells) for unknown documents
     return 1;
   }

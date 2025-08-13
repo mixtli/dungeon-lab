@@ -100,14 +100,14 @@ export class EquipmentProcessor {
    * @param selections Equipment selections from character creation
    * @param classDocument Class document with equipment packages
    * @param backgroundDocument Background document with equipment packages
-   * @param ownerId Character ObjectId who will own the items
+   * @param carrierId Character ObjectId who will carry the items
    * @returns Organized equipment with Item ObjectIds
    */
   async processCharacterEquipment(
     selections: EquipmentSelections,
     classDocument: DndCharacterClassDocument,
     backgroundDocument: DndBackgroundDocument,
-    ownerId: string
+    carrierId: string
   ): Promise<CreatedEquipment> {
     const createdEquipment: CreatedEquipment = {
       weapons: [],
@@ -144,7 +144,7 @@ export class EquipmentProcessor {
     // Create all Item documents from compendium entries
     const createdItemIds = await this.createItemsFromCompendiumEntries(
       itemsToCreate,
-      ownerId
+      carrierId
     );
 
     // Organize created items by type for character inventory
@@ -266,7 +266,7 @@ export class EquipmentProcessor {
    */
   private async createItemsFromCompendiumEntries(
     itemsToCreate: { entryId: string; quantity: number }[],
-    ownerId: string
+    carrierId: string
   ): Promise<string[]> {
     const createdItemIds: string[] = [];
 
@@ -290,7 +290,7 @@ export class EquipmentProcessor {
         const itemDocument = await this.documentsClient.createDocument({
           ...contentData,
           // Override/add runtime properties
-          ownerId, // Custom field for item ownership
+          carrierId, // Custom field for item ownership
           // Set initial item state
           itemState: {
             equipped: false, // Default to not equipped
@@ -379,13 +379,13 @@ export async function processCharacterEquipment(
   selections: EquipmentSelections,
   classDocument: DndCharacterClassDocument,
   backgroundDocument: DndBackgroundDocument,
-  ownerId: string
+  carrierId: string
 ): Promise<CreatedEquipment> {
   const processor = new EquipmentProcessor();
   return processor.processCharacterEquipment(
     selections,
     classDocument,
     backgroundDocument,
-    ownerId
+    carrierId
   );
 }

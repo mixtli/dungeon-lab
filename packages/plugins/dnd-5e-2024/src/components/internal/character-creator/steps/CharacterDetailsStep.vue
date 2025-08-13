@@ -299,7 +299,7 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
-import type { CharacterDetails } from '../../../types/character-creation.mjs';
+import type { CharacterDetails } from '../../../../types/character-creation.mjs';
 
 // Props
 interface Props {
