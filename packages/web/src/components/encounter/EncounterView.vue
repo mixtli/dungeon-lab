@@ -625,6 +625,13 @@ const handleMapContextMenuAction = (action: string) => {
 
 const handleDragEnter = (event: DragEvent) => {
   event.preventDefault();
+  
+  // Ignore turn order participant drags
+  if (event.dataTransfer?.types.includes('application/turnorder-participant')) {
+    console.log('Ignoring turn order drag in encounter area');
+    return;
+  }
+  
   dragEnterCount.value++;
   
   if (dragEnterCount.value === 1) {
@@ -633,7 +640,12 @@ const handleDragEnter = (event: DragEvent) => {
   }
 };
 
-const handleDragLeave = () => {
+const handleDragLeave = (event: DragEvent) => {
+  // Ignore turn order participant drags
+  if (event.dataTransfer?.types.includes('application/turnorder-participant')) {
+    return;
+  }
+  
   dragEnterCount.value--;
   
   if (dragEnterCount.value === 0) {
@@ -643,6 +655,11 @@ const handleDragLeave = () => {
 };
 
 const handleDragOver = (event: DragEvent) => {
+  // Ignore turn order participant drags
+  if (event.dataTransfer?.types.includes('application/turnorder-participant')) {
+    return;
+  }
+  
   event.preventDefault();
   
   if (event.dataTransfer) {
@@ -652,6 +669,12 @@ const handleDragOver = (event: DragEvent) => {
 
 const handleDrop = async (event: DragEvent) => {
   event.preventDefault();
+  
+  // Ignore turn order participant drags
+  if (event.dataTransfer?.types.includes('application/turnorder-participant')) {
+    console.log('Ignoring turn order drop in encounter area');
+    return;
+  }
   
   // Reset drag state
   isDragOver.value = false;

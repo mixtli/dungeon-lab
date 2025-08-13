@@ -138,10 +138,16 @@ export class TurnManagerService {
   }
   
   async updateParticipantOrder(participants: ITurnParticipant[]): Promise<void> {
-    if (!this.plugin) return;
+    console.log('[TurnManagerService] updateParticipantOrder called with:', participants.map(p => ({ name: p.name, turnOrder: p.turnOrder })));
+    
+    if (!this.plugin) {
+      console.error('[TurnManagerService] No plugin available for updateParticipantOrder');
+      return;
+    }
     
     // Let plugin handle the reordering logic
     const reorderedParticipants = await this.plugin.updateParticipantOrder(participants);
+    console.log('[TurnManagerService] Plugin returned reordered participants:', reorderedParticipants.map(p => ({ name: p.name, turnOrder: p.turnOrder })));
     
     const operations: StateOperation[] = [{
       path: 'turnManager.participants',
@@ -149,7 +155,9 @@ export class TurnManagerService {
       value: reorderedParticipants  
     }];
     
-    await this.gameStateStore.updateGameState(operations);
+    console.log('[TurnManagerService] Updating game state with operations:', operations);
+    const result = await this.gameStateStore.updateGameState(operations);
+    console.log('[TurnManagerService] Game state update result:', result);
   }
   
   getPlugin(): BaseTurnManagerPlugin | null {

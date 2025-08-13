@@ -35,8 +35,10 @@
             :key="participant.id"
             :draggable="allowsManualReordering && gameStateStore.canUpdate"
             @dragstart="onDragStart($event, index)"
-            @dragover="onDragOver"
-            @drop="onDrop($event, index)"
+            @dragover.stop="onDragOver"
+            @dragenter.stop
+            @dragleave.stop
+            @drop.stop="onDrop($event, index)"
             :class="{
               'participant-item': true,
               'current-turn': index === (turnManager?.currentTurn ?? -1),
@@ -106,7 +108,11 @@ const isInTurnOrder = computed(() => turnManager.value?.isActive ?? false);
 
 // Get plugin capabilities for UI behavior
 const plugin = computed(() => turnManagerService.getPlugin());
-const allowsManualReordering = computed(() => plugin.value?.allowsManualReordering() ?? true);
+const allowsManualReordering = computed(() => {
+  const result = plugin.value?.allowsManualReordering() ?? true;
+  console.log('[TurnOrder] allowsManualReordering:', result, 'plugin:', !!plugin.value, 'canUpdate:', gameStateStore.canUpdate);
+  return result;
+});
 const calculateButtonLabel = computed(() => plugin.value?.getInitiativeButtonLabel() ?? 'Start Turn Order');
 const showCalculateButton = computed(() => plugin.value?.showCalculateButton() ?? false);
 
@@ -162,10 +168,21 @@ async function calculateInitiative() {
 
 // Drag-and-drop handlers for manual reordering
 function onDragStart(event: DragEvent, index: number) {
+  console.log('[TurnOrder] Drag start:', index, turnManager.value?.participants[index]?.name);
   draggedIndex.value = index;
   if (event.dataTransfer) {
     event.dataTransfer.effectAllowed = 'move';
+    // Set specific drag data type to distinguish from token drags
+    event.dataTransfer.setData('application/turnorder-participant', JSON.stringify({
+      type: 'turnorder-participant',
+      index,
+      participantId: turnManager.value?.participants[index]?.id
+    }));
+    // Fallback for compatibility
+    event.dataTransfer.setData('text/plain', index.toString());
   }
+  // Stop event propagation to prevent EncounterView from handling this drag
+  event.stopPropagation();
 }
 
 function onDragOver(event: DragEvent) {
@@ -177,13 +194,32 @@ function onDragOver(event: DragEvent) {
 
 async function onDrop(event: DragEvent, dropIndex: number) {
   event.preventDefault();
-  if (draggedIndex.value === null || !turnManager.value) return;
+  console.log('[TurnOrder] Drop at index:', dropIndex, 'dragged from:', draggedIndex.value);
+  
+  if (draggedIndex.value === null || !turnManager.value) {
+    console.log('[TurnOrder] Drop aborted: no dragged index or turn manager');
+    return;
+  }
+  
+  if (draggedIndex.value === dropIndex) {
+    console.log('[TurnOrder] Drop aborted: same position');
+    draggedIndex.value = null;
+    return;
+  }
   
   const participants = [...turnManager.value.participants];
   const draggedItem = participants.splice(draggedIndex.value, 1)[0];
   participants.splice(dropIndex, 0, draggedItem);
   
-  await turnManagerService.updateParticipantOrder(participants);
+  console.log('[TurnOrder] Reordered participants:', participants.map(p => p.name));
+  
+  try {
+    await turnManagerService.updateParticipantOrder(participants);
+    console.log('[TurnOrder] Successfully updated participant order');
+  } catch (error) {
+    console.error('[TurnOrder] Failed to update participant order:', error);
+  }
+  
   draggedIndex.value = null;
 }
 
