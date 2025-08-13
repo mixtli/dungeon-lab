@@ -52,6 +52,105 @@ import type { Platform } from '@/services/encounter/PixiMapRenderer.mjs';
 import { MapsClient } from '@dungeon-lab/client/index.mjs';
 import { transformAssetUrl } from '@/utils/asset-utils.mjs';
 
+// Token change operations for efficient updates
+interface TokenChangeOperation {
+  type: 'add' | 'remove' | 'move' | 'update';
+  tokenId: string;
+  token?: Token;
+  oldPosition?: { x: number; y: number; elevation: number };
+  newPosition?: { x: number; y: number; elevation: number };
+}
+
+/**
+ * Compare two token arrays and return the specific changes needed
+ */
+function diffTokens(oldTokens: Token[] | undefined, newTokens: Token[] | undefined): TokenChangeOperation[] {
+  const operations: TokenChangeOperation[] = [];
+  
+  // Handle empty arrays
+  if (!oldTokens && !newTokens) return operations;
+  if (!oldTokens) {
+    // All tokens are new
+    newTokens?.forEach(token => {
+      operations.push({ type: 'add', tokenId: token.id, token });
+    });
+    return operations;
+  }
+  if (!newTokens) {
+    // All tokens removed
+    oldTokens.forEach(token => {
+      operations.push({ type: 'remove', tokenId: token.id });
+    });
+    return operations;
+  }
+  
+  // Create maps for efficient lookup
+  const oldTokenMap = new Map(oldTokens.map(t => [t.id, t]));
+  const newTokenMap = new Map(newTokens.map(t => [t.id, t]));
+  
+  // Find removed tokens
+  for (const oldToken of oldTokens) {
+    if (!newTokenMap.has(oldToken.id)) {
+      operations.push({ type: 'remove', tokenId: oldToken.id });
+    }
+  }
+  
+  // Find new and changed tokens
+  for (const newToken of newTokens) {
+    const oldToken = oldTokenMap.get(newToken.id);
+    
+    if (!oldToken) {
+      // New token
+      operations.push({ type: 'add', tokenId: newToken.id, token: newToken });
+    } else {
+      // Check for position changes
+      const oldPos = getCenterFromBounds(oldToken.bounds);
+      const newPos = getCenterFromBounds(newToken.bounds);
+      
+      const positionChanged = (
+        oldPos.x !== newPos.x || 
+        oldPos.y !== newPos.y || 
+        oldToken.bounds.elevation !== newToken.bounds.elevation
+      );
+      
+      // Check for other data changes (excluding position)
+      const dataChanged = (
+        oldToken.name !== newToken.name ||
+        oldToken.imageUrl !== newToken.imageUrl ||
+        oldToken.isVisible !== newToken.isVisible ||
+        oldToken.isPlayerControlled !== newToken.isPlayerControlled ||
+        JSON.stringify(oldToken.conditions) !== JSON.stringify(newToken.conditions) ||
+        JSON.stringify(oldToken.data) !== JSON.stringify(newToken.data)
+      );
+      
+      if (positionChanged && !dataChanged) {
+        // Pure movement - most efficient update
+        operations.push({
+          type: 'move',
+          tokenId: newToken.id,
+          oldPosition: { ...oldPos, elevation: oldToken.bounds.elevation },
+          newPosition: { ...newPos, elevation: newToken.bounds.elevation }
+        });
+      } else if (dataChanged) {
+        // Data changed - need full update (might also include position change)
+        operations.push({ type: 'update', tokenId: newToken.id, token: newToken });
+      }
+      // If neither position nor data changed, no operation needed
+    }
+  }
+  
+  return operations;
+}
+
+/**
+ * Helper function to get center coordinates from token bounds
+ */
+function getCenterFromBounds(bounds: Token['bounds']) {
+  const centerX = (bounds.topLeft.x + bounds.bottomRight.x) / 2;
+  const centerY = (bounds.topLeft.y + bounds.bottomRight.y) / 2;
+  return { x: centerX, y: centerY };
+}
+
 // Initialize maps client
 const mapsClient = new MapsClient();
 
@@ -68,6 +167,8 @@ interface Props {
   mapId?: string;
   mapData?: IMapResponse;
   tokens?: Token[];
+  selectedTokenId?: string;
+  targetTokenIds?: Set<string>;
   platform?: Platform;
   width?: number;
   height?: number;
@@ -91,7 +192,7 @@ const props = withDefaults(defineProps<Props>(), {
 interface Emits {
   (e: 'map-loaded', mapData: IMapResponse): void;
   (e: 'map-error', error: string): void;
-  (e: 'token-selected', tokenId: string): void;
+  (e: 'token-selected', tokenId: string, modifiers?: { shift?: boolean; ctrl?: boolean; alt?: boolean }): void;
   (e: 'token-moved', tokenId: string, x: number, y: number): void;
   (e: 'viewport-changed', viewport: { x: number; y: number; scale: number }): void;
   (e: 'canvas-click', x: number, y: number, event: MouseEvent): void;
@@ -127,6 +228,10 @@ const {
   removeToken,
   moveToken,
   clearAllTokens,
+  selectToken,
+  deselectToken,
+  addTarget,
+  clearTargets,
   getGridSize,
   panTo,
   zoomTo,
@@ -174,6 +279,10 @@ const initializeViewer = async () => {
       onTokenDragStart: handleTokenDragStart,
       onTokenDragMove: handleTokenDragMove,
       onTokenDragEnd: handleTokenDragEnd,
+      onTokenClick: (tokenId: string, modifiers: { shift?: boolean; ctrl?: boolean; alt?: boolean }) => {
+        console.log('[PixiMapViewer] Token clicked with modifiers:', tokenId, modifiers);
+        emit('token-selected', tokenId, modifiers);
+      },
       onTokenRightClick: (tokenId: string) => {
         const token = props.tokens?.find(t => t.id === tokenId) || null;
         if (token && lastMouseEvent.value) {
@@ -464,7 +573,7 @@ const setupTokenInteractions = () => {
   // Set up token selection watcher
   watch(selectedTokenId, (newTokenId) => {
     if (newTokenId) {
-      emit('token-selected', newTokenId);
+      emit('token-selected', newTokenId, {});
     }
   });
 };
@@ -475,7 +584,7 @@ const handleTokenDragStart = (tokenId: string, position: { x: number; y: number 
   isDragging.value = true;
   dragStartPos.value = position;
   draggedTokenId.value = tokenId;
-  emit('token-selected', tokenId);
+  emit('token-selected', tokenId, {});
   console.log('[PixiMapViewer] handleTokenDragStart completed, isDragging:', isDragging.value, 'draggedTokenId:', draggedTokenId.value);
 };
 
@@ -637,42 +746,91 @@ watch(() => props.mapData, async (newMapData, oldMapData) => {
 }, { immediate: false });
 
 watch(() => props.tokens, async (newTokens, oldTokens) => {
-  console.log('[PixiMapViewer] 👀 Tokens watcher triggered:', { 
+  console.log('[PixiMapViewer] 🔍 Smart tokens watcher triggered:', { 
     newCount: newTokens?.length || 0, 
     oldCount: oldTokens?.length || 0,
-    isInitialized: isInitialized.value,
-    newTokenIds: newTokens?.map(t => t.id) || [],
-    oldTokenIds: oldTokens?.map(t => t.id) || [],
-    hasCanvas: !!canvasRef.value,
-    detailedNewTokens: newTokens?.map(t => ({ 
-      id: t.id, 
-      name: t.name, 
-      bounds: t.bounds,
-      imageUrl: t.imageUrl,
-      isVisible: t.isVisible
-    })) || []
+    isInitialized: isInitialized.value
   });
   
+  if (!isInitialized.value) {
+    console.log('[PixiMapViewer] ⚠️ Not initialized yet, skipping token updates');
+    return;
+  }
+  
+  // Handle complete token clearing
   if (!newTokens || newTokens.length === 0) {
-    console.log('[PixiMapViewer] 🧹 No tokens to load - clearing existing tokens');
-    if (isInitialized.value) {
-      clearAllTokens();
+    console.log('[PixiMapViewer] 🧹 No tokens - clearing all existing tokens');
+    clearAllTokens();
+    return;
+  }
+  
+  // Handle initial load (no old tokens)
+  if (!oldTokens || oldTokens.length === 0) {
+    console.log('[PixiMapViewer] 🆕 Initial token load');
+    try {
+      await loadTokens(newTokens);
+      console.log('[PixiMapViewer] ✅ Initial token loading completed');
+    } catch (error) {
+      console.error('[PixiMapViewer] ❌ Initial token loading failed:', error);
     }
     return;
   }
   
-  if (!isInitialized.value) {
-    console.log('[PixiMapViewer] ⚠️ Not initialized yet, skipping token load');
-    return;
-  }
+  // Smart diffing for efficient updates
+  const operations = diffTokens(oldTokens, newTokens);
+  console.log('[PixiMapViewer] 🧠 Token diff analysis:', {
+    totalOperations: operations.length,
+    operations: operations.map(op => `${op.type}:${op.tokenId}`),
+    breakdown: {
+      add: operations.filter(op => op.type === 'add').length,
+      remove: operations.filter(op => op.type === 'remove').length,
+      move: operations.filter(op => op.type === 'move').length,
+      update: operations.filter(op => op.type === 'update').length
+    }
+  });
   
-  console.log('[PixiMapViewer] 🔄 Processing token changes...');
+  // Apply each operation efficiently
   try {
-    await loadTokens(newTokens);
-    console.log('[PixiMapViewer] ✅ Token loading completed successfully');
+    for (const operation of operations) {
+      switch (operation.type) {
+        case 'add':
+          if (operation.token) {
+            console.log(`[PixiMapViewer] ➕ Adding token: ${operation.token.name}`);
+            await addToken(operation.token);
+          }
+          break;
+          
+        case 'remove':
+          console.log(`[PixiMapViewer] ➖ Removing token: ${operation.tokenId}`);
+          removeToken(operation.tokenId);
+          break;
+          
+        case 'move':
+          if (operation.newPosition) {
+            console.log(`[PixiMapViewer] 🔄 Moving token: ${operation.tokenId}`, operation.newPosition);
+            // Convert grid coordinates to world coordinates  
+            const gridSize = getGridSize();
+            const worldX = operation.newPosition.x * gridSize;
+            const worldY = operation.newPosition.y * gridSize;
+            moveToken(operation.tokenId, worldX, worldY, false); // No animation for efficiency
+          }
+          break;
+          
+        case 'update':
+          if (operation.token) {
+            console.log(`[PixiMapViewer] 🔄 Updating token: ${operation.token.name}`);
+            await updateToken(operation.token);
+          }
+          break;
+      }
+    }
+    
+    console.log('[PixiMapViewer] ✅ Smart token updates completed successfully');
   } catch (error) {
-    console.error('[PixiMapViewer] ❌ Token loading failed:', error);
-    throw error;
+    console.error('[PixiMapViewer] ❌ Smart token updates failed:', error);
+    // Fallback to full reload on error
+    console.log('[PixiMapViewer] 🚨 Falling back to full token reload');
+    await loadTokens(newTokens);
   }
 }, { deep: true });
 
@@ -713,6 +871,53 @@ watch(() => props.showLights, (newValue) => {
     setLightHighlights(newValue || false);
   }
 }, { immediate: true });
+
+// Watch for selectedTokenId prop changes and sync to PIXI
+watch(() => props.selectedTokenId, (newSelectedId, oldSelectedId) => {
+  console.log('[PixiMapViewer] 🔄 Selected token prop watcher triggered:', {
+    isInitialized: isInitialized.value,
+    oldSelectedId,
+    newSelectedId,
+    propsSelectedTokenId: props.selectedTokenId
+  });
+  
+  if (!isInitialized.value) {
+    console.log('[PixiMapViewer] ⚠️ Not initialized, skipping selection sync');
+    return;
+  }
+  
+  // Deselect old token
+  if (oldSelectedId) {
+    console.log('[PixiMapViewer] ➖ Deselecting old token:', oldSelectedId);
+    deselectToken(oldSelectedId);
+  }
+  
+  // Select new token
+  if (newSelectedId) {
+    console.log('[PixiMapViewer] ➕ Selecting new token:', newSelectedId);
+    selectToken(newSelectedId);
+  }
+}, { immediate: true });
+
+// Watch for targetTokenIds prop changes and sync to PIXI  
+watch(() => props.targetTokenIds, (newTargetIds, oldTargetIds) => {
+  if (!isInitialized.value) return;
+  
+  console.log('[PixiMapViewer] Target tokens prop changed:', { 
+    oldTargets: oldTargetIds ? Array.from(oldTargetIds) : [], 
+    newTargets: newTargetIds ? Array.from(newTargetIds) : [] 
+  });
+  
+  // Clear all existing targets first
+  clearTargets();
+  
+  // Add new targets
+  if (newTargetIds) {
+    for (const tokenId of newTargetIds) {
+      addTarget(tokenId);
+    }
+  }
+}, { immediate: true, deep: true });
 
 // Lifecycle
 let preventContextMenu: ((e: MouseEvent) => void) | null = null;

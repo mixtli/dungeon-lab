@@ -282,7 +282,7 @@ function isTabFloating(tabType: SidebarTabType): boolean {
 
 /* Teleport targets should take full space */
 #chat-sidebar-target,
-#combat-sidebar-target,
+#turnOrder-sidebar-target,
 #actors-sidebar-target,
 #characters-sidebar-target,
 #items-sidebar-target,
@@ -290,6 +290,7 @@ function isTabFloating(tabType: SidebarTabType): boolean {
   height: 100%;
   display: flex;
   flex-direction: column;
+  flex: 1;
 }
 
 /* Resize Handle */

@@ -1,5 +1,5 @@
 <template>
-  <div class="turn-order-tab space-y-4">
+  <div class="turn-order-tab h-full flex flex-col">
     <div v-if="!isInTurnOrder" class="turn-order-setup space-y-4">
       <div class="text-center">
         <h3 class="text-lg font-semibold mb-2">Turn Order Setup</h3>
@@ -8,73 +8,78 @@
       
       <!-- Primary action: Always available, universal -->
       <div class="flex justify-center">
-        <button @click="startTurnBasedMode" class="btn-primary">
+        <button @click="startTurnBasedMode" class="standard-button bg-blue-600 hover:bg-blue-700">
           {{ calculateButtonLabel }}
         </button>
       </div>
     </div>
     
-    <div v-else class="turn-order-active space-y-4">
-      <!-- Centered Round Header -->
-      <div class="text-center">
-        <h3 class="text-xl font-bold">Round {{ turnManager?.round }}</h3>
-      </div>
-      
-      <!-- Main feature: Drag-and-drop initiative tracker (always available) -->
-      <div class="initiative-tracker">
-        <div v-if="allowsManualReordering" class="text-center mb-2">
-          <span class="drag-hint text-sm text-gray-500 italic">
-            🔄 Drag to reorder
-          </span>
+    <div v-else class="turn-order-active flex flex-col flex-1">
+      <!-- Top content area -->
+      <div class="flex-1 space-y-4">
+        <!-- Centered Round Header -->
+        <div class="text-center">
+          <h3 class="text-xl font-bold">Round {{ turnManager?.round }}</h3>
         </div>
         
-        <div 
-          v-for="(participant, index) in turnManager?.participants || []"
-          :key="participant.id"
-          :draggable="allowsManualReordering && gameStateStore.canUpdate"
-          @dragstart="onDragStart($event, index)"
-          @dragover="onDragOver"
-          @drop="onDrop($event, index)"
-          :class="{
-            'participant-item': true,
-            'current-turn': index === (turnManager?.currentTurn ?? -1),
-            'has-acted': participant.hasActed,
-            'draggable': allowsManualReordering && gameStateStore.canUpdate,
-            'drag-target': draggedIndex !== null && draggedIndex !== index
-          }"
-        >
-          <!-- Drag handle (visible when reordering is allowed) -->
-          <div v-if="allowsManualReordering" class="drag-handle">
-            ⋮⋮
-          </div>
-          
-          <div class="participant-info">
-            <div class="participant-name-section">
-              <span v-if="isControlledByCurrentUser(participant)" class="control-indicator">🔵</span>
-              <span class="participant-name">{{ participant.name }}</span>
-              <span v-if="participant.hasActed" class="acted-checkmark">✓</span>
-            </div>
-            <span 
-              v-if="participant.turnOrder > 0" 
-              class="initiative-score"
-              :title="String(participant.participantData?.initiativeMethod || 'Unknown method')"
-            >
-              {{ participant.turnOrder }}
+        <!-- Main feature: Drag-and-drop initiative tracker (always available) -->
+        <div class="initiative-tracker">
+          <div v-if="allowsManualReordering" class="text-center mb-2">
+            <span class="drag-hint text-sm text-gray-500 italic">
+              🔄 Drag to reorder
             </span>
           </div>
+          
+          <div 
+            v-for="(participant, index) in turnManager?.participants || []"
+            :key="participant.id"
+            :draggable="allowsManualReordering && gameStateStore.canUpdate"
+            @dragstart="onDragStart($event, index)"
+            @dragover="onDragOver"
+            @drop="onDrop($event, index)"
+            :class="{
+              'participant-item': true,
+              'current-turn': index === (turnManager?.currentTurn ?? -1),
+              'has-acted': participant.hasActed,
+              'draggable': allowsManualReordering && gameStateStore.canUpdate,
+              'drag-target': draggedIndex !== null && draggedIndex !== index
+            }"
+          >
+            <!-- Drag handle (visible when reordering is allowed) -->
+            <div v-if="allowsManualReordering" class="drag-handle">
+              ⋮⋮
+            </div>
+            
+            <div class="participant-info">
+              <div class="participant-name-section">
+                <span v-if="isControlledByCurrentUser(participant)" class="control-indicator">🔵</span>
+                <span class="participant-name">{{ participant.name }}</span>
+                <span v-if="participant.hasActed" class="acted-checkmark">✓</span>
+              </div>
+              <span 
+                v-if="participant.turnOrder > 0" 
+                class="initiative-score"
+                :title="String(participant.participantData?.initiativeMethod || 'Unknown method')"
+              >
+                {{ participant.turnOrder }}
+              </span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Turn Controls -->
+        <div class="turn-controls-section">
+          <div v-if="isInTurnOrder" class="flex justify-center">
+            <button @click="endTurn" class="standard-button bg-green-600 hover:bg-green-700">
+              ➤ End Turn
+            </button>
+          </div>
         </div>
       </div>
       
-      <!-- Turn Controls -->
-      <div class="turn-controls-section space-y-3">
-        <div v-if="isInTurnOrder" class="flex justify-center">
-          <button @click="endTurn" class="standard-button bg-green-600 hover:bg-green-700">
-            ➤ End Turn
-          </button>
-        </div>
-        
-        <!-- Roll Initiative at bottom -->
-        <div v-if="showCalculateButton" class="flex justify-center">
+      <!-- Roll Initiative - Pushed to very bottom of tab -->
+      <div v-if="showCalculateButton" class="flex-shrink-0 border-t border-gray-200 pt-4 mt-4">
+        <div class="flex justify-center">
           <button @click="calculateInitiative" class="standard-button bg-blue-600 hover:bg-blue-700">
             🎲 {{ calculateButtonLabel }}
           </button>

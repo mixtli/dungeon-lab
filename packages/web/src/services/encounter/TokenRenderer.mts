@@ -75,8 +75,8 @@ export class TokenRenderer {
   private activeTokens: Map<string, TokenSpriteData> = new Map();
   private textureCache: Map<string, PIXI.Texture> = new Map();
   private selectedTokenId: string | null = null;
+  private targetTokenIds: Set<string> = new Set();
   private eventHandlers: TokenRendererEventHandlers = {};
-  private _onTokenClick?: (tokenId: string) => void;
 
   private dragEnabled: boolean = true;
   private scaleProvider?: () => number;
@@ -98,9 +98,8 @@ export class TokenRenderer {
   // Map data for bounds checking
   private _mapData: IMapResponse | null = null;
   
-  constructor(tokenContainer: PIXI.Container, options?: TokenRendererOptions, scaleProvider?: () => number) {
+  constructor(tokenContainer: PIXI.Container, _options?: TokenRendererOptions, scaleProvider?: () => number) {
     this.tokenContainer = tokenContainer;
-    this._onTokenClick = options?.onTokenSelect;
     this.scaleProvider = scaleProvider;
     console.log('[TokenRenderer] initialized with container:', tokenContainer.label || 'unnamed');
   }
@@ -481,6 +480,45 @@ export class TokenRenderer {
   }
   
   /**
+   * Add a token as a target
+   */
+  addTarget(tokenId: string): void {
+    this.targetTokenIds.add(tokenId);
+    const tokenData = this.activeTokens.get(tokenId);
+    if (tokenData) {
+      this.updateTargetVisual(tokenData.root as TokenContainer, tokenData.sprite, true);
+    }
+  }
+  
+  /**
+   * Remove a token as a target
+   */
+  removeTarget(tokenId: string): void {
+    this.targetTokenIds.delete(tokenId);
+    const tokenData = this.activeTokens.get(tokenId);
+    if (tokenData) {
+      this.updateTargetVisual(tokenData.root as TokenContainer, tokenData.sprite, false);
+    }
+  }
+  
+  /**
+   * Clear all target tokens
+   */
+  clearTargets(): void {
+    for (const tokenId of this.targetTokenIds) {
+      this.removeTarget(tokenId);
+    }
+    this.targetTokenIds.clear();
+  }
+  
+  /**
+   * Check if a token is targeted
+   */
+  isTarget(tokenId: string): boolean {
+    return this.targetTokenIds.has(tokenId);
+  }
+  
+  /**
    * Set event handlers for token interactions
    */
   setEventHandlers(handlers: TokenRendererEventHandlers): void {
@@ -758,10 +796,6 @@ export class TokenRenderer {
     if (this.eventHandlers.click) {
       this.eventHandlers.click(sprite.tokenId, event);
     }
-    // Call the legacy click handler
-    if (this._onTokenClick) {
-      this._onTokenClick(sprite.tokenId);
-    }
     
     console.log('Token clicked:', sprite.tokenId);
   }
@@ -872,16 +906,9 @@ export class TokenRenderer {
         }
       }
     } else {
-      // This was a click (not a drag) - handle selection
-      
-      // Toggle selection
-      if (this.selectedTokenId === sprite.tokenId) {
-        // Deselect if already selected
-        this.deselectToken(sprite.tokenId);
-      } else {
-        // Select this token
-        this.selectToken(sprite.tokenId);
-      }
+      // This was a click (not a drag) - let parent component handle selection
+      // The click event was already emitted in handlePointerDown
+      console.log('[TokenRenderer] Click detected on token:', sprite.tokenId, '- parent component will handle selection');
     }
     
     // Clean up drag state
@@ -1032,6 +1059,44 @@ export class TokenRenderer {
     } else {
       // When deselecting, restore hover effect if mouse is still over the token
       // (This will be handled by the hover event handlers)
+    }
+  }
+  
+  /**
+   * Update target visual for a token (orange border)
+   */
+  private updateTargetVisual(tokenRoot: TokenContainer, sprite: PIXI.Sprite, targeted: boolean): void {
+    if (!tokenRoot.tokenId) return;
+    
+    // Remove existing target visual
+    const existingTarget = tokenRoot.children.find(child => child.label === 'target');
+    if (existingTarget) {
+      tokenRoot.removeChild(existingTarget);
+    }
+    
+    if (targeted) {
+      // Create orange circle around the token for targets
+      const targetCircle = new PIXI.Graphics();
+      targetCircle.label = 'target';
+      
+      // Get the actual rendered sprite size (after scaling)
+      const tokenData = this.activeTokens.get(tokenRoot.tokenId);
+      if (!tokenData) return;
+      
+      // Use the actual sprite dimensions (which are already scaled to the target size)
+      const spriteRadius = Math.max(sprite.width, sprite.height) / 2;
+      const circleRadius = spriteRadius;
+      
+      // Draw orange circle for targets
+      targetCircle.circle(0, 0, circleRadius)
+        .stroke({ width: 4, color: 0xff8800 }); // Orange color, 4px width (slightly thinner than selection)
+        
+      // Position the circle at the center of the token
+      targetCircle.x = 0;
+      targetCircle.y = 0;
+      
+      // Add the target circle as a child of the token root
+      tokenRoot.addChild(targetCircle);
     }
   }
 } 
