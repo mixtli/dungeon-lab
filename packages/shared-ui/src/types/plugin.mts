@@ -2,6 +2,7 @@ import type { Component } from 'vue';
 import type { PluginManifest } from '@dungeon-lab/shared/schemas/plugin-manifest.schema.mjs';
 import type { PluginContext } from './plugin-context.mjs';
 import type { BaseTurnManagerPlugin } from '../base/base-turn-manager.mjs';
+import type { BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
 
 // Export the base class for plugins to extend
 export { BaseGameSystemPlugin } from '../base/base-plugin.mjs';
@@ -108,7 +109,79 @@ export interface GameSystemPlugin {
    * @param document Document to get token size for
    * @returns Grid size multiplier (default: 1 for medium size)
    */
-  getTokenGridSize(document: unknown): number;
+  getTokenGridSize(document: BaseDocument): number;
+  
+  /**
+   * Get movement limit for a document in grid cells per turn
+   * 
+   * Returns the number of grid cells that the character/actor can move in a single turn.
+   * This should implement game-specific movement calculation rules.
+   * 
+   * Examples for D&D 5e:
+   * - 30ft speed = 6 cells (30 ÷ 5 feet per cell)
+   * - 25ft speed = 5 cells  
+   * - 40ft speed = 8 cells
+   * 
+   * @param document Document to get movement limit for
+   * @returns Number of grid cells that can be moved per turn
+   */
+  getMovementLimit(document: BaseDocument): number;
+  
+  /**
+   * Get initial turn state data for a document
+   * 
+   * Returns plugin-specific data that should be tracked during the participant's turn.
+   * This data is ephemeral and resets each turn.
+   * 
+   * Examples for D&D 5e:
+   * - Action economy state (action used, bonus action used, reaction used)
+   * - Legendary action tracking
+   * - Spell slot usage tracking
+   * 
+   * @param document Document to get initial turn state for
+   * @returns Plugin-specific turn state data
+   */
+  getInitialTurnState?(document: BaseDocument): Record<string, unknown>;
+  
+  /**
+   * Check if a resource can be used by a document
+   * 
+   * Validates whether the participant can use a specific amount of a resource
+   * based on game-specific rules and current turn state.
+   * 
+   * @param document Document attempting to use the resource
+   * @param resourceId Identifier for the resource type (e.g., 'action', 'spell-slot-1')
+   * @param amount Amount of resource to use
+   * @param currentTurnState Current plugin-specific turn state
+   * @returns Whether the resource usage is allowed
+   */
+  canUseResource?(document: BaseDocument, resourceId: string, amount: number, currentTurnState: Record<string, unknown>): boolean;
+  
+  /**
+   * Use a resource and update turn state
+   * 
+   * Processes the resource usage and returns updated plugin-specific turn state.
+   * This method should only be called after canUseResource returns true.
+   * 
+   * @param document Document using the resource
+   * @param resourceId Identifier for the resource type
+   * @param amount Amount of resource to use
+   * @param currentTurnState Current plugin-specific turn state
+   * @returns Updated plugin-specific turn state
+   */
+  useResource?(document: BaseDocument, resourceId: string, amount: number, currentTurnState: Record<string, unknown>): Record<string, unknown>;
+  
+  /**
+   * Reset turn state at start of new turn
+   * 
+   * Resets plugin-specific turn state for a new turn. Called when a participant's
+   * turn begins to reset per-turn resources.
+   * 
+   * @param document Document whose turn is starting
+   * @param currentTurnState Current plugin-specific turn state
+   * @returns Reset plugin-specific turn state
+   */
+  resetTurnState?(document: BaseDocument, currentTurnState: Record<string, unknown>): Record<string, unknown>;
   
   /**
    * Turn manager for game-specific turn order and action permissions
@@ -116,11 +189,6 @@ export interface GameSystemPlugin {
    */
   turnManager?: BaseTurnManagerPlugin;
   
-  /**
-   * @deprecated Use validate('character', data) instead
-   * Legacy method for backward compatibility during transition
-   */
-  validateCharacterData?(data: unknown): ValidationResult;
 }
 
 /**

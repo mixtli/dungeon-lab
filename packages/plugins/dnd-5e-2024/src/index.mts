@@ -6,8 +6,12 @@
  */
 
 import { BaseGameSystemPlugin, ValidationResult, PluginContext } from '@dungeon-lab/shared-ui/types/plugin.mjs';
+import type { BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
 import { validateCharacterData } from './character-validation.mjs';
 import { DnD5eTurnManager } from './turn-manager.mjs';
+import type { DndCharacterData } from './types/dnd/character.mjs';
+import type { DndCreatureData } from './types/dnd/creature.mjs';
+import { DndTurnStateUtils, DND_RESOURCE_IDS, type DndTurnState } from './turn-state.mjs';
 
 /**
  * D&D 5th Edition (2024) Plugin Implementation - Using Base Class
@@ -32,7 +36,7 @@ export class DnD5e2024Plugin extends BaseGameSystemPlugin {
     
     switch (type) {
       case 'character':
-        return this.validateCharacterData(data);
+        return validateCharacterData(data);
       default:
         console.warn(`[${this.manifest.id}] Unknown validation type: ${type}`);
         return {
@@ -45,7 +49,7 @@ export class DnD5e2024Plugin extends BaseGameSystemPlugin {
   /**
    * Get token grid size for a document (D&D creature size system)
    */
-  getTokenGridSize(document: unknown): number {
+  getTokenGridSize(document: BaseDocument): number {
     try {
       // Check if document has D&D size data
       if (document && typeof document === 'object' && 'pluginData' in document) {
@@ -83,6 +87,135 @@ export class DnD5e2024Plugin extends BaseGameSystemPlugin {
   }
   
   /**
+   * Get movement limit for a document in grid cells per turn (D&D movement system)
+   */
+  getMovementLimit(document: BaseDocument): number {
+    try {
+      // Handle characters: movement speed is in pluginData.attributes.movement.walk
+      if (document.documentType === 'character') {
+        const data = document.pluginData as DndCharacterData;
+        const walkSpeed = data.attributes?.movement?.walk || 30; // Default to 30 feet
+        return Math.floor(walkSpeed / 5); // D&D: 5 feet per grid cell
+      }
+      
+      // Handle actors/creatures: movement speed is in pluginData.speed.walk  
+      if (document.documentType === 'actor') {
+        const data = document.pluginData as DndCreatureData;
+        const walkSpeed = data.speed?.walk || 30; // Default to 30 feet
+        return Math.floor(walkSpeed / 5); // D&D: 5 feet per grid cell
+      }
+      
+      // Default fallback: 30 feet = 6 cells
+      return 6;
+    } catch (error) {
+      console.error(`[${this.manifest.id}] Error calculating movement limit:`, error);
+      return 6; // Safe default
+    }
+  }
+  
+  /**
+   * Get initial turn state data for a document (D&D-specific)
+   */
+  getInitialTurnState(document: BaseDocument): Record<string, unknown> {
+    const initialState = DndTurnStateUtils.createInitialState();
+    
+    // Set legendary actions for creatures that have them
+    if (document.documentType === 'actor') {
+      const data = document.pluginData as DndCreatureData;
+      if (data.legendaryActionCount) {
+        initialState.actions.legendaryActionsMax = data.legendaryActionCount;
+      }
+    }
+    
+    // TODO: Initialize spell slots based on character class/level
+    // TODO: Initialize class resources based on character build
+    
+    return initialState as unknown as Record<string, unknown>;
+  }
+  
+  /**
+   * Check if a resource can be used by a document (D&D-specific validation)
+   */
+  canUseResource(_document: BaseDocument, resourceId: string, _amount: number, currentTurnState: Record<string, unknown>): boolean {
+    const dndState = currentTurnState as unknown as DndTurnState;
+    
+    // Handle action economy
+    const resourceValues = Object.values(DND_RESOURCE_IDS) as string[];
+    if (resourceValues.includes(resourceId)) {
+      switch (resourceId) {
+        case DND_RESOURCE_IDS.ACTION:
+        case DND_RESOURCE_IDS.BONUS_ACTION:
+        case DND_RESOURCE_IDS.REACTION:
+        case DND_RESOURCE_IDS.LEGENDARY_ACTION:
+          return DndTurnStateUtils.canUseAction(dndState, resourceId);
+          
+        case DND_RESOURCE_IDS.SPELL_SLOT_1:
+        case DND_RESOURCE_IDS.SPELL_SLOT_2:
+        case DND_RESOURCE_IDS.SPELL_SLOT_3:
+        case DND_RESOURCE_IDS.SPELL_SLOT_4:
+        case DND_RESOURCE_IDS.SPELL_SLOT_5:
+        case DND_RESOURCE_IDS.SPELL_SLOT_6:
+        case DND_RESOURCE_IDS.SPELL_SLOT_7:
+        case DND_RESOURCE_IDS.SPELL_SLOT_8:
+        case DND_RESOURCE_IDS.SPELL_SLOT_9: {
+          const spellLevel = parseInt(resourceId.split('-')[2]);
+          return DndTurnStateUtils.canUseSpellSlot(dndState, spellLevel);
+        }
+          
+        default:
+          return false;
+      }
+    }
+    
+    return false;
+  }
+  
+  /**
+   * Use a resource and update turn state (D&D-specific logic)
+   */
+  useResource(_document: BaseDocument, resourceId: string, _amount: number, currentTurnState: Record<string, unknown>): Record<string, unknown> {
+    let dndState = currentTurnState as unknown as DndTurnState;
+    
+    // Handle action economy
+    const resourceValues = Object.values(DND_RESOURCE_IDS) as string[];
+    if (resourceValues.includes(resourceId)) {
+      switch (resourceId) {
+        case DND_RESOURCE_IDS.ACTION:
+        case DND_RESOURCE_IDS.BONUS_ACTION:
+        case DND_RESOURCE_IDS.REACTION:
+        case DND_RESOURCE_IDS.LEGENDARY_ACTION:
+          dndState = DndTurnStateUtils.useAction(dndState, resourceId);
+          break;
+          
+        case DND_RESOURCE_IDS.SPELL_SLOT_1:
+        case DND_RESOURCE_IDS.SPELL_SLOT_2:
+        case DND_RESOURCE_IDS.SPELL_SLOT_3:
+        case DND_RESOURCE_IDS.SPELL_SLOT_4:
+        case DND_RESOURCE_IDS.SPELL_SLOT_5:
+        case DND_RESOURCE_IDS.SPELL_SLOT_6:
+        case DND_RESOURCE_IDS.SPELL_SLOT_7:
+        case DND_RESOURCE_IDS.SPELL_SLOT_8:
+        case DND_RESOURCE_IDS.SPELL_SLOT_9: {
+          const spellLevel = parseInt(resourceId.split('-')[2]);
+          dndState = DndTurnStateUtils.useSpellSlot(dndState, spellLevel);
+          break;
+        }
+      }
+    }
+    
+    return dndState as unknown as Record<string, unknown>;
+  }
+  
+  /**
+   * Reset turn state at start of new turn (D&D-specific reset logic)
+   */
+  resetTurnState(_document: BaseDocument, currentTurnState: Record<string, unknown>): Record<string, unknown> {
+    const dndState = currentTurnState as unknown as DndTurnState;
+    const resetState = DndTurnStateUtils.resetForNewTurn(dndState);
+    return resetState as unknown as Record<string, unknown>;
+  }
+  
+  /**
    * Plugin initialization
    */
   async onLoad(context?: PluginContext): Promise<void> {
@@ -101,24 +234,6 @@ export class DnD5e2024Plugin extends BaseGameSystemPlugin {
     console.log(`[${this.manifest.id}] Unloading D&D 5e 2024 Plugin`);
   }
   
-  /**
-   * Legacy validation method for backward compatibility
-   * @deprecated Use validate('character', data) instead
-   */
-  validateCharacterData(data: unknown): ValidationResult {
-    console.log(`[${this.manifest.id}] 🔍 PLUGIN VALIDATION METHOD CALLED`);
-    console.log(`[${this.manifest.id}] Data structure:`, {
-      hasSpecies: !!(data && typeof data === 'object' && 'species' in data),
-      speciesFormat: data && typeof data === 'object' && 'species' in data ? (data as Record<string, unknown>).species : undefined,
-      hasBackground: !!(data && typeof data === 'object' && 'background' in data),
-      backgroundFormat: data && typeof data === 'object' && 'background' in data ? (data as Record<string, unknown>).background : undefined
-    });
-    
-    const result = validateCharacterData(data);
-    console.log(`[${this.manifest.id}] 🧪 Validation result:`, result);
-    
-    return result;
-  }
 }
 
 // Export only the plugin class as default

@@ -3,6 +3,7 @@ import type { BaseTurnManagerPlugin } from '@dungeon-lab/shared-ui/base/base-tur
 import { pluginRegistry } from './plugin-registry.mjs';
 import { useGameStateStore } from '../stores/game-state.store.mjs';
 import type { StateOperation } from '@dungeon-lab/shared/types/index.mjs';
+import { turnStateService } from './turn-state.service.mjs';
 
 export class TurnManagerService {
   private plugin: BaseTurnManagerPlugin | null = null;
@@ -18,6 +19,11 @@ export class TurnManagerService {
     
     if (!this.plugin) {
       console.warn(`No turn manager found for plugin: ${pluginId}`);
+    }
+    
+    // Initialize turn state service with the game system plugin
+    if (gameSystemPlugin) {
+      turnStateService.setGameSystemPlugin(gameSystemPlugin);
     }
   }
   
@@ -52,6 +58,12 @@ export class TurnManagerService {
     // Notify plugin
     await this.plugin.onTurnOrderStart(plainTurnManager);
     await this.plugin.onTurnStart(orderedParticipants[0], plainTurnManager);
+    
+    // Initialize turn state for the first participant
+    if (orderedParticipants.length > 0) {
+      const firstParticipant = orderedParticipants[0];
+      await this.startParticipantTurn(firstParticipant);
+    }
   }
   
   async nextTurn(): Promise<boolean> {
@@ -61,9 +73,10 @@ export class TurnManagerService {
     // Convert readonly to mutable for plugin compatibility
     const plainTurnManager = JSON.parse(JSON.stringify(turnManager)) as ITurnManager;
     
-    // Mark current participant as acted
+    // Mark current participant as acted and end their turn state
     const currentParticipant = plainTurnManager.participants[plainTurnManager.currentTurn];
     await this.plugin.onTurnEnd(currentParticipant, plainTurnManager);
+    turnStateService.onTurnEnd();
     
     let nextTurn = turnManager.currentTurn + 1;
     let nextRound = turnManager.round;
@@ -95,6 +108,9 @@ export class TurnManagerService {
       const updatedTurnManager = { ...plainTurnManager, round: nextRound, currentTurn: nextTurn, participants };
       await this.plugin.onRoundStart(updatedTurnManager);
       await this.plugin.onTurnStart(participants[0], updatedTurnManager);
+      
+      // Start turn state for the new participant
+      await this.startParticipantTurn(participants[0]);
     } else {
       // Normal turn progression
       const operations: StateOperation[] = [
@@ -107,6 +123,9 @@ export class TurnManagerService {
       const nextParticipant = plainTurnManager.participants[nextTurn];
       const updatedTurnManager = { ...plainTurnManager, currentTurn: nextTurn };
       await this.plugin.onTurnStart(nextParticipant, updatedTurnManager);
+      
+      // Start turn state for the next participant
+      await this.startParticipantTurn(nextParticipant);
     }
     
     return true;
@@ -163,6 +182,9 @@ export class TurnManagerService {
     const plainTurnManager = JSON.parse(JSON.stringify(turnManager)) as ITurnManager;
     await this.plugin.onTurnOrderEnd(plainTurnManager);
     
+    // End any active turn state
+    turnStateService.onTurnEnd();
+    
     const operations: StateOperation[] = [{
       path: 'turnManager',
       operation: 'set',
@@ -170,6 +192,27 @@ export class TurnManagerService {
     }];
     
     await this.gameStateStore.updateGameState(operations);
+  }
+  
+  /**
+   * Private helper to start turn state for a participant
+   * This creates a mock BaseDocument from the participant data until we have
+   * access to the actual document through the game state
+   */
+  private async startParticipantTurn(participant: ITurnParticipant): Promise<void> {
+    try {
+      // For now, create a minimal BaseDocument-like object
+      // TODO: Get the actual document from game state using participant.actorId
+      const mockDocument = {
+        id: participant.id,
+        documentType: participant.actorId ? 'actor' : 'character', // Assume actor if actorId exists
+        // Add other required BaseDocument properties as needed
+      };
+      
+      await turnStateService.onTurnStart(participant.id, mockDocument as any);
+    } catch (error) {
+      console.error('Failed to start turn state for participant:', participant.id, error);
+    }
   }
 }
 
