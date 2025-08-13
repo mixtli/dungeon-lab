@@ -46,6 +46,8 @@
           v-if="gameStateStore.currentEncounter?.currentMap && !gameStateStore.loading"
           :map-data="gameStateStore.currentEncounter.currentMap"
           :tokens="encounterTokens"
+          :selected-token-id="debugSelectedTokenId"
+          :target-token-ids="targetTokenIds"
           :platform="deviceConfig.type"
           :show-walls="showWalls"
           :show-objects="showObjects"
@@ -213,6 +215,7 @@ const authStore = useAuthStore();
 const loading = ref(true);
 const error = ref<string | null>(null);
 const selectedToken = ref<Token | null>(null);
+const targetTokenIds = ref(new Set<string>());
 const showTokenGenerator = ref(false);
 const showDebugInfo = ref(false);
 
@@ -247,6 +250,17 @@ const encounterParticipants = ref<string[]>([]);
 
 // Computed
 const encounter = computed(() => gameStateStore.currentEncounter);
+
+// Debug computed to track selectedToken changes
+const debugSelectedTokenId = computed(() => {
+  const id = selectedToken.value?.id;
+  console.log('[EncounterView] 🔍 Computed selectedToken ID changed:', {
+    selectedTokenId: id,
+    selectedTokenName: selectedToken.value?.name,
+    timestamp: new Date().toISOString()
+  });
+  return id;
+});
 
 // Convert encounter tokens to format expected by PixiMapViewer
 const encounterTokens = computed(() => {
@@ -297,13 +311,64 @@ const retryLoad = () => {
   initializeEncounter();
 };
 
+// Helper computed for all selected token IDs (actor + targets)
+// TODO: This will be used for visual rendering of selected tokens in next task
+// const allSelectedTokenIds = computed(() => {
+//   const all = new Set(targetTokenIds.value);
+//   if (selectedToken.value) all.add(selectedToken.value.id);
+//   return all;
+// });
+
 // Event handlers - matching PixiMapViewer emit signatures
-const handleTokenSelection = (tokenId: string) => {
-  if (!encounter.value) return;
+const handleTokenSelection = (tokenId: string, modifiers?: { shift?: boolean; ctrl?: boolean; alt?: boolean }) => {
+  console.log('[EncounterView] 🖱️ Token selection handler called:', {
+    tokenId,
+    modifiers,
+    hasEncounter: !!encounter.value,
+    currentSelectedToken: selectedToken.value?.id,
+    targetCount: targetTokenIds.value.size
+  });
+  
+  if (!encounter.value) {
+    console.log('[EncounterView] ⚠️ No encounter, aborting selection');
+    return;
+  }
   
   // Find the token in the encounter
   const tokens = gameStateStore.currentEncounter?.tokens || [];
-  selectedToken.value = tokens.find((t: Token) => t.id === tokenId) || null;
+  const clickedToken = tokens.find((t: Token) => t.id === tokenId) || null;
+  
+  console.log('[EncounterView] 🔍 Looking for token:', {
+    searchingForId: tokenId,
+    availableTokens: tokens.map(t => ({ id: t.id, name: t.name })),
+    foundToken: clickedToken ? { id: clickedToken.id, name: clickedToken.name } : 'NOT FOUND'
+  });
+  
+  if (!clickedToken) {
+    console.log('[EncounterView] ❌ Token not found, aborting selection');
+    return;
+  }
+  
+  if (modifiers?.shift) {
+    // Shift+click: toggle target selection
+    if (targetTokenIds.value.has(tokenId)) {
+      targetTokenIds.value.delete(tokenId);
+      console.log('[EncounterView] ➖ Removed target:', clickedToken.name);
+    } else {
+      targetTokenIds.value.add(tokenId);
+      console.log('[EncounterView] ➕ Added target:', clickedToken.name);
+    }
+  } else {
+    // Regular click: set as actor, clear targets
+    const previousSelectedToken = selectedToken.value;
+    selectedToken.value = clickedToken;
+    targetTokenIds.value.clear();
+    console.log('[EncounterView] 🎯 Selected actor:', {
+      previousActor: previousSelectedToken?.name || 'none',
+      newActor: clickedToken.name,
+      clearedTargets: targetTokenIds.value.size === 0
+    });
+  }
   
   // Close context menu if open
   contextMenuToken.value = null;
@@ -560,6 +625,13 @@ const handleMapContextMenuAction = (action: string) => {
 
 const handleDragEnter = (event: DragEvent) => {
   event.preventDefault();
+  
+  // Ignore turn order participant drags
+  if (event.dataTransfer?.types.includes('application/turnorder-participant')) {
+    console.log('Ignoring turn order drag in encounter area');
+    return;
+  }
+  
   dragEnterCount.value++;
   
   if (dragEnterCount.value === 1) {
@@ -568,7 +640,12 @@ const handleDragEnter = (event: DragEvent) => {
   }
 };
 
-const handleDragLeave = () => {
+const handleDragLeave = (event: DragEvent) => {
+  // Ignore turn order participant drags
+  if (event.dataTransfer?.types.includes('application/turnorder-participant')) {
+    return;
+  }
+  
   dragEnterCount.value--;
   
   if (dragEnterCount.value === 0) {
@@ -578,6 +655,11 @@ const handleDragLeave = () => {
 };
 
 const handleDragOver = (event: DragEvent) => {
+  // Ignore turn order participant drags
+  if (event.dataTransfer?.types.includes('application/turnorder-participant')) {
+    return;
+  }
+  
   event.preventDefault();
   
   if (event.dataTransfer) {
@@ -587,6 +669,12 @@ const handleDragOver = (event: DragEvent) => {
 
 const handleDrop = async (event: DragEvent) => {
   event.preventDefault();
+  
+  // Ignore turn order participant drags
+  if (event.dataTransfer?.types.includes('application/turnorder-participant')) {
+    console.log('Ignoring turn order drop in encounter area');
+    return;
+  }
   
   // Reset drag state
   isDragOver.value = false;
@@ -701,6 +789,66 @@ watch(
     }
   },
   { immediate: true }
+);
+
+// Watch for turn changes and auto-select current actor
+watch(
+  () => gameStateStore.gameState?.turnManager,
+  (newTurnManager) => {
+    console.log('[EncounterView] 🎯 Turn manager watcher triggered:', {
+      hasTurnManager: !!newTurnManager,
+      isActive: newTurnManager?.isActive,
+      currentTurn: newTurnManager?.currentTurn,
+      participantCount: newTurnManager?.participants?.length,
+      participants: newTurnManager?.participants?.map(p => ({ id: p.id, name: p.name }))
+    });
+    
+    if (!newTurnManager || !newTurnManager.isActive) {
+      console.log('[EncounterView] ⚠️ No active turn manager, skipping auto-selection');
+      return;
+    }
+    
+    const activeParticipantId = newTurnManager.participants?.[newTurnManager.currentTurn]?.id;
+    console.log('[EncounterView] 🎯 Active participant ID:', activeParticipantId);
+    
+    if (!activeParticipantId) {
+      console.log('[EncounterView] ⚠️ No active participant ID found');
+      return;
+    }
+    
+    // Debug available tokens
+    console.log('[EncounterView] 🎲 Available tokens:', encounterTokens.value.map(t => ({
+      id: t.id,
+      name: t.name,
+      documentId: t.documentId,
+      documentType: t.documentType
+    })));
+    
+    // Find the token for the active participant by document ID
+    // Tokens are linked to documents via documentId field
+    const activeToken = encounterTokens.value.find(t => 
+      t.documentId === activeParticipantId ||
+      t.id === activeParticipantId
+    );
+    
+    console.log('[EncounterView] 🎯 Found active token:', activeToken ? {
+      id: activeToken.id,
+      name: activeToken.name,
+      documentId: activeToken.documentId
+    } : 'NOT FOUND');
+    
+    if (activeToken && (!selectedToken.value || selectedToken.value.id !== activeToken.id)) {
+      console.log('[EncounterView] ✅ Auto-selecting actor for turn:', activeToken.name);
+      selectedToken.value = activeToken;
+      // Clear targets when switching actors
+      targetTokenIds.value.clear();
+    } else if (activeToken) {
+      console.log('[EncounterView] ℹ️ Active token already selected:', activeToken.name);
+    } else {
+      console.log('[EncounterView] ❌ Could not find token for active participant:', activeParticipantId);
+    }
+  },
+  { deep: true, immediate: true }
 );
 
 // Socket connection management is now handled automatically via session rooms

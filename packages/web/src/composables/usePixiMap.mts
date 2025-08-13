@@ -13,6 +13,7 @@ export interface UsePixiMapOptions {
   onTokenDragStart?: (tokenId: string, position: { x: number; y: number }) => void;
   onTokenDragMove?: (tokenId: string, position: { x: number; y: number }) => void;
   onTokenDragEnd?: (tokenId: string, position: { x: number; y: number }) => void;
+  onTokenClick?: (tokenId: string, modifiers: { shift?: boolean; ctrl?: boolean; alt?: boolean }) => void;
   onTokenRightClick?: (tokenId: string) => void; // <-- Added
 }
 
@@ -36,6 +37,9 @@ export interface UsePixiMapReturn {
   // Token selection and interaction
   selectToken: (tokenId: string) => void;
   deselectToken: (tokenId?: string) => void;
+  addTarget: (tokenId: string) => void;
+  removeTarget: (tokenId: string) => void;
+  clearTargets: () => void;
   enableTokenDragging: (enabled: boolean) => void;
   
   // Grid controls
@@ -389,8 +393,20 @@ export function usePixiMap(): UsePixiMapReturn {
       }),
       
       // Token click events
-      click: (tokenId) => {
+      click: (tokenId, event) => {
         console.log('Token clicked:', tokenId);
+        
+        // Extract keyboard modifiers from the PIXI event
+        const modifiers = {
+          shift: event.shiftKey,
+          ctrl: event.ctrlKey || event.metaKey, // Use metaKey for Mac Command key
+          alt: event.altKey
+        };
+        
+        // Call the parent component's token click handler with modifiers
+        if (pixiMapOptions?.onTokenClick) {
+          pixiMapOptions.onTokenClick(tokenId, modifiers);
+        }
       },
       rightClick: pixiMapOptions?.onTokenRightClick || ((tokenId) => {
         console.log('Token right-clicked:', tokenId);
@@ -418,6 +434,30 @@ export function usePixiMap(): UsePixiMapReturn {
     } else if (selectedTokenId.value) {
       tokenRenderer.deselectToken(selectedTokenId.value);
     }
+  };
+  
+  /**
+   * Add a token as a target
+   */
+  const addTarget = (tokenId: string): void => {
+    if (!tokenRenderer) return;
+    tokenRenderer.addTarget(tokenId);
+  };
+  
+  /**
+   * Remove a token as a target
+   */
+  const removeTarget = (tokenId: string): void => {
+    if (!tokenRenderer) return;
+    tokenRenderer.removeTarget(tokenId);
+  };
+  
+  /**
+   * Clear all target tokens
+   */
+  const clearTargets = (): void => {
+    if (!tokenRenderer) return;
+    tokenRenderer.clearTargets();
   };
   
   /**
@@ -499,6 +539,9 @@ export function usePixiMap(): UsePixiMapReturn {
     // Token interaction
     selectToken,
     deselectToken,
+    addTarget,
+    removeTarget,
+    clearTargets,
     enableTokenDragging,
     
     // Grid controls
