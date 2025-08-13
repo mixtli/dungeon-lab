@@ -15,12 +15,14 @@ export interface LineSegment {
  * @param currentGridPos Current position of the token in grid coordinates
  * @param targetGridPos Target position of the token in grid coordinates
  * @param mapData Map data containing wall polygons
+ * @param debug Enable detailed wall segment logging
  * @returns true if movement would intersect with a wall
  */
 export function checkWallCollision(
   currentGridPos: Point,
   targetGridPos: Point,
-  mapData: IMapResponse | null
+  mapData: IMapResponse | null,
+  debug: boolean = false
 ): boolean {
   if (!mapData?.uvtt) {
     console.log('[CollisionDetection] No UVTT data available');
@@ -44,16 +46,30 @@ export function checkWallCollision(
 
   // Check intersection with line_of_sight walls (polylines)
   if (mapData.uvtt.line_of_sight && Array.isArray(mapData.uvtt.line_of_sight)) {
-    for (const wallPolyline of mapData.uvtt.line_of_sight) {
+    if (debug) {
+      console.log(`[CollisionDetection] 🧱 Checking ${mapData.uvtt.line_of_sight.length} line_of_sight wall polylines`);
+    }
+    
+    for (let polylineIndex = 0; polylineIndex < mapData.uvtt.line_of_sight.length; polylineIndex++) {
+      const wallPolyline = mapData.uvtt.line_of_sight[polylineIndex];
       if (Array.isArray(wallPolyline) && wallPolyline.length >= 2) {
+        if (debug) {
+          console.log(`[CollisionDetection] 📏 Polyline ${polylineIndex}: ${wallPolyline.length} points`);
+        }
+        
         // Create line segments between consecutive points in the polyline
         for (let i = 0; i < wallPolyline.length - 1; i++) {
           const wallLine: LineSegment = {
             start: { x: wallPolyline[i].x, y: wallPolyline[i].y },
             end: { x: wallPolyline[i + 1].x, y: wallPolyline[i + 1].y }
           };
+          
+          if (debug) {
+            console.log(`[CollisionDetection] 🔍 Checking wall segment ${i}: (${wallLine.start.x}, ${wallLine.start.y}) → (${wallLine.end.x}, ${wallLine.end.y})`);
+          }
+          
           if (lineSegmentsIntersect(movementLine, wallLine)) {
-            console.log('[CollisionDetection] Movement blocked by line_of_sight wall');
+            console.log(`[CollisionDetection] ❌ COLLISION! Movement line (${movementLine.start.x}, ${movementLine.start.y}) → (${movementLine.end.x}, ${movementLine.end.y}) intersects line_of_sight wall segment (${wallLine.start.x}, ${wallLine.start.y}) → (${wallLine.end.x}, ${wallLine.end.y})`);
             return true;
           }
         }
@@ -63,16 +79,30 @@ export function checkWallCollision(
 
   // Check intersection with objects_line_of_sight walls (polylines)
   if (mapData.uvtt.objects_line_of_sight && Array.isArray(mapData.uvtt.objects_line_of_sight)) {
-    for (const wallPolyline of mapData.uvtt.objects_line_of_sight) {
+    if (debug) {
+      console.log(`[CollisionDetection] 🧱 Checking ${mapData.uvtt.objects_line_of_sight.length} objects_line_of_sight wall polylines`);
+    }
+    
+    for (let polylineIndex = 0; polylineIndex < mapData.uvtt.objects_line_of_sight.length; polylineIndex++) {
+      const wallPolyline = mapData.uvtt.objects_line_of_sight[polylineIndex];
       if (Array.isArray(wallPolyline) && wallPolyline.length >= 2) {
+        if (debug) {
+          console.log(`[CollisionDetection] 📏 Polyline ${polylineIndex}: ${wallPolyline.length} points`);
+        }
+        
         // Create line segments between consecutive points in the polyline
         for (let i = 0; i < wallPolyline.length - 1; i++) {
           const wallLine: LineSegment = {
             start: { x: wallPolyline[i].x, y: wallPolyline[i].y },
             end: { x: wallPolyline[i + 1].x, y: wallPolyline[i + 1].y }
           };
+          
+          if (debug) {
+            console.log(`[CollisionDetection] 🔍 Checking wall segment ${i}: (${wallLine.start.x}, ${wallLine.start.y}) → (${wallLine.end.x}, ${wallLine.end.y})`);
+          }
+          
           if (lineSegmentsIntersect(movementLine, wallLine)) {
-            console.log('[CollisionDetection] Movement blocked by objects_line_of_sight wall');
+            console.log(`[CollisionDetection] ❌ COLLISION! Movement line (${movementLine.start.x}, ${movementLine.start.y}) → (${movementLine.end.x}, ${movementLine.end.y}) intersects objects_line_of_sight wall segment (${wallLine.start.x}, ${wallLine.start.y}) → (${wallLine.end.x}, ${wallLine.end.y})`);
             return true;
           }
         }

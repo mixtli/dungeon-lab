@@ -20,16 +20,11 @@ import { useGameSessionStore } from '../stores/game-session.store.mjs';
 import { useGameStateStore } from '../stores/game-state.store.mjs';
 import { useSocketStore } from '../stores/socket.store.mjs';
 import { checkWallCollision } from '../utils/collision-detection.mjs';
-import { MapsClient } from '@dungeon-lab/client/index.mjs';
-import type { IMapResponse } from '@dungeon-lab/shared/types/api/maps.mjs';
 
 /**
  * GM Action Handler Service - processes action requests sent to GM client
  */
 export class GMActionHandlerService {
-  private mapsClient = new MapsClient();
-  private mapCache = new Map<string, IMapResponse>();
-  
   // Request deduplication to prevent race conditions
   private processedRequests = new Set<string>();
   private requestCleanupTimeout = 30000; // Clean up after 30 seconds
@@ -170,31 +165,69 @@ export class GMActionHandlerService {
       }
 
       // Collision detection using game state map data
-      if (this.gameStateStore.currentEncounter?.currentMap) {
+      if (!this.gameStateStore.currentEncounter?.currentMap) {
+        console.error('[GMActionHandler] CRITICAL: No currentMap in game state! This indicates a serious state management issue.');
+        console.log('[GMActionHandler] Encounter data:', {
+          hasEncounter: !!this.gameStateStore.currentEncounter,
+          encounterId: this.gameStateStore.currentEncounter?.id,
+          mapId: this.gameStateStore.currentEncounter?.mapId,
+          hasCurrentMap: !!this.gameStateStore.currentEncounter?.currentMap
+        });
+        // Allow movement to prevent blocking, but this needs to be fixed
+      } else {
         // Calculate center position from bounds in grid coordinates
-        const currentGridCenterX = (token.bounds.topLeft.x + token.bounds.bottomRight.x) / 2;
-        const currentGridCenterY = (token.bounds.topLeft.y + token.bounds.bottomRight.y) / 2;
+        // Note: bounds are inclusive, so add 1 to bottomRight to get actual boundaries
+        const currentGridCenterX = (token.bounds.topLeft.x + token.bounds.bottomRight.x + 1) / 2;
+        const currentGridCenterY = (token.bounds.topLeft.y + token.bounds.bottomRight.y + 1) / 2;
         const currentGridPos = { x: currentGridCenterX, y: currentGridCenterY };
         
-        // Convert target world position to grid coordinates
+        // Convert target world position to grid coordinates and get center of target cell
         const mapData = this.gameStateStore.currentEncounter.currentMap;
         const pixelsPerGrid = mapData.uvtt?.resolution?.pixels_per_grid || 50;
         const targetGridPos = { 
-          x: params.newPosition.x / pixelsPerGrid, 
-          y: params.newPosition.y / pixelsPerGrid 
+          x: params.newPosition.x / pixelsPerGrid + 0.5, 
+          y: params.newPosition.y / pixelsPerGrid + 0.5 
         };
         
-        console.log('[GMActionHandler] Grid-based collision detection:', {
-          currentGridPos,
-          targetGridPos,
-          pixelsPerGrid
+        console.log('[GMActionHandler] 🔍 COLLISION DETECTION DEBUG:', {
+          tokenId: params.tokenId,
+          tokenName: token.name,
+          tokenBounds: {
+            topLeft: token.bounds.topLeft,
+            bottomRight: token.bounds.bottomRight
+          },
+          rawCurrentCenter: {
+            x: (token.bounds.topLeft.x + token.bounds.bottomRight.x) / 2,
+            y: (token.bounds.topLeft.y + token.bounds.bottomRight.y) / 2
+          },
+          correctedCurrentCenter: currentGridPos,
+          targetWorldPos: params.newPosition,
+          targetGridPos: targetGridPos,
+          pixelsPerGrid: pixelsPerGrid,
+          movementVector: {
+            x: targetGridPos.x - currentGridPos.x,
+            y: targetGridPos.y - currentGridPos.y
+          },
+          wallDataAvailable: {
+            hasUvtt: !!mapData.uvtt,
+            hasLineOfSight: !!mapData.uvtt?.line_of_sight,
+            hasObjectsLineOfSight: !!mapData.uvtt?.objects_line_of_sight,
+            lineOfSightCount: mapData.uvtt?.line_of_sight?.length || 0,
+            objectsLineOfSightCount: mapData.uvtt?.objects_line_of_sight?.length || 0
+          }
         });
         
         try {
-          console.log('[GMActionHandler] Using map data from game state for collision detection');
+          const collisionDetected = checkWallCollision(currentGridPos, targetGridPos, mapData, true);
           
-          if (checkWallCollision(currentGridPos, targetGridPos, mapData)) {
-            console.log('[GMActionHandler] Movement blocked by collision detection');
+          console.log('[GMActionHandler] 🎯 COLLISION RESULT:', {
+            collisionDetected,
+            movementLine: `from (${currentGridPos.x}, ${currentGridPos.y}) to (${targetGridPos.x}, ${targetGridPos.y})`,
+            blocked: collisionDetected ? 'YES - MOVEMENT BLOCKED' : 'NO - MOVEMENT ALLOWED'
+          });
+          
+          if (collisionDetected) {
+            console.log('[GMActionHandler] ❌ Movement blocked by collision detection');
             return this.socketStore.emit('gameAction:response', {
               success: false,
               requestId: request.id,
@@ -203,52 +236,12 @@ export class GMActionHandlerService {
                 message: 'Movement blocked by wall or obstacle'
               }
             });
+          } else {
+            console.log('[GMActionHandler] ✅ No collision detected, movement allowed');
           }
         } catch (error) {
-          console.warn('[GMActionHandler] Error during collision detection:', error);
-        }
-      } else {
-        console.log('[GMActionHandler] No currentMap in game state, skipping collision detection');
-        
-        // Fallback: try to get map from mapId if currentMap is not available
-        if (this.gameStateStore.currentEncounter?.mapId) {
-          console.log('[GMActionHandler] Falling back to REST API for map data');
-          
-          try {
-            const mapData = await this.getMapData(this.gameStateStore.currentEncounter.mapId);
-            
-            // Calculate center position from bounds in grid coordinates
-            const currentGridCenterX = (token.bounds.topLeft.x + token.bounds.bottomRight.x) / 2;
-            const currentGridCenterY = (token.bounds.topLeft.y + token.bounds.bottomRight.y) / 2;
-            const currentGridPos = { x: currentGridCenterX, y: currentGridCenterY };
-            
-            // Convert target world position to grid coordinates
-            const pixelsPerGrid = mapData.uvtt?.resolution?.pixels_per_grid || 50;
-            const targetGridPos = { 
-              x: params.newPosition.x / pixelsPerGrid, 
-              y: params.newPosition.y / pixelsPerGrid 
-            };
-            
-            console.log('[GMActionHandler] Fallback grid-based collision detection:', {
-              currentGridPos,
-              targetGridPos,
-              pixelsPerGrid
-            });
-            
-            if (checkWallCollision(currentGridPos, targetGridPos, mapData)) {
-              console.log('[GMActionHandler] Movement blocked by collision detection (fallback)');
-              return this.socketStore.emit('gameAction:response', {
-                success: false,
-                requestId: request.id,
-                error: {
-                  code: 'COLLISION_DETECTED',
-                  message: 'Movement blocked by wall or obstacle'
-                }
-              });
-            }
-          } catch (error) {
-            console.warn('[GMActionHandler] Fallback map loading failed, allowing movement:', error);
-          }
+          console.error('[GMActionHandler] Error during collision detection:', error);
+          // Allow movement on error to prevent blocking
         }
       }
 
@@ -1032,24 +1025,6 @@ export class GMActionHandlerService {
     return document?.createdBy === playerId;
   }
 
-  /**
-   * Get map data with caching
-   */
-  private async getMapData(mapId: string): Promise<IMapResponse> {
-    // Check cache first
-    if (this.mapCache.has(mapId)) {
-      return this.mapCache.get(mapId)!;
-    }
-
-    // Load from API
-    console.log('[GMActionHandler] Loading map data for collision detection:', mapId);
-    const mapData = await this.mapsClient.getMap(mapId);
-    
-    // Cache it
-    this.mapCache.set(mapId, mapData);
-    
-    return mapData;
-  }
 
   /**
    * Cleanup - remove socket listeners
@@ -1057,7 +1032,6 @@ export class GMActionHandlerService {
   destroy() {
     console.log('[GMActionHandler] Destroying GM action handler');
     this.socketStore.socket?.off('gameAction:forward');
-    this.mapCache.clear();
   }
 }
 

@@ -569,8 +569,8 @@ const handleKeyDown = async (event: KeyboardEvent) => {
   // Calculate current center position from bounds
   const centerGridX = (token.bounds.topLeft.x + token.bounds.bottomRight.x) / 2;
   const centerGridY = (token.bounds.topLeft.y + token.bounds.bottomRight.y) / 2;
-  let newX = centerGridX * gridSize + gridSize / 2; // Convert to world coordinates
-  let newY = centerGridY * gridSize + gridSize / 2;
+  let newX = centerGridX * gridSize; // Convert to world coordinates
+  let newY = centerGridY * gridSize;
   
   switch (event.key) {
     case 'ArrowUp':
@@ -587,7 +587,7 @@ const handleKeyDown = async (event: KeyboardEvent) => {
       break;
   }
   
-  console.log(`[PixiMapViewer] Keyboard move: ${event.key} from: {x: ${centerGridX * gridSize + gridSize / 2}, y: ${centerGridY * gridSize + gridSize / 2}} to: {x: ${newX}, y: ${newY}}`);
+  console.log(`[PixiMapViewer] Keyboard move: ${event.key} from: {x: ${centerGridX * gridSize}, y: ${centerGridY * gridSize}} to: {x: ${newX}, y: ${newY}}`);
   
   console.log('[PixiMapViewer] Keyboard movement, sending movement request');
   // Emit the token moved event to parent (EncounterView will handle the state update)
