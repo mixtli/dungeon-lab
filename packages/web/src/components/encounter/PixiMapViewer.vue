@@ -220,7 +220,7 @@ const {
   isLoaded,
   isInitialized,
   viewportState,
-  selectedTokenId,
+  selectedTokenId: pixiSelectedTokenId,
   initializeMap,
   loadMap,
   addToken,
@@ -571,7 +571,7 @@ const setupTokenInteractions = () => {
   // enableTokenDragging(true); // This line was removed from destructuring
   
   // Set up token selection watcher
-  watch(selectedTokenId, (newTokenId) => {
+  watch(pixiSelectedTokenId, (newTokenId) => {
     if (newTokenId) {
       emit('token-selected', newTokenId, {});
     }
@@ -660,7 +660,7 @@ const handleKeyDown = async (event: KeyboardEvent) => {
   }
   
   // Must have a selected token
-  if (!selectedTokenId.value) {
+  if (!pixiSelectedTokenId.value) {
     return;
   }
   
@@ -668,7 +668,7 @@ const handleKeyDown = async (event: KeyboardEvent) => {
   event.preventDefault();
   
   // Get current token from props
-  const token = props.tokens?.find((t: Token) => t.id === selectedTokenId.value);
+  const token = props.tokens?.find((t: Token) => t.id === pixiSelectedTokenId.value);
   if (!token) {
     return;
   }
@@ -701,7 +701,7 @@ const handleKeyDown = async (event: KeyboardEvent) => {
   
   console.log('[PixiMapViewer] Keyboard movement, sending movement request');
   // Emit the token moved event to parent (EncounterView will handle the state update)
-  emit('token-moved', selectedTokenId.value, newX, newY);
+  emit('token-moved', pixiSelectedTokenId.value, newX, newY);
 };
 
 // Watchers

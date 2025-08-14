@@ -30,6 +30,10 @@ export type RollRequest = z.infer<typeof socketTypes.rollRequestSchema>;
 export type RollResponse = z.infer<typeof socketTypes.rollResponseSchema>;
 export type RollCallback = z.infer<typeof socketTypes.rollCallbackSchema>;
 
+// Enhanced types for 3D dice rolling
+export type EnhancedRollResult = z.infer<typeof socketTypes.enhancedRollResultSchema>;
+export type EnhancedRollResponse = z.infer<typeof socketTypes.enhancedRollResponseSchema>;
+
 
 export type WorkflowState = z.infer<typeof socketTypes.workflowStateSchema>;
 export type MapGenerationRequest = z.infer<typeof socketTypes.mapGenerationRequestSchema>;

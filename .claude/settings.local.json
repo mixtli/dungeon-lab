@@ -81,8 +81,16 @@
       "mcp__context7__get-library-docs",
       "mcp__playwright__browser_drag",
       "WebFetch(domain:vue3-pixi.vercel.app)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:fantasticdice.games)",
+      "WebFetch(domain:codesandbox.io)",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebSearch",
+      "mcp__puppeteer__puppeteer_screenshot",
+      "mcp__puppeteer__puppeteer_click",
+      "mcp__playwright__browser_press_key"
     ],
+    "defaultMode": "acceptEdits",
     "additionalDirectories": [
       "/Users/mixtli/checkouts/5etools-src"
     ]

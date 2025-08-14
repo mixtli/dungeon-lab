@@ -1,45 +1,29 @@
 import { z } from 'zod';
 import { baseSocketCallbackSchema } from './base-callback.schema.mjs';
+import {
+  rollResultSchema,
+  enhancedRollResultSchema,
+  diceRollRequestSchema,
+  diceRollResponseSchema,
+  rollRequestSchema,
+  rollResponseSchema,
+  enhancedRollResponseSchema
+} from '../dice.schema.mjs';
 
 // ============================================================================
-// DICE ROLLING SCHEMAS
+// SOCKET DICE ROLLING SCHEMAS
 // ============================================================================
 
-export const rollResultSchema = z.object({
-  formula: z.string(),
-  rolls: z.array(
-    z.object({
-      die: z.number(),
-      result: z.number()
-    })
-  ),
-  total: z.number(),
-  modifier: z.number().optional(),
-  userId: z.string()
-});
-
-export const diceRollRequestSchema = z.object({
-  formula: z.string(),
-  gameSessionId: z.string().optional()
-});
-
-export const diceRollResponseSchema = z.object({
-  formula: z.string(),
-  gameSessionId: z.string().optional(),
-  result: rollResultSchema,
-  userId: z.string()
-});
-
-export const rollRequestSchema = z.object({
-  formula: z.string(),
-  gameSessionId: z.string()
-});
-
-export const rollResponseSchema = z.object({
-  type: z.literal('roll-result'),
-  result: rollResultSchema,
-  gameSessionId: z.string()
-});
+// Re-export dice schemas for socket events
+export {
+  rollResultSchema,
+  enhancedRollResultSchema,
+  diceRollRequestSchema,
+  diceRollResponseSchema,
+  rollRequestSchema,
+  rollResponseSchema,
+  enhancedRollResponseSchema
+};
 
 export const rollCallbackSchema = baseSocketCallbackSchema;
 

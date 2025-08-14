@@ -18,10 +18,12 @@ import {
 
 import {
   rollResultSchema,
+  enhancedRollResultSchema,
   diceRollRequestSchema,
   diceRollResponseSchema,
   rollRequestSchema,
   rollResponseSchema,
+  enhancedRollResponseSchema,
   rollCallbackSchema,
   // New client-to-server schemas
   rollArgsSchema
@@ -124,10 +126,12 @@ export {
   
   // Dice schemas
   rollResultSchema,
+  enhancedRollResultSchema,
   diceRollRequestSchema,
   diceRollResponseSchema,
   rollRequestSchema,
   rollResponseSchema,
+  enhancedRollResponseSchema,
   rollCallbackSchema,
   rollArgsSchema,
   

@@ -14,6 +14,7 @@
     "clean:test": "rimraf dist-test"
   },
   "dependencies": {
+    "@3d-dice/dice-box-threejs": "^0.0.12",
     "@dungeon-lab/plugin-dnd-5e-2024": "file:../plugins/dnd-5e-2024",
     "@dungeon-lab/shared": "file:../shared",
     "@dungeon-lab/shared-ui": "file:../shared-ui",
@@ -32,6 +33,7 @@
     "pinia-plugin-persistedstate": "^4.2.0",
     "pixi.js": "^8.0.0",
     "socket.io-client": "^4.7.2",
+    "three": "^0.179.1",
     "ts-deepmerge": "^7.0.2",
     "vue": "^3.5.13",
     "vue-konva": "^3.2.1",
@@ -41,6 +43,7 @@
     "@eslint/js": "^9.26.0",
     "@types/handlebars": "^4.0.40",
     "@types/node": "^20.10.5",
+    "@types/three": "^0.179.0",
     "@typescript-eslint/eslint-plugin": "^6.15.0",
     "@typescript-eslint/parser": "^6.15.0",
     "@vitejs/plugin-vue": "^4.5.2",

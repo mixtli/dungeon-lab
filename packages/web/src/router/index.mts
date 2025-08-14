@@ -52,6 +52,7 @@ const CompendiumEntryDetailView = () => import('@/views/CompendiumEntryDetailVie
 
 const InvitesView = () => import('@/views/InvitesView.vue');
 
+
 // Encounter views
 const EncounterCreateView = () => import('@/views/encounter/EncounterCreateView.vue');
 const EncounterDetailView = () => import('@/views/encounter/EncounterDetailView.vue');
@@ -361,7 +362,7 @@ const routes: RouteRecordRaw[] = [
           title: 'Profile',
           requiresAuth: true
         }
-      }
+      },
     ]
   },
   {

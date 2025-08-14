@@ -277,6 +277,14 @@ export * from './encounters.mjs';
 // Socket Types
 export * from './socket/index.mjs';
 
+// Dice Types (additional types not covered by socket types)
+export type { DiceBoxInstance } from './dice.mjs';
+export {
+  diceGroupSchema,
+  parsedDiceFormulaSchema,
+  dice3DOptionsSchema
+} from './dice.mjs';
+
 // Map Editor types
 export * from './mapEditor.mjs';
 

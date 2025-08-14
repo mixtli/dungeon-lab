@@ -271,9 +271,17 @@ function handleRollCommand(formula: string) {
 function sendMessage() {
   if (!messageInput.value.trim() || !activeChatContext.value) return;
   
-  // Check for roll command
+  // Check for roll commands (both /roll and /r shorthand)
   if (messageInput.value.startsWith('/roll ')) {
     const formula = messageInput.value.slice(6).trim();
+    handleRollCommand(formula);
+    messageInput.value = '';
+    return;
+  }
+  
+  // Support /r shorthand for roll commands
+  if (messageInput.value.startsWith('/r ')) {
+    const formula = messageInput.value.slice(3).trim();
     handleRollCommand(formula);
     messageInput.value = '';
     return;

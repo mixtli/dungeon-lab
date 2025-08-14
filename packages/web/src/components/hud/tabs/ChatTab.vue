@@ -60,7 +60,6 @@ import { useChatStore, type ChatMessage } from '../../../stores/chat.store.mts';
 import { useSocketStore } from '../../../stores/socket.store.mts';
 import { useGameStateStore } from '../../../stores/game-state.store.mjs';
 import { useGameSessionStore } from '../../../stores/game-session.store.mts';
-
 const chatStore = useChatStore();
 const socketStore = useSocketStore();
 const gameStateStore = useGameStateStore();
@@ -108,9 +107,45 @@ function formatTime(timestamp: string): string {
   });
 }
 
+// Handle roll command
+function handleRollCommand(formula: string) {
+  if (!socketStore.socket) return;
+
+  const gameSessionId = gameSessionStore.currentSession?.id;
+  if (!gameSessionId) {
+    console.error('No active game session found');
+    return;
+  }
+
+  socketStore.socket.emit('roll', {
+    formula,
+    gameSessionId
+  }, (response: { success: boolean, error?: string }) => {
+    if (!response.success) {
+      console.error('Error processing roll command:', response.error);
+    }
+  });
+}
+
 // Send message using chat store
 function sendMessage(): void {
   if (!currentMessage.value.trim()) return;
+  
+  // Check for roll commands (both /roll and /r shorthand)
+  if (currentMessage.value.startsWith('/roll ')) {
+    const formula = currentMessage.value.slice(6).trim();
+    handleRollCommand(formula);
+    currentMessage.value = '';
+    return;
+  }
+  
+  // Support /r shorthand for roll commands
+  if (currentMessage.value.startsWith('/r ')) {
+    const formula = currentMessage.value.slice(3).trim();
+    handleRollCommand(formula);
+    currentMessage.value = '';
+    return;
+  }
   
   // Send to session (all players)
   chatStore.sendMessage(currentMessage.value);

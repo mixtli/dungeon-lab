@@ -101,6 +101,8 @@
         <!-- UI Overlays -->
         <div class="encounter-overlays absolute inset-0 pointer-events-none">
           
+          <!-- 3D Dice Overlay -->
+          <DiceOverlay />
 
           <!-- Token Context Menu -->
           <TokenContextMenu
@@ -199,6 +201,7 @@ import type { Token, StateOperation } from '@dungeon-lab/shared/types/index.mjs'
 import { useAuthStore } from '../../stores/auth.store.mjs';
 // Add import for MapContextMenu
 import MapContextMenu from './MapContextMenu.vue';
+import DiceOverlay from '../dice/DiceOverlay.vue';
 import { turnManagerService } from '../../services/turn-manager.service.mjs';
 
 // No props needed - EncounterView always displays the current encounter from game state

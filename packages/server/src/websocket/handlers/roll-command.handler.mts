@@ -1,6 +1,7 @@
 import { Socket } from 'socket.io';
 import { socketHandlerRegistry } from '../handler-registry.mjs';
 import { GameSessionModel } from '../../features/campaigns/models/game-session.model.mjs';
+import { UserModel } from '../../models/user.model.mjs';
 import { DiceService } from '../../services/dice.service.mjs';
 import { logger } from '../../utils/logger.mjs';
 import type {
@@ -47,38 +48,74 @@ function rollCommandHandler(socket: Socket<ClientToServerEvents, ServerToClientE
         throw new Error('Not authorized for this game session');
       }
 
-      // Roll the dice
+      // Roll the dice - always use enhanced method for 3D visualization
       logger.debug('Rolling dice with formula:', message.formula);
-      const rollResult = diceService.rollDice(message.formula, userId);
-      logger.debug('Roll result:', rollResult);
+      
+      // Always use enhanced dice rolling for consistent 3D visualization
+      const enhancedResult = diceService.rollDiceEnhanced(message.formula, userId);
+      logger.debug('Enhanced roll result:', enhancedResult);
 
-      // Create the result message
+      // Create enhanced result message
       const resultMessage = {
         type: 'roll-result' as const,
-        result: rollResult,
+        result: enhancedResult,
         gameSessionId: message.gameSessionId
       };
 
       // Convert ObjectId to string for room name
       const roomId = message.gameSessionId.toString();
-      logger.debug('Broadcasting roll result to room:', roomId);
+      logger.debug('Broadcasting enhanced roll result to room:', roomId);
 
-      // Log room membership
-      const rooms = Array.from(socket.rooms);
-      logger.debug('Socket rooms:', {
-        socketId: socket.id,
-        rooms,
-        targetRoom: roomId
-      });
-
-      // Broadcast the result to all clients in the game session
+      // Broadcast the enhanced result to all clients
       socket.to(roomId).emit('roll-result', resultMessage);
-      // Also send to the sender
       socket.emit('roll-result', resultMessage);
 
-      logger.info('Roll command processed successfully:', {
+      // Send chat notification of the roll result
+      try {
+        // Get user info for the chat message
+        const user = await UserModel.findById(userId);
+        const userName = user?.username || 'Unknown Player';
+
+        // Format dice results for chat display
+        const diceResultsText = Object.entries(enhancedResult.diceResults)
+          .map(([dieType, results]) => `${dieType} results [${results.join(', ')}]`)
+          .join(', ');
+
+        // Create formatted chat message
+        const rollChatMessage = `🎲 ${userName} rolled ${enhancedResult.formula}: ${diceResultsText} → Total: ${enhancedResult.total}`;
+
+        // Create chat metadata for system message
+        const chatMetadata = {
+          sender: {
+            type: 'system' as const,
+            id: 'system'
+          },
+          recipient: {
+            type: 'session' as const,
+            id: message.gameSessionId
+          },
+          timestamp: new Date().toISOString()
+        };
+
+        // Broadcast chat message to the session room
+        socket.to(roomId).emit('chat', chatMetadata, rollChatMessage);
+        socket.emit('chat', chatMetadata, rollChatMessage);
+
+        logger.debug('Roll chat notification sent:', {
+          userName,
+          formula: message.formula,
+          total: enhancedResult.total,
+          roomId
+        });
+      } catch (chatError) {
+        logger.warn('Failed to send roll chat notification:', chatError);
+        // Don't fail the entire roll if chat fails
+      }
+
+      logger.info('Enhanced roll command processed successfully:', {
         formula: message.formula,
-        total: rollResult.total,
+        total: enhancedResult.total,
+        diceTypes: Object.keys(enhancedResult.diceResults),
         roomId
       });
 
