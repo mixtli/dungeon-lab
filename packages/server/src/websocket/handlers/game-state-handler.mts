@@ -475,6 +475,18 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
   socket.on('disconnect', async () => {
     logger.info(`User ${userId} disconnected from game state socket`);
     
+    // Check what rooms this socket was actually in before disconnecting
+    const roomsSocketWasIn = Array.from(socket.rooms);
+    const gameSessionRooms = roomsSocketWasIn.filter(room => room.startsWith('session:'));
+    
+    logger.info('Socket was in rooms:', { rooms: roomsSocketWasIn, gameSessionRooms, userId });
+    
+    // Only trigger sync if socket was actually participating in game sessions
+    if (gameSessionRooms.length === 0) {
+      logger.info('Socket was not in any game session rooms, skipping GM disconnect sync');
+      return;
+    }
+    
     // Check if the disconnecting user is a GM in any active sessions and trigger sync
     try {
       const activeSessions = await GameSessionModel.find({
@@ -483,10 +495,26 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
       }).select('_id campaignId').exec();
 
       for (const session of activeSessions) {
+        const sessionRoomName = `session:${session.id}`;
+        
+        // Only sync if this socket was actually in this specific session room
+        if (!gameSessionRooms.includes(sessionRoomName)) {
+          logger.info('GM socket was not in this session room, skipping sync:', { 
+            sessionId: session.id, 
+            sessionRoom: sessionRoomName,
+            socketRooms: gameSessionRooms
+          });
+          continue;
+        }
+        
         // Check if campaign has active GameState
         const gameStateExists = await GameStateModel.findOne({ campaignId: session.campaignId }).exec();
         if (gameStateExists) {
-          logger.info('GM unexpectedly disconnected - triggering sync:', { sessionId: session.id, userId });
+          logger.info('GM unexpectedly disconnected from active game session - triggering sync:', { 
+            sessionId: session.id, 
+            userId,
+            sessionRoom: sessionRoomName
+          });
           try {
           const syncResult = await syncService.syncGameStateToBackingModels(session.id, 'gm-disconnect');
           logger.info('GM disconnect sync completed:', { 
