@@ -5,7 +5,7 @@ import { pluginRegistry } from '@/services/plugin-registry.mts';
 import type { IActor } from '@dungeon-lab/shared/types/index.mjs';
 import { ActorsClient } from '@dungeon-lab/client/index.mjs';
 import { useGameStateStore } from '../stores/game-state.store.mjs';
-import CharacterSheetContainer from '../components/character/CharacterSheetContainer.vue';
+import DocumentSheetContainer from '../components/common/DocumentSheetContainer.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -93,9 +93,9 @@ function handleRoll(rollType: string, data: Record<string, unknown>) {
     </div>
 
     <div v-else class="character-content-standalone">
-      <CharacterSheetContainer
+      <DocumentSheetContainer
         :show="true"
-        :character="character"
+        :document="character"
         :readonly="false"
         @close="router.push('/')"
         @roll="handleRoll"

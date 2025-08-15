@@ -5,7 +5,7 @@
       :key="sheetId"
       :ref="sheetId"
       :data-sheet-id="sheetId"
-      class="floating-character-sheet"
+      class="floating-document-sheet"
       :class="{ 'is-dragging': isDragging && currentSheetId === sheetId }"
       :style="getSheetStyle(sheet)"
       @mousedown.self="documentSheetStore.bringToFront(sheetId)"
@@ -13,7 +13,7 @@
       <!-- Fallback Framework Header (only shown if plugin doesn't emit events) -->
       <div v-if="showFallbackChrome" class="fallback-header" @mousedown="startDrag($event, sheetId)">
         <div class="window-title">
-          <i class="mdi mdi-account title-icon"></i>
+          <i :class="getDocumentIcon(sheet.document)" class="title-icon"></i>
           <span>{{ sheet.document.name }}</span>
         </div>
         
@@ -26,9 +26,9 @@
 
       <!-- Window Content (no header - plugin provides its own) -->
       <div class="window-content">
-        <CharacterSheetContainer
+        <DocumentSheetContainer
           :show="true"
-          :character="sheet.document"
+          :document="sheet.document"
           :readonly="false"
           @close="documentSheetStore.closeDocumentSheet(sheetId)"
           @roll="handleRoll"
@@ -53,8 +53,9 @@
 <script setup lang="ts">
 import { ref, onUnmounted, onMounted } from 'vue';
 import { useDocumentSheetStore } from '../../stores/document-sheet.store.mjs';
-import type { FloatingDocumentSheet } from '../../stores/document-sheet.store.mjs';
-import CharacterSheetContainer from './CharacterSheetContainer.vue';
+import type { DocumentSheetStore } from '../../stores/document-sheet.store.mjs';
+import type { BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
+import DocumentSheetContainer from './DocumentSheetContainer.vue';
 
 const documentSheetStore = useDocumentSheetStore();
 
@@ -79,7 +80,23 @@ const eventCleanups = ref<Array<() => void>>([]);
 const showFallbackChrome = ref(false); // D&D components are self-contained with their own headers
 const fallbackTimeout = ref<number | null>(null);
 
-function getSheetStyle(sheet: FloatingDocumentSheet) {
+// Get appropriate icon for document type
+function getDocumentIcon(document: BaseDocument): string {
+  switch (document.documentType) {
+    case 'character':
+      return 'mdi mdi-account';
+    case 'actor':
+      return 'mdi mdi-drama-masks';
+    case 'item':
+      return 'mdi mdi-sword';
+    case 'spell':
+      return 'mdi mdi-auto-fix';
+    default:
+      return 'mdi mdi-file-document';
+  }
+}
+
+function getSheetStyle(sheet: DocumentSheetStore) {
   const style: Record<string, string | number> = {
     left: `${sheet.position.x}px`,
     top: `${sheet.position.y}px`,
@@ -116,8 +133,6 @@ function startDrag(event: MouseEvent, sheetId: string) {
   const rect = sizeElement.getBoundingClientRect();
   dragElementSize.value = { width: rect.width, height: rect.height };
   
-  // Debug info removed - size issue was in store initialization, not measurement
-  
   isDragging.value = true;
   currentSheetId.value = sheetId;
   dragStartX.value = event.clientX;
@@ -144,8 +159,6 @@ function handleDrag(event: MouseEvent) {
   
   const newX = Math.max(0, Math.min(maxX, targetX));
   const newY = Math.max(0, Math.min(maxY, targetY));
-  
-  // Boundary calculations now working correctly with content-based sizing
   
   // Apply position directly to DOM for smooth 60fps performance
   dragElement.value.style.left = `${newX}px`;
@@ -214,8 +227,7 @@ function stopResize() {
   document.body.style.cursor = '';
 }
 
-// Character sheet event handlers
-
+// Document sheet event handlers
 function handleRoll(rollType: string, data: Record<string, unknown>) {
   console.log('Roll:', rollType, data);
   // TODO: Integrate with dice rolling system
@@ -233,8 +245,6 @@ onMounted(() => {
   
   // Skip fallback chrome timeout - D&D components are self-contained
   // Plugin components should manage their own UI and don't need framework chrome
-  
-  // No size updates needed - CSS fit-content handles sizing automatically
 });
 
 // Cleanup on unmount
@@ -258,12 +268,10 @@ function setupPluginEventListeners() {
   // TODO: Implement plugin event handling when needed
   // For now, use fallback chrome for all window management
 }
-
-// Content sizing now handled by CSS fit-content - no manual updates needed
 </script>
 
 <style scoped>
-.floating-character-sheet {
+.floating-document-sheet {
   position: fixed;
   display: flex;
   flex-direction: column;
@@ -278,7 +286,7 @@ function setupPluginEventListeners() {
 }
 
 /* Disable transitions during drag for smooth performance */
-.floating-character-sheet.is-dragging {
+.floating-document-sheet.is-dragging {
   transition: none !important;
 }
 
@@ -390,7 +398,7 @@ function setupPluginEventListeners() {
   }
 }
 
-.floating-character-sheet {
+.floating-document-sheet {
   animation: windowFadeIn 0.2s ease-out;
 }
 </style>

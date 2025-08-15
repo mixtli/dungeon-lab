@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import type { BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
 
-export interface FloatingDocumentSheet<T extends BaseDocument = BaseDocument> {
+export interface DocumentSheetStore<T extends BaseDocument = BaseDocument> {
   id: string;
   document: T;
   position: { x: number; y: number };
@@ -11,7 +11,7 @@ export interface FloatingDocumentSheet<T extends BaseDocument = BaseDocument> {
 }
 
 export const useDocumentSheetStore = defineStore('documentSheet', () => {
-  const floatingSheets = ref<Map<string, FloatingDocumentSheet>>(new Map());
+  const floatingSheets = ref<Map<string, DocumentSheetStore>>(new Map());
   let nextZIndex = 1000;
 
   function openDocumentSheet<T extends BaseDocument>(document: T) {
@@ -24,7 +24,7 @@ export const useDocumentSheetStore = defineStore('documentSheet', () => {
     }
 
     // Create new floating document sheet
-    const sheet: FloatingDocumentSheet<T> = {
+    const sheet: DocumentSheetStore<T> = {
       id,
       document,
       position: { 
