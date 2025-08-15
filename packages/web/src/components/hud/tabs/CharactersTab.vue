@@ -66,9 +66,6 @@
         
         <div class="character-info">
           <div class="character-name">{{ character.name }}</div>
-          <div class="character-details">
-            <span class="character-type">{{ character.pluginDocumentType || 'PC' }}</span>
-          </div>
         </div>
 
         <div class="character-actions">

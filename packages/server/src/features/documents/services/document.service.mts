@@ -54,7 +54,9 @@ export class DocumentService {
     id: string,
     options?: QueryOptions
   ): Promise<T | null> {
-    return await DocumentModel.findById(id, undefined, options) as T | null;
+    return await DocumentModel.findById(id, undefined, options)
+      .populate('tokenImage')
+      .populate('avatar') as T | null;
   }
 
   /**
@@ -64,7 +66,9 @@ export class DocumentService {
     filter: FilterQuery<BaseDocument>,
     options?: QueryOptions
   ): Promise<T | null> {
-    return await DocumentModel.findOne(filter, undefined, options) as T | null;
+    return await DocumentModel.findOne(filter, undefined, options)
+      .populate('tokenImage')
+      .populate('avatar') as T | null;
   }
 
   /**
@@ -74,7 +78,9 @@ export class DocumentService {
     filter: FilterQuery<BaseDocument> = {},
     options?: QueryOptions
   ): Promise<T[]> {
-    return await DocumentModel.find(filter, undefined, options) as T[];
+    return await DocumentModel.find(filter, undefined, options)
+      .populate('tokenImage')
+      .populate('avatar') as T[];
   }
 
   /**

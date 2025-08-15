@@ -4,7 +4,15 @@
     <header class="sheet-header" @mousedown="startDrag">
       <div class="character-info">
         <div class="character-portrait">
-          {{ character.name.charAt(0) }}
+          <img 
+            v-if="character.tokenImage?.url" 
+            :src="character.tokenImage.url" 
+            :alt="character.name"
+            class="token-image"
+          />
+          <div v-else class="letter-avatar">
+            {{ character.name.charAt(0) }}
+          </div>
         </div>
         <div class="character-details">
           <h1 v-if="!editMode || readonly" class="character-name">{{ character.name }}</h1>
@@ -1244,6 +1252,25 @@ watch(() => {
   .ability-card:hover {
     transform: none;
   }
+}
+
+/* Avatar Styles */
+.token-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.letter-avatar {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: bold;
+  color: var(--dnd-red-dark);
 }
 
 /* Focus Styles for Accessibility */

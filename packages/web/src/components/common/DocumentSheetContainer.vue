@@ -1,5 +1,5 @@
 <template>
-  <div v-if="show" class="document-sheet-container">
+  <div v-if="show" :class="['document-sheet-container', { 'full-size': context === 'admin' }]">
     <!-- Plugin Container with Style Isolation -->
     <PluginContainer
       width="100%"
@@ -268,9 +268,26 @@ function getActiveGameSystem() {
 </script>
 
 <style scoped>
+/* Default fit-content for floating mode */
 .document-sheet-container {
   width: fit-content;
   height: fit-content;
+}
+
+/* Full size for admin context */
+.document-sheet-container.full-size {
+  width: 100%;
+  height: 100%;
+}
+
+.document-sheet-container.full-size :deep(.plugin-container-wrapper) {
+  width: 100%;
+  height: 100%;
+}
+
+.document-sheet-container.full-size :deep(.plugin-content) {
+  width: 100% !important;
+  height: 100% !important;
 }
 
 /* Plugin Container sizes to content */

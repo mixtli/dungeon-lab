@@ -21,6 +21,8 @@ interface TokenSprite extends PIXI.Sprite {
   originalPosition?: { x: number; y: number };
   dragStartGlobal?: { x: number; y: number };
   worldPosition?: { x: number; y: number };
+  lastClickTime?: number;
+  clickCount?: number;
 }
 
 // Extended container interface for token root
@@ -42,6 +44,7 @@ export interface TokenEvents {
   dragMove: (tokenId: string, position: TokenPosition) => void;
   dragEnd: (tokenId: string, position: TokenPosition) => void;
   click: (tokenId: string, event: PIXI.FederatedPointerEvent) => void;
+  doubleClick: (tokenId: string, event: PIXI.FederatedPointerEvent) => void;
   rightClick: (tokenId: string, event: PIXI.FederatedPointerEvent) => void;
 }
 
@@ -52,6 +55,7 @@ interface TokenRendererEventHandlers {
   dragMove?: (tokenId: string, position: { x: number; y: number }) => void;
   dragEnd?: (tokenId: string, position: { x: number; y: number }) => void;
   click?: (tokenId: string, event: PIXI.FederatedPointerEvent) => void;
+  doubleClick?: (tokenId: string, event: PIXI.FederatedPointerEvent) => void;
   rightClick?: (tokenId: string, event: PIXI.FederatedPointerEvent) => void;
 }
 
@@ -88,6 +92,7 @@ export class TokenRenderer {
   private _gridSize: number = 50;
   private _snapToGrid: boolean = true;
   private _dragThreshold: number = 5; // pixels - minimum distance to start dragging
+  private _doubleClickTime: number = 300; // milliseconds - time window for double-click detection
   
   // Drag state
   private _isDragging = false;
@@ -556,6 +561,8 @@ export class TokenRenderer {
     sprite.scale.set(1, 1);
     sprite.tint = 0xFFFFFF;
     sprite.dragging = false;
+    sprite.lastClickTime = 0;
+    sprite.clickCount = 0;
     
     return sprite;
   }
@@ -792,12 +799,41 @@ export class TokenRenderer {
         stage.on('pointerupoutside', this.handleStageDragEnd, this);
       }
     }
-    // Always emit click event for external handlers
-    if (this.eventHandlers.click) {
-      this.eventHandlers.click(sprite.tokenId, event);
-    }
+    // Handle click and double-click detection
+    this.handleClickAndDoubleClick(sprite, event);
     
     console.log('Token clicked:', sprite.tokenId);
+  }
+  
+  /**
+   * Handle click and double-click detection
+   */
+  private handleClickAndDoubleClick(sprite: TokenSprite, event: PIXI.FederatedPointerEvent): void {
+    if (!sprite.tokenId) return;
+    
+    const currentTime = Date.now();
+    const lastClickTime = sprite.lastClickTime || 0;
+    const timeDifference = currentTime - lastClickTime;
+    
+    // Update click tracking
+    sprite.lastClickTime = currentTime;
+    
+    if (timeDifference <= this._doubleClickTime) {
+      // This is a double-click
+      sprite.clickCount = 0; // Reset click count
+      if (this.eventHandlers.doubleClick) {
+        this.eventHandlers.doubleClick(sprite.tokenId, event);
+      }
+      console.log('Token double-clicked:', sprite.tokenId);
+    } else {
+      // This is a single click (for now)
+      sprite.clickCount = 1;
+      
+      // Emit single click event immediately
+      if (this.eventHandlers.click) {
+        this.eventHandlers.click(sprite.tokenId, event);
+      }
+    }
   }
   
   /**

@@ -4,7 +4,15 @@
     <header class="sheet-header" @mousedown="startDrag">
       <div class="character-info">
         <div class="character-portrait">
-          {{ actor.name.charAt(0) }}
+          <img 
+            v-if="actor.tokenImage?.url" 
+            :src="actor.tokenImage.url" 
+            :alt="actor.name"
+            class="token-image"
+          />
+          <div v-else class="letter-avatar">
+            {{ actor.name.charAt(0) }}
+          </div>
         </div>
         <div class="character-details">
           <h1 v-if="!editMode || readonly" class="character-name">{{ actor.name }}</h1>
@@ -715,5 +723,24 @@ onMounted(() => {
   text-align: center;
   border-bottom: 1px solid var(--dnd-brown-light);
   padding-bottom: 2px;
+}
+
+/* Avatar Styles */
+.token-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.letter-avatar {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: bold;
+  color: var(--dnd-red-dark);
 }
 </style>
