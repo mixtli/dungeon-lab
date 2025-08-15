@@ -1,44 +1,45 @@
 /**
- * Document State Management Composable
+ * Generic Document State Management Composable
  * 
- * Provides reactive document state management for both characters and actors:
- * - Standalone editing mode (with auto-save)
- * - Game mode (with WebSocket updates)
+ * Provides reactive document state management for admin/standalone editing:
+ * - Fetches document by ID
+ * - Tracks changes and provides save/reset functionality
+ * - Works with any document type (character, actor, etc.)
+ * - NO WebSocket integration (use useGameDocumentState for game mode)
  */
 
-import { ref, onUnmounted, type Ref } from 'vue';
-import type { ICharacter, IItem } from '@dungeon-lab/shared/types/index.mjs';
+import { ref, onMounted, type Ref } from 'vue';
+import type { BaseDocument, IItem } from '@dungeon-lab/shared/types/index.mjs';
 import type { CreateDocumentData } from '@dungeon-lab/shared/schemas/document.schema.mjs';
 import { DocumentsClient } from '@dungeon-lab/client/index.mjs';
-import { useSocketStore } from '../stores/socket.store.mjs';
 
 export interface DocumentStateOptions {
-  /** Enable WebSocket integration for real-time server updates (game mode) */
-  enableWebSocket?: boolean;
-  /** Enable auto-save functionality for user edits (edit mode) */
-  enableAutoSave?: boolean;
-  /** Auto-save delay in milliseconds */
-  autoSaveDelay?: number;
   /** Whether this is readonly mode */
   readonly?: boolean;
 }
 
 /**
- * Strip populated and database-specific fields from a character to create a valid PutDocumentRequest
+ * Strip populated and database-specific fields from a document to create a valid PutDocumentRequest
  * This removes fields that are added by the server/database but shouldn't be included in create/update requests
  */
-function stripPopulatedFields(character: ICharacter): CreateDocumentData {
+function stripPopulatedFields(document: BaseDocument): CreateDocumentData {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { id, createdBy, updatedBy, avatar, tokenImage, ...coreFields } = character;
+  const { id, createdBy, updatedBy, ...coreFields } = document;
+  
+  // Remove any additional populated fields that might exist
+  delete (coreFields as any).avatar;
+  delete (coreFields as any).tokenImage;
   
   return coreFields as CreateDocumentData;
 }
 
 export interface DocumentStateReturn {
   /** Reactive document data */
-  character: Ref<ICharacter>;
+  document: Ref<BaseDocument | null>;
   /** Reactive document items */
   items: Ref<IItem[]>;
+  /** Whether the document is being loaded */
+  isLoading: Ref<boolean>;
   /** Whether there are unsaved changes */
   hasUnsavedChanges: Ref<boolean>;
   /** Whether a save operation is in progress */
@@ -54,106 +55,124 @@ export interface DocumentStateReturn {
 }
 
 export function useDocumentState(
-  initialCharacter: ICharacter,
+  documentId: string,
+  documentType: 'character' | 'actor',
   options: DocumentStateOptions = {}
 ): DocumentStateReturn {
-  const {
-    enableWebSocket = false,
-    readonly = false
-  } = options;
+  const { readonly = false } = options;
 
-  // Reactive state - use JSON clone to avoid structuredClone issues with complex objects
-  const character = ref<ICharacter>(JSON.parse(JSON.stringify(initialCharacter)));
+  // Reactive state
+  const document = ref<BaseDocument | null>(null);
   const items = ref<IItem[]>([]);
-  const originalCharacter = ref<ICharacter>(JSON.parse(JSON.stringify(initialCharacter)));
+  const originalDocument = ref<BaseDocument | null>(null);
+  const isLoading = ref(true);
   const hasUnsavedChanges = ref(false);
   const isSaving = ref(false);
 
   // API client
   const documentsClient = new DocumentsClient();
 
-  // WebSocket integration for game mode
-  let socketCleanup: (() => void) | null = null;
-  if (enableWebSocket) {
-    const socketStore = useSocketStore();
-    const socket = socketStore.socket;
-    
-    if (socket) {
-      const handleCharacterUpdate = (update: Partial<ICharacter>) => {
-        console.log('[useCharacterState] Received WebSocket character update:', update);
-        
-        // Apply server updates directly to character
-        Object.assign(character.value, update);
-        
-        // Update original character to reflect server state
-        originalCharacter.value = JSON.parse(JSON.stringify(character.value));
-        hasUnsavedChanges.value = false;
-      };
-
-      const eventName = `character:${character.value.id}:update`;
-      // Use any to bypass strict socket typing for custom events
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (socket as any).on(eventName, handleCharacterUpdate);
+  // Initialize document from server
+  const initializeDocument = async () => {
+    try {
+      isLoading.value = true;
+      console.log(`[useDocumentState] Fetching ${documentType} document:`, documentId);
       
-      socketCleanup = () => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (socket as any).off(eventName, handleCharacterUpdate);
-      };
+      const fetchedDocument = await documentsClient.getDocument(documentId) as BaseDocument;
       
-      console.log('[useCharacterState] WebSocket integration enabled for character:', character.value.id);
+      // Use JSON clone to avoid reactivity issues with complex objects
+      document.value = JSON.parse(JSON.stringify(fetchedDocument));
+      originalDocument.value = JSON.parse(JSON.stringify(fetchedDocument));
+      
+      console.log(`[useDocumentState] ${documentType} document loaded:`, {
+        id: fetchedDocument.id,
+        name: (fetchedDocument as any).name,
+        documentType: fetchedDocument.documentType
+      });
+      
+      // Load associated items
+      await loadItems();
+      
+    } catch (error) {
+      console.error(`[useDocumentState] Failed to fetch ${documentType} document:`, error);
+      throw error;
+    } finally {
+      isLoading.value = false;
     }
-  }
+  };
 
   // Manual change tracking - will need to be triggered explicitly
   const markAsChanged = () => {
     hasUnsavedChanges.value = true;
   };
 
-  // Load character items
+  // Load document items (generic for any document that can carry items)
   const loadItems = async () => {
+    if (!document.value) return;
+    
     try {
-      const characterItems = await documentsClient.searchDocuments({
+      const documentItems = await documentsClient.searchDocuments({
         documentType: 'item',
-        carrierId: character.value.id
+        carrierId: document.value.id
       }) as IItem[];
       
-      items.value = characterItems;
-      console.log('[useCharacterState] Loaded character items:', characterItems.length);
+      items.value = documentItems;
+      console.log(`[useDocumentState] Loaded ${documentType} items:`, documentItems.length);
     } catch (error) {
-      console.error('[useCharacterState] Failed to load character items:', error);
+      console.error(`[useDocumentState] Failed to load ${documentType} items:`, error);
       items.value = [];
     }
   };
 
-  // Manual save function - uses PUT to replace entire character document
+  // Manual save function - uses PUT to replace entire document
   const save = async () => {
-    if (isSaving.value || readonly) {
+    if (isSaving.value || readonly || !document.value) {
       return;
     }
 
     try {
       isSaving.value = true;
       
-      console.log('[useCharacterState] Saving character with PUT (full replace):', character.value.name);
+      console.log(`[useDocumentState] === SAVE START (${documentType}) ===`);
+      console.log(`[useDocumentState] BEFORE SAVE - document:`, {
+        id: document.value.id,
+        name: (document.value as any).name,
+        documentType: document.value.documentType,
+        fullData: document.value
+      });
       
       // Strip populated fields to create valid PutDocumentRequest
-      const characterData = stripPopulatedFields(character.value);
+      const documentData = stripPopulatedFields(document.value);
+      console.log(`[useDocumentState] Sending to server:`, documentData);
       
-      // Save character using putDocument (PUT) to replace entire document
-      const updatedCharacter = await documentsClient.putDocument(
-        character.value.id,
-        characterData
-      ) as ICharacter;
+      // Save document using putDocument (PUT) to replace entire document
+      const updatedDocument = await documentsClient.putDocument(
+        document.value.id,
+        documentData
+      ) as BaseDocument;
+      
+      console.log(`[useDocumentState] Received from server:`, {
+        id: updatedDocument.id,
+        name: (updatedDocument as any).name,
+        documentType: updatedDocument.documentType,
+        fullData: updatedDocument
+      });
       
       // Update state with server response
-      character.value = updatedCharacter;
-      originalCharacter.value = JSON.parse(JSON.stringify(updatedCharacter));
+      document.value = updatedDocument;
+      originalDocument.value = JSON.parse(JSON.stringify(updatedDocument));
       hasUnsavedChanges.value = false;
       
-      console.log('[useCharacterState] Character saved successfully with PUT');
+      console.log(`[useDocumentState] AFTER UPDATE - document:`, {
+        id: document.value.id,
+        name: (document.value as any).name,
+        documentType: document.value.documentType,
+        reactiveRef: document
+      });
+      console.log(`[useDocumentState] === SAVE COMPLETE (${documentType}) ===`);
       
     } catch (error) {
-      console.error('[useCharacterState] Failed to save character:', error);
+      console.error(`[useDocumentState] Failed to save ${documentType}:`, error);
       throw error;
     } finally {
       isSaving.value = false;
@@ -162,25 +181,23 @@ export function useDocumentState(
 
   // Reset to original state
   const reset = () => {
-    character.value = JSON.parse(JSON.stringify(originalCharacter.value));
+    if (!originalDocument.value) return;
+    
+    document.value = JSON.parse(JSON.stringify(originalDocument.value));
     hasUnsavedChanges.value = false;
     
-    console.log('[useCharacterState] Character reset to original state');
+    console.log(`[useDocumentState] ${documentType} reset to original state`);
   };
 
-  // Cleanup on unmount
-  onUnmounted(() => {
-    if (socketCleanup) {
-      socketCleanup();
-    }
+  // Initialize on mount
+  onMounted(async () => {
+    await initializeDocument();
   });
 
-  // Initialize items on creation
-  loadItems();
-
   return {
-    character,
+    document,
     items,
+    isLoading,
     hasUnsavedChanges,
     isSaving,
     save,

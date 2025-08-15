@@ -30,7 +30,7 @@
           <i class="mdi mdi-file-document-alert text-4xl text-gray-400 mb-4"></i>
           <h3 class="text-lg font-semibold text-gray-900 mb-2">Document Sheet Unavailable</h3>
           <p class="text-sm text-gray-600 mb-4">
-            {{ (reactiveDocument || props.document) ? `The document sheet component for game system "${documentInfo.pluginId}" is not available.` : 'No document data provided.' }}
+            {{ reactiveDocument ? `The document sheet component for game system "${documentInfo.pluginId}" is not available.` : 'No document data provided.' }}
           </p>
           <details class="mb-4 text-left">
             <summary class="text-sm text-gray-500 cursor-pointer">Debug Information</summary>
@@ -64,7 +64,6 @@ import PluginContainer from './PluginContainer.vue';
 
 const props = defineProps<{
   show: boolean;
-  document?: BaseDocument | null;
   documentId?: string;
   documentType?: 'character' | 'actor';
   context?: 'admin' | 'game';
@@ -87,16 +86,12 @@ const context = computed(() => props.context || 'admin');
 const isGameContext = computed(() => context.value === 'game');
 
 // Initialize appropriate composable based on context
-const adminDocumentState = computed(() => {
-  if (!isGameContext.value && props.document) {
-    return useDocumentState(props.document, {
-      enableWebSocket: false, // Admin mode doesn't use WebSocket
-      enableAutoSave: false, // Disable auto-save - manual save only
-      readonly: props.readonly
-    });
-  }
-  return null;
-});
+//const adminDocumentState = ref<ReturnType<typeof useDocumentState> | null>(null);
+
+// Initialize admin state when in admin context and we have the required props
+const  adminDocumentState = useDocumentState(props.documentId, props.documentType, {
+    readonly: props.readonly
+  });
 
 const gameDocumentState = computed(() => {
   if (isGameContext.value && props.documentId && props.documentType) {
@@ -109,7 +104,7 @@ const gameDocumentState = computed(() => {
 
 // Unified interface for both contexts
 const documentState = computed(() => {
-  return isGameContext.value ? gameDocumentState.value : adminDocumentState.value;
+  return isGameContext.value ? gameDocumentState.value : adminDocumentState;
 });
 
 // Reactive document and items from appropriate composable
@@ -119,16 +114,9 @@ const reactiveDocument = computed(() => {
   if (isGameContext.value) {
     // IMPORTANT: gameDocumentState.value.document is already a ComputedRef, so we need to unwrap it
     const gameDoc = gameDocumentState.value?.document?.value || null;
-    console.log(`[DocumentSheetContainer] Game context - gameDocumentState.value:`, gameDocumentState.value);
-    console.log(`[DocumentSheetContainer] Game context - document (unwrapped):`, gameDoc ? { id: (gameDoc as any).id, name: (gameDoc as any).name } : null);
     return gameDoc;
   } else {
-    const adminDoc = adminDocumentState.value?.character?.value || null;
-    console.log(`[DocumentSheetContainer] Admin context - document:`, adminDoc ? { 
-      id: (adminDoc as any).id, 
-      name: (adminDoc as any).name,
-      armorClass: (adminDoc as any).pluginData?.attributes?.armorClass 
-    } : null);
+    const adminDoc = adminDocumentState?.document?.value || null;
     return adminDoc;
   }
 });
@@ -137,27 +125,19 @@ const reactiveItems = computed(() => documentState.value?.items || ref([]));
 const hasUnsavedChanges = computed(() => documentState.value?.hasUnsavedChanges?.value ?? false);
 
 // Watch for document changes to reinitialize state
-watch(() => [props.document, props.documentId, props.documentType, props.context], () => {
+watch(() => [props.documentId, props.documentType, props.context], () => {
   // Document state will be recreated via computed when dependencies change
   console.log('[DocumentSheetContainer] Document context changed, state will be recomputed');
 }, { immediate: true });
 
 // Get document info for component loading (works for both contexts)
 const documentInfo = computed(() => {
-  if (isGameContext.value) {
-    // In game context, get from reactive document or fallback to passed props
-    const doc = reactiveDocument.value?.value || reactiveDocument.value;
-    return {
-      pluginId: (doc as BaseDocument)?.pluginId,
-      documentType: props.documentType
-    };
-  } else {
-    // In admin context, get from props.document
-    return {
-      pluginId: props.document?.pluginId,
-      documentType: props.document?.documentType
-    };
-  }
+  // Get from reactive document regardless of context
+  const doc = reactiveDocument.value?.value || reactiveDocument.value;
+  return {
+    pluginId: (doc as BaseDocument)?.pluginId,
+    documentType: props.documentType
+  };
 });
 
 // Watch for document changes and load the appropriate component based on documentType
@@ -212,12 +192,9 @@ const handleSave = async () => {
   
   try {
     await documentState.value.save();
+    toggleEditMode();
     
     // Emit to parent for reactive updates  
-    const docValue = reactiveDocument.value?.value || reactiveDocument.value;
-    if (docValue) {
-      emit('update:document', docValue as BaseDocument);
-    }
   } catch (error) {
     console.error('[DocumentSheetContainer] Save failed:', error);
     // TODO: Show user-friendly error message
@@ -241,7 +218,7 @@ const handleDragStart = (event: MouseEvent) => {
 
 // Get appropriate props based on component type (character vs actor sheet)
 const getComponentProps = () => {
-  const docType = isGameContext.value ? props.documentType : props.document?.documentType;
+  const docType = props.documentType;
   console.log(`[DocumentSheetContainer] getComponentProps - docType: ${docType}, context: ${context.value}`);
   
   if (!docType) {
