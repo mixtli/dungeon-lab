@@ -6,15 +6,14 @@
       height="100%"
       background-color="#ffffff"
     >
-      <!-- Character Sheet Component -->
+      <!-- Character/Actor Sheet Component -->
       <component
         :is="characterSheetComponent"
-        v-if="characterSheetComponent && reactiveCharacter"
-        :character="reactiveCharacter"
-        :items="reactiveItems"
-        :edit-mode="editMode"
-        :readonly="readonly"
+        v-if="characterSheetComponent && (reactiveCharacter || props.character?.documentType === 'actor')"
+        v-bind="getComponentProps()"
         @update:items="handleItemsChange"
+        @update:character="handleCharacterUpdate"
+        @update:actor="handleActorUpdate"
         @save="handleSave"
         @toggle-edit-mode="toggleEditMode"
         @roll="handleRoll"
@@ -52,7 +51,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue';
+import { ref, watch, computed, shallowRef } from 'vue';
 import type { Component } from 'vue';
 import type { IActor, IItem } from '@dungeon-lab/shared/types/index.mjs';
 import { pluginRegistry } from '../../services/plugin-registry.mts';
@@ -72,12 +71,12 @@ const emit = defineEmits<{
 }>();
 
 // Component state
-const characterSheetComponent = ref<Component | null>(null);
+const characterSheetComponent = shallowRef<Component | null>(null);
 const editMode = ref(false);
 
-// Character state management using composable
+// Character state management using composable (only for characters, not actors)
 const characterState = computed(() => {
-  if (!props.character) return null;
+  if (!props.character || props.character.documentType === 'actor') return null;
   
   return useCharacterState(props.character, {
     enableWebSocket: props.readonly, // Game mode uses WebSocket
@@ -86,7 +85,7 @@ const characterState = computed(() => {
   });
 });
 
-// Reactive character and items from composable
+// Reactive character and items from composable (only for characters)
 const reactiveCharacter = computed(() => characterState.value?.character || null);
 const reactiveItems = computed(() => characterState.value?.items || ref([]));
 const hasUnsavedChanges = computed(() => characterState.value?.hasUnsavedChanges?.value ?? false);
@@ -98,9 +97,9 @@ watch(() => props.character, () => {
   console.log('[CharacterSheetContainer] Character changed, state will be recomputed');
 }, { immediate: true });
 
-// Watch for character changes and load the appropriate component
-watch(() => props.character?.pluginId, async (pluginId) => {
-  console.log('[CharacterSheetContainer] Character game system ID:', pluginId);
+// Watch for character changes and load the appropriate component based on documentType
+watch(() => [props.character?.pluginId, props.character?.documentType], async ([pluginId, documentType]) => {
+  console.log('[CharacterSheetContainer] Character game system ID:', pluginId, 'documentType:', documentType);
   
   if (!pluginId) {
     characterSheetComponent.value = null;
@@ -108,17 +107,20 @@ watch(() => props.character?.pluginId, async (pluginId) => {
   }
 
   try {
+    // Determine component type based on documentType
+    const componentType = documentType === 'actor' ? 'actor-sheet' : 'character-sheet';
+    
     // Use the new async getComponent API
-    const component = await pluginRegistry.getComponent(pluginId, 'character-sheet');
+    const component = await pluginRegistry.getComponent(pluginId, componentType);
     if (component) {
-      console.log('[CharacterSheetContainer] Character sheet component loaded successfully');
+      console.log(`[CharacterSheetContainer] ${componentType} component loaded successfully`);
       characterSheetComponent.value = component;
     } else {
-      console.warn('[CharacterSheetContainer] Character sheet component not found for plugin:', pluginId);
+      console.warn(`[CharacterSheetContainer] ${componentType} component not found for plugin:`, pluginId);
       characterSheetComponent.value = null;
     }
   } catch (error) {
-    console.error('[CharacterSheetContainer] Failed to load character sheet component:', error);
+    console.error('[CharacterSheetContainer] Failed to load sheet component:', error);
     characterSheetComponent.value = null;
   }
 }, { immediate: true });
@@ -170,6 +172,39 @@ const handleCancel = () => {
 
 const handleRoll = (rollType: string, data: Record<string, unknown>) => {
   emit('roll', rollType, data);
+};
+
+// Get appropriate props based on component type (character vs actor sheet)
+const getComponentProps = () => {
+  if (!props.character) return {};
+  
+  const isActorSheet = props.character.documentType === 'actor';
+  
+  if (isActorSheet) {
+    // Actor sheet expects: actor, readonly (use raw actor data, not useCharacterState)
+    return {
+      actor: props.character,
+      readonly: props.readonly
+    };
+  } else {
+    // Character sheet expects: character (Ref), items (Ref), editMode, readonly
+    return {
+      character: reactiveCharacter.value,
+      items: reactiveItems.value,
+      editMode: editMode.value,
+      readonly: props.readonly
+    };
+  }
+};
+
+// Handle updates from character sheet
+const handleCharacterUpdate = (updatedCharacter: IActor) => {
+  emit('update:character', updatedCharacter);
+};
+
+// Handle updates from actor sheet
+const handleActorUpdate = (updatedActor: IActor) => {
+  emit('update:character', updatedActor);
 };
 
 function getActiveGameSystem() {

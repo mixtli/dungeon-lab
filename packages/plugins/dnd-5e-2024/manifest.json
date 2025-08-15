@@ -32,6 +32,22 @@
         "close": "Emitted when character sheet should be closed"
       }
     },
+    "actor-sheet": {
+      "id": "dnd-5e-2024-actor-sheet",
+      "name": "D&D 5e Actor Sheet",
+      "description": "Interactive stat block sheet for D&D 5e actors/creatures",
+      "category": "actor",
+      "props": {
+        "actor": { "type": "object", "required": true },
+        "readonly": { "type": "boolean", "default": false }
+      },
+      "events": {
+        "update:actor": "Emitted when actor data changes",
+        "save": "Emitted when actor should be saved",
+        "roll": "Emitted when dice should be rolled",
+        "close": "Emitted when actor sheet should be closed"
+      }
+    },
     "character-creator": {
       "id": "dnd-5e-2024-character-creator",
       "name": "D&D 5e Character Creator",
