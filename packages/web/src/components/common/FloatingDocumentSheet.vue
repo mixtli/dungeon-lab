@@ -1,22 +1,24 @@
 <template>
   <Teleport to="body">
     <div
-      v-for="[sheetId, sheet] in characterSheetStore.floatingSheets"
+      v-for="[sheetId, sheet] in documentSheetStore.floatingSheets"
       :key="sheetId"
       :ref="sheetId"
-      class="floating-character-sheet"
+      :data-sheet-id="sheetId"
+      class="floating-document-sheet"
+      :class="{ 'is-dragging': isDragging && currentSheetId === sheetId }"
       :style="getSheetStyle(sheet)"
-      @mousedown.self="characterSheetStore.bringToFront(sheetId)"
+      @mousedown.self="documentSheetStore.bringToFront(sheetId)"
     >
       <!-- Fallback Framework Header (only shown if plugin doesn't emit events) -->
       <div v-if="showFallbackChrome" class="fallback-header" @mousedown="startDrag($event, sheetId)">
         <div class="window-title">
-          <i class="mdi mdi-account title-icon"></i>
-          <span>{{ sheet.character.name }}</span>
+          <i :class="getDocumentIcon(sheet.document)" class="title-icon"></i>
+          <span>{{ sheet.document.name }}</span>
         </div>
         
         <div class="window-controls">
-          <button class="control-button" title="Close" @click="characterSheetStore.closeCharacterSheet(sheetId)">
+          <button class="control-button" title="Close" @click="documentSheetStore.closeDocumentSheet(sheetId)">
             <i class="mdi mdi-close"></i>
           </button>
         </div>
@@ -24,12 +26,15 @@
 
       <!-- Window Content (no header - plugin provides its own) -->
       <div class="window-content">
-        <CharacterSheetContainer
+        <DocumentSheetContainer
           :show="true"
-          :character="sheet.character"
+          :document-id="sheet.document.id"
+          :document-type="sheet.document.documentType as 'character' | 'actor'"
+          context="game"
           :readonly="false"
-          @close="characterSheetStore.closeCharacterSheet(sheetId)"
+          @close="documentSheetStore.closeDocumentSheet(sheetId)"
           @roll="handleRoll"
+          @drag-start="(event) => handlePluginDragStart(event, sheetId)"
         />
       </div>
 
@@ -48,13 +53,25 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onUnmounted, onMounted } from 'vue';
-import { useCharacterSheetStore } from '../../stores/character-sheet.store.mjs';
-import { pluginRegistry } from '../../services/plugin-registry.mts';
-import type { FloatingCharacterSheet } from '../../stores/character-sheet.store.mjs';
-import CharacterSheetContainer from './CharacterSheetContainer.vue';
+import { ref, watch, onUnmounted, onMounted } from 'vue';
+import { useDocumentSheetStore } from '../../stores/document-sheet.store.mjs';
+import type { DocumentSheetStore } from '../../stores/document-sheet.store.mjs';
+import type { BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
+import DocumentSheetContainer from './DocumentSheetContainer.vue';
 
-const characterSheetStore = useCharacterSheetStore();
+const documentSheetStore = useDocumentSheetStore();
+
+// Debug logging for sheets
+watch(() => documentSheetStore.floatingSheets, (sheets) => {
+  console.log('[FloatingDocumentSheet] Current floating sheets:', 
+    Array.from(sheets.entries()).map(([id, sheet]) => ({
+      id,
+      documentId: sheet.document.id,
+      documentType: sheet.document.documentType,
+      documentName: sheet.document.name
+    }))
+  );
+}, { deep: true, immediate: true });
 
 // Drag and resize state
 const isDragging = ref(false);
@@ -66,27 +83,69 @@ const dragStartPos = ref({ x: 0, y: 0 });
 const resizeStartPos = ref({ x: 0, y: 0 });
 const resizeStartSize = ref({ width: 0, height: 0 });
 
+// Cache element reference and size for performance during drag
+const dragElement = ref<HTMLElement | null>(null);
+const dragElementSize = ref({ width: 0, height: 0 });
+
 // Plugin event listeners cleanup functions
 const eventCleanups = ref<Array<() => void>>([]);
 
 // Fallback support - show framework chrome if plugin doesn't emit events
-const showFallbackChrome = ref(true); // Always show fallback chrome for now
+const showFallbackChrome = ref(false); // D&D components are self-contained with their own headers
 const fallbackTimeout = ref<number | null>(null);
 
-function getSheetStyle(sheet: FloatingCharacterSheet) {
-  return {
+// Get appropriate icon for document type
+function getDocumentIcon(document: BaseDocument): string {
+  switch (document.documentType) {
+    case 'character':
+      return 'mdi mdi-account';
+    case 'actor':
+      return 'mdi mdi-drama-masks';
+    case 'item':
+      return 'mdi mdi-sword';
+    case 'spell':
+      return 'mdi mdi-auto-fix';
+    default:
+      return 'mdi mdi-file-document';
+  }
+}
+
+function getSheetStyle(sheet: DocumentSheetStore) {
+  const style: Record<string, string | number> = {
     left: `${sheet.position.x}px`,
     top: `${sheet.position.y}px`,
-    width: `${sheet.size.width}px`,
-    height: `${sheet.size.height}px`,
     zIndex: sheet.zIndex,
   };
+  
+  // Only include size if user has manually resized (overriding CSS fit-content)
+  if (sheet.size) {
+    style.width = `${sheet.size.width}px`;
+    style.height = `${sheet.size.height}px`;
+  }
+  
+  return style;
 }
 
 // Drag functionality
 function startDrag(event: MouseEvent, sheetId: string) {
-  const sheet = characterSheetStore.floatingSheets.get(sheetId);
+  const sheet = documentSheetStore.floatingSheets.get(sheetId);
   if (!sheet) return;
+  
+  // Find the DOM element for this sheet
+  const element = document.querySelector(`[data-sheet-id="${sheetId}"]`) as HTMLElement;
+  if (!element) {
+    console.warn('Could not find sheet element for drag:', sheetId);
+    return;
+  }
+  
+  // Find the actual plugin content inside for accurate sizing
+  const pluginContent = element.querySelector('.plugin-container-wrapper') as HTMLElement;
+  const sizeElement = pluginContent || element;
+  
+  // Cache element for positioning and get accurate content size
+  dragElement.value = element;
+  const rect = sizeElement.getBoundingClientRect();
+  dragElementSize.value = { width: rect.width, height: rect.height };
   
   isDragging.value = true;
   currentSheetId.value = sheetId;
@@ -101,23 +160,36 @@ function startDrag(event: MouseEvent, sheetId: string) {
 }
 
 function handleDrag(event: MouseEvent) {
-  if (!isDragging.value || !currentSheetId.value) return;
-  
-  const sheet = characterSheetStore.floatingSheets.get(currentSheetId.value);
-  if (!sheet) return;
+  if (!isDragging.value || !currentSheetId.value || !dragElement.value) return;
   
   const deltaX = event.clientX - dragStartX.value;
   const deltaY = event.clientY - dragStartY.value;
   
-  const newX = Math.max(0, Math.min(window.innerWidth - sheet.size.width, dragStartPos.value.x + deltaX));
-  const newY = Math.max(0, Math.min(window.innerHeight - sheet.size.height, dragStartPos.value.y + deltaY));
+  // Calculate new position with proper boundary constraints using cached size
+  const maxX = window.innerWidth - dragElementSize.value.width;
+  const maxY = window.innerHeight - dragElementSize.value.height;
+  const targetX = dragStartPos.value.x + deltaX;
+  const targetY = dragStartPos.value.y + deltaY;
   
-  characterSheetStore.updatePosition(currentSheetId.value, newX, newY);
+  const newX = Math.max(0, Math.min(maxX, targetX));
+  const newY = Math.max(0, Math.min(maxY, targetY));
+  
+  // Apply position directly to DOM for smooth 60fps performance
+  dragElement.value.style.left = `${newX}px`;
+  dragElement.value.style.top = `${newY}px`;
 }
 
 function stopDrag() {
+  // Sync final position back to store if we have an element reference
+  if (dragElement.value && currentSheetId.value) {
+    const rect = dragElement.value.getBoundingClientRect();
+    documentSheetStore.updatePosition(currentSheetId.value, rect.left, rect.top);
+  }
+  
+  // Clean up drag state
   isDragging.value = false;
   currentSheetId.value = '';
+  dragElement.value = null;
   document.removeEventListener('mousemove', handleDrag);
   document.removeEventListener('mouseup', stopDrag);
   document.body.style.cursor = '';
@@ -125,13 +197,20 @@ function stopDrag() {
 
 // Resize functionality
 function startResize(event: MouseEvent, sheetId: string) {
-  const sheet = characterSheetStore.floatingSheets.get(sheetId);
+  const sheet = documentSheetStore.floatingSheets.get(sheetId);
   if (!sheet) return;
+  
+  // Get current actual size from DOM element
+  const element = document.querySelector(`[data-sheet-id="${sheetId}"]`) as HTMLElement;
+  if (!element) return;
+  
+  const rect = element.getBoundingClientRect();
+  const currentSize = { width: rect.width, height: rect.height };
   
   isResizing.value = true;
   currentSheetId.value = sheetId;
   resizeStartPos.value = { x: event.clientX, y: event.clientY };
-  resizeStartSize.value = { ...sheet.size };
+  resizeStartSize.value = currentSize;
   
   document.addEventListener('mousemove', handleResize);
   document.addEventListener('mouseup', stopResize);
@@ -146,10 +225,12 @@ function handleResize(event: MouseEvent) {
   const deltaX = event.clientX - resizeStartPos.value.x;
   const deltaY = event.clientY - resizeStartPos.value.y;
   
-  const newWidth = Math.max(900, resizeStartSize.value.width + deltaX);
-  const newHeight = Math.max(600, resizeStartSize.value.height + deltaY);
+  // Use reasonable minimums based on content, not arbitrary large values
+  const newWidth = Math.max(300, resizeStartSize.value.width + deltaX);
+  const newHeight = Math.max(200, resizeStartSize.value.height + deltaY);
   
-  characterSheetStore.updateSize(currentSheetId.value, newWidth, newHeight);
+  // Store size to override CSS fit-content during user resize
+  documentSheetStore.updateSize(currentSheetId.value, newWidth, newHeight);
 }
 
 function stopResize() {
@@ -160,37 +241,24 @@ function stopResize() {
   document.body.style.cursor = '';
 }
 
-// Character sheet event handlers
-
+// Document sheet event handlers
 function handleRoll(rollType: string, data: Record<string, unknown>) {
   console.log('Roll:', rollType, data);
   // TODO: Integrate with dice rolling system
+}
+
+// Handle drag start events from plugin components
+function handlePluginDragStart(event: MouseEvent, sheetId: string) {
+  // Forward plugin drag events to the existing drag system
+  startDrag(event, sheetId);
 }
 
 // Setup plugin event listeners
 onMounted(() => {
   setupPluginEventListeners();
   
-  // Set up fallback timeout - show framework chrome if no plugin events received
-  fallbackTimeout.value = window.setTimeout(() => {
-    // If no plugin context was found, show fallback chrome
-    const hasActivePlugin = Array.from(characterSheetStore.floatingSheets.values()).some(sheet => {
-      const gameSystemId = sheet.character.pluginId;
-      let pluginId = gameSystemId;
-      if (pluginId === 'dnd5e-2024' || pluginId === 'dnd-5e-2024') {
-        pluginId = 'dnd-5e-2024';
-      }
-      const plugin = pluginRegistry.getGameSystemPlugin(pluginId);
-      // Check if plugin has getContext method (plugins extend BasePlugin)
-      return plugin && typeof (plugin as unknown as { getContext?: () => unknown }).getContext === 'function' &&
-             (plugin as unknown as { getContext: () => unknown }).getContext() !== undefined;
-    });
-    
-    if (!hasActivePlugin) {
-      console.warn('[FloatingCharacterSheet] No plugin context found, showing fallback chrome');
-      showFallbackChrome.value = true;
-    }
-  }, 1000); // 1 second timeout
+  // Skip fallback chrome timeout - D&D components are self-contained
+  // Plugin components should manage their own UI and don't need framework chrome
 });
 
 // Cleanup on unmount
@@ -217,14 +285,23 @@ function setupPluginEventListeners() {
 </script>
 
 <style scoped>
-.floating-character-sheet {
+.floating-document-sheet {
   position: fixed;
   display: flex;
   flex-direction: column;
-  min-width: 900px;
-  min-height: 600px;
+  width: fit-content;
+  height: fit-content;
+  min-width: 400px;
+  max-width: 90vw;
+  min-height: 300px;
+  max-height: 90vh;
   overflow: hidden;
   transition: all 0.2s ease;
+}
+
+/* Disable transitions during drag for smooth performance */
+.floating-document-sheet.is-dragging {
+  transition: none !important;
 }
 
 /* Fallback Framework Header */
@@ -288,8 +365,8 @@ function setupPluginEventListeners() {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  width: 100%;
-  height: 100%;
+  width: fit-content;
+  height: fit-content;
 }
 
 /* Resize Handle */
@@ -335,7 +412,7 @@ function setupPluginEventListeners() {
   }
 }
 
-.floating-character-sheet {
+.floating-document-sheet {
   animation: windowFadeIn 0.2s ease-out;
 }
 </style>

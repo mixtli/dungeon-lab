@@ -67,7 +67,25 @@ export class DocumentController {
         ...validatedData,
         updatedBy: userId
       };
+      
+      // DEBUG: Log what we're updating
+      logger.info('[DEBUG] putDocument - About to update document:', {
+        id,
+        userId,
+        updateDataKeys: Object.keys(updateData),
+        armorClassUpdate: updateData.pluginData?.attributes?.armorClass,
+        fullPluginData: updateData.pluginData
+      });
+      
       const document = await DocumentService.updateById(id, updateData);
+      
+      // DEBUG: Log what we got back
+      logger.info('[DEBUG] putDocument - Document update result:', {
+        id,
+        found: !!document,
+        armorClassInResult: document?.pluginData?.attributes?.armorClass
+      });
+      
       if (!document) {
         throw new Error('Document not found');
       }

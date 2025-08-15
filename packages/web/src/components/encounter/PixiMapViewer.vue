@@ -51,6 +51,8 @@ import type { IUVTT } from '@dungeon-lab/shared/types/index.mjs';
 import type { Platform } from '@/services/encounter/PixiMapRenderer.mjs';
 import { MapsClient } from '@dungeon-lab/client/index.mjs';
 import { transformAssetUrl } from '@/utils/asset-utils.mjs';
+import { useDocumentSheetStore } from '@/stores/document-sheet.store.mjs';
+import { useGameStateStore } from '@/stores/game-state.store.mjs';
 
 // Token change operations for efficient updates
 interface TokenChangeOperation {
@@ -153,6 +155,10 @@ function getCenterFromBounds(bounds: Token['bounds']) {
 
 // Initialize maps client
 const mapsClient = new MapsClient();
+
+// Initialize stores
+const documentSheetStore = useDocumentSheetStore();
+const gameStateStore = useGameStateStore();
 
 // Track previous map data to detect actual map changes (not token movements)
 const previousMapData = ref<{
@@ -282,6 +288,10 @@ const initializeViewer = async () => {
       onTokenClick: (tokenId: string, modifiers: { shift?: boolean; ctrl?: boolean; alt?: boolean }) => {
         console.log('[PixiMapViewer] Token clicked with modifiers:', tokenId, modifiers);
         emit('token-selected', tokenId, modifiers);
+      },
+      onTokenDoubleClick: (tokenId: string) => {
+        console.log('[PixiMapViewer] Token double-clicked:', tokenId);
+        handleTokenDoubleClick(tokenId);
       },
       onTokenRightClick: (tokenId: string) => {
         const token = props.tokens?.find(t => t.id === tokenId) || null;
@@ -650,6 +660,34 @@ const handleTokenDragEnd = async (tokenId: string, position: { x: number; y: num
   dragStartPos.value = null;
   draggedTokenId.value = null;
   console.log('[PixiMapViewer] handleTokenDragEnd completed');
+};
+
+const handleTokenDoubleClick = (tokenId: string) => {
+  console.log('[PixiMapViewer] Token double-clicked:', tokenId);
+  
+  // Find the token in props to get the document ID
+  const token = props.tokens?.find(t => t.id === tokenId);
+  if (!token || !token.documentId) {
+    console.warn('[PixiMapViewer] Cannot open character sheet: token or documentId not found', { tokenId, token });
+    return;
+  }
+  
+  // Find the character/actor in the game state
+  const character = gameStateStore.characters.find(c => c.id === token.documentId);
+  const actor = gameStateStore.actors.find(a => a.id === token.documentId);
+  
+  const document = character || actor;
+  if (!document) {
+    console.warn('[PixiMapViewer] Cannot open character sheet: document not found in game state', { 
+      documentId: token.documentId, 
+      charactersCount: gameStateStore.characters.length,
+      actorsCount: gameStateStore.actors.length 
+    });
+    return;
+  }
+  
+  console.log('[PixiMapViewer] Opening document sheet for:', document.name);
+  documentSheetStore.openDocumentSheet(document);
 };
 
 // Arrow key handling for token movement

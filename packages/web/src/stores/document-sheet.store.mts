@@ -1,21 +1,21 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import type { ICharacter } from '@dungeon-lab/shared/types/index.mjs';
+import type { BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
 
-export interface FloatingCharacterSheet {
+export interface DocumentSheetStore<T extends BaseDocument = BaseDocument> {
   id: string;
-  character: ICharacter;
+  document: T;
   position: { x: number; y: number };
-  size: { width: number; height: number };
+  size?: { width: number; height: number }; // Optional - CSS fit-content used when not specified
   zIndex: number;
 }
 
-export const useCharacterSheetStore = defineStore('characterSheet', () => {
-  const floatingSheets = ref<Map<string, FloatingCharacterSheet>>(new Map());
+export const useDocumentSheetStore = defineStore('documentSheet', () => {
+  const floatingSheets = ref<Map<string, DocumentSheetStore>>(new Map());
   let nextZIndex = 1000;
 
-  function openCharacterSheet(character: ICharacter) {
-    const id = `character-sheet-${character.id}`;
+  function openDocumentSheet<T extends BaseDocument>(document: T) {
+    const id = `document-sheet-${document.documentType}-${document.id}`;
     
     // If already open, just bring to front
     if (floatingSheets.value.has(id)) {
@@ -23,22 +23,22 @@ export const useCharacterSheetStore = defineStore('characterSheet', () => {
       return;
     }
 
-    // Create new floating character sheet
-    const sheet: FloatingCharacterSheet = {
+    // Create new floating document sheet
+    const sheet: DocumentSheetStore<T> = {
       id,
-      character,
+      document,
       position: { 
         x: 200 + (floatingSheets.value.size * 30), // Offset each new window
         y: 100 + (floatingSheets.value.size * 30) 
       },
-      size: { width: 1000, height: 700 },
+      // No size property - let CSS fit-content handle sizing
       zIndex: ++nextZIndex
     };
 
     floatingSheets.value.set(id, sheet);
   }
 
-  function closeCharacterSheet(id: string) {
+  function closeDocumentSheet(id: string) {
     floatingSheets.value.delete(id);
   }
 
@@ -63,21 +63,20 @@ export const useCharacterSheetStore = defineStore('characterSheet', () => {
     }
   }
 
-
-  function updateCharacter(id: string, character: ICharacter) {
+  function updateDocument<T extends BaseDocument>(id: string, document: T) {
     const sheet = floatingSheets.value.get(id);
     if (sheet) {
-      sheet.character = character;
+      sheet.document = document;
     }
   }
 
   return {
     floatingSheets,
-    openCharacterSheet,
-    closeCharacterSheet,
+    openDocumentSheet,
+    closeDocumentSheet,
     bringToFront,
     updatePosition,
     updateSize,
-    updateCharacter
+    updateDocument
   };
 });

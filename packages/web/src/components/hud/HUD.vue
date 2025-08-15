@@ -26,8 +26,8 @@
       :window-id="window.id"
     />
     
-    <!-- Floating Character Sheets -->
-    <FloatingCharacterSheet />
+    <!-- Floating Document Sheets -->
+    <FloatingDocumentSheet />
     
     <!-- Shared Tab Components (teleported to appropriate locations) -->
     <SharedTabComponents />
@@ -41,7 +41,7 @@ import HudSidebar from './HudSidebar.vue';
 import HudToolbar from './HudToolbar.vue';
 import FloatingWindow from './FloatingWindow.vue';
 import SharedTabComponents from './SharedTabComponents.vue';
-import FloatingCharacterSheet from '../character/FloatingCharacterSheet.vue';
+import FloatingDocumentSheet from '../common/FloatingDocumentSheet.vue';
 
 const hud = useHUD();
 

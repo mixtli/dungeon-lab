@@ -14,6 +14,7 @@ export interface UsePixiMapOptions {
   onTokenDragMove?: (tokenId: string, position: { x: number; y: number }) => void;
   onTokenDragEnd?: (tokenId: string, position: { x: number; y: number }) => void;
   onTokenClick?: (tokenId: string, modifiers: { shift?: boolean; ctrl?: boolean; alt?: boolean }) => void;
+  onTokenDoubleClick?: (tokenId: string) => void;
   onTokenRightClick?: (tokenId: string) => void; // <-- Added
 }
 
@@ -408,6 +409,9 @@ export function usePixiMap(): UsePixiMapReturn {
           pixiMapOptions.onTokenClick(tokenId, modifiers);
         }
       },
+      doubleClick: pixiMapOptions?.onTokenDoubleClick || ((tokenId) => {
+        console.log('Token double-clicked:', tokenId);
+      }),
       rightClick: pixiMapOptions?.onTokenRightClick || ((tokenId) => {
         console.log('Token right-clicked:', tokenId);
       })

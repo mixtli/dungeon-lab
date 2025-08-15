@@ -1,10 +1,18 @@
 <template>
-  <div class="dnd5e-character-sheet">
+  <div class="dnd5e-sheet dnd5e-character-sheet">
     <!-- Header -->
     <header class="sheet-header" @mousedown="startDrag">
       <div class="character-info">
         <div class="character-portrait">
-          {{ character.name.charAt(0) }}
+          <img 
+            v-if="character.tokenImage?.url" 
+            :src="character.tokenImage.url" 
+            :alt="character.name"
+            class="token-image"
+          />
+          <div v-else class="letter-avatar">
+            {{ character.name.charAt(0) }}
+          </div>
         </div>
         <div class="character-details">
           <h1 v-if="!editMode || readonly" class="character-name">{{ character.name }}</h1>
@@ -245,7 +253,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, markRaw, type Ref } from 'vue';
-import type { IActor, IItem } from '@dungeon-lab/shared/types/index.mjs';
+import type { ICharacter, IItem } from '@dungeon-lab/shared/types/index.mjs';
 import type { DndCharacterClassDocument } from '../../types/dnd/character-class.mjs';
 import type { DndSpeciesDocument } from '../../types/dnd/species.mjs';
 import type { DndBackgroundDocument } from '../../types/dnd/background.mjs';
@@ -253,7 +261,7 @@ import { getPluginContext } from '@dungeon-lab/shared-ui/utils/plugin-context.mj
 
 // Props
 interface Props {
-  character: Ref<IActor>;
+  character: Ref<ICharacter>;
   items: Ref<IItem[]>;
   editMode: boolean;
   readonly?: boolean;
@@ -263,8 +271,24 @@ const props = withDefaults(defineProps<Props>(), {
   readonly: false
 });
 
+// Debug logging for props
+console.log('[CharacterSheet] Component received props:', {
+  character: props.character,
+  characterValue: props.character?.value,
+  characterName: props.character?.value?.name,
+  items: props.items,
+  editMode: props.editMode,
+  readonly: props.readonly
+});
+
 // Use reactive character directly  
 const character = props.character;
+
+// Debug logging for character ref
+console.log('[CharacterSheet] Character ref:', character);
+console.log('[CharacterSheet] Character value:', character?.value);
+console.log('[CharacterSheet] Character name:', character?.value?.name);
+console.log('[CharacterSheet] Character armor class:', character?.value?.pluginData?.attributes?.armorClass);
 
 // Compendium document data
 const speciesDocument = ref<DndSpeciesDocument | null>(null);
@@ -275,10 +299,11 @@ const compendiumError = ref<string | null>(null);
 
 // Emits
 const emit = defineEmits<{
-  'save': [character: IActor];
+  'save': [character: ICharacter];
   'roll': [rollType: string, data: Record<string, unknown>];
   'close': [];
   'toggle-edit-mode': [];
+  'drag-start': [event: MouseEvent];
 }>();
 
 // Component state
@@ -697,7 +722,7 @@ const closeSheet = () => {
   emit('close');
 };
 
-// Window drag functionality (simplified)
+// Window drag functionality - emit event for framework to handle
 const startDrag = (event: MouseEvent) => {
   // Don't start drag if clicking on buttons or other interactive elements
   const target = event.target as HTMLElement;
@@ -705,7 +730,8 @@ const startDrag = (event: MouseEvent) => {
     return;
   }
   
-  // For now, just prevent default. Window management handled by parent.
+  // Emit drag start event for framework to handle window positioning
+  emit('drag-start', event);
   event.preventDefault();
 };
 
@@ -740,8 +766,8 @@ const loadCompendiumDocuments = async () => {
     const speciesId = character.value.pluginData?.species;
     if (speciesId && typeof speciesId === 'string') {
       promises.push(
-        context.getCompendiumEntry(speciesId)
-          .then(entry => { speciesDocument.value = markRaw(entry.content as DndSpeciesDocument); })
+        context.getDocument(speciesId)
+          .then(doc => { speciesDocument.value = markRaw(doc as DndSpeciesDocument); })
           .catch(err => { console.warn('Failed to load species:', err); })
       );
     }
@@ -751,8 +777,8 @@ const loadCompendiumDocuments = async () => {
     const classId = classes?.[0]?.class;
     if (classId && typeof classId === 'string') {
       promises.push(
-        context.getCompendiumEntry(classId)
-          .then(entry => { classDocument.value = markRaw(entry.content as DndCharacterClassDocument); })
+        context.getDocument(classId)
+          .then(doc => { classDocument.value = markRaw(doc as DndCharacterClassDocument); })
           .catch(err => { console.warn('Failed to load class:', err); })
       );
     }
@@ -761,8 +787,8 @@ const loadCompendiumDocuments = async () => {
     const backgroundId = character.value.pluginData?.background;
     if (backgroundId && typeof backgroundId === 'string') {
       promises.push(
-        context.getCompendiumEntry(backgroundId)
-          .then(entry => { backgroundDocument.value = markRaw(entry.content as DndBackgroundDocument); })
+        context.getDocument(backgroundId)
+          .then(doc => { backgroundDocument.value = markRaw(doc as DndBackgroundDocument); })
           .catch(err => { console.warn('Failed to load background:', err); })
       );
     }
@@ -778,161 +804,41 @@ const loadCompendiumDocuments = async () => {
   }
 };
 
-// Style injection
-const injectStyles = () => {
-  const styleId = 'dnd5e-character-sheet-styles';
-  if (!document.getElementById(styleId)) {
-    const style = document.createElement('style');
-    style.id = styleId;
-    style.textContent = `
-/* CSS Custom Properties for D&D Theme */
-:root {
-  --dnd-red: #D20000;
-  --dnd-red-dark: #B40000;
-  --dnd-red-light: #FF3333;
-  --dnd-gold: #FFD700;
-  --dnd-gold-dark: #DAA520;
-  --dnd-parchment: #FDF5E6;
-  --dnd-parchment-dark: #F5DEB3;
-  --dnd-brown: #8B4513;
-  --dnd-brown-light: #D2B48C;
-  --dnd-black: #2C2C2C;
-  --dnd-gray: #6B6B6B;
-  --dnd-gray-light: #E5E5E5;
-  --dnd-white: #FFFFFF;
-  --dnd-shadow: rgba(0, 0, 0, 0.2);
-  --dnd-shadow-light: rgba(0, 0, 0, 0.1);
-}
+// No longer using inline style injection - styles now imported from shared stylesheet
 
-/* Main Container */
-.dnd5e-character-sheet {
-  width: 100%;
-  height: 100%;
-  max-width: 100%;
-  min-height: 600px;
-  background: var(--dnd-parchment);
-  border: 2px solid var(--dnd-brown);
-  border-radius: 12px;
-  box-shadow: 0 8px 24px var(--dnd-shadow);
-  font-family: 'Open Sans', sans-serif;
-  color: var(--dnd-black);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  position: relative;
-  box-sizing: border-box;
-}
+onMounted(() => {
+  document.addEventListener('keydown', handleKeyDown);
+  console.log('D&D 5e Character Sheet mounted for character:', character.value.name);
+  
+  // No longer need to initialize editable fields - direct v-model binding
+  
+  // Load compendium documents
+  loadCompendiumDocuments();
+});
 
-/* Header */
-.sheet-header {
-  background: linear-gradient(135deg, var(--dnd-red), var(--dnd-red-dark));
-  color: var(--dnd-white);
-  padding: 12px 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  box-shadow: 0 2px 8px var(--dnd-shadow);
-  position: relative;
-}
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeyDown);
+});
 
-.sheet-header::before {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, var(--dnd-gold), var(--dnd-gold-dark), var(--dnd-gold));
-}
+// Watch for character changes and reload compendium data
+watch(() => {
+  const classes = character.value.pluginData?.classes as any[];
+  return [
+    character.value.pluginData?.species,
+    classes?.[0]?.class,
+    character.value.pluginData?.background
+  ];
+}, () => {
+  loadCompendiumDocuments();
+}, { deep: true });
+</script>
 
-.character-info {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex: 1;
-  min-width: 0;
-}
+<style>
+@import '../../styles/dnd-theme.css';
+</style>
 
-.character-portrait {
-  width: 40px;
-  height: 40px;
-  background: var(--dnd-gold);
-  border: 2px solid var(--dnd-white);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  font-weight: bold;
-  color: var(--dnd-red-dark);
-  box-shadow: 0 2px 4px var(--dnd-shadow);
-}
-
-.character-name {
-  font-family: 'Cinzel', serif;
-  font-size: 16px;
-  font-weight: bold;
-  margin: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  text-shadow: 1px 1px 2px var(--dnd-shadow);
-}
-
-.character-name-input {
-  font-family: 'Cinzel', serif;
-  font-size: 16px;
-  font-weight: bold;
-  margin: 0;
-  padding: 4px 8px;
-  background: rgba(255, 255, 255, 0.9);
-  border: 2px solid var(--dnd-gold);
-  border-radius: 4px;
-  color: var(--dnd-red);
-  outline: none;
-  transition: all 0.2s ease;
-}
-
-.character-name-input:focus {
-  background: var(--dnd-white);
-  border-color: var(--dnd-red);
-  box-shadow: 0 0 0 2px rgba(210, 0, 0, 0.2);
-}
-
-.character-subtitle {
-  font-size: 12px;
-  opacity: 0.9;
-  margin: 2px 0 0 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.header-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.edit-toggle-btn, .save-btn, .close-btn {
-  width: 32px;
-  height: 32px;
-  border: none;
-  border-radius: 6px;
-  font-size: 14px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-  background: rgba(255, 255, 255, 0.2);
-  color: var(--dnd-white);
-  backdrop-filter: blur(4px);
-}
-
-.edit-toggle-btn:hover, .save-btn:hover:not(:disabled), .close-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
-  transform: scale(1.05);
-}
+<style scoped>
+/* Character Sheet Specific Styles */
 
 /* Tab Navigation */
 .tab-nav {
@@ -1044,275 +950,52 @@ const injectStyles = () => {
   border-color: var(--dnd-red);
 }
 
-.stat-label {
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--dnd-gray);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 4px;
-}
-
-.stat-value {
-  font-size: 18px;
-  font-weight: bold;
-  color: var(--dnd-red);
-  font-family: 'Cinzel', serif;
-}
-
-/* Abilities Tab */
-.abilities-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-.ability-card {
-  background: var(--dnd-white);
-  border: 2px solid var(--dnd-brown-light);
-  border-radius: 8px;
-  padding: 12px 8px;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 4px var(--dnd-shadow-light);
-}
-
-.ability-card:hover {
-  border-color: var(--dnd-red);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px var(--dnd-shadow);
-}
-
-.ability-name {
-  font-size: 10px;
-  font-weight: bold;
-  color: var(--dnd-gray);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 4px;
-}
-
-.ability-score {
-  font-size: 20px;
-  font-weight: bold;
-  color: var(--dnd-red);
-  font-family: 'Cinzel', serif;
-  margin-bottom: 2px;
-}
-
-.ability-modifier {
-  font-size: 12px;
-  color: var(--dnd-gray);
-  font-weight: 500;
-}
-
-.ability-score-input {
-  width: 60px;
-  background: var(--dnd-white);
-  border: 2px solid var(--dnd-gold);
-  border-radius: 4px;
-  padding: 2px 4px;
-  font-size: 18px;
-  font-weight: bold;
-  font-family: 'Cinzel', serif;
-  color: var(--dnd-red);
-  text-align: center;
-  outline: none;
-  transition: all 0.2s ease;
-  appearance: textfield;
-  margin-bottom: 2px;
-}
-
-.ability-score-input:focus {
-  border-color: var(--dnd-red);
-  box-shadow: 0 0 0 2px rgba(210, 0, 0, 0.2);
-}
-
-.ability-score-input::-webkit-outer-spin-button,
-.ability-score-input::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-
-.ability-card.non-clickable {
-  cursor: default;
-}
-
-.ability-card.non-clickable:hover {
-  border-color: var(--dnd-brown-light);
-  transform: none;
-  box-shadow: 0 2px 4px var(--dnd-shadow-light);
-}
-
-/* Common styles for sections */
-h3 {
-  font-family: 'Cinzel', serif;
-  font-size: 14px;
-  color: var(--dnd-red);
-  margin: 0 0 8px 0;
-  text-align: center;
-  border-bottom: 1px solid var(--dnd-brown-light);
-  padding-bottom: 4px;
-}
-
-/* Skills and other interactive lists */
-.skills-list, .saves-grid, .features-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.skill-item, .save-item, .feature-item {
-  background: var(--dnd-white);
-  border: 1px solid var(--dnd-gray-light);
-  border-radius: 6px;
-  padding: 6px 8px;
-  font-size: 11px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.skill-item:hover, .save-item:hover {
-  border-color: var(--dnd-red);
-  background: var(--dnd-parchment);
-}
-
-.skill-prof.proficient, .save-prof.proficient {
-  color: var(--dnd-red);
-}
-
-.skill-name {
-  flex: 1;
-  font-weight: 500;
-  text-transform: capitalize;
-}
-
-.skill-ability {
-  font-size: 10px;
-  color: var(--dnd-gray);
-  text-transform: uppercase;
-}
-
-.skill-bonus, .save-bonus {
-  font-weight: bold;
-  color: var(--dnd-red);
-  min-width: 24px;
-  text-align: right;
-}
-
-.save-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.save-name {
-  flex: 1;
-  font-weight: 500;
-}
-
-.saves-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 4px;
-}
-
-/* Text areas and inputs */
-.notes-textarea {
-  width: 100%;
-  background: var(--dnd-white);
-  border: 1px solid var(--dnd-brown-light);
-  border-radius: 6px;
-  padding: 8px;
-  font-size: 11px;
-  font-family: inherit;
-  color: var(--dnd-black);
-  line-height: 1.4;
-  resize: vertical;
-  min-height: 120px;
-}
-
-.notes-textarea:focus {
-  outline: 2px solid var(--dnd-red);
-  outline-offset: -2px;
-  border-color: var(--dnd-red);
-}
-
-/* Stat input fields */
 .stat-input {
-  width: 100%;
-  background: var(--dnd-white);
-  border: 2px solid var(--dnd-gold);
+  width: 80px;
+  padding: 4px 8px;
+  border: 1px solid var(--dnd-brown-light);
   border-radius: 4px;
-  padding: 2px 4px;
-  font-size: 16px;
-  font-weight: bold;
-  font-family: 'Cinzel', serif;
+  background: var(--dnd-white);
   color: var(--dnd-red);
+  font-weight: bold;
   text-align: center;
-  outline: none;
-  transition: all 0.2s ease;
-  appearance: textfield;
 }
 
 .stat-input:focus {
+  outline: none;
   border-color: var(--dnd-red);
   box-shadow: 0 0 0 2px rgba(210, 0, 0, 0.2);
 }
 
-/* Spinbutton controls are now visible for better UX */
-
-/* Hit points edit layout */
 .hit-points-edit {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 4px;
-  font-family: 'Cinzel', serif;
-  font-weight: bold;
-  color: var(--dnd-red);
+  gap: 8px;
 }
 
 .hp-current, .hp-max {
-  width: 40px;
-  font-size: 14px;
-}
-
-.hp-separator {
-  font-size: 16px;
-  font-weight: bold;
+  width: 60px;
+  padding: 4px;
+  border: 1px solid var(--dnd-brown-light);
+  border-radius: 4px;
+  background: var(--dnd-white);
   color: var(--dnd-red);
+  font-weight: bold;
+  text-align: center;
 }
 
-/* Speed edit layout */
 .speed-edit {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 4px;
-  font-family: 'Cinzel', serif;
-  font-weight: bold;
-  color: var(--dnd-red);
 }
 
 .speed-input {
-  width: 50px;
-  font-size: 14px;
+  width: 60px;
 }
 
 .speed-unit {
-  font-size: 12px;
   color: var(--dnd-gray);
-}
-
-/* Empty states */
-.empty-state {
-  text-align: center;
-  color: var(--dnd-gray);
-  font-style: italic;
-  padding: 16px;
   font-size: 12px;
 }
 
@@ -1333,36 +1016,270 @@ h3 {
   font-weight: bold;
   box-shadow: 0 2px 4px var(--dnd-shadow-light);
 }
-`;
-    document.head.appendChild(style);
+
+/* Abilities Tab - Character Sheet Specific Layout */
+.abilities-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.ability-score-input {
+  width: 100%;
+  text-align: center;
+  padding: 2px 4px;
+  border: 2px solid var(--dnd-brown-light);
+  border-radius: 4px;
+  background: var(--dnd-white);
+  color: var(--dnd-red);
+  font-weight: bold;
+  font-family: 'Cinzel', serif;
+}
+
+.ability-score-input:focus {
+  outline: none;
+  border-color: var(--dnd-red);
+  box-shadow: 0 0 0 2px rgba(210, 0, 0, 0.2);
+}
+
+.non-clickable {
+  cursor: default !important;
+}
+
+.saving-throws h3 {
+  font-family: 'Cinzel', serif;
+  font-size: 14px;
+  color: var(--dnd-red);
+  margin: 0 0 8px 0;
+  text-align: center;
+  border-bottom: 1px solid var(--dnd-brown-light);
+  padding-bottom: 4px;
+}
+
+.saves-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px;
+}
+
+.save-item {
+  background: var(--dnd-white);
+  border: 1px solid var(--dnd-gray-light);
+  border-radius: 6px;
+  padding: 6px 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 12px;
+}
+
+.save-item:hover {
+  border-color: var(--dnd-red);
+  background: var(--dnd-parchment);
+}
+
+.save-prof {
+  font-size: 12px;
+  color: var(--dnd-gray);
+}
+
+.save-prof.proficient {
+  color: var(--dnd-red);
+}
+
+.save-name {
+  flex: 1;
+  font-weight: 500;
+}
+
+.save-bonus {
+  font-weight: bold;
+  color: var(--dnd-red);
+}
+
+/* Skills Tab */
+.skills-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.skill-item {
+  background: var(--dnd-white);
+  border: 1px solid var(--dnd-gray-light);
+  border-radius: 6px;
+  padding: 6px 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 12px;
+}
+
+.skill-item:hover {
+  border-color: var(--dnd-red);
+  background: var(--dnd-parchment);
+}
+
+.skill-prof {
+  font-size: 12px;
+  color: var(--dnd-gray);
+  width: 12px;
+  text-align: center;
+}
+
+.skill-prof.proficient {
+  color: var(--dnd-red);
+}
+
+.skill-prof.expertise {
+  color: var(--dnd-gold-dark);
+}
+
+.skill-prof.half {
+  color: var(--dnd-brown);
+}
+
+.skill-name {
+  flex: 1;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.skill-ability {
+  font-size: 10px;
+  color: var(--dnd-gray);
+  text-transform: uppercase;
+}
+
+.skill-bonus {
+  font-weight: bold;
+  color: var(--dnd-red);
+  min-width: 24px;
+  text-align: right;
+}
+
+/* Notes Tab */
+.notes-section h3 {
+  font-family: 'Cinzel', serif;
+  font-size: 14px;
+  color: var(--dnd-red);
+  margin: 0 0 8px 0;
+  text-align: center;
+  border-bottom: 1px solid var(--dnd-brown-light);
+  padding-bottom: 4px;
+}
+
+.notes-editor {
+  margin-bottom: 16px;
+}
+
+.notes-textarea {
+  width: 100%;
+  background: var(--dnd-white);
+  border: 1px solid var(--dnd-brown-light);
+  border-radius: 6px;
+  padding: 8px;
+  font-size: 11px;
+  font-family: inherit;
+  color: var(--dnd-black);
+  line-height: 1.4;
+  resize: vertical;
+  min-height: 120px;
+}
+
+.notes-textarea:focus {
+  outline: 2px solid var(--dnd-red);
+  outline-offset: -2px;
+  border-color: var(--dnd-red);
+}
+
+.notes-textarea:read-only {
+  background: var(--dnd-parchment);
+  cursor: default;
+}
+
+/* Empty States */
+.empty-state {
+  text-align: center;
+  color: var(--dnd-gray);
+  font-style: italic;
+  padding: 16px;
+  font-size: 12px;
+}
+
+/* Character Sheet Specific Overrides */
+.character-name-input {
+  background: transparent;
+  border: none;
+  color: var(--dnd-white);
+  font-family: 'Cinzel', serif;
+  font-size: 16px;
+  font-weight: bold;
+  text-shadow: 1px 1px 2px var(--dnd-shadow);
+  outline: none;
+  width: 100%;
+}
+
+.character-name-input:focus {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  padding: 2px 4px;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 400px) {
+  .stats-grid {
+    grid-template-columns: repeat(3, 1fr);
   }
-};
-
-// Lifecycle
-onMounted(() => {
-  injectStyles();
-  document.addEventListener('keydown', handleKeyDown);
-  console.log('D&D 5e Character Sheet mounted for character:', character.value.name);
   
-  // No longer need to initialize editable fields - direct v-model binding
+  .abilities-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .tab-pane {
+    animation: none;
+  }
   
-  // Load compendium documents
-  loadCompendiumDocuments();
-});
+  .stat-card:hover,
+  .ability-card:hover {
+    transform: none;
+  }
+}
 
-onUnmounted(() => {
-  document.removeEventListener('keydown', handleKeyDown);
-});
+/* Avatar Styles */
+.token-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
 
-// Watch for character changes and reload compendium data
-watch(() => {
-  const classes = character.value.pluginData?.classes as any[];
-  return [
-    character.value.pluginData?.species,
-    classes?.[0]?.class,
-    character.value.pluginData?.background
-  ];
-}, () => {
-  loadCompendiumDocuments();
-}, { deep: true });
-</script>
+.letter-avatar {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: bold;
+  color: var(--dnd-red-dark);
+}
+
+/* Focus Styles for Accessibility */
+.tab-btn:focus,
+.stat-card:focus,
+.ability-card:focus,
+.save-item:focus,
+.skill-item:focus {
+  outline: 2px solid var(--dnd-red);
+  outline-offset: 2px;
+}
+</style>

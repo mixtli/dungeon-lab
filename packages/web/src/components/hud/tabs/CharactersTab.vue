@@ -66,9 +66,6 @@
         
         <div class="character-info">
           <div class="character-name">{{ character.name }}</div>
-          <div class="character-details">
-            <span class="character-type">{{ character.pluginDocumentType || 'PC' }}</span>
-          </div>
         </div>
 
         <div class="character-actions">
@@ -106,12 +103,12 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useGameStateStore } from '../../../stores/game-state.store.mjs';
-import { useCharacterSheetStore } from '../../../stores/character-sheet.store.mjs';
+import { useDocumentSheetStore } from '../../../stores/document-sheet.store.mjs';
 import { getDocumentImageUrl } from '../../../utils/document-image-utils.mjs';
 import type { ICharacter, StateOperation } from '@dungeon-lab/shared/types/index.mjs';
 
 const gameStateStore = useGameStateStore();
-const characterSheetStore = useCharacterSheetStore();
+const documentSheetStore = useDocumentSheetStore();
 const router = useRouter();
 const searchQuery = ref('');
 const activeFilter = ref('all');
@@ -230,7 +227,7 @@ async function editCharacter(character: ICharacter): Promise<void> {
 
 // Character sheet functions
 function openCharacterSheet(character: ICharacter): void {
-  characterSheetStore.openCharacterSheet(character);
+  documentSheetStore.openDocumentSheet(character);
 }
 
 // Quick action functions
