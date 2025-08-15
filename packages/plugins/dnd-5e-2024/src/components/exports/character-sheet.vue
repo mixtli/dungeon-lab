@@ -740,8 +740,8 @@ const loadCompendiumDocuments = async () => {
     const speciesId = character.value.pluginData?.species;
     if (speciesId && typeof speciesId === 'string') {
       promises.push(
-        context.getCompendiumEntry(speciesId)
-          .then(entry => { speciesDocument.value = markRaw(entry.content as DndSpeciesDocument); })
+        context.getDocument(speciesId)
+          .then(doc => { speciesDocument.value = markRaw(doc as DndSpeciesDocument); })
           .catch(err => { console.warn('Failed to load species:', err); })
       );
     }
@@ -751,8 +751,8 @@ const loadCompendiumDocuments = async () => {
     const classId = classes?.[0]?.class;
     if (classId && typeof classId === 'string') {
       promises.push(
-        context.getCompendiumEntry(classId)
-          .then(entry => { classDocument.value = markRaw(entry.content as DndCharacterClassDocument); })
+        context.getDocument(classId)
+          .then(doc => { classDocument.value = markRaw(doc as DndCharacterClassDocument); })
           .catch(err => { console.warn('Failed to load class:', err); })
       );
     }
@@ -761,8 +761,8 @@ const loadCompendiumDocuments = async () => {
     const backgroundId = character.value.pluginData?.background;
     if (backgroundId && typeof backgroundId === 'string') {
       promises.push(
-        context.getCompendiumEntry(backgroundId)
-          .then(entry => { backgroundDocument.value = markRaw(entry.content as DndBackgroundDocument); })
+        context.getDocument(backgroundId)
+          .then(doc => { backgroundDocument.value = markRaw(doc as DndBackgroundDocument); })
           .catch(err => { console.warn('Failed to load background:', err); })
       );
     }
@@ -809,10 +809,383 @@ watch(() => {
 
 <style>
 @import '../../styles/dnd-theme.css';
-@import '../character-sheet-styles.css';
 </style>
 
 <style scoped>
+/* Character Sheet Specific Styles */
+
+/* Tab Navigation */
+.tab-nav {
+  background: var(--dnd-parchment-dark);
+  border-bottom: 2px solid var(--dnd-brown-light);
+  display: flex;
+  padding: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.tab-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.tab-btn {
+  flex: 1;
+  min-width: 54px;
+  max-width: 64px;
+  background: transparent;
+  border: none;
+  padding: 6px 2px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  color: var(--dnd-gray);
+  border-bottom: 3px solid transparent;
+  font-size: 9px;
+}
+
+.tab-btn:hover {
+  background: var(--dnd-parchment);
+  color: var(--dnd-red);
+}
+
+.tab-btn.active {
+  background: var(--dnd-parchment);
+  color: var(--dnd-red);
+  border-bottom-color: var(--dnd-red);
+}
+
+.tab-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.tab-name {
+  font-weight: 500;
+  line-height: 1;
+}
+
+/* Tab Content */
+.tab-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--dnd-brown-light) var(--dnd-parchment);
+}
+
+.tab-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.tab-content::-webkit-scrollbar-track {
+  background: var(--dnd-parchment);
+}
+
+.tab-content::-webkit-scrollbar-thumb {
+  background: var(--dnd-brown-light);
+  border-radius: 3px;
+}
+
+.tab-pane {
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Overview Tab */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.stat-card {
+  background: var(--dnd-white);
+  border: 1px solid var(--dnd-brown-light);
+  border-radius: 8px;
+  padding: 8px;
+  text-align: center;
+  box-shadow: 0 2px 4px var(--dnd-shadow-light);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.stat-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px var(--dnd-shadow);
+  border-color: var(--dnd-red);
+}
+
+.stat-input {
+  width: 80px;
+  padding: 4px 8px;
+  border: 1px solid var(--dnd-brown-light);
+  border-radius: 4px;
+  background: var(--dnd-white);
+  color: var(--dnd-red);
+  font-weight: bold;
+  text-align: center;
+}
+
+.stat-input:focus {
+  outline: none;
+  border-color: var(--dnd-red);
+  box-shadow: 0 0 0 2px rgba(210, 0, 0, 0.2);
+}
+
+.hit-points-edit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hp-current, .hp-max {
+  width: 60px;
+  padding: 4px;
+  border: 1px solid var(--dnd-brown-light);
+  border-radius: 4px;
+  background: var(--dnd-white);
+  color: var(--dnd-red);
+  font-weight: bold;
+  text-align: center;
+}
+
+.speed-edit {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.speed-input {
+  width: 60px;
+}
+
+.speed-unit {
+  color: var(--dnd-gray);
+  font-size: 12px;
+}
+
+.inspiration-section {
+  text-align: center;
+  margin-top: 8px;
+}
+
+.inspiration-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--dnd-gold);
+  color: var(--dnd-red-dark);
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: bold;
+  box-shadow: 0 2px 4px var(--dnd-shadow-light);
+}
+
+/* Abilities Tab - Character Sheet Specific Layout */
+.abilities-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.ability-score-input {
+  width: 100%;
+  text-align: center;
+  padding: 2px 4px;
+  border: 2px solid var(--dnd-brown-light);
+  border-radius: 4px;
+  background: var(--dnd-white);
+  color: var(--dnd-red);
+  font-weight: bold;
+  font-family: 'Cinzel', serif;
+}
+
+.ability-score-input:focus {
+  outline: none;
+  border-color: var(--dnd-red);
+  box-shadow: 0 0 0 2px rgba(210, 0, 0, 0.2);
+}
+
+.non-clickable {
+  cursor: default !important;
+}
+
+.saving-throws h3 {
+  font-family: 'Cinzel', serif;
+  font-size: 14px;
+  color: var(--dnd-red);
+  margin: 0 0 8px 0;
+  text-align: center;
+  border-bottom: 1px solid var(--dnd-brown-light);
+  padding-bottom: 4px;
+}
+
+.saves-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px;
+}
+
+.save-item {
+  background: var(--dnd-white);
+  border: 1px solid var(--dnd-gray-light);
+  border-radius: 6px;
+  padding: 6px 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 12px;
+}
+
+.save-item:hover {
+  border-color: var(--dnd-red);
+  background: var(--dnd-parchment);
+}
+
+.save-prof {
+  font-size: 12px;
+  color: var(--dnd-gray);
+}
+
+.save-prof.proficient {
+  color: var(--dnd-red);
+}
+
+.save-name {
+  flex: 1;
+  font-weight: 500;
+}
+
+.save-bonus {
+  font-weight: bold;
+  color: var(--dnd-red);
+}
+
+/* Skills Tab */
+.skills-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.skill-item {
+  background: var(--dnd-white);
+  border: 1px solid var(--dnd-gray-light);
+  border-radius: 6px;
+  padding: 6px 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 12px;
+}
+
+.skill-item:hover {
+  border-color: var(--dnd-red);
+  background: var(--dnd-parchment);
+}
+
+.skill-prof {
+  font-size: 12px;
+  color: var(--dnd-gray);
+  width: 12px;
+  text-align: center;
+}
+
+.skill-prof.proficient {
+  color: var(--dnd-red);
+}
+
+.skill-prof.expertise {
+  color: var(--dnd-gold-dark);
+}
+
+.skill-prof.half {
+  color: var(--dnd-brown);
+}
+
+.skill-name {
+  flex: 1;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.skill-ability {
+  font-size: 10px;
+  color: var(--dnd-gray);
+  text-transform: uppercase;
+}
+
+.skill-bonus {
+  font-weight: bold;
+  color: var(--dnd-red);
+  min-width: 24px;
+  text-align: right;
+}
+
+/* Notes Tab */
+.notes-section h3 {
+  font-family: 'Cinzel', serif;
+  font-size: 14px;
+  color: var(--dnd-red);
+  margin: 0 0 8px 0;
+  text-align: center;
+  border-bottom: 1px solid var(--dnd-brown-light);
+  padding-bottom: 4px;
+}
+
+.notes-editor {
+  margin-bottom: 16px;
+}
+
+.notes-textarea {
+  width: 100%;
+  background: var(--dnd-white);
+  border: 1px solid var(--dnd-brown-light);
+  border-radius: 6px;
+  padding: 8px;
+  font-size: 11px;
+  font-family: inherit;
+  color: var(--dnd-black);
+  line-height: 1.4;
+  resize: vertical;
+  min-height: 120px;
+}
+
+.notes-textarea:focus {
+  outline: 2px solid var(--dnd-red);
+  outline-offset: -2px;
+  border-color: var(--dnd-red);
+}
+
+.notes-textarea:read-only {
+  background: var(--dnd-parchment);
+  cursor: default;
+}
+
+/* Empty States */
+.empty-state {
+  text-align: center;
+  color: var(--dnd-gray);
+  font-style: italic;
+  padding: 16px;
+  font-size: 12px;
+}
+
 /* Character Sheet Specific Overrides */
 .character-name-input {
   background: transparent;
@@ -830,5 +1203,38 @@ watch(() => {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 4px;
   padding: 2px 4px;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 400px) {
+  .stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .abilities-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .tab-pane {
+    animation: none;
+  }
+  
+  .stat-card:hover,
+  .ability-card:hover {
+    transform: none;
+  }
+}
+
+/* Focus Styles for Accessibility */
+.tab-btn:focus,
+.stat-card:focus,
+.ability-card:focus,
+.save-item:focus,
+.skill-item:focus {
+  outline: 2px solid var(--dnd-red);
+  outline-offset: 2px;
 }
 </style>
