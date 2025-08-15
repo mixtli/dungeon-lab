@@ -243,8 +243,21 @@ const props = withDefaults(defineProps<Props>(), {
   readonly: false
 });
 
+// Debug logging for props
+console.log('[ActorSheet] Component received props:', {
+  actor: props.actor,
+  actorValue: props.actor?.value,
+  actorName: props.actor?.value?.name,
+  readonly: props.readonly
+});
+
 // Use reactive actor directly (like character sheet)
 const actor = props.actor;
+
+// Debug logging for actor ref
+console.log('[ActorSheet] Actor ref:', actor);
+console.log('[ActorSheet] Actor value:', actor?.value);
+console.log('[ActorSheet] Actor name:', actor?.value?.name);
 
 // Events
 const emit = defineEmits<{

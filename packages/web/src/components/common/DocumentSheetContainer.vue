@@ -9,7 +9,7 @@
       <!-- Document Sheet Component -->
       <component
         :is="documentSheetComponent"
-        v-if="documentSheetComponent && props.document"
+        v-if="documentSheetComponent && reactiveDocument"
         v-bind="getComponentProps()"
         @update:items="handleItemsChange"
         @update:character="handleDocumentUpdate"
@@ -30,13 +30,14 @@
           <i class="mdi mdi-file-document-alert text-4xl text-gray-400 mb-4"></i>
           <h3 class="text-lg font-semibold text-gray-900 mb-2">Document Sheet Unavailable</h3>
           <p class="text-sm text-gray-600 mb-4">
-            {{ document ? `The document sheet component for game system "${document.pluginId}" is not available.` : 'No document data provided.' }}
+            {{ (reactiveDocument || props.document) ? `The document sheet component for game system "${documentInfo.pluginId}" is not available.` : 'No document data provided.' }}
           </p>
           <details class="mb-4 text-left">
             <summary class="text-sm text-gray-500 cursor-pointer">Debug Information</summary>
             <div class="mt-2 text-xs text-gray-400 font-mono">
-              <div>Document Type: {{ document?.documentType || 'none' }}</div>
-              <div>Document Game System: {{ document?.pluginId || 'none' }}</div>
+              <div>Context: {{ context }}</div>
+              <div>Document Type: {{ documentInfo.documentType || 'none' }}</div>
+              <div>Document Game System: {{ documentInfo.pluginId || 'none' }}</div>
               <div>Active Game System: {{ getActiveGameSystem() }}</div>
             </div>
           </details>
@@ -57,12 +58,16 @@ import { ref, watch, computed, shallowRef } from 'vue';
 import type { Component } from 'vue';
 import type { BaseDocument, IItem } from '@dungeon-lab/shared/types/index.mjs';
 import { pluginRegistry } from '../../services/plugin-registry.mts';
-import { useDocumentState } from '../../composables/useDocumentState.mjs';
+import { useDocumentState } from '../../composables/useDocumentState.mts';
+import { useGameDocumentState } from '../../composables/useGameDocumentState.mts';
 import PluginContainer from './PluginContainer.vue';
 
 const props = defineProps<{
   show: boolean;
-  document: BaseDocument | null;
+  document?: BaseDocument | null;
+  documentId?: string;
+  documentType?: 'character' | 'actor';
+  context?: 'admin' | 'game';
   readonly?: boolean;
 }>();
 
@@ -77,33 +82,85 @@ const emit = defineEmits<{
 const documentSheetComponent = shallowRef<Component | null>(null);
 const editMode = ref(false);
 
-// Unified document state management for both characters and actors
-// Always create composable at setup level to avoid lifecycle issues
-const documentState = props.document ? useDocumentState(props.document, {
-  enableWebSocket: props.readonly, // Game mode uses WebSocket
-  enableAutoSave: false, // Disable auto-save - manual save only
-  readonly: props.readonly
-}) : null;
+// Context-aware document state management
+const context = computed(() => props.context || 'admin');
+const isGameContext = computed(() => context.value === 'game');
 
-// Computed wrapper for reactivity
-const characterState = computed(() => documentState);
+// Initialize appropriate composable based on context
+const adminDocumentState = computed(() => {
+  if (!isGameContext.value && props.document) {
+    return useDocumentState(props.document, {
+      enableWebSocket: false, // Admin mode doesn't use WebSocket
+      enableAutoSave: false, // Disable auto-save - manual save only
+      readonly: props.readonly
+    });
+  }
+  return null;
+});
 
-// Reactive document and items from composable
-const reactiveDocument = computed(() => characterState.value?.character || null);
-const reactiveItems = computed(() => characterState.value?.items || ref([]));
-const hasUnsavedChanges = computed(() => characterState.value?.hasUnsavedChanges?.value ?? false);
+const gameDocumentState = computed(() => {
+  if (isGameContext.value && props.documentId && props.documentType) {
+    return useGameDocumentState(props.documentId, props.documentType, {
+      readonly: props.readonly
+    });
+  }
+  return null;
+});
+
+// Unified interface for both contexts
+const documentState = computed(() => {
+  return isGameContext.value ? gameDocumentState.value : adminDocumentState.value;
+});
+
+// Reactive document and items from appropriate composable
+const reactiveDocument = computed(() => {
+  console.log(`[DocumentSheetContainer] Computing reactiveDocument, context: ${context.value}`);
+  
+  if (isGameContext.value) {
+    // IMPORTANT: gameDocumentState.value.document is already a ComputedRef, so we need to unwrap it
+    const gameDoc = gameDocumentState.value?.document?.value || null;
+    console.log(`[DocumentSheetContainer] Game context - gameDocumentState.value:`, gameDocumentState.value);
+    console.log(`[DocumentSheetContainer] Game context - document (unwrapped):`, gameDoc ? { id: (gameDoc as any).id, name: (gameDoc as any).name } : null);
+    return gameDoc;
+  } else {
+    const adminDoc = adminDocumentState.value?.character || null;
+    console.log(`[DocumentSheetContainer] Admin context - document:`, adminDoc ? { id: (adminDoc as any).id, name: (adminDoc as any).name } : null);
+    return adminDoc;
+  }
+});
+
+const reactiveItems = computed(() => documentState.value?.items || ref([]));
+const hasUnsavedChanges = computed(() => documentState.value?.hasUnsavedChanges?.value ?? false);
 
 // Watch for document changes to reinitialize state
-watch(() => props.document, () => {
-  // Document state will be recreated via computed when document changes
-  console.log('[DocumentSheetContainer] Document changed, state will be recomputed');
+watch(() => [props.document, props.documentId, props.documentType, props.context], () => {
+  // Document state will be recreated via computed when dependencies change
+  console.log('[DocumentSheetContainer] Document context changed, state will be recomputed');
 }, { immediate: true });
 
+// Get document info for component loading (works for both contexts)
+const documentInfo = computed(() => {
+  if (isGameContext.value) {
+    // In game context, get from reactive document or fallback to passed props
+    const doc = reactiveDocument.value?.value || reactiveDocument.value;
+    return {
+      pluginId: (doc as BaseDocument)?.pluginId,
+      documentType: props.documentType
+    };
+  } else {
+    // In admin context, get from props.document
+    return {
+      pluginId: props.document?.pluginId,
+      documentType: props.document?.documentType
+    };
+  }
+});
+
 // Watch for document changes and load the appropriate component based on documentType
-watch(() => [props.document?.pluginId, props.document?.documentType], async ([pluginId, documentType]) => {
-  console.log('[DocumentSheetContainer] Document game system ID:', pluginId, 'documentType:', documentType);
+watch(() => [documentInfo.value.pluginId, documentInfo.value.documentType], async ([pluginId, documentType]) => {
+  console.log('[DocumentSheetContainer] Document game system ID:', pluginId, 'documentType:', documentType, 'context:', context.value);
   
-  if (!pluginId) {
+  if (!pluginId || !documentType) {
     documentSheetComponent.value = null;
     return;
   }
@@ -147,14 +204,15 @@ const handleItemsChange = (newItems: IItem[]) => {
 
 // Save functionality delegated to composable
 const handleSave = async () => {
-  if (!characterState.value) return;
+  if (!documentState.value) return;
   
   try {
-    await characterState.value.save();
+    await documentState.value.save();
     
-    // Emit to parent for reactive updates
-    if (reactiveDocument.value?.value) {
-      emit('update:document', reactiveDocument.value.value);
+    // Emit to parent for reactive updates  
+    const docValue = reactiveDocument.value?.value || reactiveDocument.value;
+    if (docValue) {
+      emit('update:document', docValue as BaseDocument);
     }
   } catch (error) {
     console.error('[DocumentSheetContainer] Save failed:', error);
@@ -163,9 +221,9 @@ const handleSave = async () => {
 };
 
 const handleCancel = () => {
-  if (!characterState.value) return;
+  if (!documentState.value) return;
   
-  characterState.value.reset();
+  documentState.value.reset();
   editMode.value = false;
 };
 
@@ -179,24 +237,42 @@ const handleDragStart = (event: MouseEvent) => {
 
 // Get appropriate props based on component type (character vs actor sheet)
 const getComponentProps = () => {
-  if (!props.document) return {};
+  const docType = isGameContext.value ? props.documentType : props.document?.documentType;
+  console.log(`[DocumentSheetContainer] getComponentProps - docType: ${docType}, context: ${context.value}`);
   
-  const isActorSheet = props.document.documentType === 'actor';
+  if (!docType) {
+    console.log(`[DocumentSheetContainer] getComponentProps - no docType, returning empty props`);
+    return {};
+  }
+  
+  const isActorSheet = docType === 'actor';
   
   if (isActorSheet) {
-    // Actor sheet: Use unified reactive state just like character sheets
-    return {
-      actor: reactiveDocument.value || props.document, // Use reactive if available, fallback to props
+    // Actor sheet: Pass the reactive document ref
+    const componentProps = {
+      actor: reactiveDocument,
       readonly: props.readonly
     };
+    console.log(`[DocumentSheetContainer] getComponentProps - Actor props:`, {
+      actor: reactiveDocument.value ? { id: (reactiveDocument.value as any).id, name: (reactiveDocument.value as any).name } : null,
+      readonly: props.readonly
+    });
+    return componentProps;
   } else {
-    // Character sheet: Use unified reactive state
-    return {
-      character: reactiveDocument.value || props.document, // Use reactive if available, fallback to props
+    // Character sheet: Pass the reactive document ref
+    const componentProps = {
+      character: reactiveDocument,
       items: reactiveItems.value,
       editMode: editMode.value,
       readonly: props.readonly
     };
+    console.log(`[DocumentSheetContainer] getComponentProps - Character props:`, {
+      character: reactiveDocument.value ? { id: (reactiveDocument.value as any).id, name: (reactiveDocument.value as any).name } : null,
+      items: reactiveItems.value,
+      editMode: editMode.value,
+      readonly: props.readonly
+    });
+    return componentProps;
   }
 };
 

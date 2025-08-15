@@ -28,7 +28,9 @@
       <div class="window-content">
         <DocumentSheetContainer
           :show="true"
-          :document="sheet.document"
+          :document-id="sheet.document.id"
+          :document-type="sheet.document.documentType as 'character' | 'actor'"
+          context="game"
           :readonly="false"
           @close="documentSheetStore.closeDocumentSheet(sheetId)"
           @roll="handleRoll"
@@ -51,13 +53,25 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onUnmounted, onMounted } from 'vue';
+import { ref, watch, onUnmounted, onMounted } from 'vue';
 import { useDocumentSheetStore } from '../../stores/document-sheet.store.mjs';
 import type { DocumentSheetStore } from '../../stores/document-sheet.store.mjs';
 import type { BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
 import DocumentSheetContainer from './DocumentSheetContainer.vue';
 
 const documentSheetStore = useDocumentSheetStore();
+
+// Debug logging for sheets
+watch(() => documentSheetStore.floatingSheets, (sheets) => {
+  console.log('[FloatingDocumentSheet] Current floating sheets:', 
+    Array.from(sheets.entries()).map(([id, sheet]) => ({
+      id,
+      documentId: sheet.document.id,
+      documentType: sheet.document.documentType,
+      documentName: sheet.document.name
+    }))
+  );
+}, { deep: true, immediate: true });
 
 // Drag and resize state
 const isDragging = ref(false);

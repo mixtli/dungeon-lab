@@ -245,7 +245,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, markRaw, type Ref } from 'vue';
-import type { IActor, IItem } from '@dungeon-lab/shared/types/index.mjs';
+import type { ICharacter, IItem } from '@dungeon-lab/shared/types/index.mjs';
 import type { DndCharacterClassDocument } from '../../types/dnd/character-class.mjs';
 import type { DndSpeciesDocument } from '../../types/dnd/species.mjs';
 import type { DndBackgroundDocument } from '../../types/dnd/background.mjs';
@@ -253,7 +253,7 @@ import { getPluginContext } from '@dungeon-lab/shared-ui/utils/plugin-context.mj
 
 // Props
 interface Props {
-  character: Ref<IActor>;
+  character: Ref<ICharacter>;
   items: Ref<IItem[]>;
   editMode: boolean;
   readonly?: boolean;
@@ -263,8 +263,23 @@ const props = withDefaults(defineProps<Props>(), {
   readonly: false
 });
 
+// Debug logging for props
+console.log('[CharacterSheet] Component received props:', {
+  character: props.character,
+  characterValue: props.character?.value,
+  characterName: props.character?.value?.name,
+  items: props.items,
+  editMode: props.editMode,
+  readonly: props.readonly
+});
+
 // Use reactive character directly  
 const character = props.character;
+
+// Debug logging for character ref
+console.log('[CharacterSheet] Character ref:', character);
+console.log('[CharacterSheet] Character value:', character?.value);
+console.log('[CharacterSheet] Character name:', character?.value?.name);
 
 // Compendium document data
 const speciesDocument = ref<DndSpeciesDocument | null>(null);
@@ -275,7 +290,7 @@ const compendiumError = ref<string | null>(null);
 
 // Emits
 const emit = defineEmits<{
-  'save': [character: IActor];
+  'save': [character: ICharacter];
   'roll': [rollType: string, data: Record<string, unknown>];
   'close': [];
   'toggle-edit-mode': [];
