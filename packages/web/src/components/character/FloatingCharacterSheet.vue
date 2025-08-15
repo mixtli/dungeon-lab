@@ -70,7 +70,7 @@ const resizeStartSize = ref({ width: 0, height: 0 });
 const eventCleanups = ref<Array<() => void>>([]);
 
 // Fallback support - show framework chrome if plugin doesn't emit events
-const showFallbackChrome = ref(true); // Always show fallback chrome for now
+const showFallbackChrome = ref(false); // D&D components are self-contained with their own headers
 const fallbackTimeout = ref<number | null>(null);
 
 function getSheetStyle(sheet: FloatingCharacterSheet) {

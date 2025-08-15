@@ -1,5 +1,5 @@
 <template>
-  <div class="dnd5e-actor-sheet">
+  <div class="dnd5e-sheet dnd5e-actor-sheet">
     <!-- Header -->
     <header class="sheet-header" @mousedown="startDrag">
       <div class="character-info">
@@ -42,9 +42,9 @@
     </header>
     
     <!-- Stat Block Content -->
-    <main class="stat-block-content">
+    <main class="sheet-content stat-block-content">
       <!-- Basic Stats Section -->
-      <section class="basic-stats">
+      <section class="dnd-section basic-stats">
         <div class="stat-line">
           <span class="stat-label">Armor Class</span>
           <span v-if="!editMode || readonly" class="stat-value">{{ armorClassDisplay }}</span>
@@ -87,9 +87,9 @@
       </section>
 
       <!-- Ability Scores -->
-      <section class="ability-scores">
+      <section class="dnd-section ability-scores">
         <h3>Ability Scores</h3>
-        <div class="abilities-grid">
+        <div class="actor-abilities-grid">
           <div 
             v-for="ability in abilities" 
             :key="ability.key"
@@ -115,7 +115,7 @@
       </section>
 
       <!-- Skills and Saves -->
-      <section class="skills-saves" v-if="hasSavingThrows || hasSkills">
+      <section class="dnd-section skills-saves" v-if="hasSavingThrows || hasSkills">
         <div v-if="hasSavingThrows" class="saving-throws">
           <h4>Saving Throws</h4>
           <div class="saves-list">
@@ -148,7 +148,7 @@
       </section>
 
       <!-- Resistances/Immunities -->
-      <section class="resistances" v-if="hasResistances">
+      <section class="dnd-section resistances" v-if="hasResistances">
         <div v-if="damageResistances.length" class="resistance-line">
           <span class="resistance-label">Damage Resistances</span>
           <span class="resistance-value">{{ damageResistances.join(', ') }}</span>
@@ -164,7 +164,7 @@
       </section>
 
       <!-- Senses -->
-      <section class="senses" v-if="senses.length">
+      <section class="dnd-section senses-languages" v-if="senses.length">
         <div class="stat-line">
           <span class="stat-label">Senses</span>
           <span class="stat-value">{{ senses.join(', ') }}</span>
@@ -172,7 +172,7 @@
       </section>
 
       <!-- Languages -->
-      <section class="languages" v-if="languages.length">
+      <section class="dnd-section senses-languages" v-if="languages.length">
         <div class="stat-line">
           <span class="stat-label">Languages</span>
           <span class="stat-value">{{ languages.join(', ') }}</span>
@@ -180,7 +180,7 @@
       </section>
 
       <!-- Challenge Rating -->
-      <section class="challenge-rating">
+      <section class="dnd-section challenge-rating">
         <div class="stat-line">
           <span class="stat-label">Challenge Rating</span>
           <span class="stat-value">{{ challengeRatingDisplay }}</span>
@@ -188,7 +188,7 @@
       </section>
 
       <!-- Actions -->
-      <section class="actions" v-if="hasActions">
+      <section class="dnd-section actions-section" v-if="hasActions">
         <h3>Actions</h3>
         <div v-for="action in actions" :key="action.name" class="action-item">
           <div class="action-header">
@@ -207,7 +207,7 @@
       </section>
 
       <!-- Legendary Actions -->
-      <section class="legendary-actions" v-if="hasLegendaryActions">
+      <section class="dnd-section legendary-actions" v-if="hasLegendaryActions">
         <h3>Legendary Actions</h3>
         <p class="legendary-description">Can take {{ legendaryActionsPerTurn }} legendary actions, choosing from the options below. Only one legendary action option can be used at a time and only at the end of another creature's turn. Regains spent legendary actions at the start of its turn.</p>
         <div v-for="action in legendaryActions" :key="action.name" class="action-item">
@@ -557,133 +557,140 @@ onMounted(() => {
 });
 </script>
 
-<style scoped>
-@import '../character-sheet-styles.css';
+<style>
+@import '../../styles/dnd-theme.css';
+</style>
 
+<style scoped>
+/* Actor Sheet Specific Overrides */
 .dnd5e-actor-sheet {
-  @apply w-full h-full bg-white rounded-lg shadow-lg overflow-hidden flex flex-col;
-  font-family: 'Roboto', sans-serif;
+  /* Inherits base styling from dnd-theme.css */
   min-width: 600px;
   min-height: 400px;
 }
 
 .stat-block-content {
-  @apply flex-1 p-6 overflow-y-auto space-y-6;
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-.basic-stats {
-  @apply space-y-2;
+.character-name-input {
+  background: transparent;
+  border: none;
+  color: var(--dnd-white);
+  font-family: 'Cinzel', serif;
+  font-size: 16px;
+  font-weight: bold;
+  text-shadow: 1px 1px 2px var(--dnd-shadow);
+  outline: none;
+  width: 100%;
 }
 
-.stat-line {
-  @apply flex items-center justify-between py-1;
-  border-bottom: 1px solid #e5e7eb;
+.character-name-input:focus {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  padding: 2px 4px;
 }
 
-.stat-label {
-  @apply font-semibold text-gray-700;
+.stat-input {
+  width: 80px;
+  padding: 4px 8px;
+  border: 1px solid var(--dnd-brown-light);
+  border-radius: 4px;
+  background: var(--dnd-white);
+  color: var(--dnd-red);
+  font-weight: bold;
+  text-align: center;
 }
 
-.stat-value {
-  @apply text-gray-900;
+.stat-input:focus {
+  outline: none;
+  border-color: var(--dnd-red);
+  box-shadow: 0 0 0 2px rgba(210, 0, 0, 0.2);
 }
 
-.stat-input.inline {
-  @apply w-20 px-2 py-1 border rounded;
-}
-
-.hit-points-edit.inline {
-  @apply flex items-center space-x-2;
+.hit-points-edit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .hp-current, .hp-max {
-  @apply w-16 px-2 py-1 border rounded text-center;
-}
-
-.hp-separator {
-  @apply text-gray-500;
-}
-
-.abilities-grid {
-  @apply grid grid-cols-6 gap-4;
-}
-
-.ability-card {
-  @apply text-center p-3 border rounded cursor-pointer hover:bg-gray-50 transition-colors;
-}
-
-.ability-name {
-  @apply text-xs font-semibold text-gray-600 uppercase;
-}
-
-.ability-score {
-  @apply text-lg font-bold text-gray-900;
-}
-
-.ability-modifier {
-  @apply text-sm text-gray-600;
-}
-
-.ability-input {
-  @apply w-full text-center px-2 py-1 border rounded;
-}
-
-.skills-saves {
-  @apply grid grid-cols-1 md:grid-cols-2 gap-4;
-}
-
-.saves-list, .skills-list {
-  @apply flex flex-wrap gap-2;
-}
-
-.save-item, .skill-item {
-  @apply px-2 py-1 bg-gray-100 rounded cursor-pointer hover:bg-gray-200 transition-colors text-sm;
-}
-
-.resistance-line {
-  @apply flex justify-between py-1;
-}
-
-.resistance-label {
-  @apply font-medium text-gray-700;
-}
-
-.resistance-value {
-  @apply text-gray-900;
-}
-
-.action-item {
-  @apply border-b border-gray-200 pb-4 last:border-b-0;
+  width: 60px;
+  padding: 4px;
+  border: 1px solid var(--dnd-brown-light);
+  border-radius: 4px;
+  background: var(--dnd-white);
+  color: var(--dnd-red);
+  font-weight: bold;
+  text-align: center;
 }
 
 .action-header {
-  @apply flex items-center justify-between mb-2;
-}
-
-.action-name {
-  @apply font-semibold text-gray-900;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
 }
 
 .action-roll-btn {
-  @apply px-2 py-1 bg-blue-100 hover:bg-blue-200 rounded transition-colors;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  background: var(--dnd-gold);
+  color: var(--dnd-red-dark);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
 }
 
-.action-description {
-  @apply text-gray-700 text-sm;
+.action-roll-btn:hover {
+  background: var(--dnd-gold-dark);
+  transform: scale(1.05);
 }
 
 .legendary-description {
-  @apply text-sm text-gray-600 mb-4 italic;
+  font-size: 11px;
+  color: var(--dnd-gray);
+  font-style: italic;
+  margin-bottom: 12px;
+  line-height: 1.4;
 }
 
-/* Responsive design */
-@media (max-width: 768px) {
-  .abilities-grid {
-    @apply grid-cols-3;
-  }
-  
-  .skills-saves {
-    @apply grid-cols-1;
-  }
+/* Use actor-specific grid from theme */
+.abilities-grid {
+  /* Inherits from .actor-abilities-grid in theme */
+}
+
+/* Override section headers to match stat block style */
+.ability-scores h3,
+.actions h3,
+.legendary-actions h3 {
+  font-family: 'Cinzel', serif;
+  font-size: 14px;
+  color: var(--dnd-red);
+  margin: 0 0 12px 0;
+  text-align: center;
+  border-bottom: 1px solid var(--dnd-brown-light);
+  padding-bottom: 4px;
+}
+
+.saving-throws h4,
+.skills h4 {
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  color: var(--dnd-red);
+  margin: 0 0 8px 0;
+  text-align: center;
+  border-bottom: 1px solid var(--dnd-brown-light);
+  padding-bottom: 2px;
 }
 </style>
