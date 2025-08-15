@@ -1,7 +1,7 @@
 /**
- * Character State Management Composable
+ * Document State Management Composable
  * 
- * Provides reactive character state management for both:
+ * Provides reactive document state management for both characters and actors:
  * - Standalone editing mode (with auto-save)
  * - Game mode (with WebSocket updates)
  */
@@ -12,7 +12,7 @@ import type { CreateDocumentData } from '@dungeon-lab/shared/schemas/document.sc
 import { DocumentsClient } from '@dungeon-lab/client/index.mjs';
 import { useSocketStore } from '../stores/socket.store.mjs';
 
-export interface CharacterStateOptions {
+export interface DocumentStateOptions {
   /** Enable WebSocket integration for real-time server updates (game mode) */
   enableWebSocket?: boolean;
   /** Enable auto-save functionality for user edits (edit mode) */
@@ -34,29 +34,29 @@ function stripPopulatedFields(character: ICharacter): CreateDocumentData {
   return coreFields as CreateDocumentData;
 }
 
-export interface CharacterStateReturn {
-  /** Reactive character data */
+export interface DocumentStateReturn {
+  /** Reactive document data */
   character: Ref<ICharacter>;
-  /** Reactive character items */
+  /** Reactive document items */
   items: Ref<IItem[]>;
   /** Whether there are unsaved changes */
   hasUnsavedChanges: Ref<boolean>;
   /** Whether a save operation is in progress */
   isSaving: Ref<boolean>;
-  /** Manually save character changes */
+  /** Manually save document changes */
   save: () => Promise<void>;
-  /** Reset character to original state (cancel changes) */
+  /** Reset document to original state (cancel changes) */
   reset: () => void;
-  /** Load character items from server */
+  /** Load document items from server */
   loadItems: () => Promise<void>;
-  /** Mark character as having unsaved changes */
+  /** Mark document as having unsaved changes */
   markAsChanged: () => void;
 }
 
-export function useCharacterState(
+export function useDocumentState(
   initialCharacter: ICharacter,
-  options: CharacterStateOptions = {}
-): CharacterStateReturn {
+  options: DocumentStateOptions = {}
+): DocumentStateReturn {
   const {
     enableWebSocket = false,
     readonly = false

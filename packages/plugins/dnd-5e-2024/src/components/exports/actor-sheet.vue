@@ -230,18 +230,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, type Ref } from 'vue';
 import type { IActor } from '@dungeon-lab/shared/types/index.mjs';
 
 // Props
 interface Props {
-  actor: IActor;
+  actor: Ref<IActor>;
   readonly?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   readonly: false
 });
+
+// Use reactive actor directly (like character sheet)
+const actor = props.actor;
 
 // Events
 const emit = defineEmits<{
@@ -267,7 +270,7 @@ const abilities = [
 
 // Reactive ability scores
 const abilityScores = computed({
-  get: () => props.actor.pluginData?.abilities || {
+  get: () => actor.value.pluginData?.abilities || {
     strength: 10,
     dexterity: 10,
     constitution: 10,
@@ -276,29 +279,29 @@ const abilityScores = computed({
     charisma: 10
   },
   set: (value) => {
-    if (!props.actor.pluginData) {
-      props.actor.pluginData = {};
+    if (!actor.value.pluginData) {
+      actor.value.pluginData = {};
     }
-    props.actor.pluginData.abilities = value;
-    emit('update:actor', props.actor);
+    actor.value.pluginData.abilities = value;
+    emit('update:actor', actor.value);
   }
 });
 
 // Computed properties
 const creatureTypeDisplay = computed(() => {
-  const size = props.actor.pluginData?.size || 'Medium';
-  const type = props.actor.pluginData?.type || 'humanoid';
+  const size = actor.value.pluginData?.size || 'Medium';
+  const type = actor.value.pluginData?.type || 'humanoid';
   return `${size} ${type}`;
 });
 
 const challengeRatingDisplay = computed(() => {
-  const cr = props.actor.pluginData?.challengeRating || '1/8';
-  const xp = props.actor.pluginData?.experiencePoints || 25;
+  const cr = actor.value.pluginData?.challengeRating || '1/8';
+  const xp = actor.value.pluginData?.experiencePoints || 25;
   return `${cr} (${xp} XP)`;
 });
 
 const armorClassDisplay = computed(() => {
-  const acData = props.actor.pluginData?.armorClass;
+  const acData = actor.value.pluginData?.armorClass;
   const ac = (typeof acData === 'object' && acData && 'value' in acData) ? (acData as any).value : (acData || 10);
   const source = (typeof acData === 'object' && acData && 'source' in acData) ? (acData as any).source : undefined;
   return source ? `${ac} (${source})` : ac.toString();
@@ -306,82 +309,82 @@ const armorClassDisplay = computed(() => {
 
 const armorClassValue = computed({
   get: () => {
-    const acData = props.actor.pluginData?.armorClass;
+    const acData = actor.value.pluginData?.armorClass;
     return (typeof acData === 'object' && acData && 'value' in acData) ? (acData as any).value : (acData || 10);
   },
   set: (value) => {
-    if (!props.actor.pluginData) {
-      props.actor.pluginData = {};
+    if (!actor.value.pluginData) {
+      actor.value.pluginData = {};
     }
     // Keep existing structure if it's an object, otherwise create simple value
-    const existing = props.actor.pluginData.armorClass;
+    const existing = actor.value.pluginData.armorClass;
     if (typeof existing === 'object') {
-      props.actor.pluginData.armorClass = { ...existing, value };
+      actor.value.pluginData.armorClass = { ...existing, value };
     } else {
-      props.actor.pluginData.armorClass = { value };
+      actor.value.pluginData.armorClass = { value };
     }
-    emit('update:actor', props.actor);
+    emit('update:actor', actor.value);
   }
 });
 
 const hitPointsMax = computed({
   get: () => {
-    const hpData = props.actor.pluginData?.hitPoints;
+    const hpData = actor.value.pluginData?.hitPoints;
     if (typeof hpData === 'object' && hpData && 'average' in hpData) {
       return (hpData as any).average;
     }
-    return props.actor.pluginData?.hitPointsMax || 1;
+    return actor.value.pluginData?.hitPointsMax || 1;
   },
   set: (value) => {
-    if (!props.actor.pluginData) {
-      props.actor.pluginData = {};
+    if (!actor.value.pluginData) {
+      actor.value.pluginData = {};
     }
     // Update the hitPoints.average if structured data exists
-    const existing = props.actor.pluginData.hitPoints;
+    const existing = actor.value.pluginData.hitPoints;
     if (typeof existing === 'object') {
-      props.actor.pluginData.hitPoints = { ...existing, average: value };
+      actor.value.pluginData.hitPoints = { ...existing, average: value };
     } else {
-      props.actor.pluginData.hitPointsMax = value;
+      actor.value.pluginData.hitPointsMax = value;
     }
-    emit('update:actor', props.actor);
+    emit('update:actor', actor.value);
   }
 });
 
 const hitPointsCurrent = computed({
   get: () => {
-    const hpData = props.actor.pluginData?.hitPoints;
+    const hpData = actor.value.pluginData?.hitPoints;
     if (typeof hpData === 'object' && hpData) {
       const current = 'current' in hpData ? (hpData as any).current : undefined;
       const average = 'average' in hpData ? (hpData as any).average : undefined;
       return current ?? average ?? 1;
     }
-    return props.actor.pluginData?.hitPointsCurrent ?? hitPointsMax.value;
+    return actor.value.pluginData?.hitPointsCurrent ?? hitPointsMax.value;
   },
   set: (value) => {
-    if (!props.actor.pluginData) {
-      props.actor.pluginData = {};
+    if (!actor.value.pluginData) {
+      actor.value.pluginData = {};
     }
     // Update the hitPoints.current if structured data exists
-    const existing = props.actor.pluginData.hitPoints;
+    const existing = actor.value.pluginData.hitPoints;
     if (typeof existing === 'object') {
-      props.actor.pluginData.hitPoints = { ...existing, current: value };
+      actor.value.pluginData.hitPoints = { ...existing, current: value };
     } else {
-      props.actor.pluginData.hitPointsCurrent = value;
+      actor.value.pluginData.hitPointsCurrent = value;
     }
-    emit('update:actor', props.actor);
+    emit('update:actor', actor.value);
   }
 });
 
 const hitPointsDisplay = computed(() => {
   const current = hitPointsCurrent.value;
   const max = hitPointsMax.value;
-  const hpData = props.actor.pluginData?.hitPoints;
+  const hpData = actor.value.pluginData?.hitPoints;
   const formula = (typeof hpData === 'object' && hpData && 'formula' in hpData) ? ` (${(hpData as any).formula})` : '';
   return `${current}/${max}${formula}`;
 });
 
 const speedDisplay = computed(() => {
-  const speeds = props.actor.pluginData?.speed || { walk: 30 };
+  const speeds = actor.value.pluginData?.speed || { walk: 30 };
   const speedParts = [];
   
   // Type guard to ensure speeds is an object
@@ -399,7 +402,7 @@ const speedDisplay = computed(() => {
 
 // Saving throws
 const savingThrows = computed(() => {
-  const savingThrowsData = props.actor.pluginData?.savingThrows;
+  const savingThrowsData = actor.value.pluginData?.savingThrows;
   return Array.isArray(savingThrowsData) ? savingThrowsData : [];
 });
 
@@ -407,7 +410,7 @@ const hasSavingThrows = computed(() => savingThrows.value.length > 0);
 
 // Skills
 const skills = computed(() => {
-  const skillsData = props.actor.pluginData?.skills;
+  const skillsData = actor.value.pluginData?.skills;
   return Array.isArray(skillsData) ? skillsData : [];
 });
 
@@ -415,17 +418,17 @@ const hasSkills = computed(() => skills.value.length > 0);
 
 // Resistances and immunities
 const damageResistances = computed(() => {
-  const resistancesData = props.actor.pluginData?.damageResistances;
+  const resistancesData = actor.value.pluginData?.damageResistances;
   return Array.isArray(resistancesData) ? resistancesData : [];
 });
 
 const damageImmunities = computed(() => {
-  const immunitiesData = props.actor.pluginData?.damageImmunities;
+  const immunitiesData = actor.value.pluginData?.damageImmunities;
   return Array.isArray(immunitiesData) ? immunitiesData : [];
 });
 
 const conditionImmunities = computed(() => {
-  const conditionImmunitiesData = props.actor.pluginData?.conditionImmunities;
+  const conditionImmunitiesData = actor.value.pluginData?.conditionImmunities;
   return Array.isArray(conditionImmunitiesData) ? conditionImmunitiesData : [];
 });
 
@@ -437,9 +440,9 @@ const hasResistances = computed(() => {
 
 // Senses and languages
 const senses = computed(() => {
-  const sensesData = props.actor.pluginData?.senses;
+  const sensesData = actor.value.pluginData?.senses;
   const sensesArray = Array.isArray(sensesData) ? sensesData : [];
-  const passivePerception = props.actor.pluginData?.passivePerception;
+  const passivePerception = actor.value.pluginData?.passivePerception;
   const result = [...sensesArray];
   if (passivePerception) {
     result.push(`passive Perception ${passivePerception}`);
@@ -448,27 +451,27 @@ const senses = computed(() => {
 });
 
 const languages = computed(() => {
-  const languagesData = props.actor.pluginData?.languages;
+  const languagesData = actor.value.pluginData?.languages;
   return Array.isArray(languagesData) ? languagesData : [];
 });
 
 // Actions
 const actions = computed(() => {
-  const actionsData = props.actor.pluginData?.actions;
+  const actionsData = actor.value.pluginData?.actions;
   return Array.isArray(actionsData) ? actionsData : [];
 });
 
 const hasActions = computed(() => actions.value.length > 0);
 
 const legendaryActions = computed(() => {
-  const legendaryActionsData = props.actor.pluginData?.legendaryActions;
+  const legendaryActionsData = actor.value.pluginData?.legendaryActions;
   return Array.isArray(legendaryActionsData) ? legendaryActionsData : [];
 });
 
 const hasLegendaryActions = computed(() => legendaryActions.value.length > 0);
 
 const legendaryActionsPerTurn = computed(() => {
-  return props.actor.pluginData?.legendaryActionsPerTurn || 3;
+  return actor.value.pluginData?.legendaryActionsPerTurn || 3;
 });
 
 // Helper functions
@@ -560,7 +563,7 @@ const rollAction = (action: any) => {
 
 // Lifecycle
 onMounted(() => {
-  console.log('[ActorSheet] Mounted with actor:', props.actor.name);
+  console.log('[ActorSheet] Mounted with actor:', actor.value.name);
 });
 </script>
 

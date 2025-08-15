@@ -1,24 +1,24 @@
 <template>
   <Teleport to="body">
     <div
-      v-for="[sheetId, sheet] in characterSheetStore.floatingSheets"
+      v-for="[sheetId, sheet] in documentSheetStore.floatingSheets"
       :key="sheetId"
       :ref="sheetId"
       :data-sheet-id="sheetId"
       class="floating-character-sheet"
       :class="{ 'is-dragging': isDragging && currentSheetId === sheetId }"
       :style="getSheetStyle(sheet)"
-      @mousedown.self="characterSheetStore.bringToFront(sheetId)"
+      @mousedown.self="documentSheetStore.bringToFront(sheetId)"
     >
       <!-- Fallback Framework Header (only shown if plugin doesn't emit events) -->
       <div v-if="showFallbackChrome" class="fallback-header" @mousedown="startDrag($event, sheetId)">
         <div class="window-title">
           <i class="mdi mdi-account title-icon"></i>
-          <span>{{ sheet.character.name }}</span>
+          <span>{{ sheet.document.name }}</span>
         </div>
         
         <div class="window-controls">
-          <button class="control-button" title="Close" @click="characterSheetStore.closeCharacterSheet(sheetId)">
+          <button class="control-button" title="Close" @click="documentSheetStore.closeDocumentSheet(sheetId)">
             <i class="mdi mdi-close"></i>
           </button>
         </div>
@@ -28,9 +28,9 @@
       <div class="window-content">
         <CharacterSheetContainer
           :show="true"
-          :character="sheet.character"
+          :character="sheet.document"
           :readonly="false"
-          @close="characterSheetStore.closeCharacterSheet(sheetId)"
+          @close="documentSheetStore.closeDocumentSheet(sheetId)"
           @roll="handleRoll"
           @drag-start="(event) => handlePluginDragStart(event, sheetId)"
         />
@@ -52,12 +52,11 @@
 
 <script setup lang="ts">
 import { ref, onUnmounted, onMounted } from 'vue';
-import { useCharacterSheetStore } from '../../stores/character-sheet.store.mjs';
-import { pluginRegistry } from '../../services/plugin-registry.mts';
-import type { FloatingCharacterSheet } from '../../stores/character-sheet.store.mjs';
+import { useDocumentSheetStore } from '../../stores/document-sheet.store.mjs';
+import type { FloatingDocumentSheet } from '../../stores/document-sheet.store.mjs';
 import CharacterSheetContainer from './CharacterSheetContainer.vue';
 
-const characterSheetStore = useCharacterSheetStore();
+const documentSheetStore = useDocumentSheetStore();
 
 // Drag and resize state
 const isDragging = ref(false);
@@ -80,7 +79,7 @@ const eventCleanups = ref<Array<() => void>>([]);
 const showFallbackChrome = ref(false); // D&D components are self-contained with their own headers
 const fallbackTimeout = ref<number | null>(null);
 
-function getSheetStyle(sheet: FloatingCharacterSheet) {
+function getSheetStyle(sheet: FloatingDocumentSheet) {
   const style: Record<string, string | number> = {
     left: `${sheet.position.x}px`,
     top: `${sheet.position.y}px`,
@@ -98,7 +97,7 @@ function getSheetStyle(sheet: FloatingCharacterSheet) {
 
 // Drag functionality
 function startDrag(event: MouseEvent, sheetId: string) {
-  const sheet = characterSheetStore.floatingSheets.get(sheetId);
+  const sheet = documentSheetStore.floatingSheets.get(sheetId);
   if (!sheet) return;
   
   // Find the DOM element for this sheet
@@ -157,7 +156,7 @@ function stopDrag() {
   // Sync final position back to store if we have an element reference
   if (dragElement.value && currentSheetId.value) {
     const rect = dragElement.value.getBoundingClientRect();
-    characterSheetStore.updatePosition(currentSheetId.value, rect.left, rect.top);
+    documentSheetStore.updatePosition(currentSheetId.value, rect.left, rect.top);
   }
   
   // Clean up drag state
@@ -171,7 +170,7 @@ function stopDrag() {
 
 // Resize functionality
 function startResize(event: MouseEvent, sheetId: string) {
-  const sheet = characterSheetStore.floatingSheets.get(sheetId);
+  const sheet = documentSheetStore.floatingSheets.get(sheetId);
   if (!sheet) return;
   
   // Get current actual size from DOM element
@@ -204,7 +203,7 @@ function handleResize(event: MouseEvent) {
   const newHeight = Math.max(200, resizeStartSize.value.height + deltaY);
   
   // Store size to override CSS fit-content during user resize
-  characterSheetStore.updateSize(currentSheetId.value, newWidth, newHeight);
+  documentSheetStore.updateSize(currentSheetId.value, newWidth, newHeight);
 }
 
 function stopResize() {

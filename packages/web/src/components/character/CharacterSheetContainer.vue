@@ -9,7 +9,7 @@
       <!-- Character/Actor Sheet Component -->
       <component
         :is="characterSheetComponent"
-        v-if="characterSheetComponent && (reactiveCharacter || props.character?.documentType === 'actor')"
+        v-if="characterSheetComponent && props.character"
         v-bind="getComponentProps()"
         @update:items="handleItemsChange"
         @update:character="handleCharacterUpdate"
@@ -56,7 +56,7 @@ import { ref, watch, computed, shallowRef } from 'vue';
 import type { Component } from 'vue';
 import type { IActor, IItem } from '@dungeon-lab/shared/types/index.mjs';
 import { pluginRegistry } from '../../services/plugin-registry.mts';
-import { useCharacterState } from '../../composables/useCharacterState.mjs';
+import { useDocumentState } from '../../composables/useDocumentState.mjs';
 import PluginContainer from '../common/PluginContainer.vue';
 
 const props = defineProps<{
@@ -76,16 +76,16 @@ const emit = defineEmits<{
 const characterSheetComponent = shallowRef<Component | null>(null);
 const editMode = ref(false);
 
-// Character state management using composable (only for characters, not actors)
-const characterState = computed(() => {
-  if (!props.character || props.character.documentType === 'actor') return null;
-  
-  return useCharacterState(props.character, {
-    enableWebSocket: props.readonly, // Game mode uses WebSocket
-    enableAutoSave: false, // Disable auto-save - manual save only
-    readonly: props.readonly
-  });
-});
+// Unified document state management for both characters and actors
+// Always create composable at setup level to avoid lifecycle issues
+const documentState = props.character ? useDocumentState(props.character, {
+  enableWebSocket: props.readonly, // Game mode uses WebSocket
+  enableAutoSave: false, // Disable auto-save - manual save only
+  readonly: props.readonly
+}) : null;
+
+// Computed wrapper for reactivity
+const characterState = computed(() => documentState);
 
 // Reactive character and items from composable (only for characters)
 const reactiveCharacter = computed(() => characterState.value?.character || null);
@@ -187,15 +187,15 @@ const getComponentProps = () => {
   const isActorSheet = props.character.documentType === 'actor';
   
   if (isActorSheet) {
-    // Actor sheet expects: actor, readonly (use raw actor data, not useCharacterState)
+    // Actor sheet: Use unified reactive state just like character sheets
     return {
-      actor: props.character,
+      actor: reactiveCharacter.value || props.character, // Use reactive if available, fallback to props
       readonly: props.readonly
     };
   } else {
-    // Character sheet expects: character (Ref), items (Ref), editMode, readonly
+    // Character sheet: Use unified reactive state
     return {
-      character: reactiveCharacter.value,
+      character: reactiveCharacter.value || props.character, // Use reactive if available, fallback to props
       items: reactiveItems.value,
       editMode: editMode.value,
       readonly: props.readonly

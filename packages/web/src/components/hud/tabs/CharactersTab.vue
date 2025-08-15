@@ -106,12 +106,12 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useGameStateStore } from '../../../stores/game-state.store.mjs';
-import { useCharacterSheetStore } from '../../../stores/character-sheet.store.mjs';
+import { useDocumentSheetStore } from '../../../stores/document-sheet.store.mjs';
 import { getDocumentImageUrl } from '../../../utils/document-image-utils.mjs';
 import type { ICharacter, StateOperation } from '@dungeon-lab/shared/types/index.mjs';
 
 const gameStateStore = useGameStateStore();
-const characterSheetStore = useCharacterSheetStore();
+const documentSheetStore = useDocumentSheetStore();
 const router = useRouter();
 const searchQuery = ref('');
 const activeFilter = ref('all');
@@ -230,7 +230,7 @@ async function editCharacter(character: ICharacter): Promise<void> {
 
 // Character sheet functions
 function openCharacterSheet(character: ICharacter): void {
-  characterSheetStore.openCharacterSheet(character);
+  documentSheetStore.openDocumentSheet(character);
 }
 
 // Quick action functions
