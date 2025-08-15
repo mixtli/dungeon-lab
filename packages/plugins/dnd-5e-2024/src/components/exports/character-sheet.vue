@@ -280,6 +280,7 @@ const character = props.character;
 console.log('[CharacterSheet] Character ref:', character);
 console.log('[CharacterSheet] Character value:', character?.value);
 console.log('[CharacterSheet] Character name:', character?.value?.name);
+console.log('[CharacterSheet] Character armor class:', character?.value?.pluginData?.attributes?.armorClass);
 
 // Compendium document data
 const speciesDocument = ref<DndSpeciesDocument | null>(null);

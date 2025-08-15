@@ -22,8 +22,17 @@ const isPluginLoaded = ref(false);
 
 onMounted(async () => {
   try {
+    console.log('[CharacterSheetView] Fetching character with ID:', characterId);
+    
     // Fetch the character data directly using ActorsClient
     const fetchedCharacter = await actorsClient.getActor(characterId);
+
+    console.log('[CharacterSheetView] Fetched character data:', {
+      id: fetchedCharacter?.id,
+      name: fetchedCharacter?.name,
+      armorClass: fetchedCharacter?.pluginData?.attributes?.armorClass,
+      fullPluginData: fetchedCharacter?.pluginData
+    });
 
     if (fetchedCharacter) {
       character.value = fetchedCharacter;

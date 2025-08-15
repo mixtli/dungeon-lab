@@ -123,8 +123,12 @@ const reactiveDocument = computed(() => {
     console.log(`[DocumentSheetContainer] Game context - document (unwrapped):`, gameDoc ? { id: (gameDoc as any).id, name: (gameDoc as any).name } : null);
     return gameDoc;
   } else {
-    const adminDoc = adminDocumentState.value?.character || null;
-    console.log(`[DocumentSheetContainer] Admin context - document:`, adminDoc ? { id: (adminDoc as any).id, name: (adminDoc as any).name } : null);
+    const adminDoc = adminDocumentState.value?.character?.value || null;
+    console.log(`[DocumentSheetContainer] Admin context - document:`, adminDoc ? { 
+      id: (adminDoc as any).id, 
+      name: (adminDoc as any).name,
+      armorClass: (adminDoc as any).pluginData?.attributes?.armorClass 
+    } : null);
     return adminDoc;
   }
 });
