@@ -249,6 +249,7 @@ const emit = defineEmits<{
   (e: 'save'): void;
   (e: 'roll', rollType: string, data: Record<string, unknown>): void;
   (e: 'close'): void;
+  (e: 'drag-start', event: MouseEvent): void;
 }>();
 
 // Component state
@@ -508,9 +509,15 @@ const closeSheet = () => {
 };
 
 const startDrag = (event: MouseEvent) => {
-  // Handle window dragging - implementation depends on parent container
-  // This is just a placeholder for the drag functionality
-  console.log('Start drag', event);
+  // Don't start drag if clicking on buttons or other interactive elements
+  const target = event.target as HTMLElement;
+  if (target.tagName === 'BUTTON' || target.closest('button')) {
+    return;
+  }
+  
+  // Emit drag start event for framework to handle window positioning
+  emit('drag-start', event);
+  event.preventDefault();
 };
 
 // Roll functions

@@ -18,6 +18,7 @@
         @toggle-edit-mode="toggleEditMode"
         @roll="handleRoll"
         @close="$emit('close')"
+        @drag-start="handleDragStart"
       />
       
       <!-- Fallback for when plugin/component not available -->
@@ -68,6 +69,7 @@ const emit = defineEmits<{
   (e: 'close'): void;
   (e: 'update:character', character: IActor): void;
   (e: 'roll', rollType: string, data: Record<string, unknown>): void;
+  (e: 'drag-start', event: MouseEvent): void;
 }>();
 
 // Component state
@@ -174,6 +176,10 @@ const handleRoll = (rollType: string, data: Record<string, unknown>) => {
   emit('roll', rollType, data);
 };
 
+const handleDragStart = (event: MouseEvent) => {
+  emit('drag-start', event);
+};
+
 // Get appropriate props based on component type (character vs actor sheet)
 const getComponentProps = () => {
   if (!props.character) return {};
@@ -214,13 +220,13 @@ function getActiveGameSystem() {
 
 <style scoped>
 .character-sheet-container {
-  width: 100%;
-  height: 100%;
+  width: fit-content;
+  height: fit-content;
 }
 
-/* Plugin Container takes full space */
+/* Plugin Container sizes to content */
 .character-sheet-container .plugin-container {
-  width: 100%;
-  height: 100%;
+  width: fit-content;
+  height: fit-content;
 }
 </style>

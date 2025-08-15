@@ -279,6 +279,7 @@ const emit = defineEmits<{
   'roll': [rollType: string, data: Record<string, unknown>];
   'close': [];
   'toggle-edit-mode': [];
+  'drag-start': [event: MouseEvent];
 }>();
 
 // Component state
@@ -697,7 +698,7 @@ const closeSheet = () => {
   emit('close');
 };
 
-// Window drag functionality (simplified)
+// Window drag functionality - emit event for framework to handle
 const startDrag = (event: MouseEvent) => {
   // Don't start drag if clicking on buttons or other interactive elements
   const target = event.target as HTMLElement;
@@ -705,7 +706,8 @@ const startDrag = (event: MouseEvent) => {
     return;
   }
   
-  // For now, just prevent default. Window management handled by parent.
+  // Emit drag start event for framework to handle window positioning
+  emit('drag-start', event);
   event.preventDefault();
 };
 

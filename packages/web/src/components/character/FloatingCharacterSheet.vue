@@ -4,7 +4,9 @@
       v-for="[sheetId, sheet] in characterSheetStore.floatingSheets"
       :key="sheetId"
       :ref="sheetId"
+      :data-sheet-id="sheetId"
       class="floating-character-sheet"
+      :class="{ 'is-dragging': isDragging && currentSheetId === sheetId }"
       :style="getSheetStyle(sheet)"
       @mousedown.self="characterSheetStore.bringToFront(sheetId)"
     >
@@ -30,6 +32,7 @@
           :readonly="false"
           @close="characterSheetStore.closeCharacterSheet(sheetId)"
           @roll="handleRoll"
+          @drag-start="(event) => handlePluginDragStart(event, sheetId)"
         />
       </div>
 
@@ -66,6 +69,10 @@ const dragStartPos = ref({ x: 0, y: 0 });
 const resizeStartPos = ref({ x: 0, y: 0 });
 const resizeStartSize = ref({ width: 0, height: 0 });
 
+// Cache element reference and size for performance during drag
+const dragElement = ref<HTMLElement | null>(null);
+const dragElementSize = ref({ width: 0, height: 0 });
+
 // Plugin event listeners cleanup functions
 const eventCleanups = ref<Array<() => void>>([]);
 
@@ -74,19 +81,43 @@ const showFallbackChrome = ref(false); // D&D components are self-contained with
 const fallbackTimeout = ref<number | null>(null);
 
 function getSheetStyle(sheet: FloatingCharacterSheet) {
-  return {
+  const style: Record<string, string | number> = {
     left: `${sheet.position.x}px`,
     top: `${sheet.position.y}px`,
-    width: `${sheet.size.width}px`,
-    height: `${sheet.size.height}px`,
     zIndex: sheet.zIndex,
   };
+  
+  // Only include size if user has manually resized (overriding CSS fit-content)
+  if (sheet.size) {
+    style.width = `${sheet.size.width}px`;
+    style.height = `${sheet.size.height}px`;
+  }
+  
+  return style;
 }
 
 // Drag functionality
 function startDrag(event: MouseEvent, sheetId: string) {
   const sheet = characterSheetStore.floatingSheets.get(sheetId);
   if (!sheet) return;
+  
+  // Find the DOM element for this sheet
+  const element = document.querySelector(`[data-sheet-id="${sheetId}"]`) as HTMLElement;
+  if (!element) {
+    console.warn('Could not find sheet element for drag:', sheetId);
+    return;
+  }
+  
+  // Find the actual plugin content inside for accurate sizing
+  const pluginContent = element.querySelector('.plugin-container-wrapper') as HTMLElement;
+  const sizeElement = pluginContent || element;
+  
+  // Cache element for positioning and get accurate content size
+  dragElement.value = element;
+  const rect = sizeElement.getBoundingClientRect();
+  dragElementSize.value = { width: rect.width, height: rect.height };
+  
+  // Debug info removed - size issue was in store initialization, not measurement
   
   isDragging.value = true;
   currentSheetId.value = sheetId;
@@ -101,23 +132,38 @@ function startDrag(event: MouseEvent, sheetId: string) {
 }
 
 function handleDrag(event: MouseEvent) {
-  if (!isDragging.value || !currentSheetId.value) return;
-  
-  const sheet = characterSheetStore.floatingSheets.get(currentSheetId.value);
-  if (!sheet) return;
+  if (!isDragging.value || !currentSheetId.value || !dragElement.value) return;
   
   const deltaX = event.clientX - dragStartX.value;
   const deltaY = event.clientY - dragStartY.value;
   
-  const newX = Math.max(0, Math.min(window.innerWidth - sheet.size.width, dragStartPos.value.x + deltaX));
-  const newY = Math.max(0, Math.min(window.innerHeight - sheet.size.height, dragStartPos.value.y + deltaY));
+  // Calculate new position with proper boundary constraints using cached size
+  const maxX = window.innerWidth - dragElementSize.value.width;
+  const maxY = window.innerHeight - dragElementSize.value.height;
+  const targetX = dragStartPos.value.x + deltaX;
+  const targetY = dragStartPos.value.y + deltaY;
   
-  characterSheetStore.updatePosition(currentSheetId.value, newX, newY);
+  const newX = Math.max(0, Math.min(maxX, targetX));
+  const newY = Math.max(0, Math.min(maxY, targetY));
+  
+  // Boundary calculations now working correctly with content-based sizing
+  
+  // Apply position directly to DOM for smooth 60fps performance
+  dragElement.value.style.left = `${newX}px`;
+  dragElement.value.style.top = `${newY}px`;
 }
 
 function stopDrag() {
+  // Sync final position back to store if we have an element reference
+  if (dragElement.value && currentSheetId.value) {
+    const rect = dragElement.value.getBoundingClientRect();
+    characterSheetStore.updatePosition(currentSheetId.value, rect.left, rect.top);
+  }
+  
+  // Clean up drag state
   isDragging.value = false;
   currentSheetId.value = '';
+  dragElement.value = null;
   document.removeEventListener('mousemove', handleDrag);
   document.removeEventListener('mouseup', stopDrag);
   document.body.style.cursor = '';
@@ -128,10 +174,17 @@ function startResize(event: MouseEvent, sheetId: string) {
   const sheet = characterSheetStore.floatingSheets.get(sheetId);
   if (!sheet) return;
   
+  // Get current actual size from DOM element
+  const element = document.querySelector(`[data-sheet-id="${sheetId}"]`) as HTMLElement;
+  if (!element) return;
+  
+  const rect = element.getBoundingClientRect();
+  const currentSize = { width: rect.width, height: rect.height };
+  
   isResizing.value = true;
   currentSheetId.value = sheetId;
   resizeStartPos.value = { x: event.clientX, y: event.clientY };
-  resizeStartSize.value = { ...sheet.size };
+  resizeStartSize.value = currentSize;
   
   document.addEventListener('mousemove', handleResize);
   document.addEventListener('mouseup', stopResize);
@@ -146,9 +199,11 @@ function handleResize(event: MouseEvent) {
   const deltaX = event.clientX - resizeStartPos.value.x;
   const deltaY = event.clientY - resizeStartPos.value.y;
   
-  const newWidth = Math.max(900, resizeStartSize.value.width + deltaX);
-  const newHeight = Math.max(600, resizeStartSize.value.height + deltaY);
+  // Use reasonable minimums based on content, not arbitrary large values
+  const newWidth = Math.max(300, resizeStartSize.value.width + deltaX);
+  const newHeight = Math.max(200, resizeStartSize.value.height + deltaY);
   
+  // Store size to override CSS fit-content during user resize
   characterSheetStore.updateSize(currentSheetId.value, newWidth, newHeight);
 }
 
@@ -167,12 +222,20 @@ function handleRoll(rollType: string, data: Record<string, unknown>) {
   // TODO: Integrate with dice rolling system
 }
 
+// Handle drag start events from plugin components
+function handlePluginDragStart(event: MouseEvent, sheetId: string) {
+  // Forward plugin drag events to the existing drag system
+  startDrag(event, sheetId);
+}
+
 // Setup plugin event listeners
 onMounted(() => {
   setupPluginEventListeners();
   
   // Skip fallback chrome timeout - D&D components are self-contained
   // Plugin components should manage their own UI and don't need framework chrome
+  
+  // No size updates needed - CSS fit-content handles sizing automatically
 });
 
 // Cleanup on unmount
@@ -196,6 +259,8 @@ function setupPluginEventListeners() {
   // TODO: Implement plugin event handling when needed
   // For now, use fallback chrome for all window management
 }
+
+// Content sizing now handled by CSS fit-content - no manual updates needed
 </script>
 
 <style scoped>
@@ -211,6 +276,11 @@ function setupPluginEventListeners() {
   max-height: 90vh;
   overflow: hidden;
   transition: all 0.2s ease;
+}
+
+/* Disable transitions during drag for smooth performance */
+.floating-character-sheet.is-dragging {
+  transition: none !important;
 }
 
 /* Fallback Framework Header */
@@ -274,8 +344,8 @@ function setupPluginEventListeners() {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  width: 100%;
-  height: 100%;
+  width: fit-content;
+  height: fit-content;
 }
 
 /* Resize Handle */

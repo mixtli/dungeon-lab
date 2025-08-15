@@ -6,7 +6,7 @@ export interface FloatingCharacterSheet {
   id: string;
   character: ICharacter;
   position: { x: number; y: number };
-  size: { width: number; height: number };
+  size?: { width: number; height: number }; // Optional - CSS fit-content used when not specified
   zIndex: number;
 }
 
@@ -31,7 +31,7 @@ export const useCharacterSheetStore = defineStore('characterSheet', () => {
         x: 200 + (floatingSheets.value.size * 30), // Offset each new window
         y: 100 + (floatingSheets.value.size * 30) 
       },
-      size: { width: 1000, height: 700 },
+      // No size property - let CSS fit-content handle sizing
       zIndex: ++nextZIndex
     };
 
