@@ -809,6 +809,7 @@ watch(() => {
 
 <style>
 @import '../../styles/dnd-theme.css';
+@import '../character-sheet-styles.css';
 </style>
 
 <style scoped>

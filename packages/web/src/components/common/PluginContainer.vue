@@ -38,8 +38,8 @@ const containerStyle = computed(() => {
   /* Ensure plugin container doesn't inherit styles */
   position: relative;
   display: block;
-  width: 100%;
-  height: 100%;
+  width: fit-content;
+  height: fit-content;
   
   /* Create a containing block for the plugin */
   contain: layout style paint;
@@ -72,8 +72,8 @@ const containerStyle = computed(() => {
   /* Reset layout */
   position: relative;
   display: block;
-  width: 100%;
-  height: 100%;
+  width: fit-content;
+  height: fit-content;
   min-width: 0;
   min-height: 0;
   max-width: none;

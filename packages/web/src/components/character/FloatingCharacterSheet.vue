@@ -171,26 +171,8 @@ function handleRoll(rollType: string, data: Record<string, unknown>) {
 onMounted(() => {
   setupPluginEventListeners();
   
-  // Set up fallback timeout - show framework chrome if no plugin events received
-  fallbackTimeout.value = window.setTimeout(() => {
-    // If no plugin context was found, show fallback chrome
-    const hasActivePlugin = Array.from(characterSheetStore.floatingSheets.values()).some(sheet => {
-      const gameSystemId = sheet.character.pluginId;
-      let pluginId = gameSystemId;
-      if (pluginId === 'dnd5e-2024' || pluginId === 'dnd-5e-2024') {
-        pluginId = 'dnd-5e-2024';
-      }
-      const plugin = pluginRegistry.getGameSystemPlugin(pluginId);
-      // Check if plugin has getContext method (plugins extend BasePlugin)
-      return plugin && typeof (plugin as unknown as { getContext?: () => unknown }).getContext === 'function' &&
-             (plugin as unknown as { getContext: () => unknown }).getContext() !== undefined;
-    });
-    
-    if (!hasActivePlugin) {
-      console.warn('[FloatingCharacterSheet] No plugin context found, showing fallback chrome');
-      showFallbackChrome.value = true;
-    }
-  }, 1000); // 1 second timeout
+  // Skip fallback chrome timeout - D&D components are self-contained
+  // Plugin components should manage their own UI and don't need framework chrome
 });
 
 // Cleanup on unmount
@@ -221,8 +203,12 @@ function setupPluginEventListeners() {
   position: fixed;
   display: flex;
   flex-direction: column;
-  min-width: 900px;
-  min-height: 600px;
+  width: fit-content;
+  height: fit-content;
+  min-width: 400px;
+  max-width: 90vw;
+  min-height: 300px;
+  max-height: 90vh;
   overflow: hidden;
   transition: all 0.2s ease;
 }
