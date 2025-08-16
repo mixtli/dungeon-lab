@@ -9,6 +9,7 @@ import type {
 import { useGameSessionStore } from './game-session.store.mts';
 import { useGameStateStore } from './game-state.store.mjs';
 import type { ParsedMessage, Mention } from '@dungeon-lab/shared/types/chat.mjs';
+import type { RollServerResult } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
 
 export interface ChatContext {
   id: string;
@@ -28,6 +29,8 @@ export interface ChatMessage {
   recipientType?: 'user' | 'actor' | 'session' | 'system' | 'bot';
   mentions?: ParsedMessage['mentions'];
   hasMentions?: boolean;
+  type?: 'text' | 'roll';
+  rollData?: RollServerResult;
 }
 
 interface ChatStore {
@@ -93,7 +96,9 @@ export const useChatStore = defineStore(
             timestamp: metadata.timestamp || new Date().toISOString(),
             isSystem: metadata.sender.type === 'system',
             recipientId: metadata.recipient?.id,
-            recipientType: metadata.recipient?.type
+            recipientType: metadata.recipient?.type,
+            type: metadata.type || 'text',
+            rollData: metadata.rollData
           };
 
           messages.value.push(newMessage);
@@ -237,20 +242,8 @@ export const useChatStore = defineStore(
       // Send the message
       socketStore.socket.emit('chat', metadata, content);
 
-      // Also add the sent message to our local state
-      // The server should echo back the message, but we add it locally for instant feedback
-      const newMessage: ChatMessage = {
-        id: generateId(),
-        content,
-        senderId: metadata.sender.id || 'unknown',
-        senderName: 'You', // Always show "You" for messages sent by the current user/actor
-        timestamp: new Date().toISOString(),
-        isSystem: false,
-        recipientId: metadata.recipient?.id,
-        recipientType: metadata.recipient?.type
-      };
-
-      messages.value.push(newMessage);
+      // Server will echo back the message, so we don't add it locally
+      // This ensures single source of truth and prevents duplicate messages
     }
 
     // Clear all messages

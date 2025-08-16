@@ -55,7 +55,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from 'vue';
+import { ref, computed, watch, nextTick, onMounted } from 'vue';
 import { useChatStore, type ChatMessage } from '../../../stores/chat.store.mts';
 import { useSocketStore } from '../../../stores/socket.store.mts';
 import { useGameStateStore } from '../../../stores/game-state.store.mjs';
@@ -133,6 +133,11 @@ watch(
     scrollToBottom();
   }
 );
+
+// Auto-scroll to bottom on component mount (page reload)
+onMounted(() => {
+  scrollToBottom();
+});
 </script>
 
 <style scoped>

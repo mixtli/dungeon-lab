@@ -268,6 +268,10 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
 
       // Join socket room for real-time updates  
       await socket.join(`session:${sessionId}`);
+      
+      // Set gameSessionId on socket for other handlers to use
+      socket.gameSessionId = sessionId;
+      
       logger.info('User joined socket room:', { sessionId, userId });
 
       // Get fully populated session data to return to client
@@ -358,6 +362,9 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
 
       // Leave socket room
       await socket.leave(`session:${sessionId}`);
+      
+      // Clear gameSessionId on socket
+      socket.gameSessionId = undefined;
 
       // Get user info for broadcast
       const user = session.participants?.find((p: IUser) => p.id === userId) || 

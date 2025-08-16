@@ -11,12 +11,17 @@ import type {
   CompendiumSearchQuery,
   GameStateContext
 } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
+import type { RollTypeHandler } from '@dungeon-lab/shared-ui/types/plugin.mjs';
 import type { BaseDocument, ICompendiumEntry } from '@dungeon-lab/shared/types/index.mjs';
+import type { Roll, RollCallback } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
 import { ReactivePluginStore } from '../plugin-store.mjs';
 import { CompendiumsClient } from '@dungeon-lab/client/index.mjs';
 import { DocumentsClient } from '@dungeon-lab/client/index.mjs';
 import { createPluginGameStateService } from '../plugin-game-state.service.mjs';
 import { useGameStateStore } from '../../stores/game-state.store.mjs';
+import { useGameSessionStore } from '../../stores/game-session.store.mjs';
+import { useSocketStore } from '../../stores/socket.store.mjs';
+import { rollHandlerService } from '../roll-handler.service.mjs';
 
 export interface PluginContextOptions {
   includeGameState?: boolean;
@@ -111,6 +116,86 @@ export class PluginContextImpl implements PluginContext {
       console.error('[PluginContext] Failed to search compendium entries:', error);
       throw error;
     }
+  }
+  
+  /**
+   * Submit a roll to the server
+   * Plugins use this instead of direct socket access
+   */
+  submitRoll(roll: Roll): void {
+    const socketStore = useSocketStore();
+    const socket = socketStore.socket;
+    
+    if (!socket) {
+      console.error('No socket connection available for roll submission');
+      return;
+    }
+    
+    socket.emit('roll', roll, (response: RollCallback) => {
+      if (!response.success) {
+        console.error(`[PluginContext] Roll submission failed:`, response.error);
+      } else {
+        console.log(`[PluginContext] Roll submitted successfully for plugin '${this.pluginId}'`);
+      }
+    });
+    console.log(`[PluginContext] Submitted roll for plugin '${this.pluginId}':`, roll);
+  }
+  
+  /**
+   * Send a chat message with optional metadata
+   */
+  sendChatMessage(message: string, metadata?: {
+    type?: 'text' | 'roll';
+    rollData?: unknown;
+    recipient?: 'public' | 'gm' | 'private';
+  }): void {
+    const socketStore = useSocketStore();
+    const socket = socketStore.socket;
+    
+    if (!socket) {
+      console.error('No socket connection available for chat message');
+      return;
+    }
+
+    // Get current session ID from game session store
+    const gameSessionStore = useGameSessionStore();
+    const sessionId = gameSessionStore.currentSession?.id;
+    if (!sessionId) {
+      console.error('No active session for chat message');
+      return;
+    }
+
+    // Create chat metadata
+    const chatMetadata = {
+      sender: {
+        type: 'user' as const,
+        id: socketStore.userId || ''
+      },
+      recipient: metadata?.recipient === 'gm' 
+        ? { type: 'session' as const, id: sessionId }
+        : metadata?.recipient === 'private'
+        ? { type: 'user' as const, id: socketStore.userId || '' }
+        : { type: 'session' as const, id: sessionId }, // default to public
+      timestamp: new Date().toISOString(),
+      type: metadata?.type || 'text',
+      rollData: metadata?.rollData
+    };
+
+    // Send chat message
+    socket.emit('chat', chatMetadata, message);
+    console.log(`[PluginContext] Sent chat message from plugin '${this.pluginId}':`, { 
+      message: message.substring(0, 50) + (message.length > 50 ? '...' : ''),
+      type: metadata?.type,
+      recipient: metadata?.recipient 
+    });
+  }
+
+  /**
+   * Register a handler for a specific roll type
+   */
+  registerRollHandler(rollType: string, handler: RollTypeHandler): void {
+    rollHandlerService.registerHandler(rollType, handler, this);
+    console.log(`[PluginContext] Registered roll handler for plugin '${this.pluginId}', roll type: ${rollType}`);
   }
   
   /**

@@ -89,7 +89,7 @@ const isGameContext = computed(() => context.value === 'game');
 //const adminDocumentState = ref<ReturnType<typeof useDocumentState> | null>(null);
 
 // Initialize admin state when in admin context and we have the required props
-const  adminDocumentState = useDocumentState(props.documentId, props.documentType, {
+const  adminDocumentState = useDocumentState(props.documentId as string, props.documentType, {
     readonly: props.readonly
   });
 
