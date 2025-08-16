@@ -2,23 +2,19 @@ import {
   diceGroupSchema,
   parsedDiceFormulaSchema,
   rollResultSchema,
-  enhancedRollResultSchema,
   dice3DOptionsSchema,
   diceRollRequestSchema,
   diceRollResponseSchema,
   rollRequestSchema,
   rollResponseSchema,
-  enhancedRollResponseSchema,
   type DiceGroup,
   type ParsedDiceFormula,
   type RollResult,
-  type EnhancedRollResult,
   type Dice3DOptions,
   type DiceRollRequest,
   type DiceRollResponse,
   type RollRequest,
-  type RollResponse,
-  type EnhancedRollResponse
+  type RollResponse
 } from '../schemas/dice.schema.mjs';
 
 // ============================================================================
@@ -43,13 +39,11 @@ export type {
   DiceGroup,
   ParsedDiceFormula,
   RollResult,
-  EnhancedRollResult,
   Dice3DOptions,
   DiceRollRequest,
   DiceRollResponse,
   RollRequest,
-  RollResponse,
-  EnhancedRollResponse
+  RollResponse
 };
 
 // ============================================================================
@@ -60,11 +54,9 @@ export {
   diceGroupSchema,
   parsedDiceFormulaSchema,
   rollResultSchema,
-  enhancedRollResultSchema,
   dice3DOptionsSchema,
   diceRollRequestSchema,
   diceRollResponseSchema,
   rollRequestSchema,
-  rollResponseSchema,
-  enhancedRollResponseSchema
+  rollResponseSchema
 };

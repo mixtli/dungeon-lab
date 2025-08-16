@@ -78,9 +78,10 @@ export class DocumentService {
     filter: FilterQuery<BaseDocument> = {},
     options?: QueryOptions
   ): Promise<T[]> {
-    return await DocumentModel.find(filter, undefined, options)
+    const results = await DocumentModel.find(filter, undefined, options)
       .populate('tokenImage')
-      .populate('avatar') as T[];
+      .populate('avatar');
+    return results.map(doc => doc.toObject()) as unknown as T[];
   }
 
   /**

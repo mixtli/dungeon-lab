@@ -2,6 +2,7 @@ import type { Component } from 'vue';
 import type { PluginManifest } from '@dungeon-lab/shared/schemas/plugin-manifest.schema.mjs';
 import type { PluginContext } from './plugin-context.mjs';
 import type { BaseTurnManagerPlugin } from '../base/base-turn-manager.mjs';
+import type { RollServerResult } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
 
 // Export the base class for plugins to extend
 export { BaseGameSystemPlugin } from '../base/base-plugin.mjs';
@@ -25,6 +26,30 @@ export interface ValidationResult {
   success: boolean;
   data?: unknown;
   errors?: string[];
+}
+
+/**
+ * Context information passed to roll handlers
+ */
+export interface RollHandlerContext {
+  /** Whether this client has GM permissions and should send authoritative results */
+  isGM: boolean;
+  /** The user ID of the current client */
+  userId: string;
+  /** Function to send chat messages (only available if isGM is true) */
+  sendChatMessage?: (message: string, metadata?: {
+    type?: 'text' | 'roll';
+    rollData?: unknown;
+    recipient?: 'public' | 'gm' | 'private';
+  }) => void;
+}
+
+/**
+ * Interface for roll type handlers
+ * Plugins implement this to handle their specific roll types
+ */
+export interface RollTypeHandler {
+  handleRoll(result: RollServerResult, context: RollHandlerContext): Promise<void>;
 }
 
 /**

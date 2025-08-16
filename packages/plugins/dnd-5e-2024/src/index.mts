@@ -8,6 +8,7 @@
 import { BaseGameSystemPlugin, ValidationResult, PluginContext } from '@dungeon-lab/shared-ui/types/plugin.mjs';
 import { validateCharacterData } from './character-validation.mjs';
 import { DnD5eTurnManager } from './turn-manager.mjs';
+import { DndAbilityCheckHandler, DndAttackRollHandler, DndSavingThrowHandler } from './services/dnd-roll-handler.mjs';
 
 /**
  * D&D 5th Edition (2024) Plugin Implementation - Using Base Class
@@ -88,9 +89,18 @@ export class DnD5e2024Plugin extends BaseGameSystemPlugin {
   async onLoad(context?: PluginContext): Promise<void> {
     await super.onLoad(context);
     console.log(`[${this.manifest.id}] Loading D&D 5e 2024 Plugin v${this.manifest.version}`);
+    
     if (context) {
-      console.log(`[${this.manifest.id}] Plugin context provided - API access available`);
+      console.log(`[${this.manifest.id}] Plugin context provided - registering roll handlers`);
+      
+      // Register D&D roll handlers
+      context.registerRollHandler('ability-check', new DndAbilityCheckHandler());
+      context.registerRollHandler('attack-roll', new DndAttackRollHandler());
+      context.registerRollHandler('saving-throw', new DndSavingThrowHandler());
+      
+      console.log(`[${this.manifest.id}] Roll handlers registered successfully`);
     }
+    
     console.log(`[${this.manifest.id}] Plugin loaded successfully`);
   }
   

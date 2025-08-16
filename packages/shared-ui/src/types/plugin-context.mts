@@ -7,6 +7,8 @@
 
 import type { ComputedRef, Ref } from 'vue';
 import type { BaseDocument, ICompendiumEntry, ICharacter, IActor, IItem, IEncounter, IToken, ServerGameStateWithVirtuals, StateUpdateBroadcast } from '@dungeon-lab/shared/types/index.mjs';
+import type { Roll } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
+import type { RollTypeHandler } from './plugin.mjs';
 
 /**
  * Plugin store interface for reactive state management of plugin-specific UI state
@@ -85,4 +87,26 @@ export interface PluginContext {
   
   /** Game state context (available only during active game sessions) */
   gameState?: GameStateContext;
+  
+  /**
+   * Submit a roll to the server
+   * Plugins use this instead of direct socket access
+   */
+  submitRoll(roll: Roll): void;
+  
+  /**
+   * Send a chat message with optional metadata
+   * Plugins use this to send messages like roll results to chat
+   */
+  sendChatMessage(message: string, metadata?: {
+    type?: 'text' | 'roll';
+    rollData?: unknown;
+    recipient?: 'public' | 'gm' | 'private';
+  }): void;
+  
+  /**
+   * Register a handler for a specific roll type
+   * Plugins use this to handle their own roll types
+   */
+  registerRollHandler(rollType: string, handler: RollTypeHandler): void;
 }

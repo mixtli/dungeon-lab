@@ -88,10 +88,15 @@ const isGameContext = computed(() => context.value === 'game');
 // Initialize appropriate composable based on context
 //const adminDocumentState = ref<ReturnType<typeof useDocumentState> | null>(null);
 
-// Initialize admin state when in admin context and we have the required props
-const  adminDocumentState = useDocumentState(props.documentId, props.documentType, {
-    readonly: props.readonly
-  });
+// Initialize admin state only when we have valid props
+const adminDocumentState = computed(() => {
+  if (!isGameContext.value && props.documentId && props.documentType) {
+    return useDocumentState(props.documentId, props.documentType, {
+      readonly: props.readonly
+    });
+  }
+  return null;
+});
 
 const gameDocumentState = computed(() => {
   if (isGameContext.value && props.documentId && props.documentType) {
@@ -104,7 +109,7 @@ const gameDocumentState = computed(() => {
 
 // Unified interface for both contexts
 const documentState = computed(() => {
-  return isGameContext.value ? gameDocumentState.value : adminDocumentState;
+  return isGameContext.value ? gameDocumentState.value : adminDocumentState.value;
 });
 
 // Reactive document and items from appropriate composable
@@ -116,7 +121,7 @@ const reactiveDocument = computed(() => {
     const gameDoc = gameDocumentState.value?.document?.value || null;
     return gameDoc;
   } else {
-    const adminDoc = adminDocumentState?.document?.value || null;
+    const adminDoc = adminDocumentState.value?.document?.value || null;
     return adminDoc;
   }
 });
@@ -133,9 +138,9 @@ watch(() => [props.documentId, props.documentType, props.context], () => {
 // Get document info for component loading (works for both contexts)
 const documentInfo = computed(() => {
   // Get from reactive document regardless of context
-  const doc = reactiveDocument.value?.value || reactiveDocument.value;
+  const doc = reactiveDocument.value;
   return {
-    pluginId: (doc as BaseDocument)?.pluginId,
+    pluginId: doc?.pluginId,
     documentType: props.documentType
   };
 });
@@ -235,7 +240,7 @@ const getComponentProps = () => {
       readonly: props.readonly
     };
     console.log(`[DocumentSheetContainer] getComponentProps - Actor props:`, {
-      actor: reactiveDocument.value ? { id: (reactiveDocument.value as any).id, name: (reactiveDocument.value as any).name } : null,
+      actor: reactiveDocument.value ? { id: reactiveDocument.value.id, name: reactiveDocument.value.name } : null,
       readonly: props.readonly
     });
     return componentProps;
@@ -248,7 +253,7 @@ const getComponentProps = () => {
       readonly: props.readonly
     };
     console.log(`[DocumentSheetContainer] getComponentProps - Character props:`, {
-      character: reactiveDocument.value ? { id: (reactiveDocument.value as any).id, name: (reactiveDocument.value as any).name } : null,
+      character: reactiveDocument.value ? { id: reactiveDocument.value.id, name: reactiveDocument.value.name } : null,
       items: reactiveItems.value,
       editMode: editMode.value,
       readonly: props.readonly

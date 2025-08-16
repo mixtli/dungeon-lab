@@ -17,19 +17,11 @@ import {
 } from './chat.mjs';
 
 import {
-  rollResultSchema,
-  enhancedRollResultSchema,
-  diceRollRequestSchema,
-  diceRollResponseSchema,
-  rollRequestSchema,
-  rollResponseSchema,
-  enhancedRollResponseSchema,
+  rollSchema,
+  rollServerResultSchema,
   rollCallbackSchema,
-  // New client-to-server schemas
   rollArgsSchema
-} from './dice.mjs';
-
-
+} from '../roll.schema.mjs';
 
 import {
   mapGenerationResponseSchema,
@@ -124,14 +116,9 @@ export {
   userLeftSessionSchema,
   chatMessageArgsSchema,
   
-  // Dice schemas
-  rollResultSchema,
-  enhancedRollResultSchema,
-  diceRollRequestSchema,
-  diceRollResponseSchema,
-  rollRequestSchema,
-  rollResponseSchema,
-  enhancedRollResponseSchema,
+  // Roll schemas
+  rollSchema,
+  rollServerResultSchema,
   rollCallbackSchema,
   rollArgsSchema,
   
@@ -203,8 +190,6 @@ export {
 export const serverToClientEvents = z.object({
   chat: z.function().args(messageMetadataSchema, z.string(/* message */)).returns(z.void()),
   error: z.function().args(z.string()).returns(z.void()),
-  diceRoll: z.function().args(diceRollResponseSchema).returns(z.void()),
-  'roll-result': z.function().args(rollResponseSchema).returns(z.void()),
   // Encounter management now handled via session rooms
   userJoinedSession: z.function().args(userJoinedSessionSchema).returns(z.void()),
   userLeftSession: z.function().args(userLeftSessionSchema).returns(z.void()),
@@ -222,6 +207,8 @@ export const serverToClientEvents = z.object({
   'encounter:error': z.function().args(encounterErrorSchema).returns(z.void()),
   'user:joined': z.function().args(userJoinedSessionSchema).returns(z.void()),
   'user:left': z.function().args(userLeftSessionSchema).returns(z.void()),
+  // Roll events
+  'roll:result': z.function().args(rollServerResultSchema).returns(z.void()),
   // Game state management events
   'gameState:updated': z.function().args(gameStateUpdatedSchema).returns(z.void()),
   'gameState:error': z.function().args(gameStateErrorSchema).returns(z.void()),
@@ -237,7 +224,6 @@ export const serverToClientEvents = z.object({
 
 export const clientToServerEvents = z.object({
   chat: z.function().args(...chatMessageArgsSchema.items).returns(z.void()),
-  diceRoll: z.function().args(diceRollRequestSchema).returns(z.void()),
   roll: z.function().args(...rollArgsSchema.items).returns(z.void()),
   'encounter:start': z.function().args(...encounterStartArgsSchema.items).returns(z.void()),
   'encounter:stop': z.function().args(...encounterStopArgsSchema.items).returns(z.void()),

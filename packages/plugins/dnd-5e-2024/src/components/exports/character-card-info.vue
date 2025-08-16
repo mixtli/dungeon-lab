@@ -59,7 +59,6 @@ onMounted(async () => {
     
     // Get level from progression
     const level = data.progression?.level;
-    characterSheetComponent.value = component;
     // Get hit points from attributes
     const hitPoints = data.attributes?.hitPoints;
     

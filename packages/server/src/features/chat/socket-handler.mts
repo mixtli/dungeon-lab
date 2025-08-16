@@ -1,5 +1,6 @@
 import { Socket } from 'socket.io';
 import { socketHandlerRegistry } from '../../websocket/handler-registry.mjs';
+import { SocketServer } from '../../websocket/socket-server.mjs';
 import { logger } from '../../utils/logger.mjs';
 import {
   ClientToServerEvents,
@@ -35,7 +36,8 @@ function chatSocketHandler(socket: Socket<ClientToServerEvents, ServerToClientEv
     }
 
     console.log("Sending chat message to room", roomName);
-    socket.to(roomName).emit('chat', metadata, message);
+    const io = SocketServer.getInstance().socketIo;
+    io.to(roomName).emit('chat', metadata, message);
 
     // Process message for chatbots (async, non-blocking)
     chatbotHandler.handleMessage(socket, metadata, message)

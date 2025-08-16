@@ -25,7 +25,9 @@ export const messageMetadataSchema = z.object({
   sender: messageParticipantSchema,
   recipient: messageParticipantSchema,
   timestamp: z.string().optional(),
-  mentions: z.array(mentionSchema).optional()
+  mentions: z.array(mentionSchema).optional(),
+  type: z.enum(['text', 'roll']).optional(),
+  rollData: z.any().optional() // Will contain RollServerResult for roll messages
 });
 
 export const joinCallbackSchema = socketCallbackWithDataSchema(gameSessionResponseSchema);

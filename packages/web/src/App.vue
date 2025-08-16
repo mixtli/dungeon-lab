@@ -5,6 +5,7 @@ import MobileApp from './components/layout/MobileApp.vue';
 
 import { useSocketStore } from './stores/socket.store.mts';
 import { useAuthStore } from './stores/auth.store.mts';
+import { rollHandlerService } from './services/roll-handler.service.mts';
 import { useDeviceAdaptation } from './composables/useDeviceAdaptation.mts';
 import { watch } from 'vue';
 
@@ -22,6 +23,18 @@ watch(
       // Note: Plugin registry is now initialized in main.mts during app startup
     } else {
       store.disconnect();
+      rollHandlerService.destroy();
+    }
+  },
+  { immediate: true }
+);
+
+// Initialize roll handler service when socket becomes available
+watch(
+  () => store.socket,
+  (socket) => {
+    if (socket) {
+      rollHandlerService.setupListener(socket);
     }
   },
   { immediate: true }

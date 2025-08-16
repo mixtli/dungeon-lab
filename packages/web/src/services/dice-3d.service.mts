@@ -1,4 +1,4 @@
-import type { EnhancedRollResult } from '@dungeon-lab/shared/types/dice.mjs';
+// No imports needed - we'll work directly with notation strings
 
 /**
  * Service for managing 3D dice rolling visualization
@@ -185,10 +185,10 @@ export class Dice3DService {
   }
 
   /**
-   * Roll dice with predetermined server results
-   * @param serverResult - The server-calculated dice results
+   * Roll dice with predetermined notation string
+   * @param notation - The dice notation string (e.g., "2d20+1d6@15,8,3")
    */
-  async rollWithResults(serverResult: EnhancedRollResult): Promise<void> {
+  async rollWithNotation(notation: string): Promise<void> {
     if (!this.diceBox || !this.isInitialized) {
       console.warn('Dice3DService not initialized');
       return;
@@ -209,9 +209,6 @@ export class Dice3DService {
     this.isRolling = true;
     
     try {
-      // Convert server results to threejs predetermined notation - CORRECTED FORMAT
-      const notation = this.convertToThreeJSNotation(serverResult);
-      
       console.log('Rolling 3D dice with notation:', notation);
       
       // Check renderer state before rolling
@@ -234,7 +231,7 @@ export class Dice3DService {
         console.log('Scene children count before roll:', scene ? scene.children?.length : 'no scene');
         console.log('Camera position:', camera ? `${camera.position.x}, ${camera.position.y}, ${camera.position.z}` : 'no camera');
         
-        // Roll dice with predetermined results
+        // Roll dice with predetermined results using direct notation
         console.log('Rolling dice with notation:', notation);
         
         try {
@@ -302,43 +299,6 @@ export class Dice3DService {
     }
   }
 
-  /**
-   * Convert server results to dice-box-threejs notation
-   * CORRECTED: Use format like "2d20+1d6@15,8,3" (all results after single @)
-   * Example: { d20: [15, 8], d6: [3] } → "2d20+1d6@15,8,3"
-   */
-  private convertToThreeJSNotation(result: EnhancedRollResult): string {
-    const diceParts: string[] = [];
-    const allResults: number[] = [];
-    
-    // Build dice specification and collect all results
-    for (const [dieType, values] of Object.entries(result.diceResults)) {
-      if (values.length === 0) continue;
-      
-      const dieSize = dieType.substring(1); // Remove 'd' prefix (d20 -> 20)
-      const count = values.length;
-      
-      diceParts.push(`${count}d${dieSize}`);
-      allResults.push(...values);
-    }
-    
-    if (diceParts.length === 0) {
-      throw new Error('No dice results found in server response');
-    }
-    
-    // Join dice specs with + and add all results after @
-    let notation = diceParts.join('+');
-    if (allResults.length > 0) {
-      notation += `@${allResults.join(',')}`;
-    }
-    
-    // Add modifier if present and non-zero
-    if (result.modifier !== 0) {
-      notation += result.modifier > 0 ? `+${result.modifier}` : `${result.modifier}`;
-    }
-    
-    return notation;
-  }
 
   /**
    * Schedule cleanup after dice have settled (called by onRollComplete)

@@ -23,16 +23,10 @@ export type ChatbotError = z.infer<typeof socketTypes.chatbotErrorSchema>;
 export type UserJoinedSession = z.infer<typeof socketTypes.userJoinedSessionSchema>;
 export type UserLeftSession = z.infer<typeof socketTypes.userLeftSessionSchema>;
 
-export type RollResult = z.infer<typeof socketTypes.rollResultSchema>;
-export type DiceRollRequest = z.infer<typeof socketTypes.diceRollRequestSchema>;
-export type DiceRollResponse = z.infer<typeof socketTypes.diceRollResponseSchema>;
-export type RollRequest = z.infer<typeof socketTypes.rollRequestSchema>;
-export type RollResponse = z.infer<typeof socketTypes.rollResponseSchema>;
-export type RollCallback = z.infer<typeof socketTypes.rollCallbackSchema>;
 
-// Enhanced types for 3D dice rolling
-export type EnhancedRollResult = z.infer<typeof socketTypes.enhancedRollResultSchema>;
-export type EnhancedRollResponse = z.infer<typeof socketTypes.enhancedRollResponseSchema>;
+// Roll types using new roll system
+export type Roll = z.infer<typeof socketTypes.rollSchema>;
+export type RollServerResult = z.infer<typeof socketTypes.rollServerResultSchema>;
 
 
 export type WorkflowState = z.infer<typeof socketTypes.workflowStateSchema>;

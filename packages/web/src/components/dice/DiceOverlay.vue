@@ -30,7 +30,7 @@
 import { ref, onMounted, onUnmounted, nextTick } from 'vue';
 import { useSocketStore } from '../../stores/socket.store.mjs';
 import { dice3DService } from '../../services/dice-3d.service.mjs';
-import type { EnhancedRollResult } from '@dungeon-lab/shared/types/dice.mjs';
+import type { RollServerResult } from '@dungeon-lab/shared/types/socket/index.mjs';
 
 // Props
 interface Props {
@@ -121,28 +121,57 @@ const retryInitialization = async (): Promise<void> => {
 };
 
 /**
+ * Convert RollServerResult to dice-box notation string
+ * Example: results: [{sides: 20, quantity: 2, results: [15, 8]}] → "2d20@15,8"
+ */
+const convertRollServerResultToNotation = (rollResult: RollServerResult): string => {
+  const diceParts: string[] = [];
+  const allResults: number[] = [];
+  
+  // Process each dice group in results
+  for (const result of rollResult.results) {
+    if (result.results.length === 0) continue;
+    
+    const count = result.quantity;
+    const sides = result.sides;
+    
+    diceParts.push(`${count}d${sides}`);
+    allResults.push(...result.results);
+  }
+  
+  if (diceParts.length === 0) {
+    throw new Error('No dice results found in roll');
+  }
+  
+  // Join dice specs with + and add all results after @
+  let notation = diceParts.join('+');
+  if (allResults.length > 0) {
+    notation += `@${allResults.join(',')}`;
+  }
+  
+  // Add total modifier from all modifiers
+  const totalModifier = rollResult.modifiers.reduce((sum, mod) => sum + mod.value, 0) + rollResult.arguments.customModifier;
+  if (totalModifier !== 0) {
+    notation += totalModifier > 0 ? `+${totalModifier}` : `${totalModifier}`;
+  }
+  
+  return notation;
+};
+
+/**
  * Handle dice roll results from the server
  */
-const handleRollResult = async (data: { 
-  type: 'roll-result';
-  result: EnhancedRollResult | unknown;
-  gameSessionId: string;
-}): Promise<void> => {
-  console.log('DiceOverlay: Received roll result:', data);
+const handleRollResult = async (rollResult: RollServerResult): Promise<void> => {
+  console.log('DiceOverlay: Received roll result:', rollResult);
 
-  // Check if this is an enhanced result (has diceResults property)
-  const isEnhancedResult = data.result && 
-    typeof data.result === 'object' && 
-    'diceResults' in data.result &&
-    data.result.diceResults &&
-    Object.keys(data.result.diceResults).length > 0;
-
-  if (!isEnhancedResult) {
-    console.log('DiceOverlay: Legacy roll result, skipping 3D visualization');
+  // Check if this roll has dice results to animate
+  if (!rollResult.results || rollResult.results.length === 0) {
+    console.log('DiceOverlay: No dice results to animate');
     return;
   }
 
-  const enhancedResult = data.result as EnhancedRollResult;
+  // Convert RollServerResult directly to dice notation
+  const diceNotation = convertRollServerResultToNotation(rollResult);
 
   try {
     // Show overlay first for smooth UX
@@ -155,9 +184,9 @@ const handleRollResult = async (data: {
     }
 
     if (dice3DService.isReady()) {
-      // Start 3D dice animation with predetermined results
-      await dice3DService.rollWithResults(enhancedResult);
-      console.log('DiceOverlay: 3D dice animation started');
+      // Start 3D dice animation with predetermined results using direct notation
+      await dice3DService.rollWithNotation(diceNotation);
+      console.log('DiceOverlay: 3D dice animation started with notation:', diceNotation);
     } else {
       console.warn('DiceOverlay: 3D dice service not available after initialization, skipping animation');
       hideOverlay();
@@ -230,7 +259,7 @@ const setupSocketListeners = (): void => {
   }
 
   console.log('DiceOverlay: Setting up socket listeners');
-  socketStore.socket.on('roll-result', handleRollResult);
+  socketStore.socket.on('roll:result', handleRollResult);
 };
 
 /**
@@ -240,7 +269,7 @@ const cleanupSocketListeners = (): void => {
   if (!socketStore.socket) return;
   
   console.log('DiceOverlay: Cleaning up socket listeners');
-  socketStore.socket.off('roll-result', handleRollResult);
+  socketStore.socket.off('roll:result', handleRollResult);
 };
 
 // Lifecycle hooks
@@ -267,7 +296,7 @@ onMounted(async () => {
       try {
         await initializeDiceService();
         console.log('DiceOverlay: Pre-initialization completed successfully');
-      } catch (error) {
+      } catch {
         console.log('DiceOverlay: Pre-initialization failed, will retry on first roll');
         // Clear any error state from pre-initialization attempt
         initializationError.value = null;

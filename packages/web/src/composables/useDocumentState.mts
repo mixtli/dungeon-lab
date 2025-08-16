@@ -27,8 +27,8 @@ function stripPopulatedFields(document: BaseDocument): CreateDocumentData {
   const { id, createdBy, updatedBy, ...coreFields } = document;
   
   // Remove any additional populated fields that might exist
-  delete (coreFields as any).avatar;
-  delete (coreFields as any).tokenImage;
+  delete (coreFields as Record<string, unknown>).avatar;
+  delete (coreFields as Record<string, unknown>).tokenImage;
   
   return coreFields as CreateDocumentData;
 }
@@ -86,7 +86,7 @@ export function useDocumentState(
       
       console.log(`[useDocumentState] ${documentType} document loaded:`, {
         id: fetchedDocument.id,
-        name: (fetchedDocument as any).name,
+        name: fetchedDocument.name,
         documentType: fetchedDocument.documentType
       });
       
@@ -136,7 +136,7 @@ export function useDocumentState(
       console.log(`[useDocumentState] === SAVE START (${documentType}) ===`);
       console.log(`[useDocumentState] BEFORE SAVE - document:`, {
         id: document.value.id,
-        name: (document.value as any).name,
+        name: document.value.name,
         documentType: document.value.documentType,
         fullData: document.value
       });
@@ -153,7 +153,7 @@ export function useDocumentState(
       
       console.log(`[useDocumentState] Received from server:`, {
         id: updatedDocument.id,
-        name: (updatedDocument as any).name,
+        name: updatedDocument.name,
         documentType: updatedDocument.documentType,
         fullData: updatedDocument
       });
@@ -165,7 +165,7 @@ export function useDocumentState(
       
       console.log(`[useDocumentState] AFTER UPDATE - document:`, {
         id: document.value.id,
-        name: (document.value as any).name,
+        name: document.value.name,
         documentType: document.value.documentType,
         reactiveRef: document
       });

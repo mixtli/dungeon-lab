@@ -58,11 +58,11 @@ export function useGameDocumentState<T extends BaseDocument = BaseDocument>(
     
     if (documentType === 'character') {
       const found = gameStateStore.characters.find((c: ICharacter) => c.id === documentId) as T | null;
-      console.log(`[useGameDocumentState] Found character:`, found ? { id: found.id, name: (found as any).name } : null);
+      console.log(`[useGameDocumentState] Found character:`, found ? { id: found.id, name: found.name } : null);
       return found;
     } else if (documentType === 'actor') {
       const found = gameStateStore.actors.find((a: IActor) => a.id === documentId) as T | null;
-      console.log(`[useGameDocumentState] Found actor:`, found ? { id: found.id, name: (found as any).name } : null);
+      console.log(`[useGameDocumentState] Found actor:`, found ? { id: found.id, name: found.name } : null);
       return found;
     }
     console.log(`[useGameDocumentState] Unknown document type:`, documentType);

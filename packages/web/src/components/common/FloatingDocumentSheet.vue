@@ -26,6 +26,7 @@
 
       <!-- Window Content (no header - plugin provides its own) -->
       <div class="window-content">
+        <!-- eslint-disable-next-line vue/no-deprecated-filter -->
         <DocumentSheetContainer
           :show="true"
           :document-id="sheet.document.id"

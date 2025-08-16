@@ -41,28 +41,6 @@ export const rollResultSchema = z.object({
   timestamp: z.date().optional()
 });
 
-/**
- * Enhanced roll result schema for 3D dice visualization
- */
-export const enhancedRollResultSchema = z.object({
-  formula: z.string(),                    // Original formula: "2d20+3d4-5"
-  diceResults: z.record(                  // Structured dice results by type
-    z.string(),                           // Die type key (e.g., "d20", "d4")
-    z.array(z.number())                   // Array of results for that die type
-  ),
-  modifier: z.number(),                   // Overall modifier
-  total: z.number(),                      // Final total
-  userId: z.string(),                     // User who made the roll
-  timestamp: z.date(),                    // Roll timestamp
-  
-  // Backward compatibility
-  rolls: z.array(
-    z.object({
-      die: z.number(),
-      result: z.number()
-    })
-  )
-});
 
 /**
  * Configuration options for 3D dice rendering
@@ -104,12 +82,6 @@ export const rollResponseSchema = z.object({
   gameSessionId: z.string()
 });
 
-// Enhanced roll response schema for 3D dice
-export const enhancedRollResponseSchema = z.object({
-  type: z.literal('roll-result'),
-  result: enhancedRollResultSchema,
-  gameSessionId: z.string()
-});
 
 // ============================================================================
 // TYPE INFERENCE
@@ -118,10 +90,8 @@ export const enhancedRollResponseSchema = z.object({
 export type DiceGroup = z.infer<typeof diceGroupSchema>;
 export type ParsedDiceFormula = z.infer<typeof parsedDiceFormulaSchema>;
 export type RollResult = z.infer<typeof rollResultSchema>;
-export type EnhancedRollResult = z.infer<typeof enhancedRollResultSchema>;
 export type Dice3DOptions = z.infer<typeof dice3DOptionsSchema>;
 export type DiceRollRequest = z.infer<typeof diceRollRequestSchema>;
 export type DiceRollResponse = z.infer<typeof diceRollResponseSchema>;
 export type RollRequest = z.infer<typeof rollRequestSchema>;
 export type RollResponse = z.infer<typeof rollResponseSchema>;
-export type EnhancedRollResponse = z.infer<typeof enhancedRollResponseSchema>;

@@ -55,7 +55,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from 'vue';
+import { ref, computed, watch, nextTick, onMounted } from 'vue';
 import { useChatStore, type ChatMessage } from '../../../stores/chat.store.mts';
 import { useSocketStore } from '../../../stores/socket.store.mts';
 import { useGameStateStore } from '../../../stores/game-state.store.mjs';
@@ -107,24 +107,123 @@ function formatTime(timestamp: string): string {
   });
 }
 
-// Handle roll command
+// Handle roll command using new plugin-based architecture
 function handleRollCommand(formula: string) {
-  if (!socketStore.socket) return;
-
-  const gameSessionId = gameSessionStore.currentSession?.id;
-  if (!gameSessionId) {
-    console.error('No active game session found');
+  const socketStore = useSocketStore();
+  if (!socketStore.socket) {
+    console.error('Socket not available');
     return;
   }
 
-  socketStore.socket.emit('roll', {
-    formula,
-    gameSessionId
-  }, (response: { success: boolean, error?: string }) => {
+  // Parse simple dice formula (e.g., "2d20+5", "1d6")
+  const parsedDice = parseDiceFormula(formula);
+  if (!parsedDice) {
+    console.error('Invalid dice formula:', formula);
+    return;
+  }
+
+  // Generate unique roll ID
+  const rollId = `chat_roll_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  
+  // Create roll object using the new roll schema
+  const roll = {
+    id: rollId,
+    rollType: 'raw-dice',
+    pluginId: 'core', // Core system roll, not plugin-specific
+    dice: parsedDice.dice,
+    recipients: 'public' as const,
+    arguments: { 
+      customModifier: parsedDice.modifier,
+      pluginArgs: {}
+    },
+    modifiers: [], // No automatic modifiers for chat rolls
+    metadata: {
+      title: 'Dice Roll',
+      description: `Rolling ${formula}`
+    }
+  };
+
+  console.log('Submitting chat roll:', roll);
+  
+  // Submit roll directly via socket (same as plugin context does)
+  socketStore.socket.emit('roll', roll, (response: { success: boolean, error?: string }) => {
     if (!response.success) {
       console.error('Error processing roll command:', response.error);
     }
   });
+}
+
+// Advanced dice formula parser for chat commands
+function parseDiceFormula(formula: string): { dice: Array<{sides: number, quantity: number}>, modifier: number } | null {
+  try {
+    // Remove spaces and convert to lowercase
+    const cleanFormula = formula.replace(/\s/g, '').toLowerCase();
+    
+    // Tokenize the formula - split on + and - while keeping the operators
+    const tokens = cleanFormula.split(/([+-])/).filter(token => token.length > 0);
+    
+    const diceGroups: Array<{sides: number, quantity: number}> = [];
+    let modifier = 0;
+    let currentSign = 1; // 1 for positive, -1 for negative
+    
+    for (let i = 0; i < tokens.length; i++) {
+      const token = tokens[i];
+      
+      // Handle operators
+      if (token === '+') {
+        currentSign = 1;
+        continue;
+      } else if (token === '-') {
+        currentSign = -1;
+        continue;
+      }
+      
+      // Handle dice notation (e.g., "2d20", "d6")
+      const diceMatch = token.match(/^(\d+)?d(\d+)$/);
+      if (diceMatch) {
+        const quantity = diceMatch[1] ? parseInt(diceMatch[1]) : 1;
+        const sides = parseInt(diceMatch[2]);
+        
+        // Validate dice
+        if (quantity < 1 || quantity > 20 || ![4, 6, 8, 10, 12, 20, 100].includes(sides)) {
+          return null;
+        }
+        
+        // For dice groups, we ignore the sign (dice are always additive)
+        // Only apply sign to pure numeric modifiers
+        diceGroups.push({ sides, quantity });
+        continue;
+      }
+      
+      // Handle pure numeric modifiers (e.g., "5", "12")
+      const numericMatch = token.match(/^(\d+)$/);
+      if (numericMatch) {
+        const value = parseInt(numericMatch[1]);
+        modifier += currentSign * value;
+        continue;
+      }
+      
+      // If we can't parse this token, the formula is invalid
+      return null;
+    }
+    
+    // Must have at least one dice group
+    if (diceGroups.length === 0) {
+      return null;
+    }
+    
+    // Limit total dice groups to prevent abuse
+    if (diceGroups.length > 5) {
+      return null;
+    }
+    
+    return {
+      dice: diceGroups,
+      modifier
+    };
+  } catch {
+    return null;
+  }
 }
 
 // Send message using chat store
@@ -168,6 +267,11 @@ watch(
     scrollToBottom();
   }
 );
+
+// Auto-scroll to bottom on component mount (page reload)
+onMounted(() => {
+  scrollToBottom();
+});
 </script>
 
 <style scoped>

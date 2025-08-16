@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick, computed, watch } from 'vue';
-import { useRoute } from 'vue-router';
 import { useGameSessionStore } from '../../stores/game-session.store.mjs';
 import { useSocketStore } from '../../stores/socket.store.mjs';
 import { useChatStore, type ChatMessage } from '../../stores/chat.store.mts';
@@ -9,6 +8,7 @@ import { ChatbotsClient } from '@dungeon-lab/client/index.mjs';
 import { useMentions } from '../../composables/useMentions.mjs';
 import { useNotifications } from '../../composables/useNotifications.mjs';
 import MentionInput from './MentionInput.vue';
+import RollCard from './RollCard.vue';
 
 interface Props {
   showHeader?: boolean;
@@ -45,7 +45,6 @@ interface BotErrorState {
   timestamp: Date;
 }
 
-const route = useRoute();
 const gameSessionStore = useGameSessionStore();
 const socketStore = useSocketStore();
 const chatStore = useChatStore();
@@ -253,40 +252,11 @@ function cleanupChatbotListeners() {
   socketStore.socket.off('chatbot:response');
 }
 
-// Handle roll command
-function handleRollCommand(formula: string) {
-  if (!socketStore.socket) return;
-
-  socketStore.socket.emit('roll', {
-    formula,
-    gameSessionId: route.params.id as string
-  }, (response: { success: boolean, error?: string }) => {
-    if (!response.success) {
-      console.error('Error processing roll command:', response.error);
-    }
-  });
-}
 
 // Send a message
 function sendMessage() {
   if (!messageInput.value.trim() || !activeChatContext.value) return;
   
-  // Check for roll commands (both /roll and /r shorthand)
-  if (messageInput.value.startsWith('/roll ')) {
-    const formula = messageInput.value.slice(6).trim();
-    handleRollCommand(formula);
-    messageInput.value = '';
-    return;
-  }
-  
-  // Support /r shorthand for roll commands
-  if (messageInput.value.startsWith('/r ')) {
-    const formula = messageInput.value.slice(3).trim();
-    handleRollCommand(formula);
-    messageInput.value = '';
-    return;
-  }
-
   let recipientId: string | undefined;
   
   // Determine recipient based on active chat context
@@ -550,7 +520,10 @@ onUnmounted(() => {
                       {{ new Date(message.timestamp).toLocaleTimeString() }}
                     </span>
                   </div>
-                  <div class="mt-1 leading-relaxed" v-html="highlightMentions(message.content)"></div>
+                  <!-- Roll card for roll messages -->
+                  <RollCard v-if="message.type === 'roll' && message.rollData" :rollData="message.rollData" />
+                  <!-- Regular text content for text messages -->
+                  <div v-else class="mt-1 leading-relaxed" v-html="highlightMentions(message.content)"></div>
                 </div>
               </div>
             </div>

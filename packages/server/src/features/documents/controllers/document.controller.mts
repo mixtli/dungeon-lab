@@ -73,7 +73,8 @@ export class DocumentController {
         id,
         userId,
         updateDataKeys: Object.keys(updateData),
-        armorClassUpdate: updateData.pluginData?.attributes?.armorClass,
+        armorClassUpdate: (updateData.pluginData as Record<string, unknown>)?.attributes && 
+                          ((updateData.pluginData as Record<string, unknown>).attributes as Record<string, unknown>)?.armorClass,
         fullPluginData: updateData.pluginData
       });
       
@@ -83,7 +84,8 @@ export class DocumentController {
       logger.info('[DEBUG] putDocument - Document update result:', {
         id,
         found: !!document,
-        armorClassInResult: document?.pluginData?.attributes?.armorClass
+        armorClassInResult: (document?.pluginData as Record<string, unknown>)?.attributes && 
+                            ((document?.pluginData as Record<string, unknown>).attributes as Record<string, unknown>)?.armorClass
       });
       
       if (!document) {

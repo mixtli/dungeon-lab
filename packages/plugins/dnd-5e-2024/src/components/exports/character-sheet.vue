@@ -249,6 +249,15 @@
       </div>
     </main>
   </div>
+
+  <!-- Roll Dialog -->
+  <AdvantageRollDialog
+    v-model="showRollDialog"
+    :ability="currentRollAbility"
+    :base-modifier="abilityModifiers[currentRollAbility] || 0"
+    :character-name="character.name"
+    @roll="handleRollSubmission"
+  />
 </template>
 
 <script setup lang="ts">
@@ -258,6 +267,7 @@ import type { DndCharacterClassDocument } from '../../types/dnd/character-class.
 import type { DndSpeciesDocument } from '../../types/dnd/species.mjs';
 import type { DndBackgroundDocument } from '../../types/dnd/background.mjs';
 import { getPluginContext } from '@dungeon-lab/shared-ui/utils/plugin-context.mjs';
+import AdvantageRollDialog, { type RollDialogData } from '../internal/common/AdvantageRollDialog.vue';
 
 // Props
 interface Props {
@@ -288,7 +298,9 @@ const character = props.character;
 console.log('[CharacterSheet] Character ref:', character);
 console.log('[CharacterSheet] Character value:', character?.value);
 console.log('[CharacterSheet] Character name:', character?.value?.name);
-console.log('[CharacterSheet] Character armor class:', character?.value?.pluginData?.attributes?.armorClass);
+console.log('[CharacterSheet] Character armor class:', 
+  (character?.value?.pluginData as Record<string, unknown>)?.attributes && 
+  ((character?.value?.pluginData as Record<string, unknown>).attributes as Record<string, unknown>)?.armorClass);
 
 // Compendium document data
 const speciesDocument = ref<DndSpeciesDocument | null>(null);
@@ -308,6 +320,10 @@ const emit = defineEmits<{
 
 // Component state
 const activeTab = ref('overview');
+
+// Roll dialog state
+const showRollDialog = ref(false);
+const currentRollAbility = ref<string>('');
 
 // Direct v-model computed properties for character editing
 
@@ -655,15 +671,56 @@ const formatModifier = (value: number): string => {
   return value >= 0 ? `+${value}` : `${value}`;
 };
 
+// Updated roll handling - opens dialog instead of direct rolling
 const rollAbilityCheck = (ability: string) => {
-  const modifier = abilityModifiers.value[ability] || 0;
-  emit('roll', 'ability-check', {
-    type: 'ability-check',
-    ability,
-    modifier,
-    expression: `1d20${formatModifier(modifier)}`,
-    title: `${ability.charAt(0).toUpperCase() + ability.slice(1)} Check`
-  });
+  currentRollAbility.value = ability;
+  showRollDialog.value = true;
+};
+
+// Handle roll submission from dialog
+const handleRollSubmission = (rollData: RollDialogData) => {
+  const pluginContext = getPluginContext();
+  if (!pluginContext) {
+    console.error('Plugin context not available');
+    return;
+  }
+
+  // Generate unique roll ID
+  const rollId = `roll_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  
+  // Create roll object following the established schema
+  const roll = {
+    id: rollId,
+    rollType: 'ability-check',
+    pluginId: 'dnd-5e-2024',
+    dice: [{ 
+      sides: 20, 
+      quantity: rollData.advantageMode === 'normal' ? 1 : 2 
+    }],
+    recipients: rollData.recipients,
+    arguments: { 
+      customModifier: rollData.customModifier,
+      pluginArgs: { 
+        ability: rollData.ability,
+        advantageMode: rollData.advantageMode
+      }
+    },
+    modifiers: [
+      { 
+        type: 'ability', 
+        value: rollData.baseModifier, 
+        source: `${rollData.ability} modifier` 
+      }
+    ],
+    metadata: {
+      title: `${rollData.ability.charAt(0).toUpperCase()}${rollData.ability.slice(1)} Check`,
+      characterName: character.value.name
+    }
+  };
+
+  // Submit roll via plugin context
+  pluginContext.submitRoll(roll);
+  console.log(`[CharacterSheet] Submitted ${rollData.ability} check roll:`, roll);
 };
 
 const rollSavingThrow = (ability: string) => {
