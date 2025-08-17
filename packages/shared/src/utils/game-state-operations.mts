@@ -167,6 +167,99 @@ export class GameStateOperations {
     
     return false;
   }
+
+  /**
+   * Convert deep-diff output to StateOperation array
+   * Used for document update workflows where we need to send state operations
+   */
+  static convertDiffToStateOperations(
+    diffArray: any[] | undefined,
+    documentId: string
+  ): StateOperation[] {
+    if (!diffArray || diffArray.length === 0) {
+      return [];
+    }
+
+    const operations: StateOperation[] = [];
+
+    for (const change of diffArray) {
+      try {
+        // Build the full path including document prefix
+        const pathPrefix = `documents.${documentId}`;
+        const changePath = change.path ? change.path.join('.') : '';
+        const fullPath = changePath ? `${pathPrefix}.${changePath}` : pathPrefix;
+
+        switch (change.kind) {
+          case 'E': // Edit - existing field changed
+            operations.push({
+              path: fullPath,
+              operation: 'set',
+              value: change.rhs
+            });
+            break;
+
+          case 'N': // New - field added
+            operations.push({
+              path: fullPath,
+              operation: 'set',
+              value: change.rhs
+            });
+            break;
+
+          case 'D': // Deleted - field removed
+            operations.push({
+              path: fullPath,
+              operation: 'unset'
+            });
+            break;
+
+          case 'A': // Array change
+            const arrayPath = fullPath;
+            
+            // Array changes are complex - for now, let's handle them as simple set operations
+            // at the specific array index where the change occurred
+            if (change.index !== undefined && typeof change.index === 'number') {
+              const indexPath = `${arrayPath}.${change.index}`;
+              
+              // Check if item was added, removed, or modified
+              if (change.item && typeof change.item === 'object') {
+                const item = change.item;
+                
+                if (item.kind === 'N') {
+                  // Item added - use set at specific index
+                  operations.push({
+                    path: indexPath,
+                    operation: 'set',
+                    value: item.rhs
+                  });
+                } else if (item.kind === 'D') {
+                  // Item removed - use unset at specific index
+                  operations.push({
+                    path: indexPath,
+                    operation: 'unset'
+                  });
+                } else if (item.kind === 'E') {
+                  // Item modified - use set at specific index
+                  operations.push({
+                    path: indexPath,
+                    operation: 'set',
+                    value: item.rhs
+                  });
+                }
+              }
+            }
+            break;
+
+          default:
+            console.warn('[GameStateOperations] Unknown diff kind:', change.kind);
+        }
+      } catch (error) {
+        console.error('[GameStateOperations] Error converting diff to state operation:', error, change);
+      }
+    }
+
+    return operations;
+  }
 }
 
 // Export standalone functions for backwards compatibility and easier usage
@@ -176,3 +269,4 @@ export const parsePath = GameStateOperations.parsePath;
 export const navigateToParent = GameStateOperations.navigateToParent;
 export const matchesQuery = GameStateOperations.matchesQuery;
 export const deepEqual = GameStateOperations.deepEqual;
+export const convertDiffToStateOperations = GameStateOperations.convertDiffToStateOperations;

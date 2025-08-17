@@ -12,8 +12,7 @@
         v-if="documentSheetComponent && reactiveDocument"
         v-bind="getComponentProps()"
         @update:items="handleItemsChange"
-        @update:character="handleDocumentUpdate"
-        @update:actor="handleDocumentUpdate"
+        @update:document="handleDocumentUpdate"
         @save="handleSave"
         @toggle-edit-mode="toggleEditMode"
         @roll="handleRoll"
@@ -60,6 +59,11 @@ import type { BaseDocument, IItem } from '@dungeon-lab/shared/types/index.mjs';
 import { pluginRegistry } from '../../services/plugin-registry.mts';
 import { useDocumentState } from '../../composables/useDocumentState.mts';
 import { useGameDocumentState } from '../../composables/useGameDocumentState.mts';
+import { useNotificationStore } from '../../stores/notification.store.mjs';
+import { PlayerActionService } from '../../services/player-action.service.mjs';
+import { convertDiffToStateOperations } from '@dungeon-lab/shared/utils/index.mjs';
+import type { UpdateDocumentParameters } from '@dungeon-lab/shared/types/game-actions.mjs';
+import * as diff from 'deep-diff';
 import PluginContainer from './PluginContainer.vue';
 
 const props = defineProps<{
@@ -80,6 +84,10 @@ const emit = defineEmits<{
 // Component state
 const documentSheetComponent = shallowRef<Component | null>(null);
 const editMode = ref(false);
+
+// Services for GM request system
+const playerActionService = new PlayerActionService();
+const notificationStore = useNotificationStore();
 
 // Context-aware document state management
 const context = computed(() => props.context || 'admin');
@@ -127,13 +135,57 @@ const reactiveDocument = computed(() => {
 });
 
 const reactiveItems = computed(() => documentState.value?.items || ref([]));
-const hasUnsavedChanges = computed(() => documentState.value?.hasUnsavedChanges?.value ?? false);
+
+// Document copy for form editing - enables v-model while preserving GM authority
+const documentCopy = ref<BaseDocument | null>(null);
+
+// Initialize document copy from original when document changes
+const initializeDocumentCopy = () => {
+  const doc = reactiveDocument.value;
+  if (!doc) {
+    console.warn('[DocumentSheetContainer] Cannot initialize document copy - no document available');
+    documentCopy.value = null;
+    return;
+  }
+  // Create deep copy using JSON clone (handles Vue proxies and Mongoose docs)
+  console.log('doc', doc);
+  documentCopy.value = JSON.parse(JSON.stringify(doc));
+  console.log('documentCopy.value', documentCopy.value);
+  console.log('[DocumentSheetContainer] Document copy initialized for:', doc.name);
+};
+
+// Check if form has unsaved changes by comparing copy to original
+const hasUnsavedChanges = computed(() => {
+  if (!reactiveDocument.value || !documentCopy.value) return false;
+  // Simple JSON comparison - could be enhanced with deep-diff later
+  return JSON.stringify(reactiveDocument.value) !== JSON.stringify(documentCopy.value);
+});
+
+// Reset document copy to original state
+const resetDocumentCopy = () => {
+  initializeDocumentCopy();
+};
+
+// Cancel changes - restore copy from original
+const cancelChanges = () => {
+  initializeDocumentCopy();
+  editMode.value = false;
+};
 
 // Watch for document changes to reinitialize state
 watch(() => [props.documentId, props.documentType, props.context], () => {
   // Document state will be recreated via computed when dependencies change
   console.log('[DocumentSheetContainer] Document context changed, state will be recomputed');
 }, { immediate: true });
+
+// Watch for document changes and reinitialize document copy
+watch(() => reactiveDocument.value, (newDocument) => {
+  if (newDocument) {
+    initializeDocumentCopy();
+  } else {
+    documentCopy.value = null;
+  }
+}, { immediate: true, deep: true });
 
 // Get document info for component loading (works for both contexts)
 const documentInfo = computed(() => {
@@ -191,26 +243,157 @@ const handleItemsChange = (newItems: IItem[]) => {
   console.log('[DocumentSheetContainer] Items changed:', newItems.length);
 };
 
-// Save functionality delegated to composable
+// Save functionality - implements GM request/approval system
 const handleSave = async () => {
+  if (!reactiveDocument.value || !documentCopy.value) {
+    console.warn('[DocumentSheetContainer] Cannot save - missing document or copy');
+    return;
+  }
+
+  // Calculate differences using deep-diff
+  const changes = diff.diff(reactiveDocument.value, documentCopy.value);
+  
+  if (!changes || changes.length === 0) {
+    console.log('[DocumentSheetContainer] No changes detected, exiting edit mode');
+    editMode.value = false;
+    return;
+  }
+
+  console.log('[DocumentSheetContainer] Changes detected:', changes);
+
+  // For game context, send GM request; for admin context, save directly
+  if (isGameContext.value) {
+    await handleGameContextSave(changes);
+  } else {
+    await handleAdminContextSave();
+  }
+};
+
+// Handle save in game context (requires GM approval)
+const handleGameContextSave = async (changes: diff.Diff<BaseDocument>[]) => {
+  if (!props.documentId) {
+    console.error('[DocumentSheetContainer] Cannot save - no document ID provided');
+    notificationStore.addNotification({
+      type: 'error',
+      message: 'Cannot save - invalid document',
+      duration: 5000
+    });
+    return;
+  }
+
+  // Convert deep-diff changes to StateOperations
+  const operations = convertDiffToStateOperations(changes, props.documentId);
+  
+  if (operations.length === 0) {
+    console.log('[DocumentSheetContainer] No valid operations generated from changes');
+    editMode.value = false;
+    return;
+  }
+
+  // Exit edit mode immediately
+  editMode.value = false;
+
+  // Show immediate feedback
+  notificationStore.addNotification({
+    type: 'info',
+    message: 'Change request sent to Game Master',
+    duration: 4000
+  });
+
+  try {
+    // Use PlayerActionService to request document update
+    const result = await playerActionService.requestAction(
+      'update-document',
+      {
+        documentId: props.documentId,
+        operations,
+        documentName: reactiveDocument.value?.name || 'Unknown Document',
+        documentType: props.documentType
+      } as UpdateDocumentParameters,
+      {
+        description: generateChangesSummary(changes)
+      }
+    );
+
+    console.log('[DocumentSheetContainer] Action request result:', result);
+    
+    if (result.success && result.approved) {
+      notificationStore.addNotification({
+        type: 'success',
+        message: 'Your changes have been approved and applied',
+        duration: 4000
+      });
+    } else if (result.success && !result.approved) {
+      notificationStore.addNotification({
+        type: 'warning',
+        message: `Changes denied: ${result.error || 'No reason provided'}`,
+        duration: 6000
+      });
+    } else {
+      notificationStore.addNotification({
+        type: 'error',
+        message: `Request failed: ${result.error || 'Unknown error'}`,
+        duration: 6000
+      });
+    }
+  } catch (error) {
+    console.error('[DocumentSheetContainer] Failed to send action request:', error);
+    notificationStore.addNotification({
+      type: 'error',
+      message: 'Failed to send change request',
+      duration: 5000
+    });
+  }
+};
+
+// Handle save in admin context (direct save)
+const handleAdminContextSave = async () => {
   if (!documentState.value) return;
   
   try {
     await documentState.value.save();
-    toggleEditMode();
+    editMode.value = false;
     
-    // Emit to parent for reactive updates  
+    notificationStore.addNotification({
+      type: 'success',
+      message: 'Changes saved successfully',
+      duration: 3000
+    });
   } catch (error) {
-    console.error('[DocumentSheetContainer] Save failed:', error);
-    // TODO: Show user-friendly error message
+    console.error('[DocumentSheetContainer] Admin save failed:', error);
+    notificationStore.addNotification({
+      type: 'error',
+      message: 'Failed to save changes',
+      duration: 5000
+    });
   }
 };
 
-const handleCancel = () => {
-  if (!documentState.value) return;
+// Generate human-readable summary of changes for GM approval
+const generateChangesSummary = (changes: diff.Diff<BaseDocument>[]): string => {
+  const summaries: string[] = [];
   
-  documentState.value.reset();
-  editMode.value = false;
+  changes.forEach((change: diff.Diff<BaseDocument>) => {
+    if (change.kind === 'E') { // Edit
+      const path = change.path?.join('.') || 'unknown field';
+      summaries.push(`${path}: ${change.lhs} → ${change.rhs}`);
+    } else if (change.kind === 'N') { // New
+      const path = change.path?.join('.') || 'unknown field';
+      summaries.push(`${path}: added ${change.rhs}`);
+    } else if (change.kind === 'D') { // Deleted
+      const path = change.path?.join('.') || 'unknown field';
+      summaries.push(`${path}: removed ${change.lhs}`);
+    } else if (change.kind === 'A') { // Array change
+      const path = change.path?.join('.') || 'unknown array';
+      summaries.push(`${path}: array modified`);
+    }
+  });
+  
+  return summaries.join(', ');
+};
+
+const handleCancel = () => {
+  cancelChanges();
 };
 
 const handleRoll = (rollType: string, data: Record<string, unknown>) => {
@@ -221,48 +404,37 @@ const handleDragStart = (event: MouseEvent) => {
   emit('drag-start', event);
 };
 
-// Get appropriate props based on component type (character vs actor sheet)
+// Unified props interface - all document sheet components receive the same props
 const getComponentProps = () => {
-  const docType = props.documentType;
-  console.log(`[DocumentSheetContainer] getComponentProps - docType: ${docType}, context: ${context.value}`);
+  console.log(`[DocumentSheetContainer] getComponentProps - docType: ${props.documentType}, context: ${context.value}`);
   
-  if (!docType) {
-    console.log(`[DocumentSheetContainer] getComponentProps - no docType, returning empty props`);
-    return {};
-  }
+  // Unified props structure for all document types with copy management
+  const componentProps = {
+    document: reactiveDocument,          // Original document (for view mode)
+    documentCopy: computed(() => documentCopy.value), // Editable copy (for edit mode)
+    items: reactiveItems.value,
+    editMode: editMode.value,
+    hasUnsavedChanges: hasUnsavedChanges.value,
+    readonly: props.readonly,
+    // Methods for save/cancel functionality
+    save: handleSave,
+    cancel: cancelChanges,
+    reset: resetDocumentCopy
+  };
   
-  const isActorSheet = docType === 'actor';
+  console.log(`[DocumentSheetContainer] getComponentProps - Enhanced props:`, {
+    document: reactiveDocument.value ? { id: reactiveDocument.value.id, name: reactiveDocument.value.name, type: reactiveDocument.value.documentType } : null,
+    documentCopy: documentCopy.value ? { id: documentCopy.value.id, name: documentCopy.value.name } : null,
+    items: reactiveItems.value?.value?.length || 0,
+    editMode: editMode.value,
+    hasUnsavedChanges: hasUnsavedChanges.value,
+    readonly: props.readonly
+  });
   
-  if (isActorSheet) {
-    // Actor sheet: Pass the reactive document ref
-    const componentProps = {
-      actor: reactiveDocument,
-      readonly: props.readonly
-    };
-    console.log(`[DocumentSheetContainer] getComponentProps - Actor props:`, {
-      actor: reactiveDocument.value ? { id: reactiveDocument.value.id, name: reactiveDocument.value.name } : null,
-      readonly: props.readonly
-    });
-    return componentProps;
-  } else {
-    // Character sheet: Pass the reactive document ref
-    const componentProps = {
-      character: reactiveDocument,
-      items: reactiveItems.value,
-      editMode: editMode.value,
-      readonly: props.readonly
-    };
-    console.log(`[DocumentSheetContainer] getComponentProps - Character props:`, {
-      character: reactiveDocument.value ? { id: reactiveDocument.value.id, name: reactiveDocument.value.name } : null,
-      items: reactiveItems.value,
-      editMode: editMode.value,
-      readonly: props.readonly
-    });
-    return componentProps;
-  }
+  return componentProps;
 };
 
-// Handle updates from document sheet components
+// Handle updates from document sheet components (unified for all document types)
 const handleDocumentUpdate = (updatedDocument: BaseDocument) => {
   emit('update:document', updatedDocument);
 };

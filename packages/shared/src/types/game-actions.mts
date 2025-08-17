@@ -60,6 +60,16 @@ export interface AddDocumentParameters extends Record<string, unknown> {
 }
 
 /**
+ * Document update action parameters
+ */
+export interface UpdateDocumentParameters extends Record<string, unknown> {
+  documentId: string;
+  operations: import('../schemas/game-state-update.schema.mjs').StateOperation[];
+  documentName?: string; // For user-friendly messaging
+  documentType?: string; // For context in GM approval
+}
+
+/**
  * End turn action parameters
  */
 export type EndTurnParameters = Record<string, unknown>;

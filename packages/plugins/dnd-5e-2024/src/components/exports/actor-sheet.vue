@@ -18,7 +18,8 @@
           <h1 v-if="!editMode || readonly" class="character-name">{{ actor.name }}</h1>
           <input 
             v-else
-            v-model="actor.name"
+            :value="localFormData.name"
+            @input="updateFormField('name', ($event.target as HTMLInputElement).value)"
             class="character-name-input"
             type="text"
           />
@@ -40,8 +41,18 @@
           v-if="editMode && !readonly" 
           @click="saveActor" 
           class="save-btn"
+          :disabled="!hasUnsavedChanges"
+          :title="hasUnsavedChanges ? 'Save changes' : 'No changes to save'"
         >
           💾
+        </button>
+        <button 
+          v-if="editMode && !readonly && hasUnsavedChanges" 
+          @click="cancelEdit" 
+          class="cancel-btn"
+          title="Cancel changes"
+        >
+          ❌
         </button>
         <button @click="closeSheet" class="close-btn">
           ✕
@@ -58,7 +69,8 @@
           <span v-if="!editMode || readonly" class="stat-value">{{ armorClassDisplay }}</span>
           <input 
             v-else
-            v-model.number="armorClassValue"
+            :value="localFormData.armorClass"
+            @input="updateFormField('armorClass', parseInt(($event.target as HTMLInputElement).value) || 10)"
             class="stat-input inline"
             type="number"
             min="1"
@@ -71,15 +83,17 @@
           <span v-if="!editMode || readonly" class="stat-value">{{ hitPointsDisplay }}</span>
           <div v-else class="hit-points-edit inline">
             <input 
-              v-model.number="hitPointsCurrent"
+              :value="localFormData.hitPointsCurrent"
+              @input="updateFormField('hitPointsCurrent', parseInt(($event.target as HTMLInputElement).value) || 0)"
               class="stat-input hp-current"
               type="number"
               min="0"
-              :max="hitPointsMax"
+              :max="localFormData.hitPointsMax"
             />
             <span class="hp-separator">/</span>
             <input 
-              v-model.number="hitPointsMax"
+              :value="localFormData.hitPointsMax"
+              @input="updateFormField('hitPointsMax', parseInt(($event.target as HTMLInputElement).value) || 1)"
               class="stat-input hp-max"
               type="number"
               min="1"
@@ -109,8 +123,8 @@
             <div v-if="!editMode || readonly" class="ability-score">{{ getAbilityScore(ability.key) }}</div>
             <input 
               v-else
-              :value="getAbilityScore(ability.key)"
-              @input="updateAbilityScore(ability.key, ($event.target as HTMLInputElement).value)"
+              :value="localFormData.abilities[ability.key as keyof typeof localFormData.abilities]"
+              @input="updateFormAbility(ability.key, parseInt(($event.target as HTMLInputElement).value) || 10)"
               class="ability-input"
               type="number"
               min="1"
@@ -238,12 +252,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, type Ref } from 'vue';
-import type { IActor } from '@dungeon-lab/shared/types/index.mjs';
+import { ref, computed, onMounted, watch, type Ref } from 'vue';
+import type { IActor, BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
 
-// Props
+// Props - unified interface for all document types
 interface Props {
-  actor: Ref<IActor>;
+  document: Ref<BaseDocument>;
+  items?: Ref<any[]>;
+  editMode?: boolean;
   readonly?: boolean;
 }
 
@@ -251,25 +267,39 @@ const props = withDefaults(defineProps<Props>(), {
   readonly: false
 });
 
-// Debug logging for props
-console.log('[ActorSheet] Component received props:', {
-  actor: props.actor,
-  actorValue: props.actor?.value,
-  actorName: props.actor?.value?.name,
-  readonly: props.readonly
+// Type-safe actor accessor with validation
+const actor = computed(() => {
+  const doc = props.document?.value;
+  if (!doc) {
+    console.warn('[ActorSheet] No document provided');
+    return null;
+  }
+  if (doc.documentType !== 'actor') {
+    console.warn('[ActorSheet] Document is not an actor:', doc.documentType);
+    return null;
+  }
+  return doc as IActor;
 });
 
-// Use reactive actor directly (like character sheet)
-const actor = props.actor;
+// Debug logging for props
+console.log('[ActorSheet] Component received props:', {
+  document: props.document,
+  documentValue: props.document?.value,
+  documentName: props.document?.value?.name,
+  documentType: props.document?.value?.documentType,
+  items: props.items,
+  editMode: props.editMode,
+  readonly: props.readonly
+});
 
 // Debug logging for actor ref
 console.log('[ActorSheet] Actor ref:', actor);
 console.log('[ActorSheet] Actor value:', actor?.value);
 console.log('[ActorSheet] Actor name:', actor?.value?.name);
 
-// Events
+// Events - unified interface
 const emit = defineEmits<{
-  (e: 'update:actor', actor: IActor): void;
+  (e: 'update:document', document: BaseDocument): void;
   (e: 'save'): void;
   (e: 'roll', rollType: string, data: Record<string, unknown>): void;
   (e: 'close'): void;
@@ -278,6 +308,76 @@ const emit = defineEmits<{
 
 // Component state
 const editMode = ref(false);
+
+// Local form state - tracks user edits independently of gameState
+const localFormData = ref({
+  name: '',
+  armorClass: 10,
+  hitPointsCurrent: 1,
+  hitPointsMax: 1,
+  abilities: {
+    strength: 10,
+    dexterity: 10,
+    constitution: 10,
+    intelligence: 10,
+    wisdom: 10,
+    charisma: 10
+  }
+});
+
+// Track which fields have been modified
+const modifiedFields = ref(new Set<string>());
+
+// Update form field and track as modified
+const updateFormField = (field: string, value: any) => {
+  (localFormData.value as any)[field] = value;
+  modifiedFields.value.add(field);
+};
+
+// Update ability score in form and track as modified
+const updateFormAbility = (ability: string, value: number) => {
+  localFormData.value.abilities[ability as keyof typeof localFormData.value.abilities] = value;
+  modifiedFields.value.add(`abilities.${ability}`);
+};
+
+// Reset form to match current actor state
+const resetForm = () => {
+  localFormData.value = {
+    name: actor.value.name,
+    armorClass: (() => {
+      const acData = actor.value.pluginData?.armorClass;
+      return (typeof acData === 'object' && acData && 'value' in acData) ? (acData as any).value : (acData || 10);
+    })(),
+    hitPointsCurrent: (() => {
+      const hpData = actor.value.pluginData?.hitPoints;
+      if (typeof hpData === 'object' && hpData) {
+        const current = 'current' in hpData ? (hpData as any).current : undefined;
+        const average = 'average' in hpData ? (hpData as any).average : undefined;
+        return current ?? average ?? 1;
+      }
+      return actor.value.pluginData?.hitPointsCurrent ?? 1;
+    })(),
+    hitPointsMax: (() => {
+      const hpData = actor.value.pluginData?.hitPoints;
+      if (typeof hpData === 'object' && hpData && 'average' in hpData) {
+        return (hpData as any).average;
+      }
+      return actor.value.pluginData?.hitPointsMax || 1;
+    })(),
+    abilities: {
+      strength: actor.value.pluginData?.abilities?.strength || 10,
+      dexterity: actor.value.pluginData?.abilities?.dexterity || 10,
+      constitution: actor.value.pluginData?.abilities?.constitution || 10,
+      intelligence: actor.value.pluginData?.abilities?.intelligence || 10,
+      wisdom: actor.value.pluginData?.abilities?.wisdom || 10,
+      charisma: actor.value.pluginData?.abilities?.charisma || 10
+    }
+  };
+  modifiedFields.value.clear();
+};
+
+// Check if form has unsaved changes
+const hasUnsavedChanges = computed(() => modifiedFields.value.size > 0);
 
 // Ability scores data
 const abilities = [
@@ -304,7 +404,7 @@ const abilityScores = computed({
       actor.value.pluginData = {};
     }
     actor.value.pluginData.abilities = value;
-    emit('update:actor', actor.value);
+    emit('update:document', actor.value!);
   }
 });
 
@@ -344,7 +444,7 @@ const armorClassValue = computed({
     } else {
       actor.value.pluginData.armorClass = { value };
     }
-    emit('update:actor', actor.value);
+    emit('update:document', actor.value!);
   }
 });
 
@@ -367,7 +467,7 @@ const hitPointsMax = computed({
     } else {
       actor.value.pluginData.hitPointsMax = value;
     }
-    emit('update:actor', actor.value);
+    emit('update:document', actor.value!);
   }
 });
 
@@ -392,7 +492,7 @@ const hitPointsCurrent = computed({
     } else {
       actor.value.pluginData.hitPointsCurrent = value;
     }
-    emit('update:actor', actor.value);
+    emit('update:document', actor.value!);
   }
 });
 
@@ -520,11 +620,25 @@ const formatModifier = (modifier: number): string => {
 
 // Actions
 const toggleEditMode = () => {
+  if (!editMode.value) {
+    // Entering edit mode - initialize form with current values
+    resetForm();
+  }
   editMode.value = !editMode.value;
 };
 
 const saveActor = () => {
-  emit('save');
+  // Only save if there are changes
+  if (hasUnsavedChanges.value) {
+    // TODO: Emit state change request instead of direct save
+    emit('save');
+    modifiedFields.value.clear();
+  }
+  editMode.value = false;
+};
+
+const cancelEdit = () => {
+  resetForm();
   editMode.value = false;
 };
 
@@ -584,8 +698,17 @@ const rollAction = (action: any) => {
 
 // Lifecycle
 onMounted(() => {
-  console.log('[ActorSheet] Mounted with actor:', actor.value.name);
+  console.log('[ActorSheet] Mounted with actor:', actor.value?.name || 'unknown');
+  // Initialize form data
+  resetForm();
 });
+
+// Watch for actor changes and reset form
+watch(() => actor.value, (newActor) => {
+  if (newActor && !editMode.value) {
+    resetForm();
+  }
+}, { deep: true });
 </script>
 
 <style>
@@ -686,6 +809,35 @@ onMounted(() => {
 .action-roll-btn:hover {
   background: var(--dnd-gold-dark);
   transform: scale(1.05);
+}
+
+.cancel-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  background: var(--dnd-red);
+  color: var(--dnd-white);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+
+.cancel-btn:hover {
+  background: var(--dnd-red-dark);
+  transform: scale(1.05);
+}
+
+.save-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.save-btn:disabled:hover {
+  transform: none;
 }
 
 .legendary-description {

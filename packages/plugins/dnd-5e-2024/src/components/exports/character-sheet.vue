@@ -17,8 +17,8 @@
         <div class="character-details">
           <h1 v-if="!editMode || readonly" class="character-name">{{ character.name }}</h1>
           <input 
-            v-else
-            v-model="character.name"
+            v-else-if="characterCopy"
+            v-model="characterCopy.name"
             class="character-name-input"
             type="text"
           />
@@ -72,8 +72,8 @@
             <div class="stat-label">Initiative</div>
             <div v-if="!editMode || readonly" class="stat-value">{{ initiativeBonus }}</div>
             <input 
-              v-else
-              v-model.number="initiativeBonusValue"
+              v-else-if="characterCopy && characterCopy.pluginData?.attributes?.initiative"
+              v-model.number="characterCopy.pluginData.attributes.initiative.bonus"
               class="stat-input"
               type="number"
               min="-10"
@@ -86,7 +86,7 @@
             <div v-if="!editMode || readonly" class="stat-value">{{ armorClassDisplay }}</div>
             <input 
               v-else
-              v-model.number="armorClassValue"
+              v-model.number="characterCopy.pluginData.attributes.armorClass.value"
               class="stat-input"
               type="number"
               min="1"
@@ -262,37 +262,55 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, markRaw, type Ref } from 'vue';
-import type { ICharacter, IItem } from '@dungeon-lab/shared/types/index.mjs';
+import type { ICharacter, IItem, BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
 import type { DndCharacterClassDocument } from '../../types/dnd/character-class.mjs';
 import type { DndSpeciesDocument } from '../../types/dnd/species.mjs';
 import type { DndBackgroundDocument } from '../../types/dnd/background.mjs';
 import { getPluginContext } from '@dungeon-lab/shared-ui/utils/plugin-context.mjs';
 import AdvantageRollDialog, { type RollDialogData } from '../internal/common/AdvantageRollDialog.vue';
 
-// Props
+// Props - enhanced interface with container-provided document copy
 interface Props {
-  character: Ref<ICharacter>;
+  document: Ref<BaseDocument>;           // Original document (for view mode)
+  documentCopy: Ref<BaseDocument | null>; // Editable copy (for edit mode)
   items: Ref<IItem[]>;
   editMode: boolean;
+  hasUnsavedChanges: boolean;
   readonly?: boolean;
+  // Methods provided by container
+  save?: () => Promise<void>;
+  cancel?: () => void;
+  reset?: () => void;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   readonly: false
 });
 
+// Type-safe character accessor with validation
+const character = computed(() => {
+  const doc = props.document?.value;
+  if (!doc) {
+    console.warn('[CharacterSheet] No document provided');
+    return null;
+  }
+  if (doc.documentType !== 'character') {
+    console.warn('[CharacterSheet] Document is not a character:', doc.documentType);
+    return null;
+  }
+  return doc as ICharacter;
+});
+
 // Debug logging for props
 console.log('[CharacterSheet] Component received props:', {
-  character: props.character,
-  characterValue: props.character?.value,
-  characterName: props.character?.value?.name,
+  document: props.document,
+  documentValue: props.document?.value,
+  documentName: props.document?.value?.name,
+  documentType: props.document?.value?.documentType,
   items: props.items,
   editMode: props.editMode,
   readonly: props.readonly
 });
-
-// Use reactive character directly  
-const character = props.character;
 
 // Debug logging for character ref
 console.log('[CharacterSheet] Character ref:', character);
@@ -302,6 +320,7 @@ console.log('[CharacterSheet] Character armor class:',
   (character?.value?.pluginData as Record<string, unknown>)?.attributes && 
   ((character?.value?.pluginData as Record<string, unknown>).attributes as Record<string, unknown>)?.armorClass);
 
+
 // Compendium document data
 const speciesDocument = ref<DndSpeciesDocument | null>(null);
 const classDocument = ref<DndCharacterClassDocument | null>(null);
@@ -309,9 +328,10 @@ const backgroundDocument = ref<DndBackgroundDocument | null>(null);
 const compendiumLoading = ref(false);
 const compendiumError = ref<string | null>(null);
 
-// Emits
+// Emits - unified event interface
 const emit = defineEmits<{
-  'save': [character: ICharacter];
+  'update:document': [document: BaseDocument];
+  'save': [document: BaseDocument];
   'roll': [rollType: string, data: Record<string, unknown>];
   'close': [];
   'toggle-edit-mode': [];
@@ -324,6 +344,32 @@ const activeTab = ref('overview');
 // Roll dialog state
 const showRollDialog = ref(false);
 const currentRollAbility = ref<string>('');
+
+// Use container-provided document copy - no local state management needed!
+// The container handles copy creation, change detection, and save/cancel logic
+
+// Type-safe character copy accessor for edit mode
+const characterCopy = computed(() => {
+  const copy = props.documentCopy?.value;
+  if (!copy) return null;
+  if (copy.documentType !== 'character') {
+    console.warn('[CharacterSheet] Document copy is not a character:', copy.documentType);
+    return null;
+  }
+  return copy as ICharacter;
+});
+
+// Debug logging for document copy (moved after characterCopy declaration to avoid hoisting issues)
+console.log('=== DEBUGGING DOCUMENT COPY ===');
+console.log('props.documentCopy:', props.documentCopy);
+console.log('props.documentCopy.value:', props.documentCopy?.value);
+console.log('characterCopy:', characterCopy);
+console.log('characterCopy.value:', characterCopy.value);
+if (characterCopy.value) {
+  console.log('characterCopy.value.pluginData:', characterCopy.value.pluginData);
+  console.log('characterCopy.value.pluginData?.attributes:', characterCopy.value.pluginData?.attributes);
+  console.log('characterCopy.value.pluginData?.attributes?.initiative:', characterCopy.value.pluginData?.attributes?.initiative);
+}
 
 // Direct v-model computed properties for character editing
 
@@ -767,7 +813,7 @@ const switchTab = (tabId: string) => {
 // Removed updateCharacter method - direct v-model binding handles all updates
 
 const saveCharacter = () => {
-  emit('save', character.value);
+  emit('save', character.value!);
 };
 
 const toggleEditMode = () => {
@@ -865,9 +911,7 @@ const loadCompendiumDocuments = async () => {
 
 onMounted(() => {
   document.addEventListener('keydown', handleKeyDown);
-  console.log('D&D 5e Character Sheet mounted for character:', character.value.name);
-  
-  // No longer need to initialize editable fields - direct v-model binding
+  console.log('D&D 5e Character Sheet mounted for character:', character.value?.name || 'unknown');
   
   // Load compendium documents
   loadCompendiumDocuments();
@@ -879,15 +923,17 @@ onUnmounted(() => {
 
 // Watch for character changes and reload compendium data
 watch(() => {
-  const classes = character.value.pluginData?.classes as any[];
+  const classes = character.value?.pluginData?.classes as any[];
   return [
-    character.value.pluginData?.species,
+    character.value?.pluginData?.species,
     classes?.[0]?.class,
-    character.value.pluginData?.background
+    character.value?.pluginData?.background
   ];
 }, () => {
   loadCompendiumDocuments();
 }, { deep: true });
+
+// Document copy is managed by container - no local watch needed
 </script>
 
 <style>
