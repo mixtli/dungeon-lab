@@ -2,8 +2,7 @@ import mongoose from 'mongoose';
 import { z } from 'zod';
 import { vttDocumentSchema } from '@dungeon-lab/shared/schemas/index.mjs';
 import { baseMongooseZodSchema } from '../../../models/base.model.schema.mjs';
-import { createMongoSchema } from '../../../models/zod-to-mongo.mjs';
-import { zId } from '@zodyac/zod-mongoose';
+import { zId, zodSchema } from '@zodyac/zod-mongoose';
 import type { IVTTDocument } from '@dungeon-lab/shared/types/index.mjs';
 
 // Create server-specific VTT document schema with ObjectId references
@@ -16,14 +15,103 @@ const serverVTTDocumentSchema = vttDocumentSchema.extend({
   slug: z.string().min(1)
 });
 
-// Create the discriminator schema (omit documentType as it's handled by discriminator)
-const vttDocumentMongooseSchema = createMongoSchema<IVTTDocument>(
-  serverVTTDocumentSchema.merge(baseMongooseZodSchema).omit({ documentType: true })
-);
+// Create the discriminator schema using zodSchema directly (omit documentType as it's handled by discriminator)
+const zodSchemaDefinition = zodSchema(serverVTTDocumentSchema.merge(baseMongooseZodSchema).omit({ documentType: true, id: true }));
+const vttDocumentMongooseSchema = new mongoose.Schema<IVTTDocument>(zodSchemaDefinition, {
+  timestamps: true,
+  toObject: {
+    virtuals: true,
+    getters: true,
+    transform: (doc, ret) => {
+      delete ret._id;
+      delete ret.__v;
+      return ret;
+    },
+  },
+  toJSON: {
+    virtuals: true,
+    getters: true,
+    transform: (doc, ret) => {
+      delete ret._id;
+      delete ret.__v;
+      return ret;
+    },
+  },
+});
 
 // Override pluginData field to use Mixed type for flexibility
 vttDocumentMongooseSchema.path('pluginData', mongoose.Schema.Types.Mixed);
 vttDocumentMongooseSchema.path('userData', mongoose.Schema.Types.Mixed);
+
+// Add virtual id field that converts _id to string
+vttDocumentMongooseSchema.virtual('id').get(function() {
+  return this._id?.toString();
+});
+
+// Add getters for all ObjectId fields to ensure string serialization
+vttDocumentMongooseSchema.path('campaignId').get(function (value: mongoose.Types.ObjectId | undefined) {
+  return value?.toString();
+});
+
+vttDocumentMongooseSchema.path('compendiumId').get(function (value: mongoose.Types.ObjectId | undefined) {
+  return value?.toString();
+});
+
+vttDocumentMongooseSchema.path('imageId').get(function (value: mongoose.Types.ObjectId | undefined) {
+  return value?.toString();
+});
+
+vttDocumentMongooseSchema.path('thumbnailId').get(function (value: mongoose.Types.ObjectId | undefined) {
+  return value?.toString();
+});
+
+vttDocumentMongooseSchema.path('ownerId').get(function (value: mongoose.Types.ObjectId | undefined) {
+  return value?.toString();
+});
+
+vttDocumentMongooseSchema.path('createdBy').get(function (value: mongoose.Types.ObjectId | undefined) {
+  return value?.toString();
+});
+
+vttDocumentMongooseSchema.path('updatedBy').get(function (value: mongoose.Types.ObjectId | undefined) {
+  return value?.toString();
+});
+
+// Add relationship virtuals
+vttDocumentMongooseSchema.virtual('campaign', {
+  ref: 'Campaign',
+  localField: 'campaignId',
+  foreignField: '_id',
+  justOne: true
+});
+
+vttDocumentMongooseSchema.virtual('compendium', {
+  ref: 'Compendium',
+  localField: 'compendiumId',
+  foreignField: '_id',
+  justOne: true
+});
+
+vttDocumentMongooseSchema.virtual('image', {
+  ref: 'Asset',
+  localField: 'imageId',
+  foreignField: '_id',
+  justOne: true
+});
+
+vttDocumentMongooseSchema.virtual('thumbnail', {
+  ref: 'Asset',
+  localField: 'thumbnailId',
+  foreignField: '_id',
+  justOne: true
+});
+
+vttDocumentMongooseSchema.virtual('owner', {
+  ref: 'User',
+  localField: 'ownerId',
+  foreignField: '_id',
+  justOne: true
+});
 
 // Add pre-validation middleware to set default slug if not provided
 vttDocumentMongooseSchema.pre('validate', function(next) {

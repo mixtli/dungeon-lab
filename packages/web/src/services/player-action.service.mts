@@ -155,9 +155,8 @@ export class PlayerActionService {
       // This can be removed once all tokens have ownerId set
       if (!token.documentId) return false;
       
-      const characters = this.gameStateStore.gameState?.characters || [];
-      const actors = this.gameStateStore.gameState?.actors || [];
-      const document = [...characters, ...actors].find(doc => doc.id === token.documentId);
+      const documents = Object.values(this.gameStateStore.gameState?.documents || {});
+      const document = documents.find(doc => doc.id === token.documentId);
       
       // Check if the user owns the document (character/actor) or the document has direct ownerId
       return document?.ownerId === userId || document?.createdBy === userId;

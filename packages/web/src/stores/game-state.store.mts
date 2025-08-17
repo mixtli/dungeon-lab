@@ -76,10 +76,21 @@ export const useGameStateStore = defineStore(
     // COMPUTED PROPERTIES - DATA ACCESS
     // ============================================================================
 
-    // Convenient access to game entities
-    const characters = computed<ICharacter[]>(() => gameState.value?.characters || []);
-    const actors = computed<IActor[]>(() => gameState.value?.actors || []);
-    const items = computed<IItem[]>(() => gameState.value?.items || []);
+    // Convenient access to game entities (filtered from unified documents)
+    const characters = computed<ICharacter[]>(() => {
+      if (!gameState.value?.documents) return [];
+      return Object.values(gameState.value.documents).filter(doc => doc.documentType === 'character') as ICharacter[];
+    });
+    
+    const actors = computed<IActor[]>(() => {
+      if (!gameState.value?.documents) return [];
+      return Object.values(gameState.value.documents).filter(doc => doc.documentType === 'actor') as IActor[];
+    });
+    
+    const items = computed<IItem[]>(() => {
+      if (!gameState.value?.documents) return [];
+      return Object.values(gameState.value.documents).filter(doc => doc.documentType === 'item') as IItem[];
+    });
     const currentEncounter = computed<IEncounter | null>(() => gameState.value?.currentEncounter || null);
 
     // ============================================================================
@@ -92,8 +103,9 @@ export const useGameStateStore = defineStore(
      * @returns Array of items where item.carrierId matches the provided ID
      */
     const getCharacterItems = computed(() => (carrierId: string): IItem[] => {
-      if (!gameState.value) return [];
-      return gameState.value.items.filter(item => item.carrierId === carrierId);
+      if (!gameState.value?.documents) return [];
+      return Object.values(gameState.value.documents)
+        .filter(doc => doc.documentType === 'item' && (doc as IItem).carrierId === carrierId) as IItem[];
     });
 
     /**
@@ -103,6 +115,40 @@ export const useGameStateStore = defineStore(
      */
     const getCharacterItemCount = computed(() => (carrierId: string): number => {
       return getCharacterItems.value(carrierId).length;
+    });
+
+    // ============================================================================
+    // UNIFIED DOCUMENT HELPERS
+    // ============================================================================
+
+    /**
+     * Get a document by ID
+     * @param documentId - Document ID
+     * @returns Document or null if not found
+     */
+    const getDocument = computed(() => (documentId: string): BaseDocument | null => {
+      if (!gameState.value?.documents) return null;
+      return gameState.value.documents[documentId] || null;
+    });
+
+    /**
+     * Get documents by type
+     * @param documentType - Type of documents to get
+     * @returns Array of documents of the specified type
+     */
+    const getDocumentsByType = computed(() => (documentType: string): BaseDocument[] => {
+      if (!gameState.value?.documents) return [];
+      return Object.values(gameState.value.documents).filter(doc => doc.documentType === documentType);
+    });
+
+    /**
+     * Get documents by plugin type
+     * @param pluginDocumentType - Plugin-specific document type
+     * @returns Array of documents of the specified plugin type
+     */
+    const getDocumentsByPluginType = computed(() => (pluginDocumentType: string): BaseDocument[] => {
+      if (!gameState.value?.documents) return [];
+      return Object.values(gameState.value.documents).filter(doc => doc.pluginDocumentType === pluginDocumentType);
     });
 
     // Plugin data access
@@ -161,7 +207,7 @@ export const useGameStateStore = defineStore(
               console.log('[GameState] Game state refreshed from server', { 
                 version: gameStateVersion.value,
                 hash: gameStateHash.value,
-                hasCharacters: gameState.value?.characters?.length || 0,
+                hasDocuments: Object.keys(gameState.value?.documents || {}).length,
                 hasCurrentEncounter: !!gameState.value?.currentEncounter,
                 encounterTokenCount: gameState.value?.currentEncounter?.tokens?.length || 0,
                 encounterTokenIds: gameState.value?.currentEncounter?.tokens?.map(t => t.id) || []
@@ -432,7 +478,7 @@ export const useGameStateStore = defineStore(
 
       console.log('Local game state updated from reinitialization broadcast:', {
         newVersion: reinitializeData.gameStateVersion,
-        hasCharacters: gameState.value?.characters?.length || 0,
+        hasDocuments: Object.keys(gameState.value?.documents || {}).length,
         hasCurrentEncounter: !!gameState.value?.currentEncounter
       });
     }
@@ -491,9 +537,11 @@ export const useGameStateStore = defineStore(
             expected: expectedHash.substring(0, 16) + '...',
             calculated: calculatedHash.substring(0, 16) + '...',
             gameStateKeys: Object.keys(gameState.value),
-            charactersCount: gameState.value.characters?.length || 0,
-            actorsCount: gameState.value.actors?.length || 0,
-            itemsCount: gameState.value.items?.length || 0
+            documentsCount: Object.keys(gameState.value.documents || {}).length,
+            documentTypes: Object.values(gameState.value.documents || {}).reduce((types, doc) => {
+              types[doc.documentType] = (types[doc.documentType] || 0) + 1;
+              return types;
+            }, {} as Record<string, number>)
           });
           
           // Show user notification about hash validation failure
@@ -833,6 +881,11 @@ export const useGameStateStore = defineStore(
       // Item relationship helpers (plugin-agnostic)
       getCharacterItems,
       getCharacterItemCount,
+
+      // Unified document helpers
+      getDocument,
+      getDocumentsByType,
+      getDocumentsByPluginType,
 
       // Game state management
       requestFullState,

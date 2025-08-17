@@ -2,8 +2,7 @@ import mongoose from 'mongoose';
 import { z } from 'zod';
 import { baseSchema } from '@dungeon-lab/shared/schemas/index.mjs';
 import { baseMongooseZodSchema } from '../../../models/base.model.schema.mjs';
-import { createMongoSchema } from '../../../models/zod-to-mongo.mjs';
-import { zId } from '@zodyac/zod-mongoose';
+import { zId, zodSchema } from '@zodyac/zod-mongoose';
 import type { BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
 
 // Create server-specific base document schema with ObjectId references
@@ -43,13 +42,85 @@ const serverBaseDocumentSchema = baseSchema.extend({
   ownerId: zId('User').optional()
 });
 
-// Create the base Mongoose schema
-const baseMongooseSchema = createMongoSchema<BaseDocument>(
-  serverBaseDocumentSchema.merge(baseMongooseZodSchema)
-);
+// Create the base Mongoose schema using zodSchema directly (omit id to avoid conflict with virtual)
+const zodSchemaDefinition = zodSchema(serverBaseDocumentSchema.merge(baseMongooseZodSchema).omit({ id: true }));
+const baseMongooseSchema = new mongoose.Schema<BaseDocument>(zodSchemaDefinition, {
+  timestamps: true,
+  toObject: {
+    virtuals: true,
+    getters: true,
+    transform: (doc, ret) => {
+      // Ensure id virtual is set before deleting _id
+      if (!ret.id && ret._id) {
+        ret.id = ret._id.toString();
+      }
+      delete ret._id;
+      delete ret.__v;
+      return ret;
+    },
+  },
+  toJSON: {
+    virtuals: true,
+    getters: true,
+    transform: (doc, ret) => {
+      // Ensure id virtual is set before deleting _id
+      if (!ret.id && ret._id) {
+        ret.id = ret._id.toString();
+      }
+      delete ret._id;
+      delete ret.__v;
+      return ret;
+    },
+  },
+});
 
 // Set the discriminator key on the schema
 baseMongooseSchema.set('discriminatorKey', 'documentType');
+
+// Add virtual id field that converts _id to string
+baseMongooseSchema.virtual('id').get(function() {
+  return this._id?.toString();
+}).set(function(v: string) {
+  this._id = new mongoose.Types.ObjectId(v);
+});
+
+// Add getters for all ObjectId fields to ensure string serialization
+baseMongooseSchema.path('campaignId').get(function (value: mongoose.Types.ObjectId | undefined) {
+  return value?.toString();
+});
+
+baseMongooseSchema.path('compendiumId').get(function (value: mongoose.Types.ObjectId | undefined) {
+  return value?.toString();
+});
+
+baseMongooseSchema.path('imageId').get(function (value: mongoose.Types.ObjectId | undefined) {
+  return value?.toString();
+});
+
+baseMongooseSchema.path('thumbnailId').get(function (value: mongoose.Types.ObjectId | undefined) {
+  return value?.toString();
+});
+
+baseMongooseSchema.path('avatarId').get(function (value: mongoose.Types.ObjectId | undefined) {
+  return value?.toString();
+});
+
+baseMongooseSchema.path('tokenImageId').get(function (value: mongoose.Types.ObjectId | undefined) {
+  return value?.toString();
+});
+
+baseMongooseSchema.path('ownerId').get(function (value: mongoose.Types.ObjectId | undefined) {
+  return value?.toString();
+});
+
+// Add getters for audit fields
+baseMongooseSchema.path('createdBy').get(function (value: mongoose.Types.ObjectId | undefined) {
+  return value?.toString();
+});
+
+baseMongooseSchema.path('updatedBy').get(function (value: mongoose.Types.ObjectId | undefined) {
+  return value?.toString();
+});
 
 // Comprehensive indexing strategy for performance
 // Core document queries (most common)
@@ -129,13 +200,7 @@ baseMongooseSchema.pre('save', async function(next) {
 baseMongooseSchema.path('pluginData', mongoose.Schema.Types.Mixed);
 baseMongooseSchema.path('userData', mongoose.Schema.Types.Mixed);
 
-// Add getter/setter for ownerId ObjectId conversion
-baseMongooseSchema.path('ownerId').get(function (value: mongoose.Types.ObjectId | undefined) {
-  return value?.toString();
-});
-baseMongooseSchema.path('ownerId').set(function (value: string | undefined) {
-  return value ? new mongoose.Types.ObjectId(value) : undefined;
-});
+// This section was duplicate - getters are already added above
 
 // Add virtual properties for common asset relationships
 baseMongooseSchema.virtual('image', {
@@ -169,6 +234,20 @@ baseMongooseSchema.virtual('avatar', {
 baseMongooseSchema.virtual('tokenImage', {
   ref: 'Asset',
   localField: 'tokenImageId',
+  foreignField: '_id',
+  justOne: true
+});
+
+baseMongooseSchema.virtual('campaign', {
+  ref: 'Campaign',
+  localField: 'campaignId',
+  foreignField: '_id',
+  justOne: true
+});
+
+baseMongooseSchema.virtual('owner', {
+  ref: 'User',
+  localField: 'ownerId',
   foreignField: '_id',
   justOne: true
 });

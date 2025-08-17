@@ -120,22 +120,28 @@ export class GameStateSyncService {
             session
           );
           
+          // Extract characters from unified documents structure
+          const characters = Object.values(gameState.documents || {}).filter(doc => doc.documentType === 'character');
           result.entitiesUpdated.characters = await this.syncCharacters(
-            gameState.characters, 
+            characters, 
             campaignId, 
             options, 
             session
           );
           
+          // Extract actors from unified documents structure
+          const actors = Object.values(gameState.documents || {}).filter(doc => doc.documentType === 'actor');
           result.entitiesUpdated.actors = await this.syncActors(
-            gameState.actors, 
+            actors, 
             campaignId, 
             options, 
             session
           );
           
+          // Extract items from unified documents structure
+          const items = Object.values(gameState.documents || {}).filter(doc => doc.documentType === 'item');
           result.entitiesUpdated.items = await this.syncItems(
-            gameState.items, 
+            items, 
             campaignId, 
             options, 
             session

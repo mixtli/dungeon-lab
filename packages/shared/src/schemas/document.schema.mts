@@ -253,9 +253,11 @@ export const updateDocumentSchema = z.object({
  */
 export const documentSchemaWithVirtuals = baseDocumentSchema.and(
   z.object({
-    // Virtual asset relationships (properly typed)
-    image: assetSchema.nullable().optional(),
-    thumbnail: assetSchema.nullable().optional()
+    // Virtual asset relationships (properly typed) - ALL virtual asset fields
+    avatar: assetSchema.nullable().optional(),      // Character avatar images
+    tokenImage: assetSchema.nullable().optional(),  // Token images for characters/actors
+    image: assetSchema.nullable().optional(),       // General images for all document types
+    thumbnail: assetSchema.nullable().optional()    // Thumbnail images for all document types
   })
 );
 

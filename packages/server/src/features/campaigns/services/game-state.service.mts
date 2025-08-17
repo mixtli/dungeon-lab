@@ -4,7 +4,8 @@ import {
   StateUpdate,
   StateUpdateResponse,
   ICharacter,
-  IActor
+  IActor,
+  BaseDocument
 } from '@dungeon-lab/shared/types/index.mjs';
 import { serverGameStateWithVirtualsSchema } from '@dungeon-lab/shared/schemas/server-game-state.schema.mjs';
 import { GameStateModel } from '../models/game-state.model.mjs';
@@ -410,6 +411,7 @@ export class GameStateService {
       const initialGameData = await this.loadCampaignData(campaignId);
       
       // Parse with Zod schema to ensure consistent defaults and structure (same as validation)
+      console.log('initialGameData.state', initialGameData.state.documents);
       const parsedInitialState = serverGameStateWithVirtualsSchema.parse(initialGameData.state);
       
       const initialVersion = '1';
@@ -425,13 +427,6 @@ export class GameStateService {
         // createdBy and updatedBy are optional, let Mongoose handle them
       });
 
-      logger.info('Game state initialized', { 
-        campaignId, 
-        version: initialVersion,
-        charactersCount: initialGameData.state.characters.length,
-        actorsCount: initialGameData.state.actors.length,
-        itemsCount: initialGameData.state.items.length
-      });
 
       return {
         success: true,
@@ -563,244 +558,40 @@ export class GameStateService {
       
       logger.info('Loading campaign data', { campaignId, campaignObjectId: campaignObjectId.toString() });
       
-      // Load campaign and all campaign-associated documents
-      const [campaign, characters, actors, campaignItems] = await Promise.all([
+      // Load campaign and all campaign documents with single unified query
+      const [campaign, campaignDocuments] = await Promise.all([
         // Load the campaign itself
         CampaignModel.findById(campaignObjectId).exec(),
-        // Load characters belonging to this campaign with avatar and token assets
+        // Load ALL documents belonging to this campaign with all asset relationships
         DocumentModel.find({ 
-          campaignId: campaignObjectId, 
-          documentType: 'character' 
-        }).populate(['avatar', 'tokenImage']).exec(),
-        
-        // Load actors (NPCs, monsters) belonging to this campaign with token assets
-        DocumentModel.find({ 
-          campaignId: campaignObjectId, 
-          documentType: 'actor' 
-        }).populate(['tokenImage']).exec(),
-        
-        // Load items belonging to this campaign
-        DocumentModel.find({ 
-          campaignId: campaignObjectId,
-          documentType: 'item'
-        }).exec()
+          campaignId: campaignObjectId
+        }).populate(['avatar', 'tokenImage', 'image', 'thumbnail']).exec()
       ]);
 
-      // Debug logging right after document queries - BEFORE any processing
-      logger.debug('[OWNERID-DEBUG] Documents immediately after query', {
-        campaignId,
-        firstCharacterRaw: characters.length > 0 ? {
-          name: characters[0].name,
-          ownerId: characters[0].ownerId,
-          ownerIdType: typeof characters[0].ownerId,
-          ownerIdConstructor: characters[0].ownerId?.constructor?.name,
-          isMongooseDocument: characters[0] instanceof mongoose.Document,
-          toObjectOwnerId: characters[0].toObject().ownerId,
-          jsonOwnerId: JSON.parse(JSON.stringify(characters[0].toObject())).ownerId
-        } : 'No characters',
-        firstActorRaw: actors.length > 0 ? {
-          name: actors[0].name,
-          ownerId: actors[0].ownerId,
-          ownerIdType: typeof actors[0].ownerId,
-          ownerIdConstructor: actors[0].ownerId?.constructor?.name,
-          isMongooseDocument: actors[0] instanceof mongoose.Document,
-          toObjectOwnerId: actors[0].toObject().ownerId,
-          jsonOwnerId: JSON.parse(JSON.stringify(actors[0].toObject())).ownerId
-        } : 'No actors'
-      });
 
-      logger.info('Loaded campaign documents', { 
-        campaignId,
-        campaignFound: !!campaign,
-        campaignIsNull: campaign === null,
-        campaignName: campaign?.name || 'Unknown',
-        actualCampaignId: campaign?.id,
-        charactersCount: characters.length,
-        actorsCount: actors.length,
-        campaignItemsCount: campaignItems.length
-      });
 
-      // Load inventory items for all characters using ownerId relationships
-      const allInventoryItemIds: string[] = [];
-      for (const character of characters) {
-        // Both actors and characters can have inventory via ownerId relationships
-        const ownedItems = await DocumentService.inventory.getOwnedItems(character.id, campaignId);
-        for (const item of ownedItems) {
-          if (item.id && !allInventoryItemIds.includes(item.id.toString())) {
-            allInventoryItemIds.push(item.id.toString());
-          }
-        }
-      }
-
-      // Load inventory items if any exist
-      let inventoryItems: Document[] = [];
-      if (allInventoryItemIds.length > 0) {
-        const inventoryItemObjectIds = allInventoryItemIds.map(id => new Types.ObjectId(id));
-        inventoryItems = await DocumentModel.find({
-          _id: { $in: inventoryItemObjectIds },
-          documentType: 'item'
-        }).exec();
-        
-        logger.info('Loaded inventory items', { 
-          campaignId,
-          inventoryItemIds: allInventoryItemIds,
-          inventoryItemsCount: inventoryItems.length
-        });
-      }
-
-      // Combine campaign items and inventory items
-      const allItems = [...campaignItems, ...inventoryItems];
-
-      logger.info('Final campaign data loaded', { 
-        campaignId,
-        charactersCount: characters.length,
-        actorsCount: actors.length,
-        totalItemsCount: allItems.length
-      });
-
-      // Convert Mongoose documents to plain objects with consistent ObjectId serialization
-      // Use JSON.parse(JSON.stringify()) to ensure ObjectIds are converted to strings consistently
-      const charactersPlain = characters.map(doc => {
-        const obj = JSON.parse(JSON.stringify(doc.toObject()));
-        // Log ownerId value before cleanup to understand what we're dealing with
-        if (obj.ownerId) {
-          logger.debug('[OWNERID-DEBUG] Character ownerId before cleanup', {
-            characterName: obj.name,
-            characterId: obj._id,
-            ownerIdValue: obj.ownerId,
-            ownerIdType: typeof obj.ownerId,
-            isObject: typeof obj.ownerId === 'object',
-            stringified: JSON.stringify(obj.ownerId)
-          });
-        }
-        // Clean up ownerId if it's been populated with full User object instead of ObjectId string
-        if (obj.ownerId && typeof obj.ownerId === 'object') {
-          logger.debug('[OWNERID-DEBUG] Removing object ownerId from character', {
-            characterName: obj.name,
-            characterId: obj._id,
-            removedOwnerId: obj.ownerId
-          });
-          // Remove the populated user object completely since we only need the ObjectId string
-          delete obj.ownerId;
-        }
-        return obj;
-      });
-      const actorsPlain = actors.map(doc => {
-        const obj = JSON.parse(JSON.stringify(doc.toObject()));
-        // Log ownerId value before cleanup to understand what we're dealing with
-        if (obj.ownerId) {
-          logger.debug('[OWNERID-DEBUG] Actor ownerId before cleanup', {
-            actorName: obj.name,
-            actorId: obj._id,
-            ownerIdValue: obj.ownerId,
-            ownerIdType: typeof obj.ownerId,
-            isObject: typeof obj.ownerId === 'object',
-            stringified: JSON.stringify(obj.ownerId)
-          });
-        }
-        // Clean up ownerId if it's been populated with full User object instead of ObjectId string  
-        if (obj.ownerId && typeof obj.ownerId === 'object') {
-          logger.debug('[OWNERID-DEBUG] Removing object ownerId from actor', {
-            actorName: obj.name,
-            actorId: obj._id,
-            removedOwnerId: obj.ownerId
-          });
-          // Remove the populated user object completely since we only need the ObjectId string
-          delete obj.ownerId;
-        }
-        return obj;
-      });
-
-      // Validate that asset population worked correctly
-      const charactersWithoutAssets = charactersPlain.filter((char: ICharacter) => {
-        return (char.tokenImageId && !char.tokenImage) || (char.avatarId && !char.avatar);
-      });
+      // Combine all campaign documents into unified record - no complex processing needed
+      // JSON.stringify() will automatically call toJSON() on Mongoose documents with virtual fields
       
-      const actorsWithoutAssets = actorsPlain.filter((actor: IActor) => {
-        return actor.tokenImageId && !actor.tokenImage;
-      });
-
-      if (charactersWithoutAssets.length > 0) {
-        logger.warn(`⚠️  Found ${charactersWithoutAssets.length} characters with missing asset population`, {
-          campaignId,
-          characterIds: charactersWithoutAssets.map(c => c.id)
-        });
-        charactersWithoutAssets.forEach((char: ICharacter) => {
-          logger.warn(`  - Character "${char.name}" (${char.id}): tokenImageId=${char.tokenImageId}, avatarId=${char.avatarId}, hasTokenImage=${!!char.tokenImage}, hasAvatar=${!!char.avatar}`);
-        });
-      }
-
-      if (actorsWithoutAssets.length > 0) {
-        logger.warn(`⚠️  Found ${actorsWithoutAssets.length} actors with missing asset population`, {
-          campaignId,
-          actorIds: actorsWithoutAssets.map(a => a.id)
-        });
-        actorsWithoutAssets.forEach((actor: IActor) => {
-          logger.warn(`  - Actor "${actor.name}" (${actor.id}): tokenImageId=${actor.tokenImageId}, hasTokenImage=${!!actor.tokenImage}`);
-        });
-      }
-
-      // Log successful asset population counts for validation
-      const charactersWithAssets = charactersPlain.filter((char: ICharacter) => char.tokenImage || char.avatar).length;
-      const actorsWithAssets = actorsPlain.filter((actor: IActor) => actor.tokenImage).length;
+      // Combine all documents into unified record indexed by ID
+      const documents: Record<string, BaseDocument> = {};
       
-      if (charactersWithAssets > 0 || actorsWithAssets > 0) {
-        logger.info(`✅ Asset population successful: ${charactersWithAssets} characters and ${actorsWithAssets} actors have populated assets`);
-      }
-
-      // Clean up campaign ownerId if needed with consistent ObjectId serialization
-      const campaignPlain = campaign ? JSON.parse(JSON.stringify(campaign.toObject())) : null;
-      if (campaignPlain?.ownerId && typeof campaignPlain.ownerId === 'object') {
-        // Remove the populated user object completely since we only need the ObjectId string
-        delete campaignPlain.ownerId;
-      }
-
-      // Clean up items ownerIds with consistent ObjectId serialization
-      const itemsPlain = allItems.map(doc => {
-        const obj = JSON.parse(JSON.stringify(doc.toObject()));
-        // Clean up ownerId if it's been populated with full User object instead of ObjectId string
-        if (obj.ownerId && typeof obj.ownerId === 'object') {
-          // Remove the populated user object completely since we only need the ObjectId string
-          delete obj.ownerId;
-        }
-        return obj;
+      // Simple transformation: add all documents to the unified record
+      campaignDocuments.forEach(doc => {
+        documents[doc.id] = doc.toJSON() as BaseDocument;
       });
 
-      // Log final ownerId values that end up in game state
-      logger.debug('[OWNERID-DEBUG] Final game state ownerId values', {
-        campaignId,
-        charactersWithOwnerId: charactersPlain.filter(char => char.ownerId).map(char => ({
-          name: char.name,
-          id: char._id,
-          ownerId: char.ownerId,
-          ownerIdType: typeof char.ownerId
-        })),
-        actorsWithOwnerId: actorsPlain.filter(actor => actor.ownerId).map(actor => ({
-          name: actor.name,
-          id: actor._id,
-          ownerId: actor.ownerId,
-          ownerIdType: typeof actor.ownerId
-        })),
-        charactersWithoutOwnerId: charactersPlain.filter(char => !char.ownerId).map(char => ({
-          name: char.name,
-          id: char._id
-        })),
-        actorsWithoutOwnerId: actorsPlain.filter(actor => !actor.ownerId).map(actor => ({
-          name: actor.name,
-          id: actor._id
-        }))
-      });
+      const result = {
+        campaign: campaign.toJSON(),
+        documents,
+        currentEncounter: null,
+        pluginData: {},
+        turnManager: null
+      }
+      console.log('result', JSON.stringify(result, null, 2));
 
       return {
-        state: {
-          campaign: campaignPlain,                           // Convert campaign to plain object
-          characters: charactersPlain,                       // Convert from Mongoose documents to plain objects
-          actors: actorsPlain,                               // Convert from Mongoose documents to plain objects
-          items: itemsPlain,                                 // Convert from Mongoose documents to plain objects
-          currentEncounter: null,                            // No active encounter initially
-          pluginData: {},                                    // Empty plugin data initially
-          turnManager: null                                  // No active turn manager initially
-        }
+        state: result
       };
     } catch (error) {
       logger.error('Error loading campaign data:', error);
@@ -834,9 +625,7 @@ export class GameStateService {
     return {
       state: {
         campaign: null,
-        characters: [],
-        actors: [],
-        items: [],
+        documents: {},                    // Empty unified documents record
         currentEncounter: null,
         pluginData: {},
         turnManager: null
@@ -862,15 +651,9 @@ export class GameStateService {
         return { isValid: false, error: 'Game state must be an object' };
       }
 
-      // Required arrays
-      if (!Array.isArray(gameState.characters)) {
-        return { isValid: false, error: 'characters must be an array' };
-      }
-      if (!Array.isArray(gameState.actors)) {
-        return { isValid: false, error: 'actors must be an array' };
-      }
-      if (!Array.isArray(gameState.items)) {
-        return { isValid: false, error: 'items must be an array' };
+      // Required documents record
+      if (!gameState.documents || typeof gameState.documents !== 'object') {
+        return { isValid: false, error: 'documents must be an object record' };
       }
 
       // currentEncounter can be null or object
@@ -1023,10 +806,16 @@ export class GameStateService {
    * Get basic statistics about game state structure for comparison
    */
   private getStateStatistics(state: ServerGameStateWithVirtuals): Record<string, unknown> {
+    // Count documents by type
+    const documentCounts = Object.values(state.documents || {}).reduce((counts: Record<string, number>, doc: BaseDocument) => {
+      const docType = doc.documentType;
+      counts[docType] = (counts[docType] || 0) + 1;
+      return counts;
+    }, {});
+
     return {
-      charactersCount: state.characters?.length || 0,
-      actorsCount: state.actors?.length || 0,
-      itemsCount: state.items?.length || 0,
+      totalDocuments: Object.keys(state.documents || {}).length,
+      documentCounts,
       hasCurrentEncounter: !!state.currentEncounter,
       hasTurnManager: !!state.turnManager,
       pluginDataKeys: state.pluginData ? Object.keys(state.pluginData).length : 0,

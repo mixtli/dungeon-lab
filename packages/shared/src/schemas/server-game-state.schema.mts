@@ -1,7 +1,5 @@
 import { z } from 'zod';
-import { characterSchema, characterSchemaWithVirtuals } from './character.schema.mjs';
-import { actorSchema, actorSchemaWithVirtuals } from './actor.schema.mjs';
-import { itemSchema } from './item.schema.mjs';
+import { baseDocumentSchema, documentSchemaWithVirtuals } from './document.schema.mjs';
 import { encounterSchema } from './encounters.schema.mjs';
 import { campaignSchema, campaignWithVirtualsSchema } from './campaign.schema.mjs';
 import { turnManagerSchema } from './turn-manager.schema.mjs';
@@ -18,10 +16,8 @@ export const serverGameStateSchema = z.object({
   // Campaign context (read-only reference for session convenience)
   campaign: campaignSchema.nullable().default(null),
   
-  // Game entities (all campaign-associated) - pure data, no metadata
-  characters: z.array(characterSchema).default([]), // Player characters
-  actors: z.array(actorSchema).default([]),          // NPCs, monsters, etc.
-  items: z.array(itemSchema).default([]),            // All campaign items
+  // Game entities (all campaign-associated) - unified documents by ID
+  documents: z.record(z.string(), baseDocumentSchema).default({}), // All documents: characters, actors, items, etc.
   
   // Active encounter (fully populated with related data)
   currentEncounter: encounterSchema.nullable().default(null),
@@ -42,10 +38,8 @@ export const serverGameStateWithVirtualsSchema = z.object({
   // Campaign context with populated assets (read-only reference for session convenience)
   campaign: campaignWithVirtualsSchema.nullable().default(null),
   
-  // Game entities with populated assets - client-ready data
-  characters: z.array(characterSchemaWithVirtuals).default([]), // Player characters with avatar/tokenImage
-  actors: z.array(actorSchemaWithVirtuals).default([]),          // NPCs, monsters, etc. with tokenImage
-  items: z.array(itemSchema).default([]),                        // All campaign items (no special assets typically)
+  // Game entities with populated assets - unified documents by ID, client-ready data
+  documents: z.record(z.string(), documentSchemaWithVirtuals).default({}), // All documents with populated assets
   
   // Active encounter (fully populated with related data including map assets)
   currentEncounter: encounterSchema.nullable().default(null),

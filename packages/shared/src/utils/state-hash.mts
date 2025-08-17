@@ -1,5 +1,5 @@
 import CryptoJS from 'crypto-js';
-import type { ServerGameStateWithVirtuals } from '../types/index.mjs';
+import type { ServerGameStateWithVirtuals, BaseDocument } from '../types/index.mjs';
 
 /**
  * Sort object keys recursively to ensure consistent JSON serialization
@@ -70,13 +70,19 @@ export function validateStateIntegrity(
     const isValid = actualHash === expectedHash;
     
     if (!isValid) {
+      // Count documents by type for debugging
+      const documentCounts = Object.values(gameState.documents || {}).reduce((counts: Record<string, number>, doc: BaseDocument) => {
+        const docType = doc.documentType;
+        counts[docType] = (counts[docType] || 0) + 1;
+        return counts;
+      }, {});
+
       console.error('Hash validation failed:', {
         expectedHash: expectedHash.substring(0, 16) + '...',
         actualHash: actualHash.substring(0, 16) + '...',
         gameStateKeys: Object.keys(gameState),
-        charactersCount: gameState.characters?.length || 0,
-        actorsCount: gameState.actors?.length || 0,
-        itemsCount: gameState.items?.length || 0
+        totalDocuments: Object.keys(gameState.documents || {}).length,
+        documentCounts
       });
     }
     

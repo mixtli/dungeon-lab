@@ -114,15 +114,19 @@ async function debugHashValidation() {
       console.log('Raw campaign:', rawState!.campaign ? 'present' : 'null');
       console.log('Parsed campaign:', parsedState.campaign ? 'present' : 'null');
       
-      console.log('\nCharacters comparison:');
-      console.log('Raw characters count:', rawState!.characters?.length || 0);
-      console.log('Parsed characters count:', parsedState.characters?.length || 0);
+      console.log('\nDocuments comparison:');
+      const rawDocumentsCount = Object.keys(rawState!.documents || {}).length;
+      const parsedDocumentsCount = Object.keys(parsedState.documents || {}).length;
+      console.log('Raw documents count:', rawDocumentsCount);
+      console.log('Parsed documents count:', parsedDocumentsCount);
       
-      if (rawState!.characters?.length > 0) {
-        const rawChar = rawState.characters[0];
-        const parsedChar = parsedState.characters[0];
-        console.log('First character raw keys:', Object.keys(rawChar || {}));
-        console.log('First character parsed keys:', Object.keys(parsedChar || {}));
+      if (rawDocumentsCount > 0) {
+        const rawDocuments = Object.values(rawState!.documents || {});
+        const parsedDocuments = Object.values(parsedState.documents || {});
+        const rawDoc = rawDocuments[0];
+        const parsedDoc = parsedDocuments[0];
+        console.log('First document raw keys:', Object.keys(rawDoc || {}));
+        console.log('First document parsed keys:', Object.keys(parsedDoc || {}));
         
         // Check specific fields that might be different
         console.log('\nFirst character field comparison:');

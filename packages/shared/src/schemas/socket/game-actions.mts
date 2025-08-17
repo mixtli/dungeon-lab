@@ -8,7 +8,8 @@ import { z } from 'zod';
 export const gameActionTypeSchema = z.enum([
   'move-token',
   'remove-token',
-  'add-document', 
+  'add-document',
+  'update-document', 
   'end-turn',
   'roll-initiative',
   'start-encounter',
