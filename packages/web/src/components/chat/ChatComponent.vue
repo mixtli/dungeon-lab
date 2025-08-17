@@ -9,6 +9,7 @@ import { useMentions } from '../../composables/useMentions.mjs';
 import { useNotifications } from '../../composables/useNotifications.mjs';
 import MentionInput from './MentionInput.vue';
 import RollCard from './RollCard.vue';
+import ApprovalCard from './ApprovalCard.vue';
 
 interface Props {
   showHeader?: boolean;
@@ -522,6 +523,10 @@ onUnmounted(() => {
                   </div>
                   <!-- Roll card for roll messages -->
                   <RollCard v-if="message.type === 'roll' && message.rollData" :rollData="message.rollData" />
+                  <!-- Approval card for approval request messages -->
+                  <ApprovalCard v-else-if="message.type === 'approval-request' && message.approvalData" 
+                    :approvalData="message.approvalData" 
+                    :timestamp="message.timestamp" />
                   <!-- Regular text content for text messages -->
                   <div v-else class="mt-1 leading-relaxed" v-html="highlightMentions(message.content)"></div>
                 </div>

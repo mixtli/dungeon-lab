@@ -17,9 +17,8 @@
         <div class="character-details">
           <h1 v-if="!editMode || readonly" class="character-name">{{ actor.name }}</h1>
           <input 
-            v-else
-            :value="localFormData.name"
-            @input="updateFormField('name', ($event.target as HTMLInputElement).value)"
+            v-else-if="actorCopy"
+            v-model="actorCopy.name"
             class="character-name-input"
             type="text"
           />
@@ -41,13 +40,13 @@
           v-if="editMode && !readonly" 
           @click="saveActor" 
           class="save-btn"
-          :disabled="!hasUnsavedChanges"
-          :title="hasUnsavedChanges ? 'Save changes' : 'No changes to save'"
+          :disabled="!props.hasUnsavedChanges"
+          :title="props.hasUnsavedChanges ? 'Save changes' : 'No changes to save'"
         >
           💾
         </button>
         <button 
-          v-if="editMode && !readonly && hasUnsavedChanges" 
+          v-if="editMode && !readonly && props.hasUnsavedChanges" 
           @click="cancelEdit" 
           class="cancel-btn"
           title="Cancel changes"
@@ -68,9 +67,8 @@
           <span class="stat-label">Armor Class</span>
           <span v-if="!editMode || readonly" class="stat-value">{{ armorClassDisplay }}</span>
           <input 
-            v-else
-            :value="localFormData.armorClass"
-            @input="updateFormField('armorClass', parseInt(($event.target as HTMLInputElement).value) || 10)"
+            v-else-if="actorCopy"
+            v-model.number="armorClassCopy"
             class="stat-input inline"
             type="number"
             min="1"
@@ -83,17 +81,15 @@
           <span v-if="!editMode || readonly" class="stat-value">{{ hitPointsDisplay }}</span>
           <div v-else class="hit-points-edit inline">
             <input 
-              :value="localFormData.hitPointsCurrent"
-              @input="updateFormField('hitPointsCurrent', parseInt(($event.target as HTMLInputElement).value) || 0)"
+              v-model.number="hitPointsCurrentCopy"
               class="stat-input hp-current"
               type="number"
               min="0"
-              :max="localFormData.hitPointsMax"
+              :max="hitPointsMaxCopy"
             />
             <span class="hp-separator">/</span>
             <input 
-              :value="localFormData.hitPointsMax"
-              @input="updateFormField('hitPointsMax', parseInt(($event.target as HTMLInputElement).value) || 1)"
+              v-model.number="hitPointsMaxCopy"
               class="stat-input hp-max"
               type="number"
               min="1"
@@ -122,9 +118,9 @@
             <div class="ability-name">{{ ability.name }}</div>
             <div v-if="!editMode || readonly" class="ability-score">{{ getAbilityScore(ability.key) }}</div>
             <input 
-              v-else
-              :value="localFormData.abilities[ability.key as keyof typeof localFormData.abilities]"
-              @input="updateFormAbility(ability.key, parseInt(($event.target as HTMLInputElement).value) || 10)"
+              v-else-if="actorCopy"
+              :value="getAbilityScoreCopy(ability.key)"
+              @input="updateAbilityScoreCopy(ability.key, parseInt(($event.target as HTMLInputElement).value) || 10)"
               class="ability-input"
               type="number"
               min="1"
@@ -258,9 +254,14 @@ import type { IActor, BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
 // Props - unified interface for all document types
 interface Props {
   document: Ref<BaseDocument>;
+  documentCopy?: Ref<BaseDocument | null>;
   items?: Ref<any[]>;
   editMode?: boolean;
   readonly?: boolean;
+  hasUnsavedChanges?: boolean;
+  save?: () => void;
+  cancel?: () => void;
+  reset?: () => void;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -279,6 +280,17 @@ const actor = computed(() => {
     return null;
   }
   return doc as IActor;
+});
+
+// Type-safe actor copy accessor for edit mode
+const actorCopy = computed(() => {
+  const copy = props.documentCopy?.value;
+  if (!copy) return null;
+  if (copy.documentType !== 'actor') {
+    console.warn('[ActorSheet] Document copy is not an actor:', copy.documentType);
+    return null;
+  }
+  return copy as IActor;
 });
 
 // Debug logging for props
@@ -306,78 +318,8 @@ const emit = defineEmits<{
   (e: 'drag-start', event: MouseEvent): void;
 }>();
 
-// Component state
-const editMode = ref(false);
-
-// Local form state - tracks user edits independently of gameState
-const localFormData = ref({
-  name: '',
-  armorClass: 10,
-  hitPointsCurrent: 1,
-  hitPointsMax: 1,
-  abilities: {
-    strength: 10,
-    dexterity: 10,
-    constitution: 10,
-    intelligence: 10,
-    wisdom: 10,
-    charisma: 10
-  }
-});
-
-// Track which fields have been modified
-const modifiedFields = ref(new Set<string>());
-
-// Update form field and track as modified
-const updateFormField = (field: string, value: any) => {
-  (localFormData.value as any)[field] = value;
-  modifiedFields.value.add(field);
-};
-
-// Update ability score in form and track as modified
-const updateFormAbility = (ability: string, value: number) => {
-  localFormData.value.abilities[ability as keyof typeof localFormData.value.abilities] = value;
-  modifiedFields.value.add(`abilities.${ability}`);
-};
-
-// Reset form to match current actor state
-const resetForm = () => {
-  localFormData.value = {
-    name: actor.value.name,
-    armorClass: (() => {
-      const acData = actor.value.pluginData?.armorClass;
-      return (typeof acData === 'object' && acData && 'value' in acData) ? (acData as any).value : (acData || 10);
-    })(),
-    hitPointsCurrent: (() => {
-      const hpData = actor.value.pluginData?.hitPoints;
-      if (typeof hpData === 'object' && hpData) {
-        const current = 'current' in hpData ? (hpData as any).current : undefined;
-        const average = 'average' in hpData ? (hpData as any).average : undefined;
-        return current ?? average ?? 1;
-      }
-      return actor.value.pluginData?.hitPointsCurrent ?? 1;
-    })(),
-    hitPointsMax: (() => {
-      const hpData = actor.value.pluginData?.hitPoints;
-      if (typeof hpData === 'object' && hpData && 'average' in hpData) {
-        return (hpData as any).average;
-      }
-      return actor.value.pluginData?.hitPointsMax || 1;
-    })(),
-    abilities: {
-      strength: actor.value.pluginData?.abilities?.strength || 10,
-      dexterity: actor.value.pluginData?.abilities?.dexterity || 10,
-      constitution: actor.value.pluginData?.abilities?.constitution || 10,
-      intelligence: actor.value.pluginData?.abilities?.intelligence || 10,
-      wisdom: actor.value.pluginData?.abilities?.wisdom || 10,
-      charisma: actor.value.pluginData?.abilities?.charisma || 10
-    }
-  };
-  modifiedFields.value.clear();
-};
-
-// Check if form has unsaved changes
-const hasUnsavedChanges = computed(() => modifiedFields.value.size > 0);
+// Edit mode comes from DocumentSheetContainer
+const editMode = computed(() => props.editMode || false);
 
 // Ability scores data
 const abilities = [
@@ -389,123 +331,143 @@ const abilities = [
   { key: 'charisma', name: 'CHA' }
 ];
 
-// Reactive ability scores
-const abilityScores = computed({
-  get: () => actor.value.pluginData?.abilities || {
-    strength: 10,
-    dexterity: 10,
-    constitution: 10,
-    intelligence: 10,
-    wisdom: 10,
-    charisma: 10
-  },
-  set: (value) => {
-    if (!actor.value.pluginData) {
-      actor.value.pluginData = {};
-    }
-    actor.value.pluginData.abilities = value;
-    emit('update:document', actor.value!);
-  }
+// Reactive ability scores - read from original actor
+const abilityScores = computed(() => actor.value?.pluginData?.abilities || {
+  strength: 10,
+  dexterity: 10,
+  constitution: 10,
+  intelligence: 10,
+  wisdom: 10,
+  charisma: 10
 });
 
 // Computed properties
 const creatureTypeDisplay = computed(() => {
-  const size = actor.value.pluginData?.size || 'Medium';
-  const type = actor.value.pluginData?.type || 'humanoid';
+  const size = actor.value?.pluginData?.size || 'Medium';
+  const type = actor.value?.pluginData?.type || 'humanoid';
   return `${size} ${type}`;
 });
 
 const challengeRatingDisplay = computed(() => {
-  const cr = actor.value.pluginData?.challengeRating || '1/8';
-  const xp = actor.value.pluginData?.experiencePoints || 25;
+  const cr = actor.value?.pluginData?.challengeRating || '1/8';
+  const xp = actor.value?.pluginData?.experiencePoints || 25;
   return `${cr} (${xp} XP)`;
 });
 
 const armorClassDisplay = computed(() => {
-  const acData = actor.value.pluginData?.armorClass;
+  const acData = actor.value?.pluginData?.armorClass;
   const ac = (typeof acData === 'object' && acData && 'value' in acData) ? (acData as any).value : (acData || 10);
   const source = (typeof acData === 'object' && acData && 'source' in acData) ? (acData as any).source : undefined;
   return source ? `${ac} (${source})` : ac.toString();
 });
 
-const armorClassValue = computed({
+// Computed properties for copy editing
+const armorClassCopy = computed({
   get: () => {
-    const acData = actor.value.pluginData?.armorClass;
+    if (!actorCopy.value?.pluginData) return 10;
+    const acData = actorCopy.value.pluginData.armorClass;
     return (typeof acData === 'object' && acData && 'value' in acData) ? (acData as any).value : (acData || 10);
   },
   set: (value) => {
-    if (!actor.value.pluginData) {
-      actor.value.pluginData = {};
+    if (!actorCopy.value?.pluginData) {
+      if (actorCopy.value) {
+        actorCopy.value.pluginData = {};
+      }
+      return;
     }
     // Keep existing structure if it's an object, otherwise create simple value
-    const existing = actor.value.pluginData.armorClass;
+    const existing = actorCopy.value.pluginData.armorClass;
     if (typeof existing === 'object') {
-      actor.value.pluginData.armorClass = { ...existing, value };
+      actorCopy.value.pluginData.armorClass = { ...existing, value };
     } else {
-      actor.value.pluginData.armorClass = { value };
+      actorCopy.value.pluginData.armorClass = { value };
     }
-    emit('update:document', actor.value!);
   }
 });
 
-const hitPointsMax = computed({
+const hitPointsMaxCopy = computed({
   get: () => {
-    const hpData = actor.value.pluginData?.hitPoints;
+    if (!actorCopy.value?.pluginData) return 1;
+    const hpData = actorCopy.value.pluginData.hitPoints;
     if (typeof hpData === 'object' && hpData && 'average' in hpData) {
       return (hpData as any).average;
     }
-    return actor.value.pluginData?.hitPointsMax || 1;
+    return actorCopy.value.pluginData.hitPointsMax || 1;
   },
   set: (value) => {
-    if (!actor.value.pluginData) {
-      actor.value.pluginData = {};
+    if (!actorCopy.value?.pluginData) {
+      if (actorCopy.value) {
+        actorCopy.value.pluginData = {};
+      }
+      return;
     }
     // Update the hitPoints.average if structured data exists
-    const existing = actor.value.pluginData.hitPoints;
+    const existing = actorCopy.value.pluginData.hitPoints;
     if (typeof existing === 'object') {
-      actor.value.pluginData.hitPoints = { ...existing, average: value };
+      actorCopy.value.pluginData.hitPoints = { ...existing, average: value };
     } else {
-      actor.value.pluginData.hitPointsMax = value;
+      actorCopy.value.pluginData.hitPointsMax = value;
     }
-    emit('update:document', actor.value!);
   }
 });
 
-const hitPointsCurrent = computed({
+const hitPointsCurrentCopy = computed({
   get: () => {
-    const hpData = actor.value.pluginData?.hitPoints;
+    if (!actorCopy.value?.pluginData) return 1;
+    const hpData = actorCopy.value.pluginData.hitPoints;
     if (typeof hpData === 'object' && hpData) {
       const current = 'current' in hpData ? (hpData as any).current : undefined;
       const average = 'average' in hpData ? (hpData as any).average : undefined;
       return current ?? average ?? 1;
     }
-    return actor.value.pluginData?.hitPointsCurrent ?? hitPointsMax.value;
+    return actorCopy.value.pluginData.hitPointsCurrent ?? hitPointsMaxCopy.value;
   },
   set: (value) => {
-    if (!actor.value.pluginData) {
-      actor.value.pluginData = {};
+    if (!actorCopy.value?.pluginData) {
+      if (actorCopy.value) {
+        actorCopy.value.pluginData = {};
+      }
+      return;
     }
     // Update the hitPoints.current if structured data exists
-    const existing = actor.value.pluginData.hitPoints;
+    const existing = actorCopy.value.pluginData.hitPoints;
     if (typeof existing === 'object') {
-      actor.value.pluginData.hitPoints = { ...existing, current: value };
+      actorCopy.value.pluginData.hitPoints = { ...existing, current: value };
     } else {
-      actor.value.pluginData.hitPointsCurrent = value;
+      actorCopy.value.pluginData.hitPointsCurrent = value;
     }
-    emit('update:document', actor.value!);
   }
+});
+
+// Read-only computed properties for display (use original actor)
+const hitPointsMax = computed(() => {
+  const hpData = actor.value?.pluginData?.hitPoints;
+  if (typeof hpData === 'object' && hpData && 'average' in hpData) {
+    return (hpData as any).average;
+  }
+  return actor.value?.pluginData?.hitPointsMax || 1;
+});
+
+const hitPointsCurrent = computed(() => {
+  const hpData = actor.value?.pluginData?.hitPoints;
+  if (typeof hpData === 'object' && hpData) {
+    const current = 'current' in hpData ? (hpData as any).current : undefined;
+    const average = 'average' in hpData ? (hpData as any).average : undefined;
+    return current ?? average ?? 1;
+  }
+  return actor.value?.pluginData?.hitPointsCurrent ?? hitPointsMax.value;
 });
 
 const hitPointsDisplay = computed(() => {
   const current = hitPointsCurrent.value;
   const max = hitPointsMax.value;
-  const hpData = actor.value.pluginData?.hitPoints;
+  const hpData = actor.value?.pluginData?.hitPoints;
   const formula = (typeof hpData === 'object' && hpData && 'formula' in hpData) ? ` (${(hpData as any).formula})` : '';
   return `${current}/${max}${formula}`;
 });
 
 const speedDisplay = computed(() => {
-  const speeds = actor.value.pluginData?.speed || { walk: 30 };
+  const speeds = actor.value?.pluginData?.speed || { walk: 30 };
   const speedParts = [];
   
   // Type guard to ensure speeds is an object
@@ -523,7 +485,7 @@ const speedDisplay = computed(() => {
 
 // Saving throws
 const savingThrows = computed(() => {
-  const savingThrowsData = actor.value.pluginData?.savingThrows;
+  const savingThrowsData = actor.value?.pluginData?.savingThrows;
   return Array.isArray(savingThrowsData) ? savingThrowsData : [];
 });
 
@@ -531,7 +493,7 @@ const hasSavingThrows = computed(() => savingThrows.value.length > 0);
 
 // Skills
 const skills = computed(() => {
-  const skillsData = actor.value.pluginData?.skills;
+  const skillsData = actor.value?.pluginData?.skills;
   return Array.isArray(skillsData) ? skillsData : [];
 });
 
@@ -539,17 +501,17 @@ const hasSkills = computed(() => skills.value.length > 0);
 
 // Resistances and immunities
 const damageResistances = computed(() => {
-  const resistancesData = actor.value.pluginData?.damageResistances;
+  const resistancesData = actor.value?.pluginData?.damageResistances;
   return Array.isArray(resistancesData) ? resistancesData : [];
 });
 
 const damageImmunities = computed(() => {
-  const immunitiesData = actor.value.pluginData?.damageImmunities;
+  const immunitiesData = actor.value?.pluginData?.damageImmunities;
   return Array.isArray(immunitiesData) ? immunitiesData : [];
 });
 
 const conditionImmunities = computed(() => {
-  const conditionImmunitiesData = actor.value.pluginData?.conditionImmunities;
+  const conditionImmunitiesData = actor.value?.pluginData?.conditionImmunities;
   return Array.isArray(conditionImmunitiesData) ? conditionImmunitiesData : [];
 });
 
@@ -561,9 +523,9 @@ const hasResistances = computed(() => {
 
 // Senses and languages
 const senses = computed(() => {
-  const sensesData = actor.value.pluginData?.senses;
+  const sensesData = actor.value?.pluginData?.senses;
   const sensesArray = Array.isArray(sensesData) ? sensesData : [];
-  const passivePerception = actor.value.pluginData?.passivePerception;
+  const passivePerception = actor.value?.pluginData?.passivePerception;
   const result = [...sensesArray];
   if (passivePerception) {
     result.push(`passive Perception ${passivePerception}`);
@@ -572,27 +534,27 @@ const senses = computed(() => {
 });
 
 const languages = computed(() => {
-  const languagesData = actor.value.pluginData?.languages;
+  const languagesData = actor.value?.pluginData?.languages;
   return Array.isArray(languagesData) ? languagesData : [];
 });
 
 // Actions
 const actions = computed(() => {
-  const actionsData = actor.value.pluginData?.actions;
+  const actionsData = actor.value?.pluginData?.actions;
   return Array.isArray(actionsData) ? actionsData : [];
 });
 
 const hasActions = computed(() => actions.value.length > 0);
 
 const legendaryActions = computed(() => {
-  const legendaryActionsData = actor.value.pluginData?.legendaryActions;
+  const legendaryActionsData = actor.value?.pluginData?.legendaryActions;
   return Array.isArray(legendaryActionsData) ? legendaryActionsData : [];
 });
 
 const hasLegendaryActions = computed(() => legendaryActions.value.length > 0);
 
 const legendaryActionsPerTurn = computed(() => {
-  return actor.value.pluginData?.legendaryActionsPerTurn || 3;
+  return actor.value?.pluginData?.legendaryActionsPerTurn || 3;
 });
 
 // Helper functions
@@ -601,12 +563,34 @@ const getAbilityScore = (ability: string): number => {
   return scores[ability] || 10;
 };
 
-const updateAbilityScore = (ability: string, value: string) => {
-  const numValue = parseInt(value) || 10;
-  const currentScores = { ...abilityScores.value };
-  (currentScores as Record<string, number>)[ability] = numValue;
-  abilityScores.value = currentScores;
+const getAbilityScoreCopy = (ability: string): number => {
+  if (!actorCopy.value?.pluginData?.abilities) {
+    return 10;
+  }
+  return (actorCopy.value.pluginData.abilities as Record<string, number>)[ability] || 10;
 };
+
+const updateAbilityScoreCopy = (ability: string, value: number) => {
+  if (!actorCopy.value?.pluginData) {
+    if (actorCopy.value) {
+      actorCopy.value.pluginData = {};
+    }
+    return;
+  }
+  if (!actorCopy.value.pluginData.abilities) {
+    actorCopy.value.pluginData.abilities = {
+      strength: 10,
+      dexterity: 10,
+      constitution: 10,
+      intelligence: 10,
+      wisdom: 10,
+      charisma: 10
+    };
+  }
+  (actorCopy.value.pluginData.abilities as Record<string, number>)[ability] = value;
+};
+
+// Removed updateAbilityScore - using direct v-model binding to actorCopy now
 
 const getAbilityModifier = (ability: string): string => {
   const score = getAbilityScore(ability);
@@ -618,28 +602,23 @@ const formatModifier = (modifier: number): string => {
   return modifier >= 0 ? `+${modifier}` : `${modifier}`;
 };
 
-// Actions
+// Actions - simplified with DocumentSheetContainer handling state
 const toggleEditMode = () => {
-  if (!editMode.value) {
-    // Entering edit mode - initialize form with current values
-    resetForm();
-  }
-  editMode.value = !editMode.value;
+  emit('toggle-edit-mode');
 };
 
 const saveActor = () => {
-  // Only save if there are changes
-  if (hasUnsavedChanges.value) {
-    // TODO: Emit state change request instead of direct save
+  if (props.save) {
+    props.save();
+  } else {
     emit('save');
-    modifiedFields.value.clear();
   }
-  editMode.value = false;
 };
 
 const cancelEdit = () => {
-  resetForm();
-  editMode.value = false;
+  if (props.cancel) {
+    props.cancel();
+  }
 };
 
 const closeSheet = () => {
@@ -699,16 +678,9 @@ const rollAction = (action: any) => {
 // Lifecycle
 onMounted(() => {
   console.log('[ActorSheet] Mounted with actor:', actor.value?.name || 'unknown');
-  // Initialize form data
-  resetForm();
+  console.log('[ActorSheet] ActorCopy available:', !!actorCopy.value);
+  console.log('[ActorSheet] Edit mode:', editMode.value);
 });
-
-// Watch for actor changes and reset form
-watch(() => actor.value, (newActor) => {
-  if (newActor && !editMode.value) {
-    resetForm();
-  }
-}, { deep: true });
 </script>
 
 <style>

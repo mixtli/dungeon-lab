@@ -12,10 +12,18 @@
     <div class="chat-messages">
       <div class="message-list" ref="messageList">
         <!-- Real chat messages -->
-        <div v-for="message in filteredMessages" :key="message.id" :class="getMessageClass(message)">
-          <span v-if="!message.isSystem" class="message-sender">{{ message.senderName }}</span>
-          <span class="message-text">{{ message.content }}</span>
-          <span class="message-time">{{ formatTime(message.timestamp) }}</span>
+        <div v-for="message in filteredMessages" :key="message.id">
+          <!-- Approval Card for approval request messages -->
+          <ApprovalCard v-if="message.type === 'approval-request' && message.approvalData" 
+            :approvalData="message.approvalData" 
+            :timestamp="message.timestamp" 
+            class="mb-3" />
+          <!-- Regular message display -->
+          <div v-else :class="getMessageClass(message)">
+            <span v-if="!message.isSystem" class="message-sender">{{ message.senderName }}</span>
+            <span class="message-text">{{ message.content }}</span>
+            <span class="message-time">{{ formatTime(message.timestamp) }}</span>
+          </div>
         </div>
         
         <!-- No messages state -->
@@ -60,6 +68,7 @@ import { useChatStore, type ChatMessage } from '../../../stores/chat.store.mts';
 import { useSocketStore } from '../../../stores/socket.store.mts';
 import { useGameStateStore } from '../../../stores/game-state.store.mjs';
 import { useGameSessionStore } from '../../../stores/game-session.store.mts';
+import ApprovalCard from '../../chat/ApprovalCard.vue';
 const chatStore = useChatStore();
 const socketStore = useSocketStore();
 const gameStateStore = useGameStateStore();

@@ -10,12 +10,21 @@ import { useGameSessionStore } from './game-session.store.mts';
 import { useGameStateStore } from './game-state.store.mjs';
 import type { ParsedMessage, Mention } from '@dungeon-lab/shared/types/chat.mjs';
 import type { RollServerResult } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
+import type { GameActionRequest } from '@dungeon-lab/shared/types/game-actions.mjs';
 
 export interface ChatContext {
   id: string;
   name: string;
   type: 'campaign' | 'user' | 'actor' | 'bot';
   participantId?: string;
+}
+
+export interface ApprovalData {
+  requestId: string;
+  actionType: string;
+  playerName: string;
+  description: string;
+  request: GameActionRequest;
 }
 
 export interface ChatMessage {
@@ -29,13 +38,15 @@ export interface ChatMessage {
   recipientType?: 'user' | 'actor' | 'session' | 'system' | 'bot';
   mentions?: ParsedMessage['mentions'];
   hasMentions?: boolean;
-  type?: 'text' | 'roll';
+  type?: 'text' | 'roll' | 'approval-request';
   rollData?: RollServerResult;
+  approvalData?: ApprovalData;
 }
 
 interface ChatStore {
   messages: ChatMessage[];
   sendMessage: (message: string, recipientId?: string, chatContexts?: ChatContext[]) => void;
+  sendApprovalRequest: (approvalData: ApprovalData) => void;
   clearMessages: () => void;
 }
 
@@ -246,6 +257,36 @@ export const useChatStore = defineStore(
       // This ensures single source of truth and prevents duplicate messages
     }
 
+    // Send an approval request message
+    function sendApprovalRequest(approvalData: ApprovalData) {
+      if (!socketStore.socket) {
+        console.error('Socket not connected, cannot send approval request');
+        return;
+      }
+
+      // Create approval request message directly in store
+      const approvalMessage: ChatMessage = {
+        id: generateId(),
+        content: `**Action Approval Required**\n${approvalData.description}`,
+        senderId: 'system',
+        senderName: 'System',
+        timestamp: new Date().toISOString(),
+        isSystem: true,
+        recipientType: 'session',
+        type: 'approval-request',
+        approvalData: approvalData
+      };
+
+      // Add message to local store immediately (no server echo needed for system messages)
+      messages.value.push(approvalMessage);
+
+      console.log('[ChatStore] Approval request added to chat:', {
+        requestId: approvalData.requestId,
+        actionType: approvalData.actionType,
+        playerName: approvalData.playerName
+      });
+    }
+
     // Clear all messages
     function clearMessages() {
       messages.value = [];
@@ -259,6 +300,7 @@ export const useChatStore = defineStore(
     return {
       messages,
       sendMessage,
+      sendApprovalRequest,
       clearMessages
     };
   },

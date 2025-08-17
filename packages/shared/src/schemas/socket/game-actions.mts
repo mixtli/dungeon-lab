@@ -54,10 +54,43 @@ export const gameActionResponseArgsSchema = z.tuple([
   actionRequestResponseSchema
 ]);
 
+// Approval event schemas
+export const gameActionApprovalArgsSchema = z.tuple([
+  z.object({
+    requestId: z.string(),
+    playerId: z.string()
+  })
+]);
+
+export const gameActionDenialArgsSchema = z.tuple([
+  z.object({
+    requestId: z.string(),
+    playerId: z.string(),
+    reason: z.string().optional()
+  })
+]);
+
+export const gameActionApprovedArgsSchema = z.tuple([
+  z.object({
+    requestId: z.string()
+  })
+]);
+
+export const gameActionDeniedArgsSchema = z.tuple([
+  z.object({
+    requestId: z.string(),
+    reason: z.string()
+  })
+]);
+
 // Exports for socket event integration
 export type GameActionRequestArgs = z.infer<typeof gameActionRequestArgsSchema>;
 export type GameActionGmRequestArgs = z.infer<typeof gameActionGmRequestArgsSchema>;
 export type GameActionResponseArgs = z.infer<typeof gameActionResponseArgsSchema>;
+export type GameActionApprovalArgs = z.infer<typeof gameActionApprovalArgsSchema>;
+export type GameActionDenialArgs = z.infer<typeof gameActionDenialArgsSchema>;
+export type GameActionApprovedArgs = z.infer<typeof gameActionApprovedArgsSchema>;
+export type GameActionDeniedArgs = z.infer<typeof gameActionDeniedArgsSchema>;
 export type GameActionRequest = z.infer<typeof gameActionRequestSchema>;
 export type ActionRequestResponse = z.infer<typeof actionRequestResponseSchema>;
 export type GameActionType = z.infer<typeof gameActionTypeSchema>;

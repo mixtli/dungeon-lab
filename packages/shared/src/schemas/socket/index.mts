@@ -92,7 +92,11 @@ import {
 import {
   gameActionRequestArgsSchema,
   gameActionGmRequestArgsSchema,
-  gameActionResponseArgsSchema
+  gameActionResponseArgsSchema,
+  gameActionApprovalArgsSchema,
+  gameActionDenialArgsSchema,
+  gameActionApprovedArgsSchema,
+  gameActionDeniedArgsSchema
 } from './game-actions.mjs';
 
 import {
@@ -219,7 +223,10 @@ export const serverToClientEvents = z.object({
   'gameSession:paused': z.function().args(gameSessionPausedSchema).returns(z.void()),
   'gameSession:resumed': z.function().args(gameSessionResumedSchema).returns(z.void()),
   // GM receives action requests forwarded from server
-  'gameAction:forward': z.function().args(...gameActionGmRequestArgsSchema.items).returns(z.void())
+  'gameAction:forward': z.function().args(...gameActionGmRequestArgsSchema.items).returns(z.void()),
+  // Action approval notifications to players
+  'gameAction:approved': z.function().args(...gameActionApprovedArgsSchema.items).returns(z.void()),
+  'gameAction:denied': z.function().args(...gameActionDeniedArgsSchema.items).returns(z.void())
 });
 
 export const clientToServerEvents = z.object({
@@ -242,5 +249,8 @@ export const clientToServerEvents = z.object({
   // Game action request events
   'gameAction:request': z.function().args(...gameActionRequestArgsSchema.items).returns(z.void()),
   // GM responds to action requests
-  'gameAction:response': z.function().args(...gameActionResponseArgsSchema.items).returns(z.void())
+  'gameAction:response': z.function().args(...gameActionResponseArgsSchema.items).returns(z.void()),
+  // GM approval/denial of action requests
+  'gameAction:approve': z.function().args(...gameActionApprovalArgsSchema.items).returns(z.void()),
+  'gameAction:deny': z.function().args(...gameActionDenialArgsSchema.items).returns(z.void())
 });
