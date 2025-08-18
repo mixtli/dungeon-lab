@@ -195,26 +195,17 @@ export async function moveTokenHandler(request: GameActionRequest): Promise<Acti
     }
   ];
 
-    // Execute the game state update
-    const updateResult = await gameStateStore.updateGameState(operations);
-    
-    if (!updateResult.success) {
-      return {
-        success: false,
-        error: {
-          code: 'STATE_UPDATE_FAILED',
-          message: updateResult.error?.message || 'Failed to update game state'
-        }
-      };
-    }
-
-    console.log('[MoveTokenHandler] Token movement executed successfully:', {
+    console.log('[MoveTokenHandler] Token movement validation successful, returning operations:', {
       tokenId: params.tokenId,
       newPosition: params.newPosition,
-      requestId: request.id
+      requestId: request.id,
+      operationsCount: operations.length
     });
 
-    return { success: true };
+    return { 
+      success: true,
+      stateOperations: operations
+    };
 
   } catch (error) {
     console.error('[MoveTokenHandler] Error executing token movement:', error);

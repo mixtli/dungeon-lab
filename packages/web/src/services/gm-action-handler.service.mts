@@ -14,6 +14,7 @@ import {
 } from './action-config-registry.mts';
 import { useChatStore, type ApprovalData } from '../stores/chat.store.mts';
 import { useGameSessionStore } from '../stores/game-session.store.mjs';
+import { useGameStateStore } from '../stores/game-state.store.mjs';
 import { useSocketStore } from '../stores/socket.store.mjs';
 
 /**
@@ -34,6 +35,10 @@ export class GMActionHandlerService {
   // Lazy-loaded stores to avoid initialization order issues
   private get gameSessionStore() {
     return useGameSessionStore();
+  }
+
+  private get gameStateStore() {
+    return useGameStateStore();
   }
 
   private get socketStore() {
@@ -126,6 +131,36 @@ export class GMActionHandlerService {
       const result = await config.handler(request);
       
       if (result.success) {
+        // Apply any state operations returned by the handler
+        if (result.stateOperations && result.stateOperations.length > 0) {
+          console.log('[GMActionHandler] Applying state operations from handler:', {
+            action: request.action,
+            operationsCount: result.stateOperations.length,
+            requestId: request.id
+          });
+          
+          const updateResult = await this.gameStateStore.updateGameState(result.stateOperations);
+          
+          if (!updateResult.success) {
+            // State update failed - send error response
+            this.socketStore.emit('gameAction:response', {
+              success: false,
+              requestId: request.id,
+              error: {
+                code: 'STATE_UPDATE_FAILED',
+                message: updateResult.error?.message || 'Failed to apply state changes'
+              }
+            });
+            
+            console.error('[GMActionHandler] State update failed:', {
+              requestId: request.id,
+              action: request.action,
+              error: updateResult.error
+            });
+            return;
+          }
+        }
+        
         // Send success response
         this.socketStore.emit('gameAction:response', {
           success: true,

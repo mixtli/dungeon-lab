@@ -116,27 +116,18 @@ export async function removeTokenHandler(request: GameActionRequest): Promise<Ac
       }
     }
 
-    // Execute the game state update
-    const updateResult = await gameStateStore.updateGameState(operations);
-    
-    if (!updateResult.success) {
-      return {
-        success: false,
-        error: {
-          code: 'STATE_UPDATE_FAILED',
-          message: updateResult.error?.message || 'Failed to update game state'
-        }
-      };
-    }
-
-    console.log('[RemoveTokenHandler] Token removal executed successfully:', {
+    console.log('[RemoveTokenHandler] Token removal validation successful, returning operations:', {
       tokenId: params.tokenId,
       tokenName: params.tokenName,
       removedFromTurnOrder: !!gameStateStore.gameState?.turnManager?.participants,
-      requestId: request.id
+      requestId: request.id,
+      operationsCount: operations.length
     });
 
-    return { success: true };
+    return { 
+      success: true,
+      stateOperations: operations
+    };
 
   } catch (error) {
     console.error('[RemoveTokenHandler] Error executing token removal:', error);

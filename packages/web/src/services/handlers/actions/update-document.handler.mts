@@ -36,25 +36,16 @@ export async function updateDocumentHandler(request: GameActionRequest): Promise
       };
     }
 
-    // Execute the state operations
-    const updateResult = await gameStateStore.updateGameState(params.operations);
-    
-    if (!updateResult.success) {
-      return {
-        success: false,
-        error: {
-          code: 'STATE_UPDATE_FAILED',
-          message: updateResult.error || 'Failed to update game state'
-        }
-      };
-    }
-
-    console.log('[UpdateDocumentHandler] Document update executed successfully:', { 
+    console.log('[UpdateDocumentHandler] Document update validation successful, returning operations:', { 
       requestId: request.id,
-      documentId: params.documentId 
+      documentId: params.documentId,
+      operationsCount: params.operations.length
     });
 
-    return { success: true };
+    return { 
+      success: true,
+      stateOperations: params.operations
+    };
     
   } catch (error) {
     console.error('[UpdateDocumentHandler] Error executing document update:', error);
