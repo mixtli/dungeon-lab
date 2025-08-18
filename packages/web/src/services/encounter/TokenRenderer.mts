@@ -106,7 +106,6 @@ export class TokenRenderer {
   constructor(tokenContainer: PIXI.Container, _options?: TokenRendererOptions, scaleProvider?: () => number) {
     this.tokenContainer = tokenContainer;
     this.scaleProvider = scaleProvider;
-    console.log('[TokenRenderer] initialized with container:', tokenContainer.label || 'unnamed');
   }
 
   /**
@@ -118,8 +117,6 @@ export class TokenRenderer {
     
     // Clear texture cache
     this.textureCache.clear();
-    
-    console.log('[TokenRenderer] Destroyed and cleaned up');
   }
   
   /**
@@ -171,20 +168,12 @@ export class TokenRenderer {
    * Calculate center position from grid bounds
    */
   private getCenterFromBounds(bounds: { topLeft: { x: number; y: number }; bottomRight: { x: number; y: number } }): { x: number; y: number } {
-    console.log(`[TokenRenderer] 🧮 Calculating center from bounds:`, bounds);
-    
     const centerGridX = (bounds.topLeft.x + bounds.bottomRight.x) / 2;
     const centerGridY = (bounds.topLeft.y + bounds.bottomRight.y) / 2;
-    
-    console.log(`[TokenRenderer] 📐 Grid center:`, { centerGridX, centerGridY });
-    console.log(`[TokenRenderer] 📏 Grid size:`, this._gridSize);
     
     const worldX = centerGridX * this._gridSize + this._gridSize / 2;
     const worldY = centerGridY * this._gridSize + this._gridSize / 2;
     
-    console.log(`[TokenRenderer] 🌍 World coordinates:`, { worldX, worldY });
-    
-    // Convert grid coordinates to world coordinates  
     return {
       x: worldX,
       y: worldY
@@ -195,18 +184,12 @@ export class TokenRenderer {
    * Calculate pixel size from grid bounds
    */
   private getPixelSizeFromBounds(bounds: { topLeft: { x: number; y: number }; bottomRight: { x: number; y: number } }): number {
-    console.log(`[TokenRenderer] 📐 Calculating pixel size from bounds:`, bounds);
-    
     const gridWidth = bounds.bottomRight.x - bounds.topLeft.x + 1;
     const gridHeight = bounds.bottomRight.y - bounds.topLeft.y + 1;
-    
-    console.log(`[TokenRenderer] 📊 Grid dimensions:`, { gridWidth, gridHeight });
     
     // Use the larger dimension for square tokens
     const gridSize = Math.max(gridWidth, gridHeight);
     const pixelSize = gridSize * this._gridSize;
-    
-    console.log(`[TokenRenderer] 🎯 Final pixel size:`, { gridSize, pixelSize });
     
     return pixelSize;
   }
@@ -244,52 +227,36 @@ export class TokenRenderer {
    * Add or update a token sprite
    */
   async addToken(token: Token): Promise<void> {
-    console.log(`[TokenRenderer] 🟢 Starting addToken for ${token.id}:`, {
-      tokenName: token.name,
-      bounds: token.bounds,
-      imageUrl: token.imageUrl,
-      isVisible: token.isVisible
-    });
-    
     try {
       // Remove existing token if it exists
       if (this.activeTokens.has(token.id)) {
-        console.log(`[TokenRenderer] 🔄 Removing existing token ${token.id}`);
         this.removeToken(token.id);
       }
 
       // Create a container for the token (tokenRoot)
       const tokenRoot = new PIXI.Container() as TokenContainer;
       tokenRoot.tokenId = token.id; // custom property for tracking
-      console.log(`[TokenRenderer] 📦 Created token container for ${token.id}`);
 
       // Get sprite from pool or create new one
-      console.log(`[TokenRenderer] 🎭 Acquiring sprite for ${token.id}`);
       const sprite = this.acquireSprite();
       
       // Load texture for token
-      console.log(`[TokenRenderer] 🖼️ Loading texture for ${token.id}`);
       const texture = await this.getTokenTexture(token);
       sprite.texture = texture;
-      console.log(`[TokenRenderer] ✅ Texture loaded and assigned to sprite`);
       
       // Configure sprite
-      console.log(`[TokenRenderer] ⚙️ Configuring sprite for ${token.id}`);
       this.configureTokenSprite(sprite, token);
 
       // Position the tokenRoot container at world coordinates (center of bounds)
       const centerPosition = this.getCenterFromBounds(token.bounds);
       tokenRoot.x = centerPosition.x;
       tokenRoot.y = centerPosition.y;
-      console.log(`[TokenRenderer] 🎯 Positioned token container at:`, { x: tokenRoot.x, y: tokenRoot.y });
 
       // Add the sprite to the container
       tokenRoot.addChild(sprite);
-      console.log(`[TokenRenderer] 🏗️ Added sprite to token container`);
 
       // Add the container to the main tokenContainer
       this.tokenContainer.addChild(tokenRoot);
-      console.log(`[TokenRenderer] 🏗️ Added token container to main container`);
       
       // Track both root and sprite for this token
       this.activeTokens.set(token.id, {
@@ -299,25 +266,8 @@ export class TokenRenderer {
         token
       });
       
-      console.log(`[TokenRenderer] 📊 Added to activeTokens map, total tokens:`, this.activeTokens.size);
-      
-      // Verify sprite is in container hierarchy
-      const childIndex = this.tokenContainer.children.indexOf(tokenRoot);
-      const spriteInRoot = tokenRoot.children.indexOf(sprite);
-      console.log(`[TokenRenderer] 🔍 Verification:`, {
-        tokenRootChildIndex: childIndex,
-        spriteInRootIndex: spriteInRoot,
-        mainContainerChildren: this.tokenContainer.children.length,
-        tokenRootChildren: tokenRoot.children.length,
-        spriteVisible: sprite.visible,
-        spriteAlpha: sprite.alpha,
-        spriteWidth: sprite.width,
-        spriteHeight: sprite.height
-      });
-      
-      console.log(`[TokenRenderer] ✅ Successfully added token ${token.id}`);
     } catch (error) {
-      console.error(`[TokenRenderer] ❌ Failed to add token ${token.id}:`, error);
+      console.error(`[TokenRenderer] Failed to add token ${token.id}:`, error);
       throw error;
     }
   }
@@ -438,7 +388,10 @@ export class TokenRenderer {
     }
     
     const tokenData = this.activeTokens.get(tokenId);
-    if (!tokenData) return;
+    if (!tokenData) {
+      console.warn(`[TokenRenderer] Cannot select token ${tokenId}: token not found in activeTokens`);
+      return;
+    }
     
     // Apply selection visual
     this.updateSelectionVisual(tokenData.root as TokenContainer, tokenData.sprite, true);
@@ -589,60 +542,38 @@ export class TokenRenderer {
    * Configure sprite properties based on token data
    */
   private configureTokenSprite(sprite: TokenSprite, token: Token): void {
-    console.log(`[TokenRenderer] ⚙️ Configuring sprite for token ${token.id}`);
-    
     // Set token ID for reference
     sprite.tokenId = token.id;
-    console.log(`[TokenRenderer] 🏷️ Set token ID on sprite:`, token.id);
-    
-    // Note: Position snapping is handled by the parent tokenRoot container
     
     // Set sprite position relative to its parent container (tokenRoot)
     // The tokenRoot will be positioned at world coordinates, so sprite should be at (0, 0)
     sprite.x = 0;
     sprite.y = 0;
-    console.log(`[TokenRenderer] 📍 Set sprite position relative to container:`, { x: sprite.x, y: sprite.y });
     
     // Calculate size based on grid bounds
     const size = this.getPixelSizeFromBounds(token.bounds);
-    console.log(`[TokenRenderer] 📏 Target size for sprite:`, size);
     
     // Set anchor to center
     sprite.anchor.set(0.5);
-    console.log(`[TokenRenderer] ⚓ Set anchor to center:`, { x: sprite.anchor.x, y: sprite.anchor.y });
     
     // Scale sprite to match desired size
-    const originalWidth = sprite.width;
-    const originalHeight = sprite.height;
     const scale = size / Math.max(sprite.width, sprite.height);
     sprite.scale.set(scale);
-    
-    console.log(`[TokenRenderer] 🔍 Sprite scaling:`, {
-      originalSize: { width: originalWidth, height: originalHeight },
-      targetSize: size,
-      scale: scale,
-      finalSize: { width: sprite.width, height: sprite.height }
-    });
     
     // Enable interactivity
     sprite.eventMode = 'static';
     sprite.cursor = 'pointer';
-    console.log(`[TokenRenderer] 🖱️ Enabled sprite interactivity`);
     
     // Setup interactive events
     this.setupSpriteEvents(sprite);
-    console.log(`[TokenRenderer] 🎯 Set up sprite events`);
     
     // Apply visual state
     if (token.id && this.selectedTokenId === token.id) {
       const tokenData = this.activeTokens.get(token.id);
       if (tokenData) {
-        console.log(`[TokenRenderer] 🎨 Applying selection visual for already selected token`);
         this.updateSelectionVisual(tokenData.root as TokenContainer, sprite, true);
       }
     }
-    
-    console.log(`[TokenRenderer] ✅ Sprite configuration complete for ${token.id}`);
   }
   
 
@@ -666,12 +597,6 @@ export class TokenRenderer {
     
     // Load texture with timeout and fallback
     try {
-      console.log('[TokenRenderer] Loading token texture:', {
-        original: token.imageUrl,
-        transformed: transformedUrl,
-        tokenName: token.name
-      });
-      
       const texture = await this.loadTokenTextureWithTimeout(transformedUrl);
       
       // Cache for reuse (use transformed URL as cache key)
@@ -679,7 +604,7 @@ export class TokenRenderer {
       
       return texture;
     } catch (error) {
-      console.error(`Failed to load token texture: ${transformedUrl}`, error);
+      console.error(`[TokenRenderer] Failed to load token texture: ${transformedUrl}`, error);
       return PIXI.Texture.from(defaultTokenUrl);
     }
   }
@@ -723,7 +648,6 @@ export class TokenRenderer {
         reject(new Error(`HTMLImage load error: ${event instanceof ErrorEvent ? event.message : 'Unknown error'}`));
       };
       
-      console.log('[TokenRenderer] Loading token texture with HTMLImageElement:', imageUrl);
       img.src = imageUrl;
     });
   }
@@ -745,7 +669,6 @@ export class TokenRenderer {
     // Add rightdown event for right-click context menu
     sprite.on('rightdown', (event: PIXI.FederatedPointerEvent) => {
       if (sprite.tokenId && this.eventHandlers.rightClick) {
-        console.log('[TokenRenderer] rightdown event detected for token', sprite.tokenId, event);
         this.eventHandlers.rightClick(sprite.tokenId, event);
       }
     });
@@ -801,8 +724,6 @@ export class TokenRenderer {
     }
     // Handle click and double-click detection
     this.handleClickAndDoubleClick(sprite, event);
-    
-    console.log('Token clicked:', sprite.tokenId);
   }
   
   /**
@@ -824,7 +745,6 @@ export class TokenRenderer {
       if (this.eventHandlers.doubleClick) {
         this.eventHandlers.doubleClick(sprite.tokenId, event);
       }
-      console.log('Token double-clicked:', sprite.tokenId);
     } else {
       // This is a single click (for now)
       sprite.clickCount = 1;
@@ -944,7 +864,6 @@ export class TokenRenderer {
     } else {
       // This was a click (not a drag) - let parent component handle selection
       // The click event was already emitted in handlePointerDown
-      console.log('[TokenRenderer] Click detected on token:', sprite.tokenId, '- parent component will handle selection');
     }
     
     // Clean up drag state

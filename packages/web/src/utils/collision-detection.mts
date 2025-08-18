@@ -25,18 +25,9 @@ export function checkWallCollision(
   debug: boolean = false
 ): boolean {
   if (!mapData?.uvtt) {
-    console.log('[CollisionDetection] No UVTT data available');
     return false; // No UVTT data, movement allowed
   }
 
-  console.log('[CollisionDetection] Checking grid-based collision:', {
-    currentGridPos,
-    targetGridPos,
-    hasWallData: {
-      line_of_sight: !!mapData.uvtt.line_of_sight,
-      objects_line_of_sight: !!mapData.uvtt.objects_line_of_sight
-    }
-  });
 
   const movementLine: LineSegment = {
     start: currentGridPos,
@@ -102,7 +93,7 @@ export function checkWallCollision(
           }
           
           if (lineSegmentsIntersect(movementLine, wallLine)) {
-            console.log(`[CollisionDetection] ❌ COLLISION! Movement line (${movementLine.start.x}, ${movementLine.start.y}) → (${movementLine.end.x}, ${movementLine.end.y}) intersects objects_line_of_sight wall segment (${wallLine.start.x}, ${wallLine.start.y}) → (${wallLine.end.x}, ${wallLine.end.y})`);
+            // console.log(`[CollisionDetection] ❌ COLLISION! Movement line (${movementLine.start.x}, ${movementLine.start.y}) → (${movementLine.end.x}, ${movementLine.end.y}) intersects objects_line_of_sight wall segment (${wallLine.start.x}, ${wallLine.start.y}) → (${wallLine.end.x}, ${wallLine.end.y})`);
             return true;
           }
         }

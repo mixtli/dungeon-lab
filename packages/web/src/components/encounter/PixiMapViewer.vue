@@ -286,11 +286,9 @@ const initializeViewer = async () => {
       onTokenDragMove: handleTokenDragMove,
       onTokenDragEnd: handleTokenDragEnd,
       onTokenClick: (tokenId: string, modifiers: { shift?: boolean; ctrl?: boolean; alt?: boolean }) => {
-        console.log('[PixiMapViewer] Token clicked with modifiers:', tokenId, modifiers);
         emit('token-selected', tokenId, modifiers);
       },
       onTokenDoubleClick: (tokenId: string) => {
-        console.log('[PixiMapViewer] Token double-clicked:', tokenId);
         handleTokenDoubleClick(tokenId);
       },
       onTokenRightClick: (tokenId: string) => {
@@ -325,7 +323,7 @@ const loadMapData = async (mapData: IMapResponse) => {
     isLoading.value = true;
     error.value = null;
     
-    console.log('[PixiMapViewer] Loading map:', mapData.name);
+    console.info('[PixiMapViewer] Loading map:', mapData.name);
     
     // Test image loading separately
     if (mapData.image?.url) {
@@ -342,7 +340,7 @@ const loadMapData = async (mapData: IMapResponse) => {
     await loadMap(mapData);
     currentMap.value = mapData;
     
-    console.log('[PixiMapViewer] Map loaded successfully');
+    console.info('[PixiMapViewer] Map loaded successfully');
     emit('map-loaded', mapData);
     
     // Fit map to screen after loading
@@ -386,11 +384,6 @@ const testImageLoad = (imageUrl: string): Promise<void> => {
     img.crossOrigin = 'anonymous'; // Handle CORS
     
     img.onload = () => {
-      console.log('[PixiMapViewer] Image loaded successfully:', {
-        url: imageUrl,
-        size: `${img.naturalWidth}x${img.naturalHeight}`,
-        complete: img.complete
-      });
       resolve();
     };
     
@@ -403,7 +396,6 @@ const testImageLoad = (imageUrl: string): Promise<void> => {
       reject(new Error(`Failed to load image from ${imageUrl}`));
     };
     
-    console.log('[PixiMapViewer] Starting image load test for:', imageUrl);
     img.src = imageUrl;
   });
 };
@@ -418,10 +410,7 @@ const fetchAndLoadMap = async (mapId: string) => {
     isLoading.value = true;
     error.value = null;
     
-    console.log('[PixiMapViewer] Fetching map data for ID:', mapId);
-    
     const mapData = await mapsClient.getMap(mapId);
-    console.log('[PixiMapViewer] Map data fetched successfully for:', mapData.name);
     
     await loadMapData(mapData);
     
@@ -447,36 +436,23 @@ const fetchAndLoadMap = async (mapId: string) => {
 };
 
 const loadTokens = async (tokens: Token[]) => {
-  console.log('[PixiMapViewer] 🟢 loadTokens called:', {
-    initialized: isInitialized.value,
-    tokensProvided: !!tokens,
-    tokenCount: tokens?.length || 0,
-    tokenData: tokens?.map(t => ({ id: t.id, name: t.name, bounds: t.bounds })) || []
-  });
-  
   if (!isInitialized.value || !tokens) {
-    console.log('[PixiMapViewer] ⚠️ Early return: not initialized or no tokens');
     return;
   }
 
   try {
-    console.log('[PixiMapViewer] 🧹 Clearing existing tokens');
     // Clear existing tokens
     clearAllTokens();
     
-    console.log('[PixiMapViewer] 🔄 Adding new tokens, count:', tokens.length);
     // Add new tokens
     for (const token of tokens) {
-      console.log(`[PixiMapViewer] 🎨 Adding token ${token.id} (${token.name})`);
       await addToken(token);
-      console.log(`[PixiMapViewer] ✅ Successfully added token ${token.id}`);
     }
     
     tokenCount.value = tokens.length;
-    console.log(`[PixiMapViewer] 📊 Token loading complete, final count:`, tokenCount.value);
     
   } catch (err) {
-    console.error('[PixiMapViewer] ❌ Failed to load tokens:', err);
+    console.error('[PixiMapViewer] Failed to load tokens:', err);
     throw err;
   }
 };
@@ -496,7 +472,7 @@ const retryLoad = async () => {
 const handleResize = async () => {
   if (!props.autoResize || !containerRef.value || !isInitialized.value) return;
   
-  console.log('Window resize detected - viewport management will handle this');
+  // The ResizeObserver set up in usePixiMap handles resize automatically
   
   // The ResizeObserver set up in usePixiMap should handle this automatically
   // We don't need to do anything here as the ResizeObserver will call mapRenderer.resize()
@@ -508,6 +484,18 @@ const handleResize = async () => {
   // if (rect.width > 0 && rect.height > 0) {
   //   // The ResizeObserver will handle this automatically
   // }
+};
+
+/**
+ * Force selection of a token, bypassing Vue reactivity
+ * This ensures PIXI selection is applied even if Vue thinks the token is already selected
+ */
+const forceSelectToken = (tokenId: string): void => {
+  if (!isInitialized.value) {
+    console.warn('[PixiMapViewer] Cannot force select: not initialized');
+    return;
+  }
+  selectToken(tokenId);
 };
 
 // Expose methods for parent components
@@ -523,6 +511,7 @@ defineExpose({
   removeToken,
   moveToken,
   clearAllTokens,
+  forceSelectToken, // New method for bypassing Vue reactivity
   
   // Viewport operations
   panTo,
@@ -590,12 +579,10 @@ const setupTokenInteractions = () => {
 
 // Add drag handler methods
 const handleTokenDragStart = (tokenId: string, position: { x: number; y: number }) => {
-  console.log('[PixiMapViewer] handleTokenDragStart called with:', tokenId, position);
   isDragging.value = true;
   dragStartPos.value = position;
   draggedTokenId.value = tokenId;
   emit('token-selected', tokenId, {});
-  console.log('[PixiMapViewer] handleTokenDragStart completed, isDragging:', isDragging.value, 'draggedTokenId:', draggedTokenId.value);
 };
 
 const handleTokenDragMove = (tokenId: string, position: { x: number; y: number }) => {
@@ -618,40 +605,16 @@ const handleTokenDragMove = (tokenId: string, position: { x: number; y: number }
 };
 
 const handleTokenDragEnd = async (tokenId: string, position: { x: number; y: number }) => {
-  console.log('[PixiMapViewer] handleTokenDragEnd called with:', tokenId, position);
-  console.log('[PixiMapViewer] Current state - isDragging:', isDragging.value, 'draggedTokenId:', draggedTokenId.value);
-  
   if (!isDragging.value || !draggedTokenId.value || draggedTokenId.value !== tokenId) {
-    console.log('[PixiMapViewer] handleTokenDragEnd returning early due to guard clause');
     return;
   }
-  
-  // Get grid size from map data
-  const gridSize = currentMap.value?.uvtt?.resolution?.pixels_per_grid || 50;
-  console.log('[PixiMapViewer] Grid size:', gridSize);
-  console.log('[PixiMapViewer] Full map data:', currentMap.value);
-  console.log('[PixiMapViewer] UVTT resolution:', currentMap.value?.uvtt?.resolution);
-  console.log('[PixiMapViewer] Raw position:', position);
-  
-  // Snap final position to grid
-  const snappedPosition = {
-    x: Math.round(position.x / gridSize) * gridSize,
-    y: Math.round(position.y / gridSize) * gridSize
-  };
-  
-  console.log('[PixiMapViewer] Snap calculation:');
-  console.log('  - x: Math.round(' + position.x + ' / ' + gridSize + ') * ' + gridSize + ' = ' + Math.round(position.x / gridSize) + ' * ' + gridSize + ' = ' + snappedPosition.x);
-  console.log('  - y: Math.round(' + position.y + ' / ' + gridSize + ') * ' + gridSize + ' = ' + Math.round(position.y / gridSize) + ' * ' + gridSize + ' = ' + snappedPosition.y);
-  console.log('[PixiMapViewer] Snapped position:', snappedPosition);
   
   // Get current token elevation
   const token = props.tokens?.find((t: Token) => t.id === tokenId);
   if (!token) {
-    console.log('[PixiMapViewer] Token not found in props:', tokenId);
     return;
   }
   
-  console.log('[PixiMapViewer] Token drag ended, sending movement request');
   // Emit the token moved event to parent (EncounterView will handle the state update)
   emit('token-moved', tokenId, position.x, position.y);
   
@@ -659,12 +622,9 @@ const handleTokenDragEnd = async (tokenId: string, position: { x: number; y: num
   isDragging.value = false;
   dragStartPos.value = null;
   draggedTokenId.value = null;
-  console.log('[PixiMapViewer] handleTokenDragEnd completed');
 };
 
 const handleTokenDoubleClick = (tokenId: string) => {
-  console.log('[PixiMapViewer] Token double-clicked:', tokenId);
-  
   // Find the token in props to get the document ID
   const token = props.tokens?.find(t => t.id === tokenId);
   if (!token || !token.documentId) {
@@ -686,7 +646,6 @@ const handleTokenDoubleClick = (tokenId: string) => {
     return;
   }
   
-  console.log('[PixiMapViewer] Opening document sheet for:', document.name);
   documentSheetStore.openDocumentSheet(document);
 };
 
@@ -735,9 +694,6 @@ const handleKeyDown = async (event: KeyboardEvent) => {
       break;
   }
   
-  console.log(`[PixiMapViewer] Keyboard move: ${event.key} from: {x: ${centerGridX * gridSize}, y: ${centerGridY * gridSize}} to: {x: ${newX}, y: ${newY}}`);
-  
-  console.log('[PixiMapViewer] Keyboard movement, sending movement request');
   // Emit the token moved event to parent (EncounterView will handle the state update)
   emit('token-moved', pixiSelectedTokenId.value, newX, newY);
 };
@@ -750,14 +706,6 @@ watch(() => props.mapId, async (newMapId) => {
 }, { immediate: false });
 
 watch(() => props.mapData, async (newMapData, oldMapData) => {
-  console.log('[PixiMapViewer] Map data watcher triggered:', {
-    hasNewMapData: !!newMapData,
-    hasOldMapData: !!oldMapData,
-    newMapName: newMapData?.name,
-    oldMapName: oldMapData?.name,
-    isInitialized: isInitialized.value
-  });
-  
   if (!newMapData || !isInitialized.value) {
     return;
   }
@@ -770,7 +718,7 @@ watch(() => props.mapData, async (newMapData, oldMapData) => {
     JSON.stringify(previousMapData.value.uvttData) !== JSON.stringify(newMapData.uvtt);
   
   if (hasMapChanged) {
-    console.log('[PixiMapViewer] Map content changed, reloading map:', newMapData.name);
+    console.info('[PixiMapViewer] Map content changed, reloading:', newMapData.name);
     previousMapData.value = {
       id: newMapData.id,
       name: newMapData.name,
@@ -778,54 +726,37 @@ watch(() => props.mapData, async (newMapData, oldMapData) => {
       uvttData: newMapData.uvtt
     };
     await loadMapData(newMapData);
-  } else {
-    console.log('[PixiMapViewer] Map content unchanged, skipping reload');
   }
 }, { immediate: false });
 
 watch(() => props.tokens, async (newTokens, oldTokens) => {
-  console.log('[PixiMapViewer] 🔍 Smart tokens watcher triggered:', { 
-    newCount: newTokens?.length || 0, 
-    oldCount: oldTokens?.length || 0,
-    isInitialized: isInitialized.value
-  });
-  
   if (!isInitialized.value) {
-    console.log('[PixiMapViewer] ⚠️ Not initialized yet, skipping token updates');
     return;
   }
   
   // Handle complete token clearing
   if (!newTokens || newTokens.length === 0) {
-    console.log('[PixiMapViewer] 🧹 No tokens - clearing all existing tokens');
     clearAllTokens();
     return;
   }
   
   // Handle initial load (no old tokens)
   if (!oldTokens || oldTokens.length === 0) {
-    console.log('[PixiMapViewer] 🆕 Initial token load');
     try {
       await loadTokens(newTokens);
-      console.log('[PixiMapViewer] ✅ Initial token loading completed');
+      
+      // Apply pending selection after tokens are loaded
+      if (props.selectedTokenId) {
+        selectToken(props.selectedTokenId);
+      }
     } catch (error) {
-      console.error('[PixiMapViewer] ❌ Initial token loading failed:', error);
+      console.error('[PixiMapViewer] Initial token loading failed:', error);
     }
     return;
   }
   
   // Smart diffing for efficient updates
   const operations = diffTokens(oldTokens, newTokens);
-  console.log('[PixiMapViewer] 🧠 Token diff analysis:', {
-    totalOperations: operations.length,
-    operations: operations.map(op => `${op.type}:${op.tokenId}`),
-    breakdown: {
-      add: operations.filter(op => op.type === 'add').length,
-      remove: operations.filter(op => op.type === 'remove').length,
-      move: operations.filter(op => op.type === 'move').length,
-      update: operations.filter(op => op.type === 'update').length
-    }
-  });
   
   // Apply each operation efficiently
   try {
@@ -833,19 +764,16 @@ watch(() => props.tokens, async (newTokens, oldTokens) => {
       switch (operation.type) {
         case 'add':
           if (operation.token) {
-            console.log(`[PixiMapViewer] ➕ Adding token: ${operation.token.name}`);
             await addToken(operation.token);
           }
           break;
           
         case 'remove':
-          console.log(`[PixiMapViewer] ➖ Removing token: ${operation.tokenId}`);
           removeToken(operation.tokenId);
           break;
           
         case 'move':
           if (operation.newPosition) {
-            console.log(`[PixiMapViewer] 🔄 Moving token: ${operation.tokenId}`, operation.newPosition);
             // Convert grid coordinates to world coordinates  
             const gridSize = getGridSize();
             const worldX = operation.newPosition.x * gridSize;
@@ -856,19 +784,26 @@ watch(() => props.tokens, async (newTokens, oldTokens) => {
           
         case 'update':
           if (operation.token) {
-            console.log(`[PixiMapViewer] 🔄 Updating token: ${operation.token.name}`);
             await updateToken(operation.token);
           }
           break;
       }
     }
     
-    console.log('[PixiMapViewer] ✅ Smart token updates completed successfully');
+    // Apply pending selection after token updates (in case the selected token was just added)
+    if (props.selectedTokenId) {
+      selectToken(props.selectedTokenId);
+    }
   } catch (error) {
-    console.error('[PixiMapViewer] ❌ Smart token updates failed:', error);
+    console.error('[PixiMapViewer] Smart token updates failed:', error);
     // Fallback to full reload on error
-    console.log('[PixiMapViewer] 🚨 Falling back to full token reload');
+    console.warn('[PixiMapViewer] Falling back to full token reload');
     await loadTokens(newTokens);
+    
+    // Apply pending selection after fallback reload
+    if (props.selectedTokenId) {
+      selectToken(props.selectedTokenId);
+    }
   }
 }, { deep: true });
 
@@ -912,39 +847,25 @@ watch(() => props.showLights, (newValue) => {
 
 // Watch for selectedTokenId prop changes and sync to PIXI
 watch(() => props.selectedTokenId, (newSelectedId, oldSelectedId) => {
-  console.log('[PixiMapViewer] 🔄 Selected token prop watcher triggered:', {
-    isInitialized: isInitialized.value,
-    oldSelectedId,
-    newSelectedId,
-    propsSelectedTokenId: props.selectedTokenId
-  });
-  
   if (!isInitialized.value) {
-    console.log('[PixiMapViewer] ⚠️ Not initialized, skipping selection sync');
     return;
   }
   
   // Deselect old token
   if (oldSelectedId) {
-    console.log('[PixiMapViewer] ➖ Deselecting old token:', oldSelectedId);
     deselectToken(oldSelectedId);
   }
   
   // Select new token
   if (newSelectedId) {
-    console.log('[PixiMapViewer] ➕ Selecting new token:', newSelectedId);
     selectToken(newSelectedId);
   }
 }, { immediate: true });
 
+
 // Watch for targetTokenIds prop changes and sync to PIXI  
 watch(() => props.targetTokenIds, (newTargetIds, oldTargetIds) => {
   if (!isInitialized.value) return;
-  
-  console.log('[PixiMapViewer] Target tokens prop changed:', { 
-    oldTargets: oldTargetIds ? Array.from(oldTargetIds) : [], 
-    newTargets: newTargetIds ? Array.from(newTargetIds) : [] 
-  });
   
   // Clear all existing targets first
   clearTargets();
@@ -961,13 +882,6 @@ watch(() => props.targetTokenIds, (newTargetIds, oldTargetIds) => {
 let preventContextMenu: ((e: MouseEvent) => void) | null = null;
 
 onMounted(async () => {
-  console.log('[PixiMapViewer] 🚀 Component mounted, initializing...', {
-    hasMapData: !!props.mapData,
-    mapId: props.mapId,
-    tokenCount: props.tokens?.length || 0,
-    componentId: Math.random().toString(36).substring(2, 8)
-  });
-  
   await nextTick();
   await initializeViewer();
   
@@ -989,10 +903,7 @@ onMounted(async () => {
   }
   
   if (props.tokens && props.tokens.length > 0) {
-    console.log('[PixiMapViewer] Loading initial tokens in onMounted:', props.tokens);
     await loadTokens(props.tokens);
-  } else {
-    console.log('[PixiMapViewer] No initial tokens to load in onMounted, count:', props.tokens?.length || 0);
   }
   
   // Set up resize listener
@@ -1015,11 +926,6 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
-  console.log('[PixiMapViewer] 💥 Component unmounting, cleaning up...', {
-    isInitialized: isInitialized.value,
-    tokenCount: tokenCount.value
-  });
-  
   if (props.autoResize) {
     window.removeEventListener('resize', handleResize);
   }

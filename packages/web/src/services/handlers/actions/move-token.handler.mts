@@ -86,42 +86,42 @@ export async function moveTokenHandler(request: GameActionRequest): Promise<Acti
       y: params.newPosition.y / pixelsPerGrid + 0.5 
     };
     
-    console.log('[MoveTokenHandler] 🔍 COLLISION DETECTION DEBUG:', {
-      tokenId: params.tokenId,
-      tokenName: token.name,
-      tokenBounds: {
-        topLeft: token.bounds.topLeft,
-        bottomRight: token.bounds.bottomRight
-      },
-      rawCurrentCenter: {
-        x: (token.bounds.topLeft.x + token.bounds.bottomRight.x) / 2,
-        y: (token.bounds.topLeft.y + token.bounds.bottomRight.y) / 2
-      },
-      correctedCurrentCenter: currentGridPos,
-      targetWorldPos: params.newPosition,
-      targetGridPos: targetGridPos,
-      pixelsPerGrid: pixelsPerGrid,
-      movementVector: {
-        x: targetGridPos.x - currentGridPos.x,
-        y: targetGridPos.y - currentGridPos.y
-      },
-      wallDataAvailable: {
-        hasUvtt: !!mapData.uvtt,
-        hasLineOfSight: !!mapData.uvtt?.line_of_sight,
-        hasObjectsLineOfSight: !!mapData.uvtt?.objects_line_of_sight,
-        lineOfSightCount: mapData.uvtt?.line_of_sight?.length || 0,
-        objectsLineOfSightCount: mapData.uvtt?.objects_line_of_sight?.length || 0
-      }
-    });
+    // console.log('[MoveTokenHandler] 🔍 COLLISION DETECTION DEBUG:', {
+    //   tokenId: params.tokenId,
+    //   tokenName: token.name,
+    //   tokenBounds: {
+    //     topLeft: token.bounds.topLeft,
+    //     bottomRight: token.bounds.bottomRight
+    //   },
+    //   rawCurrentCenter: {
+    //     x: (token.bounds.topLeft.x + token.bounds.bottomRight.x) / 2,
+    //     y: (token.bounds.topLeft.y + token.bounds.bottomRight.y) / 2
+    //   },
+    //   correctedCurrentCenter: currentGridPos,
+    //   targetWorldPos: params.newPosition,
+    //   targetGridPos: targetGridPos,
+    //   pixelsPerGrid: pixelsPerGrid,
+    //   movementVector: {
+    //     x: targetGridPos.x - currentGridPos.x,
+    //     y: targetGridPos.y - currentGridPos.y
+    //   },
+    //   wallDataAvailable: {
+    //     hasUvtt: !!mapData.uvtt,
+    //     hasLineOfSight: !!mapData.uvtt?.line_of_sight,
+    //     hasObjectsLineOfSight: !!mapData.uvtt?.objects_line_of_sight,
+    //     lineOfSightCount: mapData.uvtt?.line_of_sight?.length || 0,
+    //     objectsLineOfSightCount: mapData.uvtt?.objects_line_of_sight?.length || 0
+    //   }
+    // });
     
     try {
-      const collisionDetected = checkWallCollision(currentGridPos, targetGridPos, mapData, true);
+      const collisionDetected = checkWallCollision(currentGridPos, targetGridPos, mapData, false);
       
-      console.log('[MoveTokenHandler] 🎯 COLLISION RESULT:', {
-        collisionDetected,
-        movementLine: `from (${currentGridPos.x}, ${currentGridPos.y}) to (${targetGridPos.x}, ${targetGridPos.y})`,
-        blocked: collisionDetected ? 'YES - MOVEMENT BLOCKED' : 'NO - MOVEMENT ALLOWED'
-      });
+      // console.log('[MoveTokenHandler] 🎯 COLLISION RESULT:', {
+      //   collisionDetected,
+      //   movementLine: `from (${currentGridPos.x}, ${currentGridPos.y}) to (${targetGridPos.x}, ${targetGridPos.y})`,
+      //   blocked: collisionDetected ? 'YES - MOVEMENT BLOCKED' : 'NO - MOVEMENT ALLOWED'
+      // });
       
       if (collisionDetected) {
         console.log('[MoveTokenHandler] ❌ Movement blocked by collision detection');

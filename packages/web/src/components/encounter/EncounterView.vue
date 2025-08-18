@@ -186,7 +186,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useGameStateStore } from '../../stores/game-state.store.mjs';
 import { useDeviceAdaptation } from '../../composables/useDeviceAdaptation.mjs';
 import { usePlayerActions } from '../../composables/usePlayerActions.mjs';
@@ -256,27 +256,13 @@ const encounter = computed(() => gameStateStore.currentEncounter);
 
 // Debug computed to track selectedToken changes
 const debugSelectedTokenId = computed(() => {
-  const id = selectedToken.value?.id;
-  console.log('[EncounterView] 🔍 Computed selectedToken ID changed:', {
-    selectedTokenId: id,
-    selectedTokenName: selectedToken.value?.name,
-    timestamp: new Date().toISOString()
-  });
-  return id;
+  return selectedToken.value?.id;
 });
 
 // Convert encounter tokens to format expected by PixiMapViewer
 const encounterTokens = computed(() => {
   // Tokens are now part of currentEncounter in the unified game state
   const tokens = gameStateStore.currentEncounter?.tokens || [];
-  
-  console.log('[EncounterView] encounterTokens computed property called', {
-    encounterExists: !!gameStateStore.currentEncounter,
-    tokensArray: tokens,
-    tokenCount: tokens.length,
-    tokenIds: tokens.map(t => t.id),
-    gameStateLoading: gameStateStore.loading
-  });
   
   // Tokens now use the new bounds format - pass them through directly
   return tokens;
@@ -299,14 +285,11 @@ const initializeEncounter = async () => {
   if (pluginId) {
     try {
       await turnManagerService.initialize(pluginId);
-      console.log('[Debug] Turn manager service initialized with plugin:', pluginId);
     } catch (error) {
-      console.warn('[Debug] Failed to initialize turn manager:', error);
+      console.warn('[EncounterView] Failed to initialize turn manager:', error);
       // Don't fail encounter loading if turn manager fails to initialize
     }
   }
-  
-  console.log('[Debug] EncounterView initialized with encounter:', encounter.value.id);
   loading.value = false;
 };
 
@@ -324,16 +307,7 @@ const retryLoad = () => {
 
 // Event handlers - matching PixiMapViewer emit signatures
 const handleTokenSelection = (tokenId: string, modifiers?: { shift?: boolean; ctrl?: boolean; alt?: boolean }) => {
-  console.log('[EncounterView] 🖱️ Token selection handler called:', {
-    tokenId,
-    modifiers,
-    hasEncounter: !!encounter.value,
-    currentSelectedToken: selectedToken.value?.id,
-    targetCount: targetTokenIds.value.size
-  });
-  
   if (!encounter.value) {
-    console.log('[EncounterView] ⚠️ No encounter, aborting selection');
     return;
   }
   
@@ -341,14 +315,8 @@ const handleTokenSelection = (tokenId: string, modifiers?: { shift?: boolean; ct
   const tokens = gameStateStore.currentEncounter?.tokens || [];
   const clickedToken = tokens.find((t: Token) => t.id === tokenId) || null;
   
-  console.log('[EncounterView] 🔍 Looking for token:', {
-    searchingForId: tokenId,
-    availableTokens: tokens.map(t => ({ id: t.id, name: t.name })),
-    foundToken: clickedToken ? { id: clickedToken.id, name: clickedToken.name } : 'NOT FOUND'
-  });
-  
   if (!clickedToken) {
-    console.log('[EncounterView] ❌ Token not found, aborting selection');
+    console.warn('[EncounterView] Token not found for selection:', tokenId);
     return;
   }
   
@@ -356,21 +324,21 @@ const handleTokenSelection = (tokenId: string, modifiers?: { shift?: boolean; ct
     // Shift+click: toggle target selection
     if (targetTokenIds.value.has(tokenId)) {
       targetTokenIds.value.delete(tokenId);
-      console.log('[EncounterView] ➖ Removed target:', clickedToken.name);
     } else {
       targetTokenIds.value.add(tokenId);
-      console.log('[EncounterView] ➕ Added target:', clickedToken.name);
     }
   } else {
     // Regular click: set as actor, clear targets
-    const previousSelectedToken = selectedToken.value;
     selectedToken.value = clickedToken;
     targetTokenIds.value.clear();
-    console.log('[EncounterView] 🎯 Selected actor:', {
-      previousActor: previousSelectedToken?.name || 'none',
-      newActor: clickedToken.name,
-      clearedTargets: targetTokenIds.value.size === 0
-    });
+    
+    // Force PIXI selection to ensure visual selection is applied
+    // This bypasses Vue reactivity issues when clicking the same token
+    if (pixiMapViewer.value) {
+      pixiMapViewer.value.forceSelectToken(clickedToken.id);
+    } else {
+      console.warn('[EncounterView] Could not force PIXI selection: pixiMapViewer ref not available');
+    }
   }
   
   // Close context menu if open
@@ -382,7 +350,7 @@ const handleTokenMoved = async (tokenId: string, x: number, y: number) => {
   
   const token = encounter.value.tokens?.find(t => t.id === tokenId);
   if (!token) {
-    console.error('Token not found:', tokenId);
+    console.error('[EncounterView] Token not found:', tokenId);
     return;
   }
   
@@ -391,17 +359,14 @@ const handleTokenMoved = async (tokenId: string, x: number, y: number) => {
     const elevation = token.bounds?.elevation || 0;
     const result = await requestTokenMove(tokenId, { x, y, elevation });
     
-    if (result.success && result.approved) {
-      console.log('Token movement approved and executed:', tokenId, x, y, elevation);
-    } else if (result.success && !result.approved) {
-      console.log('Token movement requested, awaiting GM approval:', tokenId);
+    if (result.success && !result.approved) {
       // TODO: Show notification to player that movement is pending approval
-    } else {
-      console.error('Token movement failed:', result.error);
+    } else if (!result.success) {
+      console.error('[EncounterView] Token movement failed:', result.error);
       // TODO: Show error notification to user
     }
   } catch (error) {
-    console.error('Failed to request token movement:', error);
+    console.error('[EncounterView] Failed to request token movement:', error);
     // TODO: Show error notification to user
   }
 };
@@ -515,20 +480,18 @@ const handleTokenAction = async (action: string) => {
           const result = await requestTokenRemove(tokenId);
           
           if (result.success && result.approved) {
-            console.log('Token removal approved and executed:', tokenId);
             // If this was the selected token, deselect it
             if (selectedToken.value?.id === tokenId) {
               selectedToken.value = null;
             }
           } else if (result.success && !result.approved) {
-            console.log('Token removal requested, awaiting GM approval:', tokenId);
             // TODO: Show notification to user that removal is pending approval
           } else {
-            console.error('Token removal failed:', result.error);
+            console.error('[EncounterView] Token removal failed:', result.error);
             // TODO: Show error notification to user
           }
         } catch (error) {
-          console.error('Failed to request token removal:', error);
+          console.error('[EncounterView] Failed to request token removal:', error);
           // TODO: Show error notification to user
         }
       }
@@ -570,13 +533,8 @@ const handleTokensCreated = async (tokenIds: string[]) => {
 
 // Handle map context menu action
 const handleMapContextMenuAction = (action: string) => {
-  console.log('[Debug] Map context menu action triggered:', action);
-  
   switch (action) {
     case 'add-token':
-      console.log('[Debug] Add token action triggered');
-      console.log('[Debug] Encounter data:', encounter.value);
-      
       // Set lastClickPosition if needed and show token generator
       if (!lastClickPosition.value && encounter.value?.mapId) {
         // Default to center of map if no position is set
@@ -588,33 +546,22 @@ const handleMapContextMenuAction = (action: string) => {
       }
       break;
     case 'center-view':
-      console.log('[Debug] Center view action triggered');
       // If we had a mapViewer ref, we could call centerOn here
       break;
     case 'toggle-walls':
-      console.log('[Debug] Toggle walls action triggered, current value:', showWalls.value);
       showWalls.value = !showWalls.value;
-      console.log('[Debug] Show walls is now:', showWalls.value);
       break;
     case 'toggle-objects':
-      console.log('[Debug] Toggle objects action triggered, current value:', showObjects.value);
       showObjects.value = !showObjects.value;
-      console.log('[Debug] Show objects is now:', showObjects.value);
       break;
     case 'toggle-portals':
-      console.log('[Debug] Toggle portals action triggered, current value:', showPortals.value);
       showPortals.value = !showPortals.value;
-      console.log('[Debug] Show portals is now:', showPortals.value);
       break;
     case 'toggle-lights':
-      console.log('[Debug] Toggle lights action triggered, current value:', showLights.value);
       showLights.value = !showLights.value;
-      console.log('[Debug] Show lights is now:', showLights.value);
       break;
     case 'toggle-debug':
-      console.log('[Debug] Toggle debug action triggered, current value:', showDebugInfo.value);
       showDebugInfo.value = !showDebugInfo.value;
-      console.log('[Debug] Show debug info is now:', showDebugInfo.value);
       break;
   }
   
@@ -631,7 +578,6 @@ const handleDragEnter = (event: DragEvent) => {
   
   // Ignore turn order participant drags
   if (event.dataTransfer?.types.includes('application/turnorder-participant')) {
-    console.log('Ignoring turn order drag in encounter area');
     return;
   }
   
@@ -639,7 +585,6 @@ const handleDragEnter = (event: DragEvent) => {
   
   if (dragEnterCount.value === 1) {
     isDragOver.value = true;
-    console.log('Drag entered encounter area');
   }
 };
 
@@ -653,7 +598,6 @@ const handleDragLeave = (event: DragEvent) => {
   
   if (dragEnterCount.value === 0) {
     isDragOver.value = false;
-    console.log('Drag left encounter area');
   }
 };
 
@@ -675,7 +619,6 @@ const handleDrop = async (event: DragEvent) => {
   
   // Ignore turn order participant drags
   if (event.dataTransfer?.types.includes('application/turnorder-participant')) {
-    console.log('Ignoring turn order drop in encounter area');
     return;
   }
   
@@ -684,13 +627,13 @@ const handleDrop = async (event: DragEvent) => {
   dragEnterCount.value = 0;
   
   if (!event.dataTransfer) {
-    console.error('No data transfer available on drop');
+    console.error('[EncounterView] No data transfer available on drop');
     return;
   }
 
   // Validate GM permissions
   if (!gameStateStore.canUpdate) {
-    console.warn('Only the GM can create tokens by dragging');
+    console.warn('[EncounterView] Only the GM can create tokens by dragging');
     return;
   }
 
@@ -698,16 +641,15 @@ const handleDrop = async (event: DragEvent) => {
     // Get drag data
     const dragDataStr = event.dataTransfer.getData('application/json');
     if (!dragDataStr) {
-      console.error('No drag data found');
+      console.error('[EncounterView] No drag data found');
       return;
     }
 
     const dragData = JSON.parse(dragDataStr);
-    console.log('Drop data:', dragData);
 
     // Validate drag data
     if (dragData.type !== 'document-token') {
-      console.error('Invalid drag data type:', dragData.type);
+      console.error('[EncounterView] Invalid drag data type:', dragData.type);
       return;
     }
 
@@ -720,7 +662,7 @@ const handleDrop = async (event: DragEvent) => {
     
     const document = allDocuments.find(doc => doc.id === dragData.documentId);
     if (!document) {
-      console.error('Document not found:', dragData.documentId);
+      console.error('[EncounterView] Document not found:', dragData.documentId);
       return;
     }
 
@@ -729,12 +671,12 @@ const handleDrop = async (event: DragEvent) => {
     const pixiViewer = pixiMapViewer.value;
     
     if (!mapContainer) {
-      console.error('Map container not found');
+      console.error('[EncounterView] Map container not found');
       return;
     }
     
     if (!pixiViewer) {
-      console.error('PixiMapViewer not available for coordinate conversion');
+      console.error('[EncounterView] PixiMapViewer not available for coordinate conversion');
       return;
     }
 
@@ -747,8 +689,6 @@ const handleDrop = async (event: DragEvent) => {
     const worldX = Math.round(worldCoords.x);
     const worldY = Math.round(worldCoords.y);
 
-    console.log(`Dropping ${document.name} at screen(${screenX}, ${screenY}) -> world(${worldX}, ${worldY})`);
-
     // Create token using the new method
     const tokenId = await gameStateStore.createTokenFromDocument(document, {
       x: worldX,
@@ -756,15 +696,15 @@ const handleDrop = async (event: DragEvent) => {
       elevation: 0
     });
 
-    console.log(`Successfully created token ${tokenId} for document ${document.name}`);
+    console.info(`[EncounterView] Created token for ${document.name}`);
 
   } catch (error) {
-    console.error('Error handling drop:', error);
+    console.error('[EncounterView] Error handling drop:', error);
     
     // Show user-friendly error message
     if (error instanceof Error) {
       // You could show a toast notification here
-      console.error('Failed to create token:', error.message);
+      console.error('[EncounterView] Failed to create token:', error.message);
     }
   }
 };
@@ -783,10 +723,8 @@ watch(
   () => gameStateStore.currentEncounter?.id,
   (newEncounterId, oldEncounterId) => {
     if (newEncounterId && newEncounterId !== oldEncounterId) {
-      console.log('[Debug] Current encounter changed, reinitializing view');
       initializeEncounter();
     } else if (!newEncounterId && oldEncounterId) {
-      console.log('[Debug] No active encounter, showing empty state');
       error.value = null;
       loading.value = false;
     }
@@ -798,34 +736,15 @@ watch(
 watch(
   () => gameStateStore.gameState?.turnManager,
   (newTurnManager) => {
-    console.log('[EncounterView] 🎯 Turn manager watcher triggered:', {
-      hasTurnManager: !!newTurnManager,
-      isActive: newTurnManager?.isActive,
-      currentTurn: newTurnManager?.currentTurn,
-      participantCount: newTurnManager?.participants?.length,
-      participants: newTurnManager?.participants?.map(p => ({ id: p.id, name: p.name }))
-    });
-    
     if (!newTurnManager || !newTurnManager.isActive) {
-      console.log('[EncounterView] ⚠️ No active turn manager, skipping auto-selection');
       return;
     }
     
     const activeParticipantId = newTurnManager.participants?.[newTurnManager.currentTurn]?.id;
-    console.log('[EncounterView] 🎯 Active participant ID:', activeParticipantId);
     
     if (!activeParticipantId) {
-      console.log('[EncounterView] ⚠️ No active participant ID found');
       return;
     }
-    
-    // Debug available tokens
-    console.log('[EncounterView] 🎲 Available tokens:', encounterTokens.value.map(t => ({
-      id: t.id,
-      name: t.name,
-      documentId: t.documentId,
-      documentType: t.documentType
-    })));
     
     // Find the token for the active participant by document ID
     // Tokens are linked to documents via documentId field
@@ -834,21 +753,16 @@ watch(
       t.id === activeParticipantId
     );
     
-    console.log('[EncounterView] 🎯 Found active token:', activeToken ? {
-      id: activeToken.id,
-      name: activeToken.name,
-      documentId: activeToken.documentId
-    } : 'NOT FOUND');
-    
     if (activeToken && (!selectedToken.value || selectedToken.value.id !== activeToken.id)) {
-      console.log('[EncounterView] ✅ Auto-selecting actor for turn:', activeToken.name);
+      console.info('[EncounterView] Auto-selecting actor for turn:', activeToken.name);
       selectedToken.value = activeToken;
       // Clear targets when switching actors
       targetTokenIds.value.clear();
-    } else if (activeToken) {
-      console.log('[EncounterView] ℹ️ Active token already selected:', activeToken.name);
-    } else {
-      console.log('[EncounterView] ❌ Could not find token for active participant:', activeParticipantId);
+      
+      // Ensure Vue's reactivity system processes the change
+      nextTick(() => {
+        // Selected token should be synced to PIXI after this tick
+      });
     }
   },
   { deep: true, immediate: true }
@@ -863,14 +777,14 @@ const handleTokenUpdate = async (updatedToken: Token) => {
   
   // Validate GM permissions
   if (!gameStateStore.canUpdate) {
-    console.warn('Only GM can update tokens');
+    console.warn('[EncounterView] Only GM can update tokens');
     return;
   }
   
   // Find the token index in the encounter
   const tokenIndex = encounter.value.tokens?.findIndex(token => token.id === updatedToken.id);
   if (tokenIndex === undefined || tokenIndex === -1) {
-    console.error('Token not found for update:', updatedToken.id);
+    console.error('[EncounterView] Token not found for update:', updatedToken.id);
     return;
   }
   
@@ -890,13 +804,11 @@ const handleTokenUpdate = async (updatedToken: Token) => {
     const response = await gameStateStore.updateGameState(operations);
     
     if (!response.success) {
-      console.error('Failed to update token:', response.error?.message);
+      console.error('[EncounterView] Failed to update token:', response.error?.message);
       return;
     }
-    
-    console.log('Token updated successfully:', updatedToken.id);
   } catch (error) {
-    console.error('Failed to update token:', error);
+    console.error('[EncounterView] Failed to update token:', error);
   }
 };
 
