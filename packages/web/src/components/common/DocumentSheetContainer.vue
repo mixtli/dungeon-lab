@@ -61,9 +61,8 @@ import { useDocumentState } from '../../composables/useDocumentState.mts';
 import { useGameDocumentState } from '../../composables/useGameDocumentState.mts';
 import { useNotificationStore } from '../../stores/notification.store.mjs';
 import { PlayerActionService } from '../../services/player-action.service.mjs';
-import { convertDiffToStateOperations } from '@dungeon-lab/shared/utils/index.mjs';
+import { generateDocumentPatch } from '@dungeon-lab/shared/utils/index.mjs';
 import type { UpdateDocumentParameters } from '@dungeon-lab/shared/types/game-actions.mjs';
-import * as diff from 'deep-diff';
 import PluginContainer from './PluginContainer.vue';
 
 const props = defineProps<{
@@ -250,29 +249,18 @@ const handleSave = async () => {
     return;
   }
 
-  // Calculate differences using deep-diff
-  const changes = diff.diff(reactiveDocument.value, documentCopy.value);
-  
-  if (!changes || changes.length === 0) {
-    console.log('[DocumentSheetContainer] No changes detected, exiting edit mode');
-    editMode.value = false;
-    return;
-  }
-
-  console.log('[DocumentSheetContainer] Changes detected:', changes);
-
   // For game context, send GM request; for admin context, save directly
   if (isGameContext.value) {
-    await handleGameContextSave(changes);
+    await handleGameContextSave();
   } else {
     await handleAdminContextSave();
   }
 };
 
 // Handle save in game context (requires GM approval)
-const handleGameContextSave = async (changes: diff.Diff<BaseDocument>[]) => {
-  if (!props.documentId) {
-    console.error('[DocumentSheetContainer] Cannot save - no document ID provided');
+const handleGameContextSave = async () => {
+  if (!props.documentId || !reactiveDocument.value || !documentCopy.value) {
+    console.error('[DocumentSheetContainer] Cannot save - missing required data');
     notificationStore.addNotification({
       type: 'error',
       message: 'Cannot save - invalid document',
@@ -281,11 +269,15 @@ const handleGameContextSave = async (changes: diff.Diff<BaseDocument>[]) => {
     return;
   }
 
-  // Convert deep-diff changes to StateOperations
-  const operations = convertDiffToStateOperations(changes, props.documentId);
+  // Generate JSON Patch operations by comparing original and updated documents
+  const operations = generateDocumentPatch(
+    reactiveDocument.value as Record<string, unknown>,
+    documentCopy.value as Record<string, unknown>,
+    props.documentId
+  );
   
   if (operations.length === 0) {
-    console.log('[DocumentSheetContainer] No valid operations generated from changes');
+    console.log('[DocumentSheetContainer] No changes detected');
     editMode.value = false;
     return;
   }
@@ -311,7 +303,7 @@ const handleGameContextSave = async (changes: diff.Diff<BaseDocument>[]) => {
         documentType: props.documentType
       } as UpdateDocumentParameters,
       {
-        description: generateChangesSummary(changes)
+        description: generateChangesSummary(operations)
       }
     );
 
@@ -370,22 +362,31 @@ const handleAdminContextSave = async () => {
 };
 
 // Generate human-readable summary of changes for GM approval
-const generateChangesSummary = (changes: diff.Diff<BaseDocument>[]): string => {
+const generateChangesSummary = (operations: any[]): string => {
   const summaries: string[] = [];
   
-  changes.forEach((change: diff.Diff<BaseDocument>) => {
-    if (change.kind === 'E') { // Edit
-      const path = change.path?.join('.') || 'unknown field';
-      summaries.push(`${path}: ${change.lhs} → ${change.rhs}`);
-    } else if (change.kind === 'N') { // New
-      const path = change.path?.join('.') || 'unknown field';
-      summaries.push(`${path}: added ${change.rhs}`);
-    } else if (change.kind === 'D') { // Deleted
-      const path = change.path?.join('.') || 'unknown field';
-      summaries.push(`${path}: removed ${change.lhs}`);
-    } else if (change.kind === 'A') { // Array change
-      const path = change.path?.join('.') || 'unknown array';
-      summaries.push(`${path}: array modified`);
+  operations.forEach((op: any) => {
+    // Convert JSON Pointer path to readable format
+    const path = op.path.replace(/^\/documents\/[^\/]+\//, '').replace(/\//g, '.');
+    
+    switch (op.op) {
+      case 'add':
+        summaries.push(`${path}: added ${op.value}`);
+        break;
+      case 'remove':
+        summaries.push(`${path}: removed`);
+        break;
+      case 'replace':
+        summaries.push(`${path}: changed to ${op.value}`);
+        break;
+      case 'move':
+        summaries.push(`${path}: moved from ${op.from}`);
+        break;
+      case 'copy':
+        summaries.push(`${path}: copied from ${op.from}`);
+        break;
+      default:
+        summaries.push(`${path}: ${op.op} operation`);
     }
   });
   

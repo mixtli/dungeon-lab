@@ -64,7 +64,7 @@ export interface AddDocumentParameters extends Record<string, unknown> {
  */
 export interface UpdateDocumentParameters extends Record<string, unknown> {
   documentId: string;
-  operations: import('../schemas/game-state-update.schema.mjs').StateOperation[];
+  operations: import('../schemas/game-state-update.schema.mjs').JsonPatchOperation[];
   documentName?: string; // For user-friendly messaging
   documentType?: string; // For context in GM approval
 }

@@ -7,12 +7,13 @@
 
 import type { GameActionRequest, AddDocumentParameters } from '@dungeon-lab/shared/types/index.mjs';
 import { useGameStateStore } from '../../../stores/game-state.store.mjs';
+import type { ActionHandlerResult } from '../action-handler.types.mts';
 
 /**
  * Execute document addition operations
  * By the time this handler runs, approval has already been granted (if required)
  */
-export async function addDocumentHandler(request: GameActionRequest): Promise<void> {
+export async function addDocumentHandler(request: GameActionRequest): Promise<ActionHandlerResult> {
   const params = request.parameters as AddDocumentParameters;
   const gameStateStore = useGameStateStore();
   
@@ -22,29 +23,55 @@ export async function addDocumentHandler(request: GameActionRequest): Promise<vo
     requestId: request.id
   });
 
-  // Validate parameters
-  if (!params.compendiumId || !params.entryId || !params.documentData) {
-    throw new Error('Missing required parameters for document addition');
-  }
-
-  // Prepare state operations to add the document
-  const operations = [
-    {
-      path: `documents.${params.documentData.id || 'new_document'}`,
-      operation: 'set' as const,
-      value: params.documentData
+  try {
+    // Validate parameters
+    if (!params.compendiumId || !params.entryId || !params.documentData) {
+      return {
+        success: false,
+        error: {
+          code: 'MISSING_PARAMETERS',
+          message: 'Missing required parameters for document addition'
+        }
+      };
     }
-  ];
 
-  // Execute the game state update
-  const updateResult = await gameStateStore.updateGameState(operations);
-  
-  if (!updateResult.success) {
-    throw new Error(updateResult.error?.message || 'Failed to update game state');
+    // Prepare state operations to add the document
+    const operations = [
+      {
+        op: 'add' as const,
+        path: `/documents/${params.documentData.id || 'new_document'}`,
+        value: params.documentData
+      }
+    ];
+
+    // Execute the game state update
+    const updateResult = await gameStateStore.updateGameState(operations);
+    
+    if (!updateResult.success) {
+      return {
+        success: false,
+        error: {
+          code: 'STATE_UPDATE_FAILED',
+          message: updateResult.error?.message || 'Failed to update game state'
+        }
+      };
+    }
+
+    console.log('[AddDocumentHandler] Document addition executed successfully:', {
+      documentId: params.documentData.id,
+      requestId: request.id
+    });
+
+    return { success: true };
+
+  } catch (error) {
+    console.error('[AddDocumentHandler] Error executing document addition:', error);
+    return {
+      success: false,
+      error: {
+        code: 'DOCUMENT_ADDITION_FAILED',
+        message: error instanceof Error ? error.message : 'Failed to add document'
+      }
+    };
   }
-
-  console.log('[AddDocumentHandler] Document addition executed successfully:', {
-    documentId: params.documentData.id,
-    requestId: request.id
-  });
 }

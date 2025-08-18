@@ -189,8 +189,8 @@ export async function moveTokenHandler(request: GameActionRequest): Promise<Acti
 
   const operations = [
     {
-      path: `currentEncounter.tokens.${tokenIndex}.bounds`,
-      operation: 'set' as const,
+      op: 'replace' as const,
+      path: `/currentEncounter/tokens/${tokenIndex}/bounds`,
       value: newBounds
     }
   ];

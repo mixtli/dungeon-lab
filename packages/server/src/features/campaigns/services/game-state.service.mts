@@ -1,6 +1,6 @@
 import {
   ServerGameStateWithVirtuals,
-  StateOperation,
+  JsonPatchOperation,
   StateUpdate,
   StateUpdateResponse,
   ICharacter,
@@ -318,37 +318,45 @@ export class GameStateService {
 
 
   /**
-   * Build MongoDB update operations from state operations
+   * Build MongoDB update operations from JSON Patch operations
+   * Converts RFC 6902 JSON Patch operations to MongoDB update operations
    */
-  private buildMongoOperations(operations: StateOperation[]): Record<string, unknown> {
+  private buildMongoOperations(operations: JsonPatchOperation[]): Record<string, unknown> {
     const mongoOps: Record<string, Record<string, unknown>> = {
       $set: {},
-      $unset: {},
-      $inc: {},
-      $push: {},
-      $pull: {}
+      $unset: {}
     };
 
     for (const operation of operations) {
-      // Prefix all paths with 'state.' since we're now storing everything in the state field
-      const mongoPath = `state.${operation.path}`;
+      // Convert JSON Pointer path to MongoDB dot notation and prefix with 'state.'
+      // JSON Pointer: "/documents/character1/hitPoints" -> MongoDB: "state.documents.character1.hitPoints"
+      const mongoPath = `state${operation.path.replace(/\//g, '.')}`;
       
-      switch (operation.operation) {
-        case 'set':
+      switch (operation.op) {
+        case 'add':
+        case 'replace':
           mongoOps.$set[mongoPath] = operation.value;
           break;
-        case 'unset':
+        case 'remove':
           mongoOps.$unset[mongoPath] = '';
           break;
-        case 'inc':
-          mongoOps.$inc[mongoPath] = typeof operation.value === 'number' ? operation.value : 1;
+        case 'move':
+          // Move operation: remove from source, add to destination
+          if (operation.from) {
+            const fromPath = `state${operation.from.replace(/\//g, '.')}`;
+            mongoOps.$unset[fromPath] = '';
+            mongoOps.$set[mongoPath] = operation.value;
+          }
           break;
-        case 'push':
-          mongoOps.$push[mongoPath] = operation.value;
+        case 'copy':
+          // Copy operation: add to destination (source remains)
+          mongoOps.$set[mongoPath] = operation.value;
           break;
-        case 'pull':
-          mongoOps.$pull[mongoPath] = operation.value;
+        case 'test':
+          // Test operations don't modify data, skip
           break;
+        default:
+          console.warn(`[GameStateService] Unsupported JSON Patch operation: ${operation.op}`);
       }
     }
 
@@ -634,9 +642,9 @@ export class GameStateService {
   }
 
   /**
-   * Apply multiple state operations to game state
+   * Apply multiple JSON Patch operations to game state
    */
-  private async applyOperations(gameState: ServerGameStateWithVirtuals, operations: StateOperation[]): Promise<ServerGameStateWithVirtuals> {
+  private async applyOperations(gameState: ServerGameStateWithVirtuals, operations: JsonPatchOperation[]): Promise<ServerGameStateWithVirtuals> {
     return GameStateOperations.applyOperations(gameState, operations);
   }
 
@@ -681,7 +689,7 @@ export class GameStateService {
     expectedState: ServerGameStateWithVirtuals, 
     expectedHash: string,
     context: { method: string; operationCount?: number },
-    operations: StateOperation[]
+    operations: JsonPatchOperation[]
   ): Promise<void> {
     try {
       // Re-fetch the state that was just saved to MongoDB
@@ -725,7 +733,7 @@ export class GameStateService {
         gameStateId,
         operationsCount: operations.length,
         operations: operations.map(op => ({
-          operation: op.operation,
+          operation: op.op,
           path: op.path,
           valueType: typeof op.value,
           valuePreview: typeof op.value === 'string' ? op.value.substring(0, 100) : 

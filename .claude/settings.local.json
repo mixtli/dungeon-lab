@@ -89,7 +89,10 @@
       "mcp__puppeteer__puppeteer_screenshot",
       "mcp__puppeteer__puppeteer_click",
       "mcp__playwright__browser_press_key",
-      "Bash(vue-tsc --noEmit)"
+      "Bash(vue-tsc --noEmit)",
+      "WebFetch(domain:en.wikipedia.org)",
+      "mcp__playwright__browser_tab_new",
+      "mcp__git__git_show"
     ],
     "defaultMode": "acceptEdits",
     "additionalDirectories": [

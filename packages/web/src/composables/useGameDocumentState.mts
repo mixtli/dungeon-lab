@@ -8,7 +8,7 @@
  */
 
 import { computed, ref, type Ref } from 'vue';
-import type { BaseDocument, ICharacter, IActor, IItem, StateOperation } from '@dungeon-lab/shared/types/index.mjs';
+import type { BaseDocument, ICharacter, IActor, IItem, JsonPatchOperation } from '@dungeon-lab/shared/types/index.mjs';
 import { useGameStateStore } from '../stores/game-state.store.mts';
 
 export interface GameDocumentStateOptions {
@@ -88,10 +88,10 @@ export function useGameDocumentState<T extends BaseDocument = BaseDocument>(
     try {
       isSaving.value = true;
 
-      // Create state operations for document update
-      const operations: StateOperation[] = Object.entries(pendingChanges.value).map(([field, value]) => ({
-        path: `${documentType}s.${documentId}.${field}`,
-        operation: 'set',
+      // Create JSON Patch operations for document update
+      const operations: JsonPatchOperation[] = Object.entries(pendingChanges.value).map(([field, value]) => ({
+        op: 'replace',
+        path: `/documents/${documentId}/${field}`,
         value
       }));
 

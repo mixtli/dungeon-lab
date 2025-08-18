@@ -16,7 +16,7 @@ import {
   type EncounterStartCallback,
   type EncounterStopCallback
 } from '@dungeon-lab/shared/types/index.mjs';
-import type { StateOperation } from '@dungeon-lab/shared/types/index.mjs';
+import type { JsonPatchOperation } from '@dungeon-lab/shared/types/index.mjs';
 import { 
   getActionConfig, 
   requiresApproval, 
@@ -43,7 +43,7 @@ export class GMActionHandlerService {
   // Pending approval requests storage
   private pendingRequests = new Map<string, {
     request: GameActionRequest;
-    operations: StateOperation[];
+    operations: JsonPatchOperation[];
     timestamp: number;
   }>();
 
@@ -470,8 +470,8 @@ export class GMActionHandlerService {
 
       const operations = [
         {
-          path: `currentEncounter.tokens.${tokenIndex}.bounds`,
-          operation: 'set' as const,
+          op: 'replace' as const,
+          path: `/currentEncounter/tokens/${tokenIndex}/bounds`,
           value: newBounds
         }
       ];
@@ -575,30 +575,41 @@ export class GMActionHandlerService {
       }
 
       // Token removal is valid - execute via game state update
+      // Find token index for removal
+      const tokenIndex = this.gameStateStore.currentEncounter.tokens?.findIndex(t => t.id === params.tokenId);
+      if (tokenIndex === undefined || tokenIndex === -1) {
+        return this.socketStore.emit('gameAction:response', {
+          success: false,
+          requestId: request.id,
+          error: {
+            code: 'TOKEN_INDEX_ERROR',
+            message: 'Could not locate token for removal'
+          }
+        });
+      }
+
       const operations = [{
-        path: 'currentEncounter.tokens',
-        operation: 'pull' as const,
-        value: { id: params.tokenId } // MongoDB pull syntax to remove by ID
+        op: 'remove' as const,
+        path: `/currentEncounter/tokens/${tokenIndex}`
       }];
       
       // Also remove from turn order if it exists
       if (this.gameStateStore.gameState?.turnManager?.participants) {
         // Find the participant that has this tokenId
-        const participantToRemove = this.gameStateStore.gameState.turnManager.participants.find(
+        const participantIndex = this.gameStateStore.gameState.turnManager.participants.findIndex(
           participant => participant.tokenId === params.tokenId
         );
         
-        if (participantToRemove) {
+        if (participantIndex !== -1) {
           console.log('[GMActionHandler] Removing token from turn order:', {
             tokenId: params.tokenId,
-            participantId: participantToRemove.id,
+            participantIndex,
             participantCount: this.gameStateStore.gameState.turnManager.participants.length
           });
           
           operations.push({
-            path: 'turnManager.participants',
-            operation: 'pull' as const,
-            value: { id: participantToRemove.id } // Remove participant by ID
+            op: 'remove' as const,
+            path: `/turnManager/participants/${participantIndex}`
           });
         }
       }
@@ -757,10 +768,10 @@ export class GMActionHandlerService {
           throw new Error(`Unsupported document type: ${documentType}`);
       }
 
-      // Create state operation to add the document
+      // Create JSON Patch operation to add the document
       const operations = [{
-        path: collectionPath,
-        operation: 'push' as const,
+        op: 'add' as const,
+        path: `/documents/${document.id}`,
         value: document
       }];
 
@@ -859,7 +870,7 @@ export class GMActionHandlerService {
   /**
    * Send approval request to chat for GM review
    */
-  private async sendApprovalRequest(request: GameActionRequest, operations: StateOperation[]) {
+  private async sendApprovalRequest(request: GameActionRequest, operations: JsonPatchOperation[]) {
     // Store pending request with operations
     this.pendingRequests.set(request.id, {
       request,
@@ -910,7 +921,7 @@ export class GMActionHandlerService {
   /**
    * Execute document update operations
    */
-  private async executeDocumentUpdate(operations: StateOperation[], requestId: string) {
+  private async executeDocumentUpdate(operations: JsonPatchOperation[], requestId: string) {
     try {
       console.log('[GMActionHandler] Executing document update operations:', {
         operationsCount: operations.length,
@@ -1194,8 +1205,8 @@ export class GMActionHandlerService {
           console.log('[GMActionHandler] Server approved encounter start, updating game state');
           
           const operations = [{
-            path: 'currentEncounter',
-            operation: 'set' as const,
+            op: 'replace' as const,
+            path: '/currentEncounter',
             value: response.data
           }];
 
@@ -1302,8 +1313,8 @@ export class GMActionHandlerService {
           console.log('[GMActionHandler] Server approved encounter stop, clearing game state');
           
           const operations = [{
-            path: 'currentEncounter',
-            operation: 'unset' as const
+            op: 'remove' as const,
+            path: '/currentEncounter'
           }];
 
           this.gameStateStore.updateGameState(operations).then((updateResult) => {

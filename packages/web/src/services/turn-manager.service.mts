@@ -2,7 +2,7 @@ import type { ITurnManager, ITurnParticipant } from '@dungeon-lab/shared/types/i
 import type { BaseTurnManagerPlugin } from '@dungeon-lab/shared-ui/base/base-turn-manager.mjs';
 import { pluginRegistry } from './plugin-registry.mjs';
 import { useGameStateStore } from '../stores/game-state.store.mjs';
-import type { StateOperation } from '@dungeon-lab/shared/types/index.mjs';
+import type { JsonPatchOperation } from '@dungeon-lab/shared/types/index.mjs';
 
 export class TurnManagerService {
   private plugin: BaseTurnManagerPlugin | null = null;
@@ -38,9 +38,9 @@ export class TurnManagerService {
     };
     
     // Update game state
-    const operations: StateOperation[] = [{
-      path: 'turnManager',
-      operation: 'set',
+    const operations: JsonPatchOperation[] = [{
+      op: 'replace',
+      path: '/turnManager',
       value: turnManager
     }];
     
@@ -84,10 +84,10 @@ export class TurnManagerService {
       // Reset hasActed flags for new round
       participants = participants.map(p => ({ ...p, hasActed: false }));
       
-      const operations: StateOperation[] = [
-        { path: 'turnManager.round', operation: 'set', value: nextRound },
-        { path: 'turnManager.currentTurn', operation: 'set', value: nextTurn },
-        { path: 'turnManager.participants', operation: 'set', value: participants }
+      const operations: JsonPatchOperation[] = [
+        { op: 'replace', path: '/turnManager/round', value: nextRound },
+        { op: 'replace', path: '/turnManager/currentTurn', value: nextTurn },
+        { op: 'replace', path: '/turnManager/participants', value: participants }
       ];
       
       await this.gameStateStore.updateGameState(operations);
@@ -97,9 +97,9 @@ export class TurnManagerService {
       await this.plugin.onTurnStart(participants[0], updatedTurnManager);
     } else {
       // Normal turn progression
-      const operations: StateOperation[] = [
-        { path: `turnManager.participants.${turnManager.currentTurn}.hasActed`, operation: 'set', value: true },
-        { path: 'turnManager.currentTurn', operation: 'set', value: nextTurn }
+      const operations: JsonPatchOperation[] = [
+        { op: 'replace', path: `/turnManager/participants/${turnManager.currentTurn}/hasActed`, value: true },
+        { op: 'replace', path: '/turnManager/currentTurn', value: nextTurn }
       ];
       
       await this.gameStateStore.updateGameState(operations);
@@ -128,9 +128,9 @@ export class TurnManagerService {
     const plainParticipants = JSON.parse(JSON.stringify(turnManager.participants)) as ITurnParticipant[];
     const recalculatedParticipants = await this.plugin.calculateInitiative(plainParticipants);
     
-    const operations: StateOperation[] = [{
-      path: 'turnManager.participants',
-      operation: 'set', 
+    const operations: JsonPatchOperation[] = [{
+      op: 'replace',
+      path: '/turnManager/participants',
       value: recalculatedParticipants
     }];
     
@@ -149,9 +149,9 @@ export class TurnManagerService {
     const reorderedParticipants = await this.plugin.updateParticipantOrder(participants);
     console.log('[TurnManagerService] Plugin returned reordered participants:', reorderedParticipants.map(p => ({ name: p.name, turnOrder: p.turnOrder })));
     
-    const operations: StateOperation[] = [{
-      path: 'turnManager.participants',
-      operation: 'set',
+    const operations: JsonPatchOperation[] = [{
+      op: 'replace',
+      path: '/turnManager/participants',
       value: reorderedParticipants  
     }];
     
@@ -171,9 +171,9 @@ export class TurnManagerService {
     const plainTurnManager = JSON.parse(JSON.stringify(turnManager)) as ITurnManager;
     await this.plugin.onTurnOrderEnd(plainTurnManager);
     
-    const operations: StateOperation[] = [{
-      path: 'turnManager',
-      operation: 'set',
+    const operations: JsonPatchOperation[] = [{
+      op: 'replace',
+      path: '/turnManager',
       value: null
     }];
     

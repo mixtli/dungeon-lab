@@ -64,11 +64,11 @@ import {
 } from '../schemas/server-game-state.schema.mjs';
 
 import {
-  stateOperationSchema,
+  jsonPatchOperationSchema,
   stateUpdateSchema,
   stateUpdateResponseSchema,
   stateUpdateBroadcastSchema,
-  StateOperationType
+  JsonPatchOperationType
 } from '../schemas/game-state-update.schema.mjs';
 
 import {
@@ -202,11 +202,12 @@ export type ServerGameState = z.infer<typeof serverGameStateSchema>;
 export type ServerGameStateWithVirtuals = z.infer<typeof serverGameStateWithVirtualsSchema>;
 
 // State Update Types
-export type StateOperation = z.infer<typeof stateOperationSchema>;
+export type JsonPatchOperation = z.infer<typeof jsonPatchOperationSchema>;
+export type StateOperation = JsonPatchOperation; // Legacy alias
 export type StateUpdate = z.infer<typeof stateUpdateSchema>;
 export type StateUpdateResponse = z.infer<typeof stateUpdateResponseSchema>;
 export type StateUpdateBroadcast = z.infer<typeof stateUpdateBroadcastSchema>;
-export type StateOperationTypeEnum = z.infer<typeof StateOperationType>;
+export type JsonPatchOperationTypeEnum = z.infer<typeof JsonPatchOperationType>;
 
 // Turn Manager Types  
 export type ITurnParticipant = z.infer<typeof turnParticipantSchema>;

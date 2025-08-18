@@ -5,7 +5,7 @@ import type {
   StateUpdate, 
   StateUpdateResponse,
   StateUpdateBroadcast,
-  StateOperation,
+  JsonPatchOperation,
   ICharacter,
   IActor,
   IItem,
@@ -241,7 +241,7 @@ export const useGameStateStore = defineStore(
      * Update game state (GM only)
      * Handles sequential processing with optimistic concurrency control
      */
-    async function updateGameState(operations: StateOperation[]): Promise<StateUpdateResponse> {
+    async function updateGameState(operations: JsonPatchOperation[]): Promise<StateUpdateResponse> {
       if (!canUpdate.value) {
         throw new Error('Not authorized to update game state');
       }
@@ -287,7 +287,7 @@ export const useGameStateStore = defineStore(
     /**
      * Process a single state update
      */
-    async function processUpdate(operations: StateOperation[]): Promise<StateUpdateResponse> {
+    async function processUpdate(operations: JsonPatchOperation[]): Promise<StateUpdateResponse> {
       isUpdating.value = true;
       
       try {
@@ -366,11 +366,11 @@ export const useGameStateStore = defineStore(
     // ============================================================================
 
     /**
-     * Apply state operations to local game state
+     * Apply JSON Patch operations to local game state
      * Uses shared GameStateOperations for consistency with server
      * Both client and server now use identical ServerGameStateWithVirtuals type
      */
-    function applyStateOperations(operations: StateOperation[]): void {
+    function applyStateOperations(operations: JsonPatchOperation[]): void {
       if (!gameState.value) return;
 
       // Apply operations directly - no type casting needed since types are now consistent
@@ -816,9 +816,9 @@ export const useGameStateStore = defineStore(
         ownerId: document.ownerId || authStore.user?.id || ''
       };
 
-      const operations: StateOperation[] = [{
-        path: 'currentEncounter.tokens',
-        operation: 'push',
+      const operations: JsonPatchOperation[] = [{
+        op: 'add',
+        path: '/currentEncounter/tokens/-',
         value: tokenData
       }];
 
@@ -834,8 +834,8 @@ export const useGameStateStore = defineStore(
         };
         
         operations.push({
-          path: 'turnManager.participants',
-          operation: 'push',
+          op: 'add',
+          path: '/turnManager/participants/-',
           value: newParticipant
         });
         

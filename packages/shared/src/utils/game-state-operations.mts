@@ -1,272 +1,80 @@
-import type { StateOperation, ServerGameStateWithVirtuals } from '../types/index.mjs';
+import type { JsonPatchOperation, ServerGameStateWithVirtuals } from '../types/index.mjs';
+import { applyPatch, deepClone, compare } from 'fast-json-patch/index.mjs';
+import type { Operation } from 'fast-json-patch';
 
 /**
- * Shared game state operation utilities
+ * Shared game state operation utilities using JSON Patch (RFC 6902)
  * Used by both server and client to ensure consistent state transformations
  */
 export class GameStateOperations {
   /**
-   * Apply multiple state operations to game state
+   * Apply multiple JSON Patch operations to game state
    */
-  static applyOperations(gameState: ServerGameStateWithVirtuals, operations: StateOperation[]): ServerGameStateWithVirtuals {
-    let currentState = JSON.parse(JSON.stringify(gameState)); // Deep clone
-    for (const operation of operations) {
-      currentState = GameStateOperations.applyOperation(currentState, operation);
-    }
-    return currentState;
+  static applyOperations(gameState: ServerGameStateWithVirtuals, operations: JsonPatchOperation[]): ServerGameStateWithVirtuals {
+    // Deep clone the state to avoid mutation
+    const clonedState = deepClone(gameState);
+    
+    // Convert our JsonPatchOperation format to fast-json-patch Operation format
+    const patchOperations: Operation[] = operations.map(op => ({
+      op: op.op,
+      path: op.path,
+      value: op.value,
+      from: op.from
+    } as Operation));
+    
+    // Apply the patch operations
+    const result = applyPatch(clonedState, patchOperations);
+    
+    return result.newDocument;
   }
 
   /**
-   * Apply a single state operation using proper path parsing
+   * Apply a single JSON Patch operation to game state
    */
-  static applyOperation(gameState: ServerGameStateWithVirtuals, operation: StateOperation): ServerGameStateWithVirtuals {
-    const { path, operation: op, value } = operation;
-    try {
-      // Parse path into segments
-      const pathSegments = GameStateOperations.parsePath(path);
-      
-      // Navigate to target location
-      const { parent, key } = GameStateOperations.navigateToParent(gameState as Record<string, unknown>, pathSegments);
-      
-      // Apply operation
-      switch (op) {
-        case 'set':
-          parent[key] = value;
-          break;
-          
-        case 'unset':
-          if (Array.isArray(parent)) {
-            parent.splice(parseInt(key), 1);
-          } else {
-            delete parent[key];
-          }
-          break;
-          
-        case 'inc': {
-          const currentValue = typeof parent[key] === 'number' ? parent[key] : 0;
-          parent[key] = currentValue + (typeof value === 'number' ? value : 1);
-          break;
-        }
-          
-        case 'push':
-          if (!Array.isArray(parent[key])) {
-            parent[key] = [];
-          }
-          (parent[key] as unknown[]).push(value);
-          break;
-          
-        case 'pull':
-          if (Array.isArray(parent[key])) {
-            const array = parent[key] as unknown[];
-            const index = array.findIndex((item: unknown) => 
-              GameStateOperations.matchesQuery(item, value)
-            );
-            if (index > -1) {
-              array.splice(index, 1);
-            }
-          }
-          break;
-          
-        default:
-          throw new Error(`Unknown operation: ${op}`);
-      }
-      
-      return gameState;
-    } catch (error) {
-      throw new Error(`Failed to apply operation ${op} at path ${path}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
+  static applyOperation(gameState: ServerGameStateWithVirtuals, operation: JsonPatchOperation): ServerGameStateWithVirtuals {
+    return GameStateOperations.applyOperations(gameState, [operation]);
   }
 
   /**
-   * Parse a path string into segments, handling array indices and nested properties
+   * Generate JSON Patch operations from comparing two states
+   * Uses fast-json-patch to generate RFC 6902 compliant operations
    */
-  static parsePath(path: string): string[] {
-    // Handle paths like "characters.0.pluginData.hitPoints" or "characters[0].name"
-    return path
-      .replace(/\[(\d+)\]/g, '.$1') // Convert array notation to dot notation
-      .split('.')
-      .filter(segment => segment.length > 0);
+  static generatePatch(oldState: Record<string, unknown>, newState: Record<string, unknown>): JsonPatchOperation[] {
+    const operations = compare(oldState, newState);
+    
+    // Convert fast-json-patch Operation format to our JsonPatchOperation format
+    return operations.map(op => ({
+      op: op.op,
+      path: op.path,
+      value: 'value' in op ? op.value : undefined,
+      from: 'from' in op ? op.from : undefined,
+      // previous value can be calculated if needed for rollbacks
+    } as JsonPatchOperation));
   }
 
   /**
-   * Navigate to the parent object/array of the target property
+   * Generate JSON Patch operations for document updates
+   * Compares the original document state with the updated document state and generates patch operations
    */
-  static navigateToParent(obj: Record<string, unknown>, pathSegments: string[]): { parent: Record<string, unknown>; key: string } {
-    let current = obj;
-    
-    // Navigate to parent (all segments except the last)
-    for (let i = 0; i < pathSegments.length - 1; i++) {
-      const segment = pathSegments[i];
-      
-      if (current[segment] === undefined) {
-        // Create intermediate objects/arrays as needed
-        const nextSegment = pathSegments[i + 1];
-        const isNextSegmentArrayIndex = /^\d+$/.test(nextSegment);
-        current[segment] = isNextSegmentArrayIndex ? [] : {};
-      }
-      
-      current = current[segment] as Record<string, unknown>;
-    }
-    
-    const key = pathSegments[pathSegments.length - 1];
-    return { parent: current, key };
-  }
-
-  /**
-   * Check if an item matches a query object (MongoDB-style matching)
-   * Used for $pull operations - matches if all query fields are present in the item
-   */
-  static matchesQuery(item: unknown, query: unknown): boolean {
-    if (query == null || typeof query !== 'object') {
-      return GameStateOperations.deepEqual(item, query);
-    }
-    
-    if (item == null || typeof item !== 'object') {
-      return false;
-    }
-    
-    const queryObj = query as Record<string, unknown>;
-    const itemObj = item as Record<string, unknown>;
-    
-    // Check if all query fields match the corresponding item fields
-    for (const [key, value] of Object.entries(queryObj)) {
-      if (!(key in itemObj) || !GameStateOperations.deepEqual(itemObj[key], value)) {
-        return false;
-      }
-    }
-    
-    return true;
-  }
-
-  /**
-   * Deep equality check for objects/arrays
-   */
-  static deepEqual(a: unknown, b: unknown): boolean {
-    if (a === b) return true;
-    if (a == null || b == null) return false;
-    if (typeof a !== typeof b) return false;
-    
-    if (typeof a === 'object') {
-      if (Array.isArray(a) !== Array.isArray(b)) return false;
-      
-      const keysA = Object.keys(a);
-      const keysB = Object.keys(b);
-      
-      if (keysA.length !== keysB.length) return false;
-      
-      for (const key of keysA) {
-        const aObj = a as Record<string, unknown>;
-        const bObj = b as Record<string, unknown>;
-        if (!keysB.includes(key) || !GameStateOperations.deepEqual(aObj[key], bObj[key])) {
-          return false;
-        }
-      }
-      
-      return true;
-    }
-    
-    return false;
-  }
-
-  /**
-   * Convert deep-diff output to StateOperation array
-   * Used for document update workflows where we need to send state operations
-   */
-  static convertDiffToStateOperations(
-    diffArray: any[] | undefined,
+  static generateDocumentPatch(
+    originalDocument: Record<string, unknown>,
+    updatedDocument: Record<string, unknown>,
     documentId: string
-  ): StateOperation[] {
-    if (!diffArray || diffArray.length === 0) {
-      return [];
-    }
-
-    const operations: StateOperation[] = [];
-
-    for (const change of diffArray) {
-      try {
-        // Build the full path including document prefix
-        const pathPrefix = `documents.${documentId}`;
-        const changePath = change.path ? change.path.join('.') : '';
-        const fullPath = changePath ? `${pathPrefix}.${changePath}` : pathPrefix;
-
-        switch (change.kind) {
-          case 'E': // Edit - existing field changed
-            operations.push({
-              path: fullPath,
-              operation: 'set',
-              value: change.rhs
-            });
-            break;
-
-          case 'N': // New - field added
-            operations.push({
-              path: fullPath,
-              operation: 'set',
-              value: change.rhs
-            });
-            break;
-
-          case 'D': // Deleted - field removed
-            operations.push({
-              path: fullPath,
-              operation: 'unset'
-            });
-            break;
-
-          case 'A': // Array change
-            const arrayPath = fullPath;
-            
-            // Array changes are complex - for now, let's handle them as simple set operations
-            // at the specific array index where the change occurred
-            if (change.index !== undefined && typeof change.index === 'number') {
-              const indexPath = `${arrayPath}.${change.index}`;
-              
-              // Check if item was added, removed, or modified
-              if (change.item && typeof change.item === 'object') {
-                const item = change.item;
-                
-                if (item.kind === 'N') {
-                  // Item added - use set at specific index
-                  operations.push({
-                    path: indexPath,
-                    operation: 'set',
-                    value: item.rhs
-                  });
-                } else if (item.kind === 'D') {
-                  // Item removed - use unset at specific index
-                  operations.push({
-                    path: indexPath,
-                    operation: 'unset'
-                  });
-                } else if (item.kind === 'E') {
-                  // Item modified - use set at specific index
-                  operations.push({
-                    path: indexPath,
-                    operation: 'set',
-                    value: item.rhs
-                  });
-                }
-              }
-            }
-            break;
-
-          default:
-            console.warn('[GameStateOperations] Unknown diff kind:', change.kind);
-        }
-      } catch (error) {
-        console.error('[GameStateOperations] Error converting diff to state operation:', error, change);
-      }
-    }
-
-    return operations;
+  ): JsonPatchOperation[] {
+    // Create minimal state objects for comparison
+    const originalState = { documents: { [documentId]: originalDocument } };
+    const updatedState = { documents: { [documentId]: updatedDocument } };
+    
+    // Generate the patch using fast-json-patch
+    return GameStateOperations.generatePatch(originalState, updatedState);
   }
 }
 
 // Export standalone functions for backwards compatibility and easier usage
 export const applyOperations = GameStateOperations.applyOperations;
 export const applyOperation = GameStateOperations.applyOperation;
-export const parsePath = GameStateOperations.parsePath;
-export const navigateToParent = GameStateOperations.navigateToParent;
-export const matchesQuery = GameStateOperations.matchesQuery;
-export const deepEqual = GameStateOperations.deepEqual;
-export const convertDiffToStateOperations = GameStateOperations.convertDiffToStateOperations;
+export const generatePatch = GameStateOperations.generatePatch;
+export const generateDocumentPatch = GameStateOperations.generateDocumentPatch;
+
+// Legacy exports - replaced by JSON Patch functions
+export const convertDiffToStateOperations = GameStateOperations.generateDocumentPatch;
