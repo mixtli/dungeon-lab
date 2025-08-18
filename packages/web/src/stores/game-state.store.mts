@@ -367,14 +367,15 @@ export const useGameStateStore = defineStore(
 
     /**
      * Apply JSON Patch operations to local game state
-     * Uses shared GameStateOperations for consistency with server
-     * Both client and server now use identical ServerGameStateWithVirtuals type
+     * Uses in-place operations to preserve Vue reactivity for unchanged portions
+     * Only the specific paths that change will trigger reactivity, not the entire state tree
      */
     function applyStateOperations(operations: JsonPatchOperation[]): void {
       if (!gameState.value) return;
 
-      // Apply operations directly - no type casting needed since types are now consistent
-      gameState.value = GameStateOperations.applyOperations(gameState.value, operations);
+      // Apply operations in-place to preserve Vue reactivity tracking
+      // This ensures only changed paths trigger re-renders, not the entire state
+      GameStateOperations.applyOperationsInPlace(gameState.value, operations);
     }
 
 

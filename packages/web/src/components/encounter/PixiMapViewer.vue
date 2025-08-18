@@ -734,6 +734,27 @@ watch(() => props.tokens, async (newTokens, oldTokens) => {
     return;
   }
   
+  // Debug: Check if tokens are same object references (due to in-place updates)
+  if (oldTokens && newTokens && oldTokens.length > 0 && newTokens.length > 0) {
+    const sameReference = oldTokens[0] === newTokens[0];
+    if (sameReference) {
+      console.log('[PixiMapViewer] Detected same token references - using force reload instead of diff');
+      // With in-place updates, token objects are the same reference
+      // so diffing won't work. Force reload all tokens.
+      try {
+        await loadTokens(newTokens);
+        
+        // Apply pending selection after tokens are loaded
+        if (props.selectedTokenId) {
+          selectToken(props.selectedTokenId);
+        }
+      } catch (error) {
+        console.error('[PixiMapViewer] Force token reload failed:', error);
+      }
+      return;
+    }
+  }
+  
   // Handle complete token clearing
   if (!newTokens || newTokens.length === 0) {
     clearAllTokens();

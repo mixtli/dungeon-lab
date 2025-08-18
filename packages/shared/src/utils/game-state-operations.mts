@@ -29,6 +29,24 @@ export class GameStateOperations {
   }
 
   /**
+   * Apply JSON Patch operations in-place to preserve Vue reactivity references
+   * This method mutates the existing object to maintain Vue's reactivity tracking
+   */
+  static applyOperationsInPlace(gameState: ServerGameStateWithVirtuals, operations: JsonPatchOperation[]): void {
+    // Convert our JsonPatchOperation format to fast-json-patch Operation format
+    const patchOperations: Operation[] = operations.map(op => ({
+      op: op.op,
+      path: op.path,
+      value: op.value,
+      from: op.from
+    } as Operation));
+    
+    // Apply patches directly to the original object (mutating it)
+    // This preserves Vue's reactivity tracking for unchanged portions
+    applyPatch(gameState, patchOperations, /* validateOperation */ false, /* mutateDocument */ true);
+  }
+
+  /**
    * Apply a single JSON Patch operation to game state
    */
   static applyOperation(gameState: ServerGameStateWithVirtuals, operation: JsonPatchOperation): ServerGameStateWithVirtuals {
@@ -72,6 +90,7 @@ export class GameStateOperations {
 
 // Export standalone functions for backwards compatibility and easier usage
 export const applyOperations = GameStateOperations.applyOperations;
+export const applyOperationsInPlace = GameStateOperations.applyOperationsInPlace;
 export const applyOperation = GameStateOperations.applyOperation;
 export const generatePatch = GameStateOperations.generatePatch;
 export const generateDocumentPatch = GameStateOperations.generateDocumentPatch;
