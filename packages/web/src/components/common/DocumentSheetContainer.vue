@@ -270,11 +270,21 @@ const handleGameContextSave = async () => {
   }
 
   // Generate JSON Patch operations by comparing original and updated documents
+  console.log('[DocumentSheetContainer] Generating document patch:', {
+    documentId: props.documentId,
+    originalDocument: reactiveDocument.value,
+    updatedDocument: documentCopy.value,
+    originalDocumentKeys: Object.keys(reactiveDocument.value || {}),
+    updatedDocumentKeys: Object.keys(documentCopy.value || {})
+  });
+  
   const operations = generateDocumentPatch(
     reactiveDocument.value as Record<string, unknown>,
     documentCopy.value as Record<string, unknown>,
     props.documentId
   );
+  
+  console.log('[DocumentSheetContainer] Generated operations:', operations);
   
   if (operations.length === 0) {
     console.log('[DocumentSheetContainer] No changes detected');

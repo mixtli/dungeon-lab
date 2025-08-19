@@ -30,14 +30,6 @@ async function addDocumentStateField() {
     const db = client.db();
     const documentsCollection = db.collection('documents');
 
-    // Standard state structure with defined lifecycle sections
-    const standardStateStructure = {
-      turnState: undefined,
-      sessionState: undefined,
-      encounterState: undefined,
-      persistentState: undefined
-    };
-
     // Find documents that need state field updates
     const documentsNeedingUpdate = await documentsCollection.countDocuments({
       $or: [

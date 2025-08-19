@@ -47,6 +47,7 @@ const baseDocumentFields = {
   // Owner reference (user who owns this document)
   ownerId: z.string().optional(),
   
+  
   // Plugin-specific data (flexible structure)
   pluginData: z.record(z.string(), z.unknown()).default({}),
   
@@ -87,7 +88,7 @@ const baseDocumentFields = {
  */
 export const characterDocumentSchema = baseSchema.extend({
   ...baseDocumentFields,
-  documentType: z.string().default('character'),
+  documentType: z.literal('character'),
   
   // Character-specific image field
   avatarId: z.string().optional()
@@ -98,7 +99,7 @@ export const characterDocumentSchema = baseSchema.extend({
  */
 export const actorDocumentSchema = baseSchema.extend({
   ...baseDocumentFields,
-  documentType: z.string().default('actor')
+  documentType: z.literal('actor')
 });
 
 /**
@@ -106,7 +107,7 @@ export const actorDocumentSchema = baseSchema.extend({
  */
 export const itemDocumentSchema = baseSchema.extend({
   ...baseDocumentFields,
-  documentType: z.string().default('item'),
+  documentType: z.literal('item'),
   
   // Character/Actor that carries this item (for inventory management)
   // Note: ownerId represents User ownership, carrierId represents Character/Actor ownership
@@ -118,14 +119,14 @@ export const itemDocumentSchema = baseSchema.extend({
  */
 export const vttDocumentSchema = baseSchema.extend({
   ...baseDocumentFields,
-  documentType: z.string().default('vtt-document')
+  documentType: z.literal('vtt-document')
 });
 
 /**
  * Union of all document types
  * This ensures each document type gets exactly the fields it should have
  */
-export const baseDocumentSchema = z.union([
+export const baseDocumentSchema = z.discriminatedUnion('documentType', [
   characterDocumentSchema,
   actorDocumentSchema,
   itemDocumentSchema,
@@ -263,7 +264,10 @@ export const updateDocumentSchema = z.object({
   tokenImageId: z.string().optional(),
   
   // Character-specific field
-  avatarId: z.string().optional()
+  avatarId: z.string().optional(),
+  
+  // Item-specific field
+  carrierId: z.string().optional()
 }).partial();
 
 /**

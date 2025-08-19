@@ -60,8 +60,10 @@ async function updateDocumentImage(
     case 'vtt-document':
       // VTT documents don't currently support image generation
       throw new Error('Image generation not supported for VTT documents');
-    default:
-      throw new Error(`Unsupported document type for image generation: ${document.documentType}`);
+    default: {
+      const exhaustiveCheck: never = document;
+      throw new Error(`Unsupported document type for image generation: ${(exhaustiveCheck as BaseDocument).documentType}`);
+    }
   }
 }
 

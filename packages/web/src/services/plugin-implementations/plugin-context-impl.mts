@@ -13,7 +13,7 @@ import type {
   ActionHandler
 } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 import type { RollTypeHandler } from '@dungeon-lab/shared-ui/types/plugin.mjs';
-import type { BaseDocument, ICompendiumEntry } from '@dungeon-lab/shared/types/index.mjs';
+import type { BaseDocument, ICompendiumEntry, ActionRequestResult, GameActionType } from '@dungeon-lab/shared/types/index.mjs';
 import type { Roll, RollCallback } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
 import { ReactivePluginStore } from '../plugin-store.mjs';
 import { CompendiumsClient } from '@dungeon-lab/client/index.mjs';
@@ -23,6 +23,7 @@ import { useGameStateStore } from '../../stores/game-state.store.mjs';
 import { useGameSessionStore } from '../../stores/game-session.store.mjs';
 import { useSocketStore } from '../../stores/socket.store.mjs';
 import { rollHandlerService } from '../roll-handler.service.mjs';
+import { PlayerActionService } from '../player-action.service.mjs';
 import { 
   registerPluginActionHandler,
   unregisterPluginActionHandler,
@@ -42,6 +43,7 @@ export class PluginContextImpl implements PluginContext {
   public readonly gameState?: GameStateContext;
   private compendiumsClient: CompendiumsClient;
   private documentsClient: DocumentsClient;
+  private _playerActionService?: PlayerActionService;
   
   constructor(private pluginId: string, options: PluginContextOptions = {}) {
     // Initialize plugin-scoped store
@@ -50,6 +52,9 @@ export class PluginContextImpl implements PluginContext {
     // Initialize API clients for read-only operations
     this.compendiumsClient = new CompendiumsClient();
     this.documentsClient = new DocumentsClient();
+    
+    // PlayerActionService will be lazy-initialized when needed
+    // to avoid Pinia store issues during plugin loading
     
     // Optionally initialize game state context
     if (options.includeGameState) {
@@ -65,6 +70,16 @@ export class PluginContextImpl implements PluginContext {
     } else {
       console.log(`[PluginContext] Created minimal context for plugin '${pluginId}'`);
     }
+  }
+  
+  /**
+   * Lazy getter for PlayerActionService to avoid Pinia issues during initialization
+   */
+  private get playerActionService(): PlayerActionService {
+    if (!this._playerActionService) {
+      this._playerActionService = new PlayerActionService();
+    }
+    return this._playerActionService;
   }
   
   /**
@@ -226,6 +241,48 @@ export class PluginContextImpl implements PluginContext {
   unregisterAllActionHandlers(): void {
     unregisterAllPluginActionHandlers(this.pluginId);
     console.log(`[PluginContext] Unregistered all action handlers for plugin '${this.pluginId}'`);
+  }
+
+  /**
+   * Request a game action to be performed
+   * This goes through the standard GM approval workflow
+   */
+  async requestAction(
+    actionType: string,
+    parameters: Record<string, unknown>,
+    options: { description?: string } = {}
+  ): Promise<ActionRequestResult> {
+    try {
+      console.log(`[PluginContext] Requesting action '${actionType}' from plugin '${this.pluginId}':`, {
+        actionType,
+        parameters,
+        description: options.description
+      });
+
+      const result = await this.playerActionService.requestAction(
+        actionType as GameActionType, // Cast to GameActionType - the service will validate
+        parameters,
+        options
+      );
+
+      console.log(`[PluginContext] Action request '${actionType}' result for plugin '${this.pluginId}':`, {
+        success: result.success,
+        approved: result.approved,
+        error: result.error
+      });
+
+      return result;
+    } catch (error) {
+      console.error(`[PluginContext] Failed to request action '${actionType}' from plugin '${this.pluginId}':`, error);
+      
+      // Return a failed result instead of throwing
+      return {
+        success: false,
+        approved: false,
+        requestId: '',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
   }
   
   /**

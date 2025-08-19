@@ -222,7 +222,69 @@
       </div>
       
       <div v-if="activeTab === 'gear'" class="tab-pane gear-tab">
-        <div class="empty-state">Equipment features coming soon...</div>
+        <div 
+          class="equipment-section"
+          :class="{ 'drag-over': isDragOver }"
+          @dragenter="handleDragEnter"
+          @dragover="handleDragOver"
+          @dragleave="handleDragLeave"
+          @drop="handleDrop"
+        >
+          <!-- Equipment Header -->
+          <div class="equipment-header">
+            <h3 class="section-title">Equipment</h3>
+            <div class="item-count">
+              {{ items?.value?.length || 0 }} item{{ (items?.value?.length || 0) !== 1 ? 's' : '' }}
+            </div>
+          </div>
+
+          <!-- Equipment List -->
+          <div v-if="items?.value?.length" class="equipment-list">
+            <div 
+              v-for="item in items.value" 
+              :key="item.id"
+              class="equipment-item"
+            >
+              <div class="item-main">
+                <div class="item-header">
+                  <h4 class="item-name">{{ item.name }}</h4>
+                  <div class="item-type">{{ getItemTypeDisplay(item) }}</div>
+                </div>
+                <div v-if="item.description" class="item-description">
+                  {{ item.description }}
+                </div>
+              </div>
+              
+              <div class="item-properties">
+                <div v-if="getItemWeight(item)" class="item-property">
+                  <span class="property-label">Weight:</span>
+                  <span class="property-value">{{ getItemWeight(item) }} lbs</span>
+                </div>
+                <div v-if="getItemCost(item)" class="item-property">
+                  <span class="property-label">Cost:</span>
+                  <span class="property-value">{{ getItemCost(item) }}</span>
+                </div>
+                <div v-if="getItemDamage(item)" class="item-property">
+                  <span class="property-label">Damage:</span>
+                  <span class="property-value">{{ getItemDamage(item) }}</span>
+                </div>
+                <div v-if="getItemProperties(item)" class="item-property">
+                  <span class="property-label">Properties:</span>
+                  <span class="property-value">{{ getItemProperties(item) }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Empty State -->
+          <div v-else class="equipment-empty">
+            <div class="empty-icon">🎒</div>
+            <div class="empty-title">No Equipment</div>
+            <div class="empty-description">
+              This character doesn't have any equipment yet. Items can be added from the compendium.
+            </div>
+          </div>
+        </div>
       </div>
       
       <div v-if="activeTab === 'background'" class="tab-pane background-tab">
@@ -266,6 +328,7 @@ import type { ICharacter, IItem, BaseDocument } from '@dungeon-lab/shared/types/
 import type { DndCharacterClassDocument } from '../../types/dnd/character-class.mjs';
 import type { DndSpeciesDocument } from '../../types/dnd/species.mjs';
 import type { DndBackgroundDocument } from '../../types/dnd/background.mjs';
+import type { AssignItemParameters } from '@dungeon-lab/shared/types/index.mjs';
 import { getPluginContext } from '@dungeon-lab/shared-ui/utils/plugin-context.mjs';
 import AdvantageRollDialog, { type RollDialogData } from '../internal/common/AdvantageRollDialog.vue';
 
@@ -344,6 +407,13 @@ const activeTab = ref('overview');
 // Roll dialog state
 const showRollDialog = ref(false);
 const currentRollAbility = ref<string>('');
+
+// Drag and drop state
+const isDragOver = ref(false);
+const dragCounter = ref(0);
+
+// Get plugin context for action requests
+const pluginContext = getPluginContext();
 
 // Use container-provided document copy - no local state management needed!
 // The container handles copy creation, change detection, and save/cancel logic
@@ -712,6 +782,49 @@ const characterNotes = computed({
   }
 });
 
+// Equipment helper functions
+const getItemTypeDisplay = (item: IItem): string => {
+  const pluginData = item.pluginData as any;
+  if (pluginData?.itemType) {
+    return pluginData.itemType.charAt(0).toUpperCase() + pluginData.itemType.slice(1);
+  }
+  return item.pluginDocumentType || 'Item';
+};
+
+const getItemWeight = (item: IItem): number | null => {
+  const pluginData = item.pluginData as any;
+  return pluginData?.weight || null;
+};
+
+const getItemCost = (item: IItem): string | null => {
+  const pluginData = item.pluginData as any;
+  if (pluginData?.cost?.amount && pluginData?.cost?.currency) {
+    const amount = pluginData.cost.amount;
+    const currency = pluginData.cost.currency.toUpperCase();
+    if (currency === 'GP' && amount >= 100) {
+      return `${amount / 100} gp`;
+    }
+    return `${amount} ${currency}`;
+  }
+  return null;
+};
+
+const getItemDamage = (item: IItem): string | null => {
+  const pluginData = item.pluginData as any;
+  if (pluginData?.damage?.dice && pluginData?.damage?.type) {
+    return `${pluginData.damage.dice} ${pluginData.damage.type}`;
+  }
+  return null;
+};
+
+const getItemProperties = (item: IItem): string | null => {
+  const pluginData = item.pluginData as any;
+  if (pluginData?.properties && Array.isArray(pluginData.properties) && pluginData.properties.length > 0) {
+    return pluginData.properties.join(', ');
+  }
+  return null;
+};
+
 // Methods
 const formatModifier = (value: number): string => {
   return value >= 0 ? `+${value}` : `${value}`;
@@ -904,6 +1017,128 @@ const loadCompendiumDocuments = async () => {
     compendiumError.value = 'Failed to load character data';
   } finally {
     compendiumLoading.value = false;
+  }
+};
+
+// ============================================================================
+// DRAG AND DROP FUNCTIONALITY  
+// ============================================================================
+
+/**
+ * Handle drag enter event - increment counter for nested elements
+ */
+const handleDragEnter = (event: DragEvent) => {
+  event.preventDefault();
+  event.stopPropagation();
+  
+  dragCounter.value++;
+  if (dragCounter.value === 1) {
+    isDragOver.value = true;
+  }
+};
+
+/**
+ * Handle drag over event - necessary to allow drop
+ */
+const handleDragOver = (event: DragEvent) => {
+  event.preventDefault();
+  event.stopPropagation();
+  
+  // Set drop effect to indicate items can be assigned
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'copy';
+  }
+};
+
+/**
+ * Handle drag leave event - decrement counter for nested elements  
+ */
+const handleDragLeave = (event: DragEvent) => {
+  event.preventDefault();
+  event.stopPropagation();
+  
+  dragCounter.value--;
+  if (dragCounter.value === 0) {
+    isDragOver.value = false;
+  }
+};
+
+/**
+ * Handle drop event - process item assignment
+ */
+const handleDrop = async (event: DragEvent) => {
+  event.preventDefault();
+  event.stopPropagation();
+  
+  // Reset drag state
+  isDragOver.value = false;
+  dragCounter.value = 0;
+  
+  if (!event.dataTransfer) {
+    console.warn('[CharacterSheet] No drag data available');
+    return;
+  }
+  
+  if (!character.value) {
+    console.warn('[CharacterSheet] No character available for item assignment');
+    return;
+  }
+  
+  try {
+    // Parse drag data
+    const dragDataStr = event.dataTransfer.getData('application/json');
+    if (!dragDataStr) {
+      console.warn('[CharacterSheet] No drag data found');
+      return;
+    }
+    
+    const dragData = JSON.parse(dragDataStr);
+    console.log('[CharacterSheet] Processing drop data:', dragData);
+    
+    // Validate drag data format
+    if (dragData.type !== 'document-token' || dragData.documentType !== 'item') {
+      console.warn('[CharacterSheet] Invalid drag data type:', dragData.type, dragData.documentType);
+      return;
+    }
+    
+    // Prepare action parameters
+    const actionParams: AssignItemParameters = {
+      itemId: dragData.documentId,
+      targetCharacterId: character.value.id,
+      itemName: dragData.name || 'Unknown Item',
+      targetCharacterName: character.value.name || 'Unknown Character'
+    };
+    
+    console.log('[CharacterSheet] Requesting item assignment:', actionParams);
+    
+    // Check if plugin context is available
+    if (!pluginContext) {
+      console.error('[CharacterSheet] Plugin context not available for action request');
+      return;
+    }
+    
+    // Request the action through the plugin context
+    const result = await pluginContext.requestAction(
+      'assign-item',
+      actionParams,
+      {
+        description: `Assign ${actionParams.itemName} to ${actionParams.targetCharacterName}`
+      }
+    );
+    
+    console.log('[CharacterSheet] Action request result:', result);
+    
+    // Handle result with console feedback
+    if (result.success && result.approved) {
+      console.log(`[CharacterSheet] SUCCESS: ${actionParams.itemName} has been assigned to ${actionParams.targetCharacterName}`);
+    } else if (result.success && !result.approved) {
+      console.warn(`[CharacterSheet] DENIED: Assignment denied - ${result.error || 'No reason provided'}`);
+    } else {
+      console.error(`[CharacterSheet] ERROR: Assignment failed - ${result.error || 'Unknown error'}`);
+    }
+    
+  } catch (error) {
+    console.error('[CharacterSheet] Failed to process drop:', error);
   }
 };
 
@@ -1376,12 +1611,205 @@ watch(() => {
   color: var(--dnd-red-dark);
 }
 
+/* Equipment Section Styles */
+.equipment-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: 100%;
+  transition: all 0.2s ease;
+  border-radius: 8px;
+  position: relative;
+}
+
+.equipment-section.drag-over {
+  background: rgba(59, 130, 246, 0.1);
+  border: 2px dashed rgba(59, 130, 246, 0.5);
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.equipment-section.drag-over::before {
+  content: "Drop item here to assign to character";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(59, 130, 246, 0.9);
+  color: white;
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 14px;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.equipment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--dnd-brown-light);
+}
+
+.section-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--dnd-red-dark);
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+}
+
+.item-count {
+  font-size: 14px;
+  color: var(--dnd-brown-dark);
+  background: var(--dnd-parchment-dark);
+  padding: 4px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--dnd-brown-light);
+}
+
+.equipment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.equipment-item {
+  background: var(--dnd-parchment);
+  border: 1px solid var(--dnd-brown-light);
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 4px rgba(139, 87, 42, 0.1);
+  transition: box-shadow 0.2s ease;
+}
+
+.equipment-item:hover {
+  box-shadow: 0 4px 8px rgba(139, 87, 42, 0.15);
+}
+
+.item-main {
+  margin-bottom: 12px;
+}
+
+.item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.item-name {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--dnd-red-dark);
+  line-height: 1.3;
+}
+
+.item-type {
+  font-size: 12px;
+  color: var(--dnd-brown-dark);
+  background: var(--dnd-parchment-dark);
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 1px solid var(--dnd-brown-light);
+  white-space: nowrap;
+}
+
+.item-description {
+  font-size: 14px;
+  color: var(--dnd-brown-dark);
+  line-height: 1.4;
+  font-style: italic;
+}
+
+.item-properties {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--dnd-brown-light);
+}
+
+.item-property {
+  display: flex;
+  gap: 6px;
+  font-size: 14px;
+  align-items: baseline;
+}
+
+.property-label {
+  color: var(--dnd-brown-dark);
+  font-weight: 500;
+}
+
+.property-value {
+  color: var(--dnd-red-dark);
+  font-weight: 600;
+}
+
+.equipment-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--dnd-brown-dark);
+  flex: 1;
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.6;
+}
+
+.empty-title {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--dnd-red-dark);
+}
+
+.empty-description {
+  font-size: 14px;
+  line-height: 1.5;
+  max-width: 300px;
+}
+
+/* Responsive Design */
+@media (max-width: 600px) {
+  .equipment-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .item-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  
+  .item-properties {
+    flex-direction: column;
+    gap: 8px;
+  }
+}
+
 /* Focus Styles for Accessibility */
 .tab-btn:focus,
 .stat-card:focus,
 .ability-card:focus,
 .save-item:focus,
-.skill-item:focus {
+.skill-item:focus,
+.equipment-item:focus {
   outline: 2px solid var(--dnd-red);
   outline-offset: 2px;
 }

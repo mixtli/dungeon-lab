@@ -76,9 +76,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import type { ApprovalData } from '../../stores/chat.store.mts';
 import { useNotificationStore } from '../../stores/notification.store.mjs';
+import { useChatStore } from '../../stores/chat.store.mts';
 import { gmActionHandlerService } from '../../services/gm-action-handler.service.mts';
 
 interface Props {
@@ -89,12 +90,15 @@ interface Props {
 const props = defineProps<Props>();
 
 const notificationStore = useNotificationStore();
+const chatStore = useChatStore();
 
 // Component state
 const isLoading = ref(false);
 const loadingAction = ref<'approve' | 'deny' | null>(null);
-const isProcessed = ref(false);
-const approvalStatus = ref<'approved' | 'denied' | null>(null);
+
+// Computed properties that read from persisted approval data
+const isProcessed = computed(() => !!props.approvalData.approvalStatus);
+const approvalStatus = computed(() => props.approvalData.approvalStatus || null);
 
 /**
  * Handle approval button click
@@ -111,9 +115,8 @@ async function handleApprove() {
     // Call GMActionHandler directly
     await gmActionHandlerService.approveRequest(props.approvalData.requestId);
 
-    // Mark as processed
-    isProcessed.value = true;
-    approvalStatus.value = 'approved';
+    // Update the chat message with approval status
+    chatStore.updateApprovalMessage(props.approvalData.requestId, 'approved');
 
     notificationStore.addNotification({
       type: 'success',
@@ -149,9 +152,8 @@ async function handleDeny() {
     // Call GMActionHandler directly
     await gmActionHandlerService.denyRequest(props.approvalData.requestId, 'Request denied by Game Master');
 
-    // Mark as processed
-    isProcessed.value = true;
-    approvalStatus.value = 'denied';
+    // Update the chat message with denial status
+    chatStore.updateApprovalMessage(props.approvalData.requestId, 'denied');
 
     notificationStore.addNotification({
       type: 'info',

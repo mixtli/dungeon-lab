@@ -5,6 +5,11 @@ import { baseMongooseZodSchema } from '../../../models/base.model.schema.mjs';
 import { zId, zodSchema } from '@zodyac/zod-mongoose';
 import type { ICharacter } from '@dungeon-lab/shared/types/index.mjs';
 
+// Document interface for Mongoose with populated virtuals
+export interface ICharacterDocument extends ICharacter, mongoose.Document {
+  id: string;
+}
+
 // Create server-specific character schema with ObjectId references
 const serverCharacterSchema = characterSchema.extend({
   campaignId: zId('Campaign').optional(), // Optional - characters can exist without campaigns
@@ -28,7 +33,7 @@ const serverCharacterSchema = characterSchema.extend({
 
 // Create the discriminator schema using zodSchema directly (omit documentType and compendiumId)
 const zodSchemaDefinition = zodSchema(serverCharacterSchema.merge(baseMongooseZodSchema).omit({ documentType: true, compendiumId: true, id: true }));
-const characterMongooseSchema = new mongoose.Schema<ICharacter>(zodSchemaDefinition, {
+const characterMongooseSchema = new mongoose.Schema<ICharacterDocument>(zodSchemaDefinition, {
   timestamps: true,
   toObject: {
     virtuals: true,
@@ -161,7 +166,7 @@ characterMongooseSchema.virtual('inventoryItems', {
 import { DocumentModel } from './document.model.mjs';
 
 // Create the character discriminator model directly
-export const CharacterDocumentModel = DocumentModel.discriminator<ICharacter>('character', characterMongooseSchema);
+export const CharacterDocumentModel = DocumentModel.discriminator<ICharacterDocument>('character', characterMongooseSchema);
 
 // Export with consistent naming
 export { CharacterDocumentModel as CharacterModel };

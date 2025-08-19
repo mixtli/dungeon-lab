@@ -72,9 +72,11 @@ export function useGameDocumentState<T extends BaseDocument = BaseDocument>(
   // Reactive items (for characters)
   const items = computed(() => {
     if (documentType === 'character' && document.value) {
-      // Items would be part of character data or fetched separately
-      // For now, return empty array - this can be enhanced later
-      return [];
+      // Filter items from gameState where carrierId matches this character's ID
+      const characterItems = gameStateStore.items.filter((item: IItem) => item.carrierId === document.value!.id);
+      console.log(`[useGameDocumentState] Found ${characterItems.length} items for character ${document.value!.name} (${document.value!.id})`);
+      console.log(`[useGameDocumentState] Character items:`, characterItems.map(item => ({ id: item.id, name: item.name, carrierId: item.carrierId })));
+      return characterItems;
     }
     return [];
   });

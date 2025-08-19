@@ -6,7 +6,7 @@
  */
 
 import type { ComputedRef, Ref } from 'vue';
-import type { BaseDocument, ICompendiumEntry, ICharacter, IActor, IItem, IEncounter, IToken, ServerGameStateWithVirtuals, StateUpdateBroadcast, GameActionRequest } from '@dungeon-lab/shared/types/index.mjs';
+import type { BaseDocument, ICompendiumEntry, ICharacter, IActor, IItem, IEncounter, IToken, ServerGameStateWithVirtuals, StateUpdateBroadcast, GameActionRequest, ActionRequestResult } from '@dungeon-lab/shared/types/index.mjs';
 import type { Roll } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
 import type { RollTypeHandler } from './plugin.mjs';
 
@@ -160,4 +160,14 @@ export interface PluginContext {
    * Called during plugin cleanup/unload
    */
   unregisterAllActionHandlers(): void;
+  
+  /**
+   * Request a game action to be performed
+   * This goes through the standard GM approval workflow
+   */
+  requestAction(
+    actionType: string,
+    parameters: Record<string, unknown>,
+    options?: { description?: string }
+  ): Promise<ActionRequestResult>;
 }

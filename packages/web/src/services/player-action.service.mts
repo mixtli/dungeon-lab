@@ -30,10 +30,39 @@ function generateRequestId(): string {
  * Main player action service class
  */
 export class PlayerActionService {
-  private gameSessionStore = useGameSessionStore();
-  private authStore = useAuthStore();
-  private socketStore = useSocketStore();
-  private gameStateStore = useGameStateStore();
+  private _gameSessionStore?: ReturnType<typeof useGameSessionStore>;
+  private _authStore?: ReturnType<typeof useAuthStore>;
+  private _socketStore?: ReturnType<typeof useSocketStore>;
+  private _gameStateStore?: ReturnType<typeof useGameStateStore>;
+
+  // Lazy getters to avoid Pinia issues during initialization
+  private get gameSessionStore() {
+    if (!this._gameSessionStore) {
+      this._gameSessionStore = useGameSessionStore();
+    }
+    return this._gameSessionStore;
+  }
+
+  private get authStore() {
+    if (!this._authStore) {
+      this._authStore = useAuthStore();
+    }
+    return this._authStore;
+  }
+
+  private get socketStore() {
+    if (!this._socketStore) {
+      this._socketStore = useSocketStore();
+    }
+    return this._socketStore;
+  }
+
+  private get gameStateStore() {
+    if (!this._gameStateStore) {
+      this._gameStateStore = useGameStateStore();
+    }
+    return this._gameStateStore;
+  }
 
   /**
    * Request an action to be performed

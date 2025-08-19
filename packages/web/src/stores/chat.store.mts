@@ -25,6 +25,8 @@ export interface ApprovalData {
   playerName: string;
   description: string;
   request: GameActionRequest;
+  approvalStatus?: 'approved' | 'denied';
+  processedAt?: string;
 }
 
 export interface ChatMessage {
@@ -47,6 +49,7 @@ interface ChatStore {
   messages: ChatMessage[];
   sendMessage: (message: string, recipientId?: string, chatContexts?: ChatContext[]) => void;
   sendApprovalRequest: (approvalData: ApprovalData) => void;
+  updateApprovalMessage: (requestId: string, status: 'approved' | 'denied') => void;
   clearMessages: () => void;
 }
 
@@ -297,10 +300,31 @@ export const useChatStore = defineStore(
       return Math.random().toString(36).substring(2) + Date.now().toString(36);
     }
 
+    function updateApprovalMessage(requestId: string, status: 'approved' | 'denied') {
+      const messageIndex = messages.value.findIndex(
+        message => message.type === 'approval-request' && 
+                  message.approvalData?.requestId === requestId
+      );
+      
+      if (messageIndex !== -1) {
+        const message = messages.value[messageIndex];
+        if (message.approvalData) {
+          // Update the approval data with the new status
+          message.approvalData.approvalStatus = status;
+          message.approvalData.processedAt = new Date().toISOString();
+          
+          console.log(`[ChatStore] Updated approval message ${requestId} with status: ${status}`);
+        }
+      } else {
+        console.warn(`[ChatStore] Could not find approval message with requestId: ${requestId}`);
+      }
+    }
+
     return {
       messages,
       sendMessage,
       sendApprovalRequest,
+      updateApprovalMessage,
       clearMessages
     };
   },

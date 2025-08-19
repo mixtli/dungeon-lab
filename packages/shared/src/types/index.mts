@@ -78,7 +78,7 @@ import {
 
 import { inviteSchema, inviteStatusSchema } from '../schemas/invite.schema.mjs';
 
-import { itemSchema, itemCreateSchema } from '../schemas/item.schema.mjs';
+import { itemSchema, itemCreateSchema, itemSchemaWithVirtuals } from '../schemas/item.schema.mjs';
 
 import { 
   mapSchema, 
@@ -220,6 +220,7 @@ export type InviteStatusType = z.infer<typeof inviteStatusSchema>;
 // Item Types
 export type IItem = z.infer<typeof itemSchema>;
 export type IItemCreateData = z.infer<typeof itemCreateSchema>;
+export type IItemWithVirtuals = z.infer<typeof itemSchemaWithVirtuals>;
 
 export const mapUpdateSchema = mapCreateSchema.deepPartial();
 // Map Types

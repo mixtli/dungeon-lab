@@ -97,6 +97,16 @@ export interface StopEncounterParameters extends Record<string, unknown> {
 }
 
 /**
+ * Assign item action parameters
+ */
+export interface AssignItemParameters extends Record<string, unknown> {
+  itemId: string;
+  targetCharacterId: string;
+  itemName?: string; // For user-friendly messaging
+  targetCharacterName?: string; // For user-friendly messaging
+}
+
+/**
  * Socket events for action requests
  */
 export interface GameActionSocketEvents {

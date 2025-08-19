@@ -95,7 +95,8 @@ export {
 export {
   itemSchema,
   itemCreateSchema,
-  itemPatchSchema
+  itemPatchSchema,
+  itemSchemaWithVirtuals
 } from './item.schema.mjs';
 
 // Map schemas

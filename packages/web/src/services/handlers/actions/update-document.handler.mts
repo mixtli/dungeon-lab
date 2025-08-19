@@ -7,7 +7,6 @@
 import type { GameActionRequest, UpdateDocumentParameters } from '@dungeon-lab/shared/types/index.mjs';
 import type { ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
 import type { ActionHandler, ValidationResult } from '../../action-handler.interface.mjs';
-import { applyPatch } from 'fast-json-patch';
 
 /**
  * Validate document update request
@@ -47,20 +46,7 @@ function validateUpdateDocument(
     };
   }
 
-  // Validate that operations are well-formed
-  try {
-    // Test-apply the operations on a copy to validate them
-    const testDocument = JSON.parse(JSON.stringify(gameState.documents[params.documentId]));
-    applyPatch(testDocument, params.operations, true); // validate=true
-  } catch (error) {
-    return {
-      valid: false,
-      error: {
-        code: 'INVALID_OPERATIONS',
-        message: `Invalid JSON patch operations: ${error instanceof Error ? error.message : 'Unknown error'}`
-      }
-    };
-  }
+  // Basic validation passed - execution logic will handle path validation
 
   return { valid: true };
 }
@@ -89,10 +75,20 @@ function executeUpdateDocument(
       throw new Error('Invalid operation path');
     }
 
-    // Navigate to the target object
+    // Skip the /documents/{documentId} prefix since we're already targeting the document
+    let adjustedPathParts = pathParts;
+    if (pathParts[0] === 'documents' && pathParts[1] === params.documentId) {
+      adjustedPathParts = pathParts.slice(2); // Remove /documents/{documentId} prefix
+    }
+
+    if (adjustedPathParts.length === 0) {
+      throw new Error('Invalid operation path after adjustment');
+    }
+
+    // Navigate to the target object within the document
     let target: any = draft.documents[params.documentId];
-    for (let i = 0; i < pathParts.length - 1; i++) {
-      const part = pathParts[i];
+    for (let i = 0; i < adjustedPathParts.length - 1; i++) {
+      const part = adjustedPathParts[i];
       if (!target[part]) {
         if (operation.op === 'add' || operation.op === 'replace') {
           target[part] = {};
@@ -103,7 +99,7 @@ function executeUpdateDocument(
       target = target[part];
     }
 
-    const finalKey = pathParts[pathParts.length - 1];
+    const finalKey = adjustedPathParts[adjustedPathParts.length - 1];
 
     // Apply the operation
     switch (operation.op) {
@@ -136,10 +132,11 @@ function executeUpdateDocument(
  */
 export const updateDocumentActionHandler: ActionHandler = {
   priority: 0, // Core handler runs first
+  requiresManualApproval: true, // Document updates require GM approval
   validate: validateUpdateDocument,
   execute: executeUpdateDocument,
   approvalMessage: (request) => {
     const params = request.parameters as UpdateDocumentParameters;
-    return `wants to update document "${params.documentName || params.documentId}" with ${params.operations?.length || 0} changes`;
+    return `wants to modify ${params.documentName ? `character "${params.documentName}"` : `document "${params.documentId}"`}`;
   }
 };

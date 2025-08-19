@@ -4,6 +4,11 @@ import { baseMongooseZodSchema } from '../../../models/base.model.schema.mjs';
 import { zId, zodSchema } from '@zodyac/zod-mongoose';
 import type { IActor } from '@dungeon-lab/shared/types/index.mjs';
 
+// Document interface for Mongoose with populated virtuals
+export interface IActorDocument extends IActor, mongoose.Document {
+  id: string;
+}
+
 // Create server-specific actor schema with ObjectId references
 const serverActorSchema = actorSchema.extend({
   campaignId: zId('Campaign'), // Required - actors must belong to campaigns
@@ -17,7 +22,7 @@ const serverActorSchema = actorSchema.extend({
 
 // Create the discriminator schema using zodSchema directly (omit documentType as it's handled by discriminator)
 const zodSchemaDefinition = zodSchema(serverActorSchema.merge(baseMongooseZodSchema).omit({ documentType: true, id: true }));
-const actorMongooseSchema = new mongoose.Schema<IActor>(zodSchemaDefinition, {
+const actorMongooseSchema = new mongoose.Schema<IActorDocument>(zodSchemaDefinition, {
   timestamps: true,
   toObject: {
     virtuals: true,
@@ -137,7 +142,7 @@ actorMongooseSchema.index({ tokenImageId: 1 });
 import { DocumentModel } from './document.model.mjs';
 
 // Create the actor discriminator model directly
-export const ActorDocumentModel = DocumentModel.discriminator<IActor>('actor', actorMongooseSchema);
+export const ActorDocumentModel = DocumentModel.discriminator<IActorDocument>('actor', actorMongooseSchema);
 
 // Export with consistent naming
 export { ActorDocumentModel as ActorModel };

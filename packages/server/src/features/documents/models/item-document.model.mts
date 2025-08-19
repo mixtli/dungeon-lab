@@ -2,7 +2,12 @@ import mongoose from 'mongoose';
 import { itemSchema } from '@dungeon-lab/shared/schemas/index.mjs';
 import { baseMongooseZodSchema } from '../../../models/base.model.schema.mjs';
 import { zId, zodSchema } from '@zodyac/zod-mongoose';
-import type { IItem } from '@dungeon-lab/shared/types/index.mjs';
+import type { IItemWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
+
+// Document interface for Mongoose with populated virtuals
+export interface IItemDocument extends IItemWithVirtuals, mongoose.Document {
+  id: string;
+}
 
 // Create server-specific item schema with ObjectId references
 const serverItemSchema = itemSchema.extend({
@@ -10,12 +15,13 @@ const serverItemSchema = itemSchema.extend({
   compendiumId: zId('Compendium').optional(),
   imageId: zId('Asset').optional(),
   thumbnailId: zId('Asset').optional(),
-  ownerId: zId('Document').optional() // Reference to owning character/actor document
+  ownerId: zId('Document').optional(), // Reference to owning character/actor document
+  carrierId: zId('Document').optional() // Reference to character/actor that carries this item
 });
 
 // Create the discriminator schema using zodSchema directly (omit documentType as it's handled by discriminator)
 const zodSchemaDefinition = zodSchema(serverItemSchema.merge(baseMongooseZodSchema).omit({ documentType: true, id: true }));
-const itemMongooseSchema = new mongoose.Schema<IItem>(zodSchemaDefinition, {
+const itemMongooseSchema = new mongoose.Schema<IItemDocument>(zodSchemaDefinition, {
   timestamps: true,
   toObject: {
     virtuals: true,
@@ -72,6 +78,10 @@ itemMongooseSchema.path('ownerId').get(function (value: mongoose.Types.ObjectId 
   return value?.toString();
 });
 
+itemMongooseSchema.path('carrierId').get(function (value: mongoose.Types.ObjectId | undefined) {
+  return value?.toString();
+});
+
 itemMongooseSchema.path('createdBy').get(function (value: mongoose.Types.ObjectId | undefined) {
   return value?.toString();
 });
@@ -120,7 +130,7 @@ itemMongooseSchema.virtual('owner', {
 import { DocumentModel } from './document.model.mjs';
 
 // Create the item discriminator model directly
-export const ItemDocumentModel = DocumentModel.discriminator<IItem>('item', itemMongooseSchema);
+export const ItemDocumentModel = DocumentModel.discriminator<IItemDocument>('item', itemMongooseSchema);
 
 // Export with consistent naming
 export { ItemDocumentModel as ItemModel };

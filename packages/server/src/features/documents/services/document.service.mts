@@ -1,4 +1,4 @@
-import type { BaseDocument, IActor, ICharacter, IItem, IVTTDocument } from '@dungeon-lab/shared/types/index.mjs';
+import type { BaseDocument, IActor, ICharacter, IItem, IItemWithVirtuals, IVTTDocument } from '@dungeon-lab/shared/types/index.mjs';
 import { DocumentModel } from '../models/document.model.mjs';
 import { ActorDocumentModel } from '../models/actor-document.model.mjs';
 import { CharacterDocumentModel } from '../models/character-document.model.mjs';
@@ -146,7 +146,8 @@ export class DocumentService {
      */
     async create(actorData: Omit<IActor, 'id' | 'createdAt' | 'updatedAt'>): Promise<IActor> {
       const actor = new ActorDocumentModel(actorData);
-      return await actor.save();
+      const savedActor = await actor.save();
+      return savedActor.toObject({ virtuals: true }) as IActor;
     },
 
     /**
@@ -180,7 +181,8 @@ export class DocumentService {
      */
     async create(characterData: Omit<ICharacter, 'id' | 'createdAt' | 'updatedAt'>): Promise<ICharacter> {
       const character = new CharacterDocumentModel(characterData);
-      return await character.save();
+      const savedCharacter = await character.save();
+      return savedCharacter.toObject({ virtuals: true }) as ICharacter;
     },
 
     /**
@@ -243,7 +245,8 @@ export class DocumentService {
      */
     async create(itemData: Omit<IItem, 'id' | 'createdAt' | 'updatedAt'>): Promise<IItem> {
       const item = new ItemDocumentModel(itemData);
-      return await item.save();
+      const savedItem = await item.save();
+      return savedItem.toObject({ virtuals: true }) as IItem;
     },
 
     /**
@@ -391,7 +394,7 @@ export class DocumentService {
 
       // Check that all items owned by actors belong to the same campaign
       for (const actor of actors) {
-        const actorDoc = actor as IActor;
+        const actorDoc = actor.toObject({ virtuals: true }) as IActor;
         // Find items owned by this actor using relationship-based inventory
         const ownedItems = await DocumentModel.find({ 
           ownerId: actorDoc.id,
@@ -435,7 +438,7 @@ export class DocumentService {
     /**
      * Get owned items with population of asset data
      */
-    async getOwnedItemsPopulated(ownerId: string, campaignId?: string): Promise<IItem[]> {
+    async getOwnedItemsPopulated(ownerId: string, campaignId?: string): Promise<IItemWithVirtuals[]> {
       const filter: FilterQuery<IItem> = { 
         ownerId,
         documentType: 'item'
@@ -443,9 +446,10 @@ export class DocumentService {
       if (campaignId) {
         filter.campaignId = campaignId;
       }
-      return await ItemDocumentModel.find(filter)
+      const items = await ItemDocumentModel.find(filter)
         .populate('image')
         .populate('thumbnail');
+      return items.map(item => item.toObject({ virtuals: true })) as IItemWithVirtuals[];
     },
 
     /**

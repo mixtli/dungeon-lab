@@ -5,6 +5,11 @@ import { baseMongooseZodSchema } from '../../../models/base.model.schema.mjs';
 import { zId, zodSchema } from '@zodyac/zod-mongoose';
 import type { IVTTDocument } from '@dungeon-lab/shared/types/index.mjs';
 
+// Document interface for Mongoose with populated virtuals
+export interface IVTTDocumentDocument extends IVTTDocument, mongoose.Document {
+  id: string;
+}
+
 // Create server-specific VTT document schema with ObjectId references
 const serverVTTDocumentSchema = vttDocumentSchema.extend({
   campaignId: zId('Campaign').optional(), // Optional - VTTDocuments are global and campaign-independent
@@ -17,12 +22,12 @@ const serverVTTDocumentSchema = vttDocumentSchema.extend({
 
 // Create the discriminator schema using zodSchema directly (omit documentType as it's handled by discriminator)
 const zodSchemaDefinition = zodSchema(serverVTTDocumentSchema.merge(baseMongooseZodSchema).omit({ documentType: true, id: true }));
-const vttDocumentMongooseSchema = new mongoose.Schema<IVTTDocument>(zodSchemaDefinition, {
+const vttDocumentMongooseSchema = new mongoose.Schema<IVTTDocumentDocument>(zodSchemaDefinition, {
   timestamps: true,
   toObject: {
     virtuals: true,
     getters: true,
-    transform: (doc, ret) => {
+    transform: (_doc, ret) => {
       delete ret._id;
       delete ret.__v;
       return ret;
@@ -31,7 +36,7 @@ const vttDocumentMongooseSchema = new mongoose.Schema<IVTTDocument>(zodSchemaDef
   toJSON: {
     virtuals: true,
     getters: true,
-    transform: (doc, ret) => {
+    transform: (_doc, ret) => {
       delete ret._id;
       delete ret.__v;
       return ret;
@@ -140,16 +145,17 @@ vttDocumentMongooseSchema.pre('save', async function(next) {
     // Check for duplicate slug if slug is modified
     if (this.isModified('slug')) {
       const VTTDocumentModel = this.constructor as mongoose.Model<IVTTDocument>;
+      const document = this as IVTTDocument;
       const existingDoc = await VTTDocumentModel.findOne({
-        slug: this.slug,
-        pluginId: this.pluginId,
-        documentType: this.documentType,
+        slug: document.slug,
+        pluginId: document.pluginId,
+        documentType: document.documentType,
         _id: { $ne: this._id } // Exclude current document when updating
       });
 
       if (existingDoc) {
         throw new Error(
-          `A document with slug "${this.slug}" already exists for plugin "${this.pluginId}" and type "${this.documentType}"`
+          `A document with slug "${document.slug}" already exists for plugin "${document.pluginId}" and type "${document.documentType}"`
         );
       }
     }
@@ -164,4 +170,4 @@ vttDocumentMongooseSchema.pre('save', async function(next) {
 import { DocumentModel } from './document.model.mjs';
 
 // Create the VTT document discriminator model directly
-export const VTTDocumentModel = DocumentModel.discriminator<IVTTDocument>('vtt-document', vttDocumentMongooseSchema);
+export const VTTDocumentModel = DocumentModel.discriminator<IVTTDocumentDocument>('vtt-document', vttDocumentMongooseSchema);

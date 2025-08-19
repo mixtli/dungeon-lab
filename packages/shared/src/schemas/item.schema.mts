@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { itemDocumentSchema } from './document.schema.mjs';
+import { assetSchema } from './asset.schema.mjs';
 
 // Item schema - uses item document schema (no additional fields needed currently)
 export const itemSchema = itemDocumentSchema;
@@ -24,6 +25,12 @@ export const itemCreateSchema = itemSchema
     // File upload for item image
     image: z.instanceof(File).optional()
   });
+
+// Item schema with populated virtual fields
+export const itemSchemaWithVirtuals = itemSchema.extend({
+  image: assetSchema.nullable().optional(),
+  thumbnail: assetSchema.nullable().optional()
+});
 
 // Item patch schema for updates
 export const itemPatchSchema = itemSchema.deepPartial();
