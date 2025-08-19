@@ -301,6 +301,9 @@ export * from './mechanics-registry.mjs';  // @deprecated - will be removed
 // Game Action System Types
 export * from './game-actions.mjs';
 
+// Document State Types (Plugin-extensible)
+export * from './document-state.mjs';
+
 // Game Data Structures (selective exports to avoid conflicts)
 export type { 
   BaseGameEntity,

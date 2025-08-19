@@ -39,8 +39,10 @@ const vttDocumentMongooseSchema = new mongoose.Schema<IVTTDocument>(zodSchemaDef
   },
 });
 
-// Override pluginData field to use Mixed type for flexibility
+// Override flexible fields to use Mixed type for flexibility
 vttDocumentMongooseSchema.path('pluginData', mongoose.Schema.Types.Mixed);
+vttDocumentMongooseSchema.path('itemState', mongoose.Schema.Types.Mixed);
+vttDocumentMongooseSchema.path('state', mongoose.Schema.Types.Mixed);
 vttDocumentMongooseSchema.path('userData', mongoose.Schema.Types.Mixed);
 
 // Add virtual id field that converts _id to string

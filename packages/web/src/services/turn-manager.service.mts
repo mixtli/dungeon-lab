@@ -3,6 +3,7 @@ import type { BaseTurnManagerPlugin } from '@dungeon-lab/shared-ui/base/base-tur
 import { pluginRegistry } from './plugin-registry.mjs';
 import { useGameStateStore } from '../stores/game-state.store.mjs';
 import type { JsonPatchOperation } from '@dungeon-lab/shared/types/index.mjs';
+import { generateLifecycleResetPatches } from '@dungeon-lab/shared/utils/document-state-lifecycle.mjs';
 
 export class TurnManagerService {
   private plugin: BaseTurnManagerPlugin | null = null;
@@ -84,11 +85,31 @@ export class TurnManagerService {
       // Reset hasActed flags for new round
       participants = participants.map(p => ({ ...p, hasActed: false }));
       
+      // Collect document IDs for turn state lifecycle resets
+      const participantDocumentIds: string[] = [];
+      for (const participant of participants) {
+        if (participant.actorId) {
+          participantDocumentIds.push(participant.actorId);
+        }
+      }
+      
       const operations: JsonPatchOperation[] = [
         { op: 'replace', path: '/turnManager/round', value: nextRound },
         { op: 'replace', path: '/turnManager/currentTurn', value: nextTurn },
         { op: 'replace', path: '/turnManager/participants', value: participants }
       ];
+      
+      // Add turn lifecycle reset patches
+      try {
+        const lifecyclePatches = generateLifecycleResetPatches(participantDocumentIds, 'turn');
+        if (lifecyclePatches.length > 0) {
+          operations.push(...lifecyclePatches);
+          console.log(`[TurnManagerService] Added ${lifecyclePatches.length} turn lifecycle reset patches`);
+        }
+      } catch (error) {
+        console.error('[TurnManagerService] Failed to generate turn lifecycle resets:', error);
+        // Continue without lifecycle resets - turn advancement should still work
+      }
       
       await this.gameStateStore.updateGameState(operations);
       
@@ -97,10 +118,31 @@ export class TurnManagerService {
       await this.plugin.onTurnStart(participants[0], updatedTurnManager);
     } else {
       // Normal turn progression
+      
+      // Collect document IDs for turn state lifecycle resets
+      const participantDocumentIds: string[] = [];
+      for (const participant of plainTurnManager.participants) {
+        if (participant.actorId) {
+          participantDocumentIds.push(participant.actorId);
+        }
+      }
+      
       const operations: JsonPatchOperation[] = [
         { op: 'replace', path: `/turnManager/participants/${turnManager.currentTurn}/hasActed`, value: true },
         { op: 'replace', path: '/turnManager/currentTurn', value: nextTurn }
       ];
+      
+      // Add turn lifecycle reset patches
+      try {
+        const lifecyclePatches = generateLifecycleResetPatches(participantDocumentIds, 'turn');
+        if (lifecyclePatches.length > 0) {
+          operations.push(...lifecyclePatches);
+          console.log(`[TurnManagerService] Added ${lifecyclePatches.length} turn lifecycle reset patches`);
+        }
+      } catch (error) {
+        console.error('[TurnManagerService] Failed to generate turn lifecycle resets:', error);
+        // Continue without lifecycle resets - turn advancement should still work
+      }
       
       await this.gameStateStore.updateGameState(operations);
       

@@ -14,4 +14,7 @@ export * from './reference-resolver.mjs';
 export * from './game-state-operations.mjs';
 
 // State hash utilities
-export * from './state-hash.mjs'; 
+export * from './state-hash.mjs';
+
+// Document state lifecycle utilities
+export * from './document-state-lifecycle.mjs'; 

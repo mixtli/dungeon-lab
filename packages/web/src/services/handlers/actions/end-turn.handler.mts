@@ -8,6 +8,7 @@ import type { GameActionRequest } from '@dungeon-lab/shared/types/index.mjs';
 import type { ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
 import type { ActionHandler, ValidationResult } from '../../action-handler.interface.mjs';
 import { useGameSessionStore } from '../../../stores/game-session.store.mjs';
+import { turnManagerService } from '../../turn-manager.service.mjs';
 
 /**
  * Validate end turn request
@@ -77,56 +78,26 @@ function validateEndTurn(
 }
 
 /**
- * Execute turn ending using direct state mutation
+ * Execute turn ending by delegating to turn manager service
  */
-function executeEndTurn(
+async function executeEndTurn(
   request: GameActionRequest, 
-  draft: ServerGameStateWithVirtuals
-): void {
+  _draft: ServerGameStateWithVirtuals
+): Promise<void> {
   console.log('[EndTurnHandler] Executing turn end:', {
     requestId: request.id,
     playerId: request.playerId
   });
 
-  const turnManager = draft.turnManager;
-  if (!turnManager || !turnManager.participants) {
-    throw new Error('Invalid turn manager state');
-  }
-
-  // Mark current participant as having acted
-  const currentParticipant = turnManager.participants[turnManager.currentTurn];
-  if (currentParticipant) {
-    currentParticipant.hasActed = true;
-  }
-
-  // Advance to next turn
-  let nextTurn = turnManager.currentTurn + 1;
+  // Delegate to the turn manager service which handles all turn advancement logic
+  // and lifecycle resets
+  const success = await turnManagerService.nextTurn();
   
-  // Check if we need to start a new round
-  if (nextTurn >= turnManager.participants.length) {
-    nextTurn = 0;
-    turnManager.round += 1;
-    
-    // Reset hasActed for all participants for the new round
-    for (const participant of turnManager.participants) {
-      participant.hasActed = false;
-    }
-    
-    console.log('[EndTurnHandler] Starting new round:', turnManager.round);
+  if (!success) {
+    throw new Error('Failed to advance turn');
   }
 
-  // Update current turn
-  turnManager.currentTurn = nextTurn;
-
-  console.log('[EndTurnHandler] Turn ended successfully:', {
-    newCurrentTurn: nextTurn,
-    round: turnManager.round,
-    nextParticipant: turnManager.participants[nextTurn] ? {
-      tokenId: turnManager.participants[nextTurn].tokenId,
-      actorId: turnManager.participants[nextTurn].actorId
-    } : null,
-    requestId: request.id
-  });
+  console.log('[EndTurnHandler] Turn ended successfully via turn manager service');
 }
 
 /**

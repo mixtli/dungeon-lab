@@ -58,8 +58,10 @@ const characterMongooseSchema = new mongoose.Schema<ICharacter>(zodSchemaDefinit
   },
 });
 
-// Override pluginData field to use Mixed type for flexibility
+// Override flexible fields to use Mixed type for flexibility
 characterMongooseSchema.path('pluginData', mongoose.Schema.Types.Mixed);
+characterMongooseSchema.path('itemState', mongoose.Schema.Types.Mixed);
+characterMongooseSchema.path('state', mongoose.Schema.Types.Mixed);
 characterMongooseSchema.path('userData', mongoose.Schema.Types.Mixed);
 
 // Add getters for all ObjectId fields to ensure string serialization

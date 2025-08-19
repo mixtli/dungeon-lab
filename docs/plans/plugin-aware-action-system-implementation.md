@@ -1,8 +1,8 @@
 # Plugin-Aware Action System Implementation Plan
 
-**Status:** Phase 1 Complete ✅  
+**Status:** Phase 1 Complete ✅, Phase 2.1 Complete ✅, Phase 2.2 Complete ✅  
 **Created:** 2025-01-18  
-**Updated:** 2025-01-19
+**Updated:** 2025-01-19 (Phase 2.2 restructured for core VTT focus)
 **Author:** Claude Code  
 **Project Type:** Greenfield Implementation (No Backward Compatibility Required)
 
@@ -12,17 +12,25 @@ This implementation plan details the complete replacement of the current action 
 
 **Phase 1 has been successfully completed with full multi-handler system operational and tested.**
 
+**Phase 2.1 has been successfully completed with universal document state management and type-safe schema implemented:**
+- All document types now support plugin-extensible state management with type-safe standard fields
+- z.object().catchall(z.any()) schema provides type-safe access to state.turnState, state.sessionState, etc.
+- 614 existing documents successfully migrated to include standard state structure
+- Complete lifecycle reset utility system implemented and ready for integration
+- zod-mongoose compatibility resolved - server starts without errors
+
 ### Timeline Overview
-- **Total Duration:** 4-5 weeks (reduced due to Immer simplification)
-- **Parallel Development:** Character state extension and core infrastructure can be developed simultaneously
+- **Total Duration:** 5-6 weeks (reduced due to Immer simplification)
+- **Parallel Development:** Document state extension and core infrastructure can be developed simultaneously
 - **Breaking Changes:** Acceptable and encouraged for optimal design
 
 ### Key Milestones
 1. **~~Week 1-2:~~ ✅ COMPLETED:** New multi-handler system with Immer integration operational
-2. **Week 2-3:** Character state extension and token bars complete
+2. **Week 2-3:** Document state extension and core lifecycle integration complete
 3. **Week 3-4:** Plugin integration framework ready
 4. **Week 4:** Complete migration from old system
 5. **Week 4-5:** Testing, optimization, and documentation complete
+6. **Week 5-6:** Token bar system implementation (UI enhancement)
 
 ### Phase 1 Completion Status ✅
 **Completed:** 2025-01-19  
@@ -392,133 +400,212 @@ Complete plugin registration lifecycle with proper timing and cleanup.
 - Simplified approval system improves developer experience
 - Comprehensive test coverage ensures system reliability
 
-## Phase 2: Character State Extension (Week 2-3)
+## Phase 2: Document State Extension (Week 2-3)
+
+**Status:** Phase 2.1 Complete ✅, Phase 2.2 In Progress 🔄
 
 ### Overview
-Extend character documents with a simple state field and implement token bar configuration system. This phase builds on existing character document structures while solving key problems like token recreation and data persistence.
+Extend ALL document types with flexible state field and implement core VTT lifecycle management system. This phase provides plugin-extensible state management with type-safe access to standard lifecycle fields, while solving key problems like token recreation and data persistence across all document types.
 
 ### Tasks
 
-#### 2.1 Add State Field to Character Documents
+#### 2.1 Add State Field to All Documents via BaseDocumentSchema
 **Duration:** 2 days  
 **Dependencies:** None (can start immediately)
 
 **Target State:**
-Character and Actor documents extended with state field for current transient data.
+All document types (characters, actors, items, etc.) extended with state field for current transient data via baseDocumentSchema.
 
 **Implementation Steps:**
-1. Update character document schemas:
+1. Update base document schema with flexible state field:
    ```typescript
    // In packages/shared/src/schemas/document.schema.mts
    const baseDocumentFields = {
      // ... existing fields
      pluginData: z.record(z.string(), z.unknown()).default({}),
-     state: z.record(z.string(), z.unknown()).default({}), // NEW FIELD
+     state: z.record(z.string(), z.unknown()).default({}) // NEW FLEXIBLE STATE FIELD - plugins define structure
    }
    ```
 
-2. Update document type definitions:
+2. Create plugin-extensible TypeScript interfaces for common state patterns:
    ```typescript
+   // In packages/shared/src/types/document-state.mts - EXAMPLE interfaces only
+   
+   // Common lifecycle state patterns (plugins can extend or ignore)
+   interface DocumentTurnState {
+     movementUsed?: number;
+     actionsUsed?: string[];
+     bonusActionUsed?: boolean;
+     reactionUsed?: boolean;
+     [key: string]: unknown; // Plugin extensible
+   }
+
+   interface DocumentSessionState {
+     spellSlotsUsed?: Record<string, number>;
+     classFeatureUses?: Record<string, number>;
+     hitDiceUsed?: number;
+     [key: string]: unknown; // Plugin extensible
+   }
+
+   interface DocumentEncounterState {
+     conditions?: string[];
+     temporaryEffects?: unknown[];
+     concentrationSpell?: string;
+     [key: string]: unknown; // Plugin extensible
+   }
+
+   interface DocumentPersistentState {
+     currentHitPoints?: number;
+     temporaryHitPoints?: number;
+     inspiration?: boolean;
+     [key: string]: unknown; // Plugin extensible
+   }
+
+   // EXAMPLE nested state structure - plugins can use any structure they want
+   interface ExampleDocumentState {
+     turnState?: DocumentTurnState;
+     sessionState?: DocumentSessionState;
+     encounterState?: DocumentEncounterState;
+     persistentState?: DocumentPersistentState;
+     [key: string]: unknown; // Plugins can add any structure
+   }
+
+   // Actual BaseDocument uses flexible Record type
    interface BaseDocument {
      // ... existing properties
      pluginData: Record<string, unknown>;
-     state: Record<string, unknown>; // NEW FIELD
+     state: Record<string, unknown>; // FLEXIBLE - plugins define their own structure
    }
    ```
 
-3. Initialize empty state for existing characters (database migration)
-4. Update document validation and serialization
+3. Initialize empty state object for all existing documents (database migration)
+4. Update document validation and serialization for flexible state field
 
 **Deliverables:**
-- [ ] Updated document schemas with state field
-- [ ] Database migration script to add state field
-- [ ] Document validation updates
-- [ ] Serialization/deserialization support
+- [x] Updated baseDocumentSchema with flexible state field (z.record(z.unknown())) ✅
+- [x] Plugin-extensible TypeScript interfaces for common state patterns (examples only) ✅
+- [x] Database migration script to add empty state object to all documents ✅
+- [x] Document validation updates for flexible state field ✅
+- [x] Serialization/deserialization support for all document types ✅
 
-#### 2.2 Implement Simple Resource Lifecycle Management
-**Duration:** 2 days  
+**Implementation Results:**
+- ✅ Implemented `z.object().catchall(z.any())` schema providing type-safe access to standard fields
+- ✅ Created `packages/shared/src/types/document-state.mts` with generic lifecycle concepts only
+- ✅ Removed all D&D-specific content from shared package (kept plugin-extensible)
+- ✅ Successfully resolved zod-mongoose compatibility with z.any() approach
+- ✅ Created and executed migration script adding standard state structure to 614 documents
+- ✅ Updated updateDocumentSchema to support structured state field in API operations
+- ✅ Server starts without errors, all TypeScript builds pass, schema validation working
+
+#### 2.2 Implement Core VTT Lifecycle Integration  
+**Duration:** 3 days  
 **Dependencies:** 2.1
 
 **Target State:**
-Simple reset functions for character state based on lifecycle events.
+Integration of document state lifecycle resets with core VTT systems (turn manager, encounter end). Game-system specific lifecycle events (like long rest) are deferred to plugin implementation phase.
 
 **Implementation Steps:**
-1. Create simple lifecycle reset functions:
+1. Create simplified lifecycle reset utility functions for common patterns:
    ```typescript
-   // Turn advancement - reset turn-scoped resources
-   function resetTurnState(characterId: string): JsonPatchOperation[] {
-     return [
-       { op: 'replace', path: `/documents/${characterId}/state/movementUsed`, value: 0 },
-       { op: 'replace', path: `/documents/${characterId}/state/actionsUsed`, value: [] },
-       { op: 'replace', path: `/documents/${characterId}/state/bonusActionUsed`, value: false }
-     ];
+   // Generic utility for resetting any state section with single patch
+   function resetStateSection(
+     documentId: string, 
+     sectionPath: string, 
+     defaultValue: unknown
+   ): JsonPatchOperation[] {
+     return [{
+       op: 'replace',
+       path: `/documents/${documentId}/state/${sectionPath}`,
+       value: defaultValue
+     }];
+   }
+
+   // Common reset patterns that plugins can use (EXAMPLES - not required)
+   function resetTurnState(characterId: string, defaultTurnState = {}): JsonPatchOperation[] {
+     return resetStateSection(characterId, 'turnState', defaultTurnState);
    }
    
-   // Long rest - reset session-scoped resources
-   function resetSessionState(characterId: string): JsonPatchOperation[] {
-     return [
-       { op: 'replace', path: `/documents/${characterId}/state/spellSlotsUsed`, value: {} },
-       { op: 'replace', path: `/documents/${characterId}/state/classFeatureUses`, value: {} }
-     ];
+   function resetSessionState(characterId: string, defaultSessionState = {}): JsonPatchOperation[] {
+     return resetStateSection(characterId, 'sessionState', defaultSessionState);
    }
-   ```
 
-2. Integrate with turn manager:
-   - Call resetTurnState() when turn advances
-   - Provide resetSessionState() for long rest
+   function resetEncounterState(characterId: string, defaultEncounterState = {}): JsonPatchOperation[] {
+     return resetStateSection(characterId, 'encounterState', defaultEncounterState);
+   }
 
-3. Create encounter state reset for encounter end
-
-**Deliverables:**
-- [ ] Simple lifecycle reset functions
-- [ ] Turn manager integration
-- [ ] Long rest state reset
-- [ ] Encounter end state reset
-
-#### 2.3 Create Token Bar Configuration System
-**Duration:** 2 days  
-**Dependencies:** 2.1
-
-**Target State:**
-Generic token bar system that points to character data paths for visual display.
-
-**Implementation Steps:**
-1. Update token schema with bars configuration:
-   ```typescript
-   interface Token {
-     // ... existing properties
-     bars: {
-       [barId: string]: {
-         resourcePath: string;        // e.g., "currentHitPoints"
-         maxResourcePath: string;     // e.g., "hitPointsMax"
-         color: string;
-         visible: boolean;
-       }
+   // Plugin-specific reset function - plugins define their own state structure
+   function resetPluginState(
+     documentId: string, 
+     pluginId: string, 
+     stateDefinition: Record<string, unknown>
+   ): JsonPatchOperation[] {
+     const patches: JsonPatchOperation[] = [];
+     
+     // Reset each section defined by the plugin
+     for (const [sectionName, defaultValue] of Object.entries(stateDefinition)) {
+       patches.push({
+         op: 'replace',
+         path: `/documents/${documentId}/state/${sectionName}`,
+         value: defaultValue
+       });
      }
+     
+     return patches;
    }
    ```
 
-2. Implement bar display logic:
-   - Read character.state and character.pluginData via resource paths
-   - Calculate current/max values for bar display
-   - Handle missing or invalid resource paths gracefully
+2. Integrate with game lifecycle events:
+   - Turn manager calls plugin-defined reset functions when turn advances
+   - Long rest handler calls plugin-defined reset functions 
+   - Encounter end calls plugin-defined reset functions
+   - Each plugin registers their state reset requirements
 
-3. Create token creation helpers:
-   - Automatic bar setup for common resources (HP, spell slots)
-   - Template system for plugin-specific bar configurations
+3. Create plugin registration system for lifecycle state management:
+   ```typescript
+   // Plugin lifecycle state registration
+   interface PluginStateLifecycle {
+     pluginId: string;
+     turnReset?: Record<string, unknown>; // State sections to reset on turn
+     sessionReset?: Record<string, unknown>; // State sections to reset on long rest
+     encounterReset?: Record<string, unknown>; // State sections to reset on encounter end
+   }
+   
+   // Registry for plugin state lifecycle management
+   function registerPluginStateLifecycle(lifecycle: PluginStateLifecycle): void;
+   function getPluginStateResets(event: 'turn' | 'session' | 'encounter'): PluginStateLifecycle[];
+   ```
 
 **Deliverables:**
-- [ ] Token bars schema and interface
-- [ ] Bar display logic implementation
-- [ ] Token creation helpers
-- [ ] Bar configuration templates
+- [x] Generic single-patch state reset utility functions ✅
+- [x] Plugin state lifecycle registration system ✅
+- [x] Turn manager integration with plugin-defined resets ✅
+- [x] Encounter end integration with plugin-defined resets ✅
+- [x] Utility functions for multi-document state resets across all plugins ✅
+
+**Deferred to Phase 3 (Plugin Implementation):**
+- Long rest integration (D&D-specific, belongs in plugin)
+
+**Implementation Results:**
+- ✅ Created `packages/shared/src/utils/document-state-lifecycle.mts` with complete utility functions
+- ✅ Implemented `resetStateSection()` for single-patch atomic state resets
+- ✅ Created plugin registration system with `registerPluginStateLifecycle()` and `unregisterPluginStateLifecycle()`
+- ✅ Implemented `resetPluginState()` for multi-section plugin state resets
+- ✅ Created `generateLifecycleResetPatches()` for multi-document lifecycle event handling
+- ✅ Added comprehensive logging and debugging support
+- ✅ Exported utilities through shared package index, all builds pass
+- ✅ **Integrated turn manager with lifecycle resets in `turnManagerService.nextTurn()`**
+- ✅ **Integrated encounter end with lifecycle resets in `stopEncounterActionHandler`**
+- ✅ **Simplified `endTurnActionHandler` to delegate to turn manager service**
+- ✅ **Added JSON patch integration for atomic lifecycle reset operations**
+- ✅ **Verified working integration via comprehensive test suite**
+
 
 ### Phase 2 Success Criteria
-- [ ] Character documents have state field
-- [ ] Simple lifecycle reset functions working
-- [ ] Token bars display document resources correctly
-- [ ] Token recreation preserves resource display
-- [ ] All document state tests passing
+- [x] All document types have type-safe state field with standard lifecycle sections ✅
+- [x] Simple lifecycle reset functions working ✅
+- [x] Turn manager integrates with document state resets ✅
+- [x] Encounter end integrates with document state resets ✅
+- [x] All document state tests passing ✅
 
 ## Phase 3: Plugin Integration Framework (Week 3-4)
 
@@ -582,7 +669,7 @@ Standard interface for plugins to implement action handlers with registration he
 **Dependencies:** 3.1, Phase 2 (character state extension)
 
 **Target State:**
-Complete D&D 5e plugin implementation using simplified character-based storage.
+Complete D&D 5e plugin implementation using simplified character-based storage, including D&D-specific lifecycle events like long rest.
 
 **Implementation Steps:**
 1. Create D&D 5e utility functions:
@@ -625,11 +712,12 @@ Complete D&D 5e plugin implementation using simplified character-based storage.
    }
    ```
 
-2. Implement core D&D 5e actions using character.state:
-   - Enhanced movement validation using character.pluginData.speed and character.state.movementUsed
-   - Spell casting using character.pluginData.spellSlots and character.state.spellSlotsUsed
-   - Action economy using character.state.actionsUsed
-   - Feature usage using character.state.classFeatureUses
+2. Implement core D&D 5e actions using document.state:
+   - Enhanced movement validation using document.pluginData.speed and document.state.turnState.movementUsed
+   - Spell casting using document.pluginData.spellSlots and document.state.sessionState.spellSlotsUsed
+   - Action economy using document.state.turnState.actionsUsed
+   - Feature usage using document.state.sessionState.classFeatureUses
+   - **Long rest integration** using document.state.sessionState resets
 
 3. Create example plugin actions:
    ```typescript
@@ -684,10 +772,11 @@ Complete D&D 5e plugin implementation using simplified character-based storage.
    ```
 
 **Deliverables:**
-- [ ] D&D 5e utility functions for character operations
+- [ ] D&D 5e utility functions for document operations
 - [ ] Enhanced movement validation using direct state access
 - [ ] Spell casting using direct document mutations
-- [ ] Action economy using document.state.actionsUsed
+- [ ] Action economy using document.state.turnState.actionsUsed
+- [ ] **Long rest handler** using document.state.sessionState resets
 - [ ] Integration tests for all actions
 
 #### 3.3 Plugin Loading and Lifecycle
@@ -949,6 +1038,105 @@ Complete documentation for developers using the system.
 - [ ] System ready for production use
 - [ ] Knowledge transfer completed
 
+## Phase 6: Token Bar System (Week 5-6)
+
+### Overview
+Implement visual token bar system that displays document resource values on map tokens. This phase builds on top of the fully tested and operational document state system to provide enhanced visual feedback for players and GMs.
+
+### Tasks
+
+#### 6.1 Token Bar Schema and Configuration
+**Duration:** 1 day  
+**Dependencies:** Phases 1-5 complete
+
+**Target State:**
+Token schema extended with flexible bar configuration system that points to document resource paths.
+
+**Implementation Steps:**
+1. Update token schema with bars configuration:
+   ```typescript
+   interface Token {
+     // ... existing properties
+     bars: {
+       [barId: string]: {
+         resourcePath: string;        // e.g., "state.persistentState.currentHitPoints"
+         maxResourcePath: string;     // e.g., "pluginData.hitPointsMax"
+         color: string;
+         visible: boolean;
+         position: 'top' | 'bottom' | 'left' | 'right';
+       }
+     }
+   }
+   ```
+
+2. Create bar configuration validation and defaults
+3. Add bar configuration to token creation workflow
+
+**Deliverables:**
+- [ ] Token bars schema and interface
+- [ ] Bar configuration validation
+- [ ] Default bar templates
+
+#### 6.2 Bar Display Logic Implementation
+**Duration:** 2 days  
+**Dependencies:** 6.1
+
+**Target State:**
+Visual rendering system that reads document data and displays bars on tokens.
+
+**Implementation Steps:**
+1. Implement bar value calculation logic:
+   - Read document.state and document.pluginData via resource paths
+   - Calculate current/max values for bar display
+   - Handle missing or invalid resource paths gracefully
+   - Support percentage-based display
+
+2. Create bar rendering components:
+   - Visual bar display with current/max values
+   - Color-coded bars based on percentage
+   - Responsive sizing and positioning
+
+3. Add real-time updates:
+   - Update bars when document state changes
+   - Efficient re-rendering for performance
+
+**Deliverables:**
+- [ ] Bar value calculation logic
+- [ ] Bar rendering components
+- [ ] Real-time update system
+- [ ] Error handling for invalid paths
+
+#### 6.3 Bar Configuration Templates and Helpers
+**Duration:** 1 day  
+**Dependencies:** 6.2
+
+**Target State:**
+Helper system for easy token bar setup with pre-configured templates.
+
+**Implementation Steps:**
+1. Create token creation helpers:
+   - Automatic bar setup for common resources (HP, spell slots)
+   - Template system for plugin-specific bar configurations
+   - Easy bar addition/removal tools
+
+2. Implement configuration templates:
+   - D&D 5e common resources template
+   - Generic RPG template
+   - Custom configuration builder
+
+**Deliverables:**
+- [ ] Token creation helpers
+- [ ] Bar configuration templates
+- [ ] Configuration management tools
+
+### Phase 6 Success Criteria
+- [ ] Token bars display document resources correctly
+- [ ] Token recreation preserves resource display
+- [ ] Bar configuration is intuitive and flexible
+- [ ] Real-time updates work efficiently
+- [ ] Templates make setup easy for common use cases
+- [ ] All token bar tests passing
+
 ## Technical Specifications
 
 ### Key Interfaces
@@ -1061,4 +1249,6 @@ This implementation plan provides a structured approach to replacing the current
 
 The Immer integration significantly simplifies the architecture by eliminating the need for ActionContext classes and manual JSON patch creation, while providing automatic immutability guarantees and patch generation. This results in a more developer-friendly system where plugins can use natural mutable syntax for state changes.
 
-The phased approach ensures that each component is thoroughly tested before building on it, while the parallel development opportunities help minimize the overall timeline. The D&D 5e reference implementation will serve as both a validation of the architecture and a guide for future plugin developers using the Immer-based approach.
+The phased approach ensures that each component is thoroughly tested before building on it, with core VTT functionality prioritized over UI enhancements. The document state system provides a solid foundation for plugin extensibility, while the token bar system in Phase 6 delivers enhanced visual feedback as a final polish feature.
+
+The D&D 5e reference implementation will serve as both a validation of the architecture and a guide for future plugin developers using the Immer-based approach.

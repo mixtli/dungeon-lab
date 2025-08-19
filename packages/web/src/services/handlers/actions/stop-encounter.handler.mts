@@ -7,6 +7,7 @@
 import type { GameActionRequest, StopEncounterParameters } from '@dungeon-lab/shared/types/index.mjs';
 import type { ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
 import type { ActionHandler, ValidationResult } from '../../action-handler.interface.mjs';
+import { generateLifecycleResetPatches } from '@dungeon-lab/shared/utils/document-state-lifecycle.mjs';
 
 /**
  * Validate stop encounter request
@@ -83,6 +84,16 @@ function executeStopEncounter(
     requestId: request.id
   });
 
+  // Collect document IDs for all participants to reset their encounter state
+  const participantDocumentIds: string[] = [];
+  if (draft.turnManager?.participants) {
+    for (const participant of draft.turnManager.participants) {
+      if (participant.actorId) {
+        participantDocumentIds.push(participant.actorId);
+      }
+    }
+  }
+
   // Stop the current encounter
   if (draft.currentEncounter) {
     draft.currentEncounter.status = 'stopped';
@@ -99,6 +110,38 @@ function executeStopEncounter(
     for (const participant of draft.turnManager.participants) {
       participant.hasActed = false;
     }
+  }
+
+  // Apply document state lifecycle resets for encounter end
+  // This resets encounter-scoped state for all participants
+  try {
+    const lifecyclePatches = generateLifecycleResetPatches(participantDocumentIds, 'encounter');
+    
+    if (lifecyclePatches.length > 0) {
+      console.log(`[StopEncounterHandler] Applying ${lifecyclePatches.length} encounter lifecycle reset patches`);
+      
+      // Apply lifecycle patches directly to the draft state
+      // Each patch resets specific state sections on documents
+      for (const patch of lifecyclePatches) {
+        if (patch.op === 'replace' && patch.path.startsWith('/documents/')) {
+          const pathParts = patch.path.split('/');
+          const documentId = pathParts[2];
+          const stateSection = pathParts[4]; // e.g., 'encounterState'
+          
+          if (draft.documents[documentId]) {
+            (draft.documents[documentId].state as Record<string, unknown>)[stateSection] = patch.value;
+            console.log(`[StopEncounterHandler] Reset ${stateSection} for document ${documentId}`);
+          }
+        }
+      }
+      
+      console.log('[StopEncounterHandler] Encounter lifecycle resets applied successfully');
+    } else {
+      console.log('[StopEncounterHandler] No encounter lifecycle resets registered');
+    }
+  } catch (error) {
+    console.error('[StopEncounterHandler] Failed to apply encounter lifecycle resets:', error);
+    // Don't throw - encounter stop should still succeed even if lifecycle resets fail
   }
 
   console.log('[StopEncounterHandler] Encounter stopped successfully:', {

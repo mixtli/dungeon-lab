@@ -53,6 +53,20 @@ const baseDocumentFields = {
   // Plugin-managed item state (equipped, quantity, condition, etc.)
   itemState: z.record(z.string(), z.unknown()).default({}),
   
+  // Document transient state with standard lifecycle sections (plugin-extensible)
+  state: z.object({
+    // Standard lifecycle state sections (always present, plugins define structure)
+    turnState: z.any(),
+    sessionState: z.any(),
+    encounterState: z.any(),
+    persistentState: z.any()
+  }).catchall(z.any()).default({
+    turnState: undefined,
+    sessionState: undefined,
+    encounterState: undefined,
+    persistentState: undefined
+  }), // catchall allows plugins to add custom sections
+  
   // User-specific data (for player notes, preferences, etc.)
   userData: z.record(z.string(), z.any()).default({}),
   
@@ -234,6 +248,12 @@ export const updateDocumentSchema = z.object({
   ownerId: z.string().optional(),
   pluginData: z.record(z.string(), z.unknown()).optional(),
   itemState: z.record(z.string(), z.unknown()).optional(),
+  state: z.object({
+    turnState: z.unknown(),
+    sessionState: z.unknown(),
+    encounterState: z.unknown(),
+    persistentState: z.unknown()
+  }).catchall(z.unknown()).optional(),
   userData: z.record(z.string(), z.any()).optional(),
   compendiumId: z.string().optional(),
   
