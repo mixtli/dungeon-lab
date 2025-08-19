@@ -21,7 +21,14 @@ import { useAuthStore } from './stores/auth.store.mjs';
 import clickOutside from './directives/clickOutside.mjs';
 import { registerVueKonva } from './plugins/vue-konva.mjs';
 import { pluginRegistry } from './services/plugin-registry.mjs';
+import { initializeCoreActionHandlers } from './services/core-action-handlers.mjs';
 
+import { setAutoFreeze } from "immer";
+
+// Disable auto-freezing for production
+  setAutoFreeze(false);
+
+// Your application's 
 // Configure ApiClient with base URL
 configureApiClient(getApiBaseUrl());
 
@@ -47,6 +54,10 @@ registerVueKonva(app);
 async function initializeApp() {
   try {
     console.log('🚀 Initializing Dungeon Lab with new plugin architecture...');
+    
+    // Initialize core action handlers first (before plugins)
+    initializeCoreActionHandlers();
+    console.log('✅ Core action handlers initialized');
     
     // Initialize plugin registry
     await pluginRegistry.initialize();

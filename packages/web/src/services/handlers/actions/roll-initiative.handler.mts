@@ -1,62 +1,167 @@
 /**
- * Roll Initiative Action Handler
+ * Roll Initiative Action Handler - New Multi-Handler Architecture
  * 
- * Pure business logic for initiative rolling operations.
- * Approval flow is handled by GMActionHandlerService before this executes.
+ * Validates and executes initiative rolling using Immer for direct state mutations.
  */
 
 import type { GameActionRequest, RollInitiativeParameters } from '@dungeon-lab/shared/types/index.mjs';
-import { useGameStateStore } from '../../../stores/game-state.store.mjs';
-import { turnManagerService } from '../../turn-manager.service.mjs';
-import type { ActionHandlerResult } from '../action-handler.types.mts';
+import type { ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
+import type { ActionHandler, ValidationResult } from '../../action-handler.interface.mjs';
 
 /**
- * Execute initiative rolling operations
- * By the time this handler runs, approval has already been granted (if required)
+ * Validate roll initiative request
  */
-export async function rollInitiativeHandler(request: GameActionRequest): Promise<ActionHandlerResult> {
+function validateRollInitiative(
+  request: GameActionRequest, 
+  gameState: ServerGameStateWithVirtuals
+): ValidationResult {
   const params = request.parameters as RollInitiativeParameters;
-  const gameStateStore = useGameStateStore();
-  
-  console.log('[RollInitiativeHandler] Processing initiative roll:', {
+
+  console.log('[RollInitiativeHandler] Validating initiative roll:', {
     participants: params.participants,
     requestId: request.id
   });
 
-  try {
-    // Check if we have an active encounter
-    if (!gameStateStore.currentEncounter) {
-      return {
-        success: false,
-        error: {
-          code: 'NO_ACTIVE_ENCOUNTER',
-          message: 'No active encounter for initiative roll'
-        }
-      };
-    }
-
-    // Use turn manager service to recalculate initiative
-    console.log('[RollInitiativeHandler] Recalculating initiative via turnManagerService');
-    
-    // The TurnManagerService only has recalculateInitiative() method
-    // TODO: In the future, we may want to add support for rolling initiative for specific participants
-    await turnManagerService.recalculateInitiative();
-
-    console.log('[RollInitiativeHandler] Initiative recalculated successfully:', {
-      requestId: request.id,
-      participantCount: params.participants?.length || 'all'
-    });
-
-    return { success: true };
-
-  } catch (error) {
-    console.error('[RollInitiativeHandler] Error executing initiative roll:', error);
+  // Check if we have an active encounter
+  if (!gameState.currentEncounter) {
     return {
-      success: false,
+      valid: false,
       error: {
-        code: 'INITIATIVE_ROLL_FAILED',
-        message: error instanceof Error ? error.message : 'Failed to roll initiative'
+        code: 'NO_ACTIVE_ENCOUNTER',
+        message: 'No active encounter for initiative roll'
       }
     };
   }
+
+  // Validate participants if specific ones are provided
+  if (params.participants && params.participants.length > 0) {
+    const encounterTokens = gameState.currentEncounter.tokens || [];
+    const encounterDocuments = Object.values(gameState.documents).filter(
+      doc => doc.documentType === 'character' || doc.documentType === 'actor'
+    );
+    
+    for (const participantId of params.participants) {
+      // Check if participant exists either as a token or document
+      const tokenExists = encounterTokens.some(token => 
+        token.id === participantId || token.documentId === participantId
+      );
+      const documentExists = encounterDocuments.some(doc => doc.id === participantId);
+      
+      if (!tokenExists && !documentExists) {
+        return {
+          valid: false,
+          error: {
+            code: 'PARTICIPANT_NOT_FOUND',
+            message: `Participant not found: ${participantId}`
+          }
+        };
+      }
+    }
+  }
+
+  return { valid: true };
 }
+
+/**
+ * Execute initiative rolling using direct state mutation
+ */
+function executeRollInitiative(
+  request: GameActionRequest, 
+  draft: ServerGameStateWithVirtuals
+): void {
+  const params = request.parameters as RollInitiativeParameters;
+
+  console.log('[RollInitiativeHandler] Executing initiative roll:', {
+    participants: params.participants,
+    requestId: request.id
+  });
+
+  // Initialize turn manager if it doesn't exist
+  if (!draft.turnManager) {
+    draft.turnManager = {
+      participants: [],
+      isActive: false,
+      currentTurn: 0,
+      round: 1
+    };
+  }
+
+  // Generate turn order participants from encounter tokens and characters
+  const participants = [];
+  
+  if (draft.currentEncounter?.tokens) {
+    for (const token of draft.currentEncounter.tokens) {
+      // Skip if specific participants were requested and this token isn't included
+      if (params.participants && params.participants.length > 0) {
+        if (!params.participants.includes(token.id) && !params.participants.includes(token.documentId || '')) {
+          continue;
+        }
+      }
+      
+      // Roll initiative (d20 + dex modifier, for now just random 1-20)
+      const initiativeRoll = Math.floor(Math.random() * 20) + 1;
+      
+      participants.push({
+        id: `participant_${token.id}`,
+        name: token.name,
+        tokenId: token.id,
+        actorId: token.documentId,
+        turnOrder: initiativeRoll,
+        hasActed: false
+      });
+    }
+  }
+
+  // If no specific participants were requested, include characters not represented by tokens
+  if (!params.participants || params.participants.length === 0) {
+    const tokenDocumentIds = new Set(
+      draft.currentEncounter?.tokens?.map(t => t.documentId).filter(Boolean) || []
+    );
+    
+    for (const document of Object.values(draft.documents)) {
+      if ((document.documentType === 'character' || document.documentType === 'actor') && 
+          !tokenDocumentIds.has(document.id)) {
+        
+        const initiativeRoll = Math.floor(Math.random() * 20) + 1;
+        
+        participants.push({
+          id: `participant_${document.id}`,
+          name: document.name,
+          actorId: document.id,
+          turnOrder: initiativeRoll,
+          hasActed: false
+        });
+      }
+    }
+  }
+
+  // Sort participants by initiative roll (higher goes first)
+  participants.sort((a, b) => b.turnOrder - a.turnOrder);
+
+  // Update turn manager
+  draft.turnManager.participants = participants;
+  draft.turnManager.isActive = true;
+  draft.turnManager.currentTurn = 0;
+  draft.turnManager.round = 1;
+
+  console.log('[RollInitiativeHandler] Initiative rolled successfully:', {
+    participantCount: participants.length,
+    turnOrder: participants.map(p => ({ name: p.name, initiative: p.turnOrder })),
+    requestId: request.id
+  });
+}
+
+/**
+ * Core roll-initiative action handler
+ */
+export const rollInitiativeActionHandler: ActionHandler = {
+  priority: 0, // Core handler runs first
+  gmOnly: true, // Only GMs can roll initiative
+  validate: validateRollInitiative,
+  execute: executeRollInitiative,
+  approvalMessage: (request) => {
+    const params = request.parameters as RollInitiativeParameters;
+    const participantCount = params.participants?.length || 'all participants';
+    return `wants to roll initiative for ${participantCount}`;
+  }
+};

@@ -1,68 +1,97 @@
 /**
- * Add Document Action Handler
+ * Add Document Action Handler - New Multi-Handler Architecture
  * 
- * Pure business logic for document addition operations.
- * Approval flow is handled by GMActionHandlerService before this executes.
+ * Validates and executes document addition using Immer for direct state mutations.
  */
 
 import type { GameActionRequest, AddDocumentParameters } from '@dungeon-lab/shared/types/index.mjs';
-import { useGameStateStore } from '../../../stores/game-state.store.mjs';
-import type { ActionHandlerResult } from '../action-handler.types.mts';
+import type { ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
+import type { ActionHandler, ValidationResult } from '../../action-handler.interface.mjs';
 
 /**
- * Execute document addition operations
- * By the time this handler runs, approval has already been granted (if required)
+ * Validate document addition request
  */
-export async function addDocumentHandler(request: GameActionRequest): Promise<ActionHandlerResult> {
+function validateAddDocument(
+  request: GameActionRequest, 
+  gameState: ServerGameStateWithVirtuals
+): ValidationResult {
   const params = request.parameters as AddDocumentParameters;
-  const gameStateStore = useGameStateStore();
-  
-  console.log('[AddDocumentHandler] Processing document addition:', {
+
+  console.log('[AddDocumentHandler] Validating document addition:', {
     compendiumId: params.compendiumId,
     entryId: params.entryId,
     requestId: request.id
   });
 
-  try {
-    // Validate parameters
-    if (!params.compendiumId || !params.entryId || !params.documentData) {
-      return {
-        success: false,
-        error: {
-          code: 'MISSING_PARAMETERS',
-          message: 'Missing required parameters for document addition'
-        }
-      };
-    }
-
-    // Prepare state operations to add the document
-    const operations = [
-      {
-        op: 'add' as const,
-        path: `/documents/${params.documentData.id || 'new_document'}`,
-        value: params.documentData
-      }
-    ];
-
-    console.log('[AddDocumentHandler] Document addition validation successful, returning operations:', {
-      documentId: params.documentData.id,
-      requestId: request.id,
-      operationsCount: operations.length
-    });
-
-    return { 
-      success: true,
-      stateOperations: operations
-    };
-
-  } catch (error) {
-    console.error('[AddDocumentHandler] Error executing document addition:', error);
+  // Validate required parameters
+  if (!params.compendiumId || !params.entryId || !params.documentData) {
     return {
-      success: false,
+      valid: false,
       error: {
-        code: 'DOCUMENT_ADDITION_FAILED',
-        message: error instanceof Error ? error.message : 'Failed to add document'
+        code: 'MISSING_PARAMETERS',
+        message: 'Missing required parameters for document addition'
       }
     };
   }
+
+  // Validate document data has required fields
+  if (!params.documentData.id) {
+    return {
+      valid: false,
+      error: {
+        code: 'INVALID_DOCUMENT_DATA',
+        message: 'Document data must include an id field'
+      }
+    };
+  }
+
+  // Check if document already exists
+  if (gameState.documents[params.documentData.id]) {
+    return {
+      valid: false,
+      error: {
+        code: 'DOCUMENT_EXISTS',
+        message: 'Document with this ID already exists'
+      }
+    };
+  }
+
+  return { valid: true };
 }
+
+/**
+ * Execute document addition using direct state mutation
+ */
+function executeAddDocument(
+  request: GameActionRequest, 
+  draft: ServerGameStateWithVirtuals
+): void {
+  const params = request.parameters as AddDocumentParameters;
+
+  console.log('[AddDocumentHandler] Executing document addition:', {
+    documentId: params.documentData.id,
+    documentType: params.documentData.documentType,
+    requestId: request.id
+  });
+
+  // Direct mutation - add document to the documents map
+  draft.documents[params.documentData.id] = params.documentData;
+
+  console.log('[AddDocumentHandler] Document addition executed successfully:', {
+    documentId: params.documentData.id,
+    requestId: request.id
+  });
+}
+
+/**
+ * Core add-document action handler
+ */
+export const addDocumentActionHandler: ActionHandler = {
+  priority: 0, // Core handler runs first
+  validate: validateAddDocument,
+  execute: executeAddDocument,
+  approvalMessage: (request) => {
+    const params = request.parameters as AddDocumentParameters;
+    return `wants to add document "${params.documentData.name || params.documentData.id}" to the game`;
+  }
+};

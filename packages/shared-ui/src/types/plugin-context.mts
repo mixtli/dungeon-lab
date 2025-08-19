@@ -10,6 +10,17 @@ import type { BaseDocument, ICompendiumEntry, ICharacter, IActor, IItem, IEncoun
 import type { Roll } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
 import type { RollTypeHandler } from './plugin.mjs';
 
+// Forward declaration for ActionHandler - defined in web package
+export interface ActionHandler {
+  pluginId?: string;
+  priority?: number;
+  requiresManualApproval?: boolean;
+  gmOnly?: boolean;
+  validate?: (request: any, gameState: ServerGameStateWithVirtuals) => Promise<{ valid: boolean; error?: { code: string; message: string; }; }>;
+  execute?: (request: any, draft: ServerGameStateWithVirtuals) => Promise<void>;
+  approvalMessage?: (request: any) => string;
+}
+
 /**
  * Plugin store interface for reactive state management of plugin-specific UI state
  * (e.g., active tabs, expanded sections, UI preferences)
@@ -109,4 +120,21 @@ export interface PluginContext {
    * Plugins use this to handle their own roll types
    */
   registerRollHandler(rollType: string, handler: RollTypeHandler): void;
+  
+  /**
+   * Register an action handler for this plugin
+   * Action handlers process game actions like token movement, document updates, etc.
+   */
+  registerActionHandler(actionType: string, handler: Omit<ActionHandler, 'pluginId'>): void;
+  
+  /**
+   * Unregister an action handler for this plugin
+   */
+  unregisterActionHandler(actionType: string): void;
+  
+  /**
+   * Unregister all action handlers for this plugin
+   * Called during plugin cleanup/unload
+   */
+  unregisterAllActionHandlers(): void;
 }

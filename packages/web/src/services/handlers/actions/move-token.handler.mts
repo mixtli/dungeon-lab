@@ -1,54 +1,54 @@
 /**
- * Move Token Action Handler
+ * Move Token Action Handler - Multi-Handler Architecture
  * 
- * Pure business logic for token movement operations.
- * Approval flow is handled by GMActionHandlerService before this executes.
+ * Validates and executes token movement using direct draft mutation.
+ * Immer automatically generates patches from draft mutations.
  */
 
 import type { GameActionRequest, MoveTokenParameters } from '@dungeon-lab/shared/types/index.mjs';
-import { useGameStateStore } from '../../../stores/game-state.store.mjs';
+import type { ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
+import type { ActionHandler, ValidationResult } from '../../action-handler.interface.mjs';
 import { useGameSessionStore } from '../../../stores/game-session.store.mjs';
 import { checkWallCollision } from '../../../utils/collision-detection.mjs';
-import type { ActionHandlerResult } from '../action-handler.types.mts';
 
 /**
- * Execute token movement operations
- * By the time this handler runs, approval has already been granted (if required)
+ * Validate token movement request
  */
-export async function moveTokenHandler(request: GameActionRequest): Promise<ActionHandlerResult> {
+function validateMoveToken(
+  request: GameActionRequest, 
+  gameState: ServerGameStateWithVirtuals
+): ValidationResult {
   const params = request.parameters as MoveTokenParameters;
-  const gameStateStore = useGameStateStore();
   const gameSessionStore = useGameSessionStore();
-  
-  console.log('[MoveTokenHandler] Processing token movement:', {
+
+  console.log('[MoveTokenHandler] Validating token movement:', {
     tokenId: params.tokenId,
     newPosition: params.newPosition,
     requestId: request.id
   });
 
-  try {
-    // Validate we have an active encounter
-    if (!gameStateStore.currentEncounter) {
-      return {
-        success: false,
-        error: {
-          code: 'NO_ACTIVE_ENCOUNTER',
-          message: 'No active encounter for token movement'
-        }
-      };
-    }
+  // Validate we have an active encounter
+  if (!gameState.currentEncounter) {
+    return {
+      valid: false,
+      error: {
+        code: 'NO_ACTIVE_ENCOUNTER',
+        message: 'No active encounter for token movement'
+      }
+    };
+  }
 
-    // Find the token
-    const token = gameStateStore.currentEncounter.tokens?.find(t => t.id === params.tokenId);
-    if (!token) {
-      return {
-        success: false,
-        error: {
-          code: 'TOKEN_NOT_FOUND',
-          message: 'Token not found in current encounter'
-        }
-      };
-    }
+  // Find the token
+  const token = gameState.currentEncounter.tokens?.find(t => t.id === params.tokenId);
+  if (!token) {
+    return {
+      valid: false,
+      error: {
+        code: 'TOKEN_NOT_FOUND',
+        message: 'Token not found in current encounter'
+      }
+    };
+  }
 
   // Permission check - players can only move player-controlled tokens
   if (!gameSessionStore.isGameMaster && token.isPlayerControlled) {
@@ -62,13 +62,13 @@ export async function moveTokenHandler(request: GameActionRequest): Promise<Acti
   }
 
   // Collision detection using game state map data
-  if (!gameStateStore.currentEncounter?.currentMap) {
+  if (!gameState.currentEncounter?.currentMap) {
     console.error('[MoveTokenHandler] CRITICAL: No currentMap in game state! This indicates a serious state management issue.');
     console.log('[MoveTokenHandler] Encounter data:', {
-      hasEncounter: !!gameStateStore.currentEncounter,
-      encounterId: gameStateStore.currentEncounter?.id,
-      mapId: gameStateStore.currentEncounter?.mapId,
-      hasCurrentMap: !!gameStateStore.currentEncounter?.currentMap
+      hasEncounter: !!gameState.currentEncounter,
+      encounterId: gameState.currentEncounter?.id,
+      mapId: gameState.currentEncounter?.mapId,
+      hasCurrentMap: !!gameState.currentEncounter?.currentMap
     });
     // Allow movement to prevent blocking, but this needs to be fixed
   } else {
@@ -79,54 +79,20 @@ export async function moveTokenHandler(request: GameActionRequest): Promise<Acti
     const currentGridPos = { x: currentGridCenterX, y: currentGridCenterY };
     
     // Convert target world position to grid coordinates and get center of target cell
-    const mapData = gameStateStore.currentEncounter.currentMap;
+    const mapData = gameState.currentEncounter.currentMap;
     const pixelsPerGrid = mapData.uvtt?.resolution?.pixels_per_grid || 50;
     const targetGridPos = { 
       x: params.newPosition.x / pixelsPerGrid + 0.5, 
       y: params.newPosition.y / pixelsPerGrid + 0.5 
     };
     
-    // console.log('[MoveTokenHandler] 🔍 COLLISION DETECTION DEBUG:', {
-    //   tokenId: params.tokenId,
-    //   tokenName: token.name,
-    //   tokenBounds: {
-    //     topLeft: token.bounds.topLeft,
-    //     bottomRight: token.bounds.bottomRight
-    //   },
-    //   rawCurrentCenter: {
-    //     x: (token.bounds.topLeft.x + token.bounds.bottomRight.x) / 2,
-    //     y: (token.bounds.topLeft.y + token.bounds.bottomRight.y) / 2
-    //   },
-    //   correctedCurrentCenter: currentGridPos,
-    //   targetWorldPos: params.newPosition,
-    //   targetGridPos: targetGridPos,
-    //   pixelsPerGrid: pixelsPerGrid,
-    //   movementVector: {
-    //     x: targetGridPos.x - currentGridPos.x,
-    //     y: targetGridPos.y - currentGridPos.y
-    //   },
-    //   wallDataAvailable: {
-    //     hasUvtt: !!mapData.uvtt,
-    //     hasLineOfSight: !!mapData.uvtt?.line_of_sight,
-    //     hasObjectsLineOfSight: !!mapData.uvtt?.objects_line_of_sight,
-    //     lineOfSightCount: mapData.uvtt?.line_of_sight?.length || 0,
-    //     objectsLineOfSightCount: mapData.uvtt?.objects_line_of_sight?.length || 0
-    //   }
-    // });
-    
     try {
       const collisionDetected = checkWallCollision(currentGridPos, targetGridPos, mapData, false);
-      
-      // console.log('[MoveTokenHandler] 🎯 COLLISION RESULT:', {
-      //   collisionDetected,
-      //   movementLine: `from (${currentGridPos.x}, ${currentGridPos.y}) to (${targetGridPos.x}, ${targetGridPos.y})`,
-      //   blocked: collisionDetected ? 'YES - MOVEMENT BLOCKED' : 'NO - MOVEMENT ALLOWED'
-      // });
       
       if (collisionDetected) {
         console.log('[MoveTokenHandler] ❌ Movement blocked by collision detection');
         return {
-          success: false,
+          valid: false,
           error: {
             code: 'COLLISION_DETECTED',
             message: 'Movement blocked by wall or obstacle'
@@ -141,26 +107,22 @@ export async function moveTokenHandler(request: GameActionRequest): Promise<Acti
     }
   }
 
-    // Movement is valid - execute via game state update
-    const tokenIndex = gameStateStore.currentEncounter.tokens?.findIndex(t => t.id === params.tokenId);
-    if (tokenIndex === undefined || tokenIndex === -1) {
-      return {
-        success: false,
-        error: {
-          code: 'TOKEN_INDEX_ERROR',
-          message: 'Could not locate token for update'
-        }
-      };
-    }
+  return { valid: true };
+}
 
-  // Calculate new bounds from center position, preserving token size
-  const currentBounds = token.bounds;
+/**
+ * Calculate new bounds from center position, preserving token size
+ */
+function calculateNewBounds(
+  params: MoveTokenParameters,
+  currentBounds: { topLeft: { x: number; y: number }; bottomRight: { x: number; y: number }; elevation?: number },
+  currentMap: { uvtt?: { resolution?: { pixels_per_grid?: number } } } | undefined
+) {
   const newCenterX = params.newPosition.x;
   const newCenterY = params.newPosition.y;
   const newElevation = params.newPosition.elevation || currentBounds.elevation || 0;
   
   // Get the actual grid size from current map data
-  const currentMap = gameStateStore.currentEncounter?.currentMap;
   const pixelsPerGrid = currentMap?.uvtt?.resolution?.pixels_per_grid || 50; // fallback to 50
   
   // Convert center world coordinates to grid coordinates
@@ -175,7 +137,7 @@ export async function moveTokenHandler(request: GameActionRequest): Promise<Acti
   const halfWidth = Math.floor(width / 2);
   const halfHeight = Math.floor(height / 2);
   
-  const newBounds = {
+  return {
     topLeft: {
       x: centerGridX - halfWidth,
       y: centerGridY - halfHeight
@@ -186,35 +148,60 @@ export async function moveTokenHandler(request: GameActionRequest): Promise<Acti
     },
     elevation: newElevation
   };
-
-  const operations = [
-    {
-      op: 'replace' as const,
-      path: `/currentEncounter/tokens/${tokenIndex}/bounds`,
-      value: newBounds
-    }
-  ];
-
-    console.log('[MoveTokenHandler] Token movement validation successful, returning operations:', {
-      tokenId: params.tokenId,
-      newPosition: params.newPosition,
-      requestId: request.id,
-      operationsCount: operations.length
-    });
-
-    return { 
-      success: true,
-      stateOperations: operations
-    };
-
-  } catch (error) {
-    console.error('[MoveTokenHandler] Error executing token movement:', error);
-    return {
-      success: false,
-      error: {
-        code: 'MOVEMENT_ERROR',
-        message: error instanceof Error ? error.message : 'Failed to process token movement'
-      }
-    };
-  }
 }
+
+/**
+ * Execute token movement using direct draft mutation
+ * The draft is provided by Immer's produceWithPatches in the GM Action Handler
+ */
+function executeMoveToken(
+  request: GameActionRequest, 
+  draft: ServerGameStateWithVirtuals
+): void {
+  const params = request.parameters as MoveTokenParameters;
+
+  console.log('[MoveTokenHandler] Executing token movement with direct draft mutation:', {
+    tokenId: params.tokenId,
+    newPosition: params.newPosition,
+    requestId: request.id
+  });
+
+  // Find the token in the current encounter draft
+  if (!draft.currentEncounter?.tokens) {
+    throw new Error('No tokens found in current encounter');
+  }
+
+  const token = draft.currentEncounter.tokens.find(t => t.id === params.tokenId);
+  if (!token) {
+    throw new Error('Token not found for movement update');
+  }
+
+  // Calculate new bounds using the helper function
+  const newBounds = calculateNewBounds(
+    params, 
+    token.bounds, 
+    draft.currentEncounter?.currentMap || undefined
+  );
+
+  // Direct draft mutation - Immer will automatically generate patches
+  token.bounds = newBounds;
+
+  console.log('[MoveTokenHandler] Token movement executed with direct draft mutation:', {
+    tokenId: params.tokenId,
+    newBounds,
+    requestId: request.id
+  });
+}
+
+/**
+ * Core move-token action handler
+ */
+export const moveTokenActionHandler: ActionHandler = {
+  priority: 0, // Core handler runs first
+  validate: validateMoveToken,
+  execute: executeMoveToken,
+  approvalMessage: (request) => {
+    const params = request.parameters as MoveTokenParameters;
+    return `wants to move token to position (${params.newPosition.x}, ${params.newPosition.y})`;
+  }
+};

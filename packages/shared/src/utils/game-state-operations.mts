@@ -43,6 +43,7 @@ export class GameStateOperations {
     
     // Apply patches directly to the original object (mutating it)
     // This preserves Vue's reactivity tracking for unchanged portions
+    console.log("gameState", gameState)
     applyPatch(gameState, patchOperations, /* validateOperation */ false, /* mutateDocument */ true);
   }
 

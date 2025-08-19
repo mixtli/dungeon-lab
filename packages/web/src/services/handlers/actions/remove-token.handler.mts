@@ -1,142 +1,136 @@
 /**
- * Remove Token Action Handler
+ * Remove Token Action Handler - New Multi-Handler Architecture
  * 
- * Pure business logic for token removal operations.
- * Approval flow is handled by GMActionHandlerService before this executes.
+ * Validates and executes token removal using Immer for direct state mutations.
  */
 
 import type { GameActionRequest, RemoveTokenParameters } from '@dungeon-lab/shared/types/index.mjs';
-import { useGameStateStore } from '../../../stores/game-state.store.mjs';
+import type { ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
+import type { ActionHandler, ValidationResult } from '../../action-handler.interface.mjs';
 import { useGameSessionStore } from '../../../stores/game-session.store.mjs';
-import type { ActionHandlerResult } from '../action-handler.types.mts';
 
 /**
- * Execute token removal operations
- * By the time this handler runs, approval has already been granted (if required)
+ * Validate token removal request
  */
-export async function removeTokenHandler(request: GameActionRequest): Promise<ActionHandlerResult> {
+function validateRemoveToken(
+  request: GameActionRequest, 
+  gameState: ServerGameStateWithVirtuals
+): ValidationResult {
   const params = request.parameters as RemoveTokenParameters;
-  const gameStateStore = useGameStateStore();
   const gameSessionStore = useGameSessionStore();
-  
-  console.log('[RemoveTokenHandler] Processing token removal:', {
+
+  console.log('[RemoveTokenHandler] Validating token removal:', {
     tokenId: params.tokenId,
     tokenName: params.tokenName,
     requestId: request.id
   });
 
-  try {
-    // Validate we have an active encounter
-    if (!gameStateStore.currentEncounter) {
-      return {
-        success: false,
-        error: {
-          code: 'NO_ACTIVE_ENCOUNTER',
-          message: 'No active encounter for token removal'
-        }
-      };
-    }
-
-    // Find the token
-    const token = gameStateStore.currentEncounter.tokens?.find(t => t.id === params.tokenId);
-    if (!token) {
-      return {
-        success: false,
-        error: {
-          code: 'TOKEN_NOT_FOUND',
-          message: 'Token not found in current encounter'
-        }
-      };
-    }
-
-    // Permission check - GM can always remove tokens
-    const isGM = request.playerId === gameSessionStore.currentSession?.gameMasterId;
-    
-    if (!isGM) {
-      // Players can only request removal of their own tokens
-      // For now, deny all non-GM requests to maintain GM authority
-      console.log('[RemoveTokenHandler] Non-GM attempted token removal, denying request:', {
-        playerId: request.playerId,
-        tokenId: params.tokenId
-      });
-      
-      return {
-        success: false,
-        error: {
-          code: 'PERMISSION_DENIED',
-          message: 'Only the Game Master can remove tokens'
-        }
-      };
-    }
-
-    // Token removal is valid - execute via game state update
-    // Find the token index for JSON Patch remove operation
-    const tokenIndex = gameStateStore.currentEncounter.tokens?.findIndex(t => t.id === params.tokenId);
-    if (tokenIndex === undefined || tokenIndex === -1) {
-      return {
-        success: false,
-        error: {
-          code: 'TOKEN_INDEX_NOT_FOUND',
-          message: 'Token not found for removal'
-        }
-      };
-    }
-
-    const operations = [{
-      op: 'remove' as const,
-      path: `/currentEncounter/tokens/${tokenIndex}`
-    }];
-    
-    // Also remove from turn order if it exists
-    if (gameStateStore.gameState?.turnManager?.participants) {
-      // Find the participant that has this tokenId
-      const participantToRemove = gameStateStore.gameState.turnManager.participants.find(
-        participant => participant.tokenId === params.tokenId
-      );
-      
-      if (participantToRemove) {
-        // Find the participant index for JSON Patch remove operation
-        const participantIndex = gameStateStore.gameState.turnManager.participants.findIndex(
-          participant => participant.tokenId === params.tokenId
-        );
-        
-        if (participantIndex !== -1) {
-          console.log('[RemoveTokenHandler] Removing token from turn order:', {
-            tokenId: params.tokenId,
-            participantId: participantToRemove.id,
-            participantIndex: participantIndex,
-            participantCount: gameStateStore.gameState.turnManager.participants.length
-          });
-          
-          operations.push({
-            op: 'remove' as const,
-            path: `/turnManager/participants/${participantIndex}`
-          });
-        }
-      }
-    }
-
-    console.log('[RemoveTokenHandler] Token removal validation successful, returning operations:', {
-      tokenId: params.tokenId,
-      tokenName: params.tokenName,
-      removedFromTurnOrder: !!gameStateStore.gameState?.turnManager?.participants,
-      requestId: request.id,
-      operationsCount: operations.length
-    });
-
-    return { 
-      success: true,
-      stateOperations: operations
-    };
-
-  } catch (error) {
-    console.error('[RemoveTokenHandler] Error executing token removal:', error);
+  // Validate we have an active encounter
+  if (!gameState.currentEncounter) {
     return {
-      success: false,
+      valid: false,
       error: {
-        code: 'TOKEN_REMOVAL_FAILED',
-        message: error instanceof Error ? error.message : 'Failed to remove token'
+        code: 'NO_ACTIVE_ENCOUNTER',
+        message: 'No active encounter for token removal'
       }
     };
   }
+
+  // Find the token
+  const token = gameState.currentEncounter.tokens?.find(t => t.id === params.tokenId);
+  if (!token) {
+    return {
+      valid: false,
+      error: {
+        code: 'TOKEN_NOT_FOUND',
+        message: 'Token not found in current encounter'
+      }
+    };
+  }
+
+  // Permission check - GM can always remove tokens
+  const isGM = request.playerId === gameSessionStore.currentSession?.gameMasterId;
+  
+  if (!isGM) {
+    // Players can only request removal of their own tokens
+    // For now, deny all non-GM requests to maintain GM authority
+    console.log('[RemoveTokenHandler] Non-GM attempted token removal, denying request:', {
+      playerId: request.playerId,
+      tokenId: params.tokenId
+    });
+    
+    return {
+      valid: false,
+      error: {
+        code: 'PERMISSION_DENIED',
+        message: 'Only the Game Master can remove tokens'
+      }
+    };
+  }
+
+  return { valid: true };
 }
+
+/**
+ * Execute token removal using direct state mutation
+ */
+function executeRemoveToken(
+  request: GameActionRequest, 
+  draft: ServerGameStateWithVirtuals
+): void {
+  const params = request.parameters as RemoveTokenParameters;
+
+  console.log('[RemoveTokenHandler] Executing token removal:', {
+    tokenId: params.tokenId,
+    tokenName: params.tokenName,
+    requestId: request.id
+  });
+
+  // Find the token index for removal
+  const tokenIndex = draft.currentEncounter?.tokens?.findIndex(t => t.id === params.tokenId);
+  if (tokenIndex === undefined || tokenIndex === -1 || !draft.currentEncounter?.tokens) {
+    throw new Error('Token not found for removal');
+  }
+
+  // Direct mutation - remove token from array
+  draft.currentEncounter.tokens.splice(tokenIndex, 1);
+
+  // Also remove from turn order if it exists
+  if (draft.turnManager?.participants) {
+    // Find the participant that has this tokenId
+    const participantIndex = draft.turnManager.participants.findIndex(
+      participant => participant.tokenId === params.tokenId
+    );
+    
+    if (participantIndex !== -1) {
+      console.log('[RemoveTokenHandler] Removing token from turn order:', {
+        tokenId: params.tokenId,
+        participantIndex: participantIndex,
+        participantCount: draft.turnManager.participants.length
+      });
+      
+      // Direct mutation - remove participant from array
+      draft.turnManager.participants.splice(participantIndex, 1);
+    }
+  }
+
+  console.log('[RemoveTokenHandler] Token removal executed successfully:', {
+    tokenId: params.tokenId,
+    tokenName: params.tokenName,
+    requestId: request.id
+  });
+}
+
+/**
+ * Core remove-token action handler
+ */
+export const removeTokenActionHandler: ActionHandler = {
+  priority: 0, // Core handler runs first
+  gmOnly: true, // Only GMs can remove tokens
+  validate: validateRemoveToken,
+  execute: executeRemoveToken,
+  approvalMessage: (request) => {
+    const params = request.parameters as RemoveTokenParameters;
+    return `wants to remove token "${params.tokenName || params.tokenId}"`;
+  }
+};

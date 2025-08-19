@@ -246,6 +246,18 @@ export const useGameStateStore = defineStore(
         throw new Error('Not authorized to update game state');
       }
 
+      // Get stack trace to see who called this
+      const stack = new Error().stack;
+      const caller = stack?.split('\n')[2]?.trim() || 'unknown';
+      
+      console.log('[GameStateStore] updateGameState called:', {
+        operationCount: operations.length,
+        caller: caller.substring(0, 100),
+        operations: operations,
+        gameStateType: gameState.value && typeof gameState.value,
+        hasProxy: gameState.value && 'toRaw' in (gameState.value.constructor.prototype || {})
+      });
+
       if (!socketStore.socket) {
         throw new Error('Socket not connected');
       }
@@ -288,7 +300,7 @@ export const useGameStateStore = defineStore(
      * Process a single state update
      */
     async function processUpdate(operations: JsonPatchOperation[]): Promise<StateUpdateResponse> {
-      isUpdating.value = true;
+      //isUpdating.value = true;
       
       try {
         const currentSessionId = gameSessionStore.currentSession?.id;
@@ -373,9 +385,26 @@ export const useGameStateStore = defineStore(
     function applyStateOperations(operations: JsonPatchOperation[]): void {
       if (!gameState.value) return;
 
-      // Apply operations in-place to preserve Vue reactivity tracking
-      // This ensures only changed paths trigger re-renders, not the entire state
-      GameStateOperations.applyOperationsInPlace(gameState.value, operations);
+      // Get stack trace to see who called this
+      const stack = new Error().stack;
+      const caller = stack?.split('\n')[2]?.trim() || 'unknown';
+      
+      console.log('[GameStateStore] applyStateOperations called:', {
+        operationCount: operations.length,
+        caller: caller.substring(0, 100),
+        operations: operations.slice(0, 2), // Log first 2 operations only
+        gameStateProxy: gameState.value && 'toRaw' in (gameState.value.constructor.prototype || {})
+      });
+
+      try {
+        // Apply operations in-place to preserve Vue reactivity tracking
+        // This ensures only changed paths trigger re-renders, not the entire state
+        GameStateOperations.applyOperationsInPlace(gameState.value, operations);
+        console.log('[GameStateStore] applyOperationsInPlace completed successfully');
+      } catch (error) {
+        console.error('[GameStateStore] applyOperationsInPlace failed:', error);
+        throw error;
+      }
     }
 
 

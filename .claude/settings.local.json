@@ -92,7 +92,9 @@
       "Bash(vue-tsc --noEmit)",
       "WebFetch(domain:en.wikipedia.org)",
       "mcp__playwright__browser_tab_new",
-      "mcp__git__git_show"
+      "mcp__git__git_show",
+      "mcp__git__git_status",
+      "WebFetch(domain:app.studyraid.com)"
     ],
     "defaultMode": "acceptEdits",
     "additionalDirectories": [
