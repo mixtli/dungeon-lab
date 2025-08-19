@@ -55,11 +55,11 @@ const baseDocumentFields = {
   
   // Document transient state with standard lifecycle sections (plugin-extensible)
   state: z.object({
-    // Standard lifecycle state sections (always present, plugins define structure)
-    turnState: z.any(),
-    sessionState: z.any(),
-    encounterState: z.any(),
-    persistentState: z.any()
+    // Standard lifecycle state sections (optional initially, plugins define structure)
+    turnState: z.any().optional(),
+    sessionState: z.any().optional(),
+    encounterState: z.any().optional(),
+    persistentState: z.any().optional()
   }).catchall(z.any()).default({
     turnState: undefined,
     sessionState: undefined,
@@ -249,10 +249,10 @@ export const updateDocumentSchema = z.object({
   pluginData: z.record(z.string(), z.unknown()).optional(),
   itemState: z.record(z.string(), z.unknown()).optional(),
   state: z.object({
-    turnState: z.unknown(),
-    sessionState: z.unknown(),
-    encounterState: z.unknown(),
-    persistentState: z.unknown()
+    turnState: z.unknown().optional(),
+    sessionState: z.unknown().optional(),
+    encounterState: z.unknown().optional(),
+    persistentState: z.unknown().optional()
   }).catchall(z.unknown()).optional(),
   userData: z.record(z.string(), z.any()).optional(),
   compendiumId: z.string().optional(),

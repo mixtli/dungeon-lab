@@ -6,19 +6,42 @@
  */
 
 import type { ComputedRef, Ref } from 'vue';
-import type { BaseDocument, ICompendiumEntry, ICharacter, IActor, IItem, IEncounter, IToken, ServerGameStateWithVirtuals, StateUpdateBroadcast } from '@dungeon-lab/shared/types/index.mjs';
+import type { BaseDocument, ICompendiumEntry, ICharacter, IActor, IItem, IEncounter, IToken, ServerGameStateWithVirtuals, StateUpdateBroadcast, GameActionRequest } from '@dungeon-lab/shared/types/index.mjs';
 import type { Roll } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
 import type { RollTypeHandler } from './plugin.mjs';
 
-// Forward declaration for ActionHandler - defined in web package
+/**
+ * Validation result returned by action handlers
+ */
+export interface ActionValidationResult {
+  valid: boolean;
+  error?: { 
+    code: string; 
+    message: string; 
+  };
+  resourceCosts?: ResourceCost[];
+}
+
+/**
+ * Resource cost information for validation display
+ */
+export interface ResourceCost {
+  resourcePath: string;    // Path within document (e.g., 'spellSlotsUsed.level1')
+  amount: number;          // Amount to consume
+  storageType: 'data' | 'state';  // 'data' = pluginData, 'state' = document state
+}
+
+/**
+ * Action Handler Interface - matches web package implementation
+ */
 export interface ActionHandler {
-  pluginId?: string;
-  priority?: number;
-  requiresManualApproval?: boolean;
-  gmOnly?: boolean;
-  validate?: (request: any, gameState: ServerGameStateWithVirtuals) => Promise<{ valid: boolean; error?: { code: string; message: string; }; }>;
-  execute?: (request: any, draft: ServerGameStateWithVirtuals) => Promise<void>;
-  approvalMessage?: (request: any) => string;
+  pluginId?: string;           // undefined = core handler
+  priority?: number;           // Lower = runs first (core = 0, plugins = 100+)
+  requiresManualApproval?: boolean;  // Default: false = auto-execute
+  gmOnly?: boolean;                  // Default: false = players can use
+  validate?: (request: GameActionRequest, gameState: ServerGameStateWithVirtuals) => ActionValidationResult;
+  execute?: (request: GameActionRequest, draft: ServerGameStateWithVirtuals) => void;
+  approvalMessage?: (request: GameActionRequest) => string;
 }
 
 /**

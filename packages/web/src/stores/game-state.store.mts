@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { ref, computed, watch, readonly } from 'vue';
+import { ref, computed, watch, readonly, toRaw } from 'vue';
 import { z } from 'zod';
 import type { 
   StateUpdate, 
@@ -559,7 +559,9 @@ export const useGameStateStore = defineStore(
       }
 
       try {
-        const calculatedHash = generateStateHash(gameState.value as unknown as ServerGameStateWithVirtuals);
+        // Use toRaw to get plain object (remove Vue reactivity proxy) for hash calculation
+        const rawGameState = toRaw(gameState.value) as ServerGameStateWithVirtuals;
+        const calculatedHash = generateStateHash(rawGameState);
         const isValid = calculatedHash === expectedHash;
         
         if (!isValid) {

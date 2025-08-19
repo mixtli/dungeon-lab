@@ -614,170 +614,182 @@ Create the plugin integration framework that allows plugins to register action h
 
 ### Tasks
 
-#### 3.1 Plugin Action Handler Interface
-**Duration:** 2 days  
-**Dependencies:** Phase 1 (ActionHandler interface)
+#### 3.1 Simple Plugin Action Handler Registration
+**Duration:** 1 day  
+**Dependencies:** Phase 1 (ActionHandler interface), Phase 2 (document state)
 
 **Target State:**
-Standard interface for plugins to implement action handlers with registration helpers.
+Plugins register action handlers directly using the existing PluginContext.registerActionHandler() method. No wrapper classes or utility functions needed.
 
 **Implementation Steps:**
-1. Create plugin action handler base class:
+1. Verify PluginContext integration with multi-handler registry:
+   - Ensure `registerActionHandler()` in PluginContext correctly calls `registerPluginActionHandler()`
+   - Test `unregisterActionHandler()` and `unregisterAllActionHandlers()` methods
+   - Validate plugin cleanup on unload
+
+2. Update D&D plugin to register action handlers in `onLoad()` method:
    ```typescript
-   export abstract class PluginActionHandler {
-     abstract pluginId: string;
-     abstract registerActions(): void;
+   // In packages/plugins/dnd-5e-2024/src/index.mts
+   async onLoad(context?: PluginContext): Promise<void> {
+     await super.onLoad(context);
      
-     protected registerAction(actionType: string, handler: Omit<ActionHandler, 'pluginId'>): void {
-       registerAction(actionType, { ...handler, pluginId: this.pluginId });
+     if (context) {
+       // Register enhanced move-token validation (adds to core handler)
+       context.registerActionHandler('move-token', {
+         priority: 100, // After core
+         validate: (request, gameState) => {
+           // Direct access to complete gameState - get whatever we need
+           const character = Object.values(gameState.documents)
+             .find(doc => doc.documentType === 'character' && doc.createdBy === request.playerId);
+           
+           if (!character) return { valid: false, error: { code: 'NO_CHARACTER', message: 'Character not found' } };
+           
+           const baseSpeed = character.pluginData.speed || 30;
+           const movementUsed = character.state?.movementUsed || 0;
+           const distance = request.parameters.distance;
+           
+           if (movementUsed + distance > baseSpeed) {
+             return { valid: false, error: { code: 'INSUFFICIENT_MOVEMENT', message: 'Not enough movement remaining' } };
+           }
+           
+           return { valid: true };
+         },
+         execute: (request, draft) => {
+           // Direct mutations - Immer tracks automatically
+           const character = Object.values(draft.documents)
+             .find(doc => doc.documentType === 'character' && doc.createdBy === request.playerId);
+           
+           if (character) {
+             if (!character.state) character.state = {};
+             character.state.movementUsed = (character.state.movementUsed || 0) + request.parameters.distance;
+           }
+         }
+       });
+
+       // Register D&D-specific spell casting action
+       context.registerActionHandler('dnd5e-2024:cast-spell', {
+         validate: (request, gameState) => {
+           const character = Object.values(gameState.documents)
+             .find(doc => doc.documentType === 'character' && doc.createdBy === request.playerId);
+           
+           if (!character) return { valid: false, error: { code: 'NO_CHARACTER', message: 'Character not found' } };
+           
+           const spellLevel = request.parameters.spellLevel;
+           const maxSlots = character.pluginData.spellSlots?.[`level${spellLevel}`]?.total || 0;
+           const usedSlots = character.state?.spellSlotsUsed?.[`level${spellLevel}`] || 0;
+           
+           if (usedSlots >= maxSlots) {
+             return { valid: false, error: { code: 'NO_SPELL_SLOTS', message: 'No spell slots remaining' } };
+           }
+           
+           return { valid: true };
+         },
+         execute: (request, draft) => {
+           const character = Object.values(draft.documents)
+             .find(doc => doc.documentType === 'character' && doc.createdBy === request.playerId);
+           
+           if (character) {
+             if (!character.state) character.state = {};
+             if (!character.state.spellSlotsUsed) character.state.spellSlotsUsed = {};
+             
+             const spellLevel = request.parameters.spellLevel;
+             const currentUsed = character.state.spellSlotsUsed[`level${spellLevel}`] || 0;
+             character.state.spellSlotsUsed[`level${spellLevel}`] = currentUsed + 1;
+           }
+         }
+       });
      }
    }
    ```
 
-2. Create plugin utility functions (no context classes needed):
-   ```typescript
-   // Game-specific utility functions for plugins
-   export function getCharacterResource<T>(
-     gameState: ServerGameStateWithVirtuals,
-     characterId: string,
-     resourcePath: string
-   ): T | undefined {
-     return getDocumentState(gameState, characterId, resourcePath);
-   }
-   
-   export function updateCharacterResource<T>(
-     draft: ServerGameStateWithVirtuals,
-     characterId: string,
-     resourcePath: string,
-     value: T
-   ): void {
-     updateDocumentState(draft, characterId, resourcePath, value);
-   }
-   ```
+3. Test integration:
+   - Verify handlers are registered correctly in multi-handler registry
+   - Test multi-handler execution (core + plugin for move-token)
+   - Test plugin-only action execution (spell casting)
 
-3. Add plugin registration lifecycle hooks
-4. Create registration validation system
+**Key Architecture Points:**
+- Handlers receive complete `ServerGameStateWithVirtuals` - direct access to any data needed
+- No utility functions or wrapper classes required - use normal JavaScript object access
+- Immer automatically generates JSON patches from direct mutations
+- Multi-handler registry already supports plugin registration via existing infrastructure
 
 **Deliverables:**
-- [ ] PluginActionHandler base class
-- [ ] Plugin utility functions (replacing context pattern)
-- [ ] Registration helpers
-- [ ] Validation system
+- [ ] PluginContext registration methods working with multi-handler registry
+- [ ] D&D plugin registering action handlers via context.registerActionHandler()
+- [ ] Integration test confirming multi-handler system works with plugins
+- [ ] No wrapper classes or utility functions (simplified architecture)
 
 #### 3.2 D&D 5e Reference Implementation
-**Duration:** 3 days  
-**Dependencies:** 3.1, Phase 2 (character state extension)
+**Duration:** 2 days  
+**Dependencies:** 3.1, Phase 2 (document state)
 
 **Target State:**
-Complete D&D 5e plugin implementation using simplified character-based storage, including D&D-specific lifecycle events like long rest.
+Complete D&D 5e plugin implementation with action handlers registered via PluginContext, including D&D-specific lifecycle events like long rest.
 
 **Implementation Steps:**
-1. Create D&D 5e utility functions:
-   ```typescript
-   export function canCastSpell(
-     gameState: ServerGameStateWithVirtuals,
-     characterId: string,
-     spellLevel: number
-   ): boolean {
-     const maxSlots = getDocumentData(gameState, characterId, `spellSlots.level${spellLevel}.total`) || 0;
-     const usedSlots = getDocumentState(gameState, characterId, `spellSlotsUsed.level${spellLevel}`) || 0;
-     return maxSlots > usedSlots;
-   }
-   
-   export function getMovementRemaining(
-     gameState: ServerGameStateWithVirtuals,
-     characterId: string
-   ): number {
-     const baseSpeed = getDocumentData(gameState, characterId, 'speed') || 30;
-     const movementUsed = getDocumentState(gameState, characterId, 'movementUsed') || 0;
-     return baseSpeed - movementUsed;
-   }
-   
-   export function hasCondition(
-     gameState: ServerGameStateWithVirtuals,
-     characterId: string,
-     condition: string
-   ): boolean {
-     const conditions = getDocumentState<string[]>(gameState, characterId, 'conditions') || [];
-     return conditions.includes(condition);
-   }
-   
-   export function useSpellSlot(
-     draft: ServerGameStateWithVirtuals,
-     characterId: string,
-     spellLevel: number
-   ): void {
-     const currentUsed = getDocumentState<number>(draft, characterId, `spellSlotsUsed.level${spellLevel}`) || 0;
-     updateDocumentState(draft, characterId, `spellSlotsUsed.level${spellLevel}`, currentUsed + 1);
-   }
-   ```
+1. Add remaining D&D action handlers to plugin (building on 3.1):
+   - **Long rest handler** using direct document.state resets
+   - **Action economy validation** (bonus actions, reactions)  
+   - **Condition management** (adding/removing conditions)
+   - **Feature usage tracking** (class features, spell slot recovery)
 
-2. Implement core D&D 5e actions using document.state:
-   - Enhanced movement validation using document.pluginData.speed and document.state.turnState.movementUsed
-   - Spell casting using document.pluginData.spellSlots and document.state.sessionState.spellSlotsUsed
-   - Action economy using document.state.turnState.actionsUsed
-   - Feature usage using document.state.sessionState.classFeatureUses
-   - **Long rest integration** using document.state.sessionState resets
-
-3. Create example plugin actions:
+2. Implement D&D lifecycle state management:
    ```typescript
-   // Multi-handler: core + plugin for move-token
-   registerAction('move-token', {
-     pluginId: 'dnd5e-2024',
-     priority: 100,
+   // Register long rest handler
+   context.registerActionHandler('dnd5e-2024:long-rest', {
      validate: (request, gameState) => {
-       const { characterId, distance } = request.parameters;
-       const movementRemaining = getMovementRemaining(gameState, characterId);
+       // Validate long rest conditions (safe location, time passed, etc.)
+       const character = Object.values(gameState.documents)
+         .find(doc => doc.documentType === 'character' && doc.createdBy === request.playerId);
        
-       if (distance > movementRemaining) {
-         return {
-           valid: false,
-           error: { code: 'INSUFFICIENT_MOVEMENT', message: 'Not enough movement remaining' }
-         };
-       }
+       if (!character) return { valid: false, error: { code: 'NO_CHARACTER', message: 'Character not found' } };
        
+       // Add D&D-specific long rest validation logic here
        return { valid: true };
      },
-     execute: async (request, draft) => {
-       const { characterId, distance } = request.parameters;
-       const currentUsed = getDocumentState<number>(draft, characterId, 'movementUsed') || 0;
+     execute: (request, draft) => {
+       const character = Object.values(draft.documents)
+         .find(doc => doc.documentType === 'character' && doc.createdBy === request.playerId);
        
-       // Direct mutation - Immer handles immutability
-       draft.documents[characterId].state.movementUsed = currentUsed + distance;
-     }
-   });
-   
-   // Pure plugin action: spell casting
-   registerAction('dnd5e-2024:cast-spell', {
-     pluginId: 'dnd5e-2024',
-     validate: (request, gameState) => {
-       const { characterId, spellLevel } = request.parameters;
-       
-       if (!canCastSpell(gameState, characterId, spellLevel)) {
-         return {
-           valid: false,
-           error: { code: 'NO_SPELL_SLOTS', message: 'No spell slots available' }
-         };
+       if (character) {
+         if (!character.state) character.state = {};
+         
+         // Reset session-scoped resources directly
+         character.state.spellSlotsUsed = {};
+         character.state.classFeatureUses = {};
+         character.state.hitDiceUsed = 0;
+         
+         // Restore hit points to maximum
+         const maxHp = character.pluginData.hitPointsMax || 0;
+         character.state.currentHitPoints = maxHp;
        }
-       
-       return { valid: true };
-     },
-     execute: async (request, draft) => {
-       const { characterId, spellLevel } = request.parameters;
-       
-       // Direct mutation using utility function
-       useSpellSlot(draft, characterId, spellLevel);
      }
    });
    ```
+
+3. Add comprehensive D&D action handlers:
+   - Enhanced action economy (tracking actions, bonus actions, reactions per turn)
+   - Condition management (paralyzed, charmed, etc.)
+   - Resource consumption validation and tracking
+   - Combat mechanics (opportunity attacks, etc.)
+
+4. Test integration with lifecycle system:
+   - Verify long rest resets work with document state
+   - Test turn advancement clears movement and actions
+   - Confirm encounter end clears temporary conditions
+
+**Key Implementation Points:**
+- All handlers use direct gameState access - no utility functions needed
+- State mutations use normal JavaScript object syntax
+- Immer automatically generates patches for all changes
+- Plugin integrates with existing lifecycle reset system from Phase 2.2
 
 **Deliverables:**
-- [ ] D&D 5e utility functions for document operations
-- [ ] Enhanced movement validation using direct state access
-- [ ] Spell casting using direct document mutations
-- [ ] Action economy using document.state.turnState.actionsUsed
-- [ ] **Long rest handler** using document.state.sessionState resets
-- [ ] Integration tests for all actions
+- [ ] Complete D&D action handler set registered via PluginContext
+- [ ] Long rest handler with direct document state resets
+- [ ] Action economy and condition management handlers
+- [ ] Integration with core VTT lifecycle system (turn/encounter resets)
+- [ ] Integration tests for all D&D actions
 
 #### 3.3 Plugin Loading and Lifecycle
 **Duration:** 2 days  

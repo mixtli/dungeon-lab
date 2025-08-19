@@ -448,11 +448,14 @@ export class CompendiumService {
       // Build aggregation pipeline
       const pipeline: PipelineStage[] = [];
       
-      // If we have a text search, it MUST be the first stage
+      // If we have a text search, use regex for partial matching (case-insensitive)
       if (filters?.search) {
         pipeline.push({
           $match: {
-            $text: { $search: filters.search }
+            'entry.name': { 
+              $regex: filters.search, 
+              $options: 'i' // case-insensitive
+            }
           }
         });
       }

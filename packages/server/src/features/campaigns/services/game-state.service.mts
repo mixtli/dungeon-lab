@@ -3,8 +3,6 @@ import {
   JsonPatchOperation,
   StateUpdate,
   StateUpdateResponse,
-  ICharacter,
-  IActor,
   BaseDocument
 } from '@dungeon-lab/shared/types/index.mjs';
 import { serverGameStateWithVirtualsSchema } from '@dungeon-lab/shared/schemas/server-game-state.schema.mjs';
@@ -18,9 +16,8 @@ import {
   GameStateOperations
 } from '@dungeon-lab/shared/utils/index.mjs';
 import { logger } from '../../../utils/logger.mjs';
-import { DocumentService } from '../../documents/services/document.service.mjs';
 import { DocumentModel } from '../../documents/models/document.model.mjs';
-import mongoose, { Types, Document } from 'mongoose';
+import { Types } from 'mongoose';
 import deepDiffDefault from 'deep-diff';
 const deepDiff = deepDiffDefault;
 
@@ -172,11 +169,8 @@ export class GameStateService {
       }
 
       // Extract current server game state from the GameState document
-      // Use Zod parsing to ensure proper defaults and validation
-      const storedStateData = JSON.parse(JSON.stringify(gameState.state));
-      
-      // Parse with Zod schema to restore any missing default values
-      const currentServerGameState: ServerGameStateWithVirtuals = serverGameStateWithVirtualsSchema.parse(storedStateData);
+      // Parse with Zod schema to ensure proper defaults and validation
+      const currentServerGameState: ServerGameStateWithVirtuals = serverGameStateWithVirtualsSchema.parse(gameState.state);
 
       // Validate current state integrity if hash exists
       if (gameState.hash && !validateStateIntegrity(currentServerGameState, gameState.hash)) {
@@ -216,15 +210,11 @@ export class GameStateService {
         };
       }
 
-      // Parse the updated state with Zod schema (same parsing used during verification)
-      // This ensures hash consistency by removing timestamp fields like createdAt/updatedAt
-      const parsedUpdatedServerGameState: ServerGameStateWithVirtuals = serverGameStateWithVirtualsSchema.parse(updatedServerGameState);
-
-      // Generate new version and hash from the parsed state
+      // Generate new version and prepare parsed state
+      const parsedUpdatedState = serverGameStateWithVirtualsSchema.parse(updatedServerGameState);
       const newVersion = incrementStateVersion(gameState.version);
-      const newHash = generateStateHash(parsedUpdatedServerGameState);
 
-      // Update GameState atomically with BOTH version and hash verification for defense in depth
+      // First, save the state without hash to ensure we get MongoDB's actual serialization
       const updateResult = await GameStateModel.updateOne(
         { 
           _id: gameStateId,
@@ -233,17 +223,16 @@ export class GameStateService {
         },
         {
           $set: {
-            state: parsedUpdatedServerGameState,  // Update the entire state with parsed client-ready data
+            state: parsedUpdatedState,  // Save the parsed state
             version: newVersion,
-            hash: newHash,
             lastUpdate: Date.now()
+            // Note: hash will be set in second update after fetching MongoDB-serialized data
           }
         }
       ).exec();
 
-      // Check if update was successful (version or hash conflict check)
       if (updateResult.matchedCount === 0) {
-        // Re-fetch game state to determine if it was version conflict or hash corruption
+        // Handle version/hash conflicts (same logic as before)
         const currentGameState = await GameStateModel.findById(gameStateId)
           .select('version hash')
           .exec();
@@ -272,7 +261,6 @@ export class GameStateService {
           }
         }
         
-        // Generic failure if we can't determine the specific cause
         return {
           success: false,
           error: {
@@ -281,6 +269,54 @@ export class GameStateService {
           }
         };
       }
+
+      // Now fetch the saved state to get MongoDB's actual serialization
+      const savedGameState = await GameStateModel.findById(gameStateId).exec();
+      if (!savedGameState) {
+        return {
+          success: false,
+          error: {
+            code: 'TRANSACTION_FAILED',
+            message: 'Failed to retrieve saved state for hash generation'
+          }
+        };
+      }
+
+      // DEBUG: Compare what we saved vs what MongoDB gave us back
+      const originalJson = JSON.stringify(parsedUpdatedState);
+      const retrievedJson = JSON.stringify(savedGameState.state);
+      const dataMatches = originalJson === retrievedJson;
+      
+      console.log('[MongoDB Serialization Debug]:', {
+        gameStateId,
+        dataMatches,
+        originalLength: originalJson.length,
+        retrievedLength: retrievedJson.length,
+        originalHash: generateStateHash(parsedUpdatedState).substring(0, 16) + '...',
+        retrievedHash: generateStateHash(savedGameState.state).substring(0, 16) + '...'
+      });
+
+      if (!dataMatches) {
+        // Find differences in structure
+        const sampleDiff = originalJson.substring(0, 200) !== retrievedJson.substring(0, 200);
+        if (sampleDiff) {
+          console.log('[MongoDB Serialization Differences]:', {
+            gameStateId,
+            originalSample: originalJson.substring(0, 200),
+            retrievedSample: retrievedJson.substring(0, 200)
+          });
+        }
+      }
+
+      // Generate hash from MongoDB's actual serialized data
+      const newHash = generateStateHash(savedGameState.state);
+
+      // Update the hash field with the MongoDB-consistent hash
+      await GameStateModel.updateOne(
+        { _id: gameStateId },
+        { $set: { hash: newHash } }
+      ).exec();
+
 
       logger.info('Game state updated successfully', { 
         gameStateId, 
@@ -292,8 +328,8 @@ export class GameStateService {
         method: 'full-state-update'
       });
 
-      // Post-save verification to detect data corruption
-      await this.verifyPostSaveState(gameStateId, parsedUpdatedServerGameState, newHash, {
+      // Post-save verification to detect data corruption using MongoDB-serialized data
+      await this.verifyPostSaveState(gameStateId, savedGameState.state, newHash, {
         method: 'full-state-update',
         operationCount: operations.length
       }, operations);
@@ -516,10 +552,10 @@ export class GameStateService {
         };
       }
 
-      // Parse the state data with Zod schema to ensure consistency
-      const currentServerGameState: ServerGameStateWithVirtuals = serverGameStateWithVirtualsSchema.parse(gameState.state);
+      // Use raw MongoDB-serialized state (no parsing) to match how hashes are now generated
+      const currentServerGameState: ServerGameStateWithVirtuals = gameState.state;
       
-      // Generate fresh hash from current state
+      // Generate fresh hash from MongoDB-serialized state (matches save process)
       const calculatedHash = generateStateHash(currentServerGameState);
       const storedHash = gameState.hash || '';
       
@@ -590,7 +626,7 @@ export class GameStateService {
       });
 
       const result = {
-        campaign: campaign.toJSON(),
+        campaign: campaign?.toJSON() || null,
         documents,
         currentEncounter: null,
         pluginData: {},
@@ -699,13 +735,12 @@ export class GameStateService {
         return;
       }
 
-      // Use the raw retrieved state directly (no parsing) since it was already parsed before save
-      // This ensures hash consistency with the saved data
+      // Use the raw retrieved state directly for hash verification
       const retrievedState: ServerGameStateWithVirtuals = gameState.state;
+      const storedHash = gameState.hash || '';
       
       // Generate hash of the retrieved state
       const retrievedHash = generateStateHash(retrievedState);
-      const storedHash = gameState.hash || '';
 
       // Compare hashes
       if (expectedHash === retrievedHash && expectedHash === storedHash) {
@@ -845,10 +880,10 @@ export class GameStateService {
         return { success: false, error: 'Game state not found' };
       }
 
-      // Parse the state data with Zod schema to ensure consistency
-      const currentServerGameState: ServerGameStateWithVirtuals = serverGameStateWithVirtualsSchema.parse(gameState.state);
+      // Use raw MongoDB-serialized state (no parsing) to match current hash generation process
+      const currentServerGameState: ServerGameStateWithVirtuals = gameState.state;
       
-      // Generate fresh hash from current state
+      // Generate fresh hash from MongoDB-serialized state (matches save process)
       const newHash = generateStateHash(currentServerGameState);
       
       // Update the hash in database

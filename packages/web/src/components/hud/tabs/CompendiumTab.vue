@@ -139,6 +139,7 @@ import { CompendiumsClient } from '@dungeon-lab/client/index.mjs';
 import { playerActionService } from '../../../services/player-action.service.mjs';
 import { transformAssetUrl } from '../../../utils/asset-utils.mjs';
 import { useGameStateStore } from '../../../stores/game-state.store.mjs';
+import { pluginRegistry } from '../../../services/plugin-registry.mjs';
 import type { ICompendiumEntry } from '@dungeon-lab/shared/types/index.mjs';
 import type { AddDocumentParameters } from '@dungeon-lab/shared/types/game-actions.mjs';
 
@@ -166,8 +167,29 @@ const isDragging = ref(false);
 const draggedEntry = ref<ICompendiumEntry | null>(null);
 const compendiumListRef = ref<HTMLElement | null>(null);
 
-// Plugin document types for filter dropdown
-const pluginDocumentTypes = ref<string[]>([]);
+// Plugin document types for filter dropdown - computed from plugin manifest
+const pluginDocumentTypes = computed<string[]>(() => {
+  // If no document type is selected, show all types from all plugins
+  if (!activeDocumentType.value) {
+    return [];
+  }
+  
+  // For 'item' document type, use the plugin manifest itemTypes
+  if (activeDocumentType.value === 'item') {
+    const manifest = pluginRegistry.getPluginManifest('dnd-5e-2024');
+    return manifest?.itemTypes || [];
+  }
+  
+  // For other document types, could expand this logic
+  // For now, fallback to extracting from loaded entries
+  const uniqueTypes = new Set<string>();
+  entries.value.forEach(entry => {
+    if (entry.entry?.documentType === activeDocumentType.value && entry.content?.pluginDocumentType) {
+      uniqueTypes.add(entry.content.pluginDocumentType);
+    }
+  });
+  return Array.from(uniqueTypes).sort();
+});
 
 // Computed properties
 const filteredEntries = computed(() => {
@@ -245,14 +267,7 @@ async function loadEntries(reset = false): Promise<void> {
     totalEntries.value = response.total;
     currentPage.value = response.page;
 
-    // Extract unique plugin document types for filter dropdown
-    const uniqueTypes = new Set<string>();
-    response.entries.forEach(entry => {
-      if (entry.content?.pluginDocumentType) {
-        uniqueTypes.add(entry.content.pluginDocumentType);
-      }
-    });
-    pluginDocumentTypes.value = Array.from(uniqueTypes).sort();
+    // Note: Plugin document types are now computed from manifest data
 
     console.log(`[CompendiumTab] Loaded ${response.entries.length} entries, ${totalEntries.value} total`);
 

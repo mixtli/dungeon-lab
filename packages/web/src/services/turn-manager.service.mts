@@ -132,6 +132,17 @@ export class TurnManagerService {
         { op: 'replace', path: '/turnManager/currentTurn', value: nextTurn }
       ];
       
+      // Clear turnState for the participant whose turn just ended
+      const currentParticipant = plainTurnManager.participants[turnManager.currentTurn];
+      if (currentParticipant?.actorId) {
+        operations.push({
+          op: 'replace',
+          path: `/documents/${currentParticipant.actorId}/state/turnState`,
+          value: {}
+        });
+        console.log(`[TurnManagerService] Clearing turnState for participant: ${currentParticipant.actorId}`);
+      }
+      
       // Add turn lifecycle reset patches
       try {
         const lifecyclePatches = generateLifecycleResetPatches(participantDocumentIds, 'turn');

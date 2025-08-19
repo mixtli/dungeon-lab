@@ -46,9 +46,9 @@ export function usePlayerActions() {
     const currentMap = gameStateStore.currentEncounter?.currentMap;
     const pixelsPerGrid = currentMap?.uvtt?.resolution?.pixels_per_grid || 50; // fallback to 50
     
-    // Calculate center using inclusive bounds (+1) and proper grid size
-    const currentCenterX = (token.bounds.topLeft.x + token.bounds.bottomRight.x + 1) / 2 * pixelsPerGrid;
-    const currentCenterY = (token.bounds.topLeft.y + token.bounds.bottomRight.y + 1) / 2 * pixelsPerGrid;
+    // Calculate center using same formula as PixiMapViewer for consistency
+    const currentCenterX = (token.bounds.topLeft.x + token.bounds.bottomRight.x) / 2 * pixelsPerGrid;
+    const currentCenterY = (token.bounds.topLeft.y + token.bounds.bottomRight.y) / 2 * pixelsPerGrid;
     const currentPosition = { x: currentCenterX, y: currentCenterY, elevation: token.bounds.elevation };
     const distance = calculateDistance(currentPosition, newPosition);
     

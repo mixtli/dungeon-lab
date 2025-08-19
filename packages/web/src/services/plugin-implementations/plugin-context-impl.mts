@@ -9,7 +9,8 @@ import type {
   PluginStore,
   DocumentSearchQuery,
   CompendiumSearchQuery,
-  GameStateContext
+  GameStateContext,
+  ActionHandler
 } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 import type { RollTypeHandler } from '@dungeon-lab/shared-ui/types/plugin.mjs';
 import type { BaseDocument, ICompendiumEntry } from '@dungeon-lab/shared/types/index.mjs';
@@ -22,6 +23,11 @@ import { useGameStateStore } from '../../stores/game-state.store.mjs';
 import { useGameSessionStore } from '../../stores/game-session.store.mjs';
 import { useSocketStore } from '../../stores/socket.store.mjs';
 import { rollHandlerService } from '../roll-handler.service.mjs';
+import { 
+  registerPluginActionHandler,
+  unregisterPluginActionHandler,
+  unregisterAllPluginActionHandlers
+} from '../multi-handler-registry.mjs';
 
 export interface PluginContextOptions {
   includeGameState?: boolean;
@@ -197,6 +203,30 @@ export class PluginContextImpl implements PluginContext {
     rollHandlerService.registerHandler(rollType, handler, this);
     console.log(`[PluginContext] Registered roll handler for plugin '${this.pluginId}', roll type: ${rollType}`);
   }
+
+  /**
+   * Register an action handler for this plugin
+   */
+  registerActionHandler(actionType: string, handler: Omit<ActionHandler, 'pluginId'>): void {
+    registerPluginActionHandler(this.pluginId, actionType, handler);
+    console.log(`[PluginContext] Registered action handler for plugin '${this.pluginId}', action type: ${actionType}`);
+  }
+
+  /**
+   * Unregister an action handler for this plugin
+   */
+  unregisterActionHandler(actionType: string): void {
+    unregisterPluginActionHandler(this.pluginId, actionType);
+    console.log(`[PluginContext] Unregistered action handler for plugin '${this.pluginId}', action type: ${actionType}`);
+  }
+
+  /**
+   * Unregister all action handlers for this plugin
+   */
+  unregisterAllActionHandlers(): void {
+    unregisterAllPluginActionHandlers(this.pluginId);
+    console.log(`[PluginContext] Unregistered all action handlers for plugin '${this.pluginId}'`);
+  }
   
   /**
    * Get the plugin ID this context belongs to
@@ -209,6 +239,9 @@ export class PluginContextImpl implements PluginContext {
    * Cleanup resources when plugin is unloaded
    */
   destroy(): void {
+    // Unregister all action handlers
+    this.unregisterAllActionHandlers();
+    
     // Clear store
     (this.store as ReactivePluginStore).clear();
     

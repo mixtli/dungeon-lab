@@ -9,6 +9,16 @@ import { BaseGameSystemPlugin, ValidationResult, PluginContext } from '@dungeon-
 import { validateCharacterData } from './character-validation.mjs';
 import { DnD5eTurnManager } from './turn-manager.mjs';
 import { DndAbilityCheckHandler, DndAttackRollHandler, DndSavingThrowHandler } from './services/dnd-roll-handler.mjs';
+import { registerPluginStateLifecycle, unregisterPluginStateLifecycle } from '@dungeon-lab/shared/utils/document-state-lifecycle.mjs';
+import { 
+  dndMoveTokenHandler,
+  dndCastSpellHandler,
+  dndLongRestHandler,
+  dndShortRestHandler,
+  dndUseClassFeatureHandler,
+  dndAddConditionHandler,
+  dndRemoveConditionHandler
+} from './handlers/actions/index.mjs';
 
 /**
  * D&D 5th Edition (2024) Plugin Implementation - Using Base Class
@@ -91,14 +101,54 @@ export class DnD5e2024Plugin extends BaseGameSystemPlugin {
     console.log(`[${this.manifest.id}] Loading D&D 5e 2024 Plugin v${this.manifest.version}`);
     
     if (context) {
-      console.log(`[${this.manifest.id}] Plugin context provided - registering roll handlers`);
+      console.log(`[${this.manifest.id}] Plugin context provided - registering handlers`);
       
       // Register D&D roll handlers
       context.registerRollHandler('ability-check', new DndAbilityCheckHandler());
       context.registerRollHandler('attack-roll', new DndAttackRollHandler());
       context.registerRollHandler('saving-throw', new DndSavingThrowHandler());
       
-      console.log(`[${this.manifest.id}] Roll handlers registered successfully`);
+      // Register D&D action handlers
+      context.registerActionHandler('move-token', dndMoveTokenHandler);
+      context.registerActionHandler('dnd5e-2024:cast-spell', dndCastSpellHandler);
+      context.registerActionHandler('dnd5e-2024:long-rest', dndLongRestHandler);
+      context.registerActionHandler('dnd5e-2024:short-rest', dndShortRestHandler);
+      context.registerActionHandler('dnd5e-2024:use-class-feature', dndUseClassFeatureHandler);
+      context.registerActionHandler('dnd5e-2024:add-condition', dndAddConditionHandler);
+      context.registerActionHandler('dnd5e-2024:remove-condition', dndRemoveConditionHandler);
+      
+      // Register D&D lifecycle state management patterns
+      registerPluginStateLifecycle({
+        pluginId: this.manifest.id,
+        
+        // Reset on turn advancement
+        turnReset: {
+          turnState: {
+            movementUsed: 0,
+            actionsUsed: [],
+            bonusActionUsed: false,
+            reactionUsed: false
+          }
+        },
+        
+        // Reset on long rest (session scope)
+        sessionReset: {
+          spellSlotsUsed: {},
+          classFeatureUses: {},
+          hitDiceUsed: 0,
+          currentHitPoints: null // Will be set to max by long rest handler
+        },
+        
+        // Reset on encounter end
+        encounterReset: {
+          conditions: [],
+          conditionDetails: {},
+          concentrationSpell: null,
+          temporaryHitPoints: 0
+        }
+      });
+      
+      console.log(`[${this.manifest.id}] Roll handlers, action handlers, and lifecycle patterns registered successfully`);
     }
     
     console.log(`[${this.manifest.id}] Plugin loaded successfully`);
@@ -109,6 +159,11 @@ export class DnD5e2024Plugin extends BaseGameSystemPlugin {
    */
   async onUnload(): Promise<void> {
     console.log(`[${this.manifest.id}] Unloading D&D 5e 2024 Plugin`);
+    
+    // Clean up lifecycle state management registration
+    unregisterPluginStateLifecycle(this.manifest.id);
+    
+    console.log(`[${this.manifest.id}] Plugin unloaded successfully`);
   }
   
   /**

@@ -35,11 +35,12 @@ export interface ActionRequestResult {
 export interface MoveTokenParameters extends Record<string, unknown> {
   tokenId: string;
   newPosition: {
-    x: number;
-    y: number;
+    x: number; // World coordinates
+    y: number; // World coordinates
     elevation?: number;
   };
-  distance?: number;
+  distance?: number; // Distance in world pixels
+  remainingMovement?: number; // Remaining movement in feet (temporary)
 }
 
 /**
