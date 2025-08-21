@@ -7,6 +7,8 @@ import {
   ClientToServerEvents,
   ServerToClientEvents
 } from '@dungeon-lab/shared/types/socket/index.mjs';
+import type { RollRequest } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
+import { useChatStore } from './chat.store.mjs';
 import { getApiBaseUrl } from '../utils/getApiBaseUrl.mts';
 
 // Define a type for the socket store
@@ -128,6 +130,15 @@ export const useSocketStore = defineStore(
           connected.value = false;
         });
 
+        // Set up roll request listener
+        socket.value?.on('roll:request', (rollRequest: RollRequest) => {
+          console.log('[Socket] Received roll request:', rollRequest);
+          
+          // Get chat store and add roll request to chat
+          const chatStore = useChatStore();
+          chatStore.addRollRequest(rollRequest);
+        });
+
         // Add a timeout to resolve the promise even if connection fails
         setTimeout(() => {
           if (!connected.value) {
@@ -146,6 +157,8 @@ export const useSocketStore = defineStore(
     function disconnect() {
       console.log('useSocketStore disconnect');
       if (socket.value) {
+        // Remove roll request listener before disconnecting
+        socket.value.off('roll:request');
         socket.value.disconnect();
         socket.value = null;
       }

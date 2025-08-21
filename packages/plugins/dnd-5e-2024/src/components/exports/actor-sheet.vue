@@ -413,22 +413,44 @@ const hitPointsMaxCopy = computed({
 
 const hitPointsCurrentCopy = computed({
   get: () => {
-    if (!actorCopy.value?.pluginData) return 1;
+    if (!actorCopy.value) return 1;
+    
+    // First check state for runtime current HP
+    if (typeof actorCopy.value.state?.currentHitPoints === 'number') {
+      return actorCopy.value.state.currentHitPoints;
+    }
+    
+    // Fallback to pluginData
+    if (!actorCopy.value.pluginData) return 1;
     const hpData = actorCopy.value.pluginData.hitPoints;
+    let baselineHp: number;
+    
     if (typeof hpData === 'object' && hpData) {
       const current = 'current' in hpData ? (hpData as any).current : undefined;
       const average = 'average' in hpData ? (hpData as any).average : undefined;
-      return current ?? average ?? 1;
+      baselineHp = current ?? average ?? 1;
+    } else {
+      baselineHp = actorCopy.value.pluginData.hitPointsCurrent ?? hitPointsMaxCopy.value;
     }
-    return actorCopy.value.pluginData.hitPointsCurrent ?? hitPointsMaxCopy.value;
+    
+    // Initialize state if missing
+    if (!actorCopy.value.state) actorCopy.value.state = {};
+    actorCopy.value.state.currentHitPoints = baselineHp;
+    
+    return baselineHp;
   },
   set: (value) => {
-    if (!actorCopy.value?.pluginData) {
-      if (actorCopy.value) {
-        actorCopy.value.pluginData = {};
-      }
-      return;
+    if (!actorCopy.value) return;
+    
+    // Always update state for runtime HP
+    if (!actorCopy.value.state) actorCopy.value.state = {};
+    actorCopy.value.state.currentHitPoints = value;
+    
+    // Also update pluginData for persistence
+    if (!actorCopy.value.pluginData) {
+      actorCopy.value.pluginData = {};
     }
+    
     // Update the hitPoints.current if structured data exists
     const existing = actorCopy.value.pluginData.hitPoints;
     if (typeof existing === 'object') {
@@ -449,13 +471,30 @@ const hitPointsMax = computed(() => {
 });
 
 const hitPointsCurrent = computed(() => {
+  // First check state for runtime current HP
+  if (actor.value && typeof actor.value.state?.currentHitPoints === 'number') {
+    return actor.value.state.currentHitPoints;
+  }
+  
+  // Fallback to pluginData (baseline HP)
   const hpData = actor.value?.pluginData?.hitPoints;
+  let baselineHp: number;
+  
   if (typeof hpData === 'object' && hpData) {
     const current = 'current' in hpData ? (hpData as any).current : undefined;
     const average = 'average' in hpData ? (hpData as any).average : undefined;
-    return current ?? average ?? 1;
+    baselineHp = current ?? average ?? 1;
+  } else {
+    baselineHp = actor.value?.pluginData?.hitPointsCurrent ?? hitPointsMax.value;
   }
-  return actor.value?.pluginData?.hitPointsCurrent ?? hitPointsMax.value;
+  
+  // Initialize state if missing
+  if (actor.value) {
+    if (!actor.value.state) actor.value.state = {};
+    actor.value.state.currentHitPoints = baselineHp;
+  }
+  
+  return baselineHp;
 });
 
 const hitPointsDisplay = computed(() => {

@@ -128,6 +128,20 @@
               <span class="speed-unit">ft</span>
             </div>
           </div>
+          <div class="stat-card automation-setting">
+            <div class="stat-label">Combat Automation</div>
+            <div v-if="!editMode || readonly" class="stat-value">
+              {{ character.pluginData?.automateAttacks ? 'Enabled' : 'Disabled' }}
+            </div>
+            <label v-else class="automation-checkbox">
+              <input
+                v-model="automateAttacksValue"
+                type="checkbox"
+                class="checkbox-input"
+              />
+              <span class="checkbox-label">Auto-calculate attacks</span>
+            </label>
+          </div>
           <div class="stat-card">
             <div class="stat-label">Prof. Bonus</div>
             <div class="stat-value">+{{ proficiencyBonus }}</div>
@@ -290,6 +304,19 @@
                 >
                   🗡️ Damage
                 </button>
+                
+                <!-- Weapon-level automation toggle -->
+                <div class="weapon-automation-toggle">
+                  <label class="automation-checkbox-inline">
+                    <input
+                      v-model="automateAttacksValue"
+                      type="checkbox"
+                      class="checkbox-input"
+                      title="Enable automatic attack resolution for this character"
+                    />
+                    <span class="checkbox-label-compact">Auto</span>
+                  </label>
+                </div>
               </div>
             </div>
           </div>
@@ -357,7 +384,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch, markRaw, type Ref } from 'vue';
+import { ref, computed, inject, onMounted, onUnmounted, watch, markRaw, type Ref } from 'vue';
 import type { ICharacter, IItem, BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
 import type { DndCharacterClassDocument } from '../../types/dnd/character-class.mjs';
 import type { DndSpeciesDocument } from '../../types/dnd/species.mjs';
@@ -456,6 +483,9 @@ const dragCounter = ref(0);
 // Get plugin context for action requests
 const pluginContext = getPluginContext();
 
+// Inject target context from encounter (with fallbacks)
+const encounterTargetTokenIds = inject('encounterTargetTokenIds', () => ref([]), true);
+
 // Use container-provided document copy - no local state management needed!
 // The container handles copy creation, change detection, and save/cancel logic
 
@@ -515,13 +545,30 @@ const armorClassValue = computed({
   }
 });
 
-// Hit points current - direct binding to character.pluginData.attributes.hitPoints.current
+// Hit points current - prioritize state.currentHitPoints for runtime HP, fallback to pluginData
 const hitPointsCurrent = computed({
   get() {
+    // First check state for runtime current HP
+    if (typeof character.value.state?.currentHitPoints === 'number') {
+      return character.value.state.currentHitPoints;
+    }
+    
+    // Fallback to pluginData (baseline HP)
     const attributes = character.value.pluginData?.attributes as any;
-    return attributes?.hitPoints?.current || (character.value.pluginData as any)?.hitPoints?.current || 8;
+    const baselineHp = attributes?.hitPoints?.current || (character.value.pluginData as any)?.hitPoints?.current || 8;
+    
+    // Initialize state if missing
+    if (!character.value.state) character.value.state = {};
+    character.value.state.currentHitPoints = baselineHp;
+    
+    return baselineHp;
   },
   set(value: number) {
+    // Always update state for runtime HP
+    if (!character.value.state) character.value.state = {};
+    character.value.state.currentHitPoints = value;
+    
+    // Also update pluginData for persistence
     if (!character.value.pluginData) character.value.pluginData = {};
     if (!(character.value.pluginData as any).attributes) (character.value.pluginData as any).attributes = {};
     if (!(character.value.pluginData as any).attributes.hitPoints) (character.value.pluginData as any).attributes.hitPoints = {};
@@ -562,6 +609,17 @@ const speedValue = computed({
     (character.value.pluginData as any).attributes.movement.walk = value;
     // Also update legacy format
     (character.value.pluginData as any).speed = value;
+  }
+});
+
+// Automate attacks checkbox - direct binding to character.pluginData.automateAttacks
+const automateAttacksValue = computed({
+  get() {
+    return character.value.pluginData?.automateAttacks || false;
+  },
+  set(value: boolean) {
+    if (!character.value.pluginData) character.value.pluginData = {};
+    (character.value.pluginData as any).automateAttacks = value;
   }
 });
 
@@ -1050,8 +1108,13 @@ const handleWeaponAttackRollSubmission = (rollData: WeaponAttackRollData) => {
     metadata: {
       title: `${rollData.weapon.name} Attack`,
       characterName: character.value.name,
-      weapon: rollData.weapon,
-      character: character.value
+      weaponId: rollData.weapon.id,
+      characterId: character.value.id,
+      // Add automation metadata
+      autoMode: character.value.pluginData?.automateAttacks || false,
+      targetTokenIds: (character.value.pluginData?.automateAttacks && encounterTargetTokenIds?.value) 
+        ? encounterTargetTokenIds.value 
+        : []
     }
   };
 
@@ -2124,5 +2187,67 @@ watch(() => {
 .weapon-action-btn:focus {
   outline: 2px solid var(--dnd-yellow);
   outline-offset: 2px;
+}
+
+/* Automation Settings */
+.stat-card.automation-setting {
+  cursor: default;
+}
+
+.stat-card.automation-setting:hover {
+  transform: none;
+  box-shadow: 0 2px 4px var(--dnd-shadow-light);
+  border-color: var(--dnd-brown-light);
+}
+
+.automation-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--dnd-red);
+}
+
+.checkbox-input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--dnd-red);
+  cursor: pointer;
+}
+
+.checkbox-label {
+  user-select: none;
+  font-weight: 500;
+}
+
+/* Weapon-level automation toggle */
+.weapon-automation-toggle {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--dnd-brown-light);
+  display: flex;
+  justify-content: center;
+}
+
+.automation-checkbox-inline {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: var(--dnd-brown);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 3px;
+  transition: background-color 0.2s ease;
+}
+
+.automation-checkbox-inline:hover {
+  background-color: var(--dnd-background-light);
+}
+
+.checkbox-label-compact {
+  font-weight: 500;
+  user-select: none;
 }
 </style>

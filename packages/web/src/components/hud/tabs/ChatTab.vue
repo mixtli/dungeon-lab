@@ -18,6 +18,9 @@
             :approvalData="message.approvalData" 
             :timestamp="message.timestamp" 
             class="mb-3" />
+          <!-- Roll request card for roll request messages -->
+          <RollRequestMessage v-else-if="message.type === 'roll-request' && message.rollRequestData"
+            :message="message" />
           <!-- Regular message display -->
           <div v-else :class="getMessageClass(message)">
             <span v-if="!message.isSystem" class="message-sender">{{ message.senderName }}</span>
@@ -68,7 +71,9 @@ import { useChatStore, type ChatMessage } from '../../../stores/chat.store.mts';
 import { useSocketStore } from '../../../stores/socket.store.mts';
 import { useGameStateStore } from '../../../stores/game-state.store.mjs';
 import { useGameSessionStore } from '../../../stores/game-session.store.mts';
+import { parseDiceExpression } from '@dungeon-lab/shared/utils/dice-parser.mjs';
 import ApprovalCard from '../../chat/ApprovalCard.vue';
+import RollRequestMessage from '../../chat/RollRequestMessage.vue';
 const chatStore = useChatStore();
 const socketStore = useSocketStore();
 const gameStateStore = useGameStateStore();
@@ -125,7 +130,7 @@ function handleRollCommand(formula: string) {
   }
 
   // Parse simple dice formula (e.g., "2d20+5", "1d6")
-  const parsedDice = parseDiceFormula(formula);
+  const parsedDice = parseDiceExpression(formula);
   if (!parsedDice) {
     console.error('Invalid dice formula:', formula);
     return;
@@ -162,78 +167,6 @@ function handleRollCommand(formula: string) {
   });
 }
 
-// Advanced dice formula parser for chat commands
-function parseDiceFormula(formula: string): { dice: Array<{sides: number, quantity: number}>, modifier: number } | null {
-  try {
-    // Remove spaces and convert to lowercase
-    const cleanFormula = formula.replace(/\s/g, '').toLowerCase();
-    
-    // Tokenize the formula - split on + and - while keeping the operators
-    const tokens = cleanFormula.split(/([+-])/).filter(token => token.length > 0);
-    
-    const diceGroups: Array<{sides: number, quantity: number}> = [];
-    let modifier = 0;
-    let currentSign = 1; // 1 for positive, -1 for negative
-    
-    for (let i = 0; i < tokens.length; i++) {
-      const token = tokens[i];
-      
-      // Handle operators
-      if (token === '+') {
-        currentSign = 1;
-        continue;
-      } else if (token === '-') {
-        currentSign = -1;
-        continue;
-      }
-      
-      // Handle dice notation (e.g., "2d20", "d6")
-      const diceMatch = token.match(/^(\d+)?d(\d+)$/);
-      if (diceMatch) {
-        const quantity = diceMatch[1] ? parseInt(diceMatch[1]) : 1;
-        const sides = parseInt(diceMatch[2]);
-        
-        // Validate dice
-        if (quantity < 1 || quantity > 20 || ![4, 6, 8, 10, 12, 20, 100].includes(sides)) {
-          return null;
-        }
-        
-        // For dice groups, we ignore the sign (dice are always additive)
-        // Only apply sign to pure numeric modifiers
-        diceGroups.push({ sides, quantity });
-        continue;
-      }
-      
-      // Handle pure numeric modifiers (e.g., "5", "12")
-      const numericMatch = token.match(/^(\d+)$/);
-      if (numericMatch) {
-        const value = parseInt(numericMatch[1]);
-        modifier += currentSign * value;
-        continue;
-      }
-      
-      // If we can't parse this token, the formula is invalid
-      return null;
-    }
-    
-    // Must have at least one dice group
-    if (diceGroups.length === 0) {
-      return null;
-    }
-    
-    // Limit total dice groups to prevent abuse
-    if (diceGroups.length > 5) {
-      return null;
-    }
-    
-    return {
-      dice: diceGroups,
-      modifier
-    };
-  } catch {
-    return null;
-  }
-}
 
 // Send message using chat store
 function sendMessage(): void {

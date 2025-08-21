@@ -7,7 +7,7 @@
 
 import type { ComputedRef, Ref } from 'vue';
 import type { BaseDocument, ICompendiumEntry, ICharacter, IActor, IItem, IEncounter, IToken, ServerGameStateWithVirtuals, StateUpdateBroadcast, GameActionRequest, ActionRequestResult } from '@dungeon-lab/shared/types/index.mjs';
-import type { Roll } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
+import type { Roll, RollRequest } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
 import type { RollTypeHandler } from './plugin.mjs';
 
 /**
@@ -170,4 +170,10 @@ export interface PluginContext {
     parameters: Record<string, unknown>,
     options?: { description?: string }
   ): Promise<ActionRequestResult>;
+
+  /**
+   * Send roll requests to specific players
+   * Used by GM clients to request damage rolls from players
+   */
+  sendRollRequest(playerId: string, rollRequest: RollRequest): void;
 }

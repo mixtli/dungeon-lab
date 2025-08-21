@@ -2,7 +2,8 @@ import type { Component } from 'vue';
 import type { PluginManifest } from '@dungeon-lab/shared/schemas/plugin-manifest.schema.mjs';
 import type { PluginContext } from './plugin-context.mjs';
 import type { BaseTurnManagerPlugin } from '../base/base-turn-manager.mjs';
-import type { RollServerResult } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
+import type { RollServerResult, RollRequest } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
+import type { ActionRequestResult, ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
 
 // Export the base class for plugins to extend
 export { BaseGameSystemPlugin } from '../base/base-plugin.mjs';
@@ -28,6 +29,7 @@ export interface ValidationResult {
   errors?: string[];
 }
 
+
 /**
  * Context information passed to roll handlers
  */
@@ -36,12 +38,25 @@ export interface RollHandlerContext {
   isGM: boolean;
   /** The user ID of the current client */
   userId: string;
+  /** Current game state (available for GM clients only) */
+  gameState?: ServerGameStateWithVirtuals;
   /** Function to send chat messages (only available if isGM is true) */
   sendChatMessage?: (message: string, metadata?: {
     type?: 'text' | 'roll';
     rollData?: unknown;
     recipient?: 'public' | 'gm' | 'private';
   }) => void;
+  /** Function to request game actions (available when plugin context is available) */
+  requestAction?: (
+    actionType: string,
+    parameters: Record<string, unknown>,
+    options?: { description?: string }
+  ) => Promise<ActionRequestResult>;
+  /** Function to send roll requests to specific players */
+  requestRoll?: (
+    playerId: string,
+    rollRequest: RollRequest
+  ) => void;
 }
 
 /**

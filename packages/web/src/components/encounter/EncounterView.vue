@@ -186,7 +186,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch, nextTick, provide } from 'vue';
 import { useGameStateStore } from '../../stores/game-state.store.mjs';
 import { useDeviceAdaptation } from '../../composables/useDeviceAdaptation.mjs';
 import { usePlayerActions } from '../../composables/usePlayerActions.mjs';
@@ -219,6 +219,12 @@ const loading = ref(true);
 const error = ref<string | null>(null);
 const selectedToken = ref<Token | null>(null);
 const targetTokenIds = ref(new Set<string>());
+
+// Provide target context to child components (including plugin character sheets)
+const encounterTargetTokenIds = computed(() => Array.from(targetTokenIds.value));
+provide('encounterTargetTokenIds', encounterTargetTokenIds);
+
+
 const showTokenGenerator = ref(false);
 const showDebugInfo = ref(false);
 

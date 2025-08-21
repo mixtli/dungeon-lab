@@ -14,7 +14,7 @@ import type {
 } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 import type { RollTypeHandler } from '@dungeon-lab/shared-ui/types/plugin.mjs';
 import type { BaseDocument, ICompendiumEntry, ActionRequestResult, GameActionType } from '@dungeon-lab/shared/types/index.mjs';
-import type { Roll, RollCallback } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
+import type { Roll, RollCallback, RollRequest } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
 import { ReactivePluginStore } from '../plugin-store.mjs';
 import { CompendiumsClient } from '@dungeon-lab/client/index.mjs';
 import { DocumentsClient } from '@dungeon-lab/client/index.mjs';
@@ -282,6 +282,37 @@ export class PluginContextImpl implements PluginContext {
         requestId: '',
         error: error instanceof Error ? error.message : 'Unknown error'
       };
+    }
+  }
+
+  /**
+   * Send roll requests to specific players (GM only)
+   */
+  sendRollRequest(playerId: string, rollRequest: RollRequest): void {
+    const socketStore = useSocketStore();
+    const socket = socketStore.socket;
+    
+    if (!socket) {
+      console.error('[PluginContext] No socket connection available for roll request');
+      return;
+    }
+
+    // Validate user is GM
+    const gameSessionStore = useGameSessionStore();
+    if (!gameSessionStore.isGameMaster) {
+      console.error('[PluginContext] Only GMs can send roll requests');
+      return;
+    }
+
+    try {
+      // Emit the roll request event with player ID
+      socket.emit('roll:request', {
+        ...rollRequest,
+        playerId
+      });
+      console.log(`[PluginContext] Sent roll request to player '${playerId}' from plugin '${this.pluginId}':`, rollRequest.requestId);
+    } catch (error) {
+      console.error(`[PluginContext] Failed to send roll request from plugin '${this.pluginId}':`, error);
     }
   }
   

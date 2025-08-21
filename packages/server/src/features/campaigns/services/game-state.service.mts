@@ -168,12 +168,8 @@ export class GameStateService {
         };
       }
 
-      // Extract current server game state from the GameState document
-      // Parse with Zod schema to ensure proper defaults and validation
-      const currentServerGameState: ServerGameStateWithVirtuals = serverGameStateWithVirtualsSchema.parse(gameState.state);
-
-      // Validate current state integrity if hash exists
-      if (gameState.hash && !validateStateIntegrity(currentServerGameState, gameState.hash)) {
+      // Validate current state integrity if hash exists (use raw state for consistency with checkGameStateStatus)
+      if (gameState.hash && !validateStateIntegrity(gameState.state, gameState.hash)) {
         logger.error('State integrity validation failed', { gameStateId, currentVersion: gameState.version });
         return {
           success: false,
@@ -183,6 +179,10 @@ export class GameStateService {
           }
         };
       }
+
+      // Extract current server game state from the GameState document
+      // Parse with Zod schema to ensure proper defaults and validation (after hash validation)
+      const currentServerGameState: ServerGameStateWithVirtuals = serverGameStateWithVirtualsSchema.parse(gameState.state);
 
       // Apply all operations atomically
       let updatedServerGameState: ServerGameStateWithVirtuals;

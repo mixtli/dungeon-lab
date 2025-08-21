@@ -9,3 +9,4 @@ export * from './types/index.mjs';
 
 // Re-export Vue/browser utilities
 export * from './utils/plugin-context.mjs';
+export * from './utils/grid-distance.mjs';

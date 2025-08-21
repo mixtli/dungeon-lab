@@ -194,10 +194,7 @@ private async handleRollResult(result: RollServerResult): Promise<void> {
       // Include requestRoll function for sending damage roll requests
       requestRoll: handlerRegistration ? 
         (playerId: string, rollRequest: RollRequest) => {
-          handlerRegistration.pluginContext.sendSocketMessage('roll:request', {
-            ...rollRequest,
-            playerId
-          });
+          handlerRegistration.pluginContext.sendRollRequest(playerId, rollRequest);
         } : undefined
     };
     
@@ -631,26 +628,28 @@ context.registerActionHandler('apply-damage', applyDamageHandler);
 
 ### 7. Roll Request Interface
 
-The `RollRequest` interface defines the structure for requesting dice rolls from players via socket events.
+The `RollRequest` schema and interface are defined in the shared package for access by both client and server components.
+
+**File**: `packages/shared/src/schemas/roll.schema.mts`
 
 ```typescript
-/**
- * Interface for requesting dice rolls from players
- */
-export interface RollRequest {
+// Roll Request (GM → Player) - Damage roll request from GM to specific player
+export const rollRequestSchema = z.object({
   /** Unique identifier for this roll request */
-  requestId: string;
+  requestId: z.string(),
   /** Message to display to the player */
-  message: string;
+  message: z.string(),
   /** Type of roll being requested */
-  rollType: string;
+  rollType: z.string(),
   /** Dice expression to roll (e.g., "2d6+3", "1d20") */
-  diceExpression: string;
+  diceExpression: z.string(),
   /** Additional metadata to include with the roll */
-  metadata?: Record<string, unknown>;
+  metadata: z.record(z.unknown()).optional(),
   /** Target player ID who should make this roll */
-  playerId?: string;
-}
+  playerId: z.string().optional()
+});
+
+export type RollRequest = z.infer<typeof rollRequestSchema>;
 ```
 
 ### 8. Target Selection with Provide/Inject Pattern

@@ -10,9 +10,11 @@ import type {
 import { 
   rollSchema,
   rollServerResultSchema,
+  rollRequestSchema,
   type Roll,
   type RollCallback,
-  type RollServerResult
+  type RollServerResult,
+  type RollRequest
 } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
 
 /**
@@ -38,6 +40,23 @@ function findGMSocketForSession(gmUserId: string, sessionId: string): string | n
     // Check if this socket belongs to the GM user and is in the session room
     if (socket.userId === gmUserId && socket.rooms.has(`session:${sessionId}`)) {
       return socketId;
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Find player socket by user ID in a given session
+ */
+function findPlayerSocketInSession(playerId: string, sessionId: string): Socket<ClientToServerEvents, ServerToClientEvents> | null {
+  const io = SocketServer.getInstance().socketIo;
+  
+  // Look through all connected sockets to find the player
+  for (const [socketId, socket] of io.sockets.sockets) {
+    // Check if this socket belongs to the target player and is in the session room
+    if (socket.userId === playerId && socket.rooms.has(`session:${sessionId}`)) {
+      return socket;
     }
   }
   
@@ -137,6 +156,78 @@ function rollHandler(socket: Socket<ClientToServerEvents, ServerToClientEvents>)
       logger.error('Error handling roll:', error);
       const errorResponse = error instanceof Error ? error.message : 'Failed to process roll';
       callback?.({ success: false, error: errorResponse });
+    }
+  });
+
+  /**
+   * Handle roll request events from GM to players
+   * 1. Validate sender is GM
+   * 2. Extract target player ID
+   * 3. Route request to specific player socket
+   * 4. Handle errors for missing/disconnected players
+   */
+  socket.on('roll:request', async (data: RollRequest & { playerId: string }) => {
+    try {
+      logger.info(`Roll request received from user ${userId} for player ${data.playerId}`);
+
+      // Validate the roll request data
+      const validationResult = rollRequestSchema.safeParse(data);
+      if (!validationResult.success) {
+        const error = `Invalid roll request data: ${validationResult.error.message}`;
+        logger.warn(`Roll request validation failed for user ${userId}:`, validationResult.error);
+        socket.emit('roll:request:error', {
+          requestId: data.requestId,
+          error
+        });
+        return;
+      }
+
+      // Validate that sender is GM of the session
+      if (!socket.gameSessionId) {
+        logger.warn(`Roll request from user ${userId} without active game session`);
+        socket.emit('roll:request:error', {
+          requestId: data.requestId,
+          error: 'No active game session'
+        });
+        return;
+      }
+
+      // Get session to verify GM permissions
+      const session = await GameSessionModel.findById(socket.gameSessionId).exec();
+      if (!session || session.gameMasterId !== userId) {
+        logger.warn(`Roll request from non-GM user ${userId} in session ${socket.gameSessionId}`);
+        socket.emit('roll:request:error', {
+          requestId: data.requestId,
+          error: 'Only GMs can send roll requests'
+        });
+        return;
+      }
+
+      // Extract roll request and target player ID
+      const { playerId, ...rollRequest } = data;
+      
+      // Find target player socket in the session
+      const targetSocket = findPlayerSocketInSession(playerId, socket.gameSessionId);
+      if (targetSocket) {
+        // Forward roll request to target player
+        targetSocket.emit('roll:request', rollRequest);
+        logger.info(`Forwarded roll request to player ${playerId} in session ${socket.gameSessionId}`);
+      } else {
+        // Player not connected - send error back to GM
+        logger.warn(`Player ${playerId} not connected for roll request in session ${socket.gameSessionId}`);
+        socket.emit('roll:request:error', {
+          requestId: rollRequest.requestId,
+          error: 'Player not connected'
+        });
+      }
+
+    } catch (error) {
+      logger.error('Error handling roll request:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to process roll request';
+      socket.emit('roll:request:error', {
+        requestId: data.requestId || 'unknown',
+        error: errorMessage
+      });
     }
   });
 }

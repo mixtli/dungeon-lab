@@ -60,7 +60,27 @@ export const rollArgsSchema = z.tuple([
   z.function().args(rollCallbackSchema)
 ]);
 
+// Roll Request (GM → Player) - Damage roll request from GM to specific player
+export const rollRequestSchema = z.object({
+  /** Unique identifier for this roll request */
+  requestId: z.string(),
+  /** Message to display to the player */
+  message: z.string(),
+  /** Type of roll being requested */
+  rollType: z.string(),
+  /** Dice to roll as array (e.g., [{sides: 12, quantity: 1}]) */
+  dice: z.array(z.object({
+    sides: z.number(),
+    quantity: z.number()
+  })),
+  /** Additional metadata to include with the roll */
+  metadata: z.record(z.unknown()).optional(),
+  /** Target player ID who should make this roll */
+  playerId: z.string().optional()
+});
+
 export type Roll = z.infer<typeof rollSchema>;
 export type RollServerResult = z.infer<typeof rollServerResultSchema>;
 export type RollFinalResult = z.infer<typeof rollFinalResultSchema>;
 export type RollCallback = z.infer<typeof rollCallbackSchema>;
+export type RollRequest = z.infer<typeof rollRequestSchema>;

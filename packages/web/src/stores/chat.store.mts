@@ -9,7 +9,7 @@ import type {
 import { useGameSessionStore } from './game-session.store.mts';
 import { useGameStateStore } from './game-state.store.mjs';
 import type { ParsedMessage, Mention } from '@dungeon-lab/shared/types/chat.mjs';
-import type { RollServerResult } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
+import type { RollServerResult, RollRequest } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
 import type { GameActionRequest } from '@dungeon-lab/shared/types/game-actions.mjs';
 
 export interface ChatContext {
@@ -40,9 +40,10 @@ export interface ChatMessage {
   recipientType?: 'user' | 'actor' | 'session' | 'system' | 'bot';
   mentions?: ParsedMessage['mentions'];
   hasMentions?: boolean;
-  type?: 'text' | 'roll' | 'approval-request';
+  type?: 'text' | 'roll' | 'approval-request' | 'roll-request';
   rollData?: RollServerResult;
   approvalData?: ApprovalData;
+  rollRequestData?: RollRequest;
 }
 
 interface ChatStore {
@@ -50,6 +51,7 @@ interface ChatStore {
   sendMessage: (message: string, recipientId?: string, chatContexts?: ChatContext[]) => void;
   sendApprovalRequest: (approvalData: ApprovalData) => void;
   updateApprovalMessage: (requestId: string, status: 'approved' | 'denied') => void;
+  addRollRequest: (rollRequest: RollRequest) => void;
   clearMessages: () => void;
 }
 
@@ -320,11 +322,30 @@ export const useChatStore = defineStore(
       }
     }
 
+    // Add a roll request to chat
+    function addRollRequest(rollRequest: RollRequest) {
+      const rollRequestMessage: ChatMessage = {
+        id: generateId(),
+        content: `**Roll Request**: ${rollRequest.message}`,
+        senderId: 'system',
+        senderName: 'System',
+        timestamp: new Date().toISOString(),
+        isSystem: true,
+        type: 'roll-request',
+        rollRequestData: rollRequest,
+        recipientType: 'session'
+      };
+
+      messages.value.push(rollRequestMessage);
+      console.log('[ChatStore] Added roll request to chat:', rollRequest.requestId);
+    }
+
     return {
       messages,
       sendMessage,
       sendApprovalRequest,
       updateApprovalMessage,
+      addRollRequest,
       clearMessages
     };
   },

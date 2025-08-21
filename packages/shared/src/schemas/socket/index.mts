@@ -19,9 +19,15 @@ import {
 import {
   rollSchema,
   rollServerResultSchema,
+  rollRequestSchema,
   rollCallbackSchema,
   rollArgsSchema
 } from '../roll.schema.mjs';
+
+// Roll request args schema for client-to-server events  
+export const rollRequestArgsSchema = z.tuple([
+  rollRequestSchema.extend({ playerId: z.string() })
+]);
 
 import {
   mapGenerationResponseSchema,
@@ -123,6 +129,7 @@ export {
   // Roll schemas
   rollSchema,
   rollServerResultSchema,
+  rollRequestSchema,
   rollCallbackSchema,
   rollArgsSchema,
   
@@ -213,6 +220,7 @@ export const serverToClientEvents = z.object({
   'user:left': z.function().args(userLeftSessionSchema).returns(z.void()),
   // Roll events
   'roll:result': z.function().args(rollServerResultSchema).returns(z.void()),
+  'roll:request': z.function().args(rollRequestSchema).returns(z.void()),
   // Game state management events
   'gameState:updated': z.function().args(gameStateUpdatedSchema).returns(z.void()),
   'gameState:error': z.function().args(gameStateErrorSchema).returns(z.void()),
@@ -232,6 +240,7 @@ export const serverToClientEvents = z.object({
 export const clientToServerEvents = z.object({
   chat: z.function().args(...chatMessageArgsSchema.items).returns(z.void()),
   roll: z.function().args(...rollArgsSchema.items).returns(z.void()),
+  'roll:request': z.function().args(...rollRequestArgsSchema.items).returns(z.void()),
   'encounter:start': z.function().args(...encounterStartArgsSchema.items).returns(z.void()),
   'encounter:stop': z.function().args(...encounterStopArgsSchema.items).returns(z.void()),
   'map:generate': z.function().args(...mapGenerateArgsSchema.items).returns(z.void()),

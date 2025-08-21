@@ -3,11 +3,13 @@ import type {
   ServerToClientEvents,
   ClientToServerEvents
 } from '@dungeon-lab/shared/types/socket/index.mjs';
-import type { RollServerResult } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
+import type { RollServerResult, RollRequest } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
+import type { ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
 import type { RollTypeHandler, RollHandlerContext } from '@dungeon-lab/shared-ui/types/plugin.mjs';
 import type { PluginContext } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 import { useAuthStore } from '../stores/auth.store.mjs';
 import { useGameSessionStore } from '../stores/game-session.store.mjs';
+import { useGameStateStore } from '../stores/game-state.store.mjs';
 import { useChatStore } from '../stores/chat.store.mjs';
 // Using console.log for client-side logging
 
@@ -81,14 +83,28 @@ export class RollHandlerService {
       // Create handler context with GM detection
       const authStore = useAuthStore();
       const gameSessionStore = useGameSessionStore();
+      const gameStateStore = useGameStateStore();
       const isGM = gameSessionStore.isGameMaster;
       const context: RollHandlerContext = {
         isGM,
         userId: authStore.user?.id || '',
+        // Provide game state access for GM clients (cast to mutable type for weapon handlers)
+        gameState: isGM ? gameStateStore.gameState as ServerGameStateWithVirtuals : undefined,
         // Include sendChatMessage function for GM clients
         sendChatMessage: isGM && handlerRegistration ? 
           (message: string, metadata?: { type?: 'text' | 'roll'; rollData?: unknown; recipient?: 'public' | 'gm' | 'private'; }) => {
             handlerRegistration.pluginContext.sendChatMessage(message, metadata);
+          } : undefined,
+        // Include requestAction function when plugin context is available
+        requestAction: handlerRegistration ? 
+          (actionType: string, parameters: Record<string, unknown>, options?: { description?: string }) => {
+            return handlerRegistration.pluginContext.requestAction(actionType, parameters, options);
+          } : undefined,
+        // Include requestRoll function for sending damage roll requests
+        requestRoll: handlerRegistration ? 
+          (playerId: string, rollRequest: RollRequest) => {
+            console.log('[RollHandlerService] Sending roll request:', { playerId, rollRequest });
+            handlerRegistration.pluginContext.sendRollRequest(playerId, rollRequest);
           } : undefined
       };
 
