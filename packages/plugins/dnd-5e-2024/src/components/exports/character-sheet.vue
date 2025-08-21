@@ -273,6 +273,24 @@
                   <span class="property-value">{{ getItemProperties(item) }}</span>
                 </div>
               </div>
+
+              <!-- Weapon Actions -->
+              <div v-if="isWeapon(item)" class="weapon-actions">
+                <button 
+                  @click="initiateWeaponAttack(item)" 
+                  class="weapon-action-btn attack-btn"
+                  title="Make an attack roll with this weapon"
+                >
+                  ⚔️ Attack
+                </button>
+                <button 
+                  @click="initiateWeaponDamage(item)" 
+                  class="weapon-action-btn damage-btn"
+                  title="Roll damage for this weapon"
+                >
+                  🗡️ Damage
+                </button>
+              </div>
             </div>
           </div>
 
@@ -320,6 +338,22 @@
     :character-name="character.name"
     @roll="handleRollSubmission"
   />
+
+  <!-- Weapon Attack Dialog -->
+  <WeaponAttackDialog
+    v-model="showWeaponAttackDialog"
+    :weapon="currentRollWeapon"
+    :character="character"
+    @roll="handleWeaponAttackRollSubmission"
+  />
+
+  <!-- Weapon Damage Dialog -->
+  <WeaponDamageDialog
+    v-model="showWeaponDamageDialog"
+    :weapon="currentRollWeapon"
+    :character="character"
+    @roll="handleWeaponDamageRollSubmission"
+  />
 </template>
 
 <script setup lang="ts">
@@ -331,6 +365,8 @@ import type { DndBackgroundDocument } from '../../types/dnd/background.mjs';
 import type { AssignItemParameters } from '@dungeon-lab/shared/types/index.mjs';
 import { getPluginContext } from '@dungeon-lab/shared-ui/utils/plugin-context.mjs';
 import AdvantageRollDialog, { type RollDialogData } from '../internal/common/AdvantageRollDialog.vue';
+import WeaponAttackDialog, { type WeaponAttackRollData } from '../internal/common/WeaponAttackDialog.vue';
+import WeaponDamageDialog, { type WeaponDamageRollData } from '../internal/common/WeaponDamageDialog.vue';
 
 // Props - enhanced interface with container-provided document copy
 interface Props {
@@ -407,6 +443,11 @@ const activeTab = ref('overview');
 // Roll dialog state
 const showRollDialog = ref(false);
 const currentRollAbility = ref<string>('');
+const currentRollWeapon = ref<IItem | null>(null);
+
+// Weapon dialog state
+const showWeaponAttackDialog = ref(false);
+const showWeaponDamageDialog = ref(false);
 
 // Drag and drop state
 const isDragOver = ref(false);
@@ -825,6 +866,66 @@ const getItemProperties = (item: IItem): string | null => {
   return null;
 };
 
+// Weapon identification and actions
+const isWeapon = (item: IItem): boolean => {
+  const pluginData = item.pluginData as any;
+  const itemType = pluginData?.type || pluginData?.category || pluginData?.weaponType;
+  const weaponTypes = ['weapon', 'simple-weapon', 'martial-weapon', 'melee', 'ranged', 'melee-weapon', 'ranged-weapon'];
+  
+  return weaponTypes.some(type => 
+    itemType === type || 
+    (typeof itemType === 'string' && itemType.toLowerCase().includes('weapon'))
+  ) || !!(pluginData?.damage?.dice);
+};
+
+const initiateWeaponAttack = (weapon: IItem) => {
+  console.log('[CharacterSheet] Initiating weapon attack:', weapon.name);
+  currentRollWeapon.value = weapon;
+  showWeaponAttackDialog.value = true;
+};
+
+const initiateWeaponDamage = (weapon: IItem) => {
+  console.log('[CharacterSheet] Initiating weapon damage:', weapon.name);
+  currentRollWeapon.value = weapon;
+  showWeaponDamageDialog.value = true;
+};
+
+// Helper functions for weapon calculations (shared between dialogs and roll submission)
+const getWeaponAttackAbility = (weapon: IItem): string => {
+  const properties = (weapon.pluginData as any)?.properties || [];
+  const weaponType = (weapon.pluginData as any)?.weaponType || (weapon.pluginData as any)?.category;
+  
+  if (properties.includes('finesse')) {
+    return 'dexterity';
+  }
+  
+  if (weaponType === 'ranged' || weaponType === 'ranged-weapon') {
+    return 'dexterity';
+  }
+  
+  return 'strength';
+};
+
+const getAbilityModifier = (character: any, ability: string): number => {
+  const abilityScore = character.pluginData?.abilities?.[ability]?.value || 10;
+  return Math.floor((abilityScore - 10) / 2);
+};
+
+const isProficientWithWeapon = (weapon: IItem, character: any): boolean => {
+  const weaponProficiencies = character.pluginData?.proficiencies?.weapons || [];
+  const weaponCategory = (weapon.pluginData as any)?.category || (weapon.pluginData as any)?.weaponType;
+  
+  return weaponProficiencies.includes(weapon.name) || 
+         weaponProficiencies.includes(weaponCategory) ||
+         weaponProficiencies.includes('simple-weapons') ||
+         weaponProficiencies.includes('martial-weapons');
+};
+
+const getProficiencyBonus = (character: any): number => {
+  const level = character.pluginData?.progression?.level || character.pluginData?.level || 1;
+  return Math.ceil(level / 4) + 1;
+};
+
 // Methods
 const formatModifier = (value: number): string => {
   return value >= 0 ? `+${value}` : `${value}`;
@@ -880,6 +981,162 @@ const handleRollSubmission = (rollData: RollDialogData) => {
   // Submit roll via plugin context
   pluginContext.submitRoll(roll);
   console.log(`[CharacterSheet] Submitted ${rollData.ability} check roll:`, roll);
+};
+
+// Handle weapon attack roll submission
+const handleWeaponAttackRollSubmission = (rollData: WeaponAttackRollData) => {
+  const pluginContext = getPluginContext();
+  if (!pluginContext) {
+    console.error('Plugin context not available');
+    return;
+  }
+
+  // Generate unique roll ID
+  const rollId = `roll_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  
+  // Calculate weapon attack modifiers
+  const weapon = rollData.weapon;
+  const char = character.value;
+  const modifiers = [];
+
+  // Add ability modifier
+  const ability = getWeaponAttackAbility(weapon);
+  const abilityMod = getAbilityModifier(char, ability);
+  if (abilityMod !== 0) {
+    modifiers.push({
+      type: 'ability',
+      value: abilityMod,
+      source: `${ability.charAt(0).toUpperCase()}${ability.slice(1)} modifier`
+    });
+  }
+
+  // Add proficiency bonus if proficient
+  if (isProficientWithWeapon(weapon, char)) {
+    const profBonus = getProficiencyBonus(char);
+    modifiers.push({
+      type: 'proficiency',
+      value: profBonus,
+      source: 'Proficiency bonus'
+    });
+  }
+
+  // Add enhancement bonus if any
+  const enhancement = (weapon.pluginData as any)?.enhancement || 0;
+  if (enhancement !== 0) {
+    modifiers.push({
+      type: 'enhancement',
+      value: enhancement,
+      source: 'Magic weapon'
+    });
+  }
+
+  // Create weapon attack roll
+  const roll = {
+    id: rollId,
+    rollType: 'weapon-attack',
+    pluginId: 'dnd-5e-2024',
+    dice: [{ 
+      sides: 20, 
+      quantity: rollData.advantageMode === 'normal' ? 1 : 2 
+    }],
+    recipients: rollData.recipients,
+    arguments: { 
+      customModifier: rollData.customModifier,
+      pluginArgs: { 
+        advantageMode: rollData.advantageMode
+      }
+    },
+    modifiers: modifiers,
+    metadata: {
+      title: `${rollData.weapon.name} Attack`,
+      characterName: character.value.name,
+      weapon: rollData.weapon,
+      character: character.value
+    }
+  };
+
+  pluginContext.submitRoll(roll);
+  console.log(`[CharacterSheet] Submitted weapon attack roll:`, roll);
+};
+
+// Handle weapon damage roll submission
+const handleWeaponDamageRollSubmission = (rollData: WeaponDamageRollData) => {
+  const pluginContext = getPluginContext();
+  if (!pluginContext) {
+    console.error('Plugin context not available');
+    return;
+  }
+
+  // Generate unique roll ID
+  const rollId = `roll_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  
+  // Parse weapon damage dice
+  const weaponData = rollData.weapon.pluginData as any;
+  const damageDice = weaponData?.damage?.dice || '1d4';
+  
+  // Parse dice notation (e.g., "1d6", "2d4")
+  const diceMatch = damageDice.match(/(\d+)d(\d+)/);
+  if (!diceMatch) {
+    console.error('Invalid damage dice notation:', damageDice);
+    return;
+  }
+  
+  const quantity = parseInt(diceMatch[1]);
+  const sides = parseInt(diceMatch[2]);
+  
+  // Double dice for critical hits
+  const finalQuantity = rollData.isCritical ? quantity * 2 : quantity;
+
+  // Calculate weapon damage modifiers
+  const weapon = rollData.weapon;
+  const char = character.value;
+  const modifiers = [];
+
+  // Add ability modifier (same as attack ability for damage)
+  const ability = getWeaponAttackAbility(weapon);
+  const abilityMod = getAbilityModifier(char, ability);
+  if (abilityMod !== 0) {
+    modifiers.push({
+      type: 'ability',
+      value: abilityMod,
+      source: `${ability.charAt(0).toUpperCase()}${ability.slice(1)} modifier`
+    });
+  }
+
+  // Add enhancement bonus if any
+  const enhancement = (weapon.pluginData as any)?.enhancement || 0;
+  if (enhancement !== 0) {
+    modifiers.push({
+      type: 'enhancement',
+      value: enhancement,
+      source: 'Magic weapon'
+    });
+  }
+  
+  const roll = {
+    id: rollId,
+    rollType: 'weapon-damage',
+    pluginId: 'dnd-5e-2024',
+    dice: [{ 
+      sides: sides, 
+      quantity: finalQuantity
+    }],
+    recipients: rollData.recipients,
+    arguments: { 
+      customModifier: rollData.customModifier
+    },
+    modifiers: modifiers,
+    metadata: {
+      title: `${rollData.weapon.name} Damage`,
+      characterName: character.value.name,
+      weapon: rollData.weapon,
+      character: character.value,
+      critical: rollData.isCritical
+    }
+  };
+
+  pluginContext.submitRoll(roll);
+  console.log(`[CharacterSheet] Submitted weapon damage roll:`, roll);
 };
 
 const rollSavingThrow = (ability: string) => {
@@ -1811,6 +2068,61 @@ watch(() => {
 .skill-item:focus,
 .equipment-item:focus {
   outline: 2px solid var(--dnd-red);
+  outline-offset: 2px;
+}
+
+/* Weapon Actions */
+.weapon-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--dnd-brown-light);
+}
+
+.weapon-action-btn {
+  flex: 1;
+  background: var(--dnd-red);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 36px;
+}
+
+.weapon-action-btn:hover {
+  background: var(--dnd-red-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(139, 87, 42, 0.3);
+}
+
+.weapon-action-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 4px rgba(139, 87, 42, 0.2);
+}
+
+.weapon-action-btn.attack-btn {
+  background: var(--dnd-red);
+}
+
+.weapon-action-btn.damage-btn {
+  background: var(--dnd-brown);
+}
+
+.weapon-action-btn.damage-btn:hover {
+  background: var(--dnd-brown-dark);
+}
+
+.weapon-action-btn:focus {
+  outline: 2px solid var(--dnd-yellow);
   outline-offset: 2px;
 }
 </style>

@@ -53,7 +53,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed, shallowRef } from 'vue';
+import { ref, watch, computed, shallowRef, reactive, toRaw } from 'vue';
 import type { Component } from 'vue';
 import type { BaseDocument, IItem } from '@dungeon-lab/shared/types/index.mjs';
 import { pluginRegistry } from '../../services/plugin-registry.mts';
@@ -61,8 +61,8 @@ import { useDocumentState } from '../../composables/useDocumentState.mts';
 import { useGameDocumentState } from '../../composables/useGameDocumentState.mts';
 import { useNotificationStore } from '../../stores/notification.store.mjs';
 import { PlayerActionService } from '../../services/player-action.service.mjs';
-import { generateDocumentPatch } from '@dungeon-lab/shared/utils/index.mjs';
 import type { UpdateDocumentParameters } from '@dungeon-lab/shared/types/game-actions.mjs';
+import { generateDocumentPatch } from '@dungeon-lab/shared/utils/index.mjs';
 import PluginContainer from './PluginContainer.vue';
 
 const props = defineProps<{
@@ -146,18 +146,21 @@ const initializeDocumentCopy = () => {
     documentCopy.value = null;
     return;
   }
-  // Create deep copy using JSON clone (handles Vue proxies and Mongoose docs)
-  console.log('doc', doc);
-  documentCopy.value = JSON.parse(JSON.stringify(doc));
-  console.log('documentCopy.value', documentCopy.value);
-  console.log('[DocumentSheetContainer] Document copy initialized for:', doc.name);
+  
+  // Create simple JSON copy for editing (Vue-compatible approach)
+  // This creates a mutable copy that character sheet can edit with v-model
+  const copy = JSON.parse(JSON.stringify(doc));
+  documentCopy.value = reactive(copy) as BaseDocument;
+  
+  console.log('[DocumentSheetContainer] Document copy initialized for editing:', doc.name);
 };
 
 // Check if form has unsaved changes by comparing copy to original
 const hasUnsavedChanges = computed(() => {
   if (!reactiveDocument.value || !documentCopy.value) return false;
-  // Simple JSON comparison - could be enhanced with deep-diff later
-  return JSON.stringify(reactiveDocument.value) !== JSON.stringify(documentCopy.value);
+  
+  // Simple JSON comparison using toRaw() to extract raw data from Vue proxies
+  return JSON.stringify(toRaw(reactiveDocument.value)) !== JSON.stringify(toRaw(documentCopy.value));
 });
 
 // Reset document copy to original state
@@ -269,22 +272,21 @@ const handleGameContextSave = async () => {
     return;
   }
 
-  // Generate JSON Patch operations by comparing original and updated documents
-  console.log('[DocumentSheetContainer] Generating document patch:', {
+  // Generate JSON Patch operations using generateDocumentPatch with toRaw()
+  // toRaw() extracts raw data from Vue proxies for proper comparison
+  console.log('[DocumentSheetContainer] Generating document patch with toRaw:', {
     documentId: props.documentId,
-    originalDocument: reactiveDocument.value,
-    updatedDocument: documentCopy.value,
-    originalDocumentKeys: Object.keys(reactiveDocument.value || {}),
-    updatedDocumentKeys: Object.keys(documentCopy.value || {})
+    originalDocument: reactiveDocument.value?.name,
+    editedCopy: documentCopy.value?.name
   });
   
   const operations = generateDocumentPatch(
-    reactiveDocument.value as Record<string, unknown>,
-    documentCopy.value as Record<string, unknown>,
+    toRaw(reactiveDocument.value) as Record<string, unknown>,
+    toRaw(documentCopy.value) as Record<string, unknown>,
     props.documentId
   );
   
-  console.log('[DocumentSheetContainer] Generated operations:', operations);
+  console.log('[DocumentSheetContainer] Generated JsonPatchOperations:', operations);
   
   if (operations.length === 0) {
     console.log('[DocumentSheetContainer] No changes detected');
@@ -350,10 +352,36 @@ const handleGameContextSave = async () => {
 
 // Handle save in admin context (direct save)
 const handleAdminContextSave = async () => {
-  if (!documentState.value) return;
+  if (!documentState.value || !reactiveDocument.value || !documentCopy.value) {
+    console.warn('[DocumentSheetContainer] Cannot save - missing document state or copy');
+    return;
+  }
   
   try {
+    // For admin mode, we can either:
+    // 1. Use Immer patches with REST API (future enhancement)
+    // 2. Use direct save with updated document copy (current approach)
+    
+    // Generate patches for logging/debugging purposes
+    const patches = generateDocumentPatch(
+      toRaw(reactiveDocument.value) as Record<string, unknown>,
+      toRaw(documentCopy.value) as Record<string, unknown>,
+      props.documentId || 'unknown'
+    );
+    
+    console.log('[DocumentSheetContainer] Admin save patches generated:', patches);
+    
+    // For now, update the document state with the copy and save
+    // Future: Could send patches to REST API for more efficient updates
+    
+    // Update the document state's document ref with our changes
+    if (adminDocumentState.value?.document) {
+      Object.assign(adminDocumentState.value.document.value, documentCopy.value);
+      adminDocumentState.value.markAsChanged();
+    }
+    
     await documentState.value.save();
+    
     editMode.value = false;
     
     notificationStore.addNotification({

@@ -9,6 +9,7 @@ import { BaseGameSystemPlugin, ValidationResult, PluginContext } from '@dungeon-
 import { validateCharacterData } from './character-validation.mjs';
 import { DnD5eTurnManager } from './turn-manager.mjs';
 import { DndAbilityCheckHandler, DndAttackRollHandler, DndSavingThrowHandler } from './services/dnd-roll-handler.mjs';
+import { DndWeaponAttackHandler, DndWeaponDamageHandler } from './services/dnd-weapon-handlers.mjs';
 import { registerPluginStateLifecycle, unregisterPluginStateLifecycle } from '@dungeon-lab/shared/utils/document-state-lifecycle.mjs';
 import { 
   dndMoveTokenHandler,
@@ -107,6 +108,10 @@ export class DnD5e2024Plugin extends BaseGameSystemPlugin {
       context.registerRollHandler('ability-check', new DndAbilityCheckHandler());
       context.registerRollHandler('attack-roll', new DndAttackRollHandler());
       context.registerRollHandler('saving-throw', new DndSavingThrowHandler());
+      
+      // Register D&D weapon roll handlers
+      context.registerRollHandler('weapon-attack', new DndWeaponAttackHandler());
+      context.registerRollHandler('weapon-damage', new DndWeaponDamageHandler());
       
       // Register D&D action handlers
       context.registerActionHandler('move-token', dndMoveTokenHandler);
