@@ -86,7 +86,7 @@ function executeUpdateDocument(
     }
 
     // Navigate to the target object within the document
-    let target: any = draft.documents[params.documentId];
+    let target: Record<string, unknown> = draft.documents[params.documentId];
     for (let i = 0; i < adjustedPathParts.length - 1; i++) {
       const part = adjustedPathParts[i];
       if (!target[part]) {
@@ -96,7 +96,7 @@ function executeUpdateDocument(
           throw new Error(`Path not found: ${operation.path}`);
         }
       }
-      target = target[part];
+      target = target[part] as Record<string, unknown>;
     }
 
     const finalKey = adjustedPathParts[adjustedPathParts.length - 1];

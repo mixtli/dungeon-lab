@@ -11,7 +11,7 @@ import { produceGameStateChanges } from '../../services/immer-utils.mjs';
 import type { GameActionRequest, ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
 
 describe('Multi-Handler Workflow Integration', () => {
-  const mockGameState: ServerGameStateWithVirtuals = {
+  const mockGameState = {
     documents: {
       'char1': {
         id: 'char1',
@@ -28,7 +28,7 @@ describe('Multi-Handler Workflow Integration', () => {
     },
     currentEncounter: null,
     turnManager: null
-  } as ServerGameStateWithVirtuals;
+  } as unknown as ServerGameStateWithVirtuals;
 
   beforeEach(() => {
     clearAllHandlers();
@@ -40,8 +40,9 @@ describe('Multi-Handler Workflow Integration', () => {
     // Core handler (priority 0)
     const coreHandler: ActionHandler = {
       priority: 0,
-      validate: async () => ({ valid: true }),
-      execute: (request, draft) => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      validate: (_request, _gameState) => ({ valid: true }),
+      execute: (_request, draft) => {
         executionOrder.push('core');
         draft.documents.char1.state.movementUsed = 10;
       }
@@ -51,8 +52,9 @@ describe('Multi-Handler Workflow Integration', () => {
     const pluginHandler: ActionHandler = {
       pluginId: 'test-plugin',
       priority: 100,
-      validate: async () => ({ valid: true }),
-      execute: (request, draft) => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      validate: (_request, _gameState) => ({ valid: true }),
+      execute: (_request, draft) => {
         executionOrder.push('plugin');
         draft.documents.char1.state.currentHitPoints = 70;
       }
@@ -77,7 +79,9 @@ describe('Multi-Handler Workflow Integration', () => {
               id: 'test-request',
               action: 'move-token',
               parameters: {},
-              timestamp: Date.now()
+              timestamp: Date.now(),
+              sessionId: 'test-session',
+              playerId: 'test-player'
             };
             handler.execute(mockRequest, draft);
           }
@@ -97,28 +101,31 @@ describe('Multi-Handler Workflow Integration', () => {
 
     const failingHandler: ActionHandler = {
       priority: 0,
-      validate: async (request, gameState): Promise<ValidationResult> => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      validate: (_request, _gameState): ValidationResult => {
         validateSpy();
         return {
           valid: false,
           error: { code: 'VALIDATION_FAILED', message: 'Test validation failure' }
         };
       },
-      execute: (request, draft) => {
+      execute: (_request, draft) => {
         executeSpy();
         draft.documents.char1.state.currentHitPoints = 50;
       }
     };
 
-    registerAction('test-action', failingHandler);
-    const handlers = getHandlers('test-action');
+    registerAction('move-token', failingHandler);
+    const handlers = getHandlers('move-token');
 
     // Run validation phase
     const mockRequest: GameActionRequest = {
       id: 'test-request',
-      action: 'test-action',
+      action: 'move-token',
       parameters: {},
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      sessionId: 'test-session',
+      playerId: 'test-player'
     };
 
     let validationResult: ValidationResult | undefined;
@@ -140,32 +147,36 @@ describe('Multi-Handler Workflow Integration', () => {
   test('should handle mixed validation results correctly', async () => {
     const passingHandler: ActionHandler = {
       priority: 0,
-      validate: async () => ({ valid: true }),
-      execute: (request, draft) => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      validate: (_request, _gameState) => ({ valid: true }),
+      execute: (_request, draft) => {
         draft.documents.char1.state.movementUsed = 5;
       }
     };
 
     const failingHandler: ActionHandler = {
       priority: 100,
-      validate: async (): Promise<ValidationResult> => ({
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      validate: (_request, _gameState): ValidationResult => ({
         valid: false,
         error: { code: 'PLUGIN_VALIDATION_FAILED', message: 'Plugin validation failed' }
       }),
-      execute: (request, draft) => {
+      execute: (_request, draft) => {
         draft.documents.char1.state.currentHitPoints = 50;
       }
     };
 
-    registerAction('test-action', passingHandler);
-    registerAction('test-action', failingHandler);
+    registerAction('move-token', passingHandler);
+    registerAction('move-token', failingHandler);
 
-    const handlers = getHandlers('test-action');
+    const handlers = getHandlers('move-token');
     const mockRequest: GameActionRequest = {
       id: 'test-request',
-      action: 'test-action',
+      action: 'move-token',
       parameters: {},
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      sessionId: 'test-session',
+      playerId: 'test-player'
     };
 
     // Run validation phase (fail-fast)
@@ -191,22 +202,27 @@ describe('Multi-Handler Workflow Integration', () => {
     const autoHandler: ActionHandler = {
       priority: 0,
       requiresManualApproval: false,
-      validate: async () => ({ valid: true }),
-      execute: () => {}
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      validate: (_request, _gameState) => ({ valid: true }),
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      execute: (_request, _draft) => {}
     };
 
     const manualHandler: ActionHandler = {
       priority: 100,
       requiresManualApproval: true,
-      validate: async () => ({ valid: true }),
-      execute: () => {},
-      approvalMessage: (request) => 'Plugin wants to do something'
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      validate: (_request, _gameState) => ({ valid: true }),
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      execute: (_request, _draft) => {},
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      approvalMessage: (_request) => 'Plugin wants to do something'
     };
 
-    registerAction('test-action', autoHandler);
-    registerAction('test-action', manualHandler);
+    registerAction('move-token', autoHandler);
+    registerAction('move-token', manualHandler);
 
-    const handlers = getHandlers('test-action');
+    const handlers = getHandlers('move-token');
 
     // Check if any handler requires manual approval
     const requiresApproval = handlers.some(h => h.requiresManualApproval);
@@ -219,9 +235,11 @@ describe('Multi-Handler Workflow Integration', () => {
     if (approvalHandler?.approvalMessage) {
       const mockRequest: GameActionRequest = {
         id: 'test-request',
-        action: 'test-action',
+        action: 'move-token',
         parameters: {},
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        sessionId: 'test-session',
+        playerId: 'test-player'
       };
       const message = approvalHandler.approvalMessage(mockRequest);
       expect(message).toBe('Plugin wants to do something');
@@ -232,21 +250,25 @@ describe('Multi-Handler Workflow Integration', () => {
     const playerHandler: ActionHandler = {
       priority: 0,
       gmOnly: false,
-      validate: async () => ({ valid: true }),
-      execute: () => {}
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      validate: (_request, _gameState) => ({ valid: true }),
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      execute: (_request, _draft) => {}
     };
 
     const gmOnlyHandler: ActionHandler = {
       priority: 100,
       gmOnly: true,
-      validate: async () => ({ valid: true }),
-      execute: () => {}
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      validate: (_request, _gameState) => ({ valid: true }),
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      execute: (_request, _draft) => {}
     };
 
-    registerAction('test-action', playerHandler);
-    registerAction('test-action', gmOnlyHandler);
+    registerAction('move-token', playerHandler);
+    registerAction('move-token', gmOnlyHandler);
 
-    const handlers = getHandlers('test-action');
+    const handlers = getHandlers('move-token');
 
     // Check GM-only restrictions
     const gmOnlyHandlers = handlers.filter(h => h.gmOnly);
@@ -259,27 +281,29 @@ describe('Multi-Handler Workflow Integration', () => {
   test('should generate combined patches from multiple handlers', async () => {
     const handler1: ActionHandler = {
       priority: 0,
-      execute: (request, draft) => {
+      execute: (_request, draft) => {
         draft.documents.char1.state.movementUsed = 15;
       }
     };
 
     const handler2: ActionHandler = {
       priority: 100,
-      execute: (request, draft) => {
+      execute: (_request, draft) => {
         draft.documents.char1.state.currentHitPoints = 60;
       }
     };
 
-    registerAction('test-action', handler1);
-    registerAction('test-action', handler2);
+    registerAction('move-token', handler1);
+    registerAction('move-token', handler2);
 
-    const handlers = getHandlers('test-action');
+    const handlers = getHandlers('move-token');
     const mockRequest: GameActionRequest = {
       id: 'test-request',
-      action: 'test-action',
+      action: 'move-token',
       parameters: {},
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      sessionId: 'test-session',
+      playerId: 'test-player'
     };
 
     // Execute all handlers and collect patches (synchronously)

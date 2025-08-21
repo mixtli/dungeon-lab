@@ -6,7 +6,7 @@
  */
 
 import type { GameActionRequest } from '@dungeon-lab/shared/types/game-actions.mjs';
-import type { ServerGameStateWithVirtuals, JsonPatchOperation } from '@dungeon-lab/shared/types/index.mjs';
+import type { ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
 
 /**
  * Validation result returned by action handlers

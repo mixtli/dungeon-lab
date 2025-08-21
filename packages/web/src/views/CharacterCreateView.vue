@@ -224,7 +224,7 @@ async function handleCharacterReady(preparedData: any) {
     sessionStorage.removeItem('actorCreationState');
 
     // Set current character in the game state store if created successfully
-    if (response && response.id) {
+    if (response && response.id && response.documentType === 'character') {
       gameStateStore.selectedCharacter = response;
       
       // Schedule automatic image generation if user didn't provide images
@@ -297,6 +297,7 @@ async function handleSubmit() {
         description: basicInfo.value.description
       },
       itemState: {}, // Required property for document creation
+      state: {}, // Required property for document creation
       documentType: 'character' as const,
       pluginDocumentType: 'character',
       description: basicInfo.value.description || undefined
@@ -307,7 +308,7 @@ async function handleSubmit() {
     sessionStorage.removeItem('actorCreationState');
 
     // Set current character in the game state store if created successfully
-    if (response && response.id) {
+    if (response && response.id && response.documentType === 'character') {
       gameStateStore.selectedCharacter = response;
     }
 

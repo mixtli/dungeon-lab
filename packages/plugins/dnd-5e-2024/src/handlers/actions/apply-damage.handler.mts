@@ -11,6 +11,7 @@
 
 import type { GameActionRequest, ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
 import type { ActionHandler, ActionValidationResult } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
+import type { DndCharacterData } from '../../types/dnd/character.mjs';
 
 /**
  * Validate damage application requirements
@@ -33,7 +34,7 @@ export function validateDamageApplication(
     ignoreResistances?: boolean;
   };
   
-  const { targetTokenId, damage, damageType = 'bludgeoning' } = params;
+  const { targetTokenId, damage } = params;
   
   if (!targetTokenId || typeof damage !== 'number') {
     return { 
@@ -59,7 +60,7 @@ export function validateDamageApplication(
   }
   
   // Get linked document ID from token
-  const documentId = (token as any).documentId;
+  const documentId = token.documentId;
   if (!documentId) {
     return { 
       valid: false, 
@@ -91,30 +92,39 @@ export function validateDamageApplication(
   // Check state first (runtime current HP)
   currentHp = targetDocument.state?.currentHitPoints as number;
   
-  // If no state HP, check plugin data structures
+  // If no state HP, check plugin data structures based on document type
   if (typeof currentHp !== 'number') {
-    // Character structure: pluginData.attributes.hitPoints.{current,maximum}
-    const characterHp = (targetDocument.pluginData as any)?.attributes?.hitPoints;
-    if (characterHp && typeof characterHp.current === 'number') {
-      currentHp = characterHp.current;
-      maxHp = characterHp.maximum;
-    } else {
+    if (targetDocument.documentType === 'character') {
+      // Character structure: pluginData.attributes.hitPoints.{current,maximum}
+      const characterData = targetDocument.pluginData as DndCharacterData;
+      const characterHp = characterData?.attributes?.hitPoints;
+      if (characterHp && typeof characterHp.current === 'number') {
+        currentHp = characterHp.current;
+        maxHp = characterHp.maximum;
+      }
+    } else if (targetDocument.documentType === 'actor') {
       // Actor structure: pluginData.hitPoints.{current,average}
-      const actorHp = (targetDocument.pluginData as any)?.hitPoints;
+      const actorData = targetDocument.pluginData as { hitPoints?: { current?: number; average?: number } };
+      const actorHp = actorData?.hitPoints;
       if (actorHp) {
         currentHp = actorHp.current ?? actorHp.average; // Use current if available, else average
         maxHp = actorHp.average; // Average is the max HP for actors
       }
     }
   } else {
-    // State HP exists, get max HP from plugin data  
-    const characterHp = (targetDocument.pluginData as any)?.attributes?.hitPoints;
-    const actorHp = (targetDocument.pluginData as any)?.hitPoints;
-    
-    if (characterHp && typeof characterHp.maximum === 'number') {
-      maxHp = characterHp.maximum;
-    } else if (actorHp && typeof actorHp.average === 'number') {
-      maxHp = actorHp.average;
+    // State HP exists, get max HP from plugin data based on document type
+    if (targetDocument.documentType === 'character') {
+      const characterData = targetDocument.pluginData as DndCharacterData;
+      const characterHp = characterData?.attributes?.hitPoints;
+      if (characterHp?.maximum) {
+        maxHp = characterHp.maximum;
+      }
+    } else if (targetDocument.documentType === 'actor') {
+      const actorData = targetDocument.pluginData as { hitPoints?: { average?: number } };
+      const actorHp = actorData?.hitPoints;
+      if (actorHp?.average) {
+        maxHp = actorHp.average;
+      }
     }
   }
 
@@ -124,8 +134,7 @@ export function validateDamageApplication(
     currentHp,
     maxHp,
     stateHP: targetDocument.state?.currentHitPoints,
-    characterHP: (targetDocument.pluginData as any)?.attributes?.hitPoints,
-    actorHP: (targetDocument.pluginData as any)?.hitPoints
+    pluginData: targetDocument.pluginData
   });
 
   if (typeof currentHp !== 'number' || typeof maxHp !== 'number') {
@@ -153,16 +162,21 @@ export function validateDamageApplication(
 function calculateActualDamage(
   baseDamage: number, 
   damageType: string, 
-  character: any,
+  character: { pluginData?: { resistances?: string[]; immunities?: string[]; vulnerabilities?: string[] } },
   ignoreResistances = false
 ): { actualDamage: number; wasResisted: boolean; wasImmune: boolean; wasVulnerable: boolean } {
   if (ignoreResistances) {
     return { actualDamage: baseDamage, wasResisted: false, wasImmune: false, wasVulnerable: false };
   }
 
-  const resistances = (character.pluginData as { resistances?: string[] })?.resistances || [];
-  const immunities = (character.pluginData as { immunities?: string[] })?.immunities || [];
-  const vulnerabilities = (character.pluginData as { vulnerabilities?: string[] })?.vulnerabilities || [];
+  const pluginData = character.pluginData as { 
+    resistances?: string[]; 
+    immunities?: string[]; 
+    vulnerabilities?: string[];
+  };
+  const resistances = pluginData?.resistances || [];
+  const immunities = pluginData?.immunities || [];
+  const vulnerabilities = pluginData?.vulnerabilities || [];
 
   // Check immunity first (takes precedence)
   if (immunities.includes(damageType)) {
@@ -219,7 +233,7 @@ export function executeDamageApplication(
   }
   
   // Get linked document ID from token
-  const documentId = (token as any).documentId;
+  const documentId = token.documentId;
   if (!documentId) {
     console.warn('[DnD5e] Token has no linked document during damage application:', targetTokenId);
     return;
@@ -236,36 +250,55 @@ export function executeDamageApplication(
   if (!targetDocument.state) targetDocument.state = {};
 
   // Get current hit points - support both character and actor structures
-  let currentHp: number;
-  let maxHp: number;
+  let currentHp: number = 0; // Initialize with default
+  let maxHp: number = 0; // Initialize with default
 
   // Check state first (runtime current HP)
   if (typeof targetDocument.state.currentHitPoints === 'number') {
     currentHp = targetDocument.state.currentHitPoints;
     
-    // Get max HP from plugin data
-    const characterHp = (targetDocument.pluginData as any)?.attributes?.hitPoints;
-    const actorHp = (targetDocument.pluginData as any)?.hitPoints;
-    
-    if (characterHp && typeof characterHp.maximum === 'number') {
-      maxHp = characterHp.maximum;
-    } else if (actorHp && typeof actorHp.average === 'number') {
-      maxHp = actorHp.average;
-    } else {
-      maxHp = 0;
+    // Get max HP from plugin data based on document type
+    if (targetDocument.documentType === 'character') {
+      const characterData = targetDocument.pluginData as DndCharacterData;
+      const characterHp = characterData?.attributes?.hitPoints;
+      if (characterHp?.maximum) {
+        maxHp = characterHp.maximum;
+      } else {
+        maxHp = 8; // Default for characters
+      }
+    } else if (targetDocument.documentType === 'actor') {
+      const actorData = targetDocument.pluginData as { hitPoints?: { average?: number } };
+      const actorHp = actorData?.hitPoints;
+      if (actorHp?.average) {
+        maxHp = actorHp.average;
+      } else {
+        maxHp = 0; // Default for actors without HP data
+      }
     }
   } else {
-    // No state HP, get from plugin data
-    const characterHp = (targetDocument.pluginData as any)?.attributes?.hitPoints;
-    const actorHp = (targetDocument.pluginData as any)?.hitPoints;
-    
-    if (characterHp && typeof characterHp.current === 'number' && typeof characterHp.maximum === 'number') {
-      currentHp = characterHp.current;
-      maxHp = characterHp.maximum;
-    } else if (actorHp && typeof actorHp.average === 'number') {
-      currentHp = actorHp.current ?? actorHp.average;
-      maxHp = actorHp.average;
+    // No state HP, get from plugin data based on document type
+    if (targetDocument.documentType === 'character') {
+      const characterData = targetDocument.pluginData as DndCharacterData;
+      const characterHp = characterData?.attributes?.hitPoints;
+      if (characterHp && typeof characterHp.current === 'number' && typeof characterHp.maximum === 'number') {
+        currentHp = characterHp.current;
+        maxHp = characterHp.maximum;
+      } else {
+        currentHp = 8; // Default character HP
+        maxHp = 8;
+      }
+    } else if (targetDocument.documentType === 'actor') {
+      const actorData = targetDocument.pluginData as { hitPoints?: { current?: number; average?: number } };
+      const actorHp = actorData?.hitPoints;
+      if (actorHp && typeof actorHp.average === 'number') {
+        currentHp = actorHp.current ?? actorHp.average;
+        maxHp = actorHp.average;
+      } else {
+        currentHp = 0;
+        maxHp = 0;
+      }
     } else {
+      // Unknown document type
       currentHp = 0;
       maxHp = 0;
     }
@@ -308,20 +341,21 @@ export function executeDamageApplication(
     }
   } else {
     // Handle normal unconscious/death conditions (only if not instant death)
-    const wasUnconscious = (targetDocument.state.conditions as string[] || []).includes('unconscious');
-    const wasDying = (targetDocument.state.conditions as string[] || []).includes('dying');
+    const conditions = (targetDocument.state.conditions || []) as string[];
+    const wasUnconscious = conditions.includes('unconscious');
+    const wasDying = conditions.includes('dying');
 
     if (newHp <= 0 && currentHp > 0) {
       // Character just became unconscious/dying
       if (!targetDocument.state.conditions) targetDocument.state.conditions = [];
-      const conditions = targetDocument.state.conditions as string[];
+      const activeConditions = targetDocument.state.conditions as string[];
       
-      if (!conditions.includes('unconscious')) {
-        conditions.push('unconscious');
+      if (!activeConditions.includes('unconscious')) {
+        activeConditions.push('unconscious');
       }
       
-      if (newHp < 0 && !conditions.includes('dying')) {
-        conditions.push('dying');
+      if (newHp < 0 && !activeConditions.includes('dying')) {
+        activeConditions.push('dying');
         // Initialize death saves if not present
         if (!targetDocument.state.deathSaves) {
           targetDocument.state.deathSaves = { successes: 0, failures: 0 };
@@ -330,12 +364,12 @@ export function executeDamageApplication(
     } else if (newHp > 0 && (wasUnconscious || wasDying)) {
       // Character regained consciousness (this is healing, but we handle it here for completeness)
       if (targetDocument.state.conditions) {
-        const conditions = targetDocument.state.conditions as string[];
-        const unconsciousIndex = conditions.indexOf('unconscious');
-        const dyingIndex = conditions.indexOf('dying');
+        const activeConditions = targetDocument.state.conditions as string[];
+        const unconsciousIndex = activeConditions.indexOf('unconscious');
+        const dyingIndex = activeConditions.indexOf('dying');
         
-        if (unconsciousIndex >= 0) conditions.splice(unconsciousIndex, 1);
-        if (dyingIndex >= 0) conditions.splice(dyingIndex, 1);
+        if (unconsciousIndex >= 0) activeConditions.splice(unconsciousIndex, 1);
+        if (dyingIndex >= 0) activeConditions.splice(dyingIndex, 1);
         
         // Clear death saves when no longer dying
         if (targetDocument.state.deathSaves) {

@@ -295,6 +295,7 @@ export class TypedItemConverter extends TypedConverter<
         description: this.extractDescription(input),
         userData: {},
         itemState: {},
+        state: {},
         pluginData: {
           name: input.name,
           description: this.extractDescription(input),

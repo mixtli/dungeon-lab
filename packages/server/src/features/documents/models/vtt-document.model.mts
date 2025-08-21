@@ -22,7 +22,7 @@ const serverVTTDocumentSchema = vttDocumentSchema.extend({
 
 // Create the discriminator schema using zodSchema directly (omit documentType as it's handled by discriminator)
 const zodSchemaDefinition = zodSchema(serverVTTDocumentSchema.merge(baseMongooseZodSchema).omit({ documentType: true, id: true }));
-const vttDocumentMongooseSchema = new mongoose.Schema<IVTTDocumentDocument>(zodSchemaDefinition, {
+const vttDocumentMongooseSchema = new mongoose.Schema<IVTTDocumentDocument>(zodSchemaDefinition as mongoose.SchemaDefinition<IVTTDocumentDocument>, {
   timestamps: true,
   toObject: {
     virtuals: true,

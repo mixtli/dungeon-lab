@@ -4,7 +4,7 @@
  * Validates and executes document addition using Immer for direct state mutations.
  */
 
-import type { GameActionRequest, AddDocumentParameters } from '@dungeon-lab/shared/types/index.mjs';
+import type { GameActionRequest, AddDocumentParameters, BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
 import type { ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
 import type { ActionHandler, ValidationResult } from '../../action-handler.interface.mjs';
 
@@ -35,12 +35,12 @@ function validateAddDocument(
   }
 
   // Validate document data has required fields
-  if (!params.documentData.id) {
+  if (!params.documentData.id || typeof params.documentData.id !== 'string') {
     return {
       valid: false,
       error: {
         code: 'INVALID_DOCUMENT_DATA',
-        message: 'Document data must include an id field'
+        message: 'Document data must include a valid id field'
       }
     };
   }
@@ -75,7 +75,10 @@ function executeAddDocument(
   });
 
   // Direct mutation - add document to the documents map
-  draft.documents[params.documentData.id] = params.documentData;
+  const documentId = params.documentData.id;
+  if (typeof documentId === 'string') {
+    draft.documents[documentId] = params.documentData as BaseDocument;
+  }
 
   console.log('[AddDocumentHandler] Document addition executed successfully:', {
     documentId: params.documentData.id,

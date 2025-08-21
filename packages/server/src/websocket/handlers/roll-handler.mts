@@ -53,7 +53,7 @@ function findPlayerSocketInSession(playerId: string, sessionId: string): Socket<
   const io = SocketServer.getInstance().socketIo;
   
   // Look through all connected sockets to find the player
-  for (const [socketId, socket] of io.sockets.sockets) {
+  for (const [_socketId, socket] of io.sockets.sockets) {
     // Check if this socket belongs to the target player and is in the session room
     if (socket.userId === playerId && socket.rooms.has(`session:${sessionId}`)) {
       return socket;

@@ -198,7 +198,7 @@ async function addToEncounter(character: ICharacter): Promise<void> {
     // Add character as a participant using game state operations
     const operations: StateOperation[] = [{
       path: 'currentEncounter.participants',
-      operation: 'push',
+      op: 'add',
       value: character.id
     }];
     

@@ -221,6 +221,10 @@ export const serverToClientEvents = z.object({
   // Roll events
   'roll:result': z.function().args(rollServerResultSchema).returns(z.void()),
   'roll:request': z.function().args(rollRequestSchema).returns(z.void()),
+  'roll:request:error': z.function().args(z.object({
+    requestId: z.string(),
+    error: z.string()
+  })).returns(z.void()),
   // Game state management events
   'gameState:updated': z.function().args(gameStateUpdatedSchema).returns(z.void()),
   'gameState:error': z.function().args(gameStateErrorSchema).returns(z.void()),

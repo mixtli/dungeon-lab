@@ -66,6 +66,7 @@ describe('Document State Lifecycle Integration', () => {
           round: 1,
           participants: [
             {
+              id: 'participant-1',
               tokenId: 'token-1',
               actorId: 'actor-1',
               name: 'Test Character',
@@ -138,6 +139,7 @@ describe('Document State Lifecycle Integration', () => {
           round: 1,
           participants: [
             {
+              id: 'participant-1',
               tokenId: 'token-1',
               actorId: 'actor-1',
               name: 'Test Character',
@@ -211,6 +213,7 @@ describe('Document State Lifecycle Integration', () => {
           round: 3,
           participants: [
             {
+              id: 'participant-1',
               tokenId: 'token-1',
               actorId: 'actor-1',
               name: 'Test Character',
@@ -223,8 +226,11 @@ describe('Document State Lifecycle Integration', () => {
         currentEncounter: {
           id: 'encounter-1',
           name: 'Test Encounter',
-          status: 'active',
-          participants: []
+          status: 'in_progress',
+          participants: [],
+          campaignId: 'campaign-1',
+          mapId: 'map-1',
+          tokens: []
         }
       };
 
@@ -304,6 +310,7 @@ describe('Document State Lifecycle Integration', () => {
           round: 1,
           participants: [
             {
+              id: 'participant-1',
               tokenId: 'token-1',
               actorId: 'actor-1',
               name: 'Test Character',

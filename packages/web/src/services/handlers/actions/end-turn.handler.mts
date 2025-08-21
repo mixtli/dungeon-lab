@@ -81,8 +81,7 @@ function validateEndTurn(
  * Execute turn ending by delegating to turn manager service
  */
 async function executeEndTurn(
-  request: GameActionRequest, 
-  _draft: ServerGameStateWithVirtuals
+  request: GameActionRequest
 ): Promise<void> {
   console.log('[EndTurnHandler] Executing turn end:', {
     requestId: request.id,

@@ -95,7 +95,9 @@
       "mcp__git__git_show",
       "mcp__git__git_status",
       "WebFetch(domain:app.studyraid.com)",
-      "mcp__git__git_diff"
+      "mcp__git__git_diff",
+      "Bash(npx eslint:*)",
+      "Bash(sed:*)"
     ],
     "defaultMode": "acceptEdits",
     "additionalDirectories": [

@@ -375,8 +375,8 @@ const handleAdminContextSave = async () => {
     // Future: Could send patches to REST API for more efficient updates
     
     // Update the document state's document ref with our changes
-    if (adminDocumentState.value?.document) {
-      Object.assign(adminDocumentState.value.document.value, documentCopy.value);
+    if (adminDocumentState.value?.document && documentCopy.value) {
+      Object.assign(adminDocumentState.value.document.value as BaseDocument, documentCopy.value);
       adminDocumentState.value.markAsChanged();
     }
     
@@ -399,13 +399,20 @@ const handleAdminContextSave = async () => {
   }
 };
 
+// JSON Patch operation type
+interface JsonPatchOperation {
+  op: 'add' | 'remove' | 'replace' | 'move' | 'copy' | 'test';
+  path: string;
+  value?: unknown;
+}
+
 // Generate human-readable summary of changes for GM approval
-const generateChangesSummary = (operations: any[]): string => {
+const generateChangesSummary = (operations: JsonPatchOperation[]): string => {
   const summaries: string[] = [];
   
-  operations.forEach((op: any) => {
+  operations.forEach((op: JsonPatchOperation) => {
     // Convert JSON Pointer path to readable format
-    const path = op.path.replace(/^\/documents\/[^\/]+\//, '').replace(/\//g, '.');
+    const path = op.path.replace(/^\/documents\/[^/]+\//, '').replace(/\//g, '.');
     
     switch (op.op) {
       case 'add':
@@ -418,10 +425,10 @@ const generateChangesSummary = (operations: any[]): string => {
         summaries.push(`${path}: changed to ${op.value}`);
         break;
       case 'move':
-        summaries.push(`${path}: moved from ${op.from}`);
+        summaries.push(`${path}: moved from ${'from' in op ? op.from : 'unknown'}`);
         break;
       case 'copy':
-        summaries.push(`${path}: copied from ${op.from}`);
+        summaries.push(`${path}: copied from ${'from' in op ? op.from : 'unknown'}`);
         break;
       default:
         summaries.push(`${path}: ${op.op} operation`);

@@ -6,6 +6,7 @@
  */
 
 import type { ActionHandler } from './action-handler.interface.mjs';
+import type { GameActionRequest } from '@dungeon-lab/shared/types/index.mjs';
 
 /**
  * Registry storage: action type -> array of handlers (sorted by priority)
@@ -107,7 +108,7 @@ export function isGmOnly(actionType: string): boolean {
 /**
  * Generate approval message for an action request
  */
-export function generateApprovalMessage(actionType: string, request: any): string {
+export function generateApprovalMessage(actionType: string, request: GameActionRequest): string {
   const handlers = getHandlers(actionType);
   
   // Use the first handler that has an approval message

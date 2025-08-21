@@ -248,7 +248,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, type Ref } from 'vue';
+import { computed, onMounted, type Ref } from 'vue';
 import type { IActor, BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
 
 // Props - unified interface for all document types
@@ -268,18 +268,9 @@ const props = withDefaults(defineProps<Props>(), {
   readonly: false
 });
 
-// Type-safe actor accessor with validation
+// Type-safe actor accessor - assumes valid document
 const actor = computed(() => {
-  const doc = props.document?.value;
-  if (!doc) {
-    console.warn('[ActorSheet] No document provided');
-    return null;
-  }
-  if (doc.documentType !== 'actor') {
-    console.warn('[ActorSheet] Document is not an actor:', doc.documentType);
-    return null;
-  }
-  return doc as IActor;
+  return props.document.value as IActor;
 });
 
 // Type-safe actor copy accessor for edit mode
@@ -316,6 +307,7 @@ const emit = defineEmits<{
   (e: 'roll', rollType: string, data: Record<string, unknown>): void;
   (e: 'close'): void;
   (e: 'drag-start', event: MouseEvent): void;
+  (e: 'toggle-edit-mode'): void;
 }>();
 
 // Edit mode comes from DocumentSheetContainer

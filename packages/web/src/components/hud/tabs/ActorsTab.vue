@@ -194,7 +194,7 @@ async function addToEncounter(actor: IActor): Promise<void> {
     // Add actor as a participant using game state operations
     const operations: StateOperation[] = [{
       path: 'currentEncounter.participants',
-      operation: 'push',
+      op: 'add',
       value: actor.id
     }];
     
@@ -214,8 +214,8 @@ async function editActor(actor: IActor): Promise<void> {
   console.log('Editing actor:', actor);
   
   try {
-    // For characters, navigate to character creation/edit view
-    if (actor.documentType === 'character') {
+    // For actors that are player characters, check plugin document type
+    if (actor.pluginDocumentType === 'character') {
       await router.push(`/characters/${actor.id}/edit`);
     } else {
       // For other actor types (monsters, NPCs), navigate to a generic actor edit view

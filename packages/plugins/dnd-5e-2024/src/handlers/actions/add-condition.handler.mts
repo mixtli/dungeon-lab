@@ -12,6 +12,16 @@ import type { GameActionRequest, ServerGameStateWithVirtuals } from '@dungeon-la
 import type { ActionHandler, ActionValidationResult } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 
 /**
+ * Interface for condition detail tracking
+ */
+interface ConditionDetail {
+  condition: string;
+  addedAt: number;
+  duration?: number;
+  source?: string;
+}
+
+/**
  * D&D 5e condition definitions with their properties
  */
 const DND_CONDITIONS = {
@@ -190,7 +200,7 @@ export function executeAddCondition(
   // Track condition details if duration or source provided
   if (duration || source) {
     if (!target.state.conditionDetails) target.state.conditionDetails = {};
-    const conditionDetails = target.state.conditionDetails as Record<string, any>;
+    const conditionDetails = target.state.conditionDetails as Record<string, ConditionDetail>;
     
     const conditionEntry = {
       condition: condition,

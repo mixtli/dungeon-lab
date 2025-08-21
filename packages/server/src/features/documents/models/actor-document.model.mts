@@ -22,12 +22,12 @@ const serverActorSchema = actorSchema.extend({
 
 // Create the discriminator schema using zodSchema directly (omit documentType as it's handled by discriminator)
 const zodSchemaDefinition = zodSchema(serverActorSchema.merge(baseMongooseZodSchema).omit({ documentType: true, id: true }));
-const actorMongooseSchema = new mongoose.Schema<IActorDocument>(zodSchemaDefinition, {
+const actorMongooseSchema = new mongoose.Schema<IActorDocument>(zodSchemaDefinition as mongoose.SchemaDefinition<IActorDocument>, {
   timestamps: true,
   toObject: {
     virtuals: true,
     getters: true,
-    transform: (doc, ret) => {
+    transform: (_doc, ret) => {
       // Ensure id virtual is set before deleting _id
       if (!ret.id && ret._id) {
         ret.id = ret._id.toString();
@@ -40,7 +40,7 @@ const actorMongooseSchema = new mongoose.Schema<IActorDocument>(zodSchemaDefinit
   toJSON: {
     virtuals: true,
     getters: true,
-    transform: (doc, ret) => {
+    transform: (_doc, ret) => {
       // Ensure id virtual is set before deleting _id
       if (!ret.id && ret._id) {
         ret.id = ret._id.toString();

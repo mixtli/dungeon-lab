@@ -6,8 +6,7 @@ import { describe, it, expect } from 'vitest';
 import { 
   calculateGridDistance, 
   areGridAdjacent, 
-  doGridOverlap, 
-  type GridBounds 
+  doGridOverlap
 } from './grid-distance.mjs';
 
 describe('calculateGridDistance', () => {

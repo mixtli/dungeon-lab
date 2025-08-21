@@ -26,7 +26,6 @@
 
       <!-- Window Content (no header - plugin provides its own) -->
       <div class="window-content">
-        <!-- eslint-disable-next-line vue/no-deprecated-filter -->
         <DocumentSheetContainer
           :show="true"
           :document-id="sheet.document.id"
@@ -104,8 +103,8 @@ function getDocumentIcon(document: BaseDocument): string {
       return 'mdi mdi-drama-masks';
     case 'item':
       return 'mdi mdi-sword';
-    case 'spell':
-      return 'mdi mdi-auto-fix';
+    case 'vtt-document':
+      return document.pluginDocumentType === 'spell' ? 'mdi mdi-auto-fix' : 'mdi mdi-file-document';
     default:
       return 'mdi mdi-file-document';
   }

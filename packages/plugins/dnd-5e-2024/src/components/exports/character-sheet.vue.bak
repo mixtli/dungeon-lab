@@ -72,8 +72,8 @@
             <div class="stat-label">Initiative</div>
             <div v-if="!editMode || readonly" class="stat-value">{{ initiativeBonus }}</div>
             <input 
-              v-else-if="characterCopy?.pluginData && (characterCopy.pluginData as any)?.attributes?.initiative"
-              v-model.number="(characterCopy.pluginData as any).attributes.initiative.bonus"
+              v-else-if="characterCopy && characterCopy.pluginData?.attributes?.initiative"
+              v-model.number="characterCopy.pluginData.attributes.initiative.bonus"
               class="stat-input"
               type="number"
               min="-10"
@@ -85,8 +85,8 @@
             <div class="stat-label">Armor Class</div>
             <div v-if="!editMode || readonly" class="stat-value">{{ armorClassDisplay }}</div>
             <input 
-              v-else-if="characterCopy?.pluginData && (characterCopy.pluginData as any)?.attributes?.armorClass"
-              v-model.number="(characterCopy.pluginData as any).attributes.armorClass.value"
+              v-else
+              v-model.number="characterCopy.pluginData.attributes.armorClass.value"
               class="stat-input"
               type="number"
               min="1"
@@ -366,7 +366,7 @@
     @roll="handleRollSubmission"
   />
 
-  <!-- Dialogs -->
+  <!-- Weapon Attack Dialog -->
   <WeaponAttackDialog
     v-model="showWeaponAttackDialog"
     :weapon="currentRollWeapon"
@@ -374,13 +374,22 @@
     @roll="handleWeaponAttackRollSubmission"
   />
 
-  <!-- Weapon Damage Dialog -->
-  <WeaponDamageDialog
-    v-model="showWeaponDamageDialog"
-    :weapon="currentRollWeapon"
-    :character="character"
-    @roll="handleWeaponDamageRollSubmission"
-  />
+    <!-- Weapon Damage Dialog -->
+    <WeaponDamageDialog
+      v-model="showWeaponDamageDialog"
+      :weapon="currentRollWeapon"
+      :character="character"
+      @roll="handleWeaponDamageRollSubmission"
+    />
+  </div>
+  
+  <!-- Fallback when character is null -->
+  <div v-else class="dnd5e-sheet error-state">
+    <div class="error-content">
+      <h2>Character Not Available</h2>
+      <p>No valid character document provided to this sheet.</p>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -415,15 +424,24 @@ const props = withDefaults(defineProps<Props>(), {
 
 // Type-safe character accessor with validation
 const character = computed(() => {
-  return props.document.value as ICharacter;
+  const doc = props.document?.value;
+  if (!doc) {
+    console.warn('[CharacterSheet] No document provided');
+    return null;
+  }
+  if (doc.documentType !== 'character') {
+    console.warn('[CharacterSheet] Document is not a character:', doc.documentType);
+    return null;
+  }
+  return doc as ICharacter;
 });
 
 // Debug logging for props
 console.log('[CharacterSheet] Component received props:', {
   document: props.document,
-  documentValue: props.document.value,
-  documentName: props.document.value.name,
-  documentType: props.document.value.documentType,
+  documentValue: props.document?.value,
+  documentName: props.document?.value?.name,
+  documentType: props.document?.value?.documentType,
   items: props.items,
   editMode: props.editMode,
   readonly: props.readonly
@@ -431,11 +449,11 @@ console.log('[CharacterSheet] Component received props:', {
 
 // Debug logging for character ref
 console.log('[CharacterSheet] Character ref:', character);
-console.log('[CharacterSheet] Character value:', character.value);
-console.log('[CharacterSheet] Character name:', character.value.name);
+console.log('[CharacterSheet] Character value:', character?.value);
+console.log('[CharacterSheet] Character name:', character?.value?.name);
 console.log('[CharacterSheet] Character armor class:', 
-  (character.value.pluginData as Record<string, unknown>)?.attributes && 
-  ((character.value.pluginData as Record<string, unknown>).attributes as Record<string, unknown>)?.armorClass);
+  (character?.value?.pluginData as Record<string, unknown>)?.attributes && 
+  ((character?.value?.pluginData as Record<string, unknown>).attributes as Record<string, unknown>)?.armorClass);
 
 
 // Compendium document data
@@ -500,59 +518,90 @@ console.log('characterCopy.value:', characterCopy.value);
 if (characterCopy.value) {
   console.log('characterCopy.value.pluginData:', characterCopy.value.pluginData);
   console.log('characterCopy.value.pluginData?.attributes:', characterCopy.value.pluginData?.attributes);
-  console.log('characterCopy.value.pluginData?.attributes?.initiative:', (characterCopy.value.pluginData as any)?.attributes?.initiative);
+  console.log('characterCopy.value.pluginData?.attributes?.initiative:', characterCopy.value.pluginData?.attributes?.initiative);
 }
 
 // Direct v-model computed properties for character editing
+
+// Initiative bonus - direct binding to character.pluginData.attributes.initiative.bonus
+const initiativeBonusValue = computed({
+  get() {
+    const attributes = character.value.pluginData?.attributes as any;
+    return attributes?.initiative?.bonus || (character.value.pluginData as any)?.initiative || 0;
+  },
+  set(value: number) {
+    if (!character.value.pluginData) character.value.pluginData = {};
+    if (!(character.value.pluginData as any).attributes) (character.value.pluginData as any).attributes = {};
+    if (!(character.value.pluginData as any).attributes.initiative) (character.value.pluginData as any).attributes.initiative = {};
+    (character.value.pluginData as any).attributes.initiative.bonus = value;
+    // Also update legacy format
+    (character.value.pluginData as any).initiative = value;
+  }
+});
+
+// Armor class - direct binding to character.pluginData.attributes.armorClass.value
+const armorClassValue = computed({
+  get() {
+    const attributes = character.value.pluginData?.attributes as any;
+    return attributes?.armorClass?.value || (character.value.pluginData as any)?.armorClass || 10;
+  },
+  set(value: number) {
+    if (!character.value.pluginData) character.value.pluginData = {};
+    if (!(character.value.pluginData as any).attributes) (character.value.pluginData as any).attributes = {};
+    (character.value.pluginData as any).attributes.armorClass = { value };
+    // Also update legacy format
+    (character.value.pluginData as any).armorClass = value;
+  }
+});
 
 // Hit points current - prioritize state.currentHitPoints for runtime HP, fallback to pluginData
 const hitPointsCurrent = computed({
   get() {
     // First check state for runtime current HP
-    if (typeof character.value!.state?.currentHitPoints === 'number') {
-      return character.value!.state.currentHitPoints;
+    if (typeof character.value.state?.currentHitPoints === 'number') {
+      return character.value.state.currentHitPoints;
     }
     
     // Fallback to pluginData (baseline HP)
-    const attributes = character.value!.pluginData?.attributes as any;
-    const baselineHp = attributes?.hitPoints?.current || (character.value!.pluginData as any)?.hitPoints?.current || 8;
+    const attributes = character.value.pluginData?.attributes as any;
+    const baselineHp = attributes?.hitPoints?.current || (character.value.pluginData as any)?.hitPoints?.current || 8;
     
     // Initialize state if missing
-    if (!character.value!.state) character.value!.state = {};
-    character.value!.state.currentHitPoints = baselineHp;
+    if (!character.value.state) character.value.state = {};
+    character.value.state.currentHitPoints = baselineHp;
     
     return baselineHp;
   },
   set(value: number) {
     // Always update state for runtime HP
-    if (!character.value!.state) character.value!.state = {};
-    character.value!.state.currentHitPoints = value;
+    if (!character.value.state) character.value.state = {};
+    character.value.state.currentHitPoints = value;
     
     // Also update pluginData for persistence
-    if (!character.value!.pluginData) character.value!.pluginData = {};
-    if (!(character.value!.pluginData as any).attributes) (character.value!.pluginData as any).attributes = {};
-    if (!(character.value!.pluginData as any).attributes.hitPoints) (character.value!.pluginData as any).attributes.hitPoints = {};
-    (character.value!.pluginData as any).attributes.hitPoints.current = value;
+    if (!character.value.pluginData) character.value.pluginData = {};
+    if (!(character.value.pluginData as any).attributes) (character.value.pluginData as any).attributes = {};
+    if (!(character.value.pluginData as any).attributes.hitPoints) (character.value.pluginData as any).attributes.hitPoints = {};
+    (character.value.pluginData as any).attributes.hitPoints.current = value;
     // Also update legacy format
-    if (!(character.value!.pluginData as any).hitPoints) (character.value!.pluginData as any).hitPoints = {};
-    (character.value!.pluginData as any).hitPoints.current = value;
+    if (!(character.value.pluginData as any).hitPoints) (character.value.pluginData as any).hitPoints = {};
+    (character.value.pluginData as any).hitPoints.current = value;
   }
 });
 
 // Hit points max - direct binding to character.pluginData.attributes.hitPoints.maximum
 const hitPointsMax = computed({
   get() {
-    const attributes = character.value!.pluginData?.attributes as any;
-    return attributes?.hitPoints?.maximum || (character.value!.pluginData as any)?.hitPoints?.maximum || 8;
+    const attributes = character.value.pluginData?.attributes as any;
+    return attributes?.hitPoints?.maximum || (character.value.pluginData as any)?.hitPoints?.maximum || 8;
   },
   set(value: number) {
-    if (!character.value!.pluginData) character.value!.pluginData = {};
-    if (!(character.value!.pluginData as any).attributes) (character.value!.pluginData as any).attributes = {};
-    if (!(character.value!.pluginData as any).attributes.hitPoints) (character.value!.pluginData as any).attributes.hitPoints = {};
-    (character.value!.pluginData as any).attributes.hitPoints.maximum = value;
+    if (!character.value.pluginData) character.value.pluginData = {};
+    if (!(character.value.pluginData as any).attributes) (character.value.pluginData as any).attributes = {};
+    if (!(character.value.pluginData as any).attributes.hitPoints) (character.value.pluginData as any).attributes.hitPoints = {};
+    (character.value.pluginData as any).attributes.hitPoints.maximum = value;
     // Also update legacy format
-    if (!(character.value!.pluginData as any).hitPoints) (character.value!.pluginData as any).hitPoints = {};
-    (character.value!.pluginData as any).hitPoints.maximum = value;
+    if (!(character.value.pluginData as any).hitPoints) (character.value.pluginData as any).hitPoints = {};
+    (character.value.pluginData as any).hitPoints.maximum = value;
   }
 });
 
@@ -627,12 +676,12 @@ const updateAbilityScore = (abilityName: string, newScore: number) => {
   if (isNaN(newScore) || newScore < 1 || newScore > 30) return;
   
   // Ensure abilities structure exists
-  if (!character.value!.pluginData) character.value!.pluginData = {};
-  if (!(character.value!.pluginData as any).abilities) (character.value!.pluginData as any).abilities = {};
-  if (!(character.value!.pluginData as any).abilities[abilityName]) (character.value!.pluginData as any).abilities[abilityName] = {};
+  if (!character.value.pluginData) character.value.pluginData = {};
+  if (!(character.value.pluginData as any).abilities) (character.value.pluginData as any).abilities = {};
+  if (!(character.value.pluginData as any).abilities[abilityName]) (character.value.pluginData as any).abilities[abilityName] = {};
   
   // Set the override value directly
-  (character.value!.pluginData as any).abilities[abilityName].override = newScore;
+  (character.value.pluginData as any).abilities[abilityName].override = newScore;
 };
 
 // Computed properties for D&D 5e mechanics
@@ -646,20 +695,20 @@ const abilityModifiers = computed(() => {
 
 const proficiencyBonus = computed(() => {
   // Try D&D schema first
-  const progression = character.value!.pluginData?.progression as any;
+  const progression = character.value.pluginData?.progression as any;
   if (progression?.proficiencyBonus) {
     return progression.proficiencyBonus;
   }
   
   // Calculate from level (fallback)
-  const level = progression?.level || (character.value!.pluginData as any)?.level || 1;
+  const level = progression?.level || (character.value.pluginData as any)?.level || 1;
   return Math.ceil(level / 4) + 1;
 });
 
 // Determine saving throw proficiencies from D&D schema
 const savingThrowProficiencies = computed(() => {
   const proficiencies: Record<string, boolean> = {};
-  const abilities = (character.value!.pluginData as any)?.abilities || {};
+  const abilities = (character.value.pluginData as any)?.abilities || {};
   
   // Use proficiencies from the D&D schema if available
   for (const abilityName of Object.keys(finalAbilities.value)) {
@@ -691,7 +740,7 @@ const savingThrowBonuses = computed(() => {
 
 // Skills structure from character data - no defaults
 const characterSkills = computed(() => {
-  const skills = character.value!.pluginData?.skills || {};
+  const skills = character.value.pluginData?.skills || {};
   
   // Define standard D&D 5e skills with their abilities
   const standardSkills = {
@@ -771,40 +820,40 @@ const passivePerception = computed(() => {
 });
 
 const armorClassDisplay = computed(() => {
-  const attributes = character.value!.pluginData?.attributes as any;
+  const attributes = character.value.pluginData?.attributes as any;
   if (attributes?.armorClass?.value) {
     return attributes.armorClass.value;
   }
-  return (character.value!.pluginData as any)?.armorClass || 10;
+  return (character.value.pluginData as any)?.armorClass || 10;
 });
 
 const hitPointsDisplay = computed(() => {
-  const attributes = character.value!.pluginData?.attributes as any;
+  const attributes = character.value.pluginData?.attributes as any;
   if (attributes?.hitPoints) {
     return `${attributes.hitPoints.current}/${attributes.hitPoints.maximum}`;
   }
-  const hitPoints = (character.value!.pluginData as any)?.hitPoints || { current: 8, maximum: 8 };
+  const hitPoints = (character.value.pluginData as any)?.hitPoints || { current: 8, maximum: 8 };
   return `${hitPoints.current}/${hitPoints.maximum}`;
 });
 
 const speedDisplay = computed(() => {
-  const attributes = character.value!.pluginData?.attributes as any;
+  const attributes = character.value.pluginData?.attributes as any;
   if (attributes?.movement?.walk) {
     return `${attributes.movement.walk} ft`;
   }
-  const speed = (character.value!.pluginData as any)?.speed || 30;
+  const speed = (character.value.pluginData as any)?.speed || 30;
   return `${speed} ft`;
 });
 
 const initiativeBonus = computed(() => {
   const dexMod = abilityModifiers.value.dexterity || 0;
-  const attributes = character.value!.pluginData?.attributes as any;
+  const attributes = character.value.pluginData?.attributes as any;
   let initBonus = 0;
   
   if (attributes?.initiative?.bonus !== undefined) {
     initBonus = attributes.initiative.bonus;
   } else {
-    initBonus = (character.value!.pluginData as any)?.initiative || 0;
+    initBonus = (character.value.pluginData as any)?.initiative || 0;
   }
   
   const bonus = dexMod + initBonus;
@@ -829,15 +878,15 @@ const classDisplayName = computed(() => {
 const characterNotes = computed({
   get() {
     // Try D&D schema format first, then fallback to legacy
-    return (character.value!.pluginData as any)?.roleplay?.backstory || 
-           (character.value!.pluginData as any)?.notes || '';
+    return (character.value.pluginData as any)?.roleplay?.backstory || 
+           (character.value.pluginData as any)?.notes || '';
   },
   set(value: string) {
-    if (!character.value!.pluginData) character.value!.pluginData = {};
-    if (!(character.value!.pluginData as any).roleplay) (character.value!.pluginData as any).roleplay = {};
-    (character.value!.pluginData as any).roleplay.backstory = value;
+    if (!character.value.pluginData) character.value.pluginData = {};
+    if (!(character.value.pluginData as any).roleplay) (character.value.pluginData as any).roleplay = {};
+    (character.value.pluginData as any).roleplay.backstory = value;
     // Also update legacy format
-    (character.value!.pluginData as any).notes = value;
+    (character.value.pluginData as any).notes = value;
   }
 });
 
@@ -992,7 +1041,7 @@ const handleRollSubmission = (rollData: RollDialogData) => {
     ],
     metadata: {
       title: `${rollData.ability.charAt(0).toUpperCase()}${rollData.ability.slice(1)} Check`,
-      characterName: character.value!.name
+      characterName: character.value.name
     }
   };
 
@@ -1014,7 +1063,7 @@ const handleWeaponAttackRollSubmission = (rollData: WeaponAttackRollData) => {
   
   // Calculate weapon attack modifiers
   const weapon = rollData.weapon;
-  const char = character.value!;
+  const char = character.value;
   const modifiers = [];
 
   // Add ability modifier
@@ -1067,12 +1116,12 @@ const handleWeaponAttackRollSubmission = (rollData: WeaponAttackRollData) => {
     modifiers: modifiers,
     metadata: {
       title: `${rollData.weapon.name} Attack`,
-      characterName: character.value!.name,
+      characterName: character.value.name,
       weaponId: rollData.weapon.id,
-      characterId: character.value!.id,
+      characterId: character.value.id,
       // Add automation metadata
-      autoMode: character.value!.pluginData?.automateAttacks || false,
-      targetTokenIds: (character.value!.pluginData?.automateAttacks && encounterTargetTokenIds?.value) 
+      autoMode: character.value.pluginData?.automateAttacks || false,
+      targetTokenIds: (character.value.pluginData?.automateAttacks && encounterTargetTokenIds?.value) 
         ? encounterTargetTokenIds.value 
         : []
     }
@@ -1112,7 +1161,7 @@ const handleWeaponDamageRollSubmission = (rollData: WeaponDamageRollData) => {
 
   // Calculate weapon damage modifiers
   const weapon = rollData.weapon;
-  const char = character.value!;
+  const char = character.value;
   const modifiers = [];
 
   // Add ability modifier (same as attack ability for damage)
@@ -1151,9 +1200,9 @@ const handleWeaponDamageRollSubmission = (rollData: WeaponDamageRollData) => {
     modifiers: modifiers,
     metadata: {
       title: `${rollData.weapon.name} Damage`,
-      characterName: character.value!.name,
+      characterName: character.value.name,
       weapon: rollData.weapon,
-      character: character.value!,
+      character: character.value,
       critical: rollData.isCritical
     }
   };
@@ -1189,7 +1238,7 @@ const rollSkillCheck = (skill: string) => {
 
 const rollInitiative = () => {
   const dexModifier = abilityModifiers.value.dexterity || 0;
-  const initBonus = (character.value!.pluginData as any)?.initiative || 0;
+  const initBonus = (character.value.pluginData as any)?.initiative || 0;
   const totalBonus = dexModifier + initBonus;
   emit('roll', 'initiative', {
     type: 'initiative',
@@ -1259,7 +1308,7 @@ const loadCompendiumDocuments = async () => {
     }
     
     // Fetch species document if we have a species ObjectId
-    const speciesId = character.value!.pluginData?.species;
+    const speciesId = character.value.pluginData?.species;
     if (speciesId && typeof speciesId === 'string') {
       promises.push(
         context.getDocument(speciesId)
@@ -1269,7 +1318,7 @@ const loadCompendiumDocuments = async () => {
     }
     
     // Fetch class document if we have a class ObjectId
-    const classes = character.value!.pluginData?.classes as any[];
+    const classes = character.value.pluginData?.classes as any[];
     const classId = classes?.[0]?.class;
     if (classId && typeof classId === 'string') {
       promises.push(
@@ -1280,7 +1329,7 @@ const loadCompendiumDocuments = async () => {
     }
     
     // Fetch background document if we have a background ObjectId
-    const backgroundId = character.value!.pluginData?.background;
+    const backgroundId = character.value.pluginData?.background;
     if (backgroundId && typeof backgroundId === 'string') {
       promises.push(
         context.getDocument(backgroundId)
@@ -1359,7 +1408,7 @@ const handleDrop = async (event: DragEvent) => {
     return;
   }
   
-  if (!character.value!) {
+  if (!character.value) {
     console.warn('[CharacterSheet] No character available for item assignment');
     return;
   }
@@ -1384,9 +1433,9 @@ const handleDrop = async (event: DragEvent) => {
     // Prepare action parameters
     const actionParams: AssignItemParameters = {
       itemId: dragData.documentId,
-      targetCharacterId: character.value!.id,
+      targetCharacterId: character.value.id,
       itemName: dragData.name || 'Unknown Item',
-      targetCharacterName: character.value!.name || 'Unknown Character'
+      targetCharacterName: character.value.name || 'Unknown Character'
     };
     
     console.log('[CharacterSheet] Requesting item assignment:', actionParams);
@@ -1426,7 +1475,7 @@ const handleDrop = async (event: DragEvent) => {
 
 onMounted(() => {
   document.addEventListener('keydown', handleKeyDown);
-  console.log('D&D 5e Character Sheet mounted for character:', character.value!?.name || 'unknown');
+  console.log('D&D 5e Character Sheet mounted for character:', character.value?.name || 'unknown');
   
   // Load compendium documents
   loadCompendiumDocuments();
@@ -1438,11 +1487,11 @@ onUnmounted(() => {
 
 // Watch for character changes and reload compendium data
 watch(() => {
-  const classes = character.value!?.pluginData?.classes as any[];
+  const classes = character.value?.pluginData?.classes as any[];
   return [
-    character.value!?.pluginData?.species,
+    character.value?.pluginData?.species,
     classes?.[0]?.class,
-    character.value!?.pluginData?.background
+    character.value?.pluginData?.background
   ];
 }, () => {
   loadCompendiumDocuments();

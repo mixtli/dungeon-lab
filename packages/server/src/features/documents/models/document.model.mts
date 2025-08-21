@@ -44,12 +44,12 @@ const serverBaseDocumentSchema = baseSchema.extend({
 
 // Create the base Mongoose schema using zodSchema directly (omit id to avoid conflict with virtual)
 const zodSchemaDefinition = zodSchema(serverBaseDocumentSchema.merge(baseMongooseZodSchema).omit({ id: true }));
-const baseMongooseSchema = new mongoose.Schema<BaseDocument>(zodSchemaDefinition, {
+const baseMongooseSchema = new mongoose.Schema<BaseDocument>(zodSchemaDefinition as mongoose.SchemaDefinition<BaseDocument>, {
   timestamps: true,
   toObject: {
     virtuals: true,
     getters: true,
-    transform: (doc, ret) => {
+    transform: (_doc, ret) => {
       // Ensure id virtual is set before deleting _id
       if (!ret.id && ret._id) {
         ret.id = ret._id.toString();
@@ -62,7 +62,7 @@ const baseMongooseSchema = new mongoose.Schema<BaseDocument>(zodSchemaDefinition
   toJSON: {
     virtuals: true,
     getters: true,
-    transform: (doc, ret) => {
+    transform: (_doc, ret) => {
       // Ensure id virtual is set before deleting _id
       if (!ret.id && ret._id) {
         ret.id = ret._id.toString();

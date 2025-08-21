@@ -696,7 +696,7 @@ const handleDrop = async (event: DragEvent) => {
     const worldY = Math.round(worldCoords.y);
 
     // Create token using the new method
-    const tokenId = await gameStateStore.createTokenFromDocument(document, {
+    await gameStateStore.createTokenFromDocument(document, {
       x: worldX,
       y: worldY,
       elevation: 0
@@ -798,13 +798,13 @@ const handleTokenUpdate = async (updatedToken: Token) => {
     // Create state operations to update all token properties
     const { name, imageUrl, bounds, isVisible, isPlayerControlled, conditions } = updatedToken;
     const operations: StateOperation[] = [
-      { path: `currentEncounter.tokens.${tokenIndex}.name`, operation: 'set', value: name },
-      { path: `currentEncounter.tokens.${tokenIndex}.imageUrl`, operation: 'set', value: imageUrl },
-      { path: `currentEncounter.tokens.${tokenIndex}.bounds`, operation: 'set', value: bounds },
-      { path: `currentEncounter.tokens.${tokenIndex}.isVisible`, operation: 'set', value: isVisible },
-      { path: `currentEncounter.tokens.${tokenIndex}.isPlayerControlled`, operation: 'set', value: isPlayerControlled },
-      { path: `currentEncounter.tokens.${tokenIndex}.conditions`, operation: 'set', value: conditions },
-      { path: `currentEncounter.tokens.${tokenIndex}.data`, operation: 'set', value: updatedToken.data || {} }
+      { path: `currentEncounter.tokens.${tokenIndex}.name`, op: 'replace', value: name },
+      { path: `currentEncounter.tokens.${tokenIndex}.imageUrl`, op: 'replace', value: imageUrl },
+      { path: `currentEncounter.tokens.${tokenIndex}.bounds`, op: 'replace', value: bounds },
+      { path: `currentEncounter.tokens.${tokenIndex}.isVisible`, op: 'replace', value: isVisible },
+      { path: `currentEncounter.tokens.${tokenIndex}.isPlayerControlled`, op: 'replace', value: isPlayerControlled },
+      { path: `currentEncounter.tokens.${tokenIndex}.conditions`, op: 'replace', value: conditions },
+      { path: `currentEncounter.tokens.${tokenIndex}.data`, op: 'replace', value: updatedToken.data || {} }
     ];
     
     const response = await gameStateStore.updateGameState(operations);

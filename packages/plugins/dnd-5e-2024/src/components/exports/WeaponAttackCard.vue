@@ -104,7 +104,6 @@ const props = defineProps<Props>();
 // Extract weapon and character data from rollData metadata
 const weaponData = props.rollData.metadata.weapon as any;
 const characterData = props.rollData.metadata.character as any;
-const isGMProcessed = !!(props.rollData as any).total; // GM has calculated final result
 
 // Computed weapon information
 const weaponName = weaponData?.name || 'Unknown Weapon';

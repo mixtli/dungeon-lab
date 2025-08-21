@@ -1,6 +1,6 @@
 import type { RollTypeHandler, RollHandlerContext } from '@dungeon-lab/shared-ui/types/plugin.mjs';
 import type { RollServerResult } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
-import type { ICharacter, IItem, ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
+import type { ICharacter, IItem, IToken, ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
 import { parseDiceExpression } from '@dungeon-lab/shared/utils/dice-parser.mjs';
 import { calculateGridDistance, type GridBounds } from '@dungeon-lab/shared-ui/utils/grid-distance.mjs';
 import { unref } from 'vue';
@@ -111,7 +111,8 @@ export class DndWeaponAttackHandler implements RollTypeHandler {
         // If hit, request damage roll from player
         if (isHit && context.requestRoll) {
           try {
-            const diceExpression = (weapon.pluginData as any)?.damage?.dice || '1d8';
+            const weaponData = weapon.pluginData as DndWeaponData;
+            const diceExpression = weaponData?.damage?.dice || '1d8';
             const parsedDice = parseDiceExpression(diceExpression);
             
             if (!parsedDice) {
@@ -306,7 +307,7 @@ export class DndWeaponAttackHandler implements RollTypeHandler {
   /**
    * Look up a character document by ID from game state
    */
-  private lookupCharacter(characterId: string, gameState: any): ICharacter | null {
+  private lookupCharacter(characterId: string, gameState: ServerGameStateWithVirtuals): ICharacter | null {
     try {
       const character = gameState.documents?.[characterId];
       if (character && character.documentType === 'character') {
@@ -322,7 +323,7 @@ export class DndWeaponAttackHandler implements RollTypeHandler {
   /**
    * Look up a weapon item by ID from game state documents
    */
-  private lookupWeapon(weaponId: string, gameState: any): IItem | null {
+  private lookupWeapon(weaponId: string, gameState: ServerGameStateWithVirtuals): IItem | null {
     try {
       const weapon = gameState.documents?.[weaponId];
       if (weapon && weapon.documentType === 'item') {
@@ -541,25 +542,21 @@ export class DndWeaponAttackHandler implements RollTypeHandler {
   /**
    * Find a token linked to the given character ID
    */
-  private findTokenByCharacterId(characterId: string, gameState: ServerGameStateWithVirtuals): any {
-    return gameState.currentEncounter?.tokens?.find((token: any) => token.documentId === characterId);
+  private findTokenByCharacterId(characterId: string, gameState: ServerGameStateWithVirtuals): IToken | undefined {
+    return gameState.currentEncounter?.tokens?.find((token: IToken) => token.documentId === characterId);
   }
 
   /**
    * Get grid bounds from a token for distance calculation
    */
-  private getTokenBounds(token: any): GridBounds {
-    const bounds = token.bounds || {};
-    
-    // Token bounds use topLeft/bottomRight structure
-    const topLeft = bounds.topLeft || { x: 0, y: 0 };
-    const bottomRight = bounds.bottomRight || topLeft;
+  private getTokenBounds(token: IToken): GridBounds {
+    const bounds = token.bounds;
     
     return {
-      x: topLeft.x,
-      y: topLeft.y,
-      width: bottomRight.x - topLeft.x + 1,  // +1 because coordinates are inclusive
-      height: bottomRight.y - topLeft.y + 1
+      x: bounds.topLeft.x,
+      y: bounds.topLeft.y,
+      width: bounds.bottomRight.x - bounds.topLeft.x + 1,  // +1 because coordinates are inclusive
+      height: bounds.bottomRight.y - bounds.topLeft.y + 1
     };
   }
 
@@ -576,7 +573,7 @@ export class DndWeaponAttackHandler implements RollTypeHandler {
       }
       
       // Get linked document ID from token
-      const documentId = (token as any).documentId;
+      const documentId = token.documentId;
       if (!documentId) {
         console.warn('[DndWeaponAttackHandler] Token has no linked document:', targetTokenId);
         return null;
@@ -602,25 +599,18 @@ export class DndWeaponAttackHandler implements RollTypeHandler {
       // Extract AC from document - handle D&D stat block schema
       let ac = 10; // Default AC
       
-      // Check for AC in different formats
-      const pluginData = document.pluginData as any;
-      
-      if (pluginData) {
+      // Check for AC in different formats based on document type
+      if (document.documentType === 'actor') {
         // Actor format: pluginData.armorClass = {value: number, source?: string}
-        if (pluginData.armorClass && typeof pluginData.armorClass === 'object' && 'value' in pluginData.armorClass) {
-          ac = pluginData.armorClass.value;
+        const actorData = document.pluginData as { armorClass?: { value: number; source?: string } };
+        if (actorData.armorClass && typeof actorData.armorClass.value === 'number') {
+          ac = actorData.armorClass.value;
         }
+      } else if (document.documentType === 'character') {
         // Character format: pluginData.attributes.armorClass.value
-        else if (pluginData.attributes?.armorClass && typeof pluginData.attributes.armorClass === 'object' && 'value' in pluginData.attributes.armorClass) {
-          ac = pluginData.attributes.armorClass.value;
-        }
-        // Legacy flat number format
-        else if (typeof pluginData.armorClass === 'number') {
-          ac = pluginData.armorClass;
-        }
-        // Character legacy format: attributes.armorClass as number
-        else if (typeof pluginData.attributes?.armorClass === 'number') {
-          ac = pluginData.attributes.armorClass;
+        const characterData = document.pluginData as DndCharacterData;
+        if (characterData.attributes?.armorClass?.value && typeof characterData.attributes.armorClass.value === 'number') {
+          ac = characterData.attributes.armorClass.value;
         }
       }
       
@@ -636,8 +626,7 @@ export class DndWeaponAttackHandler implements RollTypeHandler {
         documentType: document.documentType,
         finalAC: ac,
         acData: {
-          pluginDataAC: pluginData?.armorClass,
-          attributesAC: pluginData?.attributes?.armorClass,
+          pluginData: document.pluginData,
           stateAC: document.state?.armorClass
         }
       });
@@ -803,7 +792,7 @@ export class DndWeaponDamageHandler implements RollTypeHandler {
   }
 
   private createDamageResultMessage(
-    result: RollServerResult, 
+    _result: RollServerResult, 
     weapon: IItem, 
     total: number, 
     damageType: string,

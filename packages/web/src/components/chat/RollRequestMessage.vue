@@ -3,10 +3,10 @@
     <div class="request-header">
       <span class="request-icon">🎲</span>
       <div class="request-content">
-        <span class="request-text">{{ rollRequest.message }}</span>
+        <span class="request-text">{{ rollRequest?.message || 'Unknown request' }}</span>
         <div class="request-details">
           <code class="dice-expression">{{ diceExpression }}</code>
-          <span v-if="rollRequest.metadata?.isCriticalHit" class="critical-indicator">
+          <span v-if="rollRequest?.metadata?.isCriticalHit" class="critical-indicator">
             ⚡ CRITICAL
           </span>
         </div>
@@ -37,7 +37,7 @@
 import { ref, computed } from 'vue';
 import { useSocketStore } from '../../stores/socket.store.mjs';
 import type { ChatMessage } from '../../stores/chat.store.mjs';
-import type { RollRequest } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
+// import type { RollRequest } from '@dungeon-lab/shared/schemas/roll.schema.mjs'; // Unused import
 import { diceArrayToExpression } from '@dungeon-lab/shared/utils/dice-parser.mjs';
 
 interface Props {
@@ -97,7 +97,11 @@ function acceptRollRequest(): void {
     };
     
     // Send roll with proper schema format
-    socketStore.socket?.emit('roll', roll);
+    socketStore.socket?.emit('roll', roll, (response: { success: boolean, error?: string }) => {
+      if (!response.success) {
+        console.error('[RollRequestMessage] Failed to process roll:', response.error);
+      }
+    });
     
     console.log('[RollRequestMessage] Accepted roll request:', rollRequest.requestId);
   } catch (error) {
@@ -117,11 +121,7 @@ function declineRollRequest(): void {
   
   console.log('[RollRequestMessage] Declined roll request:', rollRequest.requestId);
   
-  // Send decline notification if needed
-  socketStore.socket?.emit('roll:request:decline', {
-    requestId: rollRequest.requestId
-  });
-  
+  // Note: No socket event needed for decline - just local state update
   processing.value = false;
 }
 </script>

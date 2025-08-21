@@ -12,6 +12,16 @@ import type { GameActionRequest, ServerGameStateWithVirtuals } from '@dungeon-la
 import type { ActionHandler, ActionValidationResult } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 
 /**
+ * Interface for condition detail tracking
+ */
+interface ConditionDetail {
+  condition: string;
+  addedAt: number;
+  duration?: number;
+  source?: string;
+}
+
+/**
  * Conditions that automatically remove other conditions when removed
  */
 const CONDITION_DEPENDENCIES: Record<string, string[]> = {
@@ -125,7 +135,7 @@ export function executeRemoveCondition(
 
   // Remove condition details if they exist
   if (target.state.conditionDetails) {
-    const conditionDetails = target.state.conditionDetails as Record<string, any>;
+    const conditionDetails = target.state.conditionDetails as Record<string, ConditionDetail>;
     const keysToRemove = Object.keys(conditionDetails).filter(key => 
       conditionDetails[key].condition?.toLowerCase() === conditionKey
     );

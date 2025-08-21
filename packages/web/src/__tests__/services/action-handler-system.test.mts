@@ -7,7 +7,7 @@
 import { describe, test, expect, beforeEach } from 'vitest';
 import type { ActionHandler, ValidationResult } from '../../services/action-handler.interface.mjs';
 import { registerAction, getHandlers, clearAllHandlers } from '../../services/multi-handler-registry.mjs';
-import type { GameActionRequest, ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
+// import type { GameActionRequest, ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
 
 describe('ActionHandler Registration and Priority System', () => {
   beforeEach(() => {
@@ -18,7 +18,6 @@ describe('ActionHandler Registration and Priority System', () => {
   test('should register a single handler', () => {
     const handler: ActionHandler = {
       priority: 0,
-      validate: async () => ({ valid: true })
     };
 
     registerAction('test-action', handler);
@@ -31,12 +30,10 @@ describe('ActionHandler Registration and Priority System', () => {
   test('should register multiple handlers for the same action', () => {
     const handler1: ActionHandler = {
       priority: 0,
-      validate: async () => ({ valid: true })
     };
 
     const handler2: ActionHandler = {
       priority: 100,
-      validate: async () => ({ valid: true })
     };
 
     registerAction('test-action', handler1);
@@ -49,17 +46,14 @@ describe('ActionHandler Registration and Priority System', () => {
   test('should sort handlers by priority (lower numbers first)', () => {
     const lowPriorityHandler: ActionHandler = {
       priority: 0,
-      validate: async () => ({ valid: true })
     };
 
     const mediumPriorityHandler: ActionHandler = {
       priority: 50,
-      validate: async () => ({ valid: true })
     };
 
     const highPriorityHandler: ActionHandler = {
       priority: 100,
-      validate: async () => ({ valid: true })
     };
 
     // Register in random order
@@ -77,12 +71,10 @@ describe('ActionHandler Registration and Priority System', () => {
 
   test('should handle handlers with undefined priority (default to 0)', () => {
     const handlerWithoutPriority: ActionHandler = {
-      validate: async () => ({ valid: true })
     };
 
     const handlerWithPriority: ActionHandler = {
       priority: 10,
-      validate: async () => ({ valid: true })
     };
 
     registerAction('test-action', handlerWithPriority);
@@ -103,13 +95,11 @@ describe('ActionHandler Registration and Priority System', () => {
   test('should handle core and plugin handlers correctly', () => {
     const coreHandler: ActionHandler = {
       priority: 0, // Core handler
-      validate: async () => ({ valid: true })
     };
 
     const pluginHandler: ActionHandler = {
       pluginId: 'test-plugin',
       priority: 100, // Plugin handler
-      validate: async () => ({ valid: true })
     };
 
     registerAction('test-action', pluginHandler);
@@ -130,9 +120,12 @@ describe('ActionHandler Registration and Priority System', () => {
       priority: 50,
       requiresManualApproval: true,
       gmOnly: true,
-      validate: async () => ({ valid: true }),
-      execute: async () => {},
-      approvalMessage: () => 'Test approval message'
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      validate: (_request, _gameState) => ({ valid: true }),
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      execute: (_request, _draft) => {},
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      approvalMessage: (_request) => 'Test approval message'
     };
 
     registerAction('test-action', handler);
@@ -156,7 +149,8 @@ describe('ActionHandler Interface Validation', () => {
 
   test('should accept handler with only validate function', () => {
     const handler: ActionHandler = {
-      validate: async (_request: GameActionRequest, _gameState: ServerGameStateWithVirtuals): Promise<ValidationResult> => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      validate: (_request, _gameState): ValidationResult => {
         return { valid: true };
       }
     };
@@ -168,7 +162,8 @@ describe('ActionHandler Interface Validation', () => {
 
   test('should accept handler with only execute function', () => {
     const handler: ActionHandler = {
-      execute: async (_request: GameActionRequest, _draft: ServerGameStateWithVirtuals): Promise<void> => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      execute: (_request, _draft): void => {
         // Test execute function
       }
     };
@@ -184,9 +179,12 @@ describe('ActionHandler Interface Validation', () => {
       priority: 50,
       requiresManualApproval: true,
       gmOnly: false,
-      validate: async () => ({ valid: true }),
-      execute: async () => {},
-      approvalMessage: (request) => `Test message for ${request.action}`
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      validate: (_request, _gameState) => ({ valid: true }),
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      execute: (_request, _draft) => {},
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      approvalMessage: (_request) => 'Test approval message'
     };
 
     registerAction('test-action', handler);

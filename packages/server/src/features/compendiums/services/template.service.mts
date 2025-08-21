@@ -78,7 +78,7 @@ export class TemplateService {
             });
 
             if (existingCharacter) {
-              logger.info(`Skipping existing character: ${(existingCharacter as any).name} (compendiumEntryId: ${compendiumEntry.id})`);
+              logger.info(`Skipping existing character: ${existingCharacter.name} (compendiumEntryId: ${compendiumEntry.id})`);
               return null; // Signal that this was skipped
             }
           }

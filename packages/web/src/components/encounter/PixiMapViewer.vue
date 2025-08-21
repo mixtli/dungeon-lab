@@ -705,7 +705,7 @@ watch(() => props.mapId, async (newMapId) => {
   }
 }, { immediate: false });
 
-watch(() => props.mapData, async (newMapData, oldMapData) => {
+watch(() => props.mapData, async (newMapData) => {
   if (!newMapData || !isInitialized.value) {
     return;
   }
@@ -885,7 +885,7 @@ watch(() => props.selectedTokenId, (newSelectedId, oldSelectedId) => {
 
 
 // Watch for targetTokenIds prop changes and sync to PIXI  
-watch(() => props.targetTokenIds, (newTargetIds, oldTargetIds) => {
+watch(() => props.targetTokenIds, (newTargetIds) => {
   if (!isInitialized.value) return;
   
   // Clear all existing targets first

@@ -33,12 +33,12 @@ const serverCharacterSchema = characterSchema.extend({
 
 // Create the discriminator schema using zodSchema directly (omit documentType and compendiumId)
 const zodSchemaDefinition = zodSchema(serverCharacterSchema.merge(baseMongooseZodSchema).omit({ documentType: true, compendiumId: true, id: true }));
-const characterMongooseSchema = new mongoose.Schema<ICharacterDocument>(zodSchemaDefinition, {
+const characterMongooseSchema = new mongoose.Schema<ICharacterDocument>(zodSchemaDefinition as mongoose.SchemaDefinition<ICharacterDocument>, {
   timestamps: true,
   toObject: {
     virtuals: true,
     getters: true,
-    transform: (doc, ret) => {
+    transform: (_doc, ret) => {
       // Ensure id virtual is set before deleting _id
       if (!ret.id && ret._id) {
         ret.id = ret._id.toString();
@@ -51,7 +51,7 @@ const characterMongooseSchema = new mongoose.Schema<ICharacterDocument>(zodSchem
   toJSON: {
     virtuals: true,
     getters: true,
-    transform: (doc, ret) => {
+    transform: (_doc, ret) => {
       // Ensure id virtual is set before deleting _id
       if (!ret.id && ret._id) {
         ret.id = ret._id.toString();

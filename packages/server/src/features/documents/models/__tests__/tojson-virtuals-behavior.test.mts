@@ -100,9 +100,9 @@ describe('Mongoose toJSON Virtuals Behavior', () => {
       });
 
       // TEST 5: Current invalid array syntax
-      console.log('\n🔬 TEST 5: Current invalid array syntax - toJSON({ virtuals: [\"avatar\"] })');
+      console.log('\n🔬 TEST 5: Current invalid array syntax - toJSON({ virtuals: ["avatar"] })');
       const populatedDoc4 = await DocumentModel.findById(character._id).populate('avatar');
-      // @ts-ignore - Testing invalid syntax
+      // @ts-expect-error - Testing invalid syntax
       const populatedWithVirtualsArray = populatedDoc4!.toJSON({ virtuals: ['avatar'] });
       console.log('Result:', {
         hasAvatarField: 'avatar' in populatedWithVirtualsArray,

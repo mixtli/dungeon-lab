@@ -133,7 +133,7 @@ export const useGameSessionStore = defineStore(
                   // Find the actor in the session's characters
                   const session = response.session as IGameSession;
                   const actor = session.characters?.find((c) => c.id === actorId);
-                  if (actor) {
+                  if (actor && actor.documentType === 'actor') {
                     currentCharacter.value = actor;
                     // TODO: Update game state store with selected character
                     // const gameStateStore = useGameStateStore();

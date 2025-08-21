@@ -12,6 +12,26 @@ import type { GameActionRequest, ServerGameStateWithVirtuals } from '@dungeon-la
 import type { ActionHandler, ActionValidationResult } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 
 /**
+ * Interface for class feature data
+ */
+interface ClassFeature {
+  name: string;
+  available: boolean;
+  uses?: number;
+  maxUses?: number;
+  [key: string]: unknown;
+}
+
+/**
+ * Interface for character plugin data structure
+ */
+interface CharacterPluginData {
+  classFeatures?: Record<string, ClassFeature>;
+  conditionImmunities?: string[];
+  [key: string]: unknown;
+}
+
+/**
  * Validate class feature usage requirements
  */
 export function validateClassFeatureUsage(
@@ -43,7 +63,8 @@ export function validateClassFeatureUsage(
   }
 
   // 1. Check if character has this class feature available
-  const classFeatures = (character.pluginData as { classFeatures?: Record<string, any> }).classFeatures || {};
+  const pluginData = character.pluginData as CharacterPluginData;
+  const classFeatures = pluginData.classFeatures || {};
   const feature = classFeatures[featureName];
   
   if (!feature) {
