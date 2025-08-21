@@ -4,6 +4,8 @@ import type { ICharacter, IItem, ServerGameStateWithVirtuals } from '@dungeon-la
 import { parseDiceExpression } from '@dungeon-lab/shared/utils/dice-parser.mjs';
 import { calculateGridDistance, type GridBounds } from '@dungeon-lab/shared-ui/utils/grid-distance.mjs';
 import { unref } from 'vue';
+import type { DndWeaponData } from '../types/dnd/item.mjs';
+import type { DndCharacterData } from '../types/dnd/character.mjs';
 
 /**
  * Handler for weapon attack rolls
@@ -72,6 +74,7 @@ export class DndWeaponAttackHandler implements RollTypeHandler {
       
       // Validate range/distance before checking AC (only if gameState is available)
       const rangeCheck = this.validateAttackRange(characterId, targetTokenId, weapon, context.gameState!);
+      console.log('[DndWeaponAttackHandler] Range check:', rangeCheck);
       if (!rangeCheck.valid) {
         attackMessage += ` **→ ${rangeCheck.reason}**`;
         console.log('[DndWeaponAttackHandler] Attack blocked by range:', rangeCheck);
@@ -219,7 +222,8 @@ export class DndWeaponAttackHandler implements RollTypeHandler {
     }
     
     // Add magical enhancement
-    const enhancement = weapon.pluginData?.enhancement || 0;
+    const weaponData = weapon.pluginData as DndWeaponData;
+    const enhancement = weaponData?.enchantmentBonus || 0;
     bonus += enhancement;
     
     console.log('[DndWeaponAttackHandler] Attack bonus breakdown:', {
@@ -256,16 +260,17 @@ export class DndWeaponAttackHandler implements RollTypeHandler {
 
   // Helper methods for D&D calculations
   private getWeaponAttackAbility(weapon: IItem): string {
-    const properties = weapon.pluginData?.properties || [];
-    const weaponType = weapon.pluginData?.weaponType || weapon.pluginData?.category;
+    const weaponData = weapon.pluginData as DndWeaponData;
+    const properties = weaponData?.properties || [];
+    const weaponType = weaponData?.type;
     
     // Finesse weapons can use Dex or Str - default to Dex for simplicity
-    if (properties.includes('finesse')) {
+    if (Array.isArray(properties) && properties.includes('finesse')) {
       return 'dexterity';
     }
     
     // Ranged weapons use Dex
-    if (weaponType === 'ranged' || weaponType === 'ranged-weapon') {
+    if (weaponType === 'ranged') {
       return 'dexterity';
     }
     
@@ -274,13 +279,16 @@ export class DndWeaponAttackHandler implements RollTypeHandler {
   }
 
   private getAbilityModifier(character: ICharacter, ability: string): number {
-    const abilityScore = character.pluginData?.abilities?.[ability]?.value || 10;
+    const characterData = character.pluginData as DndCharacterData;
+    const abilityScore = characterData?.abilities?.[ability as keyof DndCharacterData['abilities']]?.base || 10;
     return Math.floor((abilityScore - 10) / 2);
   }
 
   private isProficientWithWeapon(weapon: IItem, character: ICharacter): boolean {
-    const weaponProficiencies = character.pluginData?.proficiencies?.weapons || [];
-    const weaponCategory = weapon.pluginData?.category || weapon.pluginData?.weaponType;
+    const characterData = character.pluginData as DndCharacterData;
+    const weaponData = weapon.pluginData as DndWeaponData;
+    const weaponProficiencies = characterData?.proficiencies?.weapons || [];
+    const weaponCategory = weaponData?.category;
     
     // Check for specific weapon proficiency or category proficiency
     return weaponProficiencies.includes(weapon.name) || 
@@ -290,7 +298,8 @@ export class DndWeaponAttackHandler implements RollTypeHandler {
   }
 
   private getProficiencyBonus(character: ICharacter): number {
-    const level = character.pluginData?.progression?.level || character.pluginData?.level || 1;
+    const characterData = character.pluginData as DndCharacterData;
+    const level = characterData?.progression?.level || 1;
     return Math.ceil(level / 4) + 1; // D&D 5e proficiency progression
   }
 
@@ -345,51 +354,85 @@ export class DndWeaponAttackHandler implements RollTypeHandler {
     weapon: IItem,
     gameState: ServerGameStateWithVirtuals
   ): { valid: boolean; reason?: string; hasDisadvantage?: boolean; disadvantageReason?: string } {
+    console.log('[DndWeaponAttackHandler] === Range Validation Debug ===');
+    console.log('[DndWeaponAttackHandler] characterId:', characterId);
+    console.log('[DndWeaponAttackHandler] targetTokenId:', targetTokenId);
+    console.log('[DndWeaponAttackHandler] weapon.name:', weapon.name);
+    console.log('[DndWeaponAttackHandler] weapon.pluginData:', JSON.stringify(weapon.pluginData, null, 2));
+    
     try {
       // Find attacker token from character ID
       const attackerToken = this.findTokenByCharacterId(characterId, gameState);
+      console.log('[DndWeaponAttackHandler] attackerToken found:', !!attackerToken);
+      if (attackerToken) {
+        console.log('[DndWeaponAttackHandler] attackerToken.id:', attackerToken.id);
+        console.log('[DndWeaponAttackHandler] attackerToken.bounds:', JSON.stringify(attackerToken.bounds));
+      }
       if (!attackerToken) {
+        console.log('[DndWeaponAttackHandler] RESULT: attacker not found');
         return { valid: false, reason: "OUT OF RANGE (attacker not found)" };
       }
       
       // Find target token
       const targetToken = gameState.currentEncounter?.tokens?.find(t => t.id === targetTokenId);
+      console.log('[DndWeaponAttackHandler] targetToken found:', !!targetToken);
+      if (targetToken) {
+        console.log('[DndWeaponAttackHandler] targetToken.id:', targetToken.id);
+        console.log('[DndWeaponAttackHandler] targetToken.bounds:', JSON.stringify(targetToken.bounds));
+      }
       if (!targetToken) {
+        console.log('[DndWeaponAttackHandler] RESULT: target not found');
         return { valid: false, reason: "OUT OF RANGE (target not found)" };
       }
       
       // Get token bounds for distance calculation
       const attackerBounds = this.getTokenBounds(attackerToken);
       const targetBounds = this.getTokenBounds(targetToken);
+      console.log('[DndWeaponAttackHandler] attackerBounds:', JSON.stringify(attackerBounds));
+      console.log('[DndWeaponAttackHandler] targetBounds:', JSON.stringify(targetBounds));
       
       // Calculate distance in grid squares
       const distanceSquares = calculateGridDistance(attackerBounds, targetBounds);
       const distanceFeet = distanceSquares * 5; // D&D 5e: 5 feet per square
+      console.log('[DndWeaponAttackHandler] distanceSquares:', distanceSquares);
+      console.log('[DndWeaponAttackHandler] distanceFeet:', distanceFeet);
       
       // Get weapon properties
-      const weaponData = weapon.pluginData as any;
+      const weaponData = weapon.pluginData as DndWeaponData;
       const weaponType = weaponData?.type || 'melee'; // 'melee', 'ranged', etc.
       const weaponProperties = weaponData?.properties || [];
       const weaponRange = weaponData?.range; // { normal: number, long: number } for ranged weapons
+      console.log('[DndWeaponAttackHandler] weaponType:', weaponType);
+      console.log('[DndWeaponAttackHandler] weaponProperties:', JSON.stringify(weaponProperties));
+      console.log('[DndWeaponAttackHandler] weaponRange:', JSON.stringify(weaponRange));
       
       // Check weapon range/reach rules
-      if (weaponType === 'melee' || weaponType === 'simple-melee' || weaponType === 'martial-melee') {
+      if (weaponType === 'melee') {
+        console.log('[DndWeaponAttackHandler] === MELEE WEAPON VALIDATION ===');
         // Melee weapon rules
         const hasReach = weaponProperties.includes('reach');
         const maxReach = hasReach ? 10 : 5; // Reach weapons: 10ft, normal: 5ft
+        console.log('[DndWeaponAttackHandler] hasReach:', hasReach);
+        console.log('[DndWeaponAttackHandler] maxReach:', maxReach);
+        console.log('[DndWeaponAttackHandler] distanceFeet vs maxReach:', distanceFeet, 'vs', maxReach);
         
         if (distanceFeet > maxReach) {
           const reachText = hasReach ? 'reach ' : '';
-          return { 
+          const result = { 
             valid: false, 
             reason: `OUT OF RANGE (${distanceFeet}ft > ${reachText}${maxReach}ft)` 
           };
+          console.log('[DndWeaponAttackHandler] RESULT: OUT OF RANGE:', result);
+          return result;
         }
         
         // Melee weapons work fine within reach
-        return { valid: true };
+        const result = { valid: true };
+        console.log('[DndWeaponAttackHandler] RESULT: MELEE IN RANGE:', result);
+        return result;
         
-      } else if (weaponType === 'ranged' || weaponType === 'simple-ranged' || weaponType === 'martial-ranged') {
+      } else if (weaponType === 'ranged') {
+        console.log('[DndWeaponAttackHandler] === RANGED WEAPON VALIDATION ===');
         // Ranged weapon rules
         if (!weaponRange || typeof weaponRange.normal !== 'number') {
           console.warn('[DndWeaponAttackHandler] Ranged weapon missing range data:', weapon.name);
@@ -432,48 +475,66 @@ export class DndWeaponAttackHandler implements RollTypeHandler {
         };
         
       } else if (weaponProperties.includes('thrown')) {
+        console.log('[DndWeaponAttackHandler] === THROWN WEAPON VALIDATION ===');
         // Thrown weapon (can be used as melee or ranged)
         // For now, assume thrown attack if target is beyond melee reach
         const hasReach = weaponProperties.includes('reach');
         const meleeReach = hasReach ? 10 : 5;
+        console.log('[DndWeaponAttackHandler] hasReach:', hasReach);
+        console.log('[DndWeaponAttackHandler] meleeReach:', meleeReach);
+        console.log('[DndWeaponAttackHandler] distanceFeet vs meleeReach:', distanceFeet, 'vs', meleeReach);
         
         if (distanceFeet <= meleeReach) {
           // Within melee reach - treat as melee attack
-          return { valid: true };
+          const result = { valid: true };
+          console.log('[DndWeaponAttackHandler] RESULT: THROWN MELEE IN RANGE:', result);
+          return result;
         } else {
+          console.log('[DndWeaponAttackHandler] Beyond melee reach, checking thrown range...');
           // Beyond melee reach - treat as ranged/thrown attack
           if (!weaponRange || typeof weaponRange.normal !== 'number') {
             console.warn('[DndWeaponAttackHandler] Thrown weapon missing range data:', weapon.name);
-            return { valid: false, reason: "OUT OF RANGE (no thrown range data)" };
+            const result = { valid: false, reason: "OUT OF RANGE (no thrown range data)" };
+            console.log('[DndWeaponAttackHandler] RESULT: NO THROWN RANGE DATA:', result);
+            return result;
           }
           
           const normalRange = weaponRange.normal;
           const longRange = weaponRange.long || normalRange * 4;
+          console.log('[DndWeaponAttackHandler] normalRange:', normalRange, 'longRange:', longRange);
           
           if (distanceFeet > longRange) {
-            return { 
+            const result = { 
               valid: false, 
               reason: `OUT OF RANGE (${distanceFeet}ft > ${longRange}ft thrown max)` 
             };
+            console.log('[DndWeaponAttackHandler] RESULT: THROWN OUT OF RANGE:', result);
+            return result;
           }
           
           // Long range disadvantage for thrown attacks
           const hasDisadvantage = distanceFeet > normalRange;
-          return { 
+          const result = { 
             valid: true, 
             hasDisadvantage, 
             disadvantageReason: hasDisadvantage ? `thrown long range (${distanceFeet}ft > ${normalRange}ft)` : undefined 
           };
+          console.log('[DndWeaponAttackHandler] RESULT: THROWN IN RANGE:', result);
+          return result;
         }
       }
       
       // Unknown weapon type - allow but warn
       console.warn('[DndWeaponAttackHandler] Unknown weapon type for range check:', weaponType);
-      return { valid: true };
+      const result = { valid: true };
+      console.log('[DndWeaponAttackHandler] RESULT: UNKNOWN WEAPON TYPE (ALLOWING):', result);
+      return result;
       
     } catch (error) {
       console.error('[DndWeaponAttackHandler] Error validating attack range:', error);
-      return { valid: true }; // Allow attack on error to avoid blocking gameplay
+      const result = { valid: true }; // Allow attack on error to avoid blocking gameplay
+      console.log('[DndWeaponAttackHandler] RESULT: ERROR (ALLOWING):', result);
+      return result;
     }
   }
 
@@ -489,11 +550,16 @@ export class DndWeaponAttackHandler implements RollTypeHandler {
    */
   private getTokenBounds(token: any): GridBounds {
     const bounds = token.bounds || {};
+    
+    // Token bounds use topLeft/bottomRight structure
+    const topLeft = bounds.topLeft || { x: 0, y: 0 };
+    const bottomRight = bounds.bottomRight || topLeft;
+    
     return {
-      x: bounds.x || 0,
-      y: bounds.y || 0,
-      width: bounds.width || 1,
-      height: bounds.height || 1
+      x: topLeft.x,
+      y: topLeft.y,
+      width: bottomRight.x - topLeft.x + 1,  // +1 because coordinates are inclusive
+      height: bottomRight.y - topLeft.y + 1
     };
   }
 
@@ -709,7 +775,8 @@ export class DndWeaponDamageHandler implements RollTypeHandler {
     const abilityMod = this.getAbilityModifier(character, ability);
     
     // Add magical enhancement
-    const enhancement = weapon.pluginData?.enhancement || 0;
+    const weaponData = weapon.pluginData as DndWeaponData;
+    const enhancement = weaponData?.enchantmentBonus || 0;
     
     // Add custom modifier
     const customModifier = result.arguments.customModifier || 0;
@@ -731,7 +798,8 @@ export class DndWeaponDamageHandler implements RollTypeHandler {
   }
 
   private getWeaponDamageType(weapon: IItem): string {
-    return weapon.pluginData?.damageType || weapon.pluginData?.damage?.type || 'bludgeoning';
+    const weaponData = weapon.pluginData as DndWeaponData;
+    return weaponData?.damage?.type || 'bludgeoning';
   }
 
   private createDamageResultMessage(
@@ -753,30 +821,35 @@ export class DndWeaponDamageHandler implements RollTypeHandler {
   }
 
   private getWeaponDamageAbility(weapon: IItem): string {
-    // Same logic as attack ability for damage
-    const properties = weapon.pluginData?.properties || [];
-    const weaponType = weapon.pluginData?.weaponType || weapon.pluginData?.category;
+    // Same logic as attack ability for damage - use the attack handler's method
+    const weaponData = weapon.pluginData as DndWeaponData;
+    const properties = weaponData?.properties || [];
+    const weaponType = weaponData?.type;
     
-    if (properties.includes('finesse')) {
+    // Finesse weapons can use Dex or Str - default to Dex for simplicity
+    if (Array.isArray(properties) && properties.includes('finesse')) {
       return 'dexterity';
     }
     
-    if (weaponType === 'ranged' || weaponType === 'ranged-weapon') {
+    // Ranged weapons use Dex
+    if (weaponType === 'ranged') {
       return 'dexterity';
     }
     
+    // Melee weapons use Str
     return 'strength';
   }
 
   private getAbilityModifier(character: ICharacter, ability: string): number {
-    const abilityScore = character.pluginData?.abilities?.[ability]?.value || 10;
+    const characterData = character.pluginData as DndCharacterData;
+    const abilityScore = characterData?.abilities?.[ability as keyof DndCharacterData['abilities']]?.base || 10;
     return Math.floor((abilityScore - 10) / 2);
   }
 
   /**
    * Look up a character document by ID from game state
    */
-  private lookupCharacter(characterId: string, gameState: any): ICharacter | null {
+  private lookupCharacter(characterId: string, gameState: ServerGameStateWithVirtuals): ICharacter | null {
     try {
       const character = gameState.documents?.[characterId];
       if (character && character.documentType === 'character') {
@@ -792,7 +865,7 @@ export class DndWeaponDamageHandler implements RollTypeHandler {
   /**
    * Look up a weapon item by ID from game state documents
    */
-  private lookupWeapon(weaponId: string, gameState: any): IItem | null {
+  private lookupWeapon(weaponId: string, gameState: ServerGameStateWithVirtuals): IItem | null {
     try {
       const weapon = gameState.documents?.[weaponId];
       if (weapon && weapon.documentType === 'item') {
