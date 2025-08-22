@@ -2,7 +2,6 @@ import { z } from 'zod';
 import { actorSchema } from '@dungeon-lab/shared/schemas/index.mjs';
 import { referenceOrObjectIdSchema } from '@dungeon-lab/shared/types/reference.mjs';
 import {
-  spellReferenceObjectSchema,
   abilitySchema,
   skillSchema,
   restTypeSchema,
@@ -188,7 +187,8 @@ export const characterSpellcastingSchema = z.object({
   
   /** Known/prepared spells */
   spells: z.array(z.object({
-    spell: spellReferenceObjectSchema,
+    name: z.string(),
+    spell: z.string(),
     level: z.number().min(0).max(9),
     class: z.string(),
     prepared: z.boolean().default(true),
@@ -197,7 +197,8 @@ export const characterSpellcastingSchema = z.object({
   
   /** Cantrips */
   cantrips: z.array(z.object({
-    spell: spellReferenceObjectSchema,
+    name: z.string(),
+    spell: z.string(),
     class: z.string()
   })).default([])
 });

@@ -68,6 +68,13 @@ export const useHUDStore = defineStore('hud', () => {
         icon: 'mdi-book-open-variant',
         component: 'CompendiumTab',
         visible: true
+      },
+      documents: {
+        id: 'documents',
+        title: 'Documents',
+        icon: 'mdi-file-document-multiple',
+        component: 'DocumentsTab',
+        visible: true
       }
     }
   });

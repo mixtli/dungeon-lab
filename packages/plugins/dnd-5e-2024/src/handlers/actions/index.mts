@@ -14,6 +14,7 @@ export { dndUseClassFeatureHandler } from './use-class-feature.handler.mjs';
 export { dndAddConditionHandler } from './add-condition.handler.mjs';
 export { dndRemoveConditionHandler } from './remove-condition.handler.mjs';
 export { dndApplyDamageHandler } from './apply-damage.handler.mjs';
+export { dndAssignSpellHandler } from './assign-spell.handler.mjs';
 
 // Re-export types for convenience
 export type { ActionHandler, ActionValidationResult } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';

@@ -21,6 +21,7 @@ export type SidebarTabType =
   | 'characters'
   | 'items'
   | 'compendium'
+  | 'documents'
   | 'turnOrder';
 
 export interface SidebarTab {

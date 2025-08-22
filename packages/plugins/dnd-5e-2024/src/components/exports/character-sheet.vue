@@ -232,7 +232,100 @@
       </div>
       
       <div v-if="activeTab === 'spells'" class="tab-pane spells-tab">
-        <div class="empty-state">Spellcasting features coming soon...</div>
+        <div 
+          class="spells-section"
+          :class="{ 'drag-over': isSpellDragOver }"
+          @dragenter="handleSpellDragEnter"
+          @dragover="handleSpellDragOver"
+          @dragleave="handleSpellDragLeave"
+          @drop="handleSpellDrop"
+        >
+          <!-- Spells Header -->
+          <div class="spells-header">
+            <h3 class="section-title">Spellcasting</h3>
+            <div class="spell-count">
+              {{ characterSpells.length }} spell{{ characterSpells.length !== 1 ? 's' : '' }}
+            </div>
+          </div>
+
+          <!-- Spell Slots (if character has spellcasting) -->
+          <div v-if="hasSpellcasting" class="spell-slots-section">
+            <h4 class="spell-slots-title">Spell Slots</h4>
+            <div class="spell-slots-grid">
+              <div 
+                v-for="(slots, level) in spellSlots" 
+                :key="level"
+                class="spell-slot-level"
+              >
+                <div class="slot-level-label">Level {{ level }}</div>
+                <div class="slot-counter">
+                  <span class="slots-used">{{ slots.used }}</span>
+                  <span class="slots-separator">/</span>
+                  <span class="slots-total">{{ slots.total }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Spells List -->
+          <div v-if="characterSpells.length" class="spells-list">
+            <div 
+              v-for="spellLevel in sortedSpellLevels" 
+              :key="spellLevel"
+              class="spell-level-group"
+            >
+              <h4 class="spell-level-header">
+                {{ spellLevel === 0 ? 'Cantrips' : `Level ${spellLevel}` }}
+                <span class="spell-level-count">({{ getSpellsAtLevel(spellLevel).length }})</span>
+              </h4>
+              
+              <div class="spell-level-list">
+                <div 
+                  v-for="spellData in getSpellsAtLevel(spellLevel)" 
+                  :key="spellData.spell"
+                  class="spell-item"
+                  :class="{
+                    'prepared': spellData.prepared,
+                    'always-prepared': spellData.alwaysPrepared,
+                    'cantrip': spellLevel === 0
+                  }"
+                >
+                  <div class="spell-main">
+                    <div class="spell-header">
+                      <h5 class="spell-name">
+                        {{ spellData.name || 'Unknown Spell' }}
+                      </h5>
+                      <div class="spell-badges">
+                        <div v-if="spellData.alwaysPrepared" class="spell-badge always-prepared">Always Prepared</div>
+                        <div v-else-if="spellData.prepared" class="spell-badge prepared">Prepared</div>
+                        <div v-else class="spell-badge unprepared">Not Prepared</div>
+                        <div class="spell-badge class-badge">{{ spellData.class }}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Spell Actions -->
+                  <div class="spell-actions">
+                    <button 
+                      v-if="spellData.prepared || spellData.alwaysPrepared || spellLevel === 0"
+                      @click="castSpell(spellData)" 
+                      class="spell-action-btn cast-btn"
+                      title="Cast this spell"
+                    >
+                      ✨ Cast
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Empty State -->
+          <div v-else class="empty-state">
+            <p>No spells assigned to this character.</p>
+            <p class="empty-hint">Drag spells from the Documents tab to assign them.</p>
+          </div>
+        </div>
       </div>
       
       <div v-if="activeTab === 'gear'" class="tab-pane gear-tab">
@@ -445,6 +538,9 @@ const backgroundDocument = ref<DndBackgroundDocument | null>(null);
 const compendiumLoading = ref(false);
 const compendiumError = ref<string | null>(null);
 
+// Spell resolution storage
+const resolvedSpells = ref<Map<string, any>>(new Map());
+
 // Emits - unified event interface
 const emit = defineEmits<{
   'update:document': [document: BaseDocument];
@@ -470,6 +566,10 @@ const showWeaponDamageDialog = ref(false);
 // Drag and drop state
 const isDragOver = ref(false);
 const dragCounter = ref(0);
+
+// Spell drag and drop state
+const isSpellDragOver = ref(false);
+const spellDragCounter = ref(0);
 
 // Get plugin context for action requests
 const pluginContext = getPluginContext();
@@ -822,6 +922,32 @@ const classDisplayName = computed(() => {
   if (compendiumLoading.value) return 'Loading...';
   if (compendiumError.value) return 'Error loading class';
   return classDocument.value?.name || 'Unknown Class';
+});
+
+// Spell-related computed properties
+const characterSpells = computed(() => {
+  const spellcastingData = (character.value?.pluginData as any)?.spellcasting;
+  if (!spellcastingData?.spells) return [];
+  return spellcastingData.spells;
+});
+
+const hasSpellcasting = computed(() => {
+  const spellcastingData = (character.value?.pluginData as any)?.spellcasting;
+  return !!spellcastingData;
+});
+
+const spellSlots = computed(() => {
+  const spellcastingData = (character.value?.pluginData as any)?.spellcasting;
+  if (!spellcastingData?.spellSlots) return {};
+  return spellcastingData.spellSlots;
+});
+
+const sortedSpellLevels = computed(() => {
+  const levels = new Set<number>();
+  characterSpells.value.forEach((spell: any) => {
+    levels.add(spell.level || 0);
+  });
+  return Array.from(levels).sort((a, b) => a - b);
 });
 
 
@@ -1289,6 +1415,26 @@ const loadCompendiumDocuments = async () => {
       );
     }
     
+    // Fetch spell documents for all character spells
+    const spells = characterSpells.value;
+    if (spells && spells.length > 0) {
+      spells.forEach((spellData: any) => {
+        const spellId = spellData.spell;
+        if (spellId && typeof spellId === 'string') {
+          promises.push(
+            context.getDocument(spellId)
+              .then(doc => { 
+                resolvedSpells.value.set(spellId, markRaw(doc)); 
+                console.log('[CharacterSheet] Resolved spell:', doc.name);
+              })
+              .catch(err => { 
+                console.warn('Failed to load spell:', spellId, err); 
+              })
+          );
+        }
+      });
+    }
+    
     // Wait for all requests to complete
     await Promise.all(promises);
     
@@ -1303,6 +1449,135 @@ const loadCompendiumDocuments = async () => {
 // ============================================================================
 // DRAG AND DROP FUNCTIONALITY  
 // ============================================================================
+
+// Spell utility functions
+const getSpellsAtLevel = (level: number) => {
+  return characterSpells.value.filter((spell: any) => (spell.level || 0) === level);
+};
+
+const getResolvedSpell = (spellId: string) => {
+  return resolvedSpells.value.get(spellId);
+};
+
+
+const castSpell = (spellData: any) => {
+  const spell = getResolvedSpell(spellData.spell);
+  console.log('[CharacterSheet] Casting spell:', spell?.name || 'Unknown Spell', spellData);
+  // TODO: Implement spell casting mechanics
+};
+
+// Spell drag and drop handlers
+const handleSpellDragEnter = (event: DragEvent) => {
+  event.preventDefault();
+  event.stopPropagation();
+  
+  spellDragCounter.value++;
+  if (spellDragCounter.value === 1) {
+    isSpellDragOver.value = true;
+  }
+};
+
+const handleSpellDragOver = (event: DragEvent) => {
+  event.preventDefault();
+  event.stopPropagation();
+  
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'copy';
+  }
+};
+
+const handleSpellDragLeave = (event: DragEvent) => {
+  event.preventDefault();
+  event.stopPropagation();
+  
+  spellDragCounter.value--;
+  if (spellDragCounter.value === 0) {
+    isSpellDragOver.value = false;
+  }
+};
+
+const handleSpellDrop = async (event: DragEvent) => {
+  event.preventDefault();
+  event.stopPropagation();
+  
+  // Reset drag state
+  isSpellDragOver.value = false;
+  spellDragCounter.value = 0;
+  
+  if (!event.dataTransfer) {
+    console.warn('[CharacterSheet] No drag data available');
+    return;
+  }
+  
+  if (!character.value) {
+    console.warn('[CharacterSheet] No character available for spell assignment');
+    return;
+  }
+  
+  try {
+    const dragDataStr = event.dataTransfer.getData('application/json');
+    if (!dragDataStr) {
+      console.warn('[CharacterSheet] No drag data found');
+      return;
+    }
+    
+    const dragData = JSON.parse(dragDataStr);
+    console.log('[CharacterSheet] Processing spell drop data:', dragData);
+    
+    // Validate drag data format for spells
+    if (dragData.type !== 'document-token' || dragData.documentType !== 'vtt-document' || dragData.pluginDocumentType !== 'spell') {
+      console.warn('[CharacterSheet] Invalid spell drag data:', dragData);
+      return;
+    }
+    
+    if (!pluginContext) {
+      console.error('[CharacterSheet] Plugin context not available for spell assignment');
+      return;
+    }
+    
+    // Fetch the spell document to get spell level
+    let spellDocument;
+    try {
+      spellDocument = await pluginContext.getDocument(dragData.documentId);
+      console.log('[CharacterSheet] Fetched spell document:', spellDocument);
+    } catch (error) {
+      console.error('[CharacterSheet] Failed to fetch spell document:', error);
+      return;
+    }
+    
+    // Extract spell level from the document
+    const spellLevel = (spellDocument.pluginData as any)?.level || 0;
+    
+    // Create spell assignment action parameters
+    const actionParams = {
+      spellId: dragData.documentId,
+      targetCharacterId: character.value.id,
+      spellName: dragData.name || spellDocument.name || 'Unknown Spell',
+      targetCharacterName: character.value.name || 'Unknown Character',
+      spellLevel
+    };
+    
+    console.log('[CharacterSheet] Requesting spell assignment:', actionParams);
+    
+    // Request the spell assignment action through the plugin context
+    const result = await pluginContext.requestAction(
+      'dnd5e-2024:assign-spell',
+      actionParams,
+      {
+        description: `Assign ${actionParams.spellName} to ${actionParams.targetCharacterName}`
+      }
+    );
+    
+    if (result.success) {
+      console.log('[CharacterSheet] Spell assignment request submitted successfully:', result);
+    } else {
+      console.error('[CharacterSheet] Spell assignment request failed:', result.error);
+    }
+    
+  } catch (error) {
+    console.error('[CharacterSheet] Error processing spell drop:', error);
+  }
+};
 
 /**
  * Handle drag enter event - increment counter for nested elements
@@ -2209,5 +2484,287 @@ watch(() => {
 .checkbox-label-compact {
   font-weight: 500;
   user-select: none;
+}
+
+/* Spells Section Styles */
+.spells-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: 100%;
+  transition: all 0.2s ease;
+  border-radius: 8px;
+  position: relative;
+}
+
+.spells-section.drag-over {
+  background: rgba(138, 43, 226, 0.1);
+  border: 2px dashed rgba(138, 43, 226, 0.5);
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(138, 43, 226, 0.3);
+}
+
+.spells-section.drag-over::before {
+  content: "Drop spell here to assign to character";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(138, 43, 226, 0.9);
+  color: white;
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 14px;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.spells-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--dnd-brown-light);
+}
+
+.spell-count {
+  font-size: 14px;
+  color: var(--dnd-brown-dark);
+  background: var(--dnd-parchment-dark);
+  padding: 4px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--dnd-brown-light);
+}
+
+/* Spell Slots */
+.spell-slots-section {
+  background: var(--dnd-parchment);
+  border: 1px solid var(--dnd-brown-light);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.spell-slots-title {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--dnd-red-dark);
+}
+
+.spell-slots-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 12px;
+}
+
+.spell-slot-level {
+  background: var(--dnd-white);
+  border: 1px solid var(--dnd-brown-light);
+  border-radius: 6px;
+  padding: 8px;
+  text-align: center;
+}
+
+.slot-level-label {
+  font-size: 11px;
+  color: var(--dnd-brown-dark);
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+.slot-counter {
+  font-size: 14px;
+  font-weight: bold;
+  color: var(--dnd-red-dark);
+}
+
+.slots-used {
+  color: var(--dnd-red);
+}
+
+.slots-separator {
+  color: var(--dnd-brown-dark);
+  margin: 0 2px;
+}
+
+.slots-total {
+  color: var(--dnd-brown-dark);
+}
+
+/* Spells List */
+.spells-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.spell-level-group {
+  background: var(--dnd-parchment);
+  border: 1px solid var(--dnd-brown-light);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.spell-level-header {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--dnd-red-dark);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--dnd-brown-light);
+}
+
+.spell-level-count {
+  font-size: 12px;
+  color: var(--dnd-brown-dark);
+  font-weight: normal;
+}
+
+.spell-level-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.spell-item {
+  background: var(--dnd-white);
+  border: 1px solid var(--dnd-brown-light);
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 4px rgba(139, 87, 42, 0.1);
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.spell-item:hover {
+  box-shadow: 0 4px 8px rgba(139, 87, 42, 0.15);
+}
+
+.spell-item.prepared {
+  border-left: 4px solid var(--dnd-green);
+}
+
+.spell-item.always-prepared {
+  border-left: 4px solid var(--dnd-blue);
+}
+
+.spell-item.cantrip {
+  border-left: 4px solid var(--dnd-purple);
+}
+
+.spell-main {
+  margin-bottom: 12px;
+}
+
+.spell-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.spell-name {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--dnd-red-dark);
+  line-height: 1.3;
+}
+
+.spell-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.spell-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 8px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.spell-badge.prepared {
+  background: var(--dnd-green);
+  color: white;
+}
+
+.spell-badge.always-prepared {
+  background: var(--dnd-blue);
+  color: white;
+}
+
+.spell-badge.unprepared {
+  background: var(--dnd-gray);
+  color: white;
+}
+
+.spell-badge.class-badge {
+  background: var(--dnd-brown-light);
+  color: var(--dnd-brown-dark);
+}
+
+.spell-description {
+  font-size: 13px;
+  color: var(--dnd-black);
+  line-height: 1.4;
+}
+
+.spell-properties {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.spell-property {
+  display: flex;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.spell-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.spell-action-btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.spell-action-btn.cast-btn {
+  background: linear-gradient(135deg, var(--dnd-purple), var(--dnd-blue));
+  color: white;
+}
+
+.spell-action-btn.cast-btn:hover {
+  background: linear-gradient(135deg, var(--dnd-purple-dark), var(--dnd-blue-dark));
+  transform: translateY(-1px);
+}
+
+.empty-hint {
+  font-size: 12px;
+  color: var(--dnd-brown-dark);
+  margin-top: 8px;
 }
 </style>

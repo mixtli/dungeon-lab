@@ -19,7 +19,8 @@ import {
   dndUseClassFeatureHandler,
   dndAddConditionHandler,
   dndRemoveConditionHandler,
-  dndApplyDamageHandler
+  dndApplyDamageHandler,
+  dndAssignSpellHandler
 } from './handlers/actions/index.mjs';
 
 /**
@@ -123,6 +124,7 @@ export class DnD5e2024Plugin extends BaseGameSystemPlugin {
       context.registerActionHandler('dnd5e-2024:add-condition', dndAddConditionHandler);
       context.registerActionHandler('dnd5e-2024:remove-condition', dndRemoveConditionHandler);
       context.registerActionHandler('dnd5e-2024:apply-damage', dndApplyDamageHandler);
+      context.registerActionHandler('dnd5e-2024:assign-spell', dndAssignSpellHandler);
       
       // Register D&D lifecycle state management patterns
       registerPluginStateLifecycle({
