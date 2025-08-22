@@ -128,20 +128,6 @@
               <span class="speed-unit">ft</span>
             </div>
           </div>
-          <div class="stat-card automation-setting">
-            <div class="stat-label">Combat Automation</div>
-            <div v-if="!editMode || readonly" class="stat-value">
-              {{ character.pluginData?.automateAttacks ? 'Enabled' : 'Disabled' }}
-            </div>
-            <label v-else class="automation-checkbox">
-              <input
-                v-model="automateAttacksValue"
-                type="checkbox"
-                class="checkbox-input"
-              />
-              <span class="checkbox-label">Auto-calculate attacks</span>
-            </label>
-          </div>
           <div class="stat-card">
             <div class="stat-label">Prof. Bonus</div>
             <div class="stat-value">+{{ proficiencyBonus }}</div>
@@ -226,9 +212,30 @@
         </div>
       </div>
       
-      <!-- Other tabs -->
-      <div v-if="activeTab === 'combat'" class="tab-pane combat-tab">
-        <div class="empty-state">Combat features coming soon...</div>
+      <!-- Settings Tab -->
+      <div v-if="activeTab === 'settings'" class="tab-pane settings-tab">
+        <div class="settings-section">
+          <h3>Character Settings</h3>
+          
+          <div class="settings-group">
+            <h4>Combat & Automation</h4>
+            <div class="setting-item">
+              <div class="setting-label">Combat Automation</div>
+              <div class="setting-description">Automatically resolve attack rolls and apply damage during combat</div>
+              <div v-if="!editMode || readonly" class="setting-value">
+                {{ character.pluginData?.automateAttacks ? 'Enabled' : 'Disabled' }}
+              </div>
+              <label v-else class="setting-toggle">
+                <input
+                  v-model="automateAttacksValue"
+                  type="checkbox"
+                  class="checkbox-input"
+                />
+                <span class="checkbox-label">Enable automatic attack resolution</span>
+              </label>
+            </div>
+          </div>
+        </div>
       </div>
       
       <div v-if="activeTab === 'spells'" class="tab-pane spells-tab">
@@ -289,17 +296,26 @@
                     'always-prepared': spellData.alwaysPrepared,
                     'cantrip': spellLevel === 0
                   }"
+                  @dblclick="openSpellSheet(spellData)"
                 >
                   <div class="spell-main">
                     <div class="spell-header">
                       <h5 class="spell-name">
                         {{ spellData.name || 'Unknown Spell' }}
                       </h5>
-                      <div class="spell-badges">
+                      <div class="spell-prepared-control">
                         <div v-if="spellData.alwaysPrepared" class="spell-badge always-prepared">Always Prepared</div>
-                        <div v-else-if="spellData.prepared" class="spell-badge prepared">Prepared</div>
-                        <div v-else class="spell-badge unprepared">Not Prepared</div>
-                        <div class="spell-badge class-badge">{{ spellData.class }}</div>
+                        <label v-else-if="spellLevel > 0" class="prepared-checkbox-label">
+                          <input 
+                            type="checkbox" 
+                            v-model="spellData.prepared"
+                            @change="updateSpellPrepared(spellData)"
+                            class="prepared-checkbox"
+                            :disabled="readonly"
+                          />
+                          Prepared
+                        </label>
+                        <span v-else class="cantrip-label">Cantrip</span>
                       </div>
                     </div>
                   </div>
@@ -341,74 +357,112 @@
           <div class="equipment-header">
             <h3 class="section-title">Equipment</h3>
             <div class="item-count">
-              {{ items?.value?.length || 0 }} item{{ (items?.value?.length || 0) !== 1 ? 's' : '' }}
+              {{ props.items?.value?.length || 0 }} item{{ (props.items?.value?.length || 0) !== 1 ? 's' : '' }}
             </div>
           </div>
 
-          <!-- Equipment List -->
-          <div v-if="items?.value?.length" class="equipment-list">
-            <div 
-              v-for="item in items.value" 
-              :key="item.id"
-              class="equipment-item"
-            >
-              <div class="item-main">
-                <div class="item-header">
-                  <h4 class="item-name">{{ item.name }}</h4>
-                  <div class="item-type">{{ getItemTypeDisplay(item) }}</div>
-                </div>
-                <div v-if="item.description" class="item-description">
-                  {{ item.description }}
-                </div>
+          <!-- Grouped Equipment Lists -->
+          <div v-if="props.items?.value?.length" class="equipment-groups">
+            
+            <!-- Weapons Section -->
+            <div v-if="groupedItems.weapons.length" class="item-group">
+              <div class="group-header">
+                <h4 class="group-title">⚔️ Weapons</h4>
+                <span class="group-count">{{ groupedItems.weapons.length }}</span>
               </div>
-              
-              <div class="item-properties">
-                <div v-if="getItemWeight(item)" class="item-property">
-                  <span class="property-label">Weight:</span>
-                  <span class="property-value">{{ getItemWeight(item) }} lbs</span>
-                </div>
-                <div v-if="getItemCost(item)" class="item-property">
-                  <span class="property-label">Cost:</span>
-                  <span class="property-value">{{ getItemCost(item) }}</span>
-                </div>
-                <div v-if="getItemDamage(item)" class="item-property">
-                  <span class="property-label">Damage:</span>
-                  <span class="property-value">{{ getItemDamage(item) }}</span>
-                </div>
-                <div v-if="getItemProperties(item)" class="item-property">
-                  <span class="property-label">Properties:</span>
-                  <span class="property-value">{{ getItemProperties(item) }}</span>
-                </div>
-              </div>
-
-              <!-- Weapon Actions -->
-              <div v-if="isWeapon(item)" class="weapon-actions">
-                <button 
-                  @click="initiateWeaponAttack(item)" 
-                  class="weapon-action-btn attack-btn"
-                  title="Make an attack roll with this weapon"
+              <div class="item-list">
+                <div 
+                  v-for="item in groupedItems.weapons" 
+                  :key="item.id"
+                  class="item-row"
                 >
-                  ⚔️ Attack
-                </button>
-                <button 
-                  @click="initiateWeaponDamage(item)" 
-                  class="weapon-action-btn damage-btn"
-                  title="Roll damage for this weapon"
-                >
-                  🗡️ Damage
-                </button>
-                
-                <!-- Weapon-level automation toggle -->
-                <div class="weapon-automation-toggle">
-                  <label class="automation-checkbox-inline">
-                    <input
-                      v-model="automateAttacksValue"
-                      type="checkbox"
-                      class="checkbox-input"
-                      title="Enable automatic attack resolution for this character"
+                  <div class="item-icon">
+                    <img 
+                      v-if="(item as any).image?.url || (item.imageId && itemImageUrls[item.imageId])" 
+                      :src="(item as any).image?.url || (item.imageId ? itemImageUrls[item.imageId] : '')" 
+                      :alt="item.name"
+                      class="item-image"
+                      @error="(e) => (e.target as HTMLImageElement).style.display = 'none'"
                     />
-                    <span class="checkbox-label-compact">Auto</span>
-                  </label>
+                    <span v-else class="item-emoji">{{ getItemIcon(item) }}</span>
+                  </div>
+                  <div class="item-name">{{ item.name }}</div>
+                  <div class="item-actions">
+                    <button 
+                      @click="initiateWeaponAttack(item)" 
+                      class="compact-action-btn attack-btn"
+                      title="Attack"
+                    >
+                      ⚔️
+                    </button>
+                    <button 
+                      @click="initiateWeaponDamage(item)" 
+                      class="compact-action-btn damage-btn"
+                      title="Damage"
+                    >
+                      🗡️
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Armor Section -->
+            <div v-if="groupedItems.armor.length" class="item-group">
+              <div class="group-header">
+                <h4 class="group-title">🛡️ Armor</h4>
+                <span class="group-count">{{ groupedItems.armor.length }}</span>
+              </div>
+              <div class="item-list">
+                <div 
+                  v-for="item in groupedItems.armor" 
+                  :key="item.id"
+                  class="item-row"
+                >
+                  <div class="item-icon">
+                    <img 
+                      v-if="(item as any).image?.url || (item.imageId && itemImageUrls[item.imageId])" 
+                      :src="(item as any).image?.url || (item.imageId ? itemImageUrls[item.imageId] : '')" 
+                      :alt="item.name"
+                      class="item-image"
+                      @error="(e) => (e.target as HTMLImageElement).style.display = 'none'"
+                    />
+                    <span v-else class="item-emoji">{{ getItemIcon(item) }}</span>
+                  </div>
+                  <div class="item-name">{{ item.name }}</div>
+                  <div class="item-actions">
+                    <!-- Armor doesn't have action buttons -->
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Gear Section -->
+            <div v-if="groupedItems.gear.length" class="item-group">
+              <div class="group-header">
+                <h4 class="group-title">🎒 Gear</h4>
+                <span class="group-count">{{ groupedItems.gear.length }}</span>
+              </div>
+              <div class="item-list">
+                <div 
+                  v-for="item in groupedItems.gear" 
+                  :key="item.id"
+                  class="item-row"
+                >
+                  <div class="item-icon">
+                    <img 
+                      v-if="(item as any).image?.url || (item.imageId && itemImageUrls[item.imageId])" 
+                      :src="(item as any).image?.url || (item.imageId ? itemImageUrls[item.imageId] : '')" 
+                      :alt="item.name"
+                      class="item-image"
+                      @error="(e) => (e.target as HTMLImageElement).style.display = 'none'"
+                    />
+                    <span v-else class="item-emoji">{{ getItemIcon(item) }}</span>
+                  </div>
+                  <div class="item-name">{{ item.name }}</div>
+                  <div class="item-actions">
+                    <!-- General gear doesn't have action buttons -->
+                  </div>
                 </div>
               </div>
             </div>
@@ -488,6 +542,12 @@ import AdvantageRollDialog, { type RollDialogData } from '../internal/common/Adv
 import WeaponAttackDialog, { type WeaponAttackRollData } from '../internal/common/WeaponAttackDialog.vue';
 import WeaponDamageDialog, { type WeaponDamageRollData } from '../internal/common/WeaponDamageDialog.vue';
 
+// Note: This import works because plugin components run in the web context
+// @ts-ignore - Import from web package for document sheet functionality
+import { useDocumentSheetStore } from '../../../../../web/src/stores/document-sheet.store.mjs';
+// @ts-ignore - Import from web package for asset utilities
+import { getAssetUrl } from '../../../../../web/src/utils/asset-utils.mjs';
+
 // Props - enhanced interface with container-provided document copy
 interface Props {
   document: Ref<BaseDocument>;           // Original document (for view mode)
@@ -541,6 +601,9 @@ const compendiumError = ref<string | null>(null);
 // Spell resolution storage
 const resolvedSpells = ref<Map<string, any>>(new Map());
 
+// Document sheet store for opening spell sheets
+const documentSheetStore = useDocumentSheetStore();
+
 // Emits - unified event interface
 const emit = defineEmits<{
   'update:document': [document: BaseDocument];
@@ -570,6 +633,9 @@ const dragCounter = ref(0);
 // Spell drag and drop state
 const isSpellDragOver = ref(false);
 const spellDragCounter = ref(0);
+
+// Item image URL cache (for dynamic loading from imageId)
+const itemImageUrls = ref<Record<string, string>>({});
 
 // Get plugin context for action requests
 const pluginContext = getPluginContext();
@@ -688,7 +754,7 @@ const tabs = [
   { id: 'overview', name: 'Main', icon: '📋' },
   { id: 'abilities', name: 'Abilities', icon: '💪' },
   { id: 'skills', name: 'Skills', icon: '🎯' },
-  { id: 'combat', name: 'Combat', icon: '⚔️' },
+  { id: 'settings', name: 'Settings', icon: '⚙️' },
   { id: 'spells', name: 'Spells', icon: '✨' },
   { id: 'gear', name: 'Equipment', icon: '🎒' },
   { id: 'background', name: 'Background', icon: '📜' },
@@ -950,6 +1016,13 @@ const sortedSpellLevels = computed(() => {
   return Array.from(levels).sort((a, b) => a - b);
 });
 
+// Equipment grouping for compact display
+const groupedItems = computed(() => {
+  if (!props.items?.value?.length) {
+    return { weapons: [], armor: [], gear: [] };
+  }
+  return groupItemsByType(props.items.value);
+});
 
 // Notes - direct binding to character.pluginData.roleplay.backstory
 const characterNotes = computed({
@@ -967,48 +1040,6 @@ const characterNotes = computed({
   }
 });
 
-// Equipment helper functions
-const getItemTypeDisplay = (item: IItem): string => {
-  const pluginData = item.pluginData as any;
-  if (pluginData?.itemType) {
-    return pluginData.itemType.charAt(0).toUpperCase() + pluginData.itemType.slice(1);
-  }
-  return item.pluginDocumentType || 'Item';
-};
-
-const getItemWeight = (item: IItem): number | null => {
-  const pluginData = item.pluginData as any;
-  return pluginData?.weight || null;
-};
-
-const getItemCost = (item: IItem): string | null => {
-  const pluginData = item.pluginData as any;
-  if (pluginData?.cost?.amount && pluginData?.cost?.currency) {
-    const amount = pluginData.cost.amount;
-    const currency = pluginData.cost.currency.toUpperCase();
-    if (currency === 'GP' && amount >= 100) {
-      return `${amount / 100} gp`;
-    }
-    return `${amount} ${currency}`;
-  }
-  return null;
-};
-
-const getItemDamage = (item: IItem): string | null => {
-  const pluginData = item.pluginData as any;
-  if (pluginData?.damage?.dice && pluginData?.damage?.type) {
-    return `${pluginData.damage.dice} ${pluginData.damage.type}`;
-  }
-  return null;
-};
-
-const getItemProperties = (item: IItem): string | null => {
-  const pluginData = item.pluginData as any;
-  if (pluginData?.properties && Array.isArray(pluginData.properties) && pluginData.properties.length > 0) {
-    return pluginData.properties.join(', ');
-  }
-  return null;
-};
 
 // Weapon identification and actions
 const isWeapon = (item: IItem): boolean => {
@@ -1020,6 +1051,66 @@ const isWeapon = (item: IItem): boolean => {
     itemType === type || 
     (typeof itemType === 'string' && itemType.toLowerCase().includes('weapon'))
   ) || !!(pluginData?.damage?.dice);
+};
+
+const isArmor = (item: IItem): boolean => {
+  const pluginData = item.pluginData as any;
+  const itemType = pluginData?.type || pluginData?.category || pluginData?.armorType;
+  const armorTypes = ['armor', 'light-armor', 'medium-armor', 'heavy-armor', 'shield'];
+  
+  return armorTypes.some(type => 
+    itemType === type || 
+    (typeof itemType === 'string' && itemType.toLowerCase().includes('armor')) ||
+    (typeof itemType === 'string' && itemType.toLowerCase().includes('shield'))
+  ) || !!(pluginData?.armorClass);
+};
+
+const groupItemsByType = (items: IItem[]) => {
+  const weapons: IItem[] = [];
+  const armor: IItem[] = [];
+  const gear: IItem[] = [];
+  
+  items.forEach(item => {
+    if (isWeapon(item)) {
+      weapons.push(item);
+    } else if (isArmor(item)) {
+      armor.push(item);
+    } else {
+      gear.push(item);
+    }
+  });
+  
+  return { weapons, armor, gear };
+};
+
+const getItemIcon = (item: IItem): string => {
+  // Use type-based emojis for now (will be replaced with images when image population is working)
+  if (isWeapon(item)) {
+    const pluginData = item.pluginData as any;
+    const weaponType = pluginData?.weaponType || pluginData?.category;
+    if (typeof weaponType === 'string') {
+      if (weaponType.includes('ranged') || weaponType.includes('bow') || weaponType.includes('crossbow')) {
+        return '🏹';
+      }
+      if (weaponType.includes('sword')) return '⚔️';
+      if (weaponType.includes('axe')) return '🪓';
+      if (weaponType.includes('hammer') || weaponType.includes('mace')) return '🔨';
+      if (weaponType.includes('spear') || weaponType.includes('javelin')) return '🗡️';
+    }
+    return '⚔️'; // Default weapon icon
+  }
+  
+  if (isArmor(item)) {
+    const pluginData = item.pluginData as any;
+    const armorType = pluginData?.armorType || pluginData?.category;
+    if (typeof armorType === 'string' && armorType.includes('shield')) {
+      return '🛡️';
+    }
+    return '🦺'; // Default armor icon
+  }
+  
+  // Default gear icon
+  return '🎒';
 };
 
 const initiateWeaponAttack = (weapon: IItem) => {
@@ -1466,6 +1557,61 @@ const castSpell = (spellData: any) => {
   // TODO: Implement spell casting mechanics
 };
 
+// Update spell prepared status
+const updateSpellPrepared = (spellData: any) => {
+  console.log('[CharacterSheet] Updating spell prepared status:', spellData.name, spellData.prepared);
+  
+  if (props.readonly) {
+    return;
+  }
+  
+  // The v-model automatically updates the spellData.prepared value
+  // We just need to ensure the character data is marked as dirty for saving
+  if (characterCopy.value) {
+    // Character copy exists, so changes will be saved when the sheet is saved
+    console.log('[CharacterSheet] Spell prepared status updated in character copy');
+  }
+};
+
+// Open spell sheet on double-click
+const openSpellSheet = (spellData: any) => {
+  console.log('[CharacterSheet] Opening spell sheet for:', spellData.name);
+  
+  // Create a minimal document object that DocumentSheetContainer can use
+  const mockSpellDocument: BaseDocument = {
+    id: spellData.spell,           // ObjectId of the spell document
+    name: spellData.name,          // Spell name from character data
+    documentType: 'vtt-document', // Required for VTT document handling
+    pluginDocumentType: 'spell',  // Required for component resolution
+    pluginId: 'dnd-5e-2024',     // Required for plugin system
+    // Minimal required fields for BaseDocument interface
+    slug: '',
+    pluginData: {},
+    itemState: {},
+    state: {},
+    userData: {}
+  };
+  
+  // Open the spell sheet using the document sheet store
+  documentSheetStore.openDocumentSheet(mockSpellDocument);
+};
+
+// Load item image URLs dynamically from imageId (for game state items)
+const loadItemImageUrls = async () => {
+  const currentItems = props.items?.value || [];
+  for (const item of currentItems) {
+    if (item.imageId && !itemImageUrls.value[item.imageId]) {
+      try {
+        const url = await getAssetUrl(item.imageId);
+        itemImageUrls.value[item.imageId] = url;
+        console.log(`[CharacterSheet] Loaded image URL for item ${item.name} (${item.imageId}):`, url);
+      } catch (error) {
+        console.error(`[CharacterSheet] Failed to load image for item ${item.id}:`, error);
+      }
+    }
+  }
+};
+
 // Spell drag and drop handlers
 const handleSpellDragEnter = (event: DragEvent) => {
   event.preventDefault();
@@ -1722,6 +1868,11 @@ watch(() => {
 }, () => {
   loadCompendiumDocuments();
 }, { deep: true });
+
+// Watch for items changes and load image URLs
+watch(() => props.items?.value, () => {
+  loadItemImageUrls();
+}, { deep: true, immediate: true });
 
 // Document copy is managed by container - no local watch needed
 </script>
@@ -2225,87 +2376,148 @@ watch(() => {
   border: 1px solid var(--dnd-brown-light);
 }
 
-.equipment-list {
+/* Compact Equipment Groups */
+.equipment-groups {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
   overflow-y: auto;
   flex: 1;
 }
 
-.equipment-item {
+.item-group {
   background: var(--dnd-parchment);
   border: 1px solid var(--dnd-brown-light);
   border-radius: 8px;
-  padding: 16px;
-  box-shadow: 0 2px 4px rgba(139, 87, 42, 0.1);
-  transition: box-shadow 0.2s ease;
+  overflow: hidden;
 }
 
-.equipment-item:hover {
-  box-shadow: 0 4px 8px rgba(139, 87, 42, 0.15);
-}
-
-.item-main {
-  margin-bottom: 12px;
-}
-
-.item-header {
+.group-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--dnd-parchment-dark);
+  border-bottom: 1px solid var(--dnd-brown-light);
+}
+
+.group-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--dnd-red-dark);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.group-count {
+  font-size: 12px;
+  color: var(--dnd-brown-dark);
+  background: var(--dnd-background);
+  padding: 2px 6px;
+  border-radius: 8px;
+  border: 1px solid var(--dnd-brown-light);
+}
+
+.item-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.item-row {
+  display: flex;
+  align-items: center;
   gap: 12px;
-  margin-bottom: 8px;
+  padding: 6px 12px;
+  border-bottom: 1px solid rgba(139, 87, 42, 0.1);
+  transition: background-color 0.2s ease;
+}
+
+.item-row:last-child {
+  border-bottom: none;
+}
+
+.item-row:hover {
+  background: rgba(139, 87, 42, 0.05);
+}
+
+.item-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.item-image {
+  width: 24px;
+  height: 24px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid var(--dnd-brown-light);
+}
+
+.item-emoji {
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .item-name {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--dnd-red-dark);
-  line-height: 1.3;
-}
-
-.item-type {
-  font-size: 12px;
-  color: var(--dnd-brown-dark);
-  background: var(--dnd-parchment-dark);
-  padding: 2px 8px;
-  border-radius: 10px;
-  border: 1px solid var(--dnd-brown-light);
-  white-space: nowrap;
-}
-
-.item-description {
+  flex: 1;
   font-size: 14px;
-  color: var(--dnd-brown-dark);
-  line-height: 1.4;
-  font-style: italic;
-}
-
-.item-properties {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  padding-top: 12px;
-  border-top: 1px solid var(--dnd-brown-light);
-}
-
-.item-property {
-  display: flex;
-  gap: 6px;
-  font-size: 14px;
-  align-items: baseline;
-}
-
-.property-label {
-  color: var(--dnd-brown-dark);
   font-weight: 500;
+  color: var(--dnd-red-dark);
+  line-height: 1.2;
+  margin: 0;
 }
 
-.property-value {
-  color: var(--dnd-red-dark);
-  font-weight: 600;
+.item-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.compact-action-btn {
+  width: 28px;
+  height: 28px;
+  background: var(--dnd-red);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.compact-action-btn:hover {
+  background: var(--dnd-red-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(139, 87, 42, 0.3);
+}
+
+.compact-action-btn:active {
+  transform: translateY(0);
+}
+
+.compact-action-btn.damage-btn {
+  background: var(--dnd-brown);
+}
+
+.compact-action-btn.damage-btn:hover {
+  background: var(--dnd-brown-dark);
+}
+
+.compact-action-btn:focus {
+  outline: 2px solid var(--dnd-yellow);
+  outline-offset: 1px;
 }
 
 .equipment-empty {
@@ -2346,15 +2558,19 @@ watch(() => {
     gap: 8px;
   }
   
-  .item-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 6px;
+  .item-row {
+    padding: 8px 10px;
+    gap: 8px;
   }
   
-  .item-properties {
-    flex-direction: column;
-    gap: 8px;
+  .group-header {
+    padding: 6px 10px;
+  }
+  
+  .compact-action-btn {
+    width: 24px;
+    height: 24px;
+    font-size: 10px;
   }
 }
 
@@ -2364,63 +2580,8 @@ watch(() => {
 .ability-card:focus,
 .save-item:focus,
 .skill-item:focus,
-.equipment-item:focus {
+.item-row:focus {
   outline: 2px solid var(--dnd-red);
-  outline-offset: 2px;
-}
-
-/* Weapon Actions */
-.weapon-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--dnd-brown-light);
-}
-
-.weapon-action-btn {
-  flex: 1;
-  background: var(--dnd-red);
-  color: white;
-  border: none;
-  border-radius: 6px;
-  padding: 8px 12px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  min-height: 36px;
-}
-
-.weapon-action-btn:hover {
-  background: var(--dnd-red-dark);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(139, 87, 42, 0.3);
-}
-
-.weapon-action-btn:active {
-  transform: translateY(0);
-  box-shadow: 0 1px 4px rgba(139, 87, 42, 0.2);
-}
-
-.weapon-action-btn.attack-btn {
-  background: var(--dnd-red);
-}
-
-.weapon-action-btn.damage-btn {
-  background: var(--dnd-brown);
-}
-
-.weapon-action-btn.damage-btn:hover {
-  background: var(--dnd-brown-dark);
-}
-
-.weapon-action-btn:focus {
-  outline: 2px solid var(--dnd-yellow);
   outline-offset: 2px;
 }
 
@@ -2454,36 +2615,6 @@ watch(() => {
 .checkbox-label {
   user-select: none;
   font-weight: 500;
-}
-
-/* Weapon-level automation toggle */
-.weapon-automation-toggle {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid var(--dnd-brown-light);
-  display: flex;
-  justify-content: center;
-}
-
-.automation-checkbox-inline {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.75rem;
-  color: var(--dnd-brown);
-  cursor: pointer;
-  padding: 2px 6px;
-  border-radius: 3px;
-  transition: background-color 0.2s ease;
-}
-
-.automation-checkbox-inline:hover {
-  background-color: var(--dnd-background-light);
-}
-
-.checkbox-label-compact {
-  font-weight: 500;
-  user-select: none;
 }
 
 /* Spells Section Styles */
@@ -2640,6 +2771,7 @@ watch(() => {
   box-shadow: 0 2px 4px rgba(139, 87, 42, 0.1);
   transition: all 0.2s ease;
   position: relative;
+  cursor: pointer;
 }
 
 .spell-item:hover {
@@ -2714,6 +2846,40 @@ watch(() => {
   color: var(--dnd-brown-dark);
 }
 
+.spell-prepared-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.prepared-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--dnd-black);
+  cursor: pointer;
+  user-select: none;
+}
+
+.prepared-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.cantrip-label {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 8px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: var(--dnd-purple);
+  color: white;
+}
+
 .spell-description {
   font-size: 13px;
   color: var(--dnd-black);
@@ -2766,5 +2932,84 @@ watch(() => {
   font-size: 12px;
   color: var(--dnd-brown-dark);
   margin-top: 8px;
+}
+
+/* Settings Tab Styles */
+.settings-section {
+  padding: 20px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.settings-section h3 {
+  font-family: 'Cinzel', serif;
+  font-size: 18px;
+  color: var(--dnd-red);
+  margin: 0 0 20px 0;
+  text-align: center;
+  border-bottom: 1px solid var(--dnd-brown-light);
+  padding-bottom: 8px;
+}
+
+.settings-group {
+  background: var(--dnd-white);
+  border: 1px solid var(--dnd-brown-light);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 4px rgba(139, 87, 42, 0.1);
+}
+
+.settings-group h4 {
+  font-family: 'Cinzel', serif;
+  font-size: 14px;
+  color: var(--dnd-brown-dark);
+  margin: 0 0 12px 0;
+  font-weight: 600;
+}
+
+.setting-item {
+  padding: 12px;
+  border: 1px solid var(--dnd-brown-light);
+  border-radius: 6px;
+  background: rgba(139, 87, 42, 0.05);
+}
+
+.setting-label {
+  font-weight: 600;
+  color: var(--dnd-brown-dark);
+  margin-bottom: 4px;
+}
+
+.setting-description {
+  font-size: 12px;
+  color: var(--dnd-brown);
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.setting-value {
+  font-size: 14px;
+  color: var(--dnd-black);
+  font-weight: 600;
+}
+
+.setting-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.setting-toggle .checkbox-input {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.setting-toggle .checkbox-label {
+  font-size: 14px;
+  color: var(--dnd-black);
 }
 </style>

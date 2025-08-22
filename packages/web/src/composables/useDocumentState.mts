@@ -56,7 +56,7 @@ export interface DocumentStateReturn {
 
 export function useDocumentState(
   documentId: string,
-  documentType: 'character' | 'actor',
+  documentType: 'character' | 'actor' | 'vtt-document',
   options: DocumentStateOptions = {}
 ): DocumentStateReturn {
   const { readonly = false } = options;
@@ -109,6 +109,12 @@ export function useDocumentState(
   // Load document items (generic for any document that can carry items)
   const loadItems = async () => {
     if (!document.value) return;
+    
+    // VTT documents don't carry items, so skip loading
+    if (documentType === 'vtt-document') {
+      items.value = [];
+      return;
+    }
     
     try {
       const documentItems = await documentsClient.searchDocuments({

@@ -56,7 +56,8 @@ export class DocumentService {
   ): Promise<T | null> {
     return await DocumentModel.findById(id, undefined, options)
       .populate('tokenImage')
-      .populate('avatar') as T | null;
+      .populate('avatar')
+      .populate('image') as T | null;
   }
 
   /**
@@ -68,7 +69,8 @@ export class DocumentService {
   ): Promise<T | null> {
     return await DocumentModel.findOne(filter, undefined, options)
       .populate('tokenImage')
-      .populate('avatar') as T | null;
+      .populate('avatar')
+      .populate('image') as T | null;
   }
 
   /**
@@ -80,7 +82,8 @@ export class DocumentService {
   ): Promise<T[]> {
     const results = await DocumentModel.find(filter, undefined, options)
       .populate('tokenImage')
-      .populate('avatar');
+      .populate('avatar')
+      .populate('image');
     return results.map(doc => doc.toObject()) as unknown as T[];
   }
 

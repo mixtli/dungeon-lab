@@ -68,7 +68,7 @@ import PluginContainer from './PluginContainer.vue';
 const props = defineProps<{
   show: boolean;
   documentId?: string;
-  documentType?: 'character' | 'actor';
+  documentType?: 'character' | 'actor' | 'vtt-document';
   context?: 'admin' | 'game';
   readonly?: boolean;
 }>();
@@ -84,6 +84,7 @@ const emit = defineEmits<{
 const documentSheetComponent = shallowRef<Component | null>(null);
 const editMode = ref(false);
 
+
 // Services for GM request system
 const playerActionService = new PlayerActionService();
 const notificationStore = useNotificationStore();
@@ -95,7 +96,7 @@ const isGameContext = computed(() => context.value === 'game');
 // Initialize appropriate composable based on context
 //const adminDocumentState = ref<ReturnType<typeof useDocumentState> | null>(null);
 
-// Initialize admin state only when we have valid props
+// Initialize admin state when we have valid props
 const adminDocumentState = computed(() => {
   if (!isGameContext.value && props.documentId && props.documentType) {
     return useDocumentState(props.documentId, props.documentType, {
@@ -106,7 +107,7 @@ const adminDocumentState = computed(() => {
 });
 
 const gameDocumentState = computed(() => {
-  if (isGameContext.value && props.documentId && props.documentType) {
+  if (isGameContext.value && props.documentId && props.documentType && props.documentType !== 'vtt-document') {
     return useGameDocumentState(props.documentId, props.documentType, {
       readonly: props.readonly
     });
@@ -116,21 +117,17 @@ const gameDocumentState = computed(() => {
 
 // Unified interface for both contexts
 const documentState = computed(() => {
+  // VTT documents always use admin state (they're never in game state)
+  if (props.documentType === 'vtt-document') {
+    return adminDocumentState.value;
+  }
   return isGameContext.value ? gameDocumentState.value : adminDocumentState.value;
 });
 
 // Reactive document and items from appropriate composable
 const reactiveDocument = computed(() => {
   console.log(`[DocumentSheetContainer] Computing reactiveDocument, context: ${context.value}`);
-  
-  if (isGameContext.value) {
-    // IMPORTANT: gameDocumentState.value.document is already a ComputedRef, so we need to unwrap it
-    const gameDoc = gameDocumentState.value?.document?.value || null;
-    return gameDoc;
-  } else {
-    const adminDoc = adminDocumentState.value?.document?.value || null;
-    return adminDoc;
-  }
+  return documentState.value?.document?.value || null;
 });
 
 const reactiveItems = computed(() => documentState.value?.items || ref([]));
@@ -195,13 +192,14 @@ const documentInfo = computed(() => {
   const doc = reactiveDocument.value;
   return {
     pluginId: doc?.pluginId,
-    documentType: props.documentType
+    documentType: props.documentType,
+    pluginDocumentType: doc?.pluginDocumentType
   };
 });
 
 // Watch for document changes and load the appropriate component based on documentType
-watch(() => [documentInfo.value.pluginId, documentInfo.value.documentType], async ([pluginId, documentType]) => {
-  console.log('[DocumentSheetContainer] Document game system ID:', pluginId, 'documentType:', documentType, 'context:', context.value);
+watch(() => [documentInfo.value.pluginId, documentInfo.value.documentType, documentInfo.value.pluginDocumentType], async ([pluginId, documentType, pluginDocumentType]) => {
+  console.log('[DocumentSheetContainer] Document game system ID:', pluginId, 'documentType:', documentType, 'pluginDocumentType:', pluginDocumentType, 'context:', context.value);
   
   if (!pluginId || !documentType) {
     documentSheetComponent.value = null;
@@ -210,7 +208,20 @@ watch(() => [documentInfo.value.pluginId, documentInfo.value.documentType], asyn
 
   try {
     // Determine component type based on documentType
-    const componentType = documentType === 'actor' ? 'actor-sheet' : 'character-sheet';
+    let componentType: string;
+    
+    if (documentType === 'actor') {
+      componentType = 'actor-sheet';
+    } else if (documentType === 'character') {
+      componentType = 'character-sheet';
+    } else if (documentType === 'vtt-document' && pluginDocumentType) {
+      // For VTT documents, use pluginDocumentType to determine component
+      componentType = `${pluginDocumentType}-sheet`;
+    } else {
+      console.warn(`[DocumentSheetContainer] Unsupported document type: ${documentType}`);
+      documentSheetComponent.value = null;
+      return;
+    }
     
     // Use the new async getComponent API
     const component = await pluginRegistry.getComponent(pluginId, componentType);
@@ -226,6 +237,7 @@ watch(() => [documentInfo.value.pluginId, documentInfo.value.documentType], asyn
     documentSheetComponent.value = null;
   }
 }, { immediate: true });
+
 
 // Edit mode controls
 const toggleEditMode = () => {

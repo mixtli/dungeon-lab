@@ -62,6 +62,20 @@
         "back-to-basics": "Emitted to return to basic info step",
         "validation-change": "Emitted when step validation status changes"
       }
+    },
+    "spell-sheet": {
+      "id": "dnd-5e-2024-spell-sheet",
+      "name": "D&D 5e Spell Sheet",
+      "description": "Read-only spell information display",
+      "category": "document-viewer",
+      "props": {
+        "document": { "type": "object", "required": true },
+        "readonly": { "type": "boolean", "default": true }
+      },
+      "events": {
+        "close": "Emitted when spell sheet should be closed",
+        "drag-start": "Emitted when spell sheet is being dragged"
+      }
     }
   },
   "mechanics": {

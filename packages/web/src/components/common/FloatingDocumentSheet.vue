@@ -29,8 +29,8 @@
         <DocumentSheetContainer
           :show="true"
           :document-id="sheet.document.id"
-          :document-type="sheet.document.documentType as 'character' | 'actor'"
-          context="game"
+          :document-type="getSheetDocumentType(sheet)"
+          :context="getSheetContext(sheet)"
           :readonly="false"
           @close="documentSheetStore.closeDocumentSheet(sheetId)"
           @roll="handleRoll"
@@ -60,6 +60,16 @@ import type { BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
 import DocumentSheetContainer from './DocumentSheetContainer.vue';
 
 const documentSheetStore = useDocumentSheetStore();
+
+// Helper functions for sheet context and document type
+const getSheetContext = (sheet: DocumentSheetStore): 'admin' | 'game' => {
+  // VTT documents always use admin context (they're never in game state)
+  return sheet.document.documentType === 'vtt-document' ? 'admin' : 'game';
+};
+
+const getSheetDocumentType = (sheet: DocumentSheetStore): 'character' | 'actor' | 'vtt-document' => {
+  return sheet.document.documentType as 'character' | 'actor' | 'vtt-document';
+};
 
 // Debug logging for sheets
 watch(() => documentSheetStore.floatingSheets, (sheets) => {

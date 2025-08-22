@@ -73,7 +73,14 @@
         @dragend="handleDragEnd"
       >
         <div class="document-icon">
-          <i :class="getDocumentIcon(document.pluginDocumentType)"></i>
+          <img 
+            v-if="(document as any).image?.url" 
+            :src="(document as any).image.url" 
+            :alt="document.name || 'Document image'"
+            class="document-image"
+            @error="onImageError"
+          />
+          <i v-else :class="getDocumentIcon(document.pluginDocumentType)"></i>
         </div>
         
         <div class="document-info">
@@ -118,10 +125,12 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { DocumentsClient } from '@dungeon-lab/client/index.mjs';
 import { playerActionService } from '../../../services/player-action.service.mjs';
+import { useDocumentSheetStore } from '../../../stores/document-sheet.store.mjs';
 import type { BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
 import type { AddDocumentParameters } from '@dungeon-lab/shared/types/game-actions.mjs';
 
 const documentsClient = new DocumentsClient();
+const documentSheetStore = useDocumentSheetStore();
 
 // State
 const searchQuery = ref('');
@@ -294,8 +303,10 @@ async function addToSession(document: BaseDocument): Promise<void> {
 }
 
 async function viewDocument(document: BaseDocument): Promise<void> {
-  console.log('Viewing document:', document);
-  // TODO: Implement document viewer
+  console.log('[DocumentsTab] Opening document sheet for:', document.name, document.documentType, document.pluginDocumentType);
+  
+  // Open the document using the same floating sheet system as characters/actors
+  documentSheetStore.openDocumentSheet(document);
 }
 
 // Drag and drop functionality
@@ -328,6 +339,15 @@ function handleDragEnd(): void {
   
   console.log('Drag ended');
 }
+
+// Handle image loading errors
+function onImageError(event: Event): void {
+  const img = event.target as HTMLImageElement;
+  console.warn(`Failed to load document image: ${img.src}`);
+  // Hide the broken image - the v-else icon will show instead
+  img.style.display = 'none';
+}
+
 </script>
 
 <style scoped>
@@ -539,6 +559,18 @@ function handleDragEnd(): void {
 
 .document-icon i {
   font-size: 20px;
+}
+
+.document-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 6px;
+  transition: transform 0.2s ease;
+}
+
+.document-icon:hover .document-image {
+  transform: scale(1.05);
 }
 
 .document-info {
