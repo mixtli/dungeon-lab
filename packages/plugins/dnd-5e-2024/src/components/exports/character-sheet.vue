@@ -520,6 +520,16 @@
     @roll="handleRollSubmission"
   />
 
+  <!-- Saving Throw Roll Dialog -->
+  <AdvantageRollDialog
+    v-model="showSavingThrowDialog"
+    :ability="currentRollAbility"
+    :saving-throw="currentSavingThrow"
+    :base-modifier="currentSavingThrow ? (savingThrowBonuses[currentSavingThrow] || 0) : 0"
+    :character-name="character?.name"
+    @roll="handleSavingThrowSubmission"
+  />
+
   <!-- Dialogs -->
   <WeaponAttackDialog
     v-model="showWeaponAttackDialog"
@@ -626,8 +636,10 @@ const activeTab = ref('overview');
 
 // Roll dialog state
 const showRollDialog = ref(false);
+const showSavingThrowDialog = ref(false);
 const currentRollAbility = ref<string>('');
 const currentRollSkill = ref<string>('');
+const currentSavingThrow = ref<string>('');
 const currentRollWeapon = ref<IItem | null>(null);
 
 // Weapon dialog state
@@ -762,12 +774,12 @@ const tabs = [
   { id: 'overview', name: 'Main', icon: '📋' },
   { id: 'abilities', name: 'Abilities', icon: '💪' },
   { id: 'skills', name: 'Skills', icon: '🎯' },
-  { id: 'settings', name: 'Settings', icon: '⚙️' },
   { id: 'spells', name: 'Spells', icon: '✨' },
   { id: 'gear', name: 'Equipment', icon: '🎒' },
   { id: 'background', name: 'Background', icon: '📜' },
   { id: 'features', name: 'Features', icon: '⭐' },
-  { id: 'notes', name: 'Notes', icon: '📝' }
+  { id: 'notes', name: 'Notes', icon: '📝' },
+  { id: 'settings', name: 'Settings', icon: '⚙️' }
 ];
 
 // Process ability scores from proper D&D schema
@@ -1242,6 +1254,53 @@ const handleRollSubmission = (rollData: RollDialogData) => {
   console.log(`[CharacterSheet] Submitted ${isSkillCheck ? rollData.skill + ' skill' : rollData.ability + ' ability'} roll:`, roll);
 };
 
+// Handle saving throw roll submission
+const handleSavingThrowSubmission = (rollData: RollDialogData) => {
+  const pluginContext = getPluginContext();
+  if (!pluginContext) {
+    console.error('Plugin context not available');
+    return;
+  }
+
+  // Generate unique roll ID
+  const rollId = `roll_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  
+  // Create roll object following the established schema
+  const roll = {
+    id: rollId,
+    rollType: 'saving-throw',
+    pluginId: 'dnd-5e-2024',
+    dice: [{ 
+      sides: 20, 
+      quantity: rollData.advantageMode === 'normal' ? 1 : 2 
+    }],
+    recipients: rollData.recipients,
+    arguments: { 
+      customModifier: rollData.customModifier,
+      pluginArgs: {
+        ability: rollData.ability,
+        advantageMode: rollData.advantageMode
+      }
+    },
+    modifiers: [
+      { 
+        type: 'saving-throw', 
+        value: rollData.baseModifier, 
+        source: `${rollData.ability} saving throw` 
+      }
+    ],
+    metadata: {
+      title: `${rollData.ability.charAt(0).toUpperCase()}${rollData.ability.slice(1)} Saving Throw`,
+      characterName: character.value?.name
+    }
+  };
+
+  // Submit roll via plugin context
+  pluginContext.submitRoll(roll);
+  console.log(`[CharacterSheet] Submitted ${rollData.ability} saving throw roll:`, roll);
+  showSavingThrowDialog.value = false;
+};
+
 // Handle weapon attack roll submission
 const handleWeaponAttackRollSubmission = (rollData: WeaponAttackRollData) => {
   const pluginContext = getPluginContext();
@@ -1404,14 +1463,9 @@ const handleWeaponDamageRollSubmission = (rollData: WeaponDamageRollData) => {
 };
 
 const rollSavingThrow = (ability: string) => {
-  const bonus = savingThrowBonuses.value[ability] || 0;
-  emit('roll', 'saving-throw', {
-    type: 'saving-throw',
-    ability,
-    bonus,
-    expression: `1d20${formatModifier(bonus)}`,
-    title: `${ability.charAt(0).toUpperCase() + ability.slice(1)} Save`
-  });
+  currentSavingThrow.value = ability;
+  currentRollAbility.value = ability;
+  showSavingThrowDialog.value = true;
 };
 
 const rollSkillCheck = (skill: string) => {

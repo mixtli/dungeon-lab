@@ -121,17 +121,78 @@ export class DndAttackRollHandler implements RollTypeHandler {
 // Example for future saving throw handler  
 export class DndSavingThrowHandler implements RollTypeHandler {
   async handleRoll(result: RollServerResult, context: RollHandlerContext): Promise<void> {
-    console.log('[DndSavingThrowHandler] Processing saving throw (placeholder):', {
+    console.log('[DndSavingThrowHandler] Processing saving throw:', {
+      ability: result.arguments.pluginArgs?.ability,
+      advantageMode: result.arguments.pluginArgs?.advantageMode,
+      total: this.calculateTotal(result),
+      characterName: result.metadata.characterName,
       isGM: context.isGM
     });
-    
+
     if (context.isGM) {
-      // GM client: Compare against DC and send result
-      console.log('[DndSavingThrowHandler] GM processing saving throw');
-      // Future: Compare against DC, apply effects on success/failure
+      // GM client: Calculate final result and send authoritative chat message
+      const total = this.calculateTotal(result);
+      const ability = String(result.arguments.pluginArgs?.ability || 'Unknown');
+      const advantageMode = result.arguments.pluginArgs?.advantageMode;
+      const characterName = result.metadata.characterName;
+      
+      // Create descriptive roll message
+      let rollDescription = `${ability.charAt(0).toUpperCase() + ability.slice(1)} Saving Throw`;
+      if (advantageMode === 'advantage') {
+        rollDescription += ' (Advantage)';
+      } else if (advantageMode === 'disadvantage') {
+        rollDescription += ' (Disadvantage)';
+      }
+      
+      const rollMessage = `${characterName ? `${characterName} rolled ` : ''}${rollDescription}: **${total}**`;
+      
+      // Send chat message via context (only available for GM)
+      if (context.sendChatMessage) {
+        context.sendChatMessage(rollMessage, {
+          type: 'roll',
+          rollData: result,
+          recipient: result.recipients
+        });
+        console.log('[DndSavingThrowHandler] GM sent chat message:', rollMessage);
+      } else {
+        console.warn('[DndSavingThrowHandler] GM client but no sendChatMessage function available');
+      }
     } else {
-      // Player client: UI feedback only
+      // Player client: Provide UI feedback only
       console.log('[DndSavingThrowHandler] Player client - providing UI feedback');
     }
+  }
+
+  /**
+   * Calculate the final total for a saving throw
+   */
+  private calculateTotal(result: RollServerResult): number {
+    let total = 0;
+    
+    // Handle advantage/disadvantage for d20 rolls
+    for (const diceGroup of result.results) {
+      if (diceGroup.sides === 20 && diceGroup.results.length === 2) {
+        const advantageMode = result.arguments.pluginArgs?.advantageMode;
+        if (advantageMode === 'advantage') {
+          total += Math.max(...diceGroup.results);
+        } else if (advantageMode === 'disadvantage') {
+          total += Math.min(...diceGroup.results);
+        } else {
+          total += diceGroup.results[0];
+        }
+      } else {
+        total += diceGroup.results.reduce((sum, res) => sum + res, 0);
+      }
+    }
+
+    // Add modifiers
+    for (const modifier of result.modifiers) {
+      total += modifier.value;
+    }
+
+    // Add custom modifier
+    total += result.arguments.customModifier;
+
+    return total;
   }
 }

@@ -6,34 +6,27 @@
   >
     <div class="bg-gray-800 rounded-lg shadow-xl p-4 max-w-md w-full mx-4">
       <!-- Dialog Header -->
-      <div class="flex justify-between items-center mb-6">
-        <h2 class="text-xl font-bold text-gray-100">
+      <div class="relative mb-6">
+        <h2 class="text-xl font-bold text-green-600 text-center">
           {{ rollTitle }}
         </h2>
         <button 
           @click="closeDialog"
-          class="text-gray-400 hover:text-gray-200 text-xl font-bold"
+          class="absolute top-0 right-0 text-gray-400 hover:text-gray-200 text-xl font-bold"
         >
           ×
         </button>
       </div>
 
-      <!-- Form Fields -->
-      <div class="space-y-4">
-        <!-- Custom Modifier -->
-        <div>
-          <label for="customModifier" class="block text-sm font-medium text-gray-200 mb-1">
-            Custom Modifier
-          </label>
-          <input
-            id="customModifier"
-            v-model.number="customModifier"
-            type="number"
-            class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="0"
-          />
+      <!-- Roll Formula -->
+      <div class="text-center mb-4">
+        <div class="text-lg font-mono text-gray-200">
+          {{ rollPreview }}
         </div>
+      </div>
 
+      <!-- Roll Options -->
+      <div class="space-y-4 mb-4">
         <!-- Roll Mode Buttons -->
         <div class="flex space-x-2">
           <button
@@ -65,41 +58,42 @@
           </button>
         </div>
 
-        <!-- Recipients -->
-        <div>
-          <label for="recipients" class="block text-sm font-medium text-gray-200 mb-1">
-            Roll Visibility
-          </label>
-          <select
-            id="recipients"
-            v-model="recipients"
-            class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="public">Public (everyone can see)</option>
-            <option value="private">Private (only you can see)</option>
-            <option value="gm">GM Only (only GM can see)</option>
-          </select>
-        </div>
-
-        <!-- Roll Preview -->
-        <div class="bg-gray-700 p-3 rounded-md">
-          <div class="text-sm text-gray-200 text-center">
-            <strong>Rolling:</strong> {{ rollPreview }}
+        <!-- Inputs above action buttons -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label for="customModifier" class="block text-sm font-medium text-gray-200 mb-1">
+              Custom Modifier
+            </label>
+            <input
+              id="customModifier"
+              v-model.number="customModifier"
+              type="number"
+              class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-gray-100 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              placeholder="0"
+            />
           </div>
-          <div class="text-xs text-gray-400 mt-1 text-center">
-            Base modifier: {{ formatModifier(baseModifier) }}
-            <span v-if="customModifier !== 0">
-              | Custom: {{ formatModifier(customModifier) }}
-            </span>
+          <div>
+            <label for="recipients" class="block text-sm font-medium text-gray-200 mb-1">
+              Roll Visibility
+            </label>
+            <select
+              id="recipients"
+              v-model="recipients"
+              class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-gray-100 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+            >
+              <option value="public">Public (everyone can see)</option>
+              <option value="private">Private (only you can see)</option>
+              <option value="gm">GM Only (only GM can see)</option>
+            </select>
           </div>
         </div>
       </div>
 
       <!-- Action Buttons -->
-      <div class="flex space-x-3 mt-6">
+      <div class="flex space-x-3">
         <button
           @click="handleRoll"
-          class="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+          class="flex-1 bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 font-medium"
         >
           🎲 Roll
         </button>
@@ -122,6 +116,7 @@ interface Props {
   modelValue: boolean;
   ability: string;
   skill?: string;
+  savingThrow?: string;
   baseModifier: number;
   characterName?: string;
 }
@@ -153,6 +148,9 @@ const recipients = ref<'public' | 'private' | 'gm'>('public');
 
 // Computed properties
 const rollTitle = computed(() => {
+  if (props.savingThrow) {
+    return `${props.savingThrow.charAt(0).toUpperCase()}${props.savingThrow.slice(1)} Saving Throw`;
+  }
   if (props.skill) {
     const skillDisplay = props.skill.split('-').map(word => 
       word.charAt(0).toUpperCase() + word.slice(1)
