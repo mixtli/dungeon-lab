@@ -199,11 +199,17 @@
             v-for="(skill, skillName) in characterSkills" 
             :key="skillName"
             class="skill-item"
-            @click="rollSkillCheck(skillName as string)"
-            :title="'Click to roll ' + skillName + ' (' + skill.ability + ')'"
+            @click="!editMode || readonly ? rollSkillCheck(skillName as string) : undefined"
+            :title="!editMode || readonly ? ('Click to roll ' + skillName + ' (' + skill.ability + ')') : 'Click proficiency circle to change proficiency level'"
+            :class="{ 'editable': editMode && !readonly }"
           >
-            <div class="skill-prof" :class="skill.proficiency">
-              {{ skill.proficiency === 'expertise' ? '◆' : skill.proficiency === 'proficient' ? '●' : skill.proficiency === 'half' ? '◐' : '○' }}
+            <div 
+              class="skill-prof" 
+              :class="skill.proficiency"
+              @click.stop="editMode && !readonly ? toggleSkillProficiency(skillName as string) : undefined"
+              :title="editMode && !readonly ? 'Click to change proficiency level' : undefined"
+            >
+              {{ skill.proficiency === 'expert' ? '◆' : skill.proficiency === 'proficient' ? '●' : '○' }}
             </div>
             <div class="skill-name">{{ skillName }}</div>
             <div class="skill-ability">({{ skill.ability.slice(0, 3) }})</div>
@@ -508,7 +514,8 @@
   <AdvantageRollDialog
     v-model="showRollDialog"
     :ability="currentRollAbility"
-    :base-modifier="abilityModifiers[currentRollAbility] || 0"
+    :skill="currentRollSkill"
+    :base-modifier="currentRollSkill && currentRollSkill !== '' ? (skillBonuses[currentRollSkill] || 0) : (abilityModifiers[currentRollAbility] || 0)"
     :character-name="character.name"
     @roll="handleRollSubmission"
   />
@@ -620,6 +627,7 @@ const activeTab = ref('overview');
 // Roll dialog state
 const showRollDialog = ref(false);
 const currentRollAbility = ref<string>('');
+const currentRollSkill = ref<string>('');
 const currentRollWeapon = ref<IItem | null>(null);
 
 // Weapon dialog state
@@ -855,9 +863,14 @@ const savingThrowBonuses = computed(() => {
   return bonuses;
 });
 
-// Skills structure from character data - no defaults
+// Skills structure from character data - reactive to editing
 const characterSkills = computed(() => {
-  const skills = character.value!.pluginData?.skills || {};
+  // Use characterCopy in edit mode for reactivity, otherwise use read-only character
+  const sourceData = (props.editMode && !props.readonly && characterCopy.value) 
+    ? characterCopy.value 
+    : character.value!;
+  
+  const skills = sourceData.pluginData?.skills || {};
   
   // Define standard D&D 5e skills with their abilities
   const standardSkills = {
@@ -891,9 +904,8 @@ const characterSkills = computed(() => {
         const skill = skillData as any; // Type assertion for plugin data
         result[skillName] = {
           ability: skill.ability || standardSkills[skillName as keyof typeof standardSkills] || 'wisdom',
-          proficiency: skill.expert ? 'expertise' : 
-                      skill.proficient ? 'proficient' : 
-                      skill.half ? 'half' : 'none'
+          proficiency: skill.expert ? 'expert' : 
+                      skill.proficient ? 'proficient' : 'none'
         };
       }
     }
@@ -917,12 +929,10 @@ const skillBonuses = computed(() => {
     const abilityMod = abilityModifiers.value[skill.ability] || 0;
     let profBonus = 0;
     
-    if (skill.proficiency === 'expertise') {
+    if (skill.proficiency === 'expert') {
       profBonus = proficiencyBonus.value * 2;
     } else if (skill.proficiency === 'proficient') {
       profBonus = proficiencyBonus.value;
-    } else if (skill.proficiency === 'half') {
-      profBonus = Math.floor(proficiencyBonus.value / 2);
     }
     
     bonuses[skillName] = abilityMod + profBonus;
@@ -990,9 +1000,14 @@ const classDisplayName = computed(() => {
   return classDocument.value?.name || 'Unknown Class';
 });
 
-// Spell-related computed properties
+// Spell-related computed properties (context-aware for edit mode)
 const characterSpells = computed(() => {
-  const spellcastingData = (character.value?.pluginData as any)?.spellcasting;
+  // In edit mode, use characterCopy (editable); in view mode, use character (read-only)
+  const sourceCharacter = props.editMode && !props.readonly && characterCopy.value 
+    ? characterCopy.value 
+    : character.value;
+    
+  const spellcastingData = (sourceCharacter?.pluginData as any)?.spellcasting;
   if (!spellcastingData?.spells) return [];
   return spellcastingData.spells;
 });
@@ -1183,6 +1198,9 @@ const handleRollSubmission = (rollData: RollDialogData) => {
   // Generate unique roll ID
   const rollId = `roll_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   
+  // Determine if this is a skill check or ability check
+  const isSkillCheck = !!rollData.skill;
+  
   // Create roll object following the established schema
   const roll = {
     id: rollId,
@@ -1195,27 +1213,33 @@ const handleRollSubmission = (rollData: RollDialogData) => {
     recipients: rollData.recipients,
     arguments: { 
       customModifier: rollData.customModifier,
-      pluginArgs: { 
+      pluginArgs: isSkillCheck ? {
+        skill: rollData.skill,
+        ability: rollData.ability,
+        advantageMode: rollData.advantageMode
+      } : { 
         ability: rollData.ability,
         advantageMode: rollData.advantageMode
       }
     },
     modifiers: [
       { 
-        type: 'ability', 
+        type: isSkillCheck ? 'skill' : 'ability', 
         value: rollData.baseModifier, 
-        source: `${rollData.ability} modifier` 
+        source: isSkillCheck ? `${rollData.skill} skill` : `${rollData.ability} modifier` 
       }
     ],
     metadata: {
-      title: `${rollData.ability.charAt(0).toUpperCase()}${rollData.ability.slice(1)} Check`,
+      title: isSkillCheck 
+        ? `${rollData.skill!.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')} (${rollData.ability.slice(0, 3).toUpperCase()})`
+        : `${rollData.ability.charAt(0).toUpperCase()}${rollData.ability.slice(1)} Check`,
       characterName: character.value!.name
     }
   };
 
   // Submit roll via plugin context
   pluginContext.submitRoll(roll);
-  console.log(`[CharacterSheet] Submitted ${rollData.ability} check roll:`, roll);
+  console.log(`[CharacterSheet] Submitted ${isSkillCheck ? rollData.skill + ' skill' : rollData.ability + ' ability'} roll:`, roll);
 };
 
 // Handle weapon attack roll submission
@@ -1391,17 +1415,48 @@ const rollSavingThrow = (ability: string) => {
 };
 
 const rollSkillCheck = (skill: string) => {
-  const bonus = skillBonuses.value[skill] || 0;
-  const skillData = characterSkills.value[skill];
-  const ability = skillData?.ability || '';
-  emit('roll', 'skill-check', {
-    type: 'skill-check',
-    skill,
-    ability,
-    bonus,
-    expression: `1d20${formatModifier(bonus)}`,
-    title: `${skill.charAt(0).toUpperCase() + skill.slice(1)} (${ability.slice(0, 3).toUpperCase()})`
-  });
+  currentRollSkill.value = skill;
+  currentRollAbility.value = characterSkills.value[skill]?.ability || '';
+  showRollDialog.value = true;
+};
+
+const toggleSkillProficiency = (skillName: string) => {
+  console.log('[Skills] toggleSkillProficiency called for:', skillName);
+  console.log('[Skills] editMode:', props.editMode, 'readonly:', props.readonly);
+  console.log('[Skills] characterCopy.value:', characterCopy.value);
+  
+  if (!characterCopy.value?.pluginData) {
+    console.log('[Skills] No pluginData found on characterCopy');
+    return;
+  }
+
+  // Initialize skills object if it doesn't exist
+  if (!characterCopy.value.pluginData.skills) {
+    console.log('[Skills] Initializing skills object');
+    characterCopy.value.pluginData.skills = {};
+  }
+
+  const skills = characterCopy.value.pluginData.skills;
+  const currentSkill = skills[skillName] || { proficient: false, expert: false };
+  
+  console.log('[Skills] Current skill state:', currentSkill);
+
+  // Cycle through proficiency states: none → proficient → expert → none
+  if (!currentSkill.proficient) {
+    // None → Proficient
+    skills[skillName] = { proficient: true, expert: false };
+    console.log('[Skills] Changed to proficient');
+  } else if (currentSkill.proficient && !currentSkill.expert) {
+    // Proficient → Expert
+    skills[skillName] = { proficient: true, expert: true };
+    console.log('[Skills] Changed to expert');
+  } else {
+    // Expert → None
+    skills[skillName] = { proficient: false, expert: false };
+    console.log('[Skills] Changed to none');
+  }
+  
+  console.log('[Skills] New skill state:', skills[skillName]);
 };
 
 const rollInitiative = () => {
@@ -1565,11 +1620,21 @@ const updateSpellPrepared = (spellData: any) => {
     return;
   }
   
-  // The v-model automatically updates the spellData.prepared value
-  // We just need to ensure the character data is marked as dirty for saving
-  if (characterCopy.value) {
-    // Character copy exists, so changes will be saved when the sheet is saved
+  // In edit mode, the v-model should be automatically updating the characterCopy data
+  // since our characterSpells computed property now returns data from characterCopy
+  if (props.editMode && characterCopy.value) {
+    // Ensure the characterCopy has the spellcasting structure
+    if (!characterCopy.value.pluginData) {
+      characterCopy.value.pluginData = {};
+    }
+    if (!(characterCopy.value.pluginData as any).spellcasting) {
+      (characterCopy.value.pluginData as any).spellcasting = { spells: [], cantrips: [], spellSlots: {} };
+    }
+    
     console.log('[CharacterSheet] Spell prepared status updated in character copy');
+    // The actual data update is handled by v-model since characterSpells now points to characterCopy
+  } else {
+    console.warn('[CharacterSheet] Not in edit mode or no characterCopy available - spell changes may not persist');
   }
 };
 
@@ -2180,12 +2245,18 @@ watch(() => props.items?.value, () => {
   color: var(--dnd-red);
 }
 
-.skill-prof.expertise {
+.skill-prof.expert {
   color: var(--dnd-gold-dark);
 }
 
-.skill-prof.half {
-  color: var(--dnd-brown);
+.skill-item.editable .skill-prof {
+  transform: scale(1.1);
+  transition: transform 0.2s ease;
+}
+
+.skill-item.editable:hover .skill-prof {
+  transform: scale(1.2);
+  cursor: pointer;
 }
 
 .skill-name {

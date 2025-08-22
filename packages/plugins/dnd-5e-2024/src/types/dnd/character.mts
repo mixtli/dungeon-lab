@@ -156,14 +156,11 @@ export const characterAbilitiesSchema = z.object({
 });
 
 /**
- * Skills with full proficiency tracking
+ * Skills with proficiency tracking (expert requires proficient)
  */
 export const characterSkillsSchema = z.record(skillSchema, z.object({
   proficient: z.boolean().default(false),
-  expert: z.boolean().default(false),
-  bonus: z.number().default(0),
-  advantage: z.boolean().default(false),
-  disadvantage: z.boolean().default(false)
+  expert: z.boolean().default(false)
 }));
 
 /**

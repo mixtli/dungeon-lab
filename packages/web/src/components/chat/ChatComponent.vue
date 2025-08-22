@@ -290,7 +290,7 @@ function switchChatContext(context: ChatContext) {
   
   // Auto-scroll to bottom when switching contexts
   nextTick(() => {
-    const chatContainer = document.querySelector('.chat-messages');
+    const chatContainer = document.querySelector('.chat-component .chat-messages');
     if (chatContainer) {
       chatContainer.scrollTop = chatContainer.scrollHeight;
     }
@@ -366,12 +366,22 @@ onMounted(async () => {
   // Setup chatbot listeners
   setupChatbotListeners();
 
+  // Initial scroll to bottom on page load
+  nextTick(() => {
+    setTimeout(() => {
+      const chatContainer = document.querySelector('.chat-component .chat-messages');
+      if (chatContainer) {
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+      }
+    }, 100);
+  });
+
   // Auto-scroll when new messages arrive
   watch(
     () => chatStore.messages.length,
     () => {
       nextTick(() => {
-        const chatContainer = document.querySelector('.chat-messages');
+        const chatContainer = document.querySelector('.chat-component .chat-messages');
         if (chatContainer) {
           chatContainer.scrollTop = chatContainer.scrollHeight;
         }
@@ -529,7 +539,6 @@ onUnmounted(() => {
                     :approvalData="message.approvalData" 
                     :timestamp="message.timestamp" />
                   <!-- Roll request card for roll request messages -->
-                  {{ console.log('Debug message:', message.type, !!message.rollRequestData, message) }}
                   <RollRequestMessage v-else-if="message.type === 'roll-request' && message.rollRequestData"
                     :message="message" />
                   <!-- Regular text content for text messages -->

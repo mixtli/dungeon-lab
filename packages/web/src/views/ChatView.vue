@@ -7,7 +7,7 @@ const gameSessionStore = useGameSessionStore();
 </script>
 
 <template>
-  <div class="chat-view h-full flex flex-col bg-stone dark:bg-stone-700">
+  <div class="chat-view flex flex-col bg-stone dark:bg-stone-700 min-h-0">
     <!-- No Active Session State -->
     <div v-if="!gameSessionStore.currentSession" class="flex-1 flex flex-col items-center justify-center p-8">
       <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-ash dark:text-stone-400 mb-4" viewBox="0 0 20 20"
@@ -34,13 +34,16 @@ const gameSessionStore = useGameSessionStore();
     </div>
 
     <!-- Chat Interface -->
-    <ChatComponent v-else height="h-full" />
+    <div v-else class="flex-1 min-h-0">
+      <ChatComponent height="h-full" />
+    </div>
   </div>
 </template>
 
 <style scoped>
 .chat-view {
   height: calc(100vh - 64px);
-  /* Adjust based on your header height */
+  /* Ensure proper flexbox constraint propagation */
+  overflow: hidden;
 }
 </style>

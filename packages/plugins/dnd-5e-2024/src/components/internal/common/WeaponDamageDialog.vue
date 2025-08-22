@@ -4,91 +4,69 @@
     class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
     @click.self="closeDialog"
   >
-    <div class="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+    <div class="bg-gray-800 rounded-lg shadow-xl p-4 max-w-md w-full mx-4">
       <!-- Dialog Header -->
-      <div class="flex justify-between items-center mb-6">
-        <h2 class="text-xl font-bold text-gray-800">
-          {{ weapon?.name || 'Weapon' }} Damage
+      <div class="relative mb-6">
+        <h2 class="text-xl font-bold text-red-600 text-center">
+          Damage with {{ weapon?.name || 'Weapon' }}
         </h2>
         <button 
           @click="closeDialog"
-          class="text-gray-400 hover:text-gray-600 text-xl font-bold"
+          class="absolute top-0 right-0 text-gray-400 hover:text-gray-200 text-xl font-bold"
         >
           ×
         </button>
       </div>
 
-      <!-- Weapon Information -->
-      <div v-if="weapon" class="bg-amber-100 dark:bg-amber-900 rounded p-3 mb-6">
-        <div class="text-sm font-medium text-amber-800 dark:text-amber-200">
-          {{ weapon.name }}
-        </div>
-        <div v-if="weaponDamage" class="text-xs text-amber-600 dark:text-amber-300">
-          Damage: {{ weaponDamage }}
-        </div>
-        <div v-if="damageType" class="text-xs text-amber-600 dark:text-amber-300">
-          Type: {{ damageType }}
+      <!-- Roll Formula -->
+      <div v-if="weapon" class="text-center mb-4">
+        <div class="text-lg font-mono text-gray-200">
+          {{ rollPreview }}
         </div>
       </div>
 
       <!-- Roll Options -->
-      <div class="space-y-4 mb-6">
+      <div class="space-y-4 mb-4">
         <!-- Critical Hit Option -->
-        <div>
-          <label class="flex items-center">
+        <div class="text-center">
+          <label class="inline-flex items-center">
             <input
               v-model="isCritical"
               type="checkbox"
-              class="mr-2 text-amber-600"
+              class="mr-2 text-amber-600 bg-gray-700 border-gray-600 rounded focus:ring-amber-500"
             />
-            <span class="text-orange-600 font-medium">Critical Hit</span>
-            <span class="text-xs text-gray-500 ml-2">(double damage dice)</span>
+            <span class="text-orange-400 font-medium">Critical Hit</span>
+            <span class="text-xs text-gray-400 ml-2">(double damage dice)</span>
           </label>
         </div>
 
-        <!-- Custom Modifier -->
-        <div>
-          <label for="customModifier" class="block text-sm font-medium text-gray-700 mb-1">
-            Custom Modifier
-          </label>
-          <input
-            id="customModifier"
-            v-model.number="customModifier"
-            type="number"
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
-            placeholder="0"
-          />
-        </div>
-
-        <!-- Recipients -->
-        <div>
-          <label for="recipients" class="block text-sm font-medium text-gray-700 mb-1">
-            Roll Visibility
-          </label>
-          <select
-            id="recipients"
-            v-model="recipients"
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
-          >
-            <option value="public">Public (everyone can see)</option>
-            <option value="private">Private (only you can see)</option>
-            <option value="gm">GM Only (only GM can see)</option>
-          </select>
-        </div>
-
-        <!-- Roll Preview -->
-        <div class="bg-gray-50 p-3 rounded-md">
-          <div class="text-sm text-gray-600">
-            <strong>Rolling:</strong> {{ rollPreview }}
+        <!-- Inputs above action buttons -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label for="customModifier" class="block text-sm font-medium text-gray-200 mb-1">
+              Custom Modifier
+            </label>
+            <input
+              id="customModifier"
+              v-model.number="customModifier"
+              type="number"
+              class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-gray-100 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+              placeholder="0"
+            />
           </div>
-          <div class="text-xs text-gray-500 mt-1">
-            Damage bonus: {{ formatModifier(damageBonus || 0) }}
-            <span v-if="customModifier !== 0">
-              | Custom: {{ formatModifier(customModifier) }}
-            </span>
-            <span v-if="isCritical" class="text-orange-600 font-medium">
-              | Critical Hit (dice doubled)
-            </span>
+          <div>
+            <label for="recipients" class="block text-sm font-medium text-gray-200 mb-1">
+              Roll Visibility
+            </label>
+            <select
+              id="recipients"
+              v-model="recipients"
+              class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-gray-100 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+            >
+              <option value="public">Public (everyone can see)</option>
+              <option value="private">Private (only you can see)</option>
+              <option value="gm">GM Only (only GM can see)</option>
+            </select>
           </div>
         </div>
       </div>
@@ -97,13 +75,13 @@
       <div class="flex space-x-3">
         <button
           @click="handleRoll"
-          class="flex-1 bg-amber-600 text-white py-2 px-4 rounded-md hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500 font-medium"
+          class="flex-1 bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 font-medium"
         >
           🗡️ Roll Damage
         </button>
         <button
           @click="closeDialog"
-          class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 font-medium"
+          class="flex-1 bg-gray-600 text-gray-100 py-2 px-4 rounded-md hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-400 font-medium"
         >
           Cancel
         </button>
@@ -148,20 +126,20 @@ const isCritical = ref(false);
 const recipients = ref<'public' | 'private' | 'gm'>('public');
 
 // Computed properties
-const weaponDamage = computed(() => {
-  if (!props.weapon) return null;
-  const pluginData = props.weapon.pluginData as any;
-  if (pluginData?.damage?.dice && pluginData?.damage?.type) {
-    return `${pluginData.damage.dice} ${pluginData.damage.type}`;
-  }
-  return null;
-});
+// const weaponDamage = computed(() => {
+//   if (!props.weapon) return null;
+//   const pluginData = props.weapon.pluginData as any;
+//   if (pluginData?.damage?.dice && pluginData?.damage?.type) {
+//     return `${pluginData.damage.dice} ${pluginData.damage.type}`;
+//   }
+//   return null;
+// });
 
-const damageType = computed(() => {
-  if (!props.weapon) return null;
-  const pluginData = props.weapon.pluginData as any;
-  return pluginData?.damageType || pluginData?.damage?.type || 'bludgeoning';
-});
+// const damageType = computed(() => {
+//   if (!props.weapon) return null;
+//   const pluginData = props.weapon.pluginData as any;
+//   return pluginData?.damageType || pluginData?.damage?.type || 'bludgeoning';
+// });
 
 const damageBonus = computed(() => {
   if (!props.weapon || !props.character) return null;

@@ -16,7 +16,12 @@ import {
   type DocumentType,
   type PluginDocumentType
 } from '../validation/document-validators.mjs';
-import { processEntries } from '../text/markup-processor.mjs';
+import { 
+  processEntries, 
+  extractDamageData, 
+  extractScaledamageData,
+  entriesToCleanText 
+} from '../text/markup-processor.mjs';
 import type { 
   EtoolsSpell, 
   EtoolsSpellData
@@ -24,7 +29,7 @@ import type {
 import type { EtoolsEntry } from '../../5etools-types/base.mjs';
 import { dndSpellDataSchema, type DndSpellData } from '../../types/dnd/spell.mjs';
 import { extractEtoolsArray, safeEtoolsCast } from '../../5etools-types/type-utils.mjs';
-import type { Ability } from '../../types/dnd/common.mjs';
+import type { Ability, DamageType } from '../../types/dnd/common.mjs';
 
 /**
  * Simplified spell schema for type safety
@@ -542,18 +547,77 @@ export class TypedSpellConverter extends TypedConverter<
     
     const description = processEntries(entriesHigherLevel as EtoolsEntry[], this.options.textProcessing).text;
     
+    // Extract @scaledamage data from the raw entries text
+    const rawEntriesText = entriesToCleanText(entriesHigherLevel as EtoolsEntry[]);
+    const scaledamageData = extractScaledamageData(rawEntriesText);
+    
+    const scaling = [];
+    
+    // Process each @scaledamage tag found
+    for (const scalingData of scaledamageData) {
+      scaling.push({
+        type: 'damage' as const,
+        increment: scalingData.increment,
+        interval: 1, // Default to per level
+        damageScaling: {
+          baseDamage: scalingData.baseDamage,
+          levelRange: scalingData.levelRange,
+          increment: scalingData.increment
+        }
+      });
+    }
+    
     return {
       higherLevels: {
         description,
-        scaling: [] // Would need more sophisticated parsing for specific scaling
+        scaling
       }
     };
   }
 
-  private parseDamage(_input: z.infer<typeof etoolsSpellSchema>): DndSpellData['damage'] {
-    // This would need sophisticated parsing of the spell description
-    // For now, return undefined - would need damage dice extraction logic
-    return undefined;
+  private parseDamage(input: z.infer<typeof etoolsSpellSchema>): DndSpellData['damage'] {
+    if (!input.entries) {
+      return undefined;
+    }
+
+    // Convert entries to text and extract damage data
+    const entriesText = entriesToCleanText(input.entries as EtoolsEntry[]);
+    const damageValues = extractDamageData(entriesText);
+
+    if (damageValues.length === 0) {
+      return undefined;
+    }
+
+    // Use the first damage value found
+    const damageDice = damageValues[0];
+
+    // Try to extract damage type from the surrounding text
+    // Look for common damage types in the entries text
+    const damageTypes = [
+      'acid', 'bludgeoning', 'cold', 'fire', 'force', 'lightning', 
+      'necrotic', 'piercing', 'poison', 'psychic', 'radiant', 'slashing', 'thunder'
+    ];
+
+    let damageType = 'force'; // Default fallback
+    for (const type of damageTypes) {
+      // Case-insensitive search for damage type near the damage value
+      const regex = new RegExp(`${damageDice}[^.]*?${type}|${type}[^.]*?${damageDice}`, 'i');
+      if (regex.test(entriesText)) {
+        damageType = type;
+        break;
+      }
+    }
+
+    // Also check the damageInflict array if available
+    if (input.damageInflict && input.damageInflict.length > 0) {
+      // Use the first damage type from damageInflict
+      damageType = input.damageInflict[0].toLowerCase();
+    }
+
+    return {
+      dice: damageDice,
+      type: damageType as DamageType
+    };
   }
 
   private parseSavingThrow(savingThrow?: string[]): DndSpellData['savingThrow'] {

@@ -20,11 +20,22 @@ export class DndAbilityCheckHandler implements RollTypeHandler {
       // GM client: Calculate final result and send authoritative chat message
       const total = this.calculateTotal(result);
       const ability = String(result.arguments.pluginArgs?.ability || 'Unknown');
+      const skill = result.arguments.pluginArgs?.skill;
       const advantageMode = result.arguments.pluginArgs?.advantageMode;
       const characterName = result.metadata.characterName;
       
-      // Create descriptive roll message
-      let rollDescription = `${ability.charAt(0).toUpperCase() + ability.slice(1)} Check`;
+      // Create descriptive roll message - use skill name if available, otherwise ability name
+      let rollDescription: string;
+      if (skill) {
+        // Format skill name (e.g., "animal-handling" -> "Animal Handling")
+        const formattedSkill = skill.split('-').map((word: string) => 
+          word.charAt(0).toUpperCase() + word.slice(1)
+        ).join(' ');
+        const formattedAbility = ability.slice(0, 3).toUpperCase();
+        rollDescription = `${formattedSkill} (${formattedAbility})`;
+      } else {
+        rollDescription = `${ability.charAt(0).toUpperCase() + ability.slice(1)} Check`;
+      }
       if (advantageMode === 'advantage') {
         rollDescription += ' (Advantage)';
       } else if (advantageMode === 'disadvantage') {

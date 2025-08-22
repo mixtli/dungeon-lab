@@ -467,8 +467,8 @@ export class TypedItemConverter extends TypedConverter<
   }
 
   private parseWeaponType(input: z.infer<typeof etoolsItemSchema>) {
-    if (input.type === 'M') return 'melee';
-    if (input.type === 'R') return 'ranged';
+    if (input.type?.startsWith('M')) return 'melee';
+    if (input.type?.startsWith('R')) return 'ranged';
     return 'melee';
   }
 

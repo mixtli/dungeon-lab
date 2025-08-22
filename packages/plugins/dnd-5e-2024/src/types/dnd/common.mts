@@ -480,7 +480,19 @@ export const spellScalingSchema = z.object({
       /** How much it scales per level */
       increment: z.string(), // e.g., "1d6", "1 target", "10 feet"
       /** At what spell level intervals */
-      interval: z.number().default(1)
+      interval: z.number().default(1),
+      /** Enhanced damage scaling data (from @scaledamage tags) */
+      damageScaling: z.object({
+        /** Base damage dice (e.g., "8d6") */
+        baseDamage: z.string(),
+        /** Level range where this scaling applies */
+        levelRange: z.object({
+          min: z.number(),
+          max: z.number()
+        }),
+        /** Damage increment per level (e.g., "1d6") */
+        increment: z.string()
+      }).optional()
     }))
   }).optional(),
   /** Character level scaling (for cantrips mainly) */

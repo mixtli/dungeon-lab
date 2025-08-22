@@ -69,6 +69,7 @@ const MARKUP_PATTERNS = {
   /** Specific patterns for common tags */
   SPELL: /{@spell\s+([^}|]+?)(?:\|([^}]+?))?}/g,
   DAMAGE: /{@damage\s+([^}]+?)}/g,
+  SCALEDAMAGE: /{@scaledamage\s+([^}]+?)}/g,
   DICE: /{@dice\s+([^}]+?)}/g,
   CONDITION: /{@condition\s+([^}|]+?)(?:\|([^}]+?))?}/g,
   ITEM: /{@item\s+([^}|]+?)(?:\|([^}]+?))?}/g,
@@ -121,6 +122,7 @@ function tagToCleanText(tag: ParsedMarkupTag): string {
       return `DC ${tag.content}`;
     
     case 'damage':
+    case 'scaledamage':
     case 'dice':
       return tag.content;
     
@@ -304,4 +306,85 @@ export function entriesToCleanText(entries: EtoolsEntry[]): string {
  */
 export function extractEntriesReferences(entries: EtoolsEntry[]): ReferenceObject[] {
   return processEntries(entries, { extractReferences: true }).references || [];
+}
+
+/**
+ * Parsed scaledamage data
+ */
+export interface ScaledamageData {
+  /** Base damage dice (e.g., "8d6") */
+  baseDamage: string;
+  /** Level range */
+  levelRange: {
+    min: number;
+    max: number;
+  };
+  /** Damage increment per level (e.g., "1d6") */
+  increment: string;
+}
+
+/**
+ * Parse @scaledamage format: "8d6|3-9|1d6"
+ */
+export function parseScaledamage(content: string): ScaledamageData | null {
+  const parts = content.split('|');
+  if (parts.length !== 3) {
+    return null;
+  }
+
+  const [baseDamage, levelRangeStr, increment] = parts;
+  
+  // Parse level range (e.g., "3-9" or "1-9")
+  const rangeParts = levelRangeStr.split('-');
+  if (rangeParts.length !== 2) {
+    return null;
+  }
+
+  const min = parseInt(rangeParts[0], 10);
+  const max = parseInt(rangeParts[1], 10);
+  
+  if (isNaN(min) || isNaN(max)) {
+    return null;
+  }
+
+  return {
+    baseDamage: baseDamage.trim(),
+    levelRange: { min, max },
+    increment: increment.trim()
+  };
+}
+
+/**
+ * Extract all @scaledamage tags from text and parse them
+ */
+export function extractScaledamageData(text: string): ScaledamageData[] {
+  const tags = parseMarkupTags(text);
+  const scaledamageData: ScaledamageData[] = [];
+
+  for (const tag of tags) {
+    if (tag.type === 'scaledamage') {
+      const parsed = parseScaledamage(tag.content);
+      if (parsed) {
+        scaledamageData.push(parsed);
+      }
+    }
+  }
+
+  return scaledamageData;
+}
+
+/**
+ * Extract @damage tags from text and get dice values
+ */
+export function extractDamageData(text: string): string[] {
+  const tags = parseMarkupTags(text);
+  const damageData: string[] = [];
+
+  for (const tag of tags) {
+    if (tag.type === 'damage') {
+      damageData.push(tag.content.trim());
+    }
+  }
+
+  return damageData;
 }

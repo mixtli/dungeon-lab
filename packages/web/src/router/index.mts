@@ -3,6 +3,7 @@ import type { RouteRecordRaw } from 'vue-router';
 
 // Layouts
 import DefaultLayout from '@/layouts/DefaultLayout.vue';
+import ChatView from '@/views/ChatView.vue';
 
 // Views - Lazy loaded
 const HomeView = () => import('@/views/HomeView.vue');
@@ -18,7 +19,7 @@ const GoogleCallbackView = () => import('@/views/auth/GoogleCallbackView.vue');
 const NotFoundView = () => import('@/views/NotFoundView.vue');
 const PluginManagerView = () => import('@/views/plugin/PluginManagerView.vue');
 const AdminDashboardView = () => import('@/views/AdminDashboardView.vue');
-const ChatView = () => import('@/views/ChatView.vue');
+// ChatView is now statically imported above
 const SettingsView = () => import('@/views/SettingsView.vue');
 const ProfileView = () => import('@/views/ProfileView.vue');
 

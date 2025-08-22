@@ -97,11 +97,13 @@
       "WebFetch(domain:app.studyraid.com)",
       "mcp__git__git_diff",
       "Bash(npx eslint:*)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "mcp__git__git_diff_unstaged"
     ],
     "defaultMode": "acceptEdits",
     "additionalDirectories": [
-      "/Users/mixtli/checkouts/5etools-src"
+      "/Users/mixtli/checkouts/5etools-src",
+      "/Users/mixtli/checkouts/"
     ]
   },
   "enabledMcpjsonServers": [

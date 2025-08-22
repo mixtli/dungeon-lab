@@ -85,7 +85,7 @@ export class BotManager {
   async loadBotsForCampaign(campaignId: string): Promise<ChatbotConfig[]> {
     try {
       const bots = await ChatbotModel.find({ 
-        campaignId: new Types.ObjectId(campaignId),
+        campaignId: Types.ObjectId.createFromHexString(campaignId),
         enabled: true 
       }).exec();
       
