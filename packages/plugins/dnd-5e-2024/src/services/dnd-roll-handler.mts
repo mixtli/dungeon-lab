@@ -20,7 +20,7 @@ export class DndAbilityCheckHandler implements RollTypeHandler {
       // GM client: Calculate final result and send authoritative chat message
       const total = this.calculateTotal(result);
       const ability = String(result.arguments.pluginArgs?.ability || 'Unknown');
-      const skill = result.arguments.pluginArgs?.skill;
+      const skill = result.arguments.pluginArgs?.skill as string | undefined;
       const advantageMode = result.arguments.pluginArgs?.advantageMode;
       const characterName = result.metadata.characterName;
       

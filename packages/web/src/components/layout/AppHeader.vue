@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 import { useTheme } from '../../composables/useTheme.mjs';
 import { useAuthStore } from '../../stores/auth.store.mjs';
 import { useGameSessionStore } from '../../stores/game-session.store.mjs';
+import { useGameStateStore } from '../../stores/game-state.store.mjs';
 import { SunIcon, MoonIcon, Bars3Icon, XMarkIcon } from '@heroicons/vue/24/solid';
 import SessionInfoDropdown from '../common/SessionInfoDropdown.vue';
 
@@ -12,6 +13,7 @@ const authStore = useAuthStore();
 const { isDarkMode, toggleTheme } = useTheme();
 const isMenuOpen = ref(false);
 const gameSessionStore = useGameSessionStore();
+const gameStateStore = useGameStateStore();
 function toggleMenu() {
   isMenuOpen.value = !isMenuOpen.value;
 }
@@ -42,6 +44,15 @@ function goToChat() {
     router.push({ name: 'game-sessions' });
   }
 }
+
+function goToCurrentEncounter() {
+  closeMenu();
+  router.push({ name: 'active-encounter' });
+}
+
+const hasCurrentEncounter = computed(() => {
+  return gameStateStore.currentEncounter !== null;
+});
 
 function handleThemeToggle() {
   closeMenu();
@@ -173,6 +184,27 @@ function handleThemeToggle() {
               />
             </svg>
             Chat
+          </button>
+
+          <!-- Current Encounter Button -->
+          <button
+            v-if="authStore.isAuthenticated && hasCurrentEncounter"
+            @click="goToCurrentEncounter"
+            class="px-3 py-2 rounded-md text-sm font-medium nav-text hover:bg-stone-100 dark:hover:bg-stone-700 flex items-center"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-5 w-5 mr-1"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"
+                clip-rule="evenodd"
+              />
+            </svg>
+            Encounter
           </button>
 
           <!-- Theme Toggle -->
@@ -339,6 +371,25 @@ function handleThemeToggle() {
             />
           </svg>
           Chat
+        </button>
+        <button
+          v-if="authStore.isAuthenticated && hasCurrentEncounter"
+          @click="goToCurrentEncounter"
+          class="w-full text-left px-3 py-2 rounded-md text-base font-medium nav-text hover:bg-stone-100 dark:hover:bg-stone-700 flex items-center"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-5 w-5 mr-1"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+          >
+            <path
+              fill-rule="evenodd"
+              d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"
+              clip-rule="evenodd"
+            />
+          </svg>
+          Encounter
         </button>
         <RouterLink
           v-if="authStore.isAuthenticated"

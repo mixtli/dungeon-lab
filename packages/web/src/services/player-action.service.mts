@@ -83,6 +83,11 @@ export class PlayerActionService {
       throw new Error('User not authenticated');
     }
 
+    // TODO: Client-side turn validation temporarily disabled to test GM client enforcement
+    // This allows all actions to be sent to the GM client for validation instead of
+    // being blocked client-side. Re-enable this as an optimization layer later.
+    
+    /*
     // Check turn-based permissions
     const userId = this.authStore.user.id;
     const userTokens = this.getUserTokens(userId);
@@ -132,6 +137,7 @@ export class PlayerActionService {
         };
       }
     }
+    */
 
     const request: GameActionRequest = {
       id: generateRequestId(),
@@ -146,15 +152,26 @@ export class PlayerActionService {
     console.log('[PlayerActionService] Requesting action:', {
       action,
       description: request.description,
-      requestId: request.id
+      requestId: request.id,
+      parameters
     });
 
     // Send request via socket to GM client for validation
     return new Promise<ActionRequestResult>((resolve) => {
-      console.log('[PlayerActionService] Sending action request via socket:', request.id);
+      console.log('[PlayerActionService] 🚀 SENDING gameAction:request to GM client:', {
+        requestId: request.id,
+        action: request.action,
+        description: request.description
+      });
       
       this.socketStore.emit('gameAction:request', request, (response: ActionRequestResponse) => {
-        console.log('[PlayerActionService] Received response:', response);
+        console.log('[PlayerActionService] 📥 RECEIVED GM response:', {
+          requestId: response.requestId,
+          success: response.success,
+          approved: response.approved,
+          error: response.error?.message,
+          fullResponse: response
+        });
         
         resolve({
           success: response.success,

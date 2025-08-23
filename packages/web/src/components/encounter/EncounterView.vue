@@ -199,6 +199,7 @@ import TokenStateManager from './TokenStateManager.vue';
 import EncounterDebugInfo from './EncounterDebugInfo.vue';
 import type { Token, StateOperation } from '@dungeon-lab/shared/types/index.mjs';
 import { useAuthStore } from '../../stores/auth.store.mjs';
+import { useNotificationStore } from '../../stores/notification.store.mjs';
 // Add import for MapContextMenu
 import MapContextMenu from './MapContextMenu.vue';
 import DiceOverlay from '../dice/DiceOverlay.vue';
@@ -211,6 +212,7 @@ const gameStateStore = useGameStateStore();
 const { deviceConfig, deviceClass } = useDeviceAdaptation();
 const { requestTokenMove, requestTokenRemove } = usePlayerActions();
 const authStore = useAuthStore();
+const notificationStore = useNotificationStore();
 
 // Encounter socket functionality removed - using session-based architecture through encounter store
 
@@ -303,6 +305,52 @@ const retryLoad = () => {
   initializeEncounter();
 };
 
+// Convert technical movement error messages to user-friendly notifications
+const getUserFriendlyMovementError = (error?: string): string => {
+  if (!error) return 'Movement failed';
+
+  // Handle specific D&D movement errors (similar to attack errors)
+  if (error.includes('Need ') && error.includes('feet')) {
+    // Extract numbers from error message like "Need 25 feet, have 15 remaining"
+    const match = error.match(/Need (\d+) feet, have (\d+) remaining/);
+    if (match) {
+      return `Not enough movement: need ${match[1]} feet, only ${match[2]} remaining`;
+    }
+    return 'Not enough movement remaining';
+  }
+  
+  if (error.includes('INSUFFICIENT_MOVEMENT')) {
+    return 'Not enough movement remaining';
+  }
+  
+  if (error.includes('grappled')) {
+    return 'Cannot move while grappled';
+  }
+  
+  if (error.includes('paralyzed')) {
+    return 'Cannot move while paralyzed';
+  }
+  
+  if (error.includes('stunned')) {
+    return 'Cannot move while stunned';
+  }
+  
+  if (error.includes('restrained')) {
+    return 'Cannot move while restrained';
+  }
+  
+  if (error.includes("It's not your turn")) {
+    return "It's not your turn to move";
+  }
+  
+  if (error.includes('not currently connected')) {
+    return 'Game Master is not connected';
+  }
+  
+  // Generic fallback for other movement errors
+  return 'Movement failed';
+};
+
 // Helper computed for all selected token IDs (actor + targets)
 // TODO: This will be used for visual rendering of selected tokens in next task
 // const allSelectedTokenIds = computed(() => {
@@ -366,14 +414,30 @@ const handleTokenMoved = async (tokenId: string, x: number, y: number) => {
     const result = await requestTokenMove(tokenId, { x, y, elevation });
     
     if (result.success && !result.approved) {
-      // TODO: Show notification to player that movement is pending approval
+      // Show notification to player that movement is pending approval
+      notificationStore.addNotification({
+        type: 'info',
+        message: 'Movement is pending Game Master approval',
+        duration: 4000
+      });
     } else if (!result.success) {
       console.error('[EncounterView] Token movement failed:', result.error);
-      // TODO: Show error notification to user
+      // Show user-friendly error notification
+      const userFriendlyMessage = getUserFriendlyMovementError(result.error);
+      notificationStore.addNotification({
+        type: 'warning',
+        message: userFriendlyMessage,
+        duration: 4000
+      });
     }
   } catch (error) {
     console.error('[EncounterView] Failed to request token movement:', error);
-    // TODO: Show error notification to user
+    // Show error notification for unexpected failures
+    notificationStore.addNotification({
+      type: 'error',
+      message: 'Failed to process movement request. Please try again.',
+      duration: 4000
+    });
   }
 };
 
@@ -491,14 +555,29 @@ const handleTokenAction = async (action: string) => {
               selectedToken.value = null;
             }
           } else if (result.success && !result.approved) {
-            // TODO: Show notification to user that removal is pending approval
+            // Show notification to user that removal is pending approval
+            notificationStore.addNotification({
+              type: 'info',
+              message: 'Token removal is pending Game Master approval',
+              duration: 4000
+            });
           } else {
             console.error('[EncounterView] Token removal failed:', result.error);
-            // TODO: Show error notification to user
+            // Show error notification to user
+            notificationStore.addNotification({
+              type: 'warning',
+              message: result.error || 'Failed to remove token',
+              duration: 4000
+            });
           }
         } catch (error) {
           console.error('[EncounterView] Failed to request token removal:', error);
-          // TODO: Show error notification to user
+          // Show error notification for unexpected failures
+          notificationStore.addNotification({
+            type: 'error',
+            message: 'Failed to process token removal. Please try again.',
+            duration: 4000
+          });
         }
       }
       break;

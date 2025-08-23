@@ -13,6 +13,7 @@ import { DndWeaponAttackHandler, DndWeaponDamageHandler } from './services/dnd-w
 import { registerPluginStateLifecycle, unregisterPluginStateLifecycle } from '@dungeon-lab/shared/utils/document-state-lifecycle.mjs';
 import { 
   dndMoveTokenHandler,
+  dndAttackHandler,
   dndCastSpellHandler,
   dndLongRestHandler,
   dndShortRestHandler,
@@ -117,6 +118,7 @@ export class DnD5e2024Plugin extends BaseGameSystemPlugin {
       
       // Register D&D action handlers
       context.registerActionHandler('move-token', dndMoveTokenHandler);
+      context.registerActionHandler('attack', dndAttackHandler);
       context.registerActionHandler('dnd5e-2024:cast-spell', dndCastSpellHandler);
       context.registerActionHandler('dnd5e-2024:long-rest', dndLongRestHandler);
       context.registerActionHandler('dnd5e-2024:short-rest', dndShortRestHandler);

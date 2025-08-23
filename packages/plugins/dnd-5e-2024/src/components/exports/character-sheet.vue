@@ -564,6 +564,8 @@ import WeaponDamageDialog, { type WeaponDamageRollData } from '../internal/commo
 import { useDocumentSheetStore } from '../../../../../web/src/stores/document-sheet.store.mjs';
 // @ts-ignore - Import from web package for asset utilities
 import { getAssetUrl } from '../../../../../web/src/utils/asset-utils.mjs';
+// @ts-ignore - Import from web package for notifications
+import { useNotificationStore } from '../../../../../web/src/stores/notification.store.mjs';
 
 // Props - enhanced interface with container-provided document copy
 interface Props {
@@ -620,6 +622,9 @@ const resolvedSpells = ref<Map<string, any>>(new Map());
 
 // Document sheet store for opening spell sheets
 const documentSheetStore = useDocumentSheetStore();
+
+// Notification store for user feedback
+const notificationStore = useNotificationStore();
 
 // Emits - unified event interface
 const emit = defineEmits<{
@@ -1193,6 +1198,51 @@ const formatModifier = (value: number): string => {
   return value >= 0 ? `+${value}` : `${value}`;
 };
 
+// Convert technical error messages to user-friendly notifications
+const getUserFriendlyActionError = (error?: string): string => {
+  if (!error) return 'Cannot perform attack at this time';
+
+  // Handle specific D&D action economy errors
+  if (error.includes('Already used action this turn')) {
+    return 'You have already used your action this turn';
+  }
+  
+  if (error.includes('Already used bonus action this turn')) {
+    return 'You have already used your bonus action this turn';
+  }
+  
+  if (error.includes('Already used reaction this round')) {
+    return 'You have already used your reaction this round';
+  }
+  
+  if (error.includes('paralyzed')) {
+    return 'You cannot act while paralyzed';
+  }
+  
+  if (error.includes('stunned')) {
+    return 'You cannot act while stunned';
+  }
+  
+  if (error.includes('unconscious')) {
+    return 'You cannot act while unconscious';
+  }
+  
+  if (error.includes('incapacitated')) {
+    return 'You cannot act while incapacitated';
+  }
+  
+  if (error.includes('petrified')) {
+    return 'You cannot act while petrified';
+  }
+  
+  if (error.includes("It's not your turn")) {
+    return "It's not your turn";
+  }
+  
+  // Generic fallback for other errors
+  return 'Cannot perform attack at this time';
+};
+
 // Updated roll handling - opens dialog instead of direct rolling
 const rollAbilityCheck = (ability: string) => {
   currentRollAbility.value = ability;
@@ -1302,10 +1352,53 @@ const handleSavingThrowSubmission = (rollData: RollDialogData) => {
 };
 
 // Handle weapon attack roll submission
-const handleWeaponAttackRollSubmission = (rollData: WeaponAttackRollData) => {
+const handleWeaponAttackRollSubmission = async (rollData: WeaponAttackRollData) => {
   const pluginContext = getPluginContext();
   if (!pluginContext) {
     console.error('Plugin context not available');
+    return;
+  }
+
+  console.log('[CharacterSheet] Requesting attack action before weapon roll');
+  
+  // Request attack action - this will consume action economy and validate the action
+  try {
+    const actionResult = await pluginContext.requestAction(
+      'attack',
+      {
+        weaponId: rollData.weapon.id,
+        weaponName: rollData.weapon.name
+      },
+      {
+        description: `Attack with ${rollData.weapon.name}`
+      }
+    );
+
+    if (!actionResult.success) {
+      console.warn('[CharacterSheet] Attack action request failed:', actionResult.error);
+      
+      // Show user-friendly notification
+      const userFriendlyMessage = getUserFriendlyActionError(actionResult.error);
+      notificationStore.addNotification({
+        type: 'warning',
+        message: userFriendlyMessage,
+        duration: 4000 // 4 seconds
+      });
+      
+      return;
+    }
+
+    console.log('[CharacterSheet] Attack action approved, proceeding with weapon roll');
+  } catch (error) {
+    console.error('[CharacterSheet] Error requesting attack action:', error);
+    
+    // Show user notification for unexpected errors
+    notificationStore.addNotification({
+      type: 'error',
+      message: 'Failed to process attack request. Please try again.',
+      duration: 4000
+    });
+    
     return;
   }
 

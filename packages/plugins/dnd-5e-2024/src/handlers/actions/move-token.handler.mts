@@ -47,6 +47,53 @@ export function validateDnDMovement(
     parameters: request.parameters
   });
 
+  // Check turn-based rules first - is it this player's turn?
+  const turnManager = gameState.turnManager;
+  if (turnManager) {
+    const currentParticipant = turnManager.participants[turnManager.currentTurn];
+    console.log('[DnD5e] Turn validation:', {
+      currentTurn: turnManager.currentTurn,
+      currentParticipant: currentParticipant?.name,
+      currentParticipantId: currentParticipant?.id,
+      requestingPlayerId: request.playerId
+    });
+    
+    if (!currentParticipant) {
+      return { 
+        valid: false, 
+        error: { 
+          code: 'NO_CURRENT_TURN', 
+          message: "No active turn in progress" 
+        } 
+      };
+    }
+    
+    // Find the character that corresponds to the current turn participant
+    const currentCharacter = Object.values(gameState.documents)
+      .find(doc => doc.documentType === 'character' && doc.id === currentParticipant.actorId);
+    
+    // Check if the requesting player owns the character whose turn it is
+    const isPlayersTurn = currentCharacter?.createdBy === request.playerId || 
+                         currentCharacter?.ownerId === request.playerId;
+    
+    console.log('[DnD5e] Player turn check:', {
+      currentCharacterName: currentCharacter?.name,
+      currentCharacterOwner: currentCharacter?.createdBy || currentCharacter?.ownerId,
+      requestingPlayerId: request.playerId,
+      isPlayersTurn
+    });
+    
+    if (!isPlayersTurn) {
+      return { 
+        valid: false, 
+        error: { 
+          code: 'NOT_YOUR_TURN', 
+          message: "It's not your turn to move" 
+        } 
+      };
+    }
+  }
+
   // Find the character for this player
   const character = Object.values(gameState.documents)
     .find(doc => doc.documentType === 'character' && doc.createdBy === request.playerId);
