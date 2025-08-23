@@ -191,17 +191,47 @@ async function addToEncounter(actor: IActor): Promise<void> {
       return;
     }
     
-    // Add actor as a participant using game state operations
-    const operations: StateOperation[] = [{
+    const operations: StateOperation[] = [];
+    
+    // Add actor as an encounter participant
+    operations.push({
       path: '/currentEncounter/participants/-',
       op: 'add',
       value: actor.id
-    }];
+    });
+    
+    // If turn order is active, also add to turn order with default values (if not already present)
+    const turnManager = gameStateStore.gameState?.turnManager;
+    if (turnManager?.isActive) {
+      // Check if participant already exists in turn order
+      const existingParticipant = turnManager.participants?.some(p => p.actorId === actor.id);
+      
+      if (!existingParticipant) {
+        const turnParticipant = {
+          id: `participant_${actor.id}`,
+          name: actor.name,
+          actorId: actor.id,
+          turnOrder: 0, // Will need to be rolled for initiative later
+          hasActed: false
+        };
+        
+        operations.push({
+          path: '/turnManager/participants/-',
+          op: 'add',
+          value: turnParticipant
+        });
+      } else {
+        console.log('Actor already exists in turn order:', actor.name);
+      }
+    }
     
     const response = await gameStateStore.updateGameState(operations);
     
     if (response.success) {
       console.log('Actor added to encounter successfully:', actor.name);
+      if (turnManager?.isActive) {
+        console.log('Actor also added to active turn order');
+      }
     } else {
       console.error('Failed to add actor to encounter:', response.error?.message);
     }

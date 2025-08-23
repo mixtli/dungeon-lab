@@ -3,13 +3,41 @@
     <div v-if="!isInTurnOrder" class="turn-order-setup space-y-4">
       <div class="text-center">
         <h3 class="text-lg font-semibold mb-2">Turn Order Setup</h3>
-        <p class="text-gray-600 mb-4">Set up turn order for this scene</p>
+        <p class="text-gray-600 mb-4">Encounter participants ready for turn order</p>
+      </div>
+      
+      <!-- Show encounter participants even when turn order is not active -->
+      <div v-if="encounterParticipants.length > 0" class="participants-preview">
+        <div class="text-center mb-2">
+          <span class="text-sm text-gray-500 italic">
+            {{ encounterParticipants.length }} participants
+          </span>
+        </div>
+        
+        <div class="participant-list-preview">
+          <div 
+            v-for="participant in encounterParticipants"
+            :key="participant.id"
+            class="participant-preview-item"
+          >
+            <div class="participant-info">
+              <div class="participant-name-section">
+                <span v-if="isControlledByCurrentUser(participant)" class="control-indicator">🔵</span>
+                <span class="participant-name">{{ participant.name }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div v-else class="text-center text-gray-500 text-sm">
+        No participants in encounter. Add characters or actors first.
       </div>
       
       <!-- Primary action: Always available, universal -->
       <div class="flex justify-center">
-        <button @click="startTurnBasedMode" class="standard-button bg-blue-600 hover:bg-blue-700">
-          {{ calculateButtonLabel }}
+        <button @click="rollInitiative" class="standard-button bg-blue-600 hover:bg-blue-700" :disabled="encounterParticipants.length === 0">
+          🎲 Roll Initiative
         </button>
       </div>
     </div>
@@ -83,7 +111,7 @@
       <div v-if="showCalculateButton" class="flex-shrink-0 border-t border-gray-200 pt-4 mt-4">
         <div class="flex justify-center">
           <button @click="calculateInitiative" class="standard-button bg-blue-600 hover:bg-blue-700">
-            🎲 {{ calculateButtonLabel }}
+            🎲 Re-roll Initiative
           </button>
         </div>
       </div>
@@ -106,6 +134,21 @@ const notificationStore = useNotificationStore();
 const turnManager = computed(() => gameStateStore.gameState?.turnManager);
 const isInTurnOrder = computed(() => turnManager.value?.isActive ?? false);
 
+// Get encounter participants for preview when turn order is not active
+const encounterParticipants = computed(() => {
+  if (!gameStateStore.currentEncounter?.participants) return [];
+  
+  return gameStateStore.currentEncounter.participants.map(participantId => {
+    const document = gameStateStore.gameState?.documents[participantId];
+    
+    return {
+      id: `participant_${participantId}`,
+      name: document?.name || 'Unknown',
+      actorId: participantId
+    };
+  }).filter(participant => participant.name !== 'Unknown'); // Filter out missing documents
+});
+
 // Get plugin capabilities for UI behavior
 const plugin = computed(() => turnManagerService.getPlugin());
 const allowsManualReordering = computed(() => {
@@ -113,25 +156,26 @@ const allowsManualReordering = computed(() => {
   console.log('[TurnOrder] allowsManualReordering:', result, 'plugin:', !!plugin.value, 'canUpdate:', gameStateStore.canUpdate);
   return result;
 });
-const calculateButtonLabel = computed(() => plugin.value?.getInitiativeButtonLabel() ?? 'Start Turn Order');
-const showCalculateButton = computed(() => plugin.value?.showCalculateButton() ?? false);
+// Always show the roll initiative button at the bottom when turn order is active
+const showCalculateButton = computed(() => isInTurnOrder.value);
 
 // Drag-and-drop state
 const draggedIndex = ref<number | null>(null);
 
-// Check if current user controls this participant's token
-function isControlledByCurrentUser(participant: { tokenId?: string; actorId?: string }): boolean {
-  const token = gameStateStore.currentEncounter?.tokens?.find(t => t.id === participant.tokenId);
-  return token?.ownerId === authStore.user?.id;
+// Check if current user controls this participant's document
+function isControlledByCurrentUser(participant: { actorId?: string }): boolean {
+  if (!participant.actorId) return false;
+  
+  const document = gameStateStore.gameState?.documents[participant.actorId];
+  return document?.ownerId === authStore.user?.id;
 }
 
-async function startTurnBasedMode() {
+// Remove the old startTurnBasedMode function - now using rollInitiative directly
+
+async function rollInitiative() {
   try {
-    // Get encounter participants and tokens
-    const encounterParticipants = gameStateStore.currentEncounter?.participants || [];
-    const tokens = gameStateStore.currentEncounter?.tokens || [];
-    
-    if (encounterParticipants.length === 0) {
+    // Validate we have participants
+    if (encounterParticipants.value.length === 0) {
       notificationStore.addNotification({ 
         message: 'No participants in encounter. Add characters or actors first.', 
         type: 'warning' 
@@ -139,29 +183,23 @@ async function startTurnBasedMode() {
       return;
     }
     
-    const participants = encounterParticipants.map(participantId => {
-      const document = gameStateStore.gameState?.documents[participantId];
-      const token = tokens.find(t => t.documentId === participantId);
-      
-      return {
-        id: token?.id || `participant_${participantId}`, // Use token ID if available for permission mapping
-        name: document?.name || 'Unknown',
-        actorId: participantId,
-        tokenId: token?.id,
-        hasActed: false,
-        turnOrder: 0, // Will be calculated by plugin
-      };
-    });
+    const response = await gameActionClientService.requestRollInitiative();
     
-    await turnManagerService.startTurnOrder(participants);
-    notificationStore.addNotification({ message: 'Turn-based mode started!', type: 'success' });
-    
+    if (response.success) {
+      // Success notification will come from game state updates
+      console.log('Roll initiative request approved - turn order started');
+    } else {
+      const errorMessage = response.error?.message || 'Failed to roll initiative';
+      console.error('Roll initiative request failed:', errorMessage);
+      notificationStore.addNotification({ message: errorMessage, type: 'error' });
+    }
   } catch (error) {
-    console.error('Failed to start turn-based mode:', error);
-    notificationStore.addNotification({ message: 'Failed to start turn-based mode', type: 'error' });
+    console.error('Failed to send roll initiative request:', error);
+    notificationStore.addNotification({ message: 'Failed to send roll initiative request', type: 'error' });
   }
 }
 
+// Keep the old calculateInitiative function for the existing "Roll Initiative" button during active turn order
 async function calculateInitiative() {
   try {
     const response = await gameActionClientService.requestRollInitiative();
@@ -321,7 +359,33 @@ async function endTurn() {
   @apply min-w-32;
 }
 
-.standard-button:hover {
+.standard-button:hover:not(:disabled) {
   @apply transform scale-105;
+}
+
+.standard-button:disabled {
+  @apply opacity-50 cursor-not-allowed;
+  @apply bg-gray-400 hover:bg-gray-400;
+}
+
+/* Preview styles for participants when turn order is not active */
+.participants-preview {
+  @apply border border-gray-200 rounded-lg p-4 bg-gray-50;
+}
+
+.participant-list-preview {
+  @apply space-y-2 max-h-40 overflow-y-auto;
+}
+
+.participant-preview-item {
+  @apply flex items-center p-2 bg-white border border-gray-100 rounded;
+}
+
+.participant-preview-item .participant-info {
+  @apply flex-1 flex justify-between items-center;
+}
+
+.participant-preview-item .participant-name {
+  @apply text-gray-900 font-medium;
 }
 </style>

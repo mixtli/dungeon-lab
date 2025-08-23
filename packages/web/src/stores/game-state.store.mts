@@ -854,24 +854,41 @@ export const useGameStateStore = defineStore(
         value: tokenData
       }];
 
-      // If turn order is active, add new token as participant
-      if (gameState.value.turnManager?.isActive) {
-        const newParticipant = {
-          id: tokenId,
-          name: tokenData.name,
-          actorId: tokenData.documentId,
-          tokenId: tokenId,
-          hasActed: false,
-          turnOrder: 0 // Start with 0 initiative
-        };
-        
+      // Add document to encounter participants if not already present
+      const isAlreadyParticipant = gameState.value.currentEncounter.participants?.includes(document.id);
+      if (!isAlreadyParticipant) {
         operations.push({
           op: 'add',
-          path: '/turnManager/participants/-',
-          value: newParticipant
+          path: '/currentEncounter/participants/-',
+          value: document.id
         });
+        console.log(`Adding document to encounter participants: ${document.name}`);
+      }
+
+      // If turn order is active, add new participant only if one doesn't already exist for this document
+      if (gameState.value.turnManager?.isActive) {
+        // Check if participant already exists for this document
+        const existingParticipant = gameState.value.turnManager.participants?.some(p => p.actorId === tokenData.documentId);
         
-        console.log(`Adding token to active turn order: ${tokenData.name}`);
+        if (!existingParticipant) {
+          const newParticipant = {
+            id: `participant_${tokenData.documentId}`,
+            name: tokenData.name,
+            actorId: tokenData.documentId,
+            hasActed: false,
+            turnOrder: 0 // Start with 0 initiative
+          };
+          
+          operations.push({
+            op: 'add',
+            path: '/turnManager/participants/-',
+            value: newParticipant
+          });
+          
+          console.log(`Adding document to active turn order: ${tokenData.name}`);
+        } else {
+          console.log(`Document already exists in turn order, skipping: ${tokenData.name}`);
+        }
       }
 
       const response = await updateGameState(operations);

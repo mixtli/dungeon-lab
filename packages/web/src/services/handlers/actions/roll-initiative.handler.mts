@@ -7,6 +7,7 @@
 import type { GameActionRequest, RollInitiativeParameters } from '@dungeon-lab/shared/types/index.mjs';
 import type { ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
 import type { ActionHandler, ValidationResult } from '../../action-handler.interface.mjs';
+import { pluginRegistry } from '../../plugin-registry.mjs';
 
 /**
  * Validate roll initiative request
@@ -86,8 +87,16 @@ async function executeRollInitiative(
     };
   }
 
+  // Get the appropriate plugin for initiative calculation
+  const gameSystemPlugin = pluginRegistry.getGameSystemPlugin(draft.pluginId || 'dnd-5e-2024');
+  const turnManagerPlugin = gameSystemPlugin?.turnManager;
+  
+  if (!turnManagerPlugin) {
+    console.warn('[RollInitiativeHandler] No turn manager plugin found, using simple rolling');
+  }
+
   // Generate turn order participants from encounter participants only
-  const participants = [];
+  let participants = [];
   const encounterParticipants = draft.currentEncounter?.participants || [];
   const tokens = draft.currentEncounter?.tokens || [];
 
@@ -115,20 +124,31 @@ async function executeRollInitiative(
     }
 
     const token = tokens.find(t => t.documentId === participantId);
-    const initiativeRoll = Math.floor(Math.random() * 20) + 1;
-
+    
     participants.push({
       id: token?.id || `participant_${participantId}`,
       name: document.name,
       tokenId: token?.id,
       actorId: participantId,
-      turnOrder: initiativeRoll,
+      turnOrder: 0, // Will be calculated by plugin
       hasActed: false
     });
   }
 
-  // Sort participants by initiative roll (higher goes first)
-  participants.sort((a, b) => b.turnOrder - a.turnOrder);
+  // Use plugin to calculate initiative if available, otherwise use simple rolling
+  if (turnManagerPlugin && turnManagerPlugin.supportsAutomaticCalculation()) {
+    console.log('[RollInitiativeHandler] Using plugin to calculate initiative');
+    participants = await turnManagerPlugin.calculateInitiative(participants);
+  } else {
+    console.log('[RollInitiativeHandler] Using simple initiative rolling');
+    // Fallback to simple d20 rolling
+    participants = participants.map(participant => ({
+      ...participant,
+      turnOrder: Math.floor(Math.random() * 20) + 1
+    }));
+    // Sort by initiative roll (higher goes first)
+    participants.sort((a, b) => b.turnOrder - a.turnOrder);
+  }
 
   // Update turn manager
   draft.turnManager.participants = participants;
