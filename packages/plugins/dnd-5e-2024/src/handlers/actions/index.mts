@@ -17,5 +17,13 @@ export { dndRemoveConditionHandler } from './remove-condition.handler.mjs';
 export { dndApplyDamageHandler } from './apply-damage.handler.mjs';
 export { dndAssignSpellHandler } from './assign-spell.handler.mjs';
 
+// Combat Actions (Phase 3D)
+export { dndHideHandler } from './hide.handler.mjs';
+export { dndDodgeHandler } from './dodge.handler.mjs';
+export { dndHelpHandler } from './help.handler.mjs';
+export { dndDisengageHandler } from './disengage.handler.mjs';
+export { dndSearchHandler } from './search.handler.mjs';
+export { dndReadyHandler } from './ready.handler.mjs';
+
 // Re-export types for convenience
 export type { ActionHandler, ActionValidationResult } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';

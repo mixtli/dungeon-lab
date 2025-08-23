@@ -9,6 +9,8 @@ import type {
   ServerGameStateWithVirtuals 
 } from '@dungeon-lab/shared/types/index.mjs';
 import type { ActionValidationResult } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
+import type { ConditionInstance } from '../types/dnd/condition.mjs';
+import { ConditionService } from '../services/condition.service.mjs';
 
 /**
  * D&D 5e action types for action economy tracking
@@ -34,12 +36,12 @@ interface DnDTurnState {
  * @param actionName - Specific action name for tracking (e.g., 'attack', 'dash')
  * @returns Validation result with error details if invalid
  */
-export function validateActionEconomy(
+export async function validateActionEconomy(
   actionType: DnDActionType,
   character: any,
   gameState: ServerGameStateWithVirtuals,
   actionName: string = 'unknown'
-): ActionValidationResult {
+): Promise<ActionValidationResult> {
   console.log('[DnD5e ActionEconomy] Validating action economy:', {
     characterName: character?.name,
     actionType,
@@ -160,21 +162,22 @@ export function validateActionEconomy(
       };
   }
 
-  // Check for conditions that prevent actions
-  const conditions = (character.state?.conditions as string[]) || [];
-  const actionBlockingConditions = ['paralyzed', 'petrified', 'stunned', 'unconscious', 'incapacitated'];
-  const blockedByCondition = conditions.find((condition: string) => 
-    actionBlockingConditions.includes(condition.toLowerCase())
-  );
-
-  if (blockedByCondition) {
-    return {
-      valid: false,
-      error: {
-        code: 'ACTION_RESTRICTED_BY_CONDITION',
-        message: `Cannot perform actions due to condition: ${blockedByCondition}`
-      }
-    };
+  // Check for conditions that prevent actions (document-based)
+  const conditions = (character.state?.conditions as ConditionInstance[]) || [];
+  const actionBlockingConditionSlugs = ['paralyzed', 'petrified', 'stunned', 'unconscious', 'incapacitated'];
+  
+  // Check each condition instance for action-blocking effects
+  for (const conditionInstance of conditions) {
+    const conditionDoc = await ConditionService.getCondition(conditionInstance.conditionId);
+    if (conditionDoc && actionBlockingConditionSlugs.includes(conditionDoc.slug)) {
+      return {
+        valid: false,
+        error: {
+          code: 'ACTION_RESTRICTED_BY_CONDITION',
+          message: `Cannot perform actions due to condition: ${conditionDoc.name}`
+        }
+      };
+    }
   }
 
   console.log('[DnD5e ActionEconomy] Action economy validation passed');
@@ -244,23 +247,29 @@ export function consumeAction(
  * @param character - Character document to check
  * @returns Object describing available action economy
  */
-export function getAvailableActions(character: any): {
+export async function getAvailableActions(character: any): Promise<{
   canUseAction: boolean;
   canUseBonusAction: boolean;
   canUseReaction: boolean;
   actionsUsed: string[];
-} {
+}> {
   const turnState = character?.state?.turnState as DnDTurnState || {};
   const actionsUsed = turnState.actionsUsed || [];
   const bonusActionUsed = turnState.bonusActionUsed || false;
   const reactionUsed = turnState.reactionUsed || false;
 
-  // Check for action-blocking conditions
-  const conditions = (character?.state?.conditions as string[]) || [];
-  const actionBlockingConditions = ['paralyzed', 'petrified', 'stunned', 'unconscious', 'incapacitated'];
-  const hasActionBlockingCondition = conditions.some((condition: string) => 
-    actionBlockingConditions.includes(condition.toLowerCase())
-  );
+  // Check for action-blocking conditions (document-based)
+  const conditions = (character?.state?.conditions as ConditionInstance[]) || [];
+  const actionBlockingConditionSlugs = ['paralyzed', 'petrified', 'stunned', 'unconscious', 'incapacitated'];
+  
+  let hasActionBlockingCondition = false;
+  for (const conditionInstance of conditions) {
+    const conditionDoc = await ConditionService.getCondition(conditionInstance.conditionId);
+    if (conditionDoc && actionBlockingConditionSlugs.includes(conditionDoc.slug)) {
+      hasActionBlockingCondition = true;
+      break;
+    }
+  }
 
   return {
     canUseAction: !hasActionBlockingCondition && actionsUsed.length === 0,

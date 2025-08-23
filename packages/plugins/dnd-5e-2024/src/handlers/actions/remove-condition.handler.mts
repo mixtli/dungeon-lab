@@ -1,28 +1,21 @@
 /**
- * D&D 5e Remove Condition Action Handler
+ * D&D 5e Remove Condition Action Handler (Document-Based)
  * 
- * Handles removing conditions from characters with D&D-specific logic:
- * - Condition removal validation
- * - Cascading condition removal (removing parent conditions)
- * - Duration expiration handling
+ * Handles removing conditions from characters using document references:
+ * - Document-based condition validation
+ * - Level-based removal for stackable conditions
  * - Recovery mechanics integration
+ * - Source tracking and metadata
  */
 
 import type { GameActionRequest, ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
 import type { ActionHandler, ActionValidationResult } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
-
-/**
- * Interface for condition detail tracking
- */
-interface ConditionDetail {
-  condition: string;
-  addedAt: number;
-  duration?: number;
-  source?: string;
-}
+import type { ConditionInstance } from '../../types/dnd/condition.mjs';
+import { ConditionService } from '../../services/condition.service.mjs';
 
 /**
  * Conditions that automatically remove other conditions when removed
+ * Maps condition slug to dependent condition slugs
  */
 const CONDITION_DEPENDENCIES: Record<string, string[]> = {
   'unconscious': ['prone', 'incapacitated'], // Removing unconscious also removes these
@@ -31,26 +24,28 @@ const CONDITION_DEPENDENCIES: Record<string, string[]> = {
 };
 
 /**
- * Validate removing condition from character
+ * Validate removing condition from character (Document-Based)
  */
-export function validateRemoveCondition(
+export async function validateRemoveCondition(
   request: GameActionRequest,
   gameState: ServerGameStateWithVirtuals
-): ActionValidationResult {
-  console.log('[DnD5e] Validating remove condition:', {
+): Promise<ActionValidationResult> {
+  console.log('[DnD5e] Validating remove condition (document-based):', {
     playerId: request.playerId,
     parameters: request.parameters
   });
 
   const params = request.parameters as { 
     targetId?: string; 
-    condition?: string;
+    conditionId?: string;
+    conditionSlug?: string; // Alternative to conditionId for ease of use
     removeAll?: boolean; // Remove all instances of stackable conditions
+    level?: number; // Remove specific level for stackable conditions
   };
-  const { targetId, condition } = params;
+  const { targetId, conditionId, conditionSlug } = params;
   
-  if (!targetId || !condition) {
-    return { valid: false, error: { code: 'INVALID_PARAMETERS', message: 'Missing target ID or condition' } };
+  if (!targetId || (!conditionId && !conditionSlug)) {
+    return { valid: false, error: { code: 'INVALID_PARAMETERS', message: 'Missing target ID or condition reference' } };
   }
 
   // Find the target character/actor
@@ -59,17 +54,34 @@ export function validateRemoveCondition(
     return { valid: false, error: { code: 'TARGET_NOT_FOUND', message: 'Target character not found' } };
   }
 
+  // Get condition document
+  let conditionDoc;
+  if (conditionId) {
+    conditionDoc = await ConditionService.getCondition(conditionId);
+  } else if (conditionSlug) {
+    conditionDoc = await ConditionService.getConditionBySlug(conditionSlug);
+  }
+
+  if (!conditionDoc) {
+    return {
+      valid: false,
+      error: { 
+        code: 'CONDITION_NOT_FOUND', 
+        message: `Condition not found: ${conditionId || conditionSlug}` 
+      }
+    };
+  }
+
   // Check if target actually has the condition
-  const currentConditions = (target.state?.conditions as string[]) || [];
-  const conditionKey = condition.toLowerCase();
+  const currentConditions = (target.state?.conditions as ConditionInstance[]) || [];
+  const hasCondition = currentConditions.some(c => c.conditionId === conditionDoc.id);
   
-  const hasCondition = currentConditions.some(c => c.toLowerCase() === conditionKey);
   if (!hasCondition) {
     return {
       valid: false,
       error: { 
         code: 'CONDITION_NOT_PRESENT', 
-        message: `${target.name} does not have condition: ${condition}` 
+        message: `${target.name} does not have condition: ${conditionDoc.name}` 
       }
     };
   }
@@ -78,27 +90,29 @@ export function validateRemoveCondition(
   // (For example, some conditions might require specific methods to remove)
   
   // For now, all conditions can be removed if present
-  console.log('[DnD5e] Remove condition validation passed');
+  console.log('[DnD5e] Remove condition validation passed for:', conditionDoc.name);
   return { valid: true };
 }
 
 /**
- * Execute removing condition from character
+ * Execute removing condition from character (Document-Based)
  */
-export function executeRemoveCondition(
+export async function executeRemoveCondition(
   request: GameActionRequest,
   draft: ServerGameStateWithVirtuals
-): void {
-  console.log('[DnD5e] Executing remove condition');
+): Promise<void> {
+  console.log('[DnD5e] Executing remove condition (document-based)');
 
   const params = request.parameters as { 
     targetId?: string; 
-    condition?: string;
+    conditionId?: string;
+    conditionSlug?: string;
     removeAll?: boolean;
+    level?: number; // Remove specific level for stackable conditions
   };
-  const { targetId, condition, removeAll = false } = params;
+  const { targetId, conditionId, conditionSlug, removeAll = false, level } = params;
   
-  if (!targetId || !condition) {
+  if (!targetId || (!conditionId && !conditionSlug)) {
     console.warn('[DnD5e] Invalid parameters during remove condition execution');
     return;
   }
@@ -110,109 +124,144 @@ export function executeRemoveCondition(
     return;
   }
 
+  // Get condition document
+  let conditionDoc;
+  if (conditionId) {
+    conditionDoc = await ConditionService.getCondition(conditionId);
+  } else if (conditionSlug) {
+    conditionDoc = await ConditionService.getConditionBySlug(conditionSlug);
+  }
+
+  if (!conditionDoc) {
+    console.warn('[DnD5e] Condition document not found:', conditionId || conditionSlug);
+    return;
+  }
+
   // Initialize state if needed
   if (!target.state) target.state = {};
   if (!target.state.conditions) target.state.conditions = [];
 
-  const conditions = target.state.conditions as string[];
-  const conditionKey = condition.toLowerCase();
+  const conditions = target.state.conditions as ConditionInstance[];
+  const effects = conditionDoc.pluginData.effects;
 
   // Remove the condition(s)
   let removedCount = 0;
-  if (removeAll) {
-    // Remove all instances of this condition (for stackable conditions)
+  let wasFullyRemoved = false;
+
+  if (effects.stacking?.stackable && level && level > 0) {
+    // Reduce level for stackable conditions
+    const existingInstance = conditions.find(c => c.conditionId === conditionDoc.id);
+    if (existingInstance) {
+      existingInstance.level = Math.max(0, existingInstance.level - level);
+      if (existingInstance.level === 0) {
+        // Remove instance if level reaches 0
+        const index = conditions.indexOf(existingInstance);
+        conditions.splice(index, 1);
+        wasFullyRemoved = true;
+        removedCount = level;
+      } else {
+        removedCount = level;
+      }
+      console.log('[DnD5e] Reduced condition level:', {
+        targetName: target.name,
+        condition: conditionDoc.name,
+        removedLevel: level,
+        newLevel: existingInstance.level || 0
+      });
+    }
+  } else if (removeAll) {
+    // Remove all instances of this condition
     const originalLength = conditions.length;
-    target.state.conditions = conditions.filter(c => c.toLowerCase() !== conditionKey);
-    removedCount = originalLength - (target.state.conditions as string[]).length;
+    target.state.conditions = conditions.filter(c => c.conditionId !== conditionDoc.id);
+    removedCount = originalLength - (target.state.conditions as ConditionInstance[]).length;
+    if (removedCount > 0) wasFullyRemoved = true;
   } else {
-    // Remove only the first instance
-    const conditionIndex = conditions.findIndex(c => c.toLowerCase() === conditionKey);
+    // Remove only the first instance (or oldest)
+    const conditionIndex = conditions.findIndex(c => c.conditionId === conditionDoc.id);
     if (conditionIndex !== -1) {
       conditions.splice(conditionIndex, 1);
       removedCount = 1;
+      wasFullyRemoved = true;
     }
   }
 
-  // Remove condition details if they exist
-  if (target.state.conditionDetails) {
-    const conditionDetails = target.state.conditionDetails as Record<string, ConditionDetail>;
-    const keysToRemove = Object.keys(conditionDetails).filter(key => 
-      conditionDetails[key].condition?.toLowerCase() === conditionKey
-    );
-    
-    if (removeAll) {
-      // Remove all instances
-      for (const key of keysToRemove) {
-        delete conditionDetails[key];
-      }
-    } else {
-      // Remove only the oldest instance
-      if (keysToRemove.length > 0) {
-        const oldestKey = keysToRemove.reduce((oldest, current) => 
-          conditionDetails[current].addedAt < conditionDetails[oldest].addedAt ? current : oldest
-        );
-        delete conditionDetails[oldestKey];
-      }
-    }
-  }
-
-  // Handle cascading condition removal
-  const dependentConditions = CONDITION_DEPENDENCIES[conditionKey];
-  if (dependentConditions && removedCount > 0) {
-    const updatedConditions = target.state.conditions as string[];
-    
-    for (const dependentCondition of dependentConditions) {
-      // Check if the dependent condition was only present due to the removed condition
-      // For simplicity, we'll remove dependent conditions when the parent is removed
-      const dependentIndex = updatedConditions.findIndex(c => 
-        c.toLowerCase() === dependentCondition.toLowerCase()
-      );
+  // Handle cascading condition removal (only if condition was fully removed)
+  if (wasFullyRemoved) {
+    const dependentConditions = CONDITION_DEPENDENCIES[conditionDoc.slug];
+    if (dependentConditions && dependentConditions.length > 0) {
+      const updatedConditions = target.state.conditions as ConditionInstance[];
       
-      if (dependentIndex !== -1) {
-        updatedConditions.splice(dependentIndex, 1);
-        console.log(`[DnD5e] Removed dependent condition: ${dependentCondition}`);
+      for (const dependentSlug of dependentConditions) {
+        // Find and remove dependent conditions
+        const dependentIndex = updatedConditions.findIndex(async (c) => {
+          const depCondition = await ConditionService.getCondition(c.conditionId);
+          return depCondition?.slug === dependentSlug;
+        });
+        
+        if (dependentIndex !== -1) {
+          const removed = updatedConditions.splice(dependentIndex, 1)[0];
+          console.log(`[DnD5e] Removed dependent condition: ${dependentSlug}`);
+        }
       }
     }
   }
 
   // Apply any recovery effects based on condition removal
-  switch (conditionKey) {
-    case 'paralyzed':
-    case 'stunned':
-    case 'unconscious':
-      // These conditions prevent actions, so removing them doesn't restore actions
-      // (actions reset on turn start anyway)
-      break;
-      
-    case 'exhaustion':
-      // Removing exhaustion might restore some capabilities
-      // This would depend on the current exhaustion level
-      break;
-      
-    case 'poisoned':
-      // No immediate mechanical effect from removing poisoned
-      break;
+  if (wasFullyRemoved) {
+    switch (conditionDoc.slug) {
+      case 'paralyzed':
+      case 'stunned':
+      case 'unconscious':
+        // These conditions prevent actions, so removing them doesn't restore actions
+        // (actions reset on turn start anyway)
+        break;
+        
+      case 'exhaustion':
+        // Removing exhaustion might restore some capabilities
+        // This would depend on the current exhaustion level
+        break;
+        
+      case 'poisoned':
+        // No immediate mechanical effect from removing poisoned
+        break;
+    }
   }
 
-  console.log('[DnD5e] Condition removed:', {
+  console.log('[DnD5e] Condition removal complete:', {
     targetName: target.name,
-    condition,
+    conditionName: conditionDoc.name,
     removedCount,
     removeAll,
-    remainingConditions: (target.state.conditions as string[]).length
+    wasFullyRemoved,
+    remainingConditions: (target.state.conditions as ConditionInstance[]).length
   });
 }
 
 /**
- * D&D Remove Condition Action Handler
+ * D&D Remove Condition Action Handler (Document-Based)
  * Pure plugin action for D&D condition management
  */
 export const dndRemoveConditionHandler: Omit<ActionHandler, 'pluginId'> = {
-  validate: validateRemoveCondition,
-  execute: executeRemoveCondition,
+  validate: validateRemoveCondition as (request: GameActionRequest, gameState: ServerGameStateWithVirtuals) => ActionValidationResult,
+  execute: executeRemoveCondition as (request: GameActionRequest, draft: ServerGameStateWithVirtuals) => void,
   approvalMessage: (request) => {
-    const condition = request.parameters.condition || 'condition';
-    const targetId = request.parameters.targetId || 'target';
-    return `wants to remove ${condition} from ${targetId}`;
+    const params = request.parameters as {
+      conditionSlug?: string;
+      conditionId?: string;
+      targetId?: string;
+      level?: number;
+      removeAll?: boolean;
+    };
+    const conditionSlug = params.conditionSlug || params.conditionId || 'condition';
+    const targetId = params.targetId || 'target';
+    const level = params.level;
+    const removeAll = params.removeAll;
+    
+    if (level && level > 0) {
+      return `wants to reduce ${conditionSlug} by ${level} level(s) on ${targetId}`;
+    } else if (removeAll) {
+      return `wants to remove all instances of ${conditionSlug} from ${targetId}`;
+    }
+    return `wants to remove ${conditionSlug} from ${targetId}`;
   }
 };

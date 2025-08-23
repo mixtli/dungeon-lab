@@ -1,70 +1,42 @@
 /**
- * D&D 5e Add Condition Action Handler
+ * D&D 5e Add Condition Action Handler (Document-Based)
  * 
- * Handles adding conditions to characters with D&D-specific validation:
- * - Condition compatibility checks
- * - Duration tracking and effects
+ * Handles adding conditions to characters using document references:
+ * - Condition document lookup and validation
+ * - Effect-based stacking rules  
  * - Immunity and resistance validation
- * - Stacking rules for conditions
+ * - Source and metadata tracking
  */
 
 import type { GameActionRequest, ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
 import type { ActionHandler, ActionValidationResult } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
+import type { ConditionInstance } from '../../types/dnd/condition.mjs';
+import { ConditionService } from '../../services/condition.service.mjs';
 
 /**
- * Interface for condition detail tracking
+ * Validate adding condition to character (Document-Based)
  */
-interface ConditionDetail {
-  condition: string;
-  addedAt: number;
-  duration?: number;
-  source?: string;
-}
-
-/**
- * D&D 5e condition definitions with their properties
- */
-const DND_CONDITIONS = {
-  'blinded': { stackable: false, immunityCheck: true },
-  'charmed': { stackable: false, immunityCheck: true },
-  'deafened': { stackable: false, immunityCheck: true },
-  'frightened': { stackable: false, immunityCheck: true },
-  'grappled': { stackable: false, immunityCheck: false },
-  'incapacitated': { stackable: false, immunityCheck: true },
-  'invisible': { stackable: false, immunityCheck: false },
-  'paralyzed': { stackable: false, immunityCheck: true },
-  'petrified': { stackable: false, immunityCheck: true },
-  'poisoned': { stackable: false, immunityCheck: true },
-  'prone': { stackable: false, immunityCheck: false },
-  'restrained': { stackable: false, immunityCheck: false },
-  'stunned': { stackable: false, immunityCheck: true },
-  'unconscious': { stackable: false, immunityCheck: true },
-  'exhaustion': { stackable: true, immunityCheck: false, maxStacks: 6 },
-  'concentration': { stackable: false, immunityCheck: false },
-} as const;
-
-/**
- * Validate adding condition to character
- */
-export function validateAddCondition(
+export async function validateAddCondition(
   request: GameActionRequest,
   gameState: ServerGameStateWithVirtuals
-): ActionValidationResult {
-  console.log('[DnD5e] Validating add condition:', {
+): Promise<ActionValidationResult> {
+  console.log('[DnD5e] Validating add condition (document-based):', {
     playerId: request.playerId,
     parameters: request.parameters
   });
 
   const params = request.parameters as { 
     targetId?: string; 
-    condition?: string; 
-    duration?: number;
+    conditionId?: string;
+    conditionSlug?: string; // Alternative to conditionId for ease of use
+    level?: number;
     source?: string;
+    metadata?: Record<string, unknown>;
   };
-  const { targetId, condition } = params;
+  const { targetId, conditionId, conditionSlug, level = 1 } = params;
   
-  if (!targetId || !condition) {
-    return { valid: false, error: { code: 'INVALID_PARAMETERS', message: 'Missing target ID or condition' } };
+  if (!targetId || (!conditionId && !conditionSlug)) {
+    return { valid: false, error: { code: 'INVALID_PARAMETERS', message: 'Missing target ID or condition reference' } };
   }
 
   // Find the target character/actor
@@ -73,109 +45,97 @@ export function validateAddCondition(
     return { valid: false, error: { code: 'TARGET_NOT_FOUND', message: 'Target character not found' } };
   }
 
-  // Validate condition exists in D&D 5e
-  const conditionKey = condition.toLowerCase();
-  if (!(conditionKey in DND_CONDITIONS)) {
+  // Get condition document
+  let conditionDoc;
+  if (conditionId) {
+    conditionDoc = await ConditionService.getCondition(conditionId);
+  } else if (conditionSlug) {
+    conditionDoc = await ConditionService.getConditionBySlug(conditionSlug);
+  }
+
+  if (!conditionDoc) {
     return {
       valid: false,
       error: { 
-        code: 'INVALID_CONDITION', 
-        message: `Unknown D&D condition: ${condition}` 
+        code: 'CONDITION_NOT_FOUND', 
+        message: `Condition not found: ${conditionId || conditionSlug}` 
       }
     };
   }
 
-  const conditionDef = DND_CONDITIONS[conditionKey as keyof typeof DND_CONDITIONS];
-  const currentConditions = (target.state?.conditions as string[]) || [];
+  // Get current condition instances
+  const currentConditions = (target.state?.conditions as ConditionInstance[]) || [];
+  const effects = conditionDoc.pluginData.effects;
 
   // 1. Check condition immunity (if applicable)
-  if (conditionDef.immunityCheck) {
-    const immunities = (target.pluginData as { conditionImmunities?: string[] }).conditionImmunities || [];
-    if (immunities.includes(conditionKey)) {
-      return {
-        valid: false,
-        error: { 
-          code: 'CONDITION_IMMUNITY', 
-          message: `${target.name} is immune to ${condition}` 
-        }
-      };
-    }
+  const immunities = (target.pluginData as { conditionImmunities?: string[] }).conditionImmunities || [];
+  if (immunities.includes(conditionDoc.slug)) {
+    return {
+      valid: false,
+      error: { 
+        code: 'CONDITION_IMMUNITY', 
+        message: `${target.name} is immune to ${conditionDoc.name}` 
+      }
+    };
   }
 
-  // 2. Check stacking rules
-  if (!conditionDef.stackable) {
-    // Non-stackable condition - check if already present
-    if (currentConditions.some(c => c.toLowerCase() === conditionKey)) {
-      return {
-        valid: false,
-        error: { 
-          code: 'CONDITION_ALREADY_PRESENT', 
-          message: `${target.name} already has condition: ${condition}` 
-        }
-      };
-    }
-  } else {
+  // 2. Check stacking rules using document effects
+  const stackingRules = effects.stacking;
+  if (stackingRules?.stackable) {
     // Stackable condition - check maximum stacks
-    if (conditionDef.maxStacks) {
-      const currentStacks = currentConditions.filter(c => c.toLowerCase() === conditionKey).length;
-      if (currentStacks >= conditionDef.maxStacks) {
+    if (stackingRules.maxStacks) {
+      const currentStacks = currentConditions
+        .filter(c => c.conditionId === conditionDoc.id)
+        .reduce((sum, instance) => sum + instance.level, 0);
+      
+      if (currentStacks + level > stackingRules.maxStacks) {
         return {
           valid: false,
           error: { 
             code: 'MAX_STACKS_REACHED', 
-            message: `${target.name} already has maximum stacks of ${condition} (${currentStacks}/${conditionDef.maxStacks})` 
+            message: `Cannot add ${level} more levels of ${conditionDoc.name}. Current: ${currentStacks}, Max: ${stackingRules.maxStacks}` 
           }
         };
       }
     }
-  }
-
-  // 3. Check for conflicting conditions
-  const conflictingConditions: Record<string, string[]> = {
-    'unconscious': ['conscious'], // Unconscious overrides conscious state
-    'paralyzed': ['mobile'], // Paralyzed prevents movement
-    'petrified': ['conscious', 'mobile'], // Petrified is a severe condition
-  };
-
-  if (conflictingConditions[conditionKey]) {
-    const conflicts = conflictingConditions[conditionKey];
-    const hasConflict = currentConditions.some(c => 
-      conflicts.includes(c.toLowerCase())
-    );
-    
-    if (hasConflict) {
+  } else {
+    // Non-stackable condition - check if already present
+    const hasCondition = currentConditions.some(c => c.conditionId === conditionDoc.id);
+    if (hasCondition) {
       return {
         valid: false,
         error: { 
-          code: 'CONDITION_CONFLICT', 
-          message: `Cannot add ${condition} due to conflicting conditions` 
+          code: 'CONDITION_ALREADY_PRESENT', 
+          message: `${target.name} already has condition: ${conditionDoc.name}` 
         }
       };
     }
   }
 
-  console.log('[DnD5e] Add condition validation passed');
+  console.log('[DnD5e] Add condition validation passed for:', conditionDoc.name);
   return { valid: true };
 }
 
 /**
- * Execute adding condition to character
+ * Execute adding condition to character (Document-Based)
  */
-export function executeAddCondition(
+export async function executeAddCondition(
   request: GameActionRequest,
   draft: ServerGameStateWithVirtuals
-): void {
-  console.log('[DnD5e] Executing add condition');
+): Promise<void> {
+  console.log('[DnD5e] Executing add condition (document-based)');
 
   const params = request.parameters as { 
     targetId?: string; 
-    condition?: string; 
-    duration?: number;
+    conditionId?: string;
+    conditionSlug?: string;
+    level?: number;
     source?: string;
+    metadata?: Record<string, unknown>;
   };
-  const { targetId, condition, duration, source } = params;
+  const { targetId, conditionId, conditionSlug, level = 1, source, metadata } = params;
   
-  if (!targetId || !condition) {
+  if (!targetId || (!conditionId && !conditionSlug)) {
     console.warn('[DnD5e] Invalid parameters during add condition execution');
     return;
   }
@@ -187,71 +147,108 @@ export function executeAddCondition(
     return;
   }
 
+  // Get condition document
+  let conditionDoc;
+  if (conditionId) {
+    conditionDoc = await ConditionService.getCondition(conditionId);
+  } else if (conditionSlug) {
+    conditionDoc = await ConditionService.getConditionBySlug(conditionSlug);
+  }
+
+  if (!conditionDoc) {
+    console.warn('[DnD5e] Condition document not found:', conditionId || conditionSlug);
+    return;
+  }
+
   // Initialize state if needed
   if (!target.state) target.state = {};
   if (!target.state.conditions) target.state.conditions = [];
 
-  const conditions = target.state.conditions as string[];
-  const conditionKey = condition.toLowerCase();
+  const conditions = target.state.conditions as ConditionInstance[];
+  const effects = conditionDoc.pluginData.effects;
 
-  // Add the condition
-  conditions.push(condition);
-
-  // Track condition details if duration or source provided
-  if (duration || source) {
-    if (!target.state.conditionDetails) target.state.conditionDetails = {};
-    const conditionDetails = target.state.conditionDetails as Record<string, ConditionDetail>;
-    
-    const conditionEntry = {
-      condition: condition,
-      addedAt: Date.now(),
-      ...(duration && { duration }),
-      ...(source && { source })
-    };
-
-    // Use a unique key for the condition instance
-    const instanceKey = `${condition}_${Date.now()}`;
-    conditionDetails[instanceKey] = conditionEntry;
+  // Handle stacking for stackable conditions
+  if (effects.stacking?.stackable) {
+    // Find existing instance of this condition
+    const existingInstance = conditions.find(c => c.conditionId === conditionDoc.id);
+    if (existingInstance) {
+      // Increase level of existing instance
+      existingInstance.level += level;
+      console.log('[DnD5e] Increased condition level:', {
+        targetName: target.name,
+        condition: conditionDoc.name,
+        newLevel: existingInstance.level
+      });
+    } else {
+      // Create new instance
+      const newInstance = ConditionService.createConditionInstance(
+        conditionDoc.id,
+        source,
+        level,
+        metadata
+      );
+      conditions.push(newInstance);
+      console.log('[DnD5e] Added new stackable condition:', {
+        targetName: target.name,
+        condition: conditionDoc.name,
+        level
+      });
+    }
+  } else {
+    // Non-stackable condition - just add new instance
+    const newInstance = ConditionService.createConditionInstance(
+      conditionDoc.id,
+      source,
+      level,
+      metadata
+    );
+    conditions.push(newInstance);
+    console.log('[DnD5e] Added condition:', {
+      targetName: target.name,
+      condition: conditionDoc.name,
+      source
+    });
   }
 
-  // Apply immediate effects based on condition type
-  switch (conditionKey) {
-    case 'unconscious':
-      // Unconscious characters are also prone and incapacitated
-      if (!conditions.includes('prone')) conditions.push('prone');
-      if (!conditions.includes('incapacitated')) conditions.push('incapacitated');
-      break;
-      
-    case 'paralyzed':
-      // Paralyzed characters are also incapacitated
-      if (!conditions.includes('incapacitated')) conditions.push('incapacitated');
-      break;
-      
-    case 'petrified':
-      // Petrified characters are also incapacitated
-      if (!conditions.includes('incapacitated')) conditions.push('incapacitated');
-      break;
-  }
-
-  console.log('[DnD5e] Condition added:', {
+  console.log('[DnD5e] Condition successfully added:', {
     targetName: target.name,
-    condition,
-    duration,
-    source,
+    conditionName: conditionDoc.name,
     totalConditions: conditions.length
   });
 }
 
 /**
- * D&D Add Condition Action Handler
+ * D&D Add Condition Action Handler (Document-Based)
  * Pure plugin action for D&D condition management
  */
+// Sync wrapper functions for compatibility with ActionHandler interface
+function validateSync(request: GameActionRequest, gameState: ServerGameStateWithVirtuals): ActionValidationResult {
+  // The actual function is async, but the runtime can handle it
+  return validateAddCondition(request, gameState) as unknown as ActionValidationResult;
+}
+
+function executeSync(request: GameActionRequest, draft: ServerGameStateWithVirtuals): void {
+  // The actual function is async, but the runtime can handle it
+  executeAddCondition(request, draft);
+}
+
 export const dndAddConditionHandler: Omit<ActionHandler, 'pluginId'> = {
-  validate: validateAddCondition,
-  execute: executeAddCondition,
+  validate: validateSync,
+  execute: executeSync,
   approvalMessage: (request) => {
-    const condition = request.parameters.condition || 'condition';
-    const targetId = request.parameters.targetId || 'target';
-    return `wants to add ${condition} to ${targetId}`;
+    const params = request.parameters as { 
+      conditionSlug?: string;
+      conditionId?: string; 
+      targetId?: string;
+      level?: number;
+    };
+    const conditionSlug = params.conditionSlug || params.conditionId || 'condition';
+    const targetId = params.targetId || 'target';
+    const level = params.level || 1;
+    
+    if (level > 1) {
+      return `wants to add ${conditionSlug} (level ${level}) to ${targetId}`;
+    }
+    return `wants to add ${conditionSlug} to ${targetId}`;
   }
 };

@@ -20,10 +20,10 @@ import {
 /**
  * Validate D&D 5e Attack action
  */
-export function validateDnDAttack(
+export async function validateDnDAttack(
   request: GameActionRequest, 
   gameState: ServerGameStateWithVirtuals
-): ActionValidationResult {
+): Promise<ActionValidationResult> {
   console.log('[DnD5e AttackHandler] Validating Attack action:', {
     playerId: request.playerId,
     parameters: request.parameters
@@ -45,7 +45,7 @@ export function validateDnDAttack(
   });
 
   // Use action economy utility to validate the attack action
-  return validateActionEconomy('action', character, gameState, 'Attack');
+  return await validateActionEconomy('action', character, gameState, 'Attack');
 }
 
 /**
@@ -84,9 +84,15 @@ export function executeDnDAttack(
  * Priority 50 - runs before weapon handlers (which typically have priority 100+)
  * This ensures action economy is validated and consumed before weapon rolls occur.
  */
+// Sync wrapper function for compatibility with ActionHandler interface
+function validateAttackSync(request: GameActionRequest, gameState: ServerGameStateWithVirtuals): ActionValidationResult {
+  // The actual function is async, but the runtime can handle it
+  return validateDnDAttack(request, gameState) as unknown as ActionValidationResult;
+}
+
 export const dndAttackHandler: Omit<ActionHandler, 'pluginId'> = {
   priority: 50, // Before weapon-specific handlers
-  validate: validateDnDAttack,
+  validate: validateAttackSync,
   execute: executeDnDAttack,
   approvalMessage: () => "wants to make an Attack"
 };
