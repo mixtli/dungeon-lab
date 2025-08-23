@@ -31,12 +31,12 @@ function generateRequestId(): string {
  * Validate action using the same handlers as the server
  * This provides client-side optimization while maintaining consistency
  */
-function validateActionClientSide(
+async function validateActionClientSide(
   action: GameActionType,
   parameters: Record<string, unknown>,
   gameState: any,
   playerId: string
-): ActionValidationResult | null {
+): Promise<ActionValidationResult | null> {
   try {
     const handlers = getHandlers(action);
     console.log('[PlayerActionService] Client-side validation using server handlers:', {
@@ -57,7 +57,7 @@ function validateActionClientSide(
           timestamp: Date.now()
         };
 
-        const result = handler.validate(request, gameState);
+        const result = await handler.validate(request, gameState);
         console.log('[PlayerActionService] Handler validation result:', {
           pluginId: handler.pluginId,
           priority: handler.priority,
@@ -139,7 +139,7 @@ export class PlayerActionService {
 
     // Client-side validation using the same handlers as the server
     // This provides optimization while ensuring consistency with server-side validation
-    const clientValidationResult = validateActionClientSide(action, parameters, this.gameStateStore.gameState, this.authStore.user.id);
+    const clientValidationResult = await validateActionClientSide(action, parameters, this.gameStateStore.gameState, this.authStore.user.id);
     
     if (clientValidationResult && !clientValidationResult.valid) {
       console.log('[PlayerActionService] 🚫 Client-side validation failed:', clientValidationResult.error);

@@ -11,10 +11,10 @@ import type { ActionHandler, ValidationResult } from '../../action-handler.inter
 /**
  * Validate document addition request
  */
-function validateAddDocument(
+async function validateAddDocument(
   request: GameActionRequest, 
   gameState: ServerGameStateWithVirtuals
-): ValidationResult {
+): Promise<ValidationResult> {
   const params = request.parameters as AddDocumentParameters;
 
   console.log('[AddDocumentHandler] Validating document addition:', {
@@ -62,10 +62,10 @@ function validateAddDocument(
 /**
  * Execute document addition using direct state mutation
  */
-function executeAddDocument(
+async function executeAddDocument(
   request: GameActionRequest, 
   draft: ServerGameStateWithVirtuals
-): void {
+): Promise<void> {
   const params = request.parameters as AddDocumentParameters;
 
   console.log('[AddDocumentHandler] Executing document addition:', {
@@ -93,7 +93,7 @@ export const addDocumentActionHandler: ActionHandler = {
   priority: 0, // Core handler runs first
   validate: validateAddDocument,
   execute: executeAddDocument,
-  approvalMessage: (request) => {
+  approvalMessage: async (request) => {
     const params = request.parameters as AddDocumentParameters;
     return `wants to add document "${params.documentData.name || params.documentData.id}" to the game`;
   }

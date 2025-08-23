@@ -12,10 +12,10 @@ import type { ActionHandler, ValidationResult } from '../../action-handler.inter
 /**
  * Validate item assignment request
  */
-function validateAssignItem(
+async function validateAssignItem(
   request: GameActionRequest, 
   gameState: ServerGameStateWithVirtuals
-): ValidationResult {
+): Promise<ValidationResult> {
   const params = request.parameters as AssignItemParameters;
 
   console.log('[AssignItemHandler] Validating item assignment:', {
@@ -100,10 +100,10 @@ function validateAssignItem(
 /**
  * Execute item assignment using direct state mutation
  */
-function executeAssignItem(
+async function executeAssignItem(
   request: GameActionRequest, 
   draft: ServerGameStateWithVirtuals
-): void {
+): Promise<void> {
   const params = request.parameters as AssignItemParameters;
 
   console.log('[AssignItemHandler] Executing item assignment:', {
@@ -141,7 +141,7 @@ export const assignItemActionHandler: ActionHandler = {
   gmOnly: false, // Players can request item assignments
   validate: validateAssignItem,
   execute: executeAssignItem,
-  approvalMessage: (request) => {
+  approvalMessage: async (request) => {
     const params = request.parameters as AssignItemParameters;
     return `wants to give "${params.itemName || 'an item'}" to ${params.targetCharacterName || 'a character'}`;
   }

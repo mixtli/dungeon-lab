@@ -12,10 +12,10 @@ import { generateLifecycleResetPatches } from '@dungeon-lab/shared/utils/documen
 /**
  * Validate stop encounter request
  */
-function validateStopEncounter(
+async function validateStopEncounter(
   request: GameActionRequest, 
   gameState: ServerGameStateWithVirtuals
-): ValidationResult {
+): Promise<ValidationResult> {
   const params = request.parameters as StopEncounterParameters;
 
   console.log('[StopEncounterHandler] Validating encounter stop:', {
@@ -73,10 +73,10 @@ function validateStopEncounter(
 /**
  * Execute encounter stop using direct state mutation
  */
-function executeStopEncounter(
+async function executeStopEncounter(
   request: GameActionRequest, 
   draft: ServerGameStateWithVirtuals
-): void {
+): Promise<void> {
   const params = request.parameters as StopEncounterParameters;
 
   console.log('[StopEncounterHandler] Executing encounter stop:', {
@@ -160,7 +160,7 @@ export const stopEncounterActionHandler: ActionHandler = {
   gmOnly: true, // Only GMs can stop encounters
   validate: validateStopEncounter,
   execute: executeStopEncounter,
-  approvalMessage: (request) => {
+  approvalMessage: async (request) => {
     const params = request.parameters as StopEncounterParameters;
     return `wants to stop encounter ${params.encounterId}`;
   }

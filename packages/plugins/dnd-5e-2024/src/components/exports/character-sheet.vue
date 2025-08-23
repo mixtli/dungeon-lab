@@ -145,6 +145,64 @@
         </div>
       </div>
       
+      <!-- Conditions Tab -->
+      <div v-if="activeTab === 'conditions'" class="tab-pane conditions-tab">
+        <div 
+          class="conditions-container"
+          :class="{ 'drag-over': isConditionDragOver }"
+          @dragenter="handleConditionDragEnter"
+          @dragover="handleConditionDragOver"
+          @dragleave="handleConditionDragLeave"
+          @drop="handleConditionDrop"
+        >
+          <div class="conditions-header">
+            <h3>Active Conditions</h3>
+            <span class="condition-count">{{ activeConditions.length }}</span>
+          </div>
+          
+          <div class="conditions-list">
+            <div 
+              v-for="condition in activeConditions" 
+              :key="`${condition.conditionId}-${condition.addedAt}`"
+              class="condition-card"
+            >
+              <div class="condition-icon">
+                <img 
+                  v-if="getConditionImageUrl(condition.conditionId)" 
+                  :src="getConditionImageUrl(condition.conditionId)" 
+                  :alt="getConditionName(condition.conditionId)"
+                  class="condition-image"
+                  @error="(e) => (e.target as HTMLImageElement).style.display = 'none'"
+                />
+                <span v-else class="condition-emoji">🎯</span>
+              </div>
+              
+              <div class="condition-info">
+                <div class="condition-name">{{ getConditionName(condition.conditionId) }}</div>
+                <div class="condition-details">
+                  <span v-if="condition.level && condition.level > 1" class="condition-level">Level {{ condition.level }}</span>
+                  <span v-if="condition.source" class="condition-source">from {{ condition.source }}</span>
+                </div>
+              </div>
+              
+              <button 
+                class="remove-condition-btn"
+                @click="removeCondition(condition.conditionId)"
+                title="Remove condition"
+                :disabled="readonly"
+              >
+                <i class="mdi mdi-close"></i>
+              </button>
+            </div>
+          </div>
+          
+          <div v-if="activeConditions.length === 0" class="no-conditions">
+            <p>No active conditions</p>
+            <p class="no-conditions-hint">Drag conditions from the Documents tab to add them</p>
+          </div>
+        </div>
+      </div>
+      
       <!-- Abilities Tab -->
       <div v-if="activeTab === 'abilities'" class="tab-pane abilities-tab">
         <div class="abilities-grid">
@@ -658,6 +716,9 @@ const dragCounter = ref(0);
 // Spell drag and drop state
 const isSpellDragOver = ref(false);
 const spellDragCounter = ref(0);
+// Condition drag and drop state
+const isConditionDragOver = ref(false);
+const conditionDragCounter = ref(0);
 
 // Item image URL cache (for dynamic loading from imageId)
 const itemImageUrls = ref<Record<string, string>>({});
@@ -777,8 +838,9 @@ const automateAttacksValue = computed({
 // Tab definitions
 const tabs = [
   { id: 'overview', name: 'Main', icon: '📋' },
+  { id: 'conditions', name: 'Conditions', icon: '🎯' },
   { id: 'abilities', name: 'Abilities', icon: '💪' },
-  { id: 'skills', name: 'Skills', icon: '🎯' },
+  { id: 'skills', name: 'Skills', icon: '🏹' },
   { id: 'spells', name: 'Spells', icon: '✨' },
   { id: 'gear', name: 'Equipment', icon: '🎒' },
   { id: 'background', name: 'Background', icon: '📜' },
@@ -1054,6 +1116,13 @@ const groupedItems = computed(() => {
     return { weapons: [], armor: [], gear: [] };
   }
   return groupItemsByType(props.items.value);
+});
+
+// Conditions - accessing character state conditions
+const activeConditions = computed(() => {
+  const conditions = character.value?.state?.conditions;
+  if (!Array.isArray(conditions)) return [];
+  return conditions;
 });
 
 // Notes - direct binding to character.pluginData.roleplay.backstory
@@ -1937,6 +2006,146 @@ const handleSpellDrop = async (event: DragEvent) => {
   }
 };
 
+// Condition drag and drop handlers
+const handleConditionDragEnter = (event: DragEvent) => {
+  event.preventDefault();
+  event.stopPropagation();
+  
+  conditionDragCounter.value++;
+  if (conditionDragCounter.value === 1) {
+    isConditionDragOver.value = true;
+  }
+};
+
+const handleConditionDragOver = (event: DragEvent) => {
+  event.preventDefault();
+  event.stopPropagation();
+  
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'copy';
+  }
+};
+
+const handleConditionDragLeave = (event: DragEvent) => {
+  event.preventDefault();
+  event.stopPropagation();
+  
+  conditionDragCounter.value--;
+  if (conditionDragCounter.value === 0) {
+    isConditionDragOver.value = false;
+  }
+};
+
+const handleConditionDrop = async (event: DragEvent) => {
+  event.preventDefault();
+  event.stopPropagation();
+  
+  // Reset drag state
+  isConditionDragOver.value = false;
+  conditionDragCounter.value = 0;
+  
+  if (!event.dataTransfer) {
+    console.warn('[CharacterSheet] No drag data available');
+    return;
+  }
+  
+  if (!character.value) {
+    console.warn('[CharacterSheet] No character available for condition assignment');
+    return;
+  }
+  
+  try {
+    const dragDataStr = event.dataTransfer.getData('application/json');
+    if (!dragDataStr) {
+      console.warn('[CharacterSheet] No drag data found');
+      return;
+    }
+    
+    const dragData = JSON.parse(dragDataStr);
+    console.log('[CharacterSheet] Processing condition drop data:', dragData);
+    
+    // Validate drag data format for conditions
+    if (dragData.type !== 'document-token' || dragData.documentType !== 'vtt-document' || dragData.pluginDocumentType !== 'condition') {
+      console.warn('[CharacterSheet] Invalid condition drag data:', dragData);
+      return;
+    }
+    
+    if (!pluginContext) {
+      console.error('[CharacterSheet] Plugin context not available for condition assignment');
+      return;
+    }
+    
+    // Prepare condition assignment parameters
+    const actionParams = {
+      conditionId: dragData.documentId,
+      targetId: character.value.id, // Use targetId instead of targetCharacterId to match handler expectations
+      source: 'Manual Assignment',
+      level: 1 // Default level for manually assigned conditions
+    };
+    
+    console.log('[CharacterSheet] Requesting condition assignment:', actionParams);
+    
+    // Request the condition assignment action through the plugin context
+    const result = await pluginContext.requestAction(
+      'dnd5e-2024:add-condition',
+      actionParams,
+      {
+        description: `Add condition ${dragData.name || 'Unknown Condition'} to ${character.value.name || 'Unknown Character'}`
+      }
+    );
+    
+    if (result.success) {
+      console.log('[CharacterSheet] Condition assignment request submitted successfully:', result);
+    } else {
+      console.error('[CharacterSheet] Condition assignment request failed:', result.error);
+    }
+    
+  } catch (error) {
+    console.error('[CharacterSheet] Error processing condition drop:', error);
+  }
+};
+
+// Condition helper methods
+const conditionImageUrls = ref<Record<string, string>>({});
+const conditionNames = ref<Record<string, string>>({});
+
+// Get condition image URL
+const getConditionImageUrl = (conditionId: string): string | undefined => {
+  return conditionImageUrls.value[conditionId];
+};
+
+// Get condition name
+const getConditionName = (conditionId: string): string => {
+  return conditionNames.value[conditionId] || 'Unknown Condition';
+};
+
+// Remove condition action
+const removeCondition = async (conditionId: string) => {
+  const pluginContext = getPluginContext();
+  if (!pluginContext) {
+    console.error('Plugin context not available for condition removal');
+    return;
+  }
+
+  try {
+    await pluginContext.requestAction(
+      'dnd5e-2024:remove-condition',
+      { 
+        conditionId,
+        targetId: character.value.id
+      },
+      { description: `Remove condition: ${getConditionName(conditionId)}` }
+    );
+  } catch (error) {
+    console.error('Failed to remove condition:', error);
+    notificationStore.addNotification({
+      type: 'error',
+      message: 'Failed to remove condition: Unable to remove condition at this time',
+      duration: 4000
+    });
+  }
+};
+
 /**
  * Handle drag enter event - increment counter for nested elements
  */
@@ -2055,14 +2264,103 @@ const handleDrop = async (event: DragEvent) => {
   }
 };
 
+// Load condition data for display - fetching actual condition documents
+const loadConditions = async () => {
+  try {
+    const pluginContext = getPluginContext();
+    if (!pluginContext) {
+      console.warn('[CharacterSheet] Plugin context not available for condition loading');
+      // Fallback to hard-coded names
+      conditionNames.value = {
+        'blinded': 'Blinded',
+        'charmed': 'Charmed', 
+        'deafened': 'Deafened',
+        'exhaustion': 'Exhaustion',
+        'frightened': 'Frightened',
+        'grappled': 'Grappled',
+        'incapacitated': 'Incapacitated',
+        'invisible': 'Invisible',
+        'paralyzed': 'Paralyzed',
+        'petrified': 'Petrified',
+        'poisoned': 'Poisoned',
+        'prone': 'Prone',
+        'restrained': 'Restrained',
+        'stunned': 'Stunned',
+        'unconscious': 'Unconscious'
+      };
+      return;
+    }
+    
+    console.log('[CharacterSheet] Loading condition documents from document collection');
+    
+    // Try to load condition documents from the document collection
+    try {
+      const conditions = await pluginContext.searchDocuments({
+        pluginId: 'dnd-5e-2024',
+        documentType: 'vtt-document',
+        pluginDocumentType: 'condition',
+        limit: 50 // Add reasonable limit
+      });
+      
+      console.log(`[CharacterSheet] Loaded ${conditions.length} condition documents:`, conditions);
+      
+      // Populate condition names and image URLs from actual documents
+      for (const condition of conditions) {
+        conditionNames.value[condition.id] = condition.name || condition.data?.name || 'Unknown Condition';
+        
+        // Load image URL if the condition has an imageId
+        if (condition.data?.imageId) {
+          try {
+            const imageUrl = getAssetUrl(`/api/assets/${condition.data.imageId}/file`);
+            conditionImageUrls.value[condition.id] = imageUrl;
+          } catch (error) {
+            console.warn(`[CharacterSheet] Failed to load image for condition ${condition.name}:`, error);
+          }
+        }
+      }
+      
+      console.log('[CharacterSheet] Condition names loaded:', conditionNames.value);
+      console.log('[CharacterSheet] Condition images loaded:', conditionImageUrls.value);
+      
+    } catch (error) {
+      console.error('[CharacterSheet] Failed to load condition documents:', error);
+      
+      // Fallback to hard-coded names if loading fails
+      conditionNames.value = {
+        'blinded': 'Blinded',
+        'charmed': 'Charmed', 
+        'deafened': 'Deafened',
+        'exhaustion': 'Exhaustion',
+        'frightened': 'Frightened',
+        'grappled': 'Grappled',
+        'incapacitated': 'Incapacitated',
+        'invisible': 'Invisible',
+        'paralyzed': 'Paralyzed',
+        'petrified': 'Petrified',
+        'poisoned': 'Poisoned',
+        'prone': 'Prone',
+        'restrained': 'Restrained',
+        'stunned': 'Stunned',
+        'unconscious': 'Unconscious'
+      };
+    }
+    
+  } catch (error) {
+    console.error('[CharacterSheet] Error in loadConditions:', error);
+  }
+};
+
 // No longer using inline style injection - styles now imported from shared stylesheet
 
-onMounted(() => {
+onMounted(async () => {
   document.addEventListener('keydown', handleKeyDown);
   console.log('D&D 5e Character Sheet mounted for character:', character.value!?.name || 'unknown');
   
   // Load compendium documents
   loadCompendiumDocuments();
+  
+  // Load condition data for display
+  await loadConditions();
 });
 
 onUnmounted(() => {
@@ -3229,5 +3527,184 @@ watch(() => props.items?.value, () => {
 .setting-toggle .checkbox-label {
   font-size: 14px;
   color: var(--dnd-black);
+}
+
+/* Conditions Tab */
+.conditions-tab {
+  padding: 16px;
+}
+
+.conditions-container {
+  max-width: 100%;
+}
+
+.conditions-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--dnd-brown-light);
+}
+
+.conditions-header h3 {
+  margin: 0;
+  color: var(--dnd-black);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.condition-count {
+  background: var(--dnd-brown-light);
+  color: var(--dnd-white);
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.conditions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.condition-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--dnd-parchment-light);
+  border: 1px solid var(--dnd-brown-light);
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.condition-card:hover {
+  background: var(--dnd-parchment);
+  border-color: var(--dnd-brown);
+  box-shadow: 0 2px 4px rgba(101, 67, 33, 0.1);
+}
+
+.condition-icon {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--dnd-brown-light);
+  border-radius: 50%;
+}
+
+.condition-image {
+  width: 24px;
+  height: 24px;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.condition-emoji {
+  font-size: 16px;
+  color: var(--dnd-white);
+}
+
+.condition-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.condition-name {
+  font-weight: 600;
+  color: var(--dnd-black);
+  font-size: 14px;
+  margin-bottom: 2px;
+}
+
+.condition-details {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--dnd-brown);
+}
+
+.condition-level {
+  font-weight: 500;
+}
+
+.condition-source {
+  font-style: italic;
+}
+
+.remove-condition-btn {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: var(--dnd-brown);
+  cursor: pointer;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.remove-condition-btn:hover:not(:disabled) {
+  background: rgba(220, 38, 38, 0.1);
+  color: #dc2626;
+}
+
+.remove-condition-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.no-conditions {
+  text-align: center;
+  padding: 32px 16px;
+  color: var(--dnd-brown);
+}
+
+.no-conditions p {
+  margin: 0 0 8px 0;
+}
+
+.no-conditions-hint {
+  font-size: 12px;
+  font-style: italic;
+  opacity: 0.7;
+}
+
+/* Condition drag and drop styling */
+.conditions-container {
+  transition: all 0.2s ease;
+  border-radius: 8px;
+  position: relative;
+}
+
+.conditions-container.drag-over {
+  background: rgba(34, 197, 94, 0.1);
+  border: 2px dashed rgba(34, 197, 94, 0.5);
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+}
+
+.conditions-container.drag-over::before {
+  content: "Drop condition here to add to character";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(34, 197, 94, 0.9);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  z-index: 10;
+  pointer-events: none;
 }
 </style>

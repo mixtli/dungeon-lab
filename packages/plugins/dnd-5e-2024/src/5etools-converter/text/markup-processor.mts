@@ -90,15 +90,42 @@ function parseMarkupTags(text: string): ParsedMarkupTag[] {
   const tags: ParsedMarkupTag[] = [];
   let match;
   
-  // Reset regex lastIndex
+  // Handle special cases that have | as internal delimiters, not source separators
+  const specialPatterns = [
+    { pattern: MARKUP_PATTERNS.SCALEDAMAGE, type: 'scaledamage' },
+    { pattern: MARKUP_PATTERNS.DAMAGE, type: 'damage' }
+  ];
+  
+  for (const { pattern, type } of specialPatterns) {
+    pattern.lastIndex = 0;
+    while ((match = pattern.exec(text)) !== null) {
+      const [original, content] = match;
+      tags.push({
+        original,
+        type,
+        content: content?.trim() || '',
+        source: undefined,
+        start: match.index,
+        end: match.index + original.length
+      });
+    }
+  }
+  
+  // Handle generic patterns for other tag types
   MARKUP_PATTERNS.GENERIC.lastIndex = 0;
   
   while ((match = MARKUP_PATTERNS.GENERIC.exec(text)) !== null) {
     const [original, type, content, source] = match;
+    const tagType = type.toLowerCase();
+    
+    // Skip if already handled by special patterns
+    if (tagType === 'scaledamage' || tagType === 'damage') {
+      continue;
+    }
     
     tags.push({
       original,
-      type: type.toLowerCase(),
+      type: tagType,
       content: content?.trim() || '',
       source: source?.trim(),
       start: match.index,

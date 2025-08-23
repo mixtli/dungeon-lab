@@ -10,7 +10,8 @@ import type {
 } from '@dungeon-lab/shared/types/index.mjs';
 import type { ActionValidationResult } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 import type { ConditionInstance } from '../types/dnd/condition.mjs';
-import { ConditionService } from '../services/condition.service.mjs';
+import { getPluginContext } from '@dungeon-lab/shared-ui/utils/plugin-context.mjs';
+import type { DndConditionDocument } from '../types/dnd/condition.mjs';
 
 /**
  * D&D 5e action types for action economy tracking
@@ -165,18 +166,27 @@ export async function validateActionEconomy(
   // Check for conditions that prevent actions (document-based)
   const conditions = (character.state?.conditions as ConditionInstance[]) || [];
   const actionBlockingConditionSlugs = ['paralyzed', 'petrified', 'stunned', 'unconscious', 'incapacitated'];
+  const pluginContext = getPluginContext();
+  if (!pluginContext) {
+    return { valid: false, error: { code: 'NO_CONTEXT', message: 'Plugin context not available' } };
+  }
   
   // Check each condition instance for action-blocking effects
   for (const conditionInstance of conditions) {
-    const conditionDoc = await ConditionService.getCondition(conditionInstance.conditionId);
-    if (conditionDoc && actionBlockingConditionSlugs.includes(conditionDoc.slug)) {
-      return {
-        valid: false,
-        error: {
-          code: 'ACTION_RESTRICTED_BY_CONDITION',
-          message: `Cannot perform actions due to condition: ${conditionDoc.name}`
-        }
-      };
+    try {
+      const conditionDoc = await pluginContext.getDocument(conditionInstance.conditionId) as DndConditionDocument;
+      if (conditionDoc && actionBlockingConditionSlugs.includes(conditionDoc.slug)) {
+        return {
+          valid: false,
+          error: {
+            code: 'ACTION_RESTRICTED_BY_CONDITION',
+            message: `Cannot perform actions due to condition: ${conditionDoc.name}`
+          }
+        };
+      }
+    } catch (error) {
+      console.warn('[DnD5e ActionEconomy] Failed to fetch condition document:', conditionInstance.conditionId, error);
+      continue;
     }
   }
 
@@ -261,13 +271,21 @@ export async function getAvailableActions(character: any): Promise<{
   // Check for action-blocking conditions (document-based)
   const conditions = (character?.state?.conditions as ConditionInstance[]) || [];
   const actionBlockingConditionSlugs = ['paralyzed', 'petrified', 'stunned', 'unconscious', 'incapacitated'];
+  const pluginContext = getPluginContext();
   
   let hasActionBlockingCondition = false;
-  for (const conditionInstance of conditions) {
-    const conditionDoc = await ConditionService.getCondition(conditionInstance.conditionId);
-    if (conditionDoc && actionBlockingConditionSlugs.includes(conditionDoc.slug)) {
-      hasActionBlockingCondition = true;
-      break;
+  if (pluginContext) {
+    for (const conditionInstance of conditions) {
+      try {
+        const conditionDoc = await pluginContext.getDocument(conditionInstance.conditionId) as DndConditionDocument;
+        if (conditionDoc && actionBlockingConditionSlugs.includes(conditionDoc.slug)) {
+          hasActionBlockingCondition = true;
+          break;
+        }
+      } catch (error) {
+        console.warn('[DnD5e ActionEconomy] Failed to fetch condition document:', conditionInstance.conditionId, error);
+        continue;
+      }
     }
   }
 

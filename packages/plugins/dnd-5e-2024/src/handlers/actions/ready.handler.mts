@@ -244,7 +244,7 @@ export function cancelReadiedAction(character: any): void {
  */
 export const dndReadyHandler: Omit<ActionHandler, 'pluginId'> = {
   priority: 100,
-  validate: validateDnDReady as (request: GameActionRequest, gameState: ServerGameStateWithVirtuals) => ActionValidationResult,
+  validate: validateDnDReady,
   execute: executeDnDReady,
   approvalMessage: (request) => {
     const params = request.parameters as { 

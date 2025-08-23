@@ -547,9 +547,10 @@ export class TypedSpellConverter extends TypedConverter<
     
     const description = processEntries(entriesHigherLevel as EtoolsEntry[], this.options.textProcessing).text;
     
-    // Extract @scaledamage data from the raw entries text
+    // Convert entries to text with markup preserved, then extract scaledamage data
+    const entriesTextWithMarkup = processEntries(entriesHigherLevel as EtoolsEntry[], { preserveMarkup: true }).text;
+    const scaledamageData = extractScaledamageData(entriesTextWithMarkup);
     const rawEntriesText = entriesToCleanText(entriesHigherLevel as EtoolsEntry[]);
-    const scaledamageData = extractScaledamageData(rawEntriesText);
     
     const scaling = [];
     
@@ -580,9 +581,10 @@ export class TypedSpellConverter extends TypedConverter<
       return undefined;
     }
 
-    // Convert entries to text and extract damage data
+    // Convert entries to text with markup preserved, then extract damage data
+    const entriesTextWithMarkup = processEntries(input.entries as EtoolsEntry[], { preserveMarkup: true }).text;
+    const damageValues = extractDamageData(entriesTextWithMarkup);
     const entriesText = entriesToCleanText(input.entries as EtoolsEntry[]);
-    const damageValues = extractDamageData(entriesText);
 
     if (damageValues.length === 0) {
       return undefined;

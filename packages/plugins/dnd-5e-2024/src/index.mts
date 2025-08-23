@@ -5,7 +5,8 @@
  * simplified plugin architecture with manifest-based configuration.
  */
 
-import { BaseGameSystemPlugin, ValidationResult, PluginContext } from '@dungeon-lab/shared-ui/types/plugin.mjs';
+import { BaseGameSystemPlugin, ValidationResult } from '@dungeon-lab/shared-ui/types/plugin.mjs';
+import type { PluginContext, TokenContextAction, TokenActionContext } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 import { validateCharacterData } from './character-validation.mjs';
 import { DnD5eTurnManager } from './turn-manager.mjs';
 import { DndAbilityCheckHandler, DndAttackRollHandler, DndSavingThrowHandler } from './services/dnd-roll-handler.mjs';
@@ -21,7 +22,13 @@ import {
   dndAddConditionHandler,
   dndRemoveConditionHandler,
   dndApplyDamageHandler,
-  dndAssignSpellHandler
+  dndAssignSpellHandler,
+  dndHideHandler,
+  dndDodgeHandler,
+  dndHelpHandler,
+  dndDisengageHandler,
+  dndSearchHandler,
+  dndReadyHandler
 } from './handlers/actions/index.mjs';
 
 /**
@@ -98,6 +105,131 @@ export class DnD5e2024Plugin extends BaseGameSystemPlugin {
   }
   
   /**
+   * Register D&D token context actions
+   */
+  private registerTokenActions(context: PluginContext): void {
+    console.log(`[${this.manifest.id}] Registering D&D combat actions as token context actions`);
+    
+    // Combat Actions
+    context.registerTokenAction({
+      id: 'dnd5e:dodge',
+      label: 'Dodge',
+      icon: 'icon-dodge', 
+      groupLabel: 'Combat Actions',
+      priority: 200,
+      condition: (token, gameState) => {
+        // Only show for player-controlled tokens during combat
+        return token.isPlayerControlled && !!gameState.currentEncounter;
+      },
+      handler: async (actionContext: TokenActionContext) => {
+        await actionContext.pluginContext.requestAction(
+          'dnd5e-2024:dodge',
+          { targetId: actionContext.selectedToken.documentId },
+          { description: 'Take the Dodge action' }
+        );
+      }
+    });
+    
+    context.registerTokenAction({
+      id: 'dnd5e:hide',
+      label: 'Hide',
+      icon: 'icon-hide',
+      groupLabel: 'Combat Actions', 
+      priority: 201,
+      condition: (token, gameState) => {
+        return token.isPlayerControlled && !!gameState.currentEncounter;
+      },
+      handler: async (actionContext: TokenActionContext) => {
+        await actionContext.pluginContext.requestAction(
+          'dnd5e-2024:hide',
+          { targetId: actionContext.selectedToken.documentId },
+          { description: 'Take the Hide action' }
+        );
+      }
+    });
+    
+    context.registerTokenAction({
+      id: 'dnd5e:disengage',
+      label: 'Disengage',
+      icon: 'icon-disengage',
+      groupLabel: 'Combat Actions',
+      priority: 202, 
+      condition: (token, gameState) => {
+        return token.isPlayerControlled && !!gameState.currentEncounter;
+      },
+      handler: async (actionContext: TokenActionContext) => {
+        await actionContext.pluginContext.requestAction(
+          'dnd5e-2024:disengage',
+          { targetId: actionContext.selectedToken.documentId },
+          { description: 'Take the Disengage action' }
+        );
+      }
+    });
+    
+    context.registerTokenAction({
+      id: 'dnd5e:search',
+      label: 'Search',
+      icon: 'icon-search',
+      groupLabel: 'Combat Actions',
+      priority: 203,
+      condition: (token, gameState) => {
+        return token.isPlayerControlled && !!gameState.currentEncounter;
+      },
+      handler: async (actionContext: TokenActionContext) => {
+        await actionContext.pluginContext.requestAction(
+          'dnd5e-2024:search',
+          { targetId: actionContext.selectedToken.documentId },
+          { description: 'Take the Search action' }
+        );
+      }
+    });
+    
+    context.registerTokenAction({
+      id: 'dnd5e:help',
+      label: 'Help',
+      icon: 'icon-help',
+      groupLabel: 'Combat Actions',
+      priority: 204,
+      condition: (token, gameState) => {
+        return token.isPlayerControlled && !!gameState.currentEncounter;
+      },
+      handler: async (actionContext: TokenActionContext) => {
+        // For now, help without a target - could be enhanced later
+        await actionContext.pluginContext.requestAction(
+          'dnd5e-2024:help',
+          { targetId: actionContext.selectedToken.documentId },
+          { description: 'Take the Help action' }
+        );
+      }
+    });
+    
+    context.registerTokenAction({
+      id: 'dnd5e:ready',
+      label: 'Ready Action',
+      icon: 'icon-ready',
+      groupLabel: 'Combat Actions',
+      priority: 205,
+      condition: (token, gameState) => {
+        return token.isPlayerControlled && !!gameState.currentEncounter;
+      },
+      handler: async (actionContext: TokenActionContext) => {
+        // Ready action needs more complex UI - for now just basic
+        await actionContext.pluginContext.requestAction(
+          'dnd5e-2024:ready',
+          { 
+            targetId: actionContext.selectedToken.documentId,
+            readiedActionType: 'attack',
+            trigger: 'when an enemy moves within 5 feet'
+          },
+          { description: 'Ready an action' }
+        );
+      }
+    });
+    
+    console.log(`[${this.manifest.id}] Registered 6 D&D combat actions as token context actions`);
+  }
+
+  /**
    * Plugin initialization
    */
   async onLoad(context?: PluginContext): Promise<void> {
@@ -127,6 +259,17 @@ export class DnD5e2024Plugin extends BaseGameSystemPlugin {
       context.registerActionHandler('dnd5e-2024:remove-condition', dndRemoveConditionHandler);
       context.registerActionHandler('dnd5e-2024:apply-damage', dndApplyDamageHandler);
       context.registerActionHandler('dnd5e-2024:assign-spell', dndAssignSpellHandler);
+      
+      // Register D&D combat action handlers
+      context.registerActionHandler('dnd5e-2024:hide', dndHideHandler);
+      context.registerActionHandler('dnd5e-2024:dodge', dndDodgeHandler);
+      context.registerActionHandler('dnd5e-2024:help', dndHelpHandler);
+      context.registerActionHandler('dnd5e-2024:disengage', dndDisengageHandler);
+      context.registerActionHandler('dnd5e-2024:search', dndSearchHandler);
+      context.registerActionHandler('dnd5e-2024:ready', dndReadyHandler);
+      
+      // Register D&D token context actions
+      this.registerTokenActions(context);
       
       // Register D&D lifecycle state management patterns
       registerPluginStateLifecycle({

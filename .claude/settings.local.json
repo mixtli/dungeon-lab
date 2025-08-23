@@ -98,7 +98,8 @@
       "mcp__git__git_diff",
       "Bash(npx eslint:*)",
       "Bash(sed:*)",
-      "mcp__git__git_diff_unstaged"
+      "mcp__git__git_diff_unstaged",
+      "WebFetch(domain:immerjs.github.io)"
     ],
     "defaultMode": "acceptEdits",
     "additionalDirectories": [

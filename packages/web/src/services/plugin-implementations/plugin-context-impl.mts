@@ -10,7 +10,8 @@ import type {
   DocumentSearchQuery,
   CompendiumSearchQuery,
   GameStateContext,
-  ActionHandler
+  ActionHandler,
+  TokenContextAction
 } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 import type { RollTypeHandler } from '@dungeon-lab/shared-ui/types/plugin.mjs';
 import type { BaseDocument, ICompendiumEntry, ActionRequestResult, GameActionType } from '@dungeon-lab/shared/types/index.mjs';
@@ -29,6 +30,7 @@ import {
   unregisterPluginActionHandler,
   unregisterAllPluginActionHandlers
 } from '../multi-handler-registry.mjs';
+import { tokenActionRegistry } from '../token-action-registry.mjs';
 
 export interface PluginContextOptions {
   includeGameState?: boolean;
@@ -44,6 +46,7 @@ export class PluginContextImpl implements PluginContext {
   private compendiumsClient: CompendiumsClient;
   private documentsClient: DocumentsClient;
   private _playerActionService?: PlayerActionService;
+  private tokenActions: Map<string, TokenContextAction> = new Map();
   
   constructor(private pluginId: string, options: PluginContextOptions = {}) {
     // Initialize plugin-scoped store
@@ -317,6 +320,33 @@ export class PluginContextImpl implements PluginContext {
   }
   
   /**
+   * Register a token context menu action
+   */
+  registerTokenAction(action: TokenContextAction): void {
+    this.tokenActions.set(action.id, action);
+    tokenActionRegistry.registerAction(action);
+    console.log(`[PluginContext] Registered token action for plugin '${this.pluginId}':`, action.id);
+  }
+
+  /**
+   * Unregister a token context menu action
+   */
+  unregisterTokenAction(actionId: string): void {
+    const existed = this.tokenActions.delete(actionId);
+    tokenActionRegistry.unregisterAction(actionId);
+    if (existed) {
+      console.log(`[PluginContext] Unregistered token action for plugin '${this.pluginId}':`, actionId);
+    }
+  }
+
+  /**
+   * Get all registered token actions
+   */
+  getTokenActions(): TokenContextAction[] {
+    return Array.from(this.tokenActions.values());
+  }
+
+  /**
    * Get the plugin ID this context belongs to
    */
   getPluginId(): string {
@@ -329,6 +359,14 @@ export class PluginContextImpl implements PluginContext {
   destroy(): void {
     // Unregister all action handlers
     this.unregisterAllActionHandlers();
+    
+    // Unregister all token actions from global registry
+    for (const actionId of this.tokenActions.keys()) {
+      tokenActionRegistry.unregisterAction(actionId);
+    }
+    
+    // Clear token actions
+    this.tokenActions.clear();
     
     // Clear store
     (this.store as ReactivePluginStore).clear();

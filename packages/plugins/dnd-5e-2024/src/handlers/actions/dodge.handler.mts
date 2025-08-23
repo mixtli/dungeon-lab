@@ -112,7 +112,7 @@ export function hasUsedDodgeAction(character: any): boolean {
  */
 export const dndDodgeHandler: Omit<ActionHandler, 'pluginId'> = {
   priority: 100,
-  validate: validateDnDDodge as (request: GameActionRequest, gameState: ServerGameStateWithVirtuals) => ActionValidationResult,
+  validate: validateDnDDodge,
   execute: executeDnDDodge,
   approvalMessage: () => "wants to take the Dodge action"
 };

@@ -11,10 +11,10 @@ import type { ActionHandler, ValidationResult } from '../../action-handler.inter
 /**
  * Validate start encounter request
  */
-function validateStartEncounter(
+async function validateStartEncounter(
   request: GameActionRequest, 
   gameState: ServerGameStateWithVirtuals
-): ValidationResult {
+): Promise<ValidationResult> {
   const params = request.parameters as StartEncounterParameters;
 
   console.log('[StartEncounterHandler] Validating encounter start:', {
@@ -54,10 +54,10 @@ function validateStartEncounter(
 /**
  * Execute encounter start using direct state mutation
  */
-function executeStartEncounter(
+async function executeStartEncounter(
   request: GameActionRequest, 
   draft: ServerGameStateWithVirtuals
-): void {
+): Promise<void> {
   const params = request.parameters as StartEncounterParameters;
 
   console.log('[StartEncounterHandler] Executing encounter start:', {
@@ -117,7 +117,7 @@ export const startEncounterActionHandler: ActionHandler = {
   gmOnly: true, // Only GMs can start encounters
   validate: validateStartEncounter,
   execute: executeStartEncounter,
-  approvalMessage: (request) => {
+  approvalMessage: async (request) => {
     const params = request.parameters as StartEncounterParameters;
     return `wants to start encounter ${params.encounterId}`;
   }

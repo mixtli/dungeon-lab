@@ -11,10 +11,10 @@ import type { ActionHandler, ValidationResult } from '../../action-handler.inter
 /**
  * Validate document update request
  */
-function validateUpdateDocument(
+async function validateUpdateDocument(
   request: GameActionRequest, 
   gameState: ServerGameStateWithVirtuals
-): ValidationResult {
+): Promise<ValidationResult> {
   const params = request.parameters as UpdateDocumentParameters;
 
   console.log('[UpdateDocumentHandler] Validating document update:', {
@@ -54,10 +54,10 @@ function validateUpdateDocument(
 /**
  * Execute document update using direct state mutation
  */
-function executeUpdateDocument(
+async function executeUpdateDocument(
   request: GameActionRequest, 
   draft: ServerGameStateWithVirtuals
-): void {
+): Promise<void> {
   const params = request.parameters as UpdateDocumentParameters;
 
   console.log('[UpdateDocumentHandler] Executing document update:', {
@@ -135,7 +135,7 @@ export const updateDocumentActionHandler: ActionHandler = {
   requiresManualApproval: true, // Document updates require GM approval
   validate: validateUpdateDocument,
   execute: executeUpdateDocument,
-  approvalMessage: (request) => {
+  approvalMessage: async (request) => {
     const params = request.parameters as UpdateDocumentParameters;
     return `wants to modify ${params.documentName ? `character "${params.documentName}"` : `document "${params.documentId}"`}`;
   }

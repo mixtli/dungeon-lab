@@ -12,10 +12,10 @@ import { useGameSessionStore } from '../../../stores/game-session.store.mjs';
 /**
  * Validate token removal request
  */
-function validateRemoveToken(
+async function validateRemoveToken(
   request: GameActionRequest, 
   gameState: ServerGameStateWithVirtuals
-): ValidationResult {
+): Promise<ValidationResult> {
   const params = request.parameters as RemoveTokenParameters;
   const gameSessionStore = useGameSessionStore();
 
@@ -74,10 +74,10 @@ function validateRemoveToken(
 /**
  * Execute token removal using direct state mutation
  */
-function executeRemoveToken(
+async function executeRemoveToken(
   request: GameActionRequest, 
   draft: ServerGameStateWithVirtuals
-): void {
+): Promise<void> {
   const params = request.parameters as RemoveTokenParameters;
 
   console.log('[RemoveTokenHandler] Executing token removal:', {
@@ -129,7 +129,7 @@ export const removeTokenActionHandler: ActionHandler = {
   gmOnly: true, // Only GMs can remove tokens
   validate: validateRemoveToken,
   execute: executeRemoveToken,
-  approvalMessage: (request) => {
+  approvalMessage: async (request) => {
     const params = request.parameters as RemoveTokenParameters;
     return `wants to remove token "${params.tokenName || params.tokenId}"`;
   }

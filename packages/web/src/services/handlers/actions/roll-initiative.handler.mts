@@ -11,10 +11,10 @@ import type { ActionHandler, ValidationResult } from '../../action-handler.inter
 /**
  * Validate roll initiative request
  */
-function validateRollInitiative(
+async function validateRollInitiative(
   request: GameActionRequest, 
   gameState: ServerGameStateWithVirtuals
-): ValidationResult {
+): Promise<ValidationResult> {
   const params = request.parameters as RollInitiativeParameters;
 
   console.log('[RollInitiativeHandler] Validating initiative roll:', {
@@ -65,10 +65,10 @@ function validateRollInitiative(
 /**
  * Execute initiative rolling using direct state mutation
  */
-function executeRollInitiative(
+async function executeRollInitiative(
   request: GameActionRequest, 
   draft: ServerGameStateWithVirtuals
-): void {
+): Promise<void> {
   const params = request.parameters as RollInitiativeParameters;
 
   console.log('[RollInitiativeHandler] Executing initiative roll:', {
@@ -159,7 +159,7 @@ export const rollInitiativeActionHandler: ActionHandler = {
   gmOnly: true, // Only GMs can roll initiative
   validate: validateRollInitiative,
   execute: executeRollInitiative,
-  approvalMessage: (request) => {
+  approvalMessage: async (request) => {
     const params = request.parameters as RollInitiativeParameters;
     const participantCount = params.participants?.length || 'all participants';
     return `wants to roll initiative for ${participantCount}`;

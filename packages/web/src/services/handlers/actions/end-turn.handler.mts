@@ -13,10 +13,10 @@ import { turnManagerService } from '../../turn-manager.service.mjs';
 /**
  * Validate end turn request
  */
-function validateEndTurn(
+async function validateEndTurn(
   request: GameActionRequest, 
   gameState: ServerGameStateWithVirtuals
-): ValidationResult {
+): Promise<ValidationResult> {
   const gameSessionStore = useGameSessionStore();
 
   console.log('[EndTurnHandler] Validating end turn request from:', request.playerId);
@@ -81,7 +81,8 @@ function validateEndTurn(
  * Execute turn ending by delegating to turn manager service
  */
 async function executeEndTurn(
-  request: GameActionRequest
+  request: GameActionRequest,
+  draft: ServerGameStateWithVirtuals
 ): Promise<void> {
   console.log('[EndTurnHandler] Executing turn end:', {
     requestId: request.id,
@@ -89,7 +90,8 @@ async function executeEndTurn(
   });
 
   // Delegate to the turn manager service which handles all turn advancement logic
-  // and lifecycle resets
+  // and lifecycle resets. Note: draft parameter is not used here as the turn manager
+  // service handles its own state updates through the game state store.
   const success = await turnManagerService.nextTurn();
   
   if (!success) {
@@ -106,5 +108,5 @@ export const endTurnActionHandler: ActionHandler = {
   priority: 0, // Core handler runs first
   validate: validateEndTurn,
   execute: executeEndTurn,
-  approvalMessage: () => "wants to end their turn"
+  approvalMessage: async () => "wants to end their turn"
 };

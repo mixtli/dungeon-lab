@@ -5,7 +5,7 @@
  * read-only data access and plugin-specific UI state management.
  */
 
-import type { ComputedRef, Ref } from 'vue';
+import type { ComputedRef, Ref, Component } from 'vue';
 import type { BaseDocument, ICompendiumEntry, ICharacter, IActor, IItem, IEncounter, IToken, ServerGameStateWithVirtuals, StateUpdateBroadcast, GameActionRequest, ActionRequestResult } from '@dungeon-lab/shared/types/index.mjs';
 import type { Roll, RollRequest } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
 import type { RollTypeHandler } from './plugin.mjs';
@@ -39,9 +39,33 @@ export interface ActionHandler {
   priority?: number;           // Lower = runs first (core = 0, plugins = 100+)
   requiresManualApproval?: boolean;  // Default: false = auto-execute
   gmOnly?: boolean;                  // Default: false = players can use
-  validate?: (request: GameActionRequest, gameState: ServerGameStateWithVirtuals) => ActionValidationResult;
-  execute?: (request: GameActionRequest, draft: ServerGameStateWithVirtuals) => void;
-  approvalMessage?: (request: GameActionRequest) => string;
+  validate?: (request: GameActionRequest, gameState: ServerGameStateWithVirtuals) => Promise<ActionValidationResult>;
+  execute?: (request: GameActionRequest, draft: ServerGameStateWithVirtuals) => Promise<void>;
+  approvalMessage?: (request: GameActionRequest) => Promise<string>;
+}
+
+/**
+ * Context provided to token context action handlers
+ */
+export interface TokenActionContext {
+  selectedToken: IToken;                    // The token that was right-clicked
+  selectedTokens?: IToken[];               // Multiple tokens if multi-select is supported
+  pluginContext: PluginContext;           // Plugin context for making action requests
+  showDialog?: (component: Component, props?: any) => Promise<any>; // For showing custom dialogs
+  gameState: ServerGameStateWithVirtuals; // Current game state
+}
+
+/**
+ * Token context menu action definition
+ */
+export interface TokenContextAction {
+  id: string;                             // Unique identifier (e.g., 'dnd5e:dodge')
+  label: string;                          // Button text displayed to user
+  icon?: string;                          // Icon class/name (optional)
+  groupLabel?: string;                    // Group header (e.g., "Combat Actions")
+  priority?: number;                      // Display order (lower = higher up)
+  condition?: (token: IToken, gameState: ServerGameStateWithVirtuals) => boolean; // Show/hide condition
+  handler: (context: TokenActionContext) => void | Promise<void>; // Action handler function
 }
 
 /**
@@ -176,4 +200,20 @@ export interface PluginContext {
    * Used by GM clients to request damage rolls from players
    */
   sendRollRequest(playerId: string, rollRequest: RollRequest): void;
+
+  /**
+   * Register a token context menu action
+   * Allows plugins to add custom actions to the token right-click menu
+   */
+  registerTokenAction(action: TokenContextAction): void;
+
+  /**
+   * Unregister a token context menu action
+   */
+  unregisterTokenAction(actionId: string): void;
+
+  /**
+   * Get all registered token actions for display in context menus
+   */
+  getTokenActions(): TokenContextAction[];
 }

@@ -285,17 +285,29 @@ export class DocumentController {
       // Convert dot notation in query params to nested objects
       const query = createSearchParams(req.query as Record<string, QueryValue>);
 
-      // Convert query to case-insensitive regex for string values
-      const mongoQuery = Object.entries(query).reduce((acc, [key, value]) => {
-        if (typeof value === 'string' && !key.includes('.')) {
-          acc[key] = new RegExp(value, 'i');
+      // Separate query options from filter parameters
+      const { limit, skip, sort, ...filterParams } = query;
+      
+      // Define fields that should use fuzzy/regex matching
+      const REGEX_SEARCH_FIELDS = ['name', 'description', 'slug'];
+
+      // Convert query with selective regex application
+      const mongoQuery = Object.entries(filterParams).reduce((acc, [key, value]) => {
+        if (typeof value === 'string' && !key.includes('.') && REGEX_SEARCH_FIELDS.includes(key)) {
+          acc[key] = new RegExp(value, 'i'); // Apply regex only to whitelisted fields
         } else {
-          acc[key] = value;
+          acc[key] = value; // Exact match for everything else
         }
         return acc;
       }, {} as Record<string, QueryValue>);
       
-      const documents = await DocumentService.find(mongoQuery);
+      // Build query options
+      const options: any = {};
+      if (limit) options.limit = Number(limit);
+      if (skip) options.skip = Number(skip);
+      if (sort) options.sort = sort;
+      
+      const documents = await DocumentService.find(mongoQuery, options);
       res.json({
         success: true,
         data: documents

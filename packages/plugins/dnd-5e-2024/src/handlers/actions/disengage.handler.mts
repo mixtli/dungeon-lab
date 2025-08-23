@@ -128,7 +128,7 @@ export function hasUsedDisengageAction(character: any): boolean {
  */
 export const dndDisengageHandler: Omit<ActionHandler, 'pluginId'> = {
   priority: 100,
-  validate: validateDnDDisengage as (request: GameActionRequest, gameState: ServerGameStateWithVirtuals) => ActionValidationResult,
+  validate: validateDnDDisengage,
   execute: executeDnDDisengage,
   approvalMessage: (request) => {
     const params = request.parameters as { actionType?: string };

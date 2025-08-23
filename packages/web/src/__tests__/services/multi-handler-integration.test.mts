@@ -41,8 +41,8 @@ describe('Multi-Handler Workflow Integration', () => {
     const coreHandler: ActionHandler = {
       priority: 0,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      validate: (_request, _gameState) => ({ valid: true }),
-      execute: (_request, draft) => {
+      validate: async (_request, _gameState) => ({ valid: true }),
+      execute: async (_request, draft) => {
         executionOrder.push('core');
         draft.documents.char1.state.movementUsed = 10;
       }
@@ -53,8 +53,8 @@ describe('Multi-Handler Workflow Integration', () => {
       pluginId: 'test-plugin',
       priority: 100,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      validate: (_request, _gameState) => ({ valid: true }),
-      execute: (_request, draft) => {
+      validate: async (_request, _gameState) => ({ valid: true }),
+      execute: async (_request, draft) => {
         executionOrder.push('plugin');
         draft.documents.char1.state.currentHitPoints = 70;
       }
@@ -69,10 +69,10 @@ describe('Multi-Handler Workflow Integration', () => {
     expect(handlers[0].priority).toBe(0);   // Core first
     expect(handlers[1].priority).toBe(100); // Plugin second
 
-    // Execute all handlers in order (synchronously, as recommended)
+    // Execute all handlers in order (with async support)
     const [newState, patches] = await produceGameStateChanges(
       mockGameState,
-      (draft) => {
+      async (draft) => {
         for (const handler of handlers) {
           if (handler.execute) {
             const mockRequest: GameActionRequest = {
@@ -83,7 +83,7 @@ describe('Multi-Handler Workflow Integration', () => {
               sessionId: 'test-session',
               playerId: 'test-player'
             };
-            handler.execute(mockRequest, draft);
+            await handler.execute(mockRequest, draft);
           }
         }
       }
@@ -102,14 +102,14 @@ describe('Multi-Handler Workflow Integration', () => {
     const failingHandler: ActionHandler = {
       priority: 0,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      validate: (_request, _gameState): ValidationResult => {
+      validate: async (_request, _gameState): Promise<ValidationResult> => {
         validateSpy();
         return {
           valid: false,
           error: { code: 'VALIDATION_FAILED', message: 'Test validation failure' }
         };
       },
-      execute: (_request, draft) => {
+      execute: async (_request, draft) => {
         executeSpy();
         draft.documents.char1.state.currentHitPoints = 50;
       }
@@ -148,8 +148,8 @@ describe('Multi-Handler Workflow Integration', () => {
     const passingHandler: ActionHandler = {
       priority: 0,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      validate: (_request, _gameState) => ({ valid: true }),
-      execute: (_request, draft) => {
+      validate: async (_request, _gameState) => ({ valid: true }),
+      execute: async (_request, draft) => {
         draft.documents.char1.state.movementUsed = 5;
       }
     };
@@ -157,11 +157,11 @@ describe('Multi-Handler Workflow Integration', () => {
     const failingHandler: ActionHandler = {
       priority: 100,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      validate: (_request, _gameState): ValidationResult => ({
+      validate: async (_request, _gameState): Promise<ValidationResult> => ({
         valid: false,
         error: { code: 'PLUGIN_VALIDATION_FAILED', message: 'Plugin validation failed' }
       }),
-      execute: (_request, draft) => {
+      execute: async (_request, draft) => {
         draft.documents.char1.state.currentHitPoints = 50;
       }
     };
@@ -205,7 +205,7 @@ describe('Multi-Handler Workflow Integration', () => {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       validate: (_request, _gameState) => ({ valid: true }),
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      execute: (_request, _draft) => {}
+      execute: async (_request, _draft) => {}
     };
 
     const manualHandler: ActionHandler = {
@@ -214,7 +214,7 @@ describe('Multi-Handler Workflow Integration', () => {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       validate: (_request, _gameState) => ({ valid: true }),
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      execute: (_request, _draft) => {},
+      execute: async (_request, _draft) => {},
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       approvalMessage: (_request) => 'Plugin wants to do something'
     };
@@ -253,7 +253,7 @@ describe('Multi-Handler Workflow Integration', () => {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       validate: (_request, _gameState) => ({ valid: true }),
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      execute: (_request, _draft) => {}
+      execute: async (_request, _draft) => {}
     };
 
     const gmOnlyHandler: ActionHandler = {
@@ -262,7 +262,7 @@ describe('Multi-Handler Workflow Integration', () => {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       validate: (_request, _gameState) => ({ valid: true }),
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      execute: (_request, _draft) => {}
+      execute: async (_request, _draft) => {}
     };
 
     registerAction('move-token', playerHandler);
@@ -281,14 +281,14 @@ describe('Multi-Handler Workflow Integration', () => {
   test('should generate combined patches from multiple handlers', async () => {
     const handler1: ActionHandler = {
       priority: 0,
-      execute: (_request, draft) => {
+      execute: async (_request, draft) => {
         draft.documents.char1.state.movementUsed = 15;
       }
     };
 
     const handler2: ActionHandler = {
       priority: 100,
-      execute: (_request, draft) => {
+      execute: async (_request, draft) => {
         draft.documents.char1.state.currentHitPoints = 60;
       }
     };
@@ -306,13 +306,13 @@ describe('Multi-Handler Workflow Integration', () => {
       playerId: 'test-player'
     };
 
-    // Execute all handlers and collect patches (synchronously)
+    // Execute all handlers and collect patches (with async support)
     const [newState, patches] = await produceGameStateChanges(
       mockGameState,
-      (draft) => {
+      async (draft) => {
         for (const handler of handlers) {
           if (handler.execute) {
-            handler.execute(mockRequest, draft);
+            await handler.execute(mockRequest, draft);
           }
         }
       }

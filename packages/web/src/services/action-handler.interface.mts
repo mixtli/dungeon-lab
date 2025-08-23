@@ -59,12 +59,12 @@ export interface ActionHandler {
   validate?: (
     request: GameActionRequest, 
     gameState: ServerGameStateWithVirtuals
-  ) => ValidationResult;
+  ) => Promise<ValidationResult>;
   
   execute?: (
     request: GameActionRequest, 
     draft: ServerGameStateWithVirtuals
-  ) => void;
+  ) => Promise<void>;
   
   // UI/UX
   approvalMessage?: (request: GameActionRequest) => string;

@@ -10,8 +10,8 @@
 
 import type { GameActionRequest, ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
 import type { ActionHandler, ActionValidationResult } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
-import type { ConditionInstance } from '../../types/dnd/condition.mjs';
-import { ConditionService } from '../../services/condition.service.mjs';
+import type { ConditionInstance, DndConditionDocument } from '../../types/dnd/condition.mjs';
+import { getPluginContext } from '@dungeon-lab/shared-ui/utils/plugin-context.mjs';
 
 /**
  * Conditions that automatically remove other conditions when removed
@@ -54,20 +54,42 @@ export async function validateRemoveCondition(
     return { valid: false, error: { code: 'TARGET_NOT_FOUND', message: 'Target character not found' } };
   }
 
-  // Get condition document
-  let conditionDoc;
-  if (conditionId) {
-    conditionDoc = await ConditionService.getCondition(conditionId);
-  } else if (conditionSlug) {
-    conditionDoc = await ConditionService.getConditionBySlug(conditionSlug);
+  // Get condition document using plugin context
+  const pluginContext = getPluginContext();
+  if (!pluginContext) {
+    return { valid: false, error: { code: 'NO_CONTEXT', message: 'Plugin context not available' } };
   }
 
-  if (!conditionDoc) {
+  let conditionDoc: DndConditionDocument;
+  try {
+    if (conditionId) {
+      conditionDoc = await pluginContext.getDocument(conditionId) as DndConditionDocument;
+    } else {
+      return {
+        valid: false,
+        error: { 
+          code: 'INVALID_PARAMETERS', 
+          message: 'Missing condition ID (slug-based lookup removed)' 
+        }
+      };
+    }
+
+    if (!conditionDoc) {
+      return {
+        valid: false,
+        error: { 
+          code: 'CONDITION_NOT_FOUND', 
+          message: `Condition document not found: ${conditionId}` 
+        }
+      };
+    }
+  } catch (error) {
+    console.error('[DnD5e] Failed to fetch condition document:', conditionId, error);
     return {
       valid: false,
       error: { 
         code: 'CONDITION_NOT_FOUND', 
-        message: `Condition not found: ${conditionId || conditionSlug}` 
+        message: `Failed to fetch condition: ${conditionId}` 
       }
     };
   }
@@ -124,16 +146,28 @@ export async function executeRemoveCondition(
     return;
   }
 
-  // Get condition document
-  let conditionDoc;
-  if (conditionId) {
-    conditionDoc = await ConditionService.getCondition(conditionId);
-  } else if (conditionSlug) {
-    conditionDoc = await ConditionService.getConditionBySlug(conditionSlug);
+  // Get condition document using plugin context
+  const pluginContext = getPluginContext();
+  if (!pluginContext) {
+    console.error('[DnD5e] Plugin context not available during execution');
+    return;
   }
 
-  if (!conditionDoc) {
-    console.warn('[DnD5e] Condition document not found:', conditionId || conditionSlug);
+  let conditionDoc: DndConditionDocument;
+  try {
+    if (conditionId) {
+      conditionDoc = await pluginContext.getDocument(conditionId) as DndConditionDocument;
+    } else {
+      console.warn('[DnD5e] Missing condition ID during execution (slug-based lookup removed)');
+      return;
+    }
+
+    if (!conditionDoc) {
+      console.warn('[DnD5e] Condition document not found:', conditionId);
+      return;
+    }
+  } catch (error) {
+    console.error('[DnD5e] Failed to fetch condition document during execution:', conditionId, error);
     return;
   }
 
@@ -193,10 +227,21 @@ export async function executeRemoveCondition(
       
       for (const dependentSlug of dependentConditions) {
         // Find and remove dependent conditions
-        const dependentIndex = updatedConditions.findIndex(async (c) => {
-          const depCondition = await ConditionService.getCondition(c.conditionId);
-          return depCondition?.slug === dependentSlug;
-        });
+        let dependentIndex = -1;
+        
+        for (let i = 0; i < updatedConditions.length; i++) {
+          const c = updatedConditions[i];
+          try {
+            const depCondition = await pluginContext.getDocument(c.conditionId) as DndConditionDocument;
+            if (depCondition?.slug === dependentSlug) {
+              dependentIndex = i;
+              break;
+            }
+          } catch (error) {
+            console.warn('[DnD5e] Failed to fetch dependent condition:', c.conditionId, error);
+            continue;
+          }
+        }
         
         if (dependentIndex !== -1) {
           const removed = updatedConditions.splice(dependentIndex, 1)[0];
@@ -242,9 +287,10 @@ export async function executeRemoveCondition(
  * Pure plugin action for D&D condition management
  */
 export const dndRemoveConditionHandler: Omit<ActionHandler, 'pluginId'> = {
-  validate: validateRemoveCondition as (request: GameActionRequest, gameState: ServerGameStateWithVirtuals) => ActionValidationResult,
-  execute: executeRemoveCondition as (request: GameActionRequest, draft: ServerGameStateWithVirtuals) => void,
-  approvalMessage: (request) => {
+  requiresManualApproval: true,
+  validate: validateRemoveCondition,
+  execute: executeRemoveCondition,
+  approvalMessage: async (request) => {
     const params = request.parameters as {
       conditionSlug?: string;
       conditionId?: string;
@@ -252,16 +298,45 @@ export const dndRemoveConditionHandler: Omit<ActionHandler, 'pluginId'> = {
       level?: number;
       removeAll?: boolean;
     };
-    const conditionSlug = params.conditionSlug || params.conditionId || 'condition';
-    const targetId = params.targetId || 'target';
+    
+    // Get plugin context to resolve document names
+    const pluginContext = getPluginContext();
+    
+    let conditionName = 'condition';
+    let targetName = 'target';
+    
+    // Try to resolve condition name
+    if (params.conditionId && pluginContext) {
+      try {
+        const conditionDoc = await pluginContext.getDocument(params.conditionId);
+        if (conditionDoc) {
+          conditionName = conditionDoc.name || conditionName;
+        }
+      } catch (error) {
+        console.warn('[Remove Condition] Failed to resolve condition name:', params.conditionId, error);
+      }
+    }
+    
+    // Try to resolve target name  
+    if (params.targetId && pluginContext) {
+      try {
+        const targetDoc = await pluginContext.getDocument(params.targetId);
+        if (targetDoc) {
+          targetName = targetDoc.name || targetName;
+        }
+      } catch (error) {
+        console.warn('[Remove Condition] Failed to resolve target name:', params.targetId, error);
+      }
+    }
+    
     const level = params.level;
     const removeAll = params.removeAll;
     
     if (level && level > 0) {
-      return `wants to reduce ${conditionSlug} by ${level} level(s) on ${targetId}`;
+      return `wants to reduce ${conditionName} by ${level} level(s) on ${targetName}`;
     } else if (removeAll) {
-      return `wants to remove all instances of ${conditionSlug} from ${targetId}`;
+      return `wants to remove all instances of ${conditionName} from ${targetName}`;
     }
-    return `wants to remove ${conditionSlug} from ${targetId}`;
+    return `wants to remove ${conditionName} from ${targetName}`;
   }
 };

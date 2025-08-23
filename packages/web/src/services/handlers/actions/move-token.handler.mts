@@ -14,10 +14,10 @@ import { checkWallCollision } from '../../../utils/collision-detection.mjs';
 /**
  * Validate token movement request
  */
-function validateMoveToken(
+async function validateMoveToken(
   request: GameActionRequest, 
   gameState: ServerGameStateWithVirtuals
-): ValidationResult {
+): Promise<ValidationResult> {
   const params = request.parameters as MoveTokenParameters;
   const gameSessionStore = useGameSessionStore();
 
@@ -154,10 +154,10 @@ function calculateNewBounds(
  * Execute token movement using direct draft mutation
  * The draft is provided by Immer's produceWithPatches in the GM Action Handler
  */
-function executeMoveToken(
+async function executeMoveToken(
   request: GameActionRequest, 
   draft: ServerGameStateWithVirtuals
-): void {
+): Promise<void> {
   const params = request.parameters as MoveTokenParameters;
 
   console.log('[MoveTokenHandler] Executing token movement with direct draft mutation:', {
@@ -200,7 +200,7 @@ export const moveTokenActionHandler: ActionHandler = {
   priority: 0, // Core handler runs first
   validate: validateMoveToken,
   execute: executeMoveToken,
-  approvalMessage: (request) => {
+  approvalMessage: async (request) => {
     const params = request.parameters as MoveTokenParameters;
     return `wants to move token to position (${params.newPosition.x}, ${params.newPosition.y})`;
   }

@@ -182,7 +182,7 @@ export function consumeHelp(character: any, helpType?: 'ability-check' | 'attack
  */
 export const dndHelpHandler: Omit<ActionHandler, 'pluginId'> = {
   priority: 100,
-  validate: validateDnDHelp as (request: GameActionRequest, gameState: ServerGameStateWithVirtuals) => ActionValidationResult,
+  validate: validateDnDHelp,
   execute: executeDnDHelp,
   approvalMessage: (request) => {
     const params = request.parameters as { targetId?: string; helpType?: string };

@@ -144,7 +144,7 @@ export function hasSearchedArea(character: any, area: string): boolean {
  */
 export const dndSearchHandler: Omit<ActionHandler, 'pluginId'> = {
   priority: 100,
-  validate: validateDnDSearch as (request: GameActionRequest, gameState: ServerGameStateWithVirtuals) => ActionValidationResult,
+  validate: validateDnDSearch,
   execute: executeDnDSearch,
   approvalMessage: (request) => {
     const params = request.parameters as { 

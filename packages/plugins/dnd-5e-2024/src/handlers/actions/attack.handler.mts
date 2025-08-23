@@ -84,15 +84,9 @@ export function executeDnDAttack(
  * Priority 50 - runs before weapon handlers (which typically have priority 100+)
  * This ensures action economy is validated and consumed before weapon rolls occur.
  */
-// Sync wrapper function for compatibility with ActionHandler interface
-function validateAttackSync(request: GameActionRequest, gameState: ServerGameStateWithVirtuals): ActionValidationResult {
-  // The actual function is async, but the runtime can handle it
-  return validateDnDAttack(request, gameState) as unknown as ActionValidationResult;
-}
-
 export const dndAttackHandler: Omit<ActionHandler, 'pluginId'> = {
   priority: 50, // Before weapon-specific handlers
-  validate: validateAttackSync,
+  validate: validateDnDAttack,
   execute: executeDnDAttack,
   approvalMessage: () => "wants to make an Attack"
 };

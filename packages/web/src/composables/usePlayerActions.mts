@@ -23,6 +23,16 @@ function calculateDistance(pos1: { x: number; y: number }, pos2: { x: number; y:
 }
 
 /**
+ * Convert world pixel distance to feet using D&D grid scale
+ */
+function convertWorldPixelsToFeet(pixelDistance: number, pixelsPerGridCell: number): number {
+  // D&D standard: 1 grid cell = 5 feet
+  const feetPerGridCell = 5;
+  const distanceInFeet = (pixelDistance / pixelsPerGridCell) * feetPerGridCell;
+  return distanceInFeet;
+}
+
+/**
  * Player actions composable
  */
 export function usePlayerActions() {
@@ -52,6 +62,9 @@ export function usePlayerActions() {
     const currentPosition = { x: currentCenterX, y: currentCenterY, elevation: token.bounds.elevation };
     const distance = calculateDistance(currentPosition, newPosition);
     
+    // Convert distance from pixels to feet for display
+    const distanceInFeet = convertWorldPixelsToFeet(distance, pixelsPerGrid);
+    
     // TODO: Implement proper movement range calculation based on combat state
     const remainingMovement = 30; // Default 30ft movement for now
 
@@ -63,7 +76,7 @@ export function usePlayerActions() {
     };
 
     return playerActionService.requestAction('move-token', params, {
-      description: `Move ${token.name} ${Math.round(distance)}ft`
+      description: `Move ${token.name} ${Math.round(distanceInFeet)}ft`
     });
   };
 

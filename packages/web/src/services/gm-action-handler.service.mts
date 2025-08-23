@@ -13,7 +13,7 @@ import {
   generateApprovalMessage 
 } from './multi-handler-registry.mjs';
 import type { ActionHandler } from './action-handler.interface.mjs';
-import { produceWithPatches, enablePatches } from 'immer';
+import { createDraft, finishDraft, enablePatches } from 'immer';
 import { toRaw } from 'vue';
 import { useChatStore, type ApprovalData } from '../stores/chat.store.mts';
 import { useGameSessionStore } from '../stores/game-session.store.mjs';
@@ -178,7 +178,7 @@ export class GMActionHandlerService {
             priority: handler.priority || 0
           });
           
-          const result = handler.validate(request, currentGameState as ServerGameStateWithVirtuals);
+          const result = await handler.validate(request, currentGameState as ServerGameStateWithVirtuals);
           if (!result.valid) {
             console.log('[GMActionHandler] Validation failed:', {
               pluginId: handler.pluginId || 'core',
@@ -198,57 +198,63 @@ export class GMActionHandlerService {
         }
       }
 
-      // Phase 2: Execute all handlers using Immer draft mutation
-      console.log('[GMActionHandler] All validations passed, executing handlers with Immer draft');
+      // Phase 2: Execute all handlers using Immer createDraft/finishDraft for async support
+      console.log('[GMActionHandler] All validations passed, executing handlers with async Immer draft');
       
       // Extract raw game state to avoid Vue proxy conflicts
       const rawGameState = toRaw(currentGameState);
       
-      // Use Immer to create draft and automatically generate patches
-      const [, immerPatches] = produceWithPatches(rawGameState, (draft) => {
-        // Execute all handlers with the same draft - they mutate it directly
-        for (const handler of handlers) {
-          if (handler.execute) {
-            console.log('[GMActionHandler] Executing handler:', {
+      // Create draft for async operations
+      const draft = createDraft(rawGameState);
+      
+      // Execute all handlers against the draft with proper async support
+      for (const handler of handlers) {
+        if (handler.execute) {
+          console.log('[GMActionHandler] Executing handler:', {
+            pluginId: handler.pluginId || 'core',
+            priority: handler.priority || 0
+          });
+          
+          try {
+            // Properly await async handler execution
+            await handler.execute(request, draft as ServerGameStateWithVirtuals);
+            
+            console.log('[GMActionHandler] Handler executed successfully:', {
+              pluginId: handler.pluginId || 'core'
+            });
+          } catch (error) {
+            console.error('[GMActionHandler] Handler execution failed:', {
               pluginId: handler.pluginId || 'core',
-              priority: handler.priority || 0
+              error: error instanceof Error ? error.message : 'Unknown error'
             });
             
-            try {
-              handler.execute(request, draft as ServerGameStateWithVirtuals);
-              
-              console.log('[GMActionHandler] Handler executed successfully:', {
-                pluginId: handler.pluginId || 'core'
-              });
-            } catch (error) {
-              console.error('[GMActionHandler] Handler execution failed:', {
-                pluginId: handler.pluginId || 'core',
-                error: error instanceof Error ? error.message : 'Unknown error'
-              });
-              
-              // Re-throw to exit the Immer producer and fail the entire operation
-              throw error;
-            }
+            // Re-throw to fail the entire operation
+            throw error;
           }
         }
-      });
+      }
       
-      // Convert Immer patches to our JsonPatchOperation format
-      const jsonPatches: JsonPatchOperation[] = immerPatches.map(patch => ({
-        ...patch,
-        path: Array.isArray(patch.path) ? '/' + patch.path.join('/') : patch.path
-      }));
+      // Finish draft and collect patches
+      let immerPatches: JsonPatchOperation[] = [];
+      const finalState = finishDraft(draft, (patches) => {
+        // Patch callback - convert Immer patches to our JsonPatchOperation format
+        console.log('[GMActionHandler] Immer patches:', patches);
+        immerPatches = patches.map(patch => ({
+          ...patch,
+          path: Array.isArray(patch.path) ? '/' + patch.path.join('/') : patch.path
+        }));
+      });
 
       // Phase 3: Apply all patches atomically
-      if (jsonPatches.length > 0) {
+      if (immerPatches.length > 0) {
         console.log('[GMActionHandler] Applying Immer-generated patches:', {
           action: request.action,
-          patchCount: jsonPatches.length,
+          patchCount: immerPatches.length,
           requestId: request.id,
-          patches: jsonPatches
+          patches: immerPatches
         });
         
-        const updateResult = await this.gameStateStore.updateGameState(jsonPatches);
+        const updateResult = await this.gameStateStore.updateGameState(immerPatches);
         
         if (!updateResult.success) {
           this.socketStore.emit('gameAction:response', {
@@ -282,7 +288,7 @@ export class GMActionHandlerService {
         requestId: request.id,
         action: request.action,
         handlersExecuted: handlers.length,
-        patchesApplied: jsonPatches.length
+        patchesApplied: immerPatches.length
       });
       
     } catch (error) {
@@ -334,7 +340,7 @@ export class GMActionHandlerService {
       requestId: request.id,
       actionType: request.action,
       playerName,
-      description: generateApprovalMessage(request.action, request),
+      description: await generateApprovalMessage(request.action, request),
       request
     };
 
