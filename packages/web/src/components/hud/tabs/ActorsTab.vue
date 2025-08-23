@@ -193,7 +193,7 @@ async function addToEncounter(actor: IActor): Promise<void> {
     
     // Add actor as a participant using game state operations
     const operations: StateOperation[] = [{
-      path: 'currentEncounter.participants',
+      path: '/currentEncounter/participants/-',
       op: 'add',
       value: actor.id
     }];

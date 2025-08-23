@@ -86,53 +86,45 @@ async function executeRollInitiative(
     };
   }
 
-  // Generate turn order participants from encounter tokens and characters
+  // Generate turn order participants from encounter participants only
   const participants = [];
-  
-  if (draft.currentEncounter?.tokens) {
-    for (const token of draft.currentEncounter.tokens) {
-      // Skip if specific participants were requested and this token isn't included
-      if (params.participants && params.participants.length > 0) {
-        if (!params.participants.includes(token.id) && !params.participants.includes(token.documentId || '')) {
+  const encounterParticipants = draft.currentEncounter?.participants || [];
+  const tokens = draft.currentEncounter?.tokens || [];
+
+  if (encounterParticipants.length === 0) {
+    console.warn('[RollInitiativeHandler] No encounter participants found - cannot roll initiative');
+    return;
+  }
+
+  for (const participantId of encounterParticipants) {
+    // Skip if specific participants were requested and this participant isn't included
+    if (params.participants && params.participants.length > 0) {
+      if (!params.participants.includes(participantId)) {
+        // Also check token IDs for backward compatibility
+        const token = tokens.find(t => t.documentId === participantId);
+        if (!token || !params.participants.includes(token.id)) {
           continue;
         }
       }
-      
-      // Roll initiative (d20 + dex modifier, for now just random 1-20)
-      const initiativeRoll = Math.floor(Math.random() * 20) + 1;
-      
-      participants.push({
-        id: `participant_${token.id}`,
-        name: token.name,
-        tokenId: token.id,
-        actorId: token.documentId,
-        turnOrder: initiativeRoll,
-        hasActed: false
-      });
     }
-  }
 
-  // If no specific participants were requested, include characters not represented by tokens
-  if (!params.participants || params.participants.length === 0) {
-    const tokenDocumentIds = new Set(
-      draft.currentEncounter?.tokens?.map(t => t.documentId).filter(Boolean) || []
-    );
-    
-    for (const document of Object.values(draft.documents)) {
-      if ((document.documentType === 'character' || document.documentType === 'actor') && 
-          !tokenDocumentIds.has(document.id)) {
-        
-        const initiativeRoll = Math.floor(Math.random() * 20) + 1;
-        
-        participants.push({
-          id: `participant_${document.id}`,
-          name: document.name,
-          actorId: document.id,
-          turnOrder: initiativeRoll,
-          hasActed: false
-        });
-      }
+    const document = draft.documents[participantId];
+    if (!document) {
+      console.warn(`[RollInitiativeHandler] Document not found for participant: ${participantId}`);
+      continue;
     }
+
+    const token = tokens.find(t => t.documentId === participantId);
+    const initiativeRoll = Math.floor(Math.random() * 20) + 1;
+
+    participants.push({
+      id: token?.id || `participant_${participantId}`,
+      name: document.name,
+      tokenId: token?.id,
+      actorId: participantId,
+      turnOrder: initiativeRoll,
+      hasActed: false
+    });
   }
 
   // Sort participants by initiative roll (higher goes first)

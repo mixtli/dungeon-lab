@@ -99,7 +99,8 @@
       "Bash(npx eslint:*)",
       "Bash(sed:*)",
       "mcp__git__git_diff_unstaged",
-      "WebFetch(domain:immerjs.github.io)"
+      "WebFetch(domain:immerjs.github.io)",
+      "mcp__playwright__browser_tab_list"
     ],
     "defaultMode": "acceptEdits",
     "additionalDirectories": [

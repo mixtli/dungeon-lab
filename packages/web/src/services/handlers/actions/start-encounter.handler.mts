@@ -7,6 +7,7 @@
 import type { GameActionRequest, StartEncounterParameters } from '@dungeon-lab/shared/types/index.mjs';
 import type { ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
 import type { ActionHandler, ValidationResult } from '../../action-handler.interface.mjs';
+import { EncountersClient } from '@dungeon-lab/client/encounters.client.mjs';
 
 /**
  * Validate start encounter request
@@ -65,22 +66,32 @@ async function executeStartEncounter(
     requestId: request.id
   });
 
-  // In a real implementation, we would load encounter data from the database
-  // For now, we'll create a basic encounter structure
-  // This would normally be handled by a service that loads encounter data
-  
-  if (!draft.currentEncounter) {
-    // Create a basic encounter structure
-    // In reality, this data would come from loading the encounter by ID
+  try {
+    // Fetch the actual encounter data from the database via API
+    const encountersClient = new EncountersClient();
+    const encounterData = await encountersClient.getEncounter(params.encounterId);
+    
+    console.log('[StartEncounterHandler] Fetched encounter data from API:', {
+      encounterId: encounterData.id,
+      name: encounterData.name,
+      mapId: encounterData.mapId,
+      hasCurrentMap: !!encounterData.currentMap,
+      participantCount: encounterData.participants?.length || 0,
+      tokenCount: encounterData.tokens?.length || 0,
+      requestId: request.id
+    });
+
+    // Set the complete encounter data in the game state
     draft.currentEncounter = {
-      id: params.encounterId,
-      name: `Encounter ${params.encounterId}`,
-      status: 'in_progress',
-      campaignId: draft.campaign?.id || '',
-      mapId: '', // Would be loaded from encounter data
-      participants: [],
-      tokens: [],
-      settings: {
+      id: encounterData.id,
+      name: encounterData.name,
+      status: 'in_progress', // Override status to in_progress
+      campaignId: encounterData.campaignId,
+      mapId: encounterData.mapId,
+      currentMap: encounterData.currentMap, // Include the populated map data
+      participants: encounterData.participants || [],
+      tokens: encounterData.tokens || [],
+      settings: encounterData.settings || {
         showHiddenTokensToPlayers: false,
         gridSize: 5,
         gridType: 'square',
@@ -88,25 +99,34 @@ async function executeStartEncounter(
         enableDynamicLighting: false
       }
     };
-  } else {
-    // Update existing encounter to in_progress
-    draft.currentEncounter.status = 'in_progress';
-    draft.currentEncounter.id = params.encounterId;
+
+    // Reset turn manager for the new encounter
+    draft.turnManager = {
+      participants: [],
+      isActive: false,
+      currentTurn: 0,
+      round: 1
+    };
+
+    console.log('[StartEncounterHandler] Encounter started successfully with complete data:', {
+      encounterId: params.encounterId,
+      encounterName: draft.currentEncounter.name,
+      mapId: draft.currentEncounter.mapId,
+      hasCurrentMap: !!draft.currentEncounter.currentMap,
+      encounterStatus: draft.currentEncounter.status,
+      requestId: request.id
+    });
+    
+  } catch (error) {
+    console.error('[StartEncounterHandler] Failed to fetch encounter data:', {
+      encounterId: params.encounterId,
+      error: error instanceof Error ? error.message : String(error),
+      requestId: request.id
+    });
+    
+    // Re-throw the error to be handled by the action handler system
+    throw new Error(`Failed to load encounter ${params.encounterId}: ${error instanceof Error ? error.message : String(error)}`);
   }
-
-  // Reset turn manager for the new encounter
-  draft.turnManager = {
-    participants: [],
-    isActive: false,
-    currentTurn: 0,
-    round: 1
-  };
-
-  console.log('[StartEncounterHandler] Encounter started successfully:', {
-    encounterId: params.encounterId,
-    encounterStatus: draft.currentEncounter.status,
-    requestId: request.id
-  });
 }
 
 /**

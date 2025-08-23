@@ -18,6 +18,8 @@ export function createMongoSchema<T>(
   
   const baseMongoSchema= new mongoose.Schema<T>(myZodSchema, {
     timestamps: true,
+    strict: false, // Allow fields not defined in schema to be stored
+    minimize: false, // Prevent Mongoose from removing empty objects
     toObject: {
       virtuals: true,
       getters: true,

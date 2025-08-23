@@ -455,27 +455,80 @@ export class GameStateService {
       const initialGameData = await this.loadCampaignData(campaignId);
       
       // Parse with Zod schema to ensure consistent defaults and structure (same as validation)
-      console.log('initialGameData.state', initialGameData.state.documents);
+      //console.log('initialGameData.state', initialGameData.state.documents);
       const parsedInitialState = serverGameStateWithVirtualsSchema.parse(initialGameData.state);
       
       const initialVersion = '1';
-      const initialHash = generateStateHash(parsedInitialState);
+      console.log('keys', Object.keys(parsedInitialState));
+      const originalState = JSON.parse(JSON.stringify(parsedInitialState)); // Deep copy for comparison
+      console.log('originalState', Object.keys(originalState));
+      const originalHash = generateStateHash(parsedInitialState);
 
       // Create new GameState document with new metadata + state structure
-      await GameStateModel.create({
+      const savedDoc = await GameStateModel.create({
         campaignId,
         state: parsedInitialState,  // Store the Zod-parsed state with consistent structure
         version: initialVersion,
-        hash: initialHash,
+        hash: originalHash,
         lastUpdate: Date.now()
         // createdBy and updatedBy are optional, let Mongoose handle them
       });
 
+      // DEBUG: Pull it back out and compare both data and hash
+      const retrievedDoc = await GameStateModel.findById(savedDoc._id).exec();
+      if (!retrievedDoc) {
+        throw new Error('Failed to retrieve saved GameState document');
+      }
+      console.log('retrievedDoc', Object.keys(retrievedDoc.state));
+      const retrievedState = retrievedDoc.state;
+      const retrievedHash = generateStateHash(retrievedState);
+      
+      console.log('=== HASH DEBUG COMPARISON ===');
+      console.log('Original hash:', originalHash.substring(0, 16) + '...');
+      console.log('Retrieved hash:', retrievedHash.substring(0, 16) + '...');
+      console.log('Hashes match:', originalHash === retrievedHash);
+      
+      if (originalHash !== retrievedHash) {
+        console.log('🚨 HASH MISMATCH DETECTED - MongoDB transformed the data');
+        
+        // Compare the actual data structures
+        console.log('Original state keys:', Object.keys(originalState));
+        console.log('Retrieved state keys:', Object.keys(retrievedState));
+        
+        // Check if documents are the main difference
+        if (originalState.documents && retrievedState.documents) {
+          const originalDocIds = Object.keys(originalState.documents);
+          const retrievedDocIds = Object.keys(retrievedState.documents);
+          
+          console.log('Original document count:', originalDocIds.length);
+          console.log('Retrieved document count:', retrievedDocIds.length);
+          
+          if (originalDocIds.length > 0 && retrievedDocIds.length > 0) {
+            const firstOrigDoc = originalState.documents[originalDocIds[0]];
+            const firstRetrDoc = retrievedState.documents[retrievedDocIds[0]];
+            
+            console.log('First document comparison:');
+            console.log('Original doc keys:', Object.keys(firstOrigDoc));
+            console.log('Retrieved doc keys:', Object.keys(firstRetrDoc));
+            
+            // Check for ObjectId differences
+            for (const key of Object.keys(firstOrigDoc)) {
+              if (JSON.stringify((firstOrigDoc as any)[key]) !== JSON.stringify((firstRetrDoc as any)[key])) {
+                console.log(`Field '${key}' differs:`);
+                console.log('  Original:', typeof (firstOrigDoc as any)[key], (firstOrigDoc as any)[key]);
+                console.log('  Retrieved:', typeof (firstRetrDoc as any)[key], (firstRetrDoc as any)[key]);
+              }
+            }
+          }
+        }
+        
+        console.log('Data comparison available - original vs retrieved state differ');
+      }
 
       return {
         success: true,
         newVersion: initialVersion,
-        newHash: initialHash
+        newHash: originalHash  // Return original hash for now
       };
     } catch (error) {
       logger.error('Error initializing game state:', error);

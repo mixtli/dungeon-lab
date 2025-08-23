@@ -28,6 +28,19 @@ const assetSchemaMongoose = assetSchema.merge(baseMongooseZodSchema).extend({
  */
 const mongooseSchema = createMongoSchema(assetSchemaMongoose);
 
+// Add getters for ObjectId fields to ensure string serialization
+mongooseSchema.path('ownerId').get(function (value: mongoose.Types.ObjectId | undefined) {
+  return value?.toString();
+});
+
+mongooseSchema.path('createdBy').get(function (value: mongoose.Types.ObjectId | undefined) {
+  return value?.toString();
+});
+
+mongooseSchema.path('updatedBy').get(function (value: mongoose.Types.ObjectId | undefined) {
+  return value?.toString();
+});
+
 // Define indexes for efficient querying
 mongooseSchema.index({ createdBy: 1 });
 mongooseSchema.index({ ownerId: 1 }); // Index for efficient ownership queries

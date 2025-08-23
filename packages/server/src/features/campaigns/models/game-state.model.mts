@@ -48,6 +48,10 @@ const mongooseSchema = createMongoSchema<IGameStateDocument>(gameStateSchemaMong
 // This allows us to store the fully populated client-ready data
 mongooseSchema.path('state', mongoose.Schema.Types.Mixed);
 
+// Ensure Mongoose doesn't drop any fields from the state object
+mongooseSchema.set('strict', false);
+mongooseSchema.set('minimize', false);
+
 // Convert ObjectId fields to strings for JSON serialization
 mongooseSchema.path('campaignId').get(function (value: ObjectId | undefined) {
   return value?.toString();

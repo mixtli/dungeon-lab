@@ -127,17 +127,31 @@ function isControlledByCurrentUser(participant: { tokenId?: string; actorId?: st
 
 async function startTurnBasedMode() {
   try {
-    // Get tokens from current encounter
+    // Get encounter participants and tokens
+    const encounterParticipants = gameStateStore.currentEncounter?.participants || [];
     const tokens = gameStateStore.currentEncounter?.tokens || [];
     
-    const participants = tokens.map(token => ({
-      id: token.id, // Use token ID as participant ID for proper permission mapping
-      name: token.name,
-      actorId: token.documentId || '',
-      tokenId: token.id,
-      hasActed: false,
-      turnOrder: 0, // Will be calculated by plugin
-    }));
+    if (encounterParticipants.length === 0) {
+      notificationStore.addNotification({ 
+        message: 'No participants in encounter. Add characters or actors first.', 
+        type: 'warning' 
+      });
+      return;
+    }
+    
+    const participants = encounterParticipants.map(participantId => {
+      const document = gameStateStore.gameState?.documents[participantId];
+      const token = tokens.find(t => t.documentId === participantId);
+      
+      return {
+        id: token?.id || `participant_${participantId}`, // Use token ID if available for permission mapping
+        name: document?.name || 'Unknown',
+        actorId: participantId,
+        tokenId: token?.id,
+        hasActed: false,
+        turnOrder: 0, // Will be calculated by plugin
+      };
+    });
     
     await turnManagerService.startTurnOrder(participants);
     notificationStore.addNotification({ message: 'Turn-based mode started!', type: 'success' });
