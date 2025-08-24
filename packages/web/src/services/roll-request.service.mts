@@ -1,4 +1,4 @@
-import type { RollServerResult } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
+import type { RollServerResult } from '@dungeon-lab/shared/types/socket/index.mjs';
 import { useSocketStore } from '../stores/socket.store.mts';
 
 /**
@@ -81,11 +81,11 @@ export class RollRequestService {
     // Note: This sends a roll request to a specific player via GM->Player communication
     socketStore.emit('roll:request', {
       rollId: requestId, // Single rollId flows through entire roll lifecycle
-      playerId,
       rollType,
       message: rollData.message || `Roll ${rollType}`,
       dice: rollData.dice,
-      metadata: rollData.metadata
+      metadata: rollData.metadata,
+      playerId // playerId is required by the extended schema
     });
 
     // Return promise that resolves when roll:result comes back
@@ -306,6 +306,7 @@ export class RollRequestService {
       this.cleanupExpiredRequests();
     }, this.cleanupIntervalMs);
   }
+
 
   /**
    * Stop cleanup timer and cancel all pending requests

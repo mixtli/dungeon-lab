@@ -1,5 +1,6 @@
 import type { RollTypeHandler, RollHandlerContext } from '@dungeon-lab/shared-ui/types/plugin.mjs';
 import type { RollServerResult } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
+import type { ProcessedRollResult, FollowUpChatMessage } from '@dungeon-lab/shared/interfaces/processed-roll-result.interface.mjs';
 
 /**
  * D&D 5e Roll Handler for Ability Checks
@@ -7,55 +8,111 @@ import type { RollServerResult } from '@dungeon-lab/shared/schemas/roll.schema.m
  * Player clients provide UI feedback only
  */
 export class DndAbilityCheckHandler implements RollTypeHandler {
+  /**
+   * Process ability check roll and return augmented data
+   * Pure function without side effects
+   */
+  async processRoll(result: RollServerResult, context: RollHandlerContext): Promise<ProcessedRollResult> {
+    const total = this.calculateTotal(result);
+    const ability = String(result.arguments.pluginArgs?.ability || 'Unknown');
+    const skill = result.arguments.pluginArgs?.skill as string | undefined;
+    const advantageMode = result.arguments.pluginArgs?.advantageMode;
+    const characterName = result.metadata.characterName;
+    
+    // Create descriptive roll message - use skill name if available, otherwise ability name
+    let rollDescription: string;
+    if (skill) {
+      // Format skill name (e.g., "animal-handling" -> "Animal Handling")
+      const formattedSkill = skill.split('-').map((word: string) => 
+        word.charAt(0).toUpperCase() + word.slice(1)
+      ).join(' ');
+      const formattedAbility = ability.slice(0, 3).toUpperCase();
+      rollDescription = `${formattedSkill} (${formattedAbility})`;
+    } else {
+      rollDescription = `${ability.charAt(0).toUpperCase() + ability.slice(1)} Check`;
+    }
+    if (advantageMode === 'advantage') {
+      rollDescription += ' (Advantage)';
+    } else if (advantageMode === 'disadvantage') {
+      rollDescription += ' (Disadvantage)';
+    }
+    
+    const rollMessage = `${characterName ? `${characterName} rolled ` : ''}${rollDescription}: **${total}**`;
+    
+    // Create augmented roll result
+    const augmentedResult = {
+      ...result,
+      calculatedTotal: total,
+      isCriticalHit: false, // Ability checks don't have critical hits
+      processedData: {
+        ability,
+        skill,
+        advantageMode,
+        rollDescription,
+        formattedMessage: rollMessage
+      }
+    };
+    
+    // Create follow-up actions
+    const followUpActions: FollowUpChatMessage[] = [];
+    
+    // Only GM should send chat messages
+    if (context.isGM) {
+      followUpActions.push({
+        type: 'chat-message',
+        data: {
+          message: rollMessage,
+          options: {
+            type: 'roll',
+            rollData: augmentedResult,
+            recipient: result.recipients
+          }
+        }
+      });
+    }
+    
+    return {
+      rollResult: augmentedResult,
+      followUpActions,
+      executeDefaultSideEffects: false, // We're handling all side effects explicitly
+      processingInfo: {
+        handlerType: 'DndAbilityCheckHandler',
+        calculationDetails: {
+          originalTotal: total,
+          ability,
+          skill,
+          advantageMode
+        }
+      }
+    };
+  }
+
+  /**
+   * Legacy handleRoll method for backward compatibility
+   * Delegates to processRoll and executes side effects
+   */
   async handleRoll(result: RollServerResult, context: RollHandlerContext): Promise<void> {
+    // Use the new processRoll method to get processed data
+    const processed = await this.processRoll(result, context);
+    
     console.log('[DndAbilityCheckHandler] Processing ability check:', {
       ability: result.arguments.pluginArgs?.ability,
       advantageMode: result.arguments.pluginArgs?.advantageMode,
-      total: this.calculateTotal(result),
+      total: processed.rollResult.calculatedTotal,
       characterName: result.metadata.characterName,
       isGM: context.isGM
     });
 
-    if (context.isGM) {
-      // GM client: Calculate final result and send authoritative chat message
-      const total = this.calculateTotal(result);
-      const ability = String(result.arguments.pluginArgs?.ability || 'Unknown');
-      const skill = result.arguments.pluginArgs?.skill as string | undefined;
-      const advantageMode = result.arguments.pluginArgs?.advantageMode;
-      const characterName = result.metadata.characterName;
-      
-      // Create descriptive roll message - use skill name if available, otherwise ability name
-      let rollDescription: string;
-      if (skill) {
-        // Format skill name (e.g., "animal-handling" -> "Animal Handling")
-        const formattedSkill = skill.split('-').map((word: string) => 
-          word.charAt(0).toUpperCase() + word.slice(1)
-        ).join(' ');
-        const formattedAbility = ability.slice(0, 3).toUpperCase();
-        rollDescription = `${formattedSkill} (${formattedAbility})`;
-      } else {
-        rollDescription = `${ability.charAt(0).toUpperCase() + ability.slice(1)} Check`;
+    // Execute follow-up actions
+    for (const action of processed.followUpActions) {
+      if (action.type === 'chat-message' && context.sendChatMessage) {
+        const chatAction = action as FollowUpChatMessage;
+        context.sendChatMessage(chatAction.data.message, chatAction.data.options);
+        console.log('[DndAbilityCheckHandler] GM sent chat message:', chatAction.data.message);
       }
-      if (advantageMode === 'advantage') {
-        rollDescription += ' (Advantage)';
-      } else if (advantageMode === 'disadvantage') {
-        rollDescription += ' (Disadvantage)';
-      }
-      
-      const rollMessage = `${characterName ? `${characterName} rolled ` : ''}${rollDescription}: **${total}**`;
-      
-      // Send chat message via context (only available for GM)
-      if (context.sendChatMessage) {
-        context.sendChatMessage(rollMessage, {
-          type: 'roll',
-          rollData: result,
-          recipient: result.recipients
-        });
-        console.log('[DndAbilityCheckHandler] GM sent chat message:', rollMessage);
-      } else {
-        console.warn('[DndAbilityCheckHandler] GM client but no sendChatMessage function available');
-      }
-    } else {
+    }
+
+    if (!context.isGM) {
       // Player client: Provide UI feedback only (animations, notifications, etc.)
       console.log('[DndAbilityCheckHandler] Player client - providing UI feedback');
       // Future: Add animations, sound effects, visual indicators

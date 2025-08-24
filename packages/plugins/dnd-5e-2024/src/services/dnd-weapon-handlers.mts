@@ -1,5 +1,6 @@
 import type { RollTypeHandler, RollHandlerContext } from '@dungeon-lab/shared-ui/types/plugin.mjs';
 import type { RollServerResult } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
+import type { ProcessedRollResult, FollowUpChatMessage, FollowUpRollRequest, FollowUpActionRequest } from '@dungeon-lab/shared/interfaces/processed-roll-result.interface.mjs';
 import type { ICharacter, IItem, IToken, ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
 import { parseDiceExpression } from '@dungeon-lab/shared/utils/dice-parser.mjs';
 import { calculateGridDistance, type GridBounds } from '@dungeon-lab/shared-ui/utils/grid-distance.mjs';
@@ -12,28 +13,28 @@ import type { DndCharacterData } from '../types/dnd/character.mjs';
  * Calculates attack bonus and determines hit/miss messaging
  */
 export class DndWeaponAttackHandler implements RollTypeHandler {
-  async handleRoll(result: RollServerResult, context: RollHandlerContext): Promise<void> {
-    console.log('[DndWeaponAttackHandler] Processing weapon attack:', {
-      weaponId: result.metadata.weaponId,
-      advantageMode: result.arguments.pluginArgs?.advantageMode,
-      characterName: result.metadata.characterName,
-      isGM: context.isGM
-    });
-
-    if (!context.isGM) {
-      // Player client: just provide UI feedback
-      console.log('[DndWeaponAttackHandler] Player client - UI feedback only');
-      return;
-    }
-
-    // GM client: calculate final attack result
-    // Look up fresh weapon and character data from game state using IDs
+  /**
+   * Process weapon attack roll and return augmented data
+   * Pure function without side effects
+   */
+  async processRoll(result: RollServerResult, context: RollHandlerContext): Promise<ProcessedRollResult> {
     const weaponId = result.metadata.weaponId as string;
     const characterId = result.metadata.characterId as string;
     
     if (!weaponId || !characterId || !context.gameState) {
-      console.error('[DndWeaponAttackHandler] Missing weapon ID, character ID, or game state');
-      return;
+      return {
+        rollResult: {
+          ...result,
+          calculatedTotal: 0,
+          isCriticalHit: false
+        },
+        followUpActions: [],
+        executeDefaultSideEffects: false,
+        processingInfo: {
+          handlerType: 'DndWeaponAttackHandler',
+          warnings: ['Missing weapon ID, character ID, or game state']
+        }
+      };
     }
     
     // Get plain game state for calculations to avoid Vue proxy issues
@@ -42,134 +43,215 @@ export class DndWeaponAttackHandler implements RollTypeHandler {
     const weapon = this.lookupWeapon(weaponId, plainGameState);
     
     if (!weapon || !character) {
-      console.error('[DndWeaponAttackHandler] Could not find weapon or character in game state', {
-        weaponId,
-        characterId,
-        weaponFound: !!weapon,
-        characterFound: !!character
-      });
-      return;
+      return {
+        rollResult: {
+          ...result,
+          calculatedTotal: 0,
+          isCriticalHit: false
+        },
+        followUpActions: [],
+        executeDefaultSideEffects: false,
+        processingInfo: {
+          handlerType: 'DndWeaponAttackHandler',
+          warnings: ['Could not find weapon or character in game state']
+        }
+      };
     }
 
     const total = this.calculateAttackTotal(result, weapon, character);
     const isCriticalHit = this.isCriticalHit(result);
     
-    // Create attack result message
+    // Create basic attack result message
     let attackMessage = this.createAttackResultMessage(result, weapon, total);
     
     // Check for automatic attack mode
     const autoMode = result.metadata.autoMode as boolean;
     const targetTokenIds = result.metadata.targetTokenIds as string[] || [];
     
+    const followUpActions: (FollowUpChatMessage | FollowUpRollRequest)[] = [];
+    
     // Handle automatic attack mode with targets
     if (autoMode && targetTokenIds.length > 0 && context.gameState) {
-      console.log('[DndWeaponAttackHandler] Processing automatic attack mode:', {
-        targetCount: targetTokenIds.length,
-        attackTotal: total,
-        isCritical: isCriticalHit
-      });
-      
       // Process first target (multi-target support can be added later)
       const targetTokenId = targetTokenIds[0];
       
-      // Validate range/distance before checking AC (only if gameState is available)
-      const rangeCheck = this.validateAttackRange(characterId, targetTokenId, weapon, context.gameState!);
-      console.log('[DndWeaponAttackHandler] Range check:', rangeCheck);
+      // Validate range/distance before checking AC
+      const rangeCheck = this.validateAttackRange(characterId, targetTokenId, weapon, context.gameState);
       if (!rangeCheck.valid) {
         attackMessage += ` **→ ${rangeCheck.reason}**`;
-        console.log('[DndWeaponAttackHandler] Attack blocked by range:', rangeCheck);
         
-        // Send range validation message to player
-        if (context.sendChatMessage) {
-          context.sendChatMessage(attackMessage, { type: 'text', recipient: 'public' });
+        // Only GM gets the range validation message
+        if (context.isGM) {
+          followUpActions.push({
+            type: 'chat-message',
+            data: {
+              message: attackMessage,
+              options: { type: 'text', recipient: 'public' }
+            }
+          });
         }
-        return;
+        
+        return {
+          rollResult: {
+            ...result,
+            calculatedTotal: total,
+            isCriticalHit,
+            processedData: {
+              weaponName: weapon.name,
+              attackTotal: total,
+              rangeCheck,
+              autoMode: true,
+              targetResult: 'out_of_range'
+            }
+          },
+          followUpActions,
+          executeDefaultSideEffects: false,
+          processingInfo: {
+            handlerType: 'DndWeaponAttackHandler',
+            calculationDetails: { total, rangeValid: false, reason: rangeCheck.reason }
+          }
+        };
       }
       
-      // Apply disadvantage if needed (long range, adjacent ranged, etc.)
+      // Apply disadvantage if needed
       if (rangeCheck.hasDisadvantage) {
         attackMessage += ' (disadvantage)';
-        console.log('[DndWeaponAttackHandler] Attack has disadvantage due to range:', rangeCheck.disadvantageReason);
       }
       
-      const targetResult = this.getTargetACFromGameState(targetTokenId, context.gameState!);
+      const targetResult = this.getTargetACFromGameState(targetTokenId, context.gameState);
       
       if (targetResult !== null) {
-        const { ac: targetAC, documentId: targetDocumentId } = targetResult;
+        const { ac: targetAC } = targetResult;
         const isHit = total >= targetAC || isCriticalHit; // Critical hits always hit
         attackMessage += isHit ? ' **→ HIT!**' : ' **→ MISS**';
         
-        console.log('[DndWeaponAttackHandler] Hit determination:', {
-          targetTokenId,
-          targetDocumentId,
-          targetAC,
-          attackTotal: total,
-          isCritical: isCriticalHit,
-          result: isHit ? 'HIT' : 'MISS'
-        });
-        
-        // If hit, request damage roll from player
-        if (isHit && context.requestRoll) {
+        // If hit, prepare damage roll request
+        if (isHit && context.isGM) {
           try {
             const weaponData = weapon.pluginData as DndWeaponData;
             const diceExpression = weaponData?.damage?.dice || '1d8';
             const parsedDice = parseDiceExpression(diceExpression);
             
-            if (!parsedDice) {
-              console.error('[DndWeaponAttackHandler] Invalid dice expression:', diceExpression);
-              return;
+            if (parsedDice) {
+              const playerId = result.userId; // Player ID is available in RollServerResult
+              
+              followUpActions.push({
+                type: 'roll-request',
+                data: {
+                  playerId,
+                  rollType: 'weapon-damage',
+                  rollData: {
+                    message: `Roll damage for ${weapon.name || 'weapon'} hit`,
+                    dice: parsedDice.dice,
+                    metadata: {
+                      weaponId: weapon.id,
+                      characterId: character.id,
+                      targetTokenId: targetTokenId,
+                      isCriticalHit: isCriticalHit,
+                      autoMode: true
+                    }
+                  }
+                }
+              });
+              
+              attackMessage += ` (damage roll requested)`;
             }
-            
-            const playerId = result.userId; // Player ID is available in RollServerResult
-            
-            console.log('[DndWeaponAttackHandler] Requesting damage roll:', {
-              playerId,
-              weapon: weapon.name,
-              dice: parsedDice.dice,
-              isCritical: isCriticalHit
-            });
-            
-            context.requestRoll(playerId, {
-              requestId: `damage-${Date.now()}`,
-              message: `Roll damage for ${weapon.name || 'weapon'} hit`,
-              rollType: 'weapon-damage',
-              dice: parsedDice.dice,
-              metadata: {
-                weaponId: weapon.id,
-                characterId: character.id,
-                targetTokenId: targetTokenId,
-                isCriticalHit: isCriticalHit,
-                autoMode: true
-              }
-            });
-            
-            attackMessage += ` (damage roll requested)`;
-            
           } catch (error) {
-            console.error('[DndWeaponAttackHandler] Failed to request damage roll:', error);
-            attackMessage += ` *(Failed to request damage roll)*`;
+            attackMessage += ` *(Failed to prepare damage roll)*`;
           }
         }
       } else {
-        console.warn('[DndWeaponAttackHandler] Could not determine target AC for token:', targetTokenId);
         attackMessage += ' *(Could not determine target AC)*';
       }
     }
     
-    if (context.sendChatMessage) {
-      context.sendChatMessage(attackMessage, {
-        type: 'roll',
-        rollData: {
-          ...result,
-          total,
-          weaponName: weapon.name,
-          isCriticalHit: this.isCriticalHit(result)
-        },
-        recipient: result.recipients
+    // Add chat message for GM
+    if (context.isGM) {
+      followUpActions.push({
+        type: 'chat-message',
+        data: {
+          message: attackMessage,
+          options: {
+            type: 'roll',
+            rollData: {
+              ...result,
+              total,
+              weaponName: weapon.name,
+              isCriticalHit
+            },
+            recipient: result.recipients
+          }
+        }
       });
-      console.log('[DndWeaponAttackHandler] GM sent attack result:', { total, weapon: weapon.name });
-    } else {
-      console.warn('[DndWeaponAttackHandler] GM client but no sendChatMessage function available');
+    }
+    
+    return {
+      rollResult: {
+        ...result,
+        calculatedTotal: total,
+        isCriticalHit,
+        processedData: {
+          weaponName: weapon.name,
+          attackTotal: total,
+          autoMode,
+          targetTokenIds,
+          attackMessage
+        }
+      },
+      followUpActions,
+      executeDefaultSideEffects: false,
+      processingInfo: {
+        handlerType: 'DndWeaponAttackHandler',
+        calculationDetails: {
+          total,
+          isCriticalHit,
+          weaponName: weapon.name,
+          autoMode,
+          targetCount: targetTokenIds.length
+        }
+      }
+    };
+  }
+
+  /**
+   * Legacy handleRoll method for backward compatibility
+   * Delegates to processRoll and executes side effects
+   */
+  async handleRoll(result: RollServerResult, context: RollHandlerContext): Promise<void> {
+    // Use the new processRoll method to get processed data
+    const processed = await this.processRoll(result, context);
+    
+    console.log('[DndWeaponAttackHandler] Processing weapon attack:', {
+      weaponId: result.metadata.weaponId,
+      advantageMode: result.arguments.pluginArgs?.advantageMode,
+      total: processed.rollResult.calculatedTotal,
+      characterName: result.metadata.characterName,
+      isGM: context.isGM
+    });
+
+    // Execute follow-up actions
+    for (const action of processed.followUpActions) {
+      if (action.type === 'chat-message' && context.sendChatMessage) {
+        const chatAction = action as FollowUpChatMessage;
+        context.sendChatMessage(chatAction.data.message, chatAction.data.options);
+        console.log('[DndWeaponAttackHandler] GM sent chat message:', chatAction.data.message);
+      } else if (action.type === 'roll-request' && context.requestRoll) {
+        const rollAction = action as FollowUpRollRequest;
+        context.requestRoll(rollAction.data.playerId, {
+          rollId: `damage-${Date.now()}`,
+          message: rollAction.data.rollData.message || 'Roll damage',
+          rollType: rollAction.data.rollType,
+          dice: rollAction.data.rollData.dice,
+          metadata: rollAction.data.rollData.metadata
+        });
+        console.log('[DndWeaponAttackHandler] GM requested roll:', rollAction.data.rollType);
+      }
+    }
+
+    if (!context.isGM) {
+      // Player client: Provide UI feedback only (animations, notifications, etc.)
+      console.log('[DndWeaponAttackHandler] Player client - providing UI feedback');
+      // Future: Add animations, sound effects, visual indicators
     }
   }
 
@@ -645,26 +727,28 @@ export class DndWeaponAttackHandler implements RollTypeHandler {
  * Calculates damage total with ability modifier and enhancement
  */
 export class DndWeaponDamageHandler implements RollTypeHandler {
-  async handleRoll(result: RollServerResult, context: RollHandlerContext): Promise<void> {
-    console.log('[DndWeaponDamageHandler] Processing weapon damage:', {
-      weaponId: result.metadata.weaponId,
-      characterName: result.metadata.characterName,
-      critical: result.metadata.critical,
-      isGM: context.isGM
-    });
-
-    if (!context.isGM) {
-      console.log('[DndWeaponDamageHandler] Player client - UI feedback only');
-      return;
-    }
-
-    // Look up fresh weapon and character data from game state
+  /**
+   * Process weapon damage roll and return augmented data
+   * Pure function without side effects
+   */
+  async processRoll(result: RollServerResult, context: RollHandlerContext): Promise<ProcessedRollResult> {
     const weaponId = result.metadata.weaponId as string;
     const characterId = result.metadata.characterId as string;
     
     if (!weaponId || !characterId || !context.gameState) {
-      console.error('[DndWeaponDamageHandler] Missing weapon ID, character ID, or game state');
-      return;
+      return {
+        rollResult: {
+          ...result,
+          calculatedTotal: 0,
+          isCriticalHit: false
+        },
+        followUpActions: [],
+        executeDefaultSideEffects: false,
+        processingInfo: {
+          handlerType: 'DndWeaponDamageHandler',
+          warnings: ['Missing weapon ID, character ID, or game state']
+        }
+      };
     }
     
     // Get plain game state for calculations to avoid Vue proxy issues
@@ -673,13 +757,19 @@ export class DndWeaponDamageHandler implements RollTypeHandler {
     const weapon = this.lookupWeapon(weaponId, plainGameState);
     
     if (!weapon || !character) {
-      console.error('[DndWeaponDamageHandler] Could not find weapon or character in game state', {
-        weaponId,
-        characterId,
-        weaponFound: !!weapon,
-        characterFound: !!character
-      });
-      return;
+      return {
+        rollResult: {
+          ...result,
+          calculatedTotal: 0,
+          isCriticalHit: false
+        },
+        followUpActions: [],
+        executeDefaultSideEffects: false,
+        processingInfo: {
+          handlerType: 'DndWeaponDamageHandler',
+          warnings: ['Could not find weapon or character in game state']
+        }
+      };
     }
 
     // Check both old and new metadata formats for critical hits
@@ -696,52 +786,124 @@ export class DndWeaponDamageHandler implements RollTypeHandler {
     const autoMode = result.metadata.autoMode as boolean;
     const targetTokenId = result.metadata.targetTokenId as string;
     
+    const followUpActions: (FollowUpChatMessage | FollowUpActionRequest)[] = [];
+    
     // Handle automatic damage application
-    if (autoMode && targetTokenId && context.requestAction) {
+    if (autoMode && targetTokenId && context.isGM) {
       try {
-        console.log('[DndWeaponDamageHandler] Processing automatic damage application:', {
-          targetTokenId,
-          damage: total,
-          damageType,
-          isCritical
-        });
-        
-        await context.requestAction('dnd5e-2024:apply-damage', {
-          targetTokenId: targetTokenId,
-          damage: total,
-          damageType,
-          source: `${weapon.name || 'Weapon'} attack`
-        }, {
-          description: `Apply ${total} ${damageType} damage from ${weapon.name || 'weapon'}`
+        followUpActions.push({
+          type: 'action-request',
+          data: {
+            actionType: 'dnd5e-2024:apply-damage',
+            parameters: {
+              targetTokenId: targetTokenId,
+              damage: total,
+              damageType,
+              source: `${weapon.name || 'Weapon'} attack`
+            },
+            options: {
+              description: `Apply ${total} ${damageType} damage from ${weapon.name || 'weapon'}`
+            }
+          }
         });
         
         damageMessage += ` **→ Applied to target!**`;
-        console.log('[DndWeaponDamageHandler] Damage applied automatically');
         
-      } catch (error) {
-        console.error('[DndWeaponDamageHandler] Failed to apply damage:', error);
+      } catch {
         damageMessage += ' *(Failed to apply damage)*';
       }
     }
     
-    if (context.sendChatMessage) {
-      context.sendChatMessage(damageMessage, {
-        type: 'roll',
-        rollData: {
-          ...result,
+    // Add chat message for GM
+    if (context.isGM) {
+      followUpActions.push({
+        type: 'chat-message',
+        data: {
+          message: damageMessage,
+          options: {
+            type: 'roll',
+            rollData: {
+              ...result,
+              total,
+              damageType,
+              isCritical,
+              weaponName: weapon.name
+            },
+            recipient: result.recipients
+          }
+        }
+      });
+    }
+    
+    return {
+      rollResult: {
+        ...result,
+        calculatedTotal: total,
+        isCriticalHit: isCritical,
+        processedData: {
+          weaponName: weapon.name,
+          damageTotal: total,
+          damageType,
+          isCritical,
+          autoMode,
+          targetTokenId
+        }
+      },
+      followUpActions,
+      executeDefaultSideEffects: false,
+      processingInfo: {
+        handlerType: 'DndWeaponDamageHandler',
+        calculationDetails: {
           total,
           damageType,
           isCritical,
-          weaponName: weapon.name
-        },
-        recipient: result.recipients
-      });
-      console.log('[DndWeaponDamageHandler] GM sent damage result:', { 
-        total, 
-        damageType, 
-        critical: isCritical,
-        weapon: weapon.name 
-      });
+          weaponName: weapon.name,
+          autoMode
+        }
+      }
+    };
+  }
+  /**
+   * Legacy handleRoll method for backward compatibility
+   * Delegates to processRoll and executes side effects
+   */
+  async handleRoll(result: RollServerResult, context: RollHandlerContext): Promise<void> {
+    // Use the new processRoll method to get processed data
+    const processed = await this.processRoll(result, context);
+    
+    console.log('[DndWeaponDamageHandler] Processing weapon damage:', {
+      weaponId: result.metadata.weaponId,
+      characterName: result.metadata.characterName,
+      total: processed.rollResult.calculatedTotal,
+      critical: processed.rollResult.isCriticalHit,
+      isGM: context.isGM
+    });
+
+    // Execute follow-up actions
+    for (const action of processed.followUpActions) {
+      if (action.type === 'chat-message' && context.sendChatMessage) {
+        const chatAction = action as FollowUpChatMessage;
+        context.sendChatMessage(chatAction.data.message, chatAction.data.options);
+        console.log('[DndWeaponDamageHandler] GM sent chat message:', chatAction.data.message);
+      } else if (action.type === 'action-request' && context.requestAction) {
+        const actionRequest = action as FollowUpActionRequest;
+        try {
+          await context.requestAction(
+            actionRequest.data.actionType,
+            actionRequest.data.parameters,
+            actionRequest.data.options
+          );
+          console.log('[DndWeaponDamageHandler] Action executed:', actionRequest.data.actionType);
+        } catch (error) {
+          console.error('[DndWeaponDamageHandler] Failed to execute action:', error);
+        }
+      }
+    }
+
+    if (!context.isGM) {
+      // Player client: Provide UI feedback only (animations, notifications, etc.)
+      console.log('[DndWeaponDamageHandler] Player client - providing UI feedback');
+      // Future: Add animations, sound effects, visual indicators
     }
   }
 

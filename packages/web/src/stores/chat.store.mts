@@ -337,7 +337,7 @@ export const useChatStore = defineStore(
       };
 
       messages.value.push(rollRequestMessage);
-      console.log('[ChatStore] Added roll request to chat:', rollRequest.requestId);
+      console.log('[ChatStore] Added roll request to chat:', rollRequest.rollId);
     }
 
     return {

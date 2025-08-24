@@ -4,7 +4,7 @@ import type {
   RollRequestSpec, 
   ChatOptions 
 } from '@dungeon-lab/shared/interfaces/action-context.interface.mjs';
-import type { RollServerResult } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
+import type { RollServerResult } from '@dungeon-lab/shared/types/socket/index.mjs';
 import type { ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
 import { RollRequestService } from './roll-request.service.mts';
 import { useChatStore } from '../stores/chat.store.mts';

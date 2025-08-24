@@ -313,7 +313,7 @@ export class PluginContextImpl implements PluginContext {
         ...rollRequest,
         playerId
       });
-      console.log(`[PluginContext] Sent roll request to player '${playerId}' from plugin '${this.pluginId}':`, rollRequest.requestId);
+      console.log(`[PluginContext] Sent roll request to player '${playerId}' from plugin '${this.pluginId}':`, rollRequest.rollId);
     } catch (error) {
       console.error(`[PluginContext] Failed to send roll request from plugin '${this.pluginId}':`, error);
     }

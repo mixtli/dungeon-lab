@@ -61,12 +61,83 @@ The existing Dungeon Lab architecture is **exceptionally well-suited** for this 
 
 ### What Needs to Be Added
 
-1. **Roll Request/Response Correlation**: Track pending roll requests
-2. **Enhanced Action Context**: Utilities for sending roll requests from action handlers  
-3. **Roll Response Promise Resolution**: Async utilities to await roll results
-4. **Timeout/Error Handling**: For non-responsive players
+1. **✅ Roll Request/Response Correlation**: Track pending roll requests - COMPLETED
+2. **✅ Enhanced Action Context**: Utilities for sending roll requests from action handlers - COMPLETED  
+3. **✅ Roll Response Promise Resolution**: Async utilities to await roll results - COMPLETED
+4. **✅ Timeout/Error Handling**: For non-responsive players - COMPLETED
+5. **✅ Unified Roll Processing Pipeline**: Eliminate code duplication between direct rolls and roll requests - COMPLETED
 
 ## Architecture Design
+
+### Critical Discovery: Roll Handler Unification
+
+During Phase 1 implementation, we discovered a **major code duplication issue** that needed to be solved before unified action handlers could work effectively:
+
+#### The Problem
+**Two separate roll processing paths existed:**
+
+1. **Direct Rolls (Character Sheet)**: Player → Roll → RollHandler → Chat Message + Side Effects
+2. **Roll Requests (Action Handlers)**: ActionHandler → Roll Request → Player → Roll → RollHandler → ???
+
+The issue: RollHandlers were designed for direct rolls and would **duplicate processing** when called for action handler requested rolls, leading to:
+- ❌ Duplicate chat messages
+- ❌ Duplicate damage application  
+- ❌ Inconsistent D&D calculations between paths
+- ❌ Complex coordination logic needed
+
+#### The Solution: Functional Pipeline Architecture
+
+We implemented a **pure function approach** that eliminates this duplication:
+
+```typescript
+// New ProcessedRollResult interface
+interface ProcessedRollResult {
+  rollResult: RollServerResult & {
+    calculatedTotal?: number;
+    isCriticalHit?: boolean;
+    processedData?: Record<string, unknown>;
+  };
+  followUpActions: FollowUpAction[]; // Chat messages, roll requests, action requests
+  executeDefaultSideEffects: boolean;
+  processingInfo: {
+    handlerType: string;
+    calculationDetails?: Record<string, unknown>;
+  };
+}
+
+// Roll handlers now implement pure processRoll method
+class DndWeaponAttackHandler implements RollTypeHandler {
+  async processRoll(result: RollServerResult, context: RollHandlerContext): Promise<ProcessedRollResult> {
+    // Pure function: calculate results, return actions to take
+    // NO side effects (no chat messages, no state changes)
+    const total = this.calculateAttackTotal(result, weapon, character);
+    const attackMessage = this.createAttackResultMessage(result, weapon, total);
+    
+    return {
+      rollResult: { ...result, calculatedTotal: total },
+      followUpActions: [
+        { type: 'chat-message', data: { message: attackMessage } },
+        { type: 'roll-request', data: { rollType: 'damage', ... } }
+      ],
+      executeDefaultSideEffects: false
+    };
+  }
+}
+```
+
+#### Unified Processing Flow
+
+**Now both paths converge on identical logic:**
+
+1. **Direct Rolls**: Player → Roll → `processRoll()` → Execute Follow-up Actions
+2. **Roll Requests**: Action Handler → Roll Request → Player → Roll → `processRoll()` → Promise Resolution + Execute Follow-up Actions
+
+**Benefits:**
+- ✅ **Same D&D calculations** for both roll types
+- ✅ **No code duplication** - single source of truth for roll logic  
+- ✅ **Pure functions** - easy to test and debug
+- ✅ **Consistent side effects** - unified handling of chat messages, follow-up rolls, actions
+- ✅ **Backward compatibility** - legacy handlers still work during transition
 
 ### Core Infrastructure Changes
 
@@ -913,120 +984,134 @@ class ActionContextImpl implements AsyncActionContext {
    - Plan migration strategy for other complex actions
    - Create developer guidelines for unified handlers
 
-## Comparison: Current vs Unified
+## Comparison: Before vs After Roll Handler Unification
 
-### Current Fragmented System
+### Before: Fragmented Roll Processing
+
+**The Duplication Problem We Discovered:**
 
 ```typescript
-// 1. Action handler (attack.handler.mts)
-export function executeDnDAttack(request: GameActionRequest, draft: ServerGameState): void {
-  consumeAction('action', character, 'Attack')
-}
+// Direct rolls from character sheet
+Player → Roll → DndWeaponAttackHandler.handleRoll() → Chat Message + requestRoll()
 
-// 2. Weapon attack roll handler (dnd-weapon-handlers.mts) 
-class DndWeaponAttackHandler implements RollTypeHandler {
+// Roll requests from action handlers  
+ActionHandler → RollRequest → Player → Roll → DndWeaponAttackHandler.handleRoll() → DUPLICATE Chat + DUPLICATE requestRoll()
+```
+
+**Problems:**
+- ❌ Same D&D calculations executed twice for requested rolls
+- ❌ Duplicate chat messages sent to players
+- ❌ Duplicate follow-up roll requests 
+- ❌ Inconsistent behavior between direct rolls and action handler rolls
+- ❌ Complex coordination needed to prevent duplication
+
+### After: Unified Roll Processing Pipeline
+
+**The Solution: Functional Pipeline Architecture**
+
+```typescript
+// Both roll paths now converge on identical logic
+class DndWeaponAttackHandler {
+  // Pure function - no side effects
+  async processRoll(result: RollServerResult, context: RollHandlerContext): Promise<ProcessedRollResult> {
+    const total = this.calculateAttackTotal(result, weapon, character);
+    const attackMessage = this.createAttackResultMessage(result, weapon, total);
+    
+    return {
+      rollResult: { ...result, calculatedTotal: total, isCriticalHit: this.isCriticalHit(result) },
+      followUpActions: [
+        { type: 'chat-message', data: { message: attackMessage } },
+        { type: 'roll-request', data: { rollType: 'weapon-damage', ... } }
+      ],
+      executeDefaultSideEffects: false
+    };
+  }
+  
+  // Legacy method delegates to processRoll
   async handleRoll(result: RollServerResult, context: RollHandlerContext): Promise<void> {
-    // Calculate hit/miss, send damage roll request via chat message
+    const processed = await this.processRoll(result, context);
+    // Execute follow-up actions (chat, roll requests, etc.)
   }
 }
 
-// 3. Weapon damage roll handler (dnd-weapon-handlers.mts)
-class DndWeaponDamageHandler implements RollTypeHandler {
-  async handleRoll(result: RollServerResult, context: RollHandlerContext): Promise<void> {
-    // Apply damage via requestAction('dnd5e-2024:apply-damage')
+// RollHandlerService coordinates everything
+class RollHandlerService {
+  async handleRollResult(result: RollServerResult): Promise<void> {
+    // First resolve any pending promises (for action handler roll requests)
+    this.rollRequestService.handleRollResult(result);
+    
+    // Then process the roll using the functional approach
+    const processed = await handler.processRoll(result, context);
+    
+    // Execute all follow-up actions uniformly
+    for (const action of processed.followUpActions) {
+      if (action.type === 'chat-message') /* send chat */;
+      if (action.type === 'roll-request') /* send roll request */;
+      if (action.type === 'action-request') /* execute action */;
+    }
   }
-}
-
-// 4. Apply damage action handler (apply-damage.handler.mts)
-export function executeDamageApplication(request: GameActionRequest, draft: ServerGameState): void {
-  // Actually modify hit points and apply conditions
 }
 ```
 
-**Problems with Current System:**
-- ❌ Logic scattered across 4+ files
-- ❌ Context lost between handlers (metadata juggling)
-- ❌ Complex coordination required
-- ❌ Hard to test complete workflows
-- ❌ Difficult to debug multi-step failures
-
-### Unified System
-
-```typescript
-// Single unified handler
-async function executeWeaponAttack(
-  request: GameActionRequest,
-  draft: ServerGameState, 
-  context: AsyncActionContext
-): Promise<void> {
-  // All local variables persist throughout workflow
-  const weapon = lookupWeapon(request.weaponId)
-  const character = lookupCharacter(request.playerId)
-  const target = lookupTarget(request.targetId)
-  
-  // Consume action economy
-  consumeAction('action', character, 'Attack')
-  
-  // Attack roll
-  const attackResult = await context.sendRollRequest(request.playerId, 'weapon-attack', {
-    weapon: weapon,
-    attackBonus: calculateAttackBonus(character, weapon)
-  })
-  
-  if (!isHit(attackResult, target.ac)) {
-    await context.sendChatMessage(`${weapon.name} attack missed!`)
-    return // Early exit
-  }
-  
-  // Damage roll  
-  const damageResult = await context.sendRollRequest(request.playerId, 'weapon-damage', {
-    weapon: weapon,
-    isCritical: isCriticalHit(attackResult)
-  })
-  
-  // Apply damage directly - no separate action needed
-  applyDamageToTarget(draft, target, damageResult.total, weapon.damageType)
-  await context.sendChatMessage(`${damageResult.total} ${weapon.damageType} damage!`)
-}
-```
-
-**Benefits of Unified System:**
-- ✅ Complete workflow in single function
-- ✅ Local variables persist throughout  
-- ✅ Linear error handling
-- ✅ Easy to test and debug
-- ✅ Atomic success/failure
-- ✅ Intuitive async/await flow
+**Benefits of Unified Pipeline:**
+- ✅ **Same D&D calculations** for both direct rolls and roll requests
+- ✅ **No code duplication** - single source of truth for roll processing
+- ✅ **Pure functions** - easy to test and debug roll logic
+- ✅ **Consistent side effects** - uniform handling of chat, rolls, actions
+- ✅ **Promise resolution + side effects** - action handlers get their results AND side effects execute
+- ✅ **Backward compatibility** - existing roll handlers continue working
 
 ### Side-by-Side Metrics
 
-| Metric | Current System | Unified System |
-|--------|---------------|----------------|
-| **Files Modified** | 4+ handlers | 1 handler |
-| **Context Passing** | Metadata through roll events | Local variables |
-| **Error Handling** | Fragmented across handlers | Centralized try/catch |
-| **Testing** | Mock coordination between handlers | Test complete workflow |
-| **Debugging** | Trace across multiple files | Single stack trace |
-| **Code Readability** | Jump between files | Read top-to-bottom |
-| **Maintainability** | Update multiple places | Update single function |
+| Metric | Before Unification | After Unification |
+|--------|-------------------|-------------------|
+| **Code Duplication** | Same logic in 2+ places | Single source of truth |
+| **Roll Processing** | Different paths for direct/requested rolls | Identical processing for all roll sources |
+| **Side Effects** | Duplicated chat messages + actions | Unified side effect coordination |
+| **Testing** | Mock complex coordination scenarios | Test pure roll processing functions |
+| **Debugging** | Track duplication across roll paths | Single processing pipeline |
+| **D&D Calculations** | Inconsistent between roll sources | Guaranteed consistency |
+| **Maintainability** | Update multiple roll handlers | Update single processRoll method |
+
+### Implementation Status
+
+| Component | Status | Key Achievement |
+|-----------|--------|-----------------|
+| **RollRequestService** | ✅ Complete | Promise-based roll correlation with timeout handling |
+| **AsyncActionContext** | ✅ Complete | Clean API for action handlers to request rolls and communicate |
+| **GM Action Handler Integration** | ✅ Complete | Backward-compatible context passing to all handlers |
+| **Functional Pipeline Architecture** | ✅ Complete | **Eliminated code duplication between roll paths** |
+| **Roll Handler Refactoring** | ✅ Complete | D&D handlers now use pure functions with unified side effects |
 
 ## Conclusion
 
-The unified action handler approach represents a fundamental improvement to Dungeon Lab's architecture for complex game mechanics. By leveraging the existing async action handler support and WebSocket infrastructure, we can eliminate the current fragmented system's complexity while dramatically improving developer experience.
+The unified action handler approach represents a fundamental improvement to Dungeon Lab's architecture for complex game mechanics. **Phase 1 implementation has been completed successfully**, delivering not only the originally proposed infrastructure but also solving a critical code duplication problem that would have made unified action handlers significantly more complex.
 
-### Key Takeaways
+### Key Achievements
 
-1. **Architecturally Sound**: Builds on existing async action handler support
-2. **Developer Friendly**: Intuitive async/await patterns with local state persistence  
-3. **Highly Testable**: Complete workflows can be unit tested in isolation
-4. **Performance Optimized**: Eliminates handler coordination overhead
-5. **Incrementally Adoptable**: Can be introduced alongside existing systems
+1. **✅ Infrastructure Complete**: All async action handler infrastructure is working and tested
+2. **✅ Roll Processing Unified**: Eliminated code duplication between direct rolls and action handler requested rolls  
+3. **✅ Pure Function Architecture**: Roll handlers now use clean, testable pure functions with separated side effects
+4. **✅ Backward Compatibility**: Existing roll handlers continue working unchanged during transition
+5. **✅ Developer Experience**: Ready for spell casting implementation with consistent D&D calculations
 
-### Recommendation
+### Major Architectural Discovery
 
-**Proceed with implementation starting with spell casting as proof of concept.** The benefits for complex D&D mechanics are substantial, and the existing infrastructure is well-prepared to support this pattern.
+During implementation, we discovered and solved a **critical duplication issue**: direct rolls from character sheets and roll requests from action handlers were using different processing paths, leading to inconsistent D&D calculations and duplicate side effects.
 
-Success with spell casting would validate this approach for potential adoption in other complex game actions, potentially becoming the new standard for sophisticated TTRPG mechanic implementation in Dungeon Lab.
+The **functional pipeline architecture** we implemented ensures that:
+- Both roll sources use **identical D&D processing logic**
+- Side effects (chat messages, follow-up rolls, actions) are **coordinated uniformly**
+- Roll processing is **pure and testable**, separated from side effects
+- **Promise resolution works seamlessly** with unified side effect execution
+
+### Next Steps
+
+**Phase 1 is complete. Ready to proceed to Phase 2: Basic Spell Casting Implementation.**
+
+The infrastructure foundation is now solid and battle-tested. All promise-based roll request coordination, timeout handling, action context utilities, and unified roll processing are working together seamlessly.
+
+The unified action handler pattern is ready to demonstrate its full potential with spell casting as the proof of concept, with the confidence that both direct rolls and action handler requested rolls will behave identically and consistently.
 
 ---
 

@@ -7,6 +7,7 @@
 
 import type { GameActionRequest } from '@dungeon-lab/shared/types/game-actions.mjs';
 import type { ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
+import type { AsyncActionContext } from '@dungeon-lab/shared/interfaces/action-context.interface.mjs';
 
 /**
  * Validation result returned by action handlers
@@ -63,7 +64,8 @@ export interface ActionHandler {
   
   execute?: (
     request: GameActionRequest, 
-    draft: ServerGameStateWithVirtuals
+    draft: ServerGameStateWithVirtuals,
+    context?: AsyncActionContext
   ) => Promise<void>;
   
   // UI/UX

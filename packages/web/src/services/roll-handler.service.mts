@@ -3,14 +3,17 @@ import type {
   ServerToClientEvents,
   ClientToServerEvents
 } from '@dungeon-lab/shared/types/socket/index.mjs';
-import type { RollServerResult, RollRequest } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
+import type { RollServerResult } from '@dungeon-lab/shared/types/socket/index.mjs';
+import type { RollRequest } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
 import type { ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
 import type { RollTypeHandler, RollHandlerContext } from '@dungeon-lab/shared-ui/types/plugin.mjs';
 import type { PluginContext } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
+import type { FollowUpChatMessage, FollowUpRollRequest, FollowUpActionRequest } from '@dungeon-lab/shared/interfaces/processed-roll-result.interface.mjs';
 import { useAuthStore } from '../stores/auth.store.mjs';
 import { useGameSessionStore } from '../stores/game-session.store.mjs';
 import { useGameStateStore } from '../stores/game-state.store.mjs';
 import { useChatStore } from '../stores/chat.store.mjs';
+import type { RollRequestService } from './roll-request.service.mts';
 // Using console.log for client-side logging
 
 /**
@@ -29,6 +32,15 @@ interface HandlerRegistration {
 export class RollHandlerService {
   private handlers = new Map<string, HandlerRegistration>();
   private socket: Socket<ServerToClientEvents, ClientToServerEvents> | null = null;
+  private rollRequestService: RollRequestService | null = null;
+
+  /**
+   * Register RollRequestService to receive roll result notifications
+   */
+  setRollRequestService(rollRequestService: RollRequestService): void {
+    this.rollRequestService = rollRequestService;
+    console.log('[RollHandlerService] RollRequestService registered for promise resolution');
+  }
 
   /**
    * Setup socket listener for roll:result events
@@ -77,6 +89,11 @@ export class RollHandlerService {
         userId: result.userId
       });
 
+      // First, notify RollRequestService to resolve any pending promises
+      if (this.rollRequestService) {
+        this.rollRequestService.handleRollResult(result);
+      }
+
       // Get handler registration for this roll type first
       const handlerRegistration = this.handlers.get(result.rollType);
       
@@ -115,8 +132,56 @@ export class RollHandlerService {
       });
       
       if (handlerRegistration) {
-        // Dispatch to specific handler with context
-        await handlerRegistration.handler.handleRoll(result, context);
+        // Check if handler supports the new processRoll method
+        if (handlerRegistration.handler.processRoll && typeof handlerRegistration.handler.processRoll === 'function') {
+          console.log('[RollHandlerService] Using new functional processRoll approach');
+          
+          // Use the new functional approach
+          const processed = await handlerRegistration.handler.processRoll(result, context);
+          
+          // Execute follow-up actions returned by processRoll
+          for (const action of processed.followUpActions) {
+            try {
+              if (action.type === 'chat-message') {
+                const chatAction = action as FollowUpChatMessage;
+                if (context.sendChatMessage) {
+                  context.sendChatMessage(chatAction.data.message, chatAction.data.options);
+                  console.log('[RollHandlerService] Executed chat message:', chatAction.data.message);
+                }
+              } else if (action.type === 'roll-request') {
+                const rollAction = action as FollowUpRollRequest;
+                if (context.requestRoll) {
+                  const rollRequest: RollRequest = {
+                    rollId: `followup-${Date.now()}`,
+                    message: rollAction.data.rollData.message || 'Follow-up roll',
+                    rollType: rollAction.data.rollType,
+                    dice: rollAction.data.rollData.dice,
+                    metadata: rollAction.data.rollData.metadata
+                  };
+                  context.requestRoll(rollAction.data.playerId, rollRequest);
+                  console.log('[RollHandlerService] Executed roll request:', rollAction.data.rollType);
+                }
+              } else if (action.type === 'action-request') {
+                const actionRequest = action as FollowUpActionRequest;
+                if (context.requestAction) {
+                  await context.requestAction(
+                    actionRequest.data.actionType,
+                    actionRequest.data.parameters,
+                    actionRequest.data.options
+                  );
+                  console.log('[RollHandlerService] Executed action request:', actionRequest.data.actionType);
+                }
+              }
+            } catch (error) {
+              console.error('[RollHandlerService] Error executing follow-up action:', error, action);
+            }
+          }
+        } else {
+          console.log('[RollHandlerService] Using legacy handleRoll approach');
+          
+          // Fall back to legacy approach
+          await handlerRegistration.handler.handleRoll?.(result, context);
+        }
       } else {
         // Use default handler (just logging for now)
         this.defaultHandler(result);

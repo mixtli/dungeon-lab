@@ -20,6 +20,8 @@ import { useGameSessionStore } from '../stores/game-session.store.mjs';
 import { useGameStateStore } from '../stores/game-state.store.mjs';
 import { useSocketStore } from '../stores/socket.store.mjs';
 import { useNotificationStore } from '../stores/notification.store.mjs';
+import { RollRequestService } from './roll-request.service.mts';
+import { createActionContext } from './action-context.service.mts';
 
 // Enable Immer patches for automatic patch generation
 enablePatches();
@@ -37,6 +39,9 @@ export class GMActionHandlerService {
     request: GameActionRequest;
     timestamp: number;
   }>();
+
+  // Roll request service for async action context
+  private rollRequestService = new RollRequestService();
 
   // Lazy-loaded stores to avoid initialization order issues
   private get gameSessionStore() {
@@ -153,6 +158,8 @@ export class GMActionHandlerService {
    * Execute an action using multiple handlers with Immer draft mutation
    */
   private async executeMultiHandlerAction(request: GameActionRequest, handlers: ActionHandler[]) {
+    let actionContext: any = null; // Initialize outside try block for cleanup access
+    
     try {
       const currentGameState = this.gameStateStore.gameState;
       
@@ -212,17 +219,25 @@ export class GMActionHandlerService {
       // Create draft for async operations
       const draft = createDraft(rawGameState);
       
+      // Create action context for unified handlers (using draft as game state)
+      actionContext = createActionContext(
+        draft as ServerGameStateWithVirtuals,
+        this.rollRequestService
+      );
+      
       // Execute all handlers against the draft with proper async support
       for (const handler of handlers) {
         if (handler.execute) {
           console.log('[GMActionHandler] Executing handler:', {
             pluginId: handler.pluginId || 'core',
-            priority: handler.priority || 0
+            priority: handler.priority || 0,
+            supportsContext: handler.execute.length >= 3 // Check if handler accepts context parameter
           });
           
           try {
-            // Properly await async handler execution
-            await handler.execute(request, draft as ServerGameStateWithVirtuals);
+            // Pass context as third parameter for backward compatibility
+            // Existing handlers ignore it, new unified handlers can use it
+            await handler.execute(request, draft as ServerGameStateWithVirtuals, actionContext);
             
             console.log('[GMActionHandler] Handler executed successfully:', {
               pluginId: handler.pluginId || 'core'
@@ -295,8 +310,13 @@ export class GMActionHandlerService {
         handlersExecuted: handlers.length,
         patchesApplied: immerPatches.length
       });
+
+      // Clean up action context resources
+      actionContext.cleanup?.();
       
     } catch (error) {
+      // Clean up action context on failure as well
+      actionContext?.cleanup?.();
       console.error('[GMActionHandler] Error executing multi-handler action:', error);
       this.socketStore.emit('gameAction:response', {
         success: false,
@@ -454,6 +474,9 @@ export class GMActionHandlerService {
     
     // Clear pending requests
     this.pendingRequests.clear();
+    
+    // Clean up roll request service
+    this.rollRequestService.destroy?.();
   }
 }
 

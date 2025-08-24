@@ -4,6 +4,7 @@ import type { PluginContext } from './plugin-context.mjs';
 import type { BaseTurnManagerPlugin } from '../base/base-turn-manager.mjs';
 import type { RollServerResult, RollRequest } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
 import type { ActionRequestResult, ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
+import type { ProcessedRollResult } from '@dungeon-lab/shared/interfaces/processed-roll-result.interface.mjs';
 
 // Export the base class for plugins to extend
 export { BaseGameSystemPlugin } from '../base/base-plugin.mjs';
@@ -64,7 +65,17 @@ export interface RollHandlerContext {
  * Plugins implement this to handle their specific roll types
  */
 export interface RollTypeHandler {
-  handleRoll(result: RollServerResult, context: RollHandlerContext): Promise<void>;
+  /**
+   * Process a roll result and return augmented data and follow-up actions
+   * New functional approach that doesn't have side effects
+   */
+  processRoll?(result: RollServerResult, context: RollHandlerContext): Promise<ProcessedRollResult>;
+  
+  /**
+   * Handle a roll result with side effects (legacy method)
+   * Will be deprecated in favor of processRoll
+   */
+  handleRoll?(result: RollServerResult, context: RollHandlerContext): Promise<void>;
 }
 
 /**

@@ -1,4 +1,4 @@
-import type { RollServerResult } from '../schemas/roll.schema.mjs';
+import type { RollServerResult } from '../types/socket/index.mjs';
 import type { ServerGameStateWithVirtuals } from '../types/index.mjs';
 
 /**
