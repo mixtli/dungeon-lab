@@ -134,16 +134,26 @@ export function getSpellDamage(spell: DndSpellDocument | DndSpellData): { dice: 
 }
 
 /**
- * Get spell saving throw information
+ * Get spell saving throw information with DC calculation
  */
-export function getSpellSavingThrow(spell: DndSpellDocument | DndSpellData): { ability: string; effectOnSave: string } | null {
+export function getSpellSavingThrow(spell: DndSpellDocument | DndSpellData, caster?: SpellCaster, className?: string): { ability: string; effectOnSave: string; dc?: number } | null {
   const spellData = 'pluginData' in spell ? spell.pluginData : spell;
   if (!spellData.savingThrow) return null;
   
-  return {
+  const saveInfo = {
     ability: spellData.savingThrow.ability,
     effectOnSave: spellData.savingThrow.effectOnSave
   };
+  
+  // Include DC calculation if caster is provided
+  if (caster) {
+    return {
+      ...saveInfo,
+      dc: calculateSpellSaveDC(caster, className)
+    };
+  }
+  
+  return saveInfo;
 }
 
 /**
@@ -367,6 +377,64 @@ export function calculateSpellSaveDC(caster: SpellCaster, className?: string): n
   } catch (error) {
     console.error('[SpellLookup] Error calculating spell save DC:', error);
     return 8;
+  }
+}
+
+/**
+ * Calculate target's saving throw bonus for a specific ability
+ */
+export function calculateTargetSaveBonus(target: SpellTarget, ability: string): number {
+  try {
+    if (target.documentType === 'character') {
+      const characterData = target.pluginData as DndCharacterData;
+      const savingThrows = characterData.savingThrows;
+      
+      if (!savingThrows) {
+        console.warn('[SpellLookup] Character has no saving throw data:', target.name);
+        return 0;
+      }
+      
+      // Get saving throw modifier for the specified ability
+      const saveBonus = savingThrows[ability as keyof typeof savingThrows];
+      if (typeof saveBonus === 'number') {
+        return saveBonus;
+      }
+      
+      console.warn('[SpellLookup] Invalid saving throw ability for character:', {
+        targetName: target.name,
+        ability,
+        availableAbilities: Object.keys(savingThrows)
+      });
+      return 0;
+      
+    } else if (target.documentType === 'actor') {
+      const actorData = target.pluginData as { 
+        savingThrows?: Record<string, number>;
+        abilityScores?: Record<string, { modifier: number }>;
+      };
+      
+      // First check if actor has explicit saving throw bonuses
+      if (actorData.savingThrows && actorData.savingThrows[ability] !== undefined) {
+        return actorData.savingThrows[ability];
+      }
+      
+      // Fall back to ability modifier if no specific save bonus
+      if (actorData.abilityScores && actorData.abilityScores[ability]) {
+        return actorData.abilityScores[ability].modifier;
+      }
+      
+      console.warn('[SpellLookup] Actor has no saving throw data for ability:', {
+        targetName: target.name,
+        ability
+      });
+      return 0;
+    }
+    
+    return 0;
+    
+  } catch (error) {
+    console.error('[SpellLookup] Error calculating target save bonus:', error);
+    return 0;
   }
 }
 

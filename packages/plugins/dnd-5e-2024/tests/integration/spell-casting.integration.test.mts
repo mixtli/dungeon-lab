@@ -530,4 +530,252 @@ describe('Spell Casting Integration Tests', () => {
       expect(plugin).toBeInstanceOf(DnD5e2024Plugin);
     });
   });
+
+  // =============================================
+  // PHASE 3.1: SAVING THROW INTEGRATION TESTS  
+  // =============================================
+
+  describe('Phase 3.1: Saving Throw Spell Integration', () => {
+    it('should handle Sacred Flame (save-only spell) end-to-end', async () => {
+      const mockSacredFlameSpell: DndSpellDocument = {
+        id: 'spell-sacred-flame-001',
+        pluginId: 'dnd-5e-2024', 
+        pluginDocumentType: 'spell',
+        name: 'Sacred Flame',
+        pluginData: {
+          name: 'Sacred Flame',
+          level: 0,
+          school: 'evocation',
+          savingThrow: { ability: 'dexterity', effectOnSave: 'none' },
+          damage: { dice: '1d8', type: 'radiant' }
+        }
+      };
+
+      // Mock getDocument to return Sacred Flame
+      mockPluginContext.getDocument.mockResolvedValue(mockSacredFlameSpell);
+
+      const gameState = createIntegrationGameState();
+      
+      const saveResult = [
+        {
+          rollId: 'save-001',
+          userId: 'player-001', 
+          results: [{ sides: 20, results: [8] }], // 8 + 2 = 10 vs DC 15 (FAIL)
+          arguments: {},
+          recipients: 'public'
+        }
+      ];
+
+      const damageResult = {
+        rollId: 'damage-001',
+        userId: 'player-001',
+        results: [{ sides: 8, results: [5] }], // 5 radiant damage
+        arguments: {},
+        recipients: 'public' 
+      };
+
+      mockAsyncActionContext.sendMultipleRollRequests.mockResolvedValue(saveResult);
+      mockAsyncActionContext.sendRollRequest.mockResolvedValue(damageResult);
+
+      const sacredFlameRequest: GameActionRequest = {
+        id: 'integration-sacred-flame',
+        timestamp: Date.now(),
+        sessionId: 'integration-session',
+        playerId: 'player-001',
+        action: 'dnd5e-2024:cast-spell',
+        parameters: {
+          spellId: 'spell-sacred-flame-001',
+          casterTokenId: 'token-wizard-001',
+          targetTokenIds: ['token-goblin-001'],
+          spellSlotLevel: 0
+        }
+      };
+
+      await executeSpellCast(sacredFlameRequest, gameState, mockAsyncActionContext);
+
+      // Verify saving throw was requested
+      expect(mockAsyncActionContext.sendMultipleRollRequests).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            rollType: 'saving-throw',
+            rollData: expect.objectContaining({
+              message: expect.stringContaining('dexterity save vs Sacred Flame')
+            })
+          })
+        ])
+      );
+
+      // Verify damage was applied (failed save)
+      expect((gameState.documents['actor-goblin-001'].pluginData as any).hitPoints.current).toBe(2); // 7 - 5 = 2
+    });
+
+    it('should handle Fireball (save for half damage) end-to-end', async () => {
+      const mockFireballSpell: DndSpellDocument = {
+        id: 'spell-fireball-001',
+        pluginId: 'dnd-5e-2024',
+        pluginDocumentType: 'spell', 
+        name: 'Fireball',
+        pluginData: {
+          name: 'Fireball',
+          level: 3,
+          school: 'evocation',
+          savingThrow: { ability: 'dexterity', effectOnSave: 'half' },
+          damage: { dice: '8d6', type: 'fire' }
+        }
+      };
+
+      mockPluginContext.getDocument.mockResolvedValue(mockFireballSpell);
+
+      const gameState = createIntegrationGameState();
+
+      // Mock successful save
+      const saveResult = [
+        {
+          rollId: 'save-001', 
+          userId: 'player-001',
+          results: [{ sides: 20, results: [18] }], // 18 + 2 = 20 vs DC 15 (SUCCESS)
+          arguments: {},
+          recipients: 'public'
+        }
+      ];
+
+      const damageResult = {
+        rollId: 'damage-001',
+        userId: 'player-001',
+        results: [{ sides: 6, results: [4, 3, 6, 2, 5, 1, 4, 3] }], // 28 total damage
+        arguments: {},
+        recipients: 'public'
+      };
+
+      mockAsyncActionContext.sendMultipleRollRequests.mockResolvedValue(saveResult);
+      mockAsyncActionContext.sendRollRequest.mockResolvedValue(damageResult);
+
+      const fireballRequest: GameActionRequest = {
+        id: 'integration-fireball',
+        timestamp: Date.now(),
+        sessionId: 'integration-session', 
+        playerId: 'player-001',
+        action: 'dnd5e-2024:cast-spell',
+        parameters: {
+          spellId: 'spell-fireball-001',
+          casterTokenId: 'token-wizard-001',
+          targetTokenIds: ['token-goblin-001'],
+          spellSlotLevel: 3
+        }
+      };
+
+      await executeSpellCast(fireballRequest, gameState, mockAsyncActionContext);
+
+      // Verify saving throw was requested
+      expect(mockAsyncActionContext.sendMultipleRollRequests).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            rollType: 'saving-throw',
+            rollData: expect.objectContaining({
+              message: expect.stringContaining('dexterity save vs Fireball')
+            })
+          })
+        ])
+      );
+
+      // Verify half damage was applied (successful save): 28/2 = 14, so 7-14 = -7, clamped to 0
+      expect((gameState.documents['actor-goblin-001'].pluginData as any).hitPoints.current).toBe(0);
+    });
+
+    it('should handle Ice Knife (attack + save) combined mechanics end-to-end', async () => {
+      const mockIceKnifeSpell: DndSpellDocument = {
+        id: 'spell-ice-knife-001',
+        pluginId: 'dnd-5e-2024',
+        pluginDocumentType: 'spell',
+        name: 'Ice Knife', 
+        pluginData: {
+          name: 'Ice Knife',
+          level: 1,
+          school: 'conjuration',
+          attackRoll: { type: 'ranged', ability: 'spell' },
+          savingThrow: { ability: 'dexterity', effectOnSave: 'half' },
+          damage: { dice: '1d10', type: 'piercing' }
+        }
+      };
+
+      mockPluginContext.getDocument.mockResolvedValue(mockIceKnifeSpell);
+
+      const gameState = createIntegrationGameState();
+
+      // Mock attack hit
+      const attackResult = [
+        {
+          rollId: 'attack-001',
+          userId: 'player-001',
+          results: [{ sides: 20, results: [15] }], // 15 + 5 = 20 vs AC 15 (HIT)
+          arguments: {},
+          recipients: 'public'
+        }
+      ];
+
+      // Mock save failure  
+      const saveResult = [
+        {
+          rollId: 'save-001',
+          userId: 'player-001',
+          results: [{ sides: 20, results: [8] }], // 8 + 2 = 10 vs DC 15 (FAIL)
+          arguments: {},
+          recipients: 'public'
+        }
+      ];
+
+      const damageResult = {
+        rollId: 'damage-001',
+        userId: 'player-001', 
+        results: [{ sides: 10, results: [7] }], // 7 piercing damage
+        arguments: {},
+        recipients: 'public'
+      };
+
+      mockAsyncActionContext.sendMultipleRollRequests
+        .mockResolvedValueOnce(attackResult)
+        .mockResolvedValueOnce(saveResult);
+      mockAsyncActionContext.sendRollRequest.mockResolvedValue(damageResult);
+
+      const iceKnifeRequest: GameActionRequest = {
+        id: 'integration-ice-knife',
+        timestamp: Date.now(),
+        sessionId: 'integration-session',
+        playerId: 'player-001', 
+        action: 'dnd5e-2024:cast-spell',
+        parameters: {
+          spellId: 'spell-ice-knife-001',
+          casterTokenId: 'token-wizard-001',
+          targetTokenIds: ['token-goblin-001'],
+          spellSlotLevel: 1
+        }
+      };
+
+      await executeSpellCast(iceKnifeRequest, gameState, mockAsyncActionContext);
+
+      // Verify both attack and save rolls were requested
+      expect(mockAsyncActionContext.sendMultipleRollRequests).toHaveBeenCalledTimes(2);
+      
+      // Verify spell attack roll
+      expect(mockAsyncActionContext.sendMultipleRollRequests).toHaveBeenNthCalledWith(1,
+        expect.arrayContaining([
+          expect.objectContaining({
+            rollType: 'spell-attack'
+          })
+        ])
+      );
+      
+      // Verify saving throw roll
+      expect(mockAsyncActionContext.sendMultipleRollRequests).toHaveBeenNthCalledWith(2,
+        expect.arrayContaining([
+          expect.objectContaining({ 
+            rollType: 'saving-throw'
+          })
+        ])
+      );
+
+      // Verify full damage applied (attack hit + save failed)
+      expect((gameState.documents['actor-goblin-001'].pluginData as any).hitPoints.current).toBe(0); // 7 - 7 = 0
+    });
+  });
 });

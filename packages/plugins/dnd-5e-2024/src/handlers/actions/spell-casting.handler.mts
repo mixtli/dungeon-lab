@@ -24,7 +24,9 @@ import {
   hasSpellSlotsAvailable,
   consumeSpellSlot,
   calculateSpellAttackBonus,
+  calculateTargetSaveBonus,
   getSpellDamage,
+  getSpellSavingThrow,
   type SpellCaster,
   type SpellTarget
 } from '../../services/spell-lookup.service.mjs';
@@ -220,8 +222,57 @@ export async function executeSpellCast(
     // ==========================================
     // PHASE 2: SAVING THROWS (Data-Driven)
     // ==========================================
-    // TODO: Implement in Phase 3.1 - Saving Throw Implementation
-    // This will handle spells like Fireball and dual-mechanic spells like Ice Knife
+    // Examples: Fireball (save only), Ice Knife (attack + save), Sacred Flame (save only)
+    let saveResults: RollServerResult[] = [];
+    let saveSuccesses: boolean[] = [];
+    
+    if (spell.pluginData.savingThrow) {
+      console.log('[SpellCasting] Spell has savingThrow field - requesting saving throws');
+      
+      const saveInfo = getSpellSavingThrow(spell, caster);
+      if (!saveInfo) {
+        console.warn('[SpellCasting] Failed to get saving throw information');
+      } else {
+        console.log(`[SpellCasting] Requesting ${saveInfo.ability} saving throws against DC ${saveInfo.dc}`);
+        
+        // Request saving throw rolls for all targets using AsyncActionContext
+        const saveRequests: RollRequestSpec[] = targets.map(target => ({
+          playerId: request.playerId,
+          rollType: 'saving-throw',
+          rollData: {
+            message: `${target.name} ${saveInfo.ability} save vs ${spell.pluginData.name}`,
+            dice: [{ sides: 20, quantity: 1 }],
+            metadata: {
+              spellId,
+              targetId: target.id,
+              saveBonus: calculateTargetSaveBonus(target, saveInfo.ability),
+              saveDC: saveInfo.dc,
+              saveAbility: saveInfo.ability,
+              spellName: spell.pluginData.name
+            }
+          }
+        }));
+        
+        // Use Promise-based correlation for all saving throw rolls
+        saveResults = await context.sendMultipleRollRequests(saveRequests);
+        
+        // Determine saves/failures for each target
+        saveSuccesses = saveResults.map((result, i) => {
+          const total = result.results.reduce((sum, diceGroup) => 
+            sum + diceGroup.results.reduce((groupSum, roll) => groupSum + roll, 0), 0
+          );
+          const saveBonus = calculateTargetSaveBonus(targets[i], saveInfo.ability);
+          const finalTotal = total + saveBonus;
+          const isSuccess = finalTotal >= saveInfo.dc!;
+          
+          console.log(`[SpellCasting] ${targets[i].name} save: ${total} + ${saveBonus} = ${finalTotal} vs DC ${saveInfo.dc} → ${isSuccess ? 'SUCCESS' : 'FAILURE'}`);
+          return isSuccess;
+        });
+        
+        const successCount = saveSuccesses.filter(success => success).length;
+        console.log(`[SpellCasting] ${successCount}/${targets.length} saving throws succeeded`);
+      }
+    }
     
     // ==========================================
     // PHASE 3: DAMAGE APPLICATION (Data-Driven)
@@ -251,29 +302,93 @@ export async function executeSpellCast(
         
         console.log(`[SpellCasting] Rolled ${totalDamage} ${damageInfo.type} damage`);
         
-        // Apply damage based on spell mechanics
+        // Apply damage based on spell mechanics (data-driven conditional logic)
         targets.forEach((target, i) => {
           let shouldTakeDamage = true;
+          let damageAmount = totalDamage;
+          let reason = '';
           
           // Check attack hit requirement for attack spells
           if (spell.pluginData.attackRoll) {
             shouldTakeDamage = attackHits[i];
+            reason = shouldTakeDamage ? 'attack hit' : 'attack missed';
           }
           
-          if (shouldTakeDamage) {
-            applyDamageToTarget(draft, target, totalDamage, damageInfo.type);
-            console.log(`[SpellCasting] Applied ${totalDamage} ${damageInfo.type} damage to ${target.name}`);
+          // Check saving throw requirements for save spells
+          if (spell.pluginData.savingThrow && shouldTakeDamage) {
+            const saveInfo = getSpellSavingThrow(spell, caster);
+            const savedSuccessfully = saveSuccesses[i];
+            
+            if (saveInfo?.effectOnSave === 'half') {
+              // Half damage on successful save
+              if (savedSuccessfully) {
+                damageAmount = Math.floor(totalDamage / 2);
+                reason = 'save succeeded (half damage)';
+              } else {
+                reason = 'save failed (full damage)';
+              }
+            } else if (saveInfo?.effectOnSave === 'none') {
+              // No damage on successful save
+              if (savedSuccessfully) {
+                shouldTakeDamage = false;
+                reason = 'save succeeded (no damage)';
+              } else {
+                reason = 'save failed (full damage)';
+              }
+            }
+          }
+          
+          if (shouldTakeDamage && damageAmount > 0) {
+            applyDamageToTarget(draft, target, damageAmount, damageInfo.type);
+            console.log(`[SpellCasting] Applied ${damageAmount} ${damageInfo.type} damage to ${target.name} (${reason})`);
           } else {
-            console.log(`[SpellCasting] ${target.name} takes no damage (attack missed)`);
+            console.log(`[SpellCasting] ${target.name} takes no damage (${reason})`);
           }
         });
         
-        // Send damage summary to chat
-        const hitTargets = targets.filter((_, i) => !spell.pluginData.attackRoll || attackHits[i]);
-        if (hitTargets.length > 0) {
-          await context.sendChatMessage(
-            `${spell.pluginData.name} deals ${totalDamage} ${damageInfo.type} damage to ${hitTargets.map(t => t.name).join(', ')}`
-          );
+        // Send damage summary to chat (enhanced for saving throws)
+        const damagedTargets: { name: string; damage: number; reason: string }[] = [];
+        
+        targets.forEach((target, i) => {
+          let shouldTakeDamage = true;
+          let damageAmount = totalDamage;
+          let reason = '';
+          
+          // Calculate the same damage logic as above for summary
+          if (spell.pluginData.attackRoll) {
+            shouldTakeDamage = attackHits[i];
+            reason = shouldTakeDamage ? 'hit' : 'missed';
+          }
+          
+          if (spell.pluginData.savingThrow && shouldTakeDamage) {
+            const saveInfo = getSpellSavingThrow(spell, caster);
+            const savedSuccessfully = saveSuccesses[i];
+            
+            if (saveInfo?.effectOnSave === 'half') {
+              if (savedSuccessfully) {
+                damageAmount = Math.floor(totalDamage / 2);
+                reason = 'saved (half)';
+              } else {
+                reason = 'failed save';
+              }
+            } else if (saveInfo?.effectOnSave === 'none') {
+              if (savedSuccessfully) {
+                shouldTakeDamage = false;
+                reason = 'saved (no damage)';
+              } else {
+                reason = 'failed save';
+              }
+            }
+          }
+          
+          if (shouldTakeDamage && damageAmount > 0) {
+            damagedTargets.push({ name: target.name, damage: damageAmount, reason });
+          }
+        });
+        
+        if (damagedTargets.length > 0) {
+          const summary = damagedTargets.map(t => `${t.name} (${t.damage} ${damageInfo.type})`).join(', ');
+          await context.sendChatMessage(`${spell.pluginData.name} deals damage to: ${summary}`);
         }
       }
     }

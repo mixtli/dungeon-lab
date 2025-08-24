@@ -19,7 +19,9 @@ vi.mock('../../../src/services/spell-lookup.service.mjs', () => ({
   hasSpellSlotsAvailable: vi.fn(),
   consumeSpellSlot: vi.fn(),
   calculateSpellAttackBonus: vi.fn(),
-  getSpellDamage: vi.fn()
+  calculateTargetSaveBonus: vi.fn(),
+  getSpellDamage: vi.fn(),
+  getSpellSavingThrow: vi.fn()
 }));
 
 // Import mocked functions
@@ -30,7 +32,9 @@ import {
   hasSpellSlotsAvailable,
   consumeSpellSlot,
   calculateSpellAttackBonus,
-  getSpellDamage
+  calculateTargetSaveBonus,
+  getSpellDamage,
+  getSpellSavingThrow
 } from '../../../src/services/spell-lookup.service.mjs';
 
 // Mock Fire Bolt spell document
@@ -113,6 +117,14 @@ const mockWizardCharacter: ICharacter = {
       wisdom: { base: 12, racial: 0, enhancement: 0 },
       charisma: { base: 8, racial: 0, enhancement: 0 }
     },
+    savingThrows: {
+      strength: 1,
+      dexterity: 2,
+      constitution: 3,
+      intelligence: 5,
+      wisdom: 1,
+      charisma: -1
+    },
     skills: {},
     proficiencies: { armor: [], weapons: [], tools: [], languages: [], other: [] },
     spellcasting: {
@@ -120,14 +132,15 @@ const mockWizardCharacter: ICharacter = {
         wizard: {
           ability: 'intelligence',
           spellcastingLevel: 3,
-          spellSaveDC: 13,
+          spellSaveDC: 15,
           spellAttackBonus: 5,
           preparation: 'prepared'
         }
       },
       spellSlots: {
         '1': { total: 2, used: 0 },
-        '2': { total: 1, used: 0 }
+        '2': { total: 1, used: 0 },
+        '3': { total: 1, used: 0 }
       },
       spells: [],
       cantrips: [
@@ -162,6 +175,53 @@ const mockGoblinActor: IActor = {
       charisma: 8
     },
     proficiencyBonus: 2,
+    savingThrows: {
+      strength: -1,
+      dexterity: 2,
+      constitution: 0,
+      intelligence: 0,
+      wisdom: -1,
+      charisma: -1
+    },
+    actions: [],
+    traits: [],
+    legendaryActions: []
+  }
+};
+
+// Second mock goblin for multi-target tests
+const mockGoblin2: IActor = {
+  id: 'actor-goblin-002',
+  name: 'Goblin',
+  documentType: 'actor',
+  createdBy: 'dm',
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  pluginData: {
+    name: 'Goblin',
+    size: 'small',
+    type: 'humanoid',
+    alignment: 'neutral evil',
+    armorClass: { value: 15, source: 'Leather Armor' },
+    hitPoints: { average: 7, formula: '2d6', current: 7 },
+    speed: { walk: 30 },
+    abilities: {
+      strength: 8,
+      dexterity: 14,
+      constitution: 10,
+      intelligence: 10,
+      wisdom: 8,
+      charisma: 8
+    },
+    proficiencyBonus: 2,
+    savingThrows: {
+      strength: -1,
+      dexterity: 2,
+      constitution: 0,
+      intelligence: 0,
+      wisdom: -1,
+      charisma: -1
+    },
     actions: [],
     traits: [],
     legendaryActions: []
@@ -172,7 +232,8 @@ const mockGoblinActor: IActor = {
 const mockGameState: ServerGameStateWithVirtuals = {
   documents: {
     'character-wizard-001': mockWizardCharacter,
-    'actor-goblin-001': mockGoblinActor
+    'actor-goblin-001': mockGoblinActor,
+    'actor-goblin-002': mockGoblin2
   },
   currentEncounter: {
     id: 'encounter-001',
@@ -199,6 +260,18 @@ const mockGameState: ServerGameStateWithVirtuals = {
           bottomRight: { x: 2, y: 2 }
         },
         position: { x: 2, y: 2 },
+        size: { width: 1, height: 1 },
+        layer: 'tokens'
+      },
+      {
+        id: 'token-goblin-002',
+        documentId: 'actor-goblin-002',
+        name: 'Goblin',
+        bounds: {
+          topLeft: { x: 3, y: 3 },
+          bottomRight: { x: 3, y: 3 }
+        },
+        position: { x: 3, y: 3 },
         size: { width: 1, height: 1 },
         layer: 'tokens'
       }
@@ -254,7 +327,9 @@ describe('Unified Spell Casting Handler', () => {
     (hasSpellSlotsAvailable as MockedFunction<any>).mockReturnValue(true);
     (consumeSpellSlot as MockedFunction<any>).mockReturnValue(true);
     (calculateSpellAttackBonus as MockedFunction<any>).mockReturnValue(5);
+    (calculateTargetSaveBonus as MockedFunction<any>).mockReturnValue(2); // Default dex save for goblin
     (getSpellDamage as MockedFunction<any>).mockReturnValue({ dice: '1d10', type: 'fire' });
+    (getSpellSavingThrow as MockedFunction<any>).mockReturnValue({ ability: 'dexterity', effectOnSave: 'none', dc: 15 });
     
     // Mock AsyncActionContext methods with default return values
     (mockAsyncActionContext.sendMultipleRollRequests as MockedFunction<any>).mockResolvedValue([
@@ -533,7 +608,7 @@ describe('Unified Spell Casting Handler', () => {
       await executeSpellCast(mockSpellCastRequest, mockDraft, mockAsyncActionContext);
       
       expect(mockAsyncActionContext.sendChatMessage).toHaveBeenCalledWith(
-        'Fire Bolt deals 8 fire damage to Goblin'
+        'Fire Bolt deals damage to: Goblin (8 fire)'
       );
       expect(mockAsyncActionContext.sendChatMessage).toHaveBeenCalledWith(
         'Fire Bolt cast successfully!'
@@ -624,6 +699,278 @@ describe('Unified Spell Casting Handler', () => {
           })
         ])
       );
+    });
+  });
+
+  // =============================================
+  // PHASE 2: SAVING THROW TESTS (Phase 3.1)
+  // =============================================
+  
+  describe('Phase 2: Saving Throw Logic', () => {
+    it('should request saving throw rolls for spells with savingThrow property', async () => {
+      // Mock Sacred Flame spell (save-only with no damage on success)
+      const mockSacredFlameSpell: DndSpellDocument = {
+        id: 'spell-sacred-flame-001',
+        pluginId: 'dnd-5e-2024',
+        pluginDocumentType: 'spell',
+        name: 'Sacred Flame',
+        pluginData: {
+          name: 'Sacred Flame',
+          level: 0,
+          school: 'evocation',
+          savingThrow: { ability: 'dexterity', effectOnSave: 'none' },
+          damage: { dice: '1d8', type: 'radiant' }
+        }
+      };
+
+      vi.mocked(lookupSpell).mockResolvedValue(mockSacredFlameSpell);
+
+      const mockSaveResults = [
+        {
+          rollId: 'roll-001',
+          userId: 'player-001',
+          results: [{ sides: 20, results: [12] }], // 12 + 2 = 14 vs DC 15 (FAIL)
+          arguments: {},
+          recipients: 'public'
+        }
+      ];
+
+      (mockAsyncActionContext.sendMultipleRollRequests as MockedFunction<any>).mockResolvedValue(mockSaveResults);
+
+      const mockDraft = structuredClone(mockGameState);
+
+      const sacredFlameRequest = {
+        ...mockSpellCastRequest,
+        parameters: {
+          ...mockSpellCastRequest.parameters,
+          spellId: 'spell-sacred-flame-001'
+        }
+      };
+
+      await executeSpellCast(sacredFlameRequest, mockDraft, mockAsyncActionContext);
+
+      expect(mockAsyncActionContext.sendMultipleRollRequests).toHaveBeenCalledWith([
+        expect.objectContaining({
+          playerId: 'player-001',
+          rollType: 'saving-throw',
+          rollData: expect.objectContaining({
+            message: 'Goblin dexterity save vs Sacred Flame',
+            dice: [{ sides: 20, quantity: 1 }],
+            metadata: expect.objectContaining({
+              spellId: 'spell-sacred-flame-001',
+              saveBonus: 2, // Mock goblin dex save
+              saveDC: 15,
+              saveAbility: 'dexterity'
+            })
+          })
+        })
+      ]);
+    });
+
+    it('should calculate save success/failure correctly', async () => {
+      const mockFireballSpell: DndSpellDocument = {
+        id: 'spell-fireball-001',
+        pluginId: 'dnd-5e-2024',
+        pluginDocumentType: 'spell',
+        name: 'Fireball',
+        pluginData: {
+          name: 'Fireball',
+          level: 3,
+          school: 'evocation',
+          savingThrow: { ability: 'dexterity', effectOnSave: 'half' },
+          damage: { dice: '8d6', type: 'fire' }
+        }
+      };
+
+      vi.mocked(lookupSpell).mockResolvedValue(mockFireballSpell);
+      
+      // Override the default mock for Fireball's save effect
+      (getSpellSavingThrow as MockedFunction<any>).mockReturnValue({ ability: 'dexterity', effectOnSave: 'half', dc: 15 });
+      
+      // Override getTargetForToken to return different goblins for multi-target test
+      (getTargetForToken as MockedFunction<any>).mockImplementation((tokenId) => {
+        if (tokenId === 'token-goblin-001') return mockGoblinActor;
+        if (tokenId === 'token-goblin-002') return mockGoblin2;
+        return null;
+      });
+
+      // Mock two targets: one saves, one fails
+      const mockSaveResults = [
+        {
+          rollId: 'roll-001',
+          userId: 'player-001',
+          results: [{ sides: 20, results: [18] }], // 18 + 2 = 20 vs DC 15 (SUCCESS)
+          arguments: {},
+          recipients: 'public'
+        },
+        {
+          rollId: 'roll-002',
+          userId: 'player-001',
+          results: [{ sides: 20, results: [8] }], // 8 + 2 = 10 vs DC 15 (FAIL)
+          arguments: {},
+          recipients: 'public'
+        }
+      ];
+
+      (mockAsyncActionContext.sendMultipleRollRequests as MockedFunction<any>).mockResolvedValue(mockSaveResults);
+
+      const mockDamageResult = {
+        rollId: 'damage-001',
+        userId: 'player-001',
+        results: [{ sides: 6, results: [4, 3, 6, 2, 5, 1, 4, 3] }], // 28 total damage
+        arguments: {},
+        recipients: 'public'
+      };
+
+      (mockAsyncActionContext.sendRollRequest as MockedFunction<any>).mockResolvedValue(mockDamageResult);
+
+      const mockDraft = structuredClone(mockGameState);
+
+      // Two targets for this test
+      const multiTargetRequest = {
+        ...mockSpellCastRequest,
+        parameters: {
+          ...mockSpellCastRequest.parameters,
+          spellId: 'spell-fireball-001',
+          targetTokenIds: ['token-goblin-001', 'token-goblin-002'],
+          spellSlotLevel: 3
+        }
+      };
+
+      await executeSpellCast(multiTargetRequest, mockDraft, mockAsyncActionContext);
+
+      // Check that first target (saved) takes half damage: 28/2 = 14
+      expect(mockDraft.documents['actor-goblin-001'].pluginData.hitPoints.current).toBe(0); // 7 - 14 = -7, clamped to 0
+      // Check that second target (failed) takes full damage: 28
+      expect(mockDraft.documents['actor-goblin-002'].pluginData.hitPoints.current).toBe(0); // 7 - 28 = -21, clamped to 0
+    });
+
+    it('should handle "none" effect on successful save', async () => {
+      const mockSacredFlameSpell: DndSpellDocument = {
+        id: 'spell-sacred-flame-001',
+        pluginId: 'dnd-5e-2024',
+        pluginDocumentType: 'spell',
+        name: 'Sacred Flame',
+        pluginData: {
+          name: 'Sacred Flame',
+          level: 0,
+          school: 'evocation',
+          savingThrow: { ability: 'dexterity', effectOnSave: 'none' },
+          damage: { dice: '1d8', type: 'radiant' }
+        }
+      };
+
+      vi.mocked(lookupSpell).mockResolvedValue(mockSacredFlameSpell);
+
+      const mockSaveResult = [
+        {
+          rollId: 'roll-001',
+          userId: 'player-001',
+          results: [{ sides: 20, results: [18] }], // 18 + 2 = 20 vs DC 15 (SUCCESS)
+          arguments: {},
+          recipients: 'public'
+        }
+      ];
+
+      (mockAsyncActionContext.sendMultipleRollRequests as MockedFunction<any>).mockResolvedValue(mockSaveResult);
+
+      const mockDamageResult = {
+        rollId: 'damage-001',
+        userId: 'player-001',
+        results: [{ sides: 8, results: [6] }], // 6 radiant damage
+        arguments: {},
+        recipients: 'public'
+      };
+
+      (mockAsyncActionContext.sendRollRequest as MockedFunction<any>).mockResolvedValue(mockDamageResult);
+
+      const mockDraft = structuredClone(mockGameState);
+
+      const sacredFlameRequest = {
+        ...mockSpellCastRequest,
+        parameters: {
+          ...mockSpellCastRequest.parameters,
+          spellId: 'spell-sacred-flame-001'
+        }
+      };
+
+      await executeSpellCast(sacredFlameRequest, mockDraft, mockAsyncActionContext);
+
+      // Target should take no damage (saved successfully)
+      expect(mockDraft.documents['actor-goblin-001'].pluginData.hitPoints.current).toBe(7); // unchanged
+    });
+
+    it('should handle combined attack and save mechanics (Ice Knife scenario)', async () => {
+      const mockIceKnifeSpell: DndSpellDocument = {
+        id: 'spell-ice-knife-001',
+        pluginId: 'dnd-5e-2024',
+        pluginDocumentType: 'spell',
+        name: 'Ice Knife',
+        pluginData: {
+          name: 'Ice Knife',
+          level: 1,
+          school: 'conjuration',
+          attackRoll: { type: 'ranged', ability: 'spell' },
+          savingThrow: { ability: 'dexterity', effectOnSave: 'half' },
+          damage: { dice: '1d10', type: 'piercing' }
+        }
+      };
+
+      vi.mocked(lookupSpell).mockResolvedValue(mockIceKnifeSpell);
+
+      // Mock attack hit and save failure for single target
+      const mockAttackResult = [
+        {
+          rollId: 'attack-001',
+          userId: 'player-001',
+          results: [{ sides: 20, results: [15] }], // 15 + 5 = 20 vs AC 15 (HIT)
+          arguments: {},
+          recipients: 'public'
+        }
+      ];
+
+      const mockSaveResult = [
+        {
+          rollId: 'save-001',
+          userId: 'player-001',
+          results: [{ sides: 20, results: [8] }], // 8 + 2 = 10 vs DC 15 (FAIL)
+          arguments: {},
+          recipients: 'public'
+        }
+      ];
+
+      (mockAsyncActionContext.sendMultipleRollRequests as MockedFunction<any>)
+        .mockResolvedValueOnce(mockAttackResult)
+        .mockResolvedValueOnce(mockSaveResult);
+
+      const mockDamageResult = {
+        rollId: 'damage-001',
+        userId: 'player-001',
+        results: [{ sides: 10, results: [8] }], // 8 piercing damage
+        arguments: {},
+        recipients: 'public'
+      };
+
+      (mockAsyncActionContext.sendRollRequest as MockedFunction<any>).mockResolvedValue(mockDamageResult);
+
+      const mockDraft = structuredClone(mockGameState);
+
+      const iceKnifeRequest = {
+        ...mockSpellCastRequest,
+        parameters: {
+          ...mockSpellCastRequest.parameters,
+          spellId: 'spell-ice-knife-001',
+          spellSlotLevel: 1
+        }
+      };
+
+      await executeSpellCast(iceKnifeRequest, mockDraft, mockAsyncActionContext);
+
+      // Target should take full damage (attack hit AND save failed)
+      expect(mockDraft.documents['actor-goblin-001'].pluginData.hitPoints.current).toBe(0); // 7 - 8 = -1, clamped to 0
+      
+      // Verify both attack and save rolls were requested
+      expect(mockAsyncActionContext.sendMultipleRollRequests).toHaveBeenCalledTimes(2); // attack + save
     });
   });
 });
