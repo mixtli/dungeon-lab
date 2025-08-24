@@ -3,7 +3,7 @@ import { baseSocketCallbackSchema } from './socket/base-callback.schema.mjs';
 
 // Roll (Client → Server) - What client sends to initiate a roll
 export const rollSchema = z.object({
-  id: z.string(),
+  rollId: z.string(),
   rollType: z.string(),
   pluginId: z.string(),
   
@@ -63,7 +63,7 @@ export const rollArgsSchema = z.tuple([
 // Roll Request (GM → Player) - Damage roll request from GM to specific player
 export const rollRequestSchema = z.object({
   /** Unique identifier for this roll request */
-  requestId: z.string(),
+  rollId: z.string(),
   /** Message to display to the player */
   message: z.string(),
   /** Type of roll being requested */

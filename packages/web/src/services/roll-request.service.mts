@@ -80,7 +80,7 @@ export class RollRequestService {
     // Send roll:request via existing WebSocket infrastructure
     // Note: This sends a roll request to a specific player via GM->Player communication
     socketStore.emit('roll:request', {
-      id: requestId, // Single ID flows through entire roll lifecycle
+      rollId: requestId, // Single rollId flows through entire roll lifecycle
       playerId,
       rollType,
       message: rollData.message || `Roll ${rollType}`,
@@ -170,10 +170,10 @@ export class RollRequestService {
    * @param result - Roll result from server
    */
   handleRollResult(result: RollServerResult): void {
-    const requestId = result.id;
+    const requestId = result.rollId;
     
     if (!requestId) {
-      console.warn('[RollRequestService] Received roll result without ID:', result);
+      console.warn('[RollRequestService] Received roll result without rollId:', result);
       return;
     }
 

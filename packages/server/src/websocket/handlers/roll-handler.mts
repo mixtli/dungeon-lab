@@ -176,7 +176,7 @@ function rollHandler(socket: Socket<ClientToServerEvents, ServerToClientEvents>)
         const error = `Invalid roll request data: ${validationResult.error.message}`;
         logger.warn(`Roll request validation failed for user ${userId}:`, validationResult.error);
         socket.emit('roll:request:error', {
-          requestId: data.requestId,
+          rollId: data.rollId,
           error
         });
         return;
@@ -186,7 +186,7 @@ function rollHandler(socket: Socket<ClientToServerEvents, ServerToClientEvents>)
       if (!socket.gameSessionId) {
         logger.warn(`Roll request from user ${userId} without active game session`);
         socket.emit('roll:request:error', {
-          requestId: data.requestId,
+          rollId: data.rollId,
           error: 'No active game session'
         });
         return;
@@ -197,7 +197,7 @@ function rollHandler(socket: Socket<ClientToServerEvents, ServerToClientEvents>)
       if (!session || session.gameMasterId !== userId) {
         logger.warn(`Roll request from non-GM user ${userId} in session ${socket.gameSessionId}`);
         socket.emit('roll:request:error', {
-          requestId: data.requestId,
+          rollId: data.rollId,
           error: 'Only GMs can send roll requests'
         });
         return;
@@ -216,7 +216,7 @@ function rollHandler(socket: Socket<ClientToServerEvents, ServerToClientEvents>)
         // Player not connected - send error back to GM
         logger.warn(`Player ${playerId} not connected for roll request in session ${socket.gameSessionId}`);
         socket.emit('roll:request:error', {
-          requestId: rollRequest.requestId,
+          rollId: rollRequest.rollId,
           error: 'Player not connected'
         });
       }
@@ -225,7 +225,7 @@ function rollHandler(socket: Socket<ClientToServerEvents, ServerToClientEvents>)
       logger.error('Error handling roll request:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to process roll request';
       socket.emit('roll:request:error', {
-        requestId: data.requestId || 'unknown',
+        rollId: data.rollId || 'unknown',
         error: errorMessage
       });
     }

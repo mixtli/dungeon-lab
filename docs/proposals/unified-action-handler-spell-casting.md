@@ -96,6 +96,13 @@ interface AsyncActionContext {
   gameState: ServerGameStateWithVirtuals
 }
 
+// Data structure for roll request parameters
+interface RollData {
+  message?: string;
+  dice: Array<{ sides: number; quantity: number }>;
+  metadata?: Record<string, unknown>;
+}
+
 // Roll request specification for multi-target scenarios
 interface RollRequestSpec {
   playerId: string
@@ -129,20 +136,17 @@ class RollRequestService {
     rollData: RollData,
     timeoutMs = 60000
   ): Promise<RollServerResult> {
-    const requestId = `roll_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    const rollId = `roll_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
     
     // Send roll:request via existing WebSocket infrastructure
     const socketStore = useSocketStore()
     socketStore.emit('roll:request', {
+      rollId,        // Single correlation ID flows through entire roll lifecycle
       playerId,
-      requestId,
       rollType,
       message: rollData.message || `Roll ${rollType}`,
-      diceExpression: rollData.diceExpression,
-      metadata: {
-        ...rollData.metadata,
-        responseToRequestId: requestId // Critical: ensures correlation
-      }
+      dice: rollData.dice,
+      metadata: rollData.metadata
     })
     
     // Return promise that resolves when roll:result comes back
@@ -150,10 +154,10 @@ class RollRequestService {
       const timeout = setTimeout(() => {
         const error = new Error(`Roll request timeout for player ${playerId} (${rollType})`)
         reject(error)
-        this.pendingRollRequests.delete(requestId)
+        this.pendingRollRequests.delete(rollId)
       }, timeoutMs)
       
-      this.pendingRollRequests.set(requestId, { 
+      this.pendingRollRequests.set(rollId, { 
         resolve, 
         reject, 
         timeout, 
@@ -178,14 +182,14 @@ class RollRequestService {
    * Handle incoming roll:result events (called by roll handler)
    */
   handleRollResult(result: RollServerResult): void {
-    const requestId = result.metadata?.responseToRequestId
-    if (!requestId) return
+    const rollId = result.rollId
+    if (!rollId) return
 
-    const pendingRequest = this.pendingRollRequests.get(requestId)
+    const pendingRequest = this.pendingRollRequests.get(rollId)
     if (pendingRequest) {
       clearTimeout(pendingRequest.timeout)
       pendingRequest.resolve(result)
-      this.pendingRollRequests.delete(requestId)
+      this.pendingRollRequests.delete(rollId)
     }
   }
 
@@ -194,12 +198,12 @@ class RollRequestService {
    */
   cleanupExpiredRequests(): void {
     const now = Date.now()
-    for (const [requestId, request] of this.pendingRollRequests.entries()) {
+    for (const [rollId, request] of this.pendingRollRequests.entries()) {
       // Clean up requests older than 2 minutes
-      if (now - parseInt(requestId.split('_')[1]) > 120000) {
+      if (now - parseInt(rollId.split('_')[1]) > 120000) {
         clearTimeout(request.timeout)
         request.reject(new Error('Request expired'))
-        this.pendingRollRequests.delete(requestId)
+        this.pendingRollRequests.delete(rollId)
       }
     }
   }
@@ -426,7 +430,7 @@ async function executeSpellCast(
       rollType: 'spell-attack',
       rollData: {
         message: `${spell.name} attack vs ${target.name}`,
-        diceExpression: '1d20',
+        dice: [{ sides: 20, quantity: 1 }],
         metadata: {
           spellId,
           targetId: target.id,
@@ -475,7 +479,7 @@ async function executeSpellCast(
       rollType: 'saving-throw',
       rollData: {
         message: `${spell.name} ${spell.saveAbility} save`,
-        diceExpression: '1d20',
+        dice: [{ sides: 20, quantity: 1 }],
         metadata: {
           ability: spell.saveAbility,
           spellDC: getSpellDC(caster),
@@ -506,7 +510,7 @@ async function executeSpellCast(
     for (const damageInfo of damageTypes) {
       const damageResult = await context.sendRollRequest(request.playerId, 'spell-damage', {
         message: `${spell.name} ${damageInfo.type} damage`,
-        diceExpression: damageInfo.dice,
+        dice: damageInfo.dice,
         metadata: {
           spellId,
           spellLevel: spellSlotLevel,
@@ -827,21 +831,21 @@ class ActionContextImpl implements AsyncActionContext {
   private activeRequests = new Set<string>()
   
   async sendRollRequest(playerId: string, rollType: string, rollData: RollData): Promise<RollServerResult> {
-    const requestId = generateRequestId()
-    this.activeRequests.add(requestId)
+    const rollId = generateRollId()
+    this.activeRequests.add(rollId)
     
     try {
       const result = await this.rollRequestService.sendRollRequest(playerId, rollType, rollData)
       return result
     } finally {
-      this.activeRequests.delete(requestId) // Ensure cleanup
+      this.activeRequests.delete(rollId) // Ensure cleanup
     }
   }
   
   cleanup(): void {
     // Clean up any remaining requests when action handler completes
-    for (const requestId of this.activeRequests) {
-      this.rollRequestService.cancelRequest(requestId)
+    for (const rollId of this.activeRequests) {
+      this.rollRequestService.cancelRequest(rollId)
     }
     this.activeRequests.clear()
   }

@@ -4,6 +4,20 @@
 
 This implementation plan breaks down the unified action handler spell casting system into concrete phases and trackable tasks. Based on the comprehensive proposal in `docs/proposals/unified-action-handler-spell-casting.md`, this plan provides a systematic roadmap for implementing the new architecture.
 
+## Current Status ⏳
+
+**Phase 1: Infrastructure Foundation** - 66% Complete (2/3 tasks) 
+- ✅ **1.1 Roll Request Service Implementation** - Complete with 20/20 tests passing
+- ✅ **1.2 Async Action Context Implementation** - Complete with 16/16 tests passing  
+- ⏳ **1.3 GM Action Handler Integration** - Next task
+
+**Ready for Phase 1.3:** The infrastructure for promise-based roll coordination and action context utilities is complete and tested. The system now supports:
+- Promise-based roll request/response correlation with timeout handling using single `rollId` correlation
+- Multi-target roll coordination with proper error handling  
+- AsyncActionContext interface providing all utilities needed for spell casting
+- Comprehensive test coverage (36/36 total tests passing)
+- Consistent `rollId` naming across all roll events (roll:request, roll, roll:result, roll:request:error) - no metadata correlation needed
+
 ## Implementation Strategy
 
 ### Core Principle
@@ -19,8 +33,8 @@ Implement infrastructure first, then build incrementally from simple to complex 
 
 ---
 
-## Phase 1: Infrastructure Foundation
-*Estimated Duration: 2-3 weeks*
+## Phase 1: Infrastructure Foundation ⏳ **66% COMPLETE (2/3 tasks)**
+*Estimated Duration: 2-3 weeks* | **Progress: 2 weeks completed**
 
 ### 1.1 Roll Request Service Implementation ✅ **COMPLETED**
 **Priority: Critical** | **Estimate: 1 week** | **Actual: 1 week**
@@ -47,34 +61,40 @@ Implement infrastructure first, then build incrementally from simple to complex 
   - **Acceptance Criteria**: ✅ >95% code coverage, all edge cases tested
 
 **Additional Improvements Delivered:**
-- [x] **Simplified ID tracking** - Single `id` field flows through entire roll chain (cleaner than original design)
+- [x] **Simplified rollId correlation** - Single `rollId` field flows through entire roll chain (roll:request → roll → roll:result → roll:request:error)
 - [x] **Enhanced WebSocket integration** - Clean correlation without metadata complexity
 - [x] **Memory management** - Automatic cleanup prevents leaks
 - [x] **Comprehensive error handling** - Timeout, disconnection, and partial failure scenarios
 
 **Dependencies**: None
 
-### 1.2 Async Action Context Implementation  
-**Priority: Critical** | **Estimate: 1 week**
+### 1.2 Async Action Context Implementation ✅ **COMPLETED**
+**Priority: Critical** | **Estimate: 1 week** | **Actual: 1 week**
 
-- [ ] **Define AsyncActionContext interface** (`packages/shared/src/interfaces/action-context.interface.mts`)
-  - [ ] Add roll request methods (`sendRollRequest`, `sendMultipleRollRequests`)
-  - [ ] Add communication utilities (`sendChatMessage`, `requestGMConfirmation`)
-  - [ ] Add game state access properties
-  - **Acceptance Criteria**: Interface provides all utilities needed for spell casting workflows
+- [x] **Define AsyncActionContext interface** (`packages/shared/src/interfaces/action-context.interface.mts`)
+  - [x] Add roll request methods (`sendRollRequest`, `sendMultipleRollRequests`)
+  - [x] Add communication utilities (`sendChatMessage`, `requestGMConfirmation`)
+  - [x] Add game state access properties
+  - **Acceptance Criteria**: ✅ Interface provides all utilities needed for spell casting workflows
 
-- [ ] **Implement ActionContextImpl class** (`packages/web/src/services/action-context.service.mts`)
-  - [ ] Integrate with RollRequestService
-  - [ ] Implement chat message functionality
-  - [ ] Add GM confirmation dialog support
-  - [ ] Include cleanup methods
-  - **Acceptance Criteria**: Context provides working implementations of all interface methods
+- [x] **Implement ActionContextImpl class** (`packages/web/src/services/action-context.service.mts`)
+  - [x] Integrate with RollRequestService
+  - [x] Implement chat message functionality  
+  - [x] Add GM confirmation dialog support
+  - [x] Include cleanup methods
+  - **Acceptance Criteria**: ✅ Context provides working implementations of all interface methods
 
-- [ ] **Create unit tests for ActionContext**
-  - [ ] Test roll request integration
-  - [ ] Test chat message functionality
-  - [ ] Test error handling and cleanup
-  - **Acceptance Criteria**: All context methods work correctly with proper error handling
+- [x] **Create unit tests for ActionContext** (`packages/web/src/services/__tests__/action-context.service.test.mts`)
+  - [x] Test roll request integration
+  - [x] Test chat message functionality
+  - [x] Test error handling and cleanup
+  - **Acceptance Criteria**: ✅ All context methods work correctly with proper error handling (16/16 tests passing)
+
+**Additional Improvements Delivered:**
+- [x] **Consistent rollId naming** - Updated all roll-related events to use `rollId` field for better greppability (eliminates metadata-based correlation)
+- [x] **Graceful error handling** - Chat failures don't break spell execution
+- [x] **Comprehensive logging** - Full visibility into action context operations
+- [x] **Dependency injection design** - Clean testable architecture with proper mocking support
 
 **Dependencies**: 1.1 Roll Request Service
 
@@ -105,10 +125,10 @@ Implement infrastructure first, then build incrementally from simple to complex 
 **Priority: High** | **Estimate: 3-4 days**
 
 - [ ] **Enhance roll handler** (`packages/server/src/websocket/handlers/roll-handler.mts`)
-  - [ ] Add support for roll request correlation metadata
-  - [ ] Ensure `responseToRequestId` is properly handled
-  - [ ] Add logging for request/response correlation
-  - **Acceptance Criteria**: Roll results include correlation IDs for Promise resolution
+  - [ ] Verify `rollId` correlation is working correctly
+  - [ ] Ensure roll:result events include the same `rollId` from roll:request
+  - [ ] Add logging for roll request/response correlation
+  - **Acceptance Criteria**: Roll results include `rollId` for Promise resolution
 
 - [ ] **Add integration tests**
   - [ ] Test complete WebSocket roll request/response cycle
