@@ -181,25 +181,41 @@ Implement infrastructure first, then build incrementally from simple to complex 
 ### 2.1 Spell Data Integration
 **Priority: High** | **Estimate: 1 week**
 
+> **Key Requirements**: 
+> - Use `pluginContext.getDocument()` for spell lookup (spells may not be in gameState)
+> - Support both characters AND actors as casters/targets (not just characters)
+> - Follow existing weapon handler patterns for actor/character handling
+
 - [ ] **Create spell lookup utilities** (`packages/plugins/dnd-5e-2024/src/services/spell-lookup.service.mts`)
-  - [ ] Implement `lookupSpell(spellId, gameState)` function
-  - [ ] Add spell data validation and error handling
-  - [ ] Create helper functions for spell property checks
-  - [ ] Add spell slot management utilities
-  - **Acceptance Criteria**: Can reliably lookup spell data and validate spell properties
+  - [ ] Implement `lookupSpell(spellId, pluginContext)` function using `pluginContext.getDocument()`
+  - [ ] Add spell data validation and error handling for compendium/database lookups
+  - [ ] Create helper functions for spell property checks (attack, save, damage, effects)
+  - [ ] Add spell slot management utilities for both characters and actors
+  - **Acceptance Criteria**: Can reliably lookup spell data from compendium and validate spell properties
 
-- [ ] **Add character/token utilities**
-  - [ ] Implement `getCharacterForToken(tokenId, gameState)` 
-  - [ ] Add `getSpellAttackBonus(character)` calculation
-  - [ ] Add `getSpellDC(character)` calculation  
-  - [ ] Implement `hasAvailableSpellSlot()` and `consumeSpellSlot()` functions
-  - **Acceptance Criteria**: All spell casting prerequisites can be validated and managed
+- [ ] **Add caster/target utilities supporting both characters and actors**
+  - [ ] Implement `getCasterForToken(tokenId, gameState)` - returns ICharacter | IActor
+  - [ ] Implement `getTargetForToken(tokenId, gameState)` - returns ICharacter | IActor  
+  - [ ] Add `getSpellAttackBonus(caster)` calculation supporting both document types
+  - [ ] Add `getSpellDC(caster)` calculation supporting both document types
+  - [ ] Implement `hasAvailableSpellSlot(caster, level)` for characters and actors
+  - [ ] Implement `consumeSpellSlot(caster, level, draft)` for characters and actors
+  - **Acceptance Criteria**: All spell casting utilities work with both character and actor casters/targets
 
-- [ ] **Create unit tests for spell utilities**
-  - [ ] Test spell lookup with various spell types
-  - [ ] Test spell slot management
-  - [ ] Test spell attack/DC calculations
-  - **Acceptance Criteria**: All spell data operations work reliably
+- [ ] **Add spell slot data structure utilities**
+  - [ ] Create `getSpellSlotData(caster)` to extract spell slots from pluginData
+  - [ ] Add validation for different spell slot storage formats (character vs actor)
+  - [ ] Implement spell slot restoration utilities (short rest, long rest)
+  - [ ] Add spell slot tracking and persistence in document state
+  - **Acceptance Criteria**: Spell slot management works consistently across document types
+
+- [ ] **Create comprehensive unit tests**
+  - [ ] Test spell lookup via `pluginContext.getDocument()` with mock responses
+  - [ ] Test spell slot management for both characters and actors
+  - [ ] Test spell attack/DC calculations for different caster types
+  - [ ] Test caster/target lookup for tokens linked to different document types
+  - [ ] Test error handling for missing spells, invalid casters, etc.
+  - **Acceptance Criteria**: All spell data operations work reliably with >90% code coverage
 
 **Dependencies**: Phase 1 complete
 

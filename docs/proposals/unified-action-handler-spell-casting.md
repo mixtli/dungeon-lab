@@ -292,6 +292,7 @@ class ActionContextImpl implements AsyncActionContext {
 
   constructor(
     public gameState: ServerGameStateWithVirtuals,
+    public pluginContext: PluginContext,
     rollRequestService: RollRequestService
   ) {
     this.rollRequestService = rollRequestService
@@ -473,9 +474,9 @@ async function executeSpellCast(
   const { spellId, casterTokenId, targetTokenIds, spellSlotLevel } = request.parameters as SpellCastParameters
   
   // Look up spell data and participants (local variables persist throughout!)
-  const spell = lookupSpell(spellId, draft)
-  const caster = getCharacterForToken(casterTokenId, draft)
-  const targets = targetTokenIds.map(id => lookupTarget(id, draft))
+  const spell = await lookupSpell(spellId, context.pluginContext)  // Use pluginContext for compendium lookup
+  const caster = getCasterForToken(casterTokenId, draft)           // Returns ICharacter | IActor  
+  const targets = targetTokenIds.map(id => getTargetForToken(id, draft)) // Returns ICharacter | IActor
   
   console.log(`[SpellCast] Casting ${spell.name} from ${caster.name} at ${targets.length} targets`)
   
@@ -1082,6 +1083,44 @@ class RollHandlerService {
 | **GM Action Handler Integration** | ✅ Complete | Backward-compatible context passing to all handlers |
 | **Functional Pipeline Architecture** | ✅ Complete | **Eliminated code duplication between roll paths** |
 | **Roll Handler Refactoring** | ✅ Complete | D&D handlers now use pure functions with unified side effects |
+
+### Key Implementation Requirements for Spell Casting
+
+Based on analysis of the existing codebase, Phase 2.1 implementation must address these critical requirements:
+
+#### 1. Spell Data Access
+- **Use `pluginContext.getDocument(spellId)`**: Spells may not be in gameState, they're stored in compendium
+- **Async spell lookup required**: Spell data comes from database/compendium, not memory
+- **Error handling**: Graceful handling of missing or invalid spell data
+
+#### 2. Actor/Character Support
+- **Both document types can be casters**: Characters (PCs) and Actors (NPCs/monsters) can cast spells
+- **Both document types can be targets**: Spells can target any token linked to character or actor
+- **Different data structures**: Character and Actor pluginData has different schemas for AC, spell slots, etc.
+- **Follow existing patterns**: Use same approach as weapon handlers for document type detection
+
+#### 3. Enhanced AsyncActionContext
+```typescript
+interface AsyncActionContext {
+  readonly gameState: ServerGameStateWithVirtuals;
+  readonly pluginContext: PluginContext;  // ✨ NEW: Required for spell lookup
+  // ... existing methods
+}
+```
+
+#### 4. Unified Document Access Functions
+```typescript
+// Support both character and actor casters/targets
+getCasterForToken(tokenId: string, gameState: GameState): ICharacter | IActor
+getTargetForToken(tokenId: string, gameState: GameState): ICharacter | IActor
+
+// Spell calculations work with both document types  
+getSpellAttackBonus(caster: ICharacter | IActor): number
+getSpellDC(caster: ICharacter | IActor): number
+hasAvailableSpellSlot(caster: ICharacter | IActor, level: number): boolean
+```
+
+These requirements ensure spell casting works seamlessly with the existing D&D plugin architecture while supporting the full range of caster and target types.
 
 ## Conclusion
 

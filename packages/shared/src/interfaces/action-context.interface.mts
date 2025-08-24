@@ -1,5 +1,6 @@
 import type { RollServerResult } from '../types/socket/index.mjs';
 import type { ServerGameStateWithVirtuals } from '../types/index.mjs';
+import type { PluginContext } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 
 /**
  * Data structure for roll request parameters
@@ -39,6 +40,12 @@ export interface AsyncActionContext {
    * Game state for the current action execution
    */
   readonly gameState: ServerGameStateWithVirtuals;
+
+  /**
+   * Plugin context for document lookup and compendium access
+   * Required for spell casting to lookup spell data via getDocument()
+   */
+  readonly pluginContext: PluginContext;
 
   /**
    * Send a roll request to a specific player and await the result

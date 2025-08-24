@@ -6,6 +6,7 @@ import type {
 } from '@dungeon-lab/shared/interfaces/action-context.interface.mjs';
 import type { RollServerResult } from '@dungeon-lab/shared/types/socket/index.mjs';
 import type { ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
+import type { PluginContext } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 import { RollRequestService } from './roll-request.service.mts';
 import { useChatStore } from '../stores/chat.store.mts';
 
@@ -18,6 +19,7 @@ export class ActionContextImpl implements AsyncActionContext {
 
   constructor(
     public readonly gameState: ServerGameStateWithVirtuals,
+    public readonly pluginContext: PluginContext,
     private rollRequestService: RollRequestService
   ) {}
 
@@ -149,7 +151,18 @@ export class ActionContextImpl implements AsyncActionContext {
  */
 export function createActionContext(
   gameState: ServerGameStateWithVirtuals,
-  rollRequestService: RollRequestService = new RollRequestService()
+  rollRequestService: RollRequestService = new RollRequestService(),
+  pluginContext?: PluginContext
 ): AsyncActionContext {
-  return new ActionContextImpl(gameState, rollRequestService);
+  // If no pluginContext provided, create a minimal mock for backward compatibility
+  const context = pluginContext || {
+    getDocument: async (id: string) => { throw new Error(`getDocument not available: ${id}`); },
+    searchDocuments: async () => { throw new Error('searchDocuments not available'); },
+    getCompendiumEntry: async (id: string) => { throw new Error(`getCompendiumEntry not available: ${id}`); },
+    searchCompendiumEntries: async () => { throw new Error('searchCompendiumEntries not available'); },
+    store: {} as any,
+    gameState: undefined
+  };
+  
+  return new ActionContextImpl(gameState, context, rollRequestService);
 }
