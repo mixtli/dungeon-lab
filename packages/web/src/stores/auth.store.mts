@@ -94,6 +94,11 @@ export const useAuthStore = defineStore(
         console.error('Logout error:', err);
       } finally {
         user.value = undefined;
+        // Use window location to redirect to home page after clearing authentication
+        // We can't use useRouter() in a store, so we'll use the window location directly
+        if (typeof window !== 'undefined') {
+          window.location.replace('/');
+        }
       }
     }
 
