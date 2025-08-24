@@ -6,10 +6,14 @@
  * - Action economy (action already used this turn)
  * - Condition checks (silenced, unconscious, etc.)
  * - Spell known/prepared validation
+ * 
+ * Updated to use the unified spell casting handler from Phase 2.2
  */
 
 import type { GameActionRequest, ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
 import type { ActionHandler, ActionValidationResult } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
+import type { AsyncActionContext } from '@dungeon-lab/shared/interfaces/action-context.interface.mjs';
+import { executeSpellCast } from './spell-casting.handler.mjs';
 
 /**
  * Validate spell casting requirements
@@ -209,11 +213,34 @@ export function executeSpellCasting(
 }
 
 /**
+ * Unified spell casting execution function
+ * Uses the new unified spell casting handler with AsyncActionContext
+ */
+async function executeUnifiedSpellCasting(
+  request: GameActionRequest,
+  draft: ServerGameStateWithVirtuals,
+  context?: AsyncActionContext
+): Promise<void> {
+  console.log('[DnD5e] Executing unified spell casting');
+  
+  if (context) {
+    // Use the new unified spell casting handler
+    console.log('[DnD5e] Using unified spell casting handler with AsyncActionContext');
+    await executeSpellCast(request, draft, context);
+  } else {
+    // Fallback to legacy implementation for backward compatibility
+    console.log('[DnD5e] Using legacy spell casting handler (no AsyncActionContext available)');
+    executeSpellCasting(request, draft);
+  }
+}
+
+/**
  * D&D Cast Spell Action Handler
- * Pure plugin action - not enhancing a core action
+ * Now uses unified spell casting handler when AsyncActionContext is available
  */
 export const dndCastSpellHandler: Omit<ActionHandler, 'pluginId'> = {
   validate: validateSpellCasting,
-  execute: executeSpellCasting,
-  approvalMessage: (request) => `wants to cast ${request.parameters.spellId || 'a spell'}`
+  execute: executeUnifiedSpellCasting,
+  approvalMessage: (request) => `wants to cast ${request.parameters.spellId || 'a spell'}`,
+  priority: 100 // Plugin priority
 };
