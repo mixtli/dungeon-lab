@@ -875,17 +875,31 @@ const finalAbilities = computed(() => {
   return finalScores;
 });
 
-// Ability score update method - directly updates character.pluginData.abilities[ability].override
+// Ability score update method - updates characterCopy.pluginData.abilities[ability].override for proper change detection
 const updateAbilityScore = (abilityName: string, newScore: number) => {
   if (isNaN(newScore) || newScore < 1 || newScore > 30) return;
   
-  // Ensure abilities structure exists
-  if (!character.value!.pluginData) character.value!.pluginData = {};
-  if (!(character.value!.pluginData as any).abilities) (character.value!.pluginData as any).abilities = {};
-  if (!(character.value!.pluginData as any).abilities[abilityName]) (character.value!.pluginData as any).abilities[abilityName] = {};
+  // Only allow updates in edit mode
+  if (!props.editMode || props.readonly) {
+    console.warn('[CharacterSheet] Cannot update ability scores outside of edit mode');
+    return;
+  }
   
-  // Set the override value directly
-  (character.value!.pluginData as any).abilities[abilityName].override = newScore;
+  // Must have a character copy to edit
+  if (!characterCopy.value) {
+    console.warn('[CharacterSheet] No character copy available for editing');
+    return;
+  }
+  
+  // Ensure abilities structure exists in the character COPY (not original)
+  if (!characterCopy.value.pluginData) characterCopy.value.pluginData = {};
+  if (!(characterCopy.value.pluginData as any).abilities) (characterCopy.value.pluginData as any).abilities = {};
+  if (!(characterCopy.value.pluginData as any).abilities[abilityName]) (characterCopy.value.pluginData as any).abilities[abilityName] = {};
+  
+  // Set the override value in the copy (this will be detected by patch generation)
+  (characterCopy.value.pluginData as any).abilities[abilityName].override = newScore;
+  
+  console.log('[CharacterSheet] Updated ability score in copy:', { abilityName, newScore, copyId: characterCopy.value.id });
 };
 
 // Computed properties for D&D 5e mechanics

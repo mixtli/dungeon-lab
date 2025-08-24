@@ -19,6 +19,7 @@ import { useChatStore, type ApprovalData } from '../stores/chat.store.mts';
 import { useGameSessionStore } from '../stores/game-session.store.mjs';
 import { useGameStateStore } from '../stores/game-state.store.mjs';
 import { useSocketStore } from '../stores/socket.store.mjs';
+import { useNotificationStore } from '../stores/notification.store.mjs';
 
 // Enable Immer patches for automatic patch generation
 enablePatches();
@@ -52,6 +53,10 @@ export class GMActionHandlerService {
 
   private get chatStore() {
     return useChatStore();
+  }
+
+  private get notificationStore() {
+    return useNotificationStore();
   }
 
   /**
@@ -346,6 +351,13 @@ export class GMActionHandlerService {
 
     // Send to chat store for display
     this.chatStore.sendApprovalRequest(approvalData);
+    
+    // Send notification toast to alert GM
+    this.notificationStore.addNotification({
+      message: `${playerName} requests approval for ${request.action}`,
+      type: 'info',
+      duration: 5000 // Longer duration so GM has time to notice
+    });
     
     console.log('[GMActionHandler] Approval request sent to chat:', request.id);
   }
