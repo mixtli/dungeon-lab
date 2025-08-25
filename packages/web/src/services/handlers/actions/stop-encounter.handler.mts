@@ -6,16 +6,17 @@
 
 import type { GameActionRequest, StopEncounterParameters } from '@dungeon-lab/shared/types/index.mjs';
 import type { ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
-import type { ActionHandler, ValidationResult } from '../../action-handler.interface.mjs';
+import type { ActionHandler, ActionValidationResult, ActionValidationHandler, ActionExecutionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
+import type { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.mjs';
 import { generateLifecycleResetPatches } from '@dungeon-lab/shared/utils/document-state-lifecycle.mjs';
 
 /**
  * Validate stop encounter request
  */
-async function validateStopEncounter(
+const validateStopEncounter: ActionValidationHandler = async (
   request: GameActionRequest, 
   gameState: ServerGameStateWithVirtuals
-): Promise<ValidationResult> {
+): Promise<ActionValidationResult> => {
   const params = request.parameters as StopEncounterParameters;
 
   console.log('[StopEncounterHandler] Validating encounter stop:', {
@@ -73,10 +74,11 @@ async function validateStopEncounter(
 /**
  * Execute encounter stop using direct state mutation
  */
-async function executeStopEncounter(
+const executeStopEncounter: ActionExecutionHandler = async (
   request: GameActionRequest, 
-  draft: ServerGameStateWithVirtuals
-): Promise<void> {
+  draft: ServerGameStateWithVirtuals,
+  _context: AsyncActionContext
+): Promise<void> => {
   const params = request.parameters as StopEncounterParameters;
 
   console.log('[StopEncounterHandler] Executing encounter stop:', {
@@ -155,7 +157,7 @@ async function executeStopEncounter(
 /**
  * Core stop-encounter action handler
  */
-export const stopEncounterActionHandler: ActionHandler = {
+export const stopEncounterActionHandler: Omit<ActionHandler, 'pluginId'> = {
   priority: 0, // Core handler runs first
   gmOnly: true, // Only GMs can stop encounters
   validate: validateStopEncounter,

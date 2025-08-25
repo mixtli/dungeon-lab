@@ -100,7 +100,8 @@
       "Bash(sed:*)",
       "mcp__git__git_diff_unstaged",
       "WebFetch(domain:immerjs.github.io)",
-      "mcp__playwright__browser_tab_list"
+      "mcp__playwright__browser_tab_list",
+      "Bash(/dev/null)"
     ],
     "defaultMode": "acceptEdits",
     "additionalDirectories": [

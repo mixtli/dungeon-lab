@@ -1,8 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ActionContextImpl, createActionContext } from '../action-context.service.mts';
 import type { RollServerResult } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
-import type { ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
-import type { RollData, RollRequestSpec } from '@dungeon-lab/shared/interfaces/action-context.interface.mjs';
+import type { RollData, RollRequestSpec } from '@dungeon-lab/shared-ui/types/action-context.mjs';
 
 // Mock the RollRequestService
 const mockRollRequestService = {
@@ -24,8 +23,8 @@ vi.mock('../stores/chat.store.mts', () => ({
 
 describe('ActionContextImpl', () => {
   let actionContext: ActionContextImpl;
-  let mockGameState: ServerGameStateWithVirtuals;
   let mockChatStore: any;
+  let mockPluginContext: any;
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -34,13 +33,17 @@ describe('ActionContextImpl', () => {
     const { useChatStore } = await vi.importMock('../stores/chat.store.mts') as any;
     mockChatStore = useChatStore();
     
-    // Create mock game state
-    mockGameState = {
-      documents: {},
-      virtuals: {}
-    } as ServerGameStateWithVirtuals;
+    // Create mock plugin context
+    mockPluginContext = {
+      getDocument: vi.fn(),
+      searchDocuments: vi.fn(),
+      getCompendiumEntry: vi.fn(),
+      searchCompendiumEntries: vi.fn(),
+      store: {},
+      gameState: undefined
+    };
 
-    actionContext = new ActionContextImpl(mockGameState, mockRollRequestService as any);
+    actionContext = new ActionContextImpl(mockPluginContext, mockRollRequestService as any);
   });
 
   afterEach(() => {
@@ -48,8 +51,8 @@ describe('ActionContextImpl', () => {
   });
 
   describe('constructor', () => {
-    it('should initialize with game state and roll request service', () => {
-      expect(actionContext.gameState).toBe(mockGameState);
+    it('should initialize with plugin context and roll request service', () => {
+      expect(actionContext.pluginContext).toBe(mockPluginContext);
       expect(actionContext).toBeInstanceOf(ActionContextImpl);
     });
   });
@@ -346,17 +349,16 @@ describe('ActionContextImpl', () => {
 
   describe('createActionContext factory', () => {
     it('should create ActionContextImpl with provided dependencies', () => {
-      const context = createActionContext(mockGameState, mockRollRequestService as any);
+      const context = createActionContext(mockRollRequestService as any, mockPluginContext);
 
       expect(context).toBeInstanceOf(ActionContextImpl);
-      expect(context.gameState).toBe(mockGameState);
+      expect(context.pluginContext).toBe(mockPluginContext);
     });
 
     it('should create ActionContextImpl with default RollRequestService', () => {
-      const context = createActionContext(mockGameState);
+      const context = createActionContext();
 
       expect(context).toBeInstanceOf(ActionContextImpl);
-      expect(context.gameState).toBe(mockGameState);
     });
   });
 });

@@ -7,17 +7,18 @@
 
 import type { GameActionRequest, MoveTokenParameters } from '@dungeon-lab/shared/types/index.mjs';
 import type { ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
-import type { ActionHandler, ValidationResult } from '../../action-handler.interface.mjs';
+import type { ActionHandler, ActionValidationResult, ActionValidationHandler, ActionExecutionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
+import type { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.mjs';
 import { useGameSessionStore } from '../../../stores/game-session.store.mjs';
 import { checkWallCollision } from '../../../utils/collision-detection.mjs';
 
 /**
  * Validate token movement request
  */
-async function validateMoveToken(
+const validateMoveToken: ActionValidationHandler = async (
   request: GameActionRequest, 
   gameState: ServerGameStateWithVirtuals
-): Promise<ValidationResult> {
+): Promise<ActionValidationResult> => {
   const params = request.parameters as MoveTokenParameters;
   const gameSessionStore = useGameSessionStore();
 
@@ -39,7 +40,7 @@ async function validateMoveToken(
   }
 
   // Find the token
-  const token = gameState.currentEncounter.tokens?.find(t => t.id === params.tokenId);
+  const token = gameState.currentEncounter.tokens?.[params.tokenId];
   if (!token) {
     return {
       valid: false,
@@ -154,10 +155,11 @@ function calculateNewBounds(
  * Execute token movement using direct draft mutation
  * The draft is provided by Immer's produceWithPatches in the GM Action Handler
  */
-async function executeMoveToken(
+const executeMoveToken: ActionExecutionHandler = async (
   request: GameActionRequest, 
-  draft: ServerGameStateWithVirtuals
-): Promise<void> {
+  draft: ServerGameStateWithVirtuals,
+  _context: AsyncActionContext
+): Promise<void> => {
   const params = request.parameters as MoveTokenParameters;
 
   console.log('[MoveTokenHandler] Executing token movement with direct draft mutation:', {
@@ -166,15 +168,9 @@ async function executeMoveToken(
     requestId: request.id
   });
 
-  // Find the token in the current encounter draft
-  if (!draft.currentEncounter?.tokens) {
-    throw new Error('No tokens found in current encounter');
-  }
-
-  const token = draft.currentEncounter.tokens.find(t => t.id === params.tokenId);
-  if (!token) {
-    throw new Error('Token not found for movement update');
-  }
+  // Get the token from the current encounter draft
+  // Validation ensures currentEncounter and token exist
+  const token = draft.currentEncounter!.tokens![params.tokenId]!;
 
   // Calculate new bounds using the helper function
   const newBounds = calculateNewBounds(
@@ -196,7 +192,7 @@ async function executeMoveToken(
 /**
  * Core move-token action handler
  */
-export const moveTokenActionHandler: ActionHandler = {
+export const moveTokenActionHandler: Omit<ActionHandler, 'pluginId'> = {
   priority: 0, // Core handler runs first
   validate: validateMoveToken,
   execute: executeMoveToken,

@@ -15,7 +15,6 @@ import {
 import { useGameSessionStore } from '../stores/game-session.store.mjs';
 import { useAuthStore } from '../stores/auth.store.mjs';
 import { useSocketStore } from '../stores/socket.store.mjs';
-import { turnManagerService } from './turn-manager.service.mjs';
 import { useGameStateStore } from '../stores/game-state.store.mjs';
 import { getHandlers } from './multi-handler-registry.mjs';
 import type { ActionValidationResult } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
@@ -33,7 +32,10 @@ function generateRequestId(): string {
  */
 async function validateActionClientSide(
   action: GameActionType,
+  actorId: string | undefined,
   parameters: Record<string, unknown>,
+  actorTokenId: string | undefined,
+  targetTokenIds: string[] | undefined,
   gameState: any,
   playerId: string
 ): Promise<ActionValidationResult | null> {
@@ -51,6 +53,9 @@ async function validateActionClientSide(
         const request: GameActionRequest = {
           id: 'client-validation-' + Date.now(),
           action,
+          actorId,
+          actorTokenId,
+          targetTokenIds,
           parameters,
           playerId,
           sessionId: '',
@@ -123,7 +128,10 @@ export class PlayerActionService {
    */
   async requestAction(
     action: GameActionType,
+    actorId: string | undefined,
     parameters: Record<string, unknown>,
+    actorTokenId?: string,
+    targetTokenIds?: string[],
     options: { 
       description?: string;
     } = {}
@@ -139,7 +147,7 @@ export class PlayerActionService {
 
     // Client-side validation using the same handlers as the server
     // This provides optimization while ensuring consistency with server-side validation
-    const clientValidationResult = await validateActionClientSide(action, parameters, this.gameStateStore.gameState, this.authStore.user.id);
+    const clientValidationResult = await validateActionClientSide(action, actorId, parameters, actorTokenId, targetTokenIds, this.gameStateStore.gameState, this.authStore.user.id);
     
     if (clientValidationResult && !clientValidationResult.valid) {
       console.log('[PlayerActionService] 🚫 Client-side validation failed:', clientValidationResult.error);
@@ -164,6 +172,9 @@ export class PlayerActionService {
       sessionId: this.gameSessionStore.currentSession.id,
       timestamp: Date.now(),
       action,
+      actorId,
+      actorTokenId,
+      targetTokenIds,
       parameters,
       description: options.description
     };
@@ -204,28 +215,6 @@ export class PlayerActionService {
 
   // Note: Turn validation is now handled by the same server validation handlers
   // used on client-side for consistency. No need for separate requiresCurrentTurn logic.
-  
-  private getUserTokens(userId: string) {
-    // Get tokens owned by this user (direct ownership via ownerId)
-    const tokens = this.gameStateStore.currentEncounter?.tokens || [];
-    
-    return tokens.filter(token => {
-      // Direct ownership check via ownerId field
-      if (token.ownerId === userId) {
-        return true;
-      }
-      
-      // Fallback to document ownership chain for backwards compatibility
-      // This can be removed once all tokens have ownerId set
-      if (!token.documentId) return false;
-      
-      const documents = Object.values(this.gameStateStore.gameState?.documents || {});
-      const document = documents.find(doc => doc.id === token.documentId);
-      
-      // Check if the user owns the document (character/actor) or the document has direct ownerId
-      return document?.ownerId === userId || document?.createdBy === userId;
-    });
-  }
 }
 
 // Singleton instance

@@ -139,7 +139,7 @@ function handleRollCommand(formula: string) {
   
   // Create roll object using the new roll schema
   const roll = {
-    id: rollId,
+    rollId: rollId,
     rollType: 'raw-dice',
     pluginId: 'core', // Core system roll, not plugin-specific
     dice: parsedDice.dice,

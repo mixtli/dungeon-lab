@@ -209,8 +209,8 @@ export const useGameStateStore = defineStore(
                 hash: gameStateHash.value,
                 hasDocuments: Object.keys(gameState.value?.documents || {}).length,
                 hasCurrentEncounter: !!gameState.value?.currentEncounter,
-                encounterTokenCount: gameState.value?.currentEncounter?.tokens?.length || 0,
-                encounterTokenIds: gameState.value?.currentEncounter?.tokens?.map(t => t.id) || []
+                encounterTokenCount: Object.keys(gameState.value?.currentEncounter?.tokens || {}).length,
+                encounterTokenIds: Object.keys(gameState.value?.currentEncounter?.tokens || {})
               });
 
               resolve();
@@ -850,7 +850,7 @@ export const useGameStateStore = defineStore(
 
       const operations: JsonPatchOperation[] = [{
         op: 'add',
-        path: '/currentEncounter/tokens/-',
+        path: `/currentEncounter/tokens/${tokenId}`,
         value: tokenData
       }];
 

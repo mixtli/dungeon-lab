@@ -9,6 +9,7 @@ import type { ComputedRef, Ref, Component } from 'vue';
 import type { BaseDocument, ICompendiumEntry, ICharacter, IActor, IItem, IEncounter, IToken, ServerGameStateWithVirtuals, StateUpdateBroadcast, GameActionRequest, ActionRequestResult } from '@dungeon-lab/shared/types/index.mjs';
 import type { Roll, RollRequest } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
 import type { RollTypeHandler } from './plugin.mjs';
+import type { AsyncActionContext } from './action-context.mjs';
 
 /**
  * Validation result returned by action handlers
@@ -32,31 +33,50 @@ export interface ResourceCost {
 }
 
 /**
- * Action Handler Interface - matches web package implementation
+ * Standard validation function signature for action handlers
+ */
+export type ActionValidationHandler = (
+  request: GameActionRequest,
+  gameState: ServerGameStateWithVirtuals
+) => Promise<ActionValidationResult>;
+
+/**
+ * Standard execution function signature for action handlers
+ */
+export type ActionExecutionHandler = (
+  request: GameActionRequest,
+  draft: ServerGameStateWithVirtuals,
+  context: AsyncActionContext
+) => Promise<void>;
+
+/**
+ * Action Handler Interface - unified system
  */
 export interface ActionHandler {
   pluginId?: string;           // undefined = core handler
   priority?: number;           // Lower = runs first (core = 0, plugins = 100+)
   requiresManualApproval?: boolean;  // Default: false = auto-execute
   gmOnly?: boolean;                  // Default: false = players can use
-  validate?: (request: GameActionRequest, gameState: ServerGameStateWithVirtuals) => Promise<ActionValidationResult>;
-  execute?: (request: GameActionRequest, draft: ServerGameStateWithVirtuals) => Promise<void>;
+  validate?: ActionValidationHandler;
+  execute?: ActionExecutionHandler;
   approvalMessage?: (request: GameActionRequest) => Promise<string>;
 }
 
 /**
- * Context provided to token context action handlers
+ * Context provided to token context action handlers when they are executed
+ * (This is the execution context passed TO plugin handlers when an action runs)
  */
 export interface TokenActionContext {
   selectedToken: IToken;                    // The token that was right-clicked
   selectedTokens?: IToken[];               // Multiple tokens if multi-select is supported
   pluginContext: PluginContext;           // Plugin context for making action requests
-  showDialog?: (component: Component, props?: any) => Promise<any>; // For showing custom dialogs
+  showDialog?: (component: Component, props?: Record<string, unknown>) => Promise<unknown>; // For showing custom dialogs
   gameState: ServerGameStateWithVirtuals; // Current game state
 }
 
 /**
- * Token context menu action definition
+ * Token context menu action definition (registered BY plugins to appear in context menus)
+ * (This is the action definition/configuration that plugins register)
  */
 export interface TokenContextAction {
   id: string;                             // Unique identifier (e.g., 'dnd5e:dodge')
@@ -64,7 +84,7 @@ export interface TokenContextAction {
   icon?: string;                          // Icon class/name (optional)
   groupLabel?: string;                    // Group header (e.g., "Combat Actions")
   priority?: number;                      // Display order (lower = higher up)
-  condition?: (token: IToken, gameState: ServerGameStateWithVirtuals) => boolean; // Show/hide condition
+  condition?: (token: IToken, gameState: Readonly<ServerGameStateWithVirtuals>) => boolean; // Show/hide condition
   handler: (context: TokenActionContext) => void | Promise<void>; // Action handler function
 }
 
@@ -191,7 +211,10 @@ export interface PluginContext {
    */
   requestAction(
     actionType: string,
+    actorId: string | undefined,
     parameters: Record<string, unknown>,
+    actorTokenId?: string,
+    targetTokenIds?: string[],
     options?: { description?: string }
   ): Promise<ActionRequestResult>;
 

@@ -6,16 +6,17 @@
 
 import type { GameActionRequest, RemoveTokenParameters } from '@dungeon-lab/shared/types/index.mjs';
 import type { ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
-import type { ActionHandler, ValidationResult } from '../../action-handler.interface.mjs';
+import type { ActionHandler, ActionValidationResult, ActionValidationHandler, ActionExecutionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
+import type { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.mjs';
 import { useGameSessionStore } from '../../../stores/game-session.store.mjs';
 
 /**
  * Validate token removal request
  */
-async function validateRemoveToken(
+const validateRemoveToken: ActionValidationHandler = async (
   request: GameActionRequest, 
   gameState: ServerGameStateWithVirtuals
-): Promise<ValidationResult> {
+): Promise<ActionValidationResult> => {
   const params = request.parameters as RemoveTokenParameters;
   const gameSessionStore = useGameSessionStore();
 
@@ -37,7 +38,7 @@ async function validateRemoveToken(
   }
 
   // Find the token
-  const token = gameState.currentEncounter.tokens?.find(t => t.id === params.tokenId);
+  const token = gameState.currentEncounter.tokens?.[params.tokenId];
   if (!token) {
     return {
       valid: false,
@@ -74,10 +75,11 @@ async function validateRemoveToken(
 /**
  * Execute token removal using direct state mutation
  */
-async function executeRemoveToken(
+const executeRemoveToken: ActionExecutionHandler = async (
   request: GameActionRequest, 
-  draft: ServerGameStateWithVirtuals
-): Promise<void> {
+  draft: ServerGameStateWithVirtuals,
+  _context: AsyncActionContext
+): Promise<void> => {
   const params = request.parameters as RemoveTokenParameters;
 
   console.log('[RemoveTokenHandler] Executing token removal:', {
@@ -86,14 +88,9 @@ async function executeRemoveToken(
     requestId: request.id
   });
 
-  // Find the token index for removal
-  const tokenIndex = draft.currentEncounter?.tokens?.findIndex(t => t.id === params.tokenId);
-  if (tokenIndex === undefined || tokenIndex === -1 || !draft.currentEncounter?.tokens) {
-    throw new Error('Token not found for removal');
-  }
-
-  // Direct mutation - remove token from array
-  draft.currentEncounter.tokens.splice(tokenIndex, 1);
+  // Direct mutation - remove token from record
+  // Validation ensures currentEncounter and token exist
+  delete draft.currentEncounter!.tokens![params.tokenId];
 
   // Also remove from turn order if it exists
   if (draft.turnManager?.participants) {
@@ -124,7 +121,7 @@ async function executeRemoveToken(
 /**
  * Core remove-token action handler
  */
-export const removeTokenActionHandler: ActionHandler = {
+export const removeTokenActionHandler: Omit<ActionHandler, 'pluginId'> = {
   priority: 0, // Core handler runs first
   gmOnly: true, // Only GMs can remove tokens
   validate: validateRemoveToken,

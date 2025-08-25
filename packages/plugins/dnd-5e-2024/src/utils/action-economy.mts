@@ -297,32 +297,3 @@ export async function getAvailableActions(character: any): Promise<{
   };
 }
 
-/**
- * Helper to find a character by player ID in the game state
- * 
- * @param playerId - Player ID to find character for
- * @param gameState - Current game state
- * @returns Character document or null if not found
- */
-export function findPlayerCharacter(
-  playerId: string,
-  gameState: ServerGameStateWithVirtuals
-): any | null {
-  return Object.values(gameState.documents || {})
-    .find(doc => doc.documentType === 'character' && doc.createdBy === playerId) || null;
-}
-
-/**
- * Helper to find a character by player ID in draft state (for execute functions)
- * 
- * @param playerId - Player ID to find character for  
- * @param draft - Draft game state being mutated
- * @returns Character document or null if not found
- */
-export function findPlayerCharacterInDraft(
-  playerId: string,
-  draft: ServerGameStateWithVirtuals
-): any | null {
-  return Object.values(draft.documents || {})
-    .find(doc => doc.documentType === 'character' && doc.createdBy === playerId) || null;
-}

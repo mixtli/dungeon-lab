@@ -50,12 +50,8 @@ interface Props {
   message: ChatMessage;
 }
 
-interface Emits {
-  (e: 'remove'): void;
-}
 
 const props = defineProps<Props>();
-const emit = defineEmits<Emits>();
 const socketStore = useSocketStore();
 const chatStore = useChatStore();
 const processing = ref(false);
@@ -127,7 +123,7 @@ function acceptRollRequest(): void {
       metadata: {
         title: 'Weapon Damage',
         ...rollRequest.metadata,
-        responseToRequestId: rollRequest.requestId
+        responseToRequestId: rollRequest.rollId
       }
     };
     
@@ -138,7 +134,7 @@ function acceptRollRequest(): void {
       }
     });
     
-    console.log('[RollRequestMessage] Accepted roll request:', rollRequest.requestId);
+    console.log('[RollRequestMessage] Accepted roll request:', rollRequest.rollId);
   } catch (error) {
     console.error('[RollRequestMessage] Failed to accept roll request:', error);
     processing.value = false;
@@ -154,7 +150,7 @@ function declineRollRequest(): void {
     return;
   }
   
-  console.log('[RollRequestMessage] Declined roll request:', rollRequest.requestId);
+  console.log('[RollRequestMessage] Declined roll request:', rollRequest.rollId);
   
   // Remove the roll request card when declined
   setTimeout(() => {

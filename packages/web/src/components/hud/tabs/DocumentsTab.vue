@@ -282,9 +282,16 @@ async function addToSession(document: BaseDocument): Promise<void> {
       documentData: document
     };
 
-    const result = await playerActionService.requestAction('add-document', parameters, {
-      description: `Add ${document.name} to session`
-    });
+    const result = await playerActionService.requestAction(
+      'add-document',
+      undefined, // actorId - not an actor-specific action
+      parameters,
+      undefined, // actorTokenId
+      undefined, // targetTokenIds
+      {
+        description: `Add ${document.name} to session`
+      }
+    );
 
     if (result.success && result.approved) {
       console.log(`[DocumentsTab] ${document.name} added to session successfully`);

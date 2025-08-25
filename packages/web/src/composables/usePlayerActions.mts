@@ -45,7 +45,7 @@ export function usePlayerActions() {
     tokenId: string, 
     newPosition: { x: number; y: number; elevation?: number }
   ): Promise<ActionRequestResult> => {
-    const token = gameStateStore.currentEncounter?.tokens?.find(t => t.id === tokenId);
+    const token = gameStateStore.currentEncounter?.tokens ? Object.values(gameStateStore.currentEncounter.tokens).find(t => t.id === tokenId) : undefined;
     
     if (!token) {
       throw new Error('Token not found');
@@ -75,7 +75,7 @@ export function usePlayerActions() {
       remainingMovement
     };
 
-    return playerActionService.requestAction('move-token', params, {
+    return playerActionService.requestAction('move-token', token.documentId, params, tokenId, undefined, {
       description: `Move ${token.name} ${Math.round(distanceInFeet)}ft`
     });
   };
@@ -85,7 +85,7 @@ export function usePlayerActions() {
    * Request token removal
    */
   const requestTokenRemove = async (tokenId: string): Promise<ActionRequestResult> => {
-    const token = gameStateStore.currentEncounter?.tokens?.find(t => t.id === tokenId);
+    const token = gameStateStore.currentEncounter?.tokens ? Object.values(gameStateStore.currentEncounter.tokens).find(t => t.id === tokenId) : undefined;
     
     if (!token) {
       throw new Error('Token not found');
@@ -96,7 +96,7 @@ export function usePlayerActions() {
       tokenName: token.name
     };
 
-    return playerActionService.requestAction('remove-token', params, {
+    return playerActionService.requestAction('remove-token', token.documentId, params, tokenId, undefined, {
       description: `Remove token "${token.name}"`
     });
   };

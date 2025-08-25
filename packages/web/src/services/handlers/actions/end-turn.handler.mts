@@ -6,17 +6,18 @@
 
 import type { GameActionRequest } from '@dungeon-lab/shared/types/index.mjs';
 import type { ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
-import type { ActionHandler, ValidationResult } from '../../action-handler.interface.mjs';
+import type { ActionHandler, ActionValidationResult, ActionValidationHandler, ActionExecutionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
+import type { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.mjs';
 import { useGameSessionStore } from '../../../stores/game-session.store.mjs';
 import { turnManagerService } from '../../turn-manager.service.mjs';
 
 /**
  * Validate end turn request
  */
-async function validateEndTurn(
+const validateEndTurn: ActionValidationHandler = async (
   request: GameActionRequest, 
   gameState: ServerGameStateWithVirtuals
-): Promise<ValidationResult> {
+): Promise<ActionValidationResult> => {
   const gameSessionStore = useGameSessionStore();
 
   console.log('[EndTurnHandler] Validating end turn request from:', request.playerId);
@@ -80,10 +81,11 @@ async function validateEndTurn(
 /**
  * Execute turn ending by delegating to turn manager service
  */
-async function executeEndTurn(
+const executeEndTurn: ActionExecutionHandler = async (
   request: GameActionRequest,
-  draft: ServerGameStateWithVirtuals
-): Promise<void> {
+  _draft: ServerGameStateWithVirtuals,
+  _context: AsyncActionContext
+): Promise<void> => {
   console.log('[EndTurnHandler] Executing turn end:', {
     requestId: request.id,
     playerId: request.playerId
@@ -104,7 +106,7 @@ async function executeEndTurn(
 /**
  * Core end-turn action handler
  */
-export const endTurnActionHandler: ActionHandler = {
+export const endTurnActionHandler: Omit<ActionHandler, 'pluginId'> = {
   priority: 0, // Core handler runs first
   validate: validateEndTurn,
   execute: executeEndTurn,

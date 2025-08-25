@@ -9,12 +9,11 @@ import type {
   GameActionRequest, 
   ServerGameStateWithVirtuals 
 } from '@dungeon-lab/shared/types/index.mjs';
-import type { ActionHandler, ActionValidationResult } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
+import type { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.mjs';
+import type { ActionValidationResult, ActionValidationHandler, ActionExecutionHandler, ActionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 import { 
   validateActionEconomy, 
-  consumeAction, 
-  findPlayerCharacter, 
-  findPlayerCharacterInDraft,
+  consumeAction,
   type DnDActionType
 } from '../../utils/action-economy.mjs';
 import { getPluginContext } from '@dungeon-lab/shared-ui/utils/plugin-context.mjs';
@@ -23,113 +22,147 @@ import type { DndConditionDocument } from '../../types/dnd/condition.mjs';
 /**
  * Validate D&D 5e Hide action
  */
-export async function validateDnDHide(
+const validateDnDHide: ActionValidationHandler = async (
   request: GameActionRequest, 
   gameState: ServerGameStateWithVirtuals
-): Promise<ActionValidationResult> {
+): Promise<ActionValidationResult> => {
   console.log('[DnD5e HideHandler] Validating Hide action:', {
-    playerId: request.playerId,
+    actorId: request.actorId,
+    actorTokenId: request.actorTokenId,
     parameters: request.parameters
   });
 
-  const params = request.parameters as {
-    actionType?: 'action' | 'bonus-action'; // Allow class features like Cunning Action
-  };
-
-  // Find the character for this player
-  const character = findPlayerCharacter(request.playerId, gameState);
-  
-  if (!character) {
-    return { 
-      valid: false, 
-      error: { code: 'NO_CHARACTER', message: 'Character not found for hide attempt' } 
+  try {
+    const params = request.parameters as {
+      actionType?: 'action' | 'bonus-action'; // Allow class features like Cunning Action
     };
-  }
 
-  console.log('[DnD5e HideHandler] Found character for hide:', {
-    characterName: character.name,
-    characterId: character.id
-  });
+    // Get actor from required actorId (always available)
+    const actor = gameState.documents[request.actorId];
+    if (!actor) {
+      return {
+        valid: false,
+        error: { code: 'ACTOR_NOT_FOUND', message: 'Actor not found' }
+      };
+    }
 
-  // Determine action type (default to main action, allow bonus action for rogues etc.)
-  const actionType: DnDActionType = params.actionType === 'bonus-action' ? 'bonus-action' : 'action';
-
-  // Check if character is already invisible
-  const currentConditions = (character.state?.conditions || []);
-  const pluginContext = getPluginContext();
-  if (!pluginContext) {
-    return { valid: false, error: { code: 'NO_CONTEXT', message: 'Plugin context not available' } };
-  }
-  
-  for (const conditionInstance of currentConditions) {
-    try {
-      const conditionDoc = await pluginContext.getDocument(conditionInstance.conditionId) as DndConditionDocument;
-      if (conditionDoc?.slug === 'invisible') {
+    // Get token if provided (for positioning/range calculations)
+    let actorToken = null;
+    if (request.actorTokenId) {
+      actorToken = gameState.currentEncounter?.tokens?.[request.actorTokenId!];
+      if (!actorToken) {
         return {
           valid: false,
-          error: {
-            code: 'ALREADY_HIDDEN',
-            message: `${character.name} is already invisible`
-          }
+          error: { code: 'TOKEN_NOT_FOUND', message: 'Actor token not found' }
         };
       }
-    } catch (error) {
-      console.warn('[DnD5e HideHandler] Failed to fetch condition document:', conditionInstance.conditionId, error);
-      continue;
+      // Validate token represents the specified actor
+      if (actorToken.documentId !== request.actorId) {
+        return {
+          valid: false,
+          error: { code: 'TOKEN_MISMATCH', message: 'Token does not represent the specified actor' }
+        };
+      }
     }
-  }
 
-  // Use action economy utility to validate the hide action
-  return await validateActionEconomy(actionType, character, gameState, 'Hide');
+    console.log('[DnD5e HideHandler] Found actor for hide:', {
+      actorName: actor.name,
+      actorId: actor.id
+    });
+
+    // Determine action type (default to main action, allow bonus action for rogues etc.)
+    const actionType: DnDActionType = params.actionType === 'bonus-action' ? 'bonus-action' : 'action';
+
+    // Check if character is already invisible
+    const currentConditions = (actor.state?.conditions || []);
+    const pluginContext = getPluginContext();
+    if (!pluginContext) {
+      return { valid: false, error: { code: 'NO_CONTEXT', message: 'Plugin context not available' } };
+    }
+    
+    for (const conditionInstance of currentConditions) {
+      try {
+        const conditionDoc = await pluginContext.getDocument(conditionInstance.conditionId) as DndConditionDocument;
+        if (conditionDoc?.slug === 'invisible') {
+          return {
+            valid: false,
+            error: {
+              code: 'ALREADY_HIDDEN',
+              message: `${actor.name} is already invisible`
+            }
+          };
+        }
+      } catch (error) {
+        console.warn('[DnD5e HideHandler] Failed to fetch condition document:', conditionInstance.conditionId, error);
+        continue;
+      }
+    }
+
+    // Use action economy utility to validate the hide action
+    console.log('[DnD5e HideHandler] Validation successful for actor:', actor.name);
+    return await validateActionEconomy(actionType, actor, gameState, 'Hide');
+
+  } catch (error) {
+    console.error('[DnD5e HideHandler] Validation failed:', error);
+    return {
+      valid: false,
+      error: { code: 'VALIDATION_ERROR', message: `Validation failed: ${error instanceof Error ? error.message : 'Unknown error'}` }
+    };
+  }
 }
 
 /**
  * Execute D&D 5e Hide action - make stealth check and apply invisible condition on success
  */
-export async function executeDnDHide(
+const executeDnDHide: ActionExecutionHandler = async (
   request: GameActionRequest,
-  draft: ServerGameStateWithVirtuals
-): Promise<void> {
+  draft: ServerGameStateWithVirtuals,
+  context: AsyncActionContext
+): Promise<void> => {
   console.log('[DnD5e HideHandler] Executing Hide action:', {
-    playerId: request.playerId,
+    actorId: request.actorId,
+    actorTokenId: request.actorTokenId,
     requestId: request.id
   });
 
-  const params = request.parameters as {
-    actionType?: 'action' | 'bonus-action';
-    stealthRoll?: number; // If roll was made client-side
-    stealthDC?: number; // Target DC for the check
-  };
+  try {
+    const params = request.parameters as {
+      actionType?: 'action' | 'bonus-action';
+      stealthRoll?: number; // If roll was made client-side
+      stealthDC?: number; // Target DC for the check
+    };
 
-  // Find the character in the draft state
-  const character = findPlayerCharacterInDraft(request.playerId, draft);
-  
-  if (!character) {
-    console.warn('[DnD5e HideHandler] Character not found during hide execution');
-    return;
+    // Get actor from required actorId (always available)
+    const actor = draft.documents[request.actorId];
+    if (!actor) {
+      throw new Error('Actor not found');
+    }
+
+    // Determine action type
+    const actionType: DnDActionType = params.actionType === 'bonus-action' ? 'bonus-action' : 'action';
+
+    // Consume the action using the utility function
+    consumeAction(actionType, actor, 'Hide');
+
+    // Apply invisible condition (assuming stealth check succeeds for now)
+    // In a full implementation, this would involve rolling Dexterity (Stealth)
+    // and comparing against a DC or opposing Wisdom (Perception) checks
+    
+    // TODO: Get the invisible condition document by slug
+    // For now, we'll skip applying the invisible condition since we need a proper way to lookup by slug
+    // This would require either a document query or maintaining a slug->ID mapping
+    
+    console.warn('[DnD5e HideHandler] Invisible condition application not yet implemented - need slug lookup mechanism');
+
+    console.log('[DnD5e HideHandler] Hide action executed successfully:', {
+      actorName: actor.name,
+      actorId: actor.id,
+      actionType
+    });
+  } catch (error) {
+    console.error('[DnD5e HideHandler] Handler execution failed:', error);
+    throw error;
   }
-
-  // Determine action type
-  const actionType: DnDActionType = params.actionType === 'bonus-action' ? 'bonus-action' : 'action';
-
-  // Consume the action using the utility function
-  consumeAction(actionType, character, 'Hide');
-
-  // Apply invisible condition (assuming stealth check succeeds for now)
-  // In a full implementation, this would involve rolling Dexterity (Stealth)
-  // and comparing against a DC or opposing Wisdom (Perception) checks
-  
-  // TODO: Get the invisible condition document by slug
-  // For now, we'll skip applying the invisible condition since we need a proper way to lookup by slug
-  // This would require either a document query or maintaining a slug->ID mapping
-  
-  console.warn('[DnD5e HideHandler] Invisible condition application not yet implemented - need slug lookup mechanism');
-
-  console.log('[DnD5e HideHandler] Hide action executed successfully:', {
-    characterName: character.name,
-    characterId: character.id,
-    actionType
-  });
 }
 
 /**
@@ -141,9 +174,12 @@ export const dndHideHandler: Omit<ActionHandler, 'pluginId'> = {
   priority: 100,
   validate: validateDnDHide,
   execute: executeDnDHide,
-  approvalMessage: (request) => {
+  approvalMessage: async (request) => {
     const params = request.parameters as { actionType?: string };
     const actionType = params.actionType === 'bonus-action' ? 'bonus action' : 'action';
     return `wants to use ${actionType} to Hide`;
   }
 };
+
+// Export individual functions for compatibility
+export { validateDnDHide, executeDnDHide };

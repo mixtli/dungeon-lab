@@ -10,96 +10,113 @@ import type {
   GameActionRequest, 
   ServerGameStateWithVirtuals 
 } from '@dungeon-lab/shared/types/index.mjs';
-import type { ActionHandler, ActionValidationResult } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
+import type { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.mjs';
+import type { ActionValidationResult, ActionValidationHandler, ActionExecutionHandler, ActionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 import { 
   validateActionEconomy, 
-  consumeAction, 
-  findPlayerCharacter, 
-  findPlayerCharacterInDraft
+  consumeAction
 } from '../../utils/action-economy.mjs';
+import { validateActorExists, getValidatedActor, validateActorToken } from '../../utils/actor-validation.mjs';
 
 /**
  * Validate D&D 5e Dodge action
  */
-export async function validateDnDDodge(
+const validateDnDDodge: ActionValidationHandler = async (
   request: GameActionRequest, 
   gameState: ServerGameStateWithVirtuals
-): Promise<ActionValidationResult> {
+): Promise<ActionValidationResult> => {
   console.log('[DnD5e DodgeHandler] Validating Dodge action:', {
-    playerId: request.playerId,
+    actorId: request.actorId,
+    actorTokenId: request.actorTokenId,
     parameters: request.parameters
   });
 
-  // Find the character for this player
-  const character = findPlayerCharacter(request.playerId, gameState);
-  
-  if (!character) {
-    return { 
-      valid: false, 
-      error: { code: 'NO_CHARACTER', message: 'Character not found for dodge action' } 
-    };
-  }
+  try {
+    // Validate actor exists using utility
+    const actorValidation = validateActorExists(request, gameState);
+    if (!actorValidation.valid) {
+      return actorValidation;
+    }
+    const actor = actorValidation.actor;
 
-  console.log('[DnD5e DodgeHandler] Found character for dodge:', {
-    characterName: character.name,
-    characterId: character.id
-  });
+    // Validate token if provided using utility
+    const tokenValidation = validateActorToken(request, gameState);
+    if (!tokenValidation.valid) {
+      return tokenValidation;
+    }
+    const actorToken = tokenValidation.token;
 
-  // Check if character has already used the Dodge action this turn
-  const turnState = character.state?.turnState;
-  const actionsUsed = turnState?.actionsUsed || [];
-  
-  if (actionsUsed.includes('Dodge')) {
+    console.log('[DnD5e DodgeHandler] Found actor for dodge:', {
+      actorName: actor.name,
+      actorId: actor.id
+    });
+
+    // Check if character has already used the Dodge action this turn
+    const turnState = actor.state?.turnState;
+    const actionsUsed = turnState?.actionsUsed || [];
+    
+    if (actionsUsed.includes('Dodge')) {
+      return {
+        valid: false,
+        error: {
+          code: 'ACTION_ALREADY_USED',
+          message: `${actor.name} has already used the Dodge action this turn`
+        }
+      };
+    }
+
+    // Use action economy utility to validate the dodge action
+    console.log('[DnD5e DodgeHandler] Validation successful for actor:', actor.name);
+    return await validateActionEconomy('action', actor, gameState, 'Dodge');
+
+  } catch (error) {
+    console.error('[DnD5e DodgeHandler] Validation failed:', error);
     return {
       valid: false,
-      error: {
-        code: 'ACTION_ALREADY_USED',
-        message: `${character.name} has already used the Dodge action this turn`
-      }
+      error: { code: 'VALIDATION_ERROR', message: `Validation failed: ${error instanceof Error ? error.message : 'Unknown error'}` }
     };
   }
-
-  // Use action economy utility to validate the dodge action
-  return await validateActionEconomy('action', character, gameState, 'Dodge');
 }
 
 /**
  * Execute D&D 5e Dodge action - consume action and track dodge state
  */
-export function executeDnDDodge(
+const executeDnDDodge: ActionExecutionHandler = async (
   request: GameActionRequest,
-  draft: ServerGameStateWithVirtuals
-): void {
+  draft: ServerGameStateWithVirtuals,
+  _context: AsyncActionContext
+): Promise<void> => {
   console.log('[DnD5e DodgeHandler] Executing Dodge action:', {
-    playerId: request.playerId,
+    actorId: request.actorId,
+    actorTokenId: request.actorTokenId,
     requestId: request.id
   });
 
-  // Find the character in the draft state
-  const character = findPlayerCharacterInDraft(request.playerId, draft);
-  
-  if (!character) {
-    console.warn('[DnD5e DodgeHandler] Character not found during dodge execution');
-    return;
+  try {
+    // Get validated actor using utility
+    const actor = getValidatedActor(request, draft, 'dodge action');
+
+    // Consume the action using the utility function
+    // This will add "Dodge" to the actionsUsed array, which can be checked
+    // during attack and saving throw resolution
+    consumeAction('action', actor, 'Dodge');
+
+    console.log('[DnD5e DodgeHandler] Dodge action executed successfully:', {
+      actorName: actor.name,
+      actorId: actor.id,
+      note: 'Attacks against this character now have disadvantage, character has advantage on Dex saves'
+    });
+  } catch (error) {
+    console.error('[DnD5e DodgeHandler] Handler execution failed:', error);
+    throw error;
   }
-
-  // Consume the action using the utility function
-  // This will add "Dodge" to the actionsUsed array, which can be checked
-  // during attack and saving throw resolution
-  consumeAction('action', character, 'Dodge');
-
-  console.log('[DnD5e DodgeHandler] Dodge action executed successfully:', {
-    characterName: character.name,
-    characterId: character.id,
-    note: 'Attacks against this character now have disadvantage, character has advantage on Dex saves'
-  });
 }
 
 /**
  * Utility function to check if a character used the Dodge action this turn
  * Can be used by attack and saving throw systems
  */
-export function hasUsedDodgeAction(character: any): boolean {
+export function hasUsedDodgeAction(character: { state?: { turnState?: { actionsUsed?: string[] } } }): boolean {
   const turnState = character?.state?.turnState;
   const actionsUsed = turnState?.actionsUsed || [];
   return actionsUsed.includes('Dodge');
@@ -114,5 +131,8 @@ export const dndDodgeHandler: Omit<ActionHandler, 'pluginId'> = {
   priority: 100,
   validate: validateDnDDodge,
   execute: executeDnDDodge,
-  approvalMessage: () => "wants to take the Dodge action"
+  approvalMessage: async () => "wants to take the Dodge action"
 };
+
+// Export individual functions for compatibility
+export { validateDnDDodge, executeDnDDodge };

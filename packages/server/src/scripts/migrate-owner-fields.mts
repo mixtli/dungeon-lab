@@ -318,11 +318,11 @@ async function migrateTokens(stats: MigrationStats, dryRun: boolean, verbose: bo
       let encounterModified = false;
       
       if (verbose) {
-        logger.info(`  Checking encounter: ${encounter.name} (${encounter.tokens.length} tokens)`);
+        logger.info(`  Checking encounter: ${encounter.name} (${Object.keys(encounter.tokens).length} tokens)`);
       }
 
-      for (let i = 0; i < encounter.tokens.length; i++) {
-        const token = encounter.tokens[i];
+      for (const tokenId of Object.keys(encounter.tokens)) {
+        const token = encounter.tokens[tokenId];
         stats.tokens.total++;
 
         try {
@@ -365,8 +365,8 @@ async function migrateTokens(stats: MigrationStats, dryRun: boolean, verbose: bo
             logger.info(`    Setting token ${token.name} ownerId to ${ownerIdToSet}`);
           }
 
-          // Update the token in the array
-          encounter.tokens[i].ownerId = ownerIdToSet;
+          // Update the token in the record
+          encounter.tokens[tokenId].ownerId = ownerIdToSet;
           encounterModified = true;
           stats.tokens.migrated++;
 

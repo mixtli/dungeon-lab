@@ -10,21 +10,20 @@ import type {
   GameActionRequest, 
   ServerGameStateWithVirtuals 
 } from '@dungeon-lab/shared/types/index.mjs';
-import type { ActionHandler, ActionValidationResult } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
+import type { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.mjs';
+import type { ActionValidationResult, ActionValidationHandler, ActionExecutionHandler, ActionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 import { 
   validateActionEconomy, 
-  consumeAction, 
-  findPlayerCharacter, 
-  findPlayerCharacterInDraft
+  consumeAction
 } from '../../utils/action-economy.mjs';
 
 /**
  * Validate D&D 5e Search action
  */
-export async function validateDnDSearch(
+const validateDnDSearch: ActionValidationHandler = async (
   request: GameActionRequest, 
   gameState: ServerGameStateWithVirtuals
-): Promise<ActionValidationResult> {
+): Promise<ActionValidationResult> => {
   console.log('[DnD5e SearchHandler] Validating Search action:', {
     playerId: request.playerId,
     parameters: request.parameters
@@ -35,33 +34,34 @@ export async function validateDnDSearch(
     targetArea?: string; // Area or object being searched
   };
 
-  // Find the character for this player
-  const character = findPlayerCharacter(request.playerId, gameState);
+  // Get actor from required actorId (always available)
+  const actor = gameState.documents[request.actorId];
   
-  if (!character) {
+  if (!actor) {
     return { 
       valid: false, 
-      error: { code: 'NO_CHARACTER', message: 'Character not found for search action' } 
+      error: { code: 'ACTOR_NOT_FOUND', message: 'Actor not found' } 
     };
   }
 
-  console.log('[DnD5e SearchHandler] Found character for search:', {
-    characterName: character.name,
-    characterId: character.id,
+  console.log('[DnD5e SearchHandler] Found actor for search:', {
+    actorName: actor.name,
+    actorId: actor.id,
     checkType: params.checkType || 'perception'
   });
 
   // Use action economy utility to validate the search action
-  return await validateActionEconomy('action', character, gameState, 'Search');
+  return await validateActionEconomy('action', actor, gameState, 'Search');
 }
 
 /**
  * Execute D&D 5e Search action - make ability check and reveal hidden elements
  */
-export function executeDnDSearch(
+const executeDnDSearch: ActionExecutionHandler = async (
   request: GameActionRequest,
-  draft: ServerGameStateWithVirtuals
-): void {
+  draft: ServerGameStateWithVirtuals,
+  _context: AsyncActionContext
+): Promise<void> => {
   console.log('[DnD5e SearchHandler] Executing Search action:', {
     playerId: request.playerId,
     requestId: request.id
@@ -74,22 +74,21 @@ export function executeDnDSearch(
     dc?: number; // Target DC for the check
   };
 
-  // Find the character in the draft state
-  const character = findPlayerCharacterInDraft(request.playerId, draft);
+  // Get actor from required actorId (always available)
+  const actor = draft.documents[request.actorId];
   
-  if (!character) {
-    console.warn('[DnD5e SearchHandler] Character not found during search execution');
-    return;
+  if (!actor) {
+    throw new Error('Actor not found');
   }
 
   // Consume the action using the utility function
-  consumeAction('action', character, 'Search');
+  consumeAction('action', actor, 'Search');
 
-  // Store search information in character state for potential results
+  // Store search information in actor state for potential results
   // In a full implementation, this would trigger ability check rolls and
   // reveal hidden elements based on the result vs DC
-  if (!character.state) character.state = {};
-  if (!character.state.turnState) character.state.turnState = {};
+  if (!actor.state) actor.state = {};
+  if (!actor.state.turnState) actor.state.turnState = {};
 
   const searchInfo = {
     checkType: params.checkType || 'perception',
@@ -100,14 +99,14 @@ export function executeDnDSearch(
   };
 
   // Store search action details
-  if (!character.state.turnState.searchActions) {
-    character.state.turnState.searchActions = [];
+  if (!actor.state.turnState.searchActions) {
+    actor.state.turnState.searchActions = [];
   }
-  character.state.turnState.searchActions.push(searchInfo);
+  actor.state.turnState.searchActions.push(searchInfo);
 
   console.log('[DnD5e SearchHandler] Search action executed successfully:', {
-    characterName: character.name,
-    characterId: character.id,
+    actorName: actor.name,
+    actorId: actor.id,
     checkType: searchInfo.checkType,
     targetArea: searchInfo.targetArea,
     note: 'Search results would be processed by GM or automated system'
@@ -118,22 +117,22 @@ export function executeDnDSearch(
  * Utility function to get search actions performed this turn
  * Can be used by GM tools or automated search result systems
  */
-export function getSearchActions(character: any): Array<{
+export function getSearchActions(actor: { state?: { turnState?: { searchActions?: Array<{checkType: string; targetArea?: string; rollResult?: number; dc?: number; searchedAt: number}> } } }): Array<{
   checkType: string;
   targetArea?: string;
   rollResult?: number;
   dc?: number;
   searchedAt: number;
 }> {
-  const turnState = character?.state?.turnState;
+  const turnState = actor?.state?.turnState;
   return turnState?.searchActions || [];
 }
 
 /**
- * Utility function to check if character has searched a specific area
+ * Utility function to check if actor has searched a specific area
  */
-export function hasSearchedArea(character: any, area: string): boolean {
-  const searchActions = getSearchActions(character);
+export function hasSearchedArea(actor: { state?: { turnState?: { searchActions?: Array<{targetArea?: string}> } } }, area: string): boolean {
+  const searchActions = getSearchActions(actor);
   return searchActions.some(search => search.targetArea === area);
 }
 
@@ -146,7 +145,7 @@ export const dndSearchHandler: Omit<ActionHandler, 'pluginId'> = {
   priority: 100,
   validate: validateDnDSearch,
   execute: executeDnDSearch,
-  approvalMessage: (request) => {
+  approvalMessage: async (request) => {
     const params = request.parameters as { 
       checkType?: string; 
       targetArea?: string; 
@@ -156,3 +155,6 @@ export const dndSearchHandler: Omit<ActionHandler, 'pluginId'> = {
     return `wants to Search${area} using ${checkType}`;
   }
 };
+
+// Export individual functions for compatibility
+export { validateDnDSearch, executeDnDSearch };

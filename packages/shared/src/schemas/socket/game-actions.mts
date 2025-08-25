@@ -24,7 +24,10 @@ export const gameActionRequestSchema = z.object({
   sessionId: z.string(),
   timestamp: z.number(),
   action: gameActionTypeSchema,
-  parameters: z.record(z.unknown()),
+  actorId: z.string().optional(), // Optional: The document ID of the acting character/actor (required by some actions)
+  actorTokenId: z.string().optional(), // Optional: Token ID for positioning/range calculations
+  targetTokenIds: z.array(z.string()).optional(), // Optional: Target token IDs for targeted actions
+  parameters: z.record(z.unknown()), // Action-specific parameters only
   description: z.string().optional()
 });
 

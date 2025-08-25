@@ -305,7 +305,7 @@ export class EncounterService {
       const encounter = await this.getEncounter(encounterId, userId, isAdmin);
       
       // Note: Tokens are now embedded in encounters
-      const tokens = encounter.tokens || [];
+      const tokens = Object.values(encounter.tokens || {});
 
       // Calculate permissions
       const permissions = await this.calculateUserPermissions(encounterId, userId, isAdmin, tokens);

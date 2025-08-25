@@ -9,7 +9,6 @@ import {
   validateActionEconomy,
   consumeAction,
   getAvailableActions,
-  findPlayerCharacter,
   type DnDActionType
 } from '../../src/utils/action-economy.mjs';
 
@@ -216,24 +215,4 @@ describe('D&D 5e Action Economy', () => {
     });
   });
 
-  describe('findPlayerCharacter', () => {
-    it('should find character by player ID', () => {
-      const found = findPlayerCharacter('player-1', mockGameState as any);
-      
-      expect(found).toBe(mockCharacter);
-    });
-
-    it('should return null for non-existent player', () => {
-      const found = findPlayerCharacter('player-999', mockGameState as any);
-      
-      expect(found).toBe(null);
-    });
-
-    it('should handle missing documents', () => {
-      const emptyGameState = { documents: {} };
-      const found = findPlayerCharacter('player-1', emptyGameState as any);
-      
-      expect(found).toBe(null);
-    });
-  });
 });

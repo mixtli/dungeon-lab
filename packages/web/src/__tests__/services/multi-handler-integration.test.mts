@@ -5,7 +5,8 @@
  */
 
 import { describe, test, expect, beforeEach, vi } from 'vitest';
-import type { ActionHandler, ValidationResult } from '../../services/action-handler.interface.mjs';
+import type { ActionHandler, ActionValidationResult, PluginContext } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
+import type { RollServerResult } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
 import { registerAction, getHandlers, clearAllHandlers } from '../../services/multi-handler-registry.mjs';
 import { produceGameStateChanges } from '../../services/immer-utils.mjs';
 import type { GameActionRequest, ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
@@ -83,7 +84,14 @@ describe('Multi-Handler Workflow Integration', () => {
               sessionId: 'test-session',
               playerId: 'test-player'
             };
-            await handler.execute(mockRequest, draft);
+            await handler.execute(mockRequest, draft, {
+              pluginContext: {} as PluginContext,
+              sendRollRequest: async () => ({} as RollServerResult),
+              sendMultipleRollRequests: async () => [],
+              sendChatMessage: async () => {},
+              sendRollResult: () => {},
+              requestGMConfirmation: async () => false
+            } as any);
           }
         }
       }
@@ -102,7 +110,7 @@ describe('Multi-Handler Workflow Integration', () => {
     const failingHandler: ActionHandler = {
       priority: 0,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      validate: async (_request, _gameState): Promise<ValidationResult> => {
+      validate: async (_request, _gameState): Promise<ActionValidationResult> => {
         validateSpy();
         return {
           valid: false,
@@ -128,7 +136,7 @@ describe('Multi-Handler Workflow Integration', () => {
       playerId: 'test-player'
     };
 
-    let validationResult: ValidationResult | undefined;
+    let validationResult: ActionValidationResult | undefined;
     for (const handler of handlers) {
       if (handler.validate) {
         validationResult = await handler.validate(mockRequest, mockGameState);
@@ -157,7 +165,7 @@ describe('Multi-Handler Workflow Integration', () => {
     const failingHandler: ActionHandler = {
       priority: 100,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      validate: async (_request, _gameState): Promise<ValidationResult> => ({
+      validate: async (_request, _gameState): Promise<ActionValidationResult> => ({
         valid: false,
         error: { code: 'PLUGIN_VALIDATION_FAILED', message: 'Plugin validation failed' }
       }),
@@ -203,21 +211,21 @@ describe('Multi-Handler Workflow Integration', () => {
       priority: 0,
       requiresManualApproval: false,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      validate: (_request, _gameState) => ({ valid: true }),
+      validate: (_request: any, _gameState: any) => ({ valid: true }),
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      execute: async (_request, _draft) => {}
-    };
+      execute: async (_request: any, _draft: any) => {}
+    } as any;
 
     const manualHandler: ActionHandler = {
       priority: 100,
       requiresManualApproval: true,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      validate: (_request, _gameState) => ({ valid: true }),
+      validate: (_request: any, _gameState: any) => ({ valid: true }),
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      execute: async (_request, _draft) => {},
+      execute: async (_request: any, _draft: any) => {},
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      approvalMessage: (_request) => 'Plugin wants to do something'
-    };
+      approvalMessage: async (_request: any) => 'Plugin wants to do something'
+    } as any;
 
     registerAction('move-token', autoHandler);
     registerAction('move-token', manualHandler);
@@ -241,7 +249,7 @@ describe('Multi-Handler Workflow Integration', () => {
         sessionId: 'test-session',
         playerId: 'test-player'
       };
-      const message = approvalHandler.approvalMessage(mockRequest);
+      const message = await approvalHandler.approvalMessage(mockRequest);
       expect(message).toBe('Plugin wants to do something');
     }
   });
@@ -251,19 +259,19 @@ describe('Multi-Handler Workflow Integration', () => {
       priority: 0,
       gmOnly: false,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      validate: (_request, _gameState) => ({ valid: true }),
+      validate: (_request: any, _gameState: any) => ({ valid: true }),
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      execute: async (_request, _draft) => {}
-    };
+      execute: async (_request: any, _draft: any) => {}
+    } as any;
 
     const gmOnlyHandler: ActionHandler = {
       priority: 100,
       gmOnly: true,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      validate: (_request, _gameState) => ({ valid: true }),
+      validate: (_request: any, _gameState: any) => ({ valid: true }),
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      execute: async (_request, _draft) => {}
-    };
+      execute: async (_request: any, _draft: any) => {}
+    } as any;
 
     registerAction('move-token', playerHandler);
     registerAction('move-token', gmOnlyHandler);
@@ -312,7 +320,14 @@ describe('Multi-Handler Workflow Integration', () => {
       async (draft) => {
         for (const handler of handlers) {
           if (handler.execute) {
-            await handler.execute(mockRequest, draft);
+            await handler.execute(mockRequest, draft, {
+              pluginContext: {} as PluginContext,
+              sendRollRequest: async () => ({} as RollServerResult),
+              sendMultipleRollRequests: async () => [],
+              sendChatMessage: async () => {},
+              sendRollResult: () => {},
+              requestGMConfirmation: async () => false
+            } as any);
           }
         }
       }

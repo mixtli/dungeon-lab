@@ -8,7 +8,8 @@
  */
 
 import type { GameActionRequest, ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
-import type { ActionHandler, ActionValidationResult } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
+import type { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.mjs';
+import type { ActionValidationResult, ActionValidationHandler, ActionExecutionHandler, ActionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 import type { DndCharacterData, DndCharacterDocument } from '../../types/dnd/character.mjs';
 import type { DndCreatureData, DndCreatureDocument } from '../../types/dnd/creature.mjs';
 
@@ -68,10 +69,10 @@ function getWalkSpeed(document: { documentType: string, pluginData: unknown }): 
 /**
  * Validate D&D movement constraints
  */
-export function validateDnDMovement(
+const validateDnDMovement: ActionValidationHandler = async (
   request: GameActionRequest, 
   gameState: ServerGameStateWithVirtuals
-): ActionValidationResult {
+): Promise<ActionValidationResult> => {
   console.log('[DnD5e] Validating movement with D&D rules:', {
     playerId: request.playerId,
     parameters: request.parameters
@@ -79,7 +80,7 @@ export function validateDnDMovement(
 
   // Get tokenId from parameters and find the token
   const { tokenId } = request.parameters as { tokenId: string };
-  const token = gameState.currentEncounter?.tokens?.find(t => t.id === tokenId);
+  const token = gameState.currentEncounter?.tokens?.[tokenId];
   
   if (!token) {
     return { valid: false, error: { code: 'TOKEN_NOT_FOUND', message: 'Token not found' } };
@@ -221,15 +222,16 @@ export function validateDnDMovement(
 /**
  * Execute D&D movement - update movement used state
  */
-export function executeDnDMovement(
+const executeDnDMovement: ActionExecutionHandler = async (
   request: GameActionRequest,
-  draft: ServerGameStateWithVirtuals
-): void {
+  draft: ServerGameStateWithVirtuals,
+  _context: AsyncActionContext
+): Promise<void> => {
   console.log('[DnD5e] Executing D&D movement state update');
 
   // Get tokenId from parameters and find the token
   const { tokenId } = request.parameters as { tokenId: string };
-  const token = draft.currentEncounter?.tokens?.find(t => t.id === tokenId);
+  const token = draft.currentEncounter?.tokens?.[tokenId];
   
   if (!token) {
     console.warn('[DnD5e] Token not found during movement execution:', tokenId);
@@ -285,3 +287,6 @@ export const dndMoveTokenHandler: Omit<ActionHandler, 'pluginId'> = {
   validate: validateDnDMovement,
   execute: executeDnDMovement
 };
+
+// Export individual functions for compatibility
+export { validateDnDMovement, executeDnDMovement };

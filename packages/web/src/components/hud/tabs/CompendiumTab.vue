@@ -325,13 +325,20 @@ async function addToSession(entry: ICompendiumEntry): Promise<void> {
     console.log('[CompendiumTab] Template instantiated:', document);
 
     // Step 2: Send GM request to add document to session
-    const result = await playerActionService.requestAction('add-document', {
-      compendiumId: entry.compendiumId?.toString() || '',
-      entryId: entry.id || '',
-      documentData: document
-    } as AddDocumentParameters, {
-      description: `Add ${entry.entry?.name || 'document'} to session`
-    });
+    const result = await playerActionService.requestAction(
+      'add-document',
+      undefined, // actorId - not an actor-specific action
+      {
+        compendiumId: entry.compendiumId?.toString() || '',
+        entryId: entry.id || '',
+        documentData: document
+      } as AddDocumentParameters,
+      undefined, // actorTokenId
+      undefined, // targetTokenIds
+      {
+        description: `Add ${entry.entry?.name || 'document'} to session`
+      }
+    );
 
     // Step 3: Handle result
     if (result.success && result.approved) {

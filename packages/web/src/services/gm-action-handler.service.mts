@@ -12,7 +12,7 @@ import {
   requiresManualApproval, 
   generateApprovalMessage 
 } from './multi-handler-registry.mjs';
-import type { ActionHandler } from './action-handler.interface.mjs';
+import type { ActionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 import { createDraft, finishDraft, enablePatches } from 'immer';
 import { toRaw } from 'vue';
 import { useChatStore, type ApprovalData } from '../stores/chat.store.mts';
@@ -23,6 +23,7 @@ import { useNotificationStore } from '../stores/notification.store.mjs';
 import { rollRequestService } from './roll-request.service.mts';
 import { createActionContext } from './action-context.service.mts';
 import { getPluginContext } from '@dungeon-lab/shared-ui/utils/plugin-context.mjs';
+import { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.mjs';
 
 // Enable Immer patches for automatic patch generation
 enablePatches();
@@ -159,7 +160,7 @@ export class GMActionHandlerService {
    * Execute an action using multiple handlers with Immer draft mutation
    */
   private async executeMultiHandlerAction(request: GameActionRequest, handlers: ActionHandler[]) {
-    let actionContext: any = null; // Initialize outside try block for cleanup access
+    let actionContext: AsyncActionContext | null = null; // Initialize outside try block for cleanup access
     
     try {
       const currentGameState = this.gameStateStore.gameState;
@@ -220,10 +221,9 @@ export class GMActionHandlerService {
       // Create draft for async operations
       const draft = createDraft(rawGameState);
       
-      // Create action context for unified handlers (using draft as game state)
+      // Create action context for unified handlers
       const pluginContext = getPluginContext();
       actionContext = createActionContext(
-        draft as ServerGameStateWithVirtuals,
         this.rollRequestService,
         pluginContext
       );
@@ -259,7 +259,7 @@ export class GMActionHandlerService {
       
       // Finish draft and collect patches
       let immerPatches: JsonPatchOperation[] = [];
-      const finalState = finishDraft(draft, (patches) => {
+      finishDraft(draft, (patches) => {
         // Patch callback - convert Immer patches to our JsonPatchOperation format
         console.log('[GMActionHandler] Immer patches:', patches);
         immerPatches = patches.map(patch => ({

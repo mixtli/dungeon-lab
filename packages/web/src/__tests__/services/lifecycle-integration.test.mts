@@ -8,6 +8,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { GameActionRequest } from '@dungeon-lab/shared/types/index.mjs';
 import type { ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
+import type { PluginContext } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
+import type { RollServerResult } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
 import { endTurnActionHandler } from '../../services/handlers/actions/end-turn.handler.mjs';
 import { stopEncounterActionHandler } from '../../services/handlers/actions/stop-encounter.handler.mjs';
 import { registerPluginStateLifecycle, clearAllPluginStateLifecycles } from '@dungeon-lab/shared/utils/document-state-lifecycle.mjs';
@@ -35,7 +37,7 @@ describe('Document State Lifecycle Integration', () => {
         turnReset: {
           turnState: { movementUsed: 0, actionsUsed: [] }
         }
-      });
+      } as any);
 
       // Create test game state with active turn manager
       const gameState: ServerGameStateWithVirtuals = {
@@ -90,12 +92,19 @@ describe('Document State Lifecycle Integration', () => {
       };
 
       // Validate the request
-      const validation = endTurnActionHandler.validate!(request, gameState);
+      const validation = await endTurnActionHandler.validate!(request, gameState);
       expect(validation.valid).toBe(true);
 
       // Execute the turn end (this should apply lifecycle resets)
       const draftState = JSON.parse(JSON.stringify(gameState)) as ServerGameStateWithVirtuals;
-      endTurnActionHandler.execute!(request, draftState);
+      await endTurnActionHandler.execute!(request, draftState, {
+        pluginContext: {} as PluginContext,
+        sendRollRequest: async () => ({} as RollServerResult),
+        sendMultipleRollRequests: async () => [],
+        sendChatMessage: async () => {},
+        sendRollResult: () => {},
+        requestGMConfirmation: async () => false
+      } as any);
 
       // Verify turn advancement - with 1 participant, goes to next round
       expect(draftState.turnManager?.currentTurn).toBe(0); // Back to first participant
@@ -105,7 +114,7 @@ describe('Document State Lifecycle Integration', () => {
       expect(draftState.documents['actor-1'].state.turnState).toEqual({
         movementUsed: 0,
         actionsUsed: []
-      });
+      } as any);
     });
 
     it('should handle turn end gracefully when no lifecycles are registered', async () => {
@@ -164,7 +173,14 @@ describe('Document State Lifecycle Integration', () => {
       const draftState = JSON.parse(JSON.stringify(gameState)) as ServerGameStateWithVirtuals;
       
       // Should not throw even when no lifecycles are registered
-      expect(() => endTurnActionHandler.execute!(request, draftState)).not.toThrow();
+      expect(() => endTurnActionHandler.execute!(request, draftState, {
+        pluginContext: {} as PluginContext,
+        sendRollRequest: async () => ({} as RollServerResult),
+        sendMultipleRollRequests: async () => [],
+        sendChatMessage: async () => {},
+        sendRollResult: () => {},
+        requestGMConfirmation: async () => false
+      })).not.toThrow();
 
       // Turn should still advance normally - note: with only 1 participant, advancing goes to next round
       expect(draftState.turnManager?.currentTurn).toBe(0); // Back to first participant in new round
@@ -183,7 +199,7 @@ describe('Document State Lifecycle Integration', () => {
         encounterReset: {
           encounterState: { conditions: [], temporaryEffects: [] }
         }
-      });
+      } as any);
 
       const gameState: ServerGameStateWithVirtuals = {
         campaign: null,
@@ -230,7 +246,7 @@ describe('Document State Lifecycle Integration', () => {
           participants: [],
           campaignId: 'campaign-1',
           mapId: 'map-1',
-          tokens: []
+          tokens: {}
         }
       };
 
@@ -246,12 +262,19 @@ describe('Document State Lifecycle Integration', () => {
       };
 
       // Validate the request
-      const validation = stopEncounterActionHandler.validate!(request, gameState);
+      const validation = await stopEncounterActionHandler.validate!(request, gameState);
       expect(validation.valid).toBe(true);
 
       // Execute the encounter stop
       const draftState = JSON.parse(JSON.stringify(gameState)) as ServerGameStateWithVirtuals;
-      stopEncounterActionHandler.execute!(request, draftState);
+      await stopEncounterActionHandler.execute!(request, draftState, {
+        pluginContext: {} as PluginContext,
+        sendRollRequest: async () => ({} as RollServerResult),
+        sendMultipleRollRequests: async () => [],
+        sendChatMessage: async () => {},
+        sendRollResult: () => {},
+        requestGMConfirmation: async () => false
+      } as any);
 
       // Verify encounter was stopped
       expect(draftState.currentEncounter?.status).toBe('stopped');
@@ -261,7 +284,7 @@ describe('Document State Lifecycle Integration', () => {
       expect(draftState.documents['actor-1'].state.encounterState).toEqual({
         conditions: [],
         temporaryEffects: []
-      });
+      } as any);
     });
   });
 
@@ -273,14 +296,14 @@ describe('Document State Lifecycle Integration', () => {
         turnReset: {
           turnState: { movementUsed: 0 }
         }
-      });
+      } as any);
 
       registerPluginStateLifecycle({
         pluginId: 'plugin-b', 
         turnReset: {
           turnState: { actionsUsed: [] }
         }
-      });
+      } as any);
 
       const gameState: ServerGameStateWithVirtuals = {
         campaign: null,
@@ -333,13 +356,20 @@ describe('Document State Lifecycle Integration', () => {
       };
 
       const draftState = JSON.parse(JSON.stringify(gameState)) as ServerGameStateWithVirtuals;
-      endTurnActionHandler.execute!(request, draftState);
+      await endTurnActionHandler.execute!(request, draftState, {
+        pluginContext: {} as PluginContext,
+        sendRollRequest: async () => ({} as RollServerResult),
+        sendMultipleRollRequests: async () => [],
+        sendChatMessage: async () => {},
+        sendRollResult: () => {},
+        requestGMConfirmation: async () => false
+      } as any);
 
       // Both plugin resets should be applied
       // Note: The second plugin's reset will overwrite the first's turnState
       expect(draftState.documents['actor-1'].state.turnState).toEqual({
         actionsUsed: []
-      });
+      } as any);
     });
   });
 });

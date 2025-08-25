@@ -9,17 +9,18 @@
  */
 
 import type { GameActionRequest, ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
-import type { ActionHandler, ActionValidationResult } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
+import type { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.mjs';
+import type { ActionValidationResult, ActionValidationHandler, ActionExecutionHandler, ActionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 import type { ConditionInstance, DndConditionDocument } from '../../types/dnd/condition.mjs';
 import { getPluginContext } from '@dungeon-lab/shared-ui/utils/plugin-context.mjs';
 
 /**
  * Validate adding condition to character (Document-Based)
  */
-export async function validateAddCondition(
+const validateAddCondition: ActionValidationHandler = async (
   request: GameActionRequest,
   gameState: ServerGameStateWithVirtuals
-): Promise<ActionValidationResult> {
+): Promise<ActionValidationResult> => {
   console.log('[DnD5e] Validating add condition (document-based):', {
     playerId: request.playerId,
     parameters: request.parameters
@@ -144,10 +145,11 @@ export async function validateAddCondition(
  * The condition should have been validated in the validate phase, so we can work
  * with the conditionId directly without doing async lookups.
  */
-export async function executeAddCondition(
+const executeAddCondition: ActionExecutionHandler = async (
   request: GameActionRequest,
-  draft: ServerGameStateWithVirtuals
-): Promise<void> {
+  draft: ServerGameStateWithVirtuals,
+  _context: AsyncActionContext
+): Promise<void> => {
   console.log('[DnD5e] Executing add condition (document-based)');
 
   const params = request.parameters as { 
@@ -302,3 +304,6 @@ export const dndAddConditionHandler: Omit<ActionHandler, 'pluginId'> = {
     return `wants to add ${conditionName} to ${targetName}`;
   }
 };
+
+// Export individual functions for compatibility
+export { validateAddCondition, executeAddCondition };

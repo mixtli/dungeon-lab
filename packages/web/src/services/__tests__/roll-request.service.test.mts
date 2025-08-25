@@ -15,7 +15,7 @@ vi.mock('../stores/socket.store.mts', () => ({
   useSocketStore: () => mockSocketStore
 }));
 
-import { RollRequestService, type RollRequestSpec } from '../roll-request.service.mts';
+import { RollRequestService } from '../roll-request.service.mts';
 import type { RollServerResult } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
 
 describe('RollRequestService', () => {

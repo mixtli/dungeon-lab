@@ -5,7 +5,7 @@
  * Supports priority-based execution ordering with core handlers first.
  */
 
-import type { ActionHandler } from './action-handler.interface.mjs';
+import type { ActionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 import type { GameActionRequest } from '@dungeon-lab/shared/types/index.mjs';
 
 /**

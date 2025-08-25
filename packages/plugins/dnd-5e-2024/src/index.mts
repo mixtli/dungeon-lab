@@ -10,7 +10,6 @@ import type { PluginContext, TokenContextAction, TokenActionContext } from '@dun
 import { validateCharacterData } from './character-validation.mjs';
 import { DnD5eTurnManager } from './turn-manager.mjs';
 import { DndAbilityCheckHandler, DndAttackRollHandler, DndSavingThrowHandler } from './services/dnd-roll-handler.mjs';
-import { DndWeaponAttackHandler, DndWeaponDamageHandler } from './services/dnd-weapon-handlers.mjs';
 import { registerPluginStateLifecycle, unregisterPluginStateLifecycle } from '@dungeon-lab/shared/utils/document-state-lifecycle.mjs';
 import { 
   dndMoveTokenHandler,
@@ -27,7 +26,8 @@ import {
   dndHelpHandler,
   dndDisengageHandler,
   dndSearchHandler,
-  dndReadyHandler
+  dndReadyHandler,
+  weaponAttackHandler
 } from './handlers/actions/index.mjs';
 import { unifiedSpellCastHandler } from './handlers/actions/spell-casting.handler.mjs';
 
@@ -124,7 +124,10 @@ export class DnD5e2024Plugin extends BaseGameSystemPlugin {
       handler: async (actionContext: TokenActionContext) => {
         await actionContext.pluginContext.requestAction(
           'dnd5e-2024:dodge',
+          actionContext.selectedToken.documentId,
           { targetId: actionContext.selectedToken.documentId },
+          actionContext.selectedToken.id,
+          undefined,
           { description: 'Take the Dodge action' }
         );
       }
@@ -142,7 +145,10 @@ export class DnD5e2024Plugin extends BaseGameSystemPlugin {
       handler: async (actionContext: TokenActionContext) => {
         await actionContext.pluginContext.requestAction(
           'dnd5e-2024:hide',
+          actionContext.selectedToken.documentId,
           { targetId: actionContext.selectedToken.documentId },
+          actionContext.selectedToken.id,
+          undefined,
           { description: 'Take the Hide action' }
         );
       }
@@ -160,7 +166,10 @@ export class DnD5e2024Plugin extends BaseGameSystemPlugin {
       handler: async (actionContext: TokenActionContext) => {
         await actionContext.pluginContext.requestAction(
           'dnd5e-2024:disengage',
+          actionContext.selectedToken.documentId,
           { targetId: actionContext.selectedToken.documentId },
+          actionContext.selectedToken.id,
+          undefined,
           { description: 'Take the Disengage action' }
         );
       }
@@ -178,7 +187,10 @@ export class DnD5e2024Plugin extends BaseGameSystemPlugin {
       handler: async (actionContext: TokenActionContext) => {
         await actionContext.pluginContext.requestAction(
           'dnd5e-2024:search',
+          actionContext.selectedToken.documentId,
           { targetId: actionContext.selectedToken.documentId },
+          actionContext.selectedToken.id,
+          undefined,
           { description: 'Take the Search action' }
         );
       }
@@ -197,7 +209,10 @@ export class DnD5e2024Plugin extends BaseGameSystemPlugin {
         // For now, help without a target - could be enhanced later
         await actionContext.pluginContext.requestAction(
           'dnd5e-2024:help',
+          actionContext.selectedToken.documentId,
           { targetId: actionContext.selectedToken.documentId },
+          actionContext.selectedToken.id,
+          undefined,
           { description: 'Take the Help action' }
         );
       }
@@ -216,11 +231,14 @@ export class DnD5e2024Plugin extends BaseGameSystemPlugin {
         // Ready action needs more complex UI - for now just basic
         await actionContext.pluginContext.requestAction(
           'dnd5e-2024:ready',
+          actionContext.selectedToken.documentId,
           { 
             targetId: actionContext.selectedToken.documentId,
             readiedActionType: 'attack',
             trigger: 'when an enemy moves within 5 feet'
           },
+          actionContext.selectedToken.id,
+          undefined,
           { description: 'Ready an action' }
         );
       }
@@ -244,14 +262,13 @@ export class DnD5e2024Plugin extends BaseGameSystemPlugin {
       context.registerRollHandler('attack-roll', new DndAttackRollHandler());
       context.registerRollHandler('saving-throw', new DndSavingThrowHandler());
       
-      // Register D&D weapon roll handlers
-      context.registerRollHandler('weapon-attack', new DndWeaponAttackHandler());
-      context.registerRollHandler('weapon-damage', new DndWeaponDamageHandler());
+      // Weapon attacks are now handled by the unified weapon-attack action handler
       
       // Register D&D action handlers
       context.registerActionHandler('move-token', dndMoveTokenHandler);
       context.registerActionHandler('attack', dndAttackHandler);
       context.registerActionHandler('dnd5e-2024:cast-spell', unifiedSpellCastHandler);
+      context.registerActionHandler('dnd5e-2024:weapon-attack', weaponAttackHandler);
       context.registerActionHandler('dnd5e-2024:long-rest', dndLongRestHandler);
       context.registerActionHandler('dnd5e-2024:short-rest', dndShortRestHandler);
       context.registerActionHandler('dnd5e-2024:use-class-feature', dndUseClassFeatureHandler);

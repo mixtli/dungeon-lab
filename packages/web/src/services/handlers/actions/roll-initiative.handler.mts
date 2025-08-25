@@ -6,16 +6,17 @@
 
 import type { GameActionRequest, RollInitiativeParameters } from '@dungeon-lab/shared/types/index.mjs';
 import type { ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
-import type { ActionHandler, ValidationResult } from '../../action-handler.interface.mjs';
+import type { ActionHandler, ActionValidationResult, ActionValidationHandler, ActionExecutionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
+import type { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.mjs';
 import { pluginRegistry } from '../../plugin-registry.mjs';
 
 /**
  * Validate roll initiative request
  */
-async function validateRollInitiative(
+const validateRollInitiative: ActionValidationHandler = async (
   request: GameActionRequest, 
   gameState: ServerGameStateWithVirtuals
-): Promise<ValidationResult> {
+): Promise<ActionValidationResult> => {
   const params = request.parameters as RollInitiativeParameters;
 
   console.log('[RollInitiativeHandler] Validating initiative roll:', {
@@ -36,14 +37,14 @@ async function validateRollInitiative(
 
   // Validate participants if specific ones are provided
   if (params.participants && params.participants.length > 0) {
-    const encounterTokens = gameState.currentEncounter.tokens || [];
+    const encounterTokens = gameState.currentEncounter.tokens || {};
     const encounterDocuments = Object.values(gameState.documents).filter(
       doc => doc.documentType === 'character' || doc.documentType === 'actor'
     );
     
     for (const participantId of params.participants) {
       // Check if participant exists either as a token or document
-      const tokenExists = encounterTokens.some(token => 
+      const tokenExists = Object.values(encounterTokens).some(token => 
         token.id === participantId || token.documentId === participantId
       );
       const documentExists = encounterDocuments.some(doc => doc.id === participantId);
@@ -66,10 +67,11 @@ async function validateRollInitiative(
 /**
  * Execute initiative rolling using direct state mutation
  */
-async function executeRollInitiative(
+const executeRollInitiative: ActionExecutionHandler = async (
   request: GameActionRequest, 
-  draft: ServerGameStateWithVirtuals
-): Promise<void> {
+  draft: ServerGameStateWithVirtuals,
+  _context: AsyncActionContext
+): Promise<void> => {
   const params = request.parameters as RollInitiativeParameters;
 
   console.log('[RollInitiativeHandler] Executing initiative roll:', {
@@ -88,7 +90,7 @@ async function executeRollInitiative(
   }
 
   // Get the appropriate plugin for initiative calculation
-  const gameSystemPlugin = pluginRegistry.getGameSystemPlugin(draft.pluginId || 'dnd-5e-2024');
+  const gameSystemPlugin = pluginRegistry.getGameSystemPlugin(draft.campaign?.pluginId || 'dnd-5e-2024');
   const turnManagerPlugin = gameSystemPlugin?.turnManager;
   
   if (!turnManagerPlugin) {
@@ -98,7 +100,7 @@ async function executeRollInitiative(
   // Generate turn order participants from encounter participants only
   let participants = [];
   const encounterParticipants = draft.currentEncounter?.participants || [];
-  const tokens = draft.currentEncounter?.tokens || [];
+  const tokens = draft.currentEncounter?.tokens || {};
 
   if (encounterParticipants.length === 0) {
     console.warn('[RollInitiativeHandler] No encounter participants found - cannot roll initiative');
@@ -110,7 +112,7 @@ async function executeRollInitiative(
     if (params.participants && params.participants.length > 0) {
       if (!params.participants.includes(participantId)) {
         // Also check token IDs for backward compatibility
-        const token = tokens.find(t => t.documentId === participantId);
+        const token = Object.values(tokens).find(t => t.documentId === participantId);
         if (!token || !params.participants.includes(token.id)) {
           continue;
         }
@@ -123,7 +125,7 @@ async function executeRollInitiative(
       continue;
     }
 
-    const token = tokens.find(t => t.documentId === participantId);
+    const token = Object.values(tokens).find(t => t.documentId === participantId);
     
     participants.push({
       id: token?.id || `participant_${participantId}`,
@@ -166,7 +168,7 @@ async function executeRollInitiative(
 /**
  * Core roll-initiative action handler
  */
-export const rollInitiativeActionHandler: ActionHandler = {
+export const rollInitiativeActionHandler: Omit<ActionHandler, 'pluginId'> = {
   priority: 0, // Core handler runs first
   gmOnly: true, // Only GMs can roll initiative
   validate: validateRollInitiative,

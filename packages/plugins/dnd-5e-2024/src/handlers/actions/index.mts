@@ -24,5 +24,8 @@ export { dndDisengageHandler } from './disengage.handler.mjs';
 export { dndSearchHandler } from './search.handler.mjs';
 export { dndReadyHandler } from './ready.handler.mjs';
 
+// Weapon attack action
+export { weaponAttackHandler, validateWeaponAttack } from './weapon-attack.handler.mjs';
+
 // Re-export types for convenience
 export type { ActionHandler, ActionValidationResult } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';

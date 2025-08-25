@@ -678,21 +678,7 @@
     @roll="handleSavingThrowSubmission"
   />
 
-  <!-- Dialogs -->
-  <WeaponAttackDialog
-    v-model="showWeaponAttackDialog"
-    :weapon="currentRollWeapon"
-    :character="character"
-    @roll="handleWeaponAttackRollSubmission"
-  />
-
-  <!-- Weapon Damage Dialog -->
-  <WeaponDamageDialog
-    v-model="showWeaponDamageDialog"
-    :weapon="currentRollWeapon"
-    :character="character"
-    @roll="handleWeaponDamageRollSubmission"
-  />
+  <!-- Weapon dialogs removed - now using unified action handlers -->
 </template>
 
 <script setup lang="ts">
@@ -704,8 +690,7 @@ import type { DndBackgroundDocument } from '../../types/dnd/background.mjs';
 import type { AssignItemParameters } from '@dungeon-lab/shared/types/index.mjs';
 import { getPluginContext } from '@dungeon-lab/shared-ui/utils/plugin-context.mjs';
 import AdvantageRollDialog, { type RollDialogData } from '../internal/common/AdvantageRollDialog.vue';
-import WeaponAttackDialog, { type WeaponAttackRollData } from '../internal/common/WeaponAttackDialog.vue';
-import WeaponDamageDialog, { type WeaponDamageRollData } from '../internal/common/WeaponDamageDialog.vue';
+// Weapon dialogs removed - now using unified action handlers
 
 // Note: This import works because plugin components run in the web context
 // @ts-ignore - Import from web package for document sheet functionality
@@ -801,8 +786,7 @@ const currentSavingThrow = ref<string>('');
 const currentRollWeapon = ref<IItem | null>(null);
 
 // Weapon dialog state
-const showWeaponAttackDialog = ref(false);
-const showWeaponDamageDialog = ref(false);
+// Weapon dialog refs removed - now using unified action handlers
 
 // Drag and drop state
 const isDragOver = ref(false);
@@ -1364,19 +1348,38 @@ const getItemIcon = (item: IItem): string => {
   return '🎒';
 };
 
-const initiateWeaponAttack = (weapon: IItem) => {
+const initiateWeaponAttack = async (weapon: IItem) => {
   console.log('[CharacterSheet] Initiating weapon attack:', weapon.name);
-  currentRollWeapon.value = weapon;
-  showWeaponAttackDialog.value = true;
+  
+  const pluginContext = getPluginContext();
+  if (!pluginContext) {
+    console.error('Plugin context not available');
+    return;
+  }
+
+  if (!character.value) {
+    console.error('Character not available');
+    return;
+  }
+
+  try {
+    await pluginContext.requestAction(
+      'dnd5e-2024:weapon-attack',
+      character.value.id,                    // actorId
+      { weaponId: weapon.id },               // parameters
+      encounterSelectedToken.value?.id,      // actorTokenId
+      encounterTargetTokenIds.value || [],   // targetTokenIds
+      { description: `Attack with ${weapon.name}` }
+    );
+  } catch (error) {
+    console.error('Weapon attack failed:', error);
+  }
 };
 
-const initiateWeaponDamage = (weapon: IItem) => {
-  console.log('[CharacterSheet] Initiating weapon damage:', weapon.name);
-  currentRollWeapon.value = weapon;
-  showWeaponDamageDialog.value = true;
-};
+// Weapon damage now handled automatically by unified weapon attack action
 
-// Helper functions for weapon calculations (shared between dialogs and roll submission)
+// Helper functions for weapon calculations
+
 const getWeaponAttackAbility = (weapon: IItem): string => {
   const properties = (weapon.pluginData as any)?.properties || [];
   const weaponType = (weapon.pluginData as any)?.weaponType || (weapon.pluginData as any)?.category;
@@ -1570,209 +1573,9 @@ const handleSavingThrowSubmission = (rollData: RollDialogData) => {
   showSavingThrowDialog.value = false;
 };
 
-// Handle weapon attack roll submission
-const handleWeaponAttackRollSubmission = async (rollData: WeaponAttackRollData) => {
-  const pluginContext = getPluginContext();
-  if (!pluginContext) {
-    console.error('Plugin context not available');
-    return;
-  }
+// Weapon attack roll submission removed - now using unified action handler
 
-  console.log('[CharacterSheet] Requesting attack action before weapon roll');
-  
-  // Request attack action - this will consume action economy and validate the action
-  try {
-    const actionResult = await pluginContext.requestAction(
-      'attack',
-      {
-        weaponId: rollData.weapon.id,
-        weaponName: rollData.weapon.name
-      },
-      {
-        description: `Attack with ${rollData.weapon.name}`
-      }
-    );
-
-    if (!actionResult.success) {
-      console.warn('[CharacterSheet] Attack action request failed:', actionResult.error);
-      
-      // Show user-friendly notification
-      const userFriendlyMessage = getUserFriendlyActionError(actionResult.error);
-      notificationStore.addNotification({
-        type: 'warning',
-        message: userFriendlyMessage,
-        duration: 4000 // 4 seconds
-      });
-      
-      return;
-    }
-
-    console.log('[CharacterSheet] Attack action approved, proceeding with weapon roll');
-  } catch (error) {
-    console.error('[CharacterSheet] Error requesting attack action:', error);
-    
-    // Show user notification for unexpected errors
-    notificationStore.addNotification({
-      type: 'error',
-      message: 'Failed to process attack request. Please try again.',
-      duration: 4000
-    });
-    
-    return;
-  }
-
-  // Generate unique roll ID
-  const rollId = `roll_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  
-  // Calculate weapon attack modifiers
-  const weapon = rollData.weapon;
-  const char = character.value!;
-  const modifiers = [];
-
-  // Add ability modifier
-  const ability = getWeaponAttackAbility(weapon);
-  const abilityMod = getAbilityModifier(char, ability);
-  if (abilityMod !== 0) {
-    modifiers.push({
-      type: 'ability',
-      value: abilityMod,
-      source: `${ability.charAt(0).toUpperCase()}${ability.slice(1)} modifier`
-    });
-  }
-
-  // Add proficiency bonus if proficient
-  if (isProficientWithWeapon(weapon, char)) {
-    const profBonus = getProficiencyBonus(char);
-    modifiers.push({
-      type: 'proficiency',
-      value: profBonus,
-      source: 'Proficiency bonus'
-    });
-  }
-
-  // Add enhancement bonus if any
-  const enhancement = (weapon.pluginData as any)?.enhancement || 0;
-  if (enhancement !== 0) {
-    modifiers.push({
-      type: 'enhancement',
-      value: enhancement,
-      source: 'Magic weapon'
-    });
-  }
-
-  // Create weapon attack roll
-  const roll = {
-    id: rollId,
-    rollType: 'weapon-attack',
-    pluginId: 'dnd-5e-2024',
-    dice: [{ 
-      sides: 20, 
-      quantity: rollData.advantageMode === 'normal' ? 1 : 2 
-    }],
-    recipients: rollData.recipients,
-    arguments: { 
-      customModifier: rollData.customModifier,
-      pluginArgs: { 
-        advantageMode: rollData.advantageMode
-      }
-    },
-    modifiers: modifiers,
-    metadata: {
-      title: `${rollData.weapon.name} Attack`,
-      characterName: character.value!.name,
-      weaponId: rollData.weapon.id,
-      characterId: character.value!.id,
-      // Add automation metadata
-      autoMode: character.value!.pluginData?.automateAttacks || false,
-      targetTokenIds: (character.value!.pluginData?.automateAttacks && encounterTargetTokenIds?.value) 
-        ? encounterTargetTokenIds.value 
-        : []
-    }
-  };
-
-  pluginContext.submitRoll(roll);
-  console.log(`[CharacterSheet] Submitted weapon attack roll:`, roll);
-};
-
-// Handle weapon damage roll submission
-const handleWeaponDamageRollSubmission = (rollData: WeaponDamageRollData) => {
-  const pluginContext = getPluginContext();
-  if (!pluginContext) {
-    console.error('Plugin context not available');
-    return;
-  }
-
-  // Generate unique roll ID
-  const rollId = `roll_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  
-  // Parse weapon damage dice
-  const weaponData = rollData.weapon.pluginData as any;
-  const damageDice = weaponData?.damage?.dice || '1d4';
-  
-  // Parse dice notation (e.g., "1d6", "2d4")
-  const diceMatch = damageDice.match(/(\d+)d(\d+)/);
-  if (!diceMatch) {
-    console.error('Invalid damage dice notation:', damageDice);
-    return;
-  }
-  
-  const quantity = parseInt(diceMatch[1]);
-  const sides = parseInt(diceMatch[2]);
-  
-  // Double dice for critical hits
-  const finalQuantity = rollData.isCritical ? quantity * 2 : quantity;
-
-  // Calculate weapon damage modifiers
-  const weapon = rollData.weapon;
-  const char = character.value!;
-  const modifiers = [];
-
-  // Add ability modifier (same as attack ability for damage)
-  const ability = getWeaponAttackAbility(weapon);
-  const abilityMod = getAbilityModifier(char, ability);
-  if (abilityMod !== 0) {
-    modifiers.push({
-      type: 'ability',
-      value: abilityMod,
-      source: `${ability.charAt(0).toUpperCase()}${ability.slice(1)} modifier`
-    });
-  }
-
-  // Add enhancement bonus if any
-  const enhancement = (weapon.pluginData as any)?.enhancement || 0;
-  if (enhancement !== 0) {
-    modifiers.push({
-      type: 'enhancement',
-      value: enhancement,
-      source: 'Magic weapon'
-    });
-  }
-  
-  const roll = {
-    id: rollId,
-    rollType: 'weapon-damage',
-    pluginId: 'dnd-5e-2024',
-    dice: [{ 
-      sides: sides, 
-      quantity: finalQuantity
-    }],
-    recipients: rollData.recipients,
-    arguments: { 
-      customModifier: rollData.customModifier
-    },
-    modifiers: modifiers,
-    metadata: {
-      title: `${rollData.weapon.name} Damage`,
-      characterName: character.value!.name,
-      weapon: rollData.weapon,
-      character: character.value!,
-      critical: rollData.isCritical
-    }
-  };
-
-  pluginContext.submitRoll(roll);
-  console.log(`[CharacterSheet] Submitted weapon damage roll:`, roll);
-};
+// Weapon damage roll submission removed - now handled automatically by unified action handler
 
 const rollSavingThrow = (ability: string) => {
   currentSavingThrow.value = ability;
@@ -2094,16 +1897,15 @@ const castSpell = async (spellData: any) => {
   try {
     const result = await pluginContext.requestAction(
       'dnd5e-2024:cast-spell',
+      character.value.id,                    // actorId
       {
         spellId: spell.id,
-        spellSlotLevel: spellData.level, // Required: 0 for cantrips, 1-9 for leveled spells
-        casterTokenId: encounterSelectedToken.value.id, // ✅ Selected token from encounter
-        targetTokenIds: encounterTargetTokenIds.value, // ✅ Target tokens from encounter
-        castingTime: 'action' // Default casting time
-      },
-      {
-        description: `Cast ${spell.name}`
-      }
+        spellSlotLevel: spellData.level,     // Required: 0 for cantrips, 1-9 for leveled spells
+        castingTime: 'action'                // Default casting time
+      },                                     // parameters
+      encounterSelectedToken.value.id,      // actorTokenId
+      encounterTargetTokenIds.value,        // targetTokenIds
+      { description: `Cast ${spell.name}` }
     );
     
     if (result.success) {
@@ -2396,7 +2198,10 @@ const handleSpellDrop = async (event: DragEvent) => {
     // Request the spell assignment action through the plugin context
     const result = await pluginContext.requestAction(
       'dnd5e-2024:assign-spell',
+      actionParams.targetCharacterId, // actorId - the character receiving the spell
       actionParams,
+      undefined, // actorTokenId
+      undefined, // targetTokenIds
       {
         description: `Assign ${actionParams.spellName} to ${actionParams.targetCharacterName}`
       }
@@ -2495,7 +2300,10 @@ const handleConditionDrop = async (event: DragEvent) => {
     // Request the condition assignment action through the plugin context
     const result = await pluginContext.requestAction(
       'dnd5e-2024:add-condition',
+      actionParams.targetCharacterId, // actorId - the character receiving the condition
       actionParams,
+      undefined, // actorTokenId
+      undefined, // targetTokenIds
       {
         description: `Add condition ${dragData.name || 'Unknown Condition'} to ${character.value.name || 'Unknown Character'}`
       }
@@ -2537,10 +2345,13 @@ const removeCondition = async (conditionId: string) => {
   try {
     await pluginContext.requestAction(
       'dnd5e-2024:remove-condition',
+      character.value.id, // actorId - the character losing the condition
       { 
         conditionId,
         targetId: character.value.id
       },
+      undefined, // actorTokenId
+      undefined, // targetTokenIds
       { description: `Remove condition: ${getConditionName(conditionId)}` }
     );
   } catch (error) {
@@ -2649,7 +2460,10 @@ const handleDrop = async (event: DragEvent) => {
     // Request the action through the plugin context
     const result = await pluginContext.requestAction(
       'assign-item',
+      actionParams.targetCharacterId, // actorId - the character receiving the item
       actionParams,
+      undefined, // actorTokenId
+      undefined, // targetTokenIds
       {
         description: `Assign ${actionParams.itemName} to ${actionParams.targetCharacterName}`
       }

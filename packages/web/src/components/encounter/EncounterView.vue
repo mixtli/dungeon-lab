@@ -273,10 +273,10 @@ const debugSelectedTokenId = computed(() => {
 // Convert encounter tokens to format expected by PixiMapViewer
 const encounterTokens = computed(() => {
   // Tokens are now part of currentEncounter in the unified game state
-  const tokens = gameStateStore.currentEncounter?.tokens || [];
+  const tokens = gameStateStore.currentEncounter?.tokens || {};
   
-  // Tokens now use the new bounds format - pass them through directly
-  return tokens;
+  // Convert record to array for PixiMapViewer
+  return Object.values(tokens);
 });
 
 // Initialize encounter view - no loading needed, just use gameState
@@ -369,8 +369,8 @@ const handleTokenSelection = (tokenId: string, modifiers?: { shift?: boolean; ct
   }
   
   // Find the token in the encounter
-  const tokens = gameStateStore.currentEncounter?.tokens || [];
-  const clickedToken = tokens.find((t: Token) => t.id === tokenId) || null;
+  const tokens = gameStateStore.currentEncounter?.tokens || {};
+  const clickedToken = Object.values(tokens).find((t: Token) => t.id === tokenId) || null;
   
   if (!clickedToken) {
     console.warn('[EncounterView] Token not found for selection:', tokenId);
@@ -405,7 +405,7 @@ const handleTokenSelection = (tokenId: string, modifiers?: { shift?: boolean; ct
 const handleTokenMoved = async (tokenId: string, x: number, y: number) => {
   if (!encounter.value) return;
   
-  const token = encounter.value.tokens?.find(t => t.id === tokenId);
+  const token = encounter.value.tokens ? Object.values(encounter.value.tokens).find(t => t.id === tokenId) : undefined;
   if (!token) {
     console.error('[EncounterView] Token not found:', tokenId);
     return;
@@ -869,9 +869,8 @@ const handleTokenUpdate = async (updatedToken: Token) => {
     return;
   }
   
-  // Find the token index in the encounter
-  const tokenIndex = encounter.value.tokens?.findIndex(token => token.id === updatedToken.id);
-  if (tokenIndex === undefined || tokenIndex === -1) {
+  // Check if token exists in the encounter
+  if (!encounter.value.tokens?.[updatedToken.id]) {
     console.error('[EncounterView] Token not found for update:', updatedToken.id);
     return;
   }
@@ -880,13 +879,13 @@ const handleTokenUpdate = async (updatedToken: Token) => {
     // Create state operations to update all token properties
     const { name, imageUrl, bounds, isVisible, isPlayerControlled, conditions } = updatedToken;
     const operations: StateOperation[] = [
-      { path: `currentEncounter.tokens.${tokenIndex}.name`, op: 'replace', value: name },
-      { path: `currentEncounter.tokens.${tokenIndex}.imageUrl`, op: 'replace', value: imageUrl },
-      { path: `currentEncounter.tokens.${tokenIndex}.bounds`, op: 'replace', value: bounds },
-      { path: `currentEncounter.tokens.${tokenIndex}.isVisible`, op: 'replace', value: isVisible },
-      { path: `currentEncounter.tokens.${tokenIndex}.isPlayerControlled`, op: 'replace', value: isPlayerControlled },
-      { path: `currentEncounter.tokens.${tokenIndex}.conditions`, op: 'replace', value: conditions },
-      { path: `currentEncounter.tokens.${tokenIndex}.data`, op: 'replace', value: updatedToken.data || {} }
+      { path: `currentEncounter.tokens.${updatedToken.id}.name`, op: 'replace', value: name },
+      { path: `currentEncounter.tokens.${updatedToken.id}.imageUrl`, op: 'replace', value: imageUrl },
+      { path: `currentEncounter.tokens.${updatedToken.id}.bounds`, op: 'replace', value: bounds },
+      { path: `currentEncounter.tokens.${updatedToken.id}.isVisible`, op: 'replace', value: isVisible },
+      { path: `currentEncounter.tokens.${updatedToken.id}.isPlayerControlled`, op: 'replace', value: isPlayerControlled },
+      { path: `currentEncounter.tokens.${updatedToken.id}.conditions`, op: 'replace', value: conditions },
+      { path: `currentEncounter.tokens.${updatedToken.id}.data`, op: 'replace', value: updatedToken.data || {} }
     ];
     
     const response = await gameStateStore.updateGameState(operations);

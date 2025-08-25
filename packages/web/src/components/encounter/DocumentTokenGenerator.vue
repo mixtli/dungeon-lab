@@ -316,7 +316,7 @@ const createTokens = async () => {
       };
 
       operations.push({
-        path: 'currentEncounter.tokens',
+        path: `currentEncounter.tokens.${tokenId}`,
         op: 'add',
         value: tokenData
       });

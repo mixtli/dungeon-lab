@@ -110,8 +110,8 @@ export class RollHandlerService {
           } : undefined,
         // Include requestAction function when plugin context is available
         requestAction: handlerRegistration ? 
-          (actionType: string, parameters: Record<string, unknown>, options?: { description?: string }) => {
-            return handlerRegistration.pluginContext.requestAction(actionType, parameters, options);
+          (actionType: string, actorId: string | undefined, parameters: Record<string, unknown>, actorTokenId?: string, targetTokenIds?: string[], options?: { description?: string }) => {
+            return handlerRegistration.pluginContext.requestAction(actionType, actorId, parameters, actorTokenId, targetTokenIds, options);
           } : undefined,
         // Include requestRoll function for sending damage roll requests
         requestRoll: handlerRegistration ? 
@@ -176,9 +176,18 @@ export class RollHandlerService {
               } else if (action.type === 'action-request') {
                 const actionRequest = action as FollowUpActionRequest;
                 if (context.requestAction) {
+                  // Extract actorId from parameters or use result metadata
+                  // TODO: Update FollowUpActionRequest interface to include actorId, actorTokenId, targetTokenIds
+                  const actorId = (actionRequest.data.parameters as any).actorId || result.metadata.actorId || '';
+                  const actorTokenId = (actionRequest.data.parameters as any).actorTokenId || result.metadata.actorTokenId;
+                  const targetTokenIds = (actionRequest.data.parameters as any).targetTokenIds;
+                  
                   await context.requestAction(
                     actionRequest.data.actionType,
+                    actorId,
                     actionRequest.data.parameters,
+                    actorTokenId,
+                    targetTokenIds,
                     actionRequest.data.options
                   );
                   console.log('[RollHandlerService] Executed action request:', actionRequest.data.actionType);

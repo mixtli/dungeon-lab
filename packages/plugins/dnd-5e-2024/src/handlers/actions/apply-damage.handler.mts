@@ -10,16 +10,17 @@
  */
 
 import type { GameActionRequest, ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
-import type { ActionHandler, ActionValidationResult } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
+import type { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.mjs';
+import type { ActionValidationResult, ActionValidationHandler, ActionExecutionHandler, ActionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 import type { DndCharacterData } from '../../types/dnd/character.mjs';
 
 /**
  * Validate damage application requirements
  */
-export function validateDamageApplication(
+const validateDamageApplication: ActionValidationHandler = async (
   request: GameActionRequest,
   gameState: ServerGameStateWithVirtuals
-): ActionValidationResult {
+): Promise<ActionValidationResult> => {
   console.log('[DnD5e] Validating damage application:', {
     playerId: request.playerId,
     parameters: request.parameters
@@ -51,7 +52,7 @@ export function validateDamageApplication(
   }
 
   // Look up token to get the linked document
-  const token = gameState.currentEncounter?.tokens?.find(t => t.id === targetTokenId);
+  const token = gameState.currentEncounter?.tokens?.[targetTokenId];
   if (!token) {
     return { 
       valid: false, 
@@ -209,10 +210,11 @@ function calculateActualDamage(
 /**
  * Execute damage application - update hit points and handle conditions
  */
-export function executeDamageApplication(
+const executeDamageApplication: ActionExecutionHandler = async (
   request: GameActionRequest,
-  draft: ServerGameStateWithVirtuals
-): void {
+  draft: ServerGameStateWithVirtuals,
+  context: AsyncActionContext
+): Promise<void> => {
   console.log('[DnD5e] Executing damage application');
 
   const params = request.parameters as { 
@@ -226,7 +228,7 @@ export function executeDamageApplication(
   const { targetTokenId, damage, damageType = 'bludgeoning', source, ignoreResistances = false } = params;
 
   // Look up token to get the linked document
-  const token = draft.currentEncounter?.tokens?.find(t => t.id === targetTokenId);
+  const token = draft.currentEncounter?.tokens?.[targetTokenId];
   if (!token) {
     console.warn('[DnD5e] Target token not found during damage application:', targetTokenId);
     return;
@@ -403,7 +405,7 @@ export function executeDamageApplication(
 export const dndApplyDamageHandler: Omit<ActionHandler, 'pluginId'> = {
   validate: validateDamageApplication,
   execute: executeDamageApplication,
-  approvalMessage: (request) => {
+  approvalMessage: async (request) => {
     const params = request.parameters as { 
       targetTokenId: string;
       damage: number;
@@ -415,3 +417,6 @@ export const dndApplyDamageHandler: Omit<ActionHandler, 'pluginId'> = {
     return `wants to apply ${damage} ${damageType} damage${sourceText}`;
   }
 };
+
+// Export individual functions for compatibility
+export { validateDamageApplication, executeDamageApplication };

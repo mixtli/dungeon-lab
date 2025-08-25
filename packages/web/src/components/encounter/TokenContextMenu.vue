@@ -150,13 +150,16 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, toRaw } from 'vue';
 import { useGameSessionStore } from '@/stores/game-session.store.mjs';
 import { useGameStateStore } from '@/stores/game-state.store.mjs';
 import { tokenActionRegistry } from '@/services/token-action-registry.mjs';
 import { PlayerActionService } from '@/services/player-action.service.mjs';
 import type { Token } from '@dungeon-lab/shared/types/tokens.mjs';
-import type { TokenContextAction } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
+import type { ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
+import type { 
+  TokenActionContext // Execution context passed TO plugin handlers when action runs
+} from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 
 interface Props {
   visible: boolean;
@@ -243,7 +246,9 @@ const availablePluginActions = computed(() => {
       if (!action.condition) return true;
       
       try {
-        return action.condition(props.token!, gameState);
+        // The gameState from store is deeply readonly, but condition functions are read-only operations
+        // so this type assertion is safe for runtime behavior
+        return action.condition(props.token!, gameState! as Readonly<ServerGameStateWithVirtuals>);
       } catch (error) {
         console.warn(`[TokenContextMenu] Error evaluating condition for action ${action.id}:`, error);
         return false;
@@ -306,15 +311,34 @@ const handlePluginAction = async (action: { id: string; label: string; icon?: st
     
     // Create a simplified context that delegates action requests to PlayerActionService
     const playerActionService = new PlayerActionService();
-    
     const context: TokenActionContext = {
       selectedToken: props.token,
-      gameState: gameStateStore.gameState,
+      // The gameState from store is deeply readonly, but for the handler execution context
+      // we need to provide the mutable interface expected by the TokenActionContext
+      gameState: toRaw(gameStateStore.gameState!) as ServerGameStateWithVirtuals,
       pluginContext: {
-        requestAction: async (actionType: string, parameters: Record<string, unknown>, options?: { description?: string }) => {
-          return await playerActionService.requestAction(actionType, parameters, options);
+        requestAction: async (
+          actionType: string, 
+          actorId: string | undefined, 
+          parameters: Record<string, unknown>,
+          actorTokenId?: string,
+          targetTokenIds?: string[],
+          options?: { description?: string }
+        ) => {
+          // For token context menu actions, we have the token so pass both actorId and actorTokenId
+          if (!props.token) {
+            throw new Error('No token selected for action');
+          }
+          return await playerActionService.requestAction(
+            actionType as any, // Plugin actions may not be in core action types
+            actorId || props.token.documentId,  // Use provided actorId or fall back to token's document
+            parameters, 
+            actorTokenId || props.token.id,     // Use provided token or fall back to current token
+            targetTokenIds,                     // Pass through target tokens
+            options
+          );
         }
-      }
+      } as any // Simplified plugin context for token actions
     };
     
     await originalAction.handler(context);

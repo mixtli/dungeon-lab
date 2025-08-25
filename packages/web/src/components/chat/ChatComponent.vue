@@ -8,10 +8,6 @@ import { ChatbotsClient } from '@dungeon-lab/client/index.mjs';
 import { useMentions } from '../../composables/useMentions.mjs';
 import { useNotifications } from '../../composables/useNotifications.mjs';
 import MentionInput from './MentionInput.vue';
-import RollCard from './RollCard.vue';
-import ApprovalCard from './ApprovalCard.vue';
-import RollRequestMessage from './RollRequestMessage.vue';
-import RollResultMessage from './RollResultMessage.vue';
 import SharedMessageContent from './SharedMessageContent.vue';
 
 interface Props {

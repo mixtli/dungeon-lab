@@ -37,7 +37,7 @@ export const encounterSchema = baseSchema.extend({
   ownerId: z.string().optional(), // Owner of the encounter (usually the game master)
   currentMap: mapSchemaWithVirtuals.nullable().optional(),
   status: EncounterStatusEnum.default('stopped'),
-  tokens: z.array(tokenSchema).default([]),
+  tokens: z.record(z.string(), tokenSchema).default({}),
   settings: encounterSettingsSchema.optional(),
   participants: z.array(z.string()).default([])
 });

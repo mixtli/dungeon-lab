@@ -22,8 +22,8 @@ describe('GameStateOperations', () => {
       id: 'encounter1',
       name: 'Test Encounter',
       mapId: 'map1',
-      tokens: [
-        {
+      tokens: {
+        token1: {
           id: 'token1',
           name: 'Token 1',
           imageUrl: 'test.png',
@@ -41,7 +41,7 @@ describe('GameStateOperations', () => {
           updatedBy: 'user1',
           ownerId: 'user1'
         }
-      ],
+      },
       campaignId: 'campaign1',
       createdBy: 'user1',
       updatedBy: 'user1'
@@ -131,7 +131,7 @@ describe('GameStateOperations', () => {
     const operations: JsonPatchOperation[] = [
       {
         op: 'add',
-        path: '/currentEncounter/tokens/-',
+        path: '/currentEncounter/tokens/token2',
         value: newToken
       }
     ];
@@ -140,9 +140,9 @@ describe('GameStateOperations', () => {
     
     // Encounter object should be preserved
     expect(state.currentEncounter).toBe(originalEncounter);
-    // Tokens array should be modified in-place (even better!)
+    // Tokens record should be modified in-place (even better!)
     expect(state.currentEncounter?.tokens).toBe(originalTokens);
-    expect(state.currentEncounter?.tokens).toHaveLength(2);
-    expect(state.currentEncounter?.tokens[1]).toEqual(newToken);
+    expect(Object.keys(state.currentEncounter?.tokens || {})).toHaveLength(2);
+    expect(state.currentEncounter?.tokens.token2).toEqual(newToken);
   });
 });

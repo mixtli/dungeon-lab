@@ -1,13 +1,13 @@
 import './assets/styles/main.css';
 import '@mdi/font/css/materialdesignicons.css';
 import { createApp } from 'vue';
+import type { PluginContext } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 
 // Extend Window interface to include the plugin registry
 declare global {
   interface Window {
     __DUNGEON_LAB_PLUGIN_REGISTRY__?: {
-      getGameSystemPlugin(id: string): { getContext(): unknown } | null;
-      [key: string]: unknown;
+      getGameSystemPlugin(id: string): { getContext(): PluginContext | undefined } | null;
     };
   }
 }
@@ -68,8 +68,8 @@ async function initializeApp() {
       getGameSystemPlugin: (id: string) => {
         const plugin = pluginRegistry.getGameSystemPlugin(id);
         // Check if plugin has getContext method (plugins extend BasePlugin)
-        if (plugin && typeof (plugin as unknown as { getContext?: () => unknown }).getContext === 'function') {
-          return { getContext: () => (plugin as unknown as { getContext: () => unknown }).getContext() };
+        if (plugin && typeof (plugin as unknown as { getContext?: () => PluginContext | undefined }).getContext === 'function') {
+          return { getContext: () => (plugin as unknown as { getContext: () => PluginContext | undefined }).getContext() };
         }
         return null;
       }

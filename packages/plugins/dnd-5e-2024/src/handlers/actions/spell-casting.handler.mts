@@ -14,9 +14,10 @@
  */
 
 import type { GameActionRequest, ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
-import type { AsyncActionContext } from '@dungeon-lab/shared/interfaces/action-context.interface.mjs';
+import type { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.mjs';
+import type { ActionValidationResult, ActionValidationHandler, ActionExecutionHandler, ActionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 import type { RollServerResult } from '@dungeon-lab/shared/types/socket/index.mjs';
-import type { RollRequestSpec } from '@dungeon-lab/shared/interfaces/action-context.interface.mjs';
+import type { RollRequestSpec } from '@dungeon-lab/shared-ui/types/action-context.mjs';
 import { 
   lookupSpell, 
   getCasterForToken, 
@@ -31,9 +32,7 @@ import {
 } from '../../services/spell-lookup.service.mjs';
 import { 
   validateActionEconomy, 
-  consumeAction, 
-  findPlayerCharacter, 
-  findPlayerCharacterInDraft,
+  consumeAction,
   type DnDActionType
 } from '../../utils/action-economy.mjs';
 
@@ -42,8 +41,6 @@ import {
  */
 interface SpellCastParameters {
   spellId: string;
-  casterTokenId: string;
-  targetTokenIds: string[];
   spellSlotLevel: number;
   castingTime?: 'action' | 'bonus_action' | 'reaction' | 'ritual';
 }
@@ -131,11 +128,11 @@ function getTargetAC(target: SpellTarget): number {
  * 4. Phase 3: Damage Application (conditional on spell.damage)
  * 5. Phase 4: Additional Effects (skipped in Phase 2.2, implemented in Phase 3.3)
  */
-export async function executeSpellCast(
+const executeSpellCast: ActionExecutionHandler = async (
   request: GameActionRequest,
   draft: ServerGameStateWithVirtuals, 
   context: AsyncActionContext
-): Promise<void> {
+): Promise<void> => {
   console.log('[SpellCasting] Starting unified spell casting workflow');
   
   try {
@@ -144,16 +141,17 @@ export async function executeSpellCast(
     // ==========================================
     
     const parameters = request.parameters as SpellCastParameters;
-    const { spellId, casterTokenId, targetTokenIds, spellSlotLevel } = parameters;
+    const { spellId, spellSlotLevel } = parameters;
     
-    if (!spellId || !casterTokenId || !targetTokenIds || typeof spellSlotLevel !== 'number') {
+    if (!spellId || typeof spellSlotLevel !== 'number') {
       throw new Error('Invalid spell casting parameters');
     }
     
     console.log('[SpellCasting] Parameters:', {
       spellId,
-      casterTokenId, 
-      targetCount: targetTokenIds.length,
+      actorId: request.actorId,
+      actorTokenId: request.actorTokenId, 
+      targetCount: request.targetTokenIds?.length || 0,
       spellSlotLevel
     });
     
@@ -163,11 +161,23 @@ export async function executeSpellCast(
       throw new Error(`Spell not found: ${spellId}`);
     }
     
-    const caster = getCasterForToken(casterTokenId, draft);
+    // Get caster from required actorId (always available)
+    const caster = draft.documents[request.actorId];
     if (!caster) {
-      throw new Error(`Caster not found for token: ${casterTokenId}`);
+      throw new Error(`Caster not found for actorId: ${request.actorId}`);
     }
     
+    // Get token if provided (for positioning/range calculations)
+    let casterToken = null;
+    if (request.actorTokenId) {
+      casterToken = draft.currentEncounter?.tokens?.[request.actorTokenId!];
+      if (casterToken?.documentId !== request.actorId) {
+        throw new Error('Token does not represent the specified actor');
+      }
+    }
+    
+    // Get targets from targetTokenIds
+    const targetTokenIds = request.targetTokenIds || [];
     const targets = targetTokenIds.map(id => getTargetForToken(id, draft)).filter(Boolean) as SpellTarget[];
     if (targets.length === 0) {
       throw new Error('No valid targets found');
@@ -191,13 +201,8 @@ export async function executeSpellCast(
     // Consume action economy (works in Immer draft context)
     const actionType = getActionTypeFromCastingTime(parameters.castingTime);
     if (actionType) {
-      const character = findPlayerCharacterInDraft(request.playerId, draft);
-      if (character) {
-        consumeAction(actionType, character, 'Magic');
-        console.log(`[SpellCasting] Consumed ${actionType} action for ${character.name}`);
-      } else {
-        console.warn('[SpellCasting] Character not found for action consumption');
-      }
+      consumeAction(actionType, caster, 'Magic');
+      console.log(`[SpellCasting] Consumed ${actionType} action for ${caster.name}`);
     }
     
     // ==========================================
@@ -486,136 +491,179 @@ export async function executeSpellCast(
  * Validate spell casting requirements
  * Moved from legacy cast-spell.handler for unified approach
  */
-async function validateSpellCasting(
+const validateSpellCasting: ActionValidationHandler = async (
   request: GameActionRequest,
   gameState: ServerGameStateWithVirtuals
-): Promise<{ valid: boolean; error?: { code: string; message: string }; resourceCosts?: Array<{ resourcePath: string; amount: number; storageType: string }> }> {
-  // Find the character for this player
-  const character = Object.values(gameState.documents)
-    .find(doc => doc.documentType === 'character' && doc.createdBy === request.playerId);
-  
-  if (!character) {
-    return { valid: false, error: { code: 'NO_CHARACTER', message: 'Character not found for spell casting' } };
-  }
+): Promise<ActionValidationResult> => {
+  console.log('[SpellCasting] Validating spell casting:', {
+    actorId: request.actorId,
+    actorTokenId: request.actorTokenId,
+    targetTokenIds: request.targetTokenIds,
+    parameters: request.parameters
+  });
 
-  const params = request.parameters as { 
-    spellId?: string; 
-    spellSlotLevel?: number;
-    castingTime?: 'action' | 'bonus_action' | 'reaction' | 'ritual';
-  };
-  const { spellId, spellSlotLevel, castingTime = 'action' } = params;
-  
-  if (!spellId || typeof spellSlotLevel !== 'number') {
-    return { valid: false, error: { code: 'INVALID_PARAMETERS', message: 'Missing spell ID or slot level' } };
-  }
-
-  // Skip spell slot validation for cantrips (level 0) as they don't consume spell slots
-  if (spellSlotLevel > 0) {
-    const spellSlots = (character.pluginData as { spellSlots?: Record<string, { total: number }> }).spellSlots;
-    const maxSlots = spellSlots?.[`level${spellSlotLevel}`]?.total || 0;
-    const spellSlotsUsed = (character.state?.spellSlotsUsed as Record<string, number>) || {};
-    const usedSlots = spellSlotsUsed[`level${spellSlotLevel}`] || 0;
-
-    if (usedSlots >= maxSlots) {
+  try {
+    // Get actor from required actorId (always available)
+    const actor = gameState.documents[request.actorId];
+    if (!actor) {
       return {
         valid: false,
-        error: { 
-          code: 'NO_SPELL_SLOTS', 
-          message: `No level ${spellSlotLevel} spell slots remaining (${usedSlots}/${maxSlots} used)`
-        }
+        error: { code: 'ACTOR_NOT_FOUND', message: 'Actor not found' }
       };
     }
-  }
-  
-  // Check action economy using standardized action economy system
-  const actionType = getActionTypeFromCastingTime(castingTime);
-  
-  if (actionType) {
-    const actionValidation = await validateActionEconomy(actionType, character, gameState, 'Magic');
-    if (!actionValidation.valid) {
-      return actionValidation;
-    }
-    
-    // D&D 5e bonus action spell restriction: If you cast a bonus action spell, you can only cast cantrips with your action
-    if (castingTime === 'bonus_action' && spellSlotLevel > 0) {
-      const turnState = character.state?.turnState;
-      const actionsUsed = (turnState?.actionsUsed as string[]) || [];
-      if (actionsUsed.length > 0) {
+
+    // Get token if provided (for positioning/range calculations)
+    let actorToken = null;
+    if (request.actorTokenId) {
+      actorToken = gameState.currentEncounter?.tokens?.[request.actorTokenId!];
+      if (!actorToken) {
         return {
           valid: false,
-          error: { code: 'BONUS_ACTION_SPELL_RESTRICTION', message: 'Cannot cast leveled spell as bonus action if action already used' }
+          error: { code: 'TOKEN_NOT_FOUND', message: 'Actor token not found' }
+        };
+      }
+      // Validate token represents the specified actor
+      if (actorToken.documentId !== request.actorId) {
+        return {
+          valid: false,
+          error: { code: 'TOKEN_MISMATCH', message: 'Token does not represent the specified actor' }
         };
       }
     }
-  }
-  
-  // Check conditions preventing spellcasting
-  const conditions = (character.state?.conditions as string[]) || [];
-  const spellBlockingConditions = ['silenced', 'unconscious', 'paralyzed', 'petrified', 'stunned'];
-  const blockedByCondition = conditions.find((condition: string) => 
-    spellBlockingConditions.includes(condition.toLowerCase())
-  );
-  
-  if (blockedByCondition) {
+
+    const params = request.parameters as { 
+      spellId?: string; 
+      spellSlotLevel?: number;
+      castingTime?: 'action' | 'bonus_action' | 'reaction' | 'ritual';
+    };
+    const { spellId, spellSlotLevel, castingTime = 'action' } = params;
+    
+    if (!spellId || typeof spellSlotLevel !== 'number') {
+      return { valid: false, error: { code: 'INVALID_PARAMETERS', message: 'Missing spell ID or slot level' } };
+    }
+
+    // Skip spell slot validation for cantrips (level 0) as they don't consume spell slots
+    if (spellSlotLevel > 0) {
+      const spellSlots = (actor.pluginData as { spellSlots?: Record<string, { total: number }> }).spellSlots;
+      const maxSlots = spellSlots?.[`level${spellSlotLevel}`]?.total || 0;
+      const spellSlotsUsed = (actor.state?.spellSlotsUsed as Record<string, number>) || {};
+      const usedSlots = spellSlotsUsed[`level${spellSlotLevel}`] || 0;
+
+      if (usedSlots >= maxSlots) {
+        return {
+          valid: false,
+          error: { 
+            code: 'NO_SPELL_SLOTS', 
+            message: `No level ${spellSlotLevel} spell slots remaining (${usedSlots}/${maxSlots} used)`
+          }
+        };
+      }
+    }
+    
+    // Check action economy using standardized action economy system
+    const actionType = getActionTypeFromCastingTime(castingTime);
+    
+    if (actionType) {
+      const actionValidation = await validateActionEconomy(actionType, actor, gameState, 'Magic');
+      if (!actionValidation.valid) {
+        return actionValidation;
+      }
+      
+      // D&D 5e bonus action spell restriction: If you cast a bonus action spell, you can only cast cantrips with your action
+      if (castingTime === 'bonus_action' && spellSlotLevel > 0) {
+        const turnState = actor.state?.turnState;
+        const actionsUsed = (turnState?.actionsUsed as string[]) || [];
+        if (actionsUsed.length > 0) {
+          return {
+            valid: false,
+            error: { code: 'BONUS_ACTION_SPELL_RESTRICTION', message: 'Cannot cast leveled spell as bonus action if action already used' }
+          };
+        }
+      }
+    }
+    
+    // Check conditions preventing spellcasting
+    const conditions = (actor.state?.conditions as string[]) || [];
+    const spellBlockingConditions = ['silenced', 'unconscious', 'paralyzed', 'petrified', 'stunned'];
+    const blockedByCondition = conditions.find((condition: string) => 
+      spellBlockingConditions.includes(condition.toLowerCase())
+    );
+    
+    if (blockedByCondition) {
+      return {
+        valid: false,
+        error: { 
+          code: 'CANNOT_CAST', 
+          message: `Cannot cast spells due to condition: ${blockedByCondition}`
+        }
+      };
+    }
+    
+    // Check spell known/prepared - handle cantrips and leveled spells differently
+    if (spellSlotLevel === 0) {
+      // For cantrips, check pluginData.spellcasting.cantrips array
+      const cantrips = (actor.pluginData as Record<string, unknown>)?.spellcasting as { cantrips?: Array<{ spell: string }> } | undefined;
+      const hasCantrip = cantrips?.cantrips?.some((cantrip) => cantrip.spell === spellId) || false;
+      
+      if (!hasCantrip) {
+        return {
+          valid: false,
+          error: { 
+            code: 'SPELL_NOT_KNOWN', 
+            message: `Actor does not know cantrip: ${spellId}`
+          }
+        };
+      }
+    } else {
+      // For leveled spells, check pluginData.spells known/prepared arrays
+      const spells = (actor.pluginData as { spells?: { known?: string[]; prepared?: string[]; } }).spells;
+      const knownSpells = spells?.known || [];
+      const preparedSpells = spells?.prepared || [];
+      
+      if (!knownSpells.includes(spellId) && !preparedSpells.includes(spellId)) {
+        return {
+          valid: false,
+          error: { 
+            code: 'SPELL_NOT_KNOWN', 
+            message: `Actor does not know or have prepared: ${spellId}`
+          }
+        };
+      }
+    }
+    
+    console.log('[SpellCasting] Validation successful for spell:', spellId);
+    return { 
+      valid: true,
+      // Only report spell slot consumption for leveled spells (not cantrips)
+      resourceCosts: spellSlotLevel > 0 ? [{
+        resourcePath: `spellSlotsUsed.level${spellSlotLevel}`,
+        amount: 1,
+        storageType: 'state'
+      }] : []
+    };
+
+  } catch (error) {
+    console.error('[SpellCasting] Validation failed:', error);
     return {
       valid: false,
-      error: { 
-        code: 'CANNOT_CAST', 
-        message: `Cannot cast spells due to condition: ${blockedByCondition}`
-      }
+      error: { code: 'VALIDATION_ERROR', message: `Validation failed: ${error instanceof Error ? error.message : 'Unknown error'}` }
     };
   }
-  
-  // Check spell known/prepared - handle cantrips and leveled spells differently
-  if (spellSlotLevel === 0) {
-    // For cantrips, check pluginData.spellcasting.cantrips array
-    const cantrips = (character.pluginData as Record<string, unknown>)?.spellcasting as { cantrips?: Array<{ spell: string }> } | undefined;
-    const hasCantrip = cantrips?.cantrips?.some((cantrip) => cantrip.spell === spellId) || false;
-    
-    if (!hasCantrip) {
-      return {
-        valid: false,
-        error: { 
-          code: 'SPELL_NOT_KNOWN', 
-          message: `Character does not know cantrip: ${spellId}`
-        }
-      };
-    }
-  } else {
-    // For leveled spells, check pluginData.spells known/prepared arrays
-    const spells = (character.pluginData as { spells?: { known?: string[]; prepared?: string[]; } }).spells;
-    const knownSpells = spells?.known || [];
-    const preparedSpells = spells?.prepared || [];
-    
-    if (!knownSpells.includes(spellId) && !preparedSpells.includes(spellId)) {
-      return {
-        valid: false,
-        error: { 
-          code: 'SPELL_NOT_KNOWN', 
-          message: `Character does not know or have prepared: ${spellId}`
-        }
-      };
-    }
-  }
-  
-  return { 
-    valid: true,
-    // Only report spell slot consumption for leveled spells (not cantrips)
-    resourceCosts: spellSlotLevel > 0 ? [{
-      resourcePath: `spellSlotsUsed.level${spellSlotLevel}`,
-      amount: 1,
-      storageType: 'state'
-    }] : []
-  };
 }
 
 /**
  * Unified spell casting action handler
  * Uses the unified spell casting handler with proper ActionHandler interface
  */
-export const unifiedSpellCastHandler = {
+export const unifiedSpellCastHandler: Omit<ActionHandler, 'pluginId'> = {
   validate: validateSpellCasting,
   execute: executeSpellCast,
-  approvalMessage: (request: GameActionRequest) => `wants to cast ${request.parameters.spellId || 'a spell'}`,
+  approvalMessage: async (request: GameActionRequest) => {
+    const params = request.parameters as { spellId?: string };
+    return `wants to cast ${params.spellId || 'a spell'}`;
+  },
   priority: 100 // Plugin priority
 };
+
+// Export the individual functions for compatibility
+export { validateSpellCasting, executeSpellCast };

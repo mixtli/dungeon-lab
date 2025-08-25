@@ -9,7 +9,8 @@
  */
 
 import type { GameActionRequest, ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
-import type { ActionHandler, ActionValidationResult } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
+import type { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.mjs';
+import type { ActionValidationResult, ActionValidationHandler, ActionExecutionHandler, ActionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 import type { ConditionInstance, DndConditionDocument } from '../../types/dnd/condition.mjs';
 import { getPluginContext } from '@dungeon-lab/shared-ui/utils/plugin-context.mjs';
 
@@ -26,10 +27,10 @@ const CONDITION_DEPENDENCIES: Record<string, string[]> = {
 /**
  * Validate removing condition from character (Document-Based)
  */
-export async function validateRemoveCondition(
+const validateRemoveCondition: ActionValidationHandler = async (
   request: GameActionRequest,
   gameState: ServerGameStateWithVirtuals
-): Promise<ActionValidationResult> {
+): Promise<ActionValidationResult> => {
   console.log('[DnD5e] Validating remove condition (document-based):', {
     playerId: request.playerId,
     parameters: request.parameters
@@ -119,10 +120,11 @@ export async function validateRemoveCondition(
 /**
  * Execute removing condition from character (Document-Based)
  */
-export async function executeRemoveCondition(
+const executeRemoveCondition: ActionExecutionHandler = async (
   request: GameActionRequest,
-  draft: ServerGameStateWithVirtuals
-): Promise<void> {
+  draft: ServerGameStateWithVirtuals,
+  _context: AsyncActionContext
+): Promise<void> => {
   console.log('[DnD5e] Executing remove condition (document-based)');
 
   const params = request.parameters as { 
@@ -340,3 +342,6 @@ export const dndRemoveConditionHandler: Omit<ActionHandler, 'pluginId'> = {
     return `wants to remove ${conditionName} from ${targetName}`;
   }
 };
+
+// Export individual functions for compatibility
+export { validateRemoveCondition, executeRemoveCondition };

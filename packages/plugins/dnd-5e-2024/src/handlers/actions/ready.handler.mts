@@ -10,12 +10,11 @@ import type {
   GameActionRequest, 
   ServerGameStateWithVirtuals 
 } from '@dungeon-lab/shared/types/index.mjs';
-import type { ActionHandler, ActionValidationResult } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
+import type { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.mjs';
+import type { ActionValidationResult, ActionValidationHandler, ActionExecutionHandler, ActionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 import { 
   validateActionEconomy, 
-  consumeAction, 
-  findPlayerCharacter, 
-  findPlayerCharacterInDraft
+  consumeAction
 } from '../../utils/action-economy.mjs';
 
 /**
@@ -32,10 +31,10 @@ interface ReadiedAction {
 /**
  * Validate D&D 5e Ready action
  */
-export async function validateDnDReady(
+const validateDnDReady: ActionValidationHandler = async (
   request: GameActionRequest, 
   gameState: ServerGameStateWithVirtuals
-): Promise<ActionValidationResult> {
+): Promise<ActionValidationResult> => {
   console.log('[DnD5e ReadyHandler] Validating Ready action:', {
     playerId: request.playerId,
     parameters: request.parameters
@@ -47,13 +46,12 @@ export async function validateDnDReady(
     trigger?: string; // Trigger condition
   };
 
-  // Find the character for this player
-  const character = findPlayerCharacter(request.playerId, gameState);
-  
-  if (!character) {
-    return { 
-      valid: false, 
-      error: { code: 'NO_CHARACTER', message: 'Character not found for ready action' } 
+  // Get actor from required actorId (always available)
+  const actor = gameState.documents[request.actorId];
+  if (!actor) {
+    return {
+      valid: false,
+      error: { code: 'ACTOR_NOT_FOUND', message: 'Actor not found' }
     };
   }
 
@@ -85,14 +83,14 @@ export async function validateDnDReady(
     trigger: params.trigger
   });
 
-  // Check if character already has a readied action
-  const turnState = character.state?.turnState;
+  // Check if actor already has a readied action
+  const turnState = actor.state?.turnState;
   if (turnState?.readiedAction) {
     return {
       valid: false,
       error: {
         code: 'ACTION_ALREADY_READIED',
-        message: `${character.name} already has a readied action`
+        message: `${actor.name} already has a readied action`
       }
     };
   }
@@ -115,16 +113,17 @@ export async function validateDnDReady(
   }
 
   // Use action economy utility to validate the ready action
-  return await validateActionEconomy('action', character, gameState, 'Ready');
+  return await validateActionEconomy('action', actor, gameState, 'Ready');
 }
 
 /**
  * Execute D&D 5e Ready action - store readied action and trigger
  */
-export function executeDnDReady(
+const executeDnDReady: ActionExecutionHandler = async (
   request: GameActionRequest,
-  draft: ServerGameStateWithVirtuals
-): void {
+  draft: ServerGameStateWithVirtuals,
+  _context: AsyncActionContext
+): Promise<void> => {
   console.log('[DnD5e ReadyHandler] Executing Ready action:', {
     playerId: request.playerId,
     requestId: request.id
@@ -136,20 +135,18 @@ export function executeDnDReady(
     trigger: string;
   };
 
-  // Find the character in the draft state
-  const character = findPlayerCharacterInDraft(request.playerId, draft);
-  
-  if (!character) {
-    console.warn('[DnD5e ReadyHandler] Character not found during ready execution');
-    return;
+  // Get actor from required actorId (always available)
+  const actor = draft.documents[request.actorId];
+  if (!actor) {
+    throw new Error('Actor not found');
   }
 
   // Consume the action using the utility function
-  consumeAction('action', character, 'Ready');
+  consumeAction('action', actor, 'Ready');
 
   // Initialize turn state if needed
-  if (!character.state) character.state = {};
-  if (!character.state.turnState) character.state.turnState = {};
+  if (!actor.state) actor.state = {};
+  if (!actor.state.turnState) actor.state.turnState = {};
 
   // Store the readied action
   const readiedAction: ReadiedAction = {
@@ -157,14 +154,14 @@ export function executeDnDReady(
     actionParameters: params.readiedActionParameters,
     trigger: params.trigger,
     readiedAt: Date.now(),
-    readiedBy: character.id
+    readiedBy: actor.id
   };
 
-  character.state.turnState.readiedAction = readiedAction;
+  actor.state.turnState.readiedAction = readiedAction;
 
   console.log('[DnD5e ReadyHandler] Ready action executed successfully:', {
-    characterName: character.name,
-    characterId: character.id,
+    actorName: actor.name,
+    actorId: actor.id,
     readiedActionType: readiedAction.actionType,
     trigger: readiedAction.trigger,
     note: 'Readied action will consume reaction when triggered'
@@ -246,7 +243,7 @@ export const dndReadyHandler: Omit<ActionHandler, 'pluginId'> = {
   priority: 100,
   validate: validateDnDReady,
   execute: executeDnDReady,
-  approvalMessage: (request) => {
+  approvalMessage: async (request) => {
     const params = request.parameters as { 
       readiedActionType?: string; 
       trigger?: string; 
@@ -256,3 +253,6 @@ export const dndReadyHandler: Omit<ActionHandler, 'pluginId'> = {
     return `wants to Ready ${actionType} for when ${trigger}`;
   }
 };
+
+// Export individual functions for compatibility
+export { validateDnDReady, executeDnDReady };

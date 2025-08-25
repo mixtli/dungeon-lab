@@ -6,15 +6,16 @@
 
 import type { GameActionRequest, AddDocumentParameters, BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
 import type { ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
-import type { ActionHandler, ValidationResult } from '../../action-handler.interface.mjs';
+import type { ActionHandler, ActionValidationResult, ActionValidationHandler, ActionExecutionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
+import type { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.mjs';
 
 /**
  * Validate document addition request
  */
-async function validateAddDocument(
+const validateAddDocument: ActionValidationHandler = async (
   request: GameActionRequest, 
   gameState: ServerGameStateWithVirtuals
-): Promise<ValidationResult> {
+): Promise<ActionValidationResult> => {
   const params = request.parameters as AddDocumentParameters;
 
   console.log('[AddDocumentHandler] Validating document addition:', {
@@ -62,10 +63,11 @@ async function validateAddDocument(
 /**
  * Execute document addition using direct state mutation
  */
-async function executeAddDocument(
+const executeAddDocument: ActionExecutionHandler = async (
   request: GameActionRequest, 
-  draft: ServerGameStateWithVirtuals
-): Promise<void> {
+  draft: ServerGameStateWithVirtuals,
+  _context: AsyncActionContext
+): Promise<void> => {
   const params = request.parameters as AddDocumentParameters;
 
   console.log('[AddDocumentHandler] Executing document addition:', {
@@ -89,7 +91,7 @@ async function executeAddDocument(
 /**
  * Core add-document action handler
  */
-export const addDocumentActionHandler: ActionHandler = {
+export const addDocumentActionHandler: Omit<ActionHandler, 'pluginId'> = {
   priority: 0, // Core handler runs first
   validate: validateAddDocument,
   execute: executeAddDocument,

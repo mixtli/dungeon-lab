@@ -4,11 +4,10 @@ import type {
   RollRequestSpec, 
   ChatOptions,
   RollResultData
-} from '@dungeon-lab/shared/interfaces/action-context.interface.mjs';
+} from '@dungeon-lab/shared-ui/types/action-context.mjs';
 import type { RollServerResult } from '@dungeon-lab/shared/types/socket/index.mjs';
-import type { ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
 import type { PluginContext } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
-import { rollRequestService } from './roll-request.service.mts';
+import { rollRequestService, RollRequestService } from './roll-request.service.mts';
 import { useChatStore } from '../stores/chat.store.mts';
 
 /**
@@ -19,7 +18,6 @@ export class ActionContextImpl implements AsyncActionContext {
   private activeRequests = new Set<string>();
 
   constructor(
-    public readonly gameState: ServerGameStateWithVirtuals,
     public readonly pluginContext: PluginContext,
     private rollRequestService: RollRequestService
   ) {}
@@ -172,19 +170,18 @@ export class ActionContextImpl implements AsyncActionContext {
  * Provides a clean API for creating contexts with proper dependencies
  */
 export function createActionContext(
-  gameState: ServerGameStateWithVirtuals,
   rollRequestServiceParam: RollRequestService = rollRequestService,
   pluginContext?: PluginContext
 ): AsyncActionContext {
   // If no pluginContext provided, create a minimal mock for backward compatibility
-  const context = pluginContext || {
+  const context = pluginContext || ({
     getDocument: async (id: string) => { throw new Error(`getDocument not available: ${id}`); },
     searchDocuments: async () => { throw new Error('searchDocuments not available'); },
     getCompendiumEntry: async (id: string) => { throw new Error(`getCompendiumEntry not available: ${id}`); },
     searchCompendiumEntries: async () => { throw new Error('searchCompendiumEntries not available'); },
-    store: {} as any,
+    store: {} as Record<string, unknown>,
     gameState: undefined
-  };
+  } as unknown as PluginContext);
   
-  return new ActionContextImpl(gameState, context, rollRequestServiceParam);
+  return new ActionContextImpl(context, rollRequestServiceParam);
 }

@@ -320,12 +320,15 @@ const handleGameContextSave = async () => {
     // Use PlayerActionService to request document update
     const result = await playerActionService.requestAction(
       'update-document',
+      undefined, // actorId - document updates are not actor-specific
       {
         documentId: props.documentId,
         operations,
         documentName: reactiveDocument.value?.name || 'Unknown Document',
         documentType: props.documentType
       } as UpdateDocumentParameters,
+      undefined, // actorTokenId
+      undefined, // targetTokenIds
       {
         description: generateChangesSummary(operations)
       }

@@ -11,7 +11,7 @@ import { useGameStateStore } from './game-state.store.mjs';
 import type { ParsedMessage, Mention } from '@dungeon-lab/shared/types/chat.mjs';
 import type { RollServerResult, RollRequest } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
 import type { GameActionRequest } from '@dungeon-lab/shared/types/game-actions.mjs';
-import type { RollResultData } from '@dungeon-lab/shared/interfaces/action-context.interface.mjs';
+import type { RollResultData } from '@dungeon-lab/shared-ui/types/action-context.mjs';
 
 export interface ChatContext {
   id: string;

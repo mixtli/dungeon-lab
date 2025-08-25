@@ -6,16 +6,17 @@
 
 import type { GameActionRequest, StartEncounterParameters } from '@dungeon-lab/shared/types/index.mjs';
 import type { ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
-import type { ActionHandler, ValidationResult } from '../../action-handler.interface.mjs';
+import type { ActionHandler, ActionValidationResult, ActionValidationHandler, ActionExecutionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
+import type { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.mjs';
 import { EncountersClient } from '@dungeon-lab/client/encounters.client.mjs';
 
 /**
  * Validate start encounter request
  */
-async function validateStartEncounter(
+const validateStartEncounter: ActionValidationHandler = async (
   request: GameActionRequest, 
   gameState: ServerGameStateWithVirtuals
-): Promise<ValidationResult> {
+): Promise<ActionValidationResult> => {
   const params = request.parameters as StartEncounterParameters;
 
   console.log('[StartEncounterHandler] Validating encounter start:', {
@@ -55,10 +56,11 @@ async function validateStartEncounter(
 /**
  * Execute encounter start using direct state mutation
  */
-async function executeStartEncounter(
+const executeStartEncounter: ActionExecutionHandler = async (
   request: GameActionRequest, 
-  draft: ServerGameStateWithVirtuals
-): Promise<void> {
+  draft: ServerGameStateWithVirtuals,
+  _context: AsyncActionContext
+): Promise<void> => {
   const params = request.parameters as StartEncounterParameters;
 
   console.log('[StartEncounterHandler] Executing encounter start:', {
@@ -132,7 +134,7 @@ async function executeStartEncounter(
 /**
  * Core start-encounter action handler
  */
-export const startEncounterActionHandler: ActionHandler = {
+export const startEncounterActionHandler: Omit<ActionHandler, 'pluginId'> = {
   priority: 0, // Core handler runs first
   gmOnly: true, // Only GMs can start encounters
   validate: validateStartEncounter,

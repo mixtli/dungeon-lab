@@ -50,7 +50,10 @@ export interface RollHandlerContext {
   /** Function to request game actions (available when plugin context is available) */
   requestAction?: (
     actionType: string,
+    actorId: string | undefined,
     parameters: Record<string, unknown>,
+    actorTokenId?: string,
+    targetTokenIds?: string[],
     options?: { description?: string }
   ) => Promise<ActionRequestResult>;
   /** Function to send roll requests to specific players */

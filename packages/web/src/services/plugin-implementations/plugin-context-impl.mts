@@ -252,20 +252,29 @@ export class PluginContextImpl implements PluginContext {
    */
   async requestAction(
     actionType: string,
+    actorId: string | undefined,
     parameters: Record<string, unknown>,
-    options: { description?: string } = {}
+    actorTokenId?: string,
+    targetTokenIds?: string[],
+    options?: { description?: string }
   ): Promise<ActionRequestResult> {
     try {
       console.log(`[PluginContext] Requesting action '${actionType}' from plugin '${this.pluginId}':`, {
         actionType,
+        actorId,
         parameters,
-        description: options.description
+        actorTokenId,
+        targetTokenIds,
+        description: options?.description
       });
 
       const result = await this.playerActionService.requestAction(
         actionType as GameActionType, // Cast to GameActionType - the service will validate
+        actorId,
         parameters,
-        options
+        actorTokenId,
+        targetTokenIds,
+        options || {}
       );
 
       console.log(`[PluginContext] Action request '${actionType}' result for plugin '${this.pluginId}':`, {

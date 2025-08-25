@@ -10,147 +10,180 @@ import type {
   GameActionRequest, 
   ServerGameStateWithVirtuals 
 } from '@dungeon-lab/shared/types/index.mjs';
-import type { ActionHandler, ActionValidationResult } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
+import type { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.mjs';
+import type { ActionValidationResult, ActionValidationHandler, ActionExecutionHandler, ActionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 import { 
   validateActionEconomy, 
-  consumeAction, 
-  findPlayerCharacter, 
-  findPlayerCharacterInDraft
+  consumeAction
 } from '../../utils/action-economy.mjs';
 
 /**
  * Validate D&D 5e Help action
  */
-export async function validateDnDHelp(
+const validateDnDHelp: ActionValidationHandler = async (
   request: GameActionRequest, 
   gameState: ServerGameStateWithVirtuals
-): Promise<ActionValidationResult> {
+): Promise<ActionValidationResult> => {
   console.log('[DnD5e HelpHandler] Validating Help action:', {
-    playerId: request.playerId,
+    actorId: request.actorId,
+    actorTokenId: request.actorTokenId,
     parameters: request.parameters
   });
 
-  const params = request.parameters as {
-    targetId?: string; // ID of the character being helped
-    helpType?: 'ability-check' | 'attack'; // Type of help being provided
-  };
-
-  // Find the character for this player (the helper)
-  const character = findPlayerCharacter(request.playerId, gameState);
-  
-  if (!character) {
-    return { 
-      valid: false, 
-      error: { code: 'NO_CHARACTER', message: 'Character not found for help action' } 
+  try {
+    const params = request.parameters as {
+      targetId?: string; // ID of the character being helped
+      helpType?: 'ability-check' | 'attack'; // Type of help being provided
     };
-  }
 
-  console.log('[DnD5e HelpHandler] Found helper character:', {
-    characterName: character.name,
-    characterId: character.id
-  });
-
-  // Validate target if specified
-  if (params.targetId) {
-    const target = gameState.documents[params.targetId];
-    if (!target) {
+    // Get actor from required actorId (always available)
+    const actor = gameState.documents[request.actorId];
+    if (!actor) {
       return {
         valid: false,
-        error: {
-          code: 'TARGET_NOT_FOUND',
-          message: 'Target character not found for help action'
-        }
+        error: { code: 'ACTOR_NOT_FOUND', message: 'Actor not found' }
       };
     }
 
-    // TODO: In a full implementation, check if target is within 5 feet
-    // For now, we'll assume positioning is handled elsewhere
-    
-    console.log('[DnD5e HelpHandler] Found target character:', {
-      targetName: target.name,
-      targetId: target.id
-    });
-  }
+    // Get token if provided (for positioning/range calculations)
+    let actorToken = null;
+    if (request.actorTokenId) {
+      actorToken = gameState.currentEncounter?.tokens?.[request.actorTokenId!];
+      if (!actorToken) {
+        return {
+          valid: false,
+          error: { code: 'TOKEN_NOT_FOUND', message: 'Actor token not found' }
+        };
+      }
+      // Validate token represents the specified actor
+      if (actorToken.documentId !== request.actorId) {
+        return {
+          valid: false,
+          error: { code: 'TOKEN_MISMATCH', message: 'Token does not represent the specified actor' }
+        };
+      }
+    }
 
-  // Use action economy utility to validate the help action
-  return await validateActionEconomy('action', character, gameState, 'Help');
+    console.log('[DnD5e HelpHandler] Found helper actor:', {
+      actorName: actor.name,
+      actorId: actor.id
+    });
+
+    // Validate target if specified
+    if (params.targetId) {
+      const target = gameState.documents[params.targetId];
+      if (!target) {
+        return {
+          valid: false,
+          error: {
+            code: 'TARGET_NOT_FOUND',
+            message: 'Target character not found for help action'
+          }
+        };
+      }
+
+      // TODO: In a full implementation, check if target is within 5 feet
+      // For now, we'll assume positioning is handled elsewhere
+      
+      console.log('[DnD5e HelpHandler] Found target character:', {
+        targetName: target.name,
+        targetId: target.id
+      });
+    }
+
+    // Use action economy utility to validate the help action
+    console.log('[DnD5e HelpHandler] Validation successful for actor:', actor.name);
+    return await validateActionEconomy('action', actor, gameState, 'Help');
+
+  } catch (error) {
+    console.error('[DnD5e HelpHandler] Validation failed:', error);
+    return {
+      valid: false,
+      error: { code: 'VALIDATION_ERROR', message: `Validation failed: ${error instanceof Error ? error.message : 'Unknown error'}` }
+    };
+  }
 }
 
 /**
  * Execute D&D 5e Help action - consume action and apply advantage to target
  */
-export function executeDnDHelp(
+const executeDnDHelp: ActionExecutionHandler = async (
   request: GameActionRequest,
-  draft: ServerGameStateWithVirtuals
-): void {
+  draft: ServerGameStateWithVirtuals,
+  _context: AsyncActionContext
+): Promise<void> => {
   console.log('[DnD5e HelpHandler] Executing Help action:', {
-    playerId: request.playerId,
+    actorId: request.actorId,
+    actorTokenId: request.actorTokenId,
     requestId: request.id
   });
 
-  const params = request.parameters as {
-    targetId?: string;
-    helpType?: 'ability-check' | 'attack';
-  };
+  try {
+    const params = request.parameters as {
+      targetId?: string;
+      helpType?: 'ability-check' | 'attack';
+    };
 
-  // Find the character in the draft state (the helper)
-  const character = findPlayerCharacterInDraft(request.playerId, draft);
-  
-  if (!character) {
-    console.warn('[DnD5e HelpHandler] Helper character not found during help execution');
-    return;
-  }
-
-  // Consume the action using the utility function
-  consumeAction('action', character, 'Help');
-
-  // Apply help effect to target if specified
-  if (params.targetId) {
-    const target = draft.documents[params.targetId];
-    if (target) {
-      // Initialize target state if needed
-      if (!target.state) target.state = {};
-      if (!target.state.turnState) target.state.turnState = {};
-
-      // Store help information in target's turn state
-      // This can be checked when the target makes their next roll
-      if (!target.state.turnState.helpReceived) {
-        target.state.turnState.helpReceived = [];
-      }
-
-      target.state.turnState.helpReceived.push({
-        helperId: character.id,
-        helperName: character.name,
-        helpType: params.helpType || 'ability-check',
-        grantedAt: Date.now()
-      });
-
-      console.log('[DnD5e HelpHandler] Applied help effect:', {
-        helperName: character.name,
-        targetName: target.name,
-        helpType: params.helpType || 'ability-check'
-      });
+    // Get actor from required actorId (always available)
+    const actor = draft.documents[request.actorId];
+    if (!actor) {
+      throw new Error('Actor not found');
     }
-  }
 
-  console.log('[DnD5e HelpHandler] Help action executed successfully:', {
-    helperName: character.name,
-    helperId: character.id,
-    targetId: params.targetId,
-    helpType: params.helpType
-  });
+    // Consume the action using the utility function
+    consumeAction('action', actor, 'Help');
+
+    // Apply help effect to target if specified
+    if (params.targetId) {
+      const target = draft.documents[params.targetId];
+      if (target) {
+        // Initialize target state if needed
+        if (!target.state) target.state = {};
+        if (!target.state.turnState) target.state.turnState = {};
+
+        // Store help information in target's turn state
+        // This can be checked when the target makes their next roll
+        if (!target.state.turnState.helpReceived) {
+          target.state.turnState.helpReceived = [];
+        }
+
+        target.state.turnState.helpReceived.push({
+          helperId: actor.id,
+          helperName: actor.name,
+          helpType: params.helpType || 'ability-check',
+          grantedAt: Date.now()
+        });
+
+        console.log('[DnD5e HelpHandler] Applied help effect:', {
+          helperName: actor.name,
+          targetName: target.name,
+          helpType: params.helpType || 'ability-check'
+        });
+      }
+    }
+
+    console.log('[DnD5e HelpHandler] Help action executed successfully:', {
+      helperName: actor.name,
+      helperId: actor.id,
+      targetId: params.targetId,
+      helpType: params.helpType
+    });
+  } catch (error) {
+    console.error('[DnD5e HelpHandler] Handler execution failed:', error);
+    throw error;
+  }
 }
 
 /**
  * Utility function to check if a character has received help
  * Can be used by attack and ability check systems
  */
-export function hasReceivedHelp(character: any, helpType?: 'ability-check' | 'attack'): boolean {
+export function hasReceivedHelp(character: { state?: { turnState?: { helpReceived?: Array<{ helpType: string }> } } }, helpType?: 'ability-check' | 'attack'): boolean {
   const turnState = character?.state?.turnState;
   const helpReceived = turnState?.helpReceived || [];
   
   if (helpType) {
-    return helpReceived.some((help: any) => help.helpType === helpType);
+    return helpReceived.some((help) => help.helpType === helpType);
   }
   
   return helpReceived.length > 0;
@@ -159,13 +192,13 @@ export function hasReceivedHelp(character: any, helpType?: 'ability-check' | 'at
 /**
  * Utility function to consume help (remove from character state after use)
  */
-export function consumeHelp(character: any, helpType?: 'ability-check' | 'attack'): void {
+export function consumeHelp(character: { state?: { turnState?: { helpReceived?: Array<{ helpType: string }> } } }, helpType?: 'ability-check' | 'attack'): void {
   const turnState = character?.state?.turnState;
   if (!turnState?.helpReceived) return;
 
   if (helpType) {
     // Remove specific type of help
-    const index = turnState.helpReceived.findIndex((help: any) => help.helpType === helpType);
+    const index = turnState.helpReceived.findIndex((help) => help.helpType === helpType);
     if (index !== -1) {
       turnState.helpReceived.splice(index, 1);
     }
@@ -184,10 +217,13 @@ export const dndHelpHandler: Omit<ActionHandler, 'pluginId'> = {
   priority: 100,
   validate: validateDnDHelp,
   execute: executeDnDHelp,
-  approvalMessage: (request) => {
+  approvalMessage: async (request) => {
     const params = request.parameters as { targetId?: string; helpType?: string };
     const target = params.targetId ? ` ${params.targetId}` : ' an ally';
     const helpType = params.helpType === 'attack' ? 'with an attack' : 'with an ability check';
     return `wants to help${target} ${helpType}`;
   }
 };
+
+// Export individual functions for compatibility
+export { validateDnDHelp, executeDnDHelp };

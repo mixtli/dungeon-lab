@@ -9,15 +9,16 @@
  */
 
 import type { GameActionRequest, ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
-import type { ActionHandler, ActionValidationResult } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
+import type { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.mjs';
+import type { ActionHandler, ActionValidationResult, ActionValidationHandler, ActionExecutionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 
 /**
  * Validate short rest requirements
  */
-export function validateShortRest(
+export const validateShortRest: ActionValidationHandler = async (
   request: GameActionRequest,
   gameState: ServerGameStateWithVirtuals
-): ActionValidationResult {
+): Promise<ActionValidationResult> => {
   console.log('[DnD5e] Validating short rest:', {
     playerId: request.playerId,
     parameters: request.parameters
@@ -67,20 +68,16 @@ export function validateShortRest(
 /**
  * Execute short rest - restore resources and apply healing
  */
-export function executeShortRest(
+export const executeShortRest: ActionExecutionHandler = async (
   request: GameActionRequest,
-  draft: ServerGameStateWithVirtuals
-): void {
+  draft: ServerGameStateWithVirtuals,
+  context: AsyncActionContext
+): Promise<void> => {
   console.log('[DnD5e] Executing short rest');
 
-  // Find the character for this player
+  // Get character from validation (validation already confirmed it exists)
   const character = Object.values(draft.documents)
-    .find(doc => doc.documentType === 'character' && doc.createdBy === request.playerId);
-  
-  if (!character) {
-    console.warn('[DnD5e] Character not found during short rest execution');
-    return;
-  }
+    .find(doc => doc.documentType === 'character' && doc.createdBy === request.playerId)!;
 
   // Initialize state if needed
   if (!character.state) character.state = {};
@@ -143,5 +140,5 @@ export function executeShortRest(
 export const dndShortRestHandler: Omit<ActionHandler, 'pluginId'> = {
   validate: validateShortRest,
   execute: executeShortRest,
-  approvalMessage: () => 'wants to take a short rest'
+  approvalMessage: async () => 'wants to take a short rest'
 };
