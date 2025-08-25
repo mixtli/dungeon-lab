@@ -109,7 +109,7 @@ const validateAssignSpell: ActionValidationHandler = async (
 const executeAssignSpell: ActionExecutionHandler = async (
   request: GameActionRequest,
   draft: ServerGameStateWithVirtuals,
-  context: AsyncActionContext
+  _context: AsyncActionContext
 ): Promise<void> => {
   const params = request.parameters as AssignSpellParameters;
 
@@ -135,7 +135,7 @@ const executeAssignSpell: ActionExecutionHandler = async (
       characterId: params.targetCharacterId,
       characterName: params.targetCharacterName
     });
-    (characterData as any).spellcasting = {
+    (characterData as DndCharacterData).spellcasting = {
       classes: {},
       spellSlots: {},
       spells: [],

@@ -9,8 +9,8 @@
 import { 
   type GameActionRequest, 
   type ActionRequestResult,
-  type GameActionType,
-  type ActionRequestResponse
+  type ActionRequestResponse,
+  type ServerGameStateWithVirtuals
 } from '@dungeon-lab/shared/types/index.mjs';
 import { useGameSessionStore } from '../stores/game-session.store.mjs';
 import { useAuthStore } from '../stores/auth.store.mjs';
@@ -31,12 +31,12 @@ function generateRequestId(): string {
  * This provides client-side optimization while maintaining consistency
  */
 async function validateActionClientSide(
-  action: GameActionType,
+  action: string,
   actorId: string | undefined,
   parameters: Record<string, unknown>,
   actorTokenId: string | undefined,
   targetTokenIds: string[] | undefined,
-  gameState: any,
+  gameState: Readonly<ServerGameStateWithVirtuals>,
   playerId: string
 ): Promise<ActionValidationResult | null> {
   try {
@@ -127,7 +127,7 @@ export class PlayerActionService {
    * Request an action to be performed
    */
   async requestAction(
-    action: GameActionType,
+    action: string,
     actorId: string | undefined,
     parameters: Record<string, unknown>,
     actorTokenId?: string,
@@ -147,7 +147,17 @@ export class PlayerActionService {
 
     // Client-side validation using the same handlers as the server
     // This provides optimization while ensuring consistency with server-side validation
-    const clientValidationResult = await validateActionClientSide(action, actorId, parameters, actorTokenId, targetTokenIds, this.gameStateStore.gameState, this.authStore.user.id);
+    const gameState = this.gameStateStore.gameState;
+    let clientValidationResult: ActionValidationResult | null = null;
+    
+    if (!gameState) {
+      // If there's no game state, skip client-side validation and let server handle it
+      console.log('[PlayerActionService] ⏭️ No game state available, skipping client-side validation');
+    } else {
+      // Cast deeply readonly Vue proxy to shallow readonly type for validation handlers
+      // This is safe because validation handlers only read data, never mutate it
+      clientValidationResult = await validateActionClientSide(action, actorId, parameters, actorTokenId, targetTokenIds, gameState as Readonly<ServerGameStateWithVirtuals>, this.authStore.user.id);
+    }
     
     if (clientValidationResult && !clientValidationResult.valid) {
       console.log('[PlayerActionService] 🚫 Client-side validation failed:', clientValidationResult.error);

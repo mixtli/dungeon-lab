@@ -12,15 +12,15 @@
 
 import type { GameActionRequest, ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
 import type { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.mjs';
-import type { ActionHandler, ActionValidationResult, ActionValidationHandler, ActionExecutionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
+import type { ActionHandler, ActionValidationResult, ActionExecutionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 
 /**
  * Validate long rest requirements
  */
-export function validateLongRest(
+export async function validateLongRest(
   request: GameActionRequest,
   gameState: ServerGameStateWithVirtuals
-): ActionValidationResult {
+): Promise<ActionValidationResult> {
   console.log('[DnD5e] Validating long rest:', {
     playerId: request.playerId,
     parameters: request.parameters

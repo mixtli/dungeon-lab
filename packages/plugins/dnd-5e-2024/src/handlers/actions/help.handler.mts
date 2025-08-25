@@ -8,7 +8,9 @@
 
 import type { 
   GameActionRequest, 
-  ServerGameStateWithVirtuals 
+  ServerGameStateWithVirtuals,
+  ICharacter,
+  IActor
 } from '@dungeon-lab/shared/types/index.mjs';
 import type { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.mjs';
 import type { ActionValidationResult, ActionValidationHandler, ActionExecutionHandler, ActionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
@@ -36,7 +38,13 @@ const validateDnDHelp: ActionValidationHandler = async (
       helpType?: 'ability-check' | 'attack'; // Type of help being provided
     };
 
-    // Get actor from required actorId (always available)
+    // Get actor from required actorId (must be available for help actions)
+    if (!request.actorId) {
+      return {
+        valid: false,
+        error: { code: 'MISSING_ACTOR_ID', message: 'Actor ID is required for help actions' }
+      };
+    }
     const actor = gameState.documents[request.actorId];
     if (!actor) {
       return {
@@ -91,9 +99,20 @@ const validateDnDHelp: ActionValidationHandler = async (
       });
     }
 
+    // Add type guard to ensure actor can perform actions
+    if (actor.documentType !== 'character' && actor.documentType !== 'actor') {
+      return {
+        valid: false,
+        error: { code: 'INVALID_ACTOR_TYPE', message: `Document ${request.actorId} cannot perform actions (type: ${actor.documentType})` }
+      };
+    }
+
+    // Cast to proper type after validation
+    const actionActor = actor as ICharacter | IActor;
+
     // Use action economy utility to validate the help action
     console.log('[DnD5e HelpHandler] Validation successful for actor:', actor.name);
-    return await validateActionEconomy('action', actor, gameState, 'Help');
+    return await validateActionEconomy('action', actionActor, gameState, 'Help');
 
   } catch (error) {
     console.error('[DnD5e HelpHandler] Validation failed:', error);
@@ -125,13 +144,24 @@ const executeDnDHelp: ActionExecutionHandler = async (
     };
 
     // Get actor from required actorId (always available)
+    if (!request.actorId) {
+      throw new Error('Actor ID is required for help actions');
+    }
     const actor = draft.documents[request.actorId];
     if (!actor) {
       throw new Error('Actor not found');
     }
 
+    // Add type guard to ensure actor can perform actions
+    if (actor.documentType !== 'character' && actor.documentType !== 'actor') {
+      throw new Error(`Document ${request.actorId} cannot perform actions (type: ${actor.documentType})`);
+    }
+
+    // Cast to proper type after validation
+    const actionActor = actor as ICharacter | IActor;
+
     // Consume the action using the utility function
-    consumeAction('action', actor, 'Help');
+    consumeAction('action', actionActor, 'Help');
 
     // Apply help effect to target if specified
     if (params.targetId) {
@@ -178,12 +208,12 @@ const executeDnDHelp: ActionExecutionHandler = async (
  * Utility function to check if a character has received help
  * Can be used by attack and ability check systems
  */
-export function hasReceivedHelp(character: { state?: { turnState?: { helpReceived?: Array<{ helpType: string }> } } }, helpType?: 'ability-check' | 'attack'): boolean {
+export function hasReceivedHelp(character: ICharacter | IActor, helpType?: 'ability-check' | 'attack'): boolean {
   const turnState = character?.state?.turnState;
   const helpReceived = turnState?.helpReceived || [];
   
   if (helpType) {
-    return helpReceived.some((help) => help.helpType === helpType);
+    return helpReceived.some((help: { helpType: string }) => help.helpType === helpType);
   }
   
   return helpReceived.length > 0;
@@ -192,13 +222,13 @@ export function hasReceivedHelp(character: { state?: { turnState?: { helpReceive
 /**
  * Utility function to consume help (remove from character state after use)
  */
-export function consumeHelp(character: { state?: { turnState?: { helpReceived?: Array<{ helpType: string }> } } }, helpType?: 'ability-check' | 'attack'): void {
+export function consumeHelp(character: ICharacter | IActor, helpType?: 'ability-check' | 'attack'): void {
   const turnState = character?.state?.turnState;
   if (!turnState?.helpReceived) return;
 
   if (helpType) {
     // Remove specific type of help
-    const index = turnState.helpReceived.findIndex((help) => help.helpType === helpType);
+    const index = turnState.helpReceived.findIndex((help: { helpType: string }) => help.helpType === helpType);
     if (index !== -1) {
       turnState.helpReceived.splice(index, 1);
     }

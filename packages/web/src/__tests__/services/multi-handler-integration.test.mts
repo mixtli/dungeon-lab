@@ -84,6 +84,7 @@ describe('Multi-Handler Workflow Integration', () => {
               sessionId: 'test-session',
               playerId: 'test-player'
             };
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             await handler.execute(mockRequest, draft, {
               pluginContext: {} as PluginContext,
               sendRollRequest: async () => ({} as RollServerResult),
@@ -91,6 +92,7 @@ describe('Multi-Handler Workflow Integration', () => {
               sendChatMessage: async () => {},
               sendRollResult: () => {},
               requestGMConfirmation: async () => false
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
             } as any);
           }
         }
@@ -211,21 +213,21 @@ describe('Multi-Handler Workflow Integration', () => {
       priority: 0,
       requiresManualApproval: false,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      validate: (_request: any, _gameState: any) => ({ valid: true }),
+      validate: async (_request: GameActionRequest, _gameState: Readonly<ServerGameStateWithVirtuals>) => ({ valid: true }),
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      execute: async (_request: any, _draft: any) => {}
-    } as any;
+      execute: async (_request: GameActionRequest, _draft: ServerGameStateWithVirtuals) => {}
+    };
 
     const manualHandler: ActionHandler = {
       priority: 100,
       requiresManualApproval: true,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      validate: (_request: any, _gameState: any) => ({ valid: true }),
+      validate: async (_request: GameActionRequest, _gameState: Readonly<ServerGameStateWithVirtuals>) => ({ valid: true }),
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      execute: async (_request: any, _draft: any) => {},
+      execute: async (_request: GameActionRequest, _draft: ServerGameStateWithVirtuals) => {},
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      approvalMessage: async (_request: any) => 'Plugin wants to do something'
-    } as any;
+      approvalMessage: async (_request: GameActionRequest) => 'Plugin wants to do something'
+    };
 
     registerAction('move-token', autoHandler);
     registerAction('move-token', manualHandler);
@@ -259,19 +261,19 @@ describe('Multi-Handler Workflow Integration', () => {
       priority: 0,
       gmOnly: false,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      validate: (_request: any, _gameState: any) => ({ valid: true }),
+      validate: async (_request: GameActionRequest, _gameState: Readonly<ServerGameStateWithVirtuals>) => ({ valid: true }),
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      execute: async (_request: any, _draft: any) => {}
-    } as any;
+      execute: async (_request: GameActionRequest, _draft: ServerGameStateWithVirtuals) => {}
+    };
 
     const gmOnlyHandler: ActionHandler = {
       priority: 100,
       gmOnly: true,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      validate: (_request: any, _gameState: any) => ({ valid: true }),
+      validate: async (_request: GameActionRequest, _gameState: Readonly<ServerGameStateWithVirtuals>) => ({ valid: true }),
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      execute: async (_request: any, _draft: any) => {}
-    } as any;
+      execute: async (_request: GameActionRequest, _draft: ServerGameStateWithVirtuals) => {}
+    };
 
     registerAction('move-token', playerHandler);
     registerAction('move-token', gmOnlyHandler);
@@ -320,6 +322,7 @@ describe('Multi-Handler Workflow Integration', () => {
       async (draft) => {
         for (const handler of handlers) {
           if (handler.execute) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             await handler.execute(mockRequest, draft, {
               pluginContext: {} as PluginContext,
               sendRollRequest: async () => ({} as RollServerResult),
@@ -327,6 +330,7 @@ describe('Multi-Handler Workflow Integration', () => {
               sendChatMessage: async () => {},
               sendRollResult: () => {},
               requestGMConfirmation: async () => false
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
             } as any);
           }
         }

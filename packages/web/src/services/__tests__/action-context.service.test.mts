@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ActionContextImpl, createActionContext } from '../action-context.service.mts';
 import type { RollServerResult } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
 import type { RollData, RollRequestSpec } from '@dungeon-lab/shared-ui/types/action-context.mjs';
+import type { RollRequestService } from '../roll-request.service.mts';
 
 // Mock the RollRequestService
 const mockRollRequestService = {
@@ -23,13 +24,16 @@ vi.mock('../stores/chat.store.mts', () => ({
 
 describe('ActionContextImpl', () => {
   let actionContext: ActionContextImpl;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let mockChatStore: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let mockPluginContext: any;
 
   beforeEach(async () => {
     vi.clearAllMocks();
     
     // Get the mocked chat store
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { useChatStore } = await vi.importMock('../stores/chat.store.mts') as any;
     mockChatStore = useChatStore();
     
@@ -43,7 +47,7 @@ describe('ActionContextImpl', () => {
       gameState: undefined
     };
 
-    actionContext = new ActionContextImpl(mockPluginContext, mockRollRequestService as any);
+    actionContext = new ActionContextImpl(mockPluginContext, mockRollRequestService as unknown as RollRequestService);
   });
 
   afterEach(() => {
@@ -330,13 +334,16 @@ describe('ActionContextImpl', () => {
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
       // Simulate some active requests
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (actionContext as any).activeRequests.add('request1');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (actionContext as any).activeRequests.add('request2');
 
       actionContext.cleanup();
 
       expect(mockRollRequestService.cancelRequest).toHaveBeenCalledWith('request1');
       expect(mockRollRequestService.cancelRequest).toHaveBeenCalledWith('request2');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       expect((actionContext as any).activeRequests.size).toBe(0);
 
       expect(consoleSpy).toHaveBeenCalledWith('[ActionContext] Cleaning up action context:', {
@@ -349,7 +356,7 @@ describe('ActionContextImpl', () => {
 
   describe('createActionContext factory', () => {
     it('should create ActionContextImpl with provided dependencies', () => {
-      const context = createActionContext(mockRollRequestService as any, mockPluginContext);
+      const context = createActionContext(mockRollRequestService as unknown as RollRequestService, mockPluginContext);
 
       expect(context).toBeInstanceOf(ActionContextImpl);
       expect(context.pluginContext).toBe(mockPluginContext);

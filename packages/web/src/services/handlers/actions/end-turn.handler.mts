@@ -83,7 +83,9 @@ const validateEndTurn: ActionValidationHandler = async (
  */
 const executeEndTurn: ActionExecutionHandler = async (
   request: GameActionRequest,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _draft: ServerGameStateWithVirtuals,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _context: AsyncActionContext
 ): Promise<void> => {
   console.log('[EndTurnHandler] Executing turn end:', {

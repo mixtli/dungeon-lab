@@ -6,7 +6,7 @@
  */
 
 import { BaseGameSystemPlugin, ValidationResult } from '@dungeon-lab/shared-ui/types/plugin.mjs';
-import type { PluginContext, TokenContextAction, TokenActionContext } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
+import type { PluginContext, TokenActionContext } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 import { validateCharacterData } from './character-validation.mjs';
 import { DnD5eTurnManager } from './turn-manager.mjs';
 import { DndAbilityCheckHandler, DndAttackRollHandler, DndSavingThrowHandler } from './services/dnd-roll-handler.mjs';

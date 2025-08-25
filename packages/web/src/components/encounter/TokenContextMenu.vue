@@ -158,7 +158,8 @@ import { PlayerActionService } from '@/services/player-action.service.mjs';
 import type { Token } from '@dungeon-lab/shared/types/tokens.mjs';
 import type { ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
 import type { 
-  TokenActionContext // Execution context passed TO plugin handlers when action runs
+  TokenActionContext, // Execution context passed TO plugin handlers when action runs
+  PluginContext
 } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 
 interface Props {
@@ -316,7 +317,7 @@ const handlePluginAction = async (action: { id: string; label: string; icon?: st
       // The gameState from store is deeply readonly, but for the handler execution context
       // we need to provide the mutable interface expected by the TokenActionContext
       gameState: toRaw(gameStateStore.gameState!) as ServerGameStateWithVirtuals,
-      pluginContext: {
+      pluginContext: ({
         requestAction: async (
           actionType: string, 
           actorId: string | undefined, 
@@ -330,7 +331,7 @@ const handlePluginAction = async (action: { id: string; label: string; icon?: st
             throw new Error('No token selected for action');
           }
           return await playerActionService.requestAction(
-            actionType as any, // Plugin actions may not be in core action types
+            actionType, // Plugin actions are now supported as strings
             actorId || props.token.documentId,  // Use provided actorId or fall back to token's document
             parameters, 
             actorTokenId || props.token.id,     // Use provided token or fall back to current token
@@ -338,7 +339,7 @@ const handlePluginAction = async (action: { id: string; label: string; icon?: st
             options
           );
         }
-      } as any // Simplified plugin context for token actions
+      }) as PluginContext // Simplified plugin context for token actions
     };
     
     await originalAction.handler(context);

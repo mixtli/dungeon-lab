@@ -8,7 +8,9 @@
 
 import type { 
   GameActionRequest, 
-  ServerGameStateWithVirtuals 
+  ServerGameStateWithVirtuals,
+  ICharacter,
+  IActor
 } from '@dungeon-lab/shared/types/index.mjs';
 import type { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.mjs';
 import type { ActionValidationResult, ActionValidationHandler, ActionExecutionHandler, ActionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
@@ -16,7 +18,7 @@ import {
   validateActionEconomy, 
   consumeAction
 } from '../../utils/action-economy.mjs';
-import { validateActorExists, getValidatedActor, validateActorToken } from '../../utils/actor-validation.mjs';
+import { hasValidActor, getActor, hasValidActorToken, getValidatedActor } from '../../utils/actor-validation.mjs';
 
 /**
  * Validate D&D 5e Dodge action
@@ -33,18 +35,21 @@ const validateDnDDodge: ActionValidationHandler = async (
 
   try {
     // Validate actor exists using utility
-    const actorValidation = validateActorExists(request, gameState);
-    if (!actorValidation.valid) {
-      return actorValidation;
+    if (!hasValidActor(request, gameState)) {
+      return {
+        valid: false,
+        error: { code: 'ACTOR_NOT_FOUND', message: 'Actor not found or Actor ID not provided' }
+      };
     }
-    const actor = actorValidation.actor;
+    const actor = getActor(request, gameState)!; // We know it exists from validation
 
     // Validate token if provided using utility
-    const tokenValidation = validateActorToken(request, gameState);
-    if (!tokenValidation.valid) {
-      return tokenValidation;
+    if (!hasValidActorToken(request, gameState)) {
+      return {
+        valid: false,
+        error: { code: 'INVALID_TOKEN', message: 'Actor token not found or does not match actor' }
+      };
     }
-    const actorToken = tokenValidation.token;
 
     console.log('[DnD5e DodgeHandler] Found actor for dodge:', {
       actorName: actor.name,
@@ -65,9 +70,20 @@ const validateDnDDodge: ActionValidationHandler = async (
       };
     }
 
+    // Add type guard to ensure actor can perform actions
+    if (actor.documentType !== 'character' && actor.documentType !== 'actor') {
+      return {
+        valid: false,
+        error: { code: 'INVALID_ACTOR_TYPE', message: `Document ${request.actorId} cannot perform actions (type: ${actor.documentType})` }
+      };
+    }
+
+    // Cast to proper type after validation
+    const actionActor = actor as ICharacter | IActor;
+
     // Use action economy utility to validate the dodge action
     console.log('[DnD5e DodgeHandler] Validation successful for actor:', actor.name);
-    return await validateActionEconomy('action', actor, gameState, 'Dodge');
+    return await validateActionEconomy('action', actionActor, gameState, 'Dodge');
 
   } catch (error) {
     console.error('[DnD5e DodgeHandler] Validation failed:', error);
@@ -96,10 +112,18 @@ const executeDnDDodge: ActionExecutionHandler = async (
     // Get validated actor using utility
     const actor = getValidatedActor(request, draft, 'dodge action');
 
+    // Add type guard to ensure actor can perform actions
+    if (actor.documentType !== 'character' && actor.documentType !== 'actor') {
+      throw new Error(`Document ${request.actorId} cannot perform actions (type: ${actor.documentType})`);
+    }
+
+    // Cast to proper type after validation
+    const actionActor = actor as ICharacter | IActor;
+
     // Consume the action using the utility function
     // This will add "Dodge" to the actionsUsed array, which can be checked
     // during attack and saving throw resolution
-    consumeAction('action', actor, 'Dodge');
+    consumeAction('action', actionActor, 'Dodge');
 
     console.log('[DnD5e DodgeHandler] Dodge action executed successfully:', {
       actorName: actor.name,

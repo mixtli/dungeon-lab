@@ -7,7 +7,9 @@
 
 import type { 
   GameActionRequest, 
-  ServerGameStateWithVirtuals 
+  ServerGameStateWithVirtuals,
+  ICharacter,
+  IActor
 } from '@dungeon-lab/shared/types/index.mjs';
 import type { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.mjs';
 import type { ActionHandler, ActionValidationResult, ActionValidationHandler, ActionExecutionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
@@ -30,7 +32,13 @@ export const validateDnDAttack: ActionValidationHandler = async (
   });
 
   try {
-    // Get actor from required actorId (always available)
+    // Get actor from required actorId (must be available for attack actions)
+    if (!request.actorId) {
+      return {
+        valid: false,
+        error: { code: 'MISSING_ACTOR_ID', message: 'Actor ID is required for attack actions' }
+      };
+    }
     const actor = gameState.documents[request.actorId];
     if (!actor) {
       return {
@@ -63,9 +71,20 @@ export const validateDnDAttack: ActionValidationHandler = async (
       actorId: actor.id
     });
 
+    // Add type guard to ensure actor can perform actions
+    if (actor.documentType !== 'character' && actor.documentType !== 'actor') {
+      return {
+        valid: false,
+        error: { code: 'INVALID_ACTOR_TYPE', message: `Document ${request.actorId} cannot perform actions (type: ${actor.documentType})` }
+      };
+    }
+
+    // Cast to proper type after validation
+    const actionActor = actor as ICharacter | IActor;
+
     // Use action economy utility to validate the attack action
     console.log('[DnD5e AttackHandler] Validation successful for actor:', actor.name);
-    return await validateActionEconomy('action', actor, gameState, 'Attack');
+    return await validateActionEconomy('action', actionActor, gameState, 'Attack');
 
   } catch (error) {
     console.error('[DnD5e AttackHandler] Validation failed:', error);
@@ -82,7 +101,7 @@ export const validateDnDAttack: ActionValidationHandler = async (
 export const executeDnDAttack: ActionExecutionHandler = async (
   request: GameActionRequest,
   draft: ServerGameStateWithVirtuals,
-  context: AsyncActionContext
+  _context: AsyncActionContext
 ): Promise<void> => {
   console.log('[DnD5e AttackHandler] Executing Attack action consumption:', {
     actorId: request.actorId,
@@ -92,14 +111,25 @@ export const executeDnDAttack: ActionExecutionHandler = async (
 
   try {
     // Get actor from required actorId (always available)
+    if (!request.actorId) {
+      throw new Error('Actor ID is required for attack actions');
+    }
     const actor = draft.documents[request.actorId];
     if (!actor) {
       throw new Error('Actor not found');
     }
 
+    // Add type guard to ensure actor can perform actions
+    if (actor.documentType !== 'character' && actor.documentType !== 'actor') {
+      throw new Error(`Document ${request.actorId} cannot perform actions (type: ${actor.documentType})`);
+    }
+
+    // Cast to proper type after validation
+    const actionActor = actor as ICharacter | IActor;
+
     // Consume the action using the utility function
     // This will mutate the draft state directly
-    consumeAction('action', actor, 'Attack');
+    consumeAction('action', actionActor, 'Attack');
 
     console.log('[DnD5e AttackHandler] Attack action consumed successfully:', {
       actorName: actor.name,

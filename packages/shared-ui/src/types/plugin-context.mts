@@ -34,10 +34,12 @@ export interface ResourceCost {
 
 /**
  * Standard validation function signature for action handlers
+ * Uses readonly gameState since validation should never mutate state
+ * This matches Vue's readonly proxy types from Pinia stores
  */
 export type ActionValidationHandler = (
   request: GameActionRequest,
-  gameState: ServerGameStateWithVirtuals
+  gameState: Readonly<ServerGameStateWithVirtuals>
 ) => Promise<ActionValidationResult>;
 
 /**

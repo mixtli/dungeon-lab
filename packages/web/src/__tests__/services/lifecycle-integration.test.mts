@@ -37,7 +37,7 @@ describe('Document State Lifecycle Integration', () => {
         turnReset: {
           turnState: { movementUsed: 0, actionsUsed: [] }
         }
-      } as any);
+      });
 
       // Create test game state with active turn manager
       const gameState: ServerGameStateWithVirtuals = {
@@ -97,6 +97,7 @@ describe('Document State Lifecycle Integration', () => {
 
       // Execute the turn end (this should apply lifecycle resets)
       const draftState = JSON.parse(JSON.stringify(gameState)) as ServerGameStateWithVirtuals;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await endTurnActionHandler.execute!(request, draftState, {
         pluginContext: {} as PluginContext,
         sendRollRequest: async () => ({} as RollServerResult),
@@ -104,7 +105,7 @@ describe('Document State Lifecycle Integration', () => {
         sendChatMessage: async () => {},
         sendRollResult: () => {},
         requestGMConfirmation: async () => false
-      } as any);
+      });
 
       // Verify turn advancement - with 1 participant, goes to next round
       expect(draftState.turnManager?.currentTurn).toBe(0); // Back to first participant
@@ -114,7 +115,7 @@ describe('Document State Lifecycle Integration', () => {
       expect(draftState.documents['actor-1'].state.turnState).toEqual({
         movementUsed: 0,
         actionsUsed: []
-      } as any);
+      });
     });
 
     it('should handle turn end gracefully when no lifecycles are registered', async () => {
@@ -199,7 +200,7 @@ describe('Document State Lifecycle Integration', () => {
         encounterReset: {
           encounterState: { conditions: [], temporaryEffects: [] }
         }
-      } as any);
+      });
 
       const gameState: ServerGameStateWithVirtuals = {
         campaign: null,
@@ -267,6 +268,7 @@ describe('Document State Lifecycle Integration', () => {
 
       // Execute the encounter stop
       const draftState = JSON.parse(JSON.stringify(gameState)) as ServerGameStateWithVirtuals;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await stopEncounterActionHandler.execute!(request, draftState, {
         pluginContext: {} as PluginContext,
         sendRollRequest: async () => ({} as RollServerResult),
@@ -274,7 +276,7 @@ describe('Document State Lifecycle Integration', () => {
         sendChatMessage: async () => {},
         sendRollResult: () => {},
         requestGMConfirmation: async () => false
-      } as any);
+      });
 
       // Verify encounter was stopped
       expect(draftState.currentEncounter?.status).toBe('stopped');
@@ -284,7 +286,7 @@ describe('Document State Lifecycle Integration', () => {
       expect(draftState.documents['actor-1'].state.encounterState).toEqual({
         conditions: [],
         temporaryEffects: []
-      } as any);
+      });
     });
   });
 
@@ -296,14 +298,14 @@ describe('Document State Lifecycle Integration', () => {
         turnReset: {
           turnState: { movementUsed: 0 }
         }
-      } as any);
+      });
 
       registerPluginStateLifecycle({
         pluginId: 'plugin-b', 
         turnReset: {
           turnState: { actionsUsed: [] }
         }
-      } as any);
+      });
 
       const gameState: ServerGameStateWithVirtuals = {
         campaign: null,
@@ -356,6 +358,7 @@ describe('Document State Lifecycle Integration', () => {
       };
 
       const draftState = JSON.parse(JSON.stringify(gameState)) as ServerGameStateWithVirtuals;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await endTurnActionHandler.execute!(request, draftState, {
         pluginContext: {} as PluginContext,
         sendRollRequest: async () => ({} as RollServerResult),
@@ -363,13 +366,13 @@ describe('Document State Lifecycle Integration', () => {
         sendChatMessage: async () => {},
         sendRollResult: () => {},
         requestGMConfirmation: async () => false
-      } as any);
+      });
 
       // Both plugin resets should be applied
       // Note: The second plugin's reset will overwrite the first's turnState
       expect(draftState.documents['actor-1'].state.turnState).toEqual({
         actionsUsed: []
-      } as any);
+      });
     });
   });
 });

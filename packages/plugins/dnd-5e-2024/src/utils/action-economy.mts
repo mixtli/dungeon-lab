@@ -6,7 +6,9 @@
  */
 
 import type { 
-  ServerGameStateWithVirtuals 
+  ServerGameStateWithVirtuals,
+  ICharacter,
+  IActor
 } from '@dungeon-lab/shared/types/index.mjs';
 import type { ActionValidationResult } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 import type { ConditionInstance } from '../types/dnd/condition.mjs';
@@ -39,7 +41,7 @@ interface DnDTurnState {
  */
 export async function validateActionEconomy(
   actionType: DnDActionType,
-  character: any,
+  character: ICharacter | IActor,
   gameState: ServerGameStateWithVirtuals,
   actionName: string = 'unknown'
 ): Promise<ActionValidationResult> {
@@ -204,7 +206,7 @@ export async function validateActionEconomy(
  */
 export function consumeAction(
   actionType: DnDActionType,
-  character: any,
+  character: ICharacter | IActor,
   actionName: string = 'unknown'
 ): void {
   console.log('[DnD5e ActionEconomy] Consuming action:', {
@@ -257,7 +259,7 @@ export function consumeAction(
  * @param character - Character document to check
  * @returns Object describing available action economy
  */
-export async function getAvailableActions(character: any): Promise<{
+export async function getAvailableActions(character: ICharacter | IActor): Promise<{
   canUseAction: boolean;
   canUseBonusAction: boolean;
   canUseReaction: boolean;

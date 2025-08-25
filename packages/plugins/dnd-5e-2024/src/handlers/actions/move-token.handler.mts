@@ -10,8 +10,8 @@
 import type { GameActionRequest, ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
 import type { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.mjs';
 import type { ActionValidationResult, ActionValidationHandler, ActionExecutionHandler, ActionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
-import type { DndCharacterData, DndCharacterDocument } from '../../types/dnd/character.mjs';
-import type { DndCreatureData, DndCreatureDocument } from '../../types/dnd/creature.mjs';
+import type { DndCharacterData } from '../../types/dnd/character.mjs';
+import type { DndCreatureData } from '../../types/dnd/creature.mjs';
 
 /**
  * Convert world pixel distance to feet using D&D grid scale

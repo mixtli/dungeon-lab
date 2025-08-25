@@ -6,7 +6,7 @@
  * hit determination, damage rolls, and action economy consumption.
  */
 
-import type { GameActionRequest, ServerGameStateWithVirtuals, ICharacter, IActor } from '@dungeon-lab/shared/types/index.mjs';
+import type { GameActionRequest, ServerGameStateWithVirtuals, ICharacter, IActor, IItem } from '@dungeon-lab/shared/types/index.mjs';
 import type { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.mjs';
 import type { ActionValidationResult, ActionValidationHandler, ActionExecutionHandler, ActionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 import { 
@@ -106,7 +106,13 @@ const validateWeaponAttack: ActionValidationHandler = async (
   try {
     const parameters = request.parameters as unknown as WeaponAttackParameters;
     
-    // Get actor from required actorId (always available)
+    // Get actor from required actorId (must be available for weapon attack actions)
+    if (!request.actorId) {
+      return {
+        valid: false,
+        error: { code: 'MISSING_ACTOR_ID', message: 'Actor ID is required for weapon attack actions' }
+      };
+    }
     const actor = gameState.documents[request.actorId];
     if (!actor) {
       return {
@@ -135,7 +141,7 @@ const validateWeaponAttack: ActionValidationHandler = async (
     }
 
     // Check if weapon exists in gameState.documents
-    const weapon = gameState.documents[parameters.weaponId] as DndItemDocument | undefined;
+    const weapon = gameState.documents[parameters.weaponId] as IItem | undefined;
     if (!weapon) {
       return {
         valid: false,
@@ -152,8 +158,19 @@ const validateWeaponAttack: ActionValidationHandler = async (
       };
     }
 
+    // Add type guard to ensure actor can perform actions
+    if (actor.documentType !== 'character' && actor.documentType !== 'actor') {
+      return {
+        valid: false,
+        error: { code: 'INVALID_ACTOR_TYPE', message: `Document ${request.actorId} cannot perform actions (type: ${actor.documentType})` }
+      };
+    }
+
+    // Cast to proper type after validation
+    const actionActor = actor as ICharacter | IActor;
+
     // Validate action economy (weapon attacks consume an action)
-    const actionValidation = await validateActionEconomy('action', actor, gameState, 'Attack');
+    const actionValidation = await validateActionEconomy('action', actionActor, gameState, 'Attack');
     if (!actionValidation.valid) {
       return actionValidation;
     }
@@ -191,6 +208,9 @@ const executeWeaponAttack: ActionExecutionHandler = async (
     const parameters = request.parameters as unknown as WeaponAttackParameters;
     
     // Get actor from required actorId (always available)
+    if (!request.actorId) {
+      throw new Error('Actor ID is required for weapon attack actions');
+    }
     const actor = draft.documents[request.actorId];
     if (!actor) {
       throw new Error('Actor not found');
@@ -358,9 +378,20 @@ const executeWeaponAttack: ActionExecutionHandler = async (
     }
 
     // Step 3: Update game state to consume action (draft is already mutable)
+    if (!request.actorId) {
+      throw new Error('Actor ID is required for weapon attack actions');
+    }
     const draftActor = draft.documents[request.actorId];
     if (draftActor) {
-      consumeAction('action', draftActor, 'Attack');
+      // Add type guard to ensure actor can perform actions
+      if (draftActor.documentType !== 'character' && draftActor.documentType !== 'actor') {
+        throw new Error(`Document ${request.actorId} cannot perform actions (type: ${draftActor.documentType})`);
+      }
+
+      // Cast to proper type after validation
+      const actionActor = draftActor as ICharacter | IActor;
+
+      consumeAction('action', actionActor, 'Attack');
       console.log(`[WeaponAttack] Consumed action for ${actor.name}`);
     }
 

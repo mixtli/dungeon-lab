@@ -30,13 +30,13 @@
         <div v-if="alignment === 'left-right'" class="message-wrapper">
           <div class="message-bubble">
             <span v-if="!message.isSystem" class="message-sender">{{ message.senderName }}</span>
-            <div class="message-content" v-html="formatMessageContent(message.content)"></div>
+            <div class="message-content" v-html="formatContent(message.content)"></div>
             <span class="message-time">{{ formatTime ? formatTime(message.timestamp) : defaultFormatTime(message.timestamp) }}</span>
           </div>
         </div>
         <div v-else class="message-simple">
           <span v-if="!message.isSystem" class="message-sender">{{ message.senderName }}</span>
-          <span class="message-text" v-html="formatMessageContent(message.content)"></span>
+          <span class="message-text" v-html="formatContent(message.content)"></span>
           <span class="message-time">{{ formatTime ? formatTime(message.timestamp) : defaultFormatTime(message.timestamp) }}</span>
         </div>
       </div>
@@ -94,7 +94,7 @@ function defaultFormatTime(timestamp: string): string {
 }
 
 // Default message content formatting (can be overridden by parent)
-function formatMessageContent(content: string): string {
+function formatContent(content: string): string {
   if (props.formatMessageContent) {
     return props.formatMessageContent(content);
   }

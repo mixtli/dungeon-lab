@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { DocumentService, QueryValue } from '../services/document.service.mjs';
+import { QueryOptions } from 'mongoose';
 import { logger } from '../../../utils/logger.mjs';
 import {
   BaseAPIResponse,
@@ -302,7 +303,7 @@ export class DocumentController {
       }, {} as Record<string, QueryValue>);
       
       // Build query options
-      const options: any = {};
+      const options: QueryOptions = {};
       if (limit) options.limit = Number(limit);
       if (skip) options.skip = Number(skip);
       if (sort) options.sort = sort;

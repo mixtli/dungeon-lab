@@ -165,8 +165,8 @@ export function getCasterForToken(tokenId: string, gameState: ServerGameStateWit
     // Get plain game state for calculations to avoid Vue proxy issues
     const plainGameState = unref(gameState);
     
-    // Find token in current encounter
-    const token = plainGameState.currentEncounter?.tokens?.find(t => t.id === tokenId);
+    // Get token from current encounter (tokens is now a dictionary)
+    const token = plainGameState.currentEncounter?.tokens?.[tokenId];
     if (!token || !token.documentId) {
       console.warn('[SpellLookup] Token not found or has no linked document:', tokenId);
       return null;
@@ -216,8 +216,8 @@ export function getTargetForToken(tokenId: string, gameState: ServerGameStateWit
     // Get plain game state for calculations to avoid Vue proxy issues
     const plainGameState = unref(gameState);
     
-    // Find token in current encounter
-    const token = plainGameState.currentEncounter?.tokens?.find(t => t.id === tokenId);
+    // Get token from current encounter (tokens is now a dictionary)
+    const token = plainGameState.currentEncounter?.tokens?.[tokenId];
     if (!token || !token.documentId) {
       console.warn('[SpellLookup] Target token not found or has no linked document:', tokenId);
       return null;
@@ -387,25 +387,17 @@ export function calculateTargetSaveBonus(target: SpellTarget, ability: string): 
   try {
     if (target.documentType === 'character') {
       const characterData = target.pluginData as DndCharacterData;
-      const savingThrows = characterData.savingThrows;
+      const abilities = characterData.abilities;
       
-      if (!savingThrows) {
-        console.warn('[SpellLookup] Character has no saving throw data:', target.name);
+      if (!abilities || !abilities[ability as keyof typeof abilities]) {
+        console.warn('[SpellLookup] Character has no ability data for:', ability, target.name);
         return 0;
       }
       
-      // Get saving throw modifier for the specified ability
-      const saveBonus = savingThrows[ability as keyof typeof savingThrows];
-      if (typeof saveBonus === 'number') {
-        return saveBonus;
-      }
-      
-      console.warn('[SpellLookup] Invalid saving throw ability for character:', {
-        targetName: target.name,
-        ability,
-        availableAbilities: Object.keys(savingThrows)
-      });
-      return 0;
+      // Get saving throw bonus for the specified ability
+      const abilityData = abilities[ability as keyof typeof abilities];
+      const saveBonus = abilityData.modifier + (abilityData.saveProficient ? abilityData.saveBonus : 0);
+      return saveBonus;
       
     } else if (target.documentType === 'actor') {
       const actorData = target.pluginData as { 

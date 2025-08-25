@@ -13,14 +13,13 @@
  * - Multi-target coordination with Promise-based roll correlation
  */
 
-import type { GameActionRequest, ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
+import type { GameActionRequest, ServerGameStateWithVirtuals, ICharacter, IActor } from '@dungeon-lab/shared/types/index.mjs';
 import type { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.mjs';
 import type { ActionValidationResult, ActionValidationHandler, ActionExecutionHandler, ActionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 import type { RollServerResult } from '@dungeon-lab/shared/types/socket/index.mjs';
 import type { RollRequestSpec } from '@dungeon-lab/shared-ui/types/action-context.mjs';
 import { 
   lookupSpell, 
-  getCasterForToken, 
   getTargetForToken,
   hasSpellSlotsAvailable,
   consumeSpellSlot,
@@ -140,7 +139,7 @@ const executeSpellCast: ActionExecutionHandler = async (
     // PARAMETER EXTRACTION & SETUP (Universal)
     // ==========================================
     
-    const parameters = request.parameters as SpellCastParameters;
+    const parameters = request.parameters as unknown as SpellCastParameters;
     const { spellId, spellSlotLevel } = parameters;
     
     if (!spellId || typeof spellSlotLevel !== 'number') {
@@ -162,10 +161,21 @@ const executeSpellCast: ActionExecutionHandler = async (
     }
     
     // Get caster from required actorId (always available)
+    if (!request.actorId) {
+      throw new Error('Actor ID is required for spell casting actions');
+    }
     const caster = draft.documents[request.actorId];
     if (!caster) {
       throw new Error(`Caster not found for actorId: ${request.actorId}`);
     }
+    
+    // Add type guard to ensure caster can cast spells
+    if (caster.documentType !== 'character' && caster.documentType !== 'actor') {
+      throw new Error(`Document ${request.actorId} cannot cast spells (type: ${caster.documentType})`);
+    }
+    
+    // Cast to proper type after validation
+    const spellCaster = caster as ICharacter | IActor;
     
     // Get token if provided (for positioning/range calculations)
     let casterToken = null;
@@ -183,26 +193,26 @@ const executeSpellCast: ActionExecutionHandler = async (
       throw new Error('No valid targets found');
     }
     
-    console.log(`[SpellCasting] Casting ${spell.pluginData.name} from ${caster.name} at ${targets.length} targets`);
+    console.log(`[SpellCasting] Casting ${spell.pluginData.name} from ${spellCaster.name} at ${targets.length} targets`);
     
     // Universal validation and spell slot consumption
-    if (!hasSpellSlotsAvailable(caster, spellSlotLevel)) {
+    if (!hasSpellSlotsAvailable(spellCaster, spellSlotLevel)) {
       throw new Error(`No available level ${spellSlotLevel} spell slots`);
     }
     
     // Consume spell slot (works in Immer draft context)
-    const slotConsumed = consumeSpellSlot(caster, spellSlotLevel);
+    const slotConsumed = consumeSpellSlot(spellCaster, spellSlotLevel);
     if (!slotConsumed) {
       throw new Error(`Failed to consume level ${spellSlotLevel} spell slot`);
     }
     
-    console.log(`[SpellCasting] Consumed level ${spellSlotLevel} spell slot for ${caster.name}`);
+    console.log(`[SpellCasting] Consumed level ${spellSlotLevel} spell slot for ${spellCaster.name}`);
     
     // Consume action economy (works in Immer draft context)
     const actionType = getActionTypeFromCastingTime(parameters.castingTime);
     if (actionType) {
-      consumeAction(actionType, caster, 'Magic');
-      console.log(`[SpellCasting] Consumed ${actionType} action for ${caster.name}`);
+      consumeAction(actionType, spellCaster, 'Magic');
+      console.log(`[SpellCasting] Consumed ${actionType} action for ${spellCaster.name}`);
     }
     
     // ==========================================
@@ -225,7 +235,7 @@ const executeSpellCast: ActionExecutionHandler = async (
           metadata: {
             spellId,
             targetId: target.id,
-            attackBonus: calculateSpellAttackBonus(caster),
+            attackBonus: calculateSpellAttackBonus(spellCaster),
             spellName: spell.pluginData.name
           }
         }
@@ -240,7 +250,7 @@ const executeSpellCast: ActionExecutionHandler = async (
         const total = result.results.reduce((sum, diceGroup) => 
           sum + diceGroup.results.reduce((groupSum, roll) => groupSum + roll, 0), 0
         );
-        const attackBonus = calculateSpellAttackBonus(caster);
+        const attackBonus = calculateSpellAttackBonus(spellCaster);
         const finalTotal = total + attackBonus;
         const targetAC = getTargetAC(targets[i]);
         const isHit = finalTotal >= targetAC;
@@ -280,7 +290,7 @@ const executeSpellCast: ActionExecutionHandler = async (
     if (spell.pluginData.savingThrow) {
       console.log('[SpellCasting] Spell has savingThrow field - requesting saving throws');
       
-      const saveInfo = getSpellSavingThrow(spell, caster);
+      const saveInfo = getSpellSavingThrow(spell, spellCaster);
       if (!saveInfo) {
         console.warn('[SpellCasting] Failed to get saving throw information');
       } else {
@@ -389,7 +399,7 @@ const executeSpellCast: ActionExecutionHandler = async (
           
           // Check saving throw requirements for save spells
           if (spell.pluginData.savingThrow && shouldTakeDamage) {
-            const saveInfo = getSpellSavingThrow(spell, caster);
+            const saveInfo = getSpellSavingThrow(spell, spellCaster);
             const savedSuccessfully = saveSuccesses[i];
             
             if (saveInfo?.effectOnSave === 'half') {
@@ -434,7 +444,7 @@ const executeSpellCast: ActionExecutionHandler = async (
           }
           
           if (spell.pluginData.savingThrow && shouldTakeDamage) {
-            const saveInfo = getSpellSavingThrow(spell, caster);
+            const saveInfo = getSpellSavingThrow(spell, spellCaster);
             const savedSuccessfully = saveSuccesses[i];
             
             if (saveInfo?.effectOnSave === 'half') {
@@ -503,7 +513,13 @@ const validateSpellCasting: ActionValidationHandler = async (
   });
 
   try {
-    // Get actor from required actorId (always available)
+    // Get actor from required actorId (must be available for spell casting actions)
+    if (!request.actorId) {
+      return {
+        valid: false,
+        error: { code: 'MISSING_ACTOR_ID', message: 'Actor ID is required for spell casting actions' }
+      };
+    }
     const actor = gameState.documents[request.actorId];
     if (!actor) {
       return {
@@ -560,11 +576,22 @@ const validateSpellCasting: ActionValidationHandler = async (
       }
     }
     
+    // Add type guard to ensure actor can perform actions
+    if (actor.documentType !== 'character' && actor.documentType !== 'actor') {
+      return {
+        valid: false,
+        error: { code: 'INVALID_ACTOR_TYPE', message: `Document ${request.actorId} cannot perform actions (type: ${actor.documentType})` }
+      };
+    }
+
+    // Cast to proper type after validation
+    const actionActor = actor as ICharacter | IActor;
+
     // Check action economy using standardized action economy system
     const actionType = getActionTypeFromCastingTime(castingTime);
     
     if (actionType) {
-      const actionValidation = await validateActionEconomy(actionType, actor, gameState, 'Magic');
+      const actionValidation = await validateActionEconomy(actionType, actionActor, gameState, 'Magic');
       if (!actionValidation.valid) {
         return actionValidation;
       }

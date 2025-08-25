@@ -13,8 +13,8 @@
   <RollResultMessage v-else-if="message.type === 'roll-result' && message.rollResultData"
     v-bind="message.rollResultData" />
   <!-- Regular text content for text messages -->
-  <slot v-else name="text-message" :message="message" :formatContent="formatContent">
-    <div :class="textContentClass" v-html="formatContent(message.content)"></div>
+  <slot v-else name="text-message" :message="message" :formatContent="formatMessageContent">
+    <div :class="textContentClass" v-html="formatMessageContent(message.content)"></div>
   </slot>
 </template>
 
@@ -38,7 +38,7 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 // Default content formatting (can be overridden by parent)
-function formatContent(content: string): string {
+function formatMessageContent(content: string): string {
   if (props.formatContent) {
     return props.formatContent(content);
   }

@@ -459,13 +459,6 @@
                     >
                       ⚔️
                     </button>
-                    <button 
-                      @click="initiateWeaponDamage(item)" 
-                      class="compact-action-btn damage-btn"
-                      title="Damage"
-                    >
-                      🗡️
-                    </button>
                   </div>
                 </div>
               </div>
@@ -683,7 +676,7 @@
 
 <script setup lang="ts">
 import { ref, computed, inject, onMounted, onUnmounted, watch, markRaw, type Ref } from 'vue';
-import type { ICharacter, IItem, BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
+import type { ICharacter, IItem, BaseDocument, IToken } from '@dungeon-lab/shared/types/index.mjs';
 import type { DndCharacterClassDocument } from '../../types/dnd/character-class.mjs';
 import type { DndSpeciesDocument } from '../../types/dnd/species.mjs';
 import type { DndBackgroundDocument } from '../../types/dnd/background.mjs';
@@ -699,6 +692,11 @@ import { useDocumentSheetStore } from '../../../../../web/src/stores/document-sh
 import { getAssetUrl } from '../../../../../web/src/utils/asset-utils.mjs';
 // @ts-ignore - Import from web package for notifications
 import { useNotificationStore } from '../../../../../web/src/stores/notification.store.mjs';
+
+// Utility function to generate unique roll IDs
+function generateUniqueId(): string {
+  return `roll_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
 
 // Props - enhanced interface with container-provided document copy
 interface Props {
@@ -783,7 +781,6 @@ const showSavingThrowDialog = ref(false);
 const currentRollAbility = ref<string>('');
 const currentRollSkill = ref<string>('');
 const currentSavingThrow = ref<string>('');
-const currentRollWeapon = ref<IItem | null>(null);
 
 // Weapon dialog state
 // Weapon dialog refs removed - now using unified action handlers
@@ -806,10 +803,10 @@ const itemImageUrls = ref<Record<string, string>>({});
 const pluginContext = getPluginContext();
 
 // Inject target context from encounter (with fallbacks)
-const encounterTargetTokenIds = inject('encounterTargetTokenIds', () => ref([]), true);
+const encounterTargetTokenIds = inject<Ref<string[]>>('encounterTargetTokenIds', () => ref([]), true);
 
 // Inject selected token context from encounter (with fallbacks)
-const encounterSelectedToken = inject('encounterSelectedToken', () => ref(null), true);
+const encounterSelectedToken = inject<Ref<IToken | null>>('encounterSelectedToken', () => ref(null), true);
 
 // Use container-provided document copy - no local state management needed!
 // The container handles copy creation, change detection, and save/cancel logic
@@ -1076,7 +1073,7 @@ const characterSkills = computed(() => {
   if (Object.keys(skills).length > 0) {
     for (const [skillName, skillData] of Object.entries(skills)) {
       if (typeof skillData === 'object' && skillData !== null) {
-        const skill = skillData as any; // Type assertion for plugin data
+        const skill = skillData as { ability?: string; proficient?: boolean; expert?: boolean }; // Type assertion for plugin data
         result[skillName] = {
           ability: skill.ability || standardSkills[skillName as keyof typeof standardSkills] || 'wisdom',
           proficiency: skill.expert ? 'expert' : 
@@ -1378,92 +1375,12 @@ const initiateWeaponAttack = async (weapon: IItem) => {
 
 // Weapon damage now handled automatically by unified weapon attack action
 
-// Helper functions for weapon calculations
-
-const getWeaponAttackAbility = (weapon: IItem): string => {
-  const properties = (weapon.pluginData as any)?.properties || [];
-  const weaponType = (weapon.pluginData as any)?.weaponType || (weapon.pluginData as any)?.category;
-  
-  if (properties.includes('finesse')) {
-    return 'dexterity';
-  }
-  
-  if (weaponType === 'ranged' || weaponType === 'ranged-weapon') {
-    return 'dexterity';
-  }
-  
-  return 'strength';
-};
-
-const getAbilityModifier = (character: any, ability: string): number => {
-  const abilityScore = character.pluginData?.abilities?.[ability]?.value || 10;
-  return Math.floor((abilityScore - 10) / 2);
-};
-
-const isProficientWithWeapon = (weapon: IItem, character: any): boolean => {
-  const weaponProficiencies = character.pluginData?.proficiencies?.weapons || [];
-  const weaponCategory = (weapon.pluginData as any)?.category || (weapon.pluginData as any)?.weaponType;
-  
-  return weaponProficiencies.includes(weapon.name) || 
-         weaponProficiencies.includes(weaponCategory) ||
-         weaponProficiencies.includes('simple-weapons') ||
-         weaponProficiencies.includes('martial-weapons');
-};
-
-const getProficiencyBonus = (character: any): number => {
-  const level = character.pluginData?.progression?.level || character.pluginData?.level || 1;
-  return Math.ceil(level / 4) + 1;
-};
 
 // Methods
 const formatModifier = (value: number): string => {
   return value >= 0 ? `+${value}` : `${value}`;
 };
 
-// Convert technical error messages to user-friendly notifications
-const getUserFriendlyActionError = (error?: string): string => {
-  if (!error) return 'Cannot perform attack at this time';
-
-  // Handle specific D&D action economy errors
-  if (error.includes('Already used action this turn')) {
-    return 'You have already used your action this turn';
-  }
-  
-  if (error.includes('Already used bonus action this turn')) {
-    return 'You have already used your bonus action this turn';
-  }
-  
-  if (error.includes('Already used reaction this round')) {
-    return 'You have already used your reaction this round';
-  }
-  
-  if (error.includes('paralyzed')) {
-    return 'You cannot act while paralyzed';
-  }
-  
-  if (error.includes('stunned')) {
-    return 'You cannot act while stunned';
-  }
-  
-  if (error.includes('unconscious')) {
-    return 'You cannot act while unconscious';
-  }
-  
-  if (error.includes('incapacitated')) {
-    return 'You cannot act while incapacitated';
-  }
-  
-  if (error.includes('petrified')) {
-    return 'You cannot act while petrified';
-  }
-  
-  if (error.includes("It's not your turn")) {
-    return "It's not your turn";
-  }
-  
-  // Generic fallback for other errors
-  return 'Cannot perform attack at this time';
-};
 
 // Updated roll handling - opens dialog instead of direct rolling
 const rollAbilityCheck = (ability: string) => {
@@ -1480,14 +1397,14 @@ const handleRollSubmission = (rollData: RollDialogData) => {
   }
 
   // Generate unique roll ID
-  const rollId = `roll_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const rollId = generateUniqueId();
   
   // Determine if this is a skill check or ability check
   const isSkillCheck = !!rollData.skill;
   
   // Create roll object following the established schema
   const roll = {
-    id: rollId,
+    rollId: rollId,
     rollType: 'ability-check',
     pluginId: 'dnd-5e-2024',
     dice: [{ 
@@ -1535,11 +1452,11 @@ const handleSavingThrowSubmission = (rollData: RollDialogData) => {
   }
 
   // Generate unique roll ID
-  const rollId = `roll_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const rollId = generateUniqueId();
   
   // Create roll object following the established schema
   const roll = {
-    id: rollId,
+    rollId: rollId,
     rollType: 'saving-throw',
     pluginId: 'dnd-5e-2024',
     dice: [{ 
@@ -1605,7 +1522,7 @@ const toggleSkillProficiency = (skillName: string) => {
     characterCopy.value.pluginData.skills = {};
   }
 
-  const skills = characterCopy.value.pluginData.skills;
+  const skills = characterCopy.value.pluginData.skills as Record<string, { proficient?: boolean; expert?: boolean }>;
   const currentSkill = skills[skillName] || { proficient: false, expert: false };
   
   console.log('[Skills] Current skill state:', currentSkill);
@@ -2300,7 +2217,7 @@ const handleConditionDrop = async (event: DragEvent) => {
     // Request the condition assignment action through the plugin context
     const result = await pluginContext.requestAction(
       'dnd5e-2024:add-condition',
-      actionParams.targetCharacterId, // actorId - the character receiving the condition
+      actionParams.targetId, // actorId - the character receiving the condition
       actionParams,
       undefined, // actorTokenId
       undefined, // targetTokenIds
@@ -2527,12 +2444,12 @@ const loadConditions = async () => {
       
       // Populate condition names and image URLs from actual documents
       for (const condition of conditions) {
-        conditionNames.value[condition.id] = condition.name || condition.data?.name || 'Unknown Condition';
+        conditionNames.value[condition.id] = condition.name || 'Unknown Condition';
         
         // Load image URL if the condition has an imageId
-        if (condition.data?.imageId) {
+        if (condition.imageId) {
           try {
-            const imageUrl = getAssetUrl(`/api/assets/${condition.data.imageId}/file`);
+            const imageUrl = await getAssetUrl(condition.imageId);
             conditionImageUrls.value[condition.id] = imageUrl;
           } catch (error) {
             console.warn(`[CharacterSheet] Failed to load image for condition ${condition.name}:`, error);
@@ -3247,13 +3164,6 @@ watch(() => props.items?.value, () => {
   transform: translateY(0);
 }
 
-.compact-action-btn.damage-btn {
-  background: var(--dnd-brown);
-}
-
-.compact-action-btn.damage-btn:hover {
-  background: var(--dnd-brown-dark);
-}
 
 .compact-action-btn:focus {
   outline: 2px solid var(--dnd-yellow);

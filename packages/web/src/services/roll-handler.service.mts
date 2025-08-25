@@ -178,9 +178,13 @@ export class RollHandlerService {
                 if (context.requestAction) {
                   // Extract actorId from parameters or use result metadata
                   // TODO: Update FollowUpActionRequest interface to include actorId, actorTokenId, targetTokenIds
-                  const actorId = (actionRequest.data.parameters as any).actorId || result.metadata.actorId || '';
-                  const actorTokenId = (actionRequest.data.parameters as any).actorTokenId || result.metadata.actorTokenId;
-                  const targetTokenIds = (actionRequest.data.parameters as any).targetTokenIds;
+                  const parameters = actionRequest.data.parameters as Record<string, unknown>;
+                  const actorId = (typeof parameters.actorId === 'string' ? parameters.actorId : undefined) || 
+                                  (typeof result.metadata.actorId === 'string' ? result.metadata.actorId : undefined) || 
+                                  '';
+                  const actorTokenId = (typeof parameters.actorTokenId === 'string' ? parameters.actorTokenId : undefined) || 
+                                       (typeof result.metadata.actorTokenId === 'string' ? result.metadata.actorTokenId : undefined);
+                  const targetTokenIds = parameters.targetTokenIds as string[] | undefined;
                   
                   await context.requestAction(
                     actionRequest.data.actionType,

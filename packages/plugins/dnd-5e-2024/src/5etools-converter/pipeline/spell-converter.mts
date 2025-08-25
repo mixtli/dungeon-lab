@@ -550,7 +550,6 @@ export class TypedSpellConverter extends TypedConverter<
     // Convert entries to text with markup preserved, then extract scaledamage data
     const entriesTextWithMarkup = processEntries(entriesHigherLevel as EtoolsEntry[], { preserveMarkup: true }).text;
     const scaledamageData = extractScaledamageData(entriesTextWithMarkup);
-    const rawEntriesText = entriesToCleanText(entriesHigherLevel as EtoolsEntry[]);
     
     const scaling = [];
     

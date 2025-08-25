@@ -8,7 +8,9 @@
 
 import type { 
   GameActionRequest, 
-  ServerGameStateWithVirtuals 
+  ServerGameStateWithVirtuals,
+  ICharacter,
+  IActor
 } from '@dungeon-lab/shared/types/index.mjs';
 import type { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.mjs';
 import type { ActionValidationResult, ActionValidationHandler, ActionExecutionHandler, ActionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
@@ -46,7 +48,13 @@ const validateDnDReady: ActionValidationHandler = async (
     trigger?: string; // Trigger condition
   };
 
-  // Get actor from required actorId (always available)
+  // Get actor from required actorId (must be available for ready actions)
+  if (!request.actorId) {
+    return {
+      valid: false,
+      error: { code: 'MISSING_ACTOR_ID', message: 'Actor ID is required for ready actions' }
+    };
+  }
   const actor = gameState.documents[request.actorId];
   if (!actor) {
     return {
@@ -76,9 +84,9 @@ const validateDnDReady: ActionValidationHandler = async (
     };
   }
 
-  console.log('[DnD5e ReadyHandler] Found character for ready action:', {
-    characterName: character.name,
-    characterId: character.id,
+  console.log('[DnD5e ReadyHandler] Found actor for ready action:', {
+    actorName: actor.name,
+    actorId: actor.id,
     readiedActionType: params.readiedActionType,
     trigger: params.trigger
   });
@@ -112,8 +120,19 @@ const validateDnDReady: ActionValidationHandler = async (
     };
   }
 
+  // Add type guard to ensure actor can perform actions
+  if (actor.documentType !== 'character' && actor.documentType !== 'actor') {
+    return {
+      valid: false,
+      error: { code: 'INVALID_ACTOR_TYPE', message: `Document ${request.actorId} cannot perform actions (type: ${actor.documentType})` }
+    };
+  }
+
+  // Cast to proper type after validation
+  const actionActor = actor as ICharacter | IActor;
+
   // Use action economy utility to validate the ready action
-  return await validateActionEconomy('action', actor, gameState, 'Ready');
+  return await validateActionEconomy('action', actionActor, gameState, 'Ready');
 }
 
 /**
@@ -136,13 +155,24 @@ const executeDnDReady: ActionExecutionHandler = async (
   };
 
   // Get actor from required actorId (always available)
+  if (!request.actorId) {
+    throw new Error('Actor ID is required for ready actions');
+  }
   const actor = draft.documents[request.actorId];
   if (!actor) {
     throw new Error('Actor not found');
   }
 
+  // Add type guard to ensure actor can perform actions
+  if (actor.documentType !== 'character' && actor.documentType !== 'actor') {
+    throw new Error(`Document ${request.actorId} cannot perform actions (type: ${actor.documentType})`);
+  }
+
+  // Cast to proper type after validation
+  const actionActor = actor as ICharacter | IActor;
+
   // Consume the action using the utility function
-  consumeAction('action', actor, 'Ready');
+  consumeAction('action', actionActor, 'Ready');
 
   // Initialize turn state if needed
   if (!actor.state) actor.state = {};
@@ -171,7 +201,7 @@ const executeDnDReady: ActionExecutionHandler = async (
 /**
  * Utility function to get a character's readied action
  */
-export function getReadiedAction(character: any): ReadiedAction | null {
+export function getReadiedAction(character: ICharacter | IActor): ReadiedAction | null {
   const turnState = character?.state?.turnState;
   return turnState?.readiedAction || null;
 }
@@ -179,7 +209,7 @@ export function getReadiedAction(character: any): ReadiedAction | null {
 /**
  * Utility function to check if a character has a readied action
  */
-export function hasReadiedAction(character: any): boolean {
+export function hasReadiedAction(character: ICharacter | IActor): boolean {
   return getReadiedAction(character) !== null;
 }
 
@@ -188,7 +218,7 @@ export function hasReadiedAction(character: any): boolean {
  * This would be called by the trigger system when conditions are met
  * Returns the action parameters that should be executed
  */
-export function triggerReadiedAction(character: any): {
+export function triggerReadiedAction(character: ICharacter | IActor): {
   actionType: string;
   actionParameters?: Record<string, unknown>;
 } | null {
@@ -226,7 +256,7 @@ export function triggerReadiedAction(character: any): {
  * Utility function to cancel a readied action
  * This can be called voluntarily or when conditions change
  */
-export function cancelReadiedAction(character: any): void {
+export function cancelReadiedAction(character: ICharacter | IActor): void {
   const turnState = character?.state?.turnState;
   if (turnState?.readiedAction) {
     delete turnState.readiedAction;

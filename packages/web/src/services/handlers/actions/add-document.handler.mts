@@ -66,6 +66,7 @@ const validateAddDocument: ActionValidationHandler = async (
 const executeAddDocument: ActionExecutionHandler = async (
   request: GameActionRequest, 
   draft: ServerGameStateWithVirtuals,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _context: AsyncActionContext
 ): Promise<void> => {
   const params = request.parameters as AddDocumentParameters;

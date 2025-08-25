@@ -246,7 +246,7 @@ const executeRemoveCondition: ActionExecutionHandler = async (
         }
         
         if (dependentIndex !== -1) {
-          const removed = updatedConditions.splice(dependentIndex, 1)[0];
+          updatedConditions.splice(dependentIndex, 1);
           console.log(`[DnD5e] Removed dependent condition: ${dependentSlug}`);
         }
       }

@@ -512,11 +512,13 @@ export class GameStateService {
             console.log('Retrieved doc keys:', Object.keys(firstRetrDoc));
             
             // Check for ObjectId differences
+            const origDoc = firstOrigDoc as BaseDocument;
+            const retrDoc = firstRetrDoc as BaseDocument;
             for (const key of Object.keys(firstOrigDoc)) {
-              if (JSON.stringify((firstOrigDoc as any)[key]) !== JSON.stringify((firstRetrDoc as any)[key])) {
+              if (JSON.stringify(origDoc[key as keyof BaseDocument]) !== JSON.stringify(retrDoc[key as keyof BaseDocument])) {
                 console.log(`Field '${key}' differs:`);
-                console.log('  Original:', typeof (firstOrigDoc as any)[key], (firstOrigDoc as any)[key]);
-                console.log('  Retrieved:', typeof (firstRetrDoc as any)[key], (firstRetrDoc as any)[key]);
+                console.log('  Original:', typeof origDoc[key as keyof BaseDocument], origDoc[key as keyof BaseDocument]);
+                console.log('  Retrieved:', typeof retrDoc[key as keyof BaseDocument], retrDoc[key as keyof BaseDocument]);
               }
             }
           }

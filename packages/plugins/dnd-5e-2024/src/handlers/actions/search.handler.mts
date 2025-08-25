@@ -8,7 +8,9 @@
 
 import type { 
   GameActionRequest, 
-  ServerGameStateWithVirtuals 
+  ServerGameStateWithVirtuals,
+  ICharacter,
+  IActor
 } from '@dungeon-lab/shared/types/index.mjs';
 import type { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.mjs';
 import type { ActionValidationResult, ActionValidationHandler, ActionExecutionHandler, ActionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
@@ -34,7 +36,13 @@ const validateDnDSearch: ActionValidationHandler = async (
     targetArea?: string; // Area or object being searched
   };
 
-  // Get actor from required actorId (always available)
+  // Get actor from required actorId (must be available for search actions)
+  if (!request.actorId) {
+    return {
+      valid: false,
+      error: { code: 'MISSING_ACTOR_ID', message: 'Actor ID is required for search actions' }
+    };
+  }
   const actor = gameState.documents[request.actorId];
   
   if (!actor) {
@@ -50,8 +58,19 @@ const validateDnDSearch: ActionValidationHandler = async (
     checkType: params.checkType || 'perception'
   });
 
+  // Add type guard to ensure actor can perform actions
+  if (actor.documentType !== 'character' && actor.documentType !== 'actor') {
+    return {
+      valid: false,
+      error: { code: 'INVALID_ACTOR_TYPE', message: `Document ${request.actorId} cannot perform actions (type: ${actor.documentType})` }
+    };
+  }
+
+  // Cast to proper type after validation
+  const actionActor = actor as ICharacter | IActor;
+
   // Use action economy utility to validate the search action
-  return await validateActionEconomy('action', actor, gameState, 'Search');
+  return await validateActionEconomy('action', actionActor, gameState, 'Search');
 }
 
 /**
@@ -75,14 +94,25 @@ const executeDnDSearch: ActionExecutionHandler = async (
   };
 
   // Get actor from required actorId (always available)
+  if (!request.actorId) {
+    throw new Error('Actor ID is required for search actions');
+  }
   const actor = draft.documents[request.actorId];
   
   if (!actor) {
     throw new Error('Actor not found');
   }
 
+  // Add type guard to ensure actor can perform actions
+  if (actor.documentType !== 'character' && actor.documentType !== 'actor') {
+    throw new Error(`Document ${request.actorId} cannot perform actions (type: ${actor.documentType})`);
+  }
+
+  // Cast to proper type after validation
+  const actionActor = actor as ICharacter | IActor;
+
   // Consume the action using the utility function
-  consumeAction('action', actor, 'Search');
+  consumeAction('action', actionActor, 'Search');
 
   // Store search information in actor state for potential results
   // In a full implementation, this would trigger ability check rolls and
@@ -131,7 +161,7 @@ export function getSearchActions(actor: { state?: { turnState?: { searchActions?
 /**
  * Utility function to check if actor has searched a specific area
  */
-export function hasSearchedArea(actor: { state?: { turnState?: { searchActions?: Array<{targetArea?: string}> } } }, area: string): boolean {
+export function hasSearchedArea(actor: { state?: { turnState?: { searchActions?: Array<{checkType: string; targetArea?: string; rollResult?: number; dc?: number; searchedAt: number}> } } }, area: string): boolean {
   const searchActions = getSearchActions(actor);
   return searchActions.some(search => search.targetArea === area);
 }

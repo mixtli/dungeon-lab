@@ -213,7 +213,7 @@ function calculateActualDamage(
 const executeDamageApplication: ActionExecutionHandler = async (
   request: GameActionRequest,
   draft: ServerGameStateWithVirtuals,
-  context: AsyncActionContext
+  _context: AsyncActionContext
 ): Promise<void> => {
   console.log('[DnD5e] Executing damage application');
 

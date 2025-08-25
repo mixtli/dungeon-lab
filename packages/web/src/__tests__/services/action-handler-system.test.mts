@@ -7,7 +7,8 @@
 import { describe, test, expect, beforeEach } from 'vitest';
 import type { ActionHandler, ActionValidationResult } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 import { registerAction, getHandlers, clearAllHandlers } from '../../services/multi-handler-registry.mjs';
-// import type { GameActionRequest, ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
+import type { GameActionRequest, ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
+import type { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.mjs';
 
 describe('ActionHandler Registration and Priority System', () => {
   beforeEach(() => {
@@ -161,13 +162,12 @@ describe('ActionHandler Interface Validation', () => {
   });
 
   test('should accept handler with only execute function', () => {
-    // @ts-ignore - Simplified test handler, complex types not needed
     const handler: ActionHandler = {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      execute: async (_request: any, _draft: any, _context: any): Promise<void> => {
+      execute: async (_request: GameActionRequest, _draft: ServerGameStateWithVirtuals, _context: AsyncActionContext): Promise<void> => {
         // Test execute function
       }
-    } as any;
+    };
 
     registerAction('test-action', handler);
     const handlers = getHandlers('test-action');

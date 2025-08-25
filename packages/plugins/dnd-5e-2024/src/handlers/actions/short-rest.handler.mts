@@ -71,7 +71,7 @@ export const validateShortRest: ActionValidationHandler = async (
 export const executeShortRest: ActionExecutionHandler = async (
   request: GameActionRequest,
   draft: ServerGameStateWithVirtuals,
-  context: AsyncActionContext
+  _context: AsyncActionContext
 ): Promise<void> => {
   console.log('[DnD5e] Executing short rest');
 
