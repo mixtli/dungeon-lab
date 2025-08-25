@@ -315,7 +315,7 @@
           <div class="spells-header">
             <h3 class="section-title">Spellcasting</h3>
             <div class="spell-count">
-              {{ characterSpells.length }} spell{{ characterSpells.length !== 1 ? 's' : '' }}
+              {{ characterSpells.length + characterCantrips.length }} spell{{ (characterSpells.length + characterCantrips.length) !== 1 ? 's' : '' }}
             </div>
           </div>
 
@@ -339,7 +339,7 @@
           </div>
 
           <!-- Spells List -->
-          <div v-if="characterSpells.length" class="spells-list">
+          <div v-if="characterSpells.length || characterCantrips.length" class="spells-list">
             <div 
               v-for="spellLevel in sortedSpellLevels" 
               :key="spellLevel"
@@ -544,7 +544,97 @@
       </div>
       
       <div v-if="activeTab === 'background'" class="tab-pane background-tab">
-        <div class="empty-state">Background features coming soon...</div>
+        <div class="character-basics-section">
+          <h3 class="section-title">Character Basics</h3>
+          
+          <!-- Class Selection -->
+          <div class="basic-field">
+            <label class="field-label">Class</label>
+            <div v-if="!editMode || readonly" class="field-display">
+              {{ classDisplayName }}
+            </div>
+            <select 
+              v-else-if="characterCopy"
+              :value="(characterCopy.pluginData as any)?.classes?.[0]?.class || ''"
+              @change="updateCharacterClass(($event.target as HTMLSelectElement).value)"
+              class="field-select"
+            >
+              <option value="">Select a class...</option>
+              <option 
+                v-for="cls in availableClasses" 
+                :key="cls.id" 
+                :value="cls.id"
+              >
+                {{ cls.name }}
+              </option>
+            </select>
+          </div>
+
+          <!-- Species Selection -->
+          <div class="basic-field">
+            <label class="field-label">Species</label>
+            <div v-if="!editMode || readonly" class="field-display">
+              {{ speciesDisplayName }}
+            </div>
+            <select 
+              v-else-if="characterCopy"
+              :value="characterCopy.pluginData?.species || ''"
+              @change="updateCharacterSpecies(($event.target as HTMLSelectElement).value)"
+              class="field-select"
+            >
+              <option value="">Select a species...</option>
+              <option 
+                v-for="species in availableSpecies" 
+                :key="species.id" 
+                :value="species.id"
+              >
+                {{ species.name }}
+              </option>
+            </select>
+          </div>
+
+          <!-- Background Selection -->
+          <div class="basic-field">
+            <label class="field-label">Background</label>
+            <div v-if="!editMode || readonly" class="field-display">
+              {{ backgroundDocument?.name || 'No background selected' }}
+            </div>
+            <select 
+              v-else-if="characterCopy"
+              :value="characterCopy.pluginData?.background || ''"
+              @change="updateCharacterBackground(($event.target as HTMLSelectElement).value)"
+              class="field-select"
+            >
+              <option value="">Select a background...</option>
+              <option 
+                v-for="background in availableBackgrounds" 
+                :key="background.id" 
+                :value="background.id"
+              >
+                {{ background.name }}
+              </option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Background Details (Read-only display) -->
+        <div v-if="backgroundDocument" class="background-details-section">
+          <h3 class="section-title">Background Details</h3>
+          <div class="background-description">
+            <p>{{ backgroundDocument.pluginData?.description || 'No description available.' }}</p>
+          </div>
+          
+          <div v-if="(backgroundDocument.pluginData as any)?.features" class="background-features">
+            <h4>Features</h4>
+            <div 
+              v-for="feature in (backgroundDocument.pluginData as any).features" 
+              :key="feature.name"
+              class="feature-item"
+            >
+              <strong>{{ feature.name }}:</strong> {{ feature.description }}
+            </div>
+          </div>
+        </div>
       </div>
       
       <div v-if="activeTab === 'features'" class="tab-pane features-tab">
@@ -675,6 +765,11 @@ const backgroundDocument = ref<DndBackgroundDocument | null>(null);
 const compendiumLoading = ref(false);
 const compendiumError = ref<string | null>(null);
 
+// Available options for character creation/editing
+const availableClasses = ref<DndCharacterClassDocument[]>([]);
+const availableSpecies = ref<DndSpeciesDocument[]>([]);
+const availableBackgrounds = ref<DndBackgroundDocument[]>([]);
+
 // Spell resolution storage
 const resolvedSpells = ref<Map<string, any>>(new Map());
 
@@ -728,6 +823,9 @@ const pluginContext = getPluginContext();
 
 // Inject target context from encounter (with fallbacks)
 const encounterTargetTokenIds = inject('encounterTargetTokenIds', () => ref([]), true);
+
+// Inject selected token context from encounter (with fallbacks)
+const encounterSelectedToken = inject('encounterSelectedToken', () => ref(null), true);
 
 // Use container-provided document copy - no local state management needed!
 // The container handles copy creation, change detection, and save/cancel logic
@@ -1101,8 +1199,35 @@ const characterSpells = computed(() => {
     : character.value;
     
   const spellcastingData = (sourceCharacter?.pluginData as any)?.spellcasting;
-  if (!spellcastingData?.spells) return [];
+  if (!spellcastingData?.spells) {
+    console.log('[CharacterSheet] No spells found in spellcasting data:', spellcastingData);
+    return [];
+  }
+  console.log('[CharacterSheet] Found spells:', spellcastingData.spells);
   return spellcastingData.spells;
+});
+
+const characterCantrips = computed(() => {
+  // In edit mode, use characterCopy (editable); in view mode, use character (read-only)
+  const sourceCharacter = props.editMode && !props.readonly && characterCopy.value 
+    ? characterCopy.value 
+    : character.value;
+    
+  const spellcastingData = (sourceCharacter?.pluginData as any)?.spellcasting;
+  if (!spellcastingData?.cantrips) {
+    console.log('[CharacterSheet] No cantrips found in spellcasting data:', spellcastingData);
+    return [];
+  }
+  
+  console.log('[CharacterSheet] Found cantrips:', spellcastingData.cantrips);
+  
+  // Transform cantrip data to match spell data structure for UI compatibility
+  return spellcastingData.cantrips.map((cantrip: any) => ({
+    ...cantrip,
+    level: 0,
+    prepared: true, // Cantrips are always "prepared"
+    alwaysPrepared: true
+  }));
 });
 
 const hasSpellcasting = computed(() => {
@@ -1118,10 +1243,21 @@ const spellSlots = computed(() => {
 
 const sortedSpellLevels = computed(() => {
   const levels = new Set<number>();
+  
+  // Add levels from regular spells
   characterSpells.value.forEach((spell: any) => {
     levels.add(spell.level || 0);
   });
-  return Array.from(levels).sort((a, b) => a - b);
+  
+  // Add level 0 if character has cantrips
+  if (characterCantrips.value.length > 0) {
+    levels.add(0);
+  }
+  
+  const sortedLevels = Array.from(levels).sort((a, b) => a - b);
+  console.log('[CharacterSheet] Sorted spell levels:', sortedLevels, 'spells:', characterSpells.value.length, 'cantrips:', characterCantrips.value.length);
+  
+  return sortedLevels;
 });
 
 // Equipment grouping for compact display
@@ -1811,8 +1947,30 @@ const loadCompendiumDocuments = async () => {
       });
     }
     
+    // Fetch spell documents for all character cantrips
+    const cantrips = characterCantrips.value;
+    if (cantrips && cantrips.length > 0) {
+      cantrips.forEach((cantripData: any) => {
+        const spellId = cantripData.spell;
+        if (spellId && typeof spellId === 'string') {
+          promises.push(
+            context.getDocument(spellId)
+              .then(doc => { 
+                resolvedSpells.value.set(spellId, markRaw(doc)); 
+                console.log('[CharacterSheet] Resolved cantrip:', doc.name);
+              })
+              .catch(err => { 
+                console.warn('Failed to load cantrip:', spellId, err); 
+              })
+          );
+        }
+      });
+    }
+    
     // Wait for all requests to complete
     await Promise.all(promises);
+    
+    console.log('[CharacterSheet] Spell resolution complete. Resolved spells:', Array.from(resolvedSpells.value.keys()));
     
   } catch (error) {
     console.error('Failed to load compendium documents:', error);
@@ -1822,24 +1980,258 @@ const loadCompendiumDocuments = async () => {
   }
 };
 
+// Load available options for character editing
+const loadAvailableOptions = async () => {
+  const pluginContext = getPluginContext();
+  if (!pluginContext) {
+    console.warn('[CharacterSheet] Plugin context not available for loading available options');
+    return;
+  }
+  
+  console.log('[CharacterSheet] Loading available character creation options');
+  
+  try {
+    // Search for classes
+    const classes = await pluginContext.searchDocuments({
+      pluginId: 'dnd-5e-2024',
+      documentType: 'vtt-document',
+      pluginDocumentType: 'character-class',
+      limit: 50
+    });
+    availableClasses.value = classes as DndCharacterClassDocument[];
+    console.log(`[CharacterSheet] Loaded ${classes.length} available classes`);
+    
+    // Search for species
+    const species = await pluginContext.searchDocuments({
+      pluginId: 'dnd-5e-2024',
+      documentType: 'vtt-document',
+      pluginDocumentType: 'species',
+      limit: 50
+    });
+    availableSpecies.value = species as DndSpeciesDocument[];
+    console.log(`[CharacterSheet] Loaded ${species.length} available species`);
+    
+    // Search for backgrounds
+    const backgrounds = await pluginContext.searchDocuments({
+      pluginId: 'dnd-5e-2024',
+      documentType: 'vtt-document',
+      pluginDocumentType: 'background',
+      limit: 50
+    });
+    availableBackgrounds.value = backgrounds as DndBackgroundDocument[];
+    console.log(`[CharacterSheet] Loaded ${backgrounds.length} available backgrounds`);
+    
+  } catch (error) {
+    console.error('[CharacterSheet] Failed to load available options:', error);
+    notificationStore.addNotification({
+      type: 'error',
+      message: 'Failed to load character creation options',
+      duration: 4000
+    });
+  }
+};
+
 // ============================================================================
 // DRAG AND DROP FUNCTIONALITY  
 // ============================================================================
 
 // Spell utility functions
 const getSpellsAtLevel = (level: number) => {
+  if (level === 0) {
+    return characterCantrips.value;
+  }
   return characterSpells.value.filter((spell: any) => (spell.level || 0) === level);
 };
 
 const getResolvedSpell = (spellId: string) => {
-  return resolvedSpells.value.get(spellId);
+  const spell = resolvedSpells.value.get(spellId);
+  console.log('[CharacterSheet] Looking up spell:', spellId, 'Found:', !!spell, spell?.name || 'N/A');
+  return spell;
 };
 
 
-const castSpell = (spellData: any) => {
+const castSpell = async (spellData: any) => {
   const spell = getResolvedSpell(spellData.spell);
-  console.log('[CharacterSheet] Casting spell:', spell?.name || 'Unknown Spell', spellData);
-  // TODO: Implement spell casting mechanics
+  if (!spell) {
+    console.error('[CharacterSheet] Cannot cast unknown spell:', spellData);
+    notificationStore.addNotification({
+      type: 'error',
+      message: 'Cannot cast spell: Spell data not found',
+      duration: 4000
+    });
+    return;
+  }
+  
+  console.log('[CharacterSheet] Casting spell:', spell.name, spellData);
+  
+  const pluginContext = getPluginContext();
+  if (!pluginContext) {
+    console.error('[CharacterSheet] Plugin context not available for spell casting');
+    notificationStore.addNotification({
+      type: 'error',
+      message: 'Cannot cast spell: System not ready',
+      duration: 4000
+    });
+    return;
+  }
+
+  if (!character.value) {
+    console.error('[CharacterSheet] No character available for spell casting');
+    return;
+  }
+
+  // Check if a token is selected (required for spell casting)
+  if (!encounterSelectedToken.value?.id) {
+    console.error('[CharacterSheet] No token selected for spell casting');
+    notificationStore.addNotification({
+      type: 'error',
+      message: 'Cannot cast spell: Please select a token on the map to cast spells',
+      duration: 4000
+    });
+    return;
+  }
+
+  try {
+    const result = await pluginContext.requestAction(
+      'dnd5e-2024:cast-spell',
+      {
+        spellId: spell.id,
+        spellSlotLevel: spellData.level, // Required: 0 for cantrips, 1-9 for leveled spells
+        casterTokenId: encounterSelectedToken.value.id, // ✅ Selected token from encounter
+        targetTokenIds: encounterTargetTokenIds.value, // ✅ Target tokens from encounter
+        castingTime: 'action' // Default casting time
+      },
+      {
+        description: `Cast ${spell.name}`
+      }
+    );
+    
+    if (result.success) {
+      console.log('[CharacterSheet] Spell casting request submitted successfully:', result);
+    } else {
+      console.error('[CharacterSheet] Spell casting request failed:', result.error);
+      notificationStore.addNotification({
+        type: 'error',
+        message: `Failed to cast ${spell.name}: ${result.error || 'Unknown error'}`,
+        duration: 5000
+      });
+    }
+    
+  } catch (error) {
+    console.error('[CharacterSheet] Error casting spell:', error);
+    notificationStore.addNotification({
+      type: 'error',
+      message: `Failed to cast ${spell.name}: Unable to process spell casting at this time`,
+      duration: 5000
+    });
+  }
+};
+
+// Character class/species/background change handlers
+const updateCharacterClass = async (classId: string) => {
+  if (!characterCopy.value || props.readonly) {
+    console.warn('[CharacterSheet] Cannot update class: no character copy or readonly mode');
+    return;
+  }
+  
+  console.log('[CharacterSheet] Updating character class to:', classId);
+  
+  // Update the character data
+  if (!characterCopy.value.pluginData.classes) {
+    (characterCopy.value.pluginData as any).classes = [];
+  }
+  
+  // Ensure the first class entry exists
+  if (!(characterCopy.value.pluginData as any).classes[0]) {
+    (characterCopy.value.pluginData as any).classes[0] = {};
+  }
+  
+  (characterCopy.value.pluginData as any).classes[0].class = classId;
+  
+  // Reload class document for display
+  if (classId) {
+    const pluginContext = getPluginContext();
+    if (pluginContext) {
+      try {
+        const doc = await pluginContext.getDocument(classId);
+        classDocument.value = markRaw(doc as DndCharacterClassDocument);
+        console.log('[CharacterSheet] Loaded new class document:', doc.name);
+      } catch (error) {
+        console.error('[CharacterSheet] Failed to load new class document:', error);
+        notificationStore.addNotification({
+          type: 'error',
+          message: 'Failed to load class information',
+          duration: 4000
+        });
+      }
+    }
+  } else {
+    classDocument.value = null;
+  }
+};
+
+const updateCharacterSpecies = async (speciesId: string) => {
+  if (!characterCopy.value || props.readonly) {
+    console.warn('[CharacterSheet] Cannot update species: no character copy or readonly mode');
+    return;
+  }
+  
+  console.log('[CharacterSheet] Updating character species to:', speciesId);
+  
+  (characterCopy.value.pluginData as any).species = speciesId;
+  
+  // Reload species document for display
+  if (speciesId) {
+    const pluginContext = getPluginContext();
+    if (pluginContext) {
+      try {
+        const doc = await pluginContext.getDocument(speciesId);
+        speciesDocument.value = markRaw(doc as DndSpeciesDocument);
+        console.log('[CharacterSheet] Loaded new species document:', doc.name);
+      } catch (error) {
+        console.error('[CharacterSheet] Failed to load new species document:', error);
+        notificationStore.addNotification({
+          type: 'error',
+          message: 'Failed to load species information',
+          duration: 4000
+        });
+      }
+    }
+  } else {
+    speciesDocument.value = null;
+  }
+};
+
+const updateCharacterBackground = async (backgroundId: string) => {
+  if (!characterCopy.value || props.readonly) {
+    console.warn('[CharacterSheet] Cannot update background: no character copy or readonly mode');
+    return;
+  }
+  
+  console.log('[CharacterSheet] Updating character background to:', backgroundId);
+  
+  (characterCopy.value.pluginData as any).background = backgroundId;
+  
+  // Reload background document for display
+  if (backgroundId) {
+    const pluginContext = getPluginContext();
+    if (pluginContext) {
+      try {
+        const doc = await pluginContext.getDocument(backgroundId);
+        backgroundDocument.value = markRaw(doc as DndBackgroundDocument);
+        console.log('[CharacterSheet] Loaded new background document:', doc.name);
+      } catch (error) {
+        console.error('[CharacterSheet] Failed to load new background document:', error);
+        notificationStore.addNotification({
+          type: 'error',
+          message: 'Failed to load background information',
+          duration: 4000
+        });
+      }
+    }
+  } else {
+    backgroundDocument.value = null;
+  }
 };
 
 // Update spell prepared status
@@ -1867,6 +2259,7 @@ const updateSpellPrepared = (spellData: any) => {
     console.warn('[CharacterSheet] Not in edit mode or no characterCopy available - spell changes may not persist');
   }
 };
+
 
 // Open spell sheet on double-click
 const openSpellSheet = (spellData: any) => {
@@ -2372,6 +2765,9 @@ onMounted(async () => {
   
   // Load compendium documents
   loadCompendiumDocuments();
+  
+  // Load available options for character editing
+  await loadAvailableOptions();
   
   // Load condition data for display
   await loadConditions();
@@ -3720,5 +4116,74 @@ watch(() => props.items?.value, () => {
   white-space: nowrap;
   z-index: 10;
   pointer-events: none;
+}
+
+/* Character Basics Section */
+.character-basics-section {
+  padding: 16px;
+  border: 1px solid var(--dnd-brown-light);
+  border-radius: 6px;
+  margin-bottom: 16px;
+  background: var(--dnd-parchment-light);
+}
+
+.basic-field {
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.field-label {
+  font-weight: 600;
+  color: var(--dnd-black);
+  font-size: 14px;
+}
+
+.field-display {
+  padding: 8px 12px;
+  background: var(--dnd-parchment);
+  border: 1px solid var(--dnd-brown-light);
+  border-radius: 4px;
+  color: var(--dnd-black);
+}
+
+.field-select {
+  padding: 8px 12px;
+  border: 1px solid var(--dnd-brown-light);
+  border-radius: 4px;
+  background: white;
+  color: var(--dnd-black);
+  font-size: 14px;
+}
+
+.field-select:focus {
+  outline: none;
+  border-color: var(--dnd-brown);
+  box-shadow: 0 0 0 2px rgba(139, 87, 42, 0.1);
+}
+
+.background-details-section {
+  padding: 16px;
+  border: 1px solid var(--dnd-brown-light);
+  border-radius: 6px;
+  background: var(--dnd-parchment-light);
+}
+
+.background-description {
+  margin-bottom: 16px;
+  line-height: 1.6;
+}
+
+.background-features {
+  margin-top: 16px;
+}
+
+.feature-item {
+  margin-bottom: 8px;
+  padding: 8px;
+  background: var(--dnd-parchment);
+  border-radius: 4px;
+  border: 1px solid var(--dnd-brown-light);
 }
 </style>

@@ -20,8 +20,9 @@ import { useGameSessionStore } from '../stores/game-session.store.mjs';
 import { useGameStateStore } from '../stores/game-state.store.mjs';
 import { useSocketStore } from '../stores/socket.store.mjs';
 import { useNotificationStore } from '../stores/notification.store.mjs';
-import { RollRequestService } from './roll-request.service.mts';
+import { rollRequestService } from './roll-request.service.mts';
 import { createActionContext } from './action-context.service.mts';
+import { getPluginContext } from '@dungeon-lab/shared-ui/utils/plugin-context.mjs';
 
 // Enable Immer patches for automatic patch generation
 enablePatches();
@@ -40,8 +41,8 @@ export class GMActionHandlerService {
     timestamp: number;
   }>();
 
-  // Roll request service for async action context
-  private rollRequestService = new RollRequestService();
+  // Roll request service for async action context (use singleton)
+  private rollRequestService = rollRequestService;
 
   // Lazy-loaded stores to avoid initialization order issues
   private get gameSessionStore() {
@@ -220,9 +221,11 @@ export class GMActionHandlerService {
       const draft = createDraft(rawGameState);
       
       // Create action context for unified handlers (using draft as game state)
+      const pluginContext = getPluginContext();
       actionContext = createActionContext(
         draft as ServerGameStateWithVirtuals,
-        this.rollRequestService
+        this.rollRequestService,
+        pluginContext
       );
       
       // Execute all handlers against the draft with proper async support

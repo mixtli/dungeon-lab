@@ -129,6 +129,10 @@ function executeAssignSpell(
   // Get character data and initialize spellcasting if needed
   const characterData = targetCharacter.pluginData as DndCharacterData;
   if (!characterData.spellcasting) {
+    console.log('[AssignSpellHandler] Initializing spellcasting for character:', {
+      characterId: params.targetCharacterId,
+      characterName: params.targetCharacterName
+    });
     (characterData as any).spellcasting = {
       classes: {},
       spellSlots: {},

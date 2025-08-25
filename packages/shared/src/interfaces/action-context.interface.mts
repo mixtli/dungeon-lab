@@ -31,6 +31,21 @@ export interface ChatOptions {
 }
 
 /**
+ * Structured data for roll result messages
+ */
+export interface RollResultData {
+  message: string;
+  result: number;
+  target?: number;
+  success: boolean;
+  rollType: string;
+  damageInfo?: {
+    amount: number;
+    type: string;
+  };
+}
+
+/**
  * Async action context providing utilities for unified action handlers
  * Enables spell casting and other complex actions to manage complete workflows
  * within a single async function with proper error handling and cleanup.
@@ -77,6 +92,13 @@ export interface AsyncActionContext {
    * @param options - Optional chat customization options
    */
   sendChatMessage(message: string, options?: ChatOptions): void;
+
+  /**
+   * Send a structured roll result to the chat
+   * 
+   * @param rollResultData - Structured roll result data
+   */
+  sendRollResult(rollResultData: RollResultData): void;
 
   /**
    * Request confirmation from the GM for an action

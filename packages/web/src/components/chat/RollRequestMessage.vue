@@ -13,13 +13,13 @@
       </div>
     </div>
     
-    <div class="request-actions">
+    <div class="request-actions" v-if="!completed">
       <button 
         @click="acceptRollRequest" 
         :disabled="processing"
         class="accept-btn"
       >
-        {{ processing ? 'Rolling...' : 'Roll Damage' }}
+        {{ processing ? 'Rolling...' : buttonText }}
       </button>
       
       <button 
@@ -30,23 +30,36 @@
         Decline
       </button>
     </div>
+    
+    <div class="completion-status" v-if="completed">
+      <span class="completed-icon">✅</span>
+      <span class="completed-text">Completed</span>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useSocketStore } from '../../stores/socket.store.mjs';
+import { useChatStore } from '../../stores/chat.store.mts';
 import type { ChatMessage } from '../../stores/chat.store.mjs';
-// import type { RollRequest } from '@dungeon-lab/shared/schemas/roll.schema.mjs'; // Unused import
+import type { RollServerResult } from '@dungeon-lab/shared/types/socket/index.mjs';
 import { diceArrayToExpression } from '@dungeon-lab/shared/utils/dice-parser.mjs';
 
 interface Props {
   message: ChatMessage;
 }
 
+interface Emits {
+  (e: 'remove'): void;
+}
+
 const props = defineProps<Props>();
+const emit = defineEmits<Emits>();
 const socketStore = useSocketStore();
+const chatStore = useChatStore();
 const processing = ref(false);
+const completed = ref(false);
 
 // Extract roll request from message
 const rollRequest = props.message.rollRequestData;
@@ -65,6 +78,28 @@ const diceExpression = computed(() => {
   }
 });
 
+// Dynamic button text based on roll type
+const buttonText = computed(() => {
+  if (!rollRequest?.rollType) {
+    return 'Roll';
+  }
+  
+  switch (rollRequest.rollType) {
+    case 'spell-attack':
+    case 'weapon-attack':
+      return 'Roll Attack';
+    case 'spell-damage':
+    case 'weapon-damage':
+      return 'Roll Damage';
+    case 'saving-throw':
+      return 'Roll Save';
+    case 'ability-check':
+      return 'Roll Check';
+    default:
+      return 'Roll';
+  }
+});
+
 function acceptRollRequest(): void {
   if (!rollRequest) {
     console.error('[RollRequestMessage] No roll request data available');
@@ -74,12 +109,12 @@ function acceptRollRequest(): void {
   processing.value = true;
   
   try {
-    // Generate unique roll ID
-    const rollId = `damage_roll_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    // Use the existing rollId from the roll request for proper correlation
+    const rollId = rollRequest.rollId;
     
     // Create roll object using the new roll schema format
     const roll = {
-      id: rollId,
+      rollId: rollId,  // Use existing rollId for promise correlation
       rollType: rollRequest.rollType,
       pluginId: 'dnd-5e-2024',
       dice: rollRequest.dice, // Use dice array directly from roll request
@@ -121,9 +156,50 @@ function declineRollRequest(): void {
   
   console.log('[RollRequestMessage] Declined roll request:', rollRequest.requestId);
   
-  // Note: No socket event needed for decline - just local state update
-  processing.value = false;
+  // Remove the roll request card when declined
+  setTimeout(() => {
+    chatStore.removeMessage(props.message.id);
+  }, 500);
 }
+
+// Auto-cleanup when roll result comes back
+let unsubscribe: (() => void) | null = null;
+
+onMounted(() => {
+  if (!rollRequest) return;
+  
+  // Listen for roll results that match this request
+  const handleRollResult = (result: RollServerResult) => {
+    if (result.rollId === rollRequest.rollId) {
+      console.log('[RollRequestMessage] Received matching roll result, completing request');
+      
+      // Show completed state briefly
+      processing.value = false;
+      completed.value = true;
+      
+      // Remove after brief delay to show completion
+      setTimeout(() => {
+        chatStore.removeMessage(props.message.id);
+      }, 2000);
+    }
+  };
+  
+  // Subscribe to roll results via socket store
+  const socket = socketStore.socket;
+  if (socket) {
+    socket.on('roll:result', handleRollResult);
+    
+    unsubscribe = () => {
+      socket.off('roll:result', handleRollResult);
+    };
+  }
+});
+
+onUnmounted(() => {
+  if (unsubscribe) {
+    unsubscribe();
+  }
+});
 </script>
 
 <style scoped>
@@ -255,6 +331,45 @@ function declineRollRequest(): void {
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
+}
+
+.completion-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  background: linear-gradient(135deg, #d4edda, #c3e6cb);
+  border-radius: 8px;
+  margin-top: 8px;
+}
+
+.completed-icon {
+  font-size: 20px;
+  animation: bounceIn 0.5s ease;
+}
+
+.completed-text {
+  color: #155724;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+@keyframes bounceIn {
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 /* Mobile responsiveness */

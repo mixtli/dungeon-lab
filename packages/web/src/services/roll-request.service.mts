@@ -40,8 +40,13 @@ export class RollRequestService {
   private defaultTimeoutMs = 60000; // 60 seconds
   private cleanupIntervalMs = 120000; // 2 minutes
   private cleanupInterval: NodeJS.Timeout | null = null;
+  private instanceId: string;
 
   constructor() {
+    // Generate unique instance ID for debugging
+    this.instanceId = `RollRequestService_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    console.log('[RollRequestService] Created new instance:', this.instanceId);
+    
     // Start periodic cleanup of expired requests
     this.startCleanupTimer();
   }
@@ -62,6 +67,7 @@ export class RollRequestService {
     timeoutMs = this.defaultTimeoutMs
   ): Promise<RollServerResult> {
     console.log('[RollRequestService] Sending roll request:', {
+      instanceId: this.instanceId,
       playerId,
       rollType,
       message: rollData.message,
@@ -112,7 +118,11 @@ export class RollRequestService {
         timestamp: Date.now()
       });
 
-      console.log('[RollRequestService] Request registered with ID:', requestId);
+      console.log('[RollRequestService] Request registered with ID:', {
+        instanceId: this.instanceId,
+        requestId: requestId,
+        totalPending: this.pendingRollRequests.size
+      });
     });
   }
 
@@ -157,7 +167,7 @@ export class RollRequestService {
       );
       // Add cause for debugging (ES2022 feature, may not be available in all environments)
       if ('cause' in Error.prototype) {
-        (enhancedError as any).cause = error;
+        (enhancedError as Error & { cause?: unknown }).cause = error;
       }
       throw enhancedError;
     }
@@ -170,6 +180,15 @@ export class RollRequestService {
    * @param result - Roll result from server
    */
   handleRollResult(result: RollServerResult): void {
+    console.log('[RollRequestService] handleRollResult called with:', {
+      instanceId: this.instanceId,
+      rollId: result.rollId,
+      rollType: result.rollType,
+      userId: result.userId,
+      hasResults: !!result.results,
+      resultCount: result.results?.length || 0
+    });
+    
     const requestId = result.rollId;
     
     if (!requestId) {
@@ -177,29 +196,55 @@ export class RollRequestService {
       return;
     }
 
+    console.log('[RollRequestService] Looking for pending request with ID:', requestId);
+    console.log('[RollRequestService] Current pending requests:', {
+      count: this.pendingRollRequests.size,
+      requestIds: Array.from(this.pendingRollRequests.keys())
+    });
+
     const pendingRequest = this.pendingRollRequests.get(requestId);
     if (!pendingRequest) {
       // This is normal for player-initiated rolls (not GM-requested)
       console.debug('[RollRequestService] Received result for non-requested roll:', requestId);
+      console.debug('[RollRequestService] Available pending requests:', Array.from(this.pendingRollRequests.keys()));
       return;
     }
 
-    // Calculate total from dice results
-    const total = result.results.reduce((sum, diceGroup) => {
-      return sum + diceGroup.results.reduce((groupSum, roll) => groupSum + roll, 0);
-    }, 0);
-
-    console.log('[RollRequestService] Resolving roll request:', {
+    console.log('[RollRequestService] Found pending request:', {
       requestId,
       playerId: pendingRequest.playerId,
       rollType: pendingRequest.rollType,
-      total: total
+      ageMs: Date.now() - pendingRequest.timestamp
     });
 
-    // Clear timeout and resolve promise
-    clearTimeout(pendingRequest.timeout);
-    pendingRequest.resolve(result);
-    this.pendingRollRequests.delete(requestId);
+    try {
+      // Calculate total from dice results
+      const total = result.results.reduce((sum, diceGroup) => {
+        return sum + diceGroup.results.reduce((groupSum, roll) => groupSum + roll, 0);
+      }, 0);
+
+      console.log('[RollRequestService] Resolving roll request:', {
+        requestId,
+        playerId: pendingRequest.playerId,
+        rollType: pendingRequest.rollType,
+        total: total
+      });
+
+      // Clear timeout and resolve promise
+      clearTimeout(pendingRequest.timeout);
+      pendingRequest.resolve(result);
+      this.pendingRollRequests.delete(requestId);
+      
+      console.log('[RollRequestService] Promise resolved successfully for request:', requestId);
+      
+    } catch (error) {
+      console.error('[RollRequestService] Error resolving promise:', error);
+      console.error('[RollRequestService] Result that caused error:', result);
+      // Still clean up the request
+      clearTimeout(pendingRequest.timeout);
+      pendingRequest.reject(error instanceof Error ? error : new Error('Unknown error during promise resolution'));
+      this.pendingRollRequests.delete(requestId);
+    }
   }
 
   /**

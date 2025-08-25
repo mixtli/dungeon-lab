@@ -8,7 +8,6 @@
 
 export { dndMoveTokenHandler } from './move-token.handler.mjs';
 export { dndAttackHandler } from './attack.handler.mjs';
-export { dndCastSpellHandler } from './cast-spell.handler.mjs';
 export { dndLongRestHandler } from './long-rest.handler.mjs';
 export { dndShortRestHandler } from './short-rest.handler.mjs';
 export { dndUseClassFeatureHandler } from './use-class-feature.handler.mjs';

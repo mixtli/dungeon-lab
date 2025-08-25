@@ -15,7 +15,6 @@ import { registerPluginStateLifecycle, unregisterPluginStateLifecycle } from '@d
 import { 
   dndMoveTokenHandler,
   dndAttackHandler,
-  dndCastSpellHandler,
   dndLongRestHandler,
   dndShortRestHandler,
   dndUseClassFeatureHandler,
@@ -30,6 +29,7 @@ import {
   dndSearchHandler,
   dndReadyHandler
 } from './handlers/actions/index.mjs';
+import { unifiedSpellCastHandler } from './handlers/actions/spell-casting.handler.mjs';
 
 /**
  * D&D 5th Edition (2024) Plugin Implementation - Using Base Class
@@ -251,7 +251,7 @@ export class DnD5e2024Plugin extends BaseGameSystemPlugin {
       // Register D&D action handlers
       context.registerActionHandler('move-token', dndMoveTokenHandler);
       context.registerActionHandler('attack', dndAttackHandler);
-      context.registerActionHandler('dnd5e-2024:cast-spell', dndCastSpellHandler);
+      context.registerActionHandler('dnd5e-2024:cast-spell', unifiedSpellCastHandler);
       context.registerActionHandler('dnd5e-2024:long-rest', dndLongRestHandler);
       context.registerActionHandler('dnd5e-2024:short-rest', dndShortRestHandler);
       context.registerActionHandler('dnd5e-2024:use-class-feature', dndUseClassFeatureHandler);

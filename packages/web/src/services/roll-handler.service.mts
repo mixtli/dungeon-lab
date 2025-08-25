@@ -89,13 +89,9 @@ export class RollHandlerService {
         userId: result.userId
       });
 
-      // First, notify RollRequestService to resolve any pending promises
-      if (this.rollRequestService) {
-        this.rollRequestService.handleRollResult(result);
-      }
-
       // Get handler registration for this roll type first
       const handlerRegistration = this.handlers.get(result.rollType);
+      let processedResult = result;
       
       // Create handler context with GM detection
       const authStore = useAuthStore();
@@ -136,8 +132,24 @@ export class RollHandlerService {
         if (handlerRegistration.handler.processRoll && typeof handlerRegistration.handler.processRoll === 'function') {
           console.log('[RollHandlerService] Using new functional processRoll approach');
           
-          // Use the new functional approach
+          // Use the new functional approach - process roll FIRST
           const processed = await handlerRegistration.handler.processRoll(result, context);
+          
+          // Update processedResult with enhanced data from plugin processing
+          // This allows promises to resolve with processed D&D results instead of raw dice
+          processedResult = {
+            ...processed.rollResult, // Use the enhanced roll result from plugin processing
+            // Ensure we preserve the original rollId for promise correlation
+            rollId: result.rollId
+          };
+          
+          console.log('[RollHandlerService] Plugin processed roll result:', {
+            rollType: result.rollType,
+            followUpActions: processed.followUpActions.length,
+            hasCalculatedTotal: processed.rollResult.calculatedTotal !== undefined,
+            isCriticalHit: processed.rollResult.isCriticalHit,
+            processedData: processed.rollResult.processedData ? Object.keys(processed.rollResult.processedData) : []
+          });
           
           // Execute follow-up actions returned by processRoll
           for (const action of processed.followUpActions) {
@@ -177,14 +189,37 @@ export class RollHandlerService {
             }
           }
         } else {
-          console.log('[RollHandlerService] Using legacy handleRoll approach');
+          console.warn('[RollHandlerService] Handler does not support processRoll - using default processing');
           
-          // Fall back to legacy approach
-          await handlerRegistration.handler.handleRoll?.(result, context);
+          // Handler doesn't support new functional approach - treat as if no handler
+          processedResult = this.defaultHandler(result);
         }
       } else {
-        // Use default handler (just logging for now)
-        this.defaultHandler(result);
+        // Use default handler - adds convenience total to results
+        processedResult = this.defaultHandler(result);
+      }
+      
+      // AFTER plugin processing, notify RollRequestService to resolve promises
+      // This ensures spell casting handlers receive processed results with hit/miss/damage info
+      if (this.rollRequestService) {
+        console.log('[RollHandlerService] About to resolve promises with processed result:', {
+          originalRollId: result.rollId,
+          processedRollId: processedResult.rollId,
+          rollType: processedResult.rollType,
+          hasProcessedMetadata: !!processedResult.metadata,
+          rollIdsMatch: result.rollId === processedResult.rollId
+        });
+        
+        if (result.rollId !== processedResult.rollId) {
+          console.error('[RollHandlerService] CRITICAL: Roll ID changed during processing!', {
+            original: result.rollId,
+            processed: processedResult.rollId
+          });
+        }
+        
+        this.rollRequestService.handleRollResult(processedResult);
+      } else {
+        console.log('[RollHandlerService] No RollRequestService registered');
       }
     } catch (error) {
       console.error('[RollHandlerService] Error processing roll result:', error);
@@ -193,13 +228,33 @@ export class RollHandlerService {
 
   /**
    * Default handler for roll types without specific handlers
+   * Adds convenience total calculation to roll results
    */
-  private defaultHandler(result: RollServerResult): void {
+  private defaultHandler(result: RollServerResult): RollServerResult {
     console.log('[RollHandlerService] Default handler - Roll received:', {
       rollType: result.rollType,
       title: result.metadata.title,
       dice: result.results,
       timestamp: result.timestamp
+    });
+
+    // Calculate total from all dice results for convenience
+    const total = result.results.reduce((sum, diceGroup) => 
+      sum + diceGroup.results.reduce((groupSum, roll) => groupSum + roll, 0), 0
+    );
+    
+    // Add total to result for action handler convenience
+    const enhancedResult = {
+      ...result,
+      calculatedTotal: total
+    } as RollServerResult & { calculatedTotal: number };
+    
+    console.log('[RollHandlerService] Added convenience total to roll result:', {
+      rollType: result.rollType,
+      originalRollId: result.rollId,
+      enhancedRollId: enhancedResult.rollId,
+      rollIdPreserved: result.rollId === enhancedResult.rollId,
+      total: total
     });
 
     // For raw-dice rolls (chat commands), create a simple chat message if GM
@@ -209,12 +264,9 @@ export class RollHandlerService {
       const isGM = gameSessionStore.isGameMaster;
       
       if (isGM) {
-        // Calculate total for raw dice
-        const totalRolled = result.results.reduce((sum, diceGroup) => 
-          sum + diceGroup.results.reduce((groupSum, roll) => groupSum + roll, 0), 0
-        );
+        // Use the calculated total from above
         const modifier = result.arguments.customModifier;
-        const finalTotal = totalRolled + modifier;
+        const finalTotal = total + modifier;
         
         // Create dice breakdown
         const diceBreakdown = result.results.map(diceGroup => 
@@ -228,6 +280,8 @@ export class RollHandlerService {
         chatStore.sendMessage(rollMessage);
       }
     }
+    
+    return enhancedResult;
   }
 
   /**

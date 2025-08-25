@@ -27,10 +27,15 @@ import {
   calculateTargetSaveBonus,
   getSpellDamage,
   getSpellSavingThrow,
-  type SpellCaster,
   type SpellTarget
 } from '../../services/spell-lookup.service.mjs';
-import type { DndSpellDocument } from '../../types/dnd/spell.mjs';
+import { 
+  validateActionEconomy, 
+  consumeAction, 
+  findPlayerCharacter, 
+  findPlayerCharacterInDraft,
+  type DnDActionType
+} from '../../utils/action-economy.mjs';
 
 /**
  * Spell casting request parameters
@@ -41,6 +46,24 @@ interface SpellCastParameters {
   targetTokenIds: string[];
   spellSlotLevel: number;
   castingTime?: 'action' | 'bonus_action' | 'reaction' | 'ritual';
+}
+
+/**
+ * Convert casting time to D&D action type for action economy
+ */
+function getActionTypeFromCastingTime(castingTime: string | undefined): DnDActionType | null {
+  switch (castingTime) {
+    case 'action':
+      return 'action';
+    case 'bonus_action':
+      return 'bonus-action';
+    case 'reaction':
+      return 'reaction';
+    case 'ritual':
+      return null; // Rituals don't consume action economy
+    default:
+      return 'action'; // Default to action for spells without specified casting time
+  }
 }
 
 /**
@@ -165,6 +188,18 @@ export async function executeSpellCast(
     
     console.log(`[SpellCasting] Consumed level ${spellSlotLevel} spell slot for ${caster.name}`);
     
+    // Consume action economy (works in Immer draft context)
+    const actionType = getActionTypeFromCastingTime(parameters.castingTime);
+    if (actionType) {
+      const character = findPlayerCharacterInDraft(request.playerId, draft);
+      if (character) {
+        consumeAction(actionType, character, 'Magic');
+        console.log(`[SpellCasting] Consumed ${actionType} action for ${character.name}`);
+      } else {
+        console.warn('[SpellCasting] Character not found for action consumption');
+      }
+    }
+    
     // ==========================================
     // PHASE 1: SPELL ATTACK (Data-Driven)
     // ==========================================
@@ -194,8 +229,9 @@ export async function executeSpellCast(
       // Use Promise-based correlation for all attack rolls
       attackResults = await context.sendMultipleRollRequests(attackRequests);
       
-      // Determine hits/misses for each target
+      // Determine hits/misses for each target and send result messages
       attackHits = attackResults.map((result, i) => {
+        // Calculate total from dice results
         const total = result.results.reduce((sum, diceGroup) => 
           sum + diceGroup.results.reduce((groupSum, roll) => groupSum + roll, 0), 0
         );
@@ -205,14 +241,24 @@ export async function executeSpellCast(
         const isHit = finalTotal >= targetAC;
         
         console.log(`[SpellCasting] Attack vs ${targets[i].name}: ${total} + ${attackBonus} = ${finalTotal} vs AC ${targetAC} → ${isHit ? 'HIT' : 'MISS'}`);
+        
+        // Send structured roll result to chat
+        context.sendRollResult({
+          message: `${spell.pluginData.name} attack vs ${targets[i].name}`,
+          result: finalTotal,
+          target: targetAC,
+          success: isHit,
+          rollType: 'spell-attack'
+        });
+        
         return isHit;
       });
       
       const hitCount = attackHits.filter(hit => hit).length;
       console.log(`[SpellCasting] ${hitCount}/${targets.length} attacks hit`);
       
-      // Early exit for attack-only spells that completely miss
-      if (hitCount === 0 && !spell.pluginData.savingThrow && !spell.pluginData.damage) {
+      // Early exit for attack spells that completely miss (unless they have saving throws)
+      if (hitCount === 0 && !spell.pluginData.savingThrow) {
         await context.sendChatMessage(`${spell.pluginData.name} - All attacks missed!`);
         console.log('[SpellCasting] All attacks missed, spell completed');
         return;
@@ -266,6 +312,16 @@ export async function executeSpellCast(
           const isSuccess = finalTotal >= saveInfo.dc!;
           
           console.log(`[SpellCasting] ${targets[i].name} save: ${total} + ${saveBonus} = ${finalTotal} vs DC ${saveInfo.dc} → ${isSuccess ? 'SUCCESS' : 'FAILURE'}`);
+          
+          // Send structured roll result to chat
+          context.sendRollResult({
+            message: `${targets[i].name} ${saveInfo.ability} save vs ${spell.pluginData.name}`,
+            result: finalTotal,
+            target: saveInfo.dc!,
+            success: isSuccess,
+            rollType: 'saving-throw'
+          });
+          
           return isSuccess;
         });
         
@@ -301,6 +357,18 @@ export async function executeSpellCast(
         );
         
         console.log(`[SpellCasting] Rolled ${totalDamage} ${damageInfo.type} damage`);
+        
+        // Send structured roll result for damage
+        context.sendRollResult({
+          message: `${spell.pluginData.name} ${damageInfo.type} damage`,
+          result: totalDamage,
+          success: true, // Damage rolls are always successful
+          rollType: 'spell-damage',
+          damageInfo: {
+            amount: totalDamage,
+            type: damageInfo.type
+          }
+        });
         
         // Apply damage based on spell mechanics (data-driven conditional logic)
         targets.forEach((target, i) => {
@@ -415,11 +483,139 @@ export async function executeSpellCast(
 }
 
 /**
- * Action handler wrapper for executeSpellCast
- * Provides backward compatibility with existing action handler interface
+ * Validate spell casting requirements
+ * Moved from legacy cast-spell.handler for unified approach
+ */
+async function validateSpellCasting(
+  request: GameActionRequest,
+  gameState: ServerGameStateWithVirtuals
+): Promise<{ valid: boolean; error?: { code: string; message: string }; resourceCosts?: Array<{ resourcePath: string; amount: number; storageType: string }> }> {
+  // Find the character for this player
+  const character = Object.values(gameState.documents)
+    .find(doc => doc.documentType === 'character' && doc.createdBy === request.playerId);
+  
+  if (!character) {
+    return { valid: false, error: { code: 'NO_CHARACTER', message: 'Character not found for spell casting' } };
+  }
+
+  const params = request.parameters as { 
+    spellId?: string; 
+    spellSlotLevel?: number;
+    castingTime?: 'action' | 'bonus_action' | 'reaction' | 'ritual';
+  };
+  const { spellId, spellSlotLevel, castingTime = 'action' } = params;
+  
+  if (!spellId || typeof spellSlotLevel !== 'number') {
+    return { valid: false, error: { code: 'INVALID_PARAMETERS', message: 'Missing spell ID or slot level' } };
+  }
+
+  // Skip spell slot validation for cantrips (level 0) as they don't consume spell slots
+  if (spellSlotLevel > 0) {
+    const spellSlots = (character.pluginData as { spellSlots?: Record<string, { total: number }> }).spellSlots;
+    const maxSlots = spellSlots?.[`level${spellSlotLevel}`]?.total || 0;
+    const spellSlotsUsed = (character.state?.spellSlotsUsed as Record<string, number>) || {};
+    const usedSlots = spellSlotsUsed[`level${spellSlotLevel}`] || 0;
+
+    if (usedSlots >= maxSlots) {
+      return {
+        valid: false,
+        error: { 
+          code: 'NO_SPELL_SLOTS', 
+          message: `No level ${spellSlotLevel} spell slots remaining (${usedSlots}/${maxSlots} used)`
+        }
+      };
+    }
+  }
+  
+  // Check action economy using standardized action economy system
+  const actionType = getActionTypeFromCastingTime(castingTime);
+  
+  if (actionType) {
+    const actionValidation = await validateActionEconomy(actionType, character, gameState, 'Magic');
+    if (!actionValidation.valid) {
+      return actionValidation;
+    }
+    
+    // D&D 5e bonus action spell restriction: If you cast a bonus action spell, you can only cast cantrips with your action
+    if (castingTime === 'bonus_action' && spellSlotLevel > 0) {
+      const turnState = character.state?.turnState;
+      const actionsUsed = (turnState?.actionsUsed as string[]) || [];
+      if (actionsUsed.length > 0) {
+        return {
+          valid: false,
+          error: { code: 'BONUS_ACTION_SPELL_RESTRICTION', message: 'Cannot cast leveled spell as bonus action if action already used' }
+        };
+      }
+    }
+  }
+  
+  // Check conditions preventing spellcasting
+  const conditions = (character.state?.conditions as string[]) || [];
+  const spellBlockingConditions = ['silenced', 'unconscious', 'paralyzed', 'petrified', 'stunned'];
+  const blockedByCondition = conditions.find((condition: string) => 
+    spellBlockingConditions.includes(condition.toLowerCase())
+  );
+  
+  if (blockedByCondition) {
+    return {
+      valid: false,
+      error: { 
+        code: 'CANNOT_CAST', 
+        message: `Cannot cast spells due to condition: ${blockedByCondition}`
+      }
+    };
+  }
+  
+  // Check spell known/prepared - handle cantrips and leveled spells differently
+  if (spellSlotLevel === 0) {
+    // For cantrips, check pluginData.spellcasting.cantrips array
+    const cantrips = (character.pluginData as Record<string, unknown>)?.spellcasting as { cantrips?: Array<{ spell: string }> } | undefined;
+    const hasCantrip = cantrips?.cantrips?.some((cantrip) => cantrip.spell === spellId) || false;
+    
+    if (!hasCantrip) {
+      return {
+        valid: false,
+        error: { 
+          code: 'SPELL_NOT_KNOWN', 
+          message: `Character does not know cantrip: ${spellId}`
+        }
+      };
+    }
+  } else {
+    // For leveled spells, check pluginData.spells known/prepared arrays
+    const spells = (character.pluginData as { spells?: { known?: string[]; prepared?: string[]; } }).spells;
+    const knownSpells = spells?.known || [];
+    const preparedSpells = spells?.prepared || [];
+    
+    if (!knownSpells.includes(spellId) && !preparedSpells.includes(spellId)) {
+      return {
+        valid: false,
+        error: { 
+          code: 'SPELL_NOT_KNOWN', 
+          message: `Character does not know or have prepared: ${spellId}`
+        }
+      };
+    }
+  }
+  
+  return { 
+    valid: true,
+    // Only report spell slot consumption for leveled spells (not cantrips)
+    resourceCosts: spellSlotLevel > 0 ? [{
+      resourcePath: `spellSlotsUsed.level${spellSlotLevel}`,
+      amount: 1,
+      storageType: 'state'
+    }] : []
+  };
+}
+
+/**
+ * Unified spell casting action handler
+ * Uses the unified spell casting handler with proper ActionHandler interface
  */
 export const unifiedSpellCastHandler = {
+  validate: validateSpellCasting,
   execute: executeSpellCast,
-  priority: 100, // Plugin priority
-  pluginId: 'dnd-5e-2024'
+  approvalMessage: (request: GameActionRequest) => `wants to cast ${request.parameters.spellId || 'a spell'}`,
+  priority: 100 // Plugin priority
 };

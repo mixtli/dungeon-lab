@@ -11,6 +11,8 @@ import MentionInput from './MentionInput.vue';
 import RollCard from './RollCard.vue';
 import ApprovalCard from './ApprovalCard.vue';
 import RollRequestMessage from './RollRequestMessage.vue';
+import RollResultMessage from './RollResultMessage.vue';
+import SharedMessageContent from './SharedMessageContent.vue';
 
 interface Props {
   showHeader?: boolean;
@@ -532,17 +534,11 @@ onUnmounted(() => {
                       {{ new Date(message.timestamp).toLocaleTimeString() }}
                     </span>
                   </div>
-                  <!-- Roll card for roll messages -->
-                  <RollCard v-if="message.type === 'roll' && message.rollData" :rollData="message.rollData" />
-                  <!-- Approval card for approval request messages -->
-                  <ApprovalCard v-else-if="message.type === 'approval-request' && message.approvalData" 
-                    :approvalData="message.approvalData" 
-                    :timestamp="message.timestamp" />
-                  <!-- Roll request card for roll request messages -->
-                  <RollRequestMessage v-else-if="message.type === 'roll-request' && message.rollRequestData"
-                    :message="message" />
-                  <!-- Regular text content for text messages -->
-                  <div v-else class="mt-1 leading-relaxed" v-html="highlightMentions(message.content)"></div>
+                  <!-- Shared message content rendering -->
+                  <SharedMessageContent 
+                    :message="message"
+                    :formatContent="highlightMentions"
+                    textContentClass="mt-1 leading-relaxed" />
                 </div>
               </div>
             </div>

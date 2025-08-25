@@ -11,6 +11,7 @@ import { useGameStateStore } from './game-state.store.mjs';
 import type { ParsedMessage, Mention } from '@dungeon-lab/shared/types/chat.mjs';
 import type { RollServerResult, RollRequest } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
 import type { GameActionRequest } from '@dungeon-lab/shared/types/game-actions.mjs';
+import type { RollResultData } from '@dungeon-lab/shared/interfaces/action-context.interface.mjs';
 
 export interface ChatContext {
   id: string;
@@ -40,10 +41,11 @@ export interface ChatMessage {
   recipientType?: 'user' | 'actor' | 'session' | 'system' | 'bot';
   mentions?: ParsedMessage['mentions'];
   hasMentions?: boolean;
-  type?: 'text' | 'roll' | 'approval-request' | 'roll-request';
+  type?: 'text' | 'roll' | 'approval-request' | 'roll-request' | 'roll-result';
   rollData?: RollServerResult;
   approvalData?: ApprovalData;
   rollRequestData?: RollRequest;
+  rollResultData?: RollResultData;
 }
 
 interface ChatStore {
@@ -52,6 +54,8 @@ interface ChatStore {
   sendApprovalRequest: (approvalData: ApprovalData) => void;
   updateApprovalMessage: (requestId: string, status: 'approved' | 'denied') => void;
   addRollRequest: (rollRequest: RollRequest) => void;
+  addRollResult: (rollResultData: RollResultData) => void;
+  removeMessage: (messageId: string) => void;
   clearMessages: () => void;
 }
 
@@ -340,12 +344,43 @@ export const useChatStore = defineStore(
       console.log('[ChatStore] Added roll request to chat:', rollRequest.rollId);
     }
 
+    // Add a roll result to chat
+    function addRollResult(rollResultData: RollResultData) {
+      const rollResultMessage: ChatMessage = {
+        id: generateId(),
+        content: rollResultData.message, // Simple message - component handles formatting
+        senderId: 'system',
+        senderName: 'System',
+        timestamp: new Date().toISOString(),
+        isSystem: true,
+        type: 'roll-result',
+        rollResultData: rollResultData,
+        recipientType: 'session'
+      };
+
+      messages.value.push(rollResultMessage);
+      console.log('[ChatStore] Added roll result to chat:', rollResultData.rollType);
+    }
+
+    // Remove a message by ID (for cleanup)
+    function removeMessage(messageId: string) {
+      const index = messages.value.findIndex(msg => msg.id === messageId);
+      if (index !== -1) {
+        messages.value.splice(index, 1);
+        console.log('[ChatStore] Removed message:', messageId);
+      } else {
+        console.warn('[ChatStore] Could not find message to remove:', messageId);
+      }
+    }
+
     return {
       messages,
       sendMessage,
       sendApprovalRequest,
       updateApprovalMessage,
       addRollRequest,
+      addRollResult,
+      removeMessage,
       clearMessages
     };
   },

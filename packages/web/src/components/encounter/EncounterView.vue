@@ -226,6 +226,9 @@ const targetTokenIds = ref(new Set<string>());
 const encounterTargetTokenIds = computed(() => Array.from(targetTokenIds.value));
 provide('encounterTargetTokenIds', encounterTargetTokenIds);
 
+// Provide selected token context to child components (including plugin character sheets)
+provide('encounterSelectedToken', selectedToken);
+
 
 const showTokenGenerator = ref(false);
 const showDebugInfo = ref(false);

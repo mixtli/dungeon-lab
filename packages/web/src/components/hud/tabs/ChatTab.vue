@@ -13,20 +13,19 @@
       <div class="message-list" ref="messageList">
         <!-- Real chat messages -->
         <div v-for="message in filteredMessages" :key="message.id">
-          <!-- Approval Card for approval request messages -->
-          <ApprovalCard v-if="message.type === 'approval-request' && message.approvalData" 
-            :approvalData="message.approvalData" 
-            :timestamp="message.timestamp" 
-            class="mb-3" />
-          <!-- Roll request card for roll request messages -->
-          <RollRequestMessage v-else-if="message.type === 'roll-request' && message.rollRequestData"
-            :message="message" />
-          <!-- Regular message display -->
-          <div v-else :class="getMessageClass(message)">
-            <span v-if="!message.isSystem" class="message-sender">{{ message.senderName }}</span>
-            <span class="message-text">{{ message.content }}</span>
-            <span class="message-time">{{ formatTime(message.timestamp) }}</span>
-          </div>
+          <!-- Shared message content rendering -->
+          <SharedMessageContent 
+            :message="message"
+            :cardClass="message.type === 'approval-request' ? 'mb-3' : ''">
+            <!-- Custom text message layout for HUD -->
+            <template #text-message="{ message }">
+              <div :class="getMessageClass(message)">
+                <span v-if="!message.isSystem" class="message-sender">{{ message.senderName }}</span>
+                <span class="message-text">{{ message.content }}</span>
+                <span class="message-time">{{ formatTime(message.timestamp) }}</span>
+              </div>
+            </template>
+          </SharedMessageContent>
         </div>
         
         <!-- No messages state -->
@@ -72,8 +71,7 @@ import { useSocketStore } from '../../../stores/socket.store.mts';
 import { useGameStateStore } from '../../../stores/game-state.store.mjs';
 import { useGameSessionStore } from '../../../stores/game-session.store.mts';
 import { parseDiceExpression } from '@dungeon-lab/shared/utils/dice-parser.mjs';
-import ApprovalCard from '../../chat/ApprovalCard.vue';
-import RollRequestMessage from '../../chat/RollRequestMessage.vue';
+import SharedMessageContent from '../../chat/SharedMessageContent.vue';
 const chatStore = useChatStore();
 const socketStore = useSocketStore();
 const gameStateStore = useGameStateStore();
