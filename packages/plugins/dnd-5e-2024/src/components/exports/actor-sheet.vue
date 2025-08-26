@@ -245,11 +245,27 @@
       </section>
     </main>
   </div>
+
+  <!-- Ability Check Roll Dialog -->
+  <AdvantageRollDialog
+    v-model="showRollDialog"
+    :ability="currentRollAbility"
+    :base-modifier="currentRollAbility ? Math.floor((getAbilityScore(currentRollAbility) - 10) / 2) : 0"
+    :character-name="actor.name"
+    @roll="handleRollSubmission"
+  />
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, type Ref } from 'vue';
+import { computed, onMounted, ref, type Ref } from 'vue';
 import type { IActor, BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
+import { getPluginContext } from '@dungeon-lab/shared-ui/utils/plugin-context.mjs';
+import AdvantageRollDialog, { type RollDialogData } from '../internal/common/AdvantageRollDialog.vue';
+
+// Utility function to generate unique roll IDs
+function generateUniqueId(): string {
+  return `roll_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
 
 // Props - unified interface for all document types
 interface Props {
@@ -267,6 +283,12 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   readonly: false
 });
+
+// Get plugin context once for use throughout the component
+const pluginContext = getPluginContext();
+if (!pluginContext) {
+  throw new Error('[ActorSheet] Plugin context not available - this should never happen');
+}
 
 // Type-safe actor accessor - assumes valid document
 const actor = computed(() => {
@@ -312,6 +334,10 @@ const emit = defineEmits<{
 
 // Edit mode comes from DocumentSheetContainer
 const editMode = computed(() => props.editMode || false);
+
+// Roll dialog state
+const showRollDialog = ref(false);
+const currentRollAbility = ref<string>('');
 
 // Ability scores data
 const abilities = [
@@ -670,12 +696,8 @@ const startDrag = (event: MouseEvent) => {
 
 // Roll functions
 const rollAbilityCheck = (ability: string) => {
-  const modifier = Math.floor((getAbilityScore(ability) - 10) / 2);
-  emit('roll', 'ability-check', {
-    ability,
-    modifier,
-    formula: `1d20${formatModifier(modifier)}`
-  });
+  currentRollAbility.value = ability;
+  showRollDialog.value = true;
 };
 
 const rollSavingThrow = (ability: string) => {
@@ -704,6 +726,47 @@ const rollAction = (action: any) => {
     actionName: action.name,
     action
   });
+};
+
+// Handle ability check roll submission from dialog
+const handleRollSubmission = (rollData: RollDialogData) => {
+  // Generate unique roll ID
+  const rollId = generateUniqueId();
+  
+  // Create roll object following the established schema
+  const roll = {
+    rollId: rollId,
+    rollType: 'ability-check',
+    pluginId: 'dnd-5e-2024',
+    dice: [{ 
+      sides: 20, 
+      quantity: rollData.advantageMode === 'normal' ? 1 : 2 
+    }],
+    recipients: rollData.recipients,
+    arguments: { 
+      customModifier: rollData.customModifier,
+      pluginArgs: {
+        ability: rollData.ability,
+        advantageMode: rollData.advantageMode
+      }
+    },
+    modifiers: [
+      { 
+        type: 'ability', 
+        value: rollData.baseModifier, 
+        source: `${rollData.ability} modifier` 
+      }
+    ],
+    metadata: {
+      title: `${rollData.ability.charAt(0).toUpperCase()}${rollData.ability.slice(1)} Check`,
+      characterName: actor.value.name
+    }
+  };
+
+  // Submit roll via plugin context
+  pluginContext.submitRoll(roll);
+  console.log(`[ActorSheet] Submitted ${rollData.ability} ability check roll:`, roll);
+  showRollDialog.value = false;
 };
 
 // Lifecycle

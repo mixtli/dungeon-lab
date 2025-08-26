@@ -8,6 +8,8 @@ export interface RollData {
   message?: string;
   dice: Array<{ sides: number; quantity: number }>;
   metadata?: Record<string, unknown>;
+  /** Optional plugin component type for custom chat UI (e.g., 'roll-request-weapon-attack') */
+  chatComponentType?: string;
 }
 
 /**
@@ -91,6 +93,7 @@ export class RollRequestService {
       message: rollData.message || `Roll ${rollType}`,
       dice: rollData.dice,
       metadata: rollData.metadata,
+      chatComponentType: rollData.chatComponentType, // Pass through plugin component type
       playerId // playerId is required by the extended schema
     });
 

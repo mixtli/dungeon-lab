@@ -1,5 +1,15 @@
 <template>
-  <div class="roll-request-message">
+  <!-- Plugin component if available -->
+  <component 
+    v-if="pluginComponent" 
+    :is="pluginComponent" 
+    :roll-request="rollRequest"
+    @roll-accepted="handlePluginRollAccepted"
+    @roll-declined="handlePluginRollDeclined"
+  />
+  
+  <!-- Default component if no plugin component -->
+  <div v-else class="roll-request-message">
     <div class="request-header">
       <span class="request-icon">🎲</span>
       <div class="request-content">
@@ -39,9 +49,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, shallowRef, watchEffect, onMounted, onUnmounted } from 'vue';
+import type { Component } from 'vue';
 import { useSocketStore } from '../../stores/socket.store.mjs';
 import { useChatStore } from '../../stores/chat.store.mts';
+import { pluginRegistry } from '../../services/plugin-registry.mts';
 import type { ChatMessage } from '../../stores/chat.store.mjs';
 import type { RollServerResult } from '@dungeon-lab/shared/types/socket/index.mjs';
 import { diceArrayToExpression } from '@dungeon-lab/shared/utils/dice-parser.mjs';
@@ -59,6 +71,38 @@ const completed = ref(false);
 
 // Extract roll request from message
 const rollRequest = props.message.rollRequestData;
+
+// Plugin component loading
+const pluginComponent = shallowRef<Component | null>(null);
+
+// Load plugin component if chatComponentType is specified
+watchEffect(async () => {
+  if (!rollRequest?.chatComponentType) {
+    pluginComponent.value = null;
+    return;
+  }
+  
+  try {
+    // Extract game system ID from roll request metadata
+    const gameSystemId = 'dnd-5e-2024'; // Default for now - could be extracted from rollRequest metadata
+    const componentType = rollRequest.chatComponentType;
+    
+    console.log(`[RollRequestMessage] Loading plugin component: ${componentType} from ${gameSystemId}`);
+    
+    // Use the plugin registry to load the component
+    const component = await pluginRegistry.getComponent(gameSystemId, componentType);
+    if (component) {
+      console.log(`[RollRequestMessage] Plugin component loaded successfully: ${componentType}`);
+      pluginComponent.value = component;
+    } else {
+      console.warn(`[RollRequestMessage] Plugin component not found: ${componentType} from ${gameSystemId}`);
+      pluginComponent.value = null;
+    }
+  } catch (error) {
+    console.error('[RollRequestMessage] Failed to load plugin component:', error);
+    pluginComponent.value = null;
+  }
+});
 
 // Convert dice array to expression for display
 const diceExpression = computed(() => {
@@ -95,6 +139,48 @@ const buttonText = computed(() => {
       return 'Roll';
   }
 });
+
+// Plugin component event handlers
+function handlePluginRollAccepted(rollData: any): void {
+  console.log('[RollRequestMessage] Plugin roll accepted:', rollData);
+  
+  processing.value = true;
+  
+  try {
+    // Submit the roll using the enhanced data from the plugin
+    const roll = rollData.rollData;
+    
+    // Send roll with proper schema format
+    socketStore.socket?.emit('roll', roll, (response: { success: boolean, error?: string }) => {
+      if (!response.success) {
+        console.error('[RollRequestMessage] Failed to process enhanced roll:', response.error);
+        processing.value = false;
+      } else {
+        // Mark as completed after successful submission
+        completed.value = true;
+        
+        // Remove the roll request card after brief delay
+        setTimeout(() => {
+          chatStore.removeMessage(props.message.id);
+        }, 2000);
+      }
+    });
+    
+    console.log('[RollRequestMessage] Enhanced roll submitted successfully');
+  } catch (error) {
+    console.error('[RollRequestMessage] Failed to submit enhanced roll:', error);
+    processing.value = false;
+  }
+}
+
+function handlePluginRollDeclined(): void {
+  console.log('[RollRequestMessage] Plugin roll declined');
+  
+  // Remove the roll request card when declined
+  setTimeout(() => {
+    chatStore.removeMessage(props.message.id);
+  }, 500);
+}
 
 function acceptRollRequest(): void {
   if (!rollRequest) {

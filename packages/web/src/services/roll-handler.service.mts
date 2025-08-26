@@ -8,7 +8,6 @@ import type { RollRequest } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
 import type { ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
 import type { RollTypeHandler, RollHandlerContext } from '@dungeon-lab/shared-ui/types/plugin.mjs';
 import type { PluginContext } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
-import type { FollowUpChatMessage, FollowUpRollRequest, FollowUpActionRequest } from '@dungeon-lab/shared/interfaces/processed-roll-result.interface.mjs';
 import { useAuthStore } from '../stores/auth.store.mjs';
 import { useGameSessionStore } from '../stores/game-session.store.mjs';
 import { useGameStateStore } from '../stores/game-state.store.mjs';
@@ -128,15 +127,14 @@ export class RollHandlerService {
       });
       
       if (handlerRegistration) {
-        // Check if handler supports the new processRoll method
+        // Check if handler supports the new processRoll method for calculation
         if (handlerRegistration.handler.processRoll && typeof handlerRegistration.handler.processRoll === 'function') {
-          console.log('[RollHandlerService] Using new functional processRoll approach');
+          console.log('[RollHandlerService] Using processRoll for calculation');
           
-          // Use the new functional approach - process roll FIRST
+          // Use processRoll to calculate enhanced results (advantage/disadvantage, etc.)
           const processed = await handlerRegistration.handler.processRoll(result, context);
           
           // Update processedResult with enhanced data from plugin processing
-          // This allows promises to resolve with processed D&D results instead of raw dice
           processedResult = {
             ...processed.rollResult, // Use the enhanced roll result from plugin processing
             // Ensure we preserve the original rollId for promise correlation
@@ -145,67 +143,19 @@ export class RollHandlerService {
           
           console.log('[RollHandlerService] Plugin processed roll result:', {
             rollType: result.rollType,
-            followUpActions: processed.followUpActions.length,
             hasCalculatedTotal: processed.rollResult.calculatedTotal !== undefined,
             isCriticalHit: processed.rollResult.isCriticalHit,
             processedData: processed.rollResult.processedData ? Object.keys(processed.rollResult.processedData) : []
           });
-          
-          // Execute follow-up actions returned by processRoll
-          for (const action of processed.followUpActions) {
-            try {
-              if (action.type === 'chat-message') {
-                const chatAction = action as FollowUpChatMessage;
-                if (context.sendChatMessage) {
-                  context.sendChatMessage(chatAction.data.message, chatAction.data.options);
-                  console.log('[RollHandlerService] Executed chat message:', chatAction.data.message);
-                }
-              } else if (action.type === 'roll-request') {
-                const rollAction = action as FollowUpRollRequest;
-                if (context.requestRoll) {
-                  const rollRequest: RollRequest = {
-                    rollId: `followup-${Date.now()}`,
-                    message: rollAction.data.rollData.message || 'Follow-up roll',
-                    rollType: rollAction.data.rollType,
-                    dice: rollAction.data.rollData.dice,
-                    metadata: rollAction.data.rollData.metadata
-                  };
-                  context.requestRoll(rollAction.data.playerId, rollRequest);
-                  console.log('[RollHandlerService] Executed roll request:', rollAction.data.rollType);
-                }
-              } else if (action.type === 'action-request') {
-                const actionRequest = action as FollowUpActionRequest;
-                if (context.requestAction) {
-                  // Extract actorId from parameters or use result metadata
-                  // TODO: Update FollowUpActionRequest interface to include actorId, actorTokenId, targetTokenIds
-                  const parameters = actionRequest.data.parameters as Record<string, unknown>;
-                  const actorId = (typeof parameters.actorId === 'string' ? parameters.actorId : undefined) || 
-                                  (typeof result.metadata.actorId === 'string' ? result.metadata.actorId : undefined) || 
-                                  '';
-                  const actorTokenId = (typeof parameters.actorTokenId === 'string' ? parameters.actorTokenId : undefined) || 
-                                       (typeof result.metadata.actorTokenId === 'string' ? result.metadata.actorTokenId : undefined);
-                  const targetTokenIds = parameters.targetTokenIds as string[] | undefined;
-                  
-                  await context.requestAction(
-                    actionRequest.data.actionType,
-                    actorId,
-                    actionRequest.data.parameters,
-                    actorTokenId,
-                    targetTokenIds,
-                    actionRequest.data.options
-                  );
-                  console.log('[RollHandlerService] Executed action request:', actionRequest.data.actionType);
-                }
-              }
-            } catch (error) {
-              console.error('[RollHandlerService] Error executing follow-up action:', error, action);
-            }
-          }
         } else {
-          console.warn('[RollHandlerService] Handler does not support processRoll - using default processing');
-          
-          // Handler doesn't support new functional approach - treat as if no handler
+          console.log('[RollHandlerService] No processRoll method - using raw results');
           processedResult = this.defaultHandler(result);
+        }
+        
+        // Always call handleRoll for side effects (chat messages, etc.)
+        if (handlerRegistration.handler.handleRoll && typeof handlerRegistration.handler.handleRoll === 'function') {
+          console.log('[RollHandlerService] Calling handleRoll for side effects');
+          await handlerRegistration.handler.handleRoll(processedResult, context);
         }
       } else {
         // Use default handler - adds convenience total to results

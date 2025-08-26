@@ -76,7 +76,9 @@ export const rollRequestSchema = z.object({
   /** Additional metadata to include with the roll */
   metadata: z.record(z.unknown()).optional(),
   /** Target player ID who should make this roll */
-  playerId: z.string().optional()
+  playerId: z.string().optional(),
+  /** Optional plugin component type for custom chat UI (e.g., 'roll-request-weapon-attack') */
+  chatComponentType: z.string().optional()
 });
 
 export type Roll = z.infer<typeof rollSchema>;

@@ -98,6 +98,66 @@ function applyDamageToTarget(
 }
 
 /**
+ * Check if caster has advantage on spell attack rolls from conditions, spells, or circumstances
+ */
+function checkSpellAttackAdvantageConditions(caster: ICharacter | IActor, targets: SpellTarget[]): boolean {
+  // TODO: Implement condition checking logic
+  // This would check for conditions like:
+  // - Hidden/Invisible caster
+  // - Target is prone (for melee spell attacks only)
+  // - Faerie Fire on target
+  // - True Strike spell effect
+  // - Pack Tactics (if allies are nearby)
+  
+  // For now, return false - will implement condition system later
+  return false;
+}
+
+/**
+ * Check if caster has disadvantage on spell attack rolls from conditions, spells, or circumstances
+ */
+function checkSpellAttackDisadvantageConditions(caster: ICharacter | IActor, targets: SpellTarget[]): boolean {
+  // TODO: Implement condition checking logic
+  // This would check for conditions like:
+  // - Blinded caster
+  // - Prone caster (for ranged spell attacks)
+  // - Restrained caster
+  // - Casting in melee range without Warcaster feat
+  // - Heavy obscurement (darkness, fog, etc.)
+  
+  // For now, return false - will implement condition system later
+  return false;
+}
+
+/**
+ * Get human-readable reasons for advantage on spell attack rolls
+ */
+function getSpellAttackAdvantageReasons(caster: ICharacter | IActor, targets: SpellTarget[]): string[] {
+  const reasons: string[] = [];
+  
+  // TODO: Implement condition checking logic
+  // Example checks that would add to reasons array:
+  // if (isHidden) reasons.push('Hidden');
+  // if (targetIsProne && isMeleeSpell) reasons.push('Target Prone (Melee)');
+  
+  return reasons;
+}
+
+/**
+ * Get human-readable reasons for disadvantage on spell attack rolls
+ */
+function getSpellAttackDisadvantageReasons(caster: ICharacter | IActor, targets: SpellTarget[]): string[] {
+  const reasons: string[] = [];
+  
+  // TODO: Implement condition checking logic
+  // Example checks that would add to reasons array:
+  // if (isBlinded) reasons.push('Blinded');
+  // if (isCasterProne && isRangedSpell) reasons.push('Prone (Ranged)');
+  
+  return reasons;
+}
+
+/**
  * Get target's Armor Class for attack resolution
  */
 function getTargetAC(target: SpellTarget): number {
@@ -225,18 +285,65 @@ const executeSpellCast: ActionExecutionHandler = async (
     if (spell.pluginData.attackRoll) {
       console.log('[SpellCasting] Spell has attackRoll field - requesting attack rolls');
       
+      // Analyze game state for advantage/disadvantage conditions
+      const hasAdvantageFromCondition = checkSpellAttackAdvantageConditions(spellCaster, targets);
+      const hasDisadvantageFromCondition = checkSpellAttackDisadvantageConditions(spellCaster, targets);
+      
+      // Determine advantage mode and dice quantity
+      const advantageMode = hasAdvantageFromCondition ? 'advantage' : 
+                          hasDisadvantageFromCondition ? 'disadvantage' : 'normal';
+      const diceQuantity = (hasAdvantageFromCondition || hasDisadvantageFromCondition) ? 2 : 1;
+      
+      console.log('[SpellCasting] Spell attack advantage analysis:', {
+        hasAdvantageFromCondition,
+        hasDisadvantageFromCondition,
+        advantageMode,
+        diceQuantity
+      });
+      
       // Request attack rolls for all targets using AsyncActionContext
       const attackRequests: RollRequestSpec[] = targets.map(target => ({
         playerId: request.playerId,
         rollType: 'spell-attack',
         rollData: {
           message: `${spell.pluginData.name} attack vs ${target.name}`,
-          dice: [{ sides: 20, quantity: 1 }],
+          dice: [{ sides: 20, quantity: diceQuantity }],
+          chatComponentType: 'roll-request-d20', // Use generic d20 component for enhanced UI
           metadata: {
             spellId,
             targetId: target.id,
             attackBonus: calculateSpellAttackBonus(spellCaster),
-            spellName: spell.pluginData.name
+            spellName: spell.pluginData.name,
+            characterName: spellCaster.name,
+            advantageMode,
+            conditionReasons: {
+              advantage: getSpellAttackAdvantageReasons(spellCaster, targets),
+              disadvantage: getSpellAttackDisadvantageReasons(spellCaster, targets)
+            },
+            // Default arguments for enhanced UI component
+            defaultArgs: {
+              advantageMode,
+              customModifier: 0,
+              recipients: 'public',
+              baseModifier: calculateSpellAttackBonus(spellCaster),
+              ability: 'spellcasting',
+              spellName: spell.pluginData.name,
+              rollTitle: `${spell.pluginData.name} Attack`,
+              conditionReasons: {
+                advantage: getSpellAttackAdvantageReasons(spellCaster, targets),
+                disadvantage: getSpellAttackDisadvantageReasons(spellCaster, targets)
+              }
+            }
+          },
+          // Include plugin arguments for roll handler processing
+          arguments: {
+            pluginArgs: {
+              advantageMode,
+              ability: 'spellcasting', // Spell attacks use spellcasting ability
+              spellName: spell.pluginData.name
+            },
+            customModifier: 0,
+            recipients: 'public'
           }
         }
       }));
@@ -246,16 +353,23 @@ const executeSpellCast: ActionExecutionHandler = async (
       
       // Determine hits/misses for each target and send result messages
       attackHits = attackResults.map((result, i) => {
-        // Calculate total from dice results
-        const total = result.results.reduce((sum, diceGroup) => 
-          sum + diceGroup.results.reduce((groupSum, roll) => groupSum + roll, 0), 0
-        );
-        const attackBonus = calculateSpellAttackBonus(spellCaster);
-        const finalTotal = total + attackBonus;
+        // Use processed total from DndSpellAttackHandler if available, otherwise calculate manually
+        const resultWithTotal = result as RollServerResult & { calculatedTotal?: number };
+        const finalTotal = resultWithTotal.calculatedTotal !== undefined 
+          ? resultWithTotal.calculatedTotal + calculateSpellAttackBonus(spellCaster)
+          : result.results.reduce((sum, diceGroup) => 
+              sum + diceGroup.results.reduce((groupSum, roll) => groupSum + roll, 0), 0
+            ) + calculateSpellAttackBonus(spellCaster);
         const targetAC = getTargetAC(targets[i]);
         const isHit = finalTotal >= targetAC;
         
-        console.log(`[SpellCasting] Attack vs ${targets[i].name}: ${total} + ${attackBonus} = ${finalTotal} vs AC ${targetAC} → ${isHit ? 'HIT' : 'MISS'}`);
+        const attackBonus = calculateSpellAttackBonus(spellCaster);
+        const diceTotal = resultWithTotal.calculatedTotal !== undefined 
+          ? resultWithTotal.calculatedTotal 
+          : result.results.reduce((sum, diceGroup) => 
+              sum + diceGroup.results.reduce((groupSum, roll) => groupSum + roll, 0), 0
+            );
+        console.log(`[SpellCasting] Attack vs ${targets[i].name}: ${diceTotal} + ${attackBonus} = ${finalTotal} vs AC ${targetAC} → ${isHit ? 'HIT' : 'MISS'}`);
         
         // Send structured roll result to chat
         context.sendRollResult({

@@ -671,6 +671,15 @@
     @roll="handleSavingThrowSubmission"
   />
 
+  <!-- Initiative Roll Dialog -->
+  <AdvantageRollDialog
+    v-model="showInitiativeDialog"
+    :ability="currentRollAbility"
+    :base-modifier="initiativeBonus ? parseInt(initiativeBonus.replace('+', '')) : 0"
+    :character-name="character?.name"
+    @roll="handleInitiativeSubmission"
+  />
+
   <!-- Weapon dialogs removed - now using unified action handlers -->
 </template>
 
@@ -775,6 +784,7 @@ const activeTab = ref('overview');
 // Roll dialog state
 const showRollDialog = ref(false);
 const showSavingThrowDialog = ref(false);
+const showInitiativeDialog = ref(false);
 const currentRollAbility = ref<string>('');
 const currentRollSkill = ref<string>('');
 const currentSavingThrow = ref<string>('');
@@ -1476,6 +1486,47 @@ const handleSavingThrowSubmission = (rollData: RollDialogData) => {
   showSavingThrowDialog.value = false;
 };
 
+// Handle initiative roll submission
+const handleInitiativeSubmission = (rollData: RollDialogData) => {
+
+  // Generate unique roll ID
+  const rollId = generateUniqueId();
+  
+  // Create roll object following the established schema
+  const roll = {
+    rollId: rollId,
+    rollType: 'initiative',
+    pluginId: 'dnd-5e-2024',
+    dice: [{ 
+      sides: 20, 
+      quantity: rollData.advantageMode === 'normal' ? 1 : 2 
+    }],
+    recipients: rollData.recipients,
+    arguments: { 
+      customModifier: rollData.customModifier,
+      pluginArgs: {
+        advantageMode: rollData.advantageMode
+      }
+    },
+    modifiers: [
+      { 
+        type: 'initiative', 
+        value: rollData.baseModifier, 
+        source: 'dexterity + initiative bonus' 
+      }
+    ],
+    metadata: {
+      title: 'Initiative',
+      characterName: character.value?.name
+    }
+  };
+
+  // Submit roll via plugin context
+  pluginContext.submitRoll(roll);
+  console.log('[CharacterSheet] Submitted initiative roll:', roll);
+  showInitiativeDialog.value = false;
+};
+
 // Weapon attack roll submission removed - now using unified action handler
 
 // Weapon damage roll submission removed - now handled automatically by unified action handler
@@ -1532,15 +1583,8 @@ const toggleSkillProficiency = (skillName: string) => {
 };
 
 const rollInitiative = () => {
-  const dexModifier = abilityModifiers.value.dexterity || 0;
-  const initBonus = (character.value!.pluginData as any)?.initiative || 0;
-  const totalBonus = dexModifier + initBonus;
-  emit('roll', 'initiative', {
-    type: 'initiative',
-    modifier: totalBonus,
-    expression: `1d20${formatModifier(totalBonus)}`,
-    title: 'Initiative'
-  });
+  currentRollAbility.value = 'dexterity'; // Initiative is based on dexterity
+  showInitiativeDialog.value = true;
 };
 
 const switchTab = (tabId: string) => {

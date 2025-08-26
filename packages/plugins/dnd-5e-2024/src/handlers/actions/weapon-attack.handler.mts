@@ -198,6 +198,68 @@ function getProficiencyBonus(caster: ICharacter | IActor): number {
 }
 
 /**
+ * Check if actor has advantage on attack rolls from conditions, spells, or circumstances
+ */
+function checkForAdvantageConditions(actor: ICharacter | IActor, targets: (ICharacter | IActor)[]): boolean {
+  // TODO: Implement condition checking logic
+  // This would check for conditions like:
+  // - Hidden/Invisible attacker
+  // - Target is prone (for melee attacks)
+  // - Faerie Fire on target
+  // - Help action from ally
+  // - Guiding Bolt hit on target
+  
+  // For now, return false - will implement condition system later
+  return false;
+}
+
+/**
+ * Check if actor has disadvantage on attack rolls from conditions, spells, or circumstances
+ */
+function checkForDisadvantageConditions(actor: ICharacter | IActor, targets: (ICharacter | IActor)[]): boolean {
+  // TODO: Implement condition checking logic
+  // This would check for conditions like:
+  // - Blinded attacker
+  // - Prone attacker (for ranged attacks)
+  // - Restrained attacker
+  // - Long range attack
+  // - Dodge action by target
+  
+  // For now, return false - will implement condition system later
+  return false;
+}
+
+/**
+ * Get human-readable reasons for advantage on attack rolls
+ */
+function getAdvantageReasons(actor: ICharacter | IActor, targets: (ICharacter | IActor)[]): string[] {
+  const reasons: string[] = [];
+  
+  // TODO: Implement condition checking logic
+  // Example checks that would add to reasons array:
+  // if (isHidden) reasons.push('Hidden');
+  // if (targetIsProne) reasons.push('Target is Prone');
+  // if (hasHelp) reasons.push('Help Action');
+  
+  return reasons;
+}
+
+/**
+ * Get human-readable reasons for disadvantage on attack rolls
+ */
+function getDisadvantageReasons(actor: ICharacter | IActor, targets: (ICharacter | IActor)[]): string[] {
+  const reasons: string[] = [];
+  
+  // TODO: Implement condition checking logic
+  // Example checks that would add to reasons array:
+  // if (isBlinded) reasons.push('Blinded');
+  // if (isLongRange) reasons.push('Long Range');
+  // if (isRestrained) reasons.push('Restrained');
+  
+  return reasons;
+}
+
+/**
  * Validate weapon attack action
  */
 const validateWeaponAttack: ActionValidationHandler = async (
@@ -440,6 +502,16 @@ const executeWeaponAttack: ActionExecutionHandler = async (
     // Resolve target names for better roll dialog
     const targetNames = resolveTargetNames(request.targetTokenIds || [], draft);
     
+    // Resolve target documents for game state analysis
+    const targetDocuments = resolveTargetDocuments(request.targetTokenIds || [], draft);
+    
+    // Analyze game state for advantage/disadvantage conditions
+    const hasAdvantageFromCondition = checkForAdvantageConditions(actor as ICharacter | IActor, targetDocuments);
+    const hasDisadvantageFromCondition = checkForDisadvantageConditions(actor as ICharacter | IActor, targetDocuments);
+    
+    // Calculate total attack bonus from all modifiers
+    const totalAttackBonus = modifiers.reduce((sum, mod) => sum + mod.value, 0);
+    
     // Create descriptive attack message
     let attackMessage = `${actor.name} attacks`;
     if (targetNames.length === 1) {
@@ -452,6 +524,7 @@ const executeWeaponAttack: ActionExecutionHandler = async (
     const attackResult = await context.sendRollRequest(request.playerId, 'weapon-attack', {
       dice: [{ sides: 20, quantity: 1 }],
       message: attackMessage,
+      chatComponentType: 'roll-request-d20', // Use generic d20 component for enhanced UI
       metadata: {
         characterName: actor.name,
         weaponName: weapon.name,
@@ -463,7 +536,22 @@ const executeWeaponAttack: ActionExecutionHandler = async (
         targetCount: targetNames.length,
         modifiers: modifiers,
         attackType: 'weapon-attack',
-        weaponType: weaponData.type
+        weaponType: weaponData.type,
+        
+        // Default arguments for plugin component
+        defaultArgs: {
+          advantageMode: hasAdvantageFromCondition ? 'advantage' : 
+                        hasDisadvantageFromCondition ? 'disadvantage' : 'normal',
+          customModifier: 0,
+          recipients: 'public',
+          baseModifier: totalAttackBonus,
+          ability: ability,
+          rollTitle: `${weapon.name} Attack`,
+          conditionReasons: {
+            advantage: getAdvantageReasons(actor as ICharacter | IActor, targetDocuments),
+            disadvantage: getDisadvantageReasons(actor as ICharacter | IActor, targetDocuments)
+          }
+        }
       }
     });
 
@@ -489,8 +577,7 @@ const executeWeaponAttack: ActionExecutionHandler = async (
       group.sides === 20 && group.results.some(roll => roll === 1)
     );
 
-    // Resolve target documents for proper AC checking
-    const targetDocuments = resolveTargetDocuments(request.targetTokenIds || [], draft);
+    // Use target documents already resolved earlier for AC checking
     
     // For single target, use their AC; for multiple targets, use the first target's AC (most common case)
     let targetAC = 10; // Default AC

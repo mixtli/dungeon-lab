@@ -9,7 +9,7 @@ import { BaseGameSystemPlugin, ValidationResult } from '@dungeon-lab/shared-ui/t
 import type { PluginContext, TokenActionContext } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 import { validateCharacterData } from './character-validation.mjs';
 import { DnD5eTurnManager } from './turn-manager.mjs';
-import { DndAbilityCheckHandler, DndAttackRollHandler, DndSavingThrowHandler } from './services/dnd-roll-handler.mjs';
+import { DndAbilityCheckHandler, DndWeaponAttackHandler, DndSpellAttackHandler, DndAttackRollHandler, DndSavingThrowHandler, DndInitiativeHandler } from './services/dnd-roll-handler.mjs';
 import { registerPluginStateLifecycle, unregisterPluginStateLifecycle } from '@dungeon-lab/shared/utils/document-state-lifecycle.mjs';
 import { 
   dndMoveTokenHandler,
@@ -259,8 +259,11 @@ export class DnD5e2024Plugin extends BaseGameSystemPlugin {
       
       // Register D&D roll handlers
       context.registerRollHandler('ability-check', new DndAbilityCheckHandler());
+      context.registerRollHandler('weapon-attack', new DndWeaponAttackHandler());
+      context.registerRollHandler('spell-attack', new DndSpellAttackHandler());
       context.registerRollHandler('attack-roll', new DndAttackRollHandler());
       context.registerRollHandler('saving-throw', new DndSavingThrowHandler());
+      context.registerRollHandler('initiative', new DndInitiativeHandler());
       
       // Weapon attacks are now handled by the unified weapon-attack action handler
       
