@@ -212,10 +212,9 @@
           <div class="action-header">
             <h4 class="action-name">{{ action.name }}</h4>
             <button 
-              v-if="action.rollable"
               @click="rollAction(action)"
               class="action-roll-btn"
-              title="Roll action"
+              title="Use action"
             >
               🎲
             </button>
@@ -232,10 +231,9 @@
           <div class="action-header">
             <h4 class="action-name">{{ action.name }} <span v-if="action.cost > 1">(Costs {{ action.cost }} Actions)</span></h4>
             <button 
-              v-if="action.rollable"
               @click="rollAction(action)"
               class="action-roll-btn"
-              title="Roll action"
+              title="Use action"
             >
               🎲
             </button>
@@ -257,8 +255,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, type Ref } from 'vue';
-import type { IActor, BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
+import { computed, inject, onMounted, ref, type Ref } from 'vue';
+import type { IActor, BaseDocument, IToken } from '@dungeon-lab/shared/types/index.mjs';
 import { getPluginContext } from '@dungeon-lab/shared-ui/utils/plugin-context.mjs';
 import AdvantageRollDialog, { type RollDialogData } from '../internal/common/AdvantageRollDialog.vue';
 
@@ -289,6 +287,10 @@ const pluginContext = getPluginContext();
 if (!pluginContext) {
   throw new Error('[ActorSheet] Plugin context not available - this should never happen');
 }
+
+// Inject encounter context for monster actions
+const encounterTargetTokenIds = inject<Ref<string[]>>('encounterTargetTokenIds', () => ref([]), true);
+const encounterSelectedToken = inject<Ref<IToken | null>>('encounterSelectedToken', () => ref(null), true);
 
 // Type-safe actor accessor - assumes valid document
 const actor = computed(() => {
@@ -431,6 +433,7 @@ const hitPointsMaxCopy = computed({
 
 const hitPointsCurrentCopy = computed({
   get: () => {
+    console.log('[ActorSheet] Getting current hit points from copy:', actorCopy.value);
     if (!actorCopy.value) return 1;
     
     // First check state for runtime current HP
@@ -458,6 +461,7 @@ const hitPointsCurrentCopy = computed({
     return baselineHp;
   },
   set: (value) => {
+    console.log('[ActorSheet] Setting current hit points to:', value);
     if (!actorCopy.value) return;
     
     // Always update state for runtime HP
@@ -490,6 +494,7 @@ const hitPointsMax = computed(() => {
 
 const hitPointsCurrent = computed(() => {
   // First check state for runtime current HP
+  console.log('[ActorSheet] Checking state for current hit points:', actor.value?.state?.currentHitPoints);
   if (actor.value && typeof actor.value.state?.currentHitPoints === 'number') {
     return actor.value.state.currentHitPoints;
   }
@@ -507,10 +512,10 @@ const hitPointsCurrent = computed(() => {
   }
   
   // Initialize state if missing
-  if (actor.value) {
-    if (!actor.value.state) actor.value.state = {};
-    actor.value.state.currentHitPoints = baselineHp;
-  }
+  // if (actor.value) {
+  //   if (!actor.value.state) actor.value.state = {};
+  //   actor.value.state.currentHitPoints = baselineHp;
+  // }
   
   return baselineHp;
 });
@@ -721,11 +726,25 @@ const rollSkillCheck = (skillName: string) => {
   }
 };
 
-const rollAction = (action: any) => {
-  emit('roll', 'action', {
-    actionName: action.name,
-    action
-  });
+const rollAction = async (action: any) => {
+  console.log('[ActorSheet] Initiating monster action:', action.name);
+  if (!actor.value) {
+    console.error('Actor not available');
+    return;
+  }
+  try {
+    const result = await pluginContext.requestAction(
+      'dnd5e-2024:monster-action',
+      actor.value.id,                       // actorId
+      { actionName: action.name },           // parameters
+      encounterSelectedToken.value?.id,      // actorTokenId
+      encounterTargetTokenIds.value || [],   // targetTokenIds
+      { description: `${actor.value.name} uses ${action.name}` }
+    );
+    console.log('[ActorSheet] Monster action result:', result);
+  } catch (error) {
+    console.error('[ActorSheet] Error initiating monster action:', error);
+  }
 };
 
 // Handle ability check roll submission from dialog

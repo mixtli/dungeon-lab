@@ -82,6 +82,7 @@ export const actionSchema = z.object({
     value: z.number(),
     per: z.enum(['turn', 'round', 'short rest', 'long rest', 'day'])
   }).optional(),
+  conditionsImposed: z.array(z.string()).optional(),
   references: z.array(z.any()).optional() // Reference objects
 });
 

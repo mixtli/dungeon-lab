@@ -9,7 +9,7 @@ import { BaseGameSystemPlugin, ValidationResult } from '@dungeon-lab/shared-ui/t
 import type { PluginContext, TokenActionContext } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 import { validateCharacterData } from './character-validation.mjs';
 import { DnD5eTurnManager } from './turn-manager.mjs';
-import { DndAbilityCheckHandler, DndWeaponAttackHandler, DndSpellAttackHandler, DndAttackRollHandler, DndSavingThrowHandler, DndInitiativeHandler } from './services/dnd-roll-handler.mjs';
+import { DndAbilityCheckHandler, DndWeaponAttackHandler, DndSpellAttackHandler, DndAttackRollHandler, DndSavingThrowHandler, DndInitiativeHandler, DndMonsterAttackHandler } from './services/dnd-roll-handler.mjs';
 import { registerPluginStateLifecycle, unregisterPluginStateLifecycle } from '@dungeon-lab/shared/utils/document-state-lifecycle.mjs';
 import { 
   dndMoveTokenHandler,
@@ -30,6 +30,7 @@ import {
   weaponAttackHandler
 } from './handlers/actions/index.mjs';
 import { unifiedSpellCastHandler } from './handlers/actions/spell-casting.handler.mjs';
+import { monsterActionHandler } from './handlers/actions/monster-action.handler.mjs';
 
 /**
  * D&D 5th Edition (2024) Plugin Implementation - Using Base Class
@@ -264,6 +265,7 @@ export class DnD5e2024Plugin extends BaseGameSystemPlugin {
       context.registerRollHandler('attack-roll', new DndAttackRollHandler());
       context.registerRollHandler('saving-throw', new DndSavingThrowHandler());
       context.registerRollHandler('initiative', new DndInitiativeHandler());
+      context.registerRollHandler('monster-attack', new DndMonsterAttackHandler());
       
       // Weapon attacks are now handled by the unified weapon-attack action handler
       
@@ -272,6 +274,7 @@ export class DnD5e2024Plugin extends BaseGameSystemPlugin {
       context.registerActionHandler('attack', dndAttackHandler);
       context.registerActionHandler('dnd5e-2024:cast-spell', unifiedSpellCastHandler);
       context.registerActionHandler('dnd5e-2024:weapon-attack', weaponAttackHandler);
+      context.registerActionHandler('dnd5e-2024:monster-action', monsterActionHandler);
       context.registerActionHandler('dnd5e-2024:long-rest', dndLongRestHandler);
       context.registerActionHandler('dnd5e-2024:short-rest', dndShortRestHandler);
       context.registerActionHandler('dnd5e-2024:use-class-feature', dndUseClassFeatureHandler);
