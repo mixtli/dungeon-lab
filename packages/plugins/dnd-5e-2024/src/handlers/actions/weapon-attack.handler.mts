@@ -14,6 +14,7 @@ import {
   consumeAction
 } from '../../utils/action-economy.mjs';
 import { parseDiceExpression } from '@dungeon-lab/shared/utils/dice-parser.mjs';
+import { calculateGridDistance } from '@dungeon-lab/shared-ui/utils/grid-distance.mjs';
 import type { DndItemDocument, DndWeaponData } from '../../types/dnd/item.mjs';
 import type { DndCharacterData } from '../../types/dnd/character.mjs';
 import type { DndCreatureData } from '../../types/dnd/creature.mjs';
@@ -28,6 +29,33 @@ interface WeaponAttackParameters {
 /**
  * Helper functions for weapon calculations
  */
+
+/**
+ * Resolve target names from target token IDs
+ */
+function resolveTargetNames(targetTokenIds: string[], gameState: ServerGameStateWithVirtuals): string[] {
+  const targetNames: string[] = [];
+  const encounter = gameState.currentEncounter;
+  
+  if (encounter && encounter.tokens && targetTokenIds) {
+    for (const targetTokenId of targetTokenIds) {
+      const targetToken = encounter.tokens[targetTokenId];
+      let targetName = 'Unknown Target';
+      
+      if (targetToken && targetToken.documentId) {
+        const targetDocument = gameState.documents[targetToken.documentId];
+        if (targetDocument) {
+          targetName = targetDocument.name || 'Unknown Target';
+        }
+      }
+      
+      targetNames.push(targetName);
+    }
+  }
+  
+  return targetNames;
+}
+
 function getWeaponAttackAbility(weaponData: DndWeaponData): string {
   const properties = weaponData.properties || [];
   const weaponType = weaponData.type;
@@ -175,6 +203,70 @@ const validateWeaponAttack: ActionValidationHandler = async (
       return actionValidation;
     }
 
+    // Validate weapon range if actor token and targets are provided
+    if (actorToken && request.targetTokenIds && request.targetTokenIds.length > 0) {
+      const weaponData = weapon.pluginData as DndWeaponData;
+      
+      // Get weapon range in grid squares
+      let weaponRangeSquares = 1; // Default melee range (5 feet = 1 square)
+      
+      if (weaponData.range) {
+        // Ranged weapon: convert feet to grid squares
+        weaponRangeSquares = Math.floor(weaponData.range.normal / 5);
+      } else if (weaponData.type === 'ranged') {
+        // Ranged weapon without range data - this is an error in the weapon definition
+        return {
+          valid: false,
+          error: { code: 'MISSING_RANGE_DATA', message: `Ranged weapon ${weapon.name} is missing range data` }
+        };
+      }
+      // For melee weapons without range data, use default 1 square
+      
+      // Check range to each target
+      const encounter = gameState.currentEncounter;
+      if (encounter && encounter.tokens) {
+        for (const targetTokenId of request.targetTokenIds) {
+          const targetToken = encounter.tokens[targetTokenId];
+          if (!targetToken) {
+            return {
+              valid: false,
+              error: { code: 'TARGET_TOKEN_NOT_FOUND', message: `Target token ${targetTokenId} not found` }
+            };
+          }
+          
+          // Calculate distance between actor and target tokens
+          const distance = calculateGridDistance(
+            { x: actorToken.bounds.topLeft.x, y: actorToken.bounds.topLeft.y },
+            { x: targetToken.bounds.topLeft.x, y: targetToken.bounds.topLeft.y }
+          );
+          
+          if (distance > weaponRangeSquares) {
+            // Get target name for better error message
+            let targetName = 'target';
+            if (targetToken.documentId) {
+              const targetDocument = gameState.documents[targetToken.documentId];
+              if (targetDocument) {
+                targetName = targetDocument.name || 'target';
+              }
+            }
+            
+            const weaponTypeDesc = weaponData.type === 'melee' ? 'melee' : 'ranged';
+            const rangeDesc = weaponData.range ? 
+              `${weaponData.range.normal} feet` : 
+              '5 feet';
+            
+            return {
+              valid: false,
+              error: { 
+                code: 'TARGET_OUT_OF_RANGE', 
+                message: `${targetName} is too far away for ${weaponTypeDesc} attack. ${weapon.name} has a range of ${rangeDesc} (distance: ${distance * 5} feet)`
+              }
+            };
+          }
+        }
+      }
+    }
+
     console.log('[WeaponAttack] Validation successful for weapon:', weapon.name);
     return {
       valid: true
@@ -263,9 +355,23 @@ const executeWeaponAttack: ActionExecutionHandler = async (
       });
     }
 
-    // Step 1: Make attack roll
+    // Step 1: Make attack roll with enhanced messaging
+    
+    // Resolve target names for better roll dialog
+    const targetNames = resolveTargetNames(request.targetTokenIds || [], draft);
+    
+    // Create descriptive attack message
+    let attackMessage = `${actor.name} attacks`;
+    if (targetNames.length === 1) {
+      attackMessage += ` ${targetNames[0]}`;
+    } else if (targetNames.length > 1) {
+      attackMessage += ` ${targetNames.length} targets`;
+    }
+    attackMessage += ` with ${weapon.name}`;
+    
     const attackResult = await context.sendRollRequest(request.playerId, 'weapon-attack', {
       dice: [{ sides: 20, quantity: 1 }],
+      message: attackMessage,
       metadata: {
         characterName: actor.name,
         weaponName: weapon.name,
@@ -273,7 +379,11 @@ const executeWeaponAttack: ActionExecutionHandler = async (
         actorId: request.actorId,
         actorTokenId: request.actorTokenId,
         targetTokenIds: request.targetTokenIds,
-        modifiers: modifiers
+        targetNames: targetNames,
+        targetCount: targetNames.length,
+        modifiers: modifiers,
+        attackType: 'weapon-attack',
+        weaponType: weaponData.type
       }
     });
 
@@ -354,8 +464,21 @@ const executeWeaponAttack: ActionExecutionHandler = async (
         throw new Error(`Invalid damage formula: ${damageFormula}`);
       }
       
+      // Create descriptive damage message
+      const damageType = weaponData?.damage?.type || 'slashing';
+      let damageMessage = `${weapon.name} ${damageType} damage`;
+      if (isNaturalTwenty) {
+        damageMessage = `Critical hit! ${damageMessage}`;
+      }
+      if (targetNames.length === 1) {
+        damageMessage += ` to ${targetNames[0]}`;
+      } else if (targetNames.length > 1) {
+        damageMessage += ` to ${targetNames.length} targets`;
+      }
+      
       const damageResult = await context.sendRollRequest(request.playerId, 'weapon-damage', {
         dice: parsedDamage.dice,
+        message: damageMessage,
         metadata: {
           characterName: actor.name,
           weaponName: weapon.name,
@@ -363,10 +486,14 @@ const executeWeaponAttack: ActionExecutionHandler = async (
           actorId: request.actorId,
           actorTokenId: request.actorTokenId,
           targetTokenIds: request.targetTokenIds,
-          damageType: weaponData?.damage?.type || 'slashing',
+          targetNames: targetNames,
+          targetCount: targetNames.length,
+          damageType: damageType,
           isCritical: isNaturalTwenty,
           attackHit: true,
-          modifier: parsedDamage.modifier
+          modifier: parsedDamage.modifier,
+          attackType: 'weapon-damage',
+          weaponType: weaponData.type
         }
       });
 

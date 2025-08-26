@@ -1360,7 +1360,7 @@ const initiateWeaponAttack = async (weapon: IItem) => {
   }
 
   try {
-    await pluginContext.requestAction(
+    const result = await pluginContext.requestAction(
       'dnd5e-2024:weapon-attack',
       character.value.id,                    // actorId
       { weaponId: weapon.id },               // parameters
@@ -1368,8 +1368,24 @@ const initiateWeaponAttack = async (weapon: IItem) => {
       encounterTargetTokenIds.value || [],   // targetTokenIds
       { description: `Attack with ${weapon.name}` }
     );
+    
+    if (result.success) {
+      console.log('[CharacterSheet] Weapon attack request submitted successfully:', result);
+    } else {
+      console.error('[CharacterSheet] Weapon attack request failed:', result.error);
+      notificationStore.addNotification({
+        type: 'error',
+        message: `Failed to attack with ${weapon.name}: ${result.error || 'Unknown error'}`,
+        duration: 5000
+      });
+    }
   } catch (error) {
     console.error('Weapon attack failed:', error);
+    notificationStore.addNotification({
+      type: 'error',
+      message: `Failed to attack with ${weapon.name}: Unable to process attack at this time`,
+      duration: 5000
+    });
   }
 };
 
