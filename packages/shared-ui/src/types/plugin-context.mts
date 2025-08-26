@@ -241,4 +241,22 @@ export interface PluginContext {
    * Get all registered token actions for display in context menus
    */
   getTokenActions(): TokenContextAction[];
+
+  /**
+   * Show notification toast to user
+   * Plugins use this instead of directly accessing notification stores
+   */
+  showNotification(message: string, type: 'success' | 'error' | 'warning' | 'info', duration?: number): void;
+  
+  /**
+   * Open a document sheet by ID and type
+   * Plugins use this to open spell sheets, item sheets, etc.
+   */
+  openDocumentSheet(documentId: string, documentType: string): void;
+  
+  /**
+   * Get asset URL for images/files
+   * Plugins use this to load images from the asset system
+   */
+  getAssetUrl(assetId: string): Promise<string>;
 }

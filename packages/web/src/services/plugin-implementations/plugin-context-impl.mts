@@ -23,6 +23,9 @@ import { createPluginGameStateService } from '../plugin-game-state.service.mjs';
 import { useGameStateStore } from '../../stores/game-state.store.mjs';
 import { useGameSessionStore } from '../../stores/game-session.store.mjs';
 import { useSocketStore } from '../../stores/socket.store.mjs';
+import { useNotificationStore } from '../../stores/notification.store.mjs';
+import { useDocumentSheetStore } from '../../stores/document-sheet.store.mjs';
+import { getAssetUrl } from '../../utils/asset-utils.mjs';
 import { rollHandlerService } from '../roll-handler.service.mjs';
 import { PlayerActionService } from '../player-action.service.mjs';
 import { 
@@ -353,6 +356,56 @@ export class PluginContextImpl implements PluginContext {
    */
   getTokenActions(): TokenContextAction[] {
     return Array.from(this.tokenActions.values());
+  }
+
+  /**
+   * Show notification toast to user
+   * Plugins use this instead of directly accessing notification stores
+   */
+  showNotification(message: string, type: 'success' | 'error' | 'warning' | 'info', duration = 4000): void {
+    const notificationStore = useNotificationStore();
+    notificationStore.addNotification({ message, type, duration });
+    console.log(`[PluginContext] Showed ${type} notification from plugin '${this.pluginId}': ${message}`);
+  }
+
+  /**
+   * Open a document sheet by ID and type
+   * Plugins use this to open spell sheets, item sheets, etc.
+   */
+  openDocumentSheet(documentId: string, documentType: string): void {
+    const documentSheetStore = useDocumentSheetStore();
+    
+    // Create minimal document for sheet opening
+    const mockDocument: BaseDocument = {
+      id: documentId,
+      name: 'Loading...', // Will be loaded by the sheet
+      documentType: 'vtt-document',
+      pluginDocumentType: documentType,
+      pluginId: this.pluginId, // Use the current plugin's ID
+      slug: '',
+      pluginData: {},
+      itemState: {},
+      state: {},
+      userData: {}
+    };
+    
+    documentSheetStore.openDocumentSheet(mockDocument);
+    console.log(`[PluginContext] Opened document sheet from plugin '${this.pluginId}': ${documentId} (${documentType})`);
+  }
+
+  /**
+   * Get asset URL for images/files
+   * Plugins use this to load images from the asset system
+   */
+  async getAssetUrl(assetId: string): Promise<string> {
+    try {
+      const url = await getAssetUrl(assetId);
+      console.log(`[PluginContext] Got asset URL from plugin '${this.pluginId}': ${assetId} -> ${url}`);
+      return url;
+    } catch (error) {
+      console.error(`[PluginContext] Failed to get asset URL from plugin '${this.pluginId}' for asset ${assetId}:`, error);
+      throw error;
+    }
   }
 
   /**

@@ -31,6 +31,86 @@ interface WeaponAttackParameters {
  */
 
 /**
+ * Apply damage to a target creature
+ * Based on spell casting handler implementation
+ */
+function applyDamageToTarget(
+  target: ICharacter | IActor, 
+  damage: number, 
+  damageType: string
+): void {
+  try {
+    if (target.documentType === 'character') {
+      // Character damage application
+      const characterData = target.pluginData as { attributes?: { hitPoints?: { current: number; maximum: number } } };
+      if (characterData.attributes?.hitPoints) {
+        characterData.attributes.hitPoints.current = Math.max(
+          0, 
+          characterData.attributes.hitPoints.current - damage
+        );
+        console.log(`[WeaponAttack] Applied ${damage} ${damageType} damage to character ${target.name} (${characterData.attributes.hitPoints.current}/${characterData.attributes.hitPoints.maximum} HP)`);
+      } else {
+        console.warn(`[WeaponAttack] Character ${target.name} has no hitPoints structure`);
+      }
+    } else if (target.documentType === 'actor') {
+      // Actor damage application  
+      const actorData = target.pluginData as { hitPoints?: { current?: number; average: number } };
+      if (actorData.hitPoints) {
+        const currentHp = actorData.hitPoints.current ?? actorData.hitPoints.average;
+        actorData.hitPoints.current = Math.max(0, currentHp - damage);
+        console.log(`[WeaponAttack] Applied ${damage} ${damageType} damage to actor ${target.name} (${actorData.hitPoints.current}/${actorData.hitPoints.average} HP)`);
+      } else {
+        console.warn(`[WeaponAttack] Actor ${target.name} has no hitPoints structure`);
+      }
+    }
+  } catch (error) {
+    console.error(`[WeaponAttack] Error applying damage to ${target.name}:`, error);
+  }
+}
+
+/**
+ * Get target's Armor Class for attack resolution
+ */
+function getTargetAC(target: ICharacter | IActor): number {
+  try {
+    if (target.documentType === 'character') {
+      const characterData = target.pluginData as { attributes?: { armorClass?: { value: number } } };
+      return characterData.attributes?.armorClass?.value || 10;
+    } else if (target.documentType === 'actor') {
+      const actorData = target.pluginData as { armorClass?: { value: number } };
+      return actorData.armorClass?.value || 10;
+    }
+    return 10;
+  } catch (error) {
+    console.error(`[WeaponAttack] Error getting AC for ${target.name}:`, error);
+    return 10;
+  }
+}
+
+/**
+ * Resolve target documents from target token IDs
+ */
+function resolveTargetDocuments(targetTokenIds: string[], gameState: ServerGameStateWithVirtuals): (ICharacter | IActor)[] {
+  const targets: (ICharacter | IActor)[] = [];
+  const encounter = gameState.currentEncounter;
+  
+  if (encounter && encounter.tokens && targetTokenIds) {
+    for (const targetTokenId of targetTokenIds) {
+      const targetToken = encounter.tokens[targetTokenId];
+      
+      if (targetToken && targetToken.documentId) {
+        const targetDocument = gameState.documents[targetToken.documentId];
+        if (targetDocument && (targetDocument.documentType === 'character' || targetDocument.documentType === 'actor')) {
+          targets.push(targetDocument as ICharacter | IActor);
+        }
+      }
+    }
+  }
+  
+  return targets;
+}
+
+/**
  * Resolve target names from target token IDs
  */
 function resolveTargetNames(targetTokenIds: string[], gameState: ServerGameStateWithVirtuals): string[] {
@@ -409,14 +489,48 @@ const executeWeaponAttack: ActionExecutionHandler = async (
       group.sides === 20 && group.results.some(roll => roll === 1)
     );
 
-    // For now, assume hit on anything but natural 1 (proper AC checking would need target resolution)
-    const hits = isNaturalTwenty || (!isNaturalOne && attackTotal >= 10);
+    // Resolve target documents for proper AC checking
+    const targetDocuments = resolveTargetDocuments(request.targetTokenIds || [], draft);
+    
+    // For single target, use their AC; for multiple targets, use the first target's AC (most common case)
+    let targetAC = 10; // Default AC
+    if (targetDocuments.length > 0) {
+      targetAC = getTargetAC(targetDocuments[0]);
+    }
+    
+    // Determine hit/miss based on actual AC
+    const hits = isNaturalTwenty || (!isNaturalOne && attackTotal >= targetAC);
     
     console.log('[WeaponAttack] Attack roll result:', {
       total: attackTotal,
+      targetAC,
       hits,
       isNaturalTwenty,
       isNaturalOne
+    });
+
+    // Send structured roll result to chat with AC information
+    let attackResultMessage = `${attackMessage}: ${attackTotal} vs AC ${targetAC}`;
+    if (hits) {
+      if (isNaturalTwenty) {
+        attackResultMessage += ' (Critical Hit!)';
+      } else {
+        attackResultMessage += ' (Hit)';
+      }
+    } else {
+      if (isNaturalOne) {
+        attackResultMessage += ' (Critical Miss)';
+      } else {
+        attackResultMessage += ' (Miss)';
+      }
+    }
+    
+    context.sendRollResult({
+      message: attackResultMessage,
+      result: attackTotal,
+      target: targetAC,
+      success: hits,
+      rollType: 'weapon-attack'
     });
 
     // Step 2: If attack hits, roll damage
@@ -499,6 +613,35 @@ const executeWeaponAttack: ActionExecutionHandler = async (
 
       if (damageResult) {
         console.log('[WeaponAttack] Damage roll successful');
+        
+        // Calculate total damage from roll result
+        let totalDamage = 0;
+        for (const diceGroup of damageResult.results) {
+          totalDamage += diceGroup.results.reduce((sum, result) => sum + result, 0);
+        }
+        for (const modifier of damageResult.modifiers) {
+          totalDamage += modifier.value;
+        }
+        totalDamage += damageResult.arguments.customModifier;
+        
+        console.log(`[WeaponAttack] Dealt ${totalDamage} ${damageType} damage`);
+        
+        // Apply damage to all targets
+        for (const target of targetDocuments) {
+          applyDamageToTarget(target, totalDamage, damageType);
+        }
+        
+        // Send structured roll result for damage
+        context.sendRollResult({
+          message: `${weapon.name} ${damageType} damage${isNaturalTwenty ? ' (Critical Hit!)' : ''}`,
+          result: totalDamage,
+          success: true, // Damage rolls are always successful
+          rollType: 'weapon-damage',
+          damageInfo: {
+            amount: totalDamage,
+            type: damageType
+          }
+        });
       } else {
         console.warn('[WeaponAttack] Damage roll failed, but attack succeeded');
       }

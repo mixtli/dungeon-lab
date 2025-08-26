@@ -685,13 +685,8 @@ import { getPluginContext } from '@dungeon-lab/shared-ui/utils/plugin-context.mj
 import AdvantageRollDialog, { type RollDialogData } from '../internal/common/AdvantageRollDialog.vue';
 // Weapon dialogs removed - now using unified action handlers
 
-// Note: This import works because plugin components run in the web context
-// @ts-ignore - Import from web package for document sheet functionality
-import { useDocumentSheetStore } from '../../../../../web/src/stores/document-sheet.store.mjs';
-// @ts-ignore - Import from web package for asset utilities
-import { getAssetUrl } from '../../../../../web/src/utils/asset-utils.mjs';
-// @ts-ignore - Import from web package for notifications
-import { useNotificationStore } from '../../../../../web/src/stores/notification.store.mjs';
+// All web package functionality is now accessed through PluginContext
+// This maintains proper plugin architecture and prevents build issues
 
 // Utility function to generate unique roll IDs
 function generateUniqueId(): string {
@@ -715,6 +710,12 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   readonly: false
 });
+
+// Get plugin context once for use throughout the component
+const pluginContext = getPluginContext();
+if (!pluginContext) {
+  throw new Error('[CharacterSheet] Plugin context not available - this should never happen');
+}
 
 // Type-safe character accessor with validation
 const character = computed(() => {
@@ -756,11 +757,7 @@ const availableBackgrounds = ref<DndBackgroundDocument[]>([]);
 // Spell resolution storage
 const resolvedSpells = ref<Map<string, any>>(new Map());
 
-// Document sheet store for opening spell sheets
-const documentSheetStore = useDocumentSheetStore();
-
-// Notification store for user feedback
-const notificationStore = useNotificationStore();
+// All store functionality is now handled through PluginContext methods
 
 // Emits - unified event interface
 const emit = defineEmits<{
@@ -798,9 +795,6 @@ const conditionDragCounter = ref(0);
 
 // Item image URL cache (for dynamic loading from imageId)
 const itemImageUrls = ref<Record<string, string>>({});
-
-// Get plugin context for action requests
-const pluginContext = getPluginContext();
 
 // Inject target context from encounter (with fallbacks)
 const encounterTargetTokenIds = inject<Ref<string[]>>('encounterTargetTokenIds', () => ref([]), true);
@@ -1347,12 +1341,6 @@ const getItemIcon = (item: IItem): string => {
 
 const initiateWeaponAttack = async (weapon: IItem) => {
   console.log('[CharacterSheet] Initiating weapon attack:', weapon.name);
-  
-  const pluginContext = getPluginContext();
-  if (!pluginContext) {
-    console.error('Plugin context not available');
-    return;
-  }
 
   if (!character.value) {
     console.error('Character not available');
@@ -1373,19 +1361,11 @@ const initiateWeaponAttack = async (weapon: IItem) => {
       console.log('[CharacterSheet] Weapon attack request submitted successfully:', result);
     } else {
       console.error('[CharacterSheet] Weapon attack request failed:', result.error);
-      notificationStore.addNotification({
-        type: 'error',
-        message: `Failed to attack with ${weapon.name}: ${result.error || 'Unknown error'}`,
-        duration: 5000
-      });
+      pluginContext.showNotification(`Failed to attack with ${weapon.name}: ${result.error || 'Unknown error'}`, 'error', 5000);
     }
   } catch (error) {
     console.error('Weapon attack failed:', error);
-    notificationStore.addNotification({
-      type: 'error',
-      message: `Failed to attack with ${weapon.name}: Unable to process attack at this time`,
-      duration: 5000
-    });
+    pluginContext.showNotification(`Failed to attack with ${weapon.name}: Unable to process attack at this time`, 'error', 5000);
   }
 };
 
@@ -1406,11 +1386,6 @@ const rollAbilityCheck = (ability: string) => {
 
 // Handle roll submission from dialog
 const handleRollSubmission = (rollData: RollDialogData) => {
-  const pluginContext = getPluginContext();
-  if (!pluginContext) {
-    console.error('Plugin context not available');
-    return;
-  }
 
   // Generate unique roll ID
   const rollId = generateUniqueId();
@@ -1461,11 +1436,6 @@ const handleRollSubmission = (rollData: RollDialogData) => {
 
 // Handle saving throw roll submission
 const handleSavingThrowSubmission = (rollData: RollDialogData) => {
-  const pluginContext = getPluginContext();
-  if (!pluginContext) {
-    console.error('Plugin context not available');
-    return;
-  }
 
   // Generate unique roll ID
   const rollId = generateUniqueId();
@@ -1625,18 +1595,13 @@ const loadCompendiumDocuments = async () => {
     
     const promises = [];
     
-    // Get plugin context using shared utility
-    const context = getPluginContext();
-    if (!context) {
-      console.warn('[CharacterSheet] Plugin context not available for compendium loading');
-      return;
-    }
+    // Use shared plugin context
     
     // Fetch species document if we have a species ObjectId
     const speciesId = character.value!.pluginData?.species;
     if (speciesId && typeof speciesId === 'string') {
       promises.push(
-        context.getDocument(speciesId)
+        pluginContext.getDocument(speciesId)
           .then(doc => { speciesDocument.value = markRaw(doc as DndSpeciesDocument); })
           .catch(err => { console.warn('Failed to load species:', err); })
       );
@@ -1647,7 +1612,7 @@ const loadCompendiumDocuments = async () => {
     const classId = classes?.[0]?.class;
     if (classId && typeof classId === 'string') {
       promises.push(
-        context.getDocument(classId)
+        pluginContext.getDocument(classId)
           .then(doc => { classDocument.value = markRaw(doc as DndCharacterClassDocument); })
           .catch(err => { console.warn('Failed to load class:', err); })
       );
@@ -1657,7 +1622,7 @@ const loadCompendiumDocuments = async () => {
     const backgroundId = character.value!.pluginData?.background;
     if (backgroundId && typeof backgroundId === 'string') {
       promises.push(
-        context.getDocument(backgroundId)
+        pluginContext.getDocument(backgroundId)
           .then(doc => { backgroundDocument.value = markRaw(doc as DndBackgroundDocument); })
           .catch(err => { console.warn('Failed to load background:', err); })
       );
@@ -1670,7 +1635,7 @@ const loadCompendiumDocuments = async () => {
         const spellId = spellData.spell;
         if (spellId && typeof spellId === 'string') {
           promises.push(
-            context.getDocument(spellId)
+            pluginContext.getDocument(spellId)
               .then(doc => { 
                 resolvedSpells.value.set(spellId, markRaw(doc)); 
                 console.log('[CharacterSheet] Resolved spell:', doc.name);
@@ -1690,7 +1655,7 @@ const loadCompendiumDocuments = async () => {
         const spellId = cantripData.spell;
         if (spellId && typeof spellId === 'string') {
           promises.push(
-            context.getDocument(spellId)
+            pluginContext.getDocument(spellId)
               .then(doc => { 
                 resolvedSpells.value.set(spellId, markRaw(doc)); 
                 console.log('[CharacterSheet] Resolved cantrip:', doc.name);
@@ -1718,11 +1683,6 @@ const loadCompendiumDocuments = async () => {
 
 // Load available options for character editing
 const loadAvailableOptions = async () => {
-  const pluginContext = getPluginContext();
-  if (!pluginContext) {
-    console.warn('[CharacterSheet] Plugin context not available for loading available options');
-    return;
-  }
   
   console.log('[CharacterSheet] Loading available character creation options');
   
@@ -1759,11 +1719,7 @@ const loadAvailableOptions = async () => {
     
   } catch (error) {
     console.error('[CharacterSheet] Failed to load available options:', error);
-    notificationStore.addNotification({
-      type: 'error',
-      message: 'Failed to load character creation options',
-      duration: 4000
-    });
+    pluginContext.showNotification('Failed to load character creation options', 'error', 4000);
   }
 };
 
@@ -1790,26 +1746,12 @@ const castSpell = async (spellData: any) => {
   const spell = getResolvedSpell(spellData.spell);
   if (!spell) {
     console.error('[CharacterSheet] Cannot cast unknown spell:', spellData);
-    notificationStore.addNotification({
-      type: 'error',
-      message: 'Cannot cast spell: Spell data not found',
-      duration: 4000
-    });
+    pluginContext.showNotification('Cannot cast spell: Spell data not found', 'error', 4000);
     return;
   }
   
   console.log('[CharacterSheet] Casting spell:', spell.name, spellData);
   
-  const pluginContext = getPluginContext();
-  if (!pluginContext) {
-    console.error('[CharacterSheet] Plugin context not available for spell casting');
-    notificationStore.addNotification({
-      type: 'error',
-      message: 'Cannot cast spell: System not ready',
-      duration: 4000
-    });
-    return;
-  }
 
   if (!character.value) {
     console.error('[CharacterSheet] No character available for spell casting');
@@ -1819,11 +1761,7 @@ const castSpell = async (spellData: any) => {
   // Check if a token is selected (required for spell casting)
   if (!encounterSelectedToken.value?.id) {
     console.error('[CharacterSheet] No token selected for spell casting');
-    notificationStore.addNotification({
-      type: 'error',
-      message: 'Cannot cast spell: Please select a token on the map to cast spells',
-      duration: 4000
-    });
+    pluginContext.showNotification('Cannot cast spell: Please select a token on the map to cast spells', 'error', 4000);
     return;
   }
 
@@ -1845,20 +1783,12 @@ const castSpell = async (spellData: any) => {
       console.log('[CharacterSheet] Spell casting request submitted successfully:', result);
     } else {
       console.error('[CharacterSheet] Spell casting request failed:', result.error);
-      notificationStore.addNotification({
-        type: 'error',
-        message: `Failed to cast ${spell.name}: ${result.error || 'Unknown error'}`,
-        duration: 5000
-      });
+      pluginContext.showNotification(`Failed to cast ${spell.name}: ${result.error || 'Unknown error'}`, 'error', 5000);
     }
     
   } catch (error) {
     console.error('[CharacterSheet] Error casting spell:', error);
-    notificationStore.addNotification({
-      type: 'error',
-      message: `Failed to cast ${spell.name}: Unable to process spell casting at this time`,
-      duration: 5000
-    });
+    pluginContext.showNotification(`Failed to cast ${spell.name}: Unable to process spell casting at this time`, 'error', 5000);
   }
 };
 
@@ -1885,20 +1815,13 @@ const updateCharacterClass = async (classId: string) => {
   
   // Reload class document for display
   if (classId) {
-    const pluginContext = getPluginContext();
-    if (pluginContext) {
-      try {
-        const doc = await pluginContext.getDocument(classId);
-        classDocument.value = markRaw(doc as DndCharacterClassDocument);
-        console.log('[CharacterSheet] Loaded new class document:', doc.name);
-      } catch (error) {
-        console.error('[CharacterSheet] Failed to load new class document:', error);
-        notificationStore.addNotification({
-          type: 'error',
-          message: 'Failed to load class information',
-          duration: 4000
-        });
-      }
+    try {
+      const doc = await pluginContext.getDocument(classId);
+      classDocument.value = markRaw(doc as DndCharacterClassDocument);
+      console.log('[CharacterSheet] Loaded new class document:', doc.name);
+    } catch (error) {
+      console.error('[CharacterSheet] Failed to load new class document:', error);
+      pluginContext.showNotification('Failed to load class information', 'error', 4000);
     }
   } else {
     classDocument.value = null;
@@ -1917,20 +1840,13 @@ const updateCharacterSpecies = async (speciesId: string) => {
   
   // Reload species document for display
   if (speciesId) {
-    const pluginContext = getPluginContext();
-    if (pluginContext) {
-      try {
-        const doc = await pluginContext.getDocument(speciesId);
-        speciesDocument.value = markRaw(doc as DndSpeciesDocument);
-        console.log('[CharacterSheet] Loaded new species document:', doc.name);
-      } catch (error) {
-        console.error('[CharacterSheet] Failed to load new species document:', error);
-        notificationStore.addNotification({
-          type: 'error',
-          message: 'Failed to load species information',
-          duration: 4000
-        });
-      }
+    try {
+      const doc = await pluginContext.getDocument(speciesId);
+      speciesDocument.value = markRaw(doc as DndSpeciesDocument);
+      console.log('[CharacterSheet] Loaded new species document:', doc.name);
+    } catch (error) {
+      console.error('[CharacterSheet] Failed to load new species document:', error);
+      pluginContext.showNotification('Failed to load species information', 'error', 4000);
     }
   } else {
     speciesDocument.value = null;
@@ -1949,20 +1865,13 @@ const updateCharacterBackground = async (backgroundId: string) => {
   
   // Reload background document for display
   if (backgroundId) {
-    const pluginContext = getPluginContext();
-    if (pluginContext) {
-      try {
-        const doc = await pluginContext.getDocument(backgroundId);
-        backgroundDocument.value = markRaw(doc as DndBackgroundDocument);
-        console.log('[CharacterSheet] Loaded new background document:', doc.name);
-      } catch (error) {
-        console.error('[CharacterSheet] Failed to load new background document:', error);
-        notificationStore.addNotification({
-          type: 'error',
-          message: 'Failed to load background information',
-          duration: 4000
-        });
-      }
+    try {
+      const doc = await pluginContext.getDocument(backgroundId);
+      backgroundDocument.value = markRaw(doc as DndBackgroundDocument);
+      console.log('[CharacterSheet] Loaded new background document:', doc.name);
+    } catch (error) {
+      console.error('[CharacterSheet] Failed to load new background document:', error);
+      pluginContext.showNotification('Failed to load background information', 'error', 4000);
     }
   } else {
     backgroundDocument.value = null;
@@ -2000,23 +1909,8 @@ const updateSpellPrepared = (spellData: any) => {
 const openSpellSheet = (spellData: any) => {
   console.log('[CharacterSheet] Opening spell sheet for:', spellData.name);
   
-  // Create a minimal document object that DocumentSheetContainer can use
-  const mockSpellDocument: BaseDocument = {
-    id: spellData.spell,           // ObjectId of the spell document
-    name: spellData.name,          // Spell name from character data
-    documentType: 'vtt-document', // Required for VTT document handling
-    pluginDocumentType: 'spell',  // Required for component resolution
-    pluginId: 'dnd-5e-2024',     // Required for plugin system
-    // Minimal required fields for BaseDocument interface
-    slug: '',
-    pluginData: {},
-    itemState: {},
-    state: {},
-    userData: {}
-  };
-  
-  // Open the spell sheet using the document sheet store
-  documentSheetStore.openDocumentSheet(mockSpellDocument);
+  // Use PluginContext to open the spell sheet
+  pluginContext.openDocumentSheet(spellData.spell, 'spell');
 };
 
 // Load item image URLs dynamically from imageId (for game state items)
@@ -2025,7 +1919,7 @@ const loadItemImageUrls = async () => {
   for (const item of currentItems) {
     if (item.imageId && !itemImageUrls.value[item.imageId]) {
       try {
-        const url = await getAssetUrl(item.imageId);
+        const url = await pluginContext.getAssetUrl(item.imageId);
         itemImageUrls.value[item.imageId] = url;
         console.log(`[CharacterSheet] Loaded image URL for item ${item.name} (${item.imageId}):`, url);
       } catch (error) {
@@ -2269,11 +2163,6 @@ const getConditionName = (conditionId: string): string => {
 
 // Remove condition action
 const removeCondition = async (conditionId: string) => {
-  const pluginContext = getPluginContext();
-  if (!pluginContext) {
-    console.error('Plugin context not available for condition removal');
-    return;
-  }
 
   try {
     await pluginContext.requestAction(
@@ -2289,11 +2178,7 @@ const removeCondition = async (conditionId: string) => {
     );
   } catch (error) {
     console.error('Failed to remove condition:', error);
-    notificationStore.addNotification({
-      type: 'error',
-      message: 'Failed to remove condition: Unable to remove condition at this time',
-      duration: 4000
-    });
+    pluginContext.showNotification('Failed to remove condition: Unable to remove condition at this time', 'error', 4000);
   }
 };
 
@@ -2421,30 +2306,6 @@ const handleDrop = async (event: DragEvent) => {
 // Load condition data for display - fetching actual condition documents
 const loadConditions = async () => {
   try {
-    const pluginContext = getPluginContext();
-    if (!pluginContext) {
-      console.warn('[CharacterSheet] Plugin context not available for condition loading');
-      // Fallback to hard-coded names
-      conditionNames.value = {
-        'blinded': 'Blinded',
-        'charmed': 'Charmed', 
-        'deafened': 'Deafened',
-        'exhaustion': 'Exhaustion',
-        'frightened': 'Frightened',
-        'grappled': 'Grappled',
-        'incapacitated': 'Incapacitated',
-        'invisible': 'Invisible',
-        'paralyzed': 'Paralyzed',
-        'petrified': 'Petrified',
-        'poisoned': 'Poisoned',
-        'prone': 'Prone',
-        'restrained': 'Restrained',
-        'stunned': 'Stunned',
-        'unconscious': 'Unconscious'
-      };
-      return;
-    }
-    
     console.log('[CharacterSheet] Loading condition documents from document collection');
     
     // Try to load condition documents from the document collection
@@ -2465,7 +2326,7 @@ const loadConditions = async () => {
         // Load image URL if the condition has an imageId
         if (condition.imageId) {
           try {
-            const imageUrl = await getAssetUrl(condition.imageId);
+            const imageUrl = await pluginContext.getAssetUrl(condition.imageId);
             conditionImageUrls.value[condition.id] = imageUrl;
           } catch (error) {
             console.warn(`[CharacterSheet] Failed to load image for condition ${condition.name}:`, error);
