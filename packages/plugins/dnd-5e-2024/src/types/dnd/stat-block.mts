@@ -66,22 +66,58 @@ export const savingThrowsSchema = z.object({
   charisma: z.number().optional()
 }).optional();
 
+// Additional damage structure for multi-damage attacks
+export const additionalDamageSchema = z.object({
+  damage: z.string(), // Damage formula like "2d10"
+  type: damageTypeSchema,
+  average: z.number().optional()
+});
+
+// Area of effect structure
+export const areaOfEffectSchema = z.object({
+  shape: z.enum(['cone', 'line', 'sphere', 'cube', 'emanation', 'cylinder']),
+  size: z.string() // "60-foot", "30-foot-long, 5-foot-wide", etc.
+});
+
+// Range structure for attacks
+export const rangeSchema = z.object({
+  normal: z.number(),
+  long: z.number().optional() // Long range for disadvantage
+});
+
 // Action/Feature structure for 2024
 export const actionSchema = z.object({
   name: z.string(),
   description: z.string(),
+  
+  // Basic attack properties
   attackBonus: z.number().optional(),
   damage: z.string().optional(),
   damageType: damageTypeSchema.optional(),
+  
+  // Enhanced attack properties from 5etools markup
+  attackType: z.enum(['melee', 'ranged', 'both']).optional(),
+  reach: z.number().optional(), // Melee reach in feet
+  range: rangeSchema.optional(), // Ranged attack ranges
+  averageDamage: z.number().optional(), // From {@h}14 markup
+  additionalDamage: z.array(additionalDamageSchema).optional(), // Multiple damage instances
+  effectsOnMiss: z.string().optional(), // For {@hom} hit-or-miss effects
+  
+  // Save-based abilities
   savingThrow: z.object({
     ability: abilitySchema,
     dc: z.number()
   }).optional(),
+  areaOfEffect: areaOfEffectSchema.optional(),
+  
+  // Recharge and usage
   recharge: z.string().optional(), // "5-6", "6", etc.
   uses: z.object({
     value: z.number(),
     per: z.enum(['turn', 'round', 'short rest', 'long rest', 'day'])
   }).optional(),
+  
+  // Conditions and references
   conditionsImposed: z.array(z.string()).optional(),
   references: z.array(z.any()).optional() // Reference objects
 });

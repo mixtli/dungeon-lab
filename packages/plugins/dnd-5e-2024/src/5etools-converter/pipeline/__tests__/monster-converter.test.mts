@@ -539,4 +539,213 @@ describe('TypedMonsterConverter', () => {
       }
     });
   });
+
+  describe('Action Parsing with 5etools Markup', () => {
+    it('should parse melee attack actions with structured data', async () => {
+      const attackMonster: EtoolsMonster = {
+        name: 'Test Warrior',
+        source: 'XPHB',
+        size: ['M'],
+        type: 'humanoid',
+        alignment: ['N'],
+        ac: [15],
+        hp: { average: 25, formula: '4d8 + 4' },
+        speed: { walk: 30 },
+        str: 16, dex: 12, con: 12, int: 10, wis: 10, cha: 10,
+        cr: '1',
+        action: [{
+          name: 'Longsword',
+          entries: ['{@atkr m} {@hit 5}, reach 5 ft. {@h}7 ({@damage 1d8 + 3}) Slashing damage.']
+        }]
+      };
+
+      const result = await converter.convertItem(attackMonster);
+      
+      expect(result.success).toBe(true);
+      expect(result.document?.pluginData.actions).toBeDefined();
+      expect(result.document!.pluginData.actions).toHaveLength(1);
+
+      const action = result.document!.pluginData.actions![0];
+      expect(action.name).toBe('Longsword');
+      expect(action.attackType).toBe('melee');
+      expect(action.attackBonus).toBe(5);
+      expect(action.reach).toBe(5);
+      expect(action.averageDamage).toBe(7);
+      expect(action.damage).toBe('1d8 + 3');
+      expect(action.damageType).toBe('slashing');
+    });
+
+    it('should parse ranged attack actions with range data', async () => {
+      const archerMonster: EtoolsMonster = {
+        name: 'Test Archer',
+        source: 'XPHB',
+        size: ['M'],
+        type: 'humanoid',
+        alignment: ['N'],
+        ac: [14],
+        hp: { average: 20, formula: '3d8 + 3' },
+        speed: { walk: 30 },
+        str: 12, dex: 16, con: 12, int: 10, wis: 14, cha: 10,
+        cr: '1/2',
+        action: [{
+          name: 'Longbow',
+          entries: ['{@atkr r} {@hit 5}, range 150/600 ft. {@h}7 ({@damage 1d8 + 3}) Piercing damage.']
+        }]
+      };
+
+      const result = await converter.convertItem(archerMonster);
+      
+      expect(result.success).toBe(true);
+      expect(result.document?.pluginData.actions).toBeDefined();
+
+      const action = result.document!.pluginData.actions![0];
+      expect(action.name).toBe('Longbow');
+      expect(action.attackType).toBe('ranged');
+      expect(action.attackBonus).toBe(5);
+      expect(action.range).toEqual({ normal: 150, long: 600 });
+      expect(action.averageDamage).toBe(7);
+      expect(action.damage).toBe('1d8 + 3');
+      expect(action.damageType).toBe('piercing');
+    });
+
+    it('should parse attacks with additional damage types', async () => {
+      const dragonMonster: EtoolsMonster = {
+        name: 'Young Dragon',
+        source: 'XPHB',
+        size: ['L'],
+        type: 'dragon',
+        alignment: ['C', 'E'],
+        ac: [17],
+        hp: { average: 75, formula: '10d10 + 20' },
+        speed: { walk: 40, fly: 80 },
+        str: 19, dex: 14, con: 15, int: 12, wis: 11, cha: 15,
+        cr: '4',
+        action: [{
+          name: 'Claw',
+          entries: ['{@atkr m} {@hit 7}, reach 5 ft. {@h}11 ({@damage 2d6 + 4}) Slashing damage plus 3 ({@damage 1d6}) Fire damage.']
+        }]
+      };
+
+      const result = await converter.convertItem(dragonMonster);
+      
+      expect(result.success).toBe(true);
+      expect(result.document?.pluginData.actions).toBeDefined();
+
+      const action = result.document!.pluginData.actions![0];
+      expect(action.name).toBe('Claw');
+      expect(action.attackType).toBe('melee');
+      expect(action.attackBonus).toBe(7);
+      expect(action.averageDamage).toBe(11);
+      expect(action.damage).toBe('2d6 + 4');
+      expect(action.damageType).toBe('slashing');
+      expect(action.additionalDamage).toHaveLength(1);
+      expect(action.additionalDamage![0]).toEqual({
+        damage: '1d6',
+        type: 'fire',
+        average: 3
+      });
+    });
+
+    it('should parse save-based abilities with area effects', async () => {
+      const breathWeaponMonster: EtoolsMonster = {
+        name: 'Dragon Wyrmling',
+        source: 'XPHB',
+        size: ['M'],
+        type: 'dragon',
+        alignment: ['C', 'E'],
+        ac: [16],
+        hp: { average: 32, formula: '5d8 + 10' },
+        speed: { walk: 30, fly: 60 },
+        str: 15, dex: 12, con: 14, int: 10, wis: 11, cha: 13,
+        cr: '2',
+        action: [{
+          name: 'Fire Breath',
+          entries: ['{@recharge 5} {@actSave dex} {@dc 12}, each creature in a 15-foot {@variantrule Cone [Area of Effect]|XPHB|Cone}. {@actSaveFail} 21 ({@damage 6d6}) Fire damage.']
+        }]
+      };
+
+      const result = await converter.convertItem(breathWeaponMonster);
+      
+      expect(result.success).toBe(true);
+      expect(result.document?.pluginData.actions).toBeDefined();
+
+      const action = result.document!.pluginData.actions![0];
+      expect(action.name).toBe('Fire Breath');
+      expect(action.recharge).toBe('5-6');
+      expect(action.savingThrow).toEqual({
+        ability: 'dex',
+        dc: 12
+      });
+      expect(action.areaOfEffect).toEqual({
+        shape: 'cone',
+        size: '15-foot'
+      });
+    });
+
+    it('should handle versatile weapons (both melee and ranged)', async () => {
+      const versatileMonster: EtoolsMonster = {
+        name: 'Javelin Thrower',
+        source: 'XPHB',
+        size: ['M'],
+        type: 'humanoid',
+        alignment: ['N'],
+        ac: [13],
+        hp: { average: 16, formula: '3d8 + 3' },
+        speed: { walk: 30 },
+        str: 14, dex: 12, con: 12, int: 10, wis: 10, cha: 10,
+        cr: '1/4',
+        action: [{
+          name: 'Javelin',
+          entries: ['{@atkr m,r} {@hit 4}, reach 5 ft. or range 30/120 ft. {@h}5 ({@damage 1d6 + 2}) Piercing damage.']
+        }]
+      };
+
+      const result = await converter.convertItem(versatileMonster);
+      
+      expect(result.success).toBe(true);
+      expect(result.document?.pluginData.actions).toBeDefined();
+
+      const action = result.document!.pluginData.actions![0];
+      expect(action.name).toBe('Javelin');
+      expect(action.attackType).toBe('both');
+      expect(action.attackBonus).toBe(4);
+      expect(action.reach).toBe(5);
+      expect(action.range).toEqual({ normal: 30, long: 120 });
+      expect(action.averageDamage).toBe(5);
+      expect(action.damage).toBe('1d6 + 2');
+      expect(action.damageType).toBe('piercing');
+    });
+
+    it('should handle non-attack actions gracefully', async () => {
+      const utilityMonster: EtoolsMonster = {
+        name: 'Test Creature',
+        source: 'XPHB',
+        size: ['M'],
+        type: 'humanoid',
+        alignment: ['N'],
+        ac: [10],
+        hp: { average: 10, formula: '2d8 + 2' },
+        speed: { walk: 30 },
+        str: 10, dex: 10, con: 12, int: 10, wis: 10, cha: 10,
+        cr: '1/8',
+        action: [{
+          name: 'Dash',
+          entries: ['The creature moves up to its speed without provoking opportunity attacks.']
+        }]
+      };
+
+      const result = await converter.convertItem(utilityMonster);
+      
+      expect(result.success).toBe(true);
+      expect(result.document?.pluginData.actions).toBeDefined();
+
+      const action = result.document!.pluginData.actions![0];
+      expect(action.name).toBe('Dash');
+      expect(action.description).toContain('moves up to its speed');
+      // Non-attack actions should not have attack-specific fields
+      expect(action.attackType).toBeUndefined();
+      expect(action.attackBonus).toBeUndefined();
+      expect(action.damage).toBeUndefined();
+    });
+  });
 });
