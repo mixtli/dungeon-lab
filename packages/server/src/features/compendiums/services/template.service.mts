@@ -138,6 +138,7 @@ export class TemplateService {
             // Ownership rules for items
             ...(campaignId && { campaignId }), // Optional - items can be global for auto-creation
             createdBy: gameMasterId,            // GM if campaign provided, otherwise creating user
+            ownerId: new mongoose.Types.ObjectId(userId), // Set ownerId to user who instantiated
             createdAt: new Date(),
             updatedBy: userId, // User who performed the instantiation
             // Source tracking

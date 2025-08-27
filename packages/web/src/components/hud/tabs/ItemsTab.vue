@@ -104,10 +104,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useGameStateStore } from '../../../stores/game-state.store.mjs';
+import { useSocketStore } from '../../../stores/socket.store.mjs';
 import { getAssetUrl } from '../../../utils/asset-utils.mjs';
 import type { IItem } from '@dungeon-lab/shared/types/index.mjs';
 
 const gameStateStore = useGameStateStore();
+const socketStore = useSocketStore();
 const searchQuery = ref('');
 const activeFilter = ref('all');
 const itemImageUrls = ref<Record<string, string>>({});
@@ -130,6 +132,14 @@ const items = computed(() => gameStateStore.items);
 
 const filteredItems = computed(() => {
   let filtered = items.value;
+
+  // First filter by ownership - only show items owned by current user
+  if (socketStore.userId) {
+    filtered = filtered.filter(item => item.ownerId === socketStore.userId);
+  } else {
+    // No user logged in, show no items
+    return [];
+  }
 
   // Filter by type
   if (activeFilter.value !== 'all') {

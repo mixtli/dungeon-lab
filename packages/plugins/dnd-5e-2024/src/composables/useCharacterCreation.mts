@@ -479,7 +479,7 @@ export function useCharacterCreation() {
           
           const itemData = {
             ...contentData,
-            // Will be set by web client: ownerId
+            // Will be set by web client: ownerId, carrierId
             // Set initial item state
             itemState: {
               equipped: false, // Default to not equipped

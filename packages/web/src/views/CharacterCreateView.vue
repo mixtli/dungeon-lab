@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, markRaw } from 'vue';
 import { useRouter } from 'vue-router';
 import { useGameStateStore } from '../stores/game-state.store.mjs';
+import { useSocketStore } from '../stores/socket.store.mjs';
 import { pluginRegistry } from '../services/plugin-registry.mts';
 import ImageUpload from '../components/common/ImageUpload.vue';
 import type { GameSystemPlugin } from '@dungeon-lab/shared-ui/types/plugin.mjs';
@@ -22,6 +23,7 @@ const assetsClient = new AssetsClient();
 const charactersClient = new CharactersClient();
 const router = useRouter();
 const gameStateStore = useGameStateStore();
+const socketStore = useSocketStore();
 const activeGameSystemId = ref<string>(localStorage.getItem('activeGameSystem') || '');
 const isLoading = ref(true);
 const error = ref<string | null>(null);
@@ -210,6 +212,7 @@ async function handleCharacterReady(preparedData: any) {
         try {
           const itemDocumentData = {
             ...itemData,
+            ownerId: socketStore.userId, // Set the current user as owner
             carrierId: response.id // Set the character as carrier of the item
           };
           

@@ -41,18 +41,18 @@ export const useHUDStore = defineStore('hud', () => {
         component: 'TurnOrderTab',
         visible: true
       },
-      actors: {
-        id: 'actors',
-        title: 'Actors',
-        icon: 'mdi-account-multiple',
-        component: 'ActorsTab',
-        visible: true
-      },
       characters: {
         id: 'characters',
         title: 'Characters',
         icon: 'mdi-account',
         component: 'CharactersTab',
+        visible: true
+      },
+      actors: {
+        id: 'actors',
+        title: 'Actors',
+        icon: 'mdi-account-multiple',
+        component: 'ActorsTab',
         visible: true
       },
       items: {
@@ -62,18 +62,18 @@ export const useHUDStore = defineStore('hud', () => {
         component: 'ItemsTab',
         visible: true
       },
-      compendium: {
-        id: 'compendium',
-        title: 'Compendium',
-        icon: 'mdi-book-open-variant',
-        component: 'CompendiumTab',
-        visible: true
-      },
       documents: {
         id: 'documents',
         title: 'Documents',
         icon: 'mdi-file-document-multiple',
         component: 'DocumentsTab',
+        visible: true
+      },
+      compendium: {
+        id: 'compendium',
+        title: 'Compendium',
+        icon: 'mdi-book-open-variant',
+        component: 'CompendiumTab',
         visible: true
       }
     }
