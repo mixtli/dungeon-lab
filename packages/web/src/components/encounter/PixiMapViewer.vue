@@ -200,7 +200,8 @@ interface Emits {
   (e: 'map-loaded', mapData: IMapResponse): void;
   (e: 'map-error', error: string): void;
   (e: 'token-selected', tokenId: string, modifiers?: { shift?: boolean; ctrl?: boolean; alt?: boolean }): void;
-  (e: 'token-moved', tokenId: string, x: number, y: number, dragDistance?: number): void;
+  (e: 'token-moved', tokenId: string, x: number, y: number): void;
+  (e: 'token-drag-start', tokenId: string, globalPosition: { x: number; y: number }): void;
   (e: 'viewport-changed', viewport: { x: number; y: number; scale: number }): void;
   (e: 'canvas-click', x: number, y: number, event: MouseEvent): void;
   (e: 'canvas-right-click', x: number, y: number, event: MouseEvent): void;
@@ -588,23 +589,18 @@ const handleTokenDragStart = (tokenId: string, position: { x: number; y: number 
   dragStartPos.value = position;
   draggedTokenId.value = tokenId;
   emit('token-selected', tokenId, {});
+  
+  // Emit drag start event for Vue component to handle with character tab logic
+  emit('token-drag-start', tokenId, position);
 };
 
 const handleTokenDragMove = (tokenId: string, position: { x: number; y: number }) => {
   if (!isDragging.value || !draggedTokenId.value || draggedTokenId.value !== tokenId) return;
   
-  // Get grid size from map data
-  const gridSize = currentMap.value?.uvtt?.resolution?.pixels_per_grid || 50;
-  
-  // Snap to grid
-  const snappedPosition = {
-    x: Math.round(position.x / gridSize) * gridSize,
-    y: Math.round(position.y / gridSize) * gridSize
-  };
+  // Don't snap to grid here - TokenRenderer handles snapping in dragEnd
+  // This prevents duplicate/conflicting snap logic
   
   // Don't move token locally during drag - let the TokenRenderer handle the visual movement
-  // moveToken(tokenId, snappedPosition.x, snappedPosition.y);
-  
   // Don't emit token-moved during drag - only emit on dragEnd to prevent spam
   // This allows visual dragging without sending action requests on every mouse move
 };
@@ -620,16 +616,8 @@ const handleTokenDragEnd = async (tokenId: string, position: { x: number; y: num
     return;
   }
   
-  // Calculate drag distance if we have start position
-  let dragDistance = 0;
-  if (dragStartPos.value) {
-    const dx = position.x - dragStartPos.value.x;
-    const dy = position.y - dragStartPos.value.y;
-    dragDistance = Math.sqrt(dx * dx + dy * dy);
-  }
-  
-  // Emit the token moved event to parent with drag distance for accurate calculation
-  emit('token-moved', tokenId, position.x, position.y, dragDistance);
+  // Emit the token moved event to parent (handlers will calculate distance as needed)
+  emit('token-moved', tokenId, position.x, position.y);
   
   // Reset drag state
   isDragging.value = false;

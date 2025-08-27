@@ -13,26 +13,43 @@ import type { ActionValidationResult, ActionValidationHandler, ActionExecutionHa
 import type { DndCharacterData } from '../../types/dnd/character.mjs';
 import type { DndCreatureData } from '../../types/dnd/creature.mjs';
 
+
 /**
- * Convert world pixel distance to feet using D&D grid scale
+ * Calculate movement distance in feet from original position to target position
  */
-function convertWorldPixelsToFeet(pixelDistance: number, gameState: ServerGameStateWithVirtuals): number {
-  // Try to get actual grid scale from current map
+function calculateMovementDistance(
+  originalPosition: { x: number; y: number },
+  newPosition: { x: number; y: number; elevation?: number },
+  gameState: ServerGameStateWithVirtuals
+): number {
+  // Get grid scale from current map
   let pixelsPerGridCell = 50; // Default fallback
-  
   if (gameState.currentEncounter?.currentMap?.uvtt?.resolution?.pixels_per_grid) {
     pixelsPerGridCell = gameState.currentEncounter.currentMap.uvtt.resolution.pixels_per_grid;
   }
+
+  // Convert both positions to grid coordinates
+  const originalGridX = originalPosition.x / pixelsPerGridCell;
+  const originalGridY = originalPosition.y / pixelsPerGridCell;
+  const targetGridX = newPosition.x / pixelsPerGridCell;
+  const targetGridY = newPosition.y / pixelsPerGridCell;
   
-  // D&D standard: 1 grid cell = 5 feet
-  const feetPerGridCell = 5;
-  const distanceInFeet = (pixelDistance / pixelsPerGridCell) * feetPerGridCell;
+  // Calculate distance in grid cells
+  const deltaGridX = targetGridX - originalGridX;
+  const deltaGridY = targetGridY - originalGridY;
+  const distanceInGridCells = Math.sqrt(deltaGridX * deltaGridX + deltaGridY * deltaGridY);
   
-  console.log('[DnD5e] World pixels to feet conversion:', {
-    pixelDistance,
-    pixelsPerGridCell,
-    feetPerGridCell,
-    distanceInFeet
+  // Convert to feet (D&D standard: 1 grid cell = 5 feet)
+  const distanceInFeet = distanceInGridCells * 5;
+  
+  console.log('[DnD5e] Movement distance calculation:', {
+    originalGrid: { x: originalGridX, y: originalGridY },
+    targetWorld: newPosition,
+    targetGrid: { x: targetGridX, y: targetGridY },
+    deltaGrid: { x: deltaGridX, y: deltaGridY },
+    distanceInGridCells,
+    distanceInFeet,
+    pixelsPerGridCell
   });
   
   return distanceInFeet;
@@ -160,9 +177,25 @@ const validateDnDMovement: ActionValidationHandler = async (
     }
   }
 
-  // Get movement distance from request (in world pixels) and convert to feet
-  const pixelDistance = (request.parameters as { distance?: number }).distance || 0;
-  const distance = convertWorldPixelsToFeet(pixelDistance, gameState);
+  // Calculate current token center position and store for execution phase
+  let pixelsPerGridCell = 50; // Default fallback
+  if (gameState.currentEncounter?.currentMap?.uvtt?.resolution?.pixels_per_grid) {
+    pixelsPerGridCell = gameState.currentEncounter.currentMap.uvtt.resolution.pixels_per_grid;
+  }
+  
+  const currentGridCenterX = (token.bounds.topLeft.x + token.bounds.bottomRight.x + 1) / 2;
+  const currentGridCenterY = (token.bounds.topLeft.y + token.bounds.bottomRight.y + 1) / 2;
+  const originalWorldPosition = {
+    x: currentGridCenterX * pixelsPerGridCell,
+    y: currentGridCenterY * pixelsPerGridCell
+  };
+  
+  // Store original position in request parameters for execution phase
+  (request.parameters as any).dndOriginalPosition = originalWorldPosition;
+
+  // Calculate movement distance from original position to target position
+  const { newPosition } = request.parameters as { newPosition: { x: number; y: number; elevation?: number } };
+  const distance = calculateMovementDistance(originalWorldPosition, newPosition, gameState);
   
   // Check character's base speed using proper data structure extraction
   const baseSpeed = getWalkSpeed({ documentType: character.documentType || 'character', pluginData: character.pluginData });
@@ -258,9 +291,18 @@ const executeDnDMovement: ActionExecutionHandler = async (
     characterName: character.name
   });
 
-  // Convert world pixel distance to feet for D&D tracking
-  const pixelDistance = (request.parameters as { distance?: number }).distance || 0;
-  const distance = convertWorldPixelsToFeet(pixelDistance, draft);
+  // Use stored original position from validation phase to calculate movement distance
+  const { newPosition, dndOriginalPosition } = request.parameters as { 
+    newPosition: { x: number; y: number; elevation?: number };
+    dndOriginalPosition?: { x: number; y: number };
+  };
+  
+  if (!dndOriginalPosition) {
+    console.warn('[DnD5e] No original position stored - validation phase may have failed');
+    return;
+  }
+  
+  const distance = calculateMovementDistance(dndOriginalPosition, newPosition, draft);
   
   // Initialize state if needed
   if (!character.state) character.state = {};

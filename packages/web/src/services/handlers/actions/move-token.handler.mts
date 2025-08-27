@@ -79,12 +79,14 @@ const validateMoveToken: ActionValidationHandler = async (
     const currentGridCenterY = (token.bounds.topLeft.y + token.bounds.bottomRight.y + 1) / 2;
     const currentGridPos = { x: currentGridCenterX, y: currentGridCenterY };
     
-    // Convert target world position to grid coordinates (target is already center coordinates)
+    // Convert target world position to grid coordinates (target is center coordinates)
     const mapData = gameState.currentEncounter.currentMap;
     const pixelsPerGrid = mapData.uvtt?.resolution?.pixels_per_grid || 50;
+    // Since target position is a center coordinate (gridCell * pixelsPerGrid + pixelsPerGrid/2),
+    // we need to convert it back to integer grid coordinates
     const targetGridPos = { 
-      x: params.newPosition.x / pixelsPerGrid, 
-      y: params.newPosition.y / pixelsPerGrid 
+      x: Math.round((params.newPosition.x - pixelsPerGrid / 2) / pixelsPerGrid), 
+      y: Math.round((params.newPosition.y - pixelsPerGrid / 2) / pixelsPerGrid) 
     };
     
     // Debug backend position calculations

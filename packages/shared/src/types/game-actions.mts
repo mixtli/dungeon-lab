@@ -39,7 +39,6 @@ export interface MoveTokenParameters extends Record<string, unknown> {
     y: number; // World coordinates
     elevation?: number;
   };
-  distance?: number; // Distance in world pixels
 }
 
 /**

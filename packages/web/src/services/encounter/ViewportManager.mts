@@ -447,6 +447,19 @@ export class ViewportManager {
   }
   
   /**
+   * Convert global screen coordinates to world coordinates
+   * This handles the same coordinate conversion as character drops
+   */
+  globalScreenToWorld(globalX: number, globalY: number): { x: number; y: number } {
+    const canvas = this.app.canvas as HTMLCanvasElement;
+    const rect = canvas.getBoundingClientRect();
+    const canvasX = globalX - rect.left;
+    const canvasY = globalY - rect.top;
+    
+    return this.screenToWorld(canvasX, canvasY);
+  }
+  
+  /**
    * Convert world coordinates to screen coordinates
    */
   worldToScreen(worldX: number, worldY: number): { x: number; y: number } {

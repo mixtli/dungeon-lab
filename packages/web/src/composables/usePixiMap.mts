@@ -129,11 +129,12 @@ export function usePixiMap(): UsePixiMapReturn {
       // Initialize viewport manager
       viewportManager = new ViewportManager(mapRenderer.getApp(), mapRenderer.getMapContainer());
       
-      // Initialize token renderer with scale provider
+      // Initialize token renderer with scale provider and viewport manager
       tokenRenderer = new TokenRenderer(
         mapRenderer.getTokenContainer(),
         undefined, // options
-        () => viewportManager?.getCurrentScale() || 1 // scale provider
+        () => viewportManager?.getCurrentScale() || 1, // scale provider
+        viewportManager // viewport manager for proven screenToWorld coordinate conversion
       );
       
       // Set up viewport change listener

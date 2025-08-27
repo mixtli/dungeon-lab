@@ -55,6 +55,7 @@
           :show-lights="showLights"
           @token-selected="handleTokenSelection"
           @token-moved="handleTokenMoved"
+          @token-drag-start="handleTokenDragStart"
           @viewport-changed="handleViewportChange"
           @canvas-click="handleMapClick"
           @canvas-right-click="handleMapRightClick"
@@ -402,7 +403,49 @@ const handleTokenSelection = (tokenId: string, modifiers?: { shift?: boolean; ct
   contextMenuToken.value = null;
 };
 
-const handleTokenMoved = async (tokenId: string, x: number, y: number, dragDistance?: number) => {
+// Handle token drag start - use character tab coordinate logic for final position
+const handleTokenDragStart = (tokenId: string, globalPosition: { x: number; y: number }) => {
+  console.log('[EncounterView] Token drag started:', { tokenId, globalPosition });
+  
+  // Set up one-time mouse up listener to handle drop using character tab logic
+  const handleDragDrop = (event: MouseEvent) => {
+    if (!pixiMapViewer.value || !mapContainerRef.value) {
+      console.error('[EncounterView] Required refs not available for drag drop');
+      return;
+    }
+    
+    // Use the EXACT same coordinate calculation as character tab drops
+    const mapContainer = mapContainerRef.value;
+    const pixiViewer = pixiMapViewer.value;
+    
+    const rect = mapContainer.getBoundingClientRect();
+    const screenX = event.clientX - rect.left;
+    const screenY = event.clientY - rect.top;
+    
+    // Convert screen coordinates to world coordinates using proper PIXI transformation
+    const worldCoords = pixiViewer.screenToWorld(screenX, screenY);
+    const worldX = Math.round(worldCoords.x);
+    const worldY = Math.round(worldCoords.y);
+    
+    console.log('[EncounterView] Token drop with character tab logic:', {
+      tokenId,
+      screenCoords: { x: screenX, y: screenY },
+      worldCoords: { x: worldCoords.x, y: worldCoords.y },
+      finalPosition: { x: worldX, y: worldY }
+    });
+    
+    // Move the token using the proven coordinate system
+    handleTokenMoved(tokenId, worldX, worldY);
+    
+    // Clean up listener
+    document.removeEventListener('mouseup', handleDragDrop);
+  };
+  
+  // Listen for mouse up globally to handle drop
+  document.addEventListener('mouseup', handleDragDrop, { once: true });
+};
+
+const handleTokenMoved = async (tokenId: string, x: number, y: number) => {
   if (!encounter.value) return;
   
   const token = encounter.value.tokens ? Object.values(encounter.value.tokens).find(t => t.id === tokenId) : undefined;
@@ -414,7 +457,7 @@ const handleTokenMoved = async (tokenId: string, x: number, y: number, dragDista
   try {
     // Use the new action request system for token movement
     const elevation = token.bounds?.elevation || 0;
-    const result = await requestTokenMove(tokenId, { x, y, elevation }, dragDistance);
+    const result = await requestTokenMove(tokenId, { x, y, elevation });
     
     if (result.success && !result.approved) {
       // Show notification to player that movement is pending approval

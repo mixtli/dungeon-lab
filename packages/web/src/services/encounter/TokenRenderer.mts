@@ -2,6 +2,7 @@ import * as PIXI from 'pixi.js';
 import type { Token } from '@dungeon-lab/shared/types/tokens.mjs';
 import type { IMapResponse } from '@dungeon-lab/shared/types/api/maps.mjs';
 import type { TokenStatusBarData } from '@dungeon-lab/shared/types/token-status-bars.mjs';
+import type { ViewportManager } from './ViewportManager.mjs';
 import defaultTokenUrl from '@/assets/images/default_token.svg';
 import { isPositionWithinBounds, clampPositionToBounds } from '../../utils/bounds-validation.mjs';
 import { transformAssetUrl } from '@/utils/asset-utils.mjs';
@@ -85,6 +86,7 @@ export class TokenRenderer {
 
   private dragEnabled: boolean = true;
   private scaleProvider?: () => number;
+  private viewportManager?: ViewportManager;
   
   // Performance settings
   private maxPoolSize = 50;
@@ -95,18 +97,16 @@ export class TokenRenderer {
   private _dragThreshold: number = 5; // pixels - minimum distance to start dragging
   private _doubleClickTime: number = 300; // milliseconds - time window for double-click detection
   
-  // Drag state
+  // Simplified drag state - no complex PIXI drag logic
   private _isDragging = false;
-  private _dragTarget: TokenSprite | null = null;
-  private _dragStartPosition: { x: number; y: number } | null = null;
-  private _dragStartGlobal: { x: number; y: number } | null = null;
   
   // Map data for bounds checking
   private _mapData: IMapResponse | null = null;
   
-  constructor(tokenContainer: PIXI.Container, _options?: TokenRendererOptions, scaleProvider?: () => number) {
+  constructor(tokenContainer: PIXI.Container, _options?: TokenRendererOptions, scaleProvider?: () => number, viewportManager?: ViewportManager) {
     this.tokenContainer = tokenContainer;
     this.scaleProvider = scaleProvider;
+    this.viewportManager = viewportManager;
   }
 
   /**
@@ -158,9 +158,21 @@ export class TokenRenderer {
   private snapToGrid(position: TokenPosition): TokenPosition {
     if (!this._snapToGrid) return position;
     
-    // Snap to grid center - each grid square center is at (n * gridSize + gridSize/2)
-    const gridX = Math.round((position.x - this._gridSize / 2) / this._gridSize) * this._gridSize + this._gridSize / 2;
-    const gridY = Math.round((position.y - this._gridSize / 2) / this._gridSize) * this._gridSize + this._gridSize / 2;
+    // Snap to grid cell centers for proper visual positioning
+    // Grid cell centers are at (n * gridSize + gridSize/2)
+    const gridCellX = Math.round((position.x - this._gridSize / 2) / this._gridSize);
+    const gridCellY = Math.round((position.y - this._gridSize / 2) / this._gridSize);
+    const gridX = gridCellX * this._gridSize + this._gridSize / 2;
+    const gridY = gridCellY * this._gridSize + this._gridSize / 2;
+    
+    console.log('[TokenRenderer] Snap-to-grid calculation:', {
+      originalPosition: position,
+      gridSize: this._gridSize,
+      gridCellX,
+      gridCellY,
+      snappedPosition: { x: gridX, y: gridY },
+      resultingGridCoords: { x: gridX / this._gridSize, y: gridY / this._gridSize }
+    });
     
     return { x: gridX, y: gridY };
   }
@@ -551,6 +563,16 @@ export class TokenRenderer {
     sprite.x = 0;
     sprite.y = 0;
     
+    // Make sprite draggable using HTML5 drag/drop (like character tabs)
+    sprite.eventMode = 'static';
+    sprite.cursor = 'grab';
+    
+    // Add HTML5 draggable properties to the sprite's DOM element if available
+    if (sprite.eventMode && this.dragEnabled) {
+      // The sprite will emit drag events that we can handle at the Vue component level
+      sprite.cursor = 'grab';
+    }
+    
     // Calculate size based on grid bounds
     const size = this.getPixelSizeFromBounds(token.bounds);
     
@@ -658,16 +680,15 @@ export class TokenRenderer {
    */
   private setupSpriteEvents(sprite: TokenSprite): void {
     sprite.removeAllListeners(); // Prevent duplicate event handlers
-    // Click/tap handler
+    
+    // Simple click handler for selection
     sprite.on('pointerdown', this.handlePointerDown.bind(this, sprite));
-    // Remove pointermove from individual sprites - we'll use stage-level listeners during drag
-    // sprite.on('pointermove', this.handlePointerMove.bind(this, sprite));
-    sprite.on('pointerup', this.handlePointerUp.bind(this));
-    sprite.on('pointerupoutside', this.handlePointerUp.bind(this));
+    
     // Hover effects
     sprite.on('pointerover', this.handlePointerOver.bind(this, sprite));
     sprite.on('pointerout', this.handlePointerOut.bind(this, sprite));
-    // Add rightdown event for right-click context menu
+    
+    // Right-click context menu
     sprite.on('rightdown', (event: PIXI.FederatedPointerEvent) => {
       if (sprite.tokenId && this.eventHandlers.rightClick) {
         this.eventHandlers.rightClick(sprite.tokenId, event);
@@ -702,29 +723,35 @@ export class TokenRenderer {
   }
 
   /**
-   * Handle pointer down event
+   * Handle pointer down event - emit drag start for Vue component to handle
    */
   private handlePointerDown(sprite: TokenSprite, event: PIXI.FederatedPointerEvent): void {
     if (!sprite.tokenId) return;
-    // Store original position before any potential drag
-    sprite.originalPosition = { x: sprite.x, y: sprite.y };
-    // Remove right-click logic from here; handled by rightdown event
-    // Left click - prepare for potential drag (but don't start dragging yet)
+    
     if (event.button === 0 && this.dragEnabled) {
-      // Store drag start information but don't mark as dragging yet
-      this._dragTarget = sprite;
-      this._dragStartPosition = { x: sprite.x, y: sprite.y };
-      this._dragStartGlobal = { x: event.global.x, y: event.global.y };
-      // Set up stage-level listeners to detect if this becomes a drag
+      // Emit drag start event - let Vue component handle the drag with character tab logic
+      if (this.eventHandlers.dragStart) {
+        this.eventHandlers.dragStart(sprite.tokenId, { x: event.global.x, y: event.global.y });
+      }
+      
+      // Set cursor to dragging
+      sprite.cursor = 'grabbing';
+      
+      // Set up listeners for drag end to reset cursor
       const stage = this.tokenContainer.parent;
       if (stage) {
-        stage.on('pointermove', this.handleStageDragMove, this);
-        stage.on('pointerup', this.handleStageDragEnd, this);
-        stage.on('pointerupoutside', this.handleStageDragEnd, this);
+        const handleDragEnd = () => {
+          sprite.cursor = 'grab';
+          stage.off('pointerup', handleDragEnd);
+          stage.off('pointerupoutside', handleDragEnd);
+        };
+        stage.on('pointerup', handleDragEnd);
+        stage.on('pointerupoutside', handleDragEnd);
       }
+    } else {
+      // Handle click and double-click detection for selection
+      this.handleClickAndDoubleClick(sprite, event);
     }
-    // Handle click and double-click detection
-    this.handleClickAndDoubleClick(sprite, event);
   }
   
   /**
@@ -757,167 +784,13 @@ export class TokenRenderer {
     }
   }
   
-  /**
-   * Handle stage-level drag move event
-   */
-  private handleStageDragMove(event: PIXI.FederatedPointerEvent): void {
-    if (!this._dragTarget || !this._dragStartGlobal || !this._dragStartPosition) return;
-    
-    const sprite = this._dragTarget;
-    if (!sprite.tokenId) return;
-    
-    // Calculate distance from initial mouse position
-    const deltaX = event.global.x - this._dragStartGlobal.x;
-    const deltaY = event.global.y - this._dragStartGlobal.y;
-    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-    
-    // If not dragging yet, check if we've exceeded the threshold
-    if (!this._isDragging) {
-      if (distance >= this._dragThreshold) {
-        // Start dragging
-        this._isDragging = true;
-        sprite.dragging = true;
-        
-        // Emit drag start event
-        if (this.eventHandlers.dragStart) {
-          const currentPos = { x: sprite.x, y: sprite.y };
-          this.eventHandlers.dragStart(sprite.tokenId, currentPos);
-        }
-      } else {
-        // Haven't exceeded threshold yet, don't move the token
-        return;
-      }
-    }
-    
-    // Continue dragging - update sprite position
-    const newPosition = this.calculateDragPosition(sprite, event);
-    sprite.x = newPosition.x;
-    sprite.y = newPosition.y;
-    
-    // Emit drag move event
-    if (this.eventHandlers.dragMove) {
-      this.eventHandlers.dragMove(sprite.tokenId, { x: sprite.x, y: sprite.y });
-    }
-  }
+  // Complex PIXI drag system removed - will use HTML5 drag/drop instead
   
-  /**
-   * Handle stage-level drag end event
-   */
-  private handleStageDragEnd(): void {
-    if (!this._dragTarget) return;
-    
-    const sprite = this._dragTarget;
-    if (!sprite.tokenId) return;
-    
-    // Remove stage-level event listeners
-    const stage = this.tokenContainer.parent;
-    if (stage) {
-      stage.off('pointermove', this.handleStageDragMove, this);
-      stage.off('pointerup', this.handleStageDragEnd, this);
-      stage.off('pointerupoutside', this.handleStageDragEnd, this);
-    }
-    
-    // Check if we were actually dragging
-    if (this._isDragging && sprite.dragging) {
-      // This was a drag operation
-      const originalPos = this._dragStartPosition;
-      const currentPos = { x: sprite.x, y: sprite.y };
-      
-      // Check if the token actually moved
-      const hasMoved = originalPos && (
-        Math.abs(currentPos.x - originalPos.x) > 0.1 || 
-        Math.abs(currentPos.y - originalPos.y) > 0.1
-      );
-      
-      if (hasMoved) {
-        // Snap the final position to grid
-        const snappedPosition = this.snapToGrid(currentPos);
-        
-        // Check if the snapped position is within map bounds
-        if (!isPositionWithinBounds(snappedPosition, this._mapData)) {
-          const clampedPosition = clampPositionToBounds(snappedPosition, this._mapData);
-          
-          // Update sprite to clamped position
-          sprite.x = clampedPosition.x;
-          sprite.y = clampedPosition.y;
-          
-          // Emit drag end event with clamped position
-          if (this.eventHandlers.dragEnd) {
-            this.eventHandlers.dragEnd(sprite.tokenId, clampedPosition);
-          }
-        } else {
-          // Position is within bounds, use snapped position
-          sprite.x = snappedPosition.x;
-          sprite.y = snappedPosition.y;
-          
-          // Emit drag end event with snapped position
-          console.log('[Drag Debug] Final coordinates being sent:', {
-            tokenId: sprite.tokenId,
-            originalDragStart: this._dragStartPosition,
-            currentSpritePos: { x: sprite.x, y: sprite.y },
-            snappedPosition,
-            gridSize: this._gridSize
-          });
-          
-          if (this.eventHandlers.dragEnd) {
-            this.eventHandlers.dragEnd(sprite.tokenId, snappedPosition);
-          }
-        }
-      } else {
-        // Token didn't actually move, reset to original position
-        if (originalPos) {
-          sprite.x = originalPos.x;
-          sprite.y = originalPos.y;
-        }
-      }
-    } else {
-      // This was a click (not a drag) - let parent component handle selection
-      // The click event was already emitted in handlePointerDown
-    }
-    
-    // Clean up drag state
-    this._isDragging = false;
-    this._dragTarget = null;
-    this._dragStartPosition = null;
-    this._dragStartGlobal = null;
-    
-    // Clean up sprite drag state
-    sprite.dragging = false;
-    sprite.originalPosition = undefined;
-  }
+  // Drag end handler removed - will use HTML5 drag/drop instead
   
 
   
-  /**
-   * Handle pointer up event
-   */
-  private handlePointerUp(): void {
-    // The stage drag end handler will handle all the drag/selection logic
-  }
-  
-  /**
-   * Calculate new position during drag
-   */
-  private calculateDragPosition(sprite: TokenSprite, event: PIXI.FederatedPointerEvent): TokenPosition {
-    if (!this._dragStartGlobal || !this._dragStartPosition) return { x: sprite.x, y: sprite.y };
-
-    // Calculate the difference in global coordinates (screen pixels)
-    const dx = event.global.x - this._dragStartGlobal.x;
-    const dy = event.global.y - this._dragStartGlobal.y;
-
-    // Get the current scale from the scale provider (ViewportManager)
-    const scale = this.scaleProvider ? this.scaleProvider() : 1;
-    
-    // Convert screen pixel movement to world coordinate movement
-    const worldDx = dx / scale;
-    const worldDy = dy / scale;
-
-
-    return {
-      x: this._dragStartPosition.x + worldDx,
-      y: this._dragStartPosition.y + worldDy
-    };
-  }
+  // Complex drag calculation methods removed - will use HTML5 drag/drop instead
   
 
   
