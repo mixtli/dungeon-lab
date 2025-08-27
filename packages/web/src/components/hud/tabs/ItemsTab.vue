@@ -50,6 +50,7 @@
         ]"
         draggable="true"
         @click="selectItem(item)"
+        @dblclick="openItemSheet(item)"
         @dragstart="handleDragStart($event, item)"
         @dragend="handleDragEnd"
       >
@@ -105,11 +106,13 @@
 import { ref, computed, onMounted } from 'vue';
 import { useGameStateStore } from '../../../stores/game-state.store.mjs';
 import { useSocketStore } from '../../../stores/socket.store.mjs';
+import { useDocumentSheetStore } from '../../../stores/document-sheet.store.mjs';
 import { getAssetUrl } from '../../../utils/asset-utils.mjs';
 import type { IItem } from '@dungeon-lab/shared/types/index.mjs';
 
 const gameStateStore = useGameStateStore();
 const socketStore = useSocketStore();
+const documentSheetStore = useDocumentSheetStore();
 const searchQuery = ref('');
 const activeFilter = ref('all');
 const itemImageUrls = ref<Record<string, string>>({});
@@ -209,6 +212,10 @@ async function selectItem(item: IItem): Promise<void> {
   } catch (error) {
     console.error('Failed to select item:', error);
   }
+}
+
+function openItemSheet(item: IItem): void {
+  documentSheetStore.openDocumentSheet(item);
 }
 
 async function giveToPlayer(item: IItem): Promise<void> {

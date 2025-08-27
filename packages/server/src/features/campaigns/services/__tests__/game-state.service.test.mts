@@ -53,16 +53,11 @@ describe('GameStateService', () => {
         // Mock initial game data (before Zod parsing)
         const mockInitialGameData = {
           state: {
+            campaign: null,
+            documents: {},
             currentEncounter: null,
-            characters: [],
-            npcs: [],
-            tokens: [],
-            turnOrder: [],
-            currentTurn: 0,
-            currentRound: 1,
-            isInitiativeActive: false,
-            conditions: [],
-            // Note: pluginData field is missing here (will be added by Zod defaults)
+            pluginData: {},
+            turnManager: null,
             createdAt: '2025-01-01T00:00:00.000Z',
             updatedAt: '2025-01-01T00:00:00.000Z'
           }
@@ -70,16 +65,11 @@ describe('GameStateService', () => {
 
         // Expected data after Zod parsing (with defaults applied)
         const expectedParsedData = {
+          campaign: null,
+          documents: {},
           currentEncounter: null,
-          characters: [],
-          npcs: [],
-          tokens: [],
-          turnOrder: [],
-          currentTurn: 0,
-          currentRound: 1,
-          isInitiativeActive: false,
-          conditions: [],
           pluginData: {}, // Zod adds this default
+          turnManager: null,
           createdAt: '2025-01-01T00:00:00.000Z',
           updatedAt: '2025-01-01T00:00:00.000Z'
         };
@@ -124,15 +114,10 @@ describe('GameStateService', () => {
         // when initializeGameState used raw data but validation used Zod-parsed data
 
         const rawStateData = {
+          campaign: null,
+          documents: {},
           currentEncounter: null,
-          characters: [],
-          npcs: [],
-          tokens: [],
-          turnOrder: [],
-          currentTurn: 0,
-          currentRound: 1,
-          isInitiativeActive: false,
-          conditions: [],
+          turnManager: null,
           // Missing pluginData field (common scenario)
           createdAt: '2025-01-01T00:00:00.000Z',
           updatedAt: '2025-01-01T00:00:00.000Z'
@@ -185,16 +170,11 @@ describe('GameStateService', () => {
     it('should generate same hash for equivalent data structures', () => {
       // This is more of an integration test with the hash utility
       const baseData = {
+        campaign: null,
+        documents: {},
         currentEncounter: null,
-        characters: [],
-        npcs: [],
-        tokens: [],
-        turnOrder: [],
-        currentTurn: 0,
-        currentRound: 1,
-        isInitiativeActive: false,
-        conditions: [],
         pluginData: {},
+        turnManager: null,
         createdAt: '2025-01-01T00:00:00.000Z',
         updatedAt: '2025-01-01T00:00:00.000Z'
       };

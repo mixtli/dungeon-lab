@@ -69,6 +69,7 @@
         ]"
         draggable="true"
         @click="selectDocument(document)"
+        @dblclick="openDocumentSheet(document)"
         @dragstart="handleDragStart($event, document)"
         @dragend="handleDragEnd"
       >
@@ -313,6 +314,10 @@ async function viewDocument(document: BaseDocument): Promise<void> {
   console.log('[DocumentsTab] Opening document sheet for:', document.name, document.documentType, document.pluginDocumentType);
   
   // Open the document using the same floating sheet system as characters/actors
+  documentSheetStore.openDocumentSheet(document);
+}
+
+function openDocumentSheet(document: BaseDocument): void {
   documentSheetStore.openDocumentSheet(document);
 }
 
