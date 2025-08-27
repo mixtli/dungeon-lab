@@ -24,10 +24,15 @@ export function isPositionWithinBounds(
   const mapWidth = map_size.x;
   const mapHeight = map_size.y;
 
-  console.log(`[BoundsValidation] Checking position ${JSON.stringify(position)} against map bounds ${mapWidth}x${mapHeight}`);
+  // Convert world pixel coordinates to grid coordinates for bounds checking
+  const pixelsPerGrid = mapData.uvtt.resolution.pixels_per_grid || 50;
+  const gridX = position.x / pixelsPerGrid;
+  const gridY = position.y / pixelsPerGrid;
 
-  // Check if position is within map bounds
-  const isValid = position.x >= 0 && position.x <= mapWidth && position.y >= 0 && position.y <= mapHeight;
+  console.log(`[BoundsValidation] Checking position ${JSON.stringify(position)} (pixels) -> grid(${gridX.toFixed(2)}, ${gridY.toFixed(2)}) against map bounds ${mapWidth}x${mapHeight} cells`);
+
+  // Check if grid position is within map bounds (map bounds are in grid cells)
+  const isValid = gridX >= 0 && gridX <= mapWidth && gridY >= 0 && gridY <= mapHeight;
   
   if (!isValid) {
     console.log('[BoundsValidation] Position is outside map bounds');
@@ -54,8 +59,17 @@ export function clampPositionToBounds(
   const mapWidth = map_size.x;
   const mapHeight = map_size.y;
 
+  // Convert world pixel coordinates to grid coordinates for clamping
+  const pixelsPerGrid = mapData.uvtt.resolution.pixels_per_grid || 50;
+  const gridX = position.x / pixelsPerGrid;
+  const gridY = position.y / pixelsPerGrid;
+
+  // Clamp to grid bounds and convert back to world coordinates
+  const clampedGridX = Math.max(0, Math.min(gridX, mapWidth));
+  const clampedGridY = Math.max(0, Math.min(gridY, mapHeight));
+
   return {
-    x: Math.max(0, Math.min(position.x, mapWidth)),
-    y: Math.max(0, Math.min(position.y, mapHeight))
+    x: clampedGridX * pixelsPerGrid,
+    y: clampedGridY * pixelsPerGrid
   };
 } 

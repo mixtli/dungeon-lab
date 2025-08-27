@@ -402,7 +402,7 @@ const handleTokenSelection = (tokenId: string, modifiers?: { shift?: boolean; ct
   contextMenuToken.value = null;
 };
 
-const handleTokenMoved = async (tokenId: string, x: number, y: number) => {
+const handleTokenMoved = async (tokenId: string, x: number, y: number, dragDistance?: number) => {
   if (!encounter.value) return;
   
   const token = encounter.value.tokens ? Object.values(encounter.value.tokens).find(t => t.id === tokenId) : undefined;
@@ -414,7 +414,7 @@ const handleTokenMoved = async (tokenId: string, x: number, y: number) => {
   try {
     // Use the new action request system for token movement
     const elevation = token.bounds?.elevation || 0;
-    const result = await requestTokenMove(tokenId, { x, y, elevation });
+    const result = await requestTokenMove(tokenId, { x, y, elevation }, dragDistance);
     
     if (result.success && !result.approved) {
       // Show notification to player that movement is pending approval

@@ -33,7 +33,8 @@ export function usePlayerActions() {
    */
   const requestTokenMove = async (
     tokenId: string, 
-    newPosition: { x: number; y: number; elevation?: number }
+    newPosition: { x: number; y: number; elevation?: number },
+    dragDistance?: number
   ): Promise<ActionRequestResult> => {
     const token = gameStateStore.currentEncounter?.tokens ? Object.values(gameStateStore.currentEncounter.tokens).find(t => t.id === tokenId) : undefined;
     
@@ -41,16 +42,23 @@ export function usePlayerActions() {
       throw new Error('Token not found');
     }
 
-    // Calculate center position from bounds for distance calculation
-    // Get the actual grid size from the current map
-    const currentMap = gameStateStore.currentEncounter?.currentMap;
-    const pixelsPerGrid = currentMap?.uvtt?.resolution?.pixels_per_grid || 50; // fallback to 50
+    // Use provided drag distance or calculate from current token position
+    let distance: number;
     
-    // Calculate center using same corrected formula as PixiMapViewer for consistency
-    const currentCenterX = ((token.bounds.topLeft.x + token.bounds.bottomRight.x + 1) / 2) * pixelsPerGrid;
-    const currentCenterY = ((token.bounds.topLeft.y + token.bounds.bottomRight.y + 1) / 2) * pixelsPerGrid;
-    const currentPosition = { x: currentCenterX, y: currentCenterY, elevation: token.bounds.elevation };
-    const distance = calculateDistance(currentPosition, newPosition);
+    if (dragDistance !== undefined) {
+      // Use the distance calculated during drag operation (more accurate)
+      distance = dragDistance;
+    } else {
+      // Fall back to calculation from stored token position (for arrow keys, etc.)
+      const currentMap = gameStateStore.currentEncounter?.currentMap;
+      const pixelsPerGrid = currentMap?.uvtt?.resolution?.pixels_per_grid || 50; // fallback to 50
+      
+      // Calculate center using same corrected formula as PixiMapViewer for consistency
+      const currentCenterX = ((token.bounds.topLeft.x + token.bounds.bottomRight.x + 1) / 2) * pixelsPerGrid;
+      const currentCenterY = ((token.bounds.topLeft.y + token.bounds.bottomRight.y + 1) / 2) * pixelsPerGrid;
+      const currentPosition = { x: currentCenterX, y: currentCenterY, elevation: token.bounds.elevation };
+      distance = calculateDistance(currentPosition, newPosition);
+    }
 
     const params: MoveTokenParameters = {
       tokenId,

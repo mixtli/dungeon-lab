@@ -200,7 +200,7 @@ interface Emits {
   (e: 'map-loaded', mapData: IMapResponse): void;
   (e: 'map-error', error: string): void;
   (e: 'token-selected', tokenId: string, modifiers?: { shift?: boolean; ctrl?: boolean; alt?: boolean }): void;
-  (e: 'token-moved', tokenId: string, x: number, y: number): void;
+  (e: 'token-moved', tokenId: string, x: number, y: number, dragDistance?: number): void;
   (e: 'viewport-changed', viewport: { x: number; y: number; scale: number }): void;
   (e: 'canvas-click', x: number, y: number, event: MouseEvent): void;
   (e: 'canvas-right-click', x: number, y: number, event: MouseEvent): void;
@@ -605,8 +605,8 @@ const handleTokenDragMove = (tokenId: string, position: { x: number; y: number }
   // Don't move token locally during drag - let the TokenRenderer handle the visual movement
   // moveToken(tokenId, snappedPosition.x, snappedPosition.y);
   
-  // Emit move event for parent components
-  emit('token-moved', tokenId, snappedPosition.x, snappedPosition.y);
+  // Don't emit token-moved during drag - only emit on dragEnd to prevent spam
+  // This allows visual dragging without sending action requests on every mouse move
 };
 
 const handleTokenDragEnd = async (tokenId: string, position: { x: number; y: number }) => {
@@ -620,8 +620,16 @@ const handleTokenDragEnd = async (tokenId: string, position: { x: number; y: num
     return;
   }
   
-  // Emit the token moved event to parent (EncounterView will handle the state update)
-  emit('token-moved', tokenId, position.x, position.y);
+  // Calculate drag distance if we have start position
+  let dragDistance = 0;
+  if (dragStartPos.value) {
+    const dx = position.x - dragStartPos.value.x;
+    const dy = position.y - dragStartPos.value.y;
+    dragDistance = Math.sqrt(dx * dx + dy * dy);
+  }
+  
+  // Emit the token moved event to parent with drag distance for accurate calculation
+  emit('token-moved', tokenId, position.x, position.y, dragDistance);
   
   // Reset drag state
   isDragging.value = false;
@@ -790,6 +798,7 @@ const handleKeyDown = async (event: KeyboardEvent) => {
   });
   
   // Emit the token moved event to parent (EncounterView will handle the state update)
+  // No dragDistance for arrow keys - will be calculated in usePlayerActions
   emit('token-moved', pixiSelectedTokenId.value, newX, newY);
 };
 
