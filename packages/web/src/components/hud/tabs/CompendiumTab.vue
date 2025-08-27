@@ -134,7 +134,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { CompendiumsClient } from '@dungeon-lab/client/index.mjs';
 import { playerActionService } from '../../../services/player-action.service.mjs';
 import { transformAssetUrl } from '../../../utils/asset-utils.mjs';
@@ -158,7 +158,7 @@ const selectedEntry = ref<ICompendiumEntry | null>(null);
 
 // Pagination
 const currentPage = ref(1);
-const pageLimit = ref(20);
+const pageLimit = ref(50);
 const totalEntries = ref(0);
 const hasMore = computed(() => entries.value.length < totalEntries.value);
 
@@ -281,8 +281,18 @@ async function loadEntries(reset = false): Promise<void> {
 
 async function loadMore(): Promise<void> {
   if (hasMore.value && !loading.value) {
+    // Store current scroll position before loading new entries
+    const scrollContainer = compendiumListRef.value;
+    const currentScrollTop = scrollContainer?.scrollTop || 0;
+    
     currentPage.value++;
     await loadEntries();
+    
+    // Restore scroll position after DOM updates complete
+    await nextTick();
+    if (scrollContainer) {
+      scrollContainer.scrollTop = currentScrollTop;
+    }
   }
 }
 
