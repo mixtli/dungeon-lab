@@ -59,7 +59,7 @@ const tabs = computed(() => [
     icon: ShieldCheckIcon,
     iconSolid: ShieldCheckIconSolid,
     isActive: computed(() => {
-      return route.name === 'encounter-run' || 
+      return route.name === 'active-encounter' || 
              route.name === 'encounter-detail' ||
              route.name === 'game-session' ||
              route.name === 'game-table';
@@ -67,21 +67,9 @@ const tabs = computed(() => [
     navigate: () => {
       console.log('[BottomNav] Encounter button clicked');
       console.log('[BottomNav] Current session:', gameSessionStore.currentSession);
-      console.log('[BottomNav] Current encounter ID:', gameStateStore.currentEncounter?.id);
       
-      if (gameStateStore.currentEncounter?.id) {
-        router.push({ 
-          name: 'encounter-run', 
-          params: { 
-            id: gameStateStore.currentEncounter.id 
-          } 
-        });
-      } else {
-        notificationStore.addNotification({
-          message: 'No active encounter found.',
-          type: 'warning',
-        });
-      }
+      // Navigate to active encounter route - no ID needed as it shows the active encounter
+      router.push({ name: 'active-encounter' });
     }
   },
   {

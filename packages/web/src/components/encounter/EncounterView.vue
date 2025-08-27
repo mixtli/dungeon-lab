@@ -29,7 +29,7 @@
       </div>
     </div>
     <!-- Main Encounter View - Fullscreen with AppHeader -->
-    <div v-else-if="encounter" class="encounter-view-fullscreen" :style="hudLayoutStyle">
+    <div v-else-if="encounter" class="encounter-view-fullscreen" :class="{ 'mobile-with-bottom-nav': deviceConfig.type === 'phone' }" :style="hudLayoutStyle">
         <!-- Main Content Area - Canvas -->
         <div 
           class="encounter-content" 
@@ -407,8 +407,8 @@ const handleTokenSelection = (tokenId: string, modifiers?: { shift?: boolean; ct
 const handleTokenDragStart = (tokenId: string, globalPosition: { x: number; y: number }) => {
   console.log('[EncounterView] Token drag started:', { tokenId, globalPosition });
   
-  // Set up one-time mouse up listener to handle drop using character tab logic
-  const handleDragDrop = (event: MouseEvent) => {
+  // Set up one-time mouse/touch up listener to handle drop using character tab logic
+  const handleDragDrop = (event: MouseEvent | TouchEvent) => {
     if (!pixiMapViewer.value || !mapContainerRef.value) {
       console.error('[EncounterView] Required refs not available for drag drop');
       return;
@@ -418,9 +418,26 @@ const handleTokenDragStart = (tokenId: string, globalPosition: { x: number; y: n
     const mapContainer = mapContainerRef.value;
     const pixiViewer = pixiMapViewer.value;
     
+    // Handle both mouse and touch coordinates
+    let clientX: number;
+    let clientY: number;
+    
+    if (event.type === 'touchend') {
+      // Touch event - use changedTouches for touchend (touches array is empty on touchend)
+      const touchEvent = event as TouchEvent;
+      const touch = touchEvent.changedTouches[0];
+      clientX = touch.clientX;
+      clientY = touch.clientY;
+    } else {
+      // Mouse event
+      const mouseEvent = event as MouseEvent;
+      clientX = mouseEvent.clientX;
+      clientY = mouseEvent.clientY;
+    }
+    
     const rect = mapContainer.getBoundingClientRect();
-    const screenX = event.clientX - rect.left;
-    const screenY = event.clientY - rect.top;
+    const screenX = clientX - rect.left;
+    const screenY = clientY - rect.top;
     
     // Convert screen coordinates to world coordinates using proper PIXI transformation
     const worldCoords = pixiViewer.screenToWorld(screenX, screenY);
@@ -437,12 +454,14 @@ const handleTokenDragStart = (tokenId: string, globalPosition: { x: number; y: n
     // Move the token using the proven coordinate system
     handleTokenMoved(tokenId, worldX, worldY);
     
-    // Clean up listener
+    // Clean up both listeners
     document.removeEventListener('mouseup', handleDragDrop);
+    document.removeEventListener('touchend', handleDragDrop);
   };
   
-  // Listen for mouse up globally to handle drop
+  // Listen for both mouse and touch events globally to handle drop
   document.addEventListener('mouseup', handleDragDrop, { once: true });
+  document.addEventListener('touchend', handleDragDrop, { once: true });
 };
 
 const handleTokenMoved = async (tokenId: string, x: number, y: number) => {
@@ -980,7 +999,7 @@ const hudLayoutStyle = computed(() => {
   background: #000;
   margin: 0;
   padding: 0;
-  z-index: 50; /* Above normal content but below modals */
+  z-index: 30; /* Below bottom navigation (z-40) but above normal content */
 }
 
 .encounter-container {
@@ -1054,6 +1073,11 @@ const hudLayoutStyle = computed(() => {
 
 .full-motion * {
   @apply transition-all duration-200;
+}
+
+/* Mobile adjustments for bottom navigation */
+.mobile-with-bottom-nav {
+  bottom: 80px; /* Leave space for bottom navigation (64px + 16px padding) */
 }
 
 /* Fullscreen encounter experience */
