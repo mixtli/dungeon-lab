@@ -4,17 +4,17 @@
       <span class="request-icon">{{ rollTypeIcon }}</span>
       <div class="request-content">
         <span class="request-text">{{ rollRequest?.message || rollTypeLabel }}</span>
-        <div class="request-details">
-          <code class="dice-expression">{{ diceExpression }}</code>
-          <span class="roll-info">{{ rollInfo }}</span>
-        </div>
       </div>
+    </div>
+    
+    <!-- Roll Formula Display (centered like AdvantageRollDialog) -->
+    <div class="roll-formula">
+      <code class="dice-expression">{{ finalDiceExpression }}</code>
     </div>
     
     <div class="roll-configuration" v-if="!completed">
       <!-- Advantage/Disadvantage Selection -->
       <div class="advantage-controls">
-        <label class="control-label">{{ rollModeLabel }}:</label>
         <div class="advantage-buttons">
           <button 
             @click="advantageMode = 'disadvantage'"
@@ -48,45 +48,35 @@
         </div>
       </div>
 
-      <!-- Custom Modifier -->
-      <div class="modifier-control">
-        <label for="customModifier" class="control-label">Custom Modifier:</label>
-        <input
-          id="customModifier"
-          v-model.number="customModifier"
-          type="number"
-          class="modifier-input"
-          :placeholder="defaultArgs.customModifier || '0'"
-          :disabled="processing"
-        />
-      </div>
-
-      <!-- Roll Visibility -->
-      <div class="visibility-control">
-        <label for="recipients" class="control-label">Roll Visibility:</label>
-        <select
-          id="recipients"
-          v-model="recipients"
-          class="visibility-select"
-          :disabled="processing"
-        >
-          <option value="public">Public (everyone can see)</option>
-          <option value="private">Private (only you can see)</option>
-          <option value="gm">GM Only (only GM can see)</option>
-        </select>
-      </div>
-
-      <!-- Roll Summary -->
-      <div class="roll-summary">
-        <div class="summary-line">
-          <span class="summary-label">Total Bonus:</span>
-          <span class="summary-value">{{ totalModifierDisplay }}</span>
+      <!-- Custom Modifier and Roll Visibility in grid layout -->
+      <div class="input-grid">
+        <div class="modifier-control">
+          <label for="customModifier" class="control-label">Custom Modifier</label>
+          <input
+            id="customModifier"
+            v-model.number="customModifier"
+            type="number"
+            class="modifier-input"
+            :placeholder="defaultArgs.customModifier || '0'"
+            :disabled="processing"
+          />
         </div>
-        <div class="summary-line">
-          <span class="summary-label">Dice:</span>
-          <span class="summary-value">{{ finalDiceExpression }}</span>
+        
+        <div class="visibility-control">
+          <label for="recipients" class="control-label">Roll Visibility</label>
+          <select
+            id="recipients"
+            v-model="recipients"
+            class="visibility-select"
+            :disabled="processing"
+          >
+            <option value="public">Public</option>
+            <option value="private">Private</option>
+            <option value="gm">GM Only</option>
+          </select>
         </div>
       </div>
+
     </div>
     
     <!-- Action Buttons -->
@@ -356,184 +346,29 @@ function declineRollRequest(): void {
 </script>
 
 <style scoped>
+/* Dark theme inspired by AdvantageRollDialog */
 .d20-roll-request {
-  border-radius: 12px;
+  background: #374151; /* Dark gray background */
+  border-radius: 8px;
   padding: 16px;
   margin: 8px 0;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  max-width: 28rem; /* Similar to AdvantageRollDialog max-width */
 }
 
-/* Roll type specific styles */
-.roll-type-spell-attack {
-  background: linear-gradient(135deg, #e8eaf6 0%, #c5cae9 100%);
-  border: 2px solid #3f51b5;
-}
-
-.roll-type-spell-attack .request-icon {
-  background: #3f51b5;
-}
-
-.roll-type-spell-attack .dice-expression {
-  background: rgba(63, 81, 181, 0.1);
-  color: #303f9f;
-  border: 1px solid rgba(63, 81, 181, 0.3);
-}
-
-.roll-type-spell-attack .roll-summary {
-  background: rgba(63, 81, 181, 0.1);
-  border: 1px solid rgba(63, 81, 181, 0.3);
-}
-
-.roll-type-spell-attack .summary-value {
-  color: #3f51b5;
-}
-
-.roll-type-spell-attack .advantage-btn.active {
-  border-color: #3f51b5;
-  background: #3f51b5;
-}
-
-.roll-type-spell-attack .modifier-input:focus {
-  border-color: #3f51b5;
-  box-shadow: 0 0 0 2px rgba(63, 81, 181, 0.2);
-}
-
-.roll-type-spell-attack .visibility-select:focus {
-  border-color: #3f51b5;
-  box-shadow: 0 0 0 2px rgba(63, 81, 181, 0.2);
-}
-
-.roll-type-weapon-attack {
-  background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%);
-  border: 2px solid #d32f2f;
-}
-
-.roll-type-weapon-attack .request-icon {
-  background: #d32f2f;
-}
-
-.roll-type-weapon-attack .dice-expression {
-  background: rgba(211, 47, 47, 0.1);
-  color: #c62828;
-  border: 1px solid rgba(211, 47, 47, 0.3);
-}
-
-.roll-type-weapon-attack .roll-summary {
-  background: rgba(211, 47, 47, 0.1);
-  border: 1px solid rgba(211, 47, 47, 0.3);
-}
-
-.roll-type-weapon-attack .summary-value {
-  color: #d32f2f;
-}
-
-.roll-type-weapon-attack .advantage-btn.active {
-  border-color: #d32f2f;
-  background: #d32f2f;
-}
-
-.roll-type-weapon-attack .modifier-input:focus {
-  border-color: #d32f2f;
-  box-shadow: 0 0 0 2px rgba(211, 47, 47, 0.2);
-}
-
-.roll-type-weapon-attack .visibility-select:focus {
-  border-color: #d32f2f;
-  box-shadow: 0 0 0 2px rgba(211, 47, 47, 0.2);
-}
-
-.roll-type-ability-check {
-  background: linear-gradient(135deg, #e8f5e8 0%, #c8e6c8 100%);
-  border: 2px solid #4caf50;
-}
-
-.roll-type-ability-check .request-icon {
-  background: #4caf50;
-}
-
-.roll-type-ability-check .dice-expression {
-  background: rgba(76, 175, 80, 0.1);
-  color: #388e3c;
-  border: 1px solid rgba(76, 175, 80, 0.3);
-}
-
-.roll-type-ability-check .roll-summary {
-  background: rgba(76, 175, 80, 0.1);
-  border: 1px solid rgba(76, 175, 80, 0.3);
-}
-
-.roll-type-ability-check .summary-value {
-  color: #4caf50;
-}
-
-.roll-type-ability-check .advantage-btn.active {
-  border-color: #4caf50;
-  background: #4caf50;
-}
-
-.roll-type-ability-check .modifier-input:focus {
-  border-color: #4caf50;
-  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
-}
-
-.roll-type-ability-check .visibility-select:focus {
-  border-color: #4caf50;
-  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
-}
-
-.roll-type-saving-throw {
-  background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
-  border: 2px solid #ff9800;
-}
-
-.roll-type-saving-throw .request-icon {
-  background: #ff9800;
-}
-
-.roll-type-saving-throw .dice-expression {
-  background: rgba(255, 152, 0, 0.1);
-  color: #f57c00;
-  border: 1px solid rgba(255, 152, 0, 0.3);
-}
-
-.roll-type-saving-throw .roll-summary {
-  background: rgba(255, 152, 0, 0.1);
-  border: 1px solid rgba(255, 152, 0, 0.3);
-}
-
-.roll-type-saving-throw .summary-value {
-  color: #ff9800;
-}
-
-.roll-type-saving-throw .advantage-btn.active {
-  border-color: #ff9800;
-  background: #ff9800;
-}
-
-.roll-type-saving-throw .modifier-input:focus {
-  border-color: #ff9800;
-  box-shadow: 0 0 0 2px rgba(255, 152, 0, 0.2);
-}
-
-.roll-type-saving-throw .visibility-select:focus {
-  border-color: #ff9800;
-  box-shadow: 0 0 0 2px rgba(255, 152, 0, 0.2);
-}
-
-/* Common styles */
+/* Header */
 .request-header {
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 24px;
+  position: relative;
 }
 
 .request-icon {
-  font-size: 24px;
-  color: white;
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
+  font-size: 20px;
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -546,17 +381,17 @@ function declineRollRequest(): void {
 
 .request-text {
   font-weight: 600;
-  color: #4a1a4a;
+  color: #10b981; /* Green title like AdvantageRollDialog */
   display: block;
   margin-bottom: 8px;
-  font-size: 16px;
+  font-size: 20px;
+  text-align: center;
 }
 
-.request-details {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
+/* Roll formula display */
+.roll-formula {
+  text-align: center;
+  margin-bottom: 16px;
 }
 
 .dice-expression {
@@ -564,32 +399,29 @@ function declineRollRequest(): void {
   border-radius: 6px;
   font-family: 'Courier New', monospace;
   font-weight: bold;
+  font-size: 18px;
+  color: #e5e7eb;
+  background: transparent;
+  border: none;
 }
 
-.roll-info {
-  color: #666;
-  font-style: italic;
-  font-size: 14px;
-}
-
+/* Roll configuration with dark styling */
 .roll-configuration {
-  background: rgba(255, 255, 255, 0.7);
-  border-radius: 8px;
-  padding: 16px;
-  margin-bottom: 16px;
   display: flex;
   flex-direction: column;
   gap: 16px;
+  margin-bottom: 16px;
 }
 
 .control-label {
   font-weight: 600;
-  color: #333;
+  color: #e5e7eb;
   font-size: 14px;
   margin-bottom: 8px;
   display: block;
 }
 
+/* Advantage buttons with dark theme */
 .advantage-controls {
   display: flex;
   flex-direction: column;
@@ -603,11 +435,11 @@ function declineRollRequest(): void {
 
 .advantage-btn {
   flex: 1;
-  padding: 12px 16px;
-  border: 2px solid #ddd;
-  border-radius: 8px;
-  background: white;
-  color: #666;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  background: #4b5563;
+  color: #d1d5db;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -616,21 +448,12 @@ function declineRollRequest(): void {
 }
 
 .advantage-btn:hover:not(:disabled) {
-  border-color: #999;
-  background: #f5f5f5;
+  background: #6b7280;
 }
 
 .advantage-btn.active {
+  background: #2563eb; /* Blue for active state like AdvantageRollDialog */
   color: white;
-}
-
-.advantage-btn.has-conditions {
-  border-color: #ff9800;
-  box-shadow: 0 0 0 2px rgba(255, 152, 0, 0.3);
-}
-
-.advantage-btn.active.has-conditions {
-  box-shadow: 0 0 0 2px rgba(255, 152, 0, 0.5);
 }
 
 .advantage-btn:disabled {
@@ -646,124 +469,109 @@ function declineRollRequest(): void {
   margin-top: 4px;
 }
 
-.modifier-control {
+/* Input grid layout (like AdvantageRollDialog) */
+.input-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.modifier-control, .visibility-control {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
 }
 
 .modifier-input {
-  width: 120px;
+  width: 100%;
   padding: 8px 12px;
-  border: 2px solid #ddd;
+  border: 2px solid #6b7280;
   border-radius: 6px;
+  background: #4b5563;
+  color: #e5e7eb;
   font-family: 'Courier New', monospace;
   font-weight: bold;
   font-size: 16px;
   text-align: center;
 }
 
-.visibility-control {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+.modifier-input:focus {
+  border-color: #10b981;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
 }
 
 .visibility-select {
+  width: 100%;
   padding: 8px 12px;
-  border: 2px solid #ddd;
+  border: 2px solid #6b7280;
   border-radius: 6px;
-  background: white;
+  background: #4b5563;
+  color: #e5e7eb;
   font-size: 14px;
   cursor: pointer;
 }
 
-.roll-summary {
-  border-radius: 6px;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+.visibility-select:focus {
+  border-color: #10b981;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
 }
 
-.summary-line {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
 
-.summary-label {
-  font-weight: 600;
-  color: #333;
-}
-
-.summary-value {
-  font-family: 'Courier New', monospace;
-  font-weight: bold;
-  font-size: 16px;
-}
-
+/* Action buttons */
 .request-actions {
   display: flex;
   gap: 12px;
-  justify-content: flex-end;
 }
 
 .roll-btn, .decline-btn {
-  padding: 12px 24px;
+  flex: 1;
+  padding: 8px 16px;
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
-  font-size: 16px;
+  font-size: 14px;
 }
 
 .roll-btn {
-  background: linear-gradient(135deg, #4caf50, #388e3c);
+  background: #10b981;
   color: white;
-  box-shadow: 0 2px 4px rgba(76, 175, 80, 0.3);
 }
 
 .roll-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, #66bb6a, #4caf50);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(76, 175, 80, 0.4);
+  background: #059669;
 }
 
 .roll-btn:disabled {
-  background: #bdbdbd;
+  background: #6b7280;
   cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
 }
 
 .decline-btn {
-  background: linear-gradient(135deg, #f44336, #d32f2f);
-  color: white;
-  box-shadow: 0 2px 4px rgba(244, 67, 54, 0.3);
+  background: #6b7280;
+  color: #e5e7eb;
 }
 
 .decline-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, #ef5350, #f44336);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(244, 67, 54, 0.4);
+  background: #4b5563;
 }
 
 .decline-btn:disabled {
-  background: #bdbdbd;
+  background: #4b5563;
   cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
 }
 
+/* Completion status */
 .completion-status {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   padding: 12px;
-  background: linear-gradient(135deg, #d4edda, #c3e6cb);
+  background: rgba(16, 185, 129, 0.2);
   border-radius: 8px;
   margin-top: 8px;
 }
@@ -774,7 +582,7 @@ function declineRollRequest(): void {
 }
 
 .completed-text {
-  color: #155724;
+  color: #10b981;
   font-weight: 600;
   font-size: 16px;
 }
@@ -796,10 +604,31 @@ function declineRollRequest(): void {
   }
 }
 
+/* Animation for modal appearance */
+.d20-roll-request {
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* Mobile responsiveness */
 @media (max-width: 640px) {
   .advantage-buttons {
     flex-direction: column;
+  }
+  
+  .input-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
   }
   
   .request-actions {
@@ -810,20 +639,8 @@ function declineRollRequest(): void {
     width: 100%;
   }
   
-  .request-details {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-  
   .roll-configuration {
-    padding: 12px;
-  }
-  
-  .summary-line {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
+    gap: 12px;
   }
 }
 </style>

@@ -8,7 +8,7 @@ export interface RollData {
   message?: string;
   dice: Array<{ sides: number; quantity: number }>;
   metadata?: Record<string, unknown>;
-  /** Optional plugin component type for custom chat UI (e.g., 'roll-request-weapon-attack') */
+  /** Optional plugin component type for custom chat UI (e.g., 'roll-request-d20') */
   chatComponentType?: string;
 }
 
