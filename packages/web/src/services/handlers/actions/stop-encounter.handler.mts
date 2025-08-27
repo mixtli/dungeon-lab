@@ -9,6 +9,8 @@ import type { ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/inde
 import type { ActionHandler, ActionValidationResult, ActionValidationHandler, ActionExecutionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 import type { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.mjs';
 import { generateLifecycleResetPatches } from '@dungeon-lab/shared/utils/document-state-lifecycle.mjs';
+import { useSocketStore } from '../../../stores/socket.store.mjs';
+import { useGameSessionStore } from '../../../stores/game-session.store.mjs';
 
 /**
  * Validate stop encounter request
@@ -57,16 +59,6 @@ const validateStopEncounter: ActionValidationHandler = async (
     };
   }
 
-  // Check if encounter is already stopped
-  if (gameState.currentEncounter.status === 'stopped') {
-    return {
-      valid: false,
-      error: {
-        code: 'ENCOUNTER_ALREADY_STOPPED',
-        message: 'Encounter is already stopped'
-      }
-    };
-  }
 
   return { valid: true };
 }
@@ -97,10 +89,7 @@ const executeStopEncounter: ActionExecutionHandler = async (
     }
   }
 
-  // Stop the current encounter
-  if (draft.currentEncounter) {
-    draft.currentEncounter.status = 'stopped';
-  }
+  // Note: We'll sync the encounter data back to MongoDB and then clear currentEncounter
 
   // Deactivate turn manager
   if (draft.turnManager) {
@@ -147,9 +136,41 @@ const executeStopEncounter: ActionExecutionHandler = async (
     // Don't throw - encounter stop should still succeed even if lifecycle resets fail
   }
 
+  // Sync all gameState data back to backing models (MongoDB) before clearing currentEncounter
+  try {
+    const socketStore = useSocketStore();
+    const gameSessionStore = useGameSessionStore();
+    
+    if (socketStore.socket && gameSessionStore.currentSession?.id) {
+      console.log('[StopEncounterHandler] Syncing gameState to backing models...');
+      
+      const syncPromise = new Promise<{ success: boolean; error?: string }>((resolve) => {
+        socketStore.socket?.emit('gameState:sync', gameSessionStore.currentSession!.id, (response) => {
+          resolve(response);
+        });
+      });
+
+      const syncResult = await syncPromise;
+      
+      if (syncResult.success) {
+        console.log('[StopEncounterHandler] Successfully synced gameState to backing models');
+      } else {
+        console.warn('[StopEncounterHandler] Failed to sync gameState to backing models:', syncResult.error);
+        // Don't throw - encounter stop should still succeed even if sync fails
+      }
+    } else {
+      console.warn('[StopEncounterHandler] Cannot sync gameState: no socket connection or session');
+    }
+  } catch (error) {
+    console.error('[StopEncounterHandler] Error during gameState sync:', error);
+    // Don't throw - encounter stop should still succeed even if sync fails
+  }
+
+  // Clear the current encounter from gameState
+  draft.currentEncounter = null;
+
   console.log('[StopEncounterHandler] Encounter stopped successfully:', {
     encounterId: params.encounterId,
-    encounterStatus: draft.currentEncounter?.status,
     turnManagerActive: draft.turnManager?.isActive,
     requestId: request.id
   });

@@ -36,7 +36,7 @@ const validateStartEncounter: ActionValidationHandler = async (
   }
 
   // Check if encounter is already active
-  if (gameState.currentEncounter && gameState.currentEncounter.status === 'in_progress') {
+  if (gameState.currentEncounter) {
     return {
       valid: false,
       error: {
@@ -88,12 +88,11 @@ const executeStartEncounter: ActionExecutionHandler = async (
     draft.currentEncounter = {
       id: encounterData.id,
       name: encounterData.name,
-      status: 'in_progress', // Override status to in_progress
       campaignId: encounterData.campaignId,
       mapId: encounterData.mapId,
       currentMap: encounterData.currentMap, // Include the populated map data
       participants: encounterData.participants || [],
-      tokens: encounterData.tokens || [],
+      tokens: encounterData.tokens || {},
       settings: encounterData.settings || {
         showHiddenTokensToPlayers: false,
         gridSize: 5,
@@ -116,7 +115,6 @@ const executeStartEncounter: ActionExecutionHandler = async (
       encounterName: draft.currentEncounter.name,
       mapId: draft.currentEncounter.mapId,
       hasCurrentMap: !!draft.currentEncounter.currentMap,
-      encounterStatus: draft.currentEncounter.status,
       requestId: request.id
     });
     

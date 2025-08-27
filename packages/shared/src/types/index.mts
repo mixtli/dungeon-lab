@@ -41,7 +41,6 @@ import {
 // Encounter schemas
 import { 
   encounterSchema, 
-  EncounterStatusEnum,
   encounterSettingsSchema,
   createEncounterSchema,
   updateEncounterSchema,
@@ -166,7 +165,6 @@ export type GridBounds = z.infer<typeof gridBoundsSchema>;
 export type IEncounter = z.infer<typeof encounterSchema>;
 export type IEncounterCreateData = z.infer<typeof createEncounterSchema>;
 export type IEncounterUpdateData = z.infer<typeof updateEncounterSchema>;
-export type EncounterStatusType = z.infer<typeof EncounterStatusEnum>;
 export type IEncounterSettings = z.infer<typeof encounterSettingsSchema>;
 export type IEncounterPermissions = z.infer<typeof encounterPermissionsSchema>;
 

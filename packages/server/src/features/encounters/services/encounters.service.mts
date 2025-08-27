@@ -1,6 +1,6 @@
 import { Types } from 'mongoose';
 import { logger } from '../../../utils/logger.mjs';
-import { IEncounter, IToken, EncounterStatusType } from '@dungeon-lab/shared/types/index.mjs';
+import { IEncounter, IToken } from '@dungeon-lab/shared/types/index.mjs';
 import { EncounterModel } from '../models/encounter.model.mjs';
 import { CampaignModel } from '../../campaigns/models/campaign.model.mjs';
 import { MapModel } from '../../maps/models/map.model.mjs';
@@ -8,8 +8,7 @@ import { DocumentService } from '../../documents/services/document.service.mjs';
 import { z } from 'zod';
 import {
   createEncounterSchema,
-  updateEncounterSchema,
-  EncounterStatusEnum
+  updateEncounterSchema
 } from '@dungeon-lab/shared/schemas/encounters.schema.mjs';
 
 // Type definitions for service methods
@@ -133,7 +132,7 @@ export class EncounterService {
         currentMap: map.toObject(), // Copy map data to encounter for GM modifications
         createdBy: userObjectId,
         updatedBy: userObjectId,
-        tokens: [],
+        tokens: {},
         initiative: {
           entries: [],
           currentTurn: 0,
@@ -239,41 +238,6 @@ export class EncounterService {
       throw new Error('Failed to delete encounter');
     }
   }
-
-  // ============================================================================
-  // ENCOUNTER STATUS MANAGEMENT
-  // ============================================================================
-
-  /**
-   * Update encounter status
-   */
-  async updateEncounterStatus(
-    encounterId: string,
-    status: string,
-    userId: string,
-    isAdmin: boolean
-  ): Promise<IEncounter> {
-    try {
-      // Validate status
-      const validStatuses = EncounterStatusEnum.options;
-      if (!validStatuses.includes(status as EncounterStatusType)) {
-        throw new Error('Invalid status');
-      }
-
-      return await this.updateEncounter(
-        encounterId,
-        { status: status as EncounterStatusType, updatedBy: userId },
-        userId,
-        isAdmin
-      );
-    } catch (error) {
-      if (error instanceof Error && error.message === 'Invalid status') {
-        throw error;
-      }
-      throw error; // Re-throw other errors from updateEncounter
-    }
-  }
-
 
   // ============================================================================
   // REAL-TIME OPERATIONS

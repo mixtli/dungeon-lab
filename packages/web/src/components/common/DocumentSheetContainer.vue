@@ -53,7 +53,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed, shallowRef, reactive, toRaw, onMounted } from 'vue';
+import { ref, watch, computed, shallowRef, reactive, toRaw } from 'vue';
 import type { Component } from 'vue';
 import type { BaseDocument, IItem } from '@dungeon-lab/shared/types/index.mjs';
 import { pluginRegistry } from '../../services/plugin-registry.mts';

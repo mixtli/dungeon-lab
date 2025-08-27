@@ -785,6 +785,59 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
       });
     }
   });
+
+  // ============================================================================
+  // SYNC GAME STATE TO BACKING MODELS (GM ONLY)
+  // ============================================================================
+
+  socket.on('gameState:sync', async (sessionId: string, callback?: (response: { success: boolean; error?: string; entitiesUpdated?: { campaigns: number; characters: number; actors: number; items: number; encounters: number } }) => void) => {
+    try {
+      logger.info('Game state sync to backing models requested:', { sessionId, userId });
+
+      // Only GM can sync game state
+      if (!(await isUserGameMaster(sessionId))) {
+        const response = {
+          success: false,
+          error: 'Only the game master can sync the game state'
+        };
+        callback?.(response);
+        return;
+      }
+
+      // Sync game state to backing models
+      const syncResult = await syncService.syncGameStateToBackingModels(
+        sessionId,
+        'manual', // reason
+        {} // default options
+      );
+
+      if (syncResult.success) {
+        logger.info('Game state synced successfully:', { 
+          sessionId, 
+          entitiesUpdated: syncResult.entitiesUpdated,
+          duration: syncResult.duration
+        });
+        
+        callback?.({
+          success: true,
+          entitiesUpdated: syncResult.entitiesUpdated
+        });
+      } else {
+        logger.error('Game state sync failed:', { sessionId, errors: syncResult.errors });
+        callback?.({
+          success: false,
+          error: syncResult.errors.join('; ') || 'Failed to sync game state'
+        });
+      }
+
+    } catch (error) {
+      logger.error('Error syncing game state:', error);
+      callback?.({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to sync game state'
+      });
+    }
+  });
 }
 
 // ============================================================================

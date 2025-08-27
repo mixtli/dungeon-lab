@@ -243,7 +243,6 @@ describe('Document State Lifecycle Integration', () => {
         currentEncounter: {
           id: 'encounter-1',
           name: 'Test Encounter',
-          status: 'in_progress',
           participants: [],
           campaignId: 'campaign-1',
           mapId: 'map-1',
@@ -279,7 +278,7 @@ describe('Document State Lifecycle Integration', () => {
       });
 
       // Verify encounter was stopped
-      expect(draftState.currentEncounter?.status).toBe('stopped');
+      expect(draftState.currentEncounter).toBe(null);
       expect(draftState.turnManager?.isActive).toBe(false);
 
       // Verify lifecycle reset was applied  

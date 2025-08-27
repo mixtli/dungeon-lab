@@ -1,9 +1,12 @@
 <!-- CampaignEncounterList.vue -->
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import type { IEncounter } from '@dungeon-lab/shared/types/index.mjs';
 import { EncountersClient } from '@dungeon-lab/client/index.mjs';
+import { useGameStateStore } from '../../stores/game-state.store.mjs';
+import { GameActionClientService } from '../../services/game-action-client.service.mjs';
+import { useGameSessionStore } from '../../stores/game-session.store.mjs';
 
 const props = defineProps<{
   campaignId: string;
@@ -14,6 +17,30 @@ const encounters = ref<IEncounter[]>([]);
 const loading = ref(false);
 const error = ref<string | null>(null);
 const encounterClient = new EncountersClient();
+const gameStateStore = useGameStateStore();
+const gameActionClient = new GameActionClientService();
+const gameSessionStore = useGameSessionStore();
+
+// Computed properties for encounter organization
+const currentEncounter = computed(() => gameStateStore.currentEncounter);
+const hasGameSession = computed(() => !!gameSessionStore.currentSession);
+
+// Sort encounters: active encounter first, then alphabetically by name
+const sortedEncounters = computed(() => {
+  if (!currentEncounter.value) {
+    // No active encounter - show all sorted alphabetically
+    return [...encounters.value].sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  // Active encounter exists - show active first, then others alphabetically
+  const active = encounters.value.find(enc => enc.id === currentEncounter.value!.id);
+  const others = encounters.value.filter(enc => enc.id !== currentEncounter.value!.id)
+    .sort((a, b) => a.name.localeCompare(b.name));
+  
+  return active ? [active, ...others] : others;
+});
+
+const canStartEncounters = computed(() => !currentEncounter.value && hasGameSession.value);
 // Fetch encounters for the campaign
 async function fetchEncounters() {
   loading.value = true;
@@ -39,34 +66,82 @@ function createEncounter() {
 
 // Delete encounter
 async function deleteEncounter(encounterId: string, encounterName: string) {
+  // Prevent deletion of active encounters
+  if (currentEncounter.value?.id === encounterId) {
+    error.value = 'Cannot delete the currently active encounter. Stop the encounter first.';
+    return;
+  }
+
   if (!confirm(`Are you sure you want to delete the encounter "${encounterName}"?`)) {
     return;
   }
 
   try {
-    // TODO: Implement encounter deletion via game state updates or REST API
-    // await gameStateStore.deleteEncounter(encounterId);
-    console.log('Delete encounter:', encounterId);
-    await fetchEncounters(); // Refresh the list
+    loading.value = true;
+    error.value = null;
+    
+    await encounterClient.deleteEncounter(encounterId);
+    console.log('Encounter deleted successfully:', encounterId);
+    
+    // Refresh the encounters list
+    await fetchEncounters();
   } catch (err) {
     console.error('Error deleting encounter:', err);
-    error.value = 'Failed to delete encounter';
+    error.value = err instanceof Error ? err.message : 'Failed to delete encounter';
+  } finally {
+    loading.value = false;
   }
+}
+
+// Handle starting an encounter
+async function startEncounter(encounter: IEncounter) {
+  if (!hasGameSession.value) {
+    error.value = 'You must be in a game session to start an encounter';
+    return;
+  }
+  
+  if (currentEncounter.value) {
+    error.value = 'You must stop the active encounter before starting a new one';
+    return;
+  }
+
+  try {
+    const response = await gameActionClient.requestStartEncounter(encounter.id);
+    if (!response.success) {
+      error.value = response.error?.message || 'Failed to start encounter';
+    }
+  } catch (err) {
+    console.error('Error starting encounter:', err);
+    error.value = 'Failed to start encounter';
+  }
+}
+
+// Handle stopping the active encounter
+async function stopEncounter() {
+  if (!currentEncounter.value) {
+    error.value = 'No active encounter to stop';
+    return;
+  }
+
+  try {
+    const response = await gameActionClient.requestStopEncounter(currentEncounter.value.id);
+    if (!response.success) {
+      error.value = response.error?.message || 'Failed to stop encounter';
+    }
+  } catch (err) {
+    console.error('Error stopping encounter:', err);
+    error.value = 'Failed to stop encounter';
+  }
+}
+
+// Check if an encounter is the currently active one
+function isActiveEncounter(encounter: IEncounter): boolean {
+  return currentEncounter.value?.id === encounter.id;
 }
 
 onMounted(() => {
   fetchEncounters();
 });
-
-// Status badge color mapping
-const statusColors = {
-  draft: 'bg-stone-200 text-stone-700 border-stone-300 dark:bg-stone-600 dark:text-stone-200 dark:border-stone-500',
-  ready: 'bg-arcane-100 text-arcane-800 border-arcane-300 dark:bg-arcane-900 dark:text-arcane-200',
-  in_progress: 'bg-success-100 text-success-800 border-success-300',
-  paused: 'bg-accent-100 text-accent-800 border-accent-300',
-  completed: 'bg-nature-100 text-nature-800 border-nature-300',
-  stopped: 'bg-red-100 text-red-800 border-red-300 dark:bg-red-900 dark:text-red-200 dark:border-red-500',
-} as const;
 </script>
 
 <template>
@@ -116,12 +191,35 @@ const statusColors = {
       </button>
     </div>
 
+    <!-- Session Status Info -->
+    <div v-else-if="!hasGameSession" class="px-6 py-4 bg-yellow-50 dark:bg-yellow-900 border-l-4 border-yellow-400">
+      <div class="flex">
+        <div class="flex-shrink-0">
+          <svg class="h-5 w-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+          </svg>
+        </div>
+        <div class="ml-3">
+          <p class="text-sm text-yellow-800 dark:text-yellow-200">
+            You must be in a game session to start encounters.
+          </p>
+        </div>
+      </div>
+    </div>
+
     <!-- Encounters List -->
     <div v-else class="bg-parchment dark:bg-obsidian divide-y divide-stone-300 dark:divide-stone-600">
       <div
-        v-for="encounter in encounters"
+        v-for="encounter in sortedEncounters"
         :key="encounter.id"
-        class="px-6 py-4 hover:bg-stone-100 dark:hover:bg-stone-600 transition-all duration-200"
+        :class="[
+          'px-6 py-4 transition-all duration-200',
+          isActiveEncounter(encounter) 
+            ? 'bg-success-50 dark:bg-success-900 border-l-4 border-success-400' 
+            : !canStartEncounters 
+              ? 'opacity-50 cursor-not-allowed' 
+              : 'hover:bg-stone-100 dark:hover:bg-stone-600'
+        ]"
       >
         <div class="flex items-center justify-between">
           <div class="min-w-0 flex-1">
@@ -129,13 +227,12 @@ const statusColors = {
               <h4 class="text-sm font-bold text-onyx dark:text-parchment truncate">
                 {{ encounter.name }}
               </h4>
+              <!-- Active encounter badge -->
               <span
-                :class="[
-                  statusColors[encounter.status],
-                  'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold capitalize border',
-                ]"
+                v-if="isActiveEncounter(encounter)"
+                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-success-100 text-success-800 border border-success-300"
               >
-                {{ encounter.status.replace('_', ' ') }}
+                ▶️ Active
               </span>
             </div>
             <div class="mt-2">
@@ -145,6 +242,25 @@ const statusColors = {
             </div>
           </div>
           <div class="ml-6 flex items-center space-x-2">
+            <!-- Stop button for active encounter -->
+            <button
+              v-if="isActiveEncounter(encounter)"
+              @click="stopEncounter"
+              class="inline-flex items-center px-3 py-1.5 border border-red-300 text-sm font-medium rounded-md text-red-700 bg-red-50 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
+              title="Stop encounter"
+            >
+              ⏹️ Stop
+            </button>
+            <!-- Start button for inactive encounters -->
+            <button
+              v-else-if="canStartEncounters"
+              @click="startEncounter(encounter)"
+              class="inline-flex items-center px-3 py-1.5 border border-success-300 text-sm font-medium rounded-md text-success-700 bg-success-50 hover:bg-success-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-success-500 transition-colors"
+              title="Start encounter"
+            >
+              ▶️ Start
+            </button>
+            <!-- View/Edit button -->
             <button
               @click="
                 router.push({
@@ -171,7 +287,7 @@ const statusColors = {
               </svg>
             </button>
             <button
-              v-if="encounter.id"
+              v-if="encounter.id && !isActiveEncounter(encounter)"
               @click="deleteEncounter(encounter.id, encounter.name || 'Untitled Encounter')"
               class="inline-flex items-center p-2 rounded-md text-dragon hover:text-error-700 hover:bg-error-50 dark:hover:bg-error-900 focus:outline-none transition-all duration-200 shadow-sm"
               title="Delete encounter"

@@ -158,3 +158,20 @@ export const gameStateCheckStatusArgsSchema = z.tuple([
   z.function().args(gameStateCheckStatusCallbackSchema).optional() // callback
 ]);
 
+// Sync game state callback response
+export const gameStateSyncCallbackSchema = socketCallbackWithFieldsSchema({
+  entitiesUpdated: z.object({
+    campaigns: z.number(),
+    characters: z.number(),
+    actors: z.number(),
+    items: z.number(),
+    encounters: z.number()
+  }).optional()
+});
+
+// Sync game state arguments: sessionId + callback
+export const gameStateSyncArgsSchema = z.tuple([
+  z.string(), // sessionId
+  z.function().args(gameStateSyncCallbackSchema).optional() // callback
+]);
+

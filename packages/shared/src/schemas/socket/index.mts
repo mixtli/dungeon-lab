@@ -92,7 +92,9 @@ import {
   gameStateReinitializeCallbackSchema,
   gameStateReinitializeArgsSchema,
   gameStateCheckStatusCallbackSchema,
-  gameStateCheckStatusArgsSchema
+  gameStateCheckStatusArgsSchema,
+  gameStateSyncCallbackSchema,
+  gameStateSyncArgsSchema
 } from './game-state.mjs';
 
 import {
@@ -187,6 +189,8 @@ export {
   gameStateReinitializeArgsSchema,
   gameStateCheckStatusCallbackSchema,
   gameStateCheckStatusArgsSchema,
+  gameStateSyncCallbackSchema,
+  gameStateSyncArgsSchema,
   
   // Base callback schemas
   baseSocketCallbackSchema,
@@ -256,6 +260,7 @@ export const clientToServerEvents = z.object({
   'gameState:resetHash': z.function().args(...gameStateResetHashArgsSchema.items).returns(z.void()),
   'gameState:reinitialize': z.function().args(...gameStateReinitializeArgsSchema.items).returns(z.void()),
   'gameState:checkStatus': z.function().args(...gameStateCheckStatusArgsSchema.items).returns(z.void()),
+  'gameState:sync': z.function().args(...gameStateSyncArgsSchema.items).returns(z.void()),
   'gameSession:join': z.function().args(...gameSessionJoinArgsSchema.items).returns(z.void()),
   'gameSession:leave': z.function().args(...gameSessionLeaveArgsSchema.items).returns(z.void()),
   'gameSession:end': z.function().args(...gameSessionEndArgsSchema.items).returns(z.void()),

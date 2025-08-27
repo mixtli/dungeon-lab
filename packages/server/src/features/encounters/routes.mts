@@ -8,8 +8,7 @@ import { createPathSchema, oapi } from '../../oapi.mjs';
 import {
   encounterSchema,
   createEncounterSchema,
-  updateEncounterSchema,
-  EncounterStatusEnum
+  updateEncounterSchema
 } from '@dungeon-lab/shared/schemas/encounters.schema.mjs';
 import {
   baseAPIResponseSchema,
@@ -44,9 +43,6 @@ const encounterQuerySchema = z.object({
   campaignId: z.string().optional()
 });
 
-const statusUpdateSchema = z.object({
-  status: EncounterStatusEnum
-});
 
 // ============================================================================
 // ENCOUNTER ROUTES
@@ -274,59 +270,6 @@ router.delete(
   encounterController.deleteEncounter
 );
 
-/**
- * PATCH /encounters/:id/status - Update encounter status
- */
-router.patch(
-  '/:id/status',
-  authenticate,
-  oapi.validPath(
-    createPathSchema({
-      description: 'Update encounter status',
-      requestParams: {
-        path: z.object({ id: z.string() })
-      },
-      requestBody: {
-        content: {
-          'application/json': {
-            schema: statusUpdateSchema.openapi({
-              description: 'Status update request'
-            })
-          }
-        }
-      },
-      responses: {
-        200: {
-          description: 'Encounter status updated successfully',
-          content: {
-            'application/json': {
-              schema: getEncounterResponseSchema.openapi({
-                description: 'Status update response'
-              })
-            }
-          }
-        },
-        400: {
-          description: 'Invalid status'
-        },
-        401: {
-          description: 'Unauthorized'
-        },
-        403: {
-          description: 'Access denied'
-        },
-        404: {
-          description: 'Encounter not found'
-        },
-        500: {
-          description: 'Internal server error'
-        }
-      }
-    })
-  ),
-  validateRequest(statusUpdateSchema),
-  encounterController.updateEncounterStatus
-);
 
 
 

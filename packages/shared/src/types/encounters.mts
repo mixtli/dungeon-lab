@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import {
   // Encounter schemas
-  EncounterStatusEnum,
   encounterSettingsSchema,
   encounterSchema,
   createEncounterSchema,
@@ -23,7 +22,6 @@ import { Token } from './tokens.mjs';
 // ENCOUNTER TYPES
 // ============================================================================
 
-export type EncounterStatus = z.infer<typeof EncounterStatusEnum>;
 export type EncounterSettings = z.infer<typeof encounterSettingsSchema>;
 export type IEncounter = z.infer<typeof encounterSchema>;
 export type CreateEncounterData = z.infer<typeof createEncounterSchema>;
