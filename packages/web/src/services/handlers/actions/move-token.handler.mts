@@ -79,13 +79,32 @@ const validateMoveToken: ActionValidationHandler = async (
     const currentGridCenterY = (token.bounds.topLeft.y + token.bounds.bottomRight.y + 1) / 2;
     const currentGridPos = { x: currentGridCenterX, y: currentGridCenterY };
     
-    // Convert target world position to grid coordinates and get center of target cell
+    // Convert target world position to grid coordinates (target is already center coordinates)
     const mapData = gameState.currentEncounter.currentMap;
     const pixelsPerGrid = mapData.uvtt?.resolution?.pixels_per_grid || 50;
     const targetGridPos = { 
-      x: params.newPosition.x / pixelsPerGrid + 0.5, 
-      y: params.newPosition.y / pixelsPerGrid + 0.5 
+      x: params.newPosition.x / pixelsPerGrid, 
+      y: params.newPosition.y / pixelsPerGrid 
     };
+    
+    // Debug backend position calculations
+    const currentWorldPos = {
+      x: currentGridCenterX * pixelsPerGrid,
+      y: currentGridCenterY * pixelsPerGrid
+    };
+    console.log('[MoveTokenHandler] Backend position calculation debug:', {
+      tokenId: params.tokenId,
+      tokenBounds: token.bounds,
+      currentGridCenter: { x: currentGridCenterX, y: currentGridCenterY },
+      currentWorldPos,
+      receivedTargetWorld: params.newPosition,
+      targetGridPos,
+      pixelsPerGrid,
+      calculatedDistance: Math.sqrt(
+        Math.pow(params.newPosition.x - currentWorldPos.x, 2) + 
+        Math.pow(params.newPosition.y - currentWorldPos.y, 2)
+      )
+    });
     
     try {
       const collisionDetected = checkWallCollision(currentGridPos, targetGridPos, mapData, false);
@@ -126,9 +145,9 @@ function calculateNewBounds(
   // Get the actual grid size from current map data
   const pixelsPerGrid = currentMap?.uvtt?.resolution?.pixels_per_grid || 50; // fallback to 50
   
-  // Convert center world coordinates to grid coordinates
-  const centerGridX = Math.round(newCenterX / pixelsPerGrid);
-  const centerGridY = Math.round(newCenterY / pixelsPerGrid);
+  // Convert center world coordinates to grid coordinates (use floor for center coordinates)
+  const centerGridX = Math.floor(newCenterX / pixelsPerGrid);
+  const centerGridY = Math.floor(newCenterY / pixelsPerGrid);
   
   // Calculate current size
   const width = currentBounds.bottomRight.x - currentBounds.topLeft.x;

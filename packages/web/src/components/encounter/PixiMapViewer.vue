@@ -754,11 +754,20 @@ const handleKeyDown = async (event: KeyboardEvent) => {
   // Get grid size
   const gridSize = getGridSize();
   
-  // Calculate current center position from bounds
+  // Calculate current center position from bounds (fixed to send center coordinates)
   const centerGridX = (token.bounds.topLeft.x + token.bounds.bottomRight.x) / 2;
   const centerGridY = (token.bounds.topLeft.y + token.bounds.bottomRight.y) / 2;
-  let newX = centerGridX * gridSize; // Convert to world coordinates
-  let newY = centerGridY * gridSize;
+  let newX = centerGridX * gridSize + gridSize / 2; // Center of current cell in world coordinates
+  let newY = centerGridY * gridSize + gridSize / 2; // Center of current cell in world coordinates
+  
+  console.log('[Arrow Key Debug] Token movement:', {
+    key: event.key,
+    tokenId: pixiSelectedTokenId.value,
+    bounds: token.bounds,
+    centerGrid: { x: centerGridX, y: centerGridY },
+    currentWorld: { x: newX, y: newY },
+    gridSize
+  });
   
   switch (event.key) {
     case 'ArrowUp':
@@ -774,6 +783,11 @@ const handleKeyDown = async (event: KeyboardEvent) => {
       newX += gridSize;
       break;
   }
+  
+  console.log('[Arrow Key Debug] Final coordinates being sent:', {
+    key: event.key,
+    finalWorld: { x: newX, y: newY }
+  });
   
   // Emit the token moved event to parent (EncounterView will handle the state update)
   emit('token-moved', pixiSelectedTokenId.value, newX, newY);

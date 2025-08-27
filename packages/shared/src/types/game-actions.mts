@@ -40,7 +40,6 @@ export interface MoveTokenParameters extends Record<string, unknown> {
     elevation?: number;
   };
   distance?: number; // Distance in world pixels
-  remainingMovement?: number; // Remaining movement in feet (temporary)
 }
 
 /**

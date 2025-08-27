@@ -23,16 +23,6 @@ function calculateDistance(pos1: { x: number; y: number }, pos2: { x: number; y:
 }
 
 /**
- * Convert world pixel distance to feet using D&D grid scale
- */
-function convertWorldPixelsToFeet(pixelDistance: number, pixelsPerGridCell: number): number {
-  // D&D standard: 1 grid cell = 5 feet
-  const feetPerGridCell = 5;
-  const distanceInFeet = (pixelDistance / pixelsPerGridCell) * feetPerGridCell;
-  return distanceInFeet;
-}
-
-/**
  * Player actions composable
  */
 export function usePlayerActions() {
@@ -56,27 +46,20 @@ export function usePlayerActions() {
     const currentMap = gameStateStore.currentEncounter?.currentMap;
     const pixelsPerGrid = currentMap?.uvtt?.resolution?.pixels_per_grid || 50; // fallback to 50
     
-    // Calculate center using same formula as PixiMapViewer for consistency
-    const currentCenterX = (token.bounds.topLeft.x + token.bounds.bottomRight.x) / 2 * pixelsPerGrid;
-    const currentCenterY = (token.bounds.topLeft.y + token.bounds.bottomRight.y) / 2 * pixelsPerGrid;
+    // Calculate center using same corrected formula as PixiMapViewer for consistency
+    const currentCenterX = ((token.bounds.topLeft.x + token.bounds.bottomRight.x + 1) / 2) * pixelsPerGrid;
+    const currentCenterY = ((token.bounds.topLeft.y + token.bounds.bottomRight.y + 1) / 2) * pixelsPerGrid;
     const currentPosition = { x: currentCenterX, y: currentCenterY, elevation: token.bounds.elevation };
     const distance = calculateDistance(currentPosition, newPosition);
-    
-    // Convert distance from pixels to feet for display
-    const distanceInFeet = convertWorldPixelsToFeet(distance, pixelsPerGrid);
-    
-    // TODO: Implement proper movement range calculation based on combat state
-    const remainingMovement = 30; // Default 30ft movement for now
 
     const params: MoveTokenParameters = {
       tokenId,
       newPosition,
-      distance,
-      remainingMovement
+      distance
     };
 
     return playerActionService.requestAction('move-token', token.documentId, params, tokenId, undefined, {
-      description: `Move ${token.name} ${Math.round(distanceInFeet)}ft`
+      description: `Move ${token.name}`
     });
   };
 

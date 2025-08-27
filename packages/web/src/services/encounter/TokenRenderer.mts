@@ -851,6 +851,14 @@ export class TokenRenderer {
           sprite.y = snappedPosition.y;
           
           // Emit drag end event with snapped position
+          console.log('[Drag Debug] Final coordinates being sent:', {
+            tokenId: sprite.tokenId,
+            originalDragStart: this._dragStartPosition,
+            currentSpritePos: { x: sprite.x, y: sprite.y },
+            snappedPosition,
+            gridSize: this._gridSize
+          });
+          
           if (this.eventHandlers.dragEnd) {
             this.eventHandlers.dragEnd(sprite.tokenId, snappedPosition);
           }
