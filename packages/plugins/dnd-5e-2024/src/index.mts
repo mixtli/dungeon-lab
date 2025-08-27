@@ -7,6 +7,7 @@
 
 import { BaseGameSystemPlugin, ValidationResult } from '@dungeon-lab/shared-ui/types/plugin.mjs';
 import type { PluginContext, TokenActionContext } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
+import type { TokenStatusBarConfig } from '@dungeon-lab/shared/types/token-status-bars.mjs';
 import { validateCharacterData } from './character-validation.mjs';
 import { DnD5eTurnManager } from './turn-manager.mjs';
 import { DndAbilityCheckHandler, DndWeaponAttackHandler, DndSpellAttackHandler, DndAttackRollHandler, DndSavingThrowHandler, DndInitiativeHandler, DndMonsterAttackHandler } from './services/dnd-roll-handler.mjs';
@@ -102,6 +103,57 @@ export class DnD5e2024Plugin extends BaseGameSystemPlugin {
     } catch (error) {
       console.error(`[${this.manifest.id}] Error getting token grid size:`, error);
       return 1;
+    }
+  }
+  
+  /**
+   * Get status bar configuration for tokens based on document type
+   */
+  getTokenStatusBarConfig(documentType: string): TokenStatusBarConfig[] {
+    switch (documentType) {
+      case 'character':
+        return [
+          {
+            id: 'hitpoints',
+            label: 'Hit Points',
+            position: 'top',
+            color: {
+              full: '#22c55e', // Green for full HP
+              empty: '#dc2626', // Red for empty HP
+              warning: '#f59e0b' // Yellow for low HP
+            },
+            dataPath: {
+              current: 'attributes.hitPoints.current',
+              maximum: 'attributes.hitPoints.maximum'
+            },
+            warningThreshold: 0.25, // Show warning color below 25% HP
+            visible: true
+          }
+        ];
+        
+      case 'actor':
+        return [
+          {
+            id: 'hitpoints',
+            label: 'Hit Points',
+            position: 'top',
+            color: {
+              full: '#22c55e', // Green for full HP
+              empty: '#dc2626', // Red for empty HP
+              warning: '#f59e0b' // Yellow for low HP
+            },
+            dataPath: {
+              current: 'hitPoints.current',
+              maximum: 'hitPoints.average' // Actors use average as max HP
+            },
+            warningThreshold: 0.25, // Show warning color below 25% HP
+            visible: true
+          }
+        ];
+        
+      default:
+        // No status bars for other document types
+        return [];
     }
   }
   

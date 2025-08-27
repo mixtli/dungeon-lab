@@ -1,6 +1,7 @@
 import * as PIXI from 'pixi.js';
 import type { Token } from '@dungeon-lab/shared/types/tokens.mjs';
 import type { IMapResponse } from '@dungeon-lab/shared/types/api/maps.mjs';
+import type { TokenStatusBarData } from '@dungeon-lab/shared/types/token-status-bars.mjs';
 import defaultTokenUrl from '@/assets/images/default_token.svg';
 import { isPositionWithinBounds, clampPositionToBounds } from '../../utils/bounds-validation.mjs';
 import { transformAssetUrl } from '@/utils/asset-utils.mjs';
@@ -1053,5 +1054,112 @@ export class TokenRenderer {
       // Add the target circle as a child of the token root
       tokenRoot.addChild(targetCircle);
     }
+  }
+  
+  /**
+   * Update status bars for a token
+   */
+  updateTokenStatusBars(tokenId: string, statusBars: TokenStatusBarData[]): void {
+    const tokenData = this.activeTokens.get(tokenId);
+    if (!tokenData) {
+      return;
+    }
+    
+    const tokenRoot = tokenData.root as TokenContainer;
+    const sprite = tokenData.sprite;
+    
+    // Remove existing status bars
+    const existingStatusBars = tokenRoot.children.filter(child => 
+      typeof child.label === 'string' && child.label.startsWith('status-bar-')
+    );
+    for (const bar of existingStatusBars) {
+      tokenRoot.removeChild(bar);
+      bar.destroy();
+    }
+    
+    if (!statusBars.length) return;
+    
+    // Get sprite dimensions for positioning
+    const spriteRadius = Math.max(sprite.width, sprite.height) / 2;
+    
+    // Group status bars by position
+    const topBars = statusBars.filter(bar => bar.config.position === 'top' && bar.visible);
+    const bottomBars = statusBars.filter(bar => bar.config.position === 'bottom' && bar.visible);
+    
+    // Render status bars
+    this.renderStatusBarsAtPosition(tokenRoot, topBars, spriteRadius, 'top');
+    this.renderStatusBarsAtPosition(tokenRoot, bottomBars, spriteRadius, 'bottom');
+  }
+  
+  /**
+   * Render status bars at a specific position (top or bottom)
+   */
+  private renderStatusBarsAtPosition(
+    tokenRoot: TokenContainer, 
+    statusBars: TokenStatusBarData[], 
+    spriteRadius: number, 
+    position: 'top' | 'bottom'
+  ): void {
+    if (!statusBars.length) {
+      return;
+    }
+    
+    const barWidth = spriteRadius * 1.8; // Status bar width relative to token size
+    const barHeight = 6; // Fixed height for status bars
+    const barSpacing = 2; // Spacing between multiple bars
+    const marginFromSprite = 8; // Distance from token edge
+    
+    // Calculate starting Y position based on position type
+    const baseY = position === 'top' 
+      ? -spriteRadius - marginFromSprite - barHeight 
+      : spriteRadius + marginFromSprite;
+    
+    statusBars.forEach((statusBar, index) => {
+      const barContainer = new PIXI.Container();
+      barContainer.label = `status-bar-${statusBar.config.id}`;
+      
+      // Calculate Y position for this bar
+      const yOffset = position === 'top' 
+        ? -(barHeight + barSpacing) * index 
+        : (barHeight + barSpacing) * index;
+      const barY = baseY + yOffset;
+      
+      // Create background bar (empty state)
+      const backgroundBar = new PIXI.Graphics();
+      backgroundBar.rect(-barWidth / 2, 0, barWidth, barHeight)
+        .fill(0x333333) // Dark gray background
+        .stroke({ width: 1, color: 0x666666 }); // Light gray border
+      
+      // Add background bar first (renders behind)
+      barContainer.addChild(backgroundBar);
+      
+      // Create filled bar (current state) - add after background so it renders on top
+      const fillWidth = barWidth * statusBar.percentage;
+      if (fillWidth > 0) {
+        const fillColor = this.parseHexColor(statusBar.displayColor);
+        const fillBar = new PIXI.Graphics();
+        fillBar.rect(-barWidth / 2, 0, fillWidth, barHeight)
+          .fill(fillColor);
+        barContainer.addChild(fillBar);
+      }
+      
+      // Position the bar container
+      barContainer.x = 0; // Centered horizontally
+      barContainer.y = barY;
+      
+      // Add to token root
+      tokenRoot.addChild(barContainer);
+    });
+  }
+  
+  /**
+   * Parse hex color string to PIXI color number
+   */
+  private parseHexColor(hexColor: string): number {
+    // Remove # prefix if present
+    const hex = hexColor.replace('#', '');
+    
+    // Convert to number
+    return parseInt(hex, 16);
   }
 } 

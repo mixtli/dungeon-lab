@@ -5,6 +5,7 @@ import type { BaseTurnManagerPlugin } from '../base/base-turn-manager.mjs';
 import type { RollServerResult, RollRequest } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
 import type { ActionRequestResult, ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
 import type { ProcessedRollResult } from '@dungeon-lab/shared/interfaces/processed-roll-result.interface.mjs';
+import type { TokenStatusBarConfig } from '@dungeon-lab/shared/types/token-status-bars.mjs';
 
 // Export the base class for plugins to extend
 export { BaseGameSystemPlugin } from '../base/base-plugin.mjs';
@@ -163,6 +164,22 @@ export interface GameSystemPlugin {
    * @returns Grid size multiplier (default: 1 for medium size)
    */
   getTokenGridSize(document: unknown): number;
+  
+  /**
+   * Get status bar configuration for tokens based on document type
+   * 
+   * This allows plugins to define visual status bars (like HP bars) that should
+   * appear on tokens. Different document types can have different bar configurations.
+   * 
+   * Examples:
+   * - Character documents might show HP and spell slots
+   * - Actor (monster) documents might only show HP
+   * - Vehicle documents might show hull integrity and fuel
+   * 
+   * @param documentType Type of document (e.g., 'character', 'actor', 'vehicle')
+   * @returns Array of status bar configurations for this document type
+   */
+  getTokenStatusBarConfig(documentType: string): TokenStatusBarConfig[];
   
   /**
    * Turn manager for game-specific turn order and action permissions

@@ -1,9 +1,11 @@
 import { ref, onUnmounted, readonly, type Ref } from 'vue';
 import type { Token } from '@dungeon-lab/shared/types/tokens.mjs';
 import type { IMapResponse } from '@dungeon-lab/shared/types/api/maps.mjs';
+import type { GameSystemPlugin } from '@dungeon-lab/shared-ui/types/plugin.mjs';
 import { EncounterMapRenderer, type Platform, type EncounterMapConfig } from '@/services/encounter/PixiMapRenderer.mjs';
 import { TokenRenderer } from '@/services/encounter/TokenRenderer.mjs';
 import { ViewportManager, type ViewportState } from '@/services/encounter/ViewportManager.mjs';
+import { TokenStatusBarService } from '@/services/token-status-bar.service.mjs';
 
 export interface UsePixiMapOptions {
   platform?: Platform;
@@ -34,6 +36,7 @@ export interface UsePixiMapReturn {
   removeToken: (tokenId: string) => void;
   moveToken: (tokenId: string, x: number, y: number, animate?: boolean) => void;
   clearAllTokens: () => void;
+  updateTokenStatusBars: (tokenId: string, document: any, plugin: GameSystemPlugin) => void;
   
   // Token selection and interaction
   selectToken: (tokenId: string) => void;
@@ -241,6 +244,22 @@ export function usePixiMap(): UsePixiMapReturn {
   const clearAllTokens = (): void => {
     if (!tokenRenderer) return;
     tokenRenderer.clearAllTokens();
+  };
+  
+  /**
+   * Update status bars for a token based on document data and plugin configuration
+   */
+  const updateTokenStatusBars = (tokenId: string, document: any, plugin: GameSystemPlugin): void => {
+    if (!tokenRenderer) {
+      console.warn('[usePixiMap] No token renderer available for status bar update');
+      return;
+    }
+    
+    // Calculate status bar data using the service
+    const statusBars = TokenStatusBarService.calculateStatusBars(document, plugin);
+    
+    // Update the token renderer with the new status bar data
+    tokenRenderer.updateTokenStatusBars(tokenId, statusBars);
   };
   
   /**
@@ -539,6 +558,7 @@ export function usePixiMap(): UsePixiMapReturn {
     removeToken,
     moveToken,
     clearAllTokens,
+    updateTokenStatusBars,
     
     // Token interaction
     selectToken,

@@ -53,6 +53,7 @@ import { MapsClient } from '@dungeon-lab/client/index.mjs';
 import { transformAssetUrl } from '@/utils/asset-utils.mjs';
 import { useDocumentSheetStore } from '@/stores/document-sheet.store.mjs';
 import { useGameStateStore } from '@/stores/game-state.store.mjs';
+import { pluginRegistry } from '@/services/plugin-registry.mts';
 
 // Token change operations for efficient updates
 interface TokenChangeOperation {
@@ -234,6 +235,7 @@ const {
   removeToken,
   moveToken,
   clearAllTokens,
+  updateTokenStatusBars,
   selectToken,
   deselectToken,
   addTarget,
@@ -451,6 +453,9 @@ const loadTokens = async (tokens: Token[]) => {
     
     tokenCount.value = tokens.length;
     
+    // Update status bars for all tokens after loading
+    refreshAllTokenStatusBars();
+    
   } catch (err) {
     console.error('[PixiMapViewer] Failed to load tokens:', err);
     throw err;
@@ -649,6 +654,82 @@ const handleTokenDoubleClick = (tokenId: string) => {
   documentSheetStore.openDocumentSheet(document);
 };
 
+/**
+ * Get the first available plugin (for now - could be more sophisticated)
+ */
+const getActivePlugin = () => {
+  const plugins = pluginRegistry.getPlugins();
+  return plugins.length > 0 ? plugins[0] : null;
+};
+
+/**
+ * Update status bars for a token based on its linked document
+ */
+const refreshTokenStatusBars = (token: Token) => {
+  try {
+    if (!token.documentId) {
+      console.debug('[PixiMapViewer] Token has no documentId, skipping status bars:', token.id);
+      return;
+    }
+    
+    // Find the linked document using the correct access pattern
+    const document = gameStateStore.getDocument(token.documentId);
+    if (!document) {
+      console.debug('[PixiMapViewer] Document not found for token:', token.id, 'documentId:', token.documentId);
+      return;
+    }
+    
+    // Get the active plugin
+    const activePlugin = getActivePlugin();
+    if (!activePlugin) {
+      console.debug('[PixiMapViewer] No active plugin available, skipping status bars');
+      return;
+    }
+    
+    // Check if the plugin has status bar configuration for this document type
+    const statusBarConfigs = activePlugin.getTokenStatusBarConfig(document.documentType);
+    if (!statusBarConfigs || statusBarConfigs.length === 0) {
+      console.debug('[PixiMapViewer] No status bar config for document type:', document.documentType);
+      return;
+    }
+    
+    // Update the status bars using the usePixiMap composable
+    updateTokenStatusBars(token.id, document, activePlugin);
+    console.debug('[PixiMapViewer] Updated status bars for token:', token.id, 'document:', document.documentType);
+    
+  } catch (error) {
+    console.warn('[PixiMapViewer] Failed to update status bars for token:', token.id, error);
+  }
+};
+
+/**
+ * Update status bars for all tokens that have linked documents
+ */
+const refreshAllTokenStatusBars = () => {
+  try {
+    if (!props.tokens || props.tokens.length === 0) {
+      console.debug('[PixiMapViewer] No tokens to update status bars for');
+      return;
+    }
+    
+    // Check if we have the necessary dependencies
+    if (!isInitialized.value) {
+      console.debug('[PixiMapViewer] Not initialized yet, skipping status bar updates');
+      return;
+    }
+    
+    const tokensWithDocs = props.tokens.filter(token => token.documentId);
+    console.debug(`[PixiMapViewer] Updating status bars for ${tokensWithDocs.length}/${props.tokens.length} tokens`);
+    
+    for (const token of tokensWithDocs) {
+      refreshTokenStatusBars(token);
+    }
+    
+  } catch (error) {
+    console.warn('[PixiMapViewer] Failed to update all token status bars:', error);
+  }
+};
+
 // Arrow key handling for token movement
 const handleKeyDown = async (event: KeyboardEvent) => {
   // Only handle arrow keys
@@ -815,6 +896,9 @@ watch(() => props.tokens, async (newTokens, oldTokens) => {
     if (props.selectedTokenId) {
       selectToken(props.selectedTokenId);
     }
+    
+    // Update status bars for affected tokens
+    refreshAllTokenStatusBars();
   } catch (error) {
     console.error('[PixiMapViewer] Smart token updates failed:', error);
     // Fallback to full reload on error
@@ -898,6 +982,19 @@ watch(() => props.targetTokenIds, (newTargetIds) => {
     }
   }
 }, { immediate: true, deep: true });
+
+// Watch for document state changes and update status bars
+watch(() => gameStateStore.gameState, () => {
+  // Update status bars when any document changes (like HP changes)
+  // Note: Watching gameState instead of documents since documents is not directly exposed
+  refreshAllTokenStatusBars();
+}, { deep: true });
+
+// Watch for plugin registry changes (plugin loads/unloads)
+watch(() => pluginRegistry.getPlugins(), () => {
+  // Update status bars when plugin availability changes
+  refreshAllTokenStatusBars();
+}, { deep: true });
 
 // Lifecycle
 let preventContextMenu: ((e: MouseEvent) => void) | null = null;

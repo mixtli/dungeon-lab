@@ -2,6 +2,7 @@ import type { Component } from 'vue';
 import type { PluginManifest } from '@dungeon-lab/shared/schemas/plugin-manifest.schema.mjs';
 import type { PluginContext } from '../types/plugin-context.mjs';
 import type { GameSystemPlugin, ValidationResult } from '../types/plugin.mjs';
+import type { TokenStatusBarConfig } from '@dungeon-lab/shared/types/token-status-bars.mjs';
 
 /**
  * Base class for game system plugins
@@ -116,6 +117,19 @@ export abstract class BaseGameSystemPlugin implements GameSystemPlugin {
    */
   async onLoad(context?: PluginContext): Promise<void> {
     this.context = context;
+  }
+  
+  /**
+   * Get status bar configuration for tokens based on document type
+   * 
+   * Default implementation returns an empty array. Concrete plugins should override
+   * this method to provide game-system-specific status bar configurations.
+   * 
+   * @param documentType Type of document (e.g., 'character', 'actor', 'vehicle')
+   * @returns Array of status bar configurations for this document type
+   */
+  getTokenStatusBarConfig(_documentType: string): TokenStatusBarConfig[] {
+    return [];
   }
   
   /**
