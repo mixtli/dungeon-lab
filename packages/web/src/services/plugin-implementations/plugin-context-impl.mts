@@ -375,11 +375,21 @@ export class PluginContextImpl implements PluginContext {
   openDocumentSheet(documentId: string, documentType: string): void {
     const documentSheetStore = useDocumentSheetStore();
     
+    // Map plugin document types to actual document types
+    const getActualDocumentType = (pluginDocumentType: string): BaseDocument['documentType'] => {
+      // For weapon sheets, use 'item' document type
+      if (pluginDocumentType === 'weapon') {
+        return 'item';
+      }
+      // For other types like spell, use 'vtt-document'
+      return 'vtt-document';
+    };
+    
     // Create minimal document for sheet opening
     const mockDocument: BaseDocument = {
       id: documentId,
       name: 'Loading...', // Will be loaded by the sheet
-      documentType: 'vtt-document',
+      documentType: getActualDocumentType(documentType),
       pluginDocumentType: documentType,
       pluginId: this.pluginId, // Use the current plugin's ID
       slug: '',

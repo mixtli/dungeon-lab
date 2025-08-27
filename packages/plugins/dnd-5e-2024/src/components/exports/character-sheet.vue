@@ -439,6 +439,7 @@
                   v-for="item in groupedItems.weapons" 
                   :key="item.id"
                   class="item-row"
+                  @dblclick="openWeaponSheet(item)"
                 >
                   <div class="item-icon">
                     <img 
@@ -475,6 +476,7 @@
                   v-for="item in groupedItems.armor" 
                   :key="item.id"
                   class="item-row"
+                  @dblclick="openArmorSheet(item)"
                 >
                   <div class="item-icon">
                     <img 
@@ -505,6 +507,7 @@
                   v-for="item in groupedItems.gear" 
                   :key="item.id"
                   class="item-row"
+                  @dblclick="openGearSheet(item)"
                 >
                   <div class="item-icon">
                     <img 
@@ -1955,6 +1958,30 @@ const openSpellSheet = (spellData: any) => {
   
   // Use PluginContext to open the spell sheet
   pluginContext.openDocumentSheet(spellData.spell, 'spell');
+};
+
+// Open weapon sheet on double-click
+const openWeaponSheet = (item: IItem) => {
+  console.log('[CharacterSheet] Opening weapon sheet for:', item.name);
+  
+  // Use PluginContext to open the weapon sheet (pass item ID and sheet type)
+  pluginContext.openDocumentSheet(item.id, 'weapon');
+};
+
+// Open armor sheet on double-click
+const openArmorSheet = (item: IItem) => {
+  console.log('[CharacterSheet] Opening armor sheet for:', item.name);
+  
+  // Use PluginContext to open the armor sheet (pass item ID and sheet type)
+  pluginContext.openDocumentSheet(item.id, 'armor');
+};
+
+// Open gear sheet on double-click
+const openGearSheet = (item: IItem) => {
+  console.log('[CharacterSheet] Opening gear sheet for:', item.name);
+  
+  // Use PluginContext to open the gear sheet (pass item ID and sheet type)
+  pluginContext.openDocumentSheet(item.id, 'gear');
 };
 
 // Load item image URLs dynamically from imageId (for game state items)

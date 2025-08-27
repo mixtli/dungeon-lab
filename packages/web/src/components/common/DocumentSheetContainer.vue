@@ -53,7 +53,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed, shallowRef, reactive, toRaw } from 'vue';
+import { ref, watch, computed, shallowRef, reactive, toRaw, onMounted } from 'vue';
 import type { Component } from 'vue';
 import type { BaseDocument, IItem } from '@dungeon-lab/shared/types/index.mjs';
 import { pluginRegistry } from '../../services/plugin-registry.mts';
@@ -68,7 +68,7 @@ import PluginContainer from './PluginContainer.vue';
 const props = defineProps<{
   show: boolean;
   documentId?: string;
-  documentType?: 'character' | 'actor' | 'vtt-document';
+  documentType?: 'character' | 'actor' | 'vtt-document' | 'item';
   context?: 'admin' | 'game';
   readonly?: boolean;
 }>();
@@ -197,33 +197,23 @@ const documentInfo = computed(() => {
   };
 });
 
-// Watch for document changes and load the appropriate component based on documentType
-watch(() => [documentInfo.value.pluginId, documentInfo.value.documentType, documentInfo.value.pluginDocumentType], async ([pluginId, documentType, pluginDocumentType]) => {
-  console.log('[DocumentSheetContainer] Document game system ID:', pluginId, 'documentType:', documentType, 'pluginDocumentType:', pluginDocumentType, 'context:', context.value);
+// Load the appropriate component based on pluginDocumentType
+const loadSheetComponent = async () => {
+  const pluginId = documentInfo.value.pluginId;
+  const pluginDocumentType = documentInfo.value.pluginDocumentType;
   
-  if (!pluginId || !documentType) {
+  console.log('[DocumentSheetContainer] Loading component for pluginId:', pluginId, 'pluginDocumentType:', pluginDocumentType);
+  
+  if (!pluginId || !pluginDocumentType) {
     documentSheetComponent.value = null;
     return;
   }
 
   try {
-    // Determine component type based on documentType
-    let componentType: string;
+    // Simple rule: componentType is always ${pluginDocumentType}-sheet
+    const componentType = `${pluginDocumentType}-sheet`;
     
-    if (documentType === 'actor') {
-      componentType = 'actor-sheet';
-    } else if (documentType === 'character') {
-      componentType = 'character-sheet';
-    } else if (documentType === 'vtt-document' && pluginDocumentType) {
-      // For VTT documents, use pluginDocumentType to determine component
-      componentType = `${pluginDocumentType}-sheet`;
-    } else {
-      console.warn(`[DocumentSheetContainer] Unsupported document type: ${documentType}`);
-      documentSheetComponent.value = null;
-      return;
-    }
-    
-    // Use the new async getComponent API
+    // Use the async getComponent API
     const component = await pluginRegistry.getComponent(pluginId, componentType);
     if (component) {
       console.log(`[DocumentSheetContainer] ${componentType} component loaded successfully`);
@@ -236,6 +226,11 @@ watch(() => [documentInfo.value.pluginId, documentInfo.value.documentType, docum
     console.error('[DocumentSheetContainer] Failed to load sheet component:', error);
     documentSheetComponent.value = null;
   }
+};
+
+// Load component when document info becomes available
+watch(() => [documentInfo.value.pluginId, documentInfo.value.pluginDocumentType], () => {
+  loadSheetComponent();
 }, { immediate: true });
 
 
