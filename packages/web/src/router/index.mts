@@ -4,6 +4,7 @@ import type { RouteRecordRaw } from 'vue-router';
 // Layouts
 import DefaultLayout from '@/layouts/DefaultLayout.vue';
 import ChatView from '@/views/ChatView.vue';
+import MobileChatView from '@/views/MobileChatView.vue';
 
 // Views - Lazy loaded
 const HomeView = () => import('@/views/HomeView.vue');
@@ -247,6 +248,15 @@ const routes: RouteRecordRaw[] = [
         component: ChatView,
         meta: {
           title: 'Game Chat',
+          requiresAuth: true
+        }
+      },
+      {
+        path: '/mobile-chat',
+        name: 'mobile-chat',
+        component: MobileChatView,
+        meta: {
+          title: 'Chat',
           requiresAuth: true
         }
       },

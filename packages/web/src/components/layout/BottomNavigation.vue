@@ -5,6 +5,7 @@ import { useRouter, useRoute } from 'vue-router';
 import { useGameSessionStore } from '../../stores/game-session.store.mts';
 import { useGameStateStore } from '../../stores/game-state.store.mts';
 import { useNotificationStore } from '../../stores/notification.store.mts';
+import { useDeviceAdaptation } from '../../composables/useDeviceAdaptation.mts';
 import { 
   ChatBubbleLeftRightIcon, 
   ShieldCheckIcon, 
@@ -34,6 +35,7 @@ const route = useRoute();
 const gameSessionStore = useGameSessionStore();
 const gameStateStore = useGameStateStore();
 const notificationStore = useNotificationStore();
+const { isPhone } = useDeviceAdaptation();
 
 // Navigation tabs configuration
 const tabs = computed(() => [
@@ -43,11 +45,16 @@ const tabs = computed(() => [
     icon: ChatBubbleLeftRightIcon,
     iconSolid: ChatBubbleLeftRightIconSolid,
     isActive: computed(() => {
-      return route.name === 'chat' || route.path.includes('/chat');
+      return route.name === 'chat' || route.name === 'mobile-chat' || route.path.includes('/chat');
     }),
     navigate: () => {
       if (gameSessionStore.currentSession) {
-        router.push({ name: 'chat' });
+        // Use mobile-specific chat for phones, regular chat for desktop/tablet
+        if (isPhone.value) {
+          router.push({ name: 'mobile-chat' });
+        } else {
+          router.push({ name: 'chat' });
+        }
       } else {
         router.push({ name: 'game-sessions' });
       }
