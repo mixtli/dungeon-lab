@@ -9,6 +9,7 @@ export const gameActionTypeSchema = z.enum([
   'move-token',
   'remove-token',
   'add-document',
+  'remove-document',
   'update-document',
   'assign-item',
   'end-turn',

@@ -76,7 +76,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onUnmounted } from 'vue';
 import type { ApprovalData } from '../../stores/chat.store.mts';
 import { useNotificationStore } from '../../stores/notification.store.mjs';
 import { useChatStore } from '../../stores/chat.store.mts';
@@ -85,6 +85,7 @@ import { gmActionHandlerService } from '../../services/gm-action-handler.service
 interface Props {
   approvalData: ApprovalData;
   timestamp: string;
+  messageId?: string; // Optional for backward compatibility
 }
 
 const props = defineProps<Props>();
@@ -95,10 +96,51 @@ const chatStore = useChatStore();
 // Component state
 const isLoading = ref(false);
 const loadingAction = ref<'approve' | 'deny' | null>(null);
+const autoHideTimer = ref<NodeJS.Timeout | null>(null);
 
 // Computed properties that read from persisted approval data
 const isProcessed = computed(() => !!props.approvalData.approvalStatus);
 const approvalStatus = computed(() => props.approvalData.approvalStatus || null);
+
+// Cleanup timer on component unmount
+onUnmounted(() => {
+  if (autoHideTimer.value) {
+    clearTimeout(autoHideTimer.value);
+  }
+});
+
+/**
+ * Find message ID by request ID if not provided as prop
+ */
+function findMessageIdByRequestId(): string | null {
+  if (props.messageId) {
+    return props.messageId;
+  }
+  
+  // Find the message with matching requestId
+  const message = chatStore.messages.find(
+    msg => msg.type === 'approval-request' && 
+           msg.approvalData?.requestId === props.approvalData.requestId
+  );
+  
+  return message?.id || null;
+}
+
+/**
+ * Start auto-hide timer after successful approval/denial
+ */
+function startAutoHideTimer(): void {
+  const messageId = findMessageIdByRequestId();
+  if (!messageId) {
+    console.warn('[ApprovalCard] Cannot auto-hide: message ID not found');
+    return;
+  }
+
+  autoHideTimer.value = setTimeout(() => {
+    console.log(`[ApprovalCard] Auto-hiding approval card for message: ${messageId}`);
+    chatStore.removeMessage(messageId);
+  }, 3000);
+}
 
 /**
  * Handle approval button click
@@ -123,6 +165,9 @@ async function handleApprove() {
       message: `Approved ${props.approvalData.playerName}'s ${formatActionType(props.approvalData.actionType)} request`,
       duration: 3000
     });
+
+    // Start auto-hide timer
+    startAutoHideTimer();
 
   } catch (error) {
     console.error('[ApprovalCard] Error approving request:', error);
@@ -160,6 +205,9 @@ async function handleDeny() {
       message: `Denied ${props.approvalData.playerName}'s ${formatActionType(props.approvalData.actionType)} request`,
       duration: 3000
     });
+
+    // Start auto-hide timer
+    startAutoHideTimer();
 
   } catch (error) {
     console.error('[ApprovalCard] Error denying request:', error);

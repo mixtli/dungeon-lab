@@ -4,7 +4,8 @@
   <!-- Approval card for approval request messages -->
   <ApprovalCard v-else-if="message.type === 'approval-request' && message.approvalData" 
     :approvalData="message.approvalData" 
-    :timestamp="message.timestamp" 
+    :timestamp="message.timestamp"
+    :messageId="message.id"
     :class="cardClass" />
   <!-- Roll request card for roll request messages -->
   <RollRequestMessage v-else-if="message.type === 'roll-request' && message.rollRequestData"

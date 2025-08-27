@@ -61,6 +61,15 @@ export interface AddDocumentParameters extends Record<string, unknown> {
 }
 
 /**
+ * Document removal action parameters
+ */
+export interface RemoveDocumentParameters extends Record<string, unknown> {
+  documentId: string;
+  documentName?: string; // For user-friendly messaging
+  documentType?: string; // For context in GM approval
+}
+
+/**
  * Document update action parameters
  */
 export interface UpdateDocumentParameters extends Record<string, unknown> {

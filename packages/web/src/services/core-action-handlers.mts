@@ -7,6 +7,7 @@
 import { registerAction } from './multi-handler-registry.mjs';
 import { moveTokenActionHandler } from './handlers/actions/move-token.handler.mjs';
 import { addDocumentActionHandler } from './handlers/actions/add-document.handler.mjs';
+import { removeDocumentActionHandler } from './handlers/actions/remove-document.handler.mjs';
 import { removeTokenActionHandler } from './handlers/actions/remove-token.handler.mjs';
 import { updateDocumentActionHandler } from './handlers/actions/update-document.handler.mjs';
 import { assignItemActionHandler } from './handlers/actions/assign-item.handler.mjs';
@@ -28,6 +29,9 @@ export function initializeCoreActionHandlers(): void {
 
   // Register core add-document handler
   registerAction('add-document', addDocumentActionHandler);
+
+  // Register core remove-document handler
+  registerAction('remove-document', removeDocumentActionHandler);
 
   // Register core remove-token handler
   registerAction('remove-token', removeTokenActionHandler);
