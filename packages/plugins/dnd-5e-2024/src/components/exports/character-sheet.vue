@@ -67,7 +67,26 @@
     <main class="tab-content">
       <!-- Overview Tab -->
       <div v-if="activeTab === 'overview'" class="tab-pane overview-tab">
-        <div class="stats-grid">
+        <div class="overview-layout">
+          <!-- Character Portrait -->
+          <div class="character-portrait-section">
+            <div class="prominent-portrait">
+              <img 
+                v-if="prominentAvatarUrl" 
+                :src="prominentAvatarUrl" 
+                :alt="character?.name"
+                class="portrait-image"
+              />
+              <div v-else class="portrait-placeholder">
+                <div class="placeholder-icon">👤</div>
+                <div class="placeholder-text">No Image</div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Stats Section -->
+          <div class="stats-section">
+            <div class="stats-grid">
           <div class="stat-card" @click="rollInitiative" :title="editMode && !readonly ? 'Initiative Bonus' : 'Click to roll initiative'">
             <div class="stat-label">Initiative</div>
             <div v-if="!editMode || readonly" class="stat-value">{{ initiativeBonus }}</div>
@@ -199,6 +218,8 @@
           <div v-if="activeConditions.length === 0" class="no-conditions">
             <p>No active conditions</p>
             <p class="no-conditions-hint">Drag conditions from the Documents tab to add them</p>
+          </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1177,6 +1198,14 @@ const classDisplayName = computed(() => {
   if (compendiumLoading.value) return 'Loading...';
   if (compendiumError.value) return 'Error loading class';
   return classDocument.value?.name || 'Unknown Class';
+});
+
+const prominentAvatarUrl = computed(() => {
+  // Fallback hierarchy: avatar -> image -> tokenImage
+  return character.value?.avatar?.url || 
+         character.value?.image?.url || 
+         character.value?.tokenImage?.url || 
+         null;
 });
 
 // Spell-related computed properties (context-aware for edit mode)
@@ -2569,6 +2598,63 @@ watch(() => props.items?.value, () => {
 }
 
 /* Overview Tab */
+.overview-layout {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.character-portrait-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.prominent-portrait {
+  width: 200px;
+  height: 300px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid var(--dnd-brown-light);
+  background: var(--dnd-parchment);
+  box-shadow: 0 4px 12px var(--dnd-shadow);
+}
+
+.portrait-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.portrait-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--dnd-brown);
+  background: linear-gradient(135deg, #f8f6f0 0%, #ede5d3 100%);
+}
+
+.placeholder-icon {
+  font-size: 4rem;
+  margin-bottom: 8px;
+  opacity: 0.6;
+}
+
+.placeholder-text {
+  font-size: 0.875rem;
+  font-weight: 500;
+  opacity: 0.8;
+}
+
+.stats-section {
+  display: flex;
+  flex-direction: column;
+}
+
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);

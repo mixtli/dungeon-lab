@@ -61,48 +61,70 @@
     
     <!-- Stat Block Content -->
     <main class="sheet-content stat-block-content">
-      <!-- Basic Stats Section -->
-      <section class="dnd-section basic-stats">
-        <div class="stat-line">
-          <span class="stat-label">Armor Class</span>
-          <span v-if="!editMode || readonly" class="stat-value">{{ armorClassDisplay }}</span>
-          <input 
-            v-else-if="actorCopy"
-            v-model.number="armorClassCopy"
-            class="stat-input inline"
-            type="number"
-            min="1"
-            max="30"
-          />
+      <div class="creature-layout">
+        <!-- Top Row: Portrait and Basic Stats -->
+        <div class="top-row">
+          <div class="creature-portrait-section">
+            <div class="prominent-portrait">
+              <img 
+                v-if="prominentAvatarUrl" 
+                :src="prominentAvatarUrl" 
+                :alt="actor?.name"
+                class="portrait-image"
+              />
+              <div v-else class="portrait-placeholder">
+                <div class="placeholder-icon">🐲</div>
+                <div class="placeholder-text">No Image</div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Basic Stats Section (AC, HP, Speed) -->
+          <section class="dnd-section basic-stats">
+            <div class="stat-line">
+              <span class="stat-label">Armor Class</span>
+              <span v-if="!editMode || readonly" class="stat-value">{{ armorClassDisplay }}</span>
+              <input 
+                v-else-if="actorCopy"
+                v-model.number="armorClassCopy"
+                class="stat-input inline"
+                type="number"
+                min="1"
+                max="30"
+              />
+            </div>
+            
+            <div class="stat-line">
+              <span class="stat-label">Hit Points</span>
+              <span v-if="!editMode || readonly" class="stat-value">{{ hitPointsDisplay }}</span>
+              <div v-else class="hit-points-edit inline">
+                <input 
+                  v-model.number="hitPointsCurrentCopy"
+                  class="stat-input hp-current"
+                  type="number"
+                  min="0"
+                  :max="hitPointsMaxCopy"
+                />
+                <span class="hp-separator">/</span>
+                <input 
+                  v-model.number="hitPointsMaxCopy"
+                  class="stat-input hp-max"
+                  type="number"
+                  min="1"
+                  max="999"
+                />
+              </div>
+            </div>
+
+            <div class="stat-line">
+              <span class="stat-label">Speed</span>
+              <span class="stat-value">{{ speedDisplay }}</span>
+            </div>
+          </section>
         </div>
         
-        <div class="stat-line">
-          <span class="stat-label">Hit Points</span>
-          <span v-if="!editMode || readonly" class="stat-value">{{ hitPointsDisplay }}</span>
-          <div v-else class="hit-points-edit inline">
-            <input 
-              v-model.number="hitPointsCurrentCopy"
-              class="stat-input hp-current"
-              type="number"
-              min="0"
-              :max="hitPointsMaxCopy"
-            />
-            <span class="hp-separator">/</span>
-            <input 
-              v-model.number="hitPointsMaxCopy"
-              class="stat-input hp-max"
-              type="number"
-              min="1"
-              max="999"
-            />
-          </div>
-        </div>
-
-        <div class="stat-line">
-          <span class="stat-label">Speed</span>
-          <span class="stat-value">{{ speedDisplay }}</span>
-        </div>
-      </section>
+        <!-- Remaining Content (flows below and left-aligns) -->
+        <div class="remaining-stats">
 
       <!-- Ability Scores -->
       <section class="dnd-section ability-scores">
@@ -241,6 +263,8 @@
           <p class="action-description" v-html="action.description"></p>
         </div>
       </section>
+        </div>
+      </div>
     </main>
   </div>
 
@@ -545,6 +569,14 @@ const speedDisplay = computed(() => {
   return speedParts.join(', ') || '30 ft.';
 });
 
+const prominentAvatarUrl = computed(() => {
+  // Fallback hierarchy: avatar -> image -> tokenImage
+  return actor.value?.avatar?.url || 
+         actor.value?.image?.url || 
+         actor.value?.tokenImage?.url || 
+         null;
+});
+
 // Saving throws
 const savingThrows = computed(() => {
   const savingThrowsData = actor.value?.pluginData?.savingThrows;
@@ -812,6 +844,70 @@ onMounted(() => {
   flex: 1;
   padding: 16px;
   overflow-y: auto;
+}
+
+.creature-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.top-row {
+  display: flex;
+  gap: 16px;
+  align-items: start;
+}
+
+.creature-portrait-section {
+  flex-shrink: 0;
+}
+
+.prominent-portrait {
+  width: 160px;
+  height: 200px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 2px solid var(--dnd-brown-light);
+  background: var(--dnd-parchment);
+  box-shadow: 0 2px 8px var(--dnd-shadow);
+}
+
+.portrait-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.portrait-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--dnd-brown);
+  background: linear-gradient(135deg, #f8f6f0 0%, #ede5d3 100%);
+}
+
+.placeholder-icon {
+  font-size: 2.5rem;
+  margin-bottom: 4px;
+  opacity: 0.6;
+}
+
+.placeholder-text {
+  font-size: 0.75rem;
+  font-weight: 500;
+  opacity: 0.8;
+}
+
+.basic-stats {
+  flex: 1;
+  min-width: 200px;
+}
+
+.remaining-stats {
   display: flex;
   flex-direction: column;
   gap: 16px;
