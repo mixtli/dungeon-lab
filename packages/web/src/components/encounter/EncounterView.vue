@@ -397,18 +397,22 @@ const handleTokenDragStart = (tokenId: string, globalPosition: { x: number; y: n
     
     // Convert screen coordinates to world coordinates using proper PIXI transformation
     const worldCoords = pixiViewer.screenToWorld(screenX, screenY);
-    const worldX = Math.round(worldCoords.x);
-    const worldY = Math.round(worldCoords.y);
+    
+    // Convert world coordinates to grid coordinates
+    const gridSize = pixiViewer.getGridSize ? pixiViewer.getGridSize() : 50; // fallback to 50 if not available
+    const gridX = Math.floor((worldCoords.x - gridSize / 2) / gridSize);
+    const gridY = Math.floor((worldCoords.y - gridSize / 2) / gridSize);
     
     console.log('[EncounterView] Token drop with character tab logic:', {
       tokenId,
       screenCoords: { x: screenX, y: screenY },
       worldCoords: { x: worldCoords.x, y: worldCoords.y },
-      finalPosition: { x: worldX, y: worldY }
+      gridSize,
+      gridPosition: { gridX, gridY }
     });
     
-    // Move the token using the proven coordinate system
-    handleTokenMoved(tokenId, worldX, worldY);
+    // Move the token using grid coordinates
+    handleTokenMoved(tokenId, gridX, gridY);
     
     // Clean up both listeners
     document.removeEventListener('mouseup', handleDragDrop);
@@ -420,7 +424,7 @@ const handleTokenDragStart = (tokenId: string, globalPosition: { x: number; y: n
   document.addEventListener('touchend', handleDragDrop, { once: true });
 };
 
-const handleTokenMoved = async (tokenId: string, x: number, y: number) => {
+const handleTokenMoved = async (tokenId: string, gridX: number, gridY: number) => {
   if (!encounter.value) return;
   
   const token = encounter.value.tokens ? Object.values(encounter.value.tokens).find(t => t.id === tokenId) : undefined;
@@ -430,9 +434,9 @@ const handleTokenMoved = async (tokenId: string, x: number, y: number) => {
   }
   
   try {
-    // Use the new action request system for token movement
+    // Use the new action request system for token movement with grid coordinates
     const elevation = token.bounds?.elevation || 0;
-    const result = await requestTokenMove(tokenId, { x, y, elevation });
+    const result = await requestTokenMove(tokenId, { gridX, gridY, elevation });
     
     if (result.success && !result.approved) {
       // Show notification to player that movement is pending approval
@@ -613,16 +617,17 @@ const handleTokensCreated = async (tokenIds: string[]) => {
   if (!encounter.value || !lastClickPosition.value) return;
   
   try {
+    // Convert world coordinates to grid coordinates
+    const gridSize = pixiMapViewer.value?.getGridSize ? pixiMapViewer.value.getGridSize() : 50;
+    const gridX = Math.floor((lastClickPosition.value.x - gridSize / 2) / gridSize);
+    const gridY = Math.floor((lastClickPosition.value.y - gridSize / 2) / gridSize);
+    
     // Update the position of each created token
     for (const tokenId of tokenIds) {
       const token = encounterTokens.value.find(t => t.id === tokenId);
       if (token) {
-        // Update token position and emit socket event
-        handleTokenMoved(
-          tokenId,
-          lastClickPosition.value.x,
-          lastClickPosition.value.y
-        );
+        // Update token position using grid coordinates
+        handleTokenMoved(tokenId, gridX, gridY);
       }
     }
     

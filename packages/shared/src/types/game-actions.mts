@@ -35,8 +35,8 @@ export interface ActionRequestResult {
 export interface MoveTokenParameters extends Record<string, unknown> {
   tokenId: string;
   newPosition: {
-    x: number; // World coordinates
-    y: number; // World coordinates
+    gridX: number; // Grid cell X coordinate (integer) for top-left corner
+    gridY: number; // Grid cell Y coordinate (integer) for top-left corner
     elevation?: number;
   };
 }

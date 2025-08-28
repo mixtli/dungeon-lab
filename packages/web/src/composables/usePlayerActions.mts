@@ -25,7 +25,7 @@ export function usePlayerActions() {
    */
   const requestTokenMove = async (
     tokenId: string, 
-    newPosition: { x: number; y: number; elevation?: number }
+    newPosition: { gridX: number; gridY: number; elevation?: number }
   ): Promise<ActionRequestResult> => {
     const token = gameStateStore.currentEncounter?.tokens ? Object.values(gameStateStore.currentEncounter.tokens).find(t => t.id === tokenId) : undefined;
     

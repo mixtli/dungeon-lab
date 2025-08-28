@@ -94,36 +94,26 @@ const validateMoveToken: ActionValidationHandler = async (
     const currentGridCenterY = (token.bounds.topLeft.y + token.bounds.bottomRight.y + 1) / 2;
     const currentGridPos = { x: currentGridCenterX, y: currentGridCenterY };
     
-    // Convert target world position to grid coordinates (target is center coordinates)
-    const mapData = gameState.currentEncounter.currentMap;
-    const pixelsPerGrid = mapData.uvtt?.resolution?.pixels_per_grid || 50;
-    // Since target position is a center coordinate (gridCell * pixelsPerGrid + pixelsPerGrid/2),
-    // we need to convert it back to integer grid coordinates
-    const targetGridPos = { 
-      x: Math.round((params.newPosition.x - pixelsPerGrid / 2) / pixelsPerGrid), 
-      y: Math.round((params.newPosition.y - pixelsPerGrid / 2) / pixelsPerGrid) 
-    };
+    // Target position is already in grid coordinates (top-left corner)
+    // Calculate center of target position for collision detection
+    const tokenWidth = token.bounds.bottomRight.x - token.bounds.topLeft.x + 1;
+    const tokenHeight = token.bounds.bottomRight.y - token.bounds.topLeft.y + 1;
+    const targetGridCenterX = params.newPosition.gridX + tokenWidth / 2;
+    const targetGridCenterY = params.newPosition.gridY + tokenHeight / 2;
+    const targetGridPos = { x: targetGridCenterX, y: targetGridCenterY };
     
     // Debug backend position calculations
-    const currentWorldPos = {
-      x: currentGridCenterX * pixelsPerGrid,
-      y: currentGridCenterY * pixelsPerGrid
-    };
     console.log('[MoveTokenHandler] Backend position calculation debug:', {
       tokenId: params.tokenId,
       tokenBounds: token.bounds,
+      tokenSize: { width: tokenWidth, height: tokenHeight },
       currentGridCenter: { x: currentGridCenterX, y: currentGridCenterY },
-      currentWorldPos,
-      receivedTargetWorld: params.newPosition,
-      targetGridPos,
-      pixelsPerGrid,
-      calculatedDistance: Math.sqrt(
-        Math.pow(params.newPosition.x - currentWorldPos.x, 2) + 
-        Math.pow(params.newPosition.y - currentWorldPos.y, 2)
-      )
+      receivedTargetGrid: params.newPosition,
+      targetGridCenter: { x: targetGridCenterX, y: targetGridCenterY }
     });
     
     try {
+      const mapData = gameState.currentEncounter.currentMap;
       const collisionDetected = checkWallCollision(currentGridPos, targetGridPos, mapData, false);
       
       if (collisionDetected) {
@@ -148,40 +138,29 @@ const validateMoveToken: ActionValidationHandler = async (
 }
 
 /**
- * Calculate new bounds from center position, preserving token size
+ * Calculate new bounds from top-left grid position, preserving token size
  */
 function calculateNewBounds(
   params: MoveTokenParameters,
-  currentBounds: { topLeft: { x: number; y: number }; bottomRight: { x: number; y: number }; elevation?: number },
-  currentMap: { uvtt?: { resolution?: { pixels_per_grid?: number } } } | undefined
+  currentBounds: { topLeft: { x: number; y: number }; bottomRight: { x: number; y: number }; elevation?: number }
 ) {
-  const newCenterX = params.newPosition.x;
-  const newCenterY = params.newPosition.y;
+  const newTopLeftX = params.newPosition.gridX;
+  const newTopLeftY = params.newPosition.gridY;
   const newElevation = params.newPosition.elevation || currentBounds.elevation || 0;
-  
-  // Get the actual grid size from current map data
-  const pixelsPerGrid = currentMap?.uvtt?.resolution?.pixels_per_grid || 50; // fallback to 50
-  
-  // Convert center world coordinates to grid coordinates (use floor for center coordinates)
-  const centerGridX = Math.floor(newCenterX / pixelsPerGrid);
-  const centerGridY = Math.floor(newCenterY / pixelsPerGrid);
   
   // Calculate current size
   const width = currentBounds.bottomRight.x - currentBounds.topLeft.x;
   const height = currentBounds.bottomRight.y - currentBounds.topLeft.y;
   
-  // Calculate new bounds centered on the new position
-  const halfWidth = Math.floor(width / 2);
-  const halfHeight = Math.floor(height / 2);
-  
+  // Calculate new bounds using the grid top-left position
   return {
     topLeft: {
-      x: centerGridX - halfWidth,
-      y: centerGridY - halfHeight
+      x: newTopLeftX,
+      y: newTopLeftY
     },
     bottomRight: {
-      x: centerGridX + width - halfWidth,
-      y: centerGridY + height - halfHeight
+      x: newTopLeftX + width,
+      y: newTopLeftY + height
     },
     elevation: newElevation
   };
@@ -210,11 +189,7 @@ const executeMoveToken: ActionExecutionHandler = async (
   const token = draft.currentEncounter!.tokens![params.tokenId]!;
 
   // Calculate new bounds using the helper function
-  const newBounds = calculateNewBounds(
-    params, 
-    token.bounds, 
-    draft.currentEncounter?.currentMap || undefined
-  );
+  const newBounds = calculateNewBounds(params, token.bounds);
 
   // Direct draft mutation - Immer will automatically generate patches
   token.bounds = newBounds;
@@ -235,6 +210,6 @@ export const moveTokenActionHandler: Omit<ActionHandler, 'pluginId'> = {
   execute: executeMoveToken,
   approvalMessage: async (request) => {
     const params = request.parameters as MoveTokenParameters;
-    return `wants to move token to position (${params.newPosition.x}, ${params.newPosition.y})`;
+    return `wants to move token to grid position (${params.newPosition.gridX}, ${params.newPosition.gridY})`;
   }
 };

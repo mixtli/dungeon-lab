@@ -204,7 +204,7 @@ interface Emits {
   (e: 'map-loaded', mapData: IMapResponse): void;
   (e: 'map-error', error: string): void;
   (e: 'token-selected', tokenId: string, modifiers?: { shift?: boolean; ctrl?: boolean; alt?: boolean }): void;
-  (e: 'token-moved', tokenId: string, x: number, y: number): void;
+  (e: 'token-moved', tokenId: string, gridX: number, gridY: number): void;
   (e: 'token-drag-start', tokenId: string, globalPosition: { x: number; y: number }): void;
   (e: 'viewport-changed', viewport: { x: number; y: number; scale: number }): void;
   (e: 'canvas-click', x: number, y: number, event: MouseEvent): void;
@@ -535,6 +535,9 @@ defineExpose({
   screenToWorld,
   worldToScreen,
   
+  // Grid operations
+  getGridSize,
+  
   // State
   isInitialized,
   isLoaded,
@@ -623,8 +626,20 @@ const handleTokenDragEnd = async (tokenId: string, position: { x: number; y: num
     return;
   }
   
-  // Emit the token moved event to parent (handlers will calculate distance as needed)
-  emit('token-moved', tokenId, position.x, position.y);
+  // Convert world coordinates to grid coordinates
+  const gridSize = getGridSize();
+  const gridX = Math.floor((position.x - gridSize / 2) / gridSize);
+  const gridY = Math.floor((position.y - gridSize / 2) / gridSize);
+  
+  console.log('[PixiMapViewer] Drag end coordinate conversion:', {
+    tokenId,
+    worldPosition: position,
+    gridSize,
+    gridPosition: { gridX, gridY }
+  });
+  
+  // Emit the token moved event with grid coordinates
+  emit('token-moved', tokenId, gridX, gridY);
   
   // Reset drag state
   isDragging.value = false;
@@ -777,47 +792,40 @@ const handleKeyDown = async (event: KeyboardEvent) => {
     return;
   }
   
-  // Get grid size
-  const gridSize = getGridSize();
-  
-  // Calculate current center position from bounds (fixed to send center coordinates)
-  const centerGridX = (token.bounds.topLeft.x + token.bounds.bottomRight.x) / 2;
-  const centerGridY = (token.bounds.topLeft.y + token.bounds.bottomRight.y) / 2;
-  let newX = centerGridX * gridSize + gridSize / 2; // Center of current cell in world coordinates
-  let newY = centerGridY * gridSize + gridSize / 2; // Center of current cell in world coordinates
+  // Get current top-left grid position directly from bounds
+  let targetGridX = token.bounds.topLeft.x;
+  let targetGridY = token.bounds.topLeft.y;
   
   console.log('[Arrow Key Debug] Token movement:', {
     key: event.key,
     tokenId: pixiSelectedTokenId.value,
     bounds: token.bounds,
-    centerGrid: { x: centerGridX, y: centerGridY },
-    currentWorld: { x: newX, y: newY },
-    gridSize
+    currentTopLeft: { gridX: targetGridX, gridY: targetGridY }
   });
   
+  // Move by one grid cell
   switch (event.key) {
     case 'ArrowUp':
-      newY -= gridSize;
+      targetGridY -= 1;
       break;
     case 'ArrowDown':
-      newY += gridSize;
+      targetGridY += 1;
       break;
     case 'ArrowLeft':
-      newX -= gridSize;
+      targetGridX -= 1;
       break;
     case 'ArrowRight':
-      newX += gridSize;
+      targetGridX += 1;
       break;
   }
   
-  console.log('[Arrow Key Debug] Final coordinates being sent:', {
+  console.log('[Arrow Key Debug] Target grid coordinates:', {
     key: event.key,
-    finalWorld: { x: newX, y: newY }
+    targetGrid: { gridX: targetGridX, gridY: targetGridY }
   });
   
-  // Emit the token moved event to parent (EncounterView will handle the state update)
-  // No dragDistance for arrow keys - will be calculated in usePlayerActions
-  emit('token-moved', pixiSelectedTokenId.value, newX, newY);
+  // Emit the token moved event with grid coordinates
+  emit('token-moved', pixiSelectedTokenId.value, targetGridX, targetGridY);
 };
 
 // Watchers

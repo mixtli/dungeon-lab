@@ -16,40 +16,26 @@ import type { DndCreatureData } from '../../types/dnd/creature.mjs';
 
 /**
  * Calculate movement distance in feet from original position to target position
+ * Both positions are now in grid coordinates
  */
 function calculateMovementDistance(
-  originalPosition: { x: number; y: number },
-  newPosition: { x: number; y: number; elevation?: number },
-  gameState: ServerGameStateWithVirtuals
+  originalGridPos: { gridX: number; gridY: number },
+  targetGridPos: { gridX: number; gridY: number }
 ): number {
-  // Get grid scale from current map
-  let pixelsPerGridCell = 50; // Default fallback
-  if (gameState.currentEncounter?.currentMap?.uvtt?.resolution?.pixels_per_grid) {
-    pixelsPerGridCell = gameState.currentEncounter.currentMap.uvtt.resolution.pixels_per_grid;
-  }
-
-  // Convert both positions to grid coordinates
-  const originalGridX = originalPosition.x / pixelsPerGridCell;
-  const originalGridY = originalPosition.y / pixelsPerGridCell;
-  const targetGridX = newPosition.x / pixelsPerGridCell;
-  const targetGridY = newPosition.y / pixelsPerGridCell;
-  
-  // Calculate distance in grid cells
-  const deltaGridX = targetGridX - originalGridX;
-  const deltaGridY = targetGridY - originalGridY;
+  // Calculate distance in grid cells - much simpler now!
+  const deltaGridX = targetGridPos.gridX - originalGridPos.gridX;
+  const deltaGridY = targetGridPos.gridY - originalGridPos.gridY;
   const distanceInGridCells = Math.sqrt(deltaGridX * deltaGridX + deltaGridY * deltaGridY);
   
   // Convert to feet (D&D standard: 1 grid cell = 5 feet)
   const distanceInFeet = distanceInGridCells * 5;
   
   console.log('[DnD5e] Movement distance calculation:', {
-    originalGrid: { x: originalGridX, y: originalGridY },
-    targetWorld: newPosition,
-    targetGrid: { x: targetGridX, y: targetGridY },
+    originalGrid: originalGridPos,
+    targetGrid: targetGridPos,
     deltaGrid: { x: deltaGridX, y: deltaGridY },
     distanceInGridCells,
-    distanceInFeet,
-    pixelsPerGridCell
+    distanceInFeet
   });
   
   return distanceInFeet;
@@ -158,25 +144,18 @@ const validateDnDMovement: ActionValidationHandler = async (
     
   }
 
-  // Calculate current token center position and store for execution phase
-  let pixelsPerGridCell = 50; // Default fallback
-  if (gameState.currentEncounter?.currentMap?.uvtt?.resolution?.pixels_per_grid) {
-    pixelsPerGridCell = gameState.currentEncounter.currentMap.uvtt.resolution.pixels_per_grid;
-  }
-  
-  const currentGridCenterX = (token.bounds.topLeft.x + token.bounds.bottomRight.x + 1) / 2;
-  const currentGridCenterY = (token.bounds.topLeft.y + token.bounds.bottomRight.y + 1) / 2;
-  const originalWorldPosition = {
-    x: currentGridCenterX * pixelsPerGridCell,
-    y: currentGridCenterY * pixelsPerGridCell
+  // Store original position in grid coordinates for execution phase
+  const originalGridPosition = {
+    gridX: token.bounds.topLeft.x,
+    gridY: token.bounds.topLeft.y
   };
   
   // Store original position in request parameters for execution phase
-  (request.parameters as Record<string, unknown>).dndOriginalPosition = originalWorldPosition;
+  (request.parameters as Record<string, unknown>).dndOriginalPosition = originalGridPosition;
 
-  // Calculate movement distance from original position to target position
-  const { newPosition } = request.parameters as { newPosition: { x: number; y: number; elevation?: number } };
-  const distance = calculateMovementDistance(originalWorldPosition, newPosition, gameState);
+  // Calculate movement distance using grid coordinates
+  const { newPosition } = request.parameters as { newPosition: { gridX: number; gridY: number; elevation?: number } };
+  const distance = calculateMovementDistance(originalGridPosition, newPosition);
   
   // Check character's base speed using proper data structure extraction
   const baseSpeed = getWalkSpeed({ documentType: character.documentType || 'character', pluginData: character.pluginData });
@@ -274,8 +253,8 @@ const executeDnDMovement: ActionExecutionHandler = async (
 
   // Use stored original position from validation phase to calculate movement distance
   const { newPosition, dndOriginalPosition } = request.parameters as { 
-    newPosition: { x: number; y: number; elevation?: number };
-    dndOriginalPosition?: { x: number; y: number };
+    newPosition: { gridX: number; gridY: number; elevation?: number };
+    dndOriginalPosition?: { gridX: number; gridY: number };
   };
   
   if (!dndOriginalPosition) {
@@ -283,7 +262,7 @@ const executeDnDMovement: ActionExecutionHandler = async (
     return;
   }
   
-  const distance = calculateMovementDistance(dndOriginalPosition, newPosition, draft);
+  const distance = calculateMovementDistance(dndOriginalPosition, newPosition);
   
   // Initialize state if needed
   if (!character.state) character.state = {};
