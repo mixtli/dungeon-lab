@@ -44,7 +44,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, computed, nextTick } from 'vue';
+import { useRouter } from 'vue-router';
 import { usePixiMap, type UsePixiMapOptions } from '@/composables/usePixiMap.mjs';
+import { useDeviceAdaptation } from '@/composables/useDeviceAdaptation.mts';
 import type { IMapResponse } from '@dungeon-lab/shared/types/api/maps.mjs';
 import type { Token } from '@dungeon-lab/shared/types/tokens.mjs';
 import type { IUVTT } from '@dungeon-lab/shared/types/index.mjs';
@@ -158,6 +160,8 @@ function getCenterFromBounds(bounds: Token['bounds']) {
 const mapsClient = new MapsClient();
 
 // Initialize stores
+const router = useRouter();
+const { isPhone } = useDeviceAdaptation();
 const documentSheetStore = useDocumentSheetStore();
 const gameStateStore = useGameStateStore();
 
@@ -293,6 +297,9 @@ const initializeViewer = async () => {
       },
       onTokenDoubleClick: (tokenId: string) => {
         handleTokenDoubleClick(tokenId);
+      },
+      onTokenLongPress: (tokenId: string) => {
+        handleTokenLongPress(tokenId);
       },
       onTokenRightClick: (tokenId: string) => {
         const token = props.tokens?.find(t => t.id === tokenId) || null;
@@ -594,7 +601,7 @@ const handleTokenDragStart = (tokenId: string, position: { x: number; y: number 
   emit('token-drag-start', tokenId, position);
 };
 
-const handleTokenDragMove = (tokenId: string, position: { x: number; y: number }) => {
+const handleTokenDragMove = (tokenId: string, _position: { x: number; y: number }) => {
   if (!isDragging.value || !draggedTokenId.value || draggedTokenId.value !== tokenId) return;
   
   // Don't snap to grid here - TokenRenderer handles snapping in dragEnd
@@ -648,6 +655,29 @@ const handleTokenDoubleClick = (tokenId: string) => {
   }
   
   documentSheetStore.openDocumentSheet(document);
+};
+
+const handleTokenLongPress = (tokenId: string) => {
+  // Only handle long press on mobile devices
+  if (!isPhone.value) {
+    return;
+  }
+  
+  // Find the token in props to get the document ID
+  const token = props.tokens?.find(t => t.id === tokenId);
+  if (!token || !token.documentId) {
+    console.warn('[PixiMapViewer] Cannot navigate to actor: token or documentId not found', { tokenId, token });
+    return;
+  }
+  
+  // Navigate to mobile container with actor sheet open
+  router.push({
+    name: 'mobile-container',
+    query: { 
+      tab: 'actors',
+      actor: token.documentId
+    }
+  });
 };
 
 /**

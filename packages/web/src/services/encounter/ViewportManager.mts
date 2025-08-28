@@ -311,6 +311,34 @@ export class ViewportManager {
   }
 
   /**
+   * Get the current pan position
+   */
+  getCurrentPan(): { x: number; y: number } {
+    return {
+      x: this.mapContainer.x,
+      y: this.mapContainer.y
+    };
+  }
+
+  /**
+   * Get the current viewport state (zoom and pan)
+   */
+  getCurrentViewportState(): { zoom: number; pan: { x: number; y: number } } {
+    return {
+      zoom: this.getCurrentScale(),
+      pan: this.getCurrentPan()
+    };
+  }
+
+  /**
+   * Set the viewport state (zoom and pan)
+   */
+  setViewportState(state: { zoom: number; pan: { x: number; y: number } }): void {
+    this.setZoom(state.zoom);
+    this.setPan(state.pan.x, state.pan.y);
+  }
+
+  /**
    * Zoom by a delta amount
    */
   zoom(delta: number): void {

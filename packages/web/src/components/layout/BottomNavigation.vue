@@ -3,9 +3,8 @@ import { computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 // import { useAuthStore } from '../../stores/auth.store.mts';
 import { useGameSessionStore } from '../../stores/game-session.store.mts';
-import { useGameStateStore } from '../../stores/game-state.store.mts';
-import { useNotificationStore } from '../../stores/notification.store.mts';
 import { useDeviceAdaptation } from '../../composables/useDeviceAdaptation.mts';
+import { useMobileActorsState } from '../../composables/useMobileActorsState.mts';
 import { 
   ChatBubbleLeftRightIcon, 
   ShieldCheckIcon, 
@@ -20,6 +19,21 @@ import {
 } from '@heroicons/vue/24/solid';
 
 import type { FunctionalComponent } from 'vue';
+
+// Props and emits for container mode (mobile)
+interface Props {
+  activeTab?: string;
+  containerMode?: boolean;
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  containerMode: false
+});
+
+const emit = defineEmits<{
+  'tab-change': [tab: string];
+}>();
+
 type TabType = {
   id: string;
   label: string;
@@ -33,9 +47,8 @@ const router = useRouter();
 const route = useRoute();
 // const authStore = useAuthStore();
 const gameSessionStore = useGameSessionStore();
-const gameStateStore = useGameStateStore();
-const notificationStore = useNotificationStore();
 const { isPhone } = useDeviceAdaptation();
+const { navigateToActorsTab } = useMobileActorsState();
 
 // Navigation tabs configuration
 const tabs = computed(() => [
@@ -45,18 +58,20 @@ const tabs = computed(() => [
     icon: ChatBubbleLeftRightIcon,
     iconSolid: ChatBubbleLeftRightIconSolid,
     isActive: computed(() => {
-      return route.name === 'chat' || route.name === 'mobile-chat' || route.path.includes('/chat');
+      if (props.containerMode) {
+        return props.activeTab === 'chat';
+      }
+      return route.name === 'chat' || route.path.includes('/chat');
     }),
     navigate: () => {
-      if (gameSessionStore.currentSession) {
-        // Use mobile-specific chat for phones, regular chat for desktop/tablet
-        if (isPhone.value) {
-          router.push({ name: 'mobile-chat' });
-        } else {
-          router.push({ name: 'chat' });
-        }
+      if (props.containerMode) {
+        emit('tab-change', 'chat');
       } else {
-        router.push({ name: 'game-sessions' });
+        if (gameSessionStore.currentSession) {
+          router.push({ name: 'chat' });
+        } else {
+          router.push({ name: 'game-sessions' });
+        }
       }
     }
   },
@@ -66,6 +81,9 @@ const tabs = computed(() => [
     icon: ShieldCheckIcon,
     iconSolid: ShieldCheckIconSolid,
     isActive: computed(() => {
+      if (props.containerMode) {
+        return props.activeTab === 'encounter';
+      }
       return route.name === 'active-encounter' || 
              route.name === 'encounter-detail' ||
              route.name === 'game-session' ||
@@ -75,32 +93,55 @@ const tabs = computed(() => [
       console.log('[BottomNav] Encounter button clicked');
       console.log('[BottomNav] Current session:', gameSessionStore.currentSession);
       
-      // Navigate to active encounter route - no ID needed as it shows the active encounter
-      router.push({ name: 'active-encounter' });
+      if (props.containerMode) {
+        emit('tab-change', 'encounter');
+      } else {
+        // Navigate to active encounter route - no ID needed as it shows the active encounter
+        router.push({ name: 'active-encounter' });
+      }
     }
   },
   {
-    id: 'character',
-    label: 'Character',
+    id: 'actors',
+    label: isPhone.value ? 'Actors' : 'Character',
     icon: UserIcon,
     iconSolid: UserIconSolid,
     isActive: computed(() => {
-      return route.name === 'character-sheet' ||
-             route.name === 'character-list' ||
-             route.name === 'character-create' ||
-             route.path.includes('/character');
+      if (props.containerMode) {
+        return props.activeTab === 'actors';
+      }
+      
+      if (isPhone.value) {
+        // Mobile: active for mobile actors routes
+        return route.name === 'mobile-actors' ||
+               route.name === 'mobile-actor-sheet' ||
+               route.path.includes('/mobile-actors');
+      } else {
+        // Desktop: keep original character behavior
+        return route.name === 'character-sheet' ||
+               route.name === 'character-list' ||
+               route.name === 'character-create' ||
+               route.path.includes('/character');
+      }
     }),
     navigate: () => {
-      // Try to get current character from game session or auth store
-      const currentCharacter = gameSessionStore.currentCharacter;
-      
-      if (currentCharacter) {
-        router.push({ 
-          name: 'character-sheet', 
-          params: { id: currentCharacter.id } 
-        });
+      if (props.containerMode) {
+        emit('tab-change', 'actors');
+      } else if (isPhone.value) {
+        // Mobile: use state persistence to navigate to last opened actor or list
+        navigateToActorsTab();
       } else {
-        router.push({ name: 'character-list' });
+        // Desktop: keep original character behavior
+        const currentCharacter = gameSessionStore.currentCharacter;
+        
+        if (currentCharacter) {
+          router.push({ 
+            name: 'character-sheet', 
+            params: { id: currentCharacter.id } 
+          });
+        } else {
+          router.push({ name: 'character-list' });
+        }
       }
     }
   },
@@ -110,10 +151,17 @@ const tabs = computed(() => [
     icon: Cog6ToothIcon,
     iconSolid: Cog6ToothIconSolid,
     isActive: computed(() => {
+      if (props.containerMode) {
+        return props.activeTab === 'settings';
+      }
       return route.name === 'settings' || route.path.includes('/settings');
     }),
     navigate: () => {
-      router.push({ name: 'settings' });
+      if (props.containerMode) {
+        emit('tab-change', 'settings');
+      } else {
+        router.push({ name: 'settings' });
+      }
     }
   }
 ]);

@@ -6,6 +6,7 @@ import { EncounterMapRenderer, type Platform, type EncounterMapConfig } from '@/
 import { TokenRenderer } from '@/services/encounter/TokenRenderer.mjs';
 import { ViewportManager, type ViewportState } from '@/services/encounter/ViewportManager.mjs';
 import { TokenStatusBarService } from '@/services/token-status-bar.service.mjs';
+import { useViewportState } from './useViewportState.mjs';
 
 export interface UsePixiMapOptions {
   platform?: Platform;
@@ -18,6 +19,7 @@ export interface UsePixiMapOptions {
   onTokenClick?: (tokenId: string, modifiers: { shift?: boolean; ctrl?: boolean; alt?: boolean }) => void;
   onTokenDoubleClick?: (tokenId: string) => void;
   onTokenRightClick?: (tokenId: string) => void; // <-- Added
+  onTokenLongPress?: (tokenId: string) => void; // <-- Added for mobile
 }
 
 export interface UsePixiMapReturn {
@@ -88,12 +90,50 @@ export function usePixiMap(): UsePixiMapReturn {
   let tokenRenderer: TokenRenderer | null = null;
   let viewportManager: ViewportManager | null = null;
   
+  // Viewport state persistence
+  const { 
+    saveViewportState, 
+    restoreViewportState
+  } = useViewportState();
+  
   // Platform detection
   const detectPlatform = (): Platform => {
     const width = window.innerWidth;
     if (width >= 1200) return 'desktop';
     if (width >= 768) return 'tablet';
     return 'phone';
+  };
+  
+  // Debounced viewport state saving
+  let saveStateTimeout: number | null = null;
+  const debouncedSaveViewportState = () => {
+    if (saveStateTimeout) {
+      clearTimeout(saveStateTimeout);
+    }
+    saveStateTimeout = window.setTimeout(() => {
+      if (viewportManager) {
+        const state = viewportManager.getCurrentViewportState();
+        saveViewportState(state.zoom, state.pan.x, state.pan.y);
+      }
+    }, 500); // Save after 500ms of no changes
+  };
+  
+  // Restore viewport state if available
+  const restoreViewportStateIfNeeded = () => {
+    if (!viewportManager) return;
+    
+    const savedState = restoreViewportState();
+    if (savedState) {
+      console.log('[usePixiMap] Restoring viewport state:', savedState);
+      try {
+        viewportManager.setViewportState({
+          zoom: savedState.zoom,
+          pan: savedState.pan
+        });
+      } catch (error) {
+        console.error('[usePixiMap] Failed to restore viewport state:', error);
+      }
+    }
   };
   
   // Store the options for later use
@@ -140,6 +180,8 @@ export function usePixiMap(): UsePixiMapReturn {
       // Set up viewport change listener
       mapRenderer.getApp().stage.on('viewport:changed', (state: ViewportState) => {
         viewportState.value = state;
+        // Debounced save of viewport state for persistence
+        debouncedSaveViewportState();
       });
       
       // Set up token event listeners
@@ -151,6 +193,9 @@ export function usePixiMap(): UsePixiMapReturn {
       }
       
       isInitialized.value = true;
+      
+      // Restore viewport state if available
+      restoreViewportStateIfNeeded();
       
     } catch (error) {
       console.error('Failed to initialize Pixi map:', error);
@@ -194,6 +239,9 @@ export function usePixiMap(): UsePixiMapReturn {
       }
       
       isLoaded.value = true;
+      
+      // Restore viewport state after map is loaded and bounds are set
+      restoreViewportStateIfNeeded();
       
     } catch (error) {
       console.error('Failed to load map:', error);
@@ -434,6 +482,9 @@ export function usePixiMap(): UsePixiMapReturn {
       }),
       rightClick: pixiMapOptions?.onTokenRightClick || ((tokenId) => {
         console.log('Token right-clicked:', tokenId);
+      }),
+      longPress: pixiMapOptions?.onTokenLongPress || ((tokenId) => {
+        console.log('Token long-pressed:', tokenId);
       })
     });
   };
@@ -510,6 +561,12 @@ export function usePixiMap(): UsePixiMapReturn {
    * Clean up resources when unmounting
    */
   const destroy = (): void => {
+    // Clear any pending viewport state saves
+    if (saveStateTimeout) {
+      clearTimeout(saveStateTimeout);
+      saveStateTimeout = null;
+    }
+    
     // Remove event listeners
     if (tokenRenderer) {
       tokenRenderer.setEventHandlers({});

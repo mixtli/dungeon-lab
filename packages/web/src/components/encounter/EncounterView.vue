@@ -29,7 +29,7 @@
       </div>
     </div>
     <!-- Main Encounter View - Fullscreen with AppHeader -->
-    <div v-else-if="encounter" class="encounter-view-fullscreen" :class="{ 'mobile-with-bottom-nav': deviceConfig.type === 'phone' }" :style="hudLayoutStyle">
+    <div v-else-if="encounter" class="encounter-view-fullscreen" :class="{ 'mobile-with-bottom-nav': deviceConfig.type === 'phone', 'mobile-landscape-fullscreen': isMobileLandscape }" :style="hudLayoutStyle">
         <!-- Main Content Area - Canvas -->
         <div 
           class="encounter-content" 
@@ -154,7 +154,8 @@
         </div>
         
         <!-- HUD System overlays the encounter container -->
-        <HUD v-if="deviceConfig.type !== 'phone'" />
+        <!-- Use isTrueMobile to ensure HUD never shows on mobile phones regardless of orientation -->
+        <HUD v-if="!isTrueMobile" />
       </div>
     </div>
     <!-- Not Found State -->
@@ -210,7 +211,7 @@ import { turnManagerService } from '../../services/turn-manager.service.mjs';
 
 // Composables
 const gameStateStore = useGameStateStore();
-const { deviceConfig, deviceClass } = useDeviceAdaptation();
+const { deviceConfig, deviceClass, isTrueMobile, isMobileLandscape } = useDeviceAdaptation();
 const { requestTokenMove, requestTokenRemove } = usePlayerActions();
 const authStore = useAuthStore();
 const notificationStore = useNotificationStore();
@@ -1078,6 +1079,13 @@ const hudLayoutStyle = computed(() => {
 /* Mobile adjustments for bottom navigation */
 .mobile-with-bottom-nav {
   bottom: 80px; /* Leave space for bottom navigation (64px + 16px padding) */
+}
+
+/* Mobile landscape fullscreen - no header or navigation chrome */
+.mobile-landscape-fullscreen {
+  top: 0 !important;
+  height: 100vh !important;
+  bottom: 0 !important;
 }
 
 /* Fullscreen encounter experience */

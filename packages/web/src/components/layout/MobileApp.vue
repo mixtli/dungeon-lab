@@ -6,11 +6,13 @@ import BottomNavigation from './BottomNavigation.vue';
 
 import { useSocketStore } from '../../stores/socket.store.mts';
 import { useAuthStore } from '../../stores/auth.store.mts';
+import { useDeviceAdaptation } from '../../composables/useDeviceAdaptation.mts';
 import { watch } from 'vue';
 import { pluginRegistry } from '../../services/plugin-registry.mts';
 
 const store = useSocketStore();
 const authStore = useAuthStore();
+const { isMobileLandscape } = useDeviceAdaptation();
 
 // Only initialize socket and plugins if authenticated
 watch(
@@ -28,16 +30,18 @@ watch(
 </script>
 
 <template>
-  <div class="mobile-app min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 flex flex-col">
-    <MobileHeader />
+  <div class="mobile-app min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 flex flex-col" :class="{ 'landscape-fullscreen': isMobileLandscape }">
+    <!-- Hide header in mobile landscape mode for fullscreen encounter -->
+    <MobileHeader v-if="!isMobileLandscape" />
     <NotificationToast />
     
-    <!-- Main content area with proper spacing for fixed header and bottom nav -->
-    <main class="flex-1 overflow-auto pt-12 pb-16">
+    <!-- Main content area with dynamic spacing based on landscape mode -->
+    <main class="flex-1 overflow-auto" :class="{ 'with-chrome': !isMobileLandscape, 'fullscreen': isMobileLandscape }">
       <RouterView />
     </main>
     
-    <BottomNavigation />
+    <!-- Hide bottom navigation in landscape mode (MobileTabsContainer handles its own nav) -->
+    <BottomNavigation v-if="!isMobileLandscape" />
   </div>
 </template>
 
@@ -49,9 +53,15 @@ watch(
   padding-bottom: env(safe-area-inset-bottom);
 }
 
-/* Adjust main content for safe areas */
-main {
+/* Adjust main content for safe areas - portrait mode with header and nav */
+main.with-chrome {
   padding-top: calc(3rem + env(safe-area-inset-top)); /* 48px header + safe area */
   padding-bottom: calc(4rem + env(safe-area-inset-bottom)); /* 64px bottom nav + safe area */
+}
+
+/* Fullscreen mode - landscape with no header or nav */
+main.fullscreen {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
 }
 </style>

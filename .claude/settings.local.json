@@ -101,7 +101,8 @@
       "mcp__git__git_diff_unstaged",
       "WebFetch(domain:immerjs.github.io)",
       "mcp__playwright__browser_tab_list",
-      "Bash(/dev/null)"
+      "Bash(/dev/null)",
+      "mcp__playwright__browser_resize"
     ],
     "defaultMode": "acceptEdits",
     "additionalDirectories": [
