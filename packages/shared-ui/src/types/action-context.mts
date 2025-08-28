@@ -40,6 +40,7 @@ export interface RollResultData {
   target?: number;
   success: boolean;
   rollType: string;
+  recipients?: 'public' | 'gm' | 'private';
   damageInfo?: {
     amount: number;
     type: string;

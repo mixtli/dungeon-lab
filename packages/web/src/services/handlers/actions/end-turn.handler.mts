@@ -8,7 +8,6 @@ import type { GameActionRequest } from '@dungeon-lab/shared/types/index.mjs';
 import type { ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
 import type { ActionHandler, ActionValidationResult, ActionValidationHandler, ActionExecutionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 import type { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.mjs';
-import { useGameSessionStore } from '../../../stores/game-session.store.mjs';
 import { turnManagerService } from '../../turn-manager.service.mjs';
 
 /**
@@ -18,7 +17,6 @@ const validateEndTurn: ActionValidationHandler = async (
   request: GameActionRequest, 
   gameState: ServerGameStateWithVirtuals
 ): Promise<ActionValidationResult> => {
-  const gameSessionStore = useGameSessionStore();
 
   console.log('[EndTurnHandler] Validating end turn request from:', request.playerId);
 
@@ -65,14 +63,48 @@ const validateEndTurn: ActionValidationHandler = async (
     round: turnManager.round
   });
 
-  // Permission check: GM can always end turns, current player can end their own turn
-  const isGM = request.playerId === gameSessionStore.currentSession?.gameMasterId;
+  // Permission check: GM can always end turns, players can only end turns for characters they own
+  const isGM = request.playerId === gameState.campaign?.gameMasterId;
   
   if (!isGM) {
-    // For non-GM players, verify they own the current turn
-    // This would need proper ownership checking implementation
-    console.log('[EndTurnHandler] Player requesting to end turn - permission validation needed');
-    // For now, allow all players to end turns (GM authority will be maintained through approval)
+    // For non-GM players, verify they own the character whose turn it is
+    if (!currentParticipant.actorId) {
+      return {
+        valid: false,
+        error: {
+          code: 'NO_ACTOR_ID',
+          message: 'Current participant has no associated actor'
+        }
+      };
+    }
+    
+    const character = gameState.documents[currentParticipant.actorId];
+    if (!character) {
+      return {
+        valid: false,
+        error: {
+          code: 'CHARACTER_NOT_FOUND',
+          message: 'Character document not found for current turn'
+        }
+      };
+    }
+    
+    const isOwner = character.ownerId === request.playerId;
+    if (!isOwner) {
+      return {
+        valid: false,
+        error: {
+          code: 'NOT_OWNER',
+          message: `You don't own ${character.name}`
+        }
+      };
+    }
+    
+    console.log('[EndTurnHandler] Player ownership validation passed:', {
+      playerId: request.playerId,
+      characterName: character.name,
+      characterId: character.id
+    });
   }
 
   return { valid: true };

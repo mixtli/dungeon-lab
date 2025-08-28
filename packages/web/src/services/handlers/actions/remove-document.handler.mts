@@ -8,7 +8,6 @@ import type { GameActionRequest, RemoveDocumentParameters } from '@dungeon-lab/s
 import type { ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
 import type { ActionHandler, ActionValidationResult, ActionValidationHandler, ActionExecutionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 import type { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.mjs';
-import { useSocketStore } from '../../../stores/socket.store.mjs';
 
 /**
  * Validate document removal request
@@ -18,7 +17,6 @@ const validateRemoveDocument: ActionValidationHandler = async (
   gameState: ServerGameStateWithVirtuals
 ): Promise<ActionValidationResult> => {
   const params = request.parameters as RemoveDocumentParameters;
-  const socketStore = useSocketStore();
 
   console.log('[RemoveDocumentHandler] Validating document removal:', {
     documentId: params.documentId,
@@ -50,7 +48,7 @@ const validateRemoveDocument: ActionValidationHandler = async (
   }
 
   // Permission check - players can remove their own documents, GM can remove any
-  const isOwner = document.ownerId === socketStore.userId;
+  const isOwner = document.ownerId === request.playerId;
   const isGM = request.playerId === gameState.campaign?.gameMasterId;
 
   if (!isOwner && !isGM) {

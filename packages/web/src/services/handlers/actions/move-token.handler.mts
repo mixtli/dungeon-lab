@@ -9,7 +9,6 @@ import type { GameActionRequest, MoveTokenParameters } from '@dungeon-lab/shared
 import type { ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
 import type { ActionHandler, ActionValidationResult, ActionValidationHandler, ActionExecutionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 import type { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.mjs';
-import { useGameSessionStore } from '../../../stores/game-session.store.mjs';
 import { checkWallCollision } from '../../../utils/collision-detection.mjs';
 
 /**
@@ -20,7 +19,6 @@ const validateMoveToken: ActionValidationHandler = async (
   gameState: ServerGameStateWithVirtuals
 ): Promise<ActionValidationResult> => {
   const params = request.parameters as MoveTokenParameters;
-  const gameSessionStore = useGameSessionStore();
 
   console.log('[MoveTokenHandler] Validating token movement:', {
     tokenId: params.tokenId,
@@ -51,15 +49,32 @@ const validateMoveToken: ActionValidationHandler = async (
     };
   }
 
-  // Permission check - players can only move player-controlled tokens
-  if (!gameSessionStore.isGameMaster && token.isPlayerControlled) {
-    // For now, allow all player-controlled token movement
-    // TODO: Add proper ownership checking when we have user-character linkage
-    console.log('[MoveTokenHandler] Player moving player-controlled token:', {
-      playerId: request.playerId,
-      tokenId: params.tokenId,
-      tokenName: token.name
-    });
+  // Permission check - ownership validation with GM bypass
+  if (token.documentId) {
+    const character = gameState.documents[token.documentId];
+    if (character) {
+      const isOwner = character.ownerId === request.playerId;
+      const isGM = request.playerId === gameState.campaign?.gameMasterId;
+      
+      if (!isOwner && !isGM) {
+        return {
+          valid: false,
+          error: {
+            code: 'NOT_OWNER',
+            message: `You don't own ${character.name}`
+          }
+        };
+      }
+      
+      console.log('[MoveTokenHandler] Ownership validation passed:', {
+        playerId: request.playerId,
+        tokenId: params.tokenId,
+        tokenName: token.name,
+        characterName: character.name,
+        isOwner,
+        isGM
+      });
+    }
   }
 
   // Collision detection using game state map data

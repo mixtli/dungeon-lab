@@ -122,6 +122,7 @@ function rollHandler(socket: Socket<ClientToServerEvents, ServerToClientEvents>)
         // Send to all clients in the game session
         if (socket.gameSessionId) {
           socket.to(`session:${socket.gameSessionId}`).emit('roll:result', rollResult);
+          console.log('Sent roll result to all clients in session', socket.gameSessionId);
           socket.emit('roll:result', rollResult); // Also send to the roller
         }
       } else if (roll.recipients === 'gm') {
@@ -133,6 +134,7 @@ function rollHandler(socket: Socket<ClientToServerEvents, ServerToClientEvents>)
             const gmSocketId = findGMSocketForSession(session.gameMasterId, socket.gameSessionId);
             if (gmSocketId) {
               const io = SocketServer.getInstance().socketIo;
+              console.log('Sent roll result to GM', gmSocketId);
               io.to(gmSocketId).emit('roll:result', rollResult);
             }
           }

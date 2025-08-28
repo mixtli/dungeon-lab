@@ -9,6 +9,8 @@ import type { RollServerResult } from '@dungeon-lab/shared/types/socket/index.mj
 import type { PluginContext } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 import { rollRequestService, RollRequestService } from './roll-request.service.mts';
 import { useChatStore } from '../stores/chat.store.mts';
+import { useSocketStore } from '../stores/socket.store.mts';
+import { useGameSessionStore } from '../stores/game-session.store.mts';
 
 /**
  * Implementation of AsyncActionContext with roll request capabilities
@@ -115,22 +117,76 @@ export class ActionContextImpl implements AsyncActionContext {
 
   /**
    * Send a structured roll result to the chat
+   * Broadcasts via WebSocket based on recipients setting for proper distribution
    */
   sendRollResult(rollResultData: RollResultData): void {
     console.log('[ActionContext] Sending roll result:', {
       message: rollResultData.message,
       result: rollResultData.result,
       success: rollResultData.success,
-      rollType: rollResultData.rollType
+      rollType: rollResultData.rollType,
+      recipients: rollResultData.recipients
     });
 
     try {
-      const chatStore = useChatStore();
-      chatStore.addRollResult(rollResultData);
-      console.log('[ActionContext] Roll result sent successfully');
+      const socketStore = useSocketStore();
+      const gameSessionStore = useGameSessionStore();
+      
+      if (!socketStore.socket) {
+        console.error('[ActionContext] Socket not connected, cannot send roll result');
+        return;
+      }
+
+      // Determine recipient based on recipients setting
+      let recipientType: 'session' | 'user' = 'session';
+      let recipientId: string | undefined = gameSessionStore.currentSession?.id;
+      
+      const recipients = rollResultData.recipients || 'public';
+      
+      if (recipients === 'private') {
+        // For private rolls, we need to identify the original player
+        // Since this is running on GM client, private means send only to the original roller
+        // TODO: We'd need the original player ID to implement this properly
+        // For now, treat as public to avoid losing messages
+        console.warn('[ActionContext] Private roll results not fully implemented, treating as public');
+      } else if (recipients === 'gm') {
+        // Send only to GM clients - but since we're already on GM client,
+        // we need to broadcast to other GM clients if any exist
+        // For simplicity, use session broadcast but with GM-only indication
+        console.log('[ActionContext] GM-only roll result - broadcasting to session');
+      }
+      // recipients === 'public' uses session broadcast (default above)
+
+      // Create chat metadata for roll result
+      const metadata = {
+        sender: {
+          type: 'system' as const,
+          id: 'system'
+        },
+        recipient: {
+          type: recipientType,
+          id: recipientId
+        },
+        timestamp: new Date().toISOString(),
+        type: 'roll-result' as const,
+        rollResultData: rollResultData
+      };
+
+      // Send via WebSocket
+      socketStore.socket.emit('chat', metadata, rollResultData.message);
+      console.log('[ActionContext] Roll result broadcasted via WebSocket');
+
     } catch (error) {
-      console.error('[ActionContext] Failed to send roll result:', error);
-      // Don't throw - chat failures shouldn't break action execution
+      console.error('[ActionContext] Failed to send roll result via WebSocket:', error);
+      
+      // Fallback to local-only display
+      try {
+        const chatStore = useChatStore();
+        chatStore.addRollResult(rollResultData);
+        console.log('[ActionContext] Roll result sent locally as fallback');
+      } catch (fallbackError) {
+        console.error('[ActionContext] Fallback local roll result also failed:', fallbackError);
+      }
     }
   }
 

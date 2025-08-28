@@ -18,7 +18,8 @@ export const mentionSchema = z.object({
 
 export const messageParticipantSchema = z.object({
   type: z.enum(['user', 'system', 'actor', 'session', 'bot']),
-  id: z.string().optional()
+  id: z.string().optional(),
+  name: z.string().optional() // Display name for the participant
 });
 
 export const messageMetadataSchema = z.object({
@@ -26,8 +27,9 @@ export const messageMetadataSchema = z.object({
   recipient: messageParticipantSchema,
   timestamp: z.string().optional(),
   mentions: z.array(mentionSchema).optional(),
-  type: z.enum(['text', 'roll']).optional(),
-  rollData: z.any().optional() // Will contain RollServerResult for roll messages
+  type: z.enum(['text', 'roll', 'roll-result']).optional(),
+  rollData: z.any().optional(), // Will contain RollServerResult for roll messages
+  rollResultData: z.any().optional() // Will contain RollResultData for roll result messages
 });
 
 export const joinCallbackSchema = socketCallbackWithDataSchema(gameSessionResponseSchema);

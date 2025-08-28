@@ -156,25 +156,6 @@ const validateDnDMovement: ActionValidationHandler = async (
       };
     }
     
-    // Check if the requesting player owns the character
-    const isPlayerOwner = character.createdBy === request.playerId || 
-                         character.ownerId === request.playerId;
-    
-    console.log('[DnD5e] Ownership check:', {
-      characterOwner: character.createdBy || character.ownerId,
-      requestingPlayerId: request.playerId,
-      isPlayerOwner
-    });
-    
-    if (!isPlayerOwner) {
-      return { 
-        valid: false, 
-        error: { 
-          code: 'NOT_OWNER', 
-          message: `You don't own ${character.name}` 
-        } 
-      };
-    }
   }
 
   // Calculate current token center position and store for execution phase
@@ -191,7 +172,7 @@ const validateDnDMovement: ActionValidationHandler = async (
   };
   
   // Store original position in request parameters for execution phase
-  (request.parameters as any).dndOriginalPosition = originalWorldPosition;
+  (request.parameters as Record<string, unknown>).dndOriginalPosition = originalWorldPosition;
 
   // Calculate movement distance from original position to target position
   const { newPosition } = request.parameters as { newPosition: { x: number; y: number; elevation?: number } };

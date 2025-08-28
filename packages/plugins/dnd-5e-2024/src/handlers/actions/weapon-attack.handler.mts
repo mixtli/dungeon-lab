@@ -617,7 +617,8 @@ const executeWeaponAttack: ActionExecutionHandler = async (
       result: attackTotal,
       target: targetAC,
       success: hits,
-      rollType: 'weapon-attack'
+      rollType: 'weapon-attack',
+      recipients: attackResult.recipients
     });
 
     // Step 2: If attack hits, roll damage
@@ -724,6 +725,7 @@ const executeWeaponAttack: ActionExecutionHandler = async (
           result: totalDamage,
           success: true, // Damage rolls are always successful
           rollType: 'weapon-damage',
+          recipients: damageResult.recipients,
           damageInfo: {
             amount: totalDamage,
             type: damageType

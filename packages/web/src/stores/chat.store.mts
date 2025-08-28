@@ -8,6 +8,7 @@ import type {
 } from '@dungeon-lab/shared/types/socket/index.mjs';
 import { useGameSessionStore } from './game-session.store.mts';
 import { useGameStateStore } from './game-state.store.mjs';
+import { useAuthStore } from './auth.store.mts';
 import type { ParsedMessage, Mention } from '@dungeon-lab/shared/types/chat.mjs';
 import type { RollServerResult, RollRequest } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
 import type { GameActionRequest } from '@dungeon-lab/shared/types/game-actions.mjs';
@@ -66,6 +67,7 @@ export const useChatStore = defineStore(
     const socketStore = useSocketStore();
     const gameSessionStore = useGameSessionStore();
     const gameStateStore = useGameStateStore();
+    const authStore = useAuthStore();
     const currentSessionId = ref<string | null>(null);
 
     // Watch for socket changes to setup listeners
@@ -106,7 +108,7 @@ export const useChatStore = defineStore(
       socket.on('chat', (metadata, message) => {
         console.log('chat message received', metadata, message);
         try {
-          const senderName = getSenderName(metadata.sender.id, metadata.sender.type);
+          const senderName = getSenderName(metadata.sender.id, metadata.sender.type, metadata.sender.name);
           
           const newMessage: ChatMessage = {
             id: generateId(),
@@ -118,7 +120,8 @@ export const useChatStore = defineStore(
             recipientId: metadata.recipient?.id,
             recipientType: metadata.recipient?.type,
             type: metadata.type || 'text',
-            rollData: metadata.rollData
+            rollData: metadata.rollData,
+            rollResultData: metadata.rollResultData
           };
 
           messages.value.push(newMessage);
@@ -139,8 +142,8 @@ export const useChatStore = defineStore(
       });
     }
 
-    // Get the name of a sender based on their ID and type
-    function getSenderName(senderId?: string, senderType?: string): string {
+    // Get the name of a sender based on their ID, type, and provided name
+    function getSenderName(senderId?: string, senderType?: string, providedName?: string): string {
       if (senderType === 'system') return 'System';
       if (senderType === 'bot') return senderId || 'Bot'; // For bots, use the bot ID as name for now
       if (!senderId) return 'Unknown';
@@ -169,6 +172,11 @@ export const useChatStore = defineStore(
         if (character) {
           return character.name;
         }
+      }
+      
+      // Use provided name from metadata for other users
+      if (providedName) {
+        return providedName;
       }
       
       return 'Unknown User';
@@ -225,6 +233,16 @@ export const useChatStore = defineStore(
       // Extract mentions from the message content
       const mentions = extractMentions(content, chatContexts);
 
+      // Determine sender name based on sender type
+      let senderName: string | undefined;
+      if (isGameMaster || (!currentActor && authStore.user)) {
+        // User is sending as themselves (GM or regular user)
+        senderName = authStore.user?.displayName || authStore.user?.username;
+      } else if (currentActor) {
+        // User is sending as their character/actor
+        senderName = currentActor.name;
+      }
+
       // Create the metadata object
       const metadata = {
         sender: {
@@ -233,7 +251,8 @@ export const useChatStore = defineStore(
                 currentActor ? 'actor' as 'user' | 'system' | 'actor' | 'session' | 'bot' : 
                 'user' as 'user' | 'system' | 'actor' | 'session' | 'bot',
           id: isGameMaster ? (socketStore.userId || undefined) : 
-              (currentActor?.id || socketStore.userId || undefined)
+              (currentActor?.id || socketStore.userId || undefined),
+          name: senderName
         },
         recipient: {
           type: 'session' as 'user' | 'system' | 'actor' | 'session' | 'bot',

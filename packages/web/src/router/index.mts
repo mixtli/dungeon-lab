@@ -4,7 +4,7 @@ import type { RouteRecordRaw } from 'vue-router';
 // Layouts
 import DefaultLayout from '@/layouts/DefaultLayout.vue';
 import ChatView from '@/views/ChatView.vue';
-import MobileChatView from '@/views/MobileChatView.vue';
+// import MobileChatView from '@/views/MobileChatView.vue'; // Currently unused
 
 // Views - Lazy loaded
 const HomeView = () => import('@/views/HomeView.vue');

@@ -40,8 +40,8 @@ function chatSocketHandler(socket: Socket<ClientToServerEvents, ServerToClientEv
     io.to(roomName).emit('chat', metadata, message);
 
     // Process message for chatbots (async, non-blocking)
-    chatbotHandler.handleMessage(socket, metadata, message)
-      .catch(error => logger.error('Chatbot handler error:', error));
+    // chatbotHandler.handleMessage(socket, metadata, message)
+    //   .catch(error => logger.error('Chatbot handler error:', error));
   });
 }
 

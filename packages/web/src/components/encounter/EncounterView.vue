@@ -310,51 +310,6 @@ const retryLoad = () => {
   initializeEncounter();
 };
 
-// Convert technical movement error messages to user-friendly notifications
-const getUserFriendlyMovementError = (error?: string): string => {
-  if (!error) return 'Movement failed';
-
-  // Handle specific D&D movement errors (similar to attack errors)
-  if (error.includes('Need ') && error.includes('feet')) {
-    // Extract numbers from error message like "Need 25 feet, have 15 remaining"
-    const match = error.match(/Need (\d+) feet, have (\d+) remaining/);
-    if (match) {
-      return `Not enough movement: need ${match[1]} feet, only ${match[2]} remaining`;
-    }
-    return 'Not enough movement remaining';
-  }
-  
-  if (error.includes('INSUFFICIENT_MOVEMENT')) {
-    return 'Not enough movement remaining';
-  }
-  
-  if (error.includes('grappled')) {
-    return 'Cannot move while grappled';
-  }
-  
-  if (error.includes('paralyzed')) {
-    return 'Cannot move while paralyzed';
-  }
-  
-  if (error.includes('stunned')) {
-    return 'Cannot move while stunned';
-  }
-  
-  if (error.includes('restrained')) {
-    return 'Cannot move while restrained';
-  }
-  
-  if (error.includes("It's not your turn")) {
-    return "It's not your turn to move";
-  }
-  
-  if (error.includes('not currently connected')) {
-    return 'Game Master is not connected';
-  }
-  
-  // Generic fallback for other movement errors
-  return 'Movement failed';
-};
 
 // Helper computed for all selected token IDs (actor + targets)
 // TODO: This will be used for visual rendering of selected tokens in next task
@@ -488,11 +443,10 @@ const handleTokenMoved = async (tokenId: string, x: number, y: number) => {
       });
     } else if (!result.success) {
       console.error('[EncounterView] Token movement failed:', result.error);
-      // Show user-friendly error notification
-      const userFriendlyMessage = getUserFriendlyMovementError(result.error);
+      // Show error notification with direct message from handler
       notificationStore.addNotification({
         type: 'warning',
-        message: userFriendlyMessage,
+        message: result.error || 'Movement failed',
         duration: 4000
       });
     }

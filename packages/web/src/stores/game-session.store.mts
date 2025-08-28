@@ -3,7 +3,7 @@ import { ref, computed, watch, onMounted } from 'vue';
 import type { IGameSession, IActor } from '@dungeon-lab/shared/types/index.mjs';
 import { useAuthStore } from './auth.store.mts';
 import { useSocketStore } from './socket.store.mjs';
-import { ActorsClient } from '@dungeon-lab/client/index.mjs';
+import { ActorsClient, CampaignsClient } from '@dungeon-lab/client/index.mjs';
 import { gmActionHandlerService } from '../services/gm-action-handler.service.mjs';
 import type { z } from 'zod';
 import {
@@ -20,6 +20,7 @@ export const useGameSessionStore = defineStore(
     const socketStore = useSocketStore();
     // const _chatStore = useChatStore();
     const actorClient = new ActorsClient();
+    const campaignClient = new CampaignsClient();
 
     // State
     const currentSession = ref<IGameSession | null>(null);
@@ -143,6 +144,19 @@ export const useGameSessionStore = defineStore(
 
                 // Session joined successfully - campaign data will be available through game state
                 const session = response.session as IGameSession;
+
+                // Set the active game system for plugin context
+                if (session.campaignId) {
+                  try {
+                    const campaign = await campaignClient.getCampaign(session.campaignId);
+                    if (campaign?.pluginId) {
+                      localStorage.setItem('activeGameSystem', campaign.pluginId);
+                      console.log('[GameSession] Set activeGameSystem to:', campaign.pluginId);
+                    }
+                  } catch (error) {
+                    console.warn('[GameSession] Failed to fetch campaign for activeGameSystem:', error);
+                  }
+                }
 
                 // Initialize GM action handler if this user is the GM
                 const isGM = session.gameMasterId === authStore.user?.id;
