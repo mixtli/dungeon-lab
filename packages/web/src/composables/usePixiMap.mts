@@ -13,9 +13,6 @@ export interface UsePixiMapOptions {
   width?: number;
   height?: number;
   autoResize?: boolean;
-  onTokenDragStart?: (tokenId: string, position: { x: number; y: number }) => void;
-  onTokenDragMove?: (tokenId: string, position: { x: number; y: number }) => void;
-  onTokenDragEnd?: (tokenId: string, position: { x: number; y: number }) => void;
   onTokenClick?: (tokenId: string, modifiers: { shift?: boolean; ctrl?: boolean; alt?: boolean }) => void;
   onTokenDoubleClick?: (tokenId: string) => void;
   onTokenRightClick?: (tokenId: string) => void; // <-- Added
@@ -28,7 +25,7 @@ export interface UsePixiMapReturn {
   isInitialized: Ref<boolean>;
   viewportState: Ref<ViewportState | null>;
   selectedTokenId: Ref<string | null>;
-  tokenRenderer: Readonly<Ref<TokenRenderer | null>>;
+  tokenRenderer: TokenRenderer | null;
   
   // Methods
   initializeMap: (canvas: HTMLCanvasElement, options?: UsePixiMapOptions) => Promise<void>;
@@ -46,7 +43,6 @@ export interface UsePixiMapReturn {
   addTarget: (tokenId: string) => void;
   removeTarget: (tokenId: string) => void;
   clearTargets: () => void;
-  enableTokenDragging: (enabled: boolean) => void;
   
   // Grid controls
   enableSnapToGrid: (enabled: boolean) => void;
@@ -371,13 +367,6 @@ export function usePixiMap(): UsePixiMapReturn {
     return viewportManager.worldToScreen(worldX, worldY);
   };
   
-  /**
-   * Enable token dragging
-   */
-  const enableTokenDragging = (enabled: boolean): void => {
-    if (!tokenRenderer) return;
-    tokenRenderer.setDragEnabled(enabled);
-  };
   
   /**
    * Enable or disable snap-to-grid
@@ -450,16 +439,6 @@ export function usePixiMap(): UsePixiMapReturn {
         selectedTokenId.value = null;
       },
       
-      // Token drag events
-      dragStart: pixiMapOptions?.onTokenDragStart || ((tokenId, position) => {
-        console.log('Token drag started:', tokenId, position);
-      }),
-      dragMove: pixiMapOptions?.onTokenDragMove || (() => {
-        // Default: do nothing
-      }),
-      dragEnd: pixiMapOptions?.onTokenDragEnd || ((tokenId, position) => {
-        console.log('Token drag ended:', tokenId, position);
-      }),
       
       // Token click events
       click: (tokenId, event) => {
@@ -606,7 +585,7 @@ export function usePixiMap(): UsePixiMapReturn {
     selectedTokenId,
     
     // Instance access (for advanced use cases)
-    tokenRenderer: readonly(ref(tokenRenderer)),
+    tokenRenderer,
     
     // Methods
     initializeMap,
@@ -624,7 +603,6 @@ export function usePixiMap(): UsePixiMapReturn {
     addTarget,
     removeTarget,
     clearTargets,
-    enableTokenDragging,
     
     // Grid controls
     enableSnapToGrid,

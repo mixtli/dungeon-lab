@@ -257,13 +257,10 @@ const {
   setObjectHighlights,
   setPortalHighlights,
   setLightHighlights,
+  tokenRenderer,
   destroy
 } = usePixiMap();
 
-// Add new state for drag tracking
-const isDragging = ref(false);
-const dragStartPos = ref<{ x: number; y: number } | null>(null);
-const draggedTokenId = ref<string | null>(null);
 
 // Computed
 const loadingText = computed(() => {
@@ -289,9 +286,6 @@ const initializeViewer = async () => {
       width,
       height,
       autoResize: props.autoResize,
-      onTokenDragStart: handleTokenDragStart,
-      onTokenDragMove: handleTokenDragMove,
-      onTokenDragEnd: handleTokenDragEnd,
       onTokenClick: (tokenId: string, modifiers: { shift?: boolean; ctrl?: boolean; alt?: boolean }) => {
         emit('token-selected', tokenId, modifiers);
       },
@@ -542,7 +536,10 @@ defineExpose({
   isInitialized,
   isLoaded,
   viewportState,
-  currentMap
+  currentMap,
+  
+  // Services (for advanced use cases)
+  tokenRenderer
 });
 
 // New canvas event handlers
@@ -593,59 +590,6 @@ const setupTokenInteractions = () => {
   });
 };
 
-// Add drag handler methods
-const handleTokenDragStart = (tokenId: string, position: { x: number; y: number }) => {
-  isDragging.value = true;
-  dragStartPos.value = position;
-  draggedTokenId.value = tokenId;
-  emit('token-selected', tokenId, {});
-  
-  // Emit drag start event for Vue component to handle with character tab logic
-  emit('token-drag-start', tokenId, position);
-};
-
-const handleTokenDragMove = (tokenId: string, _position: { x: number; y: number }) => {
-  if (!isDragging.value || !draggedTokenId.value || draggedTokenId.value !== tokenId) return;
-  
-  // Don't snap to grid here - TokenRenderer handles snapping in dragEnd
-  // This prevents duplicate/conflicting snap logic
-  
-  // Don't move token locally during drag - let the TokenRenderer handle the visual movement
-  // Don't emit token-moved during drag - only emit on dragEnd to prevent spam
-  // This allows visual dragging without sending action requests on every mouse move
-};
-
-const handleTokenDragEnd = async (tokenId: string, position: { x: number; y: number }) => {
-  if (!isDragging.value || !draggedTokenId.value || draggedTokenId.value !== tokenId) {
-    return;
-  }
-  
-  // Get current token elevation
-  const token = props.tokens?.find((t: Token) => t.id === tokenId);
-  if (!token) {
-    return;
-  }
-  
-  // Convert world coordinates to grid coordinates
-  const gridSize = getGridSize();
-  const gridX = Math.floor((position.x - gridSize / 2) / gridSize);
-  const gridY = Math.floor((position.y - gridSize / 2) / gridSize);
-  
-  console.log('[PixiMapViewer] Drag end coordinate conversion:', {
-    tokenId,
-    worldPosition: position,
-    gridSize,
-    gridPosition: { gridX, gridY }
-  });
-  
-  // Emit the token moved event with grid coordinates
-  emit('token-moved', tokenId, gridX, gridY);
-  
-  // Reset drag state
-  isDragging.value = false;
-  dragStartPos.value = null;
-  draggedTokenId.value = null;
-};
 
 const handleTokenDoubleClick = (tokenId: string) => {
   // Find the token in props to get the document ID

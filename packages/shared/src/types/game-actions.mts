@@ -50,6 +50,18 @@ export interface RemoveTokenParameters extends Record<string, unknown> {
 }
 
 /**
+ * Add token action parameters
+ */
+export interface AddTokenParameters extends Record<string, unknown> {
+  documentId: string;
+  gridPosition: {
+    x: number; // Grid cell X coordinate (integer) for top-left corner
+    y: number; // Grid cell Y coordinate (integer) for top-left corner
+  };
+  elevation?: number;
+}
+
+/**
  * Document addition action parameters
  */
 export interface AddDocumentParameters extends Record<string, unknown> {

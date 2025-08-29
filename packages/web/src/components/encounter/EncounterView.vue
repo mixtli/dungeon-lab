@@ -55,7 +55,6 @@
           :show-lights="showLights"
           @token-selected="handleTokenSelection"
           @token-moved="handleTokenMoved"
-          @token-drag-start="handleTokenDragStart"
           @viewport-changed="handleViewportChange"
           @canvas-click="handleMapClick"
           @canvas-right-click="handleMapRightClick"
@@ -212,7 +211,7 @@ import { turnManagerService } from '../../services/turn-manager.service.mjs';
 // Composables
 const gameStateStore = useGameStateStore();
 const { deviceConfig, deviceClass, isTrueMobile, isMobileLandscape } = useDeviceAdaptation();
-const { requestTokenMove, requestTokenRemove } = usePlayerActions();
+const { requestTokenMove, requestTokenRemove, requestAction } = usePlayerActions();
 const authStore = useAuthStore();
 const notificationStore = useNotificationStore();
 
@@ -359,70 +358,6 @@ const handleTokenSelection = (tokenId: string, modifiers?: { shift?: boolean; ct
   contextMenuToken.value = null;
 };
 
-// Handle token drag start - use character tab coordinate logic for final position
-const handleTokenDragStart = (tokenId: string, globalPosition: { x: number; y: number }) => {
-  console.log('[EncounterView] Token drag started:', { tokenId, globalPosition });
-  
-  // Set up one-time mouse/touch up listener to handle drop using character tab logic
-  const handleDragDrop = (event: MouseEvent | TouchEvent) => {
-    if (!pixiMapViewer.value || !mapContainerRef.value) {
-      console.error('[EncounterView] Required refs not available for drag drop');
-      return;
-    }
-    
-    // Use the EXACT same coordinate calculation as character tab drops
-    const mapContainer = mapContainerRef.value;
-    const pixiViewer = pixiMapViewer.value;
-    
-    // Handle both mouse and touch coordinates
-    let clientX: number;
-    let clientY: number;
-    
-    if (event.type === 'touchend') {
-      // Touch event - use changedTouches for touchend (touches array is empty on touchend)
-      const touchEvent = event as TouchEvent;
-      const touch = touchEvent.changedTouches[0];
-      clientX = touch.clientX;
-      clientY = touch.clientY;
-    } else {
-      // Mouse event
-      const mouseEvent = event as MouseEvent;
-      clientX = mouseEvent.clientX;
-      clientY = mouseEvent.clientY;
-    }
-    
-    const rect = mapContainer.getBoundingClientRect();
-    const screenX = clientX - rect.left;
-    const screenY = clientY - rect.top;
-    
-    // Convert screen coordinates to world coordinates using proper PIXI transformation
-    const worldCoords = pixiViewer.screenToWorld(screenX, screenY);
-    
-    // Convert world coordinates to grid coordinates
-    const gridSize = pixiViewer.getGridSize ? pixiViewer.getGridSize() : 50; // fallback to 50 if not available
-    const gridX = Math.floor((worldCoords.x - gridSize / 2) / gridSize);
-    const gridY = Math.floor((worldCoords.y - gridSize / 2) / gridSize);
-    
-    console.log('[EncounterView] Token drop with character tab logic:', {
-      tokenId,
-      screenCoords: { x: screenX, y: screenY },
-      worldCoords: { x: worldCoords.x, y: worldCoords.y },
-      gridSize,
-      gridPosition: { gridX, gridY }
-    });
-    
-    // Move the token using grid coordinates
-    handleTokenMoved(tokenId, gridX, gridY);
-    
-    // Clean up both listeners
-    document.removeEventListener('mouseup', handleDragDrop);
-    document.removeEventListener('touchend', handleDragDrop);
-  };
-  
-  // Listen for both mouse and touch events globally to handle drop
-  document.addEventListener('mouseup', handleDragDrop, { once: true });
-  document.addEventListener('touchend', handleDragDrop, { once: true });
-};
 
 const handleTokenMoved = async (tokenId: string, gridX: number, gridY: number) => {
   if (!encounter.value) return;
@@ -447,6 +382,7 @@ const handleTokenMoved = async (tokenId: string, gridX: number, gridY: number) =
       });
     } else if (!result.success) {
       console.error('[EncounterView] Token movement failed:', result.error);
+      
       // Show error notification with direct message from handler
       notificationStore.addNotification({
         type: 'warning',
@@ -456,6 +392,7 @@ const handleTokenMoved = async (tokenId: string, gridX: number, gridY: number) =
     }
   } catch (error) {
     console.error('[EncounterView] Failed to request token movement:', error);
+    
     // Show error notification for unexpected failures
     notificationStore.addNotification({
       type: 'error',
@@ -741,11 +678,7 @@ const handleDrop = async (event: DragEvent) => {
     return;
   }
 
-  // Validate GM permissions
-  if (!gameStateStore.canUpdate) {
-    console.warn('[EncounterView] Only the GM can create tokens by dragging');
-    return;
-  }
+  // Players can now request token creation - the action system will handle approval
 
   try {
     // Get drag data
@@ -796,26 +729,63 @@ const handleDrop = async (event: DragEvent) => {
 
     // Convert screen coordinates to world coordinates using proper PIXI transformation
     const worldCoords = pixiViewer.screenToWorld(screenX, screenY);
-    const worldX = Math.round(worldCoords.x);
-    const worldY = Math.round(worldCoords.y);
-
-    // Create token using the new method
-    await gameStateStore.createTokenFromDocument(document, {
-      x: worldX,
-      y: worldY,
-      elevation: 0
+    
+    // Convert world coordinates to grid cell coordinates (TOP-LEFT)
+    const gridSize = pixiViewer.getGridSize();
+    const gridX = Math.floor(worldCoords.x / gridSize);
+    const gridY = Math.floor(worldCoords.y / gridSize);
+    
+    console.log('[EncounterView] Drop coordinate conversion:', {
+      screenCoords: { x: screenX, y: screenY },
+      worldCoords: { x: worldCoords.x, y: worldCoords.y },
+      gridSize,
+      gridPosition: { x: gridX, y: gridY }
     });
 
-    console.info(`[EncounterView] Created token for ${document.name}`);
+    // Use action request system instead of direct gameState call
+    const result = await requestAction(
+      'add-token',
+      undefined, // no actor needed for token creation
+      {
+        documentId: document.id,
+        gridPosition: { x: gridX, y: gridY },
+        elevation: 0
+      }
+    );
+    
+    // Handle approval workflow
+    if (result.success && !result.approved) {
+      // Show notification to GM that token creation is pending approval
+      notificationStore.addNotification({
+        type: 'info',
+        message: 'Token creation is pending Game Master approval',
+        duration: 4000
+      });
+      console.info(`[EncounterView] Token creation pending approval for ${document.name}`);
+    } else if (result.success) {
+      console.info(`[EncounterView] Token created for ${document.name} at grid position (${gridX}, ${gridY})`);
+    } else {
+      console.error(`[EncounterView] Token creation failed for ${document.name}:`, result.error);
+    }
+
+    // Show error notification if token creation failed
+    if (!result.success) {
+      notificationStore.addNotification({
+        type: 'error',
+        message: result.error || 'Failed to create token',
+        duration: 4000
+      });
+    }
 
   } catch (error) {
     console.error('[EncounterView] Error handling drop:', error);
     
     // Show user-friendly error message
-    if (error instanceof Error) {
-      // You could show a toast notification here
-      console.error('[EncounterView] Failed to create token:', error.message);
-    }
+    notificationStore.addNotification({
+      type: 'error',
+      message: 'Failed to process token creation request. Please try again.',
+      duration: 4000
+    });
   }
 };
 

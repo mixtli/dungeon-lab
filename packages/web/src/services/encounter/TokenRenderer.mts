@@ -16,12 +16,6 @@ export interface TokenSpriteData {
 // Extended sprite interface for token-specific properties
 interface TokenSprite extends PIXI.Sprite {
   tokenId?: string;
-  dragging?: boolean;
-  dragData?: PIXI.FederatedPointerEvent;
-  dragStartPosition?: { x: number; y: number };
-  originalPosition?: { x: number; y: number };
-  dragStartGlobal?: { x: number; y: number };
-  worldPosition?: { x: number; y: number };
   lastClickTime?: number;
   clickCount?: number;
 }
@@ -41,9 +35,6 @@ interface TokenPosition {
 export interface TokenEvents {
   select: (tokenId: string) => void;
   deselect: (tokenId: string) => void;
-  dragStart: (tokenId: string, position: TokenPosition) => void;
-  dragMove: (tokenId: string, position: TokenPosition) => void;
-  dragEnd: (tokenId: string, position: TokenPosition) => void;
   click: (tokenId: string, event: PIXI.FederatedPointerEvent) => void;
   doubleClick: (tokenId: string, event: PIXI.FederatedPointerEvent) => void;
   rightClick: (tokenId: string, event: PIXI.FederatedPointerEvent) => void;
@@ -53,9 +44,6 @@ export interface TokenEvents {
 interface TokenRendererEventHandlers {
   select?: (tokenId: string) => void;
   deselect?: () => void;
-  dragStart?: (tokenId: string, position: { x: number; y: number }) => void;
-  dragMove?: (tokenId: string, position: { x: number; y: number }) => void;
-  dragEnd?: (tokenId: string, position: { x: number; y: number }) => void;
   click?: (tokenId: string, event: PIXI.FederatedPointerEvent) => void;
   doubleClick?: (tokenId: string, event: PIXI.FederatedPointerEvent) => void;
   rightClick?: (tokenId: string, event: PIXI.FederatedPointerEvent) => void;
@@ -65,9 +53,6 @@ interface TokenRendererEventHandlers {
 interface TokenRendererOptions {
   onTokenSelect?: (tokenId: string) => void;
   onTokenDeselect?: () => void;
-  onTokenDragStart?: (tokenId: string, position: { x: number; y: number }) => void;
-  onTokenDragMove?: (tokenId: string, position: { x: number; y: number }) => void;
-  onTokenDragEnd?: (tokenId: string, position: { x: number; y: number }) => void;
   onTokenClick?: (tokenId: string) => void;
   onTokenRightClick?: (tokenId: string) => void;
 }
@@ -85,7 +70,6 @@ export class TokenRenderer {
   private targetTokenIds: Set<string> = new Set();
   private eventHandlers: TokenRendererEventHandlers = {};
 
-  private dragEnabled: boolean = true;
   private scaleProvider?: () => number;
   private viewportManager?: ViewportManager;
   
@@ -96,11 +80,7 @@ export class TokenRenderer {
   private _gridSize: number = 50;
   private _snapToGrid: boolean = true;
   private _doubleClickTime: number = 300; // milliseconds - time window for double-click detection
-  private _dragStartDelay: number = 150; // milliseconds - delay before starting drag to allow double-click
   private _longPressTime: number = 500; // milliseconds - time to hold for long press detection
-  
-  // Drag timing state
-  private _pendingDragTimers: Map<string, number> = new Map();
   
   // Long press timing state
   private _pendingLongPressTimers: Map<string, number> = new Map();
@@ -115,7 +95,6 @@ export class TokenRenderer {
     
     // Suppress unused variable warnings - these properties are kept for future use
     void this.scaleProvider;
-    void this.viewportManager;
   }
 
   /**
@@ -127,10 +106,6 @@ export class TokenRenderer {
     
     // Clear texture cache
     this.textureCache.clear();
-    
-    // Clear all pending drag timers
-    this._pendingDragTimers.forEach(timerId => clearTimeout(timerId));
-    this._pendingDragTimers.clear();
     
     // Clear all pending long press timers
     this._pendingLongPressTimers.forEach(timerId => clearTimeout(timerId));
@@ -341,9 +316,6 @@ export class TokenRenderer {
     const tokenData = this.activeTokens.get(tokenId);
     if (!tokenData) return;
     
-    // Cancel any pending drag for this token
-    this.cancelPendingDrag(tokenId);
-    
     // Cancel any pending long press for this token
     this.cancelPendingLongPress(tokenId);
     
@@ -525,12 +497,6 @@ export class TokenRenderer {
     }
   }
   
-  /**
-   * Enable or disable token dragging
-   */
-  setDragEnabled(enabled: boolean): void {
-    this.dragEnabled = enabled;
-  }
   
   /**
    * Acquire a sprite from the pool or create a new one
@@ -551,7 +517,6 @@ export class TokenRenderer {
     sprite.rotation = 0;
     sprite.scale.set(1, 1);
     sprite.tint = 0xFFFFFF;
-    sprite.dragging = false;
     sprite.lastClickTime = 0;
     sprite.clickCount = 0;
     
@@ -588,15 +553,9 @@ export class TokenRenderer {
     sprite.x = 0;
     sprite.y = 0;
     
-    // Make sprite draggable using HTML5 drag/drop (like character tabs)
+    // Set sprite event mode and cursor
     sprite.eventMode = 'static';
-    sprite.cursor = 'grab';
-    
-    // Add HTML5 draggable properties to the sprite's DOM element if available
-    if (sprite.eventMode && this.dragEnabled) {
-      // The sprite will emit drag events that we can handle at the Vue component level
-      sprite.cursor = 'grab';
-    }
+    sprite.cursor = 'pointer';
     
     // Calculate size based on grid bounds
     const size = this.getPixelSizeFromBounds(token.bounds);
@@ -753,17 +712,12 @@ export class TokenRenderer {
   private handlePointerDown(sprite: TokenSprite, event: PIXI.FederatedPointerEvent): void {
     if (!sprite.tokenId) return;
     
-    if (event.button === 0 && this.dragEnabled) {
-      // Always handle click and double-click detection first for left clicks
-      this.handleClickAndDoubleClick(sprite, event);
-    } else {
-      // Handle right clicks and other buttons
-      this.handleClickAndDoubleClick(sprite, event);
-    }
+    // Handle click and double-click detection for all buttons
+    this.handleClickAndDoubleClick(sprite, event);
   }
   
   /**
-   * Handle click and double-click detection with drag delay logic
+   * Handle click and double-click detection
    */
   private handleClickAndDoubleClick(sprite: TokenSprite, event: PIXI.FederatedPointerEvent): void {
     if (!sprite.tokenId) return;
@@ -777,7 +731,6 @@ export class TokenRenderer {
     
     if (timeDifference <= this._doubleClickTime) {
       // This is a double-click - cancel any pending operations and emit double-click
-      this.cancelPendingDrag(sprite.tokenId);
       this.cancelPendingLongPress(sprite.tokenId);
       sprite.clickCount = 0; // Reset click count
       
@@ -785,92 +738,15 @@ export class TokenRenderer {
         this.eventHandlers.doubleClick(sprite.tokenId, event);
       }
     } else {
-      // This is a single click - handle based on button type and drag capability
+      // This is a single click - emit click immediately
       sprite.clickCount = 1;
       
-      if (event.button === 0 && this.dragEnabled) {
-        // Left click with drag enabled - set up potential drag after delay
-        this.setupPotentialDrag(sprite, event);
-      } else {
-        // Right click or drag disabled - emit click immediately
-        if (this.eventHandlers.click) {
-          this.eventHandlers.click(sprite.tokenId, event);
-        }
+      if (this.eventHandlers.click) {
+        this.eventHandlers.click(sprite.tokenId, event);
       }
     }
   }
   
-  /**
-   * Set up a potential drag operation with delay to allow for double-click and long press
-   */
-  private setupPotentialDrag(sprite: TokenSprite, event: PIXI.FederatedPointerEvent): void {
-    if (!sprite.tokenId) return;
-    
-    // Cancel any existing pending operations for this token
-    this.cancelPendingDrag(sprite.tokenId);
-    this.cancelPendingLongPress(sprite.tokenId);
-    
-    // Store initial position and setup detection
-    sprite.dragStartPosition = { x: event.global.x, y: event.global.y };
-    
-    // Set up pointer up listener to detect if this was just a click
-    const stage = this.tokenContainer.parent;
-    if (stage) {
-      const handlePointerUp = () => {
-        // This was just a click - emit click event and cancel all pending operations
-        if (sprite.tokenId) {
-          this.cancelPendingDrag(sprite.tokenId);
-          this.cancelPendingLongPress(sprite.tokenId);
-          if (this.eventHandlers.click) {
-            this.eventHandlers.click(sprite.tokenId, event);
-          }
-        }
-        stage.off('pointerup', handlePointerUp);
-        stage.off('pointerupoutside', handlePointerUp);
-      };
-      
-      stage.on('pointerup', handlePointerUp);
-      stage.on('pointerupoutside', handlePointerUp);
-    }
-    
-    // Set up long press detection (shorter timer for mobile-friendly interaction)
-    const longPressTimerId = window.setTimeout(() => {
-      // After long press delay, emit long press event and cancel drag
-      if (sprite.tokenId && this._pendingLongPressTimers.has(sprite.tokenId)) {
-        this.cancelPendingDrag(sprite.tokenId);
-        this._pendingLongPressTimers.delete(sprite.tokenId);
-        
-        if (this.eventHandlers.longPress) {
-          this.eventHandlers.longPress(sprite.tokenId, event);
-        }
-      }
-    }, this._longPressTime);
-    
-    this._pendingLongPressTimers.set(sprite.tokenId, longPressTimerId);
-    
-    // Set up delayed drag start (only if long press hasn't fired)
-    const dragTimerId = window.setTimeout(() => {
-      // After delay, if pointer is still down and long press hasn't fired, start drag
-      if (sprite.tokenId && 
-          this._pendingDragTimers.has(sprite.tokenId) && 
-          !this._pendingLongPressTimers.has(sprite.tokenId)) {
-        this.startDragOperation(sprite, event);
-      }
-    }, this._dragStartDelay);
-    
-    this._pendingDragTimers.set(sprite.tokenId, dragTimerId);
-  }
-  
-  /**
-   * Cancel a pending drag operation for a token
-   */
-  private cancelPendingDrag(tokenId: string): void {
-    const timerId = this._pendingDragTimers.get(tokenId);
-    if (timerId) {
-      clearTimeout(timerId);
-      this._pendingDragTimers.delete(tokenId);
-    }
-  }
   
   /**
    * Cancel a pending long press operation for a token
@@ -883,45 +759,21 @@ export class TokenRenderer {
     }
   }
   
+
   /**
-   * Start the actual drag operation
+   * Refresh a token's visual state from the provided game state data
+   * (Used when moves fail validation and we need to revert to game state)
    */
-  private startDragOperation(sprite: TokenSprite, event: PIXI.FederatedPointerEvent): void {
-    if (!sprite.tokenId) return;
+  async refreshTokenFromState(tokenId: string, tokenData: Token): Promise<void> {
+    console.log('[TokenRenderer] Refreshing token from game state:', {
+      tokenId,
+      currentBounds: tokenData.bounds
+    });
     
-    // Clear the pending timer
-    this._pendingDragTimers.delete(sprite.tokenId);
-    
-    // Emit drag start event - let Vue component handle the drag with character tab logic
-    if (this.eventHandlers.dragStart) {
-      this.eventHandlers.dragStart(sprite.tokenId, { x: event.global.x, y: event.global.y });
-    }
-    
-    // Set cursor to dragging
-    sprite.cursor = 'grabbing';
-    
-    // Set up listeners for drag end to reset cursor
-    const stage = this.tokenContainer.parent;
-    if (stage) {
-      const handleDragEnd = () => {
-        sprite.cursor = 'grab';
-        stage.off('pointerup', handleDragEnd);
-        stage.off('pointerupoutside', handleDragEnd);
-      };
-      stage.on('pointerup', handleDragEnd);
-      stage.on('pointerupoutside', handleDragEnd);
-    }
+    // Simply update the token using the existing updateToken method
+    // This will re-position the token based on the bounds from game state
+    await this.updateToken(tokenData);
   }
-  
-  // Complex PIXI drag system removed - will use HTML5 drag/drop instead
-  
-  // Drag end handler removed - will use HTML5 drag/drop instead
-  
-
-  
-  // Complex drag calculation methods removed - will use HTML5 drag/drop instead
-  
-
   
   /**
    * Apply hover visual effect to token
