@@ -721,8 +721,191 @@ export const useGameStateStore = defineStore(
     // ============================================================================
     // TOKEN MANAGEMENT
     // ============================================================================
-
+    
     // Token creation is now handled by the add-token action handler system
+
+    // ============================================================================
+    // UTILITY METHODS
+    // ============================================================================
+
+    /**
+     * Clear game state (called when leaving session or on errors)
+     */
+    function clearState(): void {
+      gameState.value = null;
+      gameStateId.value = null;
+      gameStateVersion.value = null;
+      gameStateHash.value = null;
+      selectedCharacter.value = null;
+      error.value = null;
+      isInitialized.value = false;
+      isUpdating.value = false;
+      updateQueue.value = [];
+      // Note: Don't reset isInitialized here, we want to keep track that initialization completed
+      
+      console.log('[GameState] Game state cleared');
+    }
+
+    /**
+     * Generate unique update ID
+     */
+    function generateUpdateId(): string {
+      return `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+    }
+
+    /**
+     * Increment version string (simple integer increment)
+     */
+    function incrementVersion(currentVersion: string | null): string {
+      const current = parseInt(currentVersion || '0') || 0;
+      return (current + 1).toString();
+    }
+
+    /**
+     * Verify state integrity using hash
+     */
+    function verifyStateIntegrity(expectedHash: string): boolean {
+      if (!gameState.value) {
+        console.error('Cannot verify hash: game state is null');
+        return false;
+      }
+
+      const actualHash = hashGameState(gameState.value);
+      const isValid = actualHash === expectedHash;
+
+      if (!isValid) {
+        console.warn('[GameState] Hash verification failed', {
+          expectedHash,
+          actualHash,
+          gameStateVersion: gameStateVersion.value
+        });
+      }
+
+      return isValid;
+    }
+
+    // ============================================================================
+    // PUBLIC API
+    // ============================================================================
+
+    return {
+        
+        // Get the actual grid size from current map data
+        const currentMap = gameState.value?.currentEncounter?.currentMap;
+        const pixelsPerGrid = currentMap?.uvtt?.resolution?.pixels_per_grid || 50; // fallback to 50
+        
+        console.log('[GameState] createBoundsFromGridSize:', {
+          worldPosition: { centerX, centerY },
+          pixelsPerGrid,
+          gridSizeMultiplier: gridSize,
+          gridCells
+        });
+        
+        const centerGridX = Math.round(centerX / pixelsPerGrid);
+        const centerGridY = Math.round(centerY / pixelsPerGrid);
+        
+        console.log('[GameState] Grid conversion:', {
+          centerGridX,
+          centerGridY,
+          calculation: `${centerX} / ${pixelsPerGrid} = ${centerX / pixelsPerGrid} -> ${centerGridX}`
+        });
+        
+        // For even-sized tokens, adjust center to align with grid intersection
+        const adjustedCenterX = isEven ? centerGridX - 0.5 : centerGridX;
+        const adjustedCenterY = isEven ? centerGridY - 0.5 : centerGridY;
+        
+        const bounds = {
+          topLeft: {
+            x: Math.floor(adjustedCenterX - halfSize),
+            y: Math.floor(adjustedCenterY - halfSize)
+          },
+          bottomRight: {
+            x: Math.floor(adjustedCenterX - halfSize) + gridCells - 1,
+            y: Math.floor(adjustedCenterY - halfSize) + gridCells - 1
+          },
+          elevation
+        };
+        
+        console.log('[GameState] Final bounds:', bounds);
+        return bounds;
+      };
+
+      const tokenData = {
+        id: tokenId,
+        name: options.name || document.name,
+        imageUrl: tokenImage,
+        encounterId: gameState.value.currentEncounter.id,
+        bounds: createBoundsFromGridSize(
+          position.x,
+          position.y,
+          tokenGridSize,
+          position.elevation || 0
+        ),
+        documentId: document.id,
+        documentType: document.documentType,
+        notes: '',
+        isVisible: !options.isHidden,
+        isPlayerControlled: options.isPlayerControlled ?? (document.documentType === 'character'),
+        data: document.pluginData || {},
+        conditions: [],
+        version: 1,
+        createdBy: authStore.user?.id || '',
+        updatedBy: authStore.user?.id || '',
+        ownerId: document.ownerId || authStore.user?.id || ''
+      };
+
+      const operations: JsonPatchOperation[] = [{
+        op: 'add',
+        path: `/currentEncounter/tokens/${tokenId}`,
+        value: tokenData
+      }];
+
+      // Add document to encounter participants if not already present
+      const isAlreadyParticipant = gameState.value.currentEncounter.participants?.includes(document.id);
+      if (!isAlreadyParticipant) {
+        operations.push({
+          op: 'add',
+          path: '/currentEncounter/participants/-',
+          value: document.id
+        });
+        console.log(`Adding document to encounter participants: ${document.name}`);
+      }
+
+      // If turn order is active, add new participant only if one doesn't already exist for this document
+      if (gameState.value.turnManager?.isActive) {
+        // Check if participant already exists for this document
+        const existingParticipant = gameState.value.turnManager.participants?.some(p => p.actorId === tokenData.documentId);
+        
+        if (!existingParticipant) {
+          const newParticipant = {
+            id: `participant_${tokenData.documentId}`,
+            name: tokenData.name,
+            actorId: tokenData.documentId,
+            hasActed: false,
+            turnOrder: 0 // Start with 0 initiative
+          };
+          
+          operations.push({
+            op: 'add',
+            path: '/turnManager/participants/-',
+            value: newParticipant
+          });
+          
+          console.log(`Adding document to active turn order: ${tokenData.name}`);
+        } else {
+          console.log(`Document already exists in turn order, skipping: ${tokenData.name}`);
+        }
+      }
+
+      const response = await updateGameState(operations);
+
+      if (response.success) {
+        console.log(`Created token for document: ${document.name} at position:`, position);
+        return tokenId;
+      } else {
+        throw new Error(response.error?.message || 'Failed to create token');
+      }
+    };
 
     // ============================================================================
     // PUBLIC API

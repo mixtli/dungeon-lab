@@ -205,7 +205,6 @@ interface Emits {
   (e: 'map-error', error: string): void;
   (e: 'token-selected', tokenId: string, modifiers?: { shift?: boolean; ctrl?: boolean; alt?: boolean }): void;
   (e: 'token-moved', tokenId: string, gridX: number, gridY: number): void;
-  (e: 'token-drag-start', tokenId: string, globalPosition: { x: number; y: number }): void;
   (e: 'viewport-changed', viewport: { x: number; y: number; scale: number }): void;
   (e: 'canvas-click', x: number, y: number, event: MouseEvent): void;
   (e: 'canvas-right-click', x: number, y: number, event: MouseEvent): void;
@@ -308,7 +307,6 @@ const initializeViewer = async () => {
     };
 
     await initializeMap(canvasRef.value, options);
-    // enableTokenDragging(true); // This line was removed from destructuring
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : 'Failed to initialize map viewer';
     error.value = errorMessage;
@@ -579,8 +577,6 @@ const handleCanvasMouseMove = (event: MouseEvent) => {
 
 // Set up token interaction
 const setupTokenInteractions = () => {
-  // Enable token dragging by default
-  // enableTokenDragging(true); // This line was removed from destructuring
   
   // Set up token selection watcher
   watch(pixiSelectedTokenId, (newTokenId) => {
