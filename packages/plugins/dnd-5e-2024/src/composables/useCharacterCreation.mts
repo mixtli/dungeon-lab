@@ -476,6 +476,9 @@ export function useCharacterCreation() {
           if (contentData.imageId && typeof contentData.imageId === 'object' && '_id' in contentData.imageId) {
             contentData.imageId = contentData.imageId._id;
           }
+          if (contentData.tokenImageId && typeof contentData.tokenImageId === 'object' && '_id' in contentData.tokenImageId) {
+            contentData.tokenImageId = contentData.tokenImageId._id;
+          }
           
           const itemData = {
             ...contentData,
