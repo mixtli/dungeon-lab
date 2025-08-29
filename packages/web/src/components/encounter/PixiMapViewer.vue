@@ -246,6 +246,7 @@ const {
   deselectToken,
   addTarget,
   clearTargets,
+  restoreTokenVisibility,
   getGridSize,
   panTo,
   zoomTo,
@@ -401,15 +402,13 @@ const initializeViewer = async () => {
         // Send move token request and wait for result
         const result = await requestMoveToken(tokenId, tokenTopLeftGridPos);
         
-        // Only return to original position if the request failed
+        // Only restore token visibility if the request failed
         if (!result.success || !result.approved) {
-          console.log('❌ Token move failed, returning to original position:', result.error);
-          if (moveToken) {
-            moveToken(tokenId, startPos.x, startPos.y, true); // animate = true
-          }
+          console.log('❌ Token move failed, restoring token visibility at original position:', result.error);
+          restoreTokenVisibility(tokenId);
         } else {
           console.log('✅ Token move approved, waiting for game state update');
-          // Don't move the token - let the game state update handle the final positioning
+          // Don't restore visibility - let the game state update handle the final positioning and visibility
         }
       }
     };

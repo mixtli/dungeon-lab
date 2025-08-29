@@ -527,6 +527,14 @@ export function usePixiMap(): UsePixiMapReturn {
     if (!tokenRenderer) return;
     tokenRenderer.clearTargets();
   };
+
+  /**
+   * Restore token visibility after a failed move action
+   */
+  const restoreTokenVisibility = (tokenId: string): void => {
+    if (!tokenRenderer) return;
+    tokenRenderer.restoreTokenVisibility(tokenId);
+  };
   
   /**
    * Set up auto-resize functionality
@@ -617,6 +625,7 @@ export function usePixiMap(): UsePixiMapReturn {
     addTarget,
     removeTarget,
     clearTargets,
+    restoreTokenVisibility,
     
     // Grid controls
     enableSnapToGrid,

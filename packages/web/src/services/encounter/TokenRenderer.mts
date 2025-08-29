@@ -1241,8 +1241,8 @@ export class TokenRenderer {
       };
     }
     
-    // Clean up drag state
-    this.cleanupDragState();
+    // Clean up drag state but don't restore alpha - let the drag end handler decide
+    this.cleanupDragState(false);
     
     // Notify listeners if we actually dragged
     if (wasDragging && this.eventHandlers.dragEnd) {
@@ -1251,9 +1251,9 @@ export class TokenRenderer {
   }
   
   /**
-   * Clean up drag state and restore normal token appearance
+   * Clean up drag state and optionally restore normal token appearance
    */
-  private cleanupDragState(): void {
+  private cleanupDragState(restoreAlpha: boolean = true): void {
     if (!this.dragState) return;
     
     // Remove drag sprite if it exists
@@ -1262,8 +1262,8 @@ export class TokenRenderer {
       this.dragState.dragSprite.destroy();
     }
     
-    // Restore original sprite alpha
-    if (this.dragState.originalSprite) {
+    // Conditionally restore original sprite alpha
+    if (restoreAlpha && this.dragState.originalSprite) {
       this.dragState.originalSprite.alpha = 1;
     }
     
@@ -1275,5 +1275,20 @@ export class TokenRenderer {
     
     // Clear drag state
     this.dragState = null;
+  }
+
+  /**
+   * Restore token visibility after a failed move action
+   */
+  restoreTokenVisibility(tokenId: string): void {
+    const tokenData = this.activeTokens.get(tokenId);
+    if (!tokenData) {
+      console.warn(`[TokenRenderer] Cannot restore visibility for token ${tokenId}: not found`);
+      return;
+    }
+    
+    // Restore sprite alpha to make token visible again
+    tokenData.sprite.alpha = 1;
+    console.log(`[TokenRenderer] Restored visibility for token ${tokenId}`);
   }
 } 
