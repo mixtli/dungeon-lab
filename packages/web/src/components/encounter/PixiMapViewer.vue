@@ -48,6 +48,8 @@ import { useRouter } from 'vue-router';
 import { usePixiMap, type UsePixiMapOptions } from '@/composables/usePixiMap.mjs';
 import { useDeviceAdaptation } from '@/composables/useDeviceAdaptation.mts';
 import type { IMapResponse } from '@dungeon-lab/shared/types/api/maps.mjs';
+import { playerActionService } from '@/services/player-action.service.mjs';
+import type { MoveTokenParameters } from '@dungeon-lab/shared/types/index.mjs';
 import type { Token } from '@dungeon-lab/shared/types/tokens.mjs';
 import type { IUVTT } from '@dungeon-lab/shared/types/index.mjs';
 import type { Platform } from '@/services/encounter/PixiMapRenderer.mjs';
@@ -269,6 +271,73 @@ const loadingText = computed(() => {
   return 'Loading...';
 });
 
+// Helper functions for grid coordinate calculations
+const worldToGridCoords = (worldX: number, worldY: number) => {
+  const gridSize = getGridSize();
+  return {
+    x: Math.round((worldX - gridSize / 2) / gridSize),
+    y: Math.round((worldY - gridSize / 2) / gridSize)
+  };
+};
+
+const calculateTokenTopLeft = (tokenId: string, cursorGridPos: { x: number; y: number }) => {
+  const token = props.tokens?.find(t => t.id === tokenId);
+  if (!token) return cursorGridPos;
+  
+  const tokenGridWidth = token.bounds.bottomRight.x - token.bounds.topLeft.x + 1;
+  const tokenGridHeight = token.bounds.bottomRight.y - token.bounds.topLeft.y + 1;
+  
+  return {
+    x: cursorGridPos.x - Math.floor(tokenGridWidth / 2),
+    y: cursorGridPos.y - Math.floor(tokenGridHeight / 2)
+  };
+};
+
+/**
+ * Send a move token request through the player action service
+ */
+const requestMoveToken = async (tokenId: string, gridPosition: { x: number; y: number }) => {
+  try {
+    const parameters: MoveTokenParameters = {
+      tokenId,
+      newPosition: {
+        gridX: gridPosition.x,
+        gridY: gridPosition.y
+      }
+    };
+    
+    console.log('[PixiMapViewer] Requesting token move:', { tokenId, gridPosition, parameters });
+    
+    const result = await playerActionService.requestAction(
+      'move-token',
+      undefined, // actorId - not needed for token movement
+      parameters,
+      tokenId, // actorTokenId
+      undefined, // targetTokenIds
+      { 
+        description: `Move token to grid position (${gridPosition.x}, ${gridPosition.y})` 
+      }
+    );
+    
+    console.log('[PixiMapViewer] Move token request result:', result);
+    
+    if (!result.success) {
+      console.error('[PixiMapViewer] Token move request failed:', result.error);
+      // TODO: Show user-friendly error message
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('[PixiMapViewer] Error requesting token move:', error);
+    return {
+      success: false,
+      approved: false,
+      requestId: '',
+      error: error instanceof Error ? error.message : 'Unknown error occurred'
+    };
+  }
+};
+
 // Methods
 const initializeViewer = async () => {
   if (!canvasRef.value || !containerRef.value) return;
@@ -302,6 +371,45 @@ const initializeViewer = async () => {
             position: { x: lastMouseEvent.value.clientX, y: lastMouseEvent.value.clientY }
           });
           suppressNextMapContextMenu.value = true;
+        }
+      },
+      
+      // Drag event handlers - Phase 1: drag with return to original position
+      onTokenDragStart: (tokenId: string, worldPos: { x: number; y: number }) => {
+        console.log('🎯 Token drag started:', { tokenId, worldPos });
+      },
+      onTokenDragMove: (tokenId: string, worldPos: { x: number; y: number }) => {
+        // Throttle drag move logging to avoid console spam
+        if (Math.random() < 0.1) { // Log only 10% of drag moves
+          console.log('🔄 Token dragging:', { tokenId, worldPos });
+        }
+      },
+      onTokenDragEnd: async (tokenId: string, startPos: { x: number; y: number }, endPos: { x: number; y: number }) => {
+        // Calculate grid coordinates
+        const cursorGridPos = worldToGridCoords(endPos.x, endPos.y);
+        const tokenTopLeftGridPos = calculateTokenTopLeft(tokenId, cursorGridPos);
+        
+        console.log('🎯 Token drag ended - requesting movement:', { 
+          tokenId, 
+          startPos, 
+          endPos,
+          distance: Math.sqrt(Math.pow(endPos.x - startPos.x, 2) + Math.pow(endPos.y - startPos.y, 2)),
+          cursorGridPosition: `(${cursorGridPos.x}, ${cursorGridPos.y})`,
+          tokenTopLeftGridPosition: `(${tokenTopLeftGridPos.x}, ${tokenTopLeftGridPos.y})`
+        });
+        
+        // Send move token request and wait for result
+        const result = await requestMoveToken(tokenId, tokenTopLeftGridPos);
+        
+        // Only return to original position if the request failed
+        if (!result.success || !result.approved) {
+          console.log('❌ Token move failed, returning to original position:', result.error);
+          if (moveToken) {
+            moveToken(tokenId, startPos.x, startPos.y, true); // animate = true
+          }
+        } else {
+          console.log('✅ Token move approved, waiting for game state update');
+          // Don't move the token - let the game state update handle the final positioning
         }
       }
     };

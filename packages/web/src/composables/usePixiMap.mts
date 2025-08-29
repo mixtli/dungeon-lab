@@ -1,4 +1,4 @@
-import { ref, onUnmounted, readonly, type Ref } from 'vue';
+import { ref, onUnmounted, type Ref } from 'vue';
 import type { Token } from '@dungeon-lab/shared/types/tokens.mjs';
 import type { IMapResponse } from '@dungeon-lab/shared/types/api/maps.mjs';
 import type { GameSystemPlugin } from '@dungeon-lab/shared-ui/types/plugin.mjs';
@@ -17,6 +17,9 @@ export interface UsePixiMapOptions {
   onTokenDoubleClick?: (tokenId: string) => void;
   onTokenRightClick?: (tokenId: string) => void; // <-- Added
   onTokenLongPress?: (tokenId: string) => void; // <-- Added for mobile
+  onTokenDragStart?: (tokenId: string, worldPos: { x: number; y: number }) => void;
+  onTokenDragMove?: (tokenId: string, worldPos: { x: number; y: number }) => void;
+  onTokenDragEnd?: (tokenId: string, startPos: { x: number; y: number }, endPos: { x: number; y: number }) => void;
 }
 
 export interface UsePixiMapReturn {
@@ -464,6 +467,17 @@ export function usePixiMap(): UsePixiMapReturn {
       }),
       longPress: pixiMapOptions?.onTokenLongPress || ((tokenId) => {
         console.log('Token long-pressed:', tokenId);
+      }),
+      
+      // Drag event handlers
+      dragStart: pixiMapOptions?.onTokenDragStart || ((tokenId, worldPos) => {
+        console.log('Token drag started:', tokenId, worldPos);
+      }),
+      dragMove: pixiMapOptions?.onTokenDragMove || ((tokenId, worldPos) => {
+        console.log('Token dragging:', tokenId, worldPos);
+      }),
+      dragEnd: pixiMapOptions?.onTokenDragEnd || ((tokenId, startPos, endPos) => {
+        console.log('Token drag ended:', tokenId, startPos, endPos);
       })
     });
   };

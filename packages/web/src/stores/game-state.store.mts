@@ -22,10 +22,7 @@ import {
 } from '@dungeon-lab/shared/utils/index.mjs';
 import { useSocketStore } from './socket.store.mjs';
 import { useGameSessionStore } from './game-session.store.mjs';
-import { useAuthStore } from './auth.store.mjs';
 import { useNotificationStore } from './notification.store.mjs';
-import { transformAssetUrl } from '../utils/asset-utils.mjs';
-import { pluginTokenService } from '../services/plugin-token.service.mjs';
 
 /**
  * Unified Game State Store
@@ -47,7 +44,6 @@ export const useGameStateStore = defineStore(
   () => {
     const socketStore = useSocketStore();
     const gameSessionStore = useGameSessionStore();
-    const authStore = useAuthStore();
     const notificationStore = useNotificationStore();
 
     // ============================================================================
