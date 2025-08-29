@@ -240,7 +240,8 @@ export class DocumentController {
         ...data,
         slug: (data.slug as string) || this.generateSlugFromName(data.name as string),
         createdBy: userId,
-        updatedBy: userId
+        updatedBy: userId,
+        ownerId: userId
       };
 
       const document = await DocumentService.create(documentData as Omit<BaseDocument, 'id' | 'createdAt' | 'updatedAt'>);
