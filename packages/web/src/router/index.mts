@@ -25,6 +25,7 @@ const PluginManagerView = () => import('@/views/plugin/PluginManagerView.vue');
 const AdminDashboardView = () => import('@/views/AdminDashboardView.vue');
 // ChatView is now statically imported above
 const SettingsView = () => import('@/views/SettingsView.vue');
+const DebugView = () => import('@/views/DebugView.vue');
 const ProfileView = () => import('@/views/ProfileView.vue');
 
 // Campaign views
@@ -377,6 +378,15 @@ const routes: RouteRecordRaw[] = [
         }
       },
       {
+        path: 'debug',
+        name: 'debug',
+        component: DebugView,
+        meta: {
+          title: 'Debug Tools',
+          requiresAuth: true
+        }
+      },
+      {
         path: 'actor/:id/edit',
         name: 'actor-edit',
         component: ActorEditView,
@@ -582,6 +592,14 @@ router.beforeEach(async (to, from, next) => {
         next({ 
           name: 'mobile-container', 
           query: { tab: 'settings' } 
+        });
+        return;
+      }
+
+      if (to.name === 'debug') {
+        next({ 
+          name: 'mobile-container', 
+          query: { tab: 'debug' } 
         });
         return;
       }

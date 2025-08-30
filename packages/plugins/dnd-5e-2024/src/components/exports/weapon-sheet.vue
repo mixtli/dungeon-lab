@@ -4,7 +4,10 @@
     <header class="sheet-header" @mousedown="startDrag">
       <div class="weapon-info">
         <div class="weapon-icon">
-          <div class="weapon-type-badge" :class="`category-${weaponData.category || 'simple'}`">
+          <div v-if="tokenImageUrl" class="weapon-type-badge token-image" :class="`category-${weaponData.category || 'simple'}`">
+            <img :src="tokenImageUrl" :alt="weapon.name" class="token-image-icon" />
+          </div>
+          <div v-else class="weapon-type-badge" :class="`category-${weaponData.category || 'simple'}`">
             {{ getWeaponIcon(weaponData) }}
           </div>
         </div>
@@ -161,10 +164,16 @@ const weaponData = computed((): DndWeaponData => {
   return weapon.value.pluginData as DndWeaponData;
 });
 
-// Weapon image URL
+// Weapon image URL - check image.url first, then tokenImage.url as fallback
 const weaponImageUrl = computed(() => {
   const doc = weapon.value as any;
-  return doc.image?.url || null;
+  return doc.image?.url || doc.tokenImage?.url || null;
+});
+
+// Token image URL for title bar icon
+const tokenImageUrl = computed(() => {
+  const doc = weapon.value as any;
+  return doc.tokenImage?.url || null;
 });
 
 // Computed display properties
@@ -275,6 +284,18 @@ onMounted(() => {
   background: linear-gradient(135deg, #28a745, #218838);
 }
 
+.weapon-type-badge.token-image {
+  background: rgba(255, 255, 255, 0.9);
+  padding: 2px;
+}
+
+.token-image-icon {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
 .weapon-details {
   display: flex;
   flex-direction: column;
@@ -324,8 +345,8 @@ onMounted(() => {
 }
 
 .weapon-image {
-  max-width: 200px;
-  max-height: 150px;
+  width: 250px;
+  height: 250px;
   object-fit: contain;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);

@@ -260,6 +260,12 @@ function handleThemeToggle() {
               >
                 Settings
               </RouterLink>
+              <RouterLink
+                to="/debug"
+                class="block px-4 py-2 text-sm nav-text hover:bg-stone-100 dark:hover:bg-stone-600"
+              >
+                Debug Tools
+              </RouterLink>
               <button
                 @click="logout"
                 class="block w-full text-left px-4 py-2 text-sm text-error-700 hover:bg-stone-100 dark:hover:bg-stone-600"
@@ -398,6 +404,14 @@ function handleThemeToggle() {
           @click="closeMenu"
         >
           Invites
+        </RouterLink>
+        <RouterLink
+          v-if="authStore.isAuthenticated"
+          to="/debug"
+          class="block px-3 py-2 rounded-md text-base font-medium nav-text hover:bg-stone-100 dark:hover:bg-stone-700"
+          @click="closeMenu"
+        >
+          Debug Tools
         </RouterLink>
 
         <!-- Session Info Dropdown for Mobile -->

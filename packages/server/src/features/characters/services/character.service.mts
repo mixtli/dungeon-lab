@@ -122,7 +122,7 @@ export class CharacterService {
           if (!gameStateResult.gameState.documents[item.id]) {
             // Get the item with populated assets for gameState
             const populatedItemDoc = await DocumentModel.findById(item.id)
-              .populate(['image', 'thumbnail']).exec();
+              .populate(['image', 'thumbnail', 'tokenImage']).exec();
             
             if (populatedItemDoc) {
               operations.push({
@@ -187,10 +187,23 @@ export class CharacterService {
       throw new Error('Character is not in a campaign');
     }
 
+    // Find all items belonging to this character before removing from campaign
+    const characterItems = await ItemDocumentModel.find({ carrierId: characterId });
+
     // Remove character from campaign
     const updatedCharacter = await DocumentService.character.leaveCampaign(characterId);
     if (!updatedCharacter) {
       throw new Error('Character not found');
+    }
+
+    // Update all character items to remove campaignId
+    if (characterItems.length > 0) {
+      await ItemDocumentModel.updateMany(
+        { carrierId: characterId },
+        { $unset: { campaignId: '' } }
+      );
+      
+      logger.info(`Removed campaignId from ${characterItems.length} items for character ${characterId}`);
     }
 
     // Update game state if there's an active encounter
@@ -219,6 +232,16 @@ export class CharacterService {
           });
         }
 
+        // Remove character's items from gameState documents
+        for (const item of characterItems) {
+          if (gameStateResult.gameState.documents[item.id]) {
+            operations.push({
+              op: 'remove',
+              path: `/documents/${item.id}`
+            });
+          }
+        }
+
         // Apply operations if any
         if (operations.length > 0) {
           const stateUpdate: StateUpdate = {
@@ -238,7 +261,7 @@ export class CharacterService {
           );
 
           if (updateResult.success) {
-            logger.info(`Character ${characterId} removed from current encounter in campaign ${campaignId}`);
+            logger.info(`Character ${characterId} and ${characterItems.length} items removed from current encounter in campaign ${campaignId}`);
           } else {
             logger.warn(`Failed to remove character from encounter: ${updateResult.error?.message}`);
           }
@@ -249,6 +272,6 @@ export class CharacterService {
       // Don't fail the whole operation if game state update fails
     }
 
-    logger.info(`Character ${characterId} left campaign ${campaignId}`);
+    logger.info(`Character ${characterId} and ${characterItems.length} items left campaign ${campaignId}`);
   }
 }
