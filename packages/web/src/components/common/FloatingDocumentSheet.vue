@@ -1,5 +1,6 @@
 <template>
-  <Teleport to="body">
+  <!-- Only teleport when the encounter container is available -->
+  <Teleport v-if="encounterContainerAvailable" to=".encounter-view-fullscreen">
     <div
       v-for="[sheetId, sheet] in documentSheetStore.floatingSheets"
       :key="sheetId"
@@ -50,16 +51,71 @@
       </div>
     </div>
   </Teleport>
+  
+  <!-- Fallback rendering when encounter container is not available -->
+  <div
+    v-else
+    v-for="[sheetId, sheet] in documentSheetStore.floatingSheets"
+    :key="sheetId"
+    :ref="sheetId"
+    :data-sheet-id="sheetId"
+    class="floating-document-sheet floating-document-sheet-fallback"
+    :class="{ 'is-dragging': isDragging && currentSheetId === sheetId }"
+    :style="getSheetStyle(sheet)"
+    @mousedown.self="documentSheetStore.bringToFront(sheetId)"
+  >
+    <!-- Fallback Framework Header (only shown if plugin doesn't emit events) -->
+    <div v-if="showFallbackChrome" class="fallback-header" @mousedown="startDrag($event, sheetId)">
+      <div class="window-title">
+        <i :class="getDocumentIcon(sheet.document)" class="title-icon"></i>
+        <span>{{ sheet.document.name }}</span>
+      </div>
+      
+      <div class="window-controls">
+        <button class="control-button" title="Close" @click="documentSheetStore.closeDocumentSheet(sheetId)">
+          <i class="mdi mdi-close"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Window Content (no header - plugin provides its own) -->
+    <div class="window-content">
+      <DocumentSheetContainer
+        :show="true"
+        :document-id="sheet.document.id"
+        :document-type="getSheetDocumentType(sheet)"
+        :context="getSheetContext(sheet)"
+        :readonly="false"
+        @close="documentSheetStore.closeDocumentSheet(sheetId)"
+        @roll="handleRoll"
+        @drag-start="(event) => handlePluginDragStart(event, sheetId)"
+      />
+    </div>
+
+    <!-- Resize Handle -->
+    <div 
+      class="floating-window-resize-handle" 
+      @mousedown="startResize($event, sheetId)"
+      title="Drag to resize"
+    >
+      <svg width="12" height="12" viewBox="0 0 12 12" class="resize-lines">
+        <path d="M9 3L3 9M11 5L5 11M11 3L9 5" stroke="currentColor" stroke-width="1" opacity="0.5" />
+      </svg>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onUnmounted, onMounted } from 'vue';
+import { ref, watch, onUnmounted, onMounted, nextTick } from 'vue';
 import { useDocumentSheetStore } from '../../stores/document-sheet.store.mjs';
 import type { DocumentSheetStore } from '../../stores/document-sheet.store.mjs';
 import type { BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
 import DocumentSheetContainer from './DocumentSheetContainer.vue';
 
 const documentSheetStore = useDocumentSheetStore();
+
+// Check if encounter container is available for teleporting
+const encounterContainerAvailable = ref(false);
 
 // Helper functions for sheet context and document type
 const getSheetContext = (sheet: DocumentSheetStore): 'admin' | 'game' => {
@@ -264,7 +320,13 @@ function handlePluginDragStart(event: MouseEvent, sheetId: string) {
 }
 
 // Setup plugin event listeners
-onMounted(() => {
+onMounted(async () => {
+  // Wait for next tick to ensure DOM is ready
+  await nextTick();
+  
+  // Check for encounter container availability
+  await waitForEncounterContainer();
+  
   setupPluginEventListeners();
   
   // Skip fallback chrome timeout - D&D components are self-contained
@@ -287,6 +349,28 @@ onUnmounted(() => {
   }
 });
 
+/**
+ * Check if the encounter container is available and update reactive state
+ */
+const checkEncounterContainer = () => {
+  const container = document.querySelector('.encounter-view-fullscreen');
+  encounterContainerAvailable.value = !!container;
+  return !!container;
+};
+
+/**
+ * Wait for the encounter container to become available
+ */
+const waitForEncounterContainer = async (maxRetries = 10, retryDelay = 100): Promise<boolean> => {
+  for (let i = 0; i < maxRetries; i++) {
+    if (checkEncounterContainer()) {
+      return true;
+    }
+    await new Promise(resolve => setTimeout(resolve, retryDelay));
+  }
+  return false;
+};
+
 // Setup event listeners for plugin window events
 function setupPluginEventListeners() {
   // TODO: Implement plugin event handling when needed
@@ -307,6 +391,7 @@ function setupPluginEventListeners() {
   max-height: 90vh;
   overflow: hidden;
   transition: all 0.2s ease;
+  z-index: 1500; /* Above HUD but below dice overlay (2000) within encounter container */
 }
 
 /* Disable transitions during drag for smooth performance */
@@ -424,5 +509,11 @@ function setupPluginEventListeners() {
 
 .floating-document-sheet {
   animation: windowFadeIn 0.2s ease-out;
+}
+
+/* Fallback styling when not teleported to encounter container */
+.floating-document-sheet-fallback {
+  position: fixed !important;
+  z-index: 9998 !important; /* High z-index but below dice overlay fallback (9999) */
 }
 </style>

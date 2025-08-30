@@ -1,12 +1,14 @@
 <template>
-  <div 
-    v-show="isVisible"
-    id="dice-3d-container"
-    class="dice-overlay"
-    :class="{ visible: isVisible }"
-    ref="diceContainer"
-    @click="handleOverlayClick"
-  >
+  <!-- Only teleport when the encounter container is available -->
+  <Teleport v-if="encounterContainerAvailable" to=".encounter-view-fullscreen">
+    <div 
+      v-show="isVisible"
+      id="dice-3d-container"
+      class="dice-overlay"
+      :class="{ visible: isVisible }"
+      ref="diceContainer"
+      @click="handleOverlayClick"
+    >
     
     <!-- Error message if initialization fails -->
     <div 
@@ -23,6 +25,34 @@
     </div>
     
     <!-- Three.js canvas will be injected here -->
+    </div>
+  </Teleport>
+  
+  <!-- Fallback rendering when encounter container is not available -->
+  <div 
+    v-else-if="isVisible"
+    id="dice-3d-container"
+    class="dice-overlay dice-overlay-fallback"
+    :class="{ visible: isVisible }"
+    ref="diceContainer"
+    @click="handleOverlayClick"
+  >
+  
+  <!-- Error message if initialization fails -->
+  <div 
+    v-if="initializationError" 
+    class="dice-error"
+  >
+    <span class="error-text">3D dice unavailable</span>
+    <button 
+      @click="retryInitialization"
+      class="retry-button"
+    >
+      Retry
+    </button>
+  </div>
+  
+  <!-- Three.js canvas will be injected here -->
   </div>
 </template>
 
@@ -51,6 +81,7 @@ const isVisible = ref(false);
 const isInitializing = ref(false);
 const initializationError = ref<string | null>(null);
 const hideTimer = ref<ReturnType<typeof setTimeout> | null>(null);
+const encounterContainerAvailable = ref(false);
 
 // Stores
 const socketStore = useSocketStore();
@@ -278,12 +309,37 @@ const cleanupSocketListeners = (): void => {
   socketStore.socket.off('roll:result', handleRollResult);
 };
 
+/**
+ * Check if the encounter container is available and update reactive state
+ */
+const checkEncounterContainer = () => {
+  const container = document.querySelector('.encounter-view-fullscreen');
+  encounterContainerAvailable.value = !!container;
+  return !!container;
+};
+
+/**
+ * Wait for the encounter container to become available
+ */
+const waitForEncounterContainer = async (maxRetries = 10, retryDelay = 100): Promise<boolean> => {
+  for (let i = 0; i < maxRetries; i++) {
+    if (checkEncounterContainer()) {
+      return true;
+    }
+    await new Promise(resolve => setTimeout(resolve, retryDelay));
+  }
+  return false;
+};
+
 // Lifecycle hooks
 onMounted(async () => {
   console.log('DiceOverlay: Component mounted');
   
   // Wait for next tick to ensure DOM is ready
   await nextTick();
+  
+  // Check for encounter container availability
+  await waitForEncounterContainer();
   
   // Setup socket listeners
   setupSocketListeners();
@@ -348,8 +404,8 @@ defineExpose({
   bottom: 0;
   width: 100%;
   height: 100%;
-  z-index: 55; /* Above everything including HUD (50) */
-  pointer-events: auto; /* Allow interaction for manual dismissal */
+  z-index: 2000; /* Above character sheets (1500) within encounter container */
+  pointer-events: none; /* Allow clicks to pass through to elements behind */
   background: transparent; /* Fully transparent background so map shows through */
   
   /* Ensure minimum dimensions for Three.js renderer */
@@ -368,9 +424,9 @@ defineExpose({
   background: transparent !important; /* Canvas background transparent so map shows through */
   max-width: 100%;
   max-height: 100%;
-  pointer-events: auto; /* Allow clicking on dice */
+  pointer-events: none; /* No interaction needed with dice */
   opacity: 1 !important; /* Ensure dice are fully visible */
-  z-index: 1; /* Ensure canvas is above overlay background */
+  z-index: 2001; /* Ensure canvas is above character sheets within encounter container */
 }
 
 /* Error state styles */
@@ -433,5 +489,17 @@ defineExpose({
 .dice-overlay:not(.visible) {
   opacity: 0;
   pointer-events: none;
+}
+
+/* Fallback styling when not teleported to encounter container */
+.dice-overlay-fallback {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 9999 !important; /* Very high z-index to ensure it's above everything */
 }
 </style>

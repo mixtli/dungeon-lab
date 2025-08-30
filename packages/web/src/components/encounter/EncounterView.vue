@@ -971,7 +971,7 @@ const hudLayoutStyle = computed(() => {
 }
 
 .encounter-overlays {
-  z-index: 10;
+  z-index: auto; /* Remove stacking context to allow dice overlay z-index to compete directly with character sheets */
 }
 
 /* Device-specific styles */
