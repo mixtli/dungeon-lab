@@ -184,8 +184,14 @@ const handleRollResult = async (rollResult: RollServerResult): Promise<void> => 
     }
 
     if (dice3DService.isReady()) {
-      // Start 3D dice animation with predetermined results using direct notation
-      await dice3DService.rollWithNotation(diceNotation);
+      // Start 3D dice animation with predetermined results and optional styling
+      if (rollResult.diceStyle) {
+        console.log('DiceOverlay: Rolling with custom dice style:', rollResult.diceStyle);
+        await dice3DService.rollWithStyleAndNotation(diceNotation, rollResult.diceStyle);
+      } else {
+        // Use existing method for backward compatibility
+        await dice3DService.rollWithNotation(diceNotation);
+      }
       console.log('DiceOverlay: 3D dice animation started with notation:', diceNotation);
     } else {
       console.warn('DiceOverlay: 3D dice service not available after initialization, skipping animation');

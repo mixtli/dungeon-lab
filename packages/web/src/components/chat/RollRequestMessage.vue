@@ -54,6 +54,7 @@ import type { Component } from 'vue';
 import { useSocketStore } from '../../stores/socket.store.mjs';
 import { useChatStore } from '../../stores/chat.store.mts';
 import { pluginRegistry } from '../../services/plugin-registry.mts';
+import { rollService } from '../../services/roll.service.mjs';
 import type { ChatMessage } from '../../stores/chat.store.mjs';
 import type { RollServerResult } from '@dungeon-lab/shared/types/socket/index.mjs';
 import { diceArrayToExpression } from '@dungeon-lab/shared/utils/dice-parser.mjs';
@@ -141,7 +142,7 @@ const buttonText = computed(() => {
 });
 
 // Plugin component event handlers
-function handlePluginRollAccepted(rollData: any): void {
+async function handlePluginRollAccepted(rollData: any): Promise<void> {
   console.log('[RollRequestMessage] Plugin roll accepted:', rollData);
   
   processing.value = true;
@@ -150,21 +151,21 @@ function handlePluginRollAccepted(rollData: any): void {
     // Submit the roll using the enhanced data from the plugin
     const roll = rollData.rollData;
     
-    // Send roll with proper schema format
-    socketStore.socket?.emit('roll', roll, (response: { success: boolean, error?: string }) => {
-      if (!response.success) {
-        console.error('[RollRequestMessage] Failed to process enhanced roll:', response.error);
-        processing.value = false;
-      } else {
-        // Mark as completed after successful submission
-        completed.value = true;
-        
-        // Remove the roll request card after brief delay
-        setTimeout(() => {
-          chatStore.removeMessage(props.message.id);
-        }, 2000);
-      }
-    });
+    // Use RollService to automatically apply user dice preferences
+    const result = await rollService.submitRoll(roll);
+    
+    if (!result.success) {
+      console.error('[RollRequestMessage] Failed to process enhanced roll:', result.error);
+      processing.value = false;
+    } else {
+      // Mark as completed after successful submission
+      completed.value = true;
+      
+      // Remove the roll request card after brief delay
+      setTimeout(() => {
+        chatStore.removeMessage(props.message.id);
+      }, 2000);
+    }
     
     console.log('[RollRequestMessage] Enhanced roll submitted successfully');
   } catch (error) {
@@ -182,7 +183,7 @@ function handlePluginRollDeclined(): void {
   }, 500);
 }
 
-function acceptRollRequest(): void {
+async function acceptRollRequest(): Promise<void> {
   if (!rollRequest) {
     console.error('[RollRequestMessage] No roll request data available');
     return;
@@ -213,12 +214,13 @@ function acceptRollRequest(): void {
       }
     };
     
-    // Send roll with proper schema format
-    socketStore.socket?.emit('roll', roll, (response: { success: boolean, error?: string }) => {
-      if (!response.success) {
-        console.error('[RollRequestMessage] Failed to process roll:', response.error);
-      }
-    });
+    // Use RollService to automatically apply user dice preferences
+    const result = await rollService.submitRoll(roll);
+    
+    if (!result.success) {
+      console.error('[RollRequestMessage] Failed to process roll:', result.error);
+      processing.value = false;
+    }
     
     console.log('[RollRequestMessage] Accepted roll request:', rollRequest.rollId);
   } catch (error) {

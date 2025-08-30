@@ -102,7 +102,8 @@
       "WebFetch(domain:immerjs.github.io)",
       "mcp__playwright__browser_tab_list",
       "Bash(/dev/null)",
-      "mcp__playwright__browser_resize"
+      "mcp__playwright__browser_resize",
+      "Bash(vue-tsc:*)"
     ],
     "defaultMode": "acceptEdits",
     "additionalDirectories": [

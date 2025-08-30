@@ -171,8 +171,9 @@ export interface PluginContext {
   /**
    * Submit a roll to the server
    * Plugins use this instead of direct socket access
+   * User dice preferences are automatically applied by the RollService
    */
-  submitRoll(roll: Roll): void;
+  submitRoll(roll: Roll): Promise<void>;
   
   /**
    * Send a chat message with optional metadata

@@ -1,6 +1,24 @@
 import { z } from 'zod';
 import { baseSocketCallbackSchema } from './socket/base-callback.schema.mjs';
 
+// Dice styling options schema for per-roll customization
+export const diceStyleSchema = z.object({
+  theme_colorset: z.string().optional(),
+  theme_material: z.enum(['none', 'metal', 'wood', 'glass', 'plastic']).optional(),
+  theme_texture: z.string().optional(),
+  theme_customColorset: z.object({
+    background: z.string(),
+    foreground: z.string(),
+    texture: z.string(),
+    material: z.string()
+  }).optional(),
+  light_intensity: z.number().optional(),
+  gravity_multiplier: z.number().optional(),
+  sounds: z.boolean().optional(),
+  baseScale: z.number().optional(),
+  strength: z.number().optional()
+}).optional();
+
 // Roll (Client → Server) - What client sends to initiate a roll
 export const rollSchema = z.object({
   rollId: z.string(),
@@ -32,7 +50,10 @@ export const rollSchema = z.object({
     title: z.string(),
     description: z.string().optional(),
     characterName: z.string().optional(),
-  }).passthrough()
+  }).passthrough(),
+  
+  // Dice styling preferences for 3D visualization
+  diceStyle: diceStyleSchema
 });
 
 // RollServerResult (Server → Client) - What server sends back with dice results
@@ -81,6 +102,7 @@ export const rollRequestSchema = z.object({
   chatComponentType: z.string().optional()
 });
 
+export type DiceStyle = z.infer<typeof diceStyleSchema>;
 export type Roll = z.infer<typeof rollSchema>;
 export type RollServerResult = z.infer<typeof rollServerResultSchema>;
 export type RollFinalResult = z.infer<typeof rollFinalResultSchema>;

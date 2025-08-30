@@ -131,6 +131,7 @@ export type IUserCreateData = z.infer<typeof userCreateSchema>;
 export type IUserUpdateData = z.infer<typeof userUpdateSchema>;
 export type IUserPreferences = z.infer<typeof userPreferencesSchema>;
 export type UserThemeType = z.infer<typeof UserTheme>;
+export { DicePreferences } from '../schemas/user.schema.mjs';
 
 // Campaign Types
 export type ICampaign = z.infer<typeof campaignWithVirtualsSchema>;

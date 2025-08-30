@@ -1,4 +1,4 @@
-// No imports needed - we'll work directly with notation strings
+import type { DiceStyle } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
 
 /**
  * Service for managing 3D dice rolling visualization
@@ -299,6 +299,100 @@ export class Dice3DService {
     }
   }
 
+  /**
+   * Update DiceBox configuration with new style options
+   * @param styleOptions - Dice styling options to apply
+   */
+  updateDiceConfig(styleOptions: DiceStyle): void {
+    if (!this.diceBox || !this.isInitialized) {
+      console.warn('Dice3DService not initialized, cannot update config');
+      return;
+    }
+
+    if (!styleOptions) {
+      console.log('No style options provided, skipping config update');
+      return;
+    }
+
+    try {
+      // Convert DiceStyle to DiceBox config format
+      const configUpdate: Record<string, unknown> = {};
+      
+      if (styleOptions.theme_colorset !== undefined) {
+        configUpdate.theme_colorset = styleOptions.theme_colorset;
+      }
+      
+      if (styleOptions.theme_material !== undefined) {
+        configUpdate.theme_material = styleOptions.theme_material;
+      }
+      
+      if (styleOptions.theme_texture !== undefined) {
+        configUpdate.theme_texture = styleOptions.theme_texture;
+      }
+      
+      if (styleOptions.theme_customColorset !== undefined) {
+        configUpdate.theme_customColorset = styleOptions.theme_customColorset;
+      }
+      
+      if (styleOptions.light_intensity !== undefined) {
+        configUpdate.light_intensity = styleOptions.light_intensity;
+      }
+      
+      if (styleOptions.gravity_multiplier !== undefined) {
+        configUpdate.gravity_multiplier = styleOptions.gravity_multiplier;
+      }
+      
+      if (styleOptions.sounds !== undefined) {
+        configUpdate.sounds = styleOptions.sounds;
+      }
+      
+      if (styleOptions.baseScale !== undefined) {
+        configUpdate.baseScale = styleOptions.baseScale;
+      }
+      
+      if (styleOptions.strength !== undefined) {
+        configUpdate.strength = styleOptions.strength;
+      }
+
+      console.log('Updating DiceBox config with:', configUpdate);
+
+      // Apply the configuration update using DiceBox's updateConfig method
+      if (typeof this.diceBox.updateConfig === 'function') {
+        this.diceBox.updateConfig(configUpdate);
+        console.log('DiceBox configuration updated successfully');
+      } else {
+        console.warn('DiceBox.updateConfig method not available');
+      }
+    } catch (error) {
+      console.error('Error updating DiceBox configuration:', error);
+    }
+  }
+
+  /**
+   * Roll dice with style customization and predetermined notation string
+   * @param notation - The dice notation string (e.g., "2d20+1d6@15,8,3")
+   * @param styleOptions - Optional style customization for this roll
+   */
+  async rollWithStyleAndNotation(notation: string, styleOptions?: DiceStyle): Promise<void> {
+    if (!this.diceBox || !this.isInitialized) {
+      console.warn('Dice3DService not initialized');
+      return;
+    }
+    
+    try {
+      // Apply style configuration if provided
+      if (styleOptions) {
+        console.log('Applying custom dice style for roll');
+        this.updateDiceConfig(styleOptions);
+      }
+      
+      // Roll with the updated configuration
+      await this.rollWithNotation(notation);
+      
+    } catch (error) {
+      console.error('Error rolling dice with custom style:', error);
+    }
+  }
 
   /**
    * Schedule cleanup after dice have settled (called by onRollComplete)

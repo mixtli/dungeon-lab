@@ -15,7 +15,7 @@ import type {
 } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 import type { RollTypeHandler } from '@dungeon-lab/shared-ui/types/plugin.mjs';
 import type { BaseDocument, ICompendiumEntry, ActionRequestResult, GameActionType } from '@dungeon-lab/shared/types/index.mjs';
-import type { Roll, RollCallback, RollRequest } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
+import type { Roll, RollRequest } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
 import { ReactivePluginStore } from '../plugin-store.mjs';
 import { CompendiumsClient } from '@dungeon-lab/client/index.mjs';
 import { DocumentsClient } from '@dungeon-lab/client/index.mjs';
@@ -34,6 +34,7 @@ import {
   unregisterAllPluginActionHandlers
 } from '../multi-handler-registry.mjs';
 import { tokenActionRegistry } from '../token-action-registry.mjs';
+import { rollService } from '../roll.service.mjs';
 
 export interface PluginContextOptions {
   includeGameState?: boolean;
@@ -148,24 +149,22 @@ export class PluginContextImpl implements PluginContext {
   /**
    * Submit a roll to the server
    * Plugins use this instead of direct socket access
+   * User dice preferences are automatically applied by the RollService
    */
-  submitRoll(roll: Roll): void {
-    const socketStore = useSocketStore();
-    const socket = socketStore.socket;
+  async submitRoll(roll: Roll): Promise<void> {
+    console.log(`[PluginContext] Submitting roll for plugin '${this.pluginId}':`, {
+      rollId: roll.rollId,
+      rollType: roll.rollType
+    });
     
-    if (!socket) {
-      console.error('No socket connection available for roll submission');
-      return;
+    const result = await rollService.submitRoll(roll);
+    
+    if (!result.success) {
+      console.error(`[PluginContext] Roll submission failed for plugin '${this.pluginId}':`, result.error);
+      throw new Error(result.error || 'Roll submission failed');
     }
     
-    socket.emit('roll', roll, (response: RollCallback) => {
-      if (!response.success) {
-        console.error(`[PluginContext] Roll submission failed:`, response.error);
-      } else {
-        console.log(`[PluginContext] Roll submitted successfully for plugin '${this.pluginId}'`);
-      }
-    });
-    console.log(`[PluginContext] Submitted roll for plugin '${this.pluginId}':`, roll);
+    console.log(`[PluginContext] Roll submitted successfully for plugin '${this.pluginId}'`);
   }
   
   /**
